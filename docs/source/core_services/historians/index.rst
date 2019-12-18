@@ -121,7 +121,7 @@ graphed easily.
 Messages published to `devices` are data that comes
 directly from drivers.
 
-Messages published to `analysis` are analysis data published by agnets
+Messages published to `analysis` are analysis data published by agents
 in the form of key value pairs.
 
 Finally Messages that are published to `record`

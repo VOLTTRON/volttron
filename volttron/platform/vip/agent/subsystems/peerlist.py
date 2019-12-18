@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -67,9 +67,9 @@ class PeerList(SubsystemBase):
         result = next(self._results)
 
         try:
-            connection.send_vip(b'',
-                                b'peerlist',
-                                args=[b'list'],
+            connection.send_vip('',
+                                'peerlist',
+                                args=['list'],
                                 msg_id=result.ident)
         except ZMQError as exc:
             if exc.errno == ENOTSOCK:
@@ -82,9 +82,9 @@ class PeerList(SubsystemBase):
         if not message_bus:
             message_bus = self.core().messagebus
         try:
-            connection.send_vip(b'',
-                                b'peerlist',
-                                args=[b'add', bytes(peer), bytes(message_bus)],
+            connection.send_vip('',
+                                'peerlist',
+                                args=['add', peer, message_bus],
                                 msg_id=result.ident)
         except ZMQError as exc:
             if exc.errno == ENOTSOCK:
@@ -97,10 +97,10 @@ class PeerList(SubsystemBase):
         if not message_bus:
             message_bus = self.core().messagebus
         try:
-            connection.send_vip(b'',
-                                b'peerlist',
-                                args=[b'drop', bytes(peer), bytes(message_bus)],
-                                msg_id=result.ident.encode('utf-8'),)
+            connection.send_vip('',
+                                'peerlist',
+                                args=['drop', peer, message_bus],
+                                msg_id=result.ident)
         except ZMQError as exc:
             if exc.errno == ENOTSOCK:
                 _log.error("Socket send on non socket {}".format(self.core().identity))
@@ -111,9 +111,9 @@ class PeerList(SubsystemBase):
         result = next(self._results)
 
         try:
-            connection.send_vip(b'',
-                                b'peerlist',
-                                args=[b'list_with_messagebus'],
+            connection.send_vip('',
+                                'peerlist',
+                                args=['list_with_messagebus'],
                                 msg_id=result.ident)
         except ZMQError as exc:
             if exc.errno == ENOTSOCK:
@@ -124,39 +124,39 @@ class PeerList(SubsystemBase):
 
     def _handle_subsystem(self, message):
         try:
-            op = bytes(message.args[0])
+            op = message.args[0]
         except IndexError:
             _log.error('missing peerlist subsystem operation')
             return
 
-        if op in [b'add', b'drop']:
+        if op in ['add', 'drop']:
             try:
-                peer = bytes(message.args[1])
+                peer = message.args[1]
             except IndexError:
                 _log.error('missing peerlist identity in %s operation', op)
                 return
             message_bus = None
             try:
-                message_bus = bytes(message.args[2])
+                message_bus = message.args[2]
             except IndexError:
                 pass
             # getattr requires a string
-            onop = 'on' + op.decode('utf-8')
+            onop = 'on' + op
             if message_bus:
                 getattr(self, onop).send(self, peer=peer, message_bus=message_bus)
             else:
                 getattr(self, onop).send(self, peer=peer)
-        elif op == b'listing':
+        elif op == 'listing':
             try:
-                result = self._results.pop(bytes(message.id).decode('utf-8'))
+                result = self._results.pop(message.id)
             except KeyError:
                 return
             # The response will have frames, we convert to bytes and then from bytes
             # we decode to strings for the final response.
-            result.set([bytes(arg).decode('utf-8') for arg in message.args[1:]])
-        elif op == b'listing_with_messagebus':
+            result.set([arg for arg in message.args[1:]])
+        elif op == 'listing_with_messagebus':
             try:
-                result = self._results.pop(bytes(message.id))
+                result = self._results.pop(message.id)
             except KeyError:
                 return
             result.set(jsonapi.loads(message.args[1]))
@@ -165,7 +165,7 @@ class PeerList(SubsystemBase):
 
     def _handle_error(self, sender, message, error, **kwargs):
         try:
-            result = self._results.pop(bytes(message.id).decode('utf-8'))
+            result = self._results.pop(message.id)
         except KeyError:
             return
         result.set_exception(error)

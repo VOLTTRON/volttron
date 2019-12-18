@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -71,7 +71,7 @@ class Query(SubsystemBase):
         """
         connection = self.core().connection
         result = next(self._results)
-        connection.send_vip(peer, b'query', args=[prop.encode('utf-8')],
+        connection.send_vip(peer, 'query', args=[prop],
                             msg_id=result.ident)
         return result
 
@@ -80,18 +80,18 @@ class Query(SubsystemBase):
     def _handle_result(self, message):
         if message.args and not message.args[0]:
             try:
-                result = self._results.pop(bytes(message.id).decode('utf-8'))
+                result = self._results.pop(message.id)
             except KeyError:
                 return
             try:
-                value = jsonapi.loadb(bytes(message.args[1]))
+                value = message.args[1]
             except IndexError:
                 value = None
             result.set(value)
 
     def _handle_error(self, sender, message, error, **kwargs):
         try:
-            result = self._results.pop(bytes(message.id).decode('utf-8'))
+            result = self._results.pop(message.id)
         except KeyError:
             return
         result.set_exception(error)

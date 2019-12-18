@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -54,6 +54,9 @@ import uuid
 
 import gevent
 import gevent.monkey
+
+from volttron.utils.frame_serialization import deserialize_frames, serialize_frames
+
 gevent.monkey.patch_socket()
 gevent.monkey.patch_ssl()
 from gevent.fileobject import FileObject
@@ -64,7 +67,7 @@ import subprocess
 
 # Create a context common to the green and non-green zmq modules.
 from volttron.platform.instance_setup import _update_config_file
-
+from volttron.platform.agent.utils import get_platform_instance_name
 green.Context._instance = green.Context.shadow(zmq.Context.instance().underlying)
 from volttron.platform import jsonapi
 
@@ -81,7 +84,7 @@ from .control import ControlService
 from .web import MasterWebService
 from .store import ConfigStoreService
 from .agent import utils
-from .agent.known_identities import MASTER_WEB, CONFIGURATION_STORE, AUTH, CONTROL
+from .agent.known_identities import MASTER_WEB, CONFIGURATION_STORE, AUTH, CONTROL, CONTROL_CONNECTION
 from .vip.agent.subsystems.pubsub import ProtectedPubSubTopics
 from .keystore import KeyStore, KnownHostsStore
 from .vip.pubsubservice import PubSubService
@@ -175,9 +178,9 @@ def configure_logging(conf_path):
 
     with open(conf_path) as conf_file:
         if conf_format == 'json':
-            import json
+            from volttron.platform import jsonapi
             try:
-                conf_dict = json.load(conf_file)
+                conf_dict = jsonapi.load(conf_file)
             except ValueError as exc:
                 return conf_path, exc
         elif conf_format == 'py':
@@ -372,70 +375,89 @@ class Router(BaseRouter):
                 self._message_debugger_socket.connect(socket_path)
             # Publish the routed message, including the "topic" (status/direction), for use by MessageDebuggerAgent.
             frame_bytes = [topic]
-            frame_bytes.extend([frame if type(frame) is bytes else frame.bytes for frame in frames])
-            self._message_debugger_socket.send_pyobj(frame_bytes)
+            frame_bytes.extend(frames)  # [frame if type(frame) is bytes else frame.bytes for frame in frames])
+            frame_bytes = serialize_frames(frames)
+            # TODO we need to fix the msgdebugger socket if we need it to be connected
+            #frame_bytes = [f.bytes for f in frame_bytes]
+            #self._message_debugger_socket.send_pyobj(frame_bytes)
+    # This is currently not being used e.g once fixed we won't use it.
+    #def extract_bytes(self, frame_bytes):
+    #    result = []
+    #    for f in frame_bytes:
+    #        if isinstance(f, list):
+    #            result.extend(self.extract_bytes(f))
+    #        else:
+    #            result.append(f.bytes)
+    #    return result
 
     def handle_subsystem(self, frames, user_id):
-        subsystem = bytes(frames[5])
-        if subsystem == b'quit':
-            sender = bytes(frames[0])
-            if sender == b'control' and user_id == self.default_user_id:
+        #_log.debug(f"Handling subsystem with frames: {frames} user_id: {user_id}")
+
+        subsystem = frames[5]
+        if subsystem == 'quit':
+            sender = frames[0]
+            # was if sender == 'control' and user_id == self.default_user_id:
+            # now we serialize frames and if user_id is always the sender and not
+            # recipents.get('User-Id') or default user name
+            if sender == 'control':
                 if self._ext_routing:
                     self._ext_routing.close_external_connections()
                 self.stop()
                 raise KeyboardInterrupt()
-        elif subsystem == b'agentstop':
+            else:
+                _log.error(f"Sender {sender} not authorized to shutdown platform")
+        elif subsystem =='agentstop':
             try:
-                drop = frames[6].bytes
+                drop = frames[6]
                 self._drop_peer(drop)
                 self._drop_pubsub_peers(drop)
                 _log.debug("ROUTER received agent stop message. dropping peer: {}".format(drop))
             except IndexError:
-                pass
+                _log.error(f"agentstop called but unable to determine agent from frames sent {frames}")
             return False
-        elif subsystem == b'query':
+        elif subsystem == 'query':
             try:
-                name = bytes(frames[6])
+                name = frames[6]
             except IndexError:
                 value = None
             else:
-                if name == b'addresses':
+                if name == 'addresses':
                     if self.addresses:
                         value = [addr.base for addr in self.addresses]
                     else:
                         value = [self.local_address.base]
-                elif name == b'local_address':
+                elif name == 'local_address':
                     value = self.local_address.base
                 # Allow the agents to know the serverkey.
-                elif name == b'serverkey':
+                elif name == 'serverkey':
                     keystore = KeyStore()
                     value = keystore.public
-                elif name == b'volttron-central-address':
+                elif name == 'volttron-central-address':
                     value = self._volttron_central_address
-                elif name == b'volttron-central-serverkey':
+                elif name == 'volttron-central-serverkey':
                     value = self._volttron_central_serverkey
-                elif name == b'instance-name':
+                elif name == 'instance-name':
                     value = self._instance_name
-                elif name == b'bind-web-address':
+                elif name == 'bind-web-address':
                     value = self._bind_web_address
-                elif name == b'platform-version':
+                elif name == 'platform-version':
                     value = __version__
-                elif name == b'message-bus':
+                elif name == 'message-bus':
                     value = os.environ.get('MESSAGEBUS', 'zmq')
-                elif name == b'agent-monitor-frequency':
+                elif name == 'agent-monitor-frequency':
                     value = self._agent_monitor_frequency
                 else:
                     value = None
-            frames[6:] = [b'', jsonapi.dumpb(value)]
-            frames[3] = b''
+            frames[6:] = ['', value]
+            frames[3] = ''
             return frames
-        elif subsystem == b'pubsub':
+        elif subsystem == 'pubsub':
             result = self.pubsub.handle_subsystem(frames, user_id)
             return result
-        elif subsystem == b'routing_table':
+        elif subsystem == 'routing_table':
             result = self._ext_routing.handle_subsystem(frames)
             return result
-        elif subsystem == b'external_rpc':
+        elif subsystem == 'external_rpc':
             result = self.ext_rpc.handle_subsystem(frames)
             return result
 
@@ -458,7 +480,7 @@ class Router(BaseRouter):
             if sock == self.socket:
                 if sockets[sock] == zmq.POLLIN:
                     frames = sock.recv_multipart(copy=False)
-                    self.route(frames)
+                    self.route(deserialize_frames(frames))
             elif sock in self._ext_routing._vip_sockets:
                 if sockets[sock] == zmq.POLLIN:
                     # _log.debug("From Ext Socket: ")
@@ -472,7 +494,7 @@ class Router(BaseRouter):
     def ext_route(self, socket):
         """
         Handler function for message received through external socket connection
-        :param socket: socket
+        :param socket: socket affected files: {}
         :return:
         """
         # Expecting incoming frames to follow this VIP format:
@@ -630,8 +652,14 @@ def start_volttron_process(opts):
     if opts.instance_name is None:
         if len(opts.vip_address) > 0:
             opts.instance_name = opts.vip_address[0]
-    if opts.message_bus == 'rmq':
+
+    _log.debug("opts.instancename {}".format(opts.instance_name))
+    if opts.instance_name:
         store_message_bus_config(opts.message_bus, opts.instance_name)
+    else:
+        # if there is no instance_name given get_platform_instance_name will
+        # try to retrieve from config or default a value and store it in the config
+        get_platform_instance_name(vhome=opts.volttron_home, prompt=False)
 
     if opts.bind_web_address:
         parsed = urlparse(opts.bind_web_address)
@@ -715,6 +743,16 @@ def start_volttron_process(opts):
             known_hosts.add(addr, encode_key(publickey))
     secretkey = decode_key(keystore.secret)
 
+    # Add the control.connection so that volttron-ctl can access the bus
+    control_conn_path = KeyStore.get_agent_keystore_path(CONTROL_CONNECTION)
+    os.makedirs(os.path.dirname(control_conn_path), exist_ok=True)
+    ks_control_conn = KeyStore(KeyStore.get_agent_keystore_path(CONTROL_CONNECTION))
+    entry = AuthEntry(credentials=encode_key(decode_key(ks_control_conn.public)),
+                      user_id=CONTROL_CONNECTION,
+                      capabilities=[{'edit_config_store': {'identity': '/.*/'}}],
+                      comments='Automatically added by platform on start')
+    AuthFile().add(entry, overwrite=True)
+
     # The following line doesn't appear to do anything, but it creates
     # a context common to the green and non-green zmq modules.
     zmq.Context.instance()  # DO NOT REMOVE LINE!!
@@ -738,6 +776,7 @@ def start_volttron_process(opts):
     # Main loops
     def zmq_router(stop):
         try:
+            _log.debug("Running zmq router")
             Router(opts.vip_local_address, opts.vip_address,
                    secretkey=secretkey, publickey=publickey,
                    default_user_id=b'vip.service', monitor=opts.monitor,

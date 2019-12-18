@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -137,7 +137,7 @@ class CompatPubSub(object):
                     #    ('add' if add else 'remove'), topic))
                     sock.send('subscriptions/{}{}{}'.format(
                         ('add' if add else 'remove'),
-                        ('' if topic[:1] == '/' else '/'), topic).encode('utf-8'))
+                        ('' if topic[:1] == '/' else '/'), topic))
 
     def forward(self, peer, sender, bus, topic, headers, message):
         headers = Headers(headers)

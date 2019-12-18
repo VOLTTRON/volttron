@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -38,12 +38,12 @@
 
 from datetime import timedelta
 import isodate
-import json
 import logging
 import random
 import time
 
 from volttron.platform.agent import utils
+from volttron.platform import  jsonapi
 
 from .oadr_common import *
 
@@ -200,7 +200,7 @@ class OadrEventExtractor(OadrExtractor):
         if not self.ei_event.eiEventSignals.eiEventSignal:
             raise OpenADRInterfaceException('At least one event signal is required.', OADR_BAD_SIGNAL)
         signals_dict = {s.signalID: self.extract_signal(s) for s in self.ei_event.eiEventSignals.eiEventSignal}
-        self.event.signals = json.dumps(signals_dict)
+        self.event.signals = jsonapi.dumps(signals_dict)
         # Sum of all signal interval durations must equal the event duration.
         signals_duration = timedelta(seconds=0)
         for signal in self.ei_event.eiEventSignals.eiEventSignal:
@@ -291,7 +291,7 @@ class OadrReportExtractor(OadrExtractor):
         self.report.duration = duration
 
         self.report.name = self.report_parameters.get('report_name', None)
-        self.report.telemetry_parameters = json.dumps(self.report_parameters.get('telemetry_parameters', None))
+        self.report.telemetry_parameters = jsonapi.dumps(self.report_parameters.get('telemetry_parameters', None))
 
         default = self.report_parameters.get('report_interval_secs_default')
         iso_duration = report_specifier.reportBackDuration

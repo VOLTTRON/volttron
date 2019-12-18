@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -119,22 +119,22 @@ class Channel(SubsystemBase):
             while True:
                 name = ''.join(random.choice(string.printable[:-5])
                                for i in range(30))
-                channel = (peer.encode('utf-8'), name.encode('utf-8'))
+                channel = (peer, name)
                 if channel not in self._channels:
                     break
         else:
-            channel = (peer.encode('utf-8'), name.encode('utf-8'))
+            channel = (peer, name)
             if channel in self._channels:
                 raise ValueError('channel %r is unavailable' % (name,))
         sock = self.context.socket(zmq.DEALER)
         sock.hwm = 1
-        sock.identity = ident = ('%s.%s' % (hash(channel), hash(sock))).encode('utf-8')
+        sock.identity = ident = ('%s.%s' % (hash(channel), hash(sock)))
         sockref = weakref.ref(sock, self._destroy)
         object.__setattr__(sock, 'peer', peer)
         object.__setattr__(sock, 'name', name)
         self._channels[channel] = ident
         self._channels[ident] = channel
-        self._channels[sockref] = (ident, peer.encode('utf-8'), name.encode('utf-8'))
+        self._channels[sockref] = (ident, peer, name)
         close_socket = sock.close
         @functools.wraps(close_socket)
         def close(linger=None):

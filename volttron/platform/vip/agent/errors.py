@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -53,7 +53,7 @@ class VIPError(Exception):
         self.subsystem = subsystem
 
     def __str__(self):
-        return 'VIP error (%d): %s' % (self.errno, self.msg.decode('utf-8'))
+        return 'VIP error (%d): %s' % (self.errno, self.msg)
 
     def __repr__(self):
         return '%s%r' % (type(self).__name__, self.args)
@@ -70,7 +70,7 @@ class VIPError(Exception):
 
 class Unreachable(VIPError):
     def __str__(self):
-        return '%s: %s' % (super(Unreachable, self).__str__(), self.peer.decode('utf-8'))
+        return '%s: %s' % (super(Unreachable, self).__str__(), self.peer)
 
 
 class Again(VIPError):

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -41,6 +41,7 @@ import collections
 import hashlib
 import logging
 import logging.handlers
+import logging.config
 import os
 import re
 import shutil
@@ -183,8 +184,6 @@ class ControlService(BaseAgent):
     def send_alert(self, agent_id, agent_name):
         """Send an alert for the group, summarizing missing topics.
 
-        :param unseen_topics: List of topics that were expected but not received
-        :type unseen_topics: list
         """
         alert_key = "Agent {}({}) stopped unexpectedly".format(agent_name,
                                                                agent_id)
@@ -266,7 +265,7 @@ class ControlService(BaseAgent):
         identity = self.agent_vip_identity(uuid)
         self._aip.stop_agent(uuid)
         # Send message to router that agent is shutting down
-        frames = [identity.encode('utf-8')]
+        frames = [identity]
 
         # Was self.core.socket.send_vip(b'', b'agentstop', frames, copy=False)
         self.core.connection.send_vip(b'', b'agentstop', args=frames, copy=False)
@@ -319,7 +318,7 @@ class ControlService(BaseAgent):
         identity = self.agent_vip_identity(uuid)
         # Because we are using send_vip we should pass frames that have bytes rather than
         # strings.
-        frames = [identity.encode('utf-8')]
+        frames = [identity]
 
         # Send message to router that agent is shutting down
         self.core.connection.send_vip(b'', b'agentstop', args=frames)
@@ -553,7 +552,7 @@ def backup_agent_data(output_filename, source_dir):
 
 def restore_agent_data_from_tgz(source_file, output_dir):
     # Open tarfile
-    with tarfile.open(mode="r:gz", fileobj=file(source_file)) as tar:
+    with tarfile.open(source_file, mode="r:gz") as tar:
         tar.extractall(output_dir)
 
 
@@ -1141,11 +1140,11 @@ def _comma_split(line):
 
 
 def _parse_capabilities(line):
-    if not isinstance(line, basestring):
+    if not isinstance(line, str):
         return line
     line = line.strip()
     try:
-       result = json.loads(line.replace("'", "\""))
+       result = jsonapi.loads(line.replace("'", "\""))
     except Exception as e:
         result = _comma_split(line)
     return result
@@ -1390,7 +1389,7 @@ def _show_filtered_agents(opts, field_name, field_callback, agents=None):
     if not agents:
         _stderr.write('No installed Agents found\n')
         return
-    agents.sort()
+    agents = sorted(agents, key=lambda x: x.name)
     if not opts.min_uuid_len:
         n = 36
     else:
@@ -1438,7 +1437,8 @@ def _show_filtered_agents_status(opts, status_callback, health_callback, agents=
     if not agents:
         _stderr.write('No installed Agents found\n')
         return
-    agents.sort()
+
+    agents = sorted(agents, key=lambda x: x.name)
     if not opts.min_uuid_len:
         n = 36
     else:
@@ -1586,13 +1586,11 @@ def edit_config(opts):
 
 
 class ControlConnection(object):
-    def __init__(self, address, peer='control',
-                 publickey=None, secretkey=None, serverkey=None):
+    def __init__(self, address, peer='control'):
         self.address = address
         self.peer = peer
         message_bus = utils.get_messagebus()
-        self._server = BaseAgent(address=self.address, publickey=publickey,
-                                 secretkey=secretkey, serverkey=serverkey,
+        self._server = BaseAgent(address=self.address,
                                  enable_store=False,
                                  identity=CONTROL_CONNECTION,
                                  message_bus=message_bus,
@@ -1740,7 +1738,7 @@ def list_users(opts):
 def list_user_properties(opts):
     try:
         props = rmq_mgmt.get_user_props(opts.user)
-        for key, value in props.iteritems():
+        for key, value in props.items():
             _stdout.write("{0}: {1} \n".format(key, value))
     except requests.exceptions.HTTPError as e:
         _stdout.write("No User Found: {} \n".format(opts.user))
@@ -2713,8 +2711,7 @@ def main(argv=sys.argv):
 
     opts.aip = aipmod.AIPplatform(opts)
     opts.aip.setup()
-    opts.connection = ControlConnection(opts.vip_address,
-                                        **get_keys(opts))
+    opts.connection = ControlConnection(opts.vip_address)
 
     try:
         with gevent.Timeout(opts.timeout):

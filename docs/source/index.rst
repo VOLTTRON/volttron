@@ -20,11 +20,11 @@ Features
 
 Out of the box VOLTTRON provides:
 
-- a secure :ref:`message bus <messagebus index>` allowing agents to subcribe to data sources and publish results and messages.
+- a secure :ref:`message bus <messagebus index>` allowing agents to subscribe to data sources and publish results and messages.
 - secure connectivity between multiple instances.
 - BACnet, ModBus and other device/system protocol connectivity through our :ref:`driver framework <VOLTTRON-Driver-Framework>` for collecting data from and sending control actions to buildings and devices.
 - automatic data capture and retrieval through our :ref:`historian framework <Historian Index>`.
-- platform based :ref:`agent lifecycle managment <AgentManagement>`.
+- platform based :ref:`agent lifecycle management <AgentManagement>`.
 - a :ref:`web based management <VOLTTRON-Central>` tool for managing several instances from a central instance.
 - the ability to easily extend the functionality of existing agents or create new ones for your specific purposes.
 

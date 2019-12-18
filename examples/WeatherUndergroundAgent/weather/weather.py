@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -37,8 +37,7 @@
 # }}}
 import sys
 import logging
-import json
-
+from volttron.platform import jsonapi
 import pytz
 from dateutil import parser
 from datetime import datetime, timedelta
@@ -113,7 +112,7 @@ class Weather2Agent(Agent):
 
     @Core.receiver('onstart')
     def onstart(self, sender, **kwargs):
-        _log.debug('WeatherAgent: Subscribing to ' + self.request_topic_prefix)
+        _log.debug('WeatherUndergroundAgent: Subscribing to ' + self.request_topic_prefix)
         self.vip.pubsub.subscribe(peer='pubsub',
                                   prefix=self.request_topic_prefix,
                                   callback=self.on_request)
@@ -206,7 +205,7 @@ class Weather2Agent(Agent):
         if isinstance(wu_resp, list):
             # history request returned fine
             return True
-        parsed_json = json.loads(wu_resp)
+        parsed_json = jsonapi.loads(wu_resp)
         if 'response' in parsed_json and 'error' in parsed_json['response']:
             raise WeatherUndergroundError("{}:{}".format(
                 parsed_json['response']['error'].get('type'),
@@ -228,7 +227,7 @@ class Weather2Agent(Agent):
 
         try:
             for wu_resp in wu_resp_arr:
-                parsed_json = json.loads(wu_resp)
+                parsed_json = jsonapi.loads(wu_resp)
                 if 'history' in parsed_json and 'observations' in parsed_json['history']:
                     observations = parsed_json['history']['observations']
                     for observation in observations:
@@ -259,7 +258,7 @@ class Weather2Agent(Agent):
 
         try:
             parsed_values = {}
-            parsed_json = json.loads(wu_resp)
+            parsed_json = jsonapi.loads(wu_resp)
             if 'current_observation' in parsed_json:
                 cur_observation = parsed_json['current_observation']
                 for point in all_current:
@@ -279,7 +278,7 @@ class Weather2Agent(Agent):
             return publish_items
 
         try:
-            parsed_json = json.loads(wu_resp)
+            parsed_json = jsonapi.loads(wu_resp)
             if 'hourly_forecast' in parsed_json:
                 observations = parsed_json['hourly_forecast']
                 for observation in observations:

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -42,6 +42,7 @@ import socket
 # reload to get the socket that is not patched by gevent.
 # pika requires socket patched and thread not patched
 # pymongo requires either both patched (to support gevent) or both unpatched to use threads
+from importlib import reload
 reload(socket)
 
 import pymongo

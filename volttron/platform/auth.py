@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -133,7 +133,12 @@ class AuthService(Agent):
         entries.sort()
         self.auth_entries = entries
         if self._is_connected:
-            self._send_update()
+            try:
+                _log.debug("Sending auth updates to peers")
+                self._send_update()
+            except BaseException as e:
+                _log.error("Exception sending auth updates to peer. {}".format(e))
+                raise e
         _log.info('auth file %s loaded', self.auth_file_path)
 
     def get_protected_topics(self):
@@ -158,8 +163,23 @@ class AuthService(Agent):
 
     def _send_update(self):
         user_to_caps = self.get_user_to_capabilities()
-        peers = self.vip.peerlist().get(timeout=0.1)
-        _log.debug("AUTH new capabilities update: {}".format(user_to_caps))
+        i = 0
+        exception = None
+        peers = None
+        # peerlist times out lots of times when running test suite. This happens even with higher timeout in get()
+        # but if we retry peerlist succeeds by second attempt most of the time!!!
+        while not peers and i < 3:
+            try:
+                i = i + 1
+                peers = self.vip.peerlist().get(timeout=0.5)
+            except BaseException as e:
+                _log.warning("Attempt {} to get peerlist failed with exception {}".format(i, e))
+                exception = e
+
+        if not peers:
+            raise exception
+
+        _log.debug("after getting peerlist to send auth updates")
 
         for peer in peers:
             if peer not in [self.core.identity]:
@@ -202,6 +222,16 @@ class AuthService(Agent):
 
     @Core.receiver('onstart')
     def zap_loop(self, sender, **kwargs):
+        """
+        The zap loop is the starting of the authentication process for
+        the VOLTTRON zmq message bus.  It talks directly with the low
+        level socket so all responses must be byte like objects, in
+        this case we are going to send zmq frames across the wire.
+
+        :param sender:
+        :param kwargs:
+        :return:
+        """
         self._is_connected = True
         self._zap_greenlet = gevent.getcurrent()
         sock = self.zap_socket
@@ -474,7 +504,7 @@ class AuthService(Agent):
             for peer in peers:
                 self._user_to_permissions[peer].clear()
         else:
-            for topic, caps_for_topic in topic_to_caps.iteritems():
+            for topic, caps_for_topic in topic_to_caps.items():
                 for user in user_to_caps:
                     try:
                         caps_for_user = user_to_caps[user]
@@ -525,8 +555,8 @@ class AuthService(Agent):
         if current and isinstance(current, list):
             current = current[0]
             dift = False
-            read_allowed_str = ("|").join(read_tokens)
-            write_allowed_str = ("|").join(write_tokens)
+            read_allowed_str = "|".join(read_tokens)
+            write_allowed_str = "|".join(write_tokens)
             if re.search(current['read'], read_allowed_str):
                 dift = True
                 current["read"] = read_allowed_str
@@ -662,7 +692,6 @@ class AuthEntry(object):
         else:
             return AuthEntry._get_capability(value)
 
-
     @staticmethod
     def _get_capability(value):
         err_message = "Invalid capability value: {} of type {}. Capability entries can only be a string or " \
@@ -756,9 +785,6 @@ class AuthFile(object):
                 # Use gevent FileObject to avoid blocking the thread
                 before_strip_comments = FileObject(fil, close=False).read()
                 data = strip_comments(before_strip_comments.decode("utf-8"))
-                if data != before_strip_comments:
-                    _log.warning('Comments in %s are deprecated and will not be '
-                              'preserved', self.auth_file)
                 if data:
                     auth_data = jsonapi.loads(data)
         except Exception:

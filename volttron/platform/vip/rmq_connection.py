@@ -1,70 +1,51 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
-
-# Copyright (c) 2017, Battelle Memorial Institute
-# All rights reserved.
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
+# Copyright 2019, Battelle Memorial Institute.
 #
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in
-#    the documentation and/or other materials provided with the
-#    distribution.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# http://www.apache.org/licenses/LICENSE-2.0
 #
-# The views and conclusions contained in the software and documentation
-# are those of the authors and should not be interpreted as representing
-# official policies, either expressed or implied, of the FreeBSD
-# Project.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
-# This material was prepared as an account of work sponsored by an
-# agency of the United States Government.  Neither the United States
-# Government nor the United States Department of Energy, nor Battelle,
-# nor any of their employees, nor any jurisdiction or organization that
-# has cooperated in the development of these materials, makes any
-# warranty, express or implied, or assumes any legal liability or
-# responsibility for the accuracy, completeness, or usefulness or any
-# information, apparatus, product, software, or process disclosed, or
-# represents that its use would not infringe privately owned rights.
-#
-# Reference herein to any specific commercial product, process, or
-# service by trade name, trademark, manufacturer, or otherwise does not
-# necessarily constitute or imply its endorsement, recommendation, or
+# This material was prepared as an account of work sponsored by an agency of
+# the United States Government. Neither the United States Government nor the
+# United States Department of Energy, nor Battelle, nor any of their
+# employees, nor any jurisdiction or organization that has cooperated in the
+# development of these materials, makes any warranty, express or
+# implied, or assumes any legal liability or responsibility for the accuracy,
+# completeness, or usefulness or any information, apparatus, product,
+# software, or process disclosed, or represents that its use would not infringe
+# privately owned rights. Reference herein to any specific commercial product,
+# process, or service by trade name, trademark, manufacturer, or otherwise
+# does not necessarily constitute or imply its endorsement, recommendation, or
 # favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors
-# expressed herein do not necessarily state or reflect those of the
+# Battelle Memorial Institute. The views and opinions of authors expressed
+# herein do not necessarily state or reflect those of the
 # United States Government or any agency thereof.
 #
-# PACIFIC NORTHWEST NATIONAL LABORATORY
-# operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
+# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
 
 import errno
-import json
 import logging
 import os
 
-from volttron.platform import is_rabbitmq_available
+from volttron.platform import is_rabbitmq_available, jsonapi
 from volttron.platform.agent.utils import get_fq_identity
 from volttron.platform.vip import BaseConnection
 from volttron.platform.vip.agent.errors import Unreachable
 from volttron.platform.vip.socket import Message
+from volttron.utils.frame_serialization import deserialize_frames
 
 if is_rabbitmq_available():
     import pika
@@ -314,7 +295,7 @@ class RMQConnection(BaseConnection):
 
         msg = Message()
         msg.peer = peer
-        msg.user = props.headers.get('user', b'')
+        msg.user = props.headers.get('user', '')
         msg.platform = platform
         msg.id = props.message_id
         msg.subsystem = props.type
@@ -330,18 +311,18 @@ class RMQConnection(BaseConnection):
         :return:
         """
         platform = getattr(message, 'platform', self._instance_name)
-        if message.peer == b'':
+        if message.peer == '':
             message.peer = 'router'
-        if platform == b'':
+        if platform == '':
             platform = self._instance_name
 
         destination_routing_key = "{0}.{1}".format(platform, message.peer)
         user = getattr(message, 'user', self._rmq_userid)
-        msg_id = getattr(message, 'id', b'')
+        msg_id = getattr(message, 'id', '')
         self._send_via_rmq(destination_routing_key, message.subsystem, message.args, msg_id, user)
 
-    def send_vip(self, peer, subsystem, args=None, msg_id=b'',
-                 user=b'', via=None, flags=0, copy=True, track=False, platform=None):
+    def send_vip(self, peer, subsystem, args=None, msg_id='',
+                 user='', via=None, flags=0, copy=True, track=False, platform=None):
         """
         Send VIP message over RabbitMQ message bus.
         :param peer: peer
@@ -356,11 +337,11 @@ class RMQConnection(BaseConnection):
         :param platform: instance name
         :return:
         """
-        if not platform or platform == b'':
+        if not platform or platform == '':
             platform = self._instance_name
-        if peer == b'':
+        if peer == '':
             peer = 'router'
-        if user == b'':
+        if user == '':
             user = self._rmq_userid
         destination_routing_key = "{0}.{1}".format(platform, peer)
         self._send_via_rmq(destination_routing_key, subsystem, args, msg_id, user)
@@ -383,7 +364,7 @@ class RMQConnection(BaseConnection):
             'app_id': self.routing_key,  # Routing key of SENDER
             'headers': dict(
                 recipient=destination_routing_key,  # RECEIVER
-                proto=b'VIP',  # PROTO
+                proto='VIP',  # PROTO
                 user=user,  # USER_ID
             ),
             'message_id': msg_id,  # MSG_ID
@@ -401,6 +382,53 @@ class RMQConnection(BaseConnection):
                                        destination_routing_key,
                                        jsonapi.dumps(msg, ensure_ascii=False),
                                        properties)
+        except (pika.exceptions.AMQPConnectionError,
+                pika.exceptions.AMQPChannelError) as exc:
+            raise Unreachable(errno.EHOSTUNREACH, "Connection to RabbitMQ is lost",
+                              'rabbitmq broker', 'rmq_connection')
+
+    def send_via_proxy(self, peer, subsystem, args=None, msg_id='', user='',
+                       via=None, flags=0, copy=False, track=False):
+        rkey = self._instance_name + '.proxy.router.zmq.outbound.subsystem'
+        # Reformat the message into ZMQ VIP message frames
+        # VIP format - [TO, FROM, PROTO, USER_ID, MSG_ID, SUBSYS, ARGS...]
+        frames = [peer, self._identity, 'VIP1', user, msg_id, subsystem]
+        for arg in args:
+            frames.append(arg)
+
+        try:
+            # Publish to proxy router agent
+            self.channel.basic_publish(exchange=self.exchange,
+                                       routing_key=rkey,
+                                       body=jsonapi.dumps(frames))
+        except (pika.exceptions.AMQPConnectionError,
+                pika.exceptions.AMQPChannelError) as exc:
+            raise Unreachable(errno.EHOSTUNREACH, "Connection to RabbitMQ is lost",
+                              'rabbitmq broker', 'rmq_connection')
+
+    def send_vip_object_via_proxy(self, vip_object):
+        """
+        Send the VIP object to proxy router agent
+        :param vip_object: VIP message
+        :return:
+        """
+        rkey = self._instance_name + '.proxy.router.zmq.outbound.subsystem'
+
+        msg_id = getattr(vip_object, 'id', '')
+        user = getattr(vip_object, 'user', '')
+
+        # Reformat the message into ZMQ VIP message frames
+        # VIP format - [TO, FROM, PROTO, USER_ID, MSG_ID, SUBSYS, ARGS...]
+        frames = [vip_object.peer, self._identity,
+                  'VIP1', user, msg_id, vip_object.subsystem]
+        for arg in vip_object.args:
+            frames.append(arg)
+
+        try:
+            # Publish to proxy router agent
+            self.channel.basic_publish(exchange=self.exchange,
+                                       routing_key=rkey,
+                                       body=jsonapi.dumps(frames))
         except (pika.exceptions.AMQPConnectionError,
                 pika.exceptions.AMQPChannelError) as exc:
             raise Unreachable(errno.EHOSTUNREACH, "Connection to RabbitMQ is lost",
@@ -536,7 +564,7 @@ class RMQRouterConnection(RMQConnection):
         sender = props.app_id
         subsystem = props.type
         props.app_id = self.routing_key
-        props.type = b'error'
+        props.type = 'error'
         props.user_id = self._rmq_userid
         errnum = errno.EHOSTUNREACH
         errmsg = os.strerror(errnum).encode('ascii')
@@ -545,11 +573,13 @@ class RMQRouterConnection(RMQConnection):
         recipient = props.headers.get('recipient', '') if props.headers else ''
         message = [errnum, errmsg, recipient, subsystem]
 
-        # _log.error("Host Unreachable Error Message is: {0}, {1}, {2}, {3}".format(
-        #     message,
-        #     method.routing_key,
-        #     sender,
-        #     props))
+        _log.error("Host Unreachable Error Message is: {0}, {1}, {2}, {3}".format(
+            message,
+            method.routing_key,
+            sender,
+            props))
+
+        real_message = jsonapi.dumps(deserialize_frames(message), ensure_ascii=False)
 
         # The below try/except protects the platform from someone who is not communicating
         # via vip protocol.  If sender is not a string then the channel publish will throw
@@ -557,7 +587,7 @@ class RMQRouterConnection(RMQConnection):
         try:
             self.channel.basic_publish(self.exchange,
                                        sender,
-                                       jsonapi.dumps(message, ensure_ascii=False),
+                                       real_message,
                                        props)
         except AssertionError:
             pass

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -39,11 +39,11 @@
 from datetime import datetime as dt
 from datetime import timedelta
 import isodate
-import json
 import logging
 import uuid
 
 from volttron.platform.agent import utils
+from volttron.platform import jsonapi
 
 from . import oadr_20b
 from .oadr_common import *
@@ -173,7 +173,7 @@ class OadrRegisterReportBuilder(OadrReportBuilder):
 
     def build_metadata_oadr_report(self, report):
         descriptions = []
-        for tel_vals in json.loads(report.telemetry_parameters).values():
+        for tel_vals in jsonapi.loads(report.telemetry_parameters).values():
             # Rule 305: For TELEMETRY_USAGE reports, units in reportDescription.itemBase should be powerReal.
             if tel_vals['units'] == 'powerReal':
                 item_base = oadr_20b.PowerRealType(itemDescription='RealPower',
@@ -321,7 +321,7 @@ class OadrUpdateReportBuilder(OadrReportBuilder):
     def build_report_payload_list(self, telemetry_values):
         """Build a list of ReportPayloads containing current telemetry."""
         report_payload_list = []
-        for tel_val in json.loads(self.report.telemetry_parameters).values():
+        for tel_val in jsonapi.loads(self.report.telemetry_parameters).values():
             payload = self.build_report_payload_float(telemetry_values, tel_val['r_id'], tel_val['method_name'])
             if payload:
                 report_payload_list.append(payload)

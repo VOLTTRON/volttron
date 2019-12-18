@@ -2,10 +2,10 @@ import pytest
 import gevent
 import logging
 import time
-import json
+
 from random import randint
 from volttrontesting.utils.utils import get_rand_ip_and_port
-from volttron.platform import get_services_core
+from volttron.platform import get_services_core, jsonapi
 from master_driver.interfaces.modbus_tk.server import Server
 from master_driver.interfaces.modbus_tk.maps import Map, Catalog
 from volttron.platform.agent.known_identities import PLATFORM_DRIVER
@@ -119,14 +119,14 @@ def agent(request, volttron_instance):
                           'manage_store',
                           PLATFORM_DRIVER,
                           'devices/modbus_tk',
-                          json.dumps(DRIVER_CONFIG),
+                          jsonapi.dumps(DRIVER_CONFIG),
                           config_type='json')
 
     md_agent.vip.rpc.call('config.store',
                           'manage_store',
                           PLATFORM_DRIVER,
                           'devices/modbus',
-                          json.dumps(OLD_VOLTTRON_DRIVER_CONFIG),
+                          jsonapi.dumps(OLD_VOLTTRON_DRIVER_CONFIG),
                           config_type='json')
 
     # Add csv configurations

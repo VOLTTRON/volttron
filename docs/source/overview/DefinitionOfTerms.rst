@@ -42,7 +42,7 @@ VOLTTRON Terms
 
     .. _bootstrap-environment:
 
-    Bootstrap Enviornment
+    Bootstrap Environment
         The process by which an operating environment (activated environment)
         is produced.  From the :ref:`VOLTTRON_ROOT` directory executing
         ``python bootstrap.py`` will start the bootstrap process.

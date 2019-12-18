@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -670,7 +670,7 @@ def test_indefinite_override_on(config_store, test_agent):
 
 
 @pytest.mark.driver
-def test_indefinite_override_after_restart(config_store, test_agent, volttron_instance1):
+def test_indefinite_override_after_restart(config_store, test_agent, volttron_instance):
     for i in range(4):
         config_name = "devices/fakedriver{}".format(i)
         setup_config(config_store, config_name, fake_device_config)

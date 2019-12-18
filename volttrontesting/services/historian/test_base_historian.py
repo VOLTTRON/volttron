@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -37,10 +37,8 @@
 # }}}
 
 import shutil
-import json
-import os
 
-from volttron.platform import get_services_core
+from volttron.platform import get_services_core, jsonapi
 
 from volttron.platform.agent.base_historian import (BaseHistorian,
                                                     STATUS_KEY_BACKLOGGED,
@@ -76,11 +74,11 @@ def prep_config(volttron_home):
     shutil.copy(src_driver, new_driver)
 
     with open(new_driver, 'r+') as f:
-        config = json.load(f)
+        config = jsonapi.load(f)
         config['registry_config'] = os.getcwd() + '/services/core/MasterDriverAgent/master_driver/fake.csv'
         f.seek(0)
         f.truncate()
-        json.dump(config, f)
+        jsonapi.dump(config, f)
 
     master_config = {
         "agentid": "master_driver",
@@ -242,15 +240,6 @@ def test_health_stuff(request, volttron_instance, client_agent):
                                              message=all_message).get(timeout=10)
         gevent.sleep(2)
         status = client_agent.vip.rpc.call("platform.historian", "health.get_status").get(timeout=10)
-        for _ in range(10):
-            client_agent.vip.pubsub.publish('pubsub',
-                                            DEVICES_ALL_TOPIC,
-                                            headers=headers,
-                                            message=all_message).get(timeout=10)
-
-        gevent.sleep(2)
-
-        status = client_agent.vip.rpc.call("platform.historian", "health.get_status").get(timeout=10)
 
         alert_publish = alert_publishes[0]
 
@@ -275,7 +264,7 @@ def test_health_stuff(request, volttron_instance, client_agent):
 
         # Test publish slow or backlogged
 
-        historian.publish_sleep = 0.75
+        historian.publish_sleep = 1
 
         for _ in range(1500):
             client_agent.vip.pubsub.publish('pubsub',

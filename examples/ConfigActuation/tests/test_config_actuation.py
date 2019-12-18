@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -41,14 +41,14 @@ Pytest test cases for testing actuator agent using rpc calls.
 """
 from datetime import datetime, timedelta
 
-import json
+
 import gevent
 import gevent.subprocess as subprocess
 import pytest
 from gevent.subprocess import Popen
 from mock import MagicMock
 
-from volttron.platform import get_services_core, get_examples
+from volttron.platform import get_services_core, get_examples, jsonapi
 from volttron.platform.jsonrpc import RemoteError
 from volttron.platform.messaging import topics
 from volttron.platform.agent.known_identities import PLATFORM_DRIVER, CONFIGURATION_STORE
@@ -160,7 +160,7 @@ def test_thing(publish_agent):
                                "manage_store",
                                "config_actuation",
                                "fakedriver",
-                               json.dumps({"SampleWritableFloat1": 42.0}),
+                               jsonapi.dumps({"SampleWritableFloat1": 42.0}),
                                "json").get()
 
     value = publish_agent.vip.rpc.call(PLATFORM_ACTUATOR,

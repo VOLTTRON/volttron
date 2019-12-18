@@ -154,7 +154,7 @@ VTN_ID                    “vtn01”                  OpenADR ID of this virtua
                                                    nodes must know this VTN_ID to be able to
                                                    communicate with the VTN.
 ONLINE_INTERVAL_MINUTES   15                       The amount of time, in minutes, that determines how
-                                                   long the VTN will wait until dsplaying a given VEN
+                                                   long the VTN will wait until displaying a given VEN
                                                    offline. In other words, if the VTN does not receive
                                                    any communication from a given VEN within
                                                    ONLINE_INTERVAL_MINUTES minutes, the VTN will display

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2018, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -71,15 +71,12 @@ may be used. Look here for more information on configuring pip:
 
 import argparse
 import errno
-import json
 import logging
 import subprocess
 import sys
 from urllib.request import urlopen
-from urllib.error import HTTPError
 
 import os
-from distutils.version import LooseVersion
 import traceback
 
 from requirements import extras_require, option_requirements
@@ -289,7 +286,7 @@ def main(argv=sys.argv):
     # if os.path.exists('optional_requirements.json'):
     #     po = parser.add_argument_group('Extra packaging options')
     #     with open('optional_requirements.json', 'r') as optional_arguments:
-    #         data = json.load(optional_arguments)
+    #         data = jsonapi.load(optional_arguments)
     #         for arg, vals in data.items():
     #             if arg == '--rabbitmq':
     #                 po.add_argument(

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -61,10 +61,15 @@ def template_env(env):
 
 class AdminEndpoints(object):
 
-    def __init__(self, rmq_mgmt, ssl_public_key):
+    def __init__(self, rmq_mgmt, ssl_public_key: bytes):
 
         self._rmq_mgmt = rmq_mgmt
-        self._ssl_public_key = ssl_public_key
+        if isinstance(ssl_public_key, bytes):
+            self._ssl_public_key = ssl_public_key.decode('utf-8')
+        elif isinstance(ssl_public_key, str):
+            self._ssl_public_key = ssl_public_key
+        else:
+            raise ValueError("Invalid type for ssl_public_key")
         self._userdict = None
         self.reload_userdict()
         # TODO Add back reload capability

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -196,10 +196,10 @@ class MasterWebService(Agent):
         :param endpoint:
         :return:
         """
+        # Get calling identity from whom the request came from
+        identity = self.vip.rpc.context.vip_message.peer
         _log.debug('Registering route with endpoint: {}'.format(endpoint))
-        # Get calling peer from the rpc context
-        peer = bytes(self.vip.rpc.context.vip_message.peer).decode("utf-8")
-        _log.debug('Route is associated with peer: {}'.format(peer))
+        _log.debug('Route is associated with peer: {}'.format(identity))
 
         if endpoint in self.endpoints:
             _log.error("Attempting to register an already existing endpoint.")
@@ -207,7 +207,7 @@ class MasterWebService(Agent):
             raise DuplicateEndpointError(
                 "Endpoint {} is already an endpoint".format(endpoint))
 
-        self.endpoints[endpoint] = (peer, res_type)
+        self.endpoints[endpoint] = (identity, res_type)
 
     @RPC.export
     def register_agent_route(self, regex, fn):
@@ -216,58 +216,58 @@ class MasterWebService(Agent):
         When a http request is executed and matches the passed regular
         expression then the function on peer is executed.
         """
-
-        # Get calling peer from the rpc context
-        peer = bytes(self.vip.rpc.context.vip_message.peer).decode("utf-8")
+        # Get calling identity from whom the request came from
+        identity = self.vip.rpc.context.vip_message.peer
 
         _log.info(
             'Registering agent route expression: {} peer: {} function: {}'
-                .format(regex, peer, fn))
+                .format(regex, identity, fn))
 
         # TODO: inspect peer for function
 
         compiled = re.compile(regex)
-        self.peerroutes[peer].append(compiled)
-        self.registeredroutes.insert(0, (compiled, 'peer_route', (peer, fn)))
+        self.peerroutes[identity].append(compiled)
+        self.registeredroutes.insert(0, (compiled, 'peer_route', (identity, fn)))
 
     @RPC.export
     def unregister_all_agent_routes(self):
+        # Get calling identity from whom the request came from
+        identity = self.vip.rpc.context.vip_message.peer
 
-        # Get calling peer from the rpc context
-        peer = bytes(self.vip.rpc.context.vip_message.peer).decode("utf-8")
-
-        _log.info('Unregistering agent routes for: {}'.format(peer))
-        for regex in self.peerroutes[peer]:
+        _log.info('Unregistering agent routes for: {}'.format(identity))
+        for regex in self.peerroutes[identity]:
             out = [cp for cp in self.registeredroutes if cp[0] != regex]
             self.registeredroutes = out
-        del self.peerroutes[peer]
-        for regex in self.pathroutes[peer]:
+        del self.peerroutes[identity]
+        for regex in self.pathroutes[identity]:
             out = [cp for cp in self.registeredroutes if cp[0] != regex]
             self.registeredroutes = out
-        del self.pathroutes[peer]
+        del self.pathroutes[identity]
 
         _log.debug(self.endpoints)
         endpoints = self.endpoints.copy()
-        endpoints = {i:endpoints[i] for i in endpoints if endpoints[i][0] != peer}
+        endpoints = {i:endpoints[i] for i in endpoints if endpoints[i][0] != identity}
         _log.debug(endpoints)
         self.endpoints = endpoints
 
     @RPC.export
     def register_path_route(self, regex, root_dir):
-        _log.info('Registering path route: {} {}'.format(regex, root_dir))
+        # Get calling identity from whom the request came from
+        identity = self.vip.rpc.context.vip_message.peer
 
-        # Get calling peer from the rpc context
-        peer = bytes(self.vip.rpc.context.vip_message.peer).decode("utf-8")
+        _log.info(f'Registering web path route from {identity} regex: {regex} dir: {root_dir}')
 
         compiled = re.compile(regex)
-        self.pathroutes[peer].append(compiled)
+        self.pathroutes[identity].append(compiled)
         # in order for this agent to pass against the default route we want this
         # to be before the last route which will resolve to .*
         self.registeredroutes.insert(len(self.registeredroutes) - 1, (compiled, 'path', root_dir))
 
     @RPC.export
     def register_websocket(self, endpoint):
-        identity = bytes(self.vip.rpc.context.vip_message.peer).decode("utf-8")
+        # Get calling identity from whom the request came from
+        identity = self.vip.rpc.context.vip_message.peer
+
         _log.debug('Caller identity: {}'.format(identity))
         _log.debug('REGISTERING ENDPOINT: {}'.format(endpoint))
         if self.appContainer:
@@ -280,7 +280,9 @@ class MasterWebService(Agent):
 
     @RPC.export
     def unregister_websocket(self, endpoint):
-        identity = bytes(self.vip.rpc.context.vip_message.peer).decode("utf-8")
+        # Get calling identity from whom the request came from
+        identity = self.vip.rpc.context.vip_message.peer
+
         _log.debug('Caller identity: {}'.format(identity))
         self.appContainer.destroy_ws_endpoint(endpoint)
 
@@ -341,6 +343,8 @@ class MasterWebService(Agent):
 
         return_dict = {}
 
+        # Only send vip and serverkey if the platform has specified
+        # a tcp address in the <VOLTTRON_HOME>/config or --vip-address command line argument.
         if external_vip and self.serverkey:
             return_dict['serverkey'] = encode_key(self.serverkey)
             return_dict['vip-address'] = external_vip
@@ -358,7 +362,8 @@ class MasterWebService(Agent):
                 rmq_address = "amqp://{host}:{port}/{vhost}".format(host=config.hostname, port=config.amqp_port,
                                                                     vhost=config.virtual_host)
             return_dict['rmq-address'] = rmq_address
-            return_dict['rmq-ca-cert'] = self._certs.cert(self._certs.root_ca_name).public_bytes(serialization.Encoding.PEM)
+            return_dict['rmq-ca-cert'] = self._certs.cert(self._certs.root_ca_name).public_bytes(
+                serialization.Encoding.PEM).decode("utf-8")
         return JsonResponse(return_dict)
 
     def app_routing(self, env, start_response):
@@ -380,7 +385,7 @@ class MasterWebService(Agent):
                    'HTTP_ACCEPT_ENCODING', 'HTTP_COOKIE', 'CONTENT_TYPE',
                    'HTTP_AUTHORIZATION', 'SERVER_NAME', 'wsgi.url_scheme',
                    'HTTP_HOST']
-        data = env['wsgi.input'].read()
+        data = env['wsgi.input'].read().decode('utf-8')
         passenv = dict(
             (envlist[i], env[envlist[i]]) for i in range(0, len(envlist)) if envlist[i] in env.keys())
 
@@ -398,7 +403,8 @@ class MasterWebService(Agent):
             # Load the publickey that was used to sign the login message through the env
             # parameter so agents can use it to verify the Bearer has specific
             # jwt claims
-            passenv['WEB_PUBLIC_KEY'] = env['WEB_PUBLIC_KEY'] = self._certs.get_cert_public_key(get_fq_identity(self.core.identity))
+            passenv['WEB_PUBLIC_KEY'] = env['WEB_PUBLIC_KEY'] = self._certs.get_cert_public_key(
+                get_fq_identity(self.core.identity)).decode('utf-8')
 
         # if we have a peer then we expect to call that peer's web subsystem
         # callback to perform whatever is required of the method.
@@ -466,9 +472,9 @@ class MasterWebService(Agent):
             return True
         return False
 
-    def process_response(self, start_responsee, response):
+    def process_response(self, start_response, response):
         # process the response
-        start_responsee(response.status, response.headers)
+        start_response(response.status, response.headers)
         return [response.content]
 
     def create_raw_response(self, res, start_response):
@@ -511,16 +517,18 @@ class MasterWebService(Agent):
 
             start_response('200 OK',
                            [('Content-Type', 'application/json')])
-            return jsonapi.dumpb(res)
+            return [jsonapi.dumpb(res)]
         elif isinstance(res, list):
-            _log.debug('list implies [content, headers]')
+            _log.debug('list implies [content, headers] or [status, content, headers]')
             if len(res) == 2:
                 start_response('200 OK',
                                res[1])
                 return res[0]
             elif len(res) == 3:
                 start_response(res[0], res[2])
-                return res[1]
+                if isinstance(res[1], str):
+                    return [res[1].encode('utf-8')]
+                return [res[1]]
 
         # If this is a tuple then we know we are going to have a response
         # and a headers portion of the data.

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -38,7 +38,7 @@
 
 import logging
 import os
-import requests
+import grequests
 
 from urllib.parse import urlparse
 import weakref
@@ -278,9 +278,17 @@ class Auth(SubsystemBase):
             identity=remote_cert_name,  # get_platform_instance_name()+"."+self._core().identity,
             hostname=config.hostname
         )
-        response = requests.post(csr_server + "/csr/request_new",
+        request = grequests.post(csr_server + "/csr/request_new",
                                  json=jsonapi.dumps(json_request),
                                  verify=False)
+        response = grequests.map([request])
+
+        if response and isinstance(response, list):
+            response[0].raise_for_status()
+        response = response[0]
+        # response = requests.post(csr_server + "/csr/request_new",
+        #                          json=jsonapi.dumps(json_request),
+        #                          verify=False)
 
         _log.debug("The response: {}".format(response))
 
@@ -342,7 +350,7 @@ class Auth(SubsystemBase):
         return self._user_to_capabilities.get(user_id, [])
 
     def _update_capabilities(self, user_to_capabilities):
-        identity = bytes(self._rpc().context.vip_message.peer)
+        identity = self._rpc().context.vip_message.peer
         if identity == AUTH:
             self._user_to_capabilities = user_to_capabilities
             self._dirty = True

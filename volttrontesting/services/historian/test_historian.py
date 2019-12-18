@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -448,12 +448,12 @@ def query_agent(request, volttron_instance):
 # Fixtures for setup and teardown of historian agent
 @pytest.fixture(scope="module",
                 params=[
-                    crate_skipif(crate_platform),
-                    mysql_skipif(mysql_platform),
+                    pytest.param(crate_platform, marks=crate_skipif),
+                    pytest.param(mysql_platform, marks=mysql_skipif),
                     sqlite_platform,
-                    pymongo_skipif(mongo_platform),
-                    postgresql_skipif(postgresql_platform),
-                    redshift_skipif(redshift_platform),
+                    pytest.param(mongo_platform, marks=pymongo_skipif),
+                    pytest.param(postgresql_platform, marks=postgresql_skipif),
+                    pytest.param(redshift_platform, marks=redshift_skipif)
                 ])
 def historian(request, volttron_instance, query_agent):
     global db_connection, MICROSECOND_PRECISION, table_names, \

@@ -1,67 +1,51 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
-
-# Copyright (c) 2017, SLAC National Laboratory / Kisensum Inc.
-# All rights reserved.
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
+# Copyright 2019, Battelle Memorial Institute.
 #
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in
-#    the documentation and/or other materials provided with the
-#    distribution.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# http://www.apache.org/licenses/LICENSE-2.0
 #
-# The views and conclusions contained in the software and documentation
-# are those of the authors and should not be interpreted as representing
-# official policies, either expressed or implied, of the FreeBSD
-# Project.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
-# This material was prepared as an account of work sponsored by an
-# agency of the United States Government.  Neither the United States
-# Government nor the United States Department of Energy, nor SLAC / Kisensum,
-# nor any of their employees, nor any jurisdiction or organization that
-# has cooperated in the development of these materials, makes any
-# warranty, express or implied, or assumes any legal liability or
-# responsibility for the accuracy, completeness, or usefulness or any
-# information, apparatus, product, software, or process disclosed, or
-# represents that its use would not infringe privately owned rights.
-#
-# Reference herein to any specific commercial product, process, or
-# service by trade name, trademark, manufacturer, or otherwise does not
-# necessarily constitute or imply its endorsement, recommendation, or
+# This material was prepared as an account of work sponsored by an agency of
+# the United States Government. Neither the United States Government nor the
+# United States Department of Energy, nor Battelle, nor any of their
+# employees, nor any jurisdiction or organization that has cooperated in the
+# development of these materials, makes any warranty, express or
+# implied, or assumes any legal liability or responsibility for the accuracy,
+# completeness, or usefulness or any information, apparatus, product,
+# software, or process disclosed, or represents that its use would not infringe
+# privately owned rights. Reference herein to any specific commercial product,
+# process, or service by trade name, trademark, manufacturer, or otherwise
+# does not necessarily constitute or imply its endorsement, recommendation, or
 # favoring by the United States Government or any agency thereof, or
-# SLAC / Kisensum. The views and opinions of authors
-# expressed herein do not necessarily state or reflect those of the
+# Battelle Memorial Institute. The views and opinions of authors expressed
+# herein do not necessarily state or reflect those of the
 # United States Government or any agency thereof.
 #
+# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
+# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# under Contract DE-AC05-76RL01830
 # }}}
 
+import math
 import random
 import pytest
 import gevent
-import json
 import pytz
 from pytest import approx
 from datetime import datetime, timedelta
 from dateutil import parser
 
-from volttron.platform import get_services_core
+from volttron.platform import get_services_core, jsonapi
 from volttron.platform.agent.utils import format_timestamp, \
                                           parse_timestamp_string, \
                                           get_aware_utc_now
@@ -569,7 +553,7 @@ def test_publish_with_changed_value_type(volttron_instance, influxdb_client):
             ts = format_timestamp(ts)
             assert point["value_string"] == str(expected[ts][topic])
             try:
-                assert approx(point["value"]) == float(expected[ts][topic])
+                assert math.isclose(point["value"], float(expected[ts][topic]))
             except ValueError:
                 assert point["value"] is None
 
@@ -964,36 +948,47 @@ def test_query_topics_by_pattern(volttron_instance, influxdb_client):
                                               'get_topics_by_pattern',
                                               topic_pattern=pattern_1).get(timeout=5)
 
-        assert sorted(topics_metadata) == sorted(expected_1)
+        # Can't sort list of dict with single key directly in python3
+        # Compare only the topic names which the key in the dict. The value is topic id
+        topic_names = [list(topic_dict)[0] for topic_dict in topics_metadata]
+        expected_topic_names = [list(expected_dict)[0] for expected_dict in expected_1]
+        assert sorted(topic_names) == sorted(expected_topic_names)
 
         # Test for pattern 2
         topics_metadata = lister.vip.rpc.call('influxdb.historian',
                                               'get_topics_by_pattern',
                                               topic_pattern=pattern_2).get(timeout=5)
 
-        assert sorted(topics_metadata) == sorted(expected_2)
+        topic_names = [list(topic_dict)[0] for topic_dict in topics_metadata]
+        expected_topic_names = [list(expected_dict)[0] for expected_dict in expected_2]
+        assert sorted(topic_names) == sorted(expected_topic_names)
 
         # Test for pattern 3
         topics_metadata = lister.vip.rpc.call('influxdb.historian',
                                               'get_topics_by_pattern',
                                               topic_pattern=pattern_3).get(timeout=5)
 
-        assert sorted(topics_metadata) == sorted(expected_3)
+        topic_names = [list(topic_dict)[0] for topic_dict in topics_metadata]
+        expected_topic_names = [list(expected_dict)[0] for expected_dict in expected_3]
+        assert sorted(topic_names) == sorted(expected_topic_names)
 
         # Test for pattern 4
         topics_metadata = lister.vip.rpc.call('influxdb.historian',
                                               'get_topics_by_pattern',
                                               topic_pattern=pattern_4).get(timeout=5)
 
-        assert sorted(topics_metadata) == sorted(expected_4)
+        topic_names = [list(topic_dict)[0] for topic_dict in topics_metadata]
+        expected_topic_names = [list(expected_dict)[0] for expected_dict in expected_4]
+        assert sorted(topic_names) == sorted(expected_topic_names)
 
         # Test for pattern 5
         topics_metadata = lister.vip.rpc.call('influxdb.historian',
                                               'get_topics_by_pattern',
                                               topic_pattern=pattern_5).get(timeout=5)
 
-        assert sorted(topics_metadata) == sorted(expected_5)
-
+        topic_names = [list(topic_dict)[0] for topic_dict in topics_metadata]
+        expected_topic_names = [list(expected_dict)[0] for expected_dict in expected_5]
+        assert sorted(topic_names) == sorted(expected_topic_names)
     finally:
         volttron_instance.stop_agent(agent_uuid)
         volttron_instance.remove_agent(agent_uuid)
@@ -1260,7 +1255,7 @@ def test_update_meta(volttron_instance, influxdb_client):
 
         for meta in rs:
             topic = meta["topic"]
-            meta_dict = json.loads(meta['meta_dict'].replace("u'", "\"").replace("'", "\""))
+            meta_dict = jsonapi.loads(meta['meta_dict'].replace("u'", "\"").replace("'", "\""))
             last_updated = meta["last_updated"]
 
             assert meta_dict == updated_meta[topic]["meta_dict"]
@@ -1346,14 +1341,17 @@ def test_update_config_store(volttron_instance, influxdb_client):
     try:
         assert influxdb_client is not None
 
-        publisher = volttron_instance.build_agent()
+        publisher = volttron_instance.build_agent(identity="publisher")
+        capabilities = {'edit_config_store': {'identity': 'influxdb.historian'}}
+        volttron_instance.add_capabilities(publisher.core.publickey, capabilities)
+
         assert publisher is not None
         publish_some_fake_data(publisher, 5)
 
         # Update config store
         publisher.vip.rpc.call('config.store', 'manage_store',
                                'influxdb.historian','config',
-                               json.dumps(updated_influxdb_config), config_type="json").get(timeout=10)
+                               jsonapi.dumps(updated_influxdb_config), config_type="json").get(timeout=10)
         publish_some_fake_data(publisher, 5)
 
         influxdb_client.switch_database(db)

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -201,10 +201,10 @@ def test_repackage_output_to_cwd(volttron_instance):
         agent_uuid = volttron_instance.install_agent(
             agent_dir=os.path.join(cwd, get_examples("ListenerAgent")))
         agent_dir = os.path.join(volttron_instance.volttron_home, 'agents',
-            agent_uuid, 'listeneragent-3.2')
+            agent_uuid, 'listeneragent-3.3')
         print(agent_dir)
         wheel_name = repackage(agent_dir)
-        assert wheel_name == 'listeneragent-3.2-py3-none-any.whl'
+        assert wheel_name == 'listeneragent-3.3-py3-none-any.whl'
 
         wheel = os.path.join(dest_dir, wheel_name)
         # Check wheel exists and it can be used to install the agent again
@@ -233,11 +233,11 @@ def test_repackage_valid_dest_dir(volttron_instance):
         agent_uuid = volttron_instance.install_agent(
             agent_dir=os.path.join(get_examples("ListenerAgent")))
         agent_dir = os.path.join(volttron_instance.volttron_home, 'agents',
-            agent_uuid, 'listeneragent-3.2')
+            agent_uuid, 'listeneragent-3.3')
         print(agent_dir)
         wheel_path = repackage(agent_dir, dest=dest_dir)
         expected_wheel = os.path.join(dest_dir,
-                                      'listeneragent-3.2-py3-none-any.whl')
+                                      'listeneragent-3.3-py3-none-any.whl')
         assert wheel_path == expected_wheel
         # Check wheel exists and it can be used to install the agent again
         assert os.path.isfile(wheel_path)
@@ -267,11 +267,11 @@ def test_repackage_new_dest_dir(volttron_instance):
         agent_uuid = volttron_instance.install_agent(
             agent_dir=os.path.join(get_examples("ListenerAgent")))
         agent_dir = os.path.join(volttron_instance.volttron_home, 'agents',
-            agent_uuid, 'listeneragent-3.2')
+            agent_uuid, 'listeneragent-3.3')
         print(agent_dir)
         wheel_path = repackage(agent_dir, dest=dest_dir)
         expeceted_wheel = os.path.join(
-            dest_dir, 'listeneragent-3.2-py3-none-any.whl')
+            dest_dir, 'listeneragent-3.3-py3-none-any.whl')
         assert wheel_path == expeceted_wheel
         # Check wheel exists and it can be used to install the agent again
         assert os.path.isfile(wheel_path)
@@ -298,7 +298,7 @@ def test_repackage_invalid_dest_dir(volttron_instance):
         agent_uuid = volttron_instance.install_agent(
             agent_dir=get_examples("ListenerAgent"))
         agent_dir = os.path.join(volttron_instance.volttron_home, 'agents',
-                                 agent_uuid, 'listeneragent-3.2')
+                                 agent_uuid, 'listeneragent-3.3')
         repackage(agent_dir, dest=dest_dir)
         pytest.fail("Expecting AgentPackageError but code completed "
                     "successfully")
@@ -312,7 +312,7 @@ def test_repackage_invalid_dest_dir(volttron_instance):
         agent_uuid = volttron_instance.install_agent(
             agent_dir=get_examples("ListenerAgent"))
         agent_dir = os.path.join(volttron_instance.volttron_home, 'agents',
-                                 agent_uuid, 'listeneragent-3.2')
+                                 agent_uuid, 'listeneragent-3.3')
         repackage(agent_dir, dest=dest_dir)
         pytest.fail("Expecting AgentPackageError but code completed "
                     "successfully")

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -36,7 +36,7 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-import json
+
 import sqlite3
 
 import gevent
@@ -46,6 +46,7 @@ import pytest
 from volttron.platform import get_ops, get_examples
 from volttron.platform.agent.known_identities import PLATFORM_TOPIC_WATCHER
 from volttron.platform.agent.utils import get_aware_utc_now
+from volttron.platform import jsonapi
 
 agent_version = '2.1'
 WATCHER_CONFIG = {
@@ -91,7 +92,7 @@ def agent(request, volttron_instance):
     def onmessage(peer, sender, bus, topic, headers, message):
         global alert_messages
 
-        alert = json.loads(message)["context"]
+        alert = jsonapi.loads(message)["context"]
 
         try:
             alert_messages[alert] += 1

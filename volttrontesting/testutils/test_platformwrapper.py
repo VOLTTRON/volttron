@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -72,8 +72,10 @@ from time import sleep
 #     p.shutdown()
 #     p.join()
 
-def test_can_create():
-    p = PlatformWrapper()
+
+@pytest.mark.parametrize("messagebus, ssl_auth", [('rmq', True)])  # , ('rmq', False), ('zmq', False)] )
+def test_can_create(messagebus, ssl_auth):
+    p = PlatformWrapper(messagebus=messagebus, ssl_auth=ssl_auth)
     assert not p.is_running()
     assert p.volttron_home.startswith("/tmp/tmp")
 

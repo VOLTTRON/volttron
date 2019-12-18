@@ -36,7 +36,7 @@ import logging
 import sys
 
 from volttron.platform.agent import utils
-from base_dnp3_agent import BaseDNP3Agent
+from dnp3.base_dnp3_agent import BaseDNP3Agent
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)

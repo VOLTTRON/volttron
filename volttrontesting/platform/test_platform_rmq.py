@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -230,10 +230,13 @@ def test_expired_ca_cert_after_vstart(request, instance):
         gevent.sleep(30)  # wait for CA to expire
 
         # Can't install new agent
-        with pytest.raises(RuntimeError, message="Agents install should fail when CA certificate has expired"):
+        with pytest.raises(RuntimeError) as exec_info:
             agent = instance.install_agent(
                 agent_dir=get_examples("ListenerAgent"),
                 vip_identity="listener2", start=True)
+        assert exec_info.type is RuntimeError
+
+
 
     except Exception as e:
         pytest.fail("Test failed with exception: {}".format(e))
@@ -271,11 +274,13 @@ def test_expired_server_cert_after_vstart(request, instance):
             vip_identity="listener1", start=True)
         gevent.sleep(20)
         print("Attempting agent install after server certificate expiry")
-        with pytest.raises(RuntimeError, message="Agents install should fail after server certificate expires"):
+        with pytest.raises(RuntimeError) as exec_info:
             agent = instance.install_agent(
                 agent_dir=get_examples("ListenerAgent"),
                 vip_identity="listener2", start=True)
             pytest.fail("Agent install should fail")
+        assert exec_info.type is RuntimeError
+
 
         # Restore server cert and restart rmq ssl, wait for 30 seconds for volttron to reconnect
         crts.create_ca_signed_cert(server_cert_name, type='server', fqdn=fqdn)

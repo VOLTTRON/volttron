@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -51,7 +51,7 @@ from zmq import green as zmq
 from volttron.platform import certs, is_rabbitmq_available
 from volttron.platform import jsonapi
 from volttron.platform.agent.known_identities import MASTER_WEB, PLATFORM_DRIVER, VOLTTRON_CENTRAL
-from volttron.platform.agent.utils import get_platform_instance_name
+from volttron.platform.agent.utils import get_platform_instance_name, wait_for_volttron_startup
 from volttron.utils import get_hostname
 from volttron.utils.prompt import prompt_response, y, n, y_or_n
 from volttron.utils.rmq_config_params import RMQConfig
@@ -119,7 +119,10 @@ def _cmd(cmdargs):
         print(cmdargs)
     process = Popen(cmdargs, env=os.environ, stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE)
-    process.wait()
+    out, error = process.communicate()
+    if process.returncode != 0:
+        print("Error executing command: {} \nSTDOUT: {}\nSTDERR: {}".format(cmdargs, out, error))
+        exit(10)
 
 
 def _is_bound_already(address):
@@ -163,12 +166,15 @@ volttron-cfg needs to be run from the volttron top level source directory.
 
 
 def _start_platform():
+    vhome  = get_home()
     cmd = ['volttron', '-vv',
-           '-l', os.path.join(get_home(), 'volttron.cfg.log')]
+           '-l', os.path.join(vhome, 'volttron.cfg.log')]
+    print(cmd)
     if verbose:
         print('Starting platform...')
     pid = Popen(cmd, env=os.environ.copy(), stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE)
+    wait_for_volttron_startup(vhome, 30)
 
 
 def _shutdown_platform():
@@ -192,8 +198,8 @@ def _install_agent(agent_dir, config, tag):
 def _is_agent_installed(tag):
     installed_list_process = Popen(['vctl','list'], env=os.environ, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     installed_list = installed_list_process.communicate()
-    installed = "".join(installed_list)
-    if tag in installed:
+    installed = b"".join(installed_list)
+    if tag.encode('utf-8') in installed:
         return True
     else:
         return False
@@ -309,12 +315,14 @@ def _create_web_certs():
     crts.create_ca_signed_cert(name=MASTER_WEB+"-server",type='server',ca_name=crts.root_ca_name, fqdn=get_hostname())
     return 0
 
+
 def check_rmq_setup():
     global config_opts
     rmq_config = RMQConfig()
     if not os.path.exists(rmq_config.volttron_rmq_config):
         setup_rabbitmq_volttron('single', verbose, prompt=True, instance_name=None)
     _load_config()
+
 
 def do_message_bus():
     global config_opts
@@ -438,6 +446,7 @@ def do_web_enabled_rmq(vhome):
 
     config_opts['bind-web-address'] = '{}:{}'.format(external_ip, vc_port)
 
+
 def do_web_enabled_zmq(vhome):
     global config_opts
 
@@ -509,7 +518,10 @@ def do_web_agent():
     _update_config_file()
 
 
-@installs(get_services_core("VolttronCentral"), 'vc')
+# TODO: Commented out so we don't prompt for installing vc or vcp until they
+# have been figured out totally for python3
+#
+# @installs(get_services_core("VolttronCentral"), 'vc')
 def do_vc():
     do_web_agent()
     resp = vc_config()
@@ -637,7 +649,10 @@ def is_file_readable(file_path, log=True):
         return False
 
 
-@installs(get_services_core("VolttronCentralPlatform"), 'vcp')
+# Todo: Commented out so we don't prompt for installing vc or vcp until they
+# have been figured out totally for python3
+#
+# @installs(get_services_core("VolttronCentralPlatform"), 'vcp')
 def do_vcp():
     global config_opts
     is_vc = False
@@ -749,6 +764,7 @@ def do_master_driver():
 def do_listener():
     return {}
 
+
 def confirm_volttron_home():
     global prompt_vhome
     volttron_home = get_home()
@@ -760,6 +776,7 @@ def confirm_volttron_home():
                 '\nPlease execute with VOLTRON_HOME=/your/path volttron-cfg to '
                 'modify VOLTTRON_HOME.\n')
             exit(1)
+
 
 def wizard():
     global config_opts
@@ -785,15 +802,20 @@ def wizard():
         elif config_opts['message-bus'] == 'zmq':
             do_web_enabled_zmq(volttron_home)
         _update_config_file()
-        prompt = 'Is this an instance of volttron central?'
-        response = prompt_response(prompt, valid_answers=y_or_n, default='N')
-        if response in y:
-            do_vc()
-
-    prompt = 'Will this instance be controlled by volttron central?'
-    response = prompt_response(prompt, valid_answers=y_or_n, default='Y')
-    if response in y:
-        do_vcp()
+        # TODO: Commented out so we don't prompt for installing vc or vcp until they
+        # have been figured out totally for python3
+        #
+        # prompt = 'Is this an instance of volttron central?'
+        # response = prompt_response(prompt, valid_answers=y_or_n, default='N')
+        # if response in y:
+        #     do_vc()
+    # TODO: Commented out so we don't prompt for installing vc or vcp until they
+    # have been figured out totally for python3
+    #
+    # prompt = 'Will this instance be controlled by volttron central?'
+    # response = prompt_response(prompt, valid_answers=y_or_n, default='Y')
+    # if response in y:
+    #     do_vcp()
 
     prompt = 'Would you like to install a platform historian?'
     response = prompt_response(prompt, valid_answers=y_or_n, default='N')

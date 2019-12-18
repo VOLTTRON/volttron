@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -65,6 +65,7 @@ from zmq import (SNDMORE, RCVMORE, NOBLOCK, POLLOUT, DEALER, ROUTER,
 from zmq.error import Again
 from zmq.utils import z85
 
+from volttron.utils.frame_serialization import deserialize_frames, serialize_frames
 
 __all__ = ['Address', 'ProtocolError', 'Message', 'nonblocking']
 
@@ -149,7 +150,8 @@ class Address(object):
             path, query = url.path.split('?')
             url = url._replace(path=path)
             url = url._replace(query=query)
-
+        self.publickey = None
+        self.secretkey = None
         self.base = '%s://%s%s' % url[:3]
         if url.fragment:
             self.identity = url.fragment
@@ -188,8 +190,6 @@ class Address(object):
             parts.extend(['?', qs])
         if self.identity is not None:
             parts.extend(['#', urllib.parse.quote(self.identity)])
-
-        print(parts)
         return ''.join(parts)
 
     def __repr__(self):
@@ -276,9 +276,9 @@ class Message(object):
 
     def __repr__(self):
         attrs = ', '.join('%r: %r' % (
-            name, [bytes(x) for x in value]
+            name, [x for x in value]
             if isinstance(value, (list, tuple))
-            else bytes(value)) for name, value in
+            else value) for name, value in
                 self.__dict__.items())
         return '%s(**{%s})' % (self.__class__.__name__, attrs)
 
@@ -405,13 +405,15 @@ class _Socket(object):
                 raise
 
     def send_multipart(self, msg_parts, flags=0, copy=True, track=False):
+        parts = serialize_frames(msg_parts)
+        # _log.debug("Sending parts on multiparts: {}".format(parts))
         with self._sending(flags) as flags:
             super(_Socket, self).send_multipart(
-                msg_parts, flags=flags, copy=copy, track=track)
+                parts, flags=flags, copy=copy, track=track)
 
     def send_vip(self, peer, subsystem, args=None, msg_id='',
-                 user=b'', via=None, flags=0, copy=True, track=False):
-        """Send an entire VIP message by individual parts.
+                 user='', via=None, flags=0, copy=True, track=False):
+        """Send an entire VIP messamultipartge by individual parts.
 
         This method will raise a ProtocolError exception if the previous
         send was made with the SNDMORE flag or if other protocol
@@ -434,8 +436,8 @@ class _Socket(object):
         :param track:
         """
 
-        peer = peer.encode('utf-8') if isinstance(peer, str) else peer
-        msg_id = msg_id.encode('utf-8') if isinstance(msg_id, str) else msg_id
+        peer = peer
+        msg_id = msg_id
 
         # _log.debug("SEND VIP: peer={}, subsystem={}, args={}, msg_id={}, user={}, type(msg_id)={}".format(
         #     peer, subsystem, args, msg_id, user, type(msg_id)
@@ -451,7 +453,8 @@ class _Socket(object):
                 self.send(via, flags=flags | SNDMORE, copy=copy, track=track)
 
             if user is None:
-                user = b''
+                user = ''
+
             more = SNDMORE if args else 0
             self.send_multipart([peer, user, msg_id, subsystem],
                                 flags=flags|more, copy=copy, track=track)
@@ -462,7 +465,7 @@ class _Socket(object):
 
     def send_vip_dict(self, dct, flags=0, copy=True, track=False):
         """Send VIP message from a dictionary."""
-        msg_id = dct.pop('id', b'')
+        msg_id = dct.pop('id', '')
         self.send_vip(flags=flags, copy=copy, track=track, msg_id=msg_id, **dct)
 
     def send_vip_object(self, msg, flags=0, copy=True, track=False):
@@ -471,8 +474,8 @@ class _Socket(object):
             'via': getattr(msg, 'via', None),
             'peer': msg.peer,
             'subsystem': msg.subsystem,
-            'user': getattr(msg, 'user', b''),
-            'msg_id': getattr(msg, 'id', b''),
+            'user': getattr(msg, 'user', ''),
+            'msg_id': getattr(msg, 'id', ''),
             'args': getattr(msg, 'args', None),
         }
         self.send_vip(flags=flags, copy=copy, track=track, **dct)
@@ -559,7 +562,11 @@ class _Socket(object):
         state = self._recv_state
         frames = self.recv_vip(flags=flags, copy=copy, track=track)
         via = frames.pop(0) if state == -1 else None
-        dct = dict(zip(('peer', 'user', 'id', 'subsystem', 'args'), frames))
+        # from volttron.utils.frame_serialization import decode_frames
+        # decoded = decode_frames(frames)
+
+        myframes = deserialize_frames(frames)
+        dct = dict(zip(('peer', 'user', 'id', 'subsystem', 'args'), myframes))
         if via is not None:
             dct['via'] = via
         return dct

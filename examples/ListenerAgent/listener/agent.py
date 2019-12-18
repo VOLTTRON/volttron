@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -91,6 +91,7 @@ class ListenerAgent(Agent):
     def onstart(self, sender, **kwargs):
         _log.debug("VERSION IS: {}".format(self.core.version()))
         if self._heartbeat_period != 0:
+            _log.debug(f"Heartbeat starting for {self.core.identity}, published every {self._heartbeat_period}s")
             self.vip.heartbeat.start_with_period(self._heartbeat_period)
             self.vip.health.set_status(STATUS_GOOD, self._message)
         query = Query(self.core)
