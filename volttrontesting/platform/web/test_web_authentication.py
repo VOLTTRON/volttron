@@ -1,5 +1,4 @@
-import binascii
-import os
+
 from urllib.parse import urlencode
 
 from deepdiff import DeepDiff
