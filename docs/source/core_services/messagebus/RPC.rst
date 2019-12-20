@@ -114,7 +114,6 @@ Implementation
 --------------
 
 See the
-`rpc </VOLTTRON/volttron/blob/3.x/volttron/platform/vip/agent/subsystems/rpc.py>`__
-module for implementation details.
+`RPC module <https://github.com/VOLTTRON/volttron/blob/develop/volttron/platform/vip/agent/subsystems/rpc.py>`_ for implementation details.
 
-Also see `RPC by example <RPC-by-example>`__ for additional examples.
+Also see :ref:`Multi-Platform RPC Communication <Multi-Platform-RPC>` and :ref:`RPC in RabbitMQ <RabbitMQ-VOLTTRON>` for additional resources.

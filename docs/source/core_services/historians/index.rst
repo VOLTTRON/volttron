@@ -109,8 +109,8 @@ All historians support the following settings:
 By default the base historian will listen to 4 separate root topics
 `datalogger/*`, `record/*`, `analysis/*`, and `device/*`.
 
-Each of root
-topics has a :ref:`specific message syntax <Historian-Topic-Syntax>` that
+Each root
+topic has a :ref:`specific message syntax <Historian-Topic-Syntax>` that
 it is expecting for incoming data.
 
 Messages published to `datalogger`
@@ -124,7 +124,7 @@ directly from drivers.
 Messages published to `analysis` are analysis data published by agents
 in the form of key value pairs.
 
-Finally Messages that are published to `record`
+Finally, messages that are published to `record`
 will be handled as string data and can be customized to the user
 specific situation.
 
