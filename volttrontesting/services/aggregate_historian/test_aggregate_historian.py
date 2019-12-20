@@ -32,9 +32,7 @@ except:
 
 try:
     import pymongo
-    # Ignore mongo test for now.
-    # Mongo fails on rabbitmq branch with gevent Loop Exception
-    HAS_PYMONGO = False
+    HAS_PYMONGO = True
 except:
     HAS_PYMONGO = False
 
@@ -329,7 +327,8 @@ def get_expected_sum(query_agent, topic, end_time, minutes_delta):
 def query_agent(request, volttron_instance):
     # 1: Start a fake fake_agent to query the sqlhistorian in volttron_instance
     fake_agent = volttron_instance.build_agent()
-
+    capabilities = {'edit_config_store': {'identity': AGG_AGENT_VIP}}
+    volttron_instance.add_capabilities(fake_agent.core.publickey, capabilities)
     # 2: add a tear down method to stop sqlhistorian fake_agent and the fake
     # fake_agent that published to message bus
     def stop_agent():
@@ -343,17 +342,18 @@ def query_agent(request, volttron_instance):
 # Fixtures for setup and teardown of sqlhistorian agent and aggregation agent
 @pytest.fixture(scope="module",
                 params=[
-                    mysql_skipif(mysql_aggregator),
+                    pytest.param(mysql_aggregator, marks=mysql_skipif),
                     sqlite_aggregator,
-                    pymongo_skipif(mongo_aggregator),
-                    postgresql_skipif(postgresql_aggregator),
-                    redshift_skipif(redshift_aggregator),
+                    pytest.param(mongo_aggregator, marks=pymongo_skipif),
+                    pytest.param(postgresql_aggregator, marks=postgresql_skipif),
+                    pytest.param(redshift_aggregator, marks=redshift_skipif),
                 ])
 def aggregate_agent(request, volttron_instance):
     global db_connection, table_names, connection_type
     print("** Setting up test_sqlhistorian module **")
 
     # Fix sqlite db path
+    # request.param = sqlite_aggregator
     print("request param", request.param)
     connection_type = request.param['connection']['type']
     if connection_type == 'sqlite':

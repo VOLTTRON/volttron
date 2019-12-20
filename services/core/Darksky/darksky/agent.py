@@ -1,58 +1,39 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright (c) 2017, Battelle Memorial Institute
-# All rights reserved.
+# Copyright 2019, Battelle Memorial Institute.
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# 1. Redistributions of source code must retain the above copyright notice,
-#    this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright notice,
-#    this list of conditions and the following disclaimer in the documentation
-#    and/or other materials provided with the distribution.
+# http://www.apache.org/licenses/LICENSE-2.0
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-# AND
-# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE
-#  FOR
-# ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-# ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
-# The views and conclusions contained in the software and documentation are
-# those of the authors and should not be interpreted as representing official,
-# policies either expressed or implied, of the FreeBSD Project.
-#
-
-# This material was prepared as an account of work sponsored by an
-# agency of the United States Government.  Neither the United States
-# Government nor the United States Department of Energy, nor Battelle,
-# nor any of their employees, nor any jurisdiction or organization
-# that has cooperated in the development of these materials, makes
-# any warranty, express or implied, or assumes any legal liability
-# or responsibility for the accuracy, completeness, or usefulness or
-# any information, apparatus, product, software, or process disclosed,
-# or represents that its use would not infringe privately owned rights.
-#
-# Reference herein to any specific commercial product, process, or
-# service by trade name, trademark, manufacturer, or otherwise does
-# not necessarily constitute or imply its endorsement, recommendation,
-# r favoring by the United States Government or any agency thereof,
-# or Battelle Memorial Institute. The views and opinions of authors
-# expressed herein do not necessarily state or reflect those of the
+# This material was prepared as an account of work sponsored by an agency of
+# the United States Government. Neither the United States Government nor the
+# United States Department of Energy, nor Battelle, nor any of their
+# employees, nor any jurisdiction or organization that has cooperated in the
+# development of these materials, makes any warranty, express or
+# implied, or assumes any legal liability or responsibility for the accuracy,
+# completeness, or usefulness or any information, apparatus, product,
+# software, or process disclosed, or represents that its use would not infringe
+# privately owned rights. Reference herein to any specific commercial product,
+# process, or service by trade name, trademark, manufacturer, or otherwise
+# does not necessarily constitute or imply its endorsement, recommendation, or
+# favoring by the United States Government or any agency thereof, or
+# Battelle Memorial Institute. The views and opinions of authors expressed
+# herein do not necessarily state or reflect those of the
 # United States Government or any agency thereof.
 #
-# PACIFIC NORTHWEST NATIONAL LABORATORY
-# operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
+# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-
 # }}}
 
 __docformat__ = 'reStructuredText'
@@ -62,15 +43,19 @@ import datetime
 import pytz
 import sys
 import re
-import json
-import requests
+
 import grequests
+# requests should be imported after grequests as
+# requests imports ssl and grequests patches ssl
+import requests
+
 import pkg_resources
 from volttron.platform.agent import utils
 from volttron.platform.vip.agent import RPC
 from volttron.platform.agent.utils import format_timestamp, get_aware_utc_now
 from volttron.platform.agent.base_weather import BaseWeatherAgent
 from volttron.platform.agent.base_weather import get_forecast_start_stop
+from volttron.platform import jsonapi
 
 _log = logging.getLogger(__name__)
 utils.setup_logging()
@@ -102,7 +87,7 @@ def darksky(config_path, **kwargs):
     """
     try:
         config = utils.load_config(config_path)
-    except StandardError:
+    except Exception:
         config = {}
     if not config:
         _log.error("Darksky agent configuration: ".format(config))
@@ -224,7 +209,9 @@ class Darksky(BaseWeatherAgent):
         :return: dictionary containing a mapping of service point
         names to standard point names with optional
         """
-        return pkg_resources.resource_stream(__name__, "data/name_mapping.csv")
+        # returning resource file instead of stream, as csv.DictReader require file path or file like object opened in
+        # text mode.
+        return pkg_resources.resource_filename(__name__, "data/name_mapping.csv")
 
     def get_darksky_data(self, service, location, timestamp=None):
         """
@@ -275,7 +262,7 @@ class Darksky(BaseWeatherAgent):
             raise RuntimeError("get request did not return any "
                                "response")
         try:
-            response = json.loads(gresponse.content)
+            response = jsonapi.loads(gresponse.content)
             return response
         except ValueError:
             self.generate_response_error(url, gresponse.status_code)
@@ -298,10 +285,10 @@ class Darksky(BaseWeatherAgent):
             entry_time = entry_time.astimezone(pytz.utc)
             if entry_time > utils.get_aware_utc_now():
                 if SERVICES_MAPPING[service]['type'] is 'forecast':
-                    data.append([json.dumps(location), generation_time, entry_time,
-                                 json.dumps(entry)])
+                    data.append([jsonapi.dumps(location), generation_time, entry_time,
+                                 jsonapi.dumps(entry)])
                 else:
-                    data.append([json.dumps(location), entry_time, json.dumps(
+                    data.append([jsonapi.dumps(location), entry_time, jsonapi.dumps(
                         entry)])
         return data
 
@@ -402,12 +389,12 @@ class Darksky(BaseWeatherAgent):
                             darksky_response['timezone'])
                     else:
                         service_data = \
-                            [json.dumps(location),
+                            [jsonapi.dumps(location),
                              datetime.datetime.fromtimestamp(
                                  service_response['time'],
                                  pytz.timezone(
                                      darksky_response['timezone'])),
-                             json.dumps(service_response)]
+                             jsonapi.dumps(service_response)]
                     self.store_weather_records(service_code, service_data)
         return last_entry_time, forecast_data
 

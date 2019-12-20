@@ -1,6 +1,7 @@
 import requests
 import sys
-import json
+from volttron.platform import jsonapi
+
 authentication=None
 
 
@@ -21,12 +22,12 @@ def do_rpc(method, params=None ):
     if params:
         json_package['params'] = params
 
-    data = json.dumps(json_package)
+    data = jsonapi.dumps(json_package)
 
-    return requests.post(url_root, data=json.dumps(json_package))
+    return requests.post(url_root, data=jsonapi.dumps(json_package))
 
 def get_dict(text):
-    return json.loads(text)
+    return jsonapi.loads(text)
 
 def inspect_agent(platform_uuid, agent_uuid):
     method = "platforms.uuid.{}.agents.uuid.{}.inspect".format(platform_uuid,
@@ -50,12 +51,12 @@ def exec_method(platform_uuid, agent_uuid, method, params):
     return do_rpc(method, params)
 
 def register_platform(address, identity):
-    print "Registering platform platform"
+    print("Registering platform platform")
     return do_rpc('register_platform', {'address': address,
                                         'identity': identity});
 
 def register_instance(discovery_address):
-    print "Registering platform instance"
+    print("Registering platform instance")
     return do_rpc(
         'register_instance', {'discovery_address': discovery_address})
 
@@ -79,7 +80,7 @@ if __name__ == '__main__':
     response = do_rpc("list_platforms")
     platforms = None
     if response.ok:
-        platforms = json.loads(response.text)['result']
+        platforms = jsonapi.loads(response.text)['result']
         print('Platforms retrieved')
     else:
         print('Getting platforms unsuccessful')
@@ -94,7 +95,7 @@ if __name__ == '__main__':
             if response.ok:
                 print("RESPONSE WAS: "+response.text)
 
-                agents = json.loads(response.text)['result']
+                agents = jsonapi.loads(response.text)['result']
 
                 for a in agents:
                     print('agents name {name}'.format(**a))
@@ -106,7 +107,7 @@ if __name__ == '__main__':
                         print("INSPECT RESPONSE {}".format(response))
                         print("INSPECT RESPONSE {}".format(response.text))
 
-                        methods = json.loads(response.text)
+                        methods = jsonapi.loads(response.text)
 
                         response = inspect_method(p['uuid'], a['uuid'], 'sayHello')
                         print("RESPONSE WAS: "+response.text)
@@ -116,7 +117,7 @@ if __name__ == '__main__':
 
                         if response.ok:
                             print("RESPONSE WAS: "+response.text)
-                            methods = json.loads(response.text)['result']
+                            methods = jsonapi.loads(response.text)['result']
                             print('Methods received for {}'.format(p['uuid']))
 
                             print(methods)

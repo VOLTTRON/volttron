@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -55,23 +55,23 @@ def update_curve_key(curve_key_path, no_warn=False):
         with open(curve_key_path, 'r') as curve_file:
             public, secret = read_curve_key(curve_file)
     except IOError as e:
-        print e
+        print(e)
         return
 
     keystore_path = os.path.join(os.path.dirname(curve_key_path), 'keystore')
     
     if os.path.exists(keystore_path) and not no_warn:
-        response = raw_input("{} already exists. "
+        response = input("{} already exists. "
                 "Overwrite? [y/N]: ".format(keystore_path))
         if not response.lower().startswith('y'):
-            print "Key update aborted."
+            print("Key update aborted.")
             return
 
     keystore = KeyStore(keystore_path)
     keystore.public = public
     keystore.secret = secret
-    print "Keys from {} have been transfered to {}".format(curve_key_path, 
-            keystore.filename)
+    print("Keys from {} have been transfered to {}".format(curve_key_path, 
+            keystore.filename))
 
 
 if __name__ == "__main__":

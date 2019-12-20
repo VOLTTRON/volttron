@@ -7,6 +7,7 @@ import os.path
 from volttron.platform import get_services_core
 from master_driver.interfaces.modbus_tk.server import Server
 from master_driver.interfaces.modbus_tk.maps import Catalog
+from volttron.platform.agent.known_identities import PLATFORM_DRIVER
 
 logger = logging.getLogger(__name__)
 
@@ -80,17 +81,20 @@ def ion_driver_agent(request, volttron_instance):
     """
 
     # Build master driver agent
-    md_agent = volttron_instance.build_agent()
+    md_agent = volttron_instance.build_agent(identity="test_md_agent")
+    capabilities = {'edit_config_store': {'identity': PLATFORM_DRIVER}}
+    volttron_instance.add_capabilities(md_agent.core.publickey, capabilities)
 
     # Clean out master driver configurations
+    # wait for it to return before adding new config
     md_agent.vip.rpc.call('config.store',
                           'manage_delete_store',
-                          'platform.driver')
+                          PLATFORM_DRIVER).get()
 
     # Add driver configurations
     md_agent.vip.rpc.call('config.store',
                           'manage_store',
-                          'platform.driver',
+                          PLATFORM_DRIVER,
                           'devices/ion6200',
                           ION6200_DRIVER_CONFIG,
                           config_type='json')
@@ -98,14 +102,14 @@ def ion_driver_agent(request, volttron_instance):
     # Add csv configurations
     md_agent.vip.rpc.call('config.store',
                           'manage_store',
-                          'platform.driver',
+                          PLATFORM_DRIVER,
                           'ion6200.csv',
                           ION6200_CSV_CONFIG,
                           config_type='csv')
 
     md_agent.vip.rpc.call('config.store',
                           'manage_store',
-                          'platform.driver',
+                          PLATFORM_DRIVER,
                           'ion6200_map.csv',
                           ION6200_CSV_MAP,
                           config_type='csv')
@@ -160,7 +164,7 @@ class TestModbusTKDriver:
         @param point_name: The name of the point to query.
         @return: The actual reading value of the point name from the RPC call.
         """
-        return agent.vip.rpc.call('platform.driver', 'get_point', device_name, point_name).get(timeout=10)
+        return agent.vip.rpc.call(PLATFORM_DRIVER, 'get_point', device_name, point_name).get(timeout=10)
 
     def set_point(self, agent, device_name, point_name, point_value):
         """
@@ -172,7 +176,7 @@ class TestModbusTKDriver:
         @param value: The value to set on the point.
         @return:The actual reading value of the point name from the RPC call.
         """
-        return agent.vip.rpc.call('platform.driver', 'set_point', device_name, point_name, point_value).get(timeout=10)
+        return agent.vip.rpc.call(PLATFORM_DRIVER, 'set_point', device_name, point_name, point_value).get(timeout=10)
 
     def scrape_all(self, agent, device_name):
         """
@@ -182,7 +186,7 @@ class TestModbusTKDriver:
         @param device_name: The driver name, by default: 'devices/device_name'.
         @return: The dictionary mapping point names to their actual values from the RPC call.
         """
-        return agent.vip.rpc.call('platform.driver', 'scrape_all', device_name).get(timeout=10)
+        return agent.vip.rpc.call(PLATFORM_DRIVER, 'scrape_all', device_name).get(timeout=10)
 
     def revert_all(self, agent, device_name):
         """
@@ -192,7 +196,7 @@ class TestModbusTKDriver:
         @param device_name: The driver name, by default: 'devices/device_name'.
         @return: Return value from the RPC call.
         """
-        return agent.vip.rpc.call('platform.driver', 'revert_device', device_name).get(timeout=10)
+        return agent.vip.rpc.call(PLATFORM_DRIVER, 'revert_device', device_name).get(timeout=10)
 
     def revert_point(self, agent, device_name, point_name):
         """
@@ -203,7 +207,7 @@ class TestModbusTKDriver:
         @param point_name: The name of the point to query.
         @return: Return value from the RPC call.
         """
-        return agent.vip.rpc.call('platform.driver', 'revert_point', device_name, point_name).get(timeout=10)
+        return agent.vip.rpc.call(PLATFORM_DRIVER, 'revert_point', device_name, point_name).get(timeout=10)
 
     def test_default_values(self, ion_driver_agent):
         """Test setting default values

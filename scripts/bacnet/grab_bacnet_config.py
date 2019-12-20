@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -40,7 +40,6 @@ import sys
 import argparse
 import traceback
 from csv import DictWriter
-import json
 from os.path import basename
 from bacpypes.debugging import bacpypes_debugging, ModuleLogger
 from bacpypes.app import BIPSimpleApplication
@@ -54,6 +53,7 @@ from bacpypes.task import TaskManager
 from bacpypes.object import get_datatype, get_object_class, DeviceObject
 from bacpypes.primitivedata import Enumerated, Unsigned, Boolean, Integer, Real, Double
 from bacpypes.constructeddata import Array
+from volttron.platform import jsonapi
 
 """
 Simple utility to scrape device registers and write them to a configuration file.
@@ -225,7 +225,7 @@ def process_object(app, address, obj_type, index, max_range_report, config_write
     
     if issubclass(present_value_type, Enumerated):
         object_units = 'Enum'
-        values=present_value_type.enumerations.values()
+        values=list(present_value_type.enumerations.values())
         min_value = min(values)
         max_value = max(values)
         
@@ -308,7 +308,7 @@ def process_object(app, address, obj_type, index, max_range_report, config_write
         except:
             _log.debug(traceback.format_exc())
             
-        if isinstance(object_units, (int, long)):
+        if isinstance(object_units, int):
             object_units = 'UNKNOWN UNIT ENUM VALUE: ' + str(object_units)
             
         if obj_type.startswith('analog') or obj_type in ('largeAnalogValue', 'integerValue', 'positiveIntegerValue'):
@@ -446,7 +446,7 @@ def main():
         "registry_config":"config://registry_configs/{}".format(config_file_name)
     }
 
-    json.dump(config, args.driver_out_file,indent=4)
+    jsonapi.dump(config, args.driver_out_file, indent=4)
     
     try:
         device_name = read_prop(this_application, target_address, "device", device_id, "objectName")
@@ -486,7 +486,7 @@ def main():
     
     _log.debug('objectCount = ' + str(objectCount))
     
-    for object_index in xrange(1,objectCount+1):
+    for object_index in range(1,objectCount+1):
         _log.debug('object_device_index = ' + repr(object_index))
         
         bac_object = read_prop(this_application, 
@@ -508,7 +508,7 @@ def main():
         
 try:
     main()
-except Exception, e:
+except Exception as e:
     _log.exception("an error has occurred: %s", e)
 finally:
     _log.debug("finally")

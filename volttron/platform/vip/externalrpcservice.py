@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -36,26 +36,12 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-from __future__ import print_function, absolute_import
 
-import argparse
-import errno
-import logging
-from logging import handlers
-import logging.config
-from urlparse import urlparse
 
 import os
-import sys
-import threading
-import uuid
-import re
-
-import gevent
-from gevent.fileobject import FileObject
 import zmq
 import logging
-from zmq.utils import jsonapi
+from volttron.platform import jsonapi
 from zmq import SNDMORE, EHOSTUNREACH, ZMQError, EAGAIN, NOBLOCK
 
 _log = logging.getLogger(__name__)

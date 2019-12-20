@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -45,12 +45,10 @@ from zmq import green as zmq
 
 from base64 import b64encode, b64decode
 from zmq import SNDMORE
-from volttron.platform.agent import json as jsonapi
 from volttron.platform.vip.agent import Agent, Core, RPC
 from volttron.platform.vip.agent.errors import VIPError
-from volttron.platform import jsonrpc
+from volttron.platform import jsonrpc, jsonapi
 from collections import defaultdict
-from volttron.platform.agent import json as jsonapi
 
 
 _log = logging.getLogger(__name__)
@@ -89,11 +87,11 @@ class PubSubWrapper(Agent):
         self.vip.rpc.export(self._peer_list, 'pubsub.list')
 
     def _sync(self, peer, items):
-        items = {(bus, prefix) for bus, topics in items.iteritems()
+        items = {(bus, prefix) for bus, topics in items.items()
                  for prefix in topics}
         remove = []
-        for bus, subscriptions in self._peer_subscriptions.iteritems():
-            for prefix, subscribers in subscriptions.iteritems():
+        for bus, subscriptions in self._peer_subscriptions.items():
+            for prefix, subscribers in subscriptions.items():
                 item = bus, prefix
                 try:
                     items.remove(item)
@@ -111,12 +109,12 @@ class PubSubWrapper(Agent):
             self.vip.pubsub.subscribe(peer, prefix, self._collector, bus=bus)
 
     def _peer_sync(self, items):
-        peer = bytes(self.vip.rpc.context.vip_message.peer)
+        peer = bytes(self.vip.rpc.context.vip_message.peer).decode("utf-8")
         assert isinstance(items, dict)
         self._sync(peer, items)
 
     def _peer_publish(self, topic, headers, message=None, bus=''):
-        peer = bytes(self.vip.rpc.context.vip_message.peer)
+        peer = bytes(self.vip.rpc.context.vip_message.peer).decode("utf-8")
         self.vip.pubsub.publish(peer, topic, headers, message=message, bus=bus)
 
     def add_bus(self, name):
@@ -126,7 +124,7 @@ class PubSubWrapper(Agent):
         self._peer_subscriptions[bus][prefix].add(peer)
 
     def _peer_subscribe(self, prefix, bus=''):
-        peer = bytes(self.vip.rpc.context.vip_message.peer)
+        peer = bytes(self.vip.rpc.context.vip_message.peer).decode("utf-8")
         for prefix in prefix if isinstance(prefix, list) else [prefix]:
             self._add_peer_subscription(peer, bus, prefix)
         self.vip.pubsub.subscribe(peer, prefix, self._collector, bus=bus)
@@ -135,7 +133,7 @@ class PubSubWrapper(Agent):
         #self._check_if_protected_topic(topic)
         subscriptions = self._peer_subscriptions[bus]
         subscribers = set()
-        for prefix, subscription in subscriptions.iteritems():
+        for prefix, subscription in subscriptions.items():
             if subscription and topic.startswith(prefix):
                 subscribers |= subscription
         if subscribers:
@@ -155,9 +153,9 @@ class PubSubWrapper(Agent):
         self._distribute(peer, topic, headers, message, bus)
 
     def _peer_list(self, prefix='', bus='', subscribed=True, reverse=False):
-        peer = bytes(self.vip.rpc.context.vip_message.peer)
+        peer = bytes(self.vip.rpc.context.vip_message.peer).decode("utf-8")
         if bus is None:
-            buses = self._peer_subscriptions.iteritems()
+            buses = iter(self._peer_subscriptions.items())
         else:
             buses = [(bus, self._peer_subscriptions[bus])]
         if reverse:
@@ -166,7 +164,7 @@ class PubSubWrapper(Agent):
             test = lambda t: t.startswith(prefix)
         results = []
         for bus, subscriptions in buses:
-            for topic, subscribers in subscriptions.iteritems():
+            for topic, subscribers in subscriptions.items():
                 if test(topic):
                     member = peer in subscribers
                     if not subscribed or member:
@@ -174,11 +172,11 @@ class PubSubWrapper(Agent):
         return results
 
     def _peer_unsubscribe(self, prefix, bus=''):
-        peer = bytes(self.vip.rpc.context.vip_message.peer)
+        peer = bytes(self.vip.rpc.context.vip_message.peer).decode("utf-8")
         subscriptions = self._peer_subscriptions[bus]
         if prefix is None:
             remove = []
-            for topic, subscribers in subscriptions.iteritems():
+            for topic, subscribers in subscriptions.items():
                 subscribers.discard(peer)
                 if not subscribers:
                     remove.append(topic)

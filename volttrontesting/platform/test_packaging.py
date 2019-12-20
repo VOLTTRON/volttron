@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -67,7 +67,7 @@ def test_package():
     """
 
     # now change to the newly created tmpdir
-    print ("cwd {}".format(os.getcwd()))
+    print("cwd {}".format(os.getcwd()))
     cwd = os.getcwd()
     try:
         tmpdir = tempfile.mkdtemp()
@@ -96,10 +96,10 @@ packages = ['packagetest'],
 zip_safe = False,
 )
 ''')
-        p = subprocess.Popen([sys.executable, 'setup.py', 'bdist_wheel'])
+        p = subprocess.Popen([sys.executable, 'setup.py', 'bdist_wheel'], universal_newlines=True)
         p.wait()
         os.path.join('dist', '-'.join(['distribution_name',
-                                               '0.1', 'py2-none-any.whl']))
+                                               '0.1', 'py3-none-any.whl']))
     finally:
         os.chdir(cwd)
     return tmpdir, 'distribution_name', '0.1', 'packagetest'
@@ -110,19 +110,19 @@ def test_create_package_no_id(test_package):
     """
     Test if we can create a wheel file given a valid agent directory.
     Expected result: wheel file with the name
-    <distribution_name>-<version>-py2-none-any.whl
+    <distribution_name>-<version>-py3-none-any.whl
 
     :param test_package: fixture that creates the fake agent directory
     and returns the directory name, distribution name, version of
     the fake/test package, and package name
 
     """
-    print ("cwd {}".format(os.getcwd()))
+    print("cwd {}".format(os.getcwd()))
     tmpdir, distribution_name, version, package_name = test_package
     wheel_dir = os.path.join(tmpdir, "wheel_dir")
     result = create_package(tmpdir, wheel_dir)
     assert result == os.path.join(wheel_dir, '-'.join(
-        [distribution_name, version, 'py2-none-any.whl']))
+        [distribution_name, version, 'py3-none-any.whl']))
 
 
 @pytest.mark.packaging
@@ -132,7 +132,7 @@ def test_create_package_with_id(test_package):
     Expected result:
 
     1. wheel file with the name
-       <distribution_name>-<version>-py2-none-any.whl
+       <distribution_name>-<version>-py3-none-any.whl
     2. Wheel file should contains the identity passed in a file called
     'IDENTITY_TEMPLATE' in <distribution_name>-<version>.dist-info folder
 
@@ -145,7 +145,7 @@ def test_create_package_with_id(test_package):
     wheel_dir = os.path.join(tmpdir, "wheel_dir")
     result = create_package(tmpdir, wheel_dir, "test_vip_id")
     assert result == os.path.join(wheel_dir, '-'.join(
-        [distribution_name, version, 'py2-none-any.whl']))
+        [distribution_name, version, 'py3-none-any.whl']))
 
     extract_dir = tempfile.mkdtemp()
     result2 = extract_package(result, extract_dir)
@@ -172,7 +172,7 @@ def test_create_package_invalid_input():
         create_package("/abc/def/ghijkl", wheel_dir)
         pytest.fail("Expecting AgentPackageError got none")
     except AgentPackageError as e:
-        assert e.message == "Invalid agent package directory specified"
+        assert e.args[0] == "Invalid agent package directory specified"
 
     try:
         create_package(tempfile.mkdtemp(), wheel_dir)
@@ -201,10 +201,10 @@ def test_repackage_output_to_cwd(volttron_instance):
         agent_uuid = volttron_instance.install_agent(
             agent_dir=os.path.join(cwd, get_examples("ListenerAgent")))
         agent_dir = os.path.join(volttron_instance.volttron_home, 'agents',
-            agent_uuid, 'listeneragent-3.2')
-        print agent_dir
+            agent_uuid, 'listeneragent-3.3')
+        print(agent_dir)
         wheel_name = repackage(agent_dir)
-        assert wheel_name == 'listeneragent-3.2-py2-none-any.whl'
+        assert wheel_name == 'listeneragent-3.3-py3-none-any.whl'
 
         wheel = os.path.join(dest_dir, wheel_name)
         # Check wheel exists and it can be used to install the agent again
@@ -233,11 +233,11 @@ def test_repackage_valid_dest_dir(volttron_instance):
         agent_uuid = volttron_instance.install_agent(
             agent_dir=os.path.join(get_examples("ListenerAgent")))
         agent_dir = os.path.join(volttron_instance.volttron_home, 'agents',
-            agent_uuid, 'listeneragent-3.2')
-        print agent_dir
+            agent_uuid, 'listeneragent-3.3')
+        print(agent_dir)
         wheel_path = repackage(agent_dir, dest=dest_dir)
         expected_wheel = os.path.join(dest_dir,
-                                      'listeneragent-3.2-py2-none-any.whl')
+                                      'listeneragent-3.3-py3-none-any.whl')
         assert wheel_path == expected_wheel
         # Check wheel exists and it can be used to install the agent again
         assert os.path.isfile(wheel_path)
@@ -262,16 +262,16 @@ def test_repackage_new_dest_dir(volttron_instance):
     try:
         dest_dir = tempfile.mkdtemp()
         dest_dir = os.path.join(dest_dir, "subdir")
-        print ("cwd {}".format(os.getcwd()))
+        print("cwd {}".format(os.getcwd()))
 
         agent_uuid = volttron_instance.install_agent(
             agent_dir=os.path.join(get_examples("ListenerAgent")))
         agent_dir = os.path.join(volttron_instance.volttron_home, 'agents',
-            agent_uuid, 'listeneragent-3.2')
-        print agent_dir
+            agent_uuid, 'listeneragent-3.3')
+        print(agent_dir)
         wheel_path = repackage(agent_dir, dest=dest_dir)
         expeceted_wheel = os.path.join(
-            dest_dir, 'listeneragent-3.2-py2-none-any.whl')
+            dest_dir, 'listeneragent-3.3-py3-none-any.whl')
         assert wheel_path == expeceted_wheel
         # Check wheel exists and it can be used to install the agent again
         assert os.path.isfile(wheel_path)
@@ -298,12 +298,12 @@ def test_repackage_invalid_dest_dir(volttron_instance):
         agent_uuid = volttron_instance.install_agent(
             agent_dir=get_examples("ListenerAgent"))
         agent_dir = os.path.join(volttron_instance.volttron_home, 'agents',
-                                 agent_uuid, 'listeneragent-3.2')
+                                 agent_uuid, 'listeneragent-3.3')
         repackage(agent_dir, dest=dest_dir)
         pytest.fail("Expecting AgentPackageError but code completed "
                     "successfully")
     except AgentPackageError as a:
-        assert a.message.find("Unable to create destination directory "
+        assert a.args[0].find("Unable to create destination directory "
                               "{}".format(dest_dir)) != -1
     try:
 
@@ -312,7 +312,7 @@ def test_repackage_invalid_dest_dir(volttron_instance):
         agent_uuid = volttron_instance.install_agent(
             agent_dir=get_examples("ListenerAgent"))
         agent_dir = os.path.join(volttron_instance.volttron_home, 'agents',
-                                 agent_uuid, 'listeneragent-3.2')
+                                 agent_uuid, 'listeneragent-3.3')
         repackage(agent_dir, dest=dest_dir)
         pytest.fail("Expecting AgentPackageError but code completed "
                     "successfully")
@@ -332,7 +332,7 @@ def test_repackage_invalid_agent_dir():
         pytest.fail("Expecting AgentPackageError but code completed "
                     "successfully")
     except AgentPackageError as a:
-        assert a.message == "Agent directory " \
+        assert a.args[0] == "Agent directory " \
                             "/tmp/abcdefghijklmnopqrstuvwxyz " \
                             "does not exist"
     temp_dir = ""
@@ -342,7 +342,7 @@ def test_repackage_invalid_agent_dir():
         pytest.fail("Expecting AgentPackageError but code completed "
                     "successfully")
     except AgentPackageError as a:
-        assert a.message == 'directory does not contain a valid agent ' \
+        assert a.args[0] == 'directory does not contain a valid agent ' \
                             'package: {}'.format(temp_dir)
     finally:
         if temp_dir:
@@ -366,7 +366,7 @@ def test_extract_valid_wheel_and_dir(test_package):
         tmpdir, distribution_name, version, package = test_package
 
         wheel_name = '-'.join(
-            [distribution_name, version, 'py2-none-any.whl'])
+            [distribution_name, version, 'py3-none-any.whl'])
         wheel_file = os.path.join(tmpdir, 'dist', wheel_name)
         install_dir = tempfile.mkdtemp()
 
@@ -374,7 +374,7 @@ def test_extract_valid_wheel_and_dir(test_package):
                                       include_uuid=False,
                                       specific_uuid=None)
 
-        print ("destination {}".format(destination))
+        print("destination {}".format(destination))
         name_version = distribution_name + "-" + version
         assert destination == os.path.join(install_dir, name_version)
         assert Counter(os.listdir(destination)) == Counter(
@@ -407,7 +407,7 @@ def test_extract_include_uuid(test_package):
         tmpdir, distribution_name, version, package = test_package
 
         wheel_name = '-'.join(
-            [distribution_name, version, 'py2-none-any.whl'])
+            [distribution_name, version, 'py3-none-any.whl'])
         wheel_file = os.path.join(tmpdir, 'dist', wheel_name)
         install_dir = tempfile.mkdtemp()
 
@@ -415,7 +415,7 @@ def test_extract_include_uuid(test_package):
                                       include_uuid=True,
                                       specific_uuid=None)
 
-        print ("destination {}".format(destination))
+        print("destination {}".format(destination))
         name_version = distribution_name + "-" + version
         assert os.path.basename(destination) == name_version
         assert os.path.dirname(os.path.dirname(destination)) == install_dir
@@ -449,7 +449,7 @@ def test_extract_specific_uuid(test_package):
         tmpdir, distribution_name, version, package = test_package
 
         wheel_name = '-'.join(
-            [distribution_name, version, 'py2-none-any.whl'])
+            [distribution_name, version, 'py3-none-any.whl'])
         wheel_file = os.path.join(tmpdir, 'dist', wheel_name)
         install_dir = tempfile.mkdtemp()
 
@@ -457,7 +457,7 @@ def test_extract_specific_uuid(test_package):
                                       include_uuid=True,
                                       specific_uuid="123456789")
 
-        print ("destination {}".format(destination))
+        print("destination {}".format(destination))
         name_version = distribution_name + "-" + version
         assert os.path.basename(destination) == name_version
         assert os.path.dirname(destination) == os.path.join(install_dir,
@@ -489,7 +489,7 @@ def test_extract_invalid_wheel():
                         specific_uuid="123456789")
 
     except Exception as e:
-        assert e.message == "Bad filename '{}'".format(f.name)
+        assert e.args[0] == "Bad filename '{}'".format(f.name)
     finally:
         if install_dir:
             shutil.rmtree(install_dir)
@@ -511,7 +511,7 @@ def test_extract_invalid_install_dir(test_package):
         tmpdir, distribution_name, version, package = test_package
 
         wheel_name = '-'.join(
-            [distribution_name, version, 'py2-none-any.whl'])
+            [distribution_name, version, 'py3-none-any.whl'])
         wheel_file = os.path.join(tmpdir, 'dist', wheel_name)
         install_dir = tempfile.mkdtemp()
         os.chmod(install_dir, stat.S_IREAD)
@@ -519,7 +519,7 @@ def test_extract_invalid_install_dir(test_package):
                         specific_uuid="123456789")
 
     except Exception as e:
-        print e
+        print(e)
         assert str(e).find("Permission denied") != -1
     finally:
         if install_dir:
@@ -543,7 +543,7 @@ def test_extract_new_install_dir(test_package):
         tmpdir, distribution_name, version, package = test_package
 
         wheel_name = '-'.join(
-            [distribution_name, version, 'py2-none-any.whl'])
+            [distribution_name, version, 'py3-none-any.whl'])
         wheel_file = os.path.join(tmpdir, 'dist', wheel_name)
         install_dir = tempfile.mkdtemp()
         install_dir = os.path.join(install_dir, 'newdir')
@@ -551,7 +551,7 @@ def test_extract_new_install_dir(test_package):
         destination = extract_package(wheel_file, install_dir,
                                       include_uuid=True,
                                       specific_uuid="123456789")
-        print ("destination {}".format(destination))
+        print("destination {}".format(destination))
         name_version = distribution_name + "-" + version
         assert os.path.basename(destination) == name_version
         assert os.path.dirname(destination) == os.path.join(install_dir,

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -36,12 +36,12 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-from __future__ import absolute_import
+
 
 from contextlib import closing
 
 from zmq import green as zmq
-from volttron.platform.agent import json as jsonapi
+from volttron.platform import jsonapi
 
 from . import Core, ZMQCore, RPC, PeerList, PubSub
 from .subsystems.pubsub import encode_peer
@@ -137,7 +137,7 @@ class CompatPubSub(object):
                     #    ('add' if add else 'remove'), topic))
                     sock.send('subscriptions/{}{}{}'.format(
                         ('add' if add else 'remove'),
-                        ('' if topic[:1] == '/' else '/'), topic).encode('utf-8'))
+                        ('' if topic[:1] == '/' else '/'), topic))
 
     def forward(self, peer, sender, bus, topic, headers, message):
         headers = Headers(headers)
@@ -170,11 +170,11 @@ def unpack_legacy_message(headers, message):
         content_type = headers['Content-Type']
     except KeyError:
         return headers, message
-    if isinstance(content_type, basestring):
+    if isinstance(content_type, str):
         if content_type.lower() == 'application/json':
             if isinstance(message, list) and len(message) == 1:
                 return jsonapi.loads(message[0])
-            if isinstance(message, basestring):
+            if isinstance(message, str):
                 return jsonapi.loads(message)
         if isinstance(message, list) and len(message) == 1:
             return message[0]

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -41,7 +41,7 @@
 Supports killing threads and executing callbacks from other threads.
 '''
 
-from __future__ import absolute_import, print_function
+
 
 import functools
 import sys
@@ -51,96 +51,9 @@ import gevent
 from gevent import GreenletExit
 
 
-__all__ = ['AsyncCall', 'Threadlet', 'GreenletExit']
+__all__ = ['AsyncCall', 'GreenletExit']
 
 __author__ = 'Brandon Carpenter <brandon.carpenter@pnnl.gov>'
-
-
-class Threadlet(threading.Thread):
-    '''A subclass of threading.Thread supporting gevent Greenlets.
-
-    The run method is executed in the thread's main greenlet and the
-    thread will exit when that method returns. Other threads may run
-    callbacks within this thread using the send() method. Unlike the
-    base class, threading.Thread, *daemon* is set by default.
-    '''
-
-    def __init__(self, *args, **kwargs):
-        '''This subclass adds three additional keyword arguents:
-
-        *daemon* sets the *daemon* property on the object to the given
-        value. It defaults to True.
-
-        *ignore_exit* is a flag indicating whether uncaught GreenletExit
-        exceptions will be silently ignored. It defaults to True.
-
-        *send_errors* is a flag indicating whether uncaught exceptions
-        occuring in callbacks run via send() should be sent to and
-        raised in the main greenlet. If False (the default), uncaught
-        exceptions will still cause tracebacks to be printed to
-        sys.stderr.
-        '''
-        daemon = kwargs.pop('daemon', True)
-        ignore = kwargs.pop('ignore_exit', True)
-        fatal = kwargs.pop('send_errors', False)
-        super(Threadlet, self).__init__(*args, **kwargs)
-        self.daemon = daemon
-        self.ignore_exit = ignore
-        self.send_errors = fatal
-        self.__async = None
-        self.__callbacks = []
-
-    if threading.Thread.__init__.__doc__:
-        __init__.__doc__ = threading.Thread.__init__.__doc__ + __init__.__doc__
-
-    def kill(self, exception=GreenletExit):
-        '''Raise GreenletExit or other exception in the main greenlet.'''
-        assert self.is_alive(), 'thread is not running'
-        self.send(gevent.kill, self.__greenlet, exception)
-
-    def send(self, callback, *args, **kwargs):
-        '''Execute callback in this thread's hub.'''
-        assert self.is_alive(), 'thread is not running'
-        self.__callbacks.append((callback, args, kwargs))
-        self.__async.send()
-
-    def __run_callbacks(self):
-        '''Execute pending callbacks.'''
-        hub = self.__hub
-        while self.__callbacks:
-            callback, args, kwargs = self.__callbacks.pop()
-            try:
-                callback(*args, **kwargs)   # pylint: disable=star-args
-            except Exception:   # pylint: disable=broad-except
-                context = None if self.send_errors else callback
-                hub.handle_error(context, *sys.exc_info())
-
-    # pylint: disable=no-member,invalid-name,missing-docstring
-    # pylint: disable=assignment-from-none,attribute-defined-outside-init
-
-    @functools.wraps(threading.Thread._Thread__bootstrap_inner)
-    def _Thread__bootstrap_inner(self):
-        run_func = self.run
-        def run():
-            self.run = run_func
-            try:
-                run_func()
-            except GreenletExit:
-                # Only raise if self.ignore_exit is False
-                if not getattr(self, 'ignore_exit', True):
-                    raise
-        self.run = functools.wraps(run_func)(run)
-
-        # Override inner bootstrap to get thread-specific attributes
-        self.__greenlet = gevent.getcurrent()
-        self.__hub = gevent.get_hub()
-        self.__async = self.__hub.loop.async()
-        self.__async.start(self.__run_callbacks)
-        try:
-            threading.Thread._Thread__bootstrap_inner(self)
-        finally:
-            self.__async.stop()
-
 
 class AsyncCall(object):
     '''Send functions to another thread's gevent hub for execution.'''

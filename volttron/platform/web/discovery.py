@@ -1,15 +1,14 @@
 import logging
-from urlparse import urlparse, urljoin
-
 import requests
+from urllib.parse import urlparse, urljoin
 
-from volttron.platform.agent import json as jsonapi
+from volttron.platform import jsonapi
 from volttron.platform.certs import Certs
 
 _log = logging.getLogger(__name__)
 
 
-class DiscoveryError(StandardError):
+class DiscoveryError(Exception):
     """ Raised when a different volttron central tries to register.
     """
     pass

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -58,43 +58,37 @@ instance with VCA.
 
 """
 
+import datetime
 import logging
 import os
 import os.path as p
 import sys
 from collections import namedtuple
-import datetime
 
 import gevent
-import requests
 
-from volttron.platform.auth import AuthFile, AuthEntry
-from volttron.platform.agent import json as jsonapi
-
-from authenticate import Authenticate
-from platforms import Platforms, PlatformHandler
-from sessions import SessionHandler
+from volttron.platform import jsonapi
 from volttron.platform import jsonrpc
 from volttron.platform.agent import utils
-from volttron.platform.agent.exit_codes import INVALID_CONFIGURATION_CODE
 from volttron.platform.agent.known_identities import (
-    VOLTTRON_CENTRAL, VOLTTRON_CENTRAL_PLATFORM, PLATFORM_HISTORIAN)
+    VOLTTRON_CENTRAL, PLATFORM_HISTORIAN)
 from volttron.platform.agent.utils import (
-    get_aware_utc_now, format_timestamp)
+    get_aware_utc_now, get_messagebus)
+from volttron.platform.auth import AuthFile, AuthEntry
 from volttron.platform.jsonrpc import (
     INVALID_REQUEST, METHOD_NOT_FOUND,
     UNHANDLED_EXCEPTION, UNAUTHORIZED,
-    DISCOVERY_ERROR,
-    UNABLE_TO_UNREGISTER_INSTANCE, UNAVAILABLE_PLATFORM, INVALID_PARAMS,
+    UNAVAILABLE_PLATFORM, INVALID_PARAMS,
     UNAVAILABLE_AGENT, INTERNAL_ERROR)
-from volttron.platform.messaging.health import Status, \
-    BAD_STATUS, GOOD_STATUS, UNKNOWN_STATUS
-from volttron.platform.vip.agent import Agent, RPC, PubSub, Core, Unreachable
-from volttron.platform.vip.agent.connection import Connection
-from volttron.platform.vip.agent.subsystems.query import Query
-from volttron.platform.web import (DiscoveryInfo, DiscoveryError)
+from volttron.platform.vip.agent import Agent, RPC, Unreachable
+from .authenticate import Authenticate
+from .platforms import Platforms, PlatformHandler
+from .sessions import SessionHandler
 
-__version__ = "5.0"
+# must be after importing of utils which imports grequest.
+import requests
+
+__version__ = "5.2"
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -242,7 +236,7 @@ class VolttronCentralAgent(Agent):
 
         if users is None:
             users = {}
-            _log.warn("No users are available for logging in!")
+            _log.warning("No users are available for logging in!")
 
         # Unregister all routes for vc and then re-add down below.
         self.vip.web.unregister_all_routes()
@@ -286,7 +280,6 @@ class VolttronCentralAgent(Agent):
         Scan the local bus for peers that start with 'vcp-'.  Handle the
         connection and disconnection events here.
         """
-        _log.debug("Scanning for connection/disconnection")
         if self._platform_scan_event is not None:
             # This won't hurt anything if we are canceling ourselves.
             self._platform_scan_event.cancel()
@@ -430,7 +423,7 @@ class VolttronCentralAgent(Agent):
                     # we pass in the proper thing to the _add_sesion function.
                     assert 'groups' in claims
                     authentication_token = resp.text
-                    sess=authentication_token
+                    sess = authentication_token
                     self._authenticated_sessions._add_session(user=user,
                                                               groups=claims['groups'],
                                                               token=authentication_token,
@@ -853,7 +846,7 @@ class VolttronCentralAgent(Agent):
                 platform = self._platforms.get_platform(platform_uuid)
                 # Determine whether the method to call is on the current class
                 # or on the platform object.
-                if isinstance(class_method, basestring):
+                if isinstance(class_method, str):
                     method_ref = getattr(platform, class_method)
                 else:
                     method_ref = class_method
@@ -996,7 +989,7 @@ class VolttronCentralAgent(Agent):
                             user
                         ))
 
-                    if 'groups' not in item.keys():
+                    if 'groups' not in item:
                         problems.append('missing groups key for user {}'.format(
                             user
                         ))

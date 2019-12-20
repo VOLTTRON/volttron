@@ -19,6 +19,7 @@
 import ast
 import contextlib
 import logging
+import copy
 
 import pytz
 import psycopg2
@@ -26,7 +27,7 @@ from psycopg2 import InterfaceError, ProgrammingError, errorcodes
 from psycopg2.sql import Identifier, Literal, SQL
 
 from volttron.platform.agent import utils
-from volttron.platform.agent import json as jsonapi
+from volttron.platform import jsonapi
 
 from .basedb import DbDriver
 
@@ -49,6 +50,12 @@ class PostgreSqlFuncts(DbDriver):
             self.meta_table = table_names['meta_table']
             self.agg_topics_table = table_names.get('agg_topics_table')
             self.agg_meta_table = table_names.get('agg_meta_table')
+        connect_params = copy.deepcopy(connect_params)
+        if "timescale_dialect" in connect_params:
+            self.timescale_dialect = connect_params.get("timescale_dialect", False)
+            del connect_params["timescale_dialect"]
+        else:
+            self.timescale_dialect = False
         def connect():
             connection = psycopg2.connect(**connect_params)
             connection.autocommit = True
@@ -108,10 +115,19 @@ class PostgreSqlFuncts(DbDriver):
                 'value_string TEXT NOT NULL, '
                 'UNIQUE (topic_id, ts)'
             ')').format(Identifier(self.data_table)))
-        self.execute_stmt(SQL(
-            'CREATE INDEX IF NOT EXISTS {} ON {} (ts ASC)').format(
-            Identifier('idx_' + self.data_table),
-            Identifier(self.data_table)))
+        if self.timescale_dialect:
+            _log.debug("trying to create hypertable")
+            self.execute_stmt(SQL(
+                "SELECT create_hypertable({}, 'ts')").format(
+                Literal(self.data_table)))
+            self.execute_stmt(SQL(
+                'CREATE INDEX ON {} (topic_id, ts)').format(
+                Identifier(self.data_table)))
+        else:
+            self.execute_stmt(SQL(
+                'CREATE INDEX IF NOT EXISTS {} ON {} (ts ASC)').format(
+                Identifier('idx_' + self.data_table),
+                Identifier(self.data_table)))
         self.execute_stmt(SQL(
             'CREATE TABLE IF NOT EXISTS {} ('
                 'topic_id SERIAL PRIMARY KEY NOT NULL, '
@@ -219,13 +235,13 @@ class PostgreSqlFuncts(DbDriver):
     def insert_topic(self, topic):
         with self.cursor() as cursor:
             cursor.execute(self.insert_topic_query(), {'topic': topic})
-            return cursor.next()[0]
+            return cursor.fetchone()[0]
 
     def insert_agg_topic(self, topic, agg_type, agg_time_period):
         with self.cursor() as cursor:
             cursor.execute(self.insert_agg_topic_stmt(),
                            (topic, agg_type, agg_time_period))
-            return cursor.next()[0]
+            return cursor.fetchone()[0]
 
     def insert_meta_query(self):
         return SQL(

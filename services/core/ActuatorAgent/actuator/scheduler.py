@@ -1,64 +1,45 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
-
-# Copyright (c) 2017, Battelle Memorial Institute
-# All rights reserved.
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
+# Copyright 2019, Battelle Memorial Institute.
 #
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in
-#    the documentation and/or other materials provided with the
-#    distribution.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# http://www.apache.org/licenses/LICENSE-2.0
 #
-# The views and conclusions contained in the software and documentation
-# are those of the authors and should not be interpreted as representing
-# official policies, either expressed or implied, of the FreeBSD
-# Project.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
-# This material was prepared as an account of work sponsored by an
-# agency of the United States Government.  Neither the United States
-# Government nor the United States Department of Energy, nor Battelle,
-# nor any of their employees, nor any jurisdiction or organization that
-# has cooperated in the development of these materials, makes any
-# warranty, express or implied, or assumes any legal liability or
-# responsibility for the accuracy, completeness, or usefulness or any
-# information, apparatus, product, software, or process disclosed, or
-# represents that its use would not infringe privately owned rights.
-#
-# Reference herein to any specific commercial product, process, or
-# service by trade name, trademark, manufacturer, or otherwise does not
-# necessarily constitute or imply its endorsement, recommendation, or
+# This material was prepared as an account of work sponsored by an agency of
+# the United States Government. Neither the United States Government nor the
+# United States Department of Energy, nor Battelle, nor any of their
+# employees, nor any jurisdiction or organization that has cooperated in the
+# development of these materials, makes any warranty, express or
+# implied, or assumes any legal liability or responsibility for the accuracy,
+# completeness, or usefulness or any information, apparatus, product,
+# software, or process disclosed, or represents that its use would not infringe
+# privately owned rights. Reference herein to any specific commercial product,
+# process, or service by trade name, trademark, manufacturer, or otherwise
+# does not necessarily constitute or imply its endorsement, recommendation, or
 # favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors
-# expressed herein do not necessarily state or reflect those of the
+# Battelle Memorial Institute. The views and opinions of authors expressed
+# herein do not necessarily state or reflect those of the
 # United States Government or any agency thereof.
 #
-# PACIFIC NORTHWEST NATIONAL LABORATORY
-# operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
+# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
 
 
 import bisect
 import logging
-from cPickle import dumps, loads
+from pickle import dumps, loads
 from collections import defaultdict, namedtuple
 from copy import deepcopy
 from datetime import timedelta
@@ -109,6 +90,21 @@ class TimeSlice(object):
         if self._end <= other._start:
             return -1
         return 0
+
+    # def __ne__(self, other):
+    #     return self.__cmp__(other) != 0
+    #
+    # def __gt__(self, other):
+    #     return self.__cmp__(other) > 0
+
+    def __lt__(self, other):
+        return self.__cmp__(other) < 0
+
+    # def __ge__(self, other):
+    #     return self.__cmp__(other) >= 0
+    #
+    # def __le__(self, other):
+    #     return self.__cmp__(other) <= 0
 
     def __contains__(self, other):
         return self._start < other < self._end
@@ -162,7 +158,7 @@ class Task(object):
             self.devices.clear()
             return
 
-        for device, schedule in self.devices.items():
+        for device, schedule in list(self.devices.items()):
             if schedule.finished(now):
                 del self.devices[device]
 
@@ -242,7 +238,7 @@ class Task(object):
         return None
 
 
-class ScheduleError(StandardError):
+class ScheduleError(Exception):
     pass
 
 
@@ -348,7 +344,7 @@ class ScheduleManager(object):
         try:
             self.tasks = loads(initial_state_string)
             self._cleanup(now)
-        except StandardError:
+        except Exception:
             self.tasks = {}
             _log.error ('Scheduler state file corrupted!')
 
@@ -359,7 +355,7 @@ class ScheduleManager(object):
         try:
             self._cleanup(now)
             self.save_state_callback(dumps(self.tasks))
-        except StandardError:
+        except Exception:
             _log.error('Failed to save scheduler state!')
 
     def request_slots(self, agent_id, id_, requests, priority, now=None):
@@ -383,11 +379,11 @@ class ScheduleManager(object):
 
         if requests is None or not requests:
             return RequestResult(False, {}, 'MALFORMED_REQUEST_EMPTY')
-        if not isinstance(agent_id, str):
+        if not isinstance(agent_id, str) or not agent_id:
             return RequestResult(False, {},
                                  'MALFORMED_REQUEST: TypeError: agentid must '
                                  'be a nonempty string')
-        if not isinstance(id_, str):
+        if not isinstance(id_, str) or not id_:
             return RequestResult(False, {},
                                  'MALFORMED_REQUEST: TypeError: taskid must '
                                  'be a nonempty string')
@@ -396,7 +392,7 @@ class ScheduleManager(object):
             new_task = Task(agent_id, priority, requests)
         except ScheduleError:
             return RequestResult(False, {}, 'REQUEST_CONFLICTS_WITH_SELF')
-        except StandardError as ex:
+        except Exception as ex:
             return RequestResult(False, {},
                                  'MALFORMED_REQUEST: ' +
                                  ex.__class__.__name__ + ': ' + str(
@@ -405,7 +401,7 @@ class ScheduleManager(object):
         conflicts = defaultdict(dict)
         preempted_tasks = set()
 
-        for task_id, task in self.tasks.iteritems():
+        for task_id, task in self.tasks.items():
             conflict_list = new_task.get_conflicts(task)
             agent_id = task.agent_id
             if conflict_list:
@@ -455,7 +451,7 @@ class ScheduleManager(object):
             agent_id = task.agent_id
             current_task_slots = task.get_current_slots(now)
             _log.debug("current_task_slots {}".format(current_task_slots))
-            for device, time_slot in current_task_slots.iteritems():
+            for device, time_slot in current_task_slots.items():
                 assert (device not in running_results)
                 running_results[device] = DeviceState(agent_id, task_id, (
                     time_slot.end - now).total_seconds())
@@ -464,7 +460,7 @@ class ScheduleManager(object):
             task = self.tasks[task_id]
             agent_id = task.agent_id
             current_task_slots = task.get_current_slots(now)
-            for device, time_slot in current_task_slots.iteritems():
+            for device, time_slot in current_task_slots.items():
                 assert (device not in preempted_results)
                 preempted_results[device] = DeviceState(agent_id, task_id, (
                     time_slot.end - now).total_seconds())
@@ -473,7 +469,7 @@ class ScheduleManager(object):
         return running_results
 
     def get_next_event_time(self, now):
-        task_times = (x.get_next_event_time(now) for x in self.tasks.itervalues())
+        task_times = (x.get_next_event_time(now) for x in self.tasks.values())
         events = [x for x in task_times if x is not None]
 
         if events:
@@ -494,7 +490,7 @@ class ScheduleManager(object):
         self.running_tasks = set()
         self.preempted_tasks = set()
 
-        for task_id in self.tasks.keys():
+        for task_id in list(self.tasks.keys()):
             task = self.tasks[task_id]
             task.make_current(now)
             if task.state == Task.STATE_FINISHED:

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -44,7 +44,7 @@ from math import pi
 
 from master_driver.interfaces import BaseInterface, BaseRegister, BasicRevert
 from csv import DictReader
-from StringIO import StringIO
+from io import StringIO
 import logging
 
 _log = logging.getLogger(__name__)
@@ -118,7 +118,7 @@ class Interface(BasicRevert, BaseInterface):
     def _set_point(self, point_name, value):
         register = self.get_register_by_name(point_name)
         if register.read_only:
-            raise IOError(
+            raise RuntimeError(
                 "Trying to write to a point configured read only: " + point_name)
 
         register.value = register.reg_type(value)

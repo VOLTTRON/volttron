@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -41,7 +41,7 @@ By default all_platform is set to False and historian subscribes only to topics 
 When all_platforms=True, historian will subscribe to topics from all connected platforms
 
 """
-import json
+
 import os
 import random
 from datetime import datetime
@@ -49,7 +49,7 @@ from datetime import datetime
 import gevent
 import pytest
 
-from volttron.platform import get_services_core
+from volttron.platform import get_services_core, jsonapi
 from volttron.platform.agent import utils
 from volttron.platform.messaging import headers as headers_mod
 from volttrontesting.fixtures.volttron_platform_fixtures import build_wrapper
@@ -59,6 +59,7 @@ from volttrontesting.fixtures.volttron_platform_fixtures import get_rand_vip, \
     get_rand_ip_and_port
 from volttron.utils.rmq_setup import start_rabbit, stop_rabbit
 from volttron.platform.agent.utils import execute_command
+
 
 @pytest.fixture(scope="module")
 def federated_rmq_instances(request, **kwargs):
@@ -187,8 +188,8 @@ def get_zmq_volttron_instances(request):
             addr_file = os.path.join(wrapper.volttron_home, 'external_address.json')
             if address_file:
                 with open(addr_file, 'w') as f:
-                    json.dump(web_addresses, f)
-                    gevent.sleep(.1)
+                    jsonapi.dump(web_addresses, f)
+                    gevent.sleep(0.5)
             wrapper.startup_platform(address, bind_web_address=web_address, setupmode=True)
             wrapper.skip_cleanup = True
             instances.append(wrapper)
@@ -202,7 +203,7 @@ def get_zmq_volttron_instances(request):
         for i in range(0, n):
             address = vip_addresses.pop(0)
             web_address = web_addresses.pop(0)
-            print address, web_address
+            print(address, web_address)
             instances[i].startup_platform(address, bind_web_address=web_address)
             instances[i].allow_all_connections()
         gevent.sleep(11)
@@ -236,8 +237,8 @@ def test_all_platform_subscription_zmq(request, get_zmq_volttron_instances):
         agent_dir=get_services_core("SQLHistorian"),
         config_file=hist_config,
         start=True)
-    gevent.sleep(1)
-    query_agent = downstream.build_agent()
+    gevent.sleep(3)
+    query_agent = downstream.build_agent(identity="query_agent1")
     gevent.sleep(1)
 
     hist2_config = {"connection":
@@ -251,12 +252,12 @@ def test_all_platform_subscription_zmq(request, get_zmq_volttron_instances):
         agent_dir=get_services_core("SQLHistorian"),
         config_file=hist2_config,
         start=True)
-    query_agent2 = downstream2.build_agent()
+    query_agent2 = downstream2.build_agent(identity="query_agent2")
     gevent.sleep(2)
 
-    print "publish"
+    print("publish")
 
-    producer = upstream.build_agent()
+    producer = upstream.build_agent(identity="producer")
     gevent.sleep(2)
     DEVICES_ALL_TOPIC = "devices/Building/LAB/Device/all"
 
@@ -349,7 +350,7 @@ def test_all_platform_subscription_rmq(request, federated_rmq_instances):
         query_agent = downstream.dynamic_agent
         gevent.sleep(2)
 
-        print "publish"
+        print("publish")
         producer = upstream.dynamic_agent
         gevent.sleep(2)
         DEVICES_ALL_TOPIC = "devices/Building/LAB/Device/all"

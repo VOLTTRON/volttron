@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -37,7 +37,7 @@
 # }}}
 
 
-from __future__ import absolute_import, print_function
+
 from collections import defaultdict
 import logging
 import weakref
@@ -254,7 +254,7 @@ class BACnetReader(object):
         # properties types and indexes.  After this for loop type_map will
         # hold the readable properties from the bacnet device ordered by
         # the type i.e. type_map['analogInput'] = [300324,304050]
-        for object_index in xrange(1, object_count + 1):
+        for object_index in range(1, object_count + 1):
             count += 1
 
             query_map[object_index] = [
@@ -396,7 +396,7 @@ class BACnetReader(object):
         notes = obj.get('description', '').strip()
 
         present_value_type = get_datatype(object_type, 'presentValue')
-        values = present_value_type.enumerations.values()
+        values = list(present_value_type.enumerations.values())
         min_value = min(values)
         max_value = max(values)
 
@@ -470,7 +470,7 @@ class BACnetReader(object):
         obj_units = "UNKNOWN UNIT ENUM VALUE"
         try:
             obj_units = EngineeringUnits(obj.get('units')).value
-            if isinstance(obj_units, (int, long)):
+            if isinstance(obj_units, int):
                 obj_units = 'UNKNOWN UNIT ENUM VALUE: ' + str(obj.get('units'))
         except ValueError:
             if obj.get('units'):
@@ -666,7 +666,7 @@ class BACnetReader(object):
         object_count = self._read_prop(address, obj_type, obj_inst,
                                        property_name, index=0)
 
-        for object_index in xrange(1, object_count + 1):
+        for object_index in range(1, object_count + 1):
             _log.debug('property_name index = ' + repr(object_index))
 
             object_reference = self._read_prop(address,
@@ -745,7 +745,7 @@ class BACnetReader(object):
 
         if issubclass(present_value_type, Enumerated):
             object_units = 'Enum'
-            values = present_value_type.enumerations.values()
+            values = list(present_value_type.enumerations.values())
             min_value = min(values)
             max_value = max(values)
 
@@ -831,7 +831,7 @@ class BACnetReader(object):
             except TypeError:
                 object_units = 'UNKNOWN UNITS'
 
-            if isinstance(object_units, (int, long)):
+            if isinstance(object_units, int):
                 object_units = 'UNKNOWN UNIT ENUM VALUE: ' + str(object_units)
 
             if obj_type.startswith('analog') or obj_type in (

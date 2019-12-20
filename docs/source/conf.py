@@ -40,14 +40,14 @@ sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
 
 # -- Project information -----------------------------------------------------
 
-project = u'VOLTTRON'
-copyright = u'2018, The VOLTTRON Community'
-author = u'The VOLTTRON Community'
+project = 'VOLTTRON'
+copyright = '2018, The VOLTTRON Community'
+author = 'The VOLTTRON Community'
 
 # The short X.Y version
-version = u'6.0'
+version = '7.0'
 # The full version, including alpha/beta/rc tags
-release = u'6.0'
+release = '7.0 Release Candidate'
 
 
 # -- General configuration ---------------------------------------------------
@@ -169,8 +169,8 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'VOLTTRON.tex', u'VOLTTRON Documentation',
-     u'The VOLTTRON Community', 'manual'),
+    (master_doc, 'VOLTTRON.tex', 'VOLTTRON Documentation',
+     'The VOLTTRON Community', 'manual'),
 ]
 
 
@@ -179,7 +179,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, 'volttron', u'VOLTTRON Documentation',
+    (master_doc, 'volttron', 'VOLTTRON Documentation',
      [author], 1)
 ]
 
@@ -190,7 +190,7 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'VOLTTRON', u'VOLTTRON Documentation',
+    (master_doc, 'VOLTTRON', 'VOLTTRON Documentation',
      author, 'VOLTTRON', 'One line description of project.',
      'Miscellaneous'),
 ]

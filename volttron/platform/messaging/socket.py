@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -38,12 +38,12 @@
 
 '''VOLTTRON platform™ messaging classes.'''
 
-from __future__ import absolute_import
+
 
 import collections
 
 import zmq
-from zmq.utils import jsonapi
+from volttron.platform import jsonapi
 
 from .headers import Headers
 
@@ -52,7 +52,7 @@ __all__ = ['Headers', 'Socket']
 
 __author__ = 'Brandon Carpenter <brandon.carpenter@pnnl.gov>'
 __copyright__ = 'Copyright (c) 2016, Battelle Memorial Institute'
-__license__ = 'FreeBSD'
+__license__ = 'Apache 2.0'
 
 
 class Socket(zmq.Socket):
@@ -90,7 +90,7 @@ class Socket(zmq.Socket):
         data.
         '''
         topic, headers, message = self.recv_message(flags)
-        message = zip(headers['Content-Type'], message)
+        message = list(zip(headers['Content-Type'], message))
         return topic, headers, message
 
     def send_message(self, topic, headers, *msg_parts, **kwargs):
@@ -122,6 +122,6 @@ class Socket(zmq.Socket):
         data as the second element.
         '''
         headers = Headers(headers) if headers else Headers()
-        headers['Content-Type'], msg_parts = zip(*msg_tuples)
+        headers['Content-Type'], msg_parts = list(zip(*msg_tuples))
         self.send_message(topic, headers.dict, *msg_parts, **kwargs)
 

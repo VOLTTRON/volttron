@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -68,7 +68,7 @@ def transform(module):
         return
     # If the file exists, add fakes to the module's namespace
     fake = AstroidBuilder(MANAGER).file_build(path)
-    for name, obj in fake.locals.iteritems():
+    for name, obj in fake.locals.items():
         module.locals.setdefault(name, []).extend(obj)
 
 

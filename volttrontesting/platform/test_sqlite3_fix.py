@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -37,64 +37,8 @@
 # }}}
 
 from dateutil.parser import parse
-from  volttron.platform.agent.utils import fix_sqlite3_datetime 
-import pytest
+from  volttron.platform.agent.utils import fix_sqlite3_datetime
 import sqlite3 as sql
-
-
-def test_sqlite_fixes():
-    """This is all in a single test so we don't have to muck around with 
-    reloading modules."""
-    import python_2_7_3_sqlite3 as sql_old
-    conn = sql_old.connect(':memory:', detect_types=sql_old.PARSE_DECLTYPES|sql_old.PARSE_COLNAMES)
-    
-    cur = conn.cursor()
-    cur.execute("create table test(ts timestamp)")
-    
-    now_string = '2015-12-17 00:00:00.000005Z'
-    now = parse(now_string)
-    
-    now_string_tz = '2015-12-17 00:00:00Z'
-    now_tz = parse(now_string_tz)
-    
-    cur.execute("insert into test(ts) values (?)", (now,))
-    
-   # Verify that our private copy of sqlite3 from 2.7.3 does indeed break.
-    try:
-        cur.execute("select * from test")
-        print "Did not raise expected exception"
-        assert False
-    except ValueError as e:
-        assert e.message == "invalid literal for int() with base 10: '000005+00:00'"
-     
-    cur.execute("delete from test")   
-    
-    cur.execute("insert into test(ts) values (?)", (now_tz,))
-    
-    try:
-        cur.execute("select * from test")
-        print "Did not raise expected exception"
-        assert False
-    except ValueError as e:
-        assert e.message == "invalid literal for int() with base 10: '00+00'"
-        
-    fix_sqlite3_datetime(sql_old)
-    
-    cur.execute("delete from test")  
-    cur.execute("insert into test(ts) values (?)", (now,))
-    
-    cur.execute("select * from test")
-    test_now = cur.fetchone()[0]
-    
-    cur.execute("delete from test")  
-    cur.execute("insert into test(ts) values (?)", (now_tz,))
-    
-    cur.execute("select * from test")
-    test_now_tz = cur.fetchone()[0]
-    
-    assert test_now == now
-    assert test_now_tz == now_tz
-
 
 def test_sqlite_fix_current():
     now_string = '2015-12-17 00:00:00.000005Z'

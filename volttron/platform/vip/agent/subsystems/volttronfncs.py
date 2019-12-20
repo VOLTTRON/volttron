@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2018, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -37,7 +37,7 @@
 # }}}
 
 
-from __future__ import absolute_import
+
 
 from datetime import datetime
 import logging
@@ -90,7 +90,7 @@ class FNCS(SubsystemBase):
         self._current_values = {}
         self._stop_agent_when_sim_complete = False
 
-    def initialize(self, sim_start_time, sim_length, topic_maping, work_callback, federate_name=None,
+    def initialize(self, sim_start_time, sim_length, topic_mapping, work_callback, federate_name=None,
                    broker_location="tcp://localhost:5570", time_delta="1s", stop_agent_when_sim_complete=False):
         """ Configure the agent to act as a federated connection to FNCS
 
@@ -112,7 +112,7 @@ class FNCS(SubsystemBase):
 
         :param sim_start_time:
         :param sim_length:
-        :param topic_maping:
+        :param topic_mapping:
         :param work_callback:
         :param federate_name:
         :param broker_location:
@@ -125,7 +125,7 @@ class FNCS(SubsystemBase):
         if fncs.is_initialized():
             raise RuntimeError("Invalid state, fncs has alreayd been initialized")
 
-        if not topic_maping:
+        if not topic_mapping:
             raise ValueError("Must supply a topic mapping with topics to map onto.")
 
         if not sim_start_time:
@@ -158,12 +158,12 @@ class FNCS(SubsystemBase):
             self._federate_name = federate_name
         self._work_callback = work_callback
 
-        for k, v in topic_maping.items():
+        for k, v in topic_mapping.items():
             if not v.get('fncs_topic'):
                 raise ValueError("Invalid fncs_topic specified in key {}.".format(k))
 
             entry = dict(fncs_topic=v.get('fncs_topic'))
-            if 'volttron_topic' in v.keys():
+            if 'volttron_topic' in v:
                 entry['volttron_topic'] = v['volttron_topic']
 
             self._registered_fncs_topics[k] = entry
@@ -193,6 +193,7 @@ broker = {0[broker]}
         _log.debug(cfg)
         cfg = cfg.replace("\t", "    ")
         fncs.initialize(cfg)
+        _log.debug("After initialized!")
         if not fncs.is_initialized():
             raise RuntimeError("Intialization error for fncs.")
 

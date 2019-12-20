@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -36,10 +36,8 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-from datetime import datetime as dt
 from datetime import timedelta
 from dateutil import parser
-import json
 
 from sqlalchemy import Column, String, Integer, DateTime, Float
 from sqlalchemy.ext.declarative import declarative_base
@@ -83,18 +81,18 @@ class EiEvent(ORMBase):
     attribute_names = ['event_id', 'creation_time', 'start_time', 'end_time', 'priority',
                        'signals', 'status', 'opt_type']
 
-    STATUS_UNRESPONDED = u'unresponded'
-    STATUS_FAR = u'far'
-    STATUS_NEAR = u'near'
-    STATUS_ACTIVE = u'active'
-    STATUS_COMPLETED = u'completed'
-    STATUS_CANCELED = u'cancelled'
+    STATUS_UNRESPONDED = 'unresponded'
+    STATUS_FAR = 'far'
+    STATUS_NEAR = 'near'
+    STATUS_ACTIVE = 'active'
+    STATUS_COMPLETED = 'completed'
+    STATUS_CANCELED = 'cancelled'
     STATUS_VALUES = [STATUS_UNRESPONDED, STATUS_FAR, STATUS_NEAR, STATUS_ACTIVE, STATUS_COMPLETED,
                      STATUS_CANCELED]
 
-    OPT_TYPE_OPT_IN = u'optIn'
-    OPT_TYPE_OPT_OUT = u'optOut'
-    OPT_TYPE_NONE = u'none'
+    OPT_TYPE_OPT_IN = 'optIn'
+    OPT_TYPE_OPT_OUT = 'optOut'
+    OPT_TYPE_NONE = 'none'
 
     def __init__(self, request_id, event_id):
         self.request_id = request_id
@@ -183,10 +181,10 @@ class EiReport(ORMBase):
 
     __tablename__ = 'EiReport'
 
-    STATUS_INACTIVE = u'inactive'
-    STATUS_ACTIVE = u'active'
-    STATUS_COMPLETED = u'completed'
-    STATUS_CANCELED = u'cancelled'
+    STATUS_INACTIVE = 'inactive'
+    STATUS_ACTIVE = 'active'
+    STATUS_COMPLETED = 'completed'
+    STATUS_CANCELED = 'cancelled'
 
     rowid = Column(Integer, primary_key=True)
     created_on = Column(DateTime)
