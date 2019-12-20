@@ -19,6 +19,7 @@
 import ast
 import contextlib
 import logging
+import copy
 
 import pytz
 import psycopg2
@@ -49,6 +50,12 @@ class PostgreSqlFuncts(DbDriver):
             self.meta_table = table_names['meta_table']
             self.agg_topics_table = table_names.get('agg_topics_table')
             self.agg_meta_table = table_names.get('agg_meta_table')
+        connect_params = copy.deepcopy(connect_params)
+        if "timescale_dialect" in connect_params:
+            self.timescale_dialect = connect_params.get("timescale_dialect", False)
+            del connect_params["timescale_dialect"]
+        else:
+            self.timescale_dialect = False
         def connect():
             connection = psycopg2.connect(**connect_params)
             connection.autocommit = True
@@ -108,10 +115,19 @@ class PostgreSqlFuncts(DbDriver):
                 'value_string TEXT NOT NULL, '
                 'UNIQUE (topic_id, ts)'
             ')').format(Identifier(self.data_table)))
-        self.execute_stmt(SQL(
-            'CREATE INDEX IF NOT EXISTS {} ON {} (ts ASC)').format(
-            Identifier('idx_' + self.data_table),
-            Identifier(self.data_table)))
+        if self.timescale_dialect:
+            _log.debug("trying to create hypertable")
+            self.execute_stmt(SQL(
+                "SELECT create_hypertable({}, 'ts')").format(
+                Literal(self.data_table)))
+            self.execute_stmt(SQL(
+                'CREATE INDEX ON {} (topic_id, ts)').format(
+                Identifier(self.data_table)))
+        else:
+            self.execute_stmt(SQL(
+                'CREATE INDEX IF NOT EXISTS {} ON {} (ts ASC)').format(
+                Identifier('idx_' + self.data_table),
+                Identifier(self.data_table)))
         self.execute_stmt(SQL(
             'CREATE TABLE IF NOT EXISTS {} ('
                 'topic_id SERIAL PRIMARY KEY NOT NULL, '
