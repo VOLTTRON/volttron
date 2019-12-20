@@ -219,13 +219,13 @@ class PostgreSqlFuncts(DbDriver):
     def insert_topic(self, topic):
         with self.cursor() as cursor:
             cursor.execute(self.insert_topic_query(), {'topic': topic})
-            return cursor.next()[0]
+            return cursor.fetchone()[0]
 
     def insert_agg_topic(self, topic, agg_type, agg_time_period):
         with self.cursor() as cursor:
             cursor.execute(self.insert_agg_topic_stmt(),
                            (topic, agg_type, agg_time_period))
-            return cursor.next()[0]
+            return cursor.fetchone()[0]
 
     def insert_meta_query(self):
         return SQL(
