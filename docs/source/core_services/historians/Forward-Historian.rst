@@ -42,7 +42,7 @@ Put the result into the following example
     {
         "agentid": "forwarder",
         "destination-vip": "tcp://127.0.0.1:22916",
-        "destination-serverykey": "<SOME_KEY>"
+        "destination-serverkey": "<SOME_KEY>"
     }
 
 
