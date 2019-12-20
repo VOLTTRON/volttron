@@ -243,7 +243,8 @@ def store_message_bus_config(message_bus, instance_name):
                          "you are running this instance for the first time. "
                          "Or add instance-name = <instance name> in "
                          "vhome/config")
-    v_home= get_home()
+
+    v_home = get_home()
     config_path = os.path.join(v_home, "config")
     if os.path.exists(config_path):
         config = ConfigParser()

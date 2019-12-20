@@ -936,7 +936,7 @@ class RabbitMQMgmt(object):
         permissions = self.get_default_permissions(rmq_user)
 
         if self.is_ssl:
-            self.rmq_config.crts.create_ca_signed_cert(rmq_user, overwrite=False)
+            self.rmq_config.crts.create_signed_cert_files(rmq_user, overwrite=False)
         param = None
 
         try:
@@ -971,8 +971,8 @@ class RabbitMQMgmt(object):
         self.create_user_with_permissions(rmq_user, permissions)
         ssl_params = None
         if is_ssl:
-            self.rmq_config.crts.create_ca_signed_cert(rmq_user,
-                                                       overwrite=False)
+            self.rmq_config.crts.create_signed_cert_files(rmq_user,
+                                                          overwrite=False)
             ssl_params = self.get_ssl_url_params(user=rmq_user)
         return self.build_rmq_address(rmq_user, self.rmq_config.admin_pwd,
                                       host, port, vhost, is_ssl, ssl_params)
@@ -991,7 +991,7 @@ class RabbitMQMgmt(object):
         permissions = dict(configure=".*", read=".*", write=".*")
 
         if self.is_ssl:
-            self.rmq_config.crts.create_ca_signed_cert(rmq_user, overwrite=False)
+            self.rmq_config.crts.create_signed_cert_files(rmq_user, overwrite=False)
 
         self.create_user_with_permissions(rmq_user, permissions, ssl_auth=self.is_ssl)
 

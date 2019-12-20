@@ -39,18 +39,20 @@
 import logging
 import os
 import re
-from urllib.parse import urlparse
+from urllib.parse import parse_qs
 
 from jinja2 import TemplateNotFound
 from passlib.hash import argon2
 #from watchdog_gevent import Observer
+from watchdog_gevent import Observer
+from volttron.platform.agent.web import Response
 
 from ...platform import get_home
 from ...platform import jsonapi
-from ...platform.agent.web import Response
 from ...platform.certs import Certs
 from ...utils import VolttronHomeFileReloader
 from ...utils.persistance import PersistentDict
+
 
 _log = logging.getLogger(__name__)
 
@@ -61,29 +63,36 @@ def template_env(env):
 
 class AdminEndpoints(object):
 
-    def __init__(self, rmq_mgmt, ssl_public_key: bytes):
+    def __init__(self, rmq_mgmt=None, ssl_public_key: bytes = None):
 
         self._rmq_mgmt = rmq_mgmt
-        if isinstance(ssl_public_key, bytes):
-            self._ssl_public_key = ssl_public_key.decode('utf-8')
-        elif isinstance(ssl_public_key, str):
-            self._ssl_public_key = ssl_public_key
+        if ssl_public_key is None:
+            self._insecure_mode = True
         else:
-            raise ValueError("Invalid type for ssl_public_key")
+            self._insecure_mode = False
+        # must have a none value for when we don't have an ssl context available.
+        if ssl_public_key is not None:
+            if isinstance(ssl_public_key, bytes):
+                self._ssl_public_key = ssl_public_key.decode('utf-8')
+            elif isinstance(ssl_public_key, str):
+                self._ssl_public_key = ssl_public_key
+            else:
+                raise ValueError("Invalid type for ssl_public_key")
         self._userdict = None
         self.reload_userdict()
-        # TODO Add back reload capability
-        # self._observer = Observer()
-        # self._observer.schedule(
-        #     FileReloader("web-users.json", self.reload_userdict),
-        #     get_home()
-        # )
-        # self._observer.start()
-        self._certs = Certs()
+
+        self._observer = Observer()
+        self._observer.schedule(
+            VolttronHomeFileReloader("web-users.json", self.reload_userdict),
+            get_home()
+        )
+        self._observer.start()
+        if ssl_public_key is not None:
+            self._certs = Certs()
 
     def reload_userdict(self):
         webuserpath = os.path.join(get_home(), 'web-users.json')
-        self._userdict = PersistentDict(webuserpath)
+        self._userdict = PersistentDict(webuserpath, format="json")
 
     def get_routes(self):
         """
@@ -100,21 +109,22 @@ class AdminEndpoints(object):
         if len(self._userdict) == 0:
             if env.get('REQUEST_METHOD') == 'POST':
                 decoded = dict((k, v if len(v) > 1 else v[0])
-                               for k, v in urlparse.parse_qs(data).iteritems())
+                               for k, v in parse_qs(data).items())
                 username = decoded.get('username')
                 pass1 = decoded.get('password1')
                 pass2 = decoded.get('password2')
+
                 if pass1 == pass2 and pass1 is not None:
                     _log.debug("Setting master password")
                     self.add_user(username, pass1, groups=['admin'])
                     return Response('', status='302', headers={'Location': '/admin/login.html'})
 
             template = template_env(env).get_template('first.html')
-            return Response(template.render())
+            return Response(template.render(), content_type="text/html")
 
         if 'login.html' in env.get('PATH_INFO') or '/admin/' == env.get('PATH_INFO'):
             template = template_env(env).get_template('login.html')
-            return Response(template.render())
+            return Response(template.render(), content_type='text/html')
 
         return self.verify_and_dispatch(env, data)
 
@@ -130,10 +140,6 @@ class AdminEndpoints(object):
             claims = get_user_claims(env)
         except NotAuthorized:
             _log.error("Unauthorized user attempted to connect to {}".format(env.get('PATH_INFO')))
-            return Response('<h1>Unauthorized User</h1>', status="401 Unauthorized")
-
-        # Make sure we have only admins for viewing this.
-        if 'admin' not in claims.get('groups'):
             return Response('<h1>Unauthorized User</h1>', status="401 Unauthorized")
 
         # Make sure we have only admins for viewing this.
@@ -227,9 +233,9 @@ class AdminEndpoints(object):
                     for x in self._certs.get_all_cert_subjects()]
         return Response(jsonapi.dumps(subjects), content_type="application/json")
 
-    def add_user(self, username, unencrypted_pw, groups=[], overwrite=False):
-        if self._userdict.get(username):
-            raise ValueError("Already exists!")
+    def add_user(self, username, unencrypted_pw, groups=None, overwrite=False):
+        if self._userdict.get(username) and not overwrite:
+            raise ValueError(f"The user {username} is already present and overwrite not set to True")
         if groups is None:
             groups = []
         hashed_pass = argon2.hash(unencrypted_pw)
@@ -237,4 +243,5 @@ class AdminEndpoints(object):
             hashed_password=hashed_pass,
             groups=groups
         )
-        self._userdict.async_sync()
+
+        self._userdict.sync()

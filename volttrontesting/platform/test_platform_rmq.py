@@ -121,10 +121,10 @@ def test_vstart_expired_ca_cert(request, instance):
         copy(crts.cert_file(crts.root_ca_name),
              crts.cert_file(crts.trusted_ca_name))
 
-        crts.create_ca_signed_cert(server_cert_name, type='server',
-                                   fqdn=fqdn)
+        crts.create_signed_cert_files(server_cert_name, cert_type='server',
+                                      fqdn=fqdn)
 
-        crts.create_ca_signed_cert(admin_cert_name, type='client')
+        crts.create_signed_cert_files(admin_cert_name, cert_type='client')
         gevent.sleep(9)
         print("Attempting to start volttron after cert expiry")
         try:
@@ -154,8 +154,8 @@ def test_vstart_expired_server_cert(request, instance):
         (root_ca, server_cert_name, admin_cert_name) = \
             Certs.get_admin_cert_names(instance.instance_name)
 
-        crts.create_ca_signed_cert(server_cert_name, type='server',
-                                   fqdn=fqdn, valid_days=0.0001)
+        crts.create_signed_cert_files(server_cert_name, cert_type='server',
+                                      fqdn=fqdn, valid_days=0.0001)
         gevent.sleep(9)
         try:
             instance.startup_platform(vip_address=get_rand_vip(), timeout=10)
@@ -183,8 +183,8 @@ def test_vstart_expired_admin_cert(request, instance):
         # overwrite certificates with quick expiry certs
         (root_ca, server_cert_name, admin_cert_name) = Certs.get_admin_cert_names(instance.instance_name)
 
-        crts.create_ca_signed_cert(admin_cert_name, type='client',
-                                   fqdn=fqdn, valid_days=0.0001)
+        crts.create_signed_cert_files(admin_cert_name, cert_type='client',
+                                      fqdn=fqdn, valid_days=0.0001)
         gevent.sleep(20)
         instance.startup_platform(vip_address=get_rand_vip())
         gevent.sleep(5)
@@ -222,8 +222,8 @@ def test_expired_ca_cert_after_vstart(request, instance):
         print("current time after root ca:{}".format(datetime.datetime.utcnow()))
         copy(crts.cert_file(crts.root_ca_name),
              crts.cert_file(crts.trusted_ca_name))
-        crts.create_ca_signed_cert(server_cert_name, type='server', fqdn=fqdn)
-        crts.create_ca_signed_cert(admin_cert_name, type='client')
+        crts.create_signed_cert_files(server_cert_name, cert_type='server', fqdn=fqdn)
+        crts.create_signed_cert_files(admin_cert_name, cert_type='client')
 
         instance.startup_platform(vip_address=get_rand_vip())
         print("current time after platform start:{}".format(datetime.datetime.utcnow()))
@@ -261,8 +261,8 @@ def test_expired_server_cert_after_vstart(request, instance):
         (root_ca, server_cert_name, admin_cert_name) = \
             Certs.get_admin_cert_names(instance.instance_name)
 
-        crts.create_ca_signed_cert(server_cert_name, type='server',
-                                   fqdn=fqdn, valid_days=0.0004)  # 34.5 seconds
+        crts.create_signed_cert_files(server_cert_name, cert_type='server',
+                                      fqdn=fqdn, valid_days=0.0004)  # 34.5 seconds
         print("current time:{}".format(datetime.datetime.utcnow()))
 
         instance.startup_platform(vip_address=get_rand_vip())
@@ -283,7 +283,7 @@ def test_expired_server_cert_after_vstart(request, instance):
 
 
         # Restore server cert and restart rmq ssl, wait for 30 seconds for volttron to reconnect
-        crts.create_ca_signed_cert(server_cert_name, type='server', fqdn=fqdn)
+        crts.create_signed_cert_files(server_cert_name, cert_type='server', fqdn=fqdn)
         restart_ssl(rmq_home=instance.rabbitmq_config_obj.rmq_home, env=instance.env)
 
         gevent.sleep(15)  # test setup sets the volttron reconnect wait to 5 seconds
