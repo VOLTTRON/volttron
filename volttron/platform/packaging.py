@@ -720,17 +720,11 @@ def main(argv=sys.argv):
                             _create_cert(name=opts.name, **user_type)
                 except auth.AuthError as e:
                     _log.error(e.message)
-                    #print(e.message)
 
-
-    #         elif opts.subparser_name == 'create_cert':
-    #             _create_cert(name=opts.name, **)
     except AgentPackageError as e:
         _log.error(e.message)
-        #print(e.message)
     except Exception as e:
         _log.error(str(e))
-        #print e
 
     if whl_path:
         print("Package created at: {}".format(whl_path))

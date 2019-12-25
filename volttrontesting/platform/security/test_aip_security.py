@@ -197,7 +197,7 @@ def test_agent_pubsub(secure_volttron_instance, security_agent,
     """
     query_agent.vip.rpc.call("security_agent", "can_publish_to_pubsub")
 
-    gevent.sleep(3)
+    gevent.sleep(6)
     assert "security_agent" == query_agent.publish_callback.call_args[0][1]
     assert "Security agent test message" == \
            query_agent.publish_callback.call_args[0][5]

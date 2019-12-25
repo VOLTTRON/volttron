@@ -41,7 +41,6 @@ import os
 import sys
 import tempfile
 import urlparse
-import StringIO
 from ConfigParser import ConfigParser
 from shutil import copy
 from gevent import subprocess
@@ -51,7 +50,6 @@ from volttron.platform import certs, is_rabbitmq_available
 from volttron.platform.agent import json as jsonapi
 from volttron.platform.agent.known_identities import MASTER_WEB, PLATFORM_DRIVER, VOLTTRON_CENTRAL
 from volttron.platform.agent.utils import get_platform_instance_name, wait_for_volttron_startup
-from volttron.utils import get_hostname
 from volttron.utils.prompt import prompt_response, y, n, y_or_n
 from volttron.utils.rmq_setup import setup_rabbitmq_volttron, _create_certs
 from volttron.utils.rmq_config_params import RMQConfig
@@ -495,6 +493,7 @@ def do_web_enabled_zmq(vhome):
     if config_opts['message-bus'] == 'zmq' and parsed.scheme == "https":
         get_cert_and_key(vhome)
 
+
 def do_web_agent():
     global config_opts
     volttron_home = get_home()
@@ -512,6 +511,7 @@ def do_web_agent():
             do_web_enabled_zmq(volttron_home)
     _update_config_file()
 
+
 @installs(get_services_core("VolttronCentral"), 'vc')
 def do_vc():
     do_web_agent()
@@ -519,6 +519,7 @@ def do_vc():
 
     print('Installing volttron central.')
     return resp
+
 
 def vc_config():
     username = ''
@@ -627,6 +628,7 @@ def get_cert_and_key(vhome):
                 config_opts['web-ssl-cert'] = master_web_cert
                 config_opts['web-ssl-key'] = master_web_key
 
+
 def is_file_readable(file_path, log=True):
     file_path = os.path.expanduser(os.path.expandvars(file_path))
     if os.path.exists(file_path) and os.access(file_path, os.R_OK):
@@ -635,6 +637,7 @@ def is_file_readable(file_path, log=True):
         if log:
             print("\nInvalid file path. Path does not exists or is not readable.")
         return False
+
 
 @installs(get_services_core("VolttronCentralPlatform"), 'vcp')
 def do_vcp():

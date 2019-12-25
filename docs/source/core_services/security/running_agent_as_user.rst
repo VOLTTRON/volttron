@@ -1,34 +1,38 @@
-.. _Running Agents as as Volttron Agent User:
-========================================
-Running Agents as as Volttron Agent User
-========================================
+.. _Running Agents as unique Unix user:
+
+==============================
+Running Agents as unique users
+==============================
 
 This Volttron feature will cause the platform to create a new, unique unix user
 on the host machine for each agent installed on the platform. This user will
 have restricted permissions for the file system, and will be used to run the
-agent process.
+agent process. The unix user starting the volttron platform will be given
+limited sudo access to create and delete agent users.
 
 To Run Agents as Their Own Users:
 ---------------------------------
-    1. Make sure acl library is install. If you are running on docker image acl might not be installed.
-       This feature requires acl to be installed.
-       **apt-get install acl**
 
-    2. **Run scripts/secure_users_permissions.sh** - This script will ask the
-    Volttron user to provide a name for the their Volttron instance
-    (volttron_<instance_name>). The instance name must be a 23 shorter string
-    featuring only characters valid as unix user names. This name should not be
-    shared with any existing Volttron instances. The script will create
-    necessary entries in /etc/sudoers to allow the Volttron user to create agent
-    users, the appropriate Volttron agent group, to delete these users, and to
-    run any non-sudo command as these users.
+1. **This feature requires acl to be installed.**
 
-    2. **Run vcfg** - This step must come after running the security users
-    permissions script. Enter the Volttron instance name provided in when the
-    the security script was run. When prompted with 'Should agents run with
-    their own users' enter 'Y' or 'y' to set the configuration option.
+   Make sure acl library is installed. If you are running on docker image acl might not be installed by default
 
-At this point Volttron should run normally, as long as the Volttron agent
-users, agent user files, and agent user permissions are not tampered with. Each
-agent will now create a USER_ID file in the agent-data directory in addition to
+   **apt-get install acl**
+
+2. **Run scripts/secure_users_permissions.sh as root or using sudo**
+
+   This script should be run as root or using sudo. This script gives the volttron platform user limited sudo access to create a new unix user for each agent. All users created will be of the format volttron_<timestamp>.
+
+   This script prompts for:
+
+   a. **volttron platform user** - Unix user who would be running VOLTTRON platform
+
+   b. **VOLTTRON_HOME directory** - The absolute path of volttron home directory.
+
+   c. **Volttron instance name if VOLTTRON_HOME/config does not exist** -
+If VOLTTRON_HOME/config file exists instance name is got from config file. If not user will be prompted for instance name. volttron_<instance_name> must be a 23 characters or shorter containing only characters valid as unix user names.
+
+This script will create necessary entries in /etc/sudoers.d/volttron to allow the volttron platform user to create and delete agent users, Volttron agent group, and run any non-sudo command as agent users. This script will also create VOLTTRON_HOME and the config file if given a new volttron home directory when prompted.
+
+Each agent will now create a USER_ID file in the agent-data directory in addition to
 any files created during a non-secure instance's normal operation.

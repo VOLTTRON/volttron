@@ -241,9 +241,6 @@ class SecurityAgent(Agent):
         :return: If permissions are not right an error message is returned. If there are no errors return None
         """
         error = None
-        CONFIG = {
-                "name": "test"
-            }
         try:
             self.vip.rpc.call('config.store', 'manage_store', "security_agent", 'config',
                               json.dumps({"name": "value"}), config_type='json').get(timeout=2)

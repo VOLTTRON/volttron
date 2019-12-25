@@ -1169,7 +1169,6 @@ def add_auth(opts):
         # Remove unspecified options so the default parameters are used
         fields = {k: v for k, v in fields.items() if v}
         fields['enabled'] = not opts.disabled
-        print("fields of capabilities: {}".format(fields["capabilities"]))
         entry = AuthEntry(**fields)
     else:
         # No options were specified, use interactive wizard

@@ -56,7 +56,6 @@ from ast import literal_eval
 import os
 import re
 from volttron.platform.aip import ExecutionEnvironment
-import subprocess
 
 
 __all__ = ['ResourceError', 'ExecutionEnvironment', 'ResourceMonitor']

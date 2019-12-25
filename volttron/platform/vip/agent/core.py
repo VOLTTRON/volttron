@@ -549,7 +549,8 @@ class Core(BasicCore):
         if self.agent_uuid:
             # this is an installed agent, put keystore in its dist-info
             current_directory = os.path.abspath(os.curdir)
-            keystore_dir = os.path.join(current_directory, "{}.dist-info".format(os.path.basename(current_directory)))
+            keystore_dir = os.path.join(current_directory,
+                                        "{}.dist-info".format(os.path.basename(current_directory)))
         elif self.identity is None:
             raise ValueError("Agent's VIP identity is not set")
         else:

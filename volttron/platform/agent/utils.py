@@ -206,6 +206,7 @@ def get_platform_instance_name(vhome=None, prompt=False):
 
     return instance_name
 
+
 def get_fq_identity(identity, platform_instance_name=None):
     """
     Return the fully qualified identity for the passed core identity.
@@ -276,6 +277,8 @@ def store_message_bus_config(message_bus, instance_name):
 
         with open(config_path, 'w') as configfile:
             config.write(configfile)
+        # all agents need read access to config file
+        os.chmod(config_path, 0o744)
 
 
 def update_kwargs_with_config(kwargs, config):
@@ -683,7 +686,7 @@ def create_file_if_missing(path, permission=0o660, contents=None):
     dirname = os.path.dirname(path)
     if dirname and not os.path.exists(dirname):
         try:
-            os.makedirs(dirname, 0o755)
+            os.makedirs(dirname)
         except OSError as e:
             if e.errno != errno.EEXIST:
                 raise

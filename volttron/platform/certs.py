@@ -369,9 +369,22 @@ class Certs(object):
                           self.csr_pending_dir, self.remote_cert_dir, self.certs_pending_dir)
 
         try:
+            dir_created = False
             for p in required_paths:
+                _log.debug("In certs init p={} exists={}".format(p,
+                                                                 os.path.exists(
+                                                                     p)))
                 if not os.path.exists(p):
-                    os.makedirs(p, 0o755)
+                    # explicitly provide rx to others since agent users should
+                    # have read access to these dirs
+                    os.makedirs(p)
+                    os.chmod(p, 0o755)
+                    dir_created = True
+                else:
+                    # if one exists all of them should exist. break
+                    break
+            if dir_created:
+                os.chmod(os.path.expanduser(certificate_dir), 0o755)
         except Exception:
             raise RuntimeError("No permission to create certificates directory")
 
@@ -789,8 +802,6 @@ class Certs(object):
             os.makedirs(directory, mode=0755)
         if file_path != cert_file:
             copyfile(file_path, cert_file)
-        # but restrict file access
-        os.chmod(cert_file, 0640)
 
     def save_key(self, file_path):
         key_file = self.private_key_file(os.path.splitext(os.path.basename(
@@ -801,7 +812,8 @@ class Certs(object):
             os.makedirs(directory, mode=0755)
         if file_path != key_file:
             copyfile(file_path, key_file)
-            # but restrict file access
+            # but restrict file access. even to group. umask won't change
+            # group permissions
             os.chmod(key_file, 0600)
 
     def create_ca_signed_cert(self, name, type='client', ca_name=None,
@@ -1011,10 +1023,9 @@ class Certs(object):
         ca_db[dn] = entries
         with open(db_file, 'w+') as outfile:
             json.dump(ca_db, outfile, indent=4)
-        os.chmod(db_file, 0o740)
+
         with open(self.ca_serial_file(ca_name), "w+") as f:
             f.write(str(serial+1))  # next available serial is current + 1
-        os.chmod(self.ca_serial_file(ca_name), 0o740)
 
     def verify_cert(self, cert_name):
         """

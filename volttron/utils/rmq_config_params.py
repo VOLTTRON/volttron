@@ -123,6 +123,8 @@ class RMQConfig(object):
             with open(self.volttron_rmq_config, 'w') as \
                     yaml_file:
                 yaml.dump(self.config_opts, yaml_file, default_flow_style=False)
+            # Explicitly give read access to group and others. RMQ user and
+            # agents should be able to read this config file
             os.chmod(self.volttron_rmq_config, 0o744)
         except IOError as exc:
             _log.error("Error writing to rabbitmq_config.yml file. Please"

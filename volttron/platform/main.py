@@ -601,6 +601,12 @@ def start_volttron_process(opts):
             _log.error('{}: {}'.format(*error))
             sys.exit(1)
 
+    if opts.secure_agent_users == "True":
+        _log.info("VOLTTRON starting in secure mode")
+        os.umask(0o007)
+    else:
+        opts.secure_agent_users = 'False'
+
     opts.publish_address = config.expandall(opts.publish_address)
     opts.subscribe_address = config.expandall(opts.subscribe_address)
     opts.vip_address = [config.expandall(addr) for addr in opts.vip_address]
@@ -624,7 +630,7 @@ def start_volttron_process(opts):
     # and opts.web_ssl_cert
 
     os.environ['MESSAGEBUS'] = opts.message_bus
-    os.environ['SECURE_AGENT_USER'] = str(opts.secure_agent_users)
+    os.environ['SECURE_AGENT_USER'] = opts.secure_agent_users
     if opts.instance_name is None:
         if len(opts.vip_address) > 0:
             opts.instance_name = opts.vip_address[0]
@@ -700,7 +706,6 @@ def start_volttron_process(opts):
         _log.warning('insecure mode on key file')
     publickey = decode_key(keystore.public)
     if publickey:
-        #_log.info('public key: %s', encode_key(publickey))
         # Authorize the platform key:
         entry = AuthEntry(credentials=encode_key(publickey),
                           user_id='platform',
@@ -789,7 +794,6 @@ def start_volttron_process(opts):
         _log.debug("VOLTTRON PLATFORM RUNNING ON {} MESSAGEBUS".format(opts.message_bus))
         _log.debug("********************************************************************")
         if opts.message_bus == 'zmq':
-            _log.debug(os.environ["PATH"])
             # Start the config store before auth so we may one day have auth use it.
             config_store = ConfigStoreService(address=address,
                                               identity=CONFIGURATION_STORE,
@@ -999,11 +1003,6 @@ def start_volttron_process(opts):
         with open(pid_file, 'w+') as f:
             f.write(str(os.getpid()))
 
-        # prevent access for others. Required for secure mode
-        # doesn't hurt for regular mode either as this file is
-        # only access by platform user
-        os.chmod(pid_file, 0o640)
-
         # Wait for any service to stop, signaling exit
         try:
             gevent.wait(tasks, count=1)
@@ -1153,7 +1152,6 @@ def main(argv=sys.argv):
         '--agent-monitor-frequency', default=600,
         help='How often should the platform check for crashed agents and '
              'attempt to restart. Units=seconds. Default=600')
-    # TODO this may not be necessary
     agents.add_argument(
         '--secure-agent-users', default=False,
         help='Require that agents run with their own users (this requires '

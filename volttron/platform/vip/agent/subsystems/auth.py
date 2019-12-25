@@ -193,7 +193,6 @@ class Auth(SubsystemBase):
 
                             remote_rmq_user = get_fq_identity(fqid_local, info.instance_name)
                             _log.debug("REMOTE RMQ USER IS: {}".format(remote_rmq_user))
-
                             remote_rmq_address = self._core().rmq_mgmt.build_remote_connection_param(
                                 remote_rmq_user,
                                 info.rmq_address,
@@ -338,10 +337,7 @@ class Auth(SubsystemBase):
             for d in sub_dirs:
                 d_path = os.path.join(agent_dir, d)
                 if os.path.isdir(d_path) and d.endswith("agent-data"):
-                    self.remote_certs_dir = os.path.join(d_path, "remote-certs")
-                    _log.debug("remote certs dir {}".format(self.remote_certs_dir))
-                    if not os.path.exists(self.remote_certs_dir):
-                        os.mkdir(self.remote_certs_dir)
+                    self.remote_certs_dir = d_path
         return self.remote_certs_dir
 
     def _fetch_capabilities(self):

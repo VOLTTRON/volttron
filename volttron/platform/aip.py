@@ -342,7 +342,7 @@ class AIPplatform(object):
         agent_path_with_name = os.path.join(agent_dir, name)
         # Directories in the install path have read/execute
         # except agent-data dir. agent-data dir has rwx
-
+        self.set_acl_for_path("rx", volttron_agent_user, agent_dir)
         # creates dir if it doesn't exist
         data_dir = self._get_agent_data_dir(agent_path_with_name)
 
@@ -357,12 +357,6 @@ class AIPplatform(object):
         # In install directory, make all files' permissions to 400.
         # Then do setfacl -m "r" to only agent user
         self._set_agent_dir_file_permissions(agent_dir, volttron_agent_user, data_dir)
-
-        # Need to be able read config and known_hosts file in volttron_home
-        self.set_acl_for_path("r", volttron_agent_user,
-                              os.path.join(get_home(), "known_hosts"))
-        self.set_acl_for_path("r", volttron_agent_user,
-                              os.path.join(get_home(), "config"))
 
         # if messagebus is rmq.
         # TODO: For now provide read access to all agents since this is used for
@@ -384,42 +378,36 @@ class AIPplatform(object):
                 if root == data_dir:
                     permissions = "rwx"
                 file_path = os.path.join(root, f)
-                # only platform user has default read permissions
-                os.chmod(file_path, 0o400)
                 # in addition agent user has access
                 self.set_acl_for_path(permissions, agent_user, file_path)
 
-    def remove_agent_user(self, agent_dir):
+    def remove_agent_user(self, volttron_agent_user):
         """
         Invokes sudo to remove the unix user for the given environment.
         """
-        # TODO maybe dream up a way to ensure the process is dead
-        user_id_path = os.path.join(agent_dir, "USER_ID")
-        try:
-            with open(user_id_path, 'r') as user_id_file:
-                volttron_agent_user = user_id_file.readline()
-                if pwd.getpwnam(volttron_agent_user):
-                    _log.info("Removing volttron agent user {}".format(
-                        volttron_agent_user))
-                    userdel = ['sudo', 'userdel', volttron_agent_user]
-                    userdel_process = subprocess.Popen(
-                        userdel, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                    stdout, stderr = userdel_process.communicate()
-                    if userdel_process.returncode != 0:
-                        _log.error("Remove {user} user failed: {stderr}".format(
-                            user=volttron_agent_user, stderr=stderr))
-                        raise RuntimeError(stderr)
-        except (KeyError, IOError) as user_id_err:
-            _log.error("Volttron agent user not found at {}".format(
-                user_id_path))
-            _log.error(user_id_err)
-            # TODO alert?
+        if pwd.getpwnam(volttron_agent_user):
+            _log.info("Removing volttron agent user {}".format(
+                volttron_agent_user))
+            userdel = ['sudo', 'userdel', volttron_agent_user]
+            userdel_process = subprocess.Popen(
+                userdel, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            stdout, stderr = userdel_process.communicate()
+            if userdel_process.returncode != 0:
+                _log.error("Remove {user} user failed: {stderr}".format(
+                    user=volttron_agent_user, stderr=stderr))
+                raise RuntimeError(stderr)
+
 
     def setup(self):
         """Creates paths for used directories for the instance."""
         for path in [self.run_dir, self.config_dir, self.install_dir]:
             if not os.path.exists(path):
-                os.makedirs(path, 0o755)
+                # others should have read and execute access to these directory
+                # so explicitly set to 755.
+                _log.debug("Setting up 755 permissions for path {}".format(
+                    path))
+                os.makedirs(path)
+                os.chmod(path, 0o755)
         # Create certificates directory and its subdirectory at start of platform
         # so if volttron is run in secure mode, the first agent install would already have
         # the directories ready. In secure mode, agents will be run as separate user and will
@@ -698,11 +686,21 @@ class AIPplatform(object):
             self.rmq_mgmt.delete_user(rmq_user)
         self.agents.pop(agent_uuid, None)
         agent_directory = os.path.join(self.install_dir, agent_uuid)
+        volttron_agent_user = None
         if self.secure_agent_user:
-            self.remove_agent_user(agent_directory)
+            user_id_path = os.path.join(agent_directory, "USER_ID")
+            try:
+                with open(user_id_path, 'r') as user_id_file:
+                    volttron_agent_user = user_id_file.readline()
+            except (KeyError, IOError) as user_id_err:
+                _log.warn("Volttron agent user not found at {}".format(
+                    user_id_path))
+                _log.warn(user_id_err)
         if remove_auth:
             self._unauthorize_agent_keys(agent_uuid)
         shutil.rmtree(agent_directory)
+        if volttron_agent_user:
+            self.remove_agent_user(volttron_agent_user)
 
     def agent_name(self, agent_uuid):
         agent_path = os.path.join(self.install_dir, agent_uuid)
@@ -967,8 +965,8 @@ class AIPplatform(object):
                     _log.info("Found secure volttron agent user {}".format(
                         agent_user))
             except (IOError, KeyError) as err:
-                _log.info("No existing volttron user was found at {} due to {}".
-                    format(user_id_path, err))
+                _log.info("No existing volttron agent user was found at {} due "
+                          "to {}".format(user_id_path, err))
 
                 # May be switched from normal to secure mode with existing agents. To handle this case
                 # create users and also set permissions again for existing files
@@ -977,6 +975,22 @@ class AIPplatform(object):
                                                 agent_uuid,
                                                 agent_dir)
 
+                # additionally give permissions to contents of agent-data dir.
+                # This is needed only for agents installed before switching to
+                # secure mode. Agents installed in secure mode will own files
+                # in agent-data dir
+                data_dir = self._get_agent_data_dir(agent_path_with_name)
+
+                for (root, directories, files) in os.walk(data_dir,
+                                                          topdown=True):
+                    for directory in directories:
+                        self.set_acl_for_path("rwx", agent_user,
+                                                  os.path.join(root, directory))
+                    for f in files:
+                        self.set_acl_for_path("rwx", agent_user,
+                                              os.path.join(root, f))
+
+
         if self.message_bus == 'rmq':
             rmq_user = get_fq_identity(agent_vip_identity, self.instance_name)
             _log.info("Create RMQ user {} for agent {}".format(rmq_user, agent_vip_identity))
@@ -984,8 +998,7 @@ class AIPplatform(object):
             self.rmq_mgmt.create_user_with_permissions(rmq_user, self.rmq_mgmt.get_default_permissions(rmq_user),
                                                        ssl_auth=True)
             if self.secure_agent_user:
-                # change group of agent's private cert to agent user group
-                # and give read access to group
+                # give read access to user to its own private key file.
                 key_file = certs.Certs().private_key_file(rmq_user)
                 self.set_acl_for_path("r", agent_user, key_file)
 

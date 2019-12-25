@@ -67,6 +67,7 @@ class BaseJSONStore(object):
         try:
             created = create_file_if_missing(filename, contents='{}')
             if created:
+                # remove access to group
                 os.chmod(filename, permissions)
         except Exception as e:
             import traceback
@@ -175,7 +176,9 @@ class KnownHostsStore(BaseJSONStore):
     def __init__(self, filename=None):
         if filename is None:
             filename = os.path.join(get_home(), 'known_hosts')
-        super(KnownHostsStore, self).__init__(filename)
+        # all agents need read access to known_hosts file
+        super(KnownHostsStore, self).__init__(filename, permissions=0o644)
+
 
     def add(self, addr, server_key):
         self.update({self._parse_addr(addr): server_key})
