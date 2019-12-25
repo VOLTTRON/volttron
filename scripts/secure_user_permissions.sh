@@ -41,13 +41,105 @@ if [ ! -d $volttron_home ]; then
         exit 1
     fi
 else
-  # if this is a existing volttron home directory, update file permissions of existing files
-  # TODO - need not traverse agents dir. should get handled on agent start. Should I check just specific files/folders?
-  # files=(`find /home/volttron/test_umask/ -type f`)
-  # for f in "${files[@]}"; do echo $f; done
-  # restrict permissions for others on auth.json, protected_topics.json, known_hosts(readonly), config(readonly),
-  # keystore(readonly ?), rabbitmq_config.yml(readonly), certificates/*, keystores/*, configuration_store/*, packaged/*
-  echo "TODO"
+    echo -n "
+**WARNING** You are using a existing directory as volttron home."
+    echo -n " You will NOT be able to revert to insecure mode once the changes \
+are done. Changing the config file manually might result inconsistent \
+volttron behavior. If you would like to continue please note the following,
+       1. This script will manually restrict permissions for existing files and directory.
+       2. Volttron process and all agents have to be restarted to take effect.
+       3. If you have agents that connect to remote RMQ instances and then the \
+***CSR approval process has to be repeated***
+       4. Agents can only to write to its own agent-data dir. So if your agents \
+writes to any directory outside vhome/agents/<agent-uuid>/<agent-name>/agent-name.agent-data \
+move existing files and update configuration such that agent writes to agent-name.agent-data dir
+"
+    echo -n "Would you like to transition this existing VOLTTRON_HOME to secure mode (Y/N)"
+    read continue
+    if [ $continue == "Y" ] || [ $continue == "y" ]; then
+
+        # if this is a existing volttron home directory, update file permissions of
+        # existing files. Agent specific users will be granted access to its own
+        # files at agent start
+
+        # update access to others for the following files/directories
+        # keystores and its subdirectory - remove RX for others.
+        # known_hosts - should have read access
+        # VOLTTRON_PID - remove read access to other
+        # files in configuration_store - remove read access to others
+        # files in packaged dir - remove files. Not used after agent install
+        # move installed agent's keystore.json from agent-data dir to dist-info
+        # agents dir -remove rwx from other for all dirs and files
+
+        echo "Updating directory permissions...."
+        files=(`find $volttron_home/keystores -type d`)
+        for f in "${files[@]}";
+        do
+            echo $f
+            chmod o-rwx $f
+        done
+
+        echo "Changing permissions for agents/* dir"
+        files=(`find $volttron_home/agents/* -type d`)
+        for f in "${files[@]}";
+        do
+            chmod o-rwx $f
+        done
+
+        echo "Updating file permissions....."
+
+        if [ -f $volttron_home/known_hosts ]; then
+            echo $volttron_home/known_hosts
+            chmod a+r $volttron_home/known_hosts
+        fi
+        if [ -f $volttron_home/VOLTTRON_PID ]; then
+            echo $volttron_home/VOLTTRON_PID
+            chmod o-rwx $volttron_home/VOLTTRON_PID
+        fi
+        for f in $volttron_home/configuration_store/*.store;
+        do
+            if [ -f $f ]; then
+                echo $f
+                chmod o-rwx  $f
+            fi
+        done
+        if [ -d $volttron_home/packaged ]; then
+            files=(`find $volttron_home/packaged -type f`)
+            for f in "${files[@]}";
+            do
+                if [ -f $f ]; then
+                    echo $f
+                    rm $f
+                fi
+            done
+        fi
+
+        echo "Changing file permissions for agents dir"
+        files=(`find $volttron_home/agents -type f`)
+        for f in "${files[@]}";
+        do
+            chmod o-rwx $f
+        done
+
+        files=(`find $volttron_home/agents -type f -name keystore.json`)
+        for f in "${files[@]}";
+        do
+            echo $f
+            d=$(dirname "$f")
+            if [[ "$d" == *agent-data ]]
+            then
+                # move to dist-info dir
+                agent_dir=$(dirname "$d")
+                agent_name=$(basename "$agent_dir")
+                new_dir=$agent_dir/$agent_name.dist-info
+                echo "moving keystore.json from $d to $new_dir"
+                mv $f $new_dir/keystore.json
+            fi
+        done
+
+    else
+        exit 0
+    fi
 fi
 
 if [ -f $volttron_home/config ]; then
@@ -88,7 +180,6 @@ while true; do
     fi
 
     if [[ $name =~ ^[a-z_]([a-z0-9_-]{1,23}|[a-z0-9_-]{1,23}\$)$ ]]
-    # TODO check if that instance name is taken
     then
         if [ -f "/etc/sudoers.d/volttron" ]; then
             exists=`grep "volttron_$name" /etc/sudoers.d/volttron`
@@ -100,9 +191,13 @@ while true; do
                     # If name is not from config as user option to pick different instance_name
                     echo -n "Do you want to setup a different instance of volttron(Y/N)"
                     read continue
-                    if [ $continue == "N" ] || [ $continue == "N" ]; then
+                    if [ $continue == "N" ] || [ $continue == "n" ]; then
+                        # write instance-name to config file
+                        echo "instance-name = $name" >> $volttron_home/config
                         echo "Volttron secure mode setup is complete"
                         exit 0
+                    else
+                        name=""
                     fi
                 else
                     echo "Volttron secure mode setup is complete"
