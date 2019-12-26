@@ -29,7 +29,7 @@ pytestmark = pytest.mark.skipif(os.environ.get("CI") is not None,
 INSTANCE_NAME1 = "volttron1"
 INSTANCE_NAME2 = "volttron2"
 
-# TODO do this a better way
+
 def get_agent_user_from_dir(agent_name, agent_uuid):
     """
     :param agent_uuid:

@@ -208,7 +208,7 @@ class SecurityAgent(Agent):
         key = os.path.join(vhome, "certificates/private", instance_name + "." + self.core.identity + ".pem")
         data_dir_name = os.path.basename(self.get_agent_dir()) + ".agent-data"
         ca_public = os.path.join(vhome, "certificates/remote_certs/requests_ca_bundle")
-        paths = [config, known_hosts, rmq_yml, log, key, ca_public]
+        paths = [config, known_hosts, rmq_yml, key, ca_public]
         public_key_dir = os.path.join(vhome, "certificates/certs")
         for (root, directories, files) in os.walk(vhome, topdown=True):
             if os.path.basename(root) == data_dir_name:
@@ -218,6 +218,8 @@ class SecurityAgent(Agent):
                 continue
             for f in files:
                 file_path = os.path.join(root, f)
+                if file_path == log:
+                    continue  # volttron.log permissions are different in test env
                 if file_path in paths or file_path.startswith(install_dir) or file_path.startswith(public_key_dir):
                     # should have read access alone
                     if not os.access(file_path, os.R_OK):
@@ -226,8 +228,8 @@ class SecurityAgent(Agent):
                     if os.access(file_path, os.R_OK):
                         return "Agent user has read access to file {}" \
                             "Should have read access only to {}".format(file_path, paths)
-                if file_path != log:
-                    if os.access(file_path, os.W_OK):
+
+                if os.access(file_path, os.W_OK):
                         return "Agent user has write access to file {}".format(file_path)
                 if os.access(file_path, os.X_OK):
                     return "Agent user has execute access to file {}".format(file_path)

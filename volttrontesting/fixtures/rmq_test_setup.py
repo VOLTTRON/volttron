@@ -101,7 +101,8 @@ class RabbitTestConfig(object):
             self.rabbitmq_config['mgmt-port-ssl'] = mgmt_port_ssl
 
 
-def create_rmq_volttron_setup(vhome=None, ssl_auth=False, env=None, instance_name=None):
+def create_rmq_volttron_setup(vhome=None, ssl_auth=False, env=None,
+                              instance_name=None, secure_agent_users=False):
     """
         Set-up rabbitmq broker for volttron testing:
             - Install config and rabbitmq_config.yml in VOLTTRON_HOME
@@ -116,6 +117,9 @@ def create_rmq_volttron_setup(vhome=None, ssl_auth=False, env=None, instance_nam
         os.environ['VOLTTRON_HOME'] = vhome
     else:
         vhome = get_home()
+
+    if secure_agent_users:
+        os.umask(0o007)
 
     # Build default config file object, which we will then update to fit the
     # current context the code is running in.

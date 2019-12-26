@@ -279,7 +279,8 @@ class PlatformWrapper:
             self.rabbitmq_config_obj = create_rmq_volttron_setup(vhome=self.volttron_home,
                                                                  ssl_auth=self.ssl_auth,
                                                                  env=self.env,
-                                                                 instance_name=self.instance_name)
+                                                                 instance_name=self.instance_name,
+                                                                 secure_agent_users=secure_agent_users)
 
             self.certsobj = Certs(os.path.join(self.volttron_home, "certificates"))
 
