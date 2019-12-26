@@ -771,6 +771,7 @@ class Certs(object):
 
                 with open(filepath, 'rb') as fr:
                     fp.write(fr.read())
+        os.chmod(bundle_file, 0o664)
 
     def delete_remote_cert(self, name):
         cert_file = self.remote_certs_file(name)
