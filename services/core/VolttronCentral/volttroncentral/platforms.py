@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -54,7 +54,7 @@ from volttron.platform.messaging.health import Status, UNKNOWN_STATUS, \
     GOOD_STATUS, BAD_STATUS
 from volttron.platform.vip.agent import Unreachable
 from volttron.platform.vip.agent.utils import build_connection
-from volttron.platform.agent import json as jsonapi
+from volttron.platform import jsonapi
 
 
 class Platforms(object):
@@ -81,7 +81,7 @@ class Platforms(object):
         :param vip_identity:
         :return:
         """
-        encoded = base64.b64encode(vip_identity)
+        encoded = base64.b64encode(vip_identity.encode('utf-8'))
         self._platforms[encoded] = PlatformHandler(self._vc, vip_identity)
         self._debug_platform_list()
         return self._platforms[encoded]
@@ -94,7 +94,7 @@ class Platforms(object):
         :param vip_identity:
         :return:
         """
-        encoded = base64.b64encode(vip_identity)
+        encoded = base64.b64encode(vip_identity.encode('utf-8'))
         del self._platforms[encoded]
         self._debug_platform_list()
 
@@ -160,7 +160,7 @@ class Platforms(object):
         results = []
         for x in self._platforms.values():
             results.append(
-                dict(uuid=base64.b64encode(x.vip_identity),
+                dict(uuid=base64.b64encode(x.vip_identity.encode('utf-8')),
                      name=x.display_name,
                      health=x.health)
             )
@@ -216,7 +216,7 @@ class Platforms(object):
 
         :return: list of str
         """
-        return self._platforms.keys()
+        return list(self._platforms.keys())
 
     def get_platform(self, platform_uuid, default=None):
         """
@@ -706,7 +706,7 @@ class PlatformHandler(object):
 
         point_list = []
 
-        for point, item in message.iteritems():
+        for point, item in message.items():
             point_list.append(point)
 
         # Note adding the s to the end of the prefix.

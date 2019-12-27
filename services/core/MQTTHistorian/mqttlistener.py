@@ -6,7 +6,7 @@ PROTOCOL = MQTTv311
 
 # Callback function to print out message topics and payloads
 def listen(client, userdata, message):
-    print message.topic, message.payload
+    print(message.topic, message.payload)
 
 # Subscribe to all messages and loop forever
 callback(listen, '#', port=PORT, protocol=PROTOCOL)

@@ -52,7 +52,7 @@ An authentication record consist of following parameters
 
     domain []:
     address []: Either a single agent identity or an array of agents identities
-    user_id []: Arbitrary string to indentify the agent
+    user_id []: Arbitrary string to identify the agent
     capabilities (delimit multiple entries with comma) []: Array of strings referring to authorized capabilities defined by exported RPC methods
     roles (delimit multiple entries with comma) []:
     groups (delimit multiple entries with comma) []:

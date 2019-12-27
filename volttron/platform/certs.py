@@ -1,61 +1,43 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright (c) 2017, Battelle Memorial Institute
-# All rights reserved.
+# Copyright 2019, Battelle Memorial Institute.
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# 1. Redistributions of source code must retain the above copyright notice,
-#    this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright notice,
-#    this list of conditions and the following disclaimer in the documentation
-#    and/or other materials provided with the distribution.
+# http://www.apache.org/licenses/LICENSE-2.0
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
-# THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-# PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
-# CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA,
-# OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
-# The views and conclusions contained in the software and documentation are
-# those of the authors and should not be interpreted as representing
-# official policies, either expressed or implied, of the FreeBSD Project.
-#
-
-# This material was prepared as an account of work sponsored by an
-# agency of the United States Government.  Neither the United States
-# Government nor the United States Department of Energy, nor Battelle,
-# nor any of their employees, nor any jurisdiction or organization
-# that has cooperated in the development of these materials, makes
-# any warranty, express or implied, or assumes any legal liability
-# or responsibility for the accuracy, completeness, or usefulness or
-# any information, apparatus, product, software, or process disclosed,
-# or represents that its use would not infringe privately owned rights.
-#
-# Reference herein to any specific commercial product, process, or
-# service by trade name, trademark, manufacturer, or otherwise does
-# not necessarily constitute or imply its endorsement, recommendation,
-# r favoring by the United States Government or any agency thereof,
-# or Battelle Memorial Institute. The views and opinions of authors
-# expressed herein do not necessarily state or reflect those of the
+# This material was prepared as an account of work sponsored by an agency of
+# the United States Government. Neither the United States Government nor the
+# United States Department of Energy, nor Battelle, nor any of their
+# employees, nor any jurisdiction or organization that has cooperated in the
+# development of these materials, makes any warranty, express or
+# implied, or assumes any legal liability or responsibility for the accuracy,
+# completeness, or usefulness or any information, apparatus, product,
+# software, or process disclosed, or represents that its use would not infringe
+# privately owned rights. Reference herein to any specific commercial product,
+# process, or service by trade name, trademark, manufacturer, or otherwise
+# does not necessarily constitute or imply its endorsement, recommendation, or
+# favoring by the United States Government or any agency thereof, or
+# Battelle Memorial Institute. The views and opinions of authors expressed
+# herein do not necessarily state or reflect those of the
 # United States Government or any agency thereof.
 #
-# PACIFIC NORTHWEST NATIONAL LABORATORY
-# operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
+# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-
 # }}}
+
 from collections import namedtuple
 import datetime
-import json
 import logging
 import os
 import six
@@ -73,6 +55,7 @@ from cryptography.x509.general_name import DNSName
 from cryptography.x509.name import RelativeDistinguishedName
 from cryptography.x509.oid import NameOID, ExtendedKeyUsageOID
 
+from volttron.platform import jsonapi
 from volttron.platform import get_home
 from volttron.platform.agent.utils import (get_platform_instance_name,
                                            get_fq_identity,
@@ -144,8 +127,7 @@ def _create_subject(**kwargs):
     for key in ('C', 'ST', 'L', 'O', 'OU', 'CN'):
         if key in kwargs:
             attributes.append(x509.NameAttribute(nameoid_map[key],
-                                                 kwargs[key].decode(
-                                                     'utf-8')))
+                                                 kwargs[key]))
 
     subject = x509.Name(attributes)
     return subject
@@ -212,7 +194,7 @@ def _mk_cacert(valid_days=DEFAULT_DAYS, **kwargs):
     cert = cert_builder.sign(
         key, hashes.SHA256(), default_backend())
 
-    print ("Created CA cert")
+    print("Created CA cert")
     return cert, key
 
 
@@ -398,7 +380,7 @@ class Certs(object):
 
         subprocess.check_call(cmd)
 
-    def ca_cert(self, public_bytes=False):
+    def ca_cert(self, public_bytes: bool = False):
         """
         Get the X509 CA certificate.
         :return: the CA certificate of current volttron instance
@@ -408,13 +390,14 @@ class Certs(object):
 
         return self.cert(self.root_ca_name, public_bytes=public_bytes)
 
-    def cert(self, name, remote=False, public_bytes=False):
+    def cert(self, name, remote=False, public_bytes: bool = False):
         """
         Get the X509 certificate based upon the name
+        :param public_bytes:
         :param name: name of the certificate to be loaded
         :param remote: determines correct path to search for the cert.
         :return: The certificate object by the given name
-        :rtype: :class: `x509._Certificate`
+        :rtype: :class: `x509._Certificate` or `byte PEM encoding`
         """
 
         if remote:
@@ -438,7 +421,7 @@ class Certs(object):
             subjects.append(Subject.create_from_x509_subject(cert.subject))
         return subjects
 
-    def get_private_key(self, name):
+    def get_pk_bytes(self, name):
         """
         Serialize a private key in a traditional openssl manner to be able to
         use it with JWT and other technologies.
@@ -481,7 +464,7 @@ class Certs(object):
         for c in os.listdir(self.csr_pending_dir):
             if c.endswith('.json'):
                 with open(os.path.join(self.csr_pending_dir, c)) as fp:
-                    pending_csr.append(json.loads(fp.read()))
+                    pending_csr.append(jsonapi.loads(fp.read()))
 
         return pending_csr
 
@@ -511,7 +494,7 @@ class Certs(object):
             _log.debug("csr file already exists, not saving")
         else:
             with open(metafile, 'w') as fp:
-                fp.write(json.dumps(meta))
+                fp.write(jsonapi.dumps(meta))
             with open(csrfile, "wb") as fw:
                 fw.write(csr)
         return csrfile
@@ -543,7 +526,7 @@ class Certs(object):
         if not os.path.isfile(metafile):
             return "UNKNOWN"
 
-        meta = json.loads(open(metafile, 'rb').read())
+        meta = jsonapi.loads(open(metafile, 'rb').read())
         return meta.get("status")
 
     def get_cert_from_csr(self, common_name):
@@ -561,10 +544,10 @@ class Certs(object):
 
         cert = self.sign_csr(csrfile)
         self.save_remote_cert(common_name, cert)
-        meta = json.loads(open(metafile, 'rb').read())
+        meta = jsonapi.loads(open(metafile, 'rb').read())
         meta['status'] = 'APPROVED'
         with open(metafile, 'wb') as fp:
-            fp.write(json.dumps(meta))
+            fp.write(jsonapi.dumps(meta))
         return cert
 
     def delete_csr(self, common_name):
@@ -587,11 +570,11 @@ class Certs(object):
             raise ValueError("Bad state unknown CSR for common_name {}".format(common_name))
 
         self.delete_remote_cert(common_name)
-        meta = json.loads(open(metafile, 'rb').read())
+        meta = jsonapi.loads(open(metafile, 'rb').read())
         meta['status'] = 'DENIED'
 
         with open(metafile, 'wb') as fp:
-            fp.write(json.dumps(meta))
+            fp.write(jsonapi.dumps(meta))
 
     def sign_csr(self, csr_file):
         ca_crt = self.ca_cert()
@@ -721,7 +704,7 @@ class Certs(object):
             mod_key = execute_command(cmd,
                                       err_prefix="Error getting modulus of "
                                                  "private key")
-        except Exception as e:
+        except RuntimeError as e:
             return False
 
         return mod_pub == mod_key
@@ -745,7 +728,7 @@ class Certs(object):
         metafile = os.path.join(directory, remote_name + ".json")
 
         with open(metafile, 'w') as fp:
-            fp.write(json.dumps(metadata))
+            fp.write(jsonapi.dumps(metadata))
 
         self.rebuild_requests_ca_bundle(directory)
 
@@ -800,7 +783,7 @@ class Certs(object):
         directory = os.path.dirname(cert_file)
         if not os.path.exists(directory):
             # make certs directory accessible to all.
-            os.makedirs(directory, mode=0755)
+            os.makedirs(directory, mode=0o755)
         if file_path != cert_file:
             copyfile(file_path, cert_file)
 
@@ -810,23 +793,23 @@ class Certs(object):
         directory = os.path.dirname(key_file)
         if not os.path.exists(directory):
             # make directory accessible to all.
-            os.makedirs(directory, mode=0755)
+            os.makedirs(directory, mode=0o755)
         if file_path != key_file:
             copyfile(file_path, key_file)
             # but restrict file access. even to group. umask won't change
             # group permissions
-            os.chmod(key_file, 0600)
+            os.chmod(key_file, 0o600)
 
-    def create_ca_signed_cert(self, name, type='client', ca_name=None,
-                              overwrite=True, valid_days=DEFAULT_DAYS,
-                              **kwargs):
+    def create_signed_cert_files(self, name, cert_type='client', ca_name=None,
+                                 overwrite=True, valid_days=DEFAULT_DAYS,
+                                 **kwargs):
         """
         Create a new certificate and sign it with the volttron instance's
         CA certificate. Save the created certificate and the private key of
         the certificate with the given name
         :param valid_days: number of days for which cert should be valid
         :param ca_name: name of the ca to sign this cert
-        :param type: client or server
+        :param cert_type: client or server
         :param overwrite: boolean to denote if existing cert should be
          overwritten
         :param name: name used to save the newly created certificate and
@@ -848,125 +831,14 @@ class Certs(object):
 
         if not ca_name:
             ca_name = self.root_ca_name
-        ca_cert = self.cert(ca_name)
 
-        issuer = ca_cert.subject
-        ski = ca_cert.extensions.get_extension_for_class(
-            x509.SubjectKeyIdentifier)
+        cert, key, serial = _create_signed_certificate(ca_cert=self.cert(ca_name),
+                                                       ca_key=_load_key(self.private_key_file(ca_name)),
+                                                       name=name, valid_days=valid_days, type=cert_type, **kwargs)
 
-        key = rsa.generate_private_key(
-            public_exponent=65537,
-            key_size=2048,
-            backend=default_backend()
-        )
-        fqdn = kwargs.pop('fqdn', None)
-        if kwargs:
-            subject = _create_subject(**kwargs)
-        else:
-            temp_list = ca_cert.subject.rdns
-            new_attrs = []
-            for i in temp_list:
-                if i.get_attributes_for_oid(NameOID.COMMON_NAME):
-                    if type == 'server':
-                        # TODO: Also add SubjectAltName
-                        if fqdn:
-                            hostname = fqdn.decode('utf-8')
-                        else:
-                            hostname = getfqdn().decode('utf-8')
-                            fqdn = hostname
-                        new_attrs.append(RelativeDistinguishedName(
-                            [x509.NameAttribute(
-                                NameOID.COMMON_NAME,
-                                hostname)]))
-                    else:
-                        new_attrs.append(RelativeDistinguishedName(
-                            [x509.NameAttribute(NameOID.COMMON_NAME,
-                                                name.decode('utf-8'))]))
-                else:
-                    new_attrs.append(i)
-            subject = x509.Name(new_attrs)
-
-        cert_builder = x509.CertificateBuilder().subject_name(
-            subject
-        ).issuer_name(
-            issuer
-        ).public_key(
-            key.public_key()
-        ).not_valid_before(
-            datetime.datetime.utcnow()
-        ).not_valid_after(
-            # Our certificate will be valid for 365 days
-            datetime.datetime.utcnow() + datetime.timedelta(days=valid_days)
-        ).add_extension(
-            x509.AuthorityKeyIdentifier.from_issuer_subject_key_identifier(ski),
-            critical=False
-        )
-        if type == 'CA':
-            # create a intermediate CA
-            cert_builder = cert_builder.add_extension(
-                x509.BasicConstraints(ca=True, path_length=0),
-                critical=True
-            ).add_extension(
-                x509.SubjectKeyIdentifier(
-                    _create_fingerprint(key.public_key())),
-                critical=False
-            )
-        else:
-            # if type is server or client.
-            cert_builder = cert_builder.add_extension(
-                x509.KeyUsage(digital_signature=True, key_encipherment=True,
-                              content_commitment=False,
-                              data_encipherment=False, key_agreement=False,
-                              key_cert_sign=False,
-                              crl_sign=False,
-                              encipher_only=False, decipher_only=False
-                              ),
-                critical=True)
-
-        if type == 'server':
-            # if server cert specify that the certificate can be used as an SSL
-            # server certificate
-            cert_builder = cert_builder.add_extension(
-                x509.ExtendedKeyUsage((ExtendedKeyUsageOID.SERVER_AUTH,)),
-                critical=False
-            )
-            cert_builder = cert_builder.add_extension(
-                x509.SubjectAlternativeName((DNSName(fqdn.decode('utf-8')),)),
-                critical=True
-            )
-        elif type == 'client':
-            # specify that the certificate can be used as an SSL
-            # client certificate to enable TLS Web Client Authentication
-            cert_builder = cert_builder.add_extension(
-                x509.ExtendedKeyUsage((ExtendedKeyUsageOID.CLIENT_AUTH,)),
-                critical=False
-            )
-        serial_file = self.ca_serial_file(ca_name)
-        # If there is no ca db, start with signing CA's serial number + 1 so
-        # that there is no clash of serial numbers in certificate chain
-        # ca cert's serial number is set to int(time.time()).
-        # A CA should generate unique serial numbers for each certificate it
-        # generated. (signing authority + serial number) together is expected to
-        #  be unique across all certificates.
-        serial = ca_cert.serial_number + 1
-        if os.path.exists(serial_file):
-            with open(serial_file, "r") as f:
-                line = f.readline()
-                if line:
-                    serial = int(line.strip())
-        cert_builder = cert_builder.serial_number(serial)
-
-        # 1. version is hardcoded to 2 in Cert builder object. same as what is
-        # set by old certs.py
-
-        # 2. No way to set comment. Using M2Crypto it was set using
-        # cert.add_ext(X509.new_extension('nsComment', 'SSL sever'))
-
-        ca_key = _load_key(self.private_key_file(ca_name))
-        cert = cert_builder.sign(ca_key, hashes.SHA256(), default_backend())
         self._save_cert(name, cert, key)
         self.update_ca_db(cert, ca_name, serial)
-        return True
+        return cert, key
 
     def _save_cert(self, name, cert, pk):
         """
@@ -1015,7 +887,7 @@ class Certs(object):
             _get_cert_attribute_value(cert, NameOID.COMMON_NAME))
         if os.path.exists(db_file):
             with open(db_file, "r") as f:
-                ca_db = json.load(f)
+                ca_db = jsonapi.load(f)
         entries = ca_db.get(dn, {})
         entries['status'] = "valid"
         entries['expiry'] = cert.not_valid_after.strftime("%Y-%m-%d "
@@ -1023,7 +895,7 @@ class Certs(object):
         entries['serial_number'] = cert.serial_number
         ca_db[dn] = entries
         with open(db_file, 'w+') as outfile:
-            json.dump(ca_db, outfile, indent=4)
+            jsonapi.dump(ca_db, outfile, indent=4)
 
         with open(self.ca_serial_file(ca_name), "w+") as f:
             f.write(str(serial+1))  # next available serial is current + 1
@@ -1068,3 +940,193 @@ class Certs(object):
 
         self._save_cert(self.root_ca_name, cert, pk)
         self.rebuild_requests_ca_bundle()
+        return cert, pk
+
+
+def _create_private_key():
+    return rsa.generate_private_key(
+        public_exponent=65537,
+        key_size=2048,
+        backend=default_backend()
+    )
+
+
+def _create_signed_certificate(ca_cert, ca_key, name, valid_days=365, type='client', **kwargs):
+    """
+    Creates signed cert of type provided and signs it with ca_key provided. To create subject for the new certificate
+    common name is set new value, rest of the attributes are copied from subject of provided ca certificate
+    :param ca_cert:
+    :param ca_key:
+    :param name:
+    :param valid_days:
+    :param type:
+    :param kwargs:
+    :return:
+    """
+    issuer = ca_cert.subject
+    # cryptography 2.7
+    # ski = x509.SubjectKeyIdentifier.from_public_key(ca_cert.public_key())
+    # crptography 2.2.2
+    ski = ca_cert.extensions.get_extension_for_class(
+        x509.SubjectKeyIdentifier)
+
+    key = _create_private_key()
+    # key = rsa.generate_private_key(
+    #     public_exponent=65537,
+    #     key_size=2048,
+    #     backend=default_backend()
+    # )
+    fqdn = kwargs.pop('fqdn', None)
+    if kwargs:
+        subject = _create_subject(**kwargs)
+    else:
+        temp_list = ca_cert.subject.rdns
+        new_attrs = []
+        for i in temp_list:
+            if i.get_attributes_for_oid(NameOID.COMMON_NAME):
+                if type == 'server':
+                    # TODO: Also add SubjectAltName
+                    if fqdn:
+                        hostname = fqdn
+                    else:
+                        hostname = getfqdn()
+                        fqdn = hostname
+                    new_attrs.append(RelativeDistinguishedName(
+                        [x509.NameAttribute(
+                            NameOID.COMMON_NAME,
+                            hostname)]))
+                else:
+                    new_attrs.append(RelativeDistinguishedName(
+                        [x509.NameAttribute(NameOID.COMMON_NAME,
+                                            name)]))
+            else:
+                new_attrs.append(i)
+        subject = x509.Name(new_attrs)
+
+    cert_builder = x509.CertificateBuilder().subject_name(
+        subject
+    ).issuer_name(
+        issuer
+    ).public_key(
+        key.public_key()
+    ).not_valid_before(
+        datetime.datetime.utcnow()
+    ).not_valid_after(
+        # Our certificate will be valid for 365 days
+        datetime.datetime.utcnow() + datetime.timedelta(days=valid_days)
+    ).add_extension(
+        x509.AuthorityKeyIdentifier.from_issuer_subject_key_identifier(ski),
+        critical=False
+    )
+    if type == 'CA':
+        # create a intermediate CA
+        cert_builder = cert_builder.add_extension(
+            x509.BasicConstraints(ca=True, path_length=0),
+            critical=True
+        ).add_extension(
+            x509.SubjectKeyIdentifier(
+                _create_fingerprint(key.public_key())),
+            critical=False
+        )
+        # cryptography 2.7
+        # .add_extension(
+        #     x509.SubjectKeyIdentifier.from_public_key(key.public_key()),
+        #     critical=False
+        # )
+    else:
+        # if type is server or client.
+        cert_builder = cert_builder.add_extension(
+            x509.KeyUsage(digital_signature=True, key_encipherment=True,
+                          content_commitment=False,
+                          data_encipherment=False, key_agreement=False,
+                          key_cert_sign=False,
+                          crl_sign=False,
+                          encipher_only=False, decipher_only=False
+                          ),
+            critical=True)
+
+    if type == 'server':
+        # if server cert specify that the certificate can be used as an SSL
+        # server certificate
+        cert_builder = cert_builder.add_extension(
+            x509.ExtendedKeyUsage((ExtendedKeyUsageOID.SERVER_AUTH,)),
+            critical=False
+        )
+        cert_builder = cert_builder.add_extension(
+            x509.SubjectAlternativeName((DNSName(fqdn),)),
+            critical=True
+        )
+    elif type == 'client':
+        # specify that the certificate can be used as an SSL
+        # client certificate to enable TLS Web Client Authentication
+        cert_builder = cert_builder.add_extension(
+            x509.ExtendedKeyUsage((ExtendedKeyUsageOID.CLIENT_AUTH,)),
+            critical=False
+        )
+
+    # Serial must be positive integer so we are going to
+    # use an increasing milliseconds serial number
+    # A CA should generate unique serial numbers for each certificate it
+    # generated. (signing authority + serial number) together is expected to
+    #  be unique across all certificates.
+    serial = int(time.time() * 10e3)
+    cert_builder = cert_builder.serial_number(serial)
+
+    # 1. version is hardcoded to 2 in Cert builder object. same as what is
+    # set by old certs.py
+
+    # 2. No way to set comment. Using M2Crypto it was set using
+    # cert.add_ext(X509.new_extension('nsComment', 'SSL sever'))
+
+    # ca_key = _load_key(self.private_key_file(ca_name))
+    cert = cert_builder.sign(ca_key, hashes.SHA256(), default_backend())
+    return cert, key, serial
+
+
+class CertWrapper(object):
+    """
+    This class is a wrapper around the building of certificates.
+    """
+    @staticmethod
+    def make_self_signed_ca(ca_name, **kwargs):
+        """
+        Creates a self signed certificate.
+
+        :param ca_name:
+        :param kwargs:
+        :return:
+        """
+        kwargs['CN'] = ca_name
+        return _mk_cacert(**kwargs)
+
+    @staticmethod
+    def make_signed_cert(ca_cert, ca_key, common_name, **kwargs):
+        kwargs['CN'] = common_name
+        cert, key, serial = _create_signed_certificate(ca_cert, ca_key, common_name, **kwargs)
+        return cert, key
+
+    @staticmethod
+    def load_key(keyfile):
+        return _load_key(keyfile)
+
+    @staticmethod
+    def load_cert(certfile):
+        return _load_cert(certfile)
+
+    @staticmethod
+    def get_private_key(keyfile):
+        pk = CertWrapper.load_key(keyfile)
+        privatekey = pk.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.TraditionalOpenSSL,
+            encryption_algorithm=serialization.NoEncryption())
+        return privatekey
+
+    @staticmethod
+    def get_cert_public_key(certfile):
+        cert = CertWrapper.load_cert(certfile)
+        pubkey = cert.public_key().public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo)
+
+        return pubkey

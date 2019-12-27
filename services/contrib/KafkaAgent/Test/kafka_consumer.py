@@ -1,7 +1,5 @@
 from kafka import KafkaConsumer
-import json
-import ast
-import time
+
 # value_deserializer=lambda m: json.loads(m).decode('utf-8')
 consumer = KafkaConsumer(bootstrap_servers=['localhost:9092'],
                         #  group_id='my-group-2',

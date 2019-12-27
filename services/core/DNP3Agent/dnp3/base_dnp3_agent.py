@@ -43,13 +43,13 @@ from volttron.platform.agent import utils
 from volttron.platform.messaging import headers
 from volttron.platform.vip.agent import Agent
 
-from outstation import DNP3Outstation
+from dnp3.outstation import DNP3Outstation
 from dnp3 import DEFAULT_POINT_TOPIC, DEFAULT_OUTSTATION_STATUS_TOPIC
 from dnp3 import DEFAULT_LOCAL_IP, DEFAULT_PORT
 from dnp3 import DATA_TYPE_ANALOG_INPUT, DATA_TYPE_BINARY_INPUT
 from dnp3 import PUBLISH_AND_RESPOND
-from points import PointDefinitions, PointDefinition, PointArray
-from points import DNP3Exception
+from dnp3.points import PointDefinitions, PointDefinition, PointArray
+from dnp3.points import DNP3Exception
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -232,7 +232,7 @@ class BaseDNP3Agent(Agent):
                 raise Exception('Unexpected data type for DNP3 point named {0}'.format(point_name))
             DNP3Outstation.apply_update(wrapped_value, index)
         except Exception as e:
-            raise DNP3Exception(e.message)
+            raise DNP3Exception(e)
 
     def process_point_value(self, command_type, command, index, op_type):
         """
@@ -301,7 +301,7 @@ class BaseDNP3Agent(Agent):
             col_count = len(point_def.array_points)
             cols_by_name = {pt['name']: col for col, pt in enumerate(point_def.array_points)}
             for row_number, point_dict in enumerate(value):
-                for pt_name, pt_val in point_dict.iteritems():
+                for pt_name, pt_val in point_dict.items():
                     pt_index = point_def.index + col_count * row_number + cols_by_name[pt_name]
                     array_point_def = self.point_definitions.get_point_named(point_def.name, index=pt_index)
                     self._apply_point_update(array_point_def, pt_index, pt_val)
@@ -393,7 +393,7 @@ class BaseDNP3Agent(Agent):
             point_value = self.get_current_point_value(point_def.data_type, point_def.index)
             return point_value.unwrapped_value() if point_value else None
         except Exception as e:
-            raise DNP3Exception(e.message)
+            raise DNP3Exception(e)
 
     @RPC.export
     def get_point_by_index(self, data_type, index):
@@ -409,7 +409,7 @@ class BaseDNP3Agent(Agent):
             point_value = self.get_current_point_value(data_type, index)
             return point_value.unwrapped_value() if point_value else None
         except Exception as e:
-            raise DNP3Exception(e.message)
+            raise DNP3Exception(e)
 
     @RPC.export
     def get_points(self, point_list):
@@ -423,7 +423,7 @@ class BaseDNP3Agent(Agent):
         try:
             return {name: self.get_point(name) for name in point_list}
         except Exception as e:
-            raise DNP3Exception(e.message)
+            raise DNP3Exception(e)
 
     @RPC.export
     def get_configured_points(self):
@@ -439,7 +439,7 @@ class BaseDNP3Agent(Agent):
         try:
             return {name: self.get_point(name) for name in self.volttron_points}
         except Exception as e:
-            raise DNP3Exception(e.message)
+            raise DNP3Exception(e)
 
     @RPC.export
     def set_point(self, point_name, value):
@@ -454,7 +454,7 @@ class BaseDNP3Agent(Agent):
             self.update_input_point(self.get_point_named(self.dnp3_point_name(point_name)), value)
 
         except Exception as e:
-            raise DNP3Exception(e.message)
+            raise DNP3Exception(e)
 
     @RPC.export
     def set_points(self, point_dict):
@@ -465,10 +465,10 @@ class BaseDNP3Agent(Agent):
         """
         _log.info('Setting DNP3 point values: {}'.format(point_dict))
         try:
-            for point_name, value in point_dict.iteritems():
+            for point_name, value in point_dict.items():
                 self.update_input_point(self.get_point_named(self.dnp3_point_name(point_name)), value)
         except Exception as e:
-            raise DNP3Exception(e.message)
+            raise DNP3Exception(e)
 
     @RPC.export
     def config_points(self, point_map):
@@ -514,4 +514,4 @@ class BaseDNP3Agent(Agent):
                     response[name] = point_def.as_json()
             return response
         except Exception as e:
-            raise DNP3Exception(e.message)
+            raise DNP3Exception(e)

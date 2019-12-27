@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -140,32 +140,29 @@ class ConfigStore(SubsystemBase):
 
     def _initial_update(self, configs, reset_name_map=True):
         self._initialized = True
-        self._store = {key.lower(): value for (key,value) in configs.iteritems()}
+        self._store = {key.lower(): value for (key, value) in configs.items()}
         if reset_name_map:
-            self._name_map = {key.lower(): key for key in configs.iterkeys()}
+            self._name_map = {key.lower(): key for key in configs}
 
-        for config_name, config_contents in self._store.iteritems():
+        for config_name, config_contents in self._store.items():
             self._add_refs(config_name, config_contents)
 
-        for config_name, config_contents in self._default_store.iteritems():
+        for config_name, config_contents in self._default_store.items():
             if config_name not in self._store:
                 self._add_refs(config_name, config_contents)
 
 
     def _process_links(self, config_contents, already_gathered):
-        if isinstance(config_contents,dict ):
-            for key in config_contents.keys():
-                value = config_contents[key]
-                if isinstance(value, (dict,list)):
+        if isinstance(config_contents, dict):
+            for key, value in config_contents.items():
+                if isinstance(value, (dict, list)):
                     self._process_links(value, already_gathered)
                 elif isinstance(value, str):
                     config_name = check_for_config_link(value)
                     if config_name is not None:
                         config_contents[key] = self._gather_child_configs(config_name, already_gathered)
-
-        if isinstance(config_contents,list):
-            for i in xrange(len(config_contents)):
-                value = config_contents[i]
+        elif isinstance(config_contents, list):
+            for i, value in enumerate(config_contents):
                 if isinstance(value, (dict, list)):
                     self._process_links(value, already_gathered)
                 elif isinstance(value, str):
@@ -274,7 +271,7 @@ class ConfigStore(SubsystemBase):
         if "config" in affected_configs:
             self._process_callbacks_one_config("config", affected_configs["config"], all_map)
 
-        for config_name, action in affected_configs.iteritems():
+        for config_name, action in affected_configs.items():
             if config_name == "config":
                 continue
             self._process_callbacks_one_config(config_name, action, all_map)
@@ -282,7 +279,7 @@ class ConfigStore(SubsystemBase):
 
     def _process_callbacks_one_config(self, config_name, action, name_map):
         callbacks = set()
-        for pattern, actions in self._subscriptions.iteritems():
+        for pattern, actions in self._subscriptions.items():
             if fnmatch.fnmatchcase(config_name, pattern) and action in actions:
                 callbacks.update(actions[action])
 
@@ -293,7 +290,7 @@ class ConfigStore(SubsystemBase):
                 else:
                     contents = self._gather_config(config_name)
                 callback(name_map[config_name], action, contents)
-            except StandardError as e:
+            except Exception:
                 tb_str = traceback.format_exc()
                 _log.error("Problem processing callback:")
                 _log.error(tb_str)
@@ -356,8 +353,8 @@ class ConfigStore(SubsystemBase):
         frame_records = inspect.stack()
         try:
             #Don't create any unneeded references to frame objects.
-            for i in xrange(1, len(frame_records)):
-                if self._process_callbacks_code_object is frame_records[i][0].f_code:
+            for frame, *_ in frame_records:
+                if self._process_callbacks_code_object is frame.f_code:
                     raise RuntimeError("Cannot request changes to the config store from a configuration callback.")
         finally:
             del frame_records

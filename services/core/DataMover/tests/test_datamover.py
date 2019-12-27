@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -37,23 +37,18 @@
 # }}}
 import os
 import random
-import tempfile
-from datetime import datetime, timedelta
+from datetime import datetime
 
 import gevent
 import pytest
 from pytest import approx
 
 from volttron.platform import get_services_core
-from volttron.platform.agent import PublishMixin, utils
+from volttron.platform.agent import utils
 from volttron.platform.messaging import headers as headers_mod
 from volttron.platform.messaging import topics
 from volttron.platform.vip.agent import Agent
-from volttron.platform.auth import AuthEntry, AuthFile
-from volttron.platform.keystore import KeyStore, KnownHostsStore
-from gevent.subprocess import Popen
-import gevent.subprocess as subprocess
-from mock import MagicMock
+from volttron.platform.keystore import KnownHostsStore
 
 # import types
 
@@ -76,11 +71,10 @@ sqlite_config = {
 volttron_instance1 = None
 volttron_instance2 = None
 
+
 @pytest.fixture(scope="module")
 def volttron_instances(request, get_volttron_instances):
     global volttron_instance1, volttron_instance2
-    # print "Fixture volttron_instance"
-    # if volttron_instance1 is None:
     volttron_instance1, volttron_instance2 = get_volttron_instances(2)
 
 
@@ -88,7 +82,7 @@ def volttron_instances(request, get_volttron_instances):
 @pytest.fixture(scope="module")
 def publish_agent(request, volttron_instances, forwarder):
     global volttron_instance1, volttron_instance2
-    #print "Fixture publish_agent"
+
     # 1: Start a fake agent to publish to message bus
     agent = volttron_instance1.build_agent(identity='test-agent')
 
@@ -105,7 +99,7 @@ def publish_agent(request, volttron_instances, forwarder):
 
 @pytest.fixture(scope="module")
 def query_agent(request, volttron_instances, sqlhistorian):
-    # print "Fixture query_agent"
+
     # 1: Start a fake agent to query the sqlhistorian in volttron_instance2
     agent = volttron_instance2.build_agent()
 
@@ -121,7 +115,7 @@ def query_agent(request, volttron_instances, sqlhistorian):
 
 @pytest.fixture(scope="module")
 def sqlhistorian(request, volttron_instances):
-    # print "Fixture sqlhistorian"
+
     global volttron_instance1, volttron_instance2
     global sqlite_config
     # 1: Install historian agent
@@ -137,7 +131,7 @@ def sqlhistorian(request, volttron_instances):
 
 @pytest.fixture(scope="module")
 def forwarder(request, volttron_instances):
-    #print "Fixture forwarder"
+
     global volttron_instance1, volttron_instance2
 
     global datamover_uuid, datamover_config

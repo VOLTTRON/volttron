@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -36,12 +36,12 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-import json
+
 import pytest
 import gevent
 from gevent import pywsgi
 
-from volttron.platform import get_services_core
+from volttron.platform import get_services_core, jsonapi
 from volttrontesting.utils.utils import get_rand_http_address
 from volttron.platform.agent.known_identities import CONFIGURATION_STORE, PLATFORM_DRIVER
 
@@ -50,7 +50,7 @@ no_scheme = server_addr[7:]
 ip, port = no_scheme.split(':')
 
 TEST_MAC_ID = '0xffffffffffffffff'
-driver_config_string = json.dumps({
+driver_config_string = jsonapi.dumps({
     "driver_config": {
         "username": "",
         "password": "",
@@ -66,7 +66,7 @@ driver_config_string = json.dumps({
     "timezone": "US/Pacific"
 })
 
-register_config_string = json.dumps([
+register_config_string = jsonapi.dumps([
     "NetworkStatus",
     "InstantaneousDemand",
     "PriceCluster",
@@ -81,17 +81,17 @@ command_network_status = '<Command>\
 <Format>JSON</Format>\
 </Command>'
 
-response_network_status = json.dumps({
-    u'NetworkStatus': {
-        u'Status': u'Connected', # This is the value we'll check
-        u'ShortAddr': u'0x5272',
-        u'DeviceMacId': u'0xffffffffffffffff',
-        u'Protocol':
-        u'Zigbee',
-        u'CoordMacId': u'0xffffffffffffffff',
-        u'ExtPanId': u'0x0000000000000000',
-        u'LinkStrength': u'0x64',
-        u'Channel': u'17'
+response_network_status = jsonapi.dumps({
+    'NetworkStatus': {
+        'Status': 'Connected', # This is the value we'll check
+        'ShortAddr': '0x5272',
+        'DeviceMacId': '0xffffffffffffffff',
+        'Protocol':
+        'Zigbee',
+        'CoordMacId': '0xffffffffffffffff',
+        'ExtPanId': '0x0000000000000000',
+        'LinkStrength': '0x64',
+        'Channel': '17'
     }
 })
 
@@ -101,17 +101,17 @@ command_instantaneous_demand = '<Command>\
 <Format>JSON</Format>\
 </Command>'.format(TEST_MAC_ID)
 
-response_instantaneous_demand = json.dumps({
-    u'InstantaneousDemand': {
-        u'DeviceMacId': u'0xffffffffffffffff',
-        u'Divisor': u'0x0000000a', # 10
-        u'TimeStamp': u'0x00000000',
-        u'MeterMacId': u'0xffffffffffffffff',
-        u'Multiplier': u'0x00000001', # 1
-        u'DigitsRight': u'0x00',
-        u'DigitsLeft': u'0x00',
-        u'SuppressLeadingZero': u'N',
-        u'Demand': u'0x000040' # 64
+response_instantaneous_demand = jsonapi.dumps({
+    'InstantaneousDemand': {
+        'DeviceMacId': '0xffffffffffffffff',
+        'Divisor': '0x0000000a', # 10
+        'TimeStamp': '0x00000000',
+        'MeterMacId': '0xffffffffffffffff',
+        'Multiplier': '0x00000001', # 1
+        'DigitsRight': '0x00',
+        'DigitsLeft': '0x00',
+        'SuppressLeadingZero': 'N',
+        'Demand': '0x000040' # 64
     }
 })
 
@@ -121,17 +121,17 @@ command_price_cluster = '<Command>\
 <Format>JSON</Format>\
 </Command>'.format(TEST_MAC_ID)
 
-response_price_cluster = json.dumps({
-    u'PriceCluster': {
-        u'DeviceMacId': u'0xffffffffffffffff',
-        u'MeterMacId': u'0xffffffffffffffff',
-        u'Price': u'0x00000040', # 64
-        u'TrailingDigits': u'0x02', # 2
-        u'Tier': u'0',
-        u'Currency': u'0xffff',
-        u'StartTime': u'0xffffffff',
-        u'TimeStamp': u'0xffffffff',
-        u'Duration': u'0xffff'
+response_price_cluster = jsonapi.dumps({
+    'PriceCluster': {
+        'DeviceMacId': '0xffffffffffffffff',
+        'MeterMacId': '0xffffffffffffffff',
+        'Price': '0x00000040', # 64
+        'TrailingDigits': '0x02', # 2
+        'Tier': '0',
+        'Currency': '0xffff',
+        'StartTime': '0xffffffff',
+        'TimeStamp': '0xffffffff',
+        'Duration': '0xffff'
     }
 })
 
@@ -141,18 +141,18 @@ command_current_summation = '<Command>\
 <Format>JSON</Format>\
 </Command>'.format(TEST_MAC_ID)
 
-response_current_summation = json.dumps({
-    u'CurrentSummation': {
-        u'DeviceMacId': u'0xffffffffffffffff',
-        u'Divisor': u'0x00000000',
-        u'TimeStamp': u'0x00000000',
-        u'MeterMacId': u'0xffffffffffffffff',
-        u'Multiplier': u'0x00000000',
-        u'DigitsRight': u'0x00',
-        u'DigitsLeft': u'0x00',
-        u'SuppressLeadingZero': u'N',
-        u'SummationReceived': u'0x00000000',
-        u'SummationDelivered': u'0x00000000'
+response_current_summation = jsonapi.dumps({
+    'CurrentSummation': {
+        'DeviceMacId': '0xffffffffffffffff',
+        'Divisor': '0x00000000',
+        'TimeStamp': '0x00000000',
+        'MeterMacId': '0xffffffffffffffff',
+        'Multiplier': '0x00000000',
+        'DigitsRight': '0x00',
+        'DigitsLeft': '0x00',
+        'SuppressLeadingZero': 'N',
+        'SummationReceived': '0x00000000',
+        'SummationDelivered': '0x00000000'
     }
 })
 
@@ -161,11 +161,11 @@ command_demand_peaks = '<Command>\
 <Format>JSON</Format>\
 </Command>'
 
-response_demand_peaks = json.dumps({
-    u'DemandPeaks': {
-        u'PeakReceived': u'-2.000000',
-        u'DeviceMacId': u'0xffffffffffffffff',
-        u'PeakDelivered': u'5.000000'
+response_demand_peaks = jsonapi.dumps({
+    'DemandPeaks': {
+        'PeakReceived': '-2.000000',
+        'DeviceMacId': '0xffffffffffffffff',
+        'PeakDelivered': '5.000000'
     }
 })
 
@@ -180,22 +180,22 @@ response_dict = {
 
 def handle(env, start_response):
     try:
-        length = env['CONTENT_LENGTH']
+        length = int(env['CONTENT_LENGTH'])
         data = env['wsgi.input']
         data = data.read(length)
-        data = data.replace(' ', '')
+        data = data.replace(b' ', b'')
     except KeyError:
         data = None
 
     start_response('200 OK', [('Content-Type', 'text/html')])
-    return response_dict[data]
+    return response_dict[str(data, 'utf-8')]
 
     return handle
 
 
 @pytest.fixture(scope='module')
 def agent(volttron_instance):
-    agent = volttron_instance.build_agent()
+    agent = volttron_instance.build_agent(identity="test_agent")
     capabilities = {'edit_config_store': {'identity': PLATFORM_DRIVER}}
     volttron_instance.add_capabilities(agent.core.publickey, capabilities)
     # Clean out master driver configurations.

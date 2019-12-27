@@ -27,7 +27,7 @@
 # favoring by 8minutenergy or Kisensum.
 # }}}
 
-import json
+
 import os
 
 from dnp3.mesa.functions import FunctionDefinitions
@@ -35,7 +35,7 @@ from dnp3.points import PointDefinitions
 from dnp3 import DATA_TYPES_BY_GROUP
 from dnp3 import DATA_TYPE_ANALOG_OUTPUT, DATA_TYPE_BINARY_OUTPUT
 
-
+from volttron.platform import jsonapi
 POINT_DEF_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), 'tests', 'data', 'mesa_points.config'))
 FUNCTION_DEF_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), 'tests', 'data', 'mesa_functions.yaml'))
 
@@ -54,7 +54,7 @@ class FunctionTest(object):
     def __init__(self, func_test_path='', func_test_json=None, func_def_path='', point_def_path=''):
         self.func_def_path = func_def_path or FUNCTION_DEF_PATH
         self.point_definitions = PointDefinitions(point_definitions_path=point_def_path or POINT_DEF_PATH)
-        self.ftest = func_test_json or json.load(open(func_test_path))
+        self.ftest = func_test_json or jsonapi.load(open(func_test_path))
         self.function_id = self.ftest.get('function_id', self.ftest.get('id', None))
         self.function_name = self.ftest.get('function_name', self.ftest.get('name', None))
         self.name = self.ftest.get('name', None)

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -35,14 +35,13 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-from __future__ import absolute_import, print_function
 
 import datetime
 import logging
 import sys
 import time
 import traceback
-from urlparse import urlparse
+from urllib.parse import urlparse
 
 import gevent
 
@@ -238,9 +237,7 @@ class ForwardHistorian(BaseHistorian):
                 #_log.debug("data in capture_data {}".format(data))
             if isinstance(data, dict):
                 data = data
-            elif isinstance(data, int) or \
-                    isinstance(data, float) or \
-                    isinstance(data, long):
+            elif isinstance(data, (int, float)):
                 data = data
                 # else:
                 #     data = data[0]
@@ -410,7 +407,7 @@ class ForwardHistorian(BaseHistorian):
 
         if timeout_occurred:
             _log.debug('Sending alert from the ForwardHistorian')
-            status = Status.from_json(self.vip.health.get_status())
+            status = Status.from_json(self.vip.health.get_status_json())
             self.vip.health.send_alert(FORWARD_TIMEOUT_KEY,
                                        status)
         else:
@@ -435,7 +432,7 @@ class ForwardHistorian(BaseHistorian):
             self.vip.health.set_status(STATUS_BAD, "Timeout in setup of agent")
         except Exception as ex:
             _log.error(ex.args)
-            self.vip.health.set_status(STATUS_BAD, "Error message: {}".format(ex.message))
+            self.vip.health.set_status(STATUS_BAD, "Error message: {}".format(ex))
         else:
             if isinstance(value, Agent):
                 self._target_platform = value

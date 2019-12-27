@@ -112,7 +112,7 @@ class Suite(object):
             'meta_table_name': meta_table_name,
             'table_names': table_names,
         })
-        truncate_tables = table_names.values() + [meta_table_name]
+        truncate_tables = list(table_names.values()) + [meta_table_name]
         drop_tables = []
         for _, method in inspect.getmembers(self, inspect.ismethod):
             drop_tables.extend(getattr(method, 'drop_tables', []))
@@ -120,26 +120,33 @@ class Suite(object):
                 contextlib.closing(cls(params, tables_def)) as state.driver:
             yield state
 
+    def create_driver(self, state):
+        driver = state.driver
+        driver.setup_historian_tables()
+        driver.record_table_definitions(
+            state.table_names, state.meta_table_name)
+        return driver
+
     @pytest.fixture
-    def driver(self, state):
-        return state.driver
+    def suite_driver(self, state):
+        return self.create_driver(state)
 
     @contextlib.contextmanager
     def transact(self, truncate_tables, drop_tables):
         pass
 
-    def test_setup_tables(self, driver, state):
+    def test_setup_tables(self, suite_driver, state):
         try:
-            driver.setup_historian_tables()
-            driver.record_table_definitions(
+            suite_driver.setup_historian_tables()
+            suite_driver.record_table_definitions(
                 state.table_names, state.meta_table_name)
-            assert driver.read_tablenames_from_db(
+            assert suite_driver.read_tablenames_from_db(
                 state.meta_table_name) == state.table_names
         except psycopg2.ProgrammingError as exc:
             print (exc.pgcode, exc.pgerror)
             raise
 
-    def test_add_data(self, driver):
+    def test_add_data(self, suite_driver):
         id_map = {}
         name_map = {}
         id_name_map = {}
@@ -148,70 +155,71 @@ class Suite(object):
                       'Building/LAB/Device/MixedAirTemperature',
                       'Building/LAB/Device/DamperSignal']:
             name = topic.lower()
-            topic_id = driver.insert_topic(topic)
+            topic_id = suite_driver.insert_topic(topic)
             assert topic_id
             id_map[name] = topic_id
             name_map[name] = topic
             id_name_map[topic_id] = topic
-            driver.insert_meta(topic_id, {
+            suite_driver.insert_meta(topic_id, {
                 'units': 'X', 'tz': 'UTC', 'type': 'float'})
             ts = datetime(year=2015, month=3, day=14, hour=9, minute=26,
                           second=53, microsecond=59, tzinfo=pytz.UTC)
             for value in range(3):
                 value = float(value)
-                driver.insert_data(ts, topic_id, value)
+                suite_driver.insert_data(ts, topic_id, value)
                 try:
                     values[topic].append((ts.isoformat(), value))
                 except KeyError:
                     values[topic] = [(ts.isoformat(), value)]
                 ts += timedelta(seconds=1)
-        assert driver.get_topic_map() == (id_map, name_map)
-        assert driver.query(id_name_map.keys(), id_name_map) == values
+        assert suite_driver.get_topic_map() == (id_map, name_map)
+        assert suite_driver.query(list(id_name_map.keys()), id_name_map) == values
         start = datetime(year=2015, month=3, day=14, hour=9, minute=26,
                          second=0, microsecond=0, tzinfo=pytz.UTC)
         end = datetime(year=2015, month=3, day=14, hour=9, minute=27,
                          second=0, microsecond=0, tzinfo=pytz.UTC)
-        assert driver.query(id_name_map.keys(), id_name_map, start, end) == values
+        assert suite_driver.query(list(id_name_map.keys()), id_name_map, start, end) == values
 
-    def test_topic_name_case_change(self, driver):
-        topic_id = driver.insert_topic('This/is/some/Topic')
+    def test_topic_name_case_change(self, suite_driver):
+        topic_id = suite_driver.insert_topic('This/is/some/Topic')
         assert topic_id
-        id_map1, name_map1 = driver.get_topic_map()
-        driver.update_topic('This/is/some/topic', topic_id)
-        id_map2, name_map2 = driver.get_topic_map()
+        id_map1, name_map1 = suite_driver.get_topic_map()
+        suite_driver.update_topic('This/is/some/topic', topic_id)
+        id_map2, name_map2 = suite_driver.get_topic_map()
         assert id_map1 == id_map2
         assert name_map1.pop('this/is/some/topic') == 'This/is/some/Topic'
         assert name_map2.pop('this/is/some/topic') == 'This/is/some/topic'
         assert name_map1 == name_map2
 
-    def test_query_topic_pattern(self, driver):
+    def test_query_topic_pattern(self, suite_driver):
         topics = {'This/is/a/pattern/topic',
                   'This/is/another/pattern/topic',
                   'This/is/some/pattern/topic'}
         for topic in topics:
-            topic_id = driver.insert_topic(topic)
+            topic_id = suite_driver.insert_topic(topic)
             assert topic_id
-        driver.commit()
-        assert len(set(driver.query_topics_by_pattern('this/is/a.*/pattern/topic').keys()) & topics) == 2
-        assert len(set(driver.query_topics_by_pattern('this/is/some/.*/topic').keys()) & topics) == 1
-        assert len(set(driver.query_topics_by_pattern('.*').keys()) & topics) == 3
+        suite_driver.commit()
+        assert len(set(suite_driver.query_topics_by_pattern('this/is/a.*/pattern/topic').keys()) & topics) == 2
+        assert len(set(suite_driver.query_topics_by_pattern('this/is/some/.*/topic').keys()) & topics) == 1
+        assert len(set(suite_driver.query_topics_by_pattern('.*').keys()) & topics) == 3
 
-    def test_curser_for_closed_connection(self, driver):
-        cursor = driver.cursor()
+    def test_curser_for_closed_connection(self, suite_driver):
+        cursor = suite_driver.cursor()
         assert cursor is not None
         cursor.connection.close()
-        cursor = driver.cursor()
+        cursor = suite_driver.cursor()
         assert cursor is not None
 
 
 class AggregationSuite(Suite):
+
     @pytest.fixture
-    def driver(self, state):
-        driver = super(AggregationSuite, self).driver(state)
-        driver.record_table_definitions(
+    def driver(self, state, suite_driver):
+        #driver = super(AggregationSuite, self).driver(state)
+        suite_driver.record_table_definitions(
             state.table_names, state.meta_table_name)
-        driver.setup_aggregate_historian_tables(state.meta_table_name)
-        return driver
+        suite_driver.setup_aggregate_historian_tables(state.meta_table_name)
+        return suite_driver
 
     @pytest.mark.aggregator
     def test_create_agg_table(self, driver, state):
@@ -229,14 +237,14 @@ class AggregationSuite(Suite):
                 driver.insert_data(ts, topic_id, value)
             ts += delta
         driver.commit()
-        assert driver.collect_aggregate(range(1, 4), 'sum', start, ts) == (14850.0, 300)
-        assert driver.collect_aggregate(range(1, 4), 'avg', start, ts) == (49.5, 300)
+        assert driver.collect_aggregate(list(range(1, 4)), 'sum', start, ts) == (14850.0, 300)
+        assert driver.collect_aggregate(list(range(1, 4)), 'avg', start, ts) == (49.5, 300)
         assert driver.collect_aggregate([1, 6], 'sum', start, ts) == (4950, 100)
         assert driver.collect_aggregate([1, 6], 'avg', start, ts) == (49.5, 100)
         start += delta
         ts = start + delta
-        assert driver.collect_aggregate(range(1, 4), 'sum', start, ts) == (3.0, 3)
-        assert driver.collect_aggregate(range(1, 4), 'avg', start, ts) == (1, 3)
+        assert driver.collect_aggregate(list(range(1, 4)), 'sum', start, ts) == (3.0, 3)
+        assert driver.collect_aggregate(list(range(1, 4)), 'avg', start, ts) == (1, 3)
         driver.create_aggregate_store('max', '1m')
         topic_id = driver.insert_agg_topic('aggregate/max/1m/topic', 'max', '1m')
         assert topic_id
@@ -321,7 +329,7 @@ class TestSqlite(AggregationSuite):
                                 cursor.execute('{} "{}"'.format(
                                     query, table.replace('"', '""')))
                             except sqlite3.OperationalError as exc:
-                                if not exc.message.startswith('no such table'):
+                                if not str(exc).startswith('no such table'):
                                     raise
                     clean('DELETE FROM', truncate_tables)
                     clean('DROP TABLE', drop_tables)
@@ -345,12 +353,9 @@ class FauxConnection:
 
 
 class TestClosing:
-    def test_closing_standarderror(self):
-        with pytest.raises(StandardError), basedb.closing(FauxConnection(StandardError)):
-            pass
 
     def test_closing_exception(self):
-        with basedb.closing(FauxConnection(Exception)):
+        with pytest.raises(Exception), basedb.closing(FauxConnection(Exception)):
             pass
 
     def test_closing_standarderror_builtin_subclass(self):
@@ -358,7 +363,7 @@ class TestClosing:
             pass
 
     def test_closing_standarderror_subclass(self):
-        class SubclassedError(StandardError):
+        class SubclassedError(Exception):
             pass
         with basedb.closing(FauxConnection(SubclassedError)):
             pass

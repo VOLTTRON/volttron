@@ -1,67 +1,51 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
-
-# Copyright (c) 2017, SLAC National Laboratory / Kisensum Inc.
-# All rights reserved.
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
+# Copyright 2019, Battelle Memorial Institute.
 #
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in
-#    the documentation and/or other materials provided with the
-#    distribution.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# http://www.apache.org/licenses/LICENSE-2.0
 #
-# The views and conclusions contained in the software and documentation
-# are those of the authors and should not be interpreted as representing
-# official policies, either expressed or implied, of the FreeBSD
-# Project.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
-# This material was prepared as an account of work sponsored by an
-# agency of the United States Government.  Neither the United States
-# Government nor the United States Department of Energy, nor SLAC / Kisensum,
-# nor any of their employees, nor any jurisdiction or organization that
-# has cooperated in the development of these materials, makes any
-# warranty, express or implied, or assumes any legal liability or
-# responsibility for the accuracy, completeness, or usefulness or any
-# information, apparatus, product, software, or process disclosed, or
-# represents that its use would not infringe privately owned rights.
-#
-# Reference herein to any specific commercial product, process, or
-# service by trade name, trademark, manufacturer, or otherwise does not
-# necessarily constitute or imply its endorsement, recommendation, or
+# This material was prepared as an account of work sponsored by an agency of
+# the United States Government. Neither the United States Government nor the
+# United States Department of Energy, nor Battelle, nor any of their
+# employees, nor any jurisdiction or organization that has cooperated in the
+# development of these materials, makes any warranty, express or
+# implied, or assumes any legal liability or responsibility for the accuracy,
+# completeness, or usefulness or any information, apparatus, product,
+# software, or process disclosed, or represents that its use would not infringe
+# privately owned rights. Reference herein to any specific commercial product,
+# process, or service by trade name, trademark, manufacturer, or otherwise
+# does not necessarily constitute or imply its endorsement, recommendation, or
 # favoring by the United States Government or any agency thereof, or
-# SLAC / Kisensum. The views and opinions of authors
-# expressed herein do not necessarily state or reflect those of the
+# Battelle Memorial Institute. The views and opinions of authors expressed
+# herein do not necessarily state or reflect those of the
 # United States Government or any agency thereof.
 #
+# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
+# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# under Contract DE-AC05-76RL01830
 # }}}
 
-from end_device import EndDevice, MUP, SEP2Renderer, sep2_time
+from .end_device import EndDevice, MUP, SEP2Renderer, sep2_time
 from datetime import datetime, timedelta
 from volttron.platform.agent import utils
 from volttron.platform.vip.agent import Agent, Core, RPC
-import __init__ as sep2
+import sep2
 import base64
 import logging
 import pytz
 import sys
-import xsd_models
+from . import xsd_models
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -84,7 +68,7 @@ def sep2_agent(config_path, **kwargs):
     """
     try:
         config = utils.load_config(config_path)
-    except StandardError:
+    except Exception:
         config = {}
 
     if not config:
@@ -136,7 +120,7 @@ class SEP2Agent(Agent):
         self.timezone = timezone
         self.devices = {}
 
-        self.default_config = {"device_config": device_config,
+        self.default_config = {"devices": device_config,
                                "sep2_server_sfdi": sep2_server_sfdi,
                                "sep2_server_lfdi": sep2_server_lfdi,
                                "load_shed_device_category": load_shed_device_category,
@@ -179,11 +163,11 @@ class SEP2Agent(Agent):
                 pass
 
         _log.debug("Registering Endpoints: {}".format(self.__class__.__name__))
-        for _, endpoint in sep2.SEP2_ENDPOINTS.iteritems():
+        for _, endpoint in sep2.SEP2_ENDPOINTS.items():
             if endpoint.url not in self.vip.web._endpoints:
                 self.vip.web.register_endpoint(endpoint.url, getattr(self, endpoint.callback), "raw")
-        for device_id, device in self.devices.iteritems():
-            for _, endpoint in sep2.SEP2_EDEV_ENDPOINTS.iteritems():
+        for device_id, device in self.devices.items():
+            for _, endpoint in sep2.SEP2_EDEV_ENDPOINTS.items():
                 if endpoint.url.format(device_id) not in self.vip.web._endpoints:
                     self.vip.web.register_endpoint(endpoint.url.format(device_id),
                                                    getattr(self, endpoint.callback), "raw")
@@ -212,7 +196,7 @@ class SEP2Agent(Agent):
                 d.pin_code = device['pin_code']
 
         old_indices = []
-        for index, d in end_devices.iteritems():
+        for index, d in end_devices.items():
             if d.sfdi not in [device['sfdi'] for device in devices]:
                 old_indices.append(index)
         for i in old_indices:
@@ -294,7 +278,7 @@ class SEP2Agent(Agent):
         :return: Tuple of (Status Code, Response Data, Headers)
         """
         return (sep2.STATUS_CODES[200],
-                base64.b64encode(SEP2Renderer.render(render_dict)),
+                base64.b64encode(SEP2Renderer.render(render_dict)).decode('ascii'),
                 sep2.XML_HEADERS)
 
     @RPC.export
@@ -314,13 +298,13 @@ class SEP2Agent(Agent):
         end_device = self.get_end_device(sfdi=sfdi)
         try:
             end_device_points = {}
-            for volttron_point_name, point_definition in end_device.mappings.iteritems():
+            for volttron_point_name, point_definition in end_device.mappings.items():
                 field_value = end_device.field_value(point_definition['SEP2 Resource Name'],
                                                      point_definition['SEP2 Field Name'])
                 end_device_points[volttron_point_name] = field_value
             return end_device_points
         except Exception as e:
-            raise SEP2Exception(e.message)
+            raise SEP2Exception(e)
 
     @RPC.export
     def set_point(self, sfdi, point_name, value):
@@ -329,7 +313,7 @@ class SEP2Agent(Agent):
         try:
             setattr(end_device, point_name, value)
         except Exception as e:
-            raise SEP2Exception(e.message)
+            raise SEP2Exception(e)
 
     @RPC.export
     def config_points(self, sfdi, point_map):
@@ -405,11 +389,11 @@ class SEP2Agent(Agent):
         device_list = xsd_models.EndDeviceList()
         start, limit = parse_list_query(env['QUERY_STRING'].encode('ascii', 'ignore'), len(self.devices))
 
-        for i in xrange(start, limit):
+        for i in range(start, limit):
             device_list.add_EndDevice(self.devices[i].end_device)
 
         device_list.set_href(sep2.SEP2_ENDPOINTS["edev-list"].url)
-        device_list.set_results(max(0, len(xrange(start, limit))))
+        device_list.set_results(max(0, len(range(start, limit))))
         device_list.set_all(len(self.devices))
 
         return SEP2Agent.prep_200_response({'received_data': data, 'result': device_list})
@@ -515,11 +499,11 @@ class SEP2Agent(Agent):
 
             start, limit = parse_list_query(env['QUERY_STRING'].encode('ascii', 'ignore'), len(self.mups))
 
-            for i in xrange(start, limit):
+            for i in range(start, limit):
                 mup_list.add_MirrorUsagePoint(self.mups[i].mup_xsd)
 
             mup_list.set_href(sep2.SEP2_ENDPOINTS["mup-list"].url)
-            mup_list.set_results(max(0, len(xrange(start, limit))))
+            mup_list.set_results(max(0, len(range(start, limit))))
             mup_list.set_all(len(self.mups))
 
             return SEP2Agent.prep_200_response({"result": mup_list})
@@ -556,7 +540,7 @@ def parse_list_query(query, length):
     :param length: Length of the list
     :return: (start index 0 based, limit) - xrange style
     """
-    params = {a[0]: a[1] for a in map(lambda x: x.split('='), query.split("&"))} if len(query) > 0 else {}
+    params = {a[0]: a[1] for a in [x.split('=') for x in query.split("&")]} if len(query) > 0 else {}
     start = max(0, int(params.get('s', '0')))
     limit = max(0, min(length, start + int(params.get('l', '255'))))
     return start, limit

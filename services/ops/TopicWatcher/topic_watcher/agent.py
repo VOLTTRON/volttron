@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -117,7 +117,7 @@ class AlertAgent(Agent):
                             self.remote_address)
                         _log.error(status_context)
                         self._remote_agent = None
-                except gevent.Timeout, ZMQError:
+                except (gevent.Timeout, ZMQError):
                     _log.error("Exception creation remote agent")
                     status_context = "Couldn't connect to remote platform at: {}".format(
                         self.remote_address)
@@ -178,7 +178,7 @@ class AlertAgent(Agent):
                            main_agent=self,
                            publish_local=self.publish_local,
                            publish_remote=self.publish_remote)
-        
+
         return group
 
     @Core.receiver('onstop')
@@ -325,7 +325,7 @@ class AlertGroup():
     def parse_config(self):
         _log.info("Listening for alert group {}".format(self.group_name))
         config = self.config
-        for topic in config.iterkeys():
+        for topic in config.keys():
 
             # Optional config option with a list of points that
             # might not be published.
@@ -400,7 +400,6 @@ class AlertGroup():
             for point in self.point_ttl[topic]:
                 self.point_ttl[topic][point] = self.wait_time[topic]
 
-
     def reset_time(self, peer, sender, bus, topic, headers, message):
         """Callback for topic subscriptions
 
@@ -435,7 +434,7 @@ class AlertGroup():
 
         # Reset timeouts on volatile points
         if topic in self.point_ttl:
-            received_points = set(message[0].keys())
+            received_points = message[0].keys()
             expected_points = self.point_ttl[topic].keys()
             for point in expected_points:
                 if point in received_points:

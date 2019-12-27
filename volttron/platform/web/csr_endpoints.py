@@ -2,7 +2,7 @@ import re
 import logging
 import weakref
 
-from volttron.platform.agent import json
+from volttron.platform import jsonapi
 from volttron.platform.agent.utils import get_platform_instance_name
 from volttron.platform.agent.web import Response
 from volttron.platform.certs import Certs
@@ -52,7 +52,7 @@ class CSREndpoints(object):
         _log.debug("New csr request")
         if not isinstance(data, dict):
             try:
-                request_data = json.loads(data)
+                request_data = jsonapi.loads(data)
             except:
                 _log.error("Invalid data for csr request.  Must be json serializable")
                 return Response()
@@ -106,7 +106,7 @@ class CSREndpoints(object):
                 json.response['message'] = "An unknown common name was specified to the server {}".format(identity)
             else:
                 json_response['message'] = "An unkonwn error has occured during the respons phase"
-                _
-        return Response(json.dumps(json_response),
+
+        return Response(jsonapi.dumps(json_response),
                         content_type='application/json',
                         headers={'Content-type': 'application/json'})

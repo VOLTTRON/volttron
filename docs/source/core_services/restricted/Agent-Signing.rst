@@ -14,7 +14,7 @@ would like to carry with it during moving from platform to platform. All
 of these certificates must be signed by a "known" Certificate Authority
 (CA).
 
-In order to facilitate the development of agents Volttron Resticted
+In order to facilitate the development of agents Volttron Restricted
 includes packaging commands for creating the platform CA as well as the
 CA signed certificates for use in the agent signing process.
 

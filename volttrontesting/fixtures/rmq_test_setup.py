@@ -87,6 +87,18 @@ class RabbitTestConfig(object):
     def rmq_home(self, value):
         self.rabbitmq_config['rmq-home'] = value
 
+    @property
+    def rmq_port(self):
+        return self.rabbitmq_config['amqp-port']
+
+    @property
+    def rmq_port_ssl(self):
+        return self.rabbitmq_config['amqp-port-ssl']
+
+    @property
+    def virtual_host(self):
+        return self.rabbitmq_config['virtual-host']
+
     def update_ports(self, amqp_port=None, amqp_port_ssl=None, mgmt_port=None, mgmt_port_ssl=None):
         if amqp_port:
             self.rabbitmq_config['amqp-port'] = amqp_port
@@ -102,16 +114,16 @@ class RabbitTestConfig(object):
 
 
 def create_rmq_volttron_setup(vhome=None, ssl_auth=False, env=None,
-                              instance_name=None, secure_agent_users=False):
+                              instance_name=None, secure_agent_users=False) -> RabbitTestConfig:
     """
         Set-up rabbitmq broker for volttron testing:
             - Install config and rabbitmq_config.yml in VOLTTRON_HOME
             - Create virtual host, exchanges, certificates, and users
             - Start rabbitmq server
 
-    :param instance_name: the canonical name for the instance being setup.
     :param vhome: volttron home directory, if None, use default from environment
     :param ssl_auth: ssl authentication, if true, all users of message queue must authenticate
+    :param instance_name: the canonical name for the instance being setup.s
     """
     if vhome:
         os.environ['VOLTTRON_HOME'] = vhome

@@ -1,8 +1,16 @@
 # Module copied from
 # http://code.activestate.com/recipes/576642-persistent-dict-with-multiple-standard-file-format/
-import pickle, json, csv, os, shutil, shelve, logging
+import csv
+import os
+import shutil
+import shelve
+import logging
+import pickle
+
+from volttron.platform import jsonapi
+
 from threading import Thread
-from Queue import Queue
+from queue import Queue
 from copy import deepcopy
 
 _log = logging.getLogger(__name__)
@@ -106,7 +114,7 @@ class PersistentDict(dict):
         if format == 'csv':
             csv.writer(fileobj).writerows(contents.items())
         elif format == 'json':
-            json.dump(contents, fileobj, separators=(',', ':'))
+            jsonapi.dump(contents, fileobj, separators=(',', ':'))
         elif format == 'pickle':
             pickle.dump(dict(contents), fileobj, 2)
         else:
@@ -114,7 +122,7 @@ class PersistentDict(dict):
 
     def _load(self, fileobj):
         # try formats from most restrictive to least restrictive
-        for loader in (pickle.load, json.load, csv.reader):
+        for loader in (pickle.load, jsonapi.load, csv.reader):
             fileobj.seek(0)
             try:
                 return self.update(loader(fileobj))

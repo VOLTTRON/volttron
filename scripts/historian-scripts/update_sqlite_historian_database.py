@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -51,10 +51,10 @@ def main(database_name):
     #Batches of 1000
     #We do this because of a bug in the sqlite implementation in python
     #which causes problems with nested cursors.
-    for i in xrange(0, count, 1000):
+    for i in range(0, count, 1000):
         c.execute("select rowid, ts from data where rowid > ? order by rowid asc limit 1000;", (i,))
         rows = c.fetchall()
-        print "processing rowid:", i+1, "to", i+len(rows)
+        print("processing rowid:", i+1, "to", i+len(rows))
 
         for rowid, ts in rows:
             #Skip already converted rows.

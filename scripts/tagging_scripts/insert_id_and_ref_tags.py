@@ -21,9 +21,9 @@ from pymongo import MongoClient
 from pymongo.errors import BulkWriteError
 import datetime
 
-## User configuration - start ##
+# --- User configuration - start --- #
 
-#Connection string to the mongo db from which list of topics should be read
+# Connection string to the mongo db from which list of topics should be read
 topics_connection_string = "mongodb://<user>:<password>@vc-db.pnl.gov" \
                            ":27017" \
                            "/<db_name>"
@@ -42,7 +42,7 @@ tags_table = "topic_tags_4"
 tags_db_mongo_conn_str = "mongodb://test:test@localhost:27017/mongo_test"
 tags_db_sqlite = "/home/velo/tags_test3.sqlite"
 
-## User configuration - end ##
+# --- User configuration - end --- #
 
 write_to_mongo = False
 if tags_db_mongo_conn_str:
@@ -62,7 +62,6 @@ if tags_db_sqlite:
     )
     sqlite_connection.execute("PRAGMA CACHE_SIZE=-2000")
 
-
     sqlite_connection.execute("CREATE TABLE IF NOT EXISTS " + tags_table +
                               "("
                               "topic_prefix TEXT NOT NULL, "
@@ -77,6 +76,7 @@ if tags_db_sqlite:
     sqlite_batch_size = 0
     sqlite_max_batch_size = 100
     write_to_sqlite = True
+
 
 def get_campus_tags(campus):
     tags = {
@@ -93,6 +93,7 @@ def get_campus_tags(campus):
     #     "geoPostalCode":"20500", "tz": "New_York"}
 
     return tags
+
 
 def get_site_tags(campus, site):
     # Additional common site(i.e. building) tags could be added.
@@ -140,6 +141,7 @@ def get_point_tags(campus, site, equip, point):
             }
     return tags
 
+
 def db_insert(tags, execute_now=False):
     r1 = r2 = True
     if write_to_sqlite:
@@ -147,6 +149,7 @@ def db_insert(tags, execute_now=False):
     if write_to_mongo:
         r1 = mongo_insert(tags, execute_now)
     return r1 and r2
+
 
 def mongo_insert(tags, execute_now=False):
     global mongo_bulk, mongo_batch_size, mongo_max_batch_size
@@ -171,11 +174,11 @@ def mongo_insert(tags, execute_now=False):
             mongo_bulk = tags_mongodb[tags_table].initialize_ordered_bulk_op()
     return errors
 
+
 def sqlite_insert(tags, execute_now=False):
     global sqlite_bulk, sqlite_batch_size, sqlite_max_batch_size
 
     if tags:
-        #topic_prefix = tags["id"][1:] #remove @ symbol
         topic_prefix = tags["id"]
         for k, v in tags.items():
             if isinstance(v, bool):
@@ -184,12 +187,12 @@ def sqlite_insert(tags, execute_now=False):
                 else:
                     v = 0
             sqlite_bulk.append((topic_prefix, k, v))
-        #print sqlite_bulk
+        # print sqlite_bulk
         sqlite_batch_size += len(tags)
 
     errors = False
     if sqlite_batch_size > sqlite_max_batch_size or execute_now:
-        #print ("Execute many")
+        # print("Execute many")
         sqlite_connection.executemany("insert into " +
                                       tags_table + "(topic_prefix, "
                                       "tag, value) values (?,?,?)",

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -219,13 +219,13 @@ the same date over again.
 
 """
 
-from __future__ import absolute_import, print_function
+
 
 import logging
 import sqlite3
 import threading
 import weakref
-from Queue import Queue, Empty
+from queue import Queue, Empty
 from abc import abstractmethod
 from collections import defaultdict
 from datetime import datetime, timedelta
@@ -256,21 +256,21 @@ from volttron.platform.messaging.health import (STATUS_BAD,
 
 try:
     import ujson
-    from zmq.utils.jsonapi import dumps as _dumps, loads as _loads
+    from volttron.platform.jsonapi import dumps as _dumps, loads as _loads
 
     def dumps(data):
         try:
             return ujson.dumps(data, double_precision=15)
-        except:
+        except Exception:
             return _dumps(data)
 
     def loads(data_string):
         try:
             return ujson.loads(data_string, precise_float=True)
-        except:
+        except Exception:
             return _loads(data_string)
 except ImportError:
-    from zmq.utils.jsonapi import dumps, loads
+    from volttron.platform.jsonapi import dumps, loads
 
 from volttron.platform.agent import utils
 
@@ -296,7 +296,7 @@ def add_timing_data_to_header(headers, agent_id, phase):
 
     agent_timing_data[phase] = utils.format_timestamp(utils.get_aware_utc_now())
 
-    values = agent_timing_data.values()
+    values = list(agent_timing_data.values())
 
     if len(values) < 2:
         return 0.0
@@ -533,7 +533,7 @@ class BaseHistorianAgent(Agent):
             return
 
         query = Query(self.core)
-        self.instance_name = query.query(b'instance-name').get()
+        self.instance_name = query.query('instance-name').get()
 
         # Reset replace map.
         self._topic_replace_map = {}
@@ -641,7 +641,7 @@ class BaseHistorianAgent(Agent):
         if self.no_insert:
             raise RuntimeError("Insert not supported by this historian.")
 
-        rpc_peer = bytes(self.vip.rpc.context.vip_message.peer)
+        rpc_peer = self.vip.rpc.context.vip_message.peer
         _log.debug("insert called by {} with {} records".format(rpc_peer, len(records)))
 
         for r in records:
@@ -697,7 +697,7 @@ class BaseHistorianAgent(Agent):
         table_prefix = tables_def.get('table_prefix', None)
         table_prefix = table_prefix + "_" if table_prefix else ""
         if table_prefix:
-            for key, value in table_names.items():
+            for key, value in list(table_names.items()):
                 table_names[key] = table_prefix + table_names[key]
         table_names["agg_topics_table"] = table_prefix + \
             "aggregate_" + tables_def["topics_table"]
@@ -716,7 +716,7 @@ class BaseHistorianAgent(Agent):
         # Only if we have some topics to replace.
         if self._topic_replace_list:
             # if we have already cached the topic then return it.
-            if input_topic_lower in self._topic_replace_map.keys():
+            if input_topic_lower in self._topic_replace_map:
                 output_topic = self._topic_replace_map[input_topic_lower]
             else:
                 self._topic_replace_map[input_topic_lower] = input_topic
@@ -788,7 +788,7 @@ class BaseHistorianAgent(Agent):
         if self.gather_timing_data:
             add_timing_data_to_header(headers, self.core.agent_uuid or self.core.identity, "collected")
 
-        for point, item in data.iteritems():
+        for point, item in data.items():
             if 'Readings' not in item or 'Units' not in item:
                 _log.error("logging request for {topic} missing Readings "
                            "or Units".format(topic=topic))
@@ -909,7 +909,7 @@ class BaseHistorianAgent(Agent):
         if self.gather_timing_data:
             add_timing_data_to_header(headers, self.core.agent_uuid or self.core.identity, "collected")
 
-        for key, value in values.iteritems():
+        for key, value in values.items():
             point_topic = device + '/' + key
             self._event_queue.put({'source': source,
                                    'topic': point_topic,
@@ -1017,7 +1017,7 @@ class BaseHistorianAgent(Agent):
         # is setting up connections that are shared for both query and write
         # operations
 
-        self._historian_setup() # should be called even for readonly as this
+        self._historian_setup()  # should be called even for readonly as this
         # might load the topic id name map
 
         if self._readonly:
@@ -1056,7 +1056,6 @@ class BaseHistorianAgent(Agent):
                         new_to_publish.append(self._event_queue.get_nowait())
                     except Empty:
                         break
-
 
             # We wake the thread after a configuration change by passing a None to the queue.
             # Backup anything new before checking for a stop.
@@ -1123,7 +1122,6 @@ class BaseHistorianAgent(Agent):
                         self._send_alert({STATUS_KEY_PUBLISHING: False}, "historian_not_publishing")
                         break
 
-
                     backupdb.remove_successfully_published(
                         self._successful_published, self._submit_size_limit)
 
@@ -1161,7 +1159,7 @@ class BaseHistorianAgent(Agent):
 
         try:
             self.historian_teardown()
-        except:
+        except Exception:
             _log.exception("Historian teardown failed!")
 
         _log.debug("Process loop stopped.")
@@ -1169,7 +1167,7 @@ class BaseHistorianAgent(Agent):
 
     def _historian_setup(self):
         try:
-            _log.exception("Trying to setup historian")
+            _log.info("Trying to setup historian")
             self.historian_setup()
             if not self._readonly:
                 # Record the names of data, topics, meta tables in a metadata table
@@ -1394,7 +1392,7 @@ class BackupDatabase:
                 self._backup_cache[topic] = topic_id
 
             meta_dict = self._meta_data[(source, topic_id)]
-            for name, value in meta.iteritems():
+            for name, value in meta.items():
                 current_meta_value = meta_dict.get(name)
                 if current_meta_value != value:
                     c.execute('''INSERT OR REPLACE INTO metadata
@@ -1865,7 +1863,6 @@ class BaseQueryHistorianAgent(Agent):
                 start = time_parser.parse(start)
             if start and start.tzinfo is None:
                 start = start.replace(tzinfo=pytz.UTC)
-
         if end is not None:
             try:
                 end = parse_timestamp_string(end)

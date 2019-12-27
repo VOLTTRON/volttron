@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -48,7 +48,7 @@ from volttron.platform.messaging import headers as headers_mod
 
 from volttron.platform.messaging import topics, headers as headers_mod
 
-import settings
+from . import settings
 
 
 utils.setup_logging()
@@ -58,7 +58,7 @@ __version__ = '0.1'
 def DatetimeFromValue(ts):
     ''' Utility for dealing with time
     '''
-    if isinstance(ts, (int, long)):
+    if isinstance(ts, int):
         return datetime.utcfromtimestamp(ts)
     elif isinstance(ts, float):
         return datetime.utcfromtimestamp(ts)
@@ -191,7 +191,7 @@ def main(argv=sys.argv):
     try:
         utils.vip_main(schedule_example, version=__version__)
     except Exception as e:
-        print e
+        print(e)
         _log.exception('unhandled exception')
 
 

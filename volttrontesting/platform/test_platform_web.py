@@ -3,7 +3,8 @@ import logging
 import gevent
 from volttron.platform.vip.agent import Agent
 from volttrontesting.utils.platformwrapper import start_wrapper_platform
-from volttron.platform.agent import json
+from volttron.utils import get_hostname
+from volttron.platform import jsonapi
 import pytest
 import random
 import requests
@@ -104,6 +105,7 @@ import sys
 from volttron.platform.vip.agent import Core, Agent
 from volttron.platform.agent import utils
 from volttron.platform import jsonrpc
+from volttron.platform import jsonapi
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -123,13 +125,14 @@ class WebAgent(Agent):
         self.vip.web.register_path("/web", WEBROOT)
 
     def text(self, env, data):
-        ret = "200 OK", base64.b64encode("This is some text"), [
-        ('Content-Type', 'text/plain')]
+        ret = ("200 OK", base64.b64encode(b"This is some text").decode("ascii"), [('Content-Type', 'text/plain')])
         _log.debug('returning: {}'.format(ret))
         return ret
 
     def echoendpoint(self, env, data):
-        return jsonrpc.json_result("id", data)
+        ret = jsonrpc.json_result('id', jsonapi.loadb(data))
+        _log.debug('returning: {}'.format(ret))
+        return ret
 
 def main():
     utils.vip_main(WebAgent)
@@ -178,13 +181,13 @@ def _build_web_dir(vhome):
 
 
 @pytest.mark.web
-def test_can_discover_info(web_instance):
+def test_can_discover_info(volttron_instance_web):
     """
     Tests whether the web instance returns the key, instance name and
     instance tcp address.
     """
 
-    vi = web_instance
+    vi = volttron_instance_web
 
     # must sleep because the web server takes a bit to get going.
     gevent.sleep(1)
@@ -193,9 +196,18 @@ def test_can_discover_info(web_instance):
     assert res.ok
 
     d = res.json()
-    assert vi.serverkey == d['serverkey']
-    assert d['vip-address']
+    if vi.messagebus == 'zmq':
+        assert vi.serverkey == d['serverkey']
+        assert d['vip-address']
+
     assert d['instance-name']
+
+    if vi.messagebus == 'rmq':
+        rmq_config = vi.rabbitmq_config_obj
+
+        assert vi.certsobj.ca_cert(public_bytes=True).decode('utf-8') == d['rmq-ca-cert']
+        assert f"amqps://{get_hostname()}:{rmq_config.rmq_port_ssl}/{rmq_config.virtual_host}" == \
+               d["rmq-address"]
 
 
 @pytest.mark.web
@@ -227,14 +239,12 @@ def test_test_web_agent(web_instance):
     resp = requests.post(rpc, json=payload)
     assert resp.ok
     assert resp.headers['Content-type'] == 'application/json'
-    #jsonresp = json.loads(resp.json()['result'])
     jsonresp = resp.json()['result']
 
     print(jsonresp)
 
     for k, v in payload.items():
         assert v == jsonresp[k]
-
 
 
 @pytest.mark.web

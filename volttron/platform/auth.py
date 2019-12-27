@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -37,8 +37,6 @@
 # }}}
 
 
-from __future__ import absolute_import, print_function
-
 import bisect
 import logging
 import os
@@ -49,10 +47,11 @@ import uuid
 from collections import defaultdict
 
 import gevent
+import gevent.core
 from gevent.fileobject import FileObject
 from zmq import green as zmq
 
-from volttron.platform.agent import json as jsonapi
+from volttron.platform import jsonapi
 from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM, CONTROL
 from volttron.platform.vip.agent.errors import VIPError
 from volttron.platform.vip.pubsubservice import ProtectedPubSubTopics
@@ -118,7 +117,7 @@ class AuthService(Agent):
         self.zap_socket = zmq.Socket(zmq.Context.instance(), zmq.ROUTER)
         self.zap_socket.bind('inproc://zeromq.zap.01')
         if self.allow_any:
-            _log.warn('insecure permissive authentication enabled')
+            _log.warning('insecure permissive authentication enabled')
         self.read_auth_file()
         self._read_protected_topics_file()
         self.core.spawn(watch_file, self.auth_file_path, self.read_auth_file)
@@ -133,9 +132,14 @@ class AuthService(Agent):
         # sort the entries so the regex credentails follow the concrete creds
         entries.sort()
         self.auth_entries = entries
-        _log.info('auth file %s loaded', self.auth_file_path)
         if self._is_connected:
-            self._send_update()
+            try:
+                _log.debug("Sending auth updates to peers")
+                self._send_update()
+            except BaseException as e:
+                _log.error("Exception sending auth updates to peer. {}".format(e))
+                raise e
+        _log.info('auth file %s loaded', self.auth_file_path)
 
     def get_protected_topics(self):
         protected = self._protected_topics
@@ -159,8 +163,23 @@ class AuthService(Agent):
 
     def _send_update(self):
         user_to_caps = self.get_user_to_capabilities()
-        peers = self.vip.peerlist().get(timeout=5)
-        _log.debug("AUTH new capabilities update: {}".format(user_to_caps))
+        i = 0
+        exception = None
+        peers = None
+        # peerlist times out lots of times when running test suite. This happens even with higher timeout in get()
+        # but if we retry peerlist succeeds by second attempt most of the time!!!
+        while not peers and i < 3:
+            try:
+                i = i + 1
+                peers = self.vip.peerlist().get(timeout=0.5)
+            except BaseException as e:
+                _log.warning("Attempt {} to get peerlist failed with exception {}".format(i, e))
+                exception = e
+
+        if not peers:
+            raise exception
+
+        _log.debug("after getting peerlist to send auth updates")
 
         for peer in peers:
             if peer not in [self.core.identity]:
@@ -173,21 +192,21 @@ class AuthService(Agent):
     def _send_auth_update_to_pubsub(self):
         user_to_caps = self.get_user_to_capabilities()
         # Send auth update message to router
-        json_msg = jsonapi.dumps(
+        json_msg = jsonapi.dumpb(
             dict(capabilities=user_to_caps)
         )
-        frames = [zmq.Frame(b'auth_update'), zmq.Frame(str(json_msg))]
+        frames = [zmq.Frame(b'auth_update'), zmq.Frame(json_msg)]
         # <recipient, subsystem, args, msg_id, flags>
-        self.core.socket.send_vip(b'', 'pubsub', frames, copy=False)
+        self.core.socket.send_vip(b'', b'pubsub', frames, copy=False)
 
     def _send_protected_update_to_pubsub(self, contents):
-        protected_topics_msg = jsonapi.dumps(contents)
+        protected_topics_msg = jsonapi.dumpb(contents)
 
         frames = [zmq.Frame(b'protected_update'), zmq.Frame(protected_topics_msg)]
         if self._is_connected:
             try:
                 # <recipient, subsystem, args, msg_id, flags>
-                self.core.socket.send_vip(b'', 'pubsub', frames, copy=False)
+                self.core.socket.send_vip(b'', b'pubsub', frames, copy=False)
             except VIPError as ex:
                 _log.error("Error in sending protected topics update to clear PubSub: " + str(ex))
 
@@ -203,6 +222,16 @@ class AuthService(Agent):
 
     @Core.receiver('onstart')
     def zap_loop(self, sender, **kwargs):
+        """
+        The zap loop is the starting of the authentication process for
+        the VOLTTRON zmq message bus.  It talks directly with the low
+        level socket so all responses must be byte like objects, in
+        this case we are going to send zmq frames across the wire.
+
+        :param sender:
+        :param kwargs:
+        :return:
+        """
         self._is_connected = True
         self._zap_greenlet = gevent.getcurrent()
         sock = self.zap_socket
@@ -232,20 +261,23 @@ class AuthService(Agent):
                 elif kind not in [b'NULL', b'PLAIN']:
                     continue
                 response = zap[:4]
+                domain = domain.decode("utf-8")
+                address = address.decode("utf-8")
+                kind = kind.decode("utf-8")
                 user = self.authenticate(domain, address, kind, credentials)
-                _log.debug("AUTH: authenticated user: {0},  user id: {1}".format(user, userid))
+                _log.debug("AUTH: After authenticate user id: {0}, {1}".format(user, userid))
                 if user:
                     _log.info(
-                        'authentication success: domain=%r, address=%r, '
-                        'mechanism=%r, credentials=%r, user_id=%r',
-                        domain, address, kind, credentials[:1], user)
-                    response.extend([b'200', b'SUCCESS', user, b''])
+                        'authentication success: userid=%r domain=%r, address=%r, '
+                        'mechanism=%r, credentials=%r, user=%r',
+                        userid, domain, address, kind, credentials[:1], user)
+                    response.extend([b'200', b'SUCCESS', user.encode("utf-8"), b''])
                     sock.send_multipart(response)
                 else:
                     _log.info(
-                        'authentication failure: domain=%r, address=%r, '
-                        'mechanism=%r, credentials=%r userid=%r',
-                        domain, address, kind, credentials, userid)
+                        'authentication failure: userid=%r, domain=%r, address=%r, '
+                        'mechanism=%r, credentials=%r',
+                        userid, domain, address, kind, credentials)
                     # If in setup mode, add/update auth entry
                     if self._setup_mode:
                         self._update_auth_entry(domain, address, kind, credentials[0], userid)
@@ -409,7 +441,7 @@ class AuthService(Agent):
         try:
             self.auth_file.add(new_entry, overwrite=False)
         except AuthException as err:
-            _log.error('ERROR: %s\n' % err.message)
+            _log.error('ERROR: %s\n' % str(err))
 
     def _update_auth_failures(self, domain, address, mechanism, credential, user_id):
         for entry in self._auth_failures:
@@ -472,7 +504,7 @@ class AuthService(Agent):
             for peer in peers:
                 self._user_to_permissions[peer].clear()
         else:
-            for topic, caps_for_topic in topic_to_caps.iteritems():
+            for topic, caps_for_topic in topic_to_caps.items():
                 for user in user_to_caps:
                     try:
                         caps_for_user = user_to_caps[user]
@@ -523,8 +555,8 @@ class AuthService(Agent):
         if current and isinstance(current, list):
             current = current[0]
             dift = False
-            read_allowed_str = ("|").join(read_tokens)
-            write_allowed_str = ("|").join(write_tokens)
+            read_allowed_str = "|".join(read_tokens)
+            write_allowed_str = "|".join(write_tokens)
             if re.search(current['read'], read_allowed_str):
                 dift = True
                 current["read"] = read_allowed_str
@@ -550,7 +582,7 @@ class AuthService(Agent):
         return pending
 
 
-class String(unicode):
+class String(str):
     def __new__(cls, value):
         obj = super(String, cls).__new__(cls, value)
         if isregex(obj):
@@ -615,11 +647,11 @@ class AuthEntry(object):
         self.comments = AuthEntry._build_field(comments)
         if user_id is None:
             user_id = str(uuid.uuid4())
-        self.user_id = user_id.encode('utf-8')
+        self.user_id = user_id
         self.enabled = enabled
         if kwargs:
             _log.debug(
-                'auth record has unrecognized keys: %r' % (kwargs.keys(),))
+                'auth record has unrecognized keys: %r' % (list(kwargs.keys()),))
         self._check_validity()
 
     def __lt__(self, other):
@@ -636,7 +668,7 @@ class AuthEntry(object):
     def _build_field(value):
         if not value:
             return None
-        if isinstance(value, basestring):
+        if isinstance(value, str):
             return String(value)
         return List(String(elem) for elem in value)
 
@@ -660,14 +692,13 @@ class AuthEntry(object):
         else:
             return AuthEntry._get_capability(value)
 
-
     @staticmethod
     def _get_capability(value):
         err_message = "Invalid capability value: {} of type {}. Capability entries can only be a string or " \
                       "dictionary or list containing string/dictionary. " \
                       "dictionaries should be of the format {'capability_name':None} or " \
                       "{'capability_name':{'arg1':'value',...}"
-        if isinstance(value, basestring):
+        if isinstance(value, str):
             return {value: None}
         elif isinstance(value, dict):
             return value
@@ -688,9 +719,9 @@ class AuthEntry(object):
                   self.credentials.match(credentials[0]))))
 
     def __str__(self):
-        return (u'domain={0.domain!r}, address={0.address!r}, '
+        return ('domain={0.domain!r}, address={0.address!r}, '
                 'mechanism={0.mechanism!r}, credentials={0.credentials!r}, '
-                'user_id={0.user_id!r}'.format(self))
+                'user_id={0.user_id!r}, capabilities={0.capabilities!r}'.format(self))
 
     def __repr__(self):
         cls = self.__class__
@@ -705,7 +736,7 @@ class AuthEntry(object):
         if cred is None:
             raise AuthEntryInvalid(
                 'credentials parameter is required for mechanism {}'
-                    .format(mechanism))
+                .format(mechanism))
         if isregex(cred):
             return
         if mechanism == 'CURVE' and len(cred) != BASE64_ENCODED_CURVE_KEY_LEN:
@@ -753,10 +784,7 @@ class AuthFile(object):
             with open(self.auth_file) as fil:
                 # Use gevent FileObject to avoid blocking the thread
                 before_strip_comments = FileObject(fil, close=False).read()
-                data = strip_comments(before_strip_comments)
-                if data != before_strip_comments:
-                    _log.warn('Comments in %s are deprecated and will not be '
-                              'preserved', self.auth_file)
+                data = strip_comments(before_strip_comments.decode("utf-8"))
                 if data:
                     auth_data = jsonapi.loads(data)
         except Exception:
@@ -903,7 +931,7 @@ class AuthFile(object):
                           file_entry, self.auth_file)
             except AuthEntryInvalid as e:
                 _log.warn('invalid entry %r in auth file %s (%s)',
-                          file_entry, self.auth_file, e.message)
+                          file_entry, self.auth_file, str(e))
             else:
                 entries.append(entry)
         return entries
@@ -930,9 +958,9 @@ class AuthFile(object):
             # Compare AuthEntry objects component-wise, rather than
             # using match, because match will evaluate regex.
             if (prev_entry.domain == entry.domain and
-                        prev_entry.address == entry.address and
-                        prev_entry.mechanism == entry.mechanism and
-                        prev_entry.credentials == entry.credentials):
+                    prev_entry.address == entry.address and
+                    prev_entry.mechanism == entry.mechanism and
+                    prev_entry.credentials == entry.credentials):
                 raise AuthFileEntryAlreadyExists([index])
 
     def _update_by_indices(self, auth_entry, indices):
@@ -956,6 +984,7 @@ class AuthFile(object):
             self._check_if_exists(auth_entry)
         except AuthFileEntryAlreadyExists as err:
             if overwrite:
+                _log.debug("Updating existing auth entry with {} ".format(auth_entry))
                 self._update_by_indices(auth_entry, err.indices)
             else:
                 raise err
@@ -963,6 +992,8 @@ class AuthFile(object):
             entries, groups, roles = self.read()
             entries.append(auth_entry)
             self._write(entries, groups, roles)
+            _log.debug("Added auth entry {} ".format(auth_entry))
+        gevent.sleep(1)
 
     def remove_by_credentials(self, credentials):
         """Removes entry from auth file by credential
@@ -1009,7 +1040,7 @@ class AuthFile(object):
         param_name = 'groups' if is_group else 'roles'
         if not isinstance(groups_or_roles, dict):
             raise ValueError('{} parameter must be dict'.format(param_name))
-        for key, value in groups_or_roles.iteritems():
+        for key, value in groups_or_roles.items():
             if not isinstance(value, list):
                 raise ValueError('each value of the {} dict must be '
                                  'a list'.format(param_name))
@@ -1065,7 +1096,7 @@ class AuthFile(object):
                 'roles': roles, 'version': self.version}
 
         with open(self.auth_file, 'w') as fp:
-            fp.write(jsonapi.dumps(auth, indent=2))
+            jsonapi.dump(auth, fp, indent=2)
 
 
 class AuthFileIndexError(AuthException, IndexError):

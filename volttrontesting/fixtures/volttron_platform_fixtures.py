@@ -1,12 +1,16 @@
+import contextlib
 import os
-import pytest
-from random import randint
-import socket
-import uuid
+import shutil
 
-from volttrontesting.utils.platformwrapper import PlatformWrapper
-from volttrontesting.utils.utils import get_hostname_and_random_port, get_rand_vip, get_rand_ip_and_port
+import pytest
+
 from volttron.platform import is_rabbitmq_available
+from volttron.platform import update_platform_config
+from volttron.utils import get_random_key
+from volttrontesting.fixtures.cert_fixtures import certs_profile_1
+from volttrontesting.utils.platformwrapper import PlatformWrapper
+from volttrontesting.utils.platformwrapper import create_volttron_home
+from volttrontesting.utils.utils import get_hostname_and_random_port, get_rand_vip, get_rand_ip_and_port
 
 PRINT_LOG_ON_SHUTDOWN = False
 HAS_RMQ = is_rabbitmq_available()
@@ -52,7 +56,7 @@ def cleanup_wrappers(platforms):
 
 @pytest.fixture(scope="module",
                 params=[dict(messagebus='zmq', ssl_auth=False),
-                        # rmq_skipif(dict(messagebus='rmq', ssl_auth=True))
+                        #pytest.param(dict(messagebus='rmq', ssl_auth=True), marks=rmq_skipif),
                         ])
 def volttron_instance_msgdebug(request):
     print("building msgdebug instance")
@@ -64,21 +68,6 @@ def volttron_instance_msgdebug(request):
     yield wrapper
 
     cleanup_wrapper(wrapper)
-
-
-# IPC testing is removed since it is not used from VOLTTRON 6.0
-@pytest.fixture(scope="function")
-def volttron_instance_encrypt(request):
-    print("building instance (using encryption)")
-
-    address = get_rand_vip()
-    wrapper = build_wrapper(address)
-
-    def cleanup():
-        cleanup_wrapper(wrapper)
-
-    request.addfinalizer(cleanup)
-    return wrapper
 
 
 @pytest.fixture(scope="module")
@@ -100,10 +89,10 @@ def volttron_instance_module_web(request):
 # Use this fixture when you want a single instance of volttron platform for
 # test
 @pytest.fixture(scope="module",
-                params=(
+                params=[
                     dict(messagebus='zmq', ssl_auth=False),
-                    rmq_skipif(dict(messagebus='rmq', ssl_auth=True)),
-                ))
+                    pytest.param(dict(messagebus='rmq', ssl_auth=True), marks=rmq_skipif),
+                ])
 def volttron_instance(request, **kwargs):
     """Fixture that returns a single instance of volttron platform for testing
 
@@ -224,7 +213,7 @@ def volttron_instance_rmq(request):
 @pytest.fixture(scope="module",
                 params=[
                     dict(messagebus='zmq', ssl_auth=False),
-                    rmq_skipif(dict(messagebus='rmq', ssl_auth=True))
+                    pytest.param(dict(messagebus='rmq', ssl_auth=True), marks=rmq_skipif),
                 ])
 def volttron_instance_web(request):
     print("volttron_instance_web (messagebus {messagebus} ssl_auth {ssl_auth})".format(**request.param))
@@ -250,9 +239,9 @@ def volttron_instance_web(request):
 @pytest.fixture(scope="module",
                 params=[
                     dict(sink='zmq_web', source='zmq'),
-                    rmq_skipif(dict(sink='rmq_web', source='zmq')),
-                    rmq_skipif(dict(sink='rmq_web', source='rmq')),
-                    rmq_skipif(dict(sink='zmq_web', source='rmq'))
+                    pytest.param(dict(sink='rmq_web', source='zmq'), marks=rmq_skipif),
+                    pytest.param(dict(sink='rmq_web', source='rmq'), marks=rmq_skipif),
+                    pytest.param(dict(sink='zmq_web', source='rmq'), marks=rmq_skipif),
                 ])
 def volttron_multi_messagebus(request):
     """ This fixture allows multiple two message bus types to be configured to work together
@@ -330,3 +319,127 @@ def volttron_multi_messagebus(request):
     request.addfinalizer(cleanup)
 
     return get_volttron_multi_msgbus_instances
+
+
+
+@contextlib.contextmanager
+def get_test_volttron_home(messagebus: str, web_https=False, web_http=False, has_vip=True, volttron_home: str = None,
+                           config_params: dict = None,
+                           env_options: dict = None):
+    """
+    Create a full volttronn_Home test environment with all of the options availalbe in the environment
+    (os.environ) and configuration file (volttron_home/config) in order to test from.
+
+    @param messagebus:
+        Currently supports rmq and zmq strings
+    @param web_https:
+        Determines if https should be used and enabled.  If this is specified then the cert_fixtures.certs_profile_1
+        function will be used to generate certificates for  the server and signed ca.  Either web_https or web_http
+        may be specified not both.
+    @param has_vip:
+        Allows the rmq message bus to not specify a vip address if backward compatibility is not needed.
+    @param config_params:
+        Configuration parameters that should go into the volttron configuration file, note if the basic ones are
+        set via the previous arguments (i.e. web_https) then it is an error to specify bind-web-address (or other)
+        duplicate.
+    @param env_options:
+        Other options that should be specified in the os.environ during the setup of this environment.
+    """
+    # Make these not None so that we can use set operations on them to see if we have any overlap between
+    # common configuration params and environment.
+    if config_params is None:
+        config_params = {}
+    if env_options is None:
+        env_options = {}
+
+    # make a copy so we can restore in cleanup
+    env_cpy = os.environ.copy()
+
+    # start validating input
+    assert messagebus in ('rmq', 'zmq'), 'Invalid messagebus specified, must be rmq or zmq.'
+
+    if web_http and web_https:
+        raise ValueError("Incompatabile tyeps web_https and web_Http cannot both be specified as True")
+
+    default_env_options = ('VOLTTRON_HOME', 'MESSAGEBUS')
+
+    for v in default_env_options:
+        if v in env_options:
+            raise ValueError(f"Cannot specify {v} in env_options as it is set already.")
+
+    # All is well.Create vhome
+    if volttron_home:
+        os.makedirs(volttron_home, exist_ok=True)
+    else:
+        volttron_home = create_volttron_home()
+
+    # Create env
+    envs = dict(VOLTTRON_HOME=volttron_home, MESSAGEBUS=messagebus)
+    os.environ.update(envs)
+    os.environ.update(env_options)
+
+    # make the top level dirs
+    os.mkdir(os.path.join(volttron_home, "agents"))
+    os.mkdir(os.path.join(volttron_home, "configuration_store"))
+    os.mkdir(os.path.join(volttron_home, "keystores"))
+    os.mkdir(os.path.join(volttron_home, "run"))
+
+    # create the certs. This will create the certs dirs
+    web_certs_dir = os.path.join(volttron_home, "web_certs")
+    web_certs = None
+    if web_https:
+        web_certs = certs_profile_1(web_certs_dir)
+
+    vip_address = None
+    bind_web_address = None
+    web_ssl_cert = None
+    web_ssl_key = None
+    web_secret_key = None
+
+    config_file = {}
+    if messagebus == 'rmq':
+        if has_vip:
+            ip, port = get_rand_ip_and_port()
+            vip_address = f"tcp://{ip}:{port}"
+        web_https = True
+    elif messagebus == 'zmq':
+        if web_http or web_https:
+            ip, port = get_rand_ip_and_port()
+            vip_address = f"tcp://{ip}:{port}"
+
+    if web_https:
+        hostname, port = get_hostname_and_random_port()
+        bind_web_address = f"https://{hostname}:{port}"
+        web_ssl_cert = web_certs.server_certs[0].cert_file
+        web_ssl_key = web_certs.server_certs[0].key_file
+    elif web_http:
+        hostname, port = get_hostname_and_random_port()
+        bind_web_address = f"http://{hostname}:{port}"
+        web_secret_key = get_random_key()
+
+    if vip_address:
+        config_file['vip-address'] = vip_address
+    if bind_web_address:
+        config_file['bind-web-address'] = bind_web_address
+    if web_ssl_cert:
+        config_file['web-ssl-cert'] = web_ssl_cert
+    if web_ssl_key:
+        config_file['web-ssl-key'] = web_ssl_key
+    if web_secret_key:
+        config_file['web-secret-key'] = web_secret_key
+
+    config_intersect = set(config_file).intersection(set(config_params))
+    if len(config_intersect) > 0:
+        raise ValueError(f"passed configuration params {list(config_intersect)} are built internally")
+
+    config_file.update(config_params)
+
+    update_platform_config(config_file)
+
+    try:
+        yield volttron_home
+    finally:
+        os.environ.clear()
+        os.environ.update(env_cpy)
+        if not os.environ["DEBUG"] != 1 and not os.environ["DEBUG_MODE"]:
+            shutil.rmtree(volttron_home, ignore_errors=True)

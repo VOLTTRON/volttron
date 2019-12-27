@@ -1,20 +1,65 @@
-import Cookie
+# -*- coding: utf-8 -*- {{{
+# vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
+#
+# Copyright 2019, Battelle Memorial Institute.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# This material was prepared as an account of work sponsored by an agency of
+# the United States Government. Neither the United States Government nor the
+# United States Department of Energy, nor Battelle, nor any of their
+# employees, nor any jurisdiction or organization that has cooperated in the
+# development of these materials, makes any warranty, express or
+# implied, or assumes any legal liability or responsibility for the accuracy,
+# completeness, or usefulness or any information, apparatus, product,
+# software, or process disclosed, or represents that its use would not infringe
+# privately owned rights. Reference herein to any specific commercial product,
+# process, or service by trade name, trademark, manufacturer, or otherwise
+# does not necessarily constitute or imply its endorsement, recommendation, or
+# favoring by the United States Government or any agency thereof, or
+# Battelle Memorial Institute. The views and opinions of authors expressed
+# herein do not necessarily state or reflect those of the
+# United States Government or any agency thereof.
+#
+# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
+# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# under Contract DE-AC05-76RL01830
+# }}}
+
 import logging
 import os
 import re
-import urlparse
+from urllib.parse import parse_qs
 
-from jinja2 import Environment, FileSystemLoader, select_autoescape, TemplateNotFound
+try:
+    from jinja2 import Environment, FileSystemLoader, select_autoescape, TemplateNotFound
+except ImportError:
+    logging.getLogger().warning("Missing jinja2 libaray in admin_endpoints.py")
 
-from passlib.hash import argon2
+try:
+    from passlib.hash import argon2
+except ImportError:
+    logging.getLogger().warning("Missing passlib libaray in admin_endpoints.py")
+
 from watchdog_gevent import Observer
-
-from volttron.platform import get_home
-from volttron.platform.agent import json
 from volttron.platform.agent.web import Response
-from volttron.utils import FileReloader
-from volttron.utils.persistance import PersistentDict
-from volttron.platform.certs import Certs
+
+from ...platform import get_home
+from ...platform import jsonapi
+from ...platform.certs import Certs
+from ...utils import VolttronHomeFileReloader
+from ...utils.persistance import PersistentDict
+
 
 _log = logging.getLogger(__name__)
 
@@ -25,23 +70,36 @@ def template_env(env):
 
 class AdminEndpoints(object):
 
-    def __init__(self, rmq_mgmt, ssl_public_key):
+    def __init__(self, rmq_mgmt=None, ssl_public_key: bytes = None):
 
         self._rmq_mgmt = rmq_mgmt
-        self._ssl_public_key = ssl_public_key
+        if ssl_public_key is None:
+            self._insecure_mode = True
+        else:
+            self._insecure_mode = False
+        # must have a none value for when we don't have an ssl context available.
+        if ssl_public_key is not None:
+            if isinstance(ssl_public_key, bytes):
+                self._ssl_public_key = ssl_public_key.decode('utf-8')
+            elif isinstance(ssl_public_key, str):
+                self._ssl_public_key = ssl_public_key
+            else:
+                raise ValueError("Invalid type for ssl_public_key")
         self._userdict = None
         self.reload_userdict()
+
         self._observer = Observer()
         self._observer.schedule(
-            FileReloader("web-users.json", self.reload_userdict),
+            VolttronHomeFileReloader("web-users.json", self.reload_userdict),
             get_home()
         )
         self._observer.start()
-        self._certs = Certs()
+        if ssl_public_key is not None:
+            self._certs = Certs()
 
     def reload_userdict(self):
         webuserpath = os.path.join(get_home(), 'web-users.json')
-        self._userdict = PersistentDict(webuserpath)
+        self._userdict = PersistentDict(webuserpath, format="json")
 
     def get_routes(self):
         """
@@ -58,21 +116,22 @@ class AdminEndpoints(object):
         if len(self._userdict) == 0:
             if env.get('REQUEST_METHOD') == 'POST':
                 decoded = dict((k, v if len(v) > 1 else v[0])
-                               for k, v in urlparse.parse_qs(data).iteritems())
+                               for k, v in parse_qs(data).items())
                 username = decoded.get('username')
                 pass1 = decoded.get('password1')
                 pass2 = decoded.get('password2')
+
                 if pass1 == pass2 and pass1 is not None:
                     _log.debug("Setting master password")
                     self.add_user(username, pass1, groups=['admin'])
                     return Response('', status='302', headers={'Location': '/admin/login.html'})
 
             template = template_env(env).get_template('first.html')
-            return Response(template.render())
+            return Response(template.render(), content_type="text/html")
 
         if 'login.html' in env.get('PATH_INFO') or '/admin/' == env.get('PATH_INFO'):
             template = template_env(env).get_template('login.html')
-            return Response(template.render())
+            return Response(template.render(), content_type='text/html')
 
         return self.verify_and_dispatch(env, data)
 
@@ -88,10 +147,6 @@ class AdminEndpoints(object):
             claims = get_user_claims(env)
         except NotAuthorized:
             _log.error("Unauthorized user attempted to connect to {}".format(env.get('PATH_INFO')))
-            return Response('<h1>Unauthorized User</h1>', status="401 Unauthorized")
-
-        # Make sure we have only admins for viewing this.
-        if 'admin' not in claims.get('groups'):
             return Response('<h1>Unauthorized User</h1>', status="401 Unauthorized")
 
         # Make sure we have only admins for viewing this.
@@ -153,7 +208,7 @@ class AdminEndpoints(object):
         except ValueError as e:
             data = dict(status="ERROR", message=e.message)
 
-        return Response(json.dumps(data), content_type="application/json")
+        return Response(jsonapi.dumps(data), content_type="application/json")
 
     def __deny_csr_api(self, common_name):
         try:
@@ -163,7 +218,7 @@ class AdminEndpoints(object):
         except ValueError as e:
             data = dict(status="ERROR", message=e.message)
 
-        return Response(json.dumps(data), content_type="application/json")
+        return Response(jsonapi.dumps(data), content_type="application/json")
 
     def __delete_csr_api(self, common_name):
         try:
@@ -173,21 +228,21 @@ class AdminEndpoints(object):
         except ValueError as e:
             data = dict(status="ERROR", message=e.message)
 
-        return Response(json.dumps(data), content_type="application/json")
+        return Response(jsonapi.dumps(data), content_type="application/json")
 
     def __pending_csrs_api(self):
         csrs = [c for c in self._certs.get_pending_csr_requests()]
-        return Response(json.dumps(csrs), content_type="application/json")
+        return Response(jsonapi.dumps(csrs), content_type="application/json")
 
     def __cert_list_api(self):
 
         subjects = [dict(common_name=x.common_name)
                     for x in self._certs.get_all_cert_subjects()]
-        return Response(json.dumps(subjects), content_type="application/json")
+        return Response(jsonapi.dumps(subjects), content_type="application/json")
 
-    def add_user(self, username, unencrypted_pw, groups=[], overwrite=False):
-        if self._userdict.get(username):
-            raise ValueError("Already exists!")
+    def add_user(self, username, unencrypted_pw, groups=None, overwrite=False):
+        if self._userdict.get(username) and not overwrite:
+            raise ValueError(f"The user {username} is already present and overwrite not set to True")
         if groups is None:
             groups = []
         hashed_pass = argon2.hash(unencrypted_pw)
@@ -195,4 +250,5 @@ class AdminEndpoints(object):
             hashed_password=hashed_pass,
             groups=groups
         )
-        self._userdict.async_sync()
+
+        self._userdict.sync()

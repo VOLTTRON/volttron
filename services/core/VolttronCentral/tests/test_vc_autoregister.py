@@ -3,7 +3,7 @@ import os
 import gevent
 import pytest
 
-import volttron.platform.agent.json as jsonapi
+import volttron.platform.jsonapi as jsonapi
 from volttron.platform.agent.known_identities import (CONFIGURATION_STORE,
                                                       VOLTTRON_CENTRAL_PLATFORM)
 from volttrontesting.utils.agent_additions import (add_volttron_central,

@@ -45,8 +45,8 @@ updated_influxdb_config = {
 
 
 expected_table_list = [
-    u'data',
-    u'meta',
+    'data',
+    'meta',
 ]
 
 DEVICES_ALL_TOPIC = "devices/Building/LAB/Device/all"

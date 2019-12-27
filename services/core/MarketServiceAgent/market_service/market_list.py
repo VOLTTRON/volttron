@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -44,7 +44,7 @@ from market_service.market import Market
 _log = logging.getLogger(__name__)
 utils.setup_logging()
 
-class NoSuchMarketError(StandardError):
+class NoSuchMarketError(Exception):
     """Base class for exceptions in this module."""
     pass
 
@@ -70,7 +70,7 @@ class MarketList(object):
         self.markets.clear()
 
     def collect_offers(self):
-        for market in self.markets.itervalues():
+        for market in self.markets.values():
             market.collect_offers()
 
     def get_market(self, market_name):
@@ -81,7 +81,7 @@ class MarketList(object):
         return market
 
     def has_market(self, market_name):
-        return self.markets.has_key(market_name)
+        return market_name in self.markets
 
     def has_market_formed(self, market_name):
         market_has_formed = False
@@ -91,7 +91,7 @@ class MarketList(object):
         return market_has_formed
 
     def send_market_failure_errors(self):
-        for market in self.markets.itervalues():
+        for market in self.markets.values():
             # We have already sent unformed market failures
            if market.has_market_formed():
                # If the market has not cleared trying to clear it will send an error.
@@ -103,7 +103,7 @@ class MarketList(object):
 
     def unformed_market_list(self):
         list = []
-        for market in self.markets.itervalues():
+        for market in self.markets.values():
            if not market.has_market_formed():
                list.append(market.market_name)
         return list

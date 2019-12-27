@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -35,16 +35,15 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-from __future__ import absolute_import, print_function
+
 
 import datetime
 import logging
 import sys
 import time
-from urlparse import urlparse
+from urllib.parse import urlparse
 
 import gevent
-from volttron.platform.agent import json as jsonapi
 
 from volttron.platform.vip.agent import Agent, Core, compat
 from volttron.platform.vip.agent.utils import build_agent
@@ -140,9 +139,7 @@ def historian(config_path, **kwargs):
                     _log.debug("data in capture_data {}".format(data))
                 if isinstance(data, dict):
                     data = data
-                elif isinstance(data, int) or \
-                        isinstance(data, float) or \
-                        isinstance(data, long):
+                elif isinstance(data, (int,float)):
                     data = data
                     # else:
                     #     data = data[0]

@@ -100,7 +100,7 @@ class TestDNP3Driver:
     """Regression tests for the DNP3 driver interface."""
 
     def test_set_and_get(self, agent):
-        for key, val in REGISTER_VALUES.iteritems():
+        for key, val in REGISTER_VALUES.items():
             self.issue_dnp3_rpc(agent, 'set_point', key, val)
             assert self.issue_dnp3_rpc(agent, 'get_point', key) == val
 

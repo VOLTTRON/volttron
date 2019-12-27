@@ -60,7 +60,6 @@ from datetime import datetime
 import os
 import sys
 
-import json
 import gevent
 import logging
 
@@ -68,6 +67,8 @@ from volttron.platform.messaging import headers as headers_mod
 from volttron.platform.vip.agent import Agent, PubSub, Core
 from volttron.platform.agent import utils
 from volttron.platform.scheduling import periodic
+from volttron.platform import jsonapi
+
 
 # These are the options that can be set from the settings module.
 from settings import remote_url, topics_prefixes_to_watch, heartbeat_period
@@ -87,7 +88,7 @@ class StandAloneListener(Agent):
     def onmessage(self, peer, sender, bus, topic, headers, message):
         '''Handle incoming messages on the bus.'''
         d = {'topic': topic, 'headers': headers, 'message': message}
-        sys.stdout.write(json.dumps(d)+'\n')
+        sys.stdout.write(jsonapi.dumps(d)+'\n')
 
     @Core.receiver('onstart')
     def start(self, sender, **kwargs):
