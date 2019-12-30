@@ -62,8 +62,8 @@ Porting existing volttron home to secure mode
 
 When running scripts/secure_users_permissions.sh you will be prompted for a VOLTTRON_HOME directory. If this directory exists and contains a volttron config file. The script will update the file locations and permissions of existing volttron files including installed directories. However this step has the following limitations
 
-#. You will NOT be able to revert to insecure mode once the changes are done.  Once setup is complete, changing the config file manually to make parameter "secure-agent-users" to False, may result inconsistent volttron behavior
+#. **You will NOT be able to revert to insecure mode once the changes are done.**  Once setup is complete, changing the config file manually to make parameter "secure-agent-users" to False, may result inconsistent volttron behavior
 #. Volttron process and all agents have to be restarted to take effect.
 #. If you have agents that connect to remote RMQ instances and then the **CSR approval process has to be repeated**
-#. Agents can only to write to its own agent-data dir. So if your agents writes to any directory outside vhome/agents/<agent-uuid>/<agent-name>/agent-name.agent-data move existing files and update configuration such that agent writes to agent-name.agent-data dir. For example, if you have SQLHistorian in writing .sqlite file to a subdirectory under VOLTTRON_HOME that is not vhome/agents/<agent-uuid>/<agent-name>/agent-name.agent-data this needs to be manually updated. 
+#. **Agents can only to write to its own agent-data dir.** So if your agents writes to any directory outside vhome/agents/<agent-uuid>/<agent-name>/agent-name.agent-data move existing files and update configuration such that agent writes to agent-name.agent-data dir. For example, if you have SQLHistorian in writing .sqlite file to a subdirectory under VOLTTRON_HOME that is not vhome/agents/<agent-uuid>/<agent-name>/agent-name.agent-data this needs to be manually updated. 
 
