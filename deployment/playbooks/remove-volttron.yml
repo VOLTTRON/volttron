@@ -1,0 +1,5 @@
+- hosts: all
+  tasks:
+    - name: Remove vollttron if volttron folder exists
+      command:
+        cmd: "rm -rf ~/volttron ~/.volttron ~/rabbitmq_server ~/.volttron_rmq_home"
