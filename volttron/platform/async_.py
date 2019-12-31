@@ -66,7 +66,7 @@ class AsyncCall(object):
         if hub is None:
             hub = gevent.get_hub()
         self.calls = calls = []
-        self.async = hub.loop.async()
+        self.async = hub.loop.async_()
         self.async.start(functools.partial(self._run_calls, calls))
 
     def __del__(self):

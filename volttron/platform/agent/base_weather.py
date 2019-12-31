@@ -49,7 +49,7 @@ from volttron.platform.agent.utils import fix_sqlite3_datetime, \
     get_aware_utc_now, format_timestamp, process_timestamp, \
     parse_timestamp_string
 from volttron.platform.vip.agent import *
-from volttron.platform.async import AsyncCall
+from volttron.platform.async_ import AsyncCall
 from volttron.platform.messaging import headers
 from volttron.platform.messaging.health import (STATUS_BAD,
                                                 STATUS_GOOD,
