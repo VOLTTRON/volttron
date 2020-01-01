@@ -36,8 +36,6 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-from __future__ import print_function, absolute_import
-
 import logging
 import requests
 import random
@@ -50,8 +48,7 @@ from gevent.lock import Semaphore
 
 from volttron.platform.agent import utils
 from .agent import Agent, Core, RPC
-from requests.packages.urllib3.connection import (ConnectionError,
-                                                  NewConnectionError)
+from requests.exceptions import ConnectionError
 from urllib.parse import urlparse, urljoin
 from gevent.fileobject import FileObject
 from volttron.utils.persistance import PersistentDict
@@ -255,7 +252,7 @@ class KeyDiscoveryAgent(Agent):
                 "Invalid web_address passed {}"
                     .format(web_address)
             )
-        except (ConnectionError, NewConnectionError) as e:
+        except ConnectionError as e:
             raise DiscoveryError(
                 "Connection to {} not available".format(real_url)
             )

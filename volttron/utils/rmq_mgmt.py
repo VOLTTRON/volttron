@@ -49,8 +49,7 @@ from volttron.platform.agent.utils import get_fq_identity
 import grequests
 import gevent
 import requests
-from requests.packages.urllib3.connection import (ConnectionError,
-                                                  NewConnectionError)
+from requests.exceptions import ConnectionError
 from volttron.platform import certs
 from volttron.platform import jsonapi
 from . rmq_config_params import RMQConfig
@@ -109,7 +108,7 @@ class RabbitMQMgmt(object):
 
             if response and isinstance(response, list):
                 response[0].raise_for_status()
-        except (ConnectionError, NewConnectionError) as e:
+        except ConnectionError as e:
             _log.debug("Error connecting to {} with "
                        "args {}: {}".format(url, kwargs, e))
             raise e

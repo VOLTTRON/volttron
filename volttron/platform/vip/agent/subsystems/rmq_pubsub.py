@@ -37,8 +37,6 @@
 # }}}
 
 
-from __future__ import absolute_import
-
 import errno
 import inspect
 import logging
@@ -52,8 +50,7 @@ from .base import SubsystemBase
 from collections import defaultdict
 
 import requests
-from requests.packages.urllib3.connection import (ConnectionError,
-                                                  NewConnectionError)
+from requests.exceptions import ConnectionError
 
 from volttron.platform import is_rabbitmq_available
 from volttron.platform import jsonapi
@@ -330,7 +327,7 @@ class RMQPubSub(SubsystemBase):
 
         try:
             bindings = self.core().rmq_mgmt.get_bindings('volttron')
-        except (requests.exceptions.HTTPError, ConnectionError, NewConnectionError) as e:
+        except (requests.exceptions.HTTPError, ConnectionError) as e:
             self._logger.error("Error making request to RabbitMQ Management interface.\n"
                           "Check Connection Parameters: {} \n".format(e))
         else:
