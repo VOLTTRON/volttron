@@ -1,0 +1,99 @@
+{
+	"name": "EV_Controller",
+	"loglevel": 5,
+	"coreType": "zmq",
+	"timeDelta": 1.0,
+	"uninterruptible": true,
+
+	"endpoints":[
+	{
+		"name": "EV_Controller/EV6",
+		"destination": "IEEE_123_feeder_0/EV6",
+		"type": "genmessage",
+		"global": true
+		
+	},  
+	{ 
+		"name": "EV_Controller/EV5",
+		"destination": "IEEE_123_feeder_0/EV5",
+		"type": "genmessage",
+		"global": true
+	},  
+	{ 
+		"name": "EV_Controller/EV4",
+		"destination": "IEEE_123_feeder_0/EV4",
+		"type": "genmessage",
+		"global": true
+	},  
+	{ 
+		"name": "EV_Controller/EV3",
+		"destination": "IEEE_123_feeder_0/EV3",
+		"type": "genmessage",
+		"global": true
+	},  
+	{ 
+		"name": "EV_Controller/EV2",
+		"destination": "IEEE_123_feeder_0/EV2",
+		"type": "genmessage",
+		"global": true
+	},	
+	{ 
+		"name": "EV_Controller/EV1",
+		"destination": "IEEE_123_feeder_0/EV1",
+		"type": "genmessage",
+		"global": true
+	}
+	],	
+	"subscriptions":[
+	{
+		"key": "IEEE_123_feeder_0/totalLoad",
+		"volttron_topic": "helics/abc", # Optional
+		"type": "complex",
+		"required": true
+	},  { 
+		"key": "IEEE_123_feeder_0/charge_EV6",
+		"volttron_topic": "helics/ev6",
+		"type": "complex",
+		"required": true
+	},	{ 
+		"key": "IEEE_123_feeder_0/charge_EV5",
+		"type": "complex",
+		"required": true
+	},	{ 
+		"key": "IEEE_123_feeder_0/charge_EV4",
+		"type": "complex",
+		"required": true
+	},  { 
+		"key": "IEEE_123_feeder_0/charge_EV3",
+		"type": "complex",
+		"required": true
+	},  { 
+		"key": "IEEE_123_feeder_0/charge_EV2",
+		"type": "complex",
+		"required": true
+	},  { 
+		"key": "IEEE_123_feeder_0/charge_EV1",
+		"type": "complex",
+		"required": true
+	}],
+	# Publications used in the federate
+	"publications":[
+	{
+		"key":"pub1", # the name of the publication
+		"type":"double", # the type assocaited with a publication (optional)
+		"unit":"m",  # the units associated with a publication (optional)
+		"global":true, # set to true to make the key global (default is false in which case the publication is prepended with the federate name)
+		"info": "this is an information string for use by the application",
+		"volttron_topic": "pub1/all"
+	},
+	{
+	"key":"pub2", // the name of the publication
+	 "type":"double" // the type assocaited with a publication (optional),
+	 "volttron_topic": "pub2/all"
+	 //no global:true implies this will have the federate name prepended like valueFed/pub2
+	}
+	],
+	"volttron_subscriptions": [
+		"feeder0_output/all"
+	]
+}
