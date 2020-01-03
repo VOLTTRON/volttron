@@ -329,7 +329,7 @@ class RMQPubSub(SubsystemBase):
             bindings = self.core().rmq_mgmt.get_bindings('volttron')
         except (requests.exceptions.HTTPError, ConnectionError) as e:
             self._logger.error("Error making request to RabbitMQ Management interface.\n"
-                          "Check Connection Parameters: {} \n".format(e))
+                               "Check Connection Parameters: {} \n".format(e))
         else:
             try:
                 items = [(b['destination'], self._get_original_topic(b['routing_key']))

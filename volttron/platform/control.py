@@ -65,6 +65,12 @@ from volttron.platform import config
 from volttron.platform import get_home, get_address
 from volttron.platform import jsonapi
 from volttron.platform.agent import utils
+try:
+    from volttron.platform.deployment.deploy import add_deployment_subparser, do_deployment_command
+    HAS_ANSIBLE = True
+except ImportError:
+    HAS_ANSIBLE = False
+
 from volttron.platform.agent.known_identities import CONTROL_CONNECTION, \
     CONFIGURATION_STORE
 from volttron.platform.auth import AuthEntry, AuthFile, AuthException
@@ -2129,7 +2135,7 @@ def main(argv=sys.argv):
     top_level_subparsers = parser.add_subparsers(title='commands', metavar='',
                                                  dest='command')
 
-    def add_parser(*args, **kwargs):
+    def add_parser(*args, **kwargs) -> argparse.ArgumentParser:
         parents = kwargs.get('parents', [])
         parents.append(global_args)
         kwargs['parents'] = parents
@@ -2260,6 +2266,13 @@ def main(argv=sys.argv):
                              dest='verify_agents',
                              help=argparse.SUPPRESS)
     upgrade.set_defaults(func=upgrade_agent, verify_agents=True)
+
+    # ====================================================
+    # Add remote deployment parser to the main parser here.
+    # ====================================================
+    if HAS_ANSIBLE:
+        # The function add's the "deploy" commands to the parser using the add_parser function.
+        add_deployment_subparser(add_parser)
 
     # ====================================================
     # certs commands
@@ -2663,6 +2676,12 @@ def main(argv=sys.argv):
     # Parse and expand options
     args = argv[1:]
 
+    opts = parser.parse_args(args)
+
+    if opts.command == 'deploy':
+        do_deployment_command(opts)
+        sys.exit(0)
+
     # TODO: for auth some of the commands will work when volttron is down and
     # some will error (example vctl auth serverkey). Do check inside auth
     # function
@@ -2679,7 +2698,7 @@ def main(argv=sys.argv):
     conf = os.path.join(volttron_home, 'config')
     if os.path.exists(conf) and 'SKIP_VOLTTRON_CONFIG' not in os.environ:
         args = ['--config', conf] + args
-    opts = parser.parse_args(args)
+
 
     if opts.log:
         opts.log = config.expandall(opts.log)
