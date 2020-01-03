@@ -465,12 +465,11 @@ class Certs(object):
 
     def get_csr_common_name(self, data):
         csr = self.load_csr(data)
-
         return csr.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value
 
     def save_pending_csr_request(self, ip_addr, common_name, csr):
         meta = dict(remote_ip_address=ip_addr, identity=common_name,
-                    csr=csr, status="PENDING")
+                    csr=csr.decode("utf-8"), status="PENDING")
         metafile = os.path.join(self.csr_pending_dir, common_name+".json")
         csrfile = os.path.join(self.csr_pending_dir, common_name + ".csr")
         if os.path.exists(metafile):
@@ -529,7 +528,7 @@ class Certs(object):
         self.save_remote_cert(common_name, cert)
         meta = jsonapi.loads(open(metafile, 'rb').read())
         meta['status'] = 'APPROVED'
-        with open(metafile, 'wb') as fp:
+        with open(metafile, 'w') as fp:
             fp.write(jsonapi.dumps(meta))
         return cert
 

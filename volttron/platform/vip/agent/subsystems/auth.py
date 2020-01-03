@@ -274,7 +274,7 @@ class Auth(SubsystemBase):
         #     return certs.cert(remote_cert_name, True)
 
         json_request = dict(
-            csr=csr_request,
+            csr=csr_request.decode("utf-8"),
             identity=remote_cert_name,  # get_platform_instance_name()+"."+self._core().identity,
             hostname=config.hostname
         )
@@ -299,9 +299,9 @@ class Auth(SubsystemBase):
 
         if status == 'SUCCESSFUL' or status == 'APPROVED':
             certs.save_remote_info(fully_qualified_local_identity,
-                                   remote_cert_name, cert,
+                                   remote_cert_name, cert.encode("utf-8"),
                                    remote_ca_name,
-                                   discovery_info.rmq_ca_cert)
+                                   discovery_info.rmq_ca_cert.encode("utf-8"))
 
         elif status == 'PENDING':
             _log.debug("Pending CSR request for {}".format(remote_cert_name))
