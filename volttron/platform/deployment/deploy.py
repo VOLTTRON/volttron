@@ -37,9 +37,8 @@
 # }}}
 
 # https://docs.ansible.com/ansible/latest/dev_guide/developing_api.html
-import json
 import os
-import shutil
+import sys
 
 from ansible.cli import CLI
 from ansible.executor.playbook_executor import PlaybookExecutor
@@ -53,10 +52,17 @@ from ansible.plugins.callback import CallbackBase
 from ansible import context
 import ansible.constants as C
 
+from volttron.platform import get_volttron_root
 from volttron.utils.prompt import prompt_response
 
 os.environ['ANSIBLE_KEEP_REMOTE_FILES'] = "1"
 C.DEFAULT_DEBUG = False
+
+
+def do_destroy_systems(options):
+    pbex = _get_executor(options.hosts_file, None, "remove-volttron", limit=options.limit)
+
+    results = pbex.run()
 
 
 def do_init_systems(options):
@@ -67,49 +73,36 @@ def do_init_systems(options):
         if sudo_password:
             break
 
-    loader = DataLoader()
-
-    context.CLIARGS = ImmutableDict(
-        tags={}, listtags=False, listtasks=False, listhosts=False, syntax=False, connection='ssh',
-        module_path=None, forks=10,
-        remote_user='xxx', private_key_file=None,
-        ssh_common_args=None, ssh_extra_args=None, sftp_extra_args=None, scp_extra_args=None,
-        # become=True,
-        # become_method='sudo',
-        # sudo_pass='volttron',
-        # become_user='root',
-        verbosity=0, check=False, start_at_task=None)
-
-    inventory = InventoryManager(loader=loader, sources=('examples/deployment/hosts.yml',))
-    if options.limit:
-        inventory.subset(options.limit)
-
-    variable_manager = VariableManager(loader=loader, inventory=inventory,
-                                       version_info=CLI.version_info(gitinfo=False))
-
-    passwords = dict(become_pass=sudo_password)
-    pbex = PlaybookExecutor(playbooks=[
-        '/home/osboxes/repos/volttron/deployment/playbooks/remove-volttron.yml',
-        '/home/osboxes/repos/volttron/deployment/playbooks/base-install.yml'],
-        inventory=inventory,
-        variable_manager=variable_manager,
-        loader=loader,
-        passwords=passwords)
+    pbex = _get_executor(options.hosts_file, sudo_password, "base-install", limit=options.limit)
 
     results = pbex.run()
+
+
+def add_common(parser):
+    """
+    Adds common hosts-file and limit arguments to the passed parser.
+
+    :param parser:
+    :return:
+    """
+    parser.add_argument("-i", "--hosts-file", required=True,
+                        help="A hosts yaml file modeled after ansible's inventory file.")
+    parser.add_argument("-l", "--limit",
+                        help="Limit pattern for hosts in the inventory to run init on.")
 
 
 def add_deployment_subparser(add_parser_fn):
     deployment_parser = add_parser_fn('deploy', help="")
     subparsers = deployment_parser.add_subparsers(title='subcommands', metavar='',
                                                   dest='store_commands')
-    init = add_parser_fn('hosts-init',
+    init = add_parser_fn('init',
                          help="Installs required libraries, and clones volttron repository.",
                          subparser=subparsers)
-    init.add_argument("-i", "--hosts-file", required=True,
-                      help="A hosts yaml file modeled after ansible's inventory file.")
-    init.add_argument("-l", "--limit",
-                      help="Limit pattern for hosts in the inventory to run init on.")
+    add_common(init)
+    destroy = add_parser_fn('destroy',
+                            help="Removes volttron and volttron_home from hosts",
+                            subparser=subparsers)
+    add_common(destroy)
 
     #
     #
@@ -123,7 +116,63 @@ def add_deployment_subparser(add_parser_fn):
 
 
 def do_deployment_command(opts):
-    do_init_systems(opts)
+
+    if opts.store_commands == 'init':
+        do_init_systems(opts)
+    elif opts.store_commands == 'destroy':
+        do_destroy_systems(opts)
+    else:
+        sys.stderr.write(f"Invalid argument to parser {opts.store_commands}")
 
 
+def get_playbook(playbook):
+    """
+    Return full path to a playbook in the deployment/playbook directory.
 
+    Playbook should be specified without a .yml extension.
+
+    :param playbook:
+    :return:
+    """
+
+    if playbook.endswith(".yml"):
+        raise ValueError("Playbook should be passed without .yml extension")
+    playbook_root = "deployment/playbooks"
+    playbook_path = os.path.join(get_volttron_root(), playbook_root, f"{playbook}.yml")
+    return playbook_path
+
+
+def _get_cli_args() -> ImmutableDict:
+    return ImmutableDict(
+        tags={}, listtags=False, listtasks=False, listhosts=False, syntax=False, connection='ssh',
+        module_path=None, forks=10,
+        remote_user='xxx', private_key_file=None,
+        ssh_common_args=None, ssh_extra_args=None, sftp_extra_args=None, scp_extra_args=None,
+        # become=True,
+        # become_method='sudo',
+        # sudo_pass='volttron',
+        # become_user='root',
+        verbosity=0, check=False, start_at_task=None)
+
+
+def _get_executor(hosts_file, sudo_password, playbooks, limit=None):
+    if not playbooks:
+        raise ValueError("playbooks must be specified!")
+
+    if not isinstance(playbooks, list):
+        playbooks = [playbooks]
+    playbooks = [get_playbook(p) for p in playbooks]
+    loader = DataLoader()
+    context.CLIARGS = _get_cli_args()
+    inventory = InventoryManager(loader=loader, sources=hosts_file)
+    if limit:
+        inventory.subset(limit)
+    variable_manager = VariableManager(loader=loader, inventory=inventory,
+                                       version_info=CLI.version_info(gitinfo=False))
+    passwords = dict(become_pass=sudo_password)
+    pbex = PlaybookExecutor(playbooks=playbooks,
+                            inventory=inventory,
+                            variable_manager=variable_manager,
+                            loader=loader,
+                            passwords=passwords)
+    return pbex
