@@ -193,6 +193,7 @@ broker = {0[broker]}
         _log.debug(cfg)
         cfg = cfg.replace("\t", "    ")
         fncs.initialize(cfg)
+        _log.debug("After initialized!")
         if not fncs.is_initialized():
             raise RuntimeError("Intialization error for fncs.")
 

@@ -74,14 +74,12 @@ def serialize_frames(data: List[Any]) -> List[Frame]:
     # _log.debug("Serializing: {}".format(data))
     for x in data:
         try:
-            if isinstance(x, list):
-                frames.append(serialize_frames(x))
+            if isinstance(x, list) or isinstance(x, dict):
+                frames.append(Frame(jsonapi.dumps(x).encode('utf-8')))
             elif isinstance(x, Frame):
                 frames.append(x)
             elif isinstance(x, bytes):
                 frames.append(Frame(x))
-            elif isinstance(x, dict):
-                frames.append(Frame(jsonapi.dumps(x).encode('utf-8')))
             elif isinstance(x, int):
                 frames.append(struct.pack("I", x))
             else:

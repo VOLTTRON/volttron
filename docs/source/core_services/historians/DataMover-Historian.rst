@@ -4,10 +4,10 @@ DataMover Historian
 
 DataMover sends data from its platform to a remote platform in cases where
 there is not sufficient resources to store locally. It shares this
-functionality with the :ref:`Forward Historian <ForwardHistorian>`,
+functionality with the :ref:`Forward Historian <Forward-Historian>`,
 However DataMover does not have a goal of data appearing "live" on the
 remote platform. This allows DataMover to be more efficient by both batching
-data and by sending an RCP call to a remote historian instead of publishing
+data and by sending an RPC call to a remote historian instead of publishing
 data on the remote message bus. This allows allows DataMover to be more
 robust by ensuring that the receiving historian is running. If the target is
 unreachable, DataMover will cache data until it is available.
@@ -56,5 +56,4 @@ the agent is disconnected from its target for a long time.
 See Also
 ~~~~~~~~
 
-`Historians <historians>`_
-:ref:`Historians <historians>`
+:ref:`Historians <Historian Index>`

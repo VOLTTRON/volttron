@@ -415,7 +415,7 @@ class RPC(SubsystemBase):
 
     @export.classmethod
     def export(cls, name=None):   # pylint: disable=no-self-argument
-        if not isinstance(name, str):
+        if name is not None and not isinstance(name, str):
             method, name = name, name.__name__
             annotate(method, set, 'rpc.exports', name)
             return method

@@ -409,7 +409,7 @@ class ForwardHistorian(BaseHistorian):
 
         if timeout_occurred:
             _log.debug('Sending alert from the ForwardHistorian')
-            status = Status.from_json(self.vip.health.get_status())
+            status = Status.from_json(self.vip.health.get_status_json())
             self.vip.health.send_alert(FORWARD_TIMEOUT_KEY,
                                        status)
         else:
