@@ -2165,7 +2165,8 @@ def main(argv=sys.argv):
                                 'the tag command. ')
     upgrade.add_argument('vip_identity', metavar='vip-identity',
                          help='VIP IDENTITY of agent to upgrade')
-    upgrade.add_argument('wheel', help='path to new agent wheel')
+    upgrade.add_argument('install_path', metavar='install-path',
+                         help='path to new agent wheel')
     upgrade.add_argument('--tag', help='tag for the upgraded agent')
     if HAVE_RESTRICTED:
         upgrade.add_argument('--verify', action='store_true',
@@ -2192,7 +2193,7 @@ def main(argv=sys.argv):
     certs_subparsers = cert_cmds.add_subparsers(title='subcommands', metavar='', dest='store_commands')
 
     create_ssl_keypair_cmd = add_parser("create-ssl-keypair", subparser=certs_subparsers,
-                             help="create a ssl keypair.")
+                                        help="create a ssl keypair.")
 
     create_ssl_keypair_cmd.add_argument("identity",
                                         help="Create a private key and cert for the given identity signed by "
@@ -2200,8 +2201,8 @@ def main(argv=sys.argv):
     create_ssl_keypair_cmd.set_defaults(func=create_ssl_keypair)
 
     export_pkcs12 = add_parser("export-pkcs12", subparser=certs_subparsers,
-                             help="create a PKCS12 encoded file containing private and public key from an agent. "
-                                  "this function is useful to create a java key store using a p12 file.")
+                               help="create a PKCS12 encoded file containing private and public key from an agent. "
+                                    "this function is useful to create a java key store using a p12 file.")
     export_pkcs12.add_argument("identity", help="identity of the agent to export")
     export_pkcs12.add_argument("outfile", help="file to write the PKCS12 file to")
     export_pkcs12.set_defaults(func=export_pkcs12_from_identity)
