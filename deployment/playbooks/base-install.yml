@@ -51,6 +51,7 @@
           - "libwxbase3.0-0v5"
           - "libwxgtk3.0-0v5"
           - "libsctp1"
+
     - name: Adding apt_key for erlang solutions
       become: yes
       become_method: sudo
@@ -58,6 +59,7 @@
       apt_key:
         url: https://packages.erlang-solutions.com/ubuntu/erlang_solutions.asc
         state: present
+
     - name: Adding apt repo for erlang
       become: yes
       become_method: sudo
@@ -67,6 +69,7 @@
         repo: deb https://packages.erlang-solutions.com/ubuntu bionic contrib
         state: present
         filename: erlang.solutions.list
+
     - name: Install erlang requirements
       become: yes
       become_method: sudo
