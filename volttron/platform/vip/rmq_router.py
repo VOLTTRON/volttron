@@ -1,57 +1,38 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
-
-# Copyright (c) 2017, Battelle Memorial Institute
-# All rights reserved.
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
+# Copyright 2019, Battelle Memorial Institute.
 #
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in
-#    the documentation and/or other materials provided with the
-#    distribution.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# http://www.apache.org/licenses/LICENSE-2.0
 #
-# The views and conclusions contained in the software and documentation
-# are those of the authors and should not be interpreted as representing
-# official policies, either expressed or implied, of the FreeBSD
-# Project.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
-# This material was prepared as an account of work sponsored by an
-# agency of the United States Government.  Neither the United States
-# Government nor the United States Department of Energy, nor Battelle,
-# nor any of their employees, nor any jurisdiction or organization that
-# has cooperated in the development of these materials, makes any
-# warranty, express or implied, or assumes any legal liability or
-# responsibility for the accuracy, completeness, or usefulness or any
-# information, apparatus, product, software, or process disclosed, or
-# represents that its use would not infringe privately owned rights.
-#
-# Reference herein to any specific commercial product, process, or
-# service by trade name, trademark, manufacturer, or otherwise does not
-# necessarily constitute or imply its endorsement, recommendation, or
+# This material was prepared as an account of work sponsored by an agency of
+# the United States Government. Neither the United States Government nor the
+# United States Department of Energy, nor Battelle, nor any of their
+# employees, nor any jurisdiction or organization that has cooperated in the
+# development of these materials, makes any warranty, express or
+# implied, or assumes any legal liability or responsibility for the accuracy,
+# completeness, or usefulness or any information, apparatus, product,
+# software, or process disclosed, or represents that its use would not infringe
+# privately owned rights. Reference herein to any specific commercial product,
+# process, or service by trade name, trademark, manufacturer, or otherwise
+# does not necessarily constitute or imply its endorsement, recommendation, or
 # favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors
-# expressed herein do not necessarily state or reflect those of the
+# Battelle Memorial Institute. The views and opinions of authors expressed
+# herein do not necessarily state or reflect those of the
 # United States Government or any agency thereof.
 #
-# PACIFIC NORTHWEST NATIONAL LABORATORY
-# operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
+# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
 
@@ -61,10 +42,10 @@ from __future__ import absolute_import
 import errno
 import logging
 import os
-from Queue import Queue
+from queue import Queue
 
 from volttron.platform import is_rabbitmq_available
-from volttron.platform.agent import json as jsonapi
+from volttron.platform import jsonapi
 from volttron.utils.rmq_mgmt import RabbitMQMgmt
 from .rmq_connection import RMQRouterConnection
 from .router import BaseRouter
@@ -183,7 +164,7 @@ class RMQRouter(BaseRouter):
             return
         if peer in self._peers:
             return
-        self._distribute(b'peerlist', b'add', peer, message_bus)
+        self._distribute('peerlist', 'add', peer, message_bus)
         self._peers.add(peer)
         self._peers_with_messagebus[peer] = message_bus
 
@@ -193,7 +174,7 @@ class RMQRouter(BaseRouter):
             del self._peers_with_messagebus[peer]
         except KeyError:
             return
-        self._distribute(b'peerlist', b'drop', peer, message_bus)
+        self._distribute('peerlist', 'drop', peer, message_bus)
 
     def route(self, message):
         '''Route one message and return.
@@ -219,37 +200,37 @@ class RMQRouter(BaseRouter):
         sender = message.peer  # source
         subsystem = message.subsystem
         self._add_peer(sender)
-        if subsystem == b'hello':
+        if subsystem == 'hello':
             self.authenticate(sender)
             # send welcome message back
-            message.args = [b'welcome', b'1.0', self._identity, sender]
-        elif subsystem == b'ping':
-            message.args = [b'pong']
-        elif subsystem == b'peerlist':
+            message.args = ['welcome', '1.0', self._identity, sender]
+        elif subsystem == 'ping':
+            message.args = ['pong']
+        elif subsystem == 'peerlist':
             try:
                 op = message.args[0]
             except IndexError:
                 op = None
             except ValueError:
                 op = None
-            if op == b'list':
+            if op == 'list':
                 del message.args[:]
-                message.args = [b'listing']
+                message.args = ['listing']
                 message.args.extend(self._peers)
-            elif op == b'list_with_messagebus':
+            elif op == 'list_with_messagebus':
                 _log.debug("Router peerlist request op: list_with_messagebus, {}, {}".format(sender, self._peers))
                 del message.args[:]
-                message.args = [b'listing_with_messagebus']
+                message.args = ['listing_with_messagebus']
                 message.args.append(jsonapi.dumps(self._peers_with_messagebus))
                 _log.debug("Router peerlist request op: list_with_messagebus, {}, {}".format(sender, self._peers))
-            elif op == b'add':
+            elif op == 'add':
                 peer = message.args[1]
                 try:
                     message_bus = message.args[2]
                 except IndexError:
                     message_bus = 'rmq'
                 self._add_peer(peer=peer, message_bus=message_bus)
-            elif op == b'drop':
+            elif op == 'drop':
                 peer = message.args[1]
                 try:
                     message_bus = message.args[2]
@@ -257,13 +238,13 @@ class RMQRouter(BaseRouter):
                     message_bus = 'rmq'
                 self._drop_peer(peer=peer, message_bus=message_bus)
             else:
-                error = (b'unknown' if op else b'missing') + b' operation'
-                message.args.extend([b'error', error])
-        elif subsystem == b'quit':
-            if sender == b'control':
+                error = ('unknown' if op else 'missing') + ' operation'
+                message.args.extend(['error', error])
+        elif subsystem == 'quit':
+            if sender == 'control':
                 self.stop()
                 raise KeyboardInterrupt()
-        elif subsystem == b'agentstop':
+        elif subsystem == 'agentstop':
             _log.debug("ROUTER received agent stop {}".format(sender))
             try:
                 drop = message.args[0]
@@ -273,42 +254,42 @@ class RMQRouter(BaseRouter):
             except ValueError:
                 pass
             return False
-        elif subsystem == b'query':
+        elif subsystem == 'query':
             try:
-                name = bytes(message.args[0])
+                name = message.args[0]
             except IndexError:
                 value = None
             except ValueError:
                 value = None
             else:
-                if name == b'addresses':
+                if name == 'addresses':
                     if self.addresses:
                         value = [addr.base for addr in self.addresses]
                     else:
                         value = [self.local_address.base]
-                elif name == b'local_address':
+                elif name == 'local_address':
                     value = self.local_address.base
                 # Allow the agents to know the serverkey.
-                elif name == b'serverkey':
+                elif name == 'serverkey':
                     keystore = KeyStore()
                     value = keystore.public
-                elif name == b'volttron-central-address':
+                elif name == 'volttron-central-address':
                     value = self._volttron_central_address
-                elif name == b'volttron-central-serverkey':
+                elif name == 'volttron-central-serverkey':
                     value = self._volttron_central_serverkey
-                elif name == b'instance-name':
+                elif name == 'instance-name':
                     value = self._instance_name
-                elif name == b'bind-web-address':
+                elif name == 'bind-web-address':
                     value = self._bind_web_address
-                elif name == b'platform-version':
+                elif name == 'platform-version':
                     value = __version__
-                elif name == b'message-bus':
+                elif name == 'message-bus':
                     value = os.environ.get('MESSAGEBUS', 'zmq')
                 else:
                     value = None
-            message.args = [b'', jsonapi.dumps(value)]
-            message.args.append(b'')
-        elif subsystem == b'error':
+            message.args = ['', value]
+            message.args.append('')
+        elif subsystem == 'error':
             try:
                 errnum = message.args[0]
                 if errnum == errno.EHOSTUNREACH:
@@ -319,11 +300,11 @@ class RMQRouter(BaseRouter):
                 _log.error("ROUTER unable to parse error message {}".format(message.args))
         else:
             # Router does not know of the subsystem
-            message.type = b'error'
+            message.type = 'error'
             errnum = errno.EPROTONOSUPPORT
             errmsg = os.strerror(errnum).encode('ascii')  # str(errnum).encode('ascii')
             _log.debug("ROUTER proto unsupported {}, sender {}".format(subsystem, sender))
-            message.args = [errnum, errmsg, b'', subsystem]
+            message.args = [errnum, errmsg, '', subsystem]
 
         # Send the message back to the sender
         self.connection.send_vip_object(message)
@@ -332,10 +313,12 @@ class RMQRouter(BaseRouter):
         message = Message(peer=None, subsystem=parts[0], args=parts[1:])
         for peer in self._peers:
             message.peer = peer
+            _log.debug(f"Distributing to peers {peer}")
             if self._peers_with_messagebus[peer] == 'rmq':
                 self.connection.send_vip_object(message)
             else:
-                self.connection.send_vip_object_via_proxy(message)
+                _log.debug(f"???????????????????Looks like we should be destributing message {message}")
+                #self.connection.send_vip_object_via_proxy(message)
 
     def _make_user_access_tokens(self, identity):
         tokens = dict()

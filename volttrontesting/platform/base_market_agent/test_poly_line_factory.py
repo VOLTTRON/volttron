@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -45,6 +45,7 @@ try:
 except ImportError:
     pytest.skip("Market service requirements not installed.", allow_module_level=True)
 
+
 @pytest.mark.market
 def test_poly_line_combine_supply():
     supply_curve = create_supply_curve()
@@ -54,6 +55,7 @@ def test_poly_line_combine_supply():
     assert combined_curves.max_x() == 2000
     assert combined_curves.min_y() == 0
     assert combined_curves.max_y() == 1000
+
 
 @pytest.mark.market
 def test_poly_line_combine_demand():
@@ -65,6 +67,7 @@ def test_poly_line_combine_demand():
     assert combined_curves.min_y() == 0
     assert combined_curves.max_y() == 1000
 
+
 @pytest.mark.market
 def test_poly_line_from_tupples():
     demand_curve = create_demand_curve()
@@ -73,6 +76,7 @@ def test_poly_line_from_tupples():
     expected_length = len(demand_curve.points)
     actual_length = len(new_curve.points)
     assert actual_length == expected_length
+
 
 @pytest.mark.market
 def create_supply_curve():
@@ -84,6 +88,7 @@ def create_supply_curve():
     quantity = 1000
     supply_curve.add(Point(price,quantity))
     return supply_curve
+
 
 @pytest.mark.market
 def create_demand_curve():

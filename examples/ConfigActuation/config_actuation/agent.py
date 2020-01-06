@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -86,7 +86,7 @@ class ConfigActuation(Agent):
             return
 
         topics_values = []
-        for point, value in contents.iteritems():
+        for point, value in contents.items():
             full_topic = os.path.join(device, point)
             topics_values.append((full_topic, value))
 

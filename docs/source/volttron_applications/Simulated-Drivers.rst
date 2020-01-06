@@ -38,7 +38,7 @@ Four device drivers have been provided:
 1. **storage (simstorage).**  The storage driver simulates an energy storage device (i.e., a
    battery). When it receives a power dispatch value (positive to charge the battery,
    negative to discharge it), it adjusts its charging behavior accordingly. Its reported
-   power doesn't necessariliy match the dispatch value, since (like an actual battery)
+   power doesn't necessarily match the dispatch value, since (like an actual battery)
    it stays within configured max-charge/max-discharge limits, and its power dwindles as its
    state of charge approaches a full or empty state.
 2. **pv (simpv).**  The PV driver simulates a photovoltaic array (solar panels), reporting

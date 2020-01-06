@@ -1,10 +1,9 @@
-import json
 import logging
 import pytest
 
 import gevent
 
-from volttron.platform import get_volttron_root
+from volttron.platform import get_volttron_root, jsonapi
 from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM, \
     CONFIGURATION_STORE
 from volttron.platform.jsonrpc import RemoteError, UNAUTHORIZED
@@ -25,7 +24,7 @@ SQLITE_HISTORIAN_CONFIG = {
 }
 
 
-STANDARD_GET_TIMEOUT = 5
+STANDARD_GET_TIMEOUT = 30
 _log = logging.getLogger(__name__)
 
 pytest.skip("Needs to be updated based on 6.0 changes", allow_module_level=True)
@@ -188,7 +187,7 @@ def test_can_get_version(setup_platform, vc_agent):
     args = [python, script]
 
     response = subprocess.check_output(args=[python, script],
-                                       cwd=get_volttron_root())
+                                       cwd=get_volttron_root(), universal_newlines=True)
     expected_version = None
     for line in response.split("\n"):
         agent, version = line.strip().split(',')
@@ -225,7 +224,7 @@ def test_can_change_topic_map(setup_platform, vc_agent):
                     'manage_store',
                     VOLTTRON_CENTRAL_PLATFORM,
                     'config',
-                    json.dumps(replace_map),
+                    jsonapi.dumps(replace_map),
                     'json').get(timeout=STANDARD_GET_TIMEOUT)
 
     gevent.sleep(2)
@@ -247,7 +246,7 @@ def test_can_change_topic_map(setup_platform, vc_agent):
                     'manage_store',
                     VOLTTRON_CENTRAL_PLATFORM,
                     'config',
-                    json.dumps(replace_map),
+                    jsonapi.dumps(replace_map),
                     'json').get(timeout=STANDARD_GET_TIMEOUT)
 
     gevent.sleep(2)

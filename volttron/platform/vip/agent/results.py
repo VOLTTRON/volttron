@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -36,15 +36,19 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-from __future__ import absolute_import
+
 
 import random
-import weakref
+from weakref import WeakValueDictionary
 
 from gevent.event import AsyncResult
 
 
 __all__ = ['counter', 'ResultsDictionary']
+
+
+class AsyncResult(AsyncResult):
+    __slots__ = AsyncResult.__slots__ + ('ident',)
 
 
 def counter(start=None, minimum=0, maximum=2**64-1):
@@ -56,12 +60,32 @@ def counter(start=None, minimum=0, maximum=2**64-1):
             count = minimum
 
 
-class ResultsDictionary(weakref.WeakValueDictionary):
+class ResultsDictionary(WeakValueDictionary):
     def __init__(self):
-        weakref.WeakValueDictionary.__init__(self)
+        WeakValueDictionary.__init__(self)
         self._counter = counter()
 
-    def next(self):
+    def pop(self, key, *args):
+        if isinstance(key, bytes):
+            key = key.decode("utf-8")
+        return WeakValueDictionary.pop(self, key, *args)
+
+    def __contains__(self, key):
+        if isinstance(key, bytes):
+            key = key.decode("utf-8")
+        return WeakValueDictionary.__contains__(self, key)
+
+    def __getitem__(self, key):
+        if isinstance(key, bytes):
+            key = key.decode("utf-8")
+        return WeakValueDictionary.__getitem__(self, key)
+
+    def get(self, key, default=None):
+        if isinstance(key, bytes):
+            key = key.decode("utf-8")
+        return WeakValueDictionary.get(self, key, default=default)
+
+    def __next__(self):
         result = AsyncResult()
         result.ident = ident = '%s.%s' % (next(self._counter), hash(result))
         self[ident] = result

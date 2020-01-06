@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -36,7 +36,6 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-from __future__ import absolute_import, print_function
 
 import logging
 import numbers
@@ -67,12 +66,14 @@ from volttron.utils.docs import doc_inherit
 
 try:
     import ujson
+
     def dumps(data):
         return ujson.dumps(data, double_precision=15)
+
     def loads(data_string):
         return ujson.loads(data_string, precise_float=True)
 except ImportError:
-    from zmq.utils.jsonapi import dumps, loads
+    from volttron.platform.jsonapi import dumps, loads
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -115,7 +116,7 @@ class MongodbHistorian(BaseHistorian):
 
     """
 
-    def __init__(self, connection, tables_def = None,
+    def __init__(self, connection, tables_def=None,
                  initial_rollup_start_time=None, rollup_query_start=None,
                  rollup_topic_pattern=None, rollup_query_end=1,
                  periodic_rollup_frequency=1,
@@ -132,29 +133,29 @@ class MongodbHistorian(BaseHistorian):
         data and topics respectively.
 
         :param connection: dictionary that contains necessary information to
-        establish a connection to the mongo database. The dictionary should 
-        contain two entries - 
-        
-          1. 'type' - describe the type of database and 
-          2. 'params' - parameters for connecting to the database. 
-        :param tables_def: optional parameter. dictionary containing the 
-        names to be used for historian tables. Should contain the following 
+        establish a connection to the mongo database. The dictionary should
+        contain two entries -
+
+          1. 'type' - describe the type of database and
+          2. 'params' - parameters for connecting to the database.
+        :param tables_def: optional parameter. dictionary containing the
+        names to be used for historian tables. Should contain the following
         keys
-        
-          1. "table_prefix": - if specified tables names are prefixed with 
+
+          1. "table_prefix": - if specified tables names are prefixed with
           this value followed by a underscore
           2."data_table": name of the table that stores historian data,
-          3."topics_table": name of the table that stores the list of topics 
+          3."topics_table": name of the table that stores the list of topics
           for which historian contains data data
-          4. "meta_table": name of the table that stores the metadata data 
+          4. "meta_table": name of the table that stores the metadata data
           for topics
-        :param initial_rollup_start_time: 
-        :param rollup_query_start: 
-        :param rollup_topic_pattern: 
-        :param rollup_query_end: 
-        :param periodic_rollup_frequency: 
+        :param initial_rollup_start_time:
+        :param rollup_query_start:
+        :param rollup_topic_pattern:
+        :param rollup_query_end:
+        :param periodic_rollup_frequency:
         :param periodic_rollup_initial_wait:
-        :param kwargs: additional keyword arguments. 
+        :param kwargs: additional keyword arguments.
         """
 
         tables_def, table_names = self.parse_table_def(tables_def)
@@ -181,7 +182,6 @@ class MongodbHistorian(BaseHistorian):
                 self._initial_rollup_start_time = datetime.strptime(
                     initial_rollup_start_time,
                     '%Y-%m-%dT%H:%M:%S.%f').replace(tzinfo=pytz.utc)
-
 
             # Date from which rolled up data exists in hourly_data and
             # daily_data collection
@@ -210,11 +210,11 @@ class MongodbHistorian(BaseHistorian):
             # to account for the time it takes the periodic_rollup to process
             # records in data table and insert into daily_data and hourly_data
             # collection
-            self.rollup_query_end = 1 # default 1 day
+            self.rollup_query_end = 1  # default 1 day
             if rollup_query_end is not None:
                 self.rollup_query_end = float(rollup_query_end)
 
-            #how many minutes once should the periodic rollup function be run
+            # how many minutes once should the periodic rollup function be run
             self.periodic_rollup_frequency = 60  # default 1 minute
             if periodic_rollup_frequency is not None:
                 self.periodic_rollup_frequency = \
@@ -229,9 +229,7 @@ class MongodbHistorian(BaseHistorian):
                 self.periodic_rollup_initial_wait = float(
                     periodic_rollup_initial_wait) * 60
 
-
-
-            #Done with all init call super.init
+            # Done with all init call super.init
             super(MongodbHistorian, self).__init__(**kwargs)
         except ValueError as e:
             _log.error("Error processing configuration: {}".format(e))
@@ -278,7 +276,7 @@ class MongodbHistorian(BaseHistorian):
         if not stat["last_data_into_hourly"] and not stat[
             "last_data_into_daily"]:
             stat = {}
-            find_condition['ts']= {'$gte': self._initial_rollup_start_time}
+            find_condition['ts'] = {'$gte': self._initial_rollup_start_time}
             _log.info("ROLLING FROM start date {}".format(
                 self._initial_rollup_start_time))
         else:
@@ -286,7 +284,6 @@ class MongodbHistorian(BaseHistorian):
                 find_condition['_id']))
 
         _log.debug("query condition is {} ".format(find_condition))
-
 
         # Iterate and append to a bulk_array. Insert in batches of 1000
         bulk_publish_hour = []
@@ -305,10 +302,10 @@ class MongodbHistorian(BaseHistorian):
                 self.initialize_hourly(topic_id=row['topic_id'], ts=row['ts'])
                 bulk_publish_hour.append(
                     MongodbHistorian.insert_to_hourly(db,
-                                          row['_id'],
-                                          topic_id=row['topic_id'],
-                                          ts=row['ts'],
-                                          value=row['value']))
+                                                      row['_id'],
+                                                      topic_id=row['topic_id'],
+                                                      ts=row['ts'],
+                                                      value=row['value']))
                 hour_ids.append(row['_id'])
                 h += 1
 
@@ -317,9 +314,9 @@ class MongodbHistorian(BaseHistorian):
                                       ts=row['ts'])
                 bulk_publish_day.append(
                     MongodbHistorian.insert_to_daily(db,
-                                         row['_id'],
-                                         topic_id=row['topic_id'],
-                                         ts=row['ts'], value=row['value']))
+                                                     row['_id'],
+                                                     topic_id=row['topic_id'],
+                                                     ts=row['ts'], value=row['value']))
                 day_ids.append(row['_id'])
                 d += 1
             # Perform insert if we have 5000 rows
@@ -405,7 +402,7 @@ class MongodbHistorian(BaseHistorian):
                               'sum': 0,
                               'data': [[]] * 60,
                               'last_updated_data': ''}
-            },
+             },
             upsert=True)
 
     def initialize_daily(self, topic_id, ts):
@@ -428,14 +425,14 @@ class MongodbHistorian(BaseHistorian):
         rollup_hour = ts.replace(minute=0, second=0, microsecond=0)
 
         return UpdateOne({'ts': rollup_hour, 'topic_id': topic_id},
-                {'$push': {"data." + str(ts.minute): [ts, value]},
-                 '$inc': {'count': 1, 'sum': sum_value},
-                 '$set': {'last_updated_data': data_id}})
+                         {'$push': {"data." + str(ts.minute): [ts, value]},
+                          '$inc': {'count': 1, 'sum': sum_value},
+                          '$set': {'last_updated_data': data_id}})
 
     @staticmethod
     def insert_to_daily(db, data_id, topic_id, ts, value):
         rollup_day = ts.replace(hour=0, minute=0, second=0,
-                                         microsecond=0)
+                                microsecond=0)
         position = ts.hour * 60 + ts.minute
         sum_value = MongodbHistorian.value_to_sumable(value)
 
@@ -505,17 +502,16 @@ class MongodbHistorian(BaseHistorian):
                          'string_value': value_str}
 
             bulk_publish.find(
-                    {'ts': ts, 'topic_id': topic_id}).upsert().replace_one(
-                    {'ts': ts, 'topic_id': topic_id, 'source': source,
-                     'value': value})
-
+                {'ts': ts, 'topic_id': topic_id}).upsert().replace_one(
+                {'ts': ts, 'topic_id': topic_id, 'source': source,
+                 'value': value})
 
         try:
             result = bulk_publish.execute()
         except BulkWriteError as bwe:
             _log.error("Error during bulk write to data: {}".format(
                 bwe.details))
-            if bwe.details['writeErrors'] :
+            if bwe.details['writeErrors']:
                 index = bwe.details['writeErrors'][0]['index']
                 if index > 0:
                     _log.debug(
@@ -609,22 +605,22 @@ class MongodbHistorian(BaseHistorian):
         if skip > 0:
             skip_count = skip
 
-
         values = defaultdict(list)
         pool = ThreadPool(5)
+
         try:
 
             # Query for one topic at a time in a loop instead of topic_id
             # $in in order to apply $limit to each topic searched instead
             # of the combined result
             _log.debug("Spawning threads")
-            pool.map(self.query_topic_data,
-                     zip(topic_ids, repeat(id_name_map),
-                         repeat(collection_name), repeat(start),
-                         repeat(end), repeat(query_start), repeat(query_end),
-                         repeat(count), repeat(skip_count), repeat(order_by),
-                         repeat(use_rolled_up_data),
-                         repeat(values)))
+            zipped_args = list(zip(topic_ids, repeat(id_name_map),
+                              repeat(collection_name), repeat(start),
+                              repeat(end), repeat(query_start), repeat(query_end),
+                              repeat(count), repeat(skip_count), repeat(order_by),
+                              repeat(use_rolled_up_data),
+                              repeat(values)))
+            pool.starmap(self.query_topic_data, zipped_args)
             pool.close()
             pool.join()
             _log.debug("Time taken to load all values for all topics"
@@ -636,12 +632,13 @@ class MongodbHistorian(BaseHistorian):
                                                      topic,
                                                      topic_ids,
                                                      values)
+
         finally:
             pool.close()
 
-    def query_topic_data(self, (topic_id, id_name_map, collection_name, start,
+    def query_topic_data(self, topic_id, id_name_map, collection_name, start,
                          end, query_start, query_end, count, skip_count,
-                         order_by, use_rolled_up_data, values)):
+                         order_by, use_rolled_up_data, values):
         start_time = datetime.utcnow()
         topic_name = id_name_map[topic_id]
         db = self._client.get_default_database()
@@ -711,8 +708,8 @@ class MongodbHistorian(BaseHistorian):
                                "data".format(topic_id))
                 else:
                     # query raw data collection for rest of the dates
-                    find_params['ts'] = {'$gte':start,
-                                         '$lt':self.rollup_query_start}
+                    find_params['ts'] = {'$gte': start,
+                                         '$lt': self.rollup_query_start}
                     pipeline = [{"$match": find_params}, {"$skip": skip_count},
                                 {"$sort": {"ts": order_by}}, {"$limit": count},
                                 {"$project": raw_data_project}]
@@ -727,8 +724,8 @@ class MongodbHistorian(BaseHistorian):
                                "data".format(topic_id))
                 else:
                     # query raw data collection for rest of the dates
-                    find_params['ts'] = {'$gte':query_end,
-                                         '$lt':end}
+                    find_params['ts'] = {'$gte': query_end,
+                                         '$lt': end}
                     pipeline = [{"$match": find_params}, {"$skip": skip_count},
                                 {"$sort": {"ts": order_by}}, {"$limit": count},
                                 {"$project": raw_data_project}]
@@ -754,7 +751,7 @@ class MongodbHistorian(BaseHistorian):
                 "Results length {}".format(topic_id, len(values[topic_name])))
 
         _log.debug("{}:Time taken to load results: {}".format(
-            topic_id,  datetime.utcnow() - start_time))
+            topic_id, datetime.utcnow() - start_time))
 
     def add_raw_data_results(self, db, topic_name, values, pipeline,
                              add_to_beginning):
@@ -780,8 +777,6 @@ class MongodbHistorian(BaseHistorian):
             values.get(topic_name, []).extend(new_values.get(topic_name, []))
             values[topic_name] = values.get(topic_name, [])
 
-
-
     def update_values(self, data, topic_name, start, end, values):
         if start.tzinfo:
             data[0] = data[0].replace(tzinfo=tzutc())
@@ -789,8 +784,6 @@ class MongodbHistorian(BaseHistorian):
             result_value = self.json_string_to_dict(data[1])
             values[topic_name].append(
                 (utils.format_timestamp(data[0]), result_value))
-
-
 
     def json_string_to_dict(self, value):
         """
@@ -879,7 +872,7 @@ class MongodbHistorian(BaseHistorian):
                     query_end = rollup_end
                 else:
                     query_end = (end + timedelta(days=1)).replace(hour=0,
-                        minute=0, second=0, microsecond=0)
+                                                                  minute=0, second=0, microsecond=0)
 
         _log.debug("Verify use of rollup data: {}".format(collection_name))
         return collection_name, query_start, query_end
@@ -905,7 +898,8 @@ class MongodbHistorian(BaseHistorian):
             # topic
             meta_tid = None
             if not multi_topic_query:
-                values = values.values()[0]
+                values = list(values.values())[0]
+
                 if agg_type:
                     # if aggregation is on single topic find the topic id
                     # in the topics table.
@@ -947,7 +941,7 @@ class MongodbHistorian(BaseHistorian):
         topic_id_map = dict()
         for document in cursor:
             topic_id_map[document['topic_name']] = str(document[
-                '_id'])
+                                                           '_id'])
         _log.debug("Returning topic map :{}".format(topic_id_map))
         return topic_id_map
 
@@ -979,7 +973,7 @@ class MongodbHistorian(BaseHistorian):
 
         # Hangs when using cursor as iterable.
         # See https://github.com/VOLTTRON/volttron/issues/643
-        for num in xrange(cursor.count()):
+        for num in range(cursor.count()):
             document = cursor[num]
             self._topic_id_map[document['topic_name'].lower()] = document[
                 '_id']
@@ -992,7 +986,7 @@ class MongodbHistorian(BaseHistorian):
         cursor = db[self._meta_collection].find()
         # Hangs when using cursor as iterable.
         # See https://github.com/VOLTTRON/volttron/issues/643
-        for num in xrange(cursor.count()):
+        for num in range(cursor.count()):
             document = cursor[num]
             self._topic_meta[document['topic_id']] = document['meta']
 
@@ -1002,7 +996,7 @@ class MongodbHistorian(BaseHistorian):
         self._client = mongoutils.get_mongo_client(self._connection_params,
                                                    minPoolSize=10)
         _log.info("Mongo client created with min pool size {}".format(
-                  self._client.min_pool_size))
+            self._client.min_pool_size))
         db = self._client.get_default_database()
         col_list = db.collection_names()
         create_index1 = True
@@ -1014,7 +1008,7 @@ class MongodbHistorian(BaseHistorian):
         # if data collection exists check if necessary indexes exists
         elif self._data_collection in col_list:
             index_info = db[self._data_collection].index_information()
-            index_list = [value['key'] for value in index_info.viewvalues()]
+            index_list = [value['key'] for value in index_info.values()]
             index_new_list = []
             for index in index_list:
                 keys = set()

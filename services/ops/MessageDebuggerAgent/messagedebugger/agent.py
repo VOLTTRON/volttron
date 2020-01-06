@@ -1,61 +1,44 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
-
-# Copyright (c) 2017, SLAC National Laboratory / Kisensum Inc.
-# All rights reserved.
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
+# Copyright 2019, Battelle Memorial Institute.
 #
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in
-#    the documentation and/or other materials provided with the
-#    distribution.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# http://www.apache.org/licenses/LICENSE-2.0
 #
-# The views and conclusions contained in the software and documentation
-# are those of the authors and should not be interpreted as representing
-# official policies, either expressed or implied, of the FreeBSD
-# Project.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
-# This material was prepared as an account of work sponsored by an
-# agency of the United States Government.  Neither the United States
-# Government nor the United States Department of Energy, nor SLAC / Kisensum,
-# nor any of their employees, nor any jurisdiction or organization that
-# has cooperated in the development of these materials, makes any
-# warranty, express or implied, or assumes any legal liability or
-# responsibility for the accuracy, completeness, or usefulness or any
-# information, apparatus, product, software, or process disclosed, or
-# represents that its use would not infringe privately owned rights.
-#
-# Reference herein to any specific commercial product, process, or
-# service by trade name, trademark, manufacturer, or otherwise does not
-# necessarily constitute or imply its endorsement, recommendation, or
+# This material was prepared as an account of work sponsored by an agency of
+# the United States Government. Neither the United States Government nor the
+# United States Department of Energy, nor Battelle, nor any of their
+# employees, nor any jurisdiction or organization that has cooperated in the
+# development of these materials, makes any warranty, express or
+# implied, or assumes any legal liability or responsibility for the accuracy,
+# completeness, or usefulness or any information, apparatus, product,
+# software, or process disclosed, or represents that its use would not infringe
+# privately owned rights. Reference herein to any specific commercial product,
+# process, or service by trade name, trademark, manufacturer, or otherwise
+# does not necessarily constitute or imply its endorsement, recommendation, or
 # favoring by the United States Government or any agency thereof, or
-# SLAC / Kisensum. The views and opinions of authors
-# expressed herein do not necessarily state or reflect those of the
+# Battelle Memorial Institute. The views and opinions of authors expressed
+# herein do not necessarily state or reflect those of the
 # United States Government or any agency thereof.
 #
+# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
+# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# under Contract DE-AC05-76RL01830
 # }}}
 
 import datetime
 from dateutil.parser import parse
 import gevent
-import json
 import logging
 import os
 import sys
@@ -69,6 +52,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker
 
 from volttron.platform.agent import utils
+from volttron.platform import jsonapi
 from volttron.platform.control import ControlConnection, KnownHostsStore, KeyStore
 from volttron.platform.vip.agent import Agent, RPC, Core
 from volttron.platform.vip.router import ERROR, UNROUTABLE, INCOMING, OUTGOING
@@ -172,7 +156,7 @@ class MessageDebuggerAgent(Agent):
 
                 if self._streaming_messages and self.allowed_by_filters(debug_message, ignore_session_id=True):
                     # Re-publish the DebugMessage (as json) for MessageViewer real-time consumption
-                    self.monitor_socket().send(json.dumps(debug_message.as_json_compatible_object()))
+                    self.monitor_socket().send(jsonapi.dumps(debug_message.as_json_compatible_object()))
 
             except Again:
                 if waiting_for_test_msg:
@@ -199,7 +183,7 @@ class MessageDebuggerAgent(Agent):
                 self.db_session().add(exch)
         try:
             self.db_session().commit()
-        except Exception, err:
+        except Exception as err:
             pass
 
     def allowed_by_filters(self, msg, ignore_session_id=False):
@@ -230,7 +214,7 @@ class MessageDebuggerAgent(Agent):
             elif prop == 'topic' and not str(getattr(msg, prop)).startswith(self._filters[prop]):
                 # Special-case filter: The filter value can be just the prefix portion of the message's topic
                 return False
-            elif prop == 'results_only' and msg.result in [u'', u'None']:
+            elif prop == 'results_only' and msg.result in ['', 'None']:
                 # Special-case filter: Filter out messages that lack a 'result' value
                 return False
             elif prop in msg.filtered_properties():
@@ -264,6 +248,7 @@ class MessageDebuggerAgent(Agent):
         else:
             return True
 
+    # TODO check out the id here
     @RPC.export
     def execute_db_query(self, db_object_name, filters=None):
         """
@@ -280,7 +265,11 @@ class MessageDebuggerAgent(Agent):
             count = self._filtered_query(db_object_name).count()
             if count > MAX_MESSAGES_AT_LOW_VERBOSITY:
                 return '{} results returned. Tighten filtering or raise verbosity to see message details.'.format(count)
+
         query_results = self._filtered_query(db_object_name).all()
+
+        _log.error([obj.as_json_compatible_object() for obj in query_results])
+
         if len(query_results) == 0:
             return 'No query results'
         else:
@@ -290,7 +279,7 @@ class MessageDebuggerAgent(Agent):
         """Set up a filtered database query."""
         db_object = globals()[db_object_name]
         query_results = self.db_session().query(db_object)
-        for key, value in self._filters.iteritems():
+        for key, value in self._filters.items():
             if key == 'starttime' and hasattr(db_object, 'timestamp'):      # for DebugMessage
                 query_results = query_results.filter(getattr(db_object, 'timestamp') >= value)
             if key == 'starttime' and hasattr(db_object, 'sender_time'):    # for DebugMessageExchange
@@ -305,9 +294,10 @@ class MessageDebuggerAgent(Agent):
                     query_results = query_results.filter(getattr(db_object, key).startswith(value))
                 else:
                     query_results = query_results.filter(getattr(db_object, key) == value)
+
         if 'results_only' in self._filters:
-            query_results = query_results.filter(db_object.result != u'')
-            query_results = query_results.filter(db_object.result != u'None')
+            query_results = query_results.filter(db_object.result != '')
+            query_results = query_results.filter(db_object.result != 'None')
         if 'freq' in self._filters and db_object_name != 'DebugSession':
             query_results = query_results.order_by(desc(db_object.rowid)).limit(1)
         return query_results
@@ -374,6 +364,7 @@ class MessageDebuggerAgent(Agent):
         _log.debug('Reporting details for DebugMessageExchange {}'.format(request_id))
         msg_db_object = globals()['DebugMessage']
         query_results = self.db_session().query(msg_db_object).filter(msg_db_object.request_id == request_id).all()
+        _log.error(query_results)
         if len(query_results) == 0:
             return 'No messages found for request ID {}'.format(request_id)
         else:
@@ -489,7 +480,7 @@ class MessageDebuggerAgent(Agent):
             ipc = 'ipc://{}'.format('@' if sys.platform.startswith('linux') else '')
             router_socket_address = ipc + self.vip_config_get('router_path')
             self._router_socket = zmq.Context().socket(zmq.SUB)
-            self._router_socket.setsockopt_string(zmq.SUBSCRIBE, u"")
+            self._router_socket.setsockopt_string(zmq.SUBSCRIBE, "")
             self._router_socket.set_hwm(100)            # Start dropping messages if queue backlog exceeds 100
             self._router_socket.bind(router_socket_address)
             _log.debug('Subscribing to router socket {}'.format(router_socket_address))
@@ -669,7 +660,7 @@ class DebugMessage(ORMBase):
         self.session_id = session_id
         self.timestamp = datetime.datetime.now()
         self.framecount = len(msg_elements)
-        self.direction = self.status_names[int(bytes(msg_elements[0]))]
+        self.direction = self.status_names[msg_elements[0]]
         self.sender = bytes(msg_elements[1])
         self.recipient = bytes(msg_elements[2])
         self.vip_signature = bytes(msg_elements[3])
@@ -695,7 +686,7 @@ class DebugMessage(ORMBase):
 
     def extract_data_fields(self):
         try:
-            data_dict = json.loads(str(self.data))
+            data_dict = jsonapi.loads(str(self.data))
         except ValueError:
             data_dict = None
         if type(data_dict) == dict:
@@ -757,7 +748,15 @@ class DebugMessage(ORMBase):
         att_dict = {}
         for attname in self.attribute_names:
             val = getattr(self, attname)
-            att_dict[attname] = format_time(val) if attname == 'timestamp' else val
+            if attname == 'timestamp':
+                att_dict[attname] = format_time(val)
+            else:
+                try:
+                    val = str(val, 'utf-8')
+                except TypeError:
+                    pass
+                finally:
+                    att_dict[attname] = val
         return att_dict
 
 

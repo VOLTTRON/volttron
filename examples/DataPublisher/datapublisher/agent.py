@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -67,7 +67,7 @@ __authors__ = ['Robert Lutes <robert.lutes@pnnl.gov>',
                'Kyle Monson <kyle.monson@pnnl.gov>',
                'Craig Allwardt <craig.allwardt@pnnl.gov>']
 __copyright__ = 'Copyright (c) 2016, Battelle Memorial Institute'
-__license__ = 'FreeBSD'
+__license__ = 'Apache 2.0'
 
 
 def DataPub(config_path, **kwargs):
@@ -193,7 +193,7 @@ class Publisher(Agent):
         if isinstance(self._input_data, list):
             if self._input_data:
                 item = self._input_data[0]
-                names = item.keys()
+                names = list(item.keys())
             self._data = self._input_data
         else:
             handle = open(self._input_data, 'rb')
@@ -208,7 +208,7 @@ class Publisher(Agent):
     @staticmethod
     def build_metadata(name_map, unittype_map):
         results = defaultdict(dict)
-        for topic, point in name_map.itervalues():
+        for topic, point in name_map.values():
             unit_type = Publisher._get_unit(point, unittype_map)
             results[topic][point] = unit_type
         return results
@@ -251,7 +251,7 @@ class Publisher(Agent):
 
     def build_publishes(self, row):
         results = defaultdict(dict)
-        for name, value in row.iteritems():
+        for name, value in row.items():
             topic, point = self._name_map[name]
             parsed_value = float(value)
             results[topic][point] = parsed_value
@@ -315,7 +315,7 @@ class Publisher(Agent):
 
                 _log.debug("Publishing data for timestamp: {}".format(now))
 
-                for topic, message in publish_dict.iteritems():
+                for topic, message in publish_dict.items():
                     self._publish_point_all(topic, message, self._meta_data, headers)
 
                 if self._remember_playback:
@@ -341,7 +341,7 @@ class Publisher(Agent):
 
     @RPC.export
     def set_point(self, requester_id, topic, value, **kwargs):
-        requester_id = bytes(self.vip.rpc.context.vip_message.peer)
+        requester_id = bytes(self.vip.rpc.context.vip_message.peer).decode("utf-8")
         _log.info("Set point: {} {} {}".format(requester_id, topic, value))
         return None
 
@@ -358,7 +358,7 @@ class Publisher(Agent):
 
     @RPC.export
     def request_new_schedule(self, requester_id, task_id, priority, requests):
-        requester_id = bytes(self.vip.rpc.context.vip_message.peer)
+        requester_id = bytes(self.vip.rpc.context.vip_message.peer).decode("utf-8")
         _log.info("Schedule requested: {} {} {} {}".format(requester_id, task_id, priority, requests))
         results = {'result': 'SUCCESS',
                    'data': {},
@@ -368,7 +368,7 @@ class Publisher(Agent):
 
     @RPC.export
     def request_cancel_schedule(self, requester_id, task_id):
-        requester_id = bytes(self.vip.rpc.context.vip_message.peer)
+        requester_id = bytes(self.vip.rpc.context.vip_message.peer).decode("utf-8")
         _log.info("Schedule canceled: {} {}".format(requester_id, task_id))
         results = {'result': 'SUCCESS',
                    'data': {},

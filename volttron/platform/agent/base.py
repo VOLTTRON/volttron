@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -38,7 +38,7 @@
 
 '''VOLTTRON platform™ base agent and helper classes/functions.'''
 
-from __future__ import absolute_import
+
 
 import random
 import string
@@ -47,20 +47,18 @@ import time as time_mod
 import zmq
 from zmq import POLLIN, POLLOUT
 
-import monotonic as clock
-
 from . import sched
 from .matching import iter_match_tests
 from .. import messaging
 from ..messaging import topics
-from volttron.platform.agent import json as jsonapi
+from volttron.platform import jsonapi
 
 
 __all__ = ['periodic', 'BaseAgent', 'PublishMixin']
 
 __author__ = 'Brandon Carpenter <brandon.carpenter@pnnl.gov>'
 __copyright__ = 'Copyright (c) 2016, Battelle Memorial Institute'
-__license__ = 'FreeBSD'
+__license__ = 'Apache 2.0'
 min_compatible_version = '1'
 max_compatible_version = '2'
 
@@ -68,7 +66,7 @@ _COOKIE_CHARS = string.ascii_letters + string.digits
 
 
 def random_cookie(length=40, choices=_COOKIE_CHARS):
-    return ''.join(random.choice(choices) for i in xrange(length))
+    return ''.join(random.choice(choices) for i in range(length))
 
 
 def remove_matching(test, items):
@@ -284,7 +282,7 @@ class BaseAgent(AgentBase):
         potentially causing the wait time to slip a bit.
         '''
         elapsed = 0.0
-        mono_time = clock.monotonic()
+        mono_time = time_mod.monotonic()
         while True:
             wall_time = time_mod.time()
             self._mono.execute(mono_time)
@@ -296,7 +294,7 @@ class BaseAgent(AgentBase):
             events = self.reactor.poll(delay)
             if events:
                 return events
-            last_time, mono_time = mono_time, clock.monotonic()
+            last_time, mono_time = mono_time, time_mod.monotonic()
             elapsed += mono_time - last_time
             if timeout is not None and elapsed >= timeout:
                 return []
@@ -320,10 +318,10 @@ class BaseAgent(AgentBase):
         except zmq.error.Again:
             return
         try:
-            # Iterate over items() rather than iteritems() so that
+            # Iterate over list(x.items()) rather than items() so that
             # handlers may subscribe and unsubscribe, which changes
             # the size of the _subscriptions dictionary.
-            for prefix, handlers in self._subscriptions.items():
+            for prefix, handlers in list(self._subscriptions.items()):
                 if topic.startswith(prefix):
                     for callback, test in handlers:
                         if not callback:
@@ -386,7 +384,7 @@ class BaseAgent(AgentBase):
             if handlers:
                 remove_handler(prefix, handlers)
         else:
-            for prefix, handlers in self._subscriptions.items():
+            for prefix, handlers in list(self._subscriptions.items()):
                 remove_handler(prefix, handlers)
 
     def unsubscribe_all(self, prefix):
@@ -428,7 +426,7 @@ class BaseAgent(AgentBase):
         parameters or to cancel using the cancel() method.
         '''
         timer = sched.Event(function, args, kwargs)
-        self._mono.schedule(clock.monotonic() + interval, timer)
+        self._mono.schedule(time_mod.monotonic() + interval, timer)
         return timer
 
     def periodic_timer(self, period, function, *args, **kwargs):
@@ -438,7 +436,7 @@ class BaseAgent(AgentBase):
         rearmed after the function completes.
         '''
         timer = sched.RecurringEvent(period, function, args, kwargs)
-        self._mono.schedule(clock.monotonic() + period, timer)
+        self._mono.schedule(time_mod.monotonic() + period, timer)
         return timer
 
 
@@ -467,7 +465,7 @@ class PublishMixin(AgentBase):
 
     def ping_back(self, callback, timeout=None, period=1):
         if timeout is not None:
-            start = clock.monotonic()
+            start = time_mod.monotonic()
         ping = topics.AGENT_PING(cookie=random_cookie())
         state = {}
         def finish(success):
@@ -476,7 +474,7 @@ class PublishMixin(AgentBase):
             callback(success)
         def send_ping():
             if timeout is not None:
-                if (clock.monotonic() - start) >= timeout:
+                if (time_mod.monotonic() - start) >= timeout:
                     finish(False)
             self.publish(ping, {})
         def on_ping(topic, headers, msg, match):

@@ -66,7 +66,7 @@ def temp_volttron_home(request):
     """
     dirpath = tempfile.mkdtemp()
     os.environ['VOLTTRON_HOME'] = dirpath
-    with open(os.path.join(dirpath, "platform_config.yml"), 'wb') as fp:
+    with open(os.path.join(dirpath, "platform_config.yml"), 'w') as fp:
         fp.write(PLATFORM_CONFIG)
 
     with open(os.path.join(dirpath, "config"), "w") as fp:

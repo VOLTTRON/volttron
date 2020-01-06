@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -63,7 +63,7 @@ __all__ = ['ResourceError', 'ExecutionEnvironment', 'ResourceMonitor']
 
 __author__ = 'Brandon Carpenter <brandon.carpenter@pnnl.gov>'
 __copyright__ = 'Copyright (c) 2016, Battelle Memorial Institute'
-__license__ = 'FreeBSD'
+__license__ = 'Apache 2.0'
 __version__ = '0.1'
 
 
@@ -130,7 +130,7 @@ class ExecutionEnvironment(object):
 
     def execute(self, *args, **kwargs):
         try:
-            self.process = subprocess.Popen(*args, **kwargs)
+            self.process = subprocess.Popen(*args, **kwargs, universal_newlines=True)
         except OSError as e:
             if e.filename:
                 raise
@@ -189,7 +189,7 @@ class ResourceMonitor(object):
         '''
         resources = self.get_static_resources()
         failed = {}
-        for name, value in contract.iteritems():
+        for name, value in contract.items():
             local_value = resources.get(name)
             if local_value != value:
                 failed[name] = local_value

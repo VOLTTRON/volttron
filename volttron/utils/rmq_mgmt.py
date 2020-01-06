@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -52,8 +52,8 @@ import requests
 from requests.packages.urllib3.connection import (ConnectionError,
                                                   NewConnectionError)
 from volttron.platform import certs
-from volttron.platform.agent import json as jsonapi
-from rmq_config_params import RMQConfig
+from volttron.platform import jsonapi
+from . rmq_config_params import RMQConfig
 
 try:
     import yaml
@@ -123,6 +123,7 @@ class RabbitMQMgmt(object):
             raise e
         return response
 
+    
     def _get_authentication_args(self, ssl_auth):
         """
         Return authentication kwargs for request/greqeust
@@ -237,7 +238,6 @@ class RabbitMQMgmt(object):
         if not password:
             password = self.rmq_config.default_pass
         ssl_auth = ssl_auth if ssl_auth is not None else self.is_ssl
-        # print "Creating new USER: {}, ssl {}".format(user, ssl)
 
         body = dict(password=password, tags=tags)
 
@@ -709,7 +709,7 @@ class RabbitMQMgmt(object):
             # Wait for few more seconds and retry again
             gevent.sleep(5)
             response = self.create_vhost(vhost, ssl_auth=False)
-            print "Cannot create vhost {}".format(vhost)
+            print(f"Cannot create vhost {vhost}")
             return response
 
         # Create admin user for the instance
@@ -814,9 +814,9 @@ class RabbitMQMgmt(object):
         :return:
         """
 
-        from urlparse import urlparse
+        from  urllib import parse
 
-        parsed_addr = urlparse(rmq_address)
+        parsed_addr = parse.urlparse(rmq_address)
         ssl_auth = ssl_auth if ssl_auth is not None else self.is_ssl
 
         _, virtual_host = parsed_addr.path.split('/')
@@ -936,7 +936,7 @@ class RabbitMQMgmt(object):
         permissions = self.get_default_permissions(rmq_user)
 
         if self.is_ssl:
-            self.rmq_config.crts.create_ca_signed_cert(rmq_user, overwrite=False)
+            self.rmq_config.crts.create_signed_cert_files(rmq_user, overwrite=False)
         param = None
 
         try:
@@ -971,8 +971,8 @@ class RabbitMQMgmt(object):
         self.create_user_with_permissions(rmq_user, permissions)
         ssl_params = None
         if is_ssl:
-            self.rmq_config.crts.create_ca_signed_cert(rmq_user,
-                                                       overwrite=False)
+            self.rmq_config.crts.create_signed_cert_files(rmq_user,
+                                                          overwrite=False)
             ssl_params = self.get_ssl_url_params(user=rmq_user)
         return self.build_rmq_address(rmq_user, self.rmq_config.admin_pwd,
                                       host, port, vhost, is_ssl, ssl_params)
@@ -991,7 +991,7 @@ class RabbitMQMgmt(object):
         permissions = dict(configure=".*", read=".*", write=".*")
 
         if self.is_ssl:
-            self.rmq_config.crts.create_ca_signed_cert(rmq_user, overwrite=False)
+            self.rmq_config.crts.create_signed_cert_files(rmq_user, overwrite=False)
 
         self.create_user_with_permissions(rmq_user, permissions, ssl_auth=self.is_ssl)
 

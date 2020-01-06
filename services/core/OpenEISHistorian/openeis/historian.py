@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -35,28 +35,19 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-from __future__ import absolute_import, print_function
+
 
 import datetime
-import errno
 import logging
-import os, os.path
-from pprint import pprint
-import sqlite3
 import sys
-import uuid
 
-import gevent
 import requests
 from requests import ConnectionError
 from volttron.utils.docs import doc_inherit
-from volttron.platform.agent import json as jsonapi
+from volttron.platform import jsonapi
 
-from volttron.platform.vip.agent import *
 from volttron.platform.agent.base_historian import BaseHistorian
 from volttron.platform.agent import utils
-from volttron.platform.messaging import topics, headers as headers_mod
-from twisted.spread.pb import respond
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)

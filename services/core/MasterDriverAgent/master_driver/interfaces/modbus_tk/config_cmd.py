@@ -1,65 +1,50 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
-
-# Copyright (c) 2017, SLAC National Laboratory / Kisensum Inc.
-# All rights reserved.
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
+# Copyright 2019, Battelle Memorial Institute.
 #
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in
-#    the documentation and/or other materials provided with the
-#    distribution.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# http://www.apache.org/licenses/LICENSE-2.0
 #
-# The views and conclusions contained in the software and documentation
-# are those of the authors and should not be interpreted as representing
-# official policies, either expressed or implied, of the FreeBSD
-# Project.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
-# This material was prepared as an account of work sponsored by an
-# agency of the United States Government.  Neither the United States
-# Government nor the United States Department of Energy, nor SLAC / Kisensum,
-# nor any of their employees, nor any jurisdiction or organization that
-# has cooperated in the development of these materials, makes any
-# warranty, express or implied, or assumes any legal liability or
-# responsibility for the accuracy, completeness, or usefulness or any
-# information, apparatus, product, software, or process disclosed, or
-# represents that its use would not infringe privately owned rights.
-#
-# Reference herein to any specific commercial product, process, or
-# service by trade name, trademark, manufacturer, or otherwise does not
-# necessarily constitute or imply its endorsement, recommendation, or
+# This material was prepared as an account of work sponsored by an agency of
+# the United States Government. Neither the United States Government nor the
+# United States Department of Energy, nor Battelle, nor any of their
+# employees, nor any jurisdiction or organization that has cooperated in the
+# development of these materials, makes any warranty, express or
+# implied, or assumes any legal liability or responsibility for the accuracy,
+# completeness, or usefulness or any information, apparatus, product,
+# software, or process disclosed, or represents that its use would not infringe
+# privately owned rights. Reference herein to any specific commercial product,
+# process, or service by trade name, trademark, manufacturer, or otherwise
+# does not necessarily constitute or imply its endorsement, recommendation, or
 # favoring by the United States Government or any agency thereof, or
-# SLAC / Kisensum. The views and opinions of authors
-# expressed herein do not necessarily state or reflect those of the
+# Battelle Memorial Institute. The views and opinions of authors expressed
+# herein do not necessarily state or reflect those of the
 # United States Government or any agency thereof.
 #
+# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
+# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# under Contract DE-AC05-76RL01830
 # }}}
 
-from __future__ import print_function
+
 from master_driver.interfaces.modbus_tk.helpers import str2bool
 
 import cmd
 import yaml
 import os
-import json
 import subprocess32
+
+from volttron.platform import jsonapi
 
 
 class VolttronException(Exception):
@@ -152,10 +137,10 @@ class ConfigCmd (cmd.Cmd):
                 print("The directory {0} '{1}' does not exist".format(dir_type,
                                                                       dir))
                 print("Change to another directory [y/n]: ", end='')
-                option = raw_input().lower()
+                option = input().lower()
                 if option and str2bool(option):
                     print("Enter the new {0} directory: ".format(dir_type), end='')
-                    dir = raw_input()
+                    dir = input()
                 else:
                     return None
             else:
@@ -187,7 +172,7 @@ class ConfigCmd (cmd.Cmd):
                             print("\nPlease select an option: \n"
                                   "1: Change map_dir: '{0}' to another directory \n"
                                   "2: Add maps.yaml to the directory {0}".format(file_dir))
-                            option = raw_input()
+                            option = input()
                             if option not in ("1", "2"):
                                 print("Undefined option")
                                 self.do_quit('')
@@ -205,7 +190,7 @@ class ConfigCmd (cmd.Cmd):
                                   "3: Add {2} to the directory {1}".format(file_type,
                                                                            file_dir,
                                                                            file_name))
-                            option = raw_input()
+                            option = input()
                             if option not in ('1', '2', '3'):
                                 print("Undefined option")
                                 self.do_quit('')
@@ -216,7 +201,7 @@ class ConfigCmd (cmd.Cmd):
                                         ', '.join([f for f in os.listdir(file_dir) if f.endswith(file_type)]))
                                     )
                                     print("Enter another {0} file: ".format(file_type), end='')
-                                    file_name = raw_input()
+                                    file_name = input()
                                     file_name = file_name if file_name.endswith(file_type) else "{0}.{1}".format(
                                         file_name,
                                         file_type)
@@ -237,7 +222,7 @@ class ConfigCmd (cmd.Cmd):
         except IndexError:
             print("Please include the file type for the file, for example: watts_on.csv.")
             print("Enter a new file: ", end='')
-            return self.get_existed_file(file_dir, raw_input())
+            return self.get_existed_file(file_dir, input())
 
     ##########################
     #  Directories Commands  #
@@ -260,7 +245,7 @@ class ConfigCmd (cmd.Cmd):
             print("{0:22} | {1}".format(dir_type_map[dir_key], self._directories[dir_key]))
 
         print("\nDo you want to edit directories [y/n]? Press <Enter> to exit: ", end='')
-        option = raw_input().lower()
+        option = input().lower()
         if option and str2bool(option):
             self.do_edit_directories('')
 
@@ -277,7 +262,7 @@ class ConfigCmd (cmd.Cmd):
         if not line:
             for dir_key in self._directories.keys():
                 print("Enter the directory path for {0}. Press <Enter> if no change needed: ".format(dir_key), end='')
-                dir_path = raw_input()
+                dir_path = input()
                 dir = self.get_existed_directory(dir_path, dir_key) if dir_path else None
                 if not dir or dir == self._directories[dir_key]:
                     print("No change made to '{0}'".format(dir_key))
@@ -288,10 +273,10 @@ class ConfigCmd (cmd.Cmd):
                 print("Directory type '{0}' does not exist".format(line))
                 print("Please select another directory type from: {0}".format([k for k in self._directories.keys()]))
                 print("Enter a directory type. Press <Enter> if edit all: ", end='')
-                self.do_edit_directories(raw_input().lower())
+                self.do_edit_directories(input().lower())
             else:
                 print("Enter the directory path for {0}. Press <Enter> if no change needed: ".format(line), end='')
-                dir_path = raw_input()
+                dir_path = input()
                 dir = self.get_existed_directory(dir_path, line) if dir_path else None
                 if not dir or dir == self._directories[line]:
                     print("No change made to {0}".format(line))
@@ -312,23 +297,23 @@ class ConfigCmd (cmd.Cmd):
         self.get_device_type_descriptions()
 
         print("\nDo you want to edit a device type description [y/n]? Press <Enter> to exit: ", end='')
-        option = raw_input().lower()
+        option = input().lower()
         existed = False
         if option and str2bool(option):
             while not existed:
                 print("Enter a device type: ", end='')
-                device_type = raw_input()
+                device_type = input()
                 for t in self._device_type_maps:
                     if t['name'] == device_type:
                         existed = True
                         print("Enter the description for {0}: ".format(device_type), end='')
-                        t['description'] = raw_input()
+                        t['description'] = input()
                         self.write_to_map_yaml()
                         self.do_list_device_type_description('')
                 if not existed:
                     print("Device type {0} does not exit. Do you want to choose another device type [y/n]. "
                           "Press <Enter> to exit: ".format(device_type), end='')
-                    option = raw_input().lower()
+                    option = input().lower()
                     if not option or not str2bool(option):
                         existed = True
 
@@ -346,7 +331,7 @@ class ConfigCmd (cmd.Cmd):
                         print("{0:25} | {1}".format(k, device_type[k]))
 
             print('\nDo you want to add or edit a device type [add/edit]? Press <Enter> to exit: ', end='')
-            option = raw_input().lower()
+            option = input().lower()
             if option == 'add':
                 self.do_add_device_type('')
             elif option == 'edit':
@@ -368,7 +353,7 @@ class ConfigCmd (cmd.Cmd):
         if not name:
             self.get_device_type_descriptions()
             print("\nEnter a device type: ", end='')
-            name = raw_input()
+            name = input()
 
         for device_type in self._device_type_maps:
             if device_type.get('name', None) == name:
@@ -382,7 +367,7 @@ class ConfigCmd (cmd.Cmd):
             print("Device type '{0}' does not exist".format(name))
 
         print("\nDo you want to select another device type [y/n]? Press <Enter> to exit: ", end='')
-        option = raw_input().lower()
+        option = input().lower()
         if option and str2bool(option):
             self.do_device_type('')
 
@@ -411,42 +396,42 @@ class ConfigCmd (cmd.Cmd):
 
         if not device_type_name:
             print('\nEnter device type: ', end='')
-            device_type_name = raw_input().lower()
+            device_type_name = input().lower()
 
         yaml_file = self.get_existed_file(self._directories['map_dir'], 'maps.yaml')
         if yaml_file:
             for device_type in self._device_type_maps:
                 if device_type.get('name', None) == device_type_name:
                     print("Device type {0} already existed. Edit it [y/n]: ".format(device_type_name), end='')
-                    option = raw_input().lower()
+                    option = input().lower()
                     if option and str2bool(option):
                         edit = True
                         self.do_edit_device_type(device_type_name)
                     else:
                         print("Please choose another name: ", end='')
-                        self.do_add_device_type(raw_input().lower())
+                        self.do_add_device_type(input().lower())
 
         if not edit:
             print('Endian (default to big): ', end='')
-            endian = raw_input().lower()
+            endian = input().lower()
             if endian not in ('big', 'little', 'mixed'):
                 endian = 'big'
 
             print('Addressing (default to offset): ', end='')
-            addressing = raw_input().lower()
+            addressing = input().lower()
             if addressing not in ('offset', 'offset_plus', 'address'):
                 addressing = 'offset'
 
             print('Write multiple registers (default to True) [T/F]: ', end='')
-            write_multiple_registers = False if raw_input().lower() in ("f", "false") else True
+            write_multiple_registers = False if input().lower() in ("f", "false") else True
 
             print('CSV file: ', end='')
-            csv_file = raw_input()
+            csv_file = input()
             csv_file = csv_file if csv_file.endswith('.csv') else "{0}.csv".format(csv_file)
             csv_file = self.get_existed_file(self._directories['csv_dir'], csv_file)
 
             print('Description: ', end='')
-            description = raw_input()
+            description = input()
 
             # Add the new driver to self._device_type_maps
             self._device_type_maps.append(dict(
@@ -460,7 +445,7 @@ class ConfigCmd (cmd.Cmd):
 
         # Option to add more
         print('\nDo you want to add more device type [y/n]? Press <Enter> to exit: ', end='')
-        option = raw_input().lower()
+        option = input().lower()
         if option and str2bool(option):
             self.do_add_device_type('')
         else:
@@ -482,7 +467,7 @@ class ConfigCmd (cmd.Cmd):
             # Print all device types in maps.yaml
             self.get_device_type_descriptions()
             print('\nEnter a device type name you want to edit. Press <Enter> to exit: ', end='')
-            device_type_name = raw_input().lower()
+            device_type_name = input().lower()
 
         existed = False
         edited = False
@@ -494,32 +479,32 @@ class ConfigCmd (cmd.Cmd):
                     existed = True
 
                     print('Change driver type name: ', end='')
-                    new_name = raw_input().lower()
+                    new_name = input().lower()
                     if new_name and new_name != device_type['name']:
                         device_type['name'] = new_name
                         edited = True
 
                     print('Change endian: ', end='')
-                    new_endian = raw_input().lower()
+                    new_endian = input().lower()
                     if new_endian in ('big', 'little', 'mixed') and new_endian != device_type['endian']:
                         device_type['endian'] = new_endian
                         edited = True
 
                     print('Change addressing: ', end='')
-                    new_addressing = raw_input().lower()
+                    new_addressing = input().lower()
                     if new_addressing in ('offset', 'offset_plus', 'address') \
                             and new_addressing != device_type['addressing']:
                         device_type['addressing'] = new_addressing
                         edited = True
 
                     print('Change write multiple registers option [T/F]: ', end='')
-                    new_write_multiple_registers = False if raw_input().lower() in ("f", "false") else True
+                    new_write_multiple_registers = False if input().lower() in ("f", "false") else True
                     if new_write_multiple_registers != device_type.get('write_multiple_registers', "True"):
                         device_type['write_multiple_registers'] = new_write_multiple_registers
                         edited = True
 
                     print('Change CSV file: ', end='')
-                    new_file = raw_input().lower()
+                    new_file = input().lower()
                     if new_file:
                         new_file = self.get_existed_file(self._directories['csv_dir'], new_file)
                     if new_file and new_file != device_type['file']:
@@ -527,7 +512,7 @@ class ConfigCmd (cmd.Cmd):
                         edited = True
 
                     print('Change Description: ', end='')
-                    new_description = raw_input()
+                    new_description = input()
                     if new_description and new_description != device_type['description']:
                         device_type['description'] = new_description
                         edited = True
@@ -539,7 +524,7 @@ class ConfigCmd (cmd.Cmd):
                 print("Device type name '{0}' does not exist".format(device_type_name))
 
             print("Do you want to edit another device [y/n]? Press <Enter> to exit: ", end='')
-            option = raw_input().lower()
+            option = input().lower()
             if option and str2bool(option):
                 self.do_edit_device_type('')
 
@@ -570,7 +555,7 @@ class ConfigCmd (cmd.Cmd):
         if not driver_name:
             self.do_list_drivers('')
             print("\nEnter the driver name: ", end='')
-            driver_name = raw_input()
+            driver_name = input()
 
         existed = False
         config_dir = self.get_existed_directory(self._directories['config_dir'], 'config_dir')
@@ -579,7 +564,7 @@ class ConfigCmd (cmd.Cmd):
                 if f.endswith('.config') and f.split('.')[0] == driver_name:
                     existed = True
                     with open("{0}/{1}.config".format(config_dir, driver_name), 'r') as config_file:
-                        config_dict = json.load(config_file)
+                        config_dict = jsonapi.load(config_file)
                         print("\nDRIVER: {0}".format(driver_name.upper()))
                         for k in config_dict.keys():
                             if k != 'driver_config':
@@ -634,7 +619,7 @@ class ConfigCmd (cmd.Cmd):
         if not device_type_name:
             self.get_device_type_descriptions()
             print('\nEnter device type name: ', end='')
-            device_type_name = raw_input().lower()
+            device_type_name = input().lower()
         for device in self._device_type_maps:
             if device.get('name', None) == device_type_name:
                 device_type = device
@@ -642,7 +627,7 @@ class ConfigCmd (cmd.Cmd):
         # If device type exist, add driver config
         if device_type:
             print("Enter driver name: ", end='')
-            name = raw_input().lower()
+            name = input().lower()
             config_dir = self.get_existed_directory(self._directories['config_dir'], 'config_dir')
             if config_dir:
                 cont = True
@@ -653,41 +638,41 @@ class ConfigCmd (cmd.Cmd):
                             self.do_driver_config(name)
                             print("Driver '{0}' already existed. Continue to edit the driver [y/n]: ".format(name),
                                   end='')
-                            option = raw_input().lower()
+                            option = input().lower()
                             if not option or not str2bool(option):
                                 print("Please choose a different driver name OR press <Enter> to quit: ", end='')
-                                name = raw_input().lower()
+                                name = input().lower()
                                 if not name:
                                     self.do_quit('')
                                 cont = True
 
             print('Enter interval (default to 60 seconds): ', end='')
             try:
-                interval = int(raw_input())
+                interval = int(input())
             except ValueError:
                 interval = 60
 
             print('Enter device address: ', end='')
-            device_address = raw_input().lower()
+            device_address = input().lower()
 
             print('Enter port (default to 5020 - 0 for no port): ', end='')
             try:
-                port = int(raw_input())
+                port = int(input())
             except ValueError:
                 port = 5020
 
             print('Enter description: ', end='')
-            description = raw_input()
+            description = input()
 
             addressing = device_type.get('addressing', 'offset')
 
             endian = device_type.get('endian', 'big')
             print("Default endian for the selected device type '{0}' is '{1}'. Do you want to change it [y/n]: ".format(
                 device_type_name, endian), end='')
-            option = raw_input().lower()
+            option = input().lower()
             if option and str2bool(option):
                 print('Enter new endian. Press <Enter> if no change needed: ', end='')
-                new_endian = raw_input().lower()
+                new_endian = input().lower()
                 if new_endian in ('big', 'little', 'mixed'):
                     endian = new_endian
 
@@ -696,7 +681,7 @@ class ConfigCmd (cmd.Cmd):
             csv_map = self.get_existed_file(self._directories['csv_dir'], device_type.get('file'))
 
             print('Enter CSV config file: ', end='')
-            csv_config = raw_input()
+            csv_config = input()
             csv_config = csv_config if csv_config.endswith('.csv') else "{0}.csv".format(csv_config)
             csv_config = self.get_existed_file(self._directories['csv_dir'], csv_config)
 
@@ -720,36 +705,36 @@ class ConfigCmd (cmd.Cmd):
             if not port:
                 print('Enter slave id (default to 1): ', end='')
                 try:
-                    slave_id = int(raw_input())
+                    slave_id = int(input())
                 except ValueError:
                     slave_id = 1
 
                 print('Enter baudrate (default to 9600): ', end='')
                 try:
-                    baudrate = int(raw_input())
+                    baudrate = int(input())
                 except ValueError:
                     baudrate = 9600
 
                 print('Enter bytesize (default to 8): ', end='')
                 try:
-                    bytesize = int(raw_input())
+                    bytesize = int(input())
                 except ValueError:
                     bytesize = 8
 
                 print('Enter bytesize (default to none): ', end='')
-                parity = raw_input()
+                parity = input()
                 if parity not in ('none', 'even', 'odd', 'mark', 'space'):
                     parity = 'none'
 
                 print('Enter stopbits (default to 1): ', end='')
                 try:
-                    stopbits = int(raw_input())
+                    stopbits = int(input())
                 except ValueError:
                     stopbits = 1
 
                 print('Enter xonxoff (default to 0): ', end='')
                 try:
-                    xonxoff = int(raw_input())
+                    xonxoff = int(input())
                 except ValueError:
                     xonxoff = 0
 
@@ -763,7 +748,7 @@ class ConfigCmd (cmd.Cmd):
                 })
 
             with open("{0}/{1}.config".format(self._directories['config_dir'], name), 'w') as config_file:
-                json.dump(driver_config, config_file, indent=2)
+                jsonapi.dump(driver_config, config_file, indent=2)
 
         else:
             print("Device type '{0}' does not exist".format(device_type_name))
@@ -782,7 +767,7 @@ class ConfigCmd (cmd.Cmd):
             print("\nList of all existed drivers in the selected config directory: ")
             self.do_list_drivers('')
             print("\nEnter driver name: ", end='')
-            driver_name = raw_input().lower()
+            driver_name = input().lower()
 
         # Load driver config
         config_file = self.get_existed_file(self._directories['config_dir'], "{0}.config".format(driver_name))
@@ -796,7 +781,7 @@ class ConfigCmd (cmd.Cmd):
             self.do_load_volttron(driver_name)
 
         with open(config_path, 'r') as config_file:
-            driver_config = json.load(config_file)
+            driver_config = jsonapi.load(config_file)
 
         csv_config = driver_config['registry_config'].split('//')[1]
         csv_map = driver_config['driver_config']['register_map'].split('//')[1]
@@ -834,12 +819,12 @@ class ConfigCmd (cmd.Cmd):
             for d in drivers.keys():
                 print("{0:15} | {1}".format(d, drivers[d]))
             print ("\nEnter driver name to delete: ", end='')
-            driver_name = raw_input()
+            driver_name = input()
 
         if driver_name not in drivers:
             print("\nDriver name '{0}' does not exist".format(driver_name))
             print("Do you want to select another driver to delete [y/n]? Press <Enter> to exit: ", end='')
-            option = raw_input().lower()
+            option = input().lower()
             if option and str2bool(option):
                 self.do_delete_volttron_config('')
         else:
@@ -862,13 +847,13 @@ class ConfigCmd (cmd.Cmd):
             for csv in csv_files:
                 print(csv)
             print("\nEnter driver name to delete: ", end='')
-            csv_name = raw_input()
+            csv_name = input()
             csv_name = "{0}.csv".format(csv_name) if not csv_name.endswith('.csv') else csv_name
 
         if csv_name not in csv_files:
             print("\nRegistry CSV config '{0}' does not exist".format(csv_name))
             print("Do you want to select another registry csv config to delete [y/n]? Press <Enter> to exit: ", end='')
-            option = raw_input().lower()
+            option = input().lower()
             if option and str2bool(option):
                 self.do_delete_volttron_csv('')
         else:

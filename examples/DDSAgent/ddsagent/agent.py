@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -59,7 +59,7 @@ class DDSAgent(Agent):
 
         config = utils.load_config(config_path)
 
-        for typename, type_config in config.iteritems():
+        for typename, type_config in config.items():
             participant_name = type_config['participant_name']
             xml_config_path = type_config['xml_config_path']
             publisher_name = type_config['publisher_name']

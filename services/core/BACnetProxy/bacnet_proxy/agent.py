@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -41,7 +41,7 @@ import sys
 import datetime
 
 from volttron.platform.vip.agent import Agent, Core, RPC
-from volttron.platform.async import AsyncCall
+from volttron.platform.async_ import AsyncCall
 from volttron.platform.agent import utils
 from volttron.platform.messaging import topics, headers
 
@@ -54,7 +54,7 @@ __version__ = '0.5'
 
 from collections import defaultdict
 
-from Queue import Queue, Empty
+from queue import Queue, Empty
 
 from bacpypes.task import RecurringTask
 
@@ -203,7 +203,7 @@ class BACnet_application(BIPSimpleApplication, RecurringTask):
 
         try:
             self.request(apdu)
-        except StandardError as e:
+        except Exception as e:
             iocb.set_exception(e)
 
     def _get_iocb_key_for_apdu(self, apdu):
@@ -270,13 +270,13 @@ class BACnet_application(BIPSimpleApplication, RecurringTask):
                     issubclass(datatype.subtype, Choice)):
                 new_value = []
                 for item in value.value[1:]:
-                    result = item.dict_contents().values()
+                    result = list(item.dict_contents().values())
                     if result[0] != ():
                         new_value.append(result[0])
                     else:
                         new_value.append(None)
                 value = new_value
-        except StandardError as e:
+        except Exception as e:
             _log.exception(e)
             working_iocb.set_exception(e)
             return
@@ -300,7 +300,7 @@ class BACnet_application(BIPSimpleApplication, RecurringTask):
                            "{}".format(apdu.pduSource))
                 subscription = None
                 subscription_id = -1
-                for key, sub in self.sub_cov_contexts.iteritems():
+                for key, sub in self.sub_cov_contexts.items():
                     if sub.device_address == apdu.pduSource and (
                             sub.monitoredObjectIdentifier[0] ==
                             apdu.objectIdentifier[0] and
@@ -730,7 +730,7 @@ class BACnetProxyAgent(Agent):
     def read_using_single_request(self, target_address, point_map):
         results = {}
 
-        for point, properties in point_map.iteritems():
+        for point, properties in point_map.items():
             if len(properties) == 3:
                 object_type, instance_number, property_name = properties
                 property_index = None
@@ -787,7 +787,7 @@ class BACnetProxyAgent(Agent):
         # Used to group properties together for the request.
         object_property_map = defaultdict(list)
 
-        for name, properties in point_map.iteritems():
+        for name, properties in point_map.items():
             if len(properties) == 3:
                 (object_type, instance_number,
                  property_name) = properties
@@ -834,7 +834,7 @@ class BACnetProxyAgent(Agent):
         while not finished:
             read_access_spec_list = []
             count = 0
-            for _ in xrange(max_per_request):
+            for _ in range(max_per_request):
                 try:
                     obj_data, properties = object_property_map.popitem()
                 except KeyError:
@@ -861,7 +861,7 @@ class BACnetProxyAgent(Agent):
                             "{count}").format(count=count,
                                               target=target_address))
 
-                for prop_tuple, value in bacnet_results.iteritems():
+                for prop_tuple, value in bacnet_results.items():
                     name = reverse_point_map[prop_tuple]
                     result_dict[name] = value
 
@@ -895,7 +895,7 @@ class BACnetProxyAgent(Agent):
         # if a subscription exists, send a cov subscription request
         # otherwise check the point's covIncrement
         subscription = None
-        for check_sub in self.this_application.sub_cov_contexts.itervalues():
+        for check_sub in self.this_application.sub_cov_contexts.values():
             if check_sub.point_name == point_name and \
                     check_sub.monitoredObjectIdentifier == (object_type, instance_number):
                 subscription = check_sub

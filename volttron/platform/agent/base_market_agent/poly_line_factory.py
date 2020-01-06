@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -80,8 +80,6 @@ class PolyLineFactory(object):
         # this is assuming that price decreases with increase in demand (buyers!)
         # but seems to work with multiple suppliers?
         ys = sorted(np.linspace(minY, maxY, num=increment), reverse=True)
-        # print ys
-        # print minY, maxY
 
         # now find the cumulative x associated with each y in the array
         # starting with the highest y
@@ -89,7 +87,7 @@ class PolyLineFactory(object):
             xt = None
             for line in lines:
                 x = line.x(y, left=np.nan)
-                # print x, y
+
                 if x is not None:
                     xt = x if xt is None else xt + x
             composite.add(Point(xt, y))

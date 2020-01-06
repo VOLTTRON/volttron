@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -38,14 +38,14 @@
 
 '''VOLTTRON platform™ messaging utilities.'''
 
-from string import Formatter
+from string import _string, Formatter
 
 
 __all__ = ['normtopic', 'Topic']
 
 __author__ = 'Brandon Carpenter <brandon.carpenter@pnnl.gov>'
 __copyright__ = 'Copyright (c) 2016, Battelle Memorial Institute'
-__license__ = 'FreeBSD'
+__license__ = 'Apache 2.0'
 
 
 def normtopic(topic):
@@ -60,7 +60,7 @@ def normtopic(topic):
             comps.pop()
         else:
             comps.append(comp)
-    return (u'/' if isinstance(topic, unicode) else '/').join(comps)
+    return '/'.join(comps)
 
 
 class TopicFormatter(Formatter):
@@ -93,7 +93,7 @@ class TopicFormatter(Formatter):
     See the Formatter documentation for the built-in string module for
     more information on formatters and the role of each method.
     '''
-    def _vformat(self, format_string, args, kwargs, used_args, recursion_depth):
+    def _vformat(self, format_string, args, kwargs, used_args, recursion_depth, auto_arg_index=0):
         if recursion_depth < 0:
             raise ValueError('maximum string recursion exceeded')
         result = []
@@ -128,11 +128,11 @@ class TopicFormatter(Formatter):
                         ':' if format_spec else '', format_spec or '')
             else:
                 obj = self.convert_field(obj, conversion)
-                format_spec = self._vformat(format_spec, args, kwargs,
+                format_spec, auto_arg_index = self._vformat(format_spec, args, kwargs,
                                             used_args, recursion_depth - 1)
                 obj = self.format_field(obj, format_spec)
             result.append(obj)
-        return ''.join(result)
+        return ''.join(result), auto_arg_index
 
     def check_unused_args(self, used_args, args, kwargs):
         for name in kwargs:
@@ -140,15 +140,15 @@ class TopicFormatter(Formatter):
                 raise ValueError('unused keyword argument: {}'.format(name))
 
 
-class Topic(unicode):
+class Topic(str):
 
     def __init__(self, format_string):
         '''Perform minimal validation of names used in format fields.'''
-        for _, name, _, _ in format_string._formatter_parser():
+        for _, name, _, _ in _string.formatter_parser(format_string):
             if name is None:
                 continue
-            name, _ = name._formatter_field_name_split()
-            if isinstance(name, (int, long)) or not name:
+            name, _ = _string.formatter_field_name_split(name)
+            if isinstance(name, int) or not name:
                 raise ValueError('positional format fields are not supported;'
                                  ' use named format fields only')
             if name[:1].isdigit():

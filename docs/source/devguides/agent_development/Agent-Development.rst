@@ -3,7 +3,7 @@
 Agent Creation Walkthrough
 --------------------------
 
-The VOLTTRON platfrom now has utilities to speed the creation and installation
+The VOLTTRON platform now has utilities to speed the creation and installation
 of new agents. To use these utilities the VOLTTRON environment must be activated.
 
 From the project directory, activate the VOLTTRON environment with:
@@ -169,7 +169,7 @@ packaged configuration file. The subscribe method tells our agent which function
 to call whenever there is a new or updated config file. For more information
 on using the configuration store see :doc:`Agent Configuration Store <Agent-Configuration-Store>`
 
-`_create_subscriptions` (convered in the next section) will use the value in self.setting2
+`_create_subscriptions` (covered in the next section) will use the value in self.setting2
 to create a new subscription.
 
 Setting up a Subscription

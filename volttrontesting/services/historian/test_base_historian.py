@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -37,10 +37,8 @@
 # }}}
 
 import shutil
-import json
 
-
-from volttron.platform import get_services_core
+from volttron.platform import get_services_core, jsonapi
 
 from volttron.platform.agent.base_historian import (BaseHistorian,
                                                     STATUS_KEY_BACKLOGGED,
@@ -58,11 +56,14 @@ import random
 import gevent
 import os
 
+
 class Historian(BaseHistorian):
-    def publish_to_historian(self,_):
+    def publish_to_historian(self, _):
         pass
+
     def query_topic_list(self):
         pass
+
     def query_historian(self):
         pass
 
@@ -73,11 +74,11 @@ def prep_config(volttron_home):
     shutil.copy(src_driver, new_driver)
 
     with open(new_driver, 'r+') as f:
-        config = json.load(f)
+        config = jsonapi.load(f)
         config['registry_config'] = os.getcwd() + '/services/core/MasterDriverAgent/master_driver/fake.csv'
         f.seek(0)
         f.truncate()
-        json.dump(config, f)
+        jsonapi.dump(config, f)
 
     master_config = {
         "agentid": "master_driver",
@@ -88,6 +89,8 @@ def prep_config(volttron_home):
 
 
 foundtopic = False
+
+
 def listener(peer, sender, bus, topic, headers, message):
     global foundtopic
     foundtopic = True
@@ -111,7 +114,7 @@ def test_base_historian(volttron_instance):
 
     agent = v1.build_agent()
     gevent.sleep(2)
-    agent.vip.pubsub.subscribe('pubsub' ,'backupdb/nomore', callback=listener)
+    agent.vip.pubsub.subscribe('pubsub', 'backupdb/nomore', callback=listener)
 
     for _ in range(0, 60):
         gevent.sleep(1)
@@ -128,7 +131,6 @@ class BasicHistorian(BaseHistorian):
         self.publish_sleep = 0
         self.seen = []
 
-
     def publish_to_historian(self, to_publish_list):
         self.seen.extend(to_publish_list)
 
@@ -142,10 +144,11 @@ class BasicHistorian(BaseHistorian):
         self.seen = []
 
     def query_historian(self, topic, start=None, end=None, agg_type=None,
-          agg_period=None, skip=0, count=None, order="FIRST_TO_LAST"):
+                        agg_period=None, skip=0, count=None, order="FIRST_TO_LAST"):
         """Not implemented
         """
         raise NotImplemented("query_historian not implimented for null historian")
+
 
 @pytest.fixture(scope="module")
 def client_agent(request, volttron_instance):
@@ -155,7 +158,8 @@ def client_agent(request, volttron_instance):
 
 alert_publishes = []
 
-def message_handler(peer, sender, bus,  topic, headers, message):
+
+def message_handler(peer, sender, bus, topic, headers, message):
     alert_publishes.append(Status.from_json(message))
 
 
@@ -200,7 +204,7 @@ def test_health_stuff(request, volttron_instance, client_agent):
                         }]
 
         # Create timestamp
-        now = utils.format_timestamp( datetime.utcnow() )
+        now = utils.format_timestamp(datetime.utcnow())
 
         # now = '2015-12-02T00:00:00'
         headers = {
@@ -258,9 +262,9 @@ def test_health_stuff(request, volttron_instance, client_agent):
         assert not status["context"][STATUS_KEY_CACHE_FULL]
         assert not bool(status["context"][STATUS_KEY_CACHE_COUNT])
 
-        #Test publish slow or backlogged
+        # Test publish slow or backlogged
 
-        historian.publish_sleep = 0.75
+        historian.publish_sleep = 1
 
         for _ in range(1500):
             client_agent.vip.pubsub.publish('pubsub',
@@ -299,6 +303,7 @@ def test_health_stuff(request, volttron_instance, client_agent):
         if historian:
             historian.core.stop()
 
+
 class FailureHistorian(BaseHistorian):
     def __init__(self, **kwargs):
         super(FailureHistorian, self).__init__(**kwargs)
@@ -313,7 +318,7 @@ class FailureHistorian(BaseHistorian):
 
     def publish_to_historian(self, to_publish_list):
         if self.publish_fail:
-            raise StandardError("Failed to publish.")
+            raise Exception("Failed to publish.")
 
         self.seen.extend(to_publish_list)
         self.report_all_handled()
@@ -336,18 +341,18 @@ class FailureHistorian(BaseHistorian):
 
     def historian_setup(self):
         if self.setup_fail:
-            raise StandardError("Failed to setup.")
+            raise Exception("Failed to setup.")
 
         self.setup_run = True
 
     def record_table_definitions(self, meta_table_name):
         if self.record_fail:
-            raise StandardError("Failed to record table definitions")
+            raise Exception("Failed to record table definitions")
         self.record_run = True
 
     def historian_teardown(self):
         if self.teardown_fail:
-            raise StandardError("Failed to teardown.")
+            raise Exception("Failed to teardown.")
 
         self.teardown_run = True
 
@@ -713,4 +718,3 @@ def test_restricting_topics(request, volttron_instance, client_agent):
     finally:
         if historian:
             historian.core.stop()
-            

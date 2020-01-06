@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -38,13 +38,14 @@
 
 import logging
 import os
-import requests
-import urlparse
+import grequests
+
+from urllib.parse import urlparse
 import weakref
 
 from .base import SubsystemBase
 
-import json
+from volttron.platform import jsonapi
 from volttron.platform.agent.known_identities import AUTH
 from volttron.platform.keystore import KnownHostsStore
 from volttron.platform.agent.utils import get_platform_instance_name, get_fq_identity, get_messagebus
@@ -107,7 +108,7 @@ class Auth(SubsystemBase):
         if agent_class is None:
             agent_class = Agent
 
-        parsed_address = urlparse.urlparse(address)
+        parsed_address = urlparse(address)
         _log.debug("Begining auth.connect_remote_platform: {}".format(address))
 
         value = None
@@ -216,10 +217,10 @@ class Auth(SubsystemBase):
                         if get_messagebus() == 'rmq':
                             if not os.path.exists("keystore.json"):
                                 with open("keystore.json", 'w') as fp:
-                                    fp.write(json.dumps(KeyStore.generate_keypair_dict()))
+                                    fp.write(jsonapi.dumps(KeyStore.generate_keypair_dict()))
 
                             with open("keystore.json") as fp:
-                                keypair = json.loads(fp.read())
+                                keypair = jsonapi.loads(fp.read())
 
                         value = build_agent(agent_class=agent_class,
                                             identity=remote_identity,
@@ -273,17 +274,24 @@ class Auth(SubsystemBase):
         #     return certs.cert(remote_cert_name, True)
 
         json_request = dict(
-            csr=csr_request,
+            csr=csr_request.decode("utf-8"),
             identity=remote_cert_name,  # get_platform_instance_name()+"."+self._core().identity,
             hostname=config.hostname
         )
-        response = requests.post(csr_server + "/csr/request_new",
-                                 json=json.dumps(json_request),
+        request = grequests.post(csr_server + "/csr/request_new",
+                                 json=jsonapi.dumps(json_request),
                                  verify=False)
+        response = grequests.map([request])
+
+        if response and isinstance(response, list):
+            response[0].raise_for_status()
+        response = response[0]
+        # response = requests.post(csr_server + "/csr/request_new",
+        #                          json=jsonapi.dumps(json_request),
+        #                          verify=False)
 
         _log.debug("The response: {}".format(response))
-        # from pprint import pprint
-        # pprint(response.json())
+
         j = response.json()
         status = j.get('status')
         cert = j.get('cert')
@@ -291,9 +299,9 @@ class Auth(SubsystemBase):
 
         if status == 'SUCCESSFUL' or status == 'APPROVED':
             certs.save_remote_info(fully_qualified_local_identity,
-                                   remote_cert_name, cert,
+                                   remote_cert_name, cert.encode("utf-8"),
                                    remote_ca_name,
-                                   discovery_info.rmq_ca_cert)
+                                   discovery_info.rmq_ca_cert.encode("utf-8"))
 
         elif status == 'PENDING':
             _log.debug("Pending CSR request for {}".format(remote_cert_name))
@@ -342,7 +350,7 @@ class Auth(SubsystemBase):
         return self._user_to_capabilities.get(user_id, [])
 
     def _update_capabilities(self, user_to_capabilities):
-        identity = bytes(self._rpc().context.vip_message.peer)
+        identity = self._rpc().context.vip_message.peer
         if identity == AUTH:
             self._user_to_capabilities = user_to_capabilities
             self._dirty = True

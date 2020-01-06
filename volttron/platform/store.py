@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -43,9 +43,11 @@ import os
 import os.path
 import errno
 from csv import DictReader
-from StringIO import StringIO
+from io import StringIO
 
-from volttron.platform.agent import json as jsonapi
+import gevent
+
+from volttron.platform import jsonapi
 from gevent.lock import Semaphore
 
 from volttron.utils.persistance import PersistentDict
@@ -59,6 +61,7 @@ from .vip.agent import Agent, Core, RPC
 
 _log = logging.getLogger(__name__)
 
+UPDATE_TIMEOUT = 30.0
 
 def process_store(identity, store):
     """Parses raw store data and returns contents.
@@ -182,7 +185,7 @@ class ConfigStoreService(Agent):
             try:
                 self.vip.rpc.call(identity, "config.update",
                                   "DELETE_ALL", None,
-                                  trigger_callback=True).get(timeout=10.0)
+                                  trigger_callback=True).get(timeout=UPDATE_TIMEOUT)
             except errors.Unreachable:
                 _log.debug("Agent {} not currently running. Configuration update not sent.".format(identity))
             except RemoteError as e:
@@ -198,14 +201,13 @@ class ConfigStoreService(Agent):
 
     @RPC.export
     def manage_list_configs(self, identity):
-        result = self.store.get(identity, {}).get("store", {}).keys()
+        result = list(self.store.get(identity, {}).get("store", {}).keys())
         result.sort()
         return result
 
     @RPC.export
     def manage_list_stores(self):
-        identity = bytes(self.vip.rpc.context.vip_message.peer)
-        result =  self.store.keys()
+        result = list(self.store.keys())
         result.sort()
         return result
 
@@ -259,7 +261,7 @@ class ConfigStoreService(Agent):
 
     @RPC.export
     def set_config(self, config_name, contents, trigger_callback=False, send_update=True):
-        identity = bytes(self.vip.rpc.context.vip_message.peer)
+        identity = self.vip.rpc.context.vip_message.peer
         self.store_config(identity, config_name, contents, trigger_callback=trigger_callback, send_update=send_update)
 
 
@@ -269,7 +271,7 @@ class ConfigStoreService(Agent):
         Called by an Agent at startup to trigger initial configuration state
         push.
         """
-        identity = bytes(self.vip.rpc.context.vip_message.peer)
+        identity = self.vip.rpc.context.vip_message.peer
 
         #We need to create store and lock if it doesn't exist in case someone
         # tries to add a configuration while we are sending the initial state.
@@ -292,7 +294,7 @@ class ConfigStoreService(Agent):
         with agent_store_lock:
             try:
                 self.vip.rpc.call(identity, "config.initial_update",
-                                  agent_configs).get(timeout=10.0)
+                                  agent_configs).get(timeout=UPDATE_TIMEOUT)
             except errors.Unreachable:
                 _log.debug("Agent {} not currently running. Configuration update not sent.".format(identity))
             except RemoteError as e:
@@ -311,7 +313,7 @@ class ConfigStoreService(Agent):
     @RPC.export
     def delete_config(self, config_name, trigger_callback=False, send_update=True):
         """Called by an Agent to delete a configuration."""
-        identity = bytes(self.vip.rpc.context.vip_message.peer)
+        identity = self.vip.rpc.context.vip_message.peer
         self.delete(identity, config_name, trigger_callback=trigger_callback,
                     send_update=send_update)
 
@@ -345,7 +347,7 @@ class ConfigStoreService(Agent):
         if send_update:
             with agent_store_lock:
                 try:
-                    self.vip.rpc.call(identity, "config.update", "DELETE", config_name, trigger_callback=trigger_callback).get(timeout=10.0)
+                    self.vip.rpc.call(identity, "config.update", "DELETE", config_name, trigger_callback=trigger_callback).get(timeout=UPDATE_TIMEOUT)
                 except errors.Unreachable:
                     _log.debug("Agent {} not currently running. Configuration update not sent.".format(identity))
                 except RemoteError as e:
@@ -426,7 +428,7 @@ class ConfigStoreService(Agent):
         if send_update:
             with agent_store_lock:
                 try:
-                    self.vip.rpc.call(identity, "config.update", action, config_name, contents=parsed, trigger_callback=trigger_callback).get(timeout=10.0)
+                    self.vip.rpc.call(identity, "config.update", action, config_name, contents=parsed, trigger_callback=trigger_callback).get(timeout=UPDATE_TIMEOUT)
                 except errors.Unreachable:
                     _log.debug("Agent {} not currently running. Configuration update not sent.".format(identity))
                 except RemoteError as e:
@@ -434,3 +436,7 @@ class ConfigStoreService(Agent):
                 except MethodNotFound as e:
                     _log.error(
                         "Agent {} failure when adding/updating configuration {}: {}".format(identity, config_name, e))
+                except gevent.timeout.Timeout:
+                    _log.error("Config update to agent {} timed out after {} seconds".format(identity, UPDATE_TIMEOUT))
+                except Exception as e:
+                    _log.error("Unknown error sending update to agent identity {}.: {}".format(identity, e))

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -340,7 +340,7 @@ def test_agent_set_config_no_update(default_config_test_agent):
 
 @pytest.mark.config_store
 def test_agent_delete_config(default_config_test_agent):
-    json_config = {"value":1}
+    json_config = {"value": 1}
 
     default_config_test_agent.vip.config.set("config", json_config, trigger_callback=True)
     default_config_test_agent.vip.config.delete("config", trigger_callback=True)
@@ -466,14 +466,14 @@ def test_config_store_security(volttron_instance, default_config_test_agent):
             agent.vip.rpc.call(CONFIGURATION_STORE, 'manage_store', "config_test_agent", "config",
                                json_config, config_type="json").get()
         except jsonrpc.RemoteError as e:
-            assert e.message == "User can call method manage_store only with identity=rpc_agent but called with " \
-                                "identity=config_test_agent"
+            assert e.message == "User rpc_agent can call method manage_store only with " \
+                                "identity=rpc_agent but called with identity=config_test_agent"
 
         try:
             agent.vip.rpc.call(CONFIGURATION_STORE, 'manage_delete_store', 'config_test_agent').get()
         except jsonrpc.RemoteError as e:
-            assert e.message == "User can call method manage_delete_store only with identity=rpc_agent but called" \
-                                " with identity=config_test_agent"
+            assert e.message == "User rpc_agent can call method manage_delete_store only with " \
+                                "identity=rpc_agent but called with identity=config_test_agent"
 
         # Should be able to view
         result = agent.vip.rpc.call(CONFIGURATION_STORE, 'manage_list_configs', "config_test_agent").get()
