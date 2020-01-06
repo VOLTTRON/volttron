@@ -42,7 +42,8 @@ def get_agent_user_from_dir(agent_name, agent_uuid):
 
 @pytest.fixture(scope="module", params=(
                     dict(messagebus='zmq', ssl_auth=False, instance_name=INSTANCE_NAME1),
-                    rmq_skipif(dict(messagebus='rmq', ssl_auth=True, instance_name=INSTANCE_NAME1)),
+                    pytest.param(dict(messagebus='rmq', ssl_auth=True,
+                                      instance_name=INSTANCE_NAME1), marks=rmq_skipif),
                 ))
 def secure_volttron_instance(request):
     """
@@ -360,48 +361,49 @@ def test_config_store_access(secure_volttron_instance, security_agent, query_age
         if agent2:
             secure_volttron_instance.remove_agent(agent2)
 
-#
-# def test_multi_messagebus_forwarder(multi_messagebus_forwarder):
-#     """
-#     Forward Historian test with multi message bus combinations
-#     :return:
-#     """
-#     from_instance, to_instance = multi_messagebus_forwarder
-#     publish_agent = from_instance.dynamic_agent
-#     subscriber_agent = to_instance.dynamic_agent
-#
-#     subscriber_agent.callback = MagicMock(name="callback")
-#     subscriber_agent.callback.reset_mock()
-#     subscriber_agent.vip.pubsub.subscribe(peer='pubsub',
-#                                prefix='devices',
-#                                callback=subscriber_agent.callback).get()
-#
-#     subscriber_agent.analysis_callback = MagicMock(name="analysis_callback")
-#     subscriber_agent.analysis_callback.reset_mock()
-#     subscriber_agent.vip.pubsub.subscribe(peer='pubsub',
-#                                           prefix='analysis',
-#                                           callback=subscriber_agent.analysis_callback).get()
-#     sub_list = subscriber_agent.vip.pubsub.list('pubsub').get()
-#     gevent.sleep(6)
-#
-#     # Create timestamp
-#     now = utils.format_timestamp(datetime.utcnow())
-#     print("now is ", now)
-#     headers = {
-#         headers_mod.DATE: now,
-#         headers_mod.TIMESTAMP: now
-#     }
-#
-#     for i in range(0, 5):
-#         topic = "devices/PNNL/BUILDING1/HP{}/CoolingTemperature".format(i)
-#         value = 35
-#         publish(publish_agent, topic, headers, value)
-#         topic = "analysis/PNNL/BUILDING1/WATERHEATER{}/ILCResults".format(i)
-#         value = {'result': 'passed'}
-#         publish(publish_agent, topic, headers, value)
-#         gevent.sleep(0.5)
-#
-#     gevent.sleep(1)
-#
-#     assert subscriber_agent.callback.call_count == 5
-#     assert subscriber_agent.analysis_callback.call_count == 5
+
+def test_multi_messagebus_forwarder(multi_messagebus_forwarder):
+    """
+    Forward Historian test with multi message bus combinations
+    :return:
+    """
+    from_instance, to_instance = multi_messagebus_forwarder
+    gevent.sleep(5)
+    publish_agent = from_instance.dynamic_agent
+    subscriber_agent = to_instance.dynamic_agent
+
+    subscriber_agent.callback = MagicMock(name="callback")
+    subscriber_agent.callback.reset_mock()
+    subscriber_agent.vip.pubsub.subscribe(peer='pubsub',
+                               prefix='devices',
+                               callback=subscriber_agent.callback).get()
+
+    subscriber_agent.analysis_callback = MagicMock(name="analysis_callback")
+    subscriber_agent.analysis_callback.reset_mock()
+    subscriber_agent.vip.pubsub.subscribe(peer='pubsub',
+                                          prefix='analysis',
+                                          callback=subscriber_agent.analysis_callback).get()
+    sub_list = subscriber_agent.vip.pubsub.list('pubsub').get()
+    gevent.sleep(10)
+
+    # Create timestamp
+    now = utils.format_timestamp(datetime.utcnow())
+    print("now is ", now)
+    headers = {
+        headers_mod.DATE: now,
+        headers_mod.TIMESTAMP: now
+    }
+
+    for i in range(0, 5):
+        topic = "devices/PNNL/BUILDING1/HP{}/CoolingTemperature".format(i)
+        value = 35
+        publish(publish_agent, topic, headers, value)
+        topic = "analysis/PNNL/BUILDING1/WATERHEATER{}/ILCResults".format(i)
+        value = {'result': 'passed'}
+        publish(publish_agent, topic, headers, value)
+        gevent.sleep(0.5)
+
+    gevent.sleep(1)
+
+    assert subscriber_agent.callback.call_count == 5
+    assert subscriber_agent.analysis_callback.call_count == 5

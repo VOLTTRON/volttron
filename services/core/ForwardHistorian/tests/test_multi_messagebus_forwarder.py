@@ -113,7 +113,7 @@ def test_multi_messagebus_forwarder(multi_messagebus_forwarder):
                                           prefix='analysis',
                                           callback=subscriber_agent.analysis_callback).get()
     sub_list = subscriber_agent.vip.pubsub.list('pubsub').get()
-    gevent.sleep(3)
+    gevent.sleep(6)
 
     # Create timestamp
     now = utils.format_timestamp(datetime.utcnow())

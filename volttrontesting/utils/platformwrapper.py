@@ -597,7 +597,7 @@ class PlatformWrapper:
                         cf.write(f.read())
                 with open(self.remote_platform_ca) as f:
                     cf.write(f.read())
-
+            os.chmod(ca_bundle_file, 0o744)
             self.env['REQUESTS_CA_BUNDLE'] = ca_bundle_file
             os.environ['REQUESTS_CA_BUNDLE'] = self.env['REQUESTS_CA_BUNDLE']
         # This file will be passed off to the main.py and available when

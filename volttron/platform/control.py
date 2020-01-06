@@ -1176,8 +1176,6 @@ def add_auth(opts):
         # No options were specified, use interactive wizard
         responses = _ask_for_auth_fields()
         entry = AuthEntry(**responses)
-        print("fields of capabilities: {}".format(responses["capabilities"]))
-
 
     if opts.add_known_host:
         if entry.address is None:

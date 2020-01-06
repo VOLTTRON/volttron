@@ -249,7 +249,7 @@ class BasicCore(object):
 
         self.greenlet.link(lambda _: kill_leftover_greenlets())
 
-        def handle_async():
+        def handle_async_():
             '''Execute pending calls.'''
             calls = self._async_calls
             while calls:
@@ -277,8 +277,8 @@ class BasicCore(object):
                     cur.link(lambda glt: greenlet.kill())
 
         self._stop_event = stop = gevent.event.Event()
-        self._async = gevent.get_hub().loop.async()
-        self._async.start(handle_async)
+        self._async = gevent.get_hub().loop.async_()
+        self._async.start(handle_async_)
         current.link(lambda glt: self._async.stop())
 
         looper = self.loop(running_event)

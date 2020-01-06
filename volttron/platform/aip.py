@@ -522,7 +522,7 @@ class AIPplatform(object):
             if self.message_bus == 'rmq':
                 rmq_user = get_fq_identity(final_identity,
                                            self.instance_name)
-                certs.Certs().create_ca_signed_cert(rmq_user, overwrite=False)
+                certs.Certs().create_signed_cert_files(rmq_user, overwrite=False)
 
             if self.secure_agent_user:
                 # When installing, we always create a new user, as anything
@@ -933,10 +933,10 @@ class AIPplatform(object):
             _log.debug(
                 'IDENTITY FILE MISSING: CREATING IDENTITY FILE WITH VALUE: {}'.
                     format(agent_uuid))
-            with open(identity_file, 'wb') as fp:
+            with open(identity_file, 'w') as fp:
                 fp.write(agent_uuid)
 
-        with open(identity_file, 'rb') as fp:
+        with open(identity_file, 'r') as fp:
             agent_vip_identity = fp.read()
 
         environ['AGENT_VIP_IDENTITY'] = agent_vip_identity

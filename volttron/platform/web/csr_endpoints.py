@@ -59,37 +59,44 @@ class CSREndpoints(object):
         else:
             request_data = data.copy()
 
-        csr = request_data.get('csr')
-        identity = self._certs.get_csr_common_name(str(csr))
+        csr = request_data.get('csr').encode("utf-8")
+        identity = self._certs.get_csr_common_name(csr)
 
         # The identity must start with the current instances name or it is a failure.
         if not identity.startswith(get_platform_instance_name() + "."):
             json_response = dict(status="ERROR",
                                  message="CSR must start with instance name: {}".format(
                                      get_platform_instance_name()))
-            Response(json.dumps(json_response),
+            Response(jsonapi.dumps(json_response),
                      content_type='application/json',
                      headers={'Content-type': 'application/json'})
 
         csr_file = self._certs.save_pending_csr_request(env.get('REMOTE_ADDR'), identity, csr)
 
         if self._auto_allow_csr:
-            _log.debug("Creating cert and permissions for user: {}".format(identity))
+
             status = self._certs.get_csr_status(identity)
             json_response = dict(status=status)
             if status == 'APPROVED':
-                json_response['cert'] = self._certs.get_cert_from_csr(identity)
+                try:
+                    json_response['cert'] = self._certs.get_cert_from_csr(identity)
+                except Exception as e:
+                    _log.error(f"Exception getting cert from csr {e}")
 
             else:
-                cert = self._certs.approve_csr(identity)
-                permissions = self._core().rmq_mgmt.get_default_permissions(identity)
-                self._core().rmq_mgmt.create_user_with_permissions(identity,
-                                                                   permissions,
-                                                                   True)
-                json_response = dict(
-                    status="SUCCESSFUL",
-                    cert=cert
-                )
+                try:
+                    cert = self._certs.approve_csr(identity)
+
+                    permissions = self._core().rmq_mgmt.get_default_permissions(identity)
+                    self._core().rmq_mgmt.create_user_with_permissions(identity,
+                                                                       permissions,
+                                                                       True)
+                    json_response = dict(
+                        status="SUCCESSFUL",
+                        cert=cert
+                    )
+                except BaseException as e:
+                    _log.error(f"Exception in approving csr/creating user in auto_allow_csr mode: {e}")
         else:
 
             status = self._certs.get_csr_status(identity)
@@ -103,10 +110,17 @@ class CSREndpoints(object):
             elif status == "DENIED":
                 json_response['message'] = "The request has been denied by the administrator."
             elif status == "UNKNOWN":
-                json.response['message'] = "An unknown common name was specified to the server {}".format(identity)
+                json_response['message'] = "An unknown common name was specified to the server {}".format(identity)
             else:
                 json_response['message'] = "An unkonwn error has occured during the respons phase"
 
-        return Response(jsonapi.dumps(json_response),
-                        content_type='application/json',
-                        headers={'Content-type': 'application/json'})
+        try:
+            if json_response['cert']:
+                json_response['cert'] = json_response['cert'].decode('utf-8')
+            response = Response(jsonapi.dumps(json_response),
+                     content_type='application/json',
+                     headers={'Content-type': 'application/json'})
+        except BaseException as e:
+            _log.error(f"Exception creating Response {e}")
+        _log.debug(f"Returning response {response}")
+        return response

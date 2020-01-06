@@ -952,7 +952,7 @@ class RabbitMQMgmt(object):
             # and then agents should be started.
             try:
                 _log.info("Creating ca signed certs for {}".format(rmq_user))
-                self.rmq_config.crts.create_ca_signed_cert(rmq_user, overwrite=False)
+                self.rmq_config.crts.create_signed_cert_files(rmq_user, overwrite=False)
             except Exception as e:
                 _log.error("Exception creating certs. {}".format(e))
                 raise RuntimeError(e)

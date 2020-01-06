@@ -281,7 +281,7 @@ class Auth(SubsystemBase):
         #     return certs.cert(remote_cert_name, True)
 
         json_request = dict(
-            csr=csr_request,
+            csr=csr_request.decode("utf-8"),
             identity=remote_cert_name,  # get_platform_instance_name()+"."+self._core().identity,
             hostname=config.hostname
         )
@@ -304,13 +304,12 @@ class Auth(SubsystemBase):
         cert = j.get('cert')
         message = j.get('message', '')
         remote_certs_dir = self.get_remote_certs_dir()
-
         if status == 'SUCCESSFUL' or status == 'APPROVED':
             certs.save_agent_remote_info(remote_certs_dir,
                                          fully_qualified_local_identity,
-                                         remote_cert_name, cert,
+                                         remote_cert_name, cert.encode("utf-8"),
                                          remote_ca_name,
-                                         discovery_info.rmq_ca_cert)
+                                         discovery_info.rmq_ca_cert.encode("utf-8"))
             os.environ['REQUESTS_CA_BUNDLE'] = os.path.join(remote_certs_dir, "requests_ca_bundle")
             _log.debug("Set os.environ requests ca bundle to {}".format(os.environ['REQUESTS_CA_BUNDLE']))
             return os.path.join(remote_certs_dir, remote_cert_name + ".crt")
