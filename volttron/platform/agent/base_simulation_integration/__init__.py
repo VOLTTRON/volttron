@@ -40,9 +40,8 @@ from zmq.utils import jsonapi
 
 
 class BaseSimIntegration(object):
-    def __init__(self, config_path):
-        self.config_path = config_path
-        self.config = jsonapi.loads(config_path)
+    def __init__(self, config):
+        self.config = config
 
     def start_simulation(self):
         pass

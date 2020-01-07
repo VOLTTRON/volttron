@@ -31,23 +31,23 @@ def helics_example(config_path, **kwargs):
         config = utils.load_config(config_path)
     except Exception:
         config = {}
-
+    _log.debug("CONFIG: {}".format(config))
     if not config:
         _log.info("Using Agent defaults for starting configuration.")
 
-    return HelicsExample(config, config_path, **kwargs)
+    return HelicsExample(config, **kwargs)
 
 
 class HelicsExample(Agent):
     """
-    Document agent constructor here.
+    HelicsExampleAgent demonstrates how a VOLTTRON agent can interact with HELICS simulation environment
     """
 
-    def __init__(self, config, config_path, **kwargs):
+    def __init__(self, config, **kwargs):
         super(HelicsExample, self).__init__(enable_store=False, **kwargs)
         _log.debug("vip_identity: " + self.core.identity)
         self.config = config
-        self.helics_sim = helics_integration.HELICSSimIntegration(config_path)
+        self.helics_sim = helics_integration.HELICSSimIntegration(config)
         self._federate_name = config.get('name', self.core.identity)
         self.volttron_subscriptions = config.get('volttron_subscriptions', None)
         self.volttron_messages = None
@@ -62,7 +62,7 @@ class HelicsExample(Agent):
         # subscribe to the volttron topics if given.
         if self.volttron_subscriptions is not None:
             for sub in self.volttron_subscriptions:
-                _log.info('Subscribing to ' + sub)
+                _log.info('Subscribing to {}'.format(sub))
                 self.vip.pubsub.subscribe(peer='pubsub',
                                           prefix=sub,
                                           callback=self.on_receive_publisher_message)
@@ -73,14 +73,15 @@ class HelicsExample(Agent):
                 if volttron_topic is not None:
                     if self.volttron_messages is None:
                         self.volttron_messages = dict()
+                    _log.info('Subscribing to {}'.format(volttron_topic))
                     self.vip.pubsub.subscribe(peer='pubsub',
-                                          prefix=sub,
+                                          prefix=volttron_topic,
                                           callback=self.on_receive_volttron_message)
                     self.volttron_messages[volttron_topic] = dict(pub_key=pub['key'],
                                                                   value=None,
                                                                   received=False)
                                           
-        # Exit if fncs isn't installed in the current environment.
+        # Exit if HELICS isn't installed in the current environment.
         if not self.helics_sim.is_sim_installed():
             _log.error("HELICS module is unavailable please add it to the python environment.")
             self.core.stop()
@@ -105,25 +106,26 @@ class HelicsExample(Agent):
         # Do something with HELICS messages
 
         # Send messages to endpoints as well
-        for endpoint in self.endpoints:
-            val = '200000 + 0 j'
-            status = self.helics_sim.send_to_endpoint(endpoint, '', val)
+        # for endpoint in self.endpoints:
+        #     val = '200000 + 0 j'
+        #     status = self.helics_sim.send_to_endpoint(endpoint['name'], endpoint['destination'], val)
 
-        value = {}
-        # Check if the VOLTTRON agents update the information
-        if self.volttron_messages is not None:
-            topics_ready = all([v['received'] for k, v in self.volttron_messages.items()])
-            while not topics_ready:
-                gevent.sleep(0.2)
-                topics_ready = all([v['received'] for k, v in self.volttron_messages.items()])
-            for k, v in self.received_volttron.items():
-                self.received_volttron[k] = False
-
-            for topic, msg in self.volttron_messages:
-                key = msg['pub_key']
-                value = msg['value']
-                self.helics_sim.publish_to_simulation(key, value)
-                _log.debug("Published New value : {} to HELICS key: {}".format(value))
+        # value = {}
+        # # Check if the VOLTTRON agents update the information
+        # if self.volttron_messages is not None:
+        #     topics_ready = all([v['received'] for k, v in self.volttron_messages.items()])
+        #     while not topics_ready:
+        #         gevent.sleep(0.2)
+        #         topics_ready = all([v['received'] for k, v in self.volttron_messages.items()])
+        #     for k, v in self.received_volttron.items():
+        #         self.received_volttron[k] = False
+        #
+        #     for topic, msg in self.volttron_messages:
+        #         key = msg['pub_key']
+        #         value = msg['value']
+        #         self.helics_sim.publish_to_simulation(key, value)
+        #         _log.debug("Published New value : {} to HELICS key: {}".format(value))
+        _log.debug("MAKING NEXT TIMEREQUEST")
         self.helics_sim.make_time_request()
         
     def on_receive_publisher_message(self, peer, sender, bus, topic, headers, message):

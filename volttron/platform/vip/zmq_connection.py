@@ -24,7 +24,7 @@
 # completeness, or usefulness or any information, apparatus, product,
 # software, or process disclosed, or represents that its use would not infringe
 # privately owned rights. Reference herein to any specific commercial product,
-# process, or service by trade name, trademark, manufacturer, or otherwise
+# process, or service by trade name, trademark, manufactufrer, or otherwise
 # does not necessarily constitute or imply its endorsement, recommendation, or
 # favoring by the United States Government or any agency thereof, or
 # Battelle Memorial Institute. The views and opinions of authors expressed
