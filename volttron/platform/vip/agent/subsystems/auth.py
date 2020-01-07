@@ -309,7 +309,6 @@ class Auth(SubsystemBase):
                                          discovery_info.rmq_ca_cert.encode("utf-8"))
             os.environ['REQUESTS_CA_BUNDLE'] = os.path.join(remote_certs_dir, "requests_ca_bundle")
             _log.debug("Set os.environ requests ca bundle to {}".format(os.environ['REQUESTS_CA_BUNDLE']))
-            return os.path.join(remote_certs_dir, remote_cert_name + ".crt")
         elif status == 'PENDING':
             _log.debug("Pending CSR request for {}".format(remote_cert_name))
         elif status == 'DENIED':
@@ -328,9 +327,10 @@ class Auth(SubsystemBase):
         else:  # No resposne
             return None
 
-        cert_file = os.path.join(remote_certs_dir, remote_cert_name)
-        if os.path.exists():
-            return cert_file
+        certfile = os.path.join(remote_certs_dir, remote_cert_name + ".crt")
+
+        if certs.cert_exists(remote_cert_name, remote=True):
+            return certfile
         else:
             return status, message
 
