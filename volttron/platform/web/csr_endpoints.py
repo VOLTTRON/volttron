@@ -74,7 +74,7 @@ class CSREndpoints(object):
         csr_file = self._certs.save_pending_csr_request(env.get('REMOTE_ADDR'), identity, csr)
 
         if self._auto_allow_csr:
-
+            _log.debug("Creating cert and permissions for user: {}".format(identity))
             status = self._certs.get_csr_status(identity)
             json_response = dict(status=status)
             if status == 'APPROVED':
@@ -86,7 +86,6 @@ class CSREndpoints(object):
             else:
                 try:
                     cert = self._certs.approve_csr(identity)
-
                     permissions = self._core().rmq_mgmt.get_default_permissions(identity)
                     self._core().rmq_mgmt.create_user_with_permissions(identity,
                                                                        permissions,

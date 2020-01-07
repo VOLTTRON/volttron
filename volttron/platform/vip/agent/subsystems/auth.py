@@ -199,9 +199,6 @@ class Auth(SubsystemBase):
                                 info.rmq_address,
                                 ssl_auth=True,
                                 cert_dir=self.get_remote_certs_dir())
-                            _log.debug("Building dynamic agent using remote_rmq_address: {} public key {} "
-                                       "secret key {}".format(remote_rmq_address, self._core().publickey,
-                                                              self._core().secretkey))
 
                             value = build_agent(identity=fqid_local,
                                                 address=remote_rmq_address,
@@ -315,7 +312,6 @@ class Auth(SubsystemBase):
             return os.path.join(remote_certs_dir, remote_cert_name + ".crt")
         elif status == 'PENDING':
             _log.debug("Pending CSR request for {}".format(remote_cert_name))
-            return status, message
         elif status == 'DENIED':
             _log.error("Denied from remote machine.  Shutting down agent.")
             status = Status.build(BAD_STATUS,
@@ -331,6 +327,12 @@ class Auth(SubsystemBase):
             raise ValueError(err)
         else:  # No resposne
             return None
+
+        cert_file = os.path.join(remote_certs_dir, remote_cert_name)
+        if os.path.exists():
+            return cert_file
+        else:
+            return status, message
 
     def get_remote_certs_dir(self):
         if not self.remote_certs_dir:
