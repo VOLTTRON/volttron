@@ -4,6 +4,7 @@ import os
 from types import SimpleNamespace
 
 from volttron.platform.certs import CertWrapper
+from volttron.platform.certs import Certs
 
 
 @contextlib.contextmanager
@@ -20,58 +21,32 @@ def certs_profile_1(certificate_dir, fqdn=None, num_server_certs=1, num_client_c
     :param certificate_dir:
     :return:
     """
-    private_dir = os.path.join(certificate_dir, "private")
-    public_dir = os.path.join(certificate_dir, "public")
-    os.makedirs(private_dir, exist_ok=True)
-    os.makedirs(public_dir, exist_ok=True)
 
-    ca_cert, pk = CertWrapper.make_self_signed_ca("myca")
-    ca_cert_file = os.path.join(public_dir, "myca.crt")
-    with open(ca_cert_file, "wb") as f:
-        f.write(ca_cert.public_bytes(serialization.Encoding.PEM))
-    ca_key_file = os.path.join(private_dir, "myca.pem")
-    encryption = serialization.NoEncryption()
-    with open(ca_key_file, "wb") as f:
-        f.write(pk.private_bytes(
-            encoding=serialization.Encoding.PEM,
-            format=serialization.PrivateFormat.TraditionalOpenSSL,
-            encryption_algorithm=encryption
-        ))
+    certs = Certs(certificate_dir)
+    data = {'C': 'US',
+            'ST': 'Washington',
+            'L': 'Richland',
+            'O': 'pnnl',
+            'OU': 'volttron_test',
+            'CN': "myca"}
+    ca_cert, ca_pk = certs.create_root_ca(**data)
 
-    ns = SimpleNamespace(ca_cert=ca_cert, ca_key=pk, ca_cert_file=ca_cert_file, ca_key_file=ca_key_file,
-                         server_certs=[], client_certs=[])
+    ns = SimpleNamespace(ca_cert=ca_cert, ca_key=ca_pk, ca_cert_file=certs.cert_file(certs.root_ca_name),
+                         ca_key_file=certs.private_key_file(certs.root_ca_name), server_certs=[], client_certs=[])
 
     for x in range(num_server_certs):
-        cert_file = os.path.join(public_dir, f"server{x}")
-        key_file = os.path.join(private_dir, f"server{x}")
-        cert, pk1 = CertWrapper.make_signed_cert(ca_cert, pk, f"server{x}", fqdn=fqdn, type="server")
-        with open(cert_file, "wb") as f:
-            f.write(cert.public_bytes(serialization.Encoding.PEM))
-        encryption = serialization.NoEncryption()
-        with open(key_file, "wb") as f:
-            f.write(pk1.private_bytes(
-                encoding=serialization.Encoding.PEM,
-                format=serialization.PrivateFormat.TraditionalOpenSSL,
-                encryption_algorithm=encryption
-            ))
-        cert_ns = SimpleNamespace(key=pk1, cert=cert, cert_file=cert_file, key_file=key_file)
+        cert, key = certs.create_signed_cert_files(f"server{x}", cert_type="server", fqdn=fqdn)
+
+        cert_ns = SimpleNamespace(key=key, cert=cert, cert_file=certs.cert_file(f"server{x}"),
+                                  key_file=certs.private_key_file(f"server{x}"))
 
         ns.server_certs.append(cert_ns)
 
     for x in range(num_client_certs):
-        cert_file = os.path.join(public_dir, f"client{x}")
-        key_file = os.path.join(private_dir, f"client{x}")
-        cert, pk1 = CertWrapper.make_signed_cert(ca_cert, pk, f"client{x}")
-        with open(cert_file, "wb") as f:
-            f.write(cert.public_bytes(serialization.Encoding.PEM))
-        encryption = serialization.NoEncryption()
-        with open(key_file, "wb") as f:
-            f.write(pk1.private_bytes(
-                encoding=serialization.Encoding.PEM,
-                format=serialization.PrivateFormat.TraditionalOpenSSL,
-                encryption_algorithm=encryption
-            ))
-        cert_ns = SimpleNamespace(key=pk1, cert=cert, cert_file=cert_file, key_file=key_file)
+
+        cert, pk1 = certs.create_signed_cert_files(f"client{x}")
+        cert_ns = SimpleNamespace(key=pk1, cert=cert, cert_file=certs.cert_file(f"client{x}"),
+                                  key_file=certs.private_key_file(f"client{x}"))
         ns.client_certs.append(cert_ns)
 
     yield ns

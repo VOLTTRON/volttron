@@ -41,7 +41,7 @@ import sys
 import datetime
 
 from volttron.platform.vip.agent import Agent, Core, RPC
-from volttron.platform.async import AsyncCall
+from volttron.platform.async_ import AsyncCall
 from volttron.platform.agent import utils
 from volttron.platform.messaging import topics, headers
 

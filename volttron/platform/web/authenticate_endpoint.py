@@ -4,7 +4,7 @@ import re
 from urllib.parse import parse_qs
 
 import jwt
-from jinja2 import Environment, FileSystemLoader, select_autoescape
+from jinja2 import Environment, FileSystemLoader, select_autoescape, TemplateNotFound
 from passlib.hash import argon2
 from watchdog_gevent import Observer
 

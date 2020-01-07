@@ -66,13 +66,13 @@ class AsyncCall(object):
         if hub is None:
             hub = gevent.get_hub()
         self.calls = calls = []
-        self.async = hub.loop.async()
-        self.async.start(functools.partial(self._run_calls, calls))
+        self.__async = hub.loop.async_()
+        self.__async.start(functools.partial(self._run_calls, calls))
 
     def __del__(self):
         '''Stop the async handler on deletion.'''
         print('deleted')
-        self.async.stop()
+        self.__async.stop()
 
     def send(self, receiver, func, *args, **kwargs):
         '''Send a function to the hub to be called there.
@@ -94,7 +94,7 @@ class AsyncCall(object):
         need to be injected into the thread of the receiver.
         '''
         self.calls.append((receiver, func, args, kwargs))
-        self.async.send()
+        self.__async.send()
 
     @staticmethod
     def _run_call(receiver, func, args, kwargs):

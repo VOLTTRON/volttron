@@ -39,15 +39,13 @@ import pytest
 
 from volttron.platform import get_platform_config, update_platform_config, get_config_path
 from volttron.utils import get_random_key
-from volttrontesting.utils.web_utils import get_test_web_env, get_test_volttron_home
-from volttron.platform import jsonapi
-import os
+from volttrontesting.fixtures.volttron_platform_fixtures import get_test_volttron_home
 
 
 def test_update_platform_config():
     my_config = {"bind-web-address": "http://v2:8080",
                  "vip-address": "tcp://127.0.0.1:22196"}
-    with get_test_volttron_home() as vhome:
+    with get_test_volttron_home(messagebus='zmq') as vhome:
         # Empty platform config currently (note this wouldn't be if the platform actually has started)
         config = get_platform_config()
 
@@ -74,7 +72,7 @@ def test_update_platform_config():
 
 
 def test_get_random_key():
-    with get_test_volttron_home():
+    with get_test_volttron_home(messagebus='zmq'):
         key = get_random_key()
         # According to docs the default length is 65
         #

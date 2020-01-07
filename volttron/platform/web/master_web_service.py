@@ -639,7 +639,7 @@ class MasterWebService(Agent):
                 ssl_key = self._certs.private_key_file(base_filename)
 
                 if not os.path.isfile(ssl_cert) or not os.path.isfile(ssl_key):
-                    self._certs.create_ca_signed_cert(base_filename, type='server')
+                    self._certs.create_signed_cert_files(base_filename, cert_type='server')
 
             if ssl_key is not None and ssl_cert is not None and self._admin_endpoints is None:
                 self._admin_endpoints = AdminEndpoints(ssl_public_key=CertWrapper.get_cert_public_key(ssl_cert))
@@ -674,7 +674,7 @@ class MasterWebService(Agent):
         # Allow authentication endpoint from any https connection
         if parsed.scheme == 'https':
             if self.core.messagebus == 'rmq':
-                ssl_private_key = self._certs.get_private_key(get_fq_identity(self.core.identity))
+                ssl_private_key = self._certs.get_pk_bytes(get_fq_identity(self.core.identity))
             else:
                 ssl_private_key = CertWrapper.get_private_key(ssl_key)
             for rt in AuthenticateEndpoints(tls_private_key=ssl_private_key).get_routes():

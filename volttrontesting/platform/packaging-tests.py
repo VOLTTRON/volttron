@@ -64,9 +64,9 @@ class TestPackaging(unittest.TestCase):
             self.certsobj = certs.Certs(self.certificate_dir)
             self.certsobj.create_root_ca()
             #TODO: send CA name
-            self.certsobj.create_ca_signed_cert(self.admin_cert_name, **admin)
-            self.certsobj.create_ca_signed_cert(self.creator_cert_name, **creator)
-            self.certsobj.create_ca_signed_cert(self.initiator_cert_name, **initiator)
+            self.certsobj.create_signed_cert_files(self.admin_cert_name, **admin)
+            self.certsobj.create_signed_cert_files(self.creator_cert_name, **creator)
+            self.certsobj.create_signed_cert_files(self.initiator_cert_name, **initiator)
 
             from os.path import join
             assert(os.path.isfile(join(self.certs_dir,

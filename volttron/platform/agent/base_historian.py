@@ -246,7 +246,7 @@ from volttron.platform.vip.agent import *
 from volttron.platform.vip.agent import compat
 from volttron.platform.vip.agent.subsystems.query import Query
 
-from volttron.platform.async import AsyncCall
+from volttron.platform.async_ import AsyncCall
 
 from volttron.platform.messaging.health import (STATUS_BAD,
                                                 STATUS_UNKNOWN,

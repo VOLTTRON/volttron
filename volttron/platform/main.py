@@ -82,7 +82,11 @@ from .vip.socket import decode_key, encode_key, Address
 from .vip.tracking import Tracker
 from .auth import AuthService, AuthFile, AuthEntry
 from .control import ControlService
-from .web import MasterWebService
+try:
+    from .web import MasterWebService
+    HAS_WEB = True
+except ImportError:
+    HAS_WEB = False
 from .store import ConfigStoreService
 from .agent import utils
 from .agent.known_identities import MASTER_WEB, CONFIGURATION_STORE, AUTH, CONTROL, CONTROL_CONNECTION
@@ -998,6 +1002,11 @@ def start_volttron_process(opts):
 
         # Begin the webserver based options here.
         if opts.bind_web_address is not None:
+            if not HAS_WEB:
+                sys.stderr.write("Web libraries not installed, but bind web address specified\n")
+                sys.stderr.write("Please install web libraries using python3 bootstrap.py --web\n")
+                sys.exit(-1)
+
             if opts.instance_name is None:
                 _update_config_file()
 
@@ -1010,7 +1019,7 @@ def start_volttron_process(opts):
                     base_webserver_name = MASTER_WEB + "-server"
                     from volttron.platform.certs import Certs
                     certs = Certs()
-                    certs.create_ca_signed_cert(base_webserver_name, type='server')
+                    certs.create_signed_cert_files(base_webserver_name, cert_type='server')
                     opts.web_ssl_key = certs.private_key_file(base_webserver_name)
                     opts.web_ssl_cert = certs.cert_file(base_webserver_name)
 

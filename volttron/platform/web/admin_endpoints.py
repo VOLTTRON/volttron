@@ -41,9 +41,16 @@ import os
 import re
 from urllib.parse import parse_qs
 
-from jinja2 import TemplateNotFound
-from passlib.hash import argon2
-#from watchdog_gevent import Observer
+try:
+    from jinja2 import Environment, FileSystemLoader, select_autoescape, TemplateNotFound
+except ImportError:
+    logging.getLogger().warning("Missing jinja2 libaray in admin_endpoints.py")
+
+try:
+    from passlib.hash import argon2
+except ImportError:
+    logging.getLogger().warning("Missing passlib libaray in admin_endpoints.py")
+
 from watchdog_gevent import Observer
 from volttron.platform.agent.web import Response
 

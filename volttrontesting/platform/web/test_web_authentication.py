@@ -1,5 +1,4 @@
-import binascii
-import os
+
 from urllib.parse import urlencode
 
 from deepdiff import DeepDiff
@@ -9,15 +8,16 @@ import pytest
 from volttron.platform.certs import CertWrapper
 from volttron.utils import get_random_key
 from volttrontesting.utils.platformwrapper import create_volttron_home
-from volttrontesting.utils.web_utils import get_test_web_env, get_test_volttron_home
+from volttrontesting.utils.web_utils import get_test_web_env
 from volttron.platform.web.admin_endpoints import AdminEndpoints
 from volttron.platform.web.authenticate_endpoint import AuthenticateEndpoints
 from volttrontesting.fixtures.cert_fixtures import certs_profile_1
+from volttrontesting.fixtures.volttron_platform_fixtures import get_test_volttron_home
 
 
 @pytest.mark.parametrize("encryption_type", ("private_key", "tls"))
 def test_jwt_encode(encryption_type):
-    with get_test_volttron_home() as vhome:
+    with get_test_volttron_home(messagebus='zmq') as vhome:
         if encryption_type == "private_key":
             algorithm = "HS256"
             encoded_key = get_random_key().encode("utf-8")
@@ -37,7 +37,7 @@ def test_jwt_encode(encryption_type):
 
 
 def test_authenticate_must_use_post_request():
-    with get_test_volttron_home():
+    with get_test_volttron_home(messagebus='zmq'):
 
         env = get_test_web_env('/authenticate', method='GET')
 
@@ -56,7 +56,7 @@ def test_no_private_key_or_passphrase():
 def test_both_private_key_and_passphrase():
     with pytest.raises(ValueError,
                        match="Must use either ssl_private_key or web_secret_key not both!"):
-        with get_test_volttron_home() as vhome:
+        with get_test_volttron_home(messagebus='zmq') as vhome:
             with certs_profile_1(vhome) as certs:
                 authorizeep = AuthenticateEndpoints(web_secret_key=get_random_key(),
                                                     tls_private_key=certs.server_certs[0].key)
@@ -77,7 +77,7 @@ def test_authenticate_endpoint(scheme):
         kwargs['web_secret_key'] = get_random_key()
 
     # We are specifying the volttron_home here so we don't create an additional one.
-    with get_test_volttron_home(volttron_config_params=kwargs, volttron_home=vhome):
+    with get_test_volttron_home(messagebus='zmq', config_params=kwargs, volttron_home=vhome):
 
         user = 'bogart'
         passwd = 'cat'
