@@ -1,6 +1,9 @@
 """
 Agent documentation goes here.
 """
+from gevent.monkey import patch_all
+patch_all()
+
 from volttron.platform.agent.utils import get_aware_utc_now
 
 __docformat__ = 'reStructuredText'
