@@ -81,6 +81,21 @@
             "type": "complex",
             "required": true
         }],
+    "publications":[
+        {
+            "key":"pub1",
+            "type":"double",
+            "unit":"m",
+            "info": "this is an information string for use by the application",
+            "volttron_topic": "pub1/all",
+            "global": true
+        },
+        {
+            "key": "pub2",
+            "type": "double",
+            "volttron_topic": "pub2/all"
+        }
+    ],
 	"volttron_subscriptions": [
         "feeder0_output/all"
     ]

@@ -69,7 +69,7 @@ class HELICSSimIntegration(BaseSimIntegration):
         self._simulation_length = self.config.get('simulation_length', 3600) #seconds
         self.current_time = 0
         self.inputs = []
-        self.outputs = []
+        self.outputs = {}
         self.endpoints = {}
         self.current_values = {}
         self.helics_to_volttron_publish = {}
@@ -138,8 +138,9 @@ class HELICSSimIntegration(BaseSimIntegration):
             idx = h.helicsFederateGetPublicationByIndex(self.fed, i)
             outputs['pub_id'] = idx
             outputs['type'] = h.helicsPublicationGetType(idx)
-            outputs['key'] = h.helicsPublicationGetKey(idx)
-            self.outputs.append(outputs)
+            pub_key = h.helicsPublicationGetKey(idx)
+            _log.debug("Publication: {}".format(pub_key))
+            self.outputs[pub_key] = outputs
             data = dict(type=outputs['type'], value=None)
 
     def start_simulation(self):
@@ -165,16 +166,21 @@ class HELICSSimIntegration(BaseSimIntegration):
             for in_put in self.inputs:
                 sub_key = in_put['key']
                 # NOTE: Values are persisted in HELICS. Old values are returned if they dont
-                # get updated in current timestep
+                # get updated in current time step
                 self.current_values[sub_key] = self._get_input_based_on_type(in_put)
                 try:
-                    # Get volttron topic for the input key
+                    # Get VOLTTRON topic for the input key
                     volttron_topic = self.helics_to_volttron_publish[sub_key]
-                    if self.pubsub is not None:
-                        self.pubsub.publish('pubsub', topic=volttron_topic, message=self.current_values[sub_key])
+                    self.pubsub().publish('pubsub', topic=volttron_topic, message=self.current_values[sub_key])
                 except KeyError:
                     # No VOLTTRON topic for input key
                     pass
+
+            # Collect any messages from endpoints (messages are not persistent)
+            for name, idx in self.endpoints.items():
+                if h.helicsEndpointHasMessage(idx):
+                    msg = h.helicsEndpointGetMessage(idx)
+                    self.current_values[name] = msg.data
 
             # Call user provided callback to perform work on HELICS inputs
             self._work_callback()
@@ -196,6 +202,7 @@ class HELICSSimIntegration(BaseSimIntegration):
         try:
             info = self.outputs[topic]
             info['value'] = message
+            _log.debug("Publishing Pub key: {}, info: {}".format(topic, info))
             self._publish_based_on_type(info)
         except KeyError as e:
             _log.error("Unknown publication key {}".format(topic))
@@ -269,6 +276,7 @@ class HELICSSimIntegration(BaseSimIntegration):
         """
         if time_request is None:
             time_request = self.current_time + self._simulation_delta
+        _log.debug("MAKING NEXT TIMEREQUEST: {}".format(time_request))
         granted_time = h.helicsFederateRequestTime(self.fed, time_request)
         _log.debug("GRANTED TIME maybe lower than time requested: {}".format(granted_time))
         self.current_time = granted_time
@@ -291,7 +299,8 @@ class HELICSSimIntegration(BaseSimIntegration):
         :return:
         """
         endpoint_idx = self.endpoints[endpoint_name]
-        h.helicsEndpointSendMessageRaw(endpoint_idx, destination, str(value))
+        _log.debug("destination: {}".format(destination))
+        h.helicsEndpointSendEventRaw(endpoint_idx, destination, str(56.7), self.current_time)
 
     def stop_simulation(self):
         """
