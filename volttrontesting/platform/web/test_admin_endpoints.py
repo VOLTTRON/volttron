@@ -47,6 +47,7 @@ from volttrontesting.utils.web_utils import get_test_web_env
 from volttrontesting.fixtures.volttron_platform_fixtures import get_test_volttron_home
 
 from volttron.platform import jsonapi
+from passlib.hash import argon2
 import os
 
 ___WEB_USER_FILE_NAME__ = 'web-users.json'
@@ -54,8 +55,8 @@ ___WEB_USER_FILE_NAME__ = 'web-users.json'
 
 @pytest.mark.web
 def test_admin_unauthorized():
-    config_params = {"web_secret_key": get_random_key()}
-    with get_test_volttron_home(messagebus='zmq', config_params=config_params) as vhome:
+    config_params = {"web-secret-key": get_random_key()}
+    with get_test_volttron_home(messagebus='zmq', config_params=config_params):
         myuser = 'testing'
         mypass = 'funky'
         adminep = AdminEndpoints()
@@ -70,7 +71,7 @@ def test_admin_unauthorized():
 
 @pytest.mark.web
 def test_set_master_password_setup():
-    with get_test_volttron_home(messagebus='zmq'):
+    with get_test_volttron_home(messagebus='zmq') as vhome:
         # Note these passwords are not right so we expect to be redirected back to the
         # first.html
         params = urlencode(dict(username='bart', password1='goodwin', password2='wowsa'))
@@ -79,7 +80,10 @@ def test_set_master_password_setup():
         adminep = AdminEndpoints()
         response = adminep.admin(env, params)
 
-        # TODO: Assert some things about response.
+        assert 'Location' not in response.headers
+        assert 200 == response.status_code
+        assert 'text/html' == response.headers.get('Content-Type')
+
         assert 1 == jinja_mock.get_template.call_count
         assert ('first.html',) == jinja_mock.get_template.call_args[0]
         assert 1 == jinja_mock.get_template.return_value.render.call_count
@@ -93,16 +97,22 @@ def test_set_master_password_setup():
         # expect Location and Content-Type headers to be set
         response = adminep.admin(env, params)
         assert 3 == len(response.headers)
-        assert response.headers.has_key('Location')
+        assert 'Location' in response.headers
         assert '/admin/login.html' == response.headers.get('Location')
         assert 302 == response.status_code
 
-        # TODO: Test and make sure that bart/wowsa is in web-users.json
+        webuserpath = os.path.join(vhome, 'web-users.json')
+        with open(webuserpath) as wup:
+            users = jsonapi.load(wup)
+        assert users.get('bart') is not None
+        user = users.get('bart')
+        assert user['hashed_password'] is not None
+        assert argon2.verify("wowsa", user['hashed_password'])
 
 
 @pytest.mark.web
 def test_admin_login_page():
-    with get_test_volttron_home(messagebus='zmq') as vhome:
+    with get_test_volttron_home(messagebus='zmq'):
         username_test = "mytest"
         username_test_passwd = "value-plus"
         adminep = AdminEndpoints()
@@ -120,7 +130,7 @@ def test_admin_login_page():
 
 @pytest.mark.web
 def test_persistent_users():
-    with get_test_volttron_home(messagebus='zmq') as vhome:
+    with get_test_volttron_home(messagebus='zmq'):
         username_test = "mytest"
         username_test_passwd = "value-plus"
         adminep = AdminEndpoints()
@@ -188,4 +198,3 @@ def test_construction():
                return_value="volttron"):
         mgmt = RabbitMQMgmt()
         assert mgmt is not None
-
