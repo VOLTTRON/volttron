@@ -37,15 +37,16 @@
 # }}}
 
 # https://docs.ansible.com/ansible/latest/dev_guide/developing_api.html
+
 import os
 import sys
-
+import yaml
 from ansible.cli import CLI
-from ansible.executor.playbook_executor import PlaybookExecutor
 from ansible.module_utils.common.collections import ImmutableDict
 from ansible.parsing.dataloader import DataLoader
 from ansible.vars.manager import VariableManager
 from ansible.inventory.manager import InventoryManager
+from ansible.executor.playbook_executor import PlaybookExecutor
 from ansible.playbook.play import Play
 from ansible.executor.task_queue_manager import TaskQueueManager
 from ansible.plugins.callback import CallbackBase
@@ -55,8 +56,73 @@ import ansible.constants as C
 from volttron.platform import get_volttron_root
 from volttron.utils.prompt import prompt_response
 
-os.environ['ANSIBLE_KEEP_REMOTE_FILES'] = "1"
+#os.environ['ANSIBLE_KEEP_REMOTE_FILES'] = "1"
 C.DEFAULT_DEBUG = False
+
+
+def do_volttron_up(hosts_path, options):
+    with open(hosts_path) as fp:
+        cfg = yaml.safe_load(fp)
+
+    missing_dirs = []
+    missing_config_files = []
+    config_files = {}
+    config_dirs = []
+    base_config_path = os.path.dirname(hosts_path)
+    for k, v in cfg.items():
+        if 'hosts' in v:
+            for host in v['hosts']:
+
+                host_config_dir = os.path.join(base_config_path, host)
+                if not os.path.isdir(host_config_dir):
+                    missing_dirs.append(host_config_dir)
+                    continue
+                host_config_file = os.path.join(host_config_dir, f"{host}.yml")
+                if not os.path.isfile(host_config_file):
+                    missing_config_files.append(host_config_file)
+                    continue
+                config_files[host] = host_config_file
+    if missing_config_files or missing_dirs:
+        sys.stderr.write("Invalid config directories:\n")
+        for x in missing_dirs:
+            sys.stderr.write(f"\t{x}\n")
+        sys.stderr.write("Invalid config files:\n")
+        for x in missing_config_files:
+            sys.stderr.write(f"\t{x}\n")
+        sys.exit(1)
+    #
+    # loader = DataLoader()
+    # inventory = InventoryManager(loader=loader, sources=hosts_path)
+    # var_manager = VariableManager(loader=loader, inventory=inventory,
+    #                               version_info=CLI.version_info(gitinfo=False))
+    #
+    # Path environment available on the local system to copy files to
+    # the target environments.
+    os.environ['DEPLOYMENT_ROOT'] = os.path.dirname(hosts_path)
+    for h, v in config_files.items():
+        extra_vars = dict(host_install_file=v)
+        #var_manager.set_host_variable(h, "host_install_file", v)
+        #var_manager.get_vars()
+        configs_path = os.path.join(os.path.dirname(v), "configs")
+        if not os.path.isdir(configs_path):
+            sys.stderr.write(f"No configuration files for host {h}")
+        else:
+            sys.stdout.write(f"{h} has configurations {configs_path}")
+        # if os.path.isdir(configs_path):
+        #     extra_vars['host_config_dir'] = configs_path
+        #     var_manager.set_host_variable(h, "host_config_dir", configs_path)
+        # else:
+        #     sys.stderr.write(f"WARNING: configs directory {configs_path} does not exist")
+        #var_manager.eextra_vars = extra_vars
+    # assert cfg['all']['hosts'], f"Invalid agents specified in {hosts_path}"
+    # assert cfg['']
+    pbex = _get_executor(options.hosts_file, None, "volttron-instance", limit=options.limit,
+                         extra_vars=None)
+                         #variable_manager=var_manager, inventory=inventory)
+    # print(pbex._variable_manager.get_vars())
+
+    results = pbex.run()
+    print(results)
 
 
 def do_destroy_systems(options):
@@ -104,6 +170,11 @@ def add_deployment_subparser(add_parser_fn):
                             subparser=subparsers)
     add_common(destroy)
 
+    up = add_parser_fn('up',
+                       help="Starts volttron platforms and install agents on the instance based upon agent.yml file",
+                       subparser=subparsers)
+    add_common(up)
+
     #
     #
     # provision = add_parser_fn('provision',
@@ -116,11 +187,18 @@ def add_deployment_subparser(add_parser_fn):
 
 
 def do_deployment_command(opts):
+    hosts_path = os.path.abspath(opts.hosts_file)
+    if not os.path.isfile(hosts_path):
+        sys.stderr.write(f"Invalid hosts-file path passed: {hosts_path}\n")
+        sys.exit(1)
+    opts.hosts_file = hosts_path
 
     if opts.store_commands == 'init':
         do_init_systems(opts)
     elif opts.store_commands == 'destroy':
         do_destroy_systems(opts)
+    elif opts.store_commands == 'up':
+        do_volttron_up(hosts_path, opts)
     else:
         sys.stderr.write(f"Invalid argument to parser {opts.store_commands}")
 
@@ -155,21 +233,31 @@ def _get_cli_args() -> ImmutableDict:
         verbosity=0, check=False, start_at_task=None)
 
 
-def _get_executor(hosts_file, sudo_password, playbooks, limit=None):
+def _get_executor(hosts_file, sudo_password, playbooks, limit=None, variable_manager=None, inventory=None, extra_vars=None):
     if not playbooks:
         raise ValueError("playbooks must be specified!")
 
     if not isinstance(playbooks, list):
         playbooks = [playbooks]
     playbooks = [get_playbook(p) for p in playbooks]
-    loader = DataLoader()
+    if inventory:
+        loader = inventory._loader
+    else:
+        loader = DataLoader()
     context.CLIARGS = _get_cli_args()
-    inventory = InventoryManager(loader=loader, sources=hosts_file)
+    if inventory is None:
+        inventory = InventoryManager(loader=loader, sources=hosts_file)
+
     if limit:
         inventory.subset(limit)
-    variable_manager = VariableManager(loader=loader, inventory=inventory,
-                                       version_info=CLI.version_info(gitinfo=False))
+
+    if variable_manager is None:
+        variable_manager = VariableManager(loader=loader, inventory=inventory,
+                                           version_info=CLI.version_info(gitinfo=False))
+    else:
+        variable_manager.set_inventory(inventory)
     passwords = dict(become_pass=sudo_password)
+
     pbex = PlaybookExecutor(playbooks=playbooks,
                             inventory=inventory,
                             variable_manager=variable_manager,
