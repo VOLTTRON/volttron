@@ -1,0 +1,115 @@
+---
+- hosts: all
+#  become: yes
+#  become_method: sudo
+  gather_facts: True
+  environment:
+    # TODO: Figure out how to interpolate the ~ and/or fix to use $HOME
+    VOLTTRON_HOME: "~/.volttron"
+    VOLTTRON_ROOT: "~/volttron"
+    CONFIG: "~/configs"
+    HOST_CONFIG: ~/host.config.yml
+  vars:
+    # Ansible will use this path on remote hosts to run the interpreter with.
+    ansible_python_interpreter: /usr/bin/python3
+  tasks:
+    - set_fact:
+        local_remote_config_file: "{{lookup('env','DEPLOYMENT_ROOT')}}/{{inventory_hostname}}/{{inventory_hostname}}.yml"
+        local_configs_dir: "{{lookup('env','DEPLOYMENT_ROOT')}}/{{inventory_hostname}}/configs"
+        python3: "{{lookup('env','DEPLOYMENT_ROOT')}}/env/bin/python"
+
+    - name: check for host configuration files
+      local_action: stat path="{{ local_configs_dir }}"
+      register: directory_check
+      ignore_errors: True
+
+    - name: copy configs for {{ inventory_hostname }} if available.
+      copy:
+        # Note the / on the end means we don't want the containing folder
+        # only the files underneath.  So ignore 'sigma1' if it was the
+        # host.
+        src: "{{ local_configs_dir }}/"
+        dest: "~/configs"
+        mode: 0644
+      when: directory_check.stat.exists
+
+    - name: Copy {{ local_remote_config_file }} config to remote
+      copy:
+        src: "{{ local_remote_config_file }}"
+        dest: "{{ ansible_env.HOST_CONFIG }}"
+        mode: 0644
+
+    # Use anisible interperet to separate the volttron requirements from
+    # the requirements of the volttron instance
+    - name: Create ansbile virtual env
+      pip:
+        virtualenv: ~/ansible_venv
+        virtualenv_command: /usr/bin/python3.6 -m venv
+        name: "{{ item }}"
+      loop:
+        - pyyaml
+
+    - name: Set ansible interpreter
+      set_fact:
+        ansible_python_interpreter: ~/ansible_venv/bin/python
+
+    - name: Configure VOLTTRON Instance {{ inventory_hostname }}
+      volttron_instance_config:
+        config_file: "{{ ansible_env.HOST_CONFIG }}"
+        state: "RUNNING"
+      register: instance_state
+
+    - debug:
+        var: instance_state
+#
+#
+#    - name: Installing agents
+#      include_tasks: "install-agents.yml"
+#      #when: "'No installed Agents found' in (volttron_status.stderr_lines)"
+
+#    - name: Ensures {{ volttron_home }} dir exists
+#      file:
+#        path: "{{ volttron_home }}"
+#        state: directory
+#
+#    - name: Create {{ volttron_home }}/config
+#      template:
+#        src: volttron-config.j2
+#        dest: "{{ volttron_home }}/config"
+
+#    - name: Create service file.
+#      template:
+#        src: volttron.service.j2
+#        dest: "/etc/systemd/system/volttron.service"
+#        mode: 0755
+
+
+# - name: copy configs for {{ inventory_hostname }}
+      #    copy:
+      #      # Note the / on the end means we don't want the containing folder
+      #      # only the files underneath.  So ignore 'sigma1' if it was the
+      #      # host.
+      #      src: "{{ local_configuration_path }}/{{ inventory_hostname }}/"
+      #      dest: "{{ vlt_configuration_path }}"
+      #      mode: 0644
+      #    become_user: "{{ vlt_user }}"
+      #    become: yes
+      #    when: directory_check.stat.exists
+      #
+      #  - name: check for host configuration_store files
+      #    local_action: stat path="{{ local_configstore_path }}/{{ inventory_hostname }}"
+      #    register: directory_check
+      #    ignore_errors: True
+      #
+      #  - name: copy configuration_store for {{ inventory_hostname }} to the instance's home.
+      #    copy:
+      #      # Note the / on the end means we don't want the containing folder
+      #      # only the files underneath.  So ignore 'sigma1' if it was the
+      #      # host.
+      #      src: "{{ local_configstore_path }}/{{ inventory_hostname }}/"
+      #      dest: "{{ vlt_home }}/configuration_store"
+      #      mode: 0644
+      #    become_user: "{{ vlt_user }}"
+      #    become: yes
+      #    when: directory_check.stat.exists
+      #  when: work_offline is defined and not(work_offline)

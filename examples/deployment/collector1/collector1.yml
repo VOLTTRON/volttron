@@ -1,0 +1,109 @@
+---
+# Customize configuration in a repeatable manner to build the configuration
+# file for volttron.
+config:
+  # allow_external_connection
+  # Setting this to true will set create a vip-address = tcp://0.0.0.0:22916
+  # default: false
+  # allow-external-connection: true
+
+  # vip-port
+  # Allows custom port to be used for connecting multiple VOLTTRON hosts
+  # default: 22916
+  # vip-port: 22916
+
+  # enable-web-https
+  # Creates a binding for https://hostname:8443
+  #
+  # default: false
+  # enable-web-https: true
+
+  ######################################################################
+  # https only parameters - only available when enable-web-https: true
+  ######################################################################
+
+  # generate-web-certs
+  # Generates the web certificates for the volttron instance
+  # only valid when enable-web-https is set to true
+  # default: false
+  # generate-web-certs: true
+
+  # web-private-key
+  # Use a private key from the local system for starting the web server
+  # default:
+  # web-private-key: PATHTOKEY
+
+  # web-public-key
+  # Use a private key from the local system for starting the web server
+  # default:
+  # web-private-key: PATHTOKEY
+
+  # enable-web-https
+  # Creates a binding for http://hostname:8080
+  #
+  # default: false
+  # enable-web-http: true
+
+  ######################################################################
+  # web-port
+  # If enable-web-http or web-https is enabled you can customize
+  # the web port here
+  # default:
+  # web-port: 8080
+
+  # volttron-central-host
+  # The host name in the inventory that is going to control this
+  # via the volttron central interface
+  # default: None
+  # volttron-central-host: inventory_hostname
+
+
+#rabbitmq-config: $CONFIG/rabbitmq_config.yml
+
+# Agents dictionary to install.  The key must be a valid
+# identity for the agent to be installed correctly.
+agents:
+
+  # Each agent identity.config file should be in the configs
+  # directory and will be used to install the agent.
+  listener:
+    source: $VOLTTRON_ROOT/examples/ListenerAgent
+    config: $CONFIG/listener.config # This is an empty element $CONFIG/listener.config
+#
+#  volttron.central:
+#    source: $VOLTTRON_ROOT/services/core/VolttronCentral
+#    config: $VOLTTRON_ROOT/services/core/VolttronCentral/config
+#
+#  master.driver:
+#    source: $VOLTTRON_ROOT/services/core/MasterDriverAgent
+#
+#  platform.agent:
+#    source: $VOLTTRON_ROOT/services/core/VolttronCentralPlatform
+#    config: $VOLTTRON_ROOT/services/core/VolttronCentralPlatform/config
+#
+#  historian:
+#    source: $VOLTTRON_ROOT/services/core/SQLHistorian
+#    config: $CONFIG/historian.config
+
+#  platform.actuator:
+#    source: $VOLTTRON_ROOT/services/core/ActuatorAgent
+#
+#  weather:
+#    source: $VOLTTRON_ROOT/examples/DataPublisher
+#    config: $CONFIG/weather.config
+
+#  price:
+#    source: $VOLTTRON_ROOT/examples/DataPublisher
+#    config: $CONFIG/price.config
+
+#  platform.bacnet_proxy:
+#    source: $VOLTTRON_ROOT/services/core/BACnetProxy
+#    config: $CONFIG/bacnet-proxy.json
+#  platform.driver:
+#    source: $VOLTTRON_ROOT/services/core/MasterDriverAgent
+#    config_store:
+#      fake.csv:
+#        file: $CONFIG/bacnet_example_config.csv
+#        type: --csv
+#      devices/PNNL/ANNEX:
+#        file: $CONFIG/annex.config
