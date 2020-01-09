@@ -1,17 +1,21 @@
 ---
 - hosts: all
+  vars:
+      # Ansible will use this path on remote hosts to run the interpreter with.
+      ansible_python_interpreter: /usr/bin/python3
   tasks:
-#    - name: Check SSH known_hosts for {{ inventory_hostname }}
-#      local_action: shell ssh-keygen -F {{ inventory_hostname }}
-#      register: checkForKnownHostsEntry
-#      failed_when: false
-#      changed_when: false
-#      ignore_errors: yes
-#    - name: Add {{ inventory_hostname }} to SSH known hosts automatically
-#      when: checkForKnownHostsEntry.rc == 1
-#      changed_when: checkForKnownHostsEntry.rc == 1
-#      set_fact:
-#          ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+    - name: Check SSH known_hosts for {{ inventory_hostname }}
+      local_action: shell ssh-keygen -F {{ inventory_hostname }}
+      register: checkForKnownHostsEntry
+      failed_when: false
+      changed_when: false
+      ignore_errors: yes
+
+    - name: Add {{ inventory_hostname }} to SSH known hosts automatically
+      when: checkForKnownHostsEntry.rc == 1
+      changed_when: checkForKnownHostsEntry.rc == 1
+      set_fact:
+          ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
 
     - name: Test for enable_web
       when: enable_web is not defined
@@ -23,7 +27,7 @@
       set_fact:
           messagebus: "zmq"
 
-    - name: Install base software for volttron
+    - name: Install base software
       become: yes
       become_method: sudo
       apt:
@@ -90,9 +94,9 @@
 
     - name: Checkout volttron from repository
       git:
-        repo: "https://github.com/VOLTTRON/volttron"
+        repo: "https://github.com/craig8/volttron"
         dest: "~/volttron"
-        version: "develop"
+        version: "remote-platforms"
         update: "no"
 
     - name: Bootstrap the python3 environment if necessary
