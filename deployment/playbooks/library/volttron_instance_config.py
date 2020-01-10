@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import pwd
+import psutil
 import shutil
 import socket
 import subprocess
@@ -24,12 +25,19 @@ def logger():
     return logging.getLogger(__name__)
 
 
-class StateEnum(enum.Enum):
+class InstanceState(enum.Enum):
     RUNNING = "RUNNING"
     STOPPED = "STOPPED"
     INVALID_PATH = "INVALID_PATH"
     NOT_BOOTSTRAPPED = "NOT_BOOTSTRAPPED"
     ERROR = "ERROR"
+
+
+class AgentState(enum.Enum):
+    RUNNING = "RUNNING"
+    STOPPED = "STOPPED"
+    ERRORED = "ERRORED"
+    NOT_INSTALLED = "NOT_INSTALLED"
 
 
 def has_bootstrapped(volttron_path):
@@ -60,7 +68,15 @@ def _remove_option_no_error(inst, section, option):
         return False
 
 
-def build_volttron_configfile(volttron_home, host_config_dict):
+def _validate_agent_config(agent_dict: dict):
+
+    agent_keys = ['source', 'config', 'config_store']
+    for id, item in agent_dict.items():
+
+        logger().debug(f"{json.dumps(os.environ.copy(), indent=2)}")
+
+
+def build_volttron_configfile(volttron_home, host_config_dict:dict):
     """
     :param volttron_home:
     :param params:
@@ -81,6 +97,8 @@ def build_volttron_configfile(volttron_home, host_config_dict):
     if had_config:
         parser.read(cfg_loc)
 
+    if host_config_dict is None:
+        host_config_dict = {}
     vc_address = None
     vc_serverkey = None
     vip_address = None
@@ -122,21 +140,27 @@ def build_volttron_configfile(volttron_home, host_config_dict):
             parser.set('volttron', 'vip-address',
                        host_config_dict['vip_address'])
 
-        if not host_config_dict['enable_web']:
-            _remove_option_no_error(parser, 'volttron', 'bind-web-address')
-        elif not host_config_dict['bind_web_address']:
-            _remove_option_no_error(parser, 'volttron', 'bind-web-address')
-        else:
-            parser.set('volttron', 'bind-web-address',
-                       host_config_dict['bind_web_address'])
+        # if not host_config_dict['enable_web']:
+        #     _remove_option_no_error(parser, 'volttron', 'bind-web-address')
+        # elif not host_config_dict['bind_web_address']:
+        #     _remove_option_no_error(parser, 'volttron', 'bind-web-address')
+        # else:
+        #     parser.set('volttron', 'bind-web-address',
+        #                host_config_dict['bind_web_address'])
 
     parser.write(open(cfg_loc, 'w'))
     return changed
 
 
-def get_current_state(volttron_home, volttron_path):
+def get_instance_state(volttron_home, volttron_path):
     """
-    Determine the state of volttron on target system.
+    Determine the state of volttron on target system.  The function determines
+    whether or not volttron is running based upon the VOLTTRON_PID file in
+    the volttron_home directory.  First of all the function will check to make sure
+    that volttron has been bootstrapped.  If it is not the function will return
+    `InstanceState.NOT_BOOTSTRAPPED.  If the process id in VOLTTRON_PID is in /proc/ directory
+    then the process is alive and the function returns `InstanceState.RUNNING`.  Otherwise, the
+    function will return `InstanceState.STOPPED`
 
     :param volttron_home:
     :param volttron_path:
@@ -145,25 +169,25 @@ def get_current_state(volttron_home, volttron_path):
 
     PID_FILE = os.path.join(volttron_home, "VOLTTRON_PID")
 
-    state = None
     if not os.path.exists(python(volttron_path)):
-        state = StateEnum.NOT_BOOTSTRAPPED
+        state = InstanceState.NOT_BOOTSTRAPPED
     else:
         if os.path.exists(PID_FILE):
             pid = open(PID_FILE).read()
             if os.path.isdir(f"/proc/{pid}"):
-                state = StateEnum.RUNNING
+                state = InstanceState.RUNNING
             else:
-                state = StateEnum.STOPPED
+                state = InstanceState.STOPPED
         else:
-            state = StateEnum.STOPPED
+            state = InstanceState.STOPPED
 
     logger().debug(f"get_current_state() returning {state}")
     return state
 
 
-def check_agent_status(agents):
-    pass
+def check_agent_status(agents: dict):
+    for id, item in agents.items():
+        pass
 
 
 def start_volttron(volttron_path, volttron_bin):
@@ -198,6 +222,89 @@ def force_kill_volttron():
                             stdout=open('/dev/null', 'w'),
                             stderr=open('logfile.log', 'a'))
 
+
+def update_agents(agents: dict):
+    for id, agent in agents.items():
+        logger().debug(f"{id} => {agent}")
+
+
+def check_install_agents(agents: dict):
+    for id, item in agents.items():
+        logger().debug(f"{id} => {item}")
+
+def get_agent_status(agent_dir):
+    base_name = os.path.basename(agent_dir)
+    dist_info_dir = os.path.join(agent_dir, f"{base_name}.dist-info")
+    if not os.path.isdir(dist_info_dir):
+        return dict(state=AgentState.NOT_INSTALLED.name)
+
+    tag_file = os.path.join(agent_dir, "TAG")
+    priority_file = os.path.join(agent_dir, "AUTOSTART")
+    secret_key_file = os.path.join(agent_dir, f"{base_name}.agent-data/keystore.json")
+
+    with open(os.path.join(dist_info_dir, 'metadata.json')) as file:
+        metadata = json.loads(file.read())
+        # wheelmeta = {
+        #     key.strip().lower(): value.strip()
+        #     for key, value in
+        #     (parts for line in file if line
+        #      for parts in [line.split(':', 1)] if len(parts) == 2)
+        # }
+    exports = metadata['exports']
+    module = exports['setuptools.installation']['eggsecutable']
+    found_proc = None
+    for proc in psutil.process_iter():
+        if module in proc.name:
+            found_proc = proc
+    pid = None
+    if found_proc:
+        pid = found_proc.pid
+    tag = None
+    if os.path.exists(tag_file):
+        tag = open(tag_file).read()
+    priority = None
+    if os.path.exists(priority_file):
+        priority = open(priority_file).read()
+    public_key = None
+    if os.path.exists(secret_key_file):
+        with open(secret_key_file) as fp:
+            data = json.loads(fp)
+            public_key = data['public']
+    return {
+        "pid": pid,
+        "public_key": public_key,
+        "priority": priority,
+        "tag": tag
+    }
+
+
+def find_all_agents(path):
+    results = {}
+    name = "IDENTITY"
+    for root, dirs, files in os.walk(path):
+        if name in files:
+            file_path = os.path.join(root, name)
+            identity = open(file_path).read()
+            results[identity] =  get_agent_status(os.path.dirname(file_path))
+
+    return results
+
+
+def get_agents_state(volttron_home, agents_config_dict):
+    agents_state = find_all_agents(volttron_home)
+
+    for identity, spec in agents_config_dict.items():
+
+        if identity not in agents_state:
+            agents_state[identity] = dict(state=AgentState.NOT_INSTALLED.name)
+        elif agents_state[identity]['pid'] is not None:
+            agents_state[identity]['state'] = AgentState.STOPPED.name
+        else:
+            agents_state[identity]['state'] = AgentState.RUNNING.name
+
+    return agents_state
+
+
 def main():
     init_logging(expand_all("~/ansible_logging.log"))
     logger().debug("Before module instantiation")
@@ -213,9 +320,9 @@ def main():
         # volttron_central_serverkey=dict(default=None),
         # Only binds when this flag is set to true.
 
-        state=dict(required=True, choices=StateEnum.__members__.keys())
-        #started=dict(default=True, type="bool")
-    ))
+        state=dict(choices=InstanceState.__members__.keys()),
+        # started=dict(default=True, type="bool")
+    ), supports_check_mode=True)
 
     p = module.params
 
@@ -239,15 +346,14 @@ def main():
     volttronbin = os.path.join(vroot, "env/bin/volttron")
     vctlbin = os.path.join(vroot, "env/bin/vctl")
 
-    if p['state'] not in StateEnum.__members__.keys():
-        module.fail_json(msg=f"Invalid state for enum {StateEnum.__members__}")
-
-    expected_state = StateEnum(p['state'])
-
-    logger().debug(f"Expected State is {expected_state}")
+    check_mode = module.check_mode
 
     if not os.path.exists(vroot):
-        module.fail_json(msg="Invalid VOLTTRON path (%s)" % vroot)
+        module.fail_json(msg=f"volttron_path does not exist {vroot}. "
+                             f"Please run vctl deploy up.")
+
+    if not os.path.isfile(host_config):
+        module.fail_json(msg=f"File not found {host_config}.")
 
     with open(host_config) as fp:
         cfg_host = yaml.safe_load(fp)
@@ -255,69 +361,66 @@ def main():
     if 'config' not in cfg_host:
         module.fail_json(msg="Must have config section in host configuration file.")
 
-    #module.exit_json(changed=True, msg=cfg_host) # f"{json.dumps(cfg_host, indent=2)}")
-    #
-    # bind_web = p['bind_web_address']
-    # if bind_web and p['enable_web']:
-    #     parsed = urlparse(bind_web)
-    #
-    #     if parsed.scheme not in ('http', 'https'):
-    #         module.fail_json(
-    #             "Invalid bind_web_address must be http or https scheme")
-    #         return
-    #
-    #     if parsed.port < 4000:
-    #         module.fail_json(
-    #             "bind_web_address port shuould be larger than 4000 or "
-    #             "cannot bind to it without root."
-    #         )
-    #         return
-    #
-    # vip_address = p['vip_address']
-    # if vip_address:
-    #     parsed = urlparse(vip_address)
-    #
-    #     if parsed.scheme not in ('tcp',):
-    #         module.fail_json(
-    #             "vip address should start with tcp://"
-    #         )
-    #     if parsed.port <= 4000:
-    #         module.fail_json(
-    #             "http port shuould be larger than 4000 or cannot bind "
-    #             "to it without root."
-    #         )
+    if 'agents' not in cfg_host:
+        module.fail_json(msg="Must have agents section in host configuration file.")
+
+    if not cfg_host['config']:
+        cfg_host['config'] = {}
+
+    if not cfg_host['agents']:
+        cfg_host['agents'] = {}
+
+    if check_mode:
+        instance_state = get_instance_state(volttron_home=vhome, volttron_path=vroot)
+        all_agents_state = get_agents_state(volttron_home=vhome, agents_config_dict=cfg_host['agents'])
+        module.exit_json(changed=False, instance_state=instance_state.name, agents_state=all_agents_state)
+    else:
+        if 'state' not in p:
+            module.exit_json(changed=False, msg="missing required arguments: state")
+
+        expected_state = InstanceState(p['state'])
+
+        logger().debug(f"Expected State is {expected_state}")
+
+    _validate_agent_config(cfg_host['agents'])
 
     config_file_changed = build_volttron_configfile(vhome, cfg_host['config'])
-    current_state = get_current_state(vhome, vroot)
+    current_state = get_instance_state(vhome, vroot)
 
     if current_state == expected_state and not config_file_changed:
-        module.exit_json(changed=False, msg=f"No Change Required", state=current_state.name)
-    elif expected_state == StateEnum.RUNNING:
-        if config_file_changed and current_state == StateEnum.RUNNING:
+        agent_state_changed = False
+        if current_state == InstanceState.RUNNING:
+            agent_state_changed = check_install_agents(cfg_host['agents'])
+        module.exit_json(changed=False, msg=f"No Change Required", state=current_state.name,
+                         agent_state_changed=agent_state_changed)
+    elif expected_state == InstanceState.RUNNING:
+        if config_file_changed and current_state == InstanceState.RUNNING:
             logger().debug("Stopping volttron due to restart")
             stop_volttron(vroot, vctlbin)
-            current_state = wait_for_state(StateEnum.STOPPED, vhome, vroot)
-            if current_state != StateEnum.STOPPED:
+            current_state = wait_for_state(InstanceState.STOPPED, vhome, vroot)
+            if current_state != InstanceState.STOPPED:
                 module.fail_json(msg="Failed to stop running volttron in timely manner")
         logger().debug("Starting volttron")
         start_volttron(vroot, volttronbin)
-        current_state = wait_for_state(StateEnum.RUNNING, vhome, vroot)
+        current_state = wait_for_state(InstanceState.RUNNING, vhome, vroot)
+
+        update_agents(cfg_host['agents'])
 
         module.exit_json(changed=True, failed=current_state != expected_state,
                          msg="VOLTTRON started", state=current_state.name)
-    elif expected_state == StateEnum.STOPPED:
+    elif expected_state == InstanceState.STOPPED:
         logger().debug("Stopping volttron")
         stop_volttron(vroot, vctlbin)
-        current_state = wait_for_state(StateEnum.STOPPED, vhome, vroot)
+        current_state = wait_for_state(InstanceState.STOPPED, vhome, vroot)
 
         if current_state != expected_state:
             force_kill_volttron()
-            current_state = wait_for_state(StateEnum.STOPPED, vhome, vroot)
+            current_state = wait_for_state(InstanceState.STOPPED, vhome, vroot)
 
             if current_state != expected_state:
                 module.fail_json(msg="Couldn't shutdown or force kill volttron")
 
-        current_state = get_current_state(vhome, vroot)
+        current_state = get_instance_state(vhome, vroot)
 
         module.exit_json(changed=True, failed=current_state != expected_state,
                          msg="VOLTTRON stopped", state=current_state.name)
@@ -327,7 +430,7 @@ def main():
 
     config_file_changed = build_volttron_configfile(vhome, p)
 
-    after_state = get_current_state(vhome, vroot)
+    after_state = get_instance_state(vhome, vroot)
     changed = after_state != current_state
     module.exit_json(changed=changed,
                      ansible_facts=p,
@@ -337,11 +440,11 @@ def main():
 
 def wait_for_state(expected_state, vhome, vroot):
     countdown = 5
-    current_state = StateEnum.ERROR
+    current_state = InstanceState.ERROR
     while current_state is not expected_state and countdown > 0:
         sleep(5)
         countdown -= 1
-        new_state = get_current_state(vhome, vroot)
+        new_state = get_instance_state(vhome, vroot)
         if new_state == expected_state:
             current_state = new_state
             break

@@ -39,21 +39,9 @@
         dest: "{{ ansible_env.HOST_CONFIG }}"
         mode: 0644
 
-    # Use anisible interperet to separate the volttron requirements from
-    # the requirements of the volttron instance
-    - name: Create ansbile virtual env
-      pip:
-        virtualenv: ~/ansible_venv
-        virtualenv_command: /usr/bin/python3.6 -m venv
-        name: "{{ item }}"
-      loop:
-        - pyyaml
+    - include_tasks: ansible_venv.yml
 
-    - name: Set ansible interpreter
-      set_fact:
-        ansible_python_interpreter: ~/ansible_venv/bin/python
-
-    - name: Configure VOLTTRON Instance {{ inventory_hostname }}
+    - name: Configure VOLTTRON Instances
       volttron_instance_config:
         config_file: "{{ ansible_env.HOST_CONFIG }}"
         state: "RUNNING"

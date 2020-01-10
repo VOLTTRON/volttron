@@ -1,0 +1,17 @@
+---
+# Use anisible interperet to separate the volttron requirements from
+# the requirements of the volttron instance
+- name: Create ansbile virtual env
+  pip:
+    virtualenv: ~/ansible_venv
+    virtualenv_command: /usr/bin/python3.6 -m venv
+    name: "{{ item }}"
+  loop:
+    - pyyaml
+    - psutil
+
+# Sets the ansible interpreter to be the one that
+# is used for the rest of the tasks.
+- name: Set ansible interpreter
+  set_fact:
+    ansible_python_interpreter: ~/ansible_venv/bin/python

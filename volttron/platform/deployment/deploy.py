@@ -124,6 +124,10 @@ def do_volttron_up(hosts_path, options):
     results = pbex.run()
     print(results)
 
+def do_volttron_status(options):
+    pbex = _get_executor(options.hosts_file, None, "status", limit=options.limit)
+
+    results = pbex.run()
 
 def do_destroy_systems(options):
     pbex = _get_executor(options.hosts_file, None, "remove-volttron", limit=options.limit)
@@ -175,6 +179,11 @@ def add_deployment_subparser(add_parser_fn):
                        subparser=subparsers)
     add_common(up)
 
+    status = add_parser_fn('status',
+                           help="Prints status of the platforms specified in the hosts file.",
+                           subparser=subparsers)
+    add_common(status)
+
     #
     #
     # provision = add_parser_fn('provision',
@@ -199,6 +208,8 @@ def do_deployment_command(opts):
         do_destroy_systems(opts)
     elif opts.store_commands == 'up':
         do_volttron_up(hosts_path, opts)
+    elif opts.store_commands == 'status':
+        do_volttron_status(opts)
     else:
         sys.stderr.write(f"Invalid argument to parser {opts.store_commands}")
 
