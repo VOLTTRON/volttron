@@ -13,7 +13,7 @@
     # Ansible will use this path on remote hosts to run the interpreter with.
     ansible_python_interpreter: /usr/bin/python3
   tasks:
-    - include_tasks: include_ansible_venv.yml
+    - include_tasks: includes/ansible_venv.yml
 
     - name: Retrieving Status
       volttron_instance_config:

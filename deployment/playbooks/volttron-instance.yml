@@ -39,7 +39,7 @@
         dest: "{{ ansible_env.HOST_CONFIG }}"
         mode: 0644
 
-    - include_tasks: ansible_venv.yml
+    - include_tasks: includes/ansible_venv.yml
 
     - name: Configure VOLTTRON Instances
       volttron_instance_config:

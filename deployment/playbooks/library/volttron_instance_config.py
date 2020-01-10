@@ -38,6 +38,7 @@ class AgentState(enum.Enum):
     STOPPED = "STOPPED"
     ERRORED = "ERRORED"
     NOT_INSTALLED = "NOT_INSTALLED"
+    UNKNOWN = "UNKNOWN"
 
 
 def has_bootstrapped(volttron_path):
@@ -223,16 +224,42 @@ def force_kill_volttron():
                             stderr=open('logfile.log', 'a'))
 
 
-def update_agents(agents: dict):
-    for id, agent in agents.items():
-        logger().debug(f"{id} => {agent}")
+def update_agents(vctl, volttron_home, agents_config_dict: dict):
+    agents_state = get_agents_state(volttron_home, agents_config_dict)
+    # all_installed_agents = set(agents_state.keys())
+    found_agents = set()
+
+    for id, agent_spec in agents_config_dict.items():
+        logger().debug(f"{id} => {agent_spec}")
+        if id in agents_state:
+            found_agents.add(id)
+            state = AgentState(agents_state[id]['state'])
+            if state == AgentState.NOT_INSTALLED:
+                install_agent(vctl, id, agent_spec)
 
 
 def check_install_agents(agents: dict):
     for id, item in agents.items():
         logger().debug(f"{id} => {item}")
 
+
 def get_agent_status(agent_dir):
+    """
+    Retrieve the agent status from the installed directory in VOLTTRON_HOME.
+
+    This method uses the metadata.json file in the agent's .dist-info folder
+    to load information about the agent.  In addition it uses psutil to
+    verify whether an agent is running or not.
+
+    The function will return a dictionary with the following keys:
+     - pid          - PID of the agent if running
+     - public_key   - public_key of the agent if available
+     - priority     - startup order if available
+     - tag          - agent tag if available
+
+    :param agent_dir: The installed agent directory
+    :return:
+    """
     base_name = os.path.basename(agent_dir)
     dist_info_dir = os.path.join(agent_dir, f"{base_name}.dist-info")
     if not os.path.isdir(dist_info_dir):
@@ -244,12 +271,7 @@ def get_agent_status(agent_dir):
 
     with open(os.path.join(dist_info_dir, 'metadata.json')) as file:
         metadata = json.loads(file.read())
-        # wheelmeta = {
-        #     key.strip().lower(): value.strip()
-        #     for key, value in
-        #     (parts for line in file if line
-        #      for parts in [line.split(':', 1)] if len(parts) == 2)
-        # }
+
     exports = metadata['exports']
     module = exports['setuptools.installation']['eggsecutable']
     found_proc = None
@@ -279,19 +301,44 @@ def get_agent_status(agent_dir):
 
 
 def find_all_agents(path):
+    """
+    Find all of the agents in the specified `path`.  The path should
+    be the VOLTTRON_HOME/agents directory.
+
+    The function uses the each agent's IDENTITY file to create a
+    dictionary of agent identities mapped onto the agent state.
+
+    This function requires using `get_agent_status` to determine the
+    state of the agent.
+
+    :param path:
+        Path of the search for agents.
+    :return:
+        dictionary of identity -> agent status
+    """
     results = {}
     name = "IDENTITY"
     for root, dirs, files in os.walk(path):
         if name in files:
             file_path = os.path.join(root, name)
             identity = open(file_path).read()
-            results[identity] =  get_agent_status(os.path.dirname(file_path))
+            results[identity] = get_agent_status(os.path.dirname(file_path))
 
     return results
 
 
 def get_agents_state(volttron_home, agents_config_dict):
-    agents_state = find_all_agents(volttron_home)
+    """
+    Uses all found agents (from `find_all_agents` function) to provide an
+    agent state key.  The function compares expected agents to the currently
+    installed and runnning agents to provide the state.
+
+    :param volttron_home:
+    :param agents_config_dict:
+    :return:
+        dictionary identity -> state and status of agent
+    """
+    agents_state = find_all_agents(os.path.join(volttron_home, 'agents'))
 
     for identity, spec in agents_config_dict.items():
 
@@ -303,6 +350,130 @@ def get_agents_state(volttron_home, agents_config_dict):
             agents_state[identity]['state'] = AgentState.RUNNING.name
 
     return agents_state
+
+
+def install_agent(vctl, identity, agent_spec: dict):
+    """
+    Installs
+    The install_agent function is the main function of the module.  It wraps
+    two scripts that are available in the volttron repository under the scripts
+    directory.  The instance.py script allows querying of the instance for
+    information without having to be activated, and the install-agent.py
+    script that has command line arguments for installing the agents on a
+    running instance.
+
+    :param python:
+    :param scripts_dir:
+    :param params:
+    :return:
+    """
+
+    cmd = [vctl, "install", agent_spec['source'], '--json', '--force', '--vip-identity', identity]
+
+    response = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+    if response.returncode != 0:
+        logger().debug(f"Something failed spectacularly during install for idenitity {identity}")
+        logger().debug(f"STDOUT\n{response.stdout}")
+        logger().debug(f"STDERR\n{response.stdout}")
+        return
+        
+    #
+    # params = module.params
+    # # First we need to verify that the instance is currently running or we
+    # # cannot install anything.
+    # args = [python, os.path.join(scripts_dir, 'instance.py'), '--volttron-home',
+    #         params['volttron_home']]
+    #
+    # (rc, out, err) = module.run_command(args)
+    #
+    # if rc != 0:
+    #     return True, False, dict(msg="instance not running", out=out, err=err)
+    #
+    # if int(out.strip()) == 0:
+    #     err = "Instance {} is not running.".format(params['volttron_home'])
+    #     return (True, False,
+    #             dict(msg=err))
+    #
+    # # Next we need to customize the installation script parameters based upon
+    # # the input from the caller.
+    # script = os.path.join(scripts_dir, "install-agent.py")
+    #
+    # args = [python, script]
+    # args.extend(['--volttron-home', params['volttron_home']])
+    # args.extend(['--volttron-root', params['volttron_root']])
+    # args.extend(['--agent-source', params['source']])
+    #
+    # if params['identity']:
+    #     args.extend(['--vip-identity', params['identity']])
+    #
+    # # Always use force because we can't find a reason not to upgrade if
+    # # possible.
+    # args.extend(['--force'])
+    #
+    # # If a priority is specified that implies the agent will be enabled.
+    # if params['priority']:
+    #     args.extend(['--enable', '--priority', str(params['priority'])])
+    # elif params['enable']:
+    #     args.extend(['--enable'])
+    #
+    # # When a config_objecct is sent as a parameter we use a temp file to write
+    # # the content to before using it within the installation.  We do this so
+    # # that we don't have to deal with passing json on the commmand line, though
+    # # it will work it is frought with perils
+    # #
+    # # We serialize the json (config_object) and stuff it into the temp file.
+    # tmpfilename = '/tmp/tmp-{}'.format(random.randint(10, 1000))
+    # #module.fail_json(msg=tmpfilename + str(params['config_object']))
+    # if params['config_object']:
+    # #    module.exit_json(msg=params['config_object'])
+    #     # Dump to to tmp file and then add the --config param to the arguments.
+    #     data = json.dumps(params['config_object'])
+    #     with open(tmpfilename, 'w') as f:
+    #         f.write(data)
+    #
+    #     args.extend(['--config', tmpfilename])
+    # elif params['config']:
+    #     args.extend(['--config', params['config']])
+    #
+    # if params['state'] == 'started':
+    #     args.extend(['--start'])
+    #
+    # if params['tag']:
+    #     args.extend(['--tag', params['tag']])
+    #
+    # (rc, stdout, stderr) = module.run_command(args)
+    #
+    # retvalues = {}
+    # is_error = int(rc) != 0
+    # if is_error:
+    #     retvalues['msg'] = "rc code from install-agent.py invalid."
+    #
+    # # Cleanup temp file if necessary.
+    # if os.path.exists(tmpfilename):
+    #     os.remove(tmpfilename)
+    #
+    # install_return = None
+    # if not is_error:
+    #     # Now there is a lot of cruf in the stdout, however it is split by \n
+    #     # and after the word RECORD at the end of a line is json data
+    #     pos = stdout.rindex('RECORD') + len('RECORD') + 1
+    #     jsondata = stdout[pos:]
+    #     #return is_error, False, dict(stdout=jsondata)
+    #     install_return = json.loads(jsondata.replace("\n", " "))
+    #     if params['state'] == 'started':
+    #         is_error = 'started' in install_return and not install_return['started']
+    #         if is_error:
+    #             retvalues['msg'] = "Agent wasn't able to reach started state."
+    #
+    # retvalues['params'] = params
+    # retvalues['args'] = args
+    # retvalues['install_agent_ret'] = install_return
+    # if is_error:
+    #     return is_error, False, retvalues
+    #
+    # retvalues['result'] = "installed {} agent.".format(params['source'])
+    # return is_error, True, retvalues
 
 
 def main():
@@ -370,6 +541,7 @@ def main():
     if not cfg_host['agents']:
         cfg_host['agents'] = {}
 
+    expected_state = None
     if check_mode:
         instance_state = get_instance_state(volttron_home=vhome, volttron_path=vroot)
         all_agents_state = get_agents_state(volttron_home=vhome, agents_config_dict=cfg_host['agents'])
@@ -403,6 +575,9 @@ def main():
         logger().debug("Starting volttron")
         start_volttron(vroot, volttronbin)
         current_state = wait_for_state(InstanceState.RUNNING, vhome, vroot)
+
+        if current_state != InstanceState.RUNNING:
+            module.fail_json(msg="Failed to start VOLTTRON")
 
         update_agents(cfg_host['agents'])
 
