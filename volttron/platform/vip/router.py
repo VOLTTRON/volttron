@@ -325,6 +325,7 @@ class BaseRouter(object):
         try:
             # Try sending the message to its recipient
             # This is a zmq socket so we need to serialize it before sending
+            print(frames)
             serialized_frames = serialize_frames(frames)
             socket.send_multipart(serialized_frames, flags=NOBLOCK, copy=False)
             issue(OUTGOING, serialized_frames)
