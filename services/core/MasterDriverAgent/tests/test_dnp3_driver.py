@@ -91,10 +91,6 @@ def agent(request, volttron_instance):
                                                   config_file={},
                                                   start=True)
 
-    # test_agent.vip.rpc.call('config.store', 'manage_store', PLATFORM_DRIVER, 'devices/dnp3', DRIVER_CONFIG_STRING,
-    #                         config_type='json')
-    # test_agent.vip.rpc.call('config.store', 'manage_store', PLATFORM_DRIVER, 'dnp3.csv', REGISTRY_CONFIG_STRING,
-    #                         config_type='csv')
     update_config(PLATFORM_DRIVER, 'devices/dnp3', DRIVER_CONFIG_STRING, 'json')
     update_config(PLATFORM_DRIVER, 'dnp3.csv', REGISTRY_CONFIG_STRING, 'csv')
 
@@ -110,7 +106,6 @@ def agent(request, volttron_instance):
     return test_agent
 
 
-# @pytest.mark.skip('Passes when run standalone, fails in Travis during DNP3Agent install')
 class TestDNP3Driver:
     """Regression tests for the DNP3 driver interface."""
 
