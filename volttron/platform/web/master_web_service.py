@@ -173,7 +173,7 @@ class MasterWebService(Agent):
             if p not in peers:
                 del self.peerroutes[p]
 
-    @RPC.export()
+    @RPC.export
     def get_user_claims(self, bearer):
         from volttron.platform.web import get_user_claim_from_bearer
         if self._web_secret_key is not None:
@@ -184,21 +184,21 @@ class MasterWebService(Agent):
         else:
             raise ValueError("Configuration error secret key or web ssl cert must be not None.")
 
-    @RPC.export()
+    @RPC.export
     def websocket_send(self, endpoint, message):
         _log.debug("Sending data to {} with message {}".format(endpoint,
                                                                message))
         self.appContainer.websocket_send(endpoint, message)
 
-    @RPC.export()
+    @RPC.export
     def get_bind_web_address(self):
         return self.bind_web_address
 
-    @RPC.export()
+    @RPC.export
     def get_serverkey(self):
         return self.serverkey
 
-    @RPC.export()
+    @RPC.export
     def get_volttron_central_address(self):
         """Return address of external Volttron Central
 
@@ -207,7 +207,7 @@ class MasterWebService(Agent):
         """
         return self.volttron_central_address
 
-    @RPC.export()
+    @RPC.export
     def register_endpoint(self, endpoint, res_type):
         """
         RPC method to register a dynamic route.
@@ -228,7 +228,7 @@ class MasterWebService(Agent):
 
         self.endpoints[endpoint] = (identity, res_type)
 
-    @RPC.export()
+    @RPC.export
     def register_agent_route(self, regex, fn):
         """ Register an agent route to an exported function.
 
@@ -248,7 +248,7 @@ class MasterWebService(Agent):
         self.peerroutes[identity].append(compiled)
         self.registeredroutes.insert(0, (compiled, 'peer_route', (identity, fn)))
 
-    @RPC.export()
+    @RPC.export
     def unregister_all_agent_routes(self):
         # Get calling identity from whom the request came from
         identity = self.vip.rpc.context.vip_message.peer
@@ -269,7 +269,7 @@ class MasterWebService(Agent):
         _log.debug(endpoints)
         self.endpoints = endpoints
 
-    @RPC.export()
+    @RPC.export
     def register_path_route(self, regex, root_dir):
         # Get calling identity from whom the request came from
         identity = self.vip.rpc.context.vip_message.peer
@@ -282,7 +282,7 @@ class MasterWebService(Agent):
         # to be before the last route which will resolve to .*
         self.registeredroutes.insert(len(self.registeredroutes) - 1, (compiled, 'path', root_dir))
 
-    @RPC.export()
+    @RPC.export
     def register_websocket(self, endpoint):
         # Get calling identity from whom the request came from
         identity = self.vip.rpc.context.vip_message.peer
@@ -297,7 +297,7 @@ class MasterWebService(Agent):
             raise AttributeError("self does not contain"
                                  " attribute appContainer")
 
-    @RPC.export()
+    @RPC.export
     def unregister_websocket(self, endpoint):
         # Get calling identity from whom the request came from
         identity = self.vip.rpc.context.vip_message.peer
