@@ -276,6 +276,10 @@ from volttron.platform.agent import utils
 
 _log = logging.getLogger(__name__)
 
+
+# Build the parser
+time_parser = None
+
 ACTUATOR_TOPIC_PREFIX_PARTS = len(topics.ACTUATOR_VALUE.split('/'))
 ALL_REX = re.compile('.*/all$')
 
@@ -1669,6 +1673,22 @@ class BaseQueryHistorianAgent(Agent):
     their data stores.
     """
 
+    def __init__(self, **kwargs):
+        _log.debug('Constructor of BaseQueryHistorianAgent thread: {}'.format(
+            threading.currentThread().getName()
+        ))
+        global time_parser
+        if time_parser is None:
+            if utils.is_secure_mode():
+                # find agent's data dir. we have write access only to that dir
+                for d in os.listdir(os.getcwd()):
+                    if d.endswith(".agent-data"):
+                        agent_data_dir = os.path.join(os.getcwd(), d)
+                time_parser = yacc.yacc(write_tables=0,
+                                        outputdir=agent_data_dir)
+            else:
+                time_parser = yacc.yacc(write_tables=0)
+        super(BaseQueryHistorianAgent, self).__init__(**kwargs)
     @RPC.export
     def get_version(self):
         """RPC call to get the version of the historian
@@ -2139,5 +2159,4 @@ def p_error(p):
     raise ValueError("Syntax Error in Query")
 
 
-# Build the parser
-time_parser = yacc.yacc(write_tables=0)
+
