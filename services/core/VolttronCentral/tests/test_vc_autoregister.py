@@ -19,11 +19,6 @@ def multi_messagebus_vc_vcp(volttron_multi_messagebus):
     # Handles both connections to zmq as well as connections to rmq bus.
     vc_instance.allow_all_connections()
 
-    if vc_instance.messagebus == 'rmq':
-        if vcp_instance.messagebus == 'rmq':
-            os.environ['REQUESTS_CA_BUNDLE'] = vcp_instance.certsobj.remote_cert_bundle_file()
-        else:
-            os.environ['REQUESTS_CA_BUNDLE'] = vc_instance.certsobj.remote_cert_bundle_file()
     vcp_uuid = add_volttron_central_platform(vcp_instance)
     vc_uuid = add_volttron_central(vc_instance)
 

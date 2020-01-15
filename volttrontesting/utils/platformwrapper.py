@@ -1331,7 +1331,11 @@ class WebAdminApi(object):
         """
         data = dict(username=username, password1=password, password2=password)
         url = self.bind_web_address +"/admin/setpassword"
-        resp = requests.post(url, data=data, verify=self.certsobj.remote_cert_bundle_file())
+        #resp = requests.post(url, data=data,
+        # verify=self.certsobj.remote_cert_bundle_file())
+        resp = requests.post(url, data=data,
+                             verify=self.certsobj.cert_file(
+                                 name=self.certsobj.root_ca_name))
         return resp
 
     def authenticate(self, username, password):
@@ -1339,5 +1343,8 @@ class WebAdminApi(object):
         url = self.bind_web_address+"/authenticate"
         # Passing dictionary to the data argument will automatically pass as
         # application/x-www-form-urlencoded to the request
-        resp = requests.post(url, data=data, verify=self.certsobj.remote_cert_bundle_file())
+        #resp = requests.post(url, data=data,
+        # verify=self.certsobj.remote_cert_bundle_file())
+        resp = requests.post(url, data=data, verify=self.certsobj.cert_file(
+            self.certsobj.root_ca_name))
         return resp

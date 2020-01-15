@@ -428,7 +428,7 @@ class ForwardHistorian(BaseHistorian):
             value = self.vip.auth.connect_remote_platform(address, serverkey=self.destination_serverkey)
 
         except gevent.Timeout:
-            _log.error("Couldn't connect to address: ({})".format(address))
+            _log.error("Couldn't connect to address. gevent timeout: ({})".format(address))
             self.vip.health.set_status(STATUS_BAD, "Timeout in setup of agent")
         except Exception as ex:
             _log.error(ex.args)
@@ -440,7 +440,7 @@ class ForwardHistorian(BaseHistorian):
                 self.vip.health.set_status(
                     STATUS_GOOD, "Connected to address ({})".format(address))
             else:
-                _log.error("Couldn't connect to address: ({})".format(address))
+                _log.error("Couldn't connect to address. Got Return value that is not Agent: ({})".format(address))
                 self.vip.health.set_status(STATUS_BAD, "Invalid agent detected.")
 
     @doc_inherit

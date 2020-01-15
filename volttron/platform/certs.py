@@ -705,52 +705,54 @@ class Certs(object):
 
         return mod_pub == mod_key
 
-    def save_agent_remote_info(self, directory, local_keyname, remote_name, remote_cert, remote_ca_name,
+    def save_agent_remote_info(self, directory, local_keyname, remote_cert_name, remote_cert, remote_ca_name,
                                remote_ca_cert):
         """
         Save the remote info file, remote certificates and remote ca to the proper place
         in the remote_certificate directory.
 
         :param local_keyname: identity of the local agent connected to the local messagebux
-        :param remote_name: identity of the dynamic agent connected to the remote message bus
+        :param remote_cert_name: identity of the dynamic agent connected to the remote message bus
         :param remote_cert: certificate returned from the remote instance
         :param remote_ca_name: name of the remote ca
         :param remote_ca_cert: certificate of the remote ca certificate
         """
-        self.save_remote_cert(remote_name, remote_cert, directory)
-        self.save_remote_cert(remote_ca_name, remote_ca_cert, directory)
-        metadata = dict(remote_ca_name=remote_ca_name,
-                        local_keyname=local_keyname)
-        metafile = os.path.join(directory, remote_name + ".json")
+        try:
+            self.save_remote_cert(remote_cert_name, remote_cert, directory)
+            self.save_remote_cert(remote_ca_name, remote_ca_cert, directory)
+            self.create_requests_ca_bundle(directory)
 
-        with open(metafile, 'w') as fp:
-            fp.write(jsonapi.dumps(metadata))
+            metadata = dict(remote_ca_name=remote_ca_name,
+                            local_keyname=local_keyname)
+            metafile = os.path.join(directory, remote_cert_name + ".json")
 
-        self.rebuild_requests_ca_bundle(directory)
+            with open(metafile, 'w') as fp:
+                fp.write(jsonapi.dumps(metadata))
+        except Exception as e:
+            _log.error(f"Error saving agent remote cert info. Exception:{e}")
+            raise e
 
-    def rebuild_requests_ca_bundle(self, agent_remote_cert_dir=None):
-        bundle_file = self.remote_cert_bundle_file()
-        if agent_remote_cert_dir:
-            # if this is called by agent there will be an agent specific
-            # remote cert dir in secure mode
-            bundle_file = os.path.join(agent_remote_cert_dir,
-                                       os.path.basename(bundle_file))
+    def create_requests_ca_bundle(self, agent_remote_cert_dir):
+        # if this is called by agent there will be an agent specific
+        # remote cert dir in secure mode
+        bundle_file = os.path.join(agent_remote_cert_dir, "requests_ca_bundle")
+
         with open(bundle_file, 'wb') as fp:
             # First include this platforms ca
             fp.write(self.ca_cert(public_bytes=True))
-            for f in os.listdir(self.remote_cert_dir):
-                # based upon the call to the safe_remote_info from
+            for f in os.listdir(agent_remote_cert_dir):
+                # based upon the call to the save_agent_remote_info from
                 # subsystem.auth file there will be a _ca added to the
                 # instance name on the other side of the connection so we can
                 # safely look for that string and bundle together.
                 if not f.endswith("_ca.crt"):
                     continue
-
-                filepath = os.path.join(self.remote_cert_dir, f)
+                filepath = os.path.join(agent_remote_cert_dir, f)
 
                 with open(filepath, 'rb') as fr:
                     fp.write(fr.read())
         os.chmod(bundle_file, 0o664)
+        _log.debug(f"Updated request ca bundle {bundle_file}")
 
     def delete_remote_cert(self, name):
         cert_file = self.remote_certs_file(name)
@@ -771,7 +773,6 @@ class Certs(object):
         except Exception as e:
             raise RuntimeError("Error saving remote cert {}. "
                                "Exception: {}".format(cert_file, e))
-        self.rebuild_requests_ca_bundle(remote_cert_dir)
 
     def save_cert(self, file_path):
         cert_file = self.cert_file(os.path.splitext(os.path.basename(
@@ -935,7 +936,6 @@ class Certs(object):
         cert, pk = _mk_cacert(valid_days=valid_days, **kwargs)
 
         self._save_cert(self.root_ca_name, cert, pk)
-        self.rebuild_requests_ca_bundle()
         return cert, pk
 
 

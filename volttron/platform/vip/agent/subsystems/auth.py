@@ -84,7 +84,7 @@ class Auth(SubsystemBase):
 
     def connect_remote_platform(self, address, serverkey=None, agent_class=None):
         """
-        Atempts to connect to a remote platform to exchange data.
+        Agent atempts to connect to a remote platform to exchange data.
 
         address must start with http, https, tcp, ampq, or ampqs or a ValueError will be
         raised
@@ -328,8 +328,7 @@ class Auth(SubsystemBase):
             return None
 
         certfile = os.path.join(remote_certs_dir, remote_cert_name + ".crt")
-
-        if certs.cert_exists(remote_cert_name, remote=True):
+        if os.path.exists(certfile):
             return certfile
         else:
             return status, message

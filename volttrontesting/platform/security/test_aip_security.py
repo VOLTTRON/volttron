@@ -132,17 +132,17 @@ def multi_messagebus_forwarder(volttron_multi_messagebus):
     forwarder_uuid = from_instance.install_agent(
         agent_dir=get_services_core("ForwardHistorian"),
         config_file=forwarder_config,
-        start=True
+        start=False
     )
-    gevent.sleep(1)
+    from_instance.start_agent(forwarder_uuid)
+    gevent.sleep(5)
+
     assert from_instance.is_agent_running(forwarder_uuid)
 
     yield from_instance, to_instance
 
     from_instance.stop_agent(forwarder_uuid)
     from_instance.remove_agent(forwarder_uuid)
-    from_instance.shutdown_platform()
-    to_instance.shutdown_platform()
 
 
 def publish(publish_agent, topic, header, message):
