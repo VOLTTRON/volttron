@@ -8,6 +8,10 @@
 # https://stackoverflow.com/questions/34860131/running-an-ansible-playbook-using-python-api-2-0-0-1
 # is a reference I used to figure out how to "hack" the verbosity for
 # the deploy
-from ansible.utils.display import Display
+# Handle the import of ansible correctly
+try:
+    from ansible.utils.display import Display
 
-display = Display(verbosity=0)
+    display = Display(verbosity=0)
+except ImportError:
+    pass
