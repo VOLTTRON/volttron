@@ -124,13 +124,21 @@ def do_volttron_up(hosts_path, options):
     results = pbex.run()
     print(results)
 
+
 def do_volttron_status(options):
     pbex = _get_executor(options.hosts_file, None, "status", limit=options.limit)
 
     results = pbex.run()
 
+
 def do_destroy_systems(options):
     pbex = _get_executor(options.hosts_file, None, "remove-volttron", limit=options.limit)
+
+    results = pbex.run()
+
+
+def do_volttron_down(options):
+    pbex = _get_executor(options.hosts_file, None, "stop-volttron", limit=options.limit)
 
     results = pbex.run()
 
@@ -184,6 +192,10 @@ def add_deployment_subparser(add_parser_fn):
                            subparser=subparsers)
     add_common(status)
 
+    down = add_parser_fn('down',
+                         help="Stops volttron platforms from running (vctl shutdown --platform).",
+                         subparser=subparsers)
+    add_common(down)
     #
     #
     # provision = add_parser_fn('provision',
@@ -208,6 +220,8 @@ def do_deployment_command(opts):
         do_destroy_systems(opts)
     elif opts.store_commands == 'up':
         do_volttron_up(hosts_path, opts)
+    elif opts.store_commands == 'down':
+        do_volttron_down(opts)
     elif opts.store_commands == 'status':
         do_volttron_status(opts)
     else:

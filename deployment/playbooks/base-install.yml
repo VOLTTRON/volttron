@@ -107,6 +107,11 @@
         dest: "/tmp/volttron.tar.gz"
         force: yes
 
+    - name: Stat volttron dir
+      stat:
+        path: "{{ ansible_env.HOME }}/volttron"
+      register: volttron_path_stat
+
     - name: Stat tar file
       stat:
         path: "/tmp/volttron.tar.gz"
@@ -121,7 +126,7 @@
 
     - name: Should reset
       set_fact:
-        redo_volttron: "{{ (not old_tar_stat.stat.exists or (new_tar_stat.stat.checksum != old_tar_stat.stat.checksum)) }}"
+        redo_volttron: "{{ (not volttron_path_stat.stat.exists or not old_tar_stat.stat.exists or (new_tar_stat.stat.checksum != old_tar_stat.stat.checksum)) }}"
 
     - name: Move new file
       command: mv "/tmp/volttron.tar.gz" "{{ ansible_env.HOME }}/volttron.tar.gz"
