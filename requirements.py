@@ -86,6 +86,9 @@ extras_require = {
         'recommonmark',
         'sphinx_rtd_theme'
     ],
+    'deployment': [
+        'ansible'
+    ],
     'drivers': [
         'pymodbus',
         'bacpypes',
