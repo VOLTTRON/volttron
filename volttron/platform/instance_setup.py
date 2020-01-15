@@ -135,7 +135,8 @@ def _is_bound_already(address):
     already_bound = False
     try:
         dealer_sock.bind(address)
-    except zmq.ZMQError:
+    except zmq.ZMQError as e:
+        print(e)
         already_bound = True
     finally:
         dealer_sock.close()
@@ -145,7 +146,7 @@ def _is_bound_already(address):
 def fail_if_instance_running():
 
     home = get_home()
-    ipc_address = 'ipc://@{}/run/vip.socket'.format(home)
+    ipc_address = 'ipc://{}/run/vip.socket'.format(home)
 
     if os.path.exists(home) and\
        _is_bound_already(ipc_address):

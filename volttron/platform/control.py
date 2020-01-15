@@ -1556,7 +1556,7 @@ def edit_config(opts):
 
     # Write raw data to temp file
     # This will not work on Windows, FYI
-    with tempfile.NamedTemporaryFile(suffix=".txt") as f:
+    with tempfile.NamedTemporaryFile(suffix=".txt", mode="r+") as f:
         f.write(raw_data)
         f.flush()
 
