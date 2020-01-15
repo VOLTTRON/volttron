@@ -23,23 +23,24 @@ agents:
   # Each agent identity.config file should be in the configs
   # directory and will be used to install the agent.
   listener:
-    source: $VOLTTRON_ROOT/examples/ListenerAgent
-    config: $CONFIG/listener.config # This is an empty element $CONFIG/listener.config
+    source: examples/ListenerAgent
+    priority: 10
+    config: lisener.yml
 
-  volttron.central:
-    source: $VOLTTRON_ROOT/services/core/VolttronCentral
-    config: $VOLTTRON_ROOT/services/core/VolttronCentral/config
-
-  master.driver:
-    source: $VOLTTRON_ROOT/services/core/MasterDriverAgent
-
-  platform.agent:
-    source: $VOLTTRON_ROOT/services/core/VolttronCentralPlatform
-    config: $VOLTTRON_ROOT/services/core/VolttronCentralPlatform/config
-
-  historian:
-    source: $VOLTTRON_ROOT/services/core/SQLHistorian
-    config: $CONFIG/historian.config
+#  volttron.central:
+#    source: $VOLTTRON_ROOT/services/core/VolttronCentral
+#    config: $VOLTTRON_ROOT/services/core/VolttronCentral/config
+#
+#  master.driver:
+#    source: $VOLTTRON_ROOT/services/core/MasterDriverAgent
+#
+#  platform.agent:
+#    source: $VOLTTRON_ROOT/services/core/VolttronCentralPlatform
+#    config: $VOLTTRON_ROOT/services/core/VolttronCentralPlatform/config
+#
+#  historian:
+#    source: $VOLTTRON_ROOT/services/core/SQLHistorian
+#    config: $CONFIG/historian.config
 
 #  platform.actuator:
 #    source: $VOLTTRON_ROOT/services/core/ActuatorAgent
