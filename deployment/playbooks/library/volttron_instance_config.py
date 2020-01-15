@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # import module snippets
+import base64
 from configparser import ConfigParser, NoOptionError
 import enum
 import json
@@ -14,6 +15,8 @@ from time import sleep
 from urllib.parse import urlparse
 
 from ansible.module_utils.basic import AnsibleModule
+from zmq import curve_keypair
+from zmq.utils import z85
 import yaml
 
 
@@ -30,6 +33,7 @@ class InstanceState(enum.Enum):
     STOPPED = "STOPPED"
     INVALID_PATH = "INVALID_PATH"
     NOT_BOOTSTRAPPED = "NOT_BOOTSTRAPPED"
+    NEVER_STARTED = 'NEVER_STARTED'
     ERROR = "ERROR"
 
 
@@ -333,10 +337,24 @@ def get_agents_state(volttron_home, agents_config_dict):
     agent state key.  The function compares expected agents to the currently
     installed and runnning agents to provide the state.
 
+    This function will return a dictionary such as the following:
+
+    {
+      "identity1":
+        {
+          "state": "RUNNING",
+          "pid": 4234
+        },
+      "identity2":
+        {
+          "state": "NOT_INSTALLED"
+        }
+    }
+
     :param volttron_home:
     :param agents_config_dict:
     :return:
-        dictionary identity -> state and status of agent
+        dictionary identity -> state with pid
     """
     agents_state = find_all_agents(os.path.join(volttron_home, 'agents'))
 
@@ -377,6 +395,10 @@ def install_agent(vctl, identity, agent_spec: dict):
         logger().debug(f"STDOUT\n{response.stdout}")
         logger().debug(f"STDERR\n{response.stdout}")
         return
+
+    logger().debug(f"Installed {identity}")
+    logger().debug(f"STDOUT\n{response.stdout}")
+    logger().debug(f"STDERR\n{response.stdout}")
         
     #
     # params = module.params
@@ -476,6 +498,14 @@ def install_agent(vctl, identity, agent_spec: dict):
     # return is_error, True, retvalues
 
 
+def encode_key(key):
+    """"Base64-encode and return a key in a URL-safe manner."""
+    assert len(key) in (32, 40)
+    if len(key) == 40:
+        key = z85.decode(key)
+    return base64.urlsafe_b64encode(key)[:-1].decode("ASCII")
+
+
 def main():
     init_logging(expand_all("~/ansible_logging.log"))
     logger().debug("Before module instantiation")
@@ -495,13 +525,13 @@ def main():
         # started=dict(default=True, type="bool")
     ), supports_check_mode=True)
 
+    # VOLTTRON cannot be ran as root.
+    if os.geteuid() == 0:
+        module.fail_json(msg="Cannot use this module in root context.")
+        return
+
     p = module.params
 
-    # # VOLTTRON cannot be ran as root.
-    # if os.geteuid() == 0:
-    #     module.fail_json(msg="Cannot use this module in root context.")
-    #     return
-    #
     # # Make sure we are running under the correct user for VOLTTRON
     # if pwd.getpwuid(os.getuid()).pw_name != p['volttron_user']:
     #     module.fail_json(
@@ -513,6 +543,8 @@ def main():
 
     vhome = expand_all(p['volttron_home'])
     vroot = expand_all(p['volttron_root'])
+
+    serverkey_file = os.path.join(vhome, "keystore")
     host_config = expand_all(p['config_file'])
     volttronbin = os.path.join(vroot, "env/bin/volttron")
     vctlbin = os.path.join(vroot, "env/bin/vctl")
@@ -521,9 +553,29 @@ def main():
 
     if not os.path.exists(vroot):
         module.fail_json(msg=f"volttron_path does not exist {vroot}. "
-                             f"Please run vctl deploy up.")
+                             f"Please run vctl deploy init on this host.")
+
+    os.makedirs(vhome, 0o755, exist_ok=True)
+
+    if not os.path.exists(serverkey_file):
+        public, secret = curve_keypair()
+        with open(serverkey_file, 'w') as fp:
+            fp.write(
+                json.dumps(
+                    {'public': encode_key(public), 'secret': encode_key(secret)},
+                    indent=2))
+
+    with open(serverkey_file) as fp:
+        keypair = json.loads(fp.read())
+        publickey = keypair['public']
 
     if not os.path.isfile(host_config):
+        if module.check_mode:
+            module.exit_json(chande=False,
+                             msg="Instance hasn't been started",
+                             instance_state=InstanceState.NEVER_STARTED.name,
+                             serverkey=publickey,
+                             agents_state={})
         module.fail_json(msg=f"File not found {host_config}.")
 
     with open(host_config) as fp:
@@ -542,11 +594,15 @@ def main():
         cfg_host['agents'] = {}
 
     expected_state = None
+    # Check mode allows us to get the state of the instance in its current form without doing
+    # anything else.
     if check_mode:
         instance_state = get_instance_state(volttron_home=vhome, volttron_path=vroot)
         all_agents_state = get_agents_state(volttron_home=vhome, agents_config_dict=cfg_host['agents'])
-        module.exit_json(changed=False, instance_state=instance_state.name, agents_state=all_agents_state)
+        module.exit_json(changed=False, instance_state=instance_state.name, serverkey=publickey,
+                         agents_state=all_agents_state)
     else:
+        # state is required if check_mode is not set
         if 'state' not in p:
             module.exit_json(changed=False, msg="missing required arguments: state")
 
@@ -554,8 +610,12 @@ def main():
 
         logger().debug(f"Expected State is {expected_state}")
 
+    # _validate_agent_config will exit if the agent's configurations are not valid.
+    # validity means the paths to config files are valid json/yaml and that
+    # their paths are correct
     _validate_agent_config(cfg_host['agents'])
 
+    # Create/update main volttron config file
     config_file_changed = build_volttron_configfile(vhome, cfg_host['config'])
     current_state = get_instance_state(vhome, vroot)
 
@@ -564,6 +624,7 @@ def main():
         if current_state == InstanceState.RUNNING:
             agent_state_changed = check_install_agents(cfg_host['agents'])
         module.exit_json(changed=False, msg=f"No Change Required", state=current_state.name,
+                         serverkey=publickey,
                          agent_state_changed=agent_state_changed)
     elif expected_state == InstanceState.RUNNING:
         if config_file_changed and current_state == InstanceState.RUNNING:
@@ -582,7 +643,8 @@ def main():
         update_agents(cfg_host['agents'])
 
         module.exit_json(changed=True, failed=current_state != expected_state,
-                         msg="VOLTTRON started", state=current_state.name)
+                         msg="VOLTTRON started", serverkey=publickey,
+                         state=current_state.name)
     elif expected_state == InstanceState.STOPPED:
         logger().debug("Stopping volttron")
         stop_volttron(vroot, vctlbin)
@@ -598,7 +660,9 @@ def main():
         current_state = get_instance_state(vhome, vroot)
 
         module.exit_json(changed=True, failed=current_state != expected_state,
-                         msg="VOLTTRON stopped", state=current_state.name)
+                         msg="VOLTTRON stopped",
+                         serverkey=publickey,
+                         state=current_state.name)
 
     module.fail_json(msg="Unknown state found")
 

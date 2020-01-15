@@ -1,0 +1,4 @@
+{
+  "instance_name": "{{ ansible_hostname }}",
+  "public": "{{ instance_state.serverkey }}"
+}
