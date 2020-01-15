@@ -1,21 +1,30 @@
 ---
 - hosts: all
   vars:
-      # Ansible will use this path on remote hosts to run the interpreter with.
-      ansible_python_interpreter: /usr/bin/python3
+    # Ansible will use this path on remote hosts to run the interpreter with.
+    ansible_python_interpreter: /usr/bin/python3
+  environment:
+    VOLTTRON_HOME: "{{ ansible_env.HOME }}/.volttron"
+    VOLTTRON_ROOT: "{{ ansible_env.HOME }}/volttron"
+    HOST_CONFIG: "{{ ansible_env.HOME }}/host.config.yml"
   tasks:
-    - name: Check SSH known_hosts for {{ inventory_hostname }}
-      local_action: shell ssh-keygen -F {{ inventory_hostname }}
-      register: checkForKnownHostsEntry
-      failed_when: false
-      changed_when: false
-      ignore_errors: yes
+#    - name: Check SSH known_hosts for {{ inventory_hostname }}
+#      local_action: shell ssh-keygen -F {{ inventory_hostname }}
+#      register: checkForKnownHostsEntry
+#      failed_when: false
+#      changed_when: false
+#      ignore_errors: yes
+#
+#    - name: Add {{ inventory_hostname }} to SSH known hosts automatically
+#      when: checkForKnownHostsEntry.rc == 1
+#      changed_when: checkForKnownHostsEntry.rc == 1
+#      set_fact:
+#          ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
 
-    - name: Add {{ inventory_hostname }} to SSH known hosts automatically
-      when: checkForKnownHostsEntry.rc == 1
-      changed_when: checkForKnownHostsEntry.rc == 1
+    - name: Initialize git variables for downloading repository without git
       set_fact:
-          ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+        git_branch: remote-platforms
+        git_organization: craig8
 
     - name: Test for enable_web
       when: enable_web is not defined
@@ -92,41 +101,99 @@
         - "erlang-public-key"
         - "erlang-nox"
 
-    - name: Checkout volttron from repository
-      git:
-        repo: "https://github.com/craig8/volttron"
-        dest: "~/volttron"
-        version: "remote-platforms"
-        update: "no"
+    - name: Download repository
+      get_url:
+        url: https://github.com/{{ git_organization }}/volttron/archive/{{ git_branch }}.tar.gz
+        dest: "/tmp/volttron.tar.gz"
+        force: yes
 
-    - name: Bootstrap the python3 environment if necessary
+    - name: Stat tar file
+      stat:
+        path: "/tmp/volttron.tar.gz"
+        get_checksum: yes
+      register: new_tar_stat
+
+    - name: Stat old tar
+      stat:
+        path: "{{ ansible_env.HOME }}/volttron.tar.gz"
+        get_checksum: yes
+      register: old_tar_stat
+
+    - name: Should reset
+      set_fact:
+        redo_volttron: "{{ (not old_tar_stat.stat.exists or (new_tar_stat.stat.checksum != old_tar_stat.stat.checksum)) }}"
+
+    - name: Move new file
+      command: mv "/tmp/volttron.tar.gz" "{{ ansible_env.HOME }}/volttron.tar.gz"
+      when: redo_volttron
+
+    - name: Remove volttron dir if exists
+      command: rm -rf {{ ansible_env.HOME }}/volttron
+      when: redo_volttron
+
+    - name: Extract archive
+      unarchive:
+        src: "{{ ansible_env.HOME }}/volttron.tar.gz"
+        dest: "{{ ansible_env.HOME }}"
+        remote_src: yes
+      when: redo_volttron
+
+    - name: rename folder
+      command: mv "{{ ansible_env.HOME }}/volttron-{{git_branch}}" "{{ansible_env.HOME }}/volttron"
+      when: redo_volttron
+
+    - name: Bootstrap the python3 environment
       command:
         cmd: "python3 bootstrap.py"
-        chdir: "~/volttron"
-        creates: "~/volttron/env"
+        chdir: "{{ ansible_env.HOME }}/volttron"
+        creates: "{{ ansible_env.HOME }}/volttron/env"
 
     - name: Test if pika installed
       raw: "cd ~/volttron && env/bin/pip list --disable-pip-version-check --format legacy| grep -F gevent-pika | wc -l"
       args:
-        chdir: "~/volttron"
+        chdir: "{{ ansible_env.HOME }}/volttron"
       register: already_installed_pika
 
     - name: Boostrap rmq environment
       when: (messagebus == "rmq" and "0" in already_installed_pika.stdout)
       command:
         cmd: "env/bin/python bootstrap.py --rabbitmq"
-        chdir: "~/volttron"
+        chdir: "{{ ansible_env.HOME }}/volttron"
 
     - name: Test if pika installed
-      raw: "cd ~/volttron && env/bin/pip list --disable-pip-version-check --format legacy| grep -F ws4py | wc -l"
+      raw: "cd {{ ansible_env.HOME }}/volttron && env/bin/pip list --disable-pip-version-check --format legacy| grep -F ws4py | wc -l"
       args:
-        chdir: "~/volttron"
+        chdir: "{{ ansible_env.HOME }}/volttron"
       register: web_enabled
 
     - name: Enabling web packages for environment
       when: (enable_web == 'yes' and "0" in web_enabled.stdout)
       command:
         cmd: "env/bin/python bootstrap.py --web"
-        chdir: "~/volttron"
+        chdir: "{{ ansible_env.HOME }}/volttron"
 
+    - include_tasks: includes/ansible_venv.yml
 
+    - name: Create server key by involking status
+      volttron_instance_config:
+        config_file: "{{ ansible_env.HOME }}/host.config.yml"
+      check_mode: True
+      register: instance_state
+
+    - name: create instance_serverkey variable
+      set_fact:
+        instance_serverkey: instance_state.serverkey
+
+    - name: "Create custom fact directory"
+      become: True
+      become_method: sudo
+      file:
+        path: "/etc/ansible/facts.d"
+        state: "directory"
+
+    - name: Create fact file
+      become: True
+      become_method: sudo
+      template:
+        src: templates/instance.fact
+        dest: /etc/ansible/facts.d/instance.fact
