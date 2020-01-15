@@ -21,11 +21,17 @@ import yaml
 
 
 def init_logging(filepath, level=logging.DEBUG):
+    # if os.path.isfile(filepath):
+    #     os.remove(filepath)
     logging.basicConfig(filename=filepath, level=level)
 
 
 def logger():
     return logging.getLogger(__name__)
+
+
+def expand_all(path):
+    return os.path.expandvars(os.path.expanduser(path))
 
 
 class InstanceState(enum.Enum):
@@ -45,12 +51,25 @@ class AgentState(enum.Enum):
     UNKNOWN = "UNKNOWN"
 
 
+class VolttronContext:
+    VOLTTRON_HOME = os.path.abspath(expand_all("~/.volttron"))
+    VCTL = os.path.abspath(expand_all("~/volttron/env/bin/vctl"))
+    VOLTTRON = os.path.abspath(expand_all("~/volttron/env/bin/volttron"))
+    VOLTTRON_ROOT = os.path.abspath(expand_all("~/volttron"))
+
+    def update_volttron_root(self, new_root):
+        if new_root != VolttronContext.VOLTTRON_ROOT:
+            VolttronContext.VOLTTRON_ROOT = new_root
+            VolttronContext.VOLTTRON = os.path.join(new_root, "env/bin/volttron")
+            VolttronContext.VCTL = os.path.join(new_root, "env/bin/vctl")
+
+
+# Set up default context for the module
+volttron_context = VolttronContext()
+
+
 def has_bootstrapped(volttron_path):
     return os.path.exists(os.path.join(volttron_path, 'env/bin/python'))
-
-
-def expand_all(path):
-    return os.path.expandvars(os.path.expanduser(path))
 
 
 def python(volttron_path):
@@ -157,7 +176,7 @@ def build_volttron_configfile(volttron_home, host_config_dict:dict):
     return changed
 
 
-def get_instance_state(volttron_home, volttron_path):
+def get_instance_state():
     """
     Determine the state of volttron on target system.  The function determines
     whether or not volttron is running based upon the VOLTTRON_PID file in
@@ -167,14 +186,12 @@ def get_instance_state(volttron_home, volttron_path):
     then the process is alive and the function returns `InstanceState.RUNNING`.  Otherwise, the
     function will return `InstanceState.STOPPED`
 
-    :param volttron_home:
-    :param volttron_path:
     :return:
     """
 
-    PID_FILE = os.path.join(volttron_home, "VOLTTRON_PID")
+    PID_FILE = os.path.join(volttron_context.VOLTTRON_HOME, "VOLTTRON_PID")
 
-    if not os.path.exists(python(volttron_path)):
+    if not os.path.exists(volttron_context.VOLTTRON):
         state = InstanceState.NOT_BOOTSTRAPPED
     else:
         if os.path.exists(PID_FILE):
@@ -195,26 +212,26 @@ def check_agent_status(agents: dict):
         pass
 
 
-def start_volttron(volttron_path, volttron_bin):
-    cmd = [volttron_bin, '-L', 'examples/rotatinglog.py']
+def start_volttron():
+    cmd = [volttron_context.VOLTTRON, '-L', 'examples/rotatinglog.py']
     logger().debug(f"starting volttron {cmd}")
     proc = subprocess.Popen(cmd,
                             stdout=open('/dev/null', 'w'),
                             stderr=open('logfile.log', 'a'),
                             preexec_fn=os.setpgrp,
-                            cwd=volttron_path)
+                            cwd=volttron_context.VOLTTRON_ROOT)
 
     logger().debug(proc)
 
 
-def stop_volttron(volttron_path, vctl_bin):
-    cmd = [vctl_bin, 'shutdown', '--platform']
+def stop_volttron():
+    cmd = [volttron_context.VCTL, 'shutdown', '--platform']
     logger().debug(f"stopping volttron {cmd}")
     proc = subprocess.Popen(cmd,
                             stdout=open('/dev/null', 'w'),
                             stderr=open('logfile.log', 'a'),
                             preexec_fn=os.setpgrp,
-                            cwd=volttron_path)
+                            cwd=volttron_context.VOLTTRON_ROOT)
 
 
 def force_kill_volttron():
@@ -228,8 +245,8 @@ def force_kill_volttron():
                             stderr=open('logfile.log', 'a'))
 
 
-def update_agents(vctl, volttron_home, agents_config_dict: dict):
-    agents_state = get_agents_state(volttron_home, agents_config_dict)
+def update_agents(agents_config_dict: dict):
+    agents_state = get_agents_state(agents_config_dict)
     # all_installed_agents = set(agents_state.keys())
     found_agents = set()
 
@@ -239,12 +256,9 @@ def update_agents(vctl, volttron_home, agents_config_dict: dict):
             found_agents.add(id)
             state = AgentState(agents_state[id]['state'])
             if state == AgentState.NOT_INSTALLED:
-                install_agent(vctl, id, agent_spec)
-
-
-def check_install_agents(agents: dict):
-    for id, item in agents.items():
-        logger().debug(f"{id} => {item}")
+                install_agent(id, agent_spec)
+    agents_state_after = get_agents_state(agents_config_dict)
+    return agents_state, agents_state_after
 
 
 def get_agent_status(agent_dir):
@@ -264,24 +278,49 @@ def get_agent_status(agent_dir):
     :param agent_dir: The installed agent directory
     :return:
     """
+    logger().debug(f"get_agent_status(agent_dir) {agent_dir}")
     base_name = os.path.basename(agent_dir)
-    dist_info_dir = os.path.join(agent_dir, f"{base_name}.dist-info")
+    dist_info_dir = None
+    for root, dirs, files in os.walk(agent_dir):
+        for d in dirs:
+            if d.endswith("dist-info"):
+                dist_info_dir = os.path.join(root, d)
+                break
+    agent_data_dir = None
+    for root, dirs, files in os.walk(agent_dir):
+        for d in dirs:
+            if d.endswith("agent-data"):
+                agent_data_dir = os.path.join(root, d)
+                break
+
+    logger().debug(f"dist-info dir is {dist_info_dir}")
+    logger().debug(f"agent-data dir is {agent_data_dir}")
+
+    logger().debug(f"Checking directory exists {dist_info_dir}")
     if not os.path.isdir(dist_info_dir):
         return dict(state=AgentState.NOT_INSTALLED.name)
 
     tag_file = os.path.join(agent_dir, "TAG")
     priority_file = os.path.join(agent_dir, "AUTOSTART")
-    secret_key_file = os.path.join(agent_dir, f"{base_name}.agent-data/keystore.json")
+    key_file = os.path.join(agent_data_dir, "keystore.json")
 
     with open(os.path.join(dist_info_dir, 'metadata.json')) as file:
         metadata = json.loads(file.read())
-
-    exports = metadata['exports']
-    module = exports['setuptools.installation']['eggsecutable']
+    logger().debug(f"metadata is {metadata}")
+    try:
+        exports = metadata['exports']
+    except KeyError:
+        exports = metadata['extensions']['python.exports']
+    eggsecutable = exports['setuptools.installation']['eggsecutable']
     found_proc = None
+    module, _ = eggsecutable.split(":")
+    logger().debug(f"searching for module: {module} using psutils")
     for proc in psutil.process_iter():
-        if module in proc.name:
+        if module in proc.name():
             found_proc = proc
+            break
+
+    logger().debug(f"found_proc is: {found_proc}")
     pid = None
     if found_proc:
         pid = found_proc.pid
@@ -292,9 +331,9 @@ def get_agent_status(agent_dir):
     if os.path.exists(priority_file):
         priority = open(priority_file).read()
     public_key = None
-    if os.path.exists(secret_key_file):
-        with open(secret_key_file) as fp:
-            data = json.loads(fp)
+    if os.path.exists(key_file):
+        with open(key_file) as fp:
+            data = json.loads(fp.read())
             public_key = data['public']
     return {
         "pid": pid,
@@ -325,13 +364,15 @@ def find_all_agents(path):
     for root, dirs, files in os.walk(path):
         if name in files:
             file_path = os.path.join(root, name)
+            logger().debug(f"file_path is {file_path}")
             identity = open(file_path).read()
+            logger().debug(f"Passing dirname ({os.path.dirname(file_path)})")
             results[identity] = get_agent_status(os.path.dirname(file_path))
 
     return results
 
 
-def get_agents_state(volttron_home, agents_config_dict):
+def get_agents_state(agents_config_dict):
     """
     Uses all found agents (from `find_all_agents` function) to provide an
     agent state key.  The function compares expected agents to the currently
@@ -356,13 +397,14 @@ def get_agents_state(volttron_home, agents_config_dict):
     :return:
         dictionary identity -> state with pid
     """
-    agents_state = find_all_agents(os.path.join(volttron_home, 'agents'))
-
+    logger().debug(f"Inside get_agents_state")
+    agents_state = find_all_agents(os.path.join(volttron_context.VOLTTRON_HOME, 'agents'))
+    logger().debug(f"Inside get_agents_state\n {agents_state}")
     for identity, spec in agents_config_dict.items():
 
         if identity not in agents_state:
             agents_state[identity] = dict(state=AgentState.NOT_INSTALLED.name)
-        elif agents_state[identity]['pid'] is not None:
+        elif 'pid' not in agents_state[identity]:
             agents_state[identity]['state'] = AgentState.STOPPED.name
         else:
             agents_state[identity]['state'] = AgentState.RUNNING.name
@@ -370,7 +412,7 @@ def get_agents_state(volttron_home, agents_config_dict):
     return agents_state
 
 
-def install_agent(vctl, identity, agent_spec: dict):
+def install_agent(identity, agent_spec: dict):
     """
     Installs
     The install_agent function is the main function of the module.  It wraps
@@ -380,15 +422,22 @@ def install_agent(vctl, identity, agent_spec: dict):
     script that has command line arguments for installing the agents on a
     running instance.
 
-    :param python:
-    :param scripts_dir:
-    :param params:
+    @param: identity: The agent's identity
+    @param: agent_spec: The specification for agent installation
+
     :return:
     """
 
-    cmd = [vctl, "install", agent_spec['source'], '--json', '--force', '--vip-identity', identity]
+    cmd = [volttron_context.VCTL, "install", agent_spec['source'], '--start', '--json', '--force',
+           '--vip-identity', identity]
 
-    response = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if "priority" in agent_spec:
+        cmd.extend(['--priority', str(agent_spec['priority'])])
+
+    logger().debug(f"Commands are {cmd}")
+
+    response = subprocess.run(cmd, cwd=volttron_context.VOLTTRON_ROOT,
+                              stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
     if response.returncode != 0:
         logger().debug(f"Something failed spectacularly during install for idenitity {identity}")
@@ -511,8 +560,8 @@ def main():
     logger().debug("Before module instantiation")
 
     module = AnsibleModule(argument_spec=dict(
-        volttron_home=dict(required=False, default="~/.volttron"),
-        volttron_root=dict(required=False, default="~/volttron"),
+        volttron_home=dict(required=False, default=volttron_context.VOLTTRON_HOME),
+        volttron_root=dict(required=False, default=volttron_context.VOLTTRON_ROOT),
         config_file=dict(required=True),
         # instance_name=dict(default=socket.gethostname()),
         # vip_address=dict(default=None),
@@ -544,6 +593,7 @@ def main():
     vhome = expand_all(p['volttron_home'])
     vroot = expand_all(p['volttron_root'])
 
+    volttron_context.update_volttron_root(vroot)
     serverkey_file = os.path.join(vhome, "keystore")
     host_config = expand_all(p['config_file'])
     volttronbin = os.path.join(vroot, "env/bin/volttron")
@@ -597,8 +647,8 @@ def main():
     # Check mode allows us to get the state of the instance in its current form without doing
     # anything else.
     if check_mode:
-        instance_state = get_instance_state(volttron_home=vhome, volttron_path=vroot)
-        all_agents_state = get_agents_state(volttron_home=vhome, agents_config_dict=cfg_host['agents'])
+        instance_state = get_instance_state()
+        all_agents_state = get_agents_state(agents_config_dict=cfg_host['agents'])
         module.exit_json(changed=False, instance_state=instance_state.name, serverkey=publickey,
                          agents_state=all_agents_state)
     else:
@@ -617,37 +667,44 @@ def main():
 
     # Create/update main volttron config file
     config_file_changed = build_volttron_configfile(vhome, cfg_host['config'])
-    current_state = get_instance_state(vhome, vroot)
+    current_state = get_instance_state()
 
     if current_state == expected_state and not config_file_changed:
         agent_state_changed = False
-        if current_state == InstanceState.RUNNING:
-            agent_state_changed = check_install_agents(cfg_host['agents'])
+        # if current_state == InstanceState.RUNNING:
+        #     module.fail_json(msg="doing check for agents")
+        #     agent_state_changed = update_agents(cfg_host['agents'])
+        before_agent, after_agent = update_agents(cfg_host['agents'])
+
+        module.exit_json(changed=True, msg="First block here", before_agent=before_agent, after_agent=after_agent)
+
         module.exit_json(changed=False, msg=f"No Change Required", state=current_state.name,
                          serverkey=publickey,
                          agent_state_changed=agent_state_changed)
     elif expected_state == InstanceState.RUNNING:
         if config_file_changed and current_state == InstanceState.RUNNING:
             logger().debug("Stopping volttron due to restart")
-            stop_volttron(vroot, vctlbin)
+            stop_volttron()
             current_state = wait_for_state(InstanceState.STOPPED, vhome, vroot)
             if current_state != InstanceState.STOPPED:
                 module.fail_json(msg="Failed to stop running volttron in timely manner")
         logger().debug("Starting volttron")
-        start_volttron(vroot, volttronbin)
+        start_volttron()
         current_state = wait_for_state(InstanceState.RUNNING, vhome, vroot)
 
         if current_state != InstanceState.RUNNING:
             module.fail_json(msg="Failed to start VOLTTRON")
 
-        update_agents(cfg_host['agents'])
+        before_agent, after_agent = update_agents(cfg_host['agents'])
+
+        module.exit_json(changed=True, before_agent=before_agent, after_agent=after_agent)
 
         module.exit_json(changed=True, failed=current_state != expected_state,
                          msg="VOLTTRON started", serverkey=publickey,
                          state=current_state.name)
     elif expected_state == InstanceState.STOPPED:
         logger().debug("Stopping volttron")
-        stop_volttron(vroot, vctlbin)
+        stop_volttron()
         current_state = wait_for_state(InstanceState.STOPPED, vhome, vroot)
 
         if current_state != expected_state:
@@ -657,7 +714,7 @@ def main():
             if current_state != expected_state:
                 module.fail_json(msg="Couldn't shutdown or force kill volttron")
 
-        current_state = get_instance_state(vhome, vroot)
+        current_state = get_instance_state()
 
         module.exit_json(changed=True, failed=current_state != expected_state,
                          msg="VOLTTRON stopped",
@@ -669,7 +726,7 @@ def main():
 
     config_file_changed = build_volttron_configfile(vhome, p)
 
-    after_state = get_instance_state(vhome, vroot)
+    after_state = get_instance_state()
     changed = after_state != current_state
     module.exit_json(changed=changed,
                      ansible_facts=p,
@@ -683,7 +740,7 @@ def wait_for_state(expected_state, vhome, vroot):
     while current_state is not expected_state and countdown > 0:
         sleep(5)
         countdown -= 1
-        new_state = get_instance_state(vhome, vroot)
+        new_state = get_instance_state()
         if new_state == expected_state:
             current_state = new_state
             break

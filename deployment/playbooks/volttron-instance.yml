@@ -4,15 +4,32 @@
 #  become_method: sudo
   gather_facts: True
   environment:
-    # TODO: Figure out how to interpolate the ~ and/or fix to use $HOME
-    VOLTTRON_HOME: "~/.volttron"
-    VOLTTRON_ROOT: "~/volttron"
-    CONFIG: "~/configs"
-    HOST_CONFIG: ~/host.config.yml
-  vars:
-    # Ansible will use this path on remote hosts to run the interpreter with.
-    ansible_python_interpreter: /usr/bin/python3
+    VOLTTRON_HOME: "{{ ansible_env.HOME }}/.volttron"
+    VOLTTRON_ROOT: "{{ ansible_env.HOME }}/volttron"
+    CONFIG: "{{ ansible_env.HOME }}/configs"
+    HOST_CONFIG: "{{ ansible_env.HOME }}/host.config.yml"
   tasks:
+    # After running this the ansible_python_interpretor is set to
+    # the one explicitly created for us to execute ansible commands.
+    - include_tasks: includes/ansible_venv.yml
+
+    - debug:
+        var: ansible_env
+#    - debug:
+#        var: hostvars
+
+#    - gather_facts:
+#      register: myfacts
+##    - name: Gather Facts
+##      gather_facts:
+##        fact_path: "{{ ansible_env.HOME }}/facts"
+##      register: myfacts
+#
+#    - debug:
+#        var: myfacts
+
+    # - meta: end_play
+
     - set_fact:
         local_remote_config_file: "{{lookup('env','DEPLOYMENT_ROOT')}}/{{inventory_hostname}}/{{inventory_hostname}}.yml"
         local_configs_dir: "{{lookup('env','DEPLOYMENT_ROOT')}}/{{inventory_hostname}}/configs"
@@ -23,27 +40,27 @@
       register: directory_check
       ignore_errors: True
 
-    - name: copy configs for {{ inventory_hostname }} if available.
+    - name: copy configs
       copy:
         # Note the / on the end means we don't want the containing folder
         # only the files underneath.  So ignore 'sigma1' if it was the
         # host.
         src: "{{ local_configs_dir }}/"
-        dest: "~/configs"
+        dest: "{{ ansible_env.HOME }}/configs"
         mode: 0644
       when: directory_check.stat.exists
 
-    - name: Copy {{ local_remote_config_file }} config to remote
+    - name: Copy host config to remote
       copy:
         src: "{{ local_remote_config_file }}"
-        dest: "{{ ansible_env.HOST_CONFIG }}"
+        dest: "{{ ansible_env.HOME }}/host.config.yml"
         mode: 0644
 
-    - include_tasks: includes/ansible_venv.yml
+    # - include_tasks: includes/ansible_venv.yml
 
     - name: Configure VOLTTRON Instances
       volttron_instance_config:
-        config_file: "{{ ansible_env.HOST_CONFIG }}"
+        config_file: "{{ ansible_env.HOME }}/host.config.yml"
         state: "RUNNING"
       register: instance_state
 
