@@ -82,8 +82,11 @@ class SqlLiteFuncts(DbDriver):
             # before the historian.
             try:
                 if db_dir == '':
-                    data_dir = os.path.basename(os.getcwd()) + ".agent-data"
-                    db_dir = os.path.join(os.getcwd(), data_dir)
+                    if utils.is_secure_mode():
+                        data_dir = os.path.basename(os.getcwd()) + ".agent-data"
+                        db_dir = os.path.join(os.getcwd(), data_dir)
+                    else:
+                        db_dir = './data'
                     self.__database = os.path.join(db_dir, self.__database)
 
                 os.makedirs(db_dir)
