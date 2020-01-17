@@ -1,25 +1,42 @@
 ---
 - hosts: all
+  gather_facts: no #don't gather facts until after known_hosts is updated
+  serial: yes #the known_host task needs to be serial
   vars:
     # Ansible will use this path on remote hosts to run the interpreter with.
     ansible_python_interpreter: /usr/bin/python3
+    # set default port, can be overridden in hosts file.
+    ansible_port: 22
   environment:
     VOLTTRON_HOME: "{{ ansible_env.HOME }}/.volttron"
     VOLTTRON_ROOT: "{{ ansible_env.HOME }}/volttron"
     HOST_CONFIG: "{{ ansible_env.HOME }}/host.config.yml"
   tasks:
-#    - name: Check SSH known_hosts for {{ inventory_hostname }}
-#      local_action: shell ssh-keygen -F {{ inventory_hostname }}
-#      register: checkForKnownHostsEntry
-#      failed_when: false
-#      changed_when: false
-#      ignore_errors: yes
-#
-#    - name: Add {{ inventory_hostname }} to SSH known hosts automatically
-#      when: checkForKnownHostsEntry.rc == 1
-#      changed_when: checkForKnownHostsEntry.rc == 1
-#      set_fact:
-#          ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+    - name: "get ssh known_host value for {{ inventory_hostname }}:{{ ansible_port }}"
+      local_action: "shell ssh-keyscan -p {{ ansible_port }} {{ ansible_host }}"
+      register: sshKnownHostEntry
+      vars:
+        ansible_python_interpreter: "{{ ansible_playbook_python }}"
+
+    - name:
+      debug:
+        msg:
+          - "should update host '{{ ansible_host }}'"
+          - "should add key: '{{ sshKnownHostEntry.stdout }}'"
+
+    - name: add/update the known_hosts public key
+      delegate_to: localhost
+      vars:
+        ansible_python_interpreter: "{{ ansible_playbook_python }}"
+      known_hosts:
+        state: present
+        # the name needs to match the heading of the key entry, this may be too hard coded
+        name: "{{ ansible_host }}"
+        key: "{{ sshKnownHostEntry.stdout }}"
+        path: "~/.ssh/known_hosts"
+
+    - name: Gathering facts # because we suppress this at the start so that we'll have keys first
+      setup: ~
 
     - name: Initialize git variables for downloading repository without git
       set_fact:
