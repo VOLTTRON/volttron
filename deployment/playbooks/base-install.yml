@@ -16,6 +16,12 @@
       vars:
         ansible_python_interpreter: "{{ ansible_playbook_python }}"
 
+    - name:
+      debug:
+        msg:
+          - "should update host '{{ ansible_host }}'"
+          - "should add key: '{{ sshKnownHostEntry.stdout }}'"
+
     - name: add/update the known_hosts public key
       delegate_to: localhost
       vars:
@@ -23,7 +29,7 @@
       known_hosts:
         state: present
         # the name needs to match the heading of the key entry, this may be too hard coded
-        name: "[{{ ansible_host }}]:{{ ansible_port }}"
+        name: "{{ ansible_host }}"
         key: "{{ sshKnownHostEntry.stdout }}"
         path: "~/.ssh/known_hosts"
 
