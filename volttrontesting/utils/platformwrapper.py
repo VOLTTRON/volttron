@@ -677,7 +677,7 @@ class PlatformWrapper:
 
         log = os.path.join(self.volttron_home, 'volttron.log')
 
-        cmd = ['env/bin/volttron']
+        cmd = ['volttron']
         # if msgdebug:
         #     cmd.append('--msgdebug')
         if enable_logging:
