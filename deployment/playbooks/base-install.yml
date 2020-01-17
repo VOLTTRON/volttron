@@ -5,6 +5,8 @@
   vars:
     # Ansible will use this path on remote hosts to run the interpreter with.
     ansible_python_interpreter: /usr/bin/python3
+    # set default port, can be overriden in hosts file.
+    ansible_port: 22
   environment:
     VOLTTRON_HOME: "{{ ansible_env.HOME }}/.volttron"
     VOLTTRON_ROOT: "{{ ansible_env.HOME }}/volttron"
