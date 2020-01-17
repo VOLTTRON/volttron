@@ -1,5 +1,20 @@
 - hosts: all
   tasks:
+    - include_tasks: includes/ansible_venv.yml
+    - name: Configure VOLTTRON Instances
+      volttron_instance_config:
+        config_file: "{{ ansible_env.HOME }}/host.config.yml"
+        state: "STOPPED"
+      register: instance_state
+
+    - debug:
+        var: instance_state
+
     - name: Remove vollttron if volttron folder exists
       command:
-        cmd: "rm -rf ~/volttron ~/.volttron ~/rabbitmq_server ~/.volttron_rmq_home"
+        # > joins the command by spaces
+        # | joins the lines with \n
+        cmd: >
+          rm -rf {{ ansible_env.HOME }}/volttron {{ ansible_env.HOME }}/.volttron
+          {{ ansible_env.HOME }}/rabbitmq_server {{ ansible_env.HOME }}/.volttron_rmq_home
+          {{ ansible_env.HOME }}/host.config.yml
