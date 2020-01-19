@@ -13,8 +13,6 @@
     # the one explicitly created for us to execute ansible commands.
     - include_tasks: includes/ansible_venv.yml
 
-    - debug:
-        var: ansible_env
 #    - debug:
 #        var: hostvars
 
@@ -36,13 +34,54 @@
         python3: "{{lookup('env','DEPLOYMENT_ROOT')}}/env/bin/python"
 
     - include_tasks: includes/copy_configs.yml
+
+    - name: Configure VOLTTRON instance (agent install phase)
       volttron_instance_config:
         config_file: "{{ ansible_env.HOME }}/host.config.yml"
         state: "RUNNING"
+        phase: "AGENT_INSTALL"
       register: instance_state
 
-    - debug:
-        var: instance_state
+    - include_tasks: includes/update_facts.yml
+      vars:
+        host_config: "{{ ansible_env.HOME }}/host.config.yml"
+
+
+    - name: Lookup host path variables we know about for instances
+      delegate_to: localhost
+      vars:
+          ansible_python_interpreter: "{{ ansible_playbook_python }}"
+      find:
+        paths: /tmp/facts_cache/
+      register: all_my_hosts
+
+    - name: Build all_hosts dictionary
+      include_vars:
+        #dir: /tmp/facts_cache
+        file: "{{item.path}}" #/tmp/facts_cache/web
+        #extensions: ['']
+        name: my_data
+      with_items: "{{ all_my_hosts.files }}"
+      register: all_hosts
+
+    - name: Configure VOLTTRON instance (allow external collection phase)
+      volttron_instance_config:
+        config_file: "{{ ansible_env.HOME }}/host.config.yml"
+        state: "RUNNING"
+        phase: "ALLOW_EXTERNAL_CONNECTIONS"
+        volttron_host_facts: "{{ all_hosts }}"
+      register: external_connections_setup
+
+    - name: Configure VOLTTRON instance (tag priority startup agents)
+      volttron_instance_config:
+        config_file: "{{ ansible_env.HOME }}/host.config.yml"
+        state: "RUNNING"
+        phase: "START_AGENTS"
+      register: instance_state_final
+
+
+#    - debug:
+#        var: instance_state
 #
 #
 #    - name: Installing agents
