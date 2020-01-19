@@ -10,6 +10,7 @@
     - pyyaml
     - psutil
     - zmq
+    - 'netifaces==0.10.9'
 
 # Sets the ansible interpreter to be the one that
 # is used for the rest of the tasks.

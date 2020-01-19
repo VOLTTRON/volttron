@@ -35,30 +35,7 @@
         local_configs_dir: "{{lookup('env','DEPLOYMENT_ROOT')}}/{{inventory_hostname}}/configs"
         python3: "{{lookup('env','DEPLOYMENT_ROOT')}}/env/bin/python"
 
-    - name: check for host configuration files
-      local_action: stat path="{{ local_configs_dir }}"
-      register: directory_check
-      ignore_errors: True
-
-    - name: copy configs
-      copy:
-        # Note the / on the end means we don't want the containing folder
-        # only the files underneath.  So ignore 'sigma1' if it was the
-        # host.
-        src: "{{ local_configs_dir }}/"
-        dest: "{{ ansible_env.HOME }}/configs"
-        mode: 0644
-      when: directory_check.stat.exists
-
-    - name: Copy host config to remote
-      copy:
-        src: "{{ local_remote_config_file }}"
-        dest: "{{ ansible_env.HOME }}/host.config.yml"
-        mode: 0644
-
-    # - include_tasks: includes/ansible_venv.yml
-
-    - name: Configure VOLTTRON Instances
+    - include_tasks: includes/copy_configs.yml
       volttron_instance_config:
         config_file: "{{ ansible_env.HOME }}/host.config.yml"
         state: "RUNNING"

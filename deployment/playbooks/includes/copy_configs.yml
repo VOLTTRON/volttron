@@ -1,0 +1,26 @@
+  - name: check for host configuration files
+    local_action: stat path="{{ local_configs_dir }}"
+    register: directory_check
+    ignore_errors: True
+
+  - debug:
+      var: directory_check
+
+  - debug:
+      var: local_remote_config_file
+
+  - name: copy configs
+    copy:
+      # Note the / on the end means we don't want the containing folder
+      # only the files underneath.  So ignore 'sigma1' if it was the
+      # host.
+      src: "{{ local_configs_dir }}/"
+      dest: "{{ ansible_env.HOME }}/configs"
+      mode: 0644
+    when: directory_check.stat.exists
+
+  - name: Copy host config to remote
+    copy:
+      src: "{{ local_remote_config_file }}"
+      dest: "{{ ansible_env.HOME }}/host.config.yml"
+      mode: 0644

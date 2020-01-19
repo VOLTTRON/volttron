@@ -5,12 +5,13 @@
       volttron_instance_config:
         config_file: "{{ ansible_env.HOME }}/host.config.yml"
         state: "STOPPED"
+        phase: "UNINSTALL"
       register: instance_state
 
     - debug:
         var: instance_state
 
-    - name: Remove vollttron if volttron folder exists
+    - name: Remove vollttron and neccary folders and files
       command:
         # > joins the command by spaces
         # | joins the lines with \n

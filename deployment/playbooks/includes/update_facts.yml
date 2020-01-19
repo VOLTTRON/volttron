@@ -1,0 +1,12 @@
+---
+  - name: Retrieving Status
+    volttron_instance_config:
+      config_file: "{{ host_config }}"
+    check_mode: True
+    register: my_state
+
+  - name: Create fact file
+    template:
+      owner: "{{ ansible_user }}"
+      src: templates/instance.fact
+      dest: /etc/ansible/facts.d/instance.fac

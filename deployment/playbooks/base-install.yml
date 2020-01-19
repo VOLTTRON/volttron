@@ -188,17 +188,13 @@
         cmd: "env/bin/python bootstrap.py --web"
         chdir: "{{ ansible_env.HOME }}/volttron"
 
+    - set_fact:
+        local_remote_config_file: "{{lookup('env','DEPLOYMENT_ROOT')}}/{{inventory_hostname}}/{{inventory_hostname}}.yml"
+        local_configs_dir: "{{lookup('env','DEPLOYMENT_ROOT')}}/{{inventory_hostname}}/configs"
+        python3: "{{lookup('env','DEPLOYMENT_ROOT')}}/env/bin/python"
+
     - include_tasks: includes/ansible_venv.yml
-
-    - name: Create server key by involking status
-      volttron_instance_config:
-        config_file: "{{ ansible_env.HOME }}/host.config.yml"
-      check_mode: True
-      register: instance_state
-
-    - name: create instance_serverkey variable
-      set_fact:
-        instance_serverkey: instance_state.serverkey
+    - include_tasks: includes/copy_configs.yml
 
     - name: "Create custom fact directory"
       become: True
@@ -209,8 +205,6 @@
         path: "/etc/ansible/facts.d"
         state: "directory"
 
-    - name: Create fact file
-      template:
-        owner: "{{ ansible_user }}"
-        src: templates/instance.fact
-        dest: /etc/ansible/facts.d/instance.fact
+    - include_tasks: includes/update_facts.yml
+      vars:
+        host_config: "{{ ansible_env.HOME }}/host.config.yml"
