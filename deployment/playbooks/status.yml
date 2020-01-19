@@ -4,20 +4,21 @@
 #  become_method: sudo
 #  gather_facts: True
   environment:
-    # TODO: Figure out how to interpolate the ~ and/or fix to use $HOME
-    VOLTTRON_HOME: "~/.volttron"
-    VOLTTRON_ROOT: "~/volttron"
-    CONFIG: "~/configs"
-    HOST_CONFIG: ~/host.config.yml
+    VOLTTRON_HOME: "{{ ansible_env.HOME }}/.volttron"
+    VOLTTRON_ROOT: "{{ ansible_env.HOME }}/volttron"
+    HOST_CONFIG: "{{ ansible_env.HOME }}/host.config.yml"
   vars:
     # Ansible will use this path on remote hosts to run the interpreter with.
     ansible_python_interpreter: /usr/bin/python3
   tasks:
     - include_tasks: includes/ansible_venv.yml
+    - include_tasks: includes/update_facts.yml
+      vars:
+        host_config: "{{ ansible_env.HOME }}/host.config.yml"
 
     - name: Retrieving Status
       volttron_instance_config:
-        config_file: "{{ ansible_env.HOST_CONFIG }}"
+        config_file: "{{ ansible_env.HOME }}/host.config.yml"
       check_mode: True
       register: instance_state
 

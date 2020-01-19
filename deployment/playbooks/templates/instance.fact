@@ -1,4 +1,7 @@
 {
   "instance_name": "{{ ansible_hostname }}",
-  "public": "{{ instance_state.serverkey }}"
+  "state": "{{ my_state.state.instance_state }}"
+  "public": "{{ my_state.state.serverkey }}",
+  "vip-address": "{{ my_state.state['vip-address'] }}",
+  "agents": "{{ my_state.state.agents_state }}"
 }

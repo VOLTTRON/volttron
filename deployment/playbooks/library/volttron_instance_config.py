@@ -4,12 +4,15 @@ import base64
 from configparser import ConfigParser, NoOptionError
 import enum
 import json
+import ipaddress
 import logging
+from netifaces import interfaces, ifaddresses, AF_INET
 import os
 import pwd
 import psutil
 import shutil
 import socket
+import re
 import subprocess
 from time import sleep
 from urllib.parse import urlparse
@@ -20,6 +23,7 @@ from zmq.utils import z85
 import yaml
 
 
+# region utility functions
 def init_logging(filepath, level=logging.DEBUG):
     # if os.path.isfile(filepath):
     #     os.remove(filepath)
@@ -32,6 +36,73 @@ def logger():
 
 def expand_all(path):
     return os.path.expandvars(os.path.expanduser(path))
+
+
+def wait_for_state(expected_state, vhome, vroot):
+    countdown = 5
+    current_state = InstanceState.ERROR
+    while current_state is not expected_state and countdown > 0:
+        sleep(5)
+        countdown -= 1
+        new_state = get_instance_state()
+        if new_state == expected_state:
+            current_state = new_state
+            break
+
+    return current_state
+
+
+def encode_key(key):
+    """"Base64-encode and return a key in a URL-safe manner."""
+    assert len(key) in (32, 40)
+    if len(key) == 40:
+        key = z85.decode(key)
+    return base64.urlsafe_b64encode(key)[:-1].decode("ASCII")
+
+
+def has_bootstrapped(volttron_path):
+    return os.path.exists(os.path.join(volttron_path, 'env/bin/python'))
+
+
+def python(volttron_path):
+    return os.path.join(volttron_path, 'env', 'bin', 'python')
+
+
+def is_loopback(vip_address):
+    ip = vip_address.strip().lower().split("tcp://")[1]
+    addr = ipaddress.ip_address(ip)
+    return addr.is_loopback
+
+
+def is_ip_private(vip_address):
+    """ Determines if the passed vip_address is a private ip address or not.
+
+    :param vip_address: A valid ip address.
+    :return: True if an internal ip address.
+    """
+    ip = vip_address.strip().lower().split("tcp://")[1]
+
+
+    # https://en.wikipedia.org/wiki/Private_network
+
+    priv_lo = re.compile("^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$")
+    priv_24 = re.compile("^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$")
+    priv_20 = re.compile("^192\.168\.\d{1,3}.\d{1,3}$")
+    priv_16 = re.compile("^172.(1[6-9]|2[0-9]|3[0-1]).[0-9]{1,3}.[0-9]{1,3}$")
+
+    return priv_lo.match(ip) is not None or priv_24.match(
+        ip) is not None or priv_20.match(ip) is not None or priv_16.match(
+        ip) is not None
+
+
+def ip4_addresses():
+    ip_list = []
+    for interface in interfaces():
+        for link in ifaddresses(interface)[AF_INET]:
+            ip_list.append(link['addr'])
+    return ip_list
+
+# endregion
 
 
 class InstanceState(enum.Enum):
@@ -64,18 +135,17 @@ class VolttronContext:
             VolttronContext.VCTL = os.path.join(new_root, "env/bin/vctl")
 
 
+class InstallPhase(enum.Enum):
+    AGENT_INSTALL = "AGENT_INSTALL"
+    ALLOW_EXTERNAL_CONNECTIONS = "ALLOW_EXTERNAL_CONNECTIONS"
+    START_AGENTS = "START_AGENTS"
+    UNINSTALL = "UNINSTALL"
+
 # Set up default context for the module
 volttron_context = VolttronContext()
 
 
-def has_bootstrapped(volttron_path):
-    return os.path.exists(os.path.join(volttron_path, 'env/bin/python'))
-
-
-def python(volttron_path):
-    return os.path.join(volttron_path, 'env', 'bin', 'python')
-
-
+# region configuration handling functions
 def _get_option_no_error(inst, section, option, default=None):
     try:
         value = inst.get(section, option)
@@ -106,7 +176,12 @@ def build_volttron_configfile(volttron_home, host_config_dict:dict):
     :param params:
     :return:
     """
-    logger().debug(f"Building config from:\n{json.dumps(host_config_dict, indent=2)}")
+    host_config_cpy = {}
+    if host_config_dict is not None:
+        host_config_cpy = host_config_dict.copy()
+    host_config_cpy.pop("participate-in-multiplatform", None)
+
+    logger().debug(f"Building config from:\n{json.dumps(host_config_cpy, indent=2)}")
     cfg_loc = os.path.join(volttron_home, 'config')
     had_config = False
     changed = False
@@ -121,8 +196,6 @@ def build_volttron_configfile(volttron_home, host_config_dict:dict):
     if had_config:
         parser.read(cfg_loc)
 
-    if host_config_dict is None:
-        host_config_dict = {}
     vc_address = None
     vc_serverkey = None
     vip_address = None
@@ -141,28 +214,28 @@ def build_volttron_configfile(volttron_home, host_config_dict:dict):
     else:
         changed = True
         parser.add_section('volttron')
-        for k, v in host_config_dict.items():
+        for k, v in host_config_cpy.items():
             parser.set('volttron', k, v)
 
     if not had_config:
-        if 'volttron_central_addres' not in host_config_dict:
+        if 'volttron_central_addres' not in host_config_cpy:
             _remove_option_no_error(parser, 'volttron', 'volttron-central-address')
         else:
             parser.set('volttron', 'volttron-central-address',
-                       host_config_dict['volttron_central_address'])
+                       host_config_cpy['volttron_central_address'])
 
-        if 'volttron_central_serverkey' not in host_config_dict:
+        if 'volttron_central_serverkey' not in host_config_cpy:
             _remove_option_no_error(parser, 'volttron',
                                     'volttron-central-serverkey')
         else:
             parser.set('volttron', 'volttron-central-serverkey',
-                       host_config_dict['volttron_central_serverkey'])
+                       host_config_cpy['volttron_central_serverkey'])
 
-        if 'vip_address' not in host_config_dict:
+        if 'vip_address' not in host_config_cpy:
             _remove_option_no_error(parser, 'volttron', 'vip-address')
         else:
             parser.set('volttron', 'vip-address',
-                       host_config_dict['vip_address'])
+                       host_config_cpy['vip_address'])
 
         # if not host_config_dict['enable_web']:
         #     _remove_option_no_error(parser, 'volttron', 'bind-web-address')
@@ -174,6 +247,7 @@ def build_volttron_configfile(volttron_home, host_config_dict:dict):
 
     parser.write(open(cfg_loc, 'w'))
     return changed
+# endregion
 
 
 def get_instance_state():
@@ -212,6 +286,7 @@ def check_agent_status(agents: dict):
         pass
 
 
+# region VOLTTRON command functions
 def start_volttron():
     cmd = [volttron_context.VOLTTRON, '-L', 'examples/rotatinglog.py']
     logger().debug(f"starting volttron {cmd}")
@@ -243,20 +318,29 @@ def force_kill_volttron():
     proc = subprocess.Popen(['killall', '-9', 'python'],
                             stdout=open('/dev/null', 'w'),
                             stderr=open('logfile.log', 'a'))
+# endregion
 
 
 def update_agents(agents_config_dict: dict):
     agents_state = get_agents_state(agents_config_dict)
     # all_installed_agents = set(agents_state.keys())
     found_agents = set()
+    not_installed = set()
 
-    for id, agent_spec in agents_config_dict.items():
-        logger().debug(f"{id} => {agent_spec}")
-        if id in agents_state:
-            found_agents.add(id)
-            state = AgentState(agents_state[id]['state'])
-            if state == AgentState.NOT_INSTALLED:
-                install_agent(id, agent_spec)
+    for identity, v in agents_state.items():
+        # If agent hasn't been installed but user wants the agent then go ahead and install it
+        if v['state'] == AgentState.NOT_INSTALLED.name and identity in agents_config_dict:
+            install_results = install_agent(identity, agents_config_dict[identity])
+
+    agents_state_after = get_agents_state(agents_config_dict)
+
+    # for id, agent_spec in agents_config_dict.items():
+    #     logger().debug(f"{id} => {agent_spec}")
+    #     if id in agents_state:
+    #         found_agents.add(id)
+    #         state = AgentState(agents_state[id]['state'])
+    #         if state == AgentState.NOT_INSTALLED:
+    #             install_agent(id, agent_spec)
     agents_state_after = get_agents_state(agents_config_dict)
     return agents_state, agents_state_after
 
@@ -547,12 +631,27 @@ def install_agent(identity, agent_spec: dict):
     # return is_error, True, retvalues
 
 
-def encode_key(key):
-    """"Base64-encode and return a key in a URL-safe manner."""
-    assert len(key) in (32, 40)
-    if len(key) == 40:
-        key = z85.decode(key)
-    return base64.urlsafe_b64encode(key)[:-1].decode("ASCII")
+def do_install_agents_phase(agent_config_dict: dict):
+    pass
+
+
+def do_allow_connections(agent_config_dict, volttron_host_dict):
+    logger().debug("I AM HERE!")
+    for host_facts in volttron_host_dict['results']:
+        logger().debug(host_facts['ansible_facts']['my_data']['ansible_local'])
+    # with open("/tmp/foofile", 'w') as fp:
+    #     fp.write(json.dumps(volttron_host_dict, indent=2))
+
+
+def do_start_tag_agents(ageent_config_dict):
+    pass
+
+def persist_facts():
+    instance_state = get_instance_state()
+    with open("/etc/ansible/facts.d", "w") as fp:
+        fp.write(json.dumps(instance_state, indent=2))
+
+
 
 
 def main():
@@ -563,6 +662,7 @@ def main():
         volttron_home=dict(required=False, default=volttron_context.VOLTTRON_HOME),
         volttron_root=dict(required=False, default=volttron_context.VOLTTRON_ROOT),
         config_file=dict(required=True),
+        phase=dict(choicesj=InstallPhase.__members__.keys()),
         # instance_name=dict(default=socket.gethostname()),
         # vip_address=dict(default=None),
         # bind_web_address=dict(default=None),
@@ -571,6 +671,7 @@ def main():
         # Only binds when this flag is set to true.
 
         state=dict(choices=InstanceState.__members__.keys()),
+        volttron_host_facts=dict(required=False, type='dict')
         # started=dict(default=True, type="bool")
     ), supports_check_mode=True)
 
@@ -579,33 +680,49 @@ def main():
         module.fail_json(msg="Cannot use this module in root context.")
         return
 
+    # Short cut for params
     p = module.params
 
-    # # Make sure we are running under the correct user for VOLTTRON
-    # if pwd.getpwuid(os.getuid()).pw_name != p['volttron_user']:
-    #     module.fail_json(
-    #         msg="Must run as the passed volttron_user use become=yes and "
-    #             "specify the correct user {}".format(p['volttron_user']))
-    #
-    # if p['volttron_home'] is None:
-    #     p['volttron_home'] = "/home/{}/.volttron".format(p['volttron_user'])
-
-    vhome = expand_all(p['volttron_home'])
     vroot = expand_all(p['volttron_root'])
 
-    volttron_context.update_volttron_root(vroot)
-    serverkey_file = os.path.join(vhome, "keystore")
-    host_config = expand_all(p['config_file'])
-    volttronbin = os.path.join(vroot, "env/bin/volttron")
-    vctlbin = os.path.join(vroot, "env/bin/vctl")
-
-    check_mode = module.check_mode
-
+    # if the volttron path doesn't exist yet then then we know the user
+    # hasn't inited this instance yet.
     if not os.path.exists(vroot):
         module.fail_json(msg=f"volttron_path does not exist {vroot}. "
                              f"Please run vctl deploy init on this host.")
 
+    # region host configuration file validation
+    host_config_file = expand_all(p['config_file'])
+
+    # The host config file must be present for the script to understand
+    # how to configure this instance.
+    if not os.path.exists(vroot):
+        module.fail_json(msg=f"config_file path does not exist {host_config_file}. "
+                             f"Please run vctl deploy init on this host.")
+
+    host_cfg, agent_cfg = _validate_and_build_configuration(host_config_file, module)
+
+    # endregion
+
+    # volttron_context allows the functions to get the main directories
+    # without having to pass them along in the arguments of functions.
+    volttron_context.update_volttron_root(vroot)
+
+    vhome = expand_all(p['volttron_home'])
+
+    # Check mode allows ansible to run a mininimal commmand that "doesn't change"
+    # any state.  In our system, if the serverkey is not created then it will
+    # be created during a check mode call.
+    check_mode = module.check_mode
+
+    # region create main keystore file that keeps the instance's serverkey
+
+    # Create the volttron_home directory if it doesn't exist and create the main
+    # instanc's public and secreate key for the instance.  This is the value that
+    # one can retrive when doing a vctl auth serverkey command from the command line.
     os.makedirs(vhome, 0o755, exist_ok=True)
+
+    serverkey_file = os.path.join(vhome, "keystore")
 
     if not os.path.exists(serverkey_file):
         public, secret = curve_keypair()
@@ -619,62 +736,89 @@ def main():
         keypair = json.loads(fp.read())
         publickey = keypair['public']
 
-    if not os.path.isfile(host_config):
-        if module.check_mode:
-            module.exit_json(chande=False,
+    # endregion
+
+    # The main volttron config file will automatically be created when
+    # the agent is first started or when this module is run without check_mode
+    # set to true.
+    main_volttron_config = os.path.join(vhome, "config")
+
+    # region check_mode
+    if module.check_mode:
+        if not os.path.isfile(main_volttron_config):
+            module.exit_json(changed=False,
                              msg="Instance hasn't been started",
-                             instance_state=InstanceState.NEVER_STARTED.name,
-                             serverkey=publickey,
-                             agents_state={})
-        module.fail_json(msg=f"File not found {host_config}.")
+                             state={
+                                 "instance_state": InstanceState.NEVER_STARTED.name,
+                                 "serverkey": publickey,
+                                 "agents_state": {},
+                                 "vip-address": host_cfg['vip-address'],
+                                 "participate-in-multiplatform": host_cfg.get('participate-in-multiplatform', False)
+                             })
 
-    with open(host_config) as fp:
-        cfg_host = yaml.safe_load(fp)
+        instance_state = get_instance_state()
+        all_agents_state = get_agents_state(agents_config_dict=agent_cfg)
+        module.exit_json(changed=False,
+                         state={
+                             "instance_state": instance_state.name,
+                             "serverkey": publickey,
+                             "agents_state": all_agents_state,
+                             "vip-address": host_cfg['vip-address'],
+                             "participate-in-multiplatform": host_cfg.get('participate-in-multiplatform', False)
+                         })
 
-    if 'config' not in cfg_host:
-        module.fail_json(msg="Must have config section in host configuration file.")
-
-    if 'agents' not in cfg_host:
-        module.fail_json(msg="Must have agents section in host configuration file.")
-
-    if not cfg_host['config']:
-        cfg_host['config'] = {}
-
-    if not cfg_host['agents']:
-        cfg_host['agents'] = {}
+    # endregion
 
     expected_state = None
-    # Check mode allows us to get the state of the instance in its current form without doing
-    # anything else.
-    if check_mode:
-        instance_state = get_instance_state()
-        all_agents_state = get_agents_state(agents_config_dict=cfg_host['agents'])
-        module.exit_json(changed=False, instance_state=instance_state.name, serverkey=publickey,
-                         agents_state=all_agents_state)
-    else:
-        # state is required if check_mode is not set
-        if 'state' not in p:
-            module.exit_json(changed=False, msg="missing required arguments: state")
+    current_phase = None
+    volttron_host_facts = None
 
-        expected_state = InstanceState(p['state'])
+    # state is required if check_mode is not set
+    if 'state' not in p:
+        module.exit_json(changed=False, msg="missing required arguments: state",
+                         available_states=AgentState.__members__.keys())
 
-        logger().debug(f"Expected State is {expected_state}")
-
-    # _validate_agent_config will exit if the agent's configurations are not valid.
-    # validity means the paths to config files are valid json/yaml and that
-    # their paths are correct
-    _validate_agent_config(cfg_host['agents'])
+    if 'phase' not in p:
+        module.exit_json(changed=False, msg="missing required argument: phase",
+                         available_phases=InstallPhase.__members__.keys())
+    expected_state = InstanceState(p['state'])
+    current_phase = InstallPhase(p['phase'])
+    volttron_host_facts = None
+    if current_phase == InstallPhase.ALLOW_EXTERNAL_CONNECTIONS:
+        if 'volttron_host_facts' not in p:
+            module.exit_json(changed=False,
+                             msg="missing required argument: "
+                                 "'volttron_host_facts' for phase 'ALLOW_EXTERNAL_CONNECTIONS")
+        else:
+            volttron_host_facts = p['volttron_host_facts']
+    logger().debug(f"Expected State is {expected_state}")
+    logger().debug(f"curren_phase is {current_phase}")
 
     # Create/update main volttron config file
-    config_file_changed = build_volttron_configfile(vhome, cfg_host['config'])
+    config_file_changed = build_volttron_configfile(vhome, host_cfg)
     current_state = get_instance_state()
 
+    if current_state == InstanceState.RUNNING:
+        logger().debug("Inside running block")
+        if current_phase == InstallPhase.AGENT_INSTALL:
+            logger().debug("Before do_install_agents")
+            results = do_install_agents_phase(agent_cfg)
+        elif current_phase == InstallPhase.ALLOW_EXTERNAL_CONNECTIONS:
+            logger().debug("Before do allow")
+            results = do_allow_connections(host_cfg['agents'], volttron_host_facts)
+        else:
+            logger().debug("Before start tag.")
+            results = do_start_tag_agents(agent_cfg)
+
+        module.exit_json(changed=True)
+
+    module.exit_json(msg="OUtside!")
     if current_state == expected_state and not config_file_changed:
         agent_state_changed = False
         # if current_state == InstanceState.RUNNING:
         #     module.fail_json(msg="doing check for agents")
         #     agent_state_changed = update_agents(cfg_host['agents'])
-        before_agent, after_agent = update_agents(cfg_host['agents'])
+        before_agent, after_agent = update_agents(host_cfg['agents'])
 
         module.exit_json(changed=True, msg="First block here", before_agent=before_agent, after_agent=after_agent)
 
@@ -695,7 +839,7 @@ def main():
         if current_state != InstanceState.RUNNING:
             module.fail_json(msg="Failed to start VOLTTRON")
 
-        before_agent, after_agent = update_agents(cfg_host['agents'])
+        before_agent, after_agent = update_agents(host_cfg['agents'])
 
         module.exit_json(changed=True, before_agent=before_agent, after_agent=after_agent)
 
@@ -723,7 +867,6 @@ def main():
 
     module.fail_json(msg="Unknown state found")
 
-
     config_file_changed = build_volttron_configfile(vhome, p)
 
     after_state = get_instance_state()
@@ -734,18 +877,137 @@ def main():
                      after_state=after_state)
 
 
-def wait_for_state(expected_state, vhome, vroot):
-    countdown = 5
-    current_state = InstanceState.ERROR
-    while current_state is not expected_state and countdown > 0:
-        sleep(5)
-        countdown -= 1
-        new_state = get_instance_state()
-        if new_state == expected_state:
-            current_state = new_state
-            break
+def to_bool(arg):
+    abool = None
+    try:
+        abool = bool(arg)
+    except TypeError:
+        if isinstance(arg, str):
+            if arg.upper() in ('YES', 'TRUE'):
+                abool = True
+            elif arg.upper() in ('NO', 'FALSE'):
+                abool = False
+    if abool is None:
+        raise TypeError(f'Invalid type for value {arg} should be a boolean value')
 
-    return current_state
+    return abool
+
+
+def valid_local_public_vip_address(vip_address):
+    if vip_address is None:
+        return False
+    parsed = urlparse(vip_address)
+
+    if parsed.scheme != 'tcp':
+        return False
+
+    if parsed.port is None:
+        return False
+
+    if parsed.port <= 1024 or parsed.port > 65535:
+        return False
+
+    try:
+        addr = ipaddress.ip_address(parsed.hostname)
+    except ValueError:
+        return False
+    else:
+        if addr not in ip4_addresses():
+            return False
+
+        return not addr.is_loopback
+
+
+def dertimine_vip_address(should_be_public, vip_address, custom_port=22916):
+    vip_addr = None
+    if vip_address is None:
+        if should_be_public:
+            public_addr = None
+            for addr in ip4_addresses():
+                if not ipaddress.ip_address(addr).is_loopback:
+                    public_addr = addr
+                    break
+            vip_addr = f"tcp://{public_addr}:{custom_port}"
+        else:
+            vip_addr = f"tcp://127.0.0.1:22916"
+    elif should_be_public and not valid_local_public_vip_address(vip_address):
+        raise ValueError(f"Invalid vip address specified {vip_address} can not be loopback")
+    elif not should_be_public and valid_local_public_vip_address(vip_address):
+        raise ValueError(f"Invalid vip address specified {vip_address} should be loopback address")
+
+    if vip_addr is None:
+        raise ValueError("Couldn't determine vip-address for this host!")
+
+    return vip_addr
+
+
+def _validate_and_build_configuration(host_config_file, module: AnsibleModule):
+
+    if not os.path.isfile(host_config_file):
+        module.fail_json(msg=f"The host config file ({host_config_file} does not exist.")
+    with open(host_config_file) as fp:
+        host_cfg_loaded = yaml.safe_load(fp)
+    if 'config' not in host_cfg_loaded:
+        module.fail_json(msg="Must have config section in host configuration file.")
+    if 'agents' not in host_cfg_loaded:
+        module.fail_json(msg="Must have agents section in host configuration file.")
+    logger().debug(f"host config loaded: {host_cfg_loaded}")
+    host_config = host_cfg_loaded.get('config', {})
+    agents_config = host_cfg_loaded.get('agents', {})
+
+    # If no configuration paraementers are passed that's ok
+    if host_config is None:
+        host_config = {}
+
+    # No agent configuration means that we have a platform just sitting there doing nothing.
+    if agents_config is None:
+        agents_config = {}
+
+    # region verify and create vip-address for volttron config file
+    multiplatform_participant = False
+    try:
+        logger().debug(f"host config is {host_config}")
+        a_bool = to_bool(host_config.get('participate-in-multiplatform', False))
+        multiplatform_participant = a_bool # to_bool(host_config.get('participate-in-multiplatform', False))
+    except TypeError:
+        module.fail_json(msg=f"Invalid value for participate-in-multiplatform")
+
+    allow_external_connections = False
+    try:
+        allow_external_connections = to_bool(host_config.pop('allow-external-connections', multiplatform_participant))
+    except TypeError:
+        module.fail_json(msg=f"Invalid value for 'allow-external-connections'")
+
+    custom_vip_ip = host_config.pop("custom-vip-ip", None)
+    custom_vip_port = int(host_config.get("custom-vip-port", 22916))
+    if custom_vip_port <= 1024 or custom_vip_port > 65535:
+        module.fail_json(msg="Invalid custom-vip-port must be between 1024 and 65535")
+
+    if custom_vip_ip:
+        vip_address = f"tcp://{custom_vip_ip}:{custom_vip_port}"
+    else:
+        vip_address = None
+
+    if multiplatform_participant and not allow_external_connections:
+        module.fail_json(msg="Mismatch between allow-external-connections and participate-in-multiplatform")
+
+    if multiplatform_participant or allow_external_connections:
+        try:
+            vip_address = dertimine_vip_address(should_be_public=True, vip_address=vip_address)
+        except ValueError as ex:
+            module.fail_json(msg=ex)
+        else:
+            host_config['vip-address'] = vip_address
+    else:
+        try:
+            vip_address = dertimine_vip_address(should_be_public=False, vip_address=vip_address)
+        except ValueError as ex:
+            module.fail_json(msg=ex)
+        else:
+            host_config['vip-address'] = vip_address
+    # endregion
+
+    return host_config, agents_config
 
 
 if __name__ == '__main__':
