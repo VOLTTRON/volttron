@@ -2652,11 +2652,7 @@ def main(argv=sys.argv):
         _stderr.write("Invalid command: '{}' or command requires additional arguments\n".format(opts.command))
         parser.print_help()
         return 1
-    # except Exception as exc:
-    #     print_tb = traceback.print_exc
-    #     error = str(exc)
-    else:
-        return 0
+
     if opts.debug:
         print_tb()
     _stderr.write('{}: error: {}\n'.format(opts.command, error))
