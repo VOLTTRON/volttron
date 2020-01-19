@@ -56,8 +56,14 @@ import ansible.constants as C
 from volttron.platform import get_volttron_root
 from volttron.utils.prompt import prompt_response
 
+_stderr = sys.stderr
+_stdout = sys.stdout
 #os.environ['ANSIBLE_KEEP_REMOTE_FILES'] = "1"
 C.DEFAULT_DEBUG = False
+
+
+def setup_environment(hosts_path):
+    os.environ['DEPLOYMENT_ROOT'] = os.path.dirname(hosts_path)
 
 
 def do_volttron_up(hosts_path, options):
@@ -208,24 +214,34 @@ def add_deployment_subparser(add_parser_fn):
 
 
 def do_deployment_command(opts):
-    hosts_path = os.path.abspath(opts.hosts_file)
-    if not os.path.isfile(hosts_path):
-        sys.stderr.write(f"Invalid hosts-file path passed: {hosts_path}\n")
-        sys.exit(1)
-    opts.hosts_file = hosts_path
 
-    if opts.store_commands == 'init':
-        do_init_systems(opts)
-    elif opts.store_commands == 'destroy':
-        do_destroy_systems(opts)
-    elif opts.store_commands == 'up':
-        do_volttron_up(hosts_path, opts)
-    elif opts.store_commands == 'down':
-        do_volttron_down(opts)
-    elif opts.store_commands == 'status':
-        do_volttron_status(opts)
-    else:
-        sys.stderr.write(f"Invalid argument to parser {opts.store_commands}")
+    try:
+        hosts_path = os.path.abspath(opts.hosts_file)
+        if not os.path.isfile(hosts_path):
+            sys.stderr.write(f"Invalid hosts-file path passed: {hosts_path}\n")
+            sys.exit(1)
+        opts.hosts_file = hosts_path
+
+        setup_environment(opts.hosts_file)
+
+        if opts.store_commands == 'init':
+            do_init_systems(opts)
+        elif opts.store_commands == 'destroy':
+            do_destroy_systems(opts)
+        elif opts.store_commands == 'up':
+            do_volttron_up(hosts_path, opts)
+        elif opts.store_commands == 'down':
+            do_volttron_down(opts)
+        elif opts.store_commands == 'status':
+            do_volttron_status(opts)
+        else:
+            _stderr.write(f"Invalid argument to parser {opts.store_commands}")
+    except AttributeError as exc:
+        if opts.store_commands is None:
+            opts.store_commands = ""
+        _stderr.write(f"Invalid command: '{opts.command} {opts.store_commands}' "
+                      "or command requires additional arguments\n")
+        sys.exit(1)
 
 
 def get_playbook(playbook):
