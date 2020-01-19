@@ -2720,7 +2720,7 @@ def main(argv=sys.argv):
         print_tb = exc.print_tb
         error = exc.message
     except AttributeError as exc:
-         _stderr.write("Invalid command: '{}' or command requires additional arguments\n".format(opts.command))
+        _stderr.write("Invalid command: '{}' or command requires additional arguments\n".format(opts.command))
         parser.print_help()
         return 1
     # except Exception as exc:
