@@ -1,7 +1,6 @@
 ---
 - hosts: all
   gather_facts: no #don't gather facts until after known_hosts is updated
-  serial: yes #the known_host task needs to be serial
   vars:
     # Ansible will use this path on remote hosts to run the interpreter with.
     ansible_python_interpreter: /usr/bin/python3
@@ -12,21 +11,16 @@
     VOLTTRON_ROOT: "{{ ansible_env.HOME }}/volttron"
     HOST_CONFIG: "{{ ansible_env.HOME }}/host.config.yml"
   tasks:
-    - name: "get ssh known_host value for {{ inventory_hostname }}:{{ ansible_port }}"
+    - name: "get ssh known_host values"
       local_action: "shell ssh-keyscan -p {{ ansible_port }} {{ ansible_host }}"
       register: sshKnownHostEntry
       vars:
         ansible_python_interpreter: "{{ ansible_playbook_python }}"
 
-    - name:
-      debug:
-        msg:
-          - "should update host '{{ ansible_host }}'"
-          - "should add key: '{{ sshKnownHostEntry.stdout }}'"
-
     - name: add/update the known_hosts public key
       delegate_to: localhost
       vars:
+        serial: yes #the known_host task needs to be serial
         ansible_python_interpreter: "{{ ansible_playbook_python }}"
       known_hosts:
         state: present
