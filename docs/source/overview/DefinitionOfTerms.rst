@@ -6,7 +6,7 @@ Definition of Terms
 
 This page lays out a common terminology for discussing the components and
 underlying technologies used by the platform. The first
-section discusses cababilities and industry standards that volttron
+section discusses capabilities and industry standards that volttron
 conforms to while the latter is specific to the VOLTTRON domain.
 
 Industry Terms
@@ -26,7 +26,58 @@ Industry Terms
 VOLTTRON Terms
 ~~~~~~~~~~~~~~
 
--  **VOLTTRON_HOME**: The location for a specific VOLTTRON_INSTANCE to store its specific information.  There can be many VOLTTRON_HOMEs on a single computing resource(VM, machine, etc.)
--  **VOLTTRON_INSTANCE**: A single volttron process executing instructions on a computing resource.  For each VOLTTRON_INSTANCE there WILL BE only one VOLTTRON_HOME associated with it.  In order for a VOLTTRON_INSTANCE to be able to participate outside its computing resource it must be bound to an external ip address.
--  **VOLTTRON_ROOT**: The cloned directory from github.  When executing the command git clone http://github.com/VOLTTRON/volttron the top volttron folder is the VOLTTRON_ROOT
--  **VIP**: VOLTTRON Interconnect Protocal is a secure routing protocol that facilitates communications between agents, controllers, services and the supervisory VOLTTRON_INSTANCE.
+    .. _activated-environment:
+
+    Activated Environment
+        An activated environment is the environment a VOLTTRON instance is run in.
+        The bootstrap process creates the environment from the shell and to activate
+        it the following command is executed.
+
+        .. code-block:: bash
+
+            user@computer> source env/bin/activate
+
+            # Note once the above command has been run the prompt will have changed
+            (volttron)user@computer>
+
+    .. _bootstrap-environment:
+
+    Bootstrap Environment
+        The process by which an operating environment (activated environment)
+        is produced.  From the :ref:`VOLTTRON_ROOT` directory executing
+        ``python bootstrap.py`` will start the bootstrap process.
+
+    .. _VOLTTRON_HOME:
+
+    VOLTTRON_HOME
+        The location for a specific :ref:`VOLTTRON_INSTANCE` to store its specific
+        information.  There can be many VOLTTRON_HOMEs on a single computing
+        resource(VM, machine, etc.)
+
+    .. _VOLTTRON_INSTANCE:
+
+    VOLTTRON_INSTANCE
+        A single volttron process executing instructions on a computing resource.
+        For each VOLTTRON_INSTANCE there WILL BE only one :ref:`VOLTTRON_HOME`
+        associated with it.  In order for a VOLTTRON_INSTANCE to be able to
+        participate outside its computing resource it must be bound to an
+        external ip address.
+
+    .. _VOLTTRON_ROOT:
+
+    VOLTTRON_ROOT
+        The cloned directory from github.  When executing the command
+
+        .. code-block:: bash
+
+            git clone http://github.com/VOLTTRON/volttron
+
+        the top volttron folder is the VOLTTRON_ROOT
+
+    .. _VIP:
+
+    VIP
+        VOLTTRON Interconnect Protocol is a secure routing protocol that facilitates
+        communications between agents, controllers, services and the supervisory
+        :ref:`VOLTTRON_INSTANCE`.
+

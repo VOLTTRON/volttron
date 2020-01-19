@@ -1,73 +1,52 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright (c) 2016, Battelle Memorial Institute
-# All rights reserved.
+# Copyright 2019, Battelle Memorial Institute.
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# 1. Redistributions of source code must retain the above copyright notice,
-# this
-#    list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright notice,
-#    this list of conditions and the following disclaimer in the documentation
-#    and/or other materials provided with the distribution.
+# http://www.apache.org/licenses/LICENSE-2.0
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
-# IS" AND
-# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
-# LIABLE FOR
-# ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-# DAMAGES
-# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-# ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
-# The views and conclusions contained in the software and documentation are
-# those
-# of the authors and should not be interpreted as representing official
-# policies,
-# either expressed or implied, of the FreeBSD Project.
-#
-
-# This material was prepared as an account of work sponsored by an
-# agency of the United States Government.  Neither the United States
-# Government nor the United States Department of Energy, nor Battelle,
-# nor any of their employees, nor any jurisdiction or organization
-# that has cooperated in the development of these materials, makes
-# any warranty, express or implied, or assumes any legal liability
-# or responsibility for the accuracy, completeness, or usefulness or
-# any information, apparatus, product, software, or process disclosed,
-# or represents that its use would not infringe privately owned rights.
-#
-# Reference herein to any specific commercial product, process, or
-# service by trade name, trademark, manufacturer, or otherwise does
-# not necessarily constitute or imply its endorsement, recommendation,
-# r favoring by the United States Government or any agency thereof,
-# or Battelle Memorial Institute. The views and opinions of authors
-# expressed herein do not necessarily state or reflect those of the
+# This material was prepared as an account of work sponsored by an agency of
+# the United States Government. Neither the United States Government nor the
+# United States Department of Energy, nor Battelle, nor any of their
+# employees, nor any jurisdiction or organization that has cooperated in the
+# development of these materials, makes any warranty, express or
+# implied, or assumes any legal liability or responsibility for the accuracy,
+# completeness, or usefulness or any information, apparatus, product,
+# software, or process disclosed, or represents that its use would not infringe
+# privately owned rights. Reference herein to any specific commercial product,
+# process, or service by trade name, trademark, manufacturer, or otherwise
+# does not necessarily constitute or imply its endorsement, recommendation, or
+# favoring by the United States Government or any agency thereof, or
+# Battelle Memorial Institute. The views and opinions of authors expressed
+# herein do not necessarily state or reflect those of the
 # United States Government or any agency thereof.
 #
-# PACIFIC NORTHWEST NATIONAL LABORATORY
-# operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
+# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-
 # }}}
 
-from __future__ import absolute_import
+
 
 import copy
 import logging
-from abc import abstractmethod
 from datetime import datetime, timedelta
 
 import pytz
+from abc import abstractmethod
+
 from volttron.platform.agent import utils
+from volttron.platform.agent.known_identities import (PLATFORM_HISTORIAN)
 from volttron.platform.vip.agent import Agent
 from volttron.platform.vip.agent.subsystems import RPC
 
@@ -83,7 +62,6 @@ class AggregateHistorian(Agent):
 
     - :py:meth:`get_topic_map() <AggregateHistorian.get_topic_map>`
     - :py:meth:`get_agg_topic_map() <AggregateHistorian.get_agg_topic_map>`
-    - :py:meth:`find_topics_by_pattern() <AggregateHistorian.find_topics_by_pattern>`
     - :py:meth:`initialize_aggregate_store() <AggregateHistorian.initialize_aggregate_store>`
     - :py:meth:`update_aggregate_metadata() <AggregateHistorian.update_aggregate_metadata>`
     - :py:meth:`collect_aggregate() <AggregateHistorian.collect_aggregate>`
@@ -142,6 +120,12 @@ class AggregateHistorian(Agent):
         self.agg_topic_id_map = self.get_agg_topic_map()
         _log.debug("In start of aggregate historian. "
                    "After loading topic and aggregate topic maps")
+
+        if not config.get("aggregations"):
+            _log.debug("End of onstart method - current time{}".format(
+                datetime.utcnow()))
+            return
+
         for agg_group in config['aggregations']:
             # 1. Validate and normalize aggregation period and
             # initialize use_calendar_periods flag
@@ -212,7 +196,10 @@ class AggregateHistorian(Agent):
             else:
                 # Find if the topic_name patterns result in any topics
                 # at all. If it does log them as info
-                topic_map = self.find_topics_by_pattern(topic_pattern)
+                topic_map = self.vip.rpc.call(
+                    PLATFORM_HISTORIAN,
+                    "get_topics_by_pattern",
+                    topic_pattern=topic_pattern).get()
                 if topic_map is None or len(topic_map) == 0:
                     raise ValueError(
                         "Please provide a valid topic_name or "
@@ -223,8 +210,8 @@ class AggregateHistorian(Agent):
                             topic_pattern))
 
                 _log.info("topic_names matching the given pattern {} "
-                          ":\n {}".format(topic_pattern, topic_map.keys()))
-                data['topic_ids'] = topic_map.values()
+                          ":\n {}".format(topic_pattern, list(topic_map.keys())))
+                data['topic_ids'] = list(topic_map.values())
 
             # Aggregating across multiple points. Check if unique topic
             # name was given for this.
@@ -296,10 +283,11 @@ class AggregateHistorian(Agent):
         called after a specific period of time. The time interval is
         calculated by
         :py:meth:`compute_next_collection_time() <AggregateHistorian.compute_next_collection_time>`
-        This method in turn calls the following methods implemented by
-        child classes:
+        This method in turn calls the platform historian's
+        - :py:method:`get_topics_by_pattern()` <BaseHistorian.get_topics_by_pattern>
 
-        - :py:meth:`find_topics_by_pattern() <AggregateHistorian.find_topics_by_pattern>`
+        and the following methods implemented by child classes:
+
         - :py:meth:`collect_aggregate() <AggregateHistorian.collect_aggregate>`
         - :py:meth:`insert_aggregate() <AggregateHistorian.insert_aggregate>`
 
@@ -333,17 +321,38 @@ class AggregateHistorian(Agent):
             _log.debug(
                 "After  compute agg_time_period = {} start_time {} end_time "
                 "{} ".format(agg_time_period, start_time, end_time))
+            schedule_next = True
             for data in points:
                 _log.debug("data in loop {}".format(data))
                 topic_ids = data.get('topic_ids', None)
                 _log.debug("topic ids configured {} ".format(topic_ids))
                 topic_pattern = data.get('topic_name_pattern', None)
+
+                aggregate_topic_id = \
+                    self.agg_topic_id_map.get(
+                        (data['aggregation_topic_name'].lower(),
+                         data['aggregation_type'].lower(),
+                         agg_time_period))
+                if not aggregate_topic_id:
+                    _log.warn("Name:{} Type: {} Aggregation Period: {}    --"
+                              "No such aggregate topic found. This could have happened if the "
+                              "configuration of the agent changed after the last schedule for data collection"
+                              " Stopping collection for the outdated configuration".format(
+                        data['aggregation_topic_name'].lower(),
+                        data['aggregation_type'].lower(),
+                        agg_time_period))
+                    schedule_next = False
+                    break  # break out of for loop and move to finally block
+
                 if topic_pattern:
                     # Find topic ids that match the pattern at runtime
-                    topic_map = self.find_topics_by_pattern(topic_pattern)
+                    topic_map = self.vip.rpc.call(
+                        PLATFORM_HISTORIAN,
+                        "get_topics_by_pattern",
+                        topic_pattern=topic_pattern).get()
                     _log.debug("Found topics for pattern {}".format(topic_map))
                     if topic_map:
-                        topic_ids = topic_map.values()
+                        topic_ids = list(topic_map.values())
                         _log.debug("topic ids loaded {} ".format(topic_ids))
                     else:
                         _log.warn(
@@ -379,32 +388,28 @@ class AggregateHistorian(Agent):
                             end_time=end_time,
                             count=data.get('min_count', 0)))
                 else:
-                    aggregate_topic_id = \
-                        self.agg_topic_id_map[
-                            data['aggregation_topic_name'].lower(),
-                            data['aggregation_type'].lower(),
-                            agg_time_period]
-                    _log.debug(
-                        "agg_topic_id {} and topic ids sent to insert {} "
-                        "".format(aggregate_topic_id, topic_ids))
+                    _log.debug("data is {} aggg_time_period is {}".format(data, agg_time_period))
+                    _log.debug(" topic id map {}".format(self.agg_topic_id_map))
                     self.insert_aggregate(aggregate_topic_id,
                                           data['aggregation_type'],
                                           agg_time_period,
                                           end_time,
                                           agg_value,
                                           topic_ids)
+
         finally:
-            collection_time = AggregateHistorian.compute_next_collection_time(
-                collection_time, agg_time_period, use_calendar_periods)
-            _log.debug(
-                "Scheduling next collection at {}".format(collection_time))
-            event = self.core.schedule(collection_time,
-                                       self.collect_aggregate_data,
-                                       collection_time,
-                                       agg_time_period,
-                                       use_calendar_periods,
-                                       points)
-            _log.debug("After Scheduling next collection.{}".format(event))
+            if schedule_next:
+                collection_time = AggregateHistorian.compute_next_collection_time(
+                    collection_time, agg_time_period, use_calendar_periods)
+                _log.debug(
+                    "Scheduling next collection at {}".format(collection_time))
+                event = self.core.schedule(collection_time,
+                                           self.collect_aggregate_data,
+                                           collection_time,
+                                           agg_time_period,
+                                           use_calendar_periods,
+                                           points)
+                _log.debug("After Scheduling next collection.{}".format(event))
 
     @abstractmethod
     def get_topic_map(self):
@@ -430,12 +435,6 @@ class AggregateHistorian(Agent):
 
         """
         pass
-
-    @abstractmethod
-    def find_topics_by_pattern(self, topic_pattern):
-        """ Find the list of topics and its id for a given topic_pattern
-
-        :return: returns list of dictionary object {topic_name.lower():id}"""
 
     @abstractmethod
     def initialize_aggregate_store(self, aggregation_topic_name, agg_type,
@@ -565,15 +564,15 @@ class AggregateHistorian(Agent):
                     unit, time_period))
         if unit == 'm':
             if period >= 60 and period % 60 == 0:
-                period /= 60
+                period //= 60
                 unit = 'h'
         if unit == 'h':
             if period >= 24 and period % 24 == 0:
-                period /= 24
+                period //= 24
                 unit = 'd'
         if unit == 'd':
             if period >= 7 and period % 7 == 0:
-                period /= 7
+                period //= 7
                 unit = 'w'
 
         return str(period) + unit

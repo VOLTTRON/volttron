@@ -1,22 +1,47 @@
-import json
 import os
 
 import gevent
 import pytest
-import requests
-import sys
 
-from volttrontesting.utils.core_service_installs import \
+from volttron.platform import get_examples
+from volttrontesting.utils.agent_additions import \
     add_volttron_central_platform, add_volttron_central, add_listener
 
-from volttron.platform.messaging.health import STATUS_GOOD
 from volttrontesting.utils.platformwrapper import PlatformWrapper, \
     start_wrapper_platform
-from volttrontesting.utils.utils import poll_gevent_sleep
+
 from zmq.utils import jsonapi
-from vctestutils import (APITester,
-                         check_multiple_platforms,
-                         validate_response)
+from vctestutils import APITester
+
+from vc_fixtures import vc_and_vcp_together, vc_instance, vcp_instance
+
+
+@pytest.fixture(scope="module")
+def auto_registered_local(vc_and_vcp_together):
+    webapi = APITester(vc_and_vcp_together)
+
+    yield webapi
+
+
+def test_platform_list(auto_registered_local):
+    webapi = auto_registered_local
+
+    assert len(webapi.list_platforms()) == 1
+
+
+def test_platform_inspect(auto_registered_local):
+    webapi = auto_registered_local
+    platforms = webapi.list_platforms()
+    platform_uuid = platforms[0]["uuid"]
+
+    agents = webapi.list_agents(platform_uuid)
+
+    for agent in agents:
+        agent_uuid = agent['uuid']
+        result = webapi.inspect(platform_uuid, agent_uuid)
+        print(result)
+        method = 'health.get_status'
+        assert method in result['methods']
 
 
 @pytest.fixture(scope="module")
@@ -50,99 +75,55 @@ def vc_vcp_platforms():
     vcp.shutdown_platform()
 
 
-@pytest.fixture(scope="function")
-def web_api_tester(request, vc_instance, pa_instance):
-    pa_wrapper, pa_uuid = pa_instance
-    vc_wrapper, vc_uuid, vc_jsonrpc = vc_instance
-    check_multiple_platforms(vc_wrapper, pa_wrapper)
-
-    tester = APITester(vc_jsonrpc)
-    response = tester.register_instance(pa_wrapper.bind_web_address)
-
-    validate_response(response)
-    result = response.json()['result']
-    assert result['status'] == 'SUCCESS'
-
-    def cleanup():
-        for platform in tester.list_platforms().json()['result']:
-            tester.unregister_platform(platform['uuid'])
-
-    request.addfinalizer(cleanup)
-    return tester
-
-
 @pytest.mark.vc
-def test_vc_settings_store(vc_instance):
+def test_vc_settings_store(auto_registered_local):
     """ Test the reading and writing of data through the get_setting,
         set_setting and get_all_key json-rpc calls.
     """
-    vc, vcuuid, jsonrpc = vc_instance
+    webapi = auto_registered_local
 
     kv = dict(key='test.user', value='is.good')
     kv2 = dict(key='test.user', value='othervalue')
     kv3 = dict(key='other.user', value='tough stuff')
-    tester = APITester(jsonrpc)
 
     # Creating setting replies with SUCCESS.
-    resp = tester.set_setting(**kv)
+    resp = webapi.set_setting(**kv)
     assert 'SUCCESS' == resp
 
     # Get setting should respond with the same  value.
-    resp = tester.get_setting(key=kv['key'])
+    resp = webapi.get_setting(key=kv['key'])
     assert kv['value'] == resp
 
     # Make sure keys are returned.
-    resp = tester.get_setting_keys()
+    resp = webapi.get_setting_keys()
     assert kv['key'] in resp
 
     # Test overwrite
-    resp = tester.set_setting(**kv2)
+    resp = webapi.set_setting(**kv2)
     assert 'SUCCESS' == resp
 
     # Test that the data was overwritten
-    resp = tester.get_setting(key=kv['key'])
+    resp = webapi.get_setting(key=kv['key'])
     assert kv2['value'] == resp
 
     # add secondary key/value
-    resp = tester.set_setting(**kv3)
+    resp = webapi.set_setting(**kv3)
     assert 'SUCCESS' == resp
 
     # test both keys are in the store
-    resp = tester.get_setting_keys()
+    resp = webapi.get_setting_keys()
     assert kv['key'] in resp
     assert kv3['key'] in resp
 
     # A None(null) value passed to set_setting should remove the key
-    resp = tester.set_setting(key=kv['key'], value=None)
+    resp = webapi.set_setting(key=kv['key'], value=None)
     assert 'SUCCESS' == resp
-    resp = tester.get_setting_keys()
+    resp = webapi.get_setting_keys()
     assert kv['key'] not in resp
 
 
 @pytest.mark.vc
-@pytest.mark.skip(reason="Must reimplement unregister.")
-def test_unregister_platform(web_api_tester):
-    platforms = web_api_tester.list_platforms().json()['result']
-    orig_platform_count = len(platforms)
-    assert orig_platform_count > 0
-
-    uuid_to_remove = platforms[0]['uuid']
-    response = web_api_tester.unregister_platform(uuid_to_remove)
-    validate_response(response)
-    platforms = web_api_tester.list_platforms().json()['result']
-    assert len(platforms) == orig_platform_count - 1
-
-
-@pytest.mark.vc
-def test_login_rejected_for_foo(vc_instance):
-    vc_jsonrpc = vc_instance[2]
-    with pytest.raises(AssertionError):
-        tester = APITester(vc_jsonrpc, "foo", "")
-
-
-@pytest.mark.vc
-def test_store_list_get_configuration(vc_vcp_platforms):
-    vc, vcp = vc_vcp_platforms
+def test_store_list_get_configuration(auto_registered_local):
 
     data = dict(
         bim=50,
@@ -152,27 +133,64 @@ def test_store_list_get_configuration(vc_vcp_platforms):
     str_data = jsonapi.dumps(data)
     identity = "foo.bar"
     config_name = "fuzzywidgets"
-    api = APITester(vc.jsonrpc_endpoint)
 
-    platforms = api.list_platforms()
+    webapi = auto_registered_local
+
+    platforms = webapi.list_platforms()
     platform_uuid = platforms[0]["uuid"]
 
-    resp = api.store_agent_config(platform_uuid, identity, config_name,
+    resp = webapi.store_agent_config(platform_uuid, identity, config_name,
                                   str_data)
     assert resp is None
 
-    resp = api.list_agent_configs(platform_uuid, identity)
+    resp = webapi.list_agent_configs(platform_uuid, identity)
     assert config_name == resp[0]
 
-    resp = api.get_agent_config(platform_uuid, identity, config_name)
+    resp = webapi.get_agent_config(platform_uuid, identity, config_name)
     assert str_data == resp
 
 
 @pytest.mark.vc
+def test_store_delete_configuration(auto_registered_local):
+
+    data = dict(
+        bim=50,
+        baz="foo",
+        bar="lambda"
+    )
+    str_data = jsonapi.dumps(data)
+    identity = "foo.bar"
+    config_name = "fuzzywidgets"
+
+    webapi = auto_registered_local
+
+    platforms = webapi.list_platforms()
+    platform_uuid = platforms[0]["uuid"]
+
+    resp = webapi.store_agent_config(platform_uuid, identity, config_name,
+                                     str_data)
+    assert resp is None
+
+    resp = webapi.list_agent_configs(platform_uuid, identity)
+    assert config_name == resp[0]
+
+    resp = webapi.get_agent_config(platform_uuid, identity, config_name)
+    assert str_data == resp
+
+    resp = webapi.delete_agent_config(platform_uuid, identity, config_name)
+    assert '' == resp
+
+    resp = webapi.list_agent_configs(platform_uuid, identity)
+    for res in resp:
+        assert config_name != resp[0]
+
+
+@pytest.mark.vc
+@pytest.mark.skipif(True, reason='Permissions always admin presently')
 def test_correct_reader_permissions_on_vcp_vc_and_listener_agent(vc_vcp_platforms):
     vc, vcp = vc_vcp_platforms
 
-    api = APITester(vc.jsonrpc_endpoint, username="reader", password="reader")
+    api = APITester(vc, username="reader", password="reader")
 
     platform = api.list_platforms()[0]
     print('The platform is {}'.format(platform))
@@ -196,42 +214,17 @@ def test_correct_reader_permissions_on_vcp_vc_and_listener_agent(vc_vcp_platform
 
 
 @pytest.mark.vc
-def test_correct_admin_permissions_on_vcp_vc_and_listener_agent(vc_vcp_platforms):
-    vc, vcp = vc_vcp_platforms
+def test_correct_admin_permissions_on_vcp_vc_and_listener_agent(auto_registered_local):
 
-    api = APITester(vc.jsonrpc_endpoint)
+    apitester = auto_registered_local
 
-    platform = api.list_platforms()[0]
-
-    len_before_new_listener = len(
-        api.list_agents(platform_uuid=platform['uuid']))
-
-    add_listener(vcp, {"log-level": "DEBUG"})
-    agent_list = api.list_agents(platform_uuid=platform['uuid'])
-    assert len_before_new_listener + 1 == len(agent_list)
-
-    permissions = ('can_restart', 'can_remove', 'can_stop', 'can_start')
-
-    for agent in agent_list:
-        for p in permissions:
-            assert p in agent['permissions']
-            # for admin all should be true.
-            assert agent['permissions'][p]
-
-
-@pytest.mark.vc
-def test_correct_admin_permissions_on_vcp_vc_and_listener_agent(vc_vcp_platforms):
-    vc, vcp = vc_vcp_platforms
-
-    api = APITester(vc.jsonrpc_endpoint)
-
-    platform = api.list_platforms()[0]
+    platform = apitester.list_platforms()[0]
     print('The platform is {}'.format(platform))
 
-    len_before_new_listener = len(api.list_agents(platform_uuid=platform['uuid']))
+    len_before_new_listener = len(apitester.list_agents(platform_uuid=platform['uuid']))
 
-    add_listener(vcp, {"log-level": "DEBUG"})
-    agent_list = api.list_agents(platform_uuid=platform['uuid'])
+    listener_uuid = add_listener(apitester._wrapper, {"log-level": "DEBUG"})
+    agent_list = apitester.list_agents(platform_uuid=platform['uuid'])
     assert len_before_new_listener + 1 == len(agent_list)
 
     permissions = ('can_restart', 'can_remove', 'can_stop', 'can_start')
@@ -239,35 +232,39 @@ def test_correct_admin_permissions_on_vcp_vc_and_listener_agent(vc_vcp_platforms
     for agent in agent_list:
         for p in permissions:
             assert p in agent['permissions']
+            permissions = agent['permissions']
 
-            if agent['identity'] in ('platform.agent', 'volttron.central'):
+            if agent['identity'] in ('platform.agent', 'volttron.central') or \
+                    agent['identity'].endswith('.platform.agent'):
                 if p in ('can_restart', 'can_start'):
-                    assert agent['permissions'][p]
+                    assert permissions[p]
                 else:
-                    assert not agent['permissions'][p]
+                    assert not permissions[p]
             else:
                 # for admin all should be true if not vcp or vc.
-                assert agent['permissions'][p]
+                assert permissions[p]
+
+    apitester.remove_agent(platform['uuid'], listener_uuid)
+    agent_list = apitester.list_agents(platform_uuid=platform['uuid'])
+    assert len_before_new_listener == len(agent_list)
 
 
 @pytest.mark.vc
-def test_listagent(vc_vcp_platforms):
-    vc, vcp = vc_vcp_platforms
+def test_listagent(auto_registered_local):
 
-    api = APITester(vc.jsonrpc_endpoint)
+    webapi = auto_registered_local
 
-    platform = api.list_platforms()[0]
+    platform = webapi.list_platforms()[0]
     print('The platform is {}'.format(platform))
 
-    agent_list = api.list_agents(platform_uuid=platform['uuid'])
+    agent_list = webapi.list_agents(platform_uuid=platform['uuid'])
     print('The agent list is: {}'.format(agent_list))
     assert len(agent_list) > 1
     assert agent_list[0]['version']
 
 
 @pytest.mark.vc
-def test_installagent(vc_vcp_platforms):
-    vc, vcp = vc_vcp_platforms
+def test_installagent(auto_registered_local):
 
     # To install the agent we need to simulate the browser's interface
     # for passing files.  This means we have to have a base-64 representation
@@ -281,7 +278,8 @@ def test_installagent(vc_vcp_platforms):
     #   f['file_name']
     #   f['file
 
-    agent_wheel = vc.build_agentpackage('examples/ListenerAgent')
+    webapi = auto_registered_local
+    agent_wheel = webapi._wrapper.build_agentpackage(get_examples("ListenerAgent"))
     assert os.path.exists(agent_wheel)
 
     import base64
@@ -291,28 +289,32 @@ def test_installagent(vc_vcp_platforms):
         # From the web this is what is added to the file.
         filestr = "base64,"+base64.b64encode(f.read())
 
-    file = dict(
+    file_props = dict(
         file_name=os.path.basename(agent_wheel),
         file=filestr,
         vip_identity='bar.full.{}'.format(random.randint(1, 100000))
     )
 
-    api = APITester(vc.jsonrpc_endpoint)
+    platform = webapi.list_platforms()[0]
 
-    platform = api.list_platforms()[0]
-
-    agents = api.list_agents(platform['uuid'])
+    agents = webapi.list_agents(platform['uuid'])
     assert agents
 
-    agent = api.install_agent(platform['uuid'], fileargs=file)
+    agent = webapi.install_agent(platform['uuid'], fileargs=file_props)
 
     assert agent
     assert agent.get('uuid')
 
-    agents_after = api.list_agents(platform['uuid'])
+    agents_after = webapi.list_agents(platform['uuid'])
     assert len(agents) + 1 == len(agents_after)
 
+    webapi.remove_agent(platform['uuid'], agent.get('uuid'))
+    agents_after = webapi.list_agents(agent.get('uuid'))
+    assert len(agents) == len(agents_after)
 
 
-
-
+# @pytest.mark.vc
+# def test_login_rejected_for_foo(vc_instance):
+#     vc_jsonrpc = vc_instance[2]
+#     with pytest.raises(AssertionError):
+#         tester = APITester(vc_jsonrpc, "foo", "")

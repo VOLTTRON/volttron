@@ -1,59 +1,39 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
-
-# Copyright (c) 2016, Battelle Memorial Institute
-# All rights reserved.
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
+# Copyright 2019, Battelle Memorial Institute.
 #
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in
-#    the documentation and/or other materials provided with the
-#    distribution.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# http://www.apache.org/licenses/LICENSE-2.0
 #
-# The views and conclusions contained in the software and documentation
-# are those of the authors and should not be interpreted as representing
-# official policies, either expressed or implied, of the FreeBSD
-# Project.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
-# This material was prepared as an account of work sponsored by an
-# agency of the United States Government.  Neither the United States
-# Government nor the United States Department of Energy, nor Battelle,
-# nor any of their employees, nor any jurisdiction or organization that
-# has cooperated in the development of these materials, makes any
-# warranty, express or implied, or assumes any legal liability or
-# responsibility for the accuracy, completeness, or usefulness or any
-# information, apparatus, product, software, or process disclosed, or
-# represents that its use would not infringe privately owned rights.
-#
-# Reference herein to any specific commercial product, process, or
-# service by trade name, trademark, manufacturer, or otherwise does not
-# necessarily constitute or imply its endorsement, recommendation, or
+# This material was prepared as an account of work sponsored by an agency of
+# the United States Government. Neither the United States Government nor the
+# United States Department of Energy, nor Battelle, nor any of their
+# employees, nor any jurisdiction or organization that has cooperated in the
+# development of these materials, makes any warranty, express or
+# implied, or assumes any legal liability or responsibility for the accuracy,
+# completeness, or usefulness or any information, apparatus, product,
+# software, or process disclosed, or represents that its use would not infringe
+# privately owned rights. Reference herein to any specific commercial product,
+# process, or service by trade name, trademark, manufacturer, or otherwise
+# does not necessarily constitute or imply its endorsement, recommendation, or
 # favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors
-# expressed herein do not necessarily state or reflect those of the
+# Battelle Memorial Institute. The views and opinions of authors expressed
+# herein do not necessarily state or reflect those of the
 # United States Government or any agency thereof.
 #
-# PACIFIC NORTHWEST NATIONAL LABORATORY
-# operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
+# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-
 # }}}
 
 """
@@ -469,6 +449,8 @@ import datetime
 import logging
 import sys
 
+import gevent
+
 from actuator.scheduler import ScheduleManager
 
 from tzlocal import get_localzone
@@ -501,7 +483,7 @@ utils.setup_logging()
 __version__ = "1.0"
 
 
-class LockError(StandardError):
+class LockError(Exception):
     """Error raised when the user does not have a device scheuled
     and tries to use methods that require exclusive access."""
     pass
@@ -519,7 +501,7 @@ def actuator_agent(config_path, **kwargs):
     """
     try:
         config = utils.load_config(config_path)
-    except StandardError:
+    except Exception:
         config = {}
 
     if not config:
@@ -677,11 +659,11 @@ class ActuatorAgent(Agent):
         _log.debug("sending heartbeat")
         try:
             self.vip.rpc.call(self.driver_vip_identity, 'heart_beat').get(
-                timeout=5.0)
+                timeout=20.0)
         except Unreachable:
             _log.warning("Master driver is not running")
-        except Exception as e:
-            _log.warning(''.join([e.__class__.__name__, '(', e.message, ')']))
+        except (Exception, gevent.Timeout) as e:
+            _log.warning(''.join([e.__class__.__name__, '(', str(e), ')']))
 
 
     def _schedule_save_callback(self, state_file_contents):
@@ -740,7 +722,7 @@ class ActuatorAgent(Agent):
                 if device_only in self._device_states:
                     device_states.append((device_only, self._device_states[device_only]))
             else:
-                device_states = self._device_states.iteritems()
+                device_states = iter(self._device_states.items())
 
             for device, state in device_states:
                 _log.debug("device, state -  {}, {}".format(device, state))
@@ -834,7 +816,7 @@ class ActuatorAgent(Agent):
                                          point, headers, value)
         except RemoteError as ex:
             self._handle_remote_error(ex, point, headers)
-        except StandardError as ex:
+        except Exception as ex:
             self._handle_standard_error(ex, point, headers)
 
     def handle_set(self, peer, sender, bus, topic, headers, message):
@@ -884,11 +866,11 @@ class ActuatorAgent(Agent):
             self._set_point(requester, point, message)
         except RemoteError as ex:
             self._handle_remote_error(ex, point, headers)
-        except StandardError as ex:
+        except Exception as ex:
             self._handle_standard_error(ex, point, headers)
 
     @RPC.export
-    def get_point(self, topic, **kwargs):
+    def get_point(self, topic, point=None, **kwargs):
         """
         RPC method
         
@@ -897,18 +879,26 @@ class ActuatorAgent(Agent):
         
         :param topic: The topic of the point to grab in the 
                       format <device topic>/<point name>
+
+                      Only the <device topic> if point is specified.
+        :param point: Point on the device. Uses old behavior if omitted.
         :param \*\*kwargs: Any driver specific parameters
         :type topic: str
         :returns: point value
         :rtype: any base python type"""
         topic = topic.strip('/')
         _log.debug('handle_get: {topic}'.format(topic=topic))
-        path, point_name = topic.rsplit('/', 1)
+
+        if point is not None:
+            path, point_name = topic, point
+        else:
+            path, point_name = topic.rsplit('/', 1)
+
         return self.vip.rpc.call(self.driver_vip_identity, 'get_point', path,
                                  point_name, **kwargs).get()
 
     @RPC.export
-    def set_point(self, requester_id, topic, value, **kwargs):
+    def set_point(self, requester_id, topic, value, point=None, **kwargs):
         """RPC method
         
         Sets the value of a specific point on a device. 
@@ -917,11 +907,14 @@ class ActuatorAgent(Agent):
         :param requester_id: Ignored, VIP Identity used internally
         :param topic: The topic of the point to set in the 
                       format <device topic>/<point name>
+                      Only the <device topic> if point is specified.
         :param value: Value to set point to.
+        :param point: Point on the device. Uses old behavior if omitted.
         :param \*\*kwargs: Any driver specific parameters
         :type topic: str
         :type requester_id: str
         :type value: any basic python type
+        :type point: str
         :returns: value point was actually set to. Usually invalid values 
                 cause an error but some drivers (MODBUS) will return a
                 different
@@ -932,15 +925,18 @@ class ActuatorAgent(Agent):
         within
                      the time allotted will raise a LockError"""
 
-        rpc_peer = bytes(self.vip.rpc.context.vip_message.peer)
-        return self._set_point(rpc_peer, topic, value, **kwargs)
+        rpc_peer = self.vip.rpc.context.vip_message.peer
+        return self._set_point(rpc_peer, topic, value, point=point, **kwargs)
 
-    def _set_point(self, sender, topic, value, **kwargs):
+    def _set_point(self, sender, topic, value, point=None, **kwargs):
         topic = topic.strip('/')
         _log.debug('handle_set: {topic},{sender}, {value}'.
                    format(topic=topic, sender=sender, value=value))
 
-        path, point_name = topic.rsplit('/', 1)
+        if point is not None:
+            path, point_name = topic, point
+        else:
+            path, point_name = topic.rsplit('/', 1)
 
         if not isinstance(sender, str):
             raise TypeError("Agent id must be a nonempty string")
@@ -982,7 +978,7 @@ class ActuatorAgent(Agent):
         Get multiple points on multiple devices. Makes a single
         RPC call to the master driver per device.
 
-        :param topics: List of topics
+        :param topics: List of topics or list of [device, point] pairs.
         :param \*\*kwargs: Any driver specific parameters
 
         :returns: Dictionary of points to values and dictonary of points to errors
@@ -990,15 +986,25 @@ class ActuatorAgent(Agent):
         .. warning:: This method does not require that all points be returned
                      successfully. Check that the error dictionary is empty.
         """
-        devices = collections.defaultdict(list)
-        for topic in topics:
-            topic = topic.strip('/')
-            device, point_name = topic.rsplit('/', 1)
-            devices[device].append(point_name)
 
         results = {}
         errors = {}
-        for device, point_names in devices.iteritems():
+
+        devices = collections.defaultdict(list)
+        for topic in topics:
+            if isinstance(topic, str):
+                topic = topic.strip('/')
+                device, point_name = topic.rsplit('/', 1)
+                devices[device].append(point_name)
+            elif isinstance(topic, (list, tuple)) and len(topic) > 1:
+                device = topic[0].strip('/')
+                point_name = topic[1]
+                devices[device].append(point_name)
+            else:
+                e = ValueError("Invalid topic: {}".format(topic))
+                errors[repr(topic)] = repr(e)
+
+        for device, point_names in devices.items():
             r, e = self.vip.rpc.call(self.driver_vip_identity,
                                      'get_multiple_points',
                                      device,
@@ -1027,19 +1033,27 @@ class ActuatorAgent(Agent):
         .. warning:: calling without previously scheduling *all* devices
                      and not within the time allotted will raise a LockError
         """
-        requester_id = bytes(self.vip.rpc.context.vip_message.peer)
+        requester_id = self.vip.rpc.context.vip_message.peer
         devices = collections.defaultdict(list)
+        results = {}
         for topic, value in topics_values:
-            topic = topic.strip('/')
-            device, point_name = topic.rsplit('/', 1)
-            devices[device].append((point_name, value))
+            if isinstance(topic, str):
+                topic = topic.strip('/')
+                device, point_name = topic.rsplit('/', 1)
+                devices[device].append((point_name, value))
+            elif isinstance(topic, (list, tuple)) and len(topic) > 1:
+                device = topic[0].strip('/')
+                point_name = topic[1]
+                devices[device].append((point_name, value))
+            else:
+                e = ValueError("Invalid topic: {}".format(topic))
+                results[str(topic)] = repr(e)
 
         for device in devices:
             if not self._check_lock(device, requester_id):
                 raise LockError("caller ({}) does not lock for device {}".format(requester_id, device))
 
-        results = {}
-        for device, point_names_values in devices.iteritems():
+        for device, point_names_values in devices.items():
             r = self.vip.rpc.call(self.driver_vip_identity,
                                   'set_multiple_points',
                                   device,
@@ -1086,7 +1100,7 @@ class ActuatorAgent(Agent):
             self._revert_point(requester, point)
         except RemoteError as ex:
             self._handle_remote_error(ex, point, headers)
-        except StandardError as ex:
+        except Exception as ex:
             self._handle_standard_error(ex, point, headers)
 
     def handle_revert_device(self, peer, sender, bus, topic, headers, message):
@@ -1126,11 +1140,11 @@ class ActuatorAgent(Agent):
             self._revert_device(requester, point)
         except RemoteError as ex:
             self._handle_remote_error(ex, point, headers)
-        except StandardError as ex:
+        except Exception as ex:
             self._handle_standard_error(ex, point, headers)
 
     @RPC.export
-    def revert_point(self, requester_id, topic, **kwargs):
+    def revert_point(self, requester_id, topic, point=None, **kwargs):
         """
         RPC method
         
@@ -1148,15 +1162,18 @@ class ActuatorAgent(Agent):
         within
                      the time allotted will raise a LockError"""
 
-        rpc_peer = bytes(self.vip.rpc.context.vip_message.peer)
-        return self._revert_point(rpc_peer, topic, **kwargs)
+        rpc_peer = self.vip.rpc.context.vip_message.peer
+        return self._revert_point(rpc_peer, topic, point=point, **kwargs)
 
-    def _revert_point(self, sender, topic, **kwargs):
+    def _revert_point(self, sender, topic, point=None, **kwargs):
         topic = topic.strip('/')
         _log.debug('handle_revert: {topic},{sender}'.
                    format(topic=topic, sender=sender))
 
-        path, point_name = topic.rsplit('/', 1)
+        if point is not None:
+            path, point_name = topic, point
+        else:
+            path, point_name = topic.rsplit('/', 1)
 
         if self._check_lock(path, sender):
             self.vip.rpc.call(self.driver_vip_identity, 'revert_point', path,
@@ -1185,7 +1202,7 @@ class ActuatorAgent(Agent):
         .. warning:: Calling without previously scheduling a device and not
         within
                      the time allotted will raise a LockError"""
-        rpc_peer = bytes(self.vip.rpc.context.vip_message.peer)
+        rpc_peer = self.vip.rpc.context.vip_message.peer
         return self._revert_device(rpc_peer, topic, **kwargs)
 
     def _revert_device(self, sender, topic, **kwargs):
@@ -1280,14 +1297,14 @@ class ActuatorAgent(Agent):
 
                 self._request_new_schedule(requester_id, task_id, priority,
                                            requests)
-            except StandardError as ex:
+            except Exception as ex:
                 return self._handle_unknown_schedule_error(ex, headers,
                                                            message)
 
         elif request_type == SCHEDULE_ACTION_CANCEL:
             try:
                 self._request_cancel_schedule(requester_id, task_id)
-            except StandardError as ex:
+            except Exception as ex:
                 return self._handle_unknown_schedule_error(ex, headers,
                                                            message)
         else:
@@ -1322,7 +1339,7 @@ class ActuatorAgent(Agent):
         
             The return values are described in `New Task Response`_.
         """
-        rpc_peer = bytes(self.vip.rpc.context.vip_message.peer)
+        rpc_peer = self.vip.rpc.context.vip_message.peer
         return self._request_new_schedule(rpc_peer, task_id, priority, requests, publish_result=False)
 
     def _request_new_schedule(self, sender, task_id, priority, requests, publish_result=True):
@@ -1333,7 +1350,7 @@ class ActuatorAgent(Agent):
         headers['type'] = SCHEDULE_ACTION_NEW
         local_tz = get_localzone()
         try:
-            if requests and isinstance(requests[0], basestring):
+            if requests and isinstance(requests[0], str):
                 requests = [requests]
 
             tmp_requests = requests
@@ -1352,7 +1369,7 @@ class ActuatorAgent(Agent):
 
                 requests.append([device, start, end])
 
-        except StandardError as ex:
+        except Exception as ex:
             return self._handle_unknown_schedule_error(ex, headers, requests)
 
         _log.debug("Got new schedule request: {}, {}, {}, {}".
@@ -1425,7 +1442,7 @@ class ActuatorAgent(Agent):
         The return values are described in `Cancel Task Response`_.
         
         """
-        rpc_peer = bytes(self.vip.rpc.context.vip_message.peer)
+        rpc_peer = self.vip.rpc.context.vip_message.peer
         return self._request_cancel_schedule(rpc_peer, task_id, publish_result=False)
 
     def _request_cancel_schedule(self, sender, task_id, publish_result=True):

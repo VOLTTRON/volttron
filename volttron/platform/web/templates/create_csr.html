@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Create CSR{% endblock %}
+{% block content %}
+    <h1>Create CSR from existing agent</h1>
+    <p>
+        The following will create a csr request and attempt to send that csr to the target volttron.  The
+        target volttron will need to accept and sign the csr.
+    </p>
+    {% if problems %}
+        <ul>
+            {% for p in problems %}
+                <li style="color: red">{{ p }}</li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+    <form method="post" action="/csr/create">
+        <label id="target-volttron">Target Volttron:
+            <select name="target_prefix">
+                <option value="http">http://</option>
+                <option value="https">https://</option>
+            </select>&nbsp;
+            <input type="text" name="target_volttron" />
+        </label>&nbsp;
+        <label id="target-port">Port:
+            <input type="text" name="target_port" value="8080" />
+        </label><br />
+        <label id="common-name">Common Name:
+            <select name="common_name">
+            {% for c in subjects %}
+               <li> <option value="{{c.common_name}}">{{c.common_name}}</option></li>
+            {% endfor %}
+            </select>
+        </label><br />
+        <input type="submit" value="Create CSR" />
+    </form>
+{% endblock %}

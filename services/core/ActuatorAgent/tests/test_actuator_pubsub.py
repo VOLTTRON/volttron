@@ -1,61 +1,44 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
-
-# Copyright (c) 2016, Battelle Memorial Institute
-# All rights reserved.
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
+# Copyright 2019, Battelle Memorial Institute.
 #
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in
-#    the documentation and/or other materials provided with the
-#    distribution.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# http://www.apache.org/licenses/LICENSE-2.0
 #
-# The views and conclusions contained in the software and documentation
-# are those of the authors and should not be interpreted as representing
-# official policies, either expressed or implied, of the FreeBSD
-# Project.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
-# This material was prepared as an account of work sponsored by an
-# agency of the United States Government.  Neither the United States
-# Government nor the United States Department of Energy, nor Battelle,
-# nor any of their employees, nor any jurisdiction or organization that
-# has cooperated in the development of these materials, makes any
-# warranty, express or implied, or assumes any legal liability or
-# responsibility for the accuracy, completeness, or usefulness or any
-# information, apparatus, product, software, or process disclosed, or
-# represents that its use would not infringe privately owned rights.
-#
-# Reference herein to any specific commercial product, process, or
-# service by trade name, trademark, manufacturer, or otherwise does not
-# necessarily constitute or imply its endorsement, recommendation, or
+# This material was prepared as an account of work sponsored by an agency of
+# the United States Government. Neither the United States Government nor the
+# United States Department of Energy, nor Battelle, nor any of their
+# employees, nor any jurisdiction or organization that has cooperated in the
+# development of these materials, makes any warranty, express or
+# implied, or assumes any legal liability or responsibility for the accuracy,
+# completeness, or usefulness or any information, apparatus, product,
+# software, or process disclosed, or represents that its use would not infringe
+# privately owned rights. Reference herein to any specific commercial product,
+# process, or service by trade name, trademark, manufacturer, or otherwise
+# does not necessarily constitute or imply its endorsement, recommendation, or
 # favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors
-# expressed herein do not necessarily state or reflect those of the
+# Battelle Memorial Institute. The views and opinions of authors expressed
+# herein do not necessarily state or reflect those of the
 # United States Government or any agency thereof.
 #
-# PACIFIC NORTHWEST NATIONAL LABORATORY
-# operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
+# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
 
-from __future__ import print_function
+
+
+from volttron.platform import get_services_core, get_examples
 
 """
 Pytest test cases for testing actuator agent using pubsub calls. Tests 3.0
@@ -70,7 +53,6 @@ import pytest
 from dateutil.tz import tzutc
 from gevent.subprocess import Popen
 from mock import MagicMock
-from volttron.platform.agent import PublishMixin
 from volttron.platform.agent import utils
 from volttron.platform.messaging import topics
 from volttron.platform.agent.known_identities import PLATFORM_DRIVER
@@ -82,8 +64,6 @@ TEST_AGENT = 'test-agent'
 actuator_uuid = None
 REQUEST_CANCEL_SCHEDULE = 'request_cancel_schedule'
 REQUEST_NEW_SCHEDULE = 'request_new_schedule'
-publish_agent_v2 = None
-
 
 @pytest.fixture(scope="function")
 def cancel_schedules(request, publish_agent):
@@ -154,9 +134,9 @@ def revert_devices(request, publish_agent):
     return cleanup_parameters
 
 
-# Repeat test for volttron 2.0 agent and volttron 3.0 agents
+# VOLTTRON 2.0 agents will deprecated from VOLTTRON 6.0 release. So running it for only volttron 3.0 agents
 @pytest.fixture(scope="module",
-                params=['volttron_2', 'volttron_3'])
+                params=['volttron_3'])
 def publish_agent(request, volttron_instance):
     """
     Fixture used for setting up the environment.
@@ -170,14 +150,14 @@ def publish_agent(request, volttron_instance):
     are run
     :return: an instance of fake agent used for publishing
     """
-    global actuator_uuid, publish_agent_v2
+    global actuator_uuid
 
 
     # Reset master driver config store
     cmd = ['volttron-ctl', 'config', 'delete', PLATFORM_DRIVER, '--all']
     process = Popen(cmd, env=volttron_instance.env,
                     cwd='scripts/scalability-testing',
-                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
     result = process.wait()
     print(result)
     assert result == 0
@@ -187,18 +167,18 @@ def publish_agent(request, volttron_instance):
            'fake.csv', 'fake_unit_testing.csv', '--csv']
     process = Popen(cmd, env=volttron_instance.env,
                     cwd='scripts/scalability-testing',
-                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
     result = process.wait()
     print(result)
     assert result == 0
 
-    for i in xrange(4):
+    for i in range(4):
         config_name = "devices/fakedriver{}".format(i)
         cmd = ['volttron-ctl', 'config', 'store', PLATFORM_DRIVER,
                config_name, 'fake_unit_testing.config', '--json']
         process = Popen(cmd, env=volttron_instance.env,
                         cwd='scripts/scalability-testing',
-                        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                        stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
         result = process.wait()
         print(result)
         assert result == 0
@@ -206,7 +186,7 @@ def publish_agent(request, volttron_instance):
     # Start the master driver agent which would intern start the fake driver
     # using the configs created above
     master_uuid = volttron_instance.install_agent(
-        agent_dir="services/core/MasterDriverAgent",
+        agent_dir=get_services_core("MasterDriverAgent"),
         config_file={},
         start=True)
     print("agent id: ", master_uuid)
@@ -216,14 +196,14 @@ def publish_agent(request, volttron_instance):
     # to fake device. Start the master driver agent which would intern start
     # the fake driver using the configs created above
     actuator_uuid = volttron_instance.install_agent(
-        agent_dir="services/core/ActuatorAgent",
-        config_file="services/core/ActuatorAgent/tests/actuator.config",
+        agent_dir=get_services_core("ActuatorAgent"),
+        config_file=get_services_core("ActuatorAgent/tests/actuator.config"),
         start=True)
     print("agent id: ", actuator_uuid)
 
     listener_uuid = volttron_instance.install_agent(
-        agent_dir="examples/ListenerAgent",
-        config_file="examples/ListenerAgent/config",
+        agent_dir=get_examples("ListenerAgent"),
+        config_file=get_examples("ListenerAgent/config"),
         start=True)
     print("agent id: ", listener_uuid)
 
@@ -240,11 +220,6 @@ def publish_agent(request, volttron_instance):
         peer='pubsub',
         prefix=topics.ACTUATOR_SCHEDULE_RESULT,
         callback=fake_publish_agent.callback).get()
-    if request.param == 'volttron_2':
-        publish_agent_v2 = PublishMixin(
-            volttron_instance.opts['publish_address'])
-    else:
-        publish_agent_v2 = None
 
     # 4: add a tear down method to stop sqlhistorian agent
     # and the fake agent that published to message bus
@@ -269,14 +244,10 @@ def publish(publish_agent, topic, header, message):
     :param header: header to publish
     :param message: message to publish
     """
-    global publish_agent_v2
-    if publish_agent_v2 is None:
-        publish_agent.vip.pubsub.publish('pubsub',
-                                         topic,
-                                         headers=header,
-                                         message=message).get(timeout=10)
-    else:
-        publish_agent_v2.publish_json(topic, header, message)
+    publish_agent.vip.pubsub.publish('pubsub',
+                                     topic,
+                                     headers=header,
+                                     message=message).get(timeout=10)
 
 
 @pytest.mark.actuator_pubsub
@@ -301,7 +272,6 @@ def test_schedule_response(publish_agent):
     """
     # Mock callback methods
     print("\n**** test_schedule_response ****")
-    global publish_agent_v2
     start = str(datetime.now(tz=tzutc()) + timedelta(seconds=10))
     end = str(datetime.now(tz=tzutc()) + timedelta(seconds=20))
     header = {
@@ -367,10 +337,7 @@ def test_schedule_announce(publish_agent, volttron_instance):
     :param volttron_instance: Volttron instance on which test is run
     """
     print("\n**** test_schedule_announce ****")
-    global actuator_uuid, publish_agent_v2
-
-    if publish_agent_v2 is not None:
-        pytest.skip('No difference between 2.0 and 3.0 agent. Skip for 2.0')
+    global actuator_uuid
 
     alternate_actuator_vip_id = "my_actuator"
     # Use a actuator that publishes frequently
@@ -378,8 +345,8 @@ def test_schedule_announce(publish_agent, volttron_instance):
     volttron_instance.stop_agent(actuator_uuid)
     gevent.sleep(2)
     my_actuator_uuid = volttron_instance.install_agent(
-        agent_dir="services/core/ActuatorAgent",
-        config_file="services/core/ActuatorAgent/tests/actuator2.config",
+        agent_dir=get_services_core("ActuatorAgent"),
+        config_file=get_services_core("ActuatorAgent/tests/actuator2.config"),
         start=True, vip_identity=alternate_actuator_vip_id)
     try:
         # reset mock to ignore any previous callback
@@ -1387,8 +1354,9 @@ def test_get_value_success(publish_agent, cancel_schedules):
     publish_agent.vip.pubsub.publish('pubsub',
                                      get_topic,
                                      headers=header).get(timeout=10)
+    gevent.sleep(0.5)
     print("call args list", publish_agent.callback.call_args_list)
-    assert publish_agent.callback.call_count == 1
+    assert publish_agent.callback.call_count == 2
     print('call args ', publish_agent.callback.call_args[0])
     assert publish_agent.callback.call_args[0][1] == PLATFORM_ACTUATOR
     assert publish_agent.callback.call_args[0][3] == value_topic
@@ -1434,7 +1402,7 @@ def test_get_error_invalid_point(publish_agent):
     publish_agent.vip.pubsub.subscribe(peer='pubsub',
                                        prefix=error_topic,
                                        callback=publish_agent.callback).get()
-
+    gevent.sleep(1)
     header = {
         'requesterID': TEST_AGENT
     }
@@ -1606,7 +1574,7 @@ def test_set_value_array(publish_agent, cancel_schedules, revert_devices):
                                      set_topic,
                                      headers=header,
                                      message=[0.2]).get(timeout=10)
-    gevent.sleep(1)
+    gevent.sleep(1.5)
     print('call args list:', publish_agent.callback.call_args_list)
     assert publish_agent.callback.call_count == 1
     assert publish_agent.callback.call_args[0][1] == PLATFORM_ACTUATOR
@@ -1614,9 +1582,7 @@ def test_set_value_array(publish_agent, cancel_schedules, revert_devices):
     result_header = publish_agent.callback.call_args[0][4]
     result_message = publish_agent.callback.call_args[0][5]
     # assert result_header['requesterID'] == agentid
-    assert result_message['type'] == 'TypeError'
-    assert result_message['value'] == \
-        "['float() argument must be a string or a number']"
+    assert result_message['type'] == 'builtins.TypeError'
 
 
 @pytest.mark.actuator_pubsub
@@ -1644,7 +1610,6 @@ def test_set_value_float(publish_agent, cancel_schedules, revert_devices):
     :param revert_devices: Cleanup method to revert device state
     """
     print("\n**** test_set_value_float ****")
-    global publish_agent_v2
     agentid = TEST_AGENT
     taskid = 'task_set_float_value'
     device = 'fakedriver2'
@@ -1756,7 +1721,6 @@ def test_revert_point(publish_agent, cancel_schedules):
         'LOW',
         msg).get(timeout=10)
     # expected result {'info': u'', 'data': {}, 'result': 'SUCCESS'}
-    # print result
     assert result['result'] == 'SUCCESS'
 
     revert_topic = topics.ACTUATOR_REVERT_POINT(campus='', building='',
@@ -2004,7 +1968,6 @@ def test_set_read_only_point(publish_agent, cancel_schedules):
         'LOW',
         msg).get(timeout=10)
     # expected result {'info': u'', 'data': {}, 'result': 'SUCCESS'}
-    # print result
     assert result['result'] == 'SUCCESS'
     # set value
     header = {
@@ -2023,7 +1986,7 @@ def test_set_read_only_point(publish_agent, cancel_schedules):
         REQUEST_CANCEL_SCHEDULE,
         agentid,
         'task_set_read_only_point').get(timeout=10)
-    gevent.sleep(1)
+    gevent.sleep(1.5)
 
     print('call args list:', publish_agent.callback.call_args_list)
     assert publish_agent.callback.call_count == 1
@@ -2033,7 +1996,7 @@ def test_set_read_only_point(publish_agent, cancel_schedules):
     result_header = publish_agent.callback.call_args[0][4]
     # assert result_header['requesterID'] == agentid
     result_message = publish_agent.callback.call_args[0][5]
-    assert result_message['type'] == 'IOError'
+    assert result_message['type'] == 'builtins.RuntimeError'
     assert result_message['value'] == "['Trying to write to a point " \
                                       "configured read only: " \
                                       "OutsideAirTemperature1']"
@@ -2083,7 +2046,7 @@ def test_set_lock_error(publish_agent):
     publish_agent.vip.pubsub.subscribe(peer='pubsub',
                                        prefix=error_topic,
                                        callback=publish_agent.callback).get()
-
+    gevent.sleep(1)
     # set value
     header = {
         'requesterID': TEST_AGENT
@@ -2199,6 +2162,6 @@ def test_set_value_error(publish_agent, cancel_schedules):
     result_header = publish_agent.callback.call_args[0][4]
     result_message = publish_agent.callback.call_args[0][5]
     # assert result_header['requesterID'] == agentid
-    assert result_message['type'] == 'ValueError'
+    assert result_message['type'] == 'builtins.ValueError'
     assert result_message['value'] == \
-        "['could not convert string to float: abcd']"
+        '["could not convert string to float: \'abcd\'"]'

@@ -1,0 +1,24 @@
+Volttron Point Name,Point Name,Units,Writable,Default
+tstat_mode,tstat_mode,F,TRUE,0
+tstat_temp_sensor,tstat_temp_sensor,F,FALSE,0
+tstat_heat_sp,tstat_heat_sp,F,TRUE,72
+tstat_cool_sp,tstat_cool_sp,F,TRUE,75
+tstat_fan_mode,tstat_fan_mode,NA,TRUE,0
+tstat_hvac_state,tstat_hvac_state,NA,FLASE,0
+heat_pgm_week,heat_pgm_week,NA,TRUE,NA
+cool_pgm_week,cool_pgm_week,NA,TRUE,NA
+heat_pgm_mon,heat_pgm_mon,NA,TRUE,"360,70,480,70,1080,70,1320,70"
+heat_pgm_tue,heat_pgm_tue,NA,TRUE,"360,70,480,70,1080,70,1320,70"
+heat_pgm_wed,heat_pgm_wed,NA,TRUE,"360,70,480,70,1080,70,1320,70"
+heat_pgm_thu,heat_pgm_thu,NA,TRUE,"360,70,480,70,1080,70,1320,70"
+heat_pgm_fri,heat_pgm_fri,NA,TRUE,"360,70,480,70,1080,70,1320,70"
+heat_pgm_sat,heat_pgm_sat,NA,TRUE,"360,70,480,70,1080,70,1320,70"
+heat_pgm_sun,heat_pgm_sun,NA,TRUE,"360,70,480,70,1080,70,1320,70"
+cool_pgm_mon,cool_pgm_mon,NA,TRUE,"360,78,480,78,1080,78,1320,78"
+cool_pgm_tue,cool_pgm_tue,NA,TRUE,"360,78,480,78,1080,78,1320,78"
+cool_pgm_wed,cool_pgm_wed,NA,TRUE,"360,78,480,78,1080,78,1320,78"
+cool_pgm_thu,cool_pgm_thu,NA,TRUE,"360,78,480,78,1080,78,1320,78"
+cool_pgm_fri,cool_pgm_fri,NA,TRUE,"360,78,480,78,1080,78,1320,78"
+cool_pgm_sat,cool_pgm_sat,NA,TRUE,"360,78,480,78,1080,78,1320,78"
+cool_pgm_sun,cool_pgm_sun,NA,TRUE,"360,78,480,78,1080,78,1320,78"
+energy_led,energy_led,NA,TRUE,0

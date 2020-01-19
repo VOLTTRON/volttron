@@ -1,0 +1,19 @@
+<DERStatus xmlns="http://zigbee.org/sep" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    <readingTime>1416270124</readingTime>
+    <stateOfChargeStatus>
+        <dateTime>1416270124</dateTime>
+        <value>777</value>
+    </stateOfChargeStatus>
+    <inverterStatus>
+        <dateTime>1416270124</dateTime>
+        <value>777</value>
+    </inverterStatus>
+    <storConnectStatus>
+        <dateTime>1416270124</dateTime>
+        <value>777</value>
+    </storConnectStatus>
+    <localControlModeStatus>
+        <dateTime>1416270124</dateTime>
+        <value>777</value>
+    </localControlModeStatus>
+</DERStatus>

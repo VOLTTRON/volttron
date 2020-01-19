@@ -1,96 +1,51 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
-
-# Copyright (c) 2016, Battelle Memorial Institute
-# All rights reserved.
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
+# Copyright 2019, Battelle Memorial Institute.
 #
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in
-#    the documentation and/or other materials provided with the
-#    distribution.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# http://www.apache.org/licenses/LICENSE-2.0
 #
-# The views and conclusions contained in the software and documentation
-# are those of the authors and should not be interpreted as representing
-# official policies, either expressed or implied, of the FreeBSD
-# Project.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
-# This material was prepared as an account of work sponsored by an
-# agency of the United States Government.  Neither the United States
-# Government nor the United States Department of Energy, nor Battelle,
-# nor any of their employees, nor any jurisdiction or organization that
-# has cooperated in the development of these materials, makes any
-# warranty, express or implied, or assumes any legal liability or
-# responsibility for the accuracy, completeness, or usefulness or any
-# information, apparatus, product, software, or process disclosed, or
-# represents that its use would not infringe privately owned rights.
-#
-# Reference herein to any specific commercial product, process, or
-# service by trade name, trademark, manufacturer, or otherwise does not
-# necessarily constitute or imply its endorsement, recommendation, or
+# This material was prepared as an account of work sponsored by an agency of
+# the United States Government. Neither the United States Government nor the
+# United States Department of Energy, nor Battelle, nor any of their
+# employees, nor any jurisdiction or organization that has cooperated in the
+# development of these materials, makes any warranty, express or
+# implied, or assumes any legal liability or responsibility for the accuracy,
+# completeness, or usefulness or any information, apparatus, product,
+# software, or process disclosed, or represents that its use would not infringe
+# privately owned rights. Reference herein to any specific commercial product,
+# process, or service by trade name, trademark, manufacturer, or otherwise
+# does not necessarily constitute or imply its endorsement, recommendation, or
 # favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors
-# expressed herein do not necessarily state or reflect those of the
+# Battelle Memorial Institute. The views and opinions of authors expressed
+# herein do not necessarily state or reflect those of the
 # United States Government or any agency thereof.
 #
-# PACIFIC NORTHWEST NATIONAL LABORATORY
-# operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
+# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
 
 
-from __future__ import absolute_import, print_function
 
-import base64
-from collections import defaultdict
-import datetime
-from enum import Enum
-import hashlib
+
 import logging
-import os
-import shutil
-import sys
-import tempfile
-import urlparse
 
-import gevent
-import gevent.event
-import psutil
-
-from volttron.platform import jsonrpc
-from volttron.platform.agent.utils import (get_utc_seconds_from_epoch)
-from volttron.platform.agent import utils
-from volttron.platform.agent.exit_codes import INVALID_CONFIGURATION_CODE
 from volttron.platform.agent.known_identities import (
-    VOLTTRON_CENTRAL, VOLTTRON_CENTRAL_PLATFORM, CONTROL, CONFIGURATION_STORE)
-from volttron.platform.agent.utils import (get_aware_utc_now)
-from volttron.platform.auth import AuthEntry, AuthFile
-from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS)
-from volttron.platform.messaging import topics
-from volttron.platform.messaging.topics import (LOGGER, )
-from volttron.platform.vip.agent import (Agent, Core, RPC, PubSub, Unreachable)
-from volttron.platform.vip.agent.connection import Connection
-from volttron.platform.vip.agent.subsystems.query import Query
-from volttron.platform.vip.agent.utils import build_connection
-from volttron.platform.web import DiscoveryInfo, DiscoveryError
-from . bacnet_proxy_reader import BACnetReader
+    VOLTTRON_CENTRAL)
+from volttron.platform.vip.agent import (Agent, RPC)
+
+_log = logging.getLogger(__name__)
 
 
 class VCConnection(Agent):
@@ -124,7 +79,7 @@ class VCConnection(Agent):
         :param message:
         :param headers:
         """
-        self.vip.pubsub.publish('pubsub', topic, headers, message)
+        self.vip.pubsub.publish('pubsub', topic, headers, message).get(timeout=5)
 
     @RPC.export
     def start_bacnet_scan(self, iam_topic, proxy_identity, low_device_id=None,
@@ -142,13 +97,12 @@ class VCConnection(Agent):
         :param scan_length:
         :return:
         """
-        self._main_agent.start_bacnet_scan(iam_topic=iam_topic,
+        self._main_agent.start_bacnet_scan(iam_vc_response_topic=iam_topic,
                                            proxy_identity=proxy_identity,
                                            low_device_id=low_device_id,
                                            high_device_id=high_device_id,
                                            target_address=target_address,
                                            scan_length=scan_length)
-
 
     @RPC.export
     def get_instance_uuid(self):
@@ -199,7 +153,7 @@ class VCConnection(Agent):
         stop_result = self.stop_agent(agent_uuid)
         start_result = self.start_agent(agent_uuid)
 
-        return (stop_result, start_result)
+        return stop_result, start_result
 
     @RPC.export
     def agent_status(self, agent_uuid):
@@ -288,11 +242,25 @@ class VCConnection(Agent):
                                                  raw)
 
     @RPC.export
+    def delete_agent_config(self, agent_identity, config_name):
+        """
+        Deletes the configuration from the config store of the passed agent
+        identity.
+
+        :param agent_identity:
+        :param config_name:
+        :return: The stored configuration.
+        """
+        return self._main_agent.delete_agent_config(agent_identity, config_name)
+
+    @RPC.export
     def subscribe_to_vcp(self, prefix, prefix_on_vc):
         """
         Allows volttron.central to listen to the message bus on vcp instance.
 
         :param prefix: The prefix to listen for.
+        :param prefix_on_vc:
+            The prefix to publish to on volttron central instance.
         """
         self._log.info("VC subscribing to prefix: {}".format(prefix))
         self._log.info("VCP will publish to {} on VC".format(prefix_on_vc))
@@ -343,7 +311,7 @@ class VCConnection(Agent):
         :param params:
         :return:
         """
-        self._log.debug("inside route_to_agent_method")
+        self._log.debug("Routing method: {}".format(agent_method))
         return self._main_agent.route_request(id, agent_method, params)
 
     @RPC.export

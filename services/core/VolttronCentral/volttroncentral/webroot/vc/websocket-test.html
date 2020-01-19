@@ -1,0 +1,155 @@
+<!doctype html>
+<html>
+  <head>
+    <title>WebSockets Hello World</title>
+    <meta charset="utf-8" />
+    <style type="text/css">
+      body {
+        text-align: center;
+        min-width: 500px;
+      }
+    </style>
+    <script src="/js/jquery.min-3.3.1.js"></script>
+    <script language="javascript" type="text/javascript">
+      $(document).ready(function () {
+
+        var ws = null;
+        var status="closed";
+        var writeMessage = function(msg) {
+            console.log(msg);
+            /*var pre = document.createElement("p");
+            pre.style.wordWrap = "break-word";
+            pre.innerHTML = msg;*/
+            $("#responses").append(msg+"\n");
+            $('#responses').scrollTop($('#responses')[0].scrollHeight);
+        };
+        $('#get_auth').click(function(){
+            var username = $('#username').val();
+            var password = $('#password').val();
+            if (!username || !password){
+                alert('Enter username and password');
+                return;
+            }
+            var pdata = {
+                 jsonrpc: '2.0',
+                 method: "get_authorization",
+                 params: {
+                    username: username,
+                    password: password
+                 },
+                 id: '72581-4'
+            };
+            $('#request_sent').val(JSON.stringify(pdata));
+            $.ajax({
+                     type: 'POST',
+                     url: '/vc/jsonrpc',
+                     data: JSON.stringify(pdata),
+                     dataType: 'json',
+                     success: function(data){
+                        $('#token').val(data.result);
+                        $('#uri').val('/vc/ws/'+data.result)
+                 },
+                     failure: function(data){
+                         writeMessage("FAILURE "+ JSON.stringify(data));
+                         //$('#output_data').val("FAILURE "+ JSON.stringify(data));
+                 }
+            });
+        });
+        $("#open").click(function(evt) {
+
+          var host = $("#host").val();
+          var port = $("#port").val();
+          var uri = $("#uri").val();
+          var websocket_url = "ws://";
+          if (location.protocol === 'https:'){
+            websocket_url = "wss://";
+          }
+
+          websocket_url = websocket_url.concat(host + ":" + port + uri); // 'ws://%(host)s:%(port)s/ws';
+          console.log(websocket_url);
+          if (window.WebSocket) {
+            ws = new WebSocket(websocket_url);
+          }
+          else if (window.MozWebSocket) {
+            ws = MozWebSocket(websocket_url);
+          }
+          else {
+            console.log('WebSocket Not Supported');
+            return;
+          }
+
+          // ws = new WebSocket("ws://" + host + ":" + port + uri);
+
+          ws.onmessage = function(evt) {
+            writeMessage(evt.data);
+          };
+
+          ws.onerror = function(evt) {
+            writeMessage("ERROR: " + evt.data);
+          };
+
+          ws.onclose = function(evt) {
+            status="closed";
+            writeMessage("CLOSED");
+            $("#host").css("background", "#ff0000");
+            $("#port").css("background", "#ff0000");
+            $("#uri").css("background", "#ff0000");
+          };
+
+          ws.onopen = function(evt) {
+            $("#host").css("background", "#00ff00");
+            $("#port").css("background", "#00ff00");
+            $("#uri").css("background", "#00ff00");
+            writeMessage("OPEN");
+            status = "open";
+          };
+        });
+
+        $("#clear").click(function(evt) {
+          $('#responses').val('');
+        });
+
+        $("#send").click(function(evt) {
+            var txt = $(message).val();
+
+            if (status == 'open'){
+                ws.send(txt);
+            }
+        });
+
+        $("#close").click(function(evt) {
+            if (status == 'open'){
+                ws.close();
+             }
+        });
+
+
+      });
+    </script>
+  </head>
+
+  <body>
+    <h1>WebSockets Hello World</h1>
+    <div>
+        Username: <input id="username" type="text" /><br />
+        Password: <input type="password" id="password" /><br />
+        <button id="get_auth">Get Auth Token</button><br />
+        Auth Token: <input type="text" id="token" placeholder="Enter auth token" /><br/>
+    </div>
+    <div>
+      <label for="host">host:</label>
+      <input type="text" id="host" value="localhost" style="background:#ff0000;"/><br />
+      <label for="port">port:</label>
+      <input type="text" id="port" value="8080" style="background:#ff0000;"/><br />
+      <label for="uri">uri:</label>
+      <input type="text" id="uri" value="/vc/ws" style="background:#ff0000;"/><br />
+      <input type="button" id="open" value="open" /> <input type="button" id="close" value="close" /><br />
+      <input type="text" id="message" value="This is a temp message" /><br />
+      <input type="button" id="send" value="send" />
+      <input type="button" id="clear" value="clear" />
+      <div>
+      	<textarea id="responses" cols="200" rows="20"></textarea>
+      </div>
+    </div>
+  </body>
+</html>

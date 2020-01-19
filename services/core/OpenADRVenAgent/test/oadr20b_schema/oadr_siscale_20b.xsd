@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+     Energy Market Information Exchange (EMIX) Version 1.0
+     Committee Specification Draft 04 / Public Review 04
+     08 September 2011
+     Copyright (c) OASIS Open 2011.  All Rights Reserved.
+     Source: http://docs.oasis-open.org/emix/emix/v1.0/csprd04/xsd/
+-->
+<!-- ====================================================================== -->
+<!-- ===== SI Scale Code List  Schema Module                     ===== -->
+<!-- ====================================================================== -->
+<!--
+Schema agency:    OASIS EMIX TC
+Schema version:    1.0
+Schema date:          7 September 2011
+Purpose:                Enumerates scale factors for Units based on the International System of Units (SI) (originally Le Système International d'Unités)
+
+It would be well if there were a common non-emix genericode Si Scale schema to refer to for this, but the editor is aware of none.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:scale="http://docs.oasis-open.org/ns/emix/2011/06/siscale" targetNamespace="http://docs.oasis-open.org/ns/emix/2011/06/siscale" elementFormDefault="qualified" attributeFormDefault="unqualified" version="1.0">
+   <!-- ======================================================================= -->
+   <!-- ===== Element Declarations                                        ===== -->
+   <!-- ======================================================================= -->
+   <!-- ===== Root Element                                                ===== -->
+   <!-- ======================================================================= -->
+   <xs:element name="siScaleCode" type="scale:SiScaleCodeType"/>
+   <!-- ================================================================== -->
+   <!-- ===== Type Definitions                                       ===== -->
+   <!-- ================================================================== -->
+   <!-- ===== Type Definition: ISO 3 alpha currency code Content Type ===== -->
+   <!-- ================================================================== -->
+   <xs:simpleType name="SiScaleCodeType">
+      <xs:annotation>
+         <xs:documentation>Scale based on representations of SI scale as expressed in the unit multipliers</xs:documentation>
+         <xs:documentation xml:lang="en">enumeration</xs:documentation>
+      </xs:annotation>
+      <xs:restriction base="xs:string">
+         <xs:enumeration value="p">
+            <xs:annotation>
+               <xs:documentation>Pico 10**-12</xs:documentation>
+               <xs:appinfo>-12</xs:appinfo>
+            </xs:annotation>
+         </xs:enumeration>
+         <xs:enumeration value="n">
+            <xs:annotation>
+               <xs:documentation>Nano 10**-9</xs:documentation>
+               <xs:appinfo>-9</xs:appinfo>
+            </xs:annotation>
+         </xs:enumeration>
+         <xs:enumeration value="micro">
+            <xs:annotation>
+               <xs:documentation>Micro 10**-6</xs:documentation>
+               <xs:appinfo>-6</xs:appinfo>
+            </xs:annotation>
+         </xs:enumeration>
+         <xs:enumeration value="m">
+            <xs:annotation>
+               <xs:documentation>Milli 10**-3</xs:documentation>
+               <xs:appinfo>-3</xs:appinfo>
+            </xs:annotation>
+         </xs:enumeration>
+         <xs:enumeration value="c">
+            <xs:annotation>
+               <xs:documentation>Centi 10**-2</xs:documentation>
+               <xs:appinfo>-2</xs:appinfo>
+            </xs:annotation>
+         </xs:enumeration>
+         <xs:enumeration value="d">
+            <xs:annotation>
+               <xs:documentation>Deci 10**-1</xs:documentation>
+               <xs:appinfo>-1</xs:appinfo>
+            </xs:annotation>
+         </xs:enumeration>
+         <xs:enumeration value="k">
+            <xs:annotation>
+               <xs:documentation>Kilo 10**3</xs:documentation>
+               <xs:appinfo>3</xs:appinfo>
+            </xs:annotation>
+         </xs:enumeration>
+         <xs:enumeration value="M">
+            <xs:annotation>
+               <xs:documentation>Mega 10**6</xs:documentation>
+               <xs:appinfo>6</xs:appinfo>
+            </xs:annotation>
+         </xs:enumeration>
+         <xs:enumeration value="G">
+            <xs:annotation>
+               <xs:documentation>Giga 10**9</xs:documentation>
+               <xs:appinfo>9</xs:appinfo>
+            </xs:annotation>
+         </xs:enumeration>
+         <xs:enumeration value="T">
+            <xs:annotation>
+               <xs:documentation>Tera 10**12</xs:documentation>
+               <xs:appinfo>12</xs:appinfo>
+            </xs:annotation>
+         </xs:enumeration>
+         <xs:enumeration value="none">
+            <xs:annotation>
+               <xs:documentation>Native Scale</xs:documentation>
+               <xs:appinfo>0</xs:appinfo>
+            </xs:annotation>
+         </xs:enumeration>
+      </xs:restriction>
+   </xs:simpleType>
+</xs:schema>

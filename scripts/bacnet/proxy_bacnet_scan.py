@@ -1,63 +1,45 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
-
-# Copyright (c) 2016, Battelle Memorial Institute
-# All rights reserved.
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
+# Copyright 2019, Battelle Memorial Institute.
 #
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in
-#    the documentation and/or other materials provided with the
-#    distribution.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# http://www.apache.org/licenses/LICENSE-2.0
 #
-# The views and conclusions contained in the software and documentation
-# are those of the authors and should not be interpreted as representing
-# official policies, either expressed or implied, of the FreeBSD
-# Project.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
-# This material was prepared as an account of work sponsored by an
-# agency of the United States Government.  Neither the United States
-# Government nor the United States Department of Energy, nor Battelle,
-# nor any of their employees, nor any jurisdiction or organization that
-# has cooperated in the development of these materials, makes any
-# warranty, express or implied, or assumes any legal liability or
-# responsibility for the accuracy, completeness, or usefulness or any
-# information, apparatus, product, software, or process disclosed, or
-# represents that its use would not infringe privately owned rights.
-#
-# Reference herein to any specific commercial product, process, or
-# service by trade name, trademark, manufacturer, or otherwise does not
-# necessarily constitute or imply its endorsement, recommendation, or
+# This material was prepared as an account of work sponsored by an agency of
+# the United States Government. Neither the United States Government nor the
+# United States Department of Energy, nor Battelle, nor any of their
+# employees, nor any jurisdiction or organization that has cooperated in the
+# development of these materials, makes any warranty, express or
+# implied, or assumes any legal liability or responsibility for the accuracy,
+# completeness, or usefulness or any information, apparatus, product,
+# software, or process disclosed, or represents that its use would not infringe
+# privately owned rights. Reference herein to any specific commercial product,
+# process, or service by trade name, trademark, manufacturer, or otherwise
+# does not necessarily constitute or imply its endorsement, recommendation, or
 # favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors
-# expressed herein do not necessarily state or reflect those of the
+# Battelle Memorial Institute. The views and opinions of authors expressed
+# herein do not necessarily state or reflect those of the
 # United States Government or any agency thereof.
 #
-# PACIFIC NORTHWEST NATIONAL LABORATORY
-# operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
+# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-#}}}
+# }}}
 
-import logging
 import argparse
 import csv
+import logging
+from pprint import pprint
 
 import gevent
 from volttron.platform.keystore import KeyStore
@@ -69,10 +51,9 @@ from volttron.platform.agent import utils
 from volttron.platform.vip.agent import errors
 
 
-from pprint import pprint
-
 utils.setup_logging()
 _log = logging.getLogger(__name__)
+
 
 class BACnetInteraction(Agent):
     def __init__(self, proxy_id, csv_writer=None, **kwargs):
@@ -82,21 +63,20 @@ class BACnetInteraction(Agent):
 
     def send_iam(self, low_device_id=None, high_device_id=None, address=None):
         self.vip.rpc.call(self.proxy_id, "who_is",
-                           low_device_id=low_device_id,
-                           high_device_id=high_device_id,
-                           target_address=address).get(timeout=5.0)
+                          low_device_id=low_device_id,
+                          high_device_id=high_device_id,
+                          target_address=address).get(timeout=5.0)
 
     @PubSub.subscribe('pubsub', topics.BACNET_I_AM)
     def iam_handler(self, peer, sender, bus,  topic, headers, message):
-        pprint(message)
         if self.csv_writer is not None:
             self.csv_writer.writerow(message)
+        pprint(message)
 
 
 """
 Simple utility to scrape device registers and write them to a configuration file.
 """
-
 
 
 def main():
@@ -105,7 +85,6 @@ def main():
 
     arg_parser.add_argument("--address",
                             help="Target only device(s) at <address> for request")
-
 
     arg_parser.add_argument("--range", type=int, nargs=2, metavar=('LOW', 'HIGH'),
                             help="Lower and upper limit on device ID in results")
@@ -120,8 +99,19 @@ def main():
 
     arg_parser.add_argument("--csv-out", dest="csv_out",
                             help="Write results to the CSV file specified.")
+
+    arg_parser.add_argument("--debug", action="store_true",
+                            help="Set the logger in debug mode")
     
     args = arg_parser.parse_args()
+
+    core_logger = logging.getLogger("volttron.platform.vip.agent.core")
+    core_logger.setLevel(logging.WARN)
+    _log.setLevel(logging.WARN)
+
+    if args.debug:
+        _log.setLevel(logging.DEBUG)
+        core_logger.setLevel(logging.DEBUG)
 
     _log.debug("initialization")
     _log.debug("    - args: %r", args)
@@ -163,14 +153,13 @@ def main():
         _log.error("There is no BACnet proxy Agent running on the platform with the VIP IDENTITY {}".format(args.proxy_id))
     else:
         gevent.sleep(args.timeout)
-        
+
+
 try:
     main()
-except Exception, e:
-    _log.exception("an error has occurred: %s", e)
-finally:
-    _log.debug("finally")
-    
+except Exception as e:
+    _log.exception("an error has occurred: %s".format(repr(e)))
+
 
     
 

@@ -1,63 +1,48 @@
-# Copyright (c) 2016, Battelle Memorial Institute
-# All rights reserved.
+# -*- coding: utf-8 -*- {{{
+# vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
+# Copyright 2019, Battelle Memorial Institute.
 #
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in
-#    the documentation and/or other materials provided with the
-#    distribution.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# http://www.apache.org/licenses/LICENSE-2.0
 #
-# The views and conclusions contained in the software and documentation
-# are those of the authors and should not be interpreted as representing
-# official policies, either expressed or implied, of the FreeBSD
-# Project.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
-# This material was prepared as an account of work sponsored by an
-# agency of the United States Government.  Neither the United States
-# Government nor the United States Department of Energy, nor Battelle,
-# nor any of their employees, nor any jurisdiction or organization that
-# has cooperated in the development of these materials, makes any
-# warranty, express or implied, or assumes any legal liability or
-# responsibility for the accuracy, completeness, or usefulness or any
-# information, apparatus, product, software, or process disclosed, or
-# represents that its use would not infringe privately owned rights.
-#
-# Reference herein to any specific commercial product, process, or
-# service by trade name, trademark, manufacturer, or otherwise does not
-# necessarily constitute or imply its endorsement, recommendation, or
+# This material was prepared as an account of work sponsored by an agency of
+# the United States Government. Neither the United States Government nor the
+# United States Department of Energy, nor Battelle, nor any of their
+# employees, nor any jurisdiction or organization that has cooperated in the
+# development of these materials, makes any warranty, express or
+# implied, or assumes any legal liability or responsibility for the accuracy,
+# completeness, or usefulness or any information, apparatus, product,
+# software, or process disclosed, or represents that its use would not infringe
+# privately owned rights. Reference herein to any specific commercial product,
+# process, or service by trade name, trademark, manufacturer, or otherwise
+# does not necessarily constitute or imply its endorsement, recommendation, or
 # favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors
-# expressed herein do not necessarily state or reflect those of the
+# Battelle Memorial Institute. The views and opinions of authors expressed
+# herein do not necessarily state or reflect those of the
 # United States Government or any agency thereof.
 #
-# PACIFIC NORTHWEST NATIONAL LABORATORY
-# operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
+# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-
+# }}}
 
 import logging
 import os
 import weakref
 
-from volttron.platform.agent import utils
+from volttron.platform.agent.utils import get_fq_identity
 from volttron.platform.messaging import topics
+from volttron.platform.messaging.headers import DATE
 from volttron.platform.messaging.health import *
 from .base import SubsystemBase
 
@@ -80,9 +65,11 @@ class Health(SubsystemBase):
         self._statusobj = Status.build(
             STATUS_GOOD, status_changed_callback=self._status_changed)
         self._status_callbacks = set()
+
         def onsetup(sender, **kwargs):
             rpc.export(self.set_status, 'health.set_status')
             rpc.export(self.get_status, 'health.get_status')
+            rpc.export(self.get_status, 'health.get_status_json')
             rpc.export(self.send_alert, 'health.send_alert')
 
         core.onsetup.connect(onsetup, self)
@@ -97,20 +84,19 @@ class Health(SubsystemBase):
         :param context:
         :return:
         """
-        _log.debug("In send alert")
         if not isinstance(statusobj, Status):
             raise ValueError('statusobj must be a Status object.')
         agent_class = self._owner.__class__.__name__
-        agent_uuid = os.environ.get('AGENT_UUID', '')
-        _log.debug("agent class {}".format(agent_class))
-        _log.debug("agent uuid {}".format(agent_uuid))
-        topic = topics.ALERTS(agent_class=agent_class, agent_uuid=agent_uuid)
+        fq_identity = get_fq_identity(self._core().identity)
+        # RMQ and other message buses can't handle '.' because it's used as the separator.  This
+        # causes us to change the alert topic's agent_identity to have '_' rather than '.'.
+        topic = topics.ALERTS(agent_class=agent_class, agent_identity=fq_identity.replace('.', '_'))
         headers = dict(alert_key=alert_key)
-        _log.debug("Headers before sending alert  {}".format(headers))
+
         self._owner.vip.pubsub.publish("pubsub",
                                        topic=topic.format(),
                                        headers=headers,
-                                       message=statusobj.as_json())
+                                       message=statusobj.as_json()).get(timeout=10)
 
     def add_status_callback(self, fn):
         """
@@ -168,6 +154,10 @@ class Health(SubsystemBase):
         """
         return self._statusobj.as_dict() #.as_json()
 
+    # TODO fetch status value from status object
+    def get_status_value(self):
+        return self._statusobj.status
+
     def get_status_json(self):
         """"RPC method
 
@@ -183,3 +173,13 @@ class Health(SubsystemBase):
 
         """
         return self._statusobj.as_json()
+
+    # TODO define publish for health messaging
+    # TODO fix topic
+    # TODO fix self.core
+    def publish(self):
+        topic = 'heartbeat/' + self.core().identity
+        headers = {DATE: format_timestamp(get_aware_utc_now())}
+        message = self.get_status()
+
+        self.pubsub().publish('pubsub', topic, headers, message)

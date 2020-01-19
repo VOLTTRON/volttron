@@ -6,17 +6,16 @@ import sys
 from time import sleep
 import threading
 from threading import Thread
-import Queue
+import queue
 
 from crate import client as crate_client
 import pymongo
 from bson.objectid import ObjectId
-from zmq.utils import jsonapi
+from volttron.platform import jsonapi
 
-from volttron.platform import get_volttron_root
+from volttron.platform import get_volttron_root, get_services_core
 
-sys.path.insert(0, os.path.join(get_volttron_root(),
-                                "services/core/CrateHistorian"))
+sys.path.insert(0, get_services_core("CrateHistorian"))
 from crate_historian import crate_utils
 from volttron.platform.agent import utils
 from volttron.platform.dbutils import mongoutils
@@ -42,7 +41,7 @@ MAX_QUEUE_SIZE = 50000
 QUEUE_BATCH_SIZE = 5000
 
 
-class TableQueue(Queue.Queue, object):
+class TableQueue(queue.Queue, object):
     def __init__(self, table_name):
         super(TableQueue, self).__init__()
         self.table_name = table_name
@@ -210,8 +209,8 @@ def insert_from_queue(insertion_queue, inserted_metrics_queue, logging_queue):
     # threading.current_thread().exit()
 
 insert_threads = []
-metric_queue = Queue.Queue()
-logger_queue = Queue.Queue()
+metric_queue = queue.Queue()
+logger_queue = queue.Queue()
 
 for q in table_queues.values():
 
@@ -248,7 +247,7 @@ def start_transfer_data():
     try:
         total_data = mongo_db.data.count()
         _log.debug('Total data: {}'.format(total_data))
-        result = mongo_db.data.find({}).sort([('ts', pymongo.ASCENDING)]).limit(1).next()
+        result = next(mongo_db.data.find({}).sort([('ts', pymongo.ASCENDING)]).limit(1))
         _log.debug('Before: {}'.format(result['ts']))
         last_timestamp = result['ts'] - timedelta(days=1)
         _log.debug('After: {}'.format(result['ts']))

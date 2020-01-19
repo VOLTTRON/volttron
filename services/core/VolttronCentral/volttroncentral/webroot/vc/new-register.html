@@ -1,0 +1,451 @@
+<html>
+<head>
+    <script language="javascript" src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+    <style type="text/css">
+        input {
+            width: 400px;
+        }
+    </style>
+</head>
+<body>
+<h1>Webservice api exercise</h1>
+<h3>Authorization</h3>
+Username: <input id="username" type="text" /><br />
+Password: <input type="password" id="password" /><br />
+<button id="get_auth">Get Auth Token</button><br />
+Auth Token: <input type="text" id="token" placeholder="Enter auth token" /><br/>
+
+<h3>VC Methods</h3>
+Platform Name: <input type="text" id="platform_name" /><br />
+Discovery Address: <input type="text" id="discovery_address" /><br />
+<button id="register">Register Platform</button><br />
+<div>Shortcut buttons</div>
+<button id="register1">Register Platform http://127.0.0.2:8080</button>
+<button id="register2">Register Platform http://127.0.0.3:8080</button>
+<button id="register3">Register Platform http://127.0.0.4:8080</button><br/>
+Setting Key: <input type="text" id="setting_key" /><br/>
+Setting Value: <input type="text" id="setting_value" />
+<button id="set_setting">Save Value</button>
+<button id="set_null_setting">Save Null Value (remove key)</button>
+<button id="get_setting">Get Value</button>
+<button id="get_setting_keys">Get Keys</button>
+
+<h3>Platform Listings</h3>
+<button id="list_platforms">List Platforms</button>
+<button id="list_deivces">List Devices</button>
+<button id="list_performance">List Performance</button>
+<button id="get_topic_list">List Topics</button><br />
+VIP Identity: <input type="text" id="vip_identity" value="platform.agent" /><br />
+Agent id: <input type="text" id="agent_id" value="platform.agent" /><br/>
+VIP Address: <input type="text" id="vip_address" placeholder="VIP Address where VIP Identity is located" /><br/>
+Platform UUID: <input type="text" id="platform_uuid" placeholder="Platform uuid to remove" /><br/>
+<button id="unregister">Unregister VIP Address</button><br />
+
+<h3>Platform Agent API</h3>
+Platform UUID: <select id="agent_platform_uuid"></select><br /> <!--<input id="agent_platform_uuid" placeholder="Platform the agent below is on" /><br/>-->
+Install Agent: <input type="file" id="agent_file" name="agent_file" /><br />
+<button id="list_agents">List Agents</button> <button id="get_devices">Get Devices</button><br />
+Agent UUID: <input id="agent_uuid" placeholder="Agent to act on" /><br/>
+Arguments: <input id="agent_method" placeholder="Method to call"/> <input id="agent_method_args" placeholder="key:value arguments to pass" /><br/>
+<button id="inspect_agent">Inspect Agent</button>
+<button id="execute_method">Execute Method</button>
+<button id="status_agents">Status Agents</button>
+
+<h3>Platform Historian</h3>
+Topic: <input id="historian_topic" placeholder="Historian topic to query" /><br/>
+<button id="query_historian">Query Historian</button>
+
+<h4>Request Sent</h4>
+<textarea id="request_sent" cols="100" rows="5"></textarea>
+
+<h4>Response Data</h4>
+<textarea id="output_data" cols="100" rows="5"></textarea>
+
+<script language="javascript">
+
+    function exec_discovery(address, name) {
+        $('#discovery_address').val(address);
+        $('#platform_name').val(name);
+    }
+
+    function do_request_platform_method(method) {
+        var platform_uuid = $('#agent_platform_uuid').val();
+        var req_method = 'platform.uuid.'+platform_uuid+'.'+method;
+        console.log("Method is: "+req_method);
+        var token = $('#token').val();
+        var pdata = {
+                 jsonrpc: '2.0',
+                 method: req_method,
+                 authorization: token,
+                 id: '72581-4'
+        };
+        $('#request_sent').val(JSON.stringify(pdata));
+        $.ajax({
+            type: 'POST',
+            url: '/vc/jsonrpc',
+            data: JSON.stringify(pdata),
+            dataType: 'json',
+            success: function(data){
+                $('#output_data').val(JSON.stringify(data));
+            },
+            failure: function(data){
+                $('#output_data').val("FAILURE "+ JSON.stringify(data));
+            }
+
+        });
+    }
+
+    function do_request_vc_method(method, callback) {
+        var req_method = method;
+        var token = $('#token').val();
+        var pdata = {
+                 jsonrpc: '2.0',
+                 method: req_method,
+                 authorization: token,
+                 id: '72581-4'
+        };
+        $('#request_sent').val(JSON.stringify(pdata));
+        $.ajax({
+            type: 'POST',
+            url: '/vc/jsonrpc',
+            data: JSON.stringify(pdata),
+            dataType: 'json',
+            success: function(data){
+                $('#output_data').val(JSON.stringify(data));
+                if (typeof callback === "function"){
+                    callback(data);
+                }
+            },
+            failure: function(data){
+                $('#output_data').val("FAILURE "+ JSON.stringify(data));
+            }
+
+        });
+    }
+
+    function do_historian_query() {
+        var topic = $('#historian_topic').val();
+        if (!topic) {
+            alert('Invalid topic!');
+        }
+
+        <!--var platform_uuid = $('#agent_platform_uuid').val();-->
+        <!--if (!platform_uuid){-->
+            <!--alert('Invalid platform uuid');-->
+            <!--return;-->
+        <!--}-->
+
+        var req_method = 'platform.historian.query';
+        var token = $('#token').val();
+        var pdata = {
+                 jsonrpc: '2.0',
+                 method: req_method,
+                 data: {topic: topic},
+                 authorization: token,
+                 id: '72581-4'
+        };
+        $('#request_sent').val(JSON.stringify(pdata));
+        $.ajax({
+             type: 'POST',
+             url: '/vc/jsonrpc',
+             data: JSON.stringify(pdata),
+             dataType: 'json',
+             success: function(data){
+                 $('#output_data').val(JSON.stringify(data));
+             },
+             failure: function(data){
+                 $('#output_data').val("FAILURE "+ JSON.stringify(data));
+            }
+
+        });
+    }
+
+    function do_request(method, data, callback) {
+
+        var token = $('#token').val();
+        var pdata = {
+             jsonrpc: '2.0',
+             method: method,
+             authorization: token,
+             id: '72581-4'
+        };
+
+        if (data) {
+            pdata['params'] = data;
+        }
+
+        $('#request_sent').val(JSON.stringify(pdata));
+        $.ajax({
+            type: 'POST',
+            url: '/vc/jsonrpc',
+            data: JSON.stringify(pdata),
+            dataType: 'json',
+            success: function(data){
+                if (typeof callback === "function") {
+                    callback(data);
+                }
+                $('#output_data').val(JSON.stringify(data));
+            },
+            failure: function(data){
+                $('#output_data').val("FAILURE "+ JSON.stringify(data));
+            }
+
+        });
+
+    }
+
+    $('#set_setting').click(function(){
+        var data = {
+            key: $('#setting_key').val(),
+            value: $('#setting_value').val()
+        }
+        do_request('set_setting', data)
+    });
+
+    $('#set_null_setting').click(function(){
+        var data = {
+            key: $('#setting_key').val(),
+            value: null
+        }
+        do_request('set_setting', data)
+    });
+
+
+    $('#get_setting').click(function(){
+        var data = {
+            key: $('#setting_key').val()
+        }
+        do_request('get_setting', data, function(res) {
+            $('#setting_value').val(res['result']);
+        });
+    });
+
+    $('#get_setting_keys').click(function(){
+        do_request('get_setting_keys');
+    });
+
+    $('#register1').click(function(){
+        exec_discovery('http://127.0.0.2:8080', 'platform 1');
+        data = {
+            display_name:'platform 1',
+            discovery_address:'http://127.0.0.2:8080'
+        }
+        do_request('register_instance', data);
+    });
+
+    $('#register2').click(function(){
+        exec_discovery('http://127.0.0.3:8080', 'platform 2');
+        data = {
+            display_name:'platform 2',
+            discovery_address:'http://127.0.0.3:8080'
+        }
+        do_request('register_instance', data);
+    });
+
+    $('#register3').click(function(){
+        exec_discovery('http://127.0.0.4:8080', 'platform 3');
+        data = {
+            display_name:'platform 3',
+            discovery_address:'http://127.0.0.4:8080'
+        }
+        do_request('register_instance', data);
+    });
+
+    $('#list_agents').click(function(){
+        do_request_platform_method('list_agents');
+    });
+
+    $('#status_agents').click(function(){
+        do_request_platform_method('status_agents');
+    });
+
+    function removeOptions(obj) {
+        if (obj.options){
+            while (obj.options.length) {
+                obj.remove(0);
+            }
+        }
+    }
+
+    $('#list_platforms').click(function(){
+        do_request_vc_method('list_platforms', function(platforms){
+            var sel = document.getElementById('agent_platform_uuid');
+
+            removeOptions(sel);
+            platforms['result'].forEach(function(item, index){
+                var obj = document.createElement('option');
+                obj.innerHTML = item.name;
+                obj.value = item.uuid;
+                sel.appendChild(obj);
+            });
+        });
+    });
+
+    $('#list_deivces').click(function(){
+        do_request_vc_method('list_deivces');
+    });
+
+    $('#list_performance').click(function(){
+        do_request_vc_method('list_performance');
+    });
+
+    $('#get_topic_list').click(function(){
+        do_request('historian.get_topic_list');
+    });
+
+    $('#get_devices').click(function(){
+        do_request_platform_method('get_devices');
+    });
+
+    $('#query_historian').click(function(){
+        var data = {
+            "topic": $("#historian_topic").val(),
+            "count": 20,
+            "order": "LAST_TO_FIRST"
+        }
+        do_request('historian.query', data);
+    });
+
+    $('#get_auth').click(function(){
+        var username = $('#username').val();
+        var password = $('#password').val();
+        if (!username || !password){
+            alert('Enter username and password');
+            return;
+        }
+        var pdata = {
+             jsonrpc: '2.0',
+             method: "get_authorization",
+             params: {
+                username: username,
+                password: password
+             },
+             id: '72581-4'
+        };
+        $('#request_sent').val(JSON.stringify(pdata));
+        $.ajax({
+                 type: 'POST',
+                 url: '/vc/jsonrpc',
+                 data: JSON.stringify(pdata),
+                 dataType: 'json',
+                 success: function(data){
+                    $('#token').val(data.result);
+             },
+                 failure: function(data){
+                     $('#output_data').val("FAILURE "+ JSON.stringify(data));
+             }
+        });
+    });
+
+   $('#inspect_agent').click(function(){
+        var platform_uuid = $('#agent_platform_uuid').val();
+        var agent_uuid = $('#agent_uuid').val();
+        var method = 'platform.uuid.'+platform_uuid;
+        method += '.agent.uuid.'+agent_uuid
+
+        var token = $('#token').val();
+        var pdata = {
+                 jsonrpc: '2.0',
+                 method: method + ".inspect",
+                 authorization: token,
+                 id: '72581-4'
+         };
+         $.ajax({
+             type: 'POST',
+             url: '/vc/jsonrpc',
+             data: JSON.stringify(pdata),
+             dataType: 'json',
+             success: function(data){
+                 $('#output_data').val(JSON.stringify(data));
+	     },
+             failure: function(data){
+                 $('#output_data').val("FAILURE "+ JSON.stringify(data));
+	     }
+         });
+    });
+
+   $('#list_agents').click(function(){
+        var platform_uuid = $('#agent_platform_uuid').val();
+        var method = 'platform.uuid.'+platform_uuid;
+
+        var token = $('#token').val();
+        var pdata = {
+                 jsonrpc: '2.0',
+                 method: method + ".list_agents",
+                 authorization: token,
+                 id: '72581-4'
+         };
+         $.ajax({
+             type: 'POST',
+             url: '/vc/jsonrpc',
+             data: JSON.stringify(pdata),
+             dataType: 'json',
+             success: function(data){
+                 $('#output_data').val(JSON.stringify(data));
+             },
+             failure: function(data){
+                 $('#output_data').val("FAILURE "+ JSON.stringify(data));
+            }
+
+         });
+    });
+</script>
+<script language="javascript">
+
+    function readFile(input) {
+        console.log('readFile');
+        if ( input.files && input.files[0] ) {
+
+            var FR= new FileReader();
+
+            FR.onload = function(e) {
+                 //$('#img').attr( "src", e.target.result );
+                 $('#base').text( e.target.result );
+                 var platform = $('#agent_platform_uuid').val();
+                 var token = $('#token').val();
+                 var agent_data = e.target.result;
+                 var pdata = {
+                     jsonrpc: '2.0',
+                     method:  "platforms.uuid."+platform+".install",
+                     authorization: token,
+                     params: {
+                         files: [
+                            {
+                                tag: 'myagenttag',
+                                file_name: input.files[0].name,
+                                file: agent_data
+                            }
+                         ]
+                     },
+                     id: '72581-4'
+                 };
+
+                 $('#request_sent').val( JSON.stringify(pdata) );
+
+                 $.ajax({
+                     type: 'POST',
+                     url: '/vc/jsonrpc',
+                     data: JSON.stringify(pdata),
+                     dataType: 'json',
+                     success: function(data) {
+                         $('#output_data').val('Success\n'+ JSON.stringify(data));
+                     },
+                     failure: function(data) {
+                         $('#output_data').val('Failure\n'+ JSON.stringify(data));
+                     }
+
+                 });
+            };
+
+            FR.readAsDataURL( input.files[0] )
+        }
+    }
+
+    $("#agent_file").change(function(){
+        console.log('change detected');
+        readFile( this );
+    });
+</script>
+
+</body>
+</html>

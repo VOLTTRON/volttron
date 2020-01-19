@@ -1,59 +1,39 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
-
-# Copyright (c) 2016, Battelle Memorial Institute
-# All rights reserved.
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
+# Copyright 2019, Battelle Memorial Institute.
 #
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in
-#    the documentation and/or other materials provided with the
-#    distribution.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# http://www.apache.org/licenses/LICENSE-2.0
 #
-# The views and conclusions contained in the software and documentation
-# are those of the authors and should not be interpreted as representing
-# official policies, either expressed or implied, of the FreeBSD
-# Project.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
-# This material was prepared as an account of work sponsored by an
-# agency of the United States Government.  Neither the United States
-# Government nor the United States Department of Energy, nor Battelle,
-# nor any of their employees, nor any jurisdiction or organization that
-# has cooperated in the development of these materials, makes any
-# warranty, express or implied, or assumes any legal liability or
-# responsibility for the accuracy, completeness, or usefulness or any
-# information, apparatus, product, software, or process disclosed, or
-# represents that its use would not infringe privately owned rights.
-#
-# Reference herein to any specific commercial product, process, or
-# service by trade name, trademark, manufacturer, or otherwise does not
-# necessarily constitute or imply its endorsement, recommendation, or
+# This material was prepared as an account of work sponsored by an agency of
+# the United States Government. Neither the United States Government nor the
+# United States Department of Energy, nor Battelle, nor any of their
+# employees, nor any jurisdiction or organization that has cooperated in the
+# development of these materials, makes any warranty, express or
+# implied, or assumes any legal liability or responsibility for the accuracy,
+# completeness, or usefulness or any information, apparatus, product,
+# software, or process disclosed, or represents that its use would not infringe
+# privately owned rights. Reference herein to any specific commercial product,
+# process, or service by trade name, trademark, manufacturer, or otherwise
+# does not necessarily constitute or imply its endorsement, recommendation, or
 # favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors
-# expressed herein do not necessarily state or reflect those of the
+# Battelle Memorial Institute. The views and opinions of authors expressed
+# herein do not necessarily state or reflect those of the
 # United States Government or any agency thereof.
 #
-# PACIFIC NORTHWEST NATIONAL LABORATORY
-# operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
+# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-
 # }}}
 
 
@@ -63,22 +43,25 @@ import os
 import os.path
 import errno
 from csv import DictReader
-from StringIO import StringIO
+from io import StringIO
 
-from zmq.utils import jsonapi
+import gevent
+
+from volttron.platform import jsonapi
 from gevent.lock import Semaphore
 
 from volttron.utils.persistance import PersistentDict
 from volttron.platform.agent.utils import parse_json_config
 from volttron.platform.vip.agent import errors
 from volttron.platform.jsonrpc import RemoteError, MethodNotFound
-
-from volttron.platform.storeutils import list_unique_links, check_for_recursion, strip_config_name, store_ext
+from volttron.platform.agent.utils import parse_timestamp_string, format_timestamp, get_aware_utc_now
+from volttron.platform.storeutils import check_for_recursion, strip_config_name, store_ext
 from .vip.agent import Agent, Core, RPC
 
 
 _log = logging.getLogger(__name__)
 
+UPDATE_TIMEOUT = 30.0
 
 def process_store(identity, store):
     """Parses raw store data and returns contents.
@@ -168,16 +151,19 @@ class ConfigStoreService(Agent):
                                           "lock": Semaphore()}
 
     @RPC.export
+    @RPC.allow('edit_config_store')
     def manage_store(self, identity, config_name, raw_contents, config_type="raw"):
         contents = process_raw_config(raw_contents, config_type)
         self._add_config_to_store(identity, config_name, raw_contents, contents, config_type,
                                   trigger_callback=True)
 
     @RPC.export
+    @RPC.allow('edit_config_store')
     def manage_delete_config(self, identity, config_name):
         self.delete(identity, config_name, trigger_callback=True)
 
     @RPC.export
+    @RPC.allow('edit_config_store')
     def manage_delete_store(self, identity):
         agent_store = self.store.get(identity)
         if agent_store is None:
@@ -199,14 +185,14 @@ class ConfigStoreService(Agent):
             try:
                 self.vip.rpc.call(identity, "config.update",
                                   "DELETE_ALL", None,
-                                  trigger_callback=True).get(timeout=10.0)
+                                  trigger_callback=True).get(timeout=UPDATE_TIMEOUT)
             except errors.Unreachable:
                 _log.debug("Agent {} not currently running. Configuration update not sent.".format(identity))
             except RemoteError as e:
                 _log.error("Agent {} failure when all configurations: {}".format(identity, e))
             except MethodNotFound as e:
                 _log.error(
-                    "Agent {} failure when adding/updating configuration {}: {}".format(identity, config_name, e))
+                    "Agent {} failure when deleting configuration store: {}".format(identity, e))
 
         # If the store is still empty (nothing jumped in and added to it while
         # we were informing the agent) then remove it from the global store.
@@ -215,14 +201,13 @@ class ConfigStoreService(Agent):
 
     @RPC.export
     def manage_list_configs(self, identity):
-        result = self.store.get(identity, {}).get("store", {}).keys()
+        result = list(self.store.get(identity, {}).get("store", {}).keys())
         result.sort()
         return result
 
     @RPC.export
     def manage_list_stores(self):
-        identity = bytes(self.vip.rpc.context.vip_message.peer)
-        result =  self.store.keys()
+        result = list(self.store.keys())
         result.sort()
         return result
 
@@ -250,8 +235,33 @@ class ConfigStoreService(Agent):
         return agent_configs[real_config_name]
 
     @RPC.export
+    def manage_get_metadata(self, identity, config_name):
+        agent_store = self.store.get(identity)
+        if agent_store is None:
+            raise KeyError('No configuration file "{}" for VIP IDENTIY {}'.format(config_name, identity))
+
+        agent_disk_store = agent_store["store"]
+        agent_name_map = agent_store["name_map"]
+
+        config_name = strip_config_name(config_name)
+        config_name_lower = config_name.lower()
+
+        if config_name_lower not in agent_name_map:
+            raise KeyError('No configuration file "{}" for VIP IDENTIY {}'.format(config_name, identity))
+
+        real_config_name = agent_name_map[config_name_lower]
+
+        real_config =  agent_disk_store[real_config_name]
+
+        #Set modified to none if we predate the modified flag.
+        if real_config.get("modified") is None:
+            real_config["modified"] = None
+
+        return real_config
+
+    @RPC.export
     def set_config(self, config_name, contents, trigger_callback=False, send_update=True):
-        identity = bytes(self.vip.rpc.context.vip_message.peer)
+        identity = self.vip.rpc.context.vip_message.peer
         self.store_config(identity, config_name, contents, trigger_callback=trigger_callback, send_update=send_update)
 
 
@@ -261,7 +271,7 @@ class ConfigStoreService(Agent):
         Called by an Agent at startup to trigger initial configuration state
         push.
         """
-        identity = bytes(self.vip.rpc.context.vip_message.peer)
+        identity = self.vip.rpc.context.vip_message.peer
 
         #We need to create store and lock if it doesn't exist in case someone
         # tries to add a configuration while we are sending the initial state.
@@ -284,7 +294,7 @@ class ConfigStoreService(Agent):
         with agent_store_lock:
             try:
                 self.vip.rpc.call(identity, "config.initial_update",
-                                  agent_configs).get(timeout=10.0)
+                                  agent_configs).get(timeout=UPDATE_TIMEOUT)
             except errors.Unreachable:
                 _log.debug("Agent {} not currently running. Configuration update not sent.".format(identity))
             except RemoteError as e:
@@ -292,6 +302,8 @@ class ConfigStoreService(Agent):
             except MethodNotFound as e:
                 _log.error(
                     "Agent {} failure when performing initial update: {}".format(identity, e))
+            except errors.VIPError as e:
+                _log.error("VIP Error sending initial agent configuration: {}".format(e))
 
         # If the store is empty (and nothing jumped in and added to it while we
         # were informing the agent) then remove it from the global store.
@@ -301,7 +313,7 @@ class ConfigStoreService(Agent):
     @RPC.export
     def delete_config(self, config_name, trigger_callback=False, send_update=True):
         """Called by an Agent to delete a configuration."""
-        identity = bytes(self.vip.rpc.context.vip_message.peer)
+        identity = self.vip.rpc.context.vip_message.peer
         self.delete(identity, config_name, trigger_callback=trigger_callback,
                     send_update=send_update)
 
@@ -335,7 +347,7 @@ class ConfigStoreService(Agent):
         if send_update:
             with agent_store_lock:
                 try:
-                    self.vip.rpc.call(identity, "config.update", "DELETE", config_name, trigger_callback=trigger_callback).get(timeout=10.0)
+                    self.vip.rpc.call(identity, "config.update", "DELETE", config_name, trigger_callback=trigger_callback).get(timeout=UPDATE_TIMEOUT)
                 except errors.Unreachable:
                     _log.debug("Agent {} not currently running. Configuration update not sent.".format(identity))
                 except RemoteError as e:
@@ -404,7 +416,10 @@ class ConfigStoreService(Agent):
 
         agent_configs[config_name] = parsed
         agent_name_map[config_name_lower] = config_name
-        agent_disk_store[config_name] = {"type": config_type, "data": raw}
+
+        agent_disk_store[config_name] = {"type": config_type,
+                                         "modified": format_timestamp(get_aware_utc_now()),
+                                         "data": raw}
 
         agent_disk_store.async_sync()
 
@@ -413,7 +428,7 @@ class ConfigStoreService(Agent):
         if send_update:
             with agent_store_lock:
                 try:
-                    self.vip.rpc.call(identity, "config.update", action, config_name, contents=parsed, trigger_callback=trigger_callback).get(timeout=10.0)
+                    self.vip.rpc.call(identity, "config.update", action, config_name, contents=parsed, trigger_callback=trigger_callback).get(timeout=UPDATE_TIMEOUT)
                 except errors.Unreachable:
                     _log.debug("Agent {} not currently running. Configuration update not sent.".format(identity))
                 except RemoteError as e:
@@ -421,3 +436,7 @@ class ConfigStoreService(Agent):
                 except MethodNotFound as e:
                     _log.error(
                         "Agent {} failure when adding/updating configuration {}: {}".format(identity, config_name, e))
+                except gevent.timeout.Timeout:
+                    _log.error("Config update to agent {} timed out after {} seconds".format(identity, UPDATE_TIMEOUT))
+                except Exception as e:
+                    _log.error("Unknown error sending update to agent identity {}.: {}".format(identity, e))

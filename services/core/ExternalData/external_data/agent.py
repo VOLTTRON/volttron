@@ -1,69 +1,49 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
-
-
-# Copyright (c) 2016, Battelle Memorial Institute
-# All rights reserved.
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
+# Copyright 2019, Battelle Memorial Institute.
 #
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in
-#    the documentation and/or other materials provided with the
-#    distribution.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# http://www.apache.org/licenses/LICENSE-2.0
 #
-# The views and conclusions contained in the software and documentation
-# are those of the authors and should not be interpreted as representing
-# official policies, either expressed or implied, of the FreeBSD
-# Project.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
-# This material was prepared as an account of work sponsored by an
-# agency of the United States Government.  Neither the United States
-# Government nor the United States Department of Energy, nor Battelle,
-# nor any of their employees, nor any jurisdiction or organization that
-# has cooperated in the development of these materials, makes any
-# warranty, express or implied, or assumes any legal liability or
-# responsibility for the accuracy, completeness, or usefulness or any
-# information, apparatus, product, software, or process disclosed, or
-# represents that its use would not infringe privately owned rights.
-#
-# Reference herein to any specific commercial product, process, or
-# service by trade name, trademark, manufacturer, or otherwise does not
-# necessarily constitute or imply its endorsement, recommendation, or
+# This material was prepared as an account of work sponsored by an agency of
+# the United States Government. Neither the United States Government nor the
+# United States Department of Energy, nor Battelle, nor any of their
+# employees, nor any jurisdiction or organization that has cooperated in the
+# development of these materials, makes any warranty, express or
+# implied, or assumes any legal liability or responsibility for the accuracy,
+# completeness, or usefulness or any information, apparatus, product,
+# software, or process disclosed, or represents that its use would not infringe
+# privately owned rights. Reference herein to any specific commercial product,
+# process, or service by trade name, trademark, manufacturer, or otherwise
+# does not necessarily constitute or imply its endorsement, recommendation, or
 # favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors
-# expressed herein do not necessarily state or reflect those of the
+# Battelle Memorial Institute. The views and opinions of authors expressed
+# herein do not necessarily state or reflect those of the
 # United States Government or any agency thereof.
 #
-# PACIFIC NORTHWEST NATIONAL LABORATORY
-# operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
+# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-
 # }}}
 
-from __future__ import absolute_import
+
+
 
 import logging
 import sys
 import csv
 from ast import literal_eval
-from StringIO import StringIO
+from io import StringIO
 import requests
 from requests.auth import HTTPBasicAuth
 from volttron.platform.messaging.utils import Topic
@@ -71,11 +51,12 @@ from volttron.platform.messaging.utils import Topic
 from volttron.platform.vip.agent import Agent, Core
 from volttron.platform.agent import utils
 from volttron.platform.messaging import headers as headers_mod
+from volttron.platform.scheduling import periodic
 
 utils.setup_logging()
 __author__ = 'Kyle Monson'
 __copyright__ = 'Copyright (c) 2017, Battelle Memorial Institute'
-__license__ = 'FreeBSD'
+__license__ = 'Apache 2.0'
 
 _log = logging.getLogger(__name__)
 __version__ = '1.0'
@@ -105,7 +86,7 @@ class ExternalData(Agent):
         self.default_user = default_user
         self.default_password = default_password
 
-        self.periodic_greenlet = None
+        self.periodic = None
 
         self.default_config = {"interval": interval,
                                "global_topic_prefix": global_topic_prefix,
@@ -165,10 +146,10 @@ class ExternalData(Agent):
             _log.error("Error setting scrape interval, reverting to default of 300 seconds")
             interval = 300.0
 
-        if self.periodic_greenlet is not None:
-            self.periodic_greenlet.kill()
+        if self.periodic is not None:
+            self.periodic.cancel()
 
-        self.periodic_greenlet = self.core.periodic(interval, self._publish_data)
+        self.periodic = self.core.schedule(periodic(interval), self._publish_data)
 
 
     def _publish_data(self):
@@ -195,7 +176,7 @@ class ExternalData(Agent):
             try:
                 r = requests.get(url, **kwargs)
                 r.raise_for_status()
-            except StandardError as e:
+            except Exception as e:
                 _log.error("Failure to read from source {url} {reason}".format(url=url, reason=str(e)))
                 continue
 
@@ -206,7 +187,7 @@ class ExternalData(Agent):
                     self._handle_csv(headers, r, url, source_topic, source)
                 elif source_type.lower() == "raw":
                     self._handle_raw(headers, r, url, source_topic, source)
-            except StandardError as e:
+            except Exception as e:
                 _log.error("General failure during processing of source {url} {reason}".format(url=url, reason=str(e)))
 
 
@@ -248,7 +229,7 @@ class ExternalData(Agent):
                 if missing_key:
                     continue
 
-                if not isinstance(key_value, (str, unicode)) or not key_value:
+                if not isinstance(key_value, str) or not key_value:
                     dropped_rows = True
                     continue
 
@@ -301,7 +282,7 @@ class ExternalData(Agent):
                         row[parse_column] = value
                     except KeyError:
                         pass
-                    except StandardError:
+                    except Exception:
                         if value_string == "":
                             row[parse_column] = None
                 new_csv_data.append(row)

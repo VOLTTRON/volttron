@@ -1,77 +1,59 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
-
-# Copyright (c) 2016, Battelle Memorial Institute
-# All rights reserved.
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
+# Copyright 2019, Battelle Memorial Institute.
 #
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in
-#    the documentation and/or other materials provided with the
-#    distribution.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# http://www.apache.org/licenses/LICENSE-2.0
 #
-# The views and conclusions contained in the software and documentation
-# are those of the authors and should not be interpreted as representing
-# official policies, either expressed or implied, of the FreeBSD
-# Project.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
-# This material was prepared as an account of work sponsored by an
-# agency of the United States Government.  Neither the United States
-# Government nor the United States Department of Energy, nor Battelle,
-# nor any of their employees, nor any jurisdiction or organization that
-# has cooperated in the development of these materials, makes any
-# warranty, express or implied, or assumes any legal liability or
-# responsibility for the accuracy, completeness, or usefulness or any
-# information, apparatus, product, software, or process disclosed, or
-# represents that its use would not infringe privately owned rights.
-#
-# Reference herein to any specific commercial product, process, or
-# service by trade name, trademark, manufacturer, or otherwise does not
-# necessarily constitute or imply its endorsement, recommendation, or
+# This material was prepared as an account of work sponsored by an agency of
+# the United States Government. Neither the United States Government nor the
+# United States Department of Energy, nor Battelle, nor any of their
+# employees, nor any jurisdiction or organization that has cooperated in the
+# development of these materials, makes any warranty, express or
+# implied, or assumes any legal liability or responsibility for the accuracy,
+# completeness, or usefulness or any information, apparatus, product,
+# software, or process disclosed, or represents that its use would not infringe
+# privately owned rights. Reference herein to any specific commercial product,
+# process, or service by trade name, trademark, manufacturer, or otherwise
+# does not necessarily constitute or imply its endorsement, recommendation, or
 # favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors
-# expressed herein do not necessarily state or reflect those of the
+# Battelle Memorial Institute. The views and opinions of authors expressed
+# herein do not necessarily state or reflect those of the
 # United States Government or any agency thereof.
 #
-# PACIFIC NORTHWEST NATIONAL LABORATORY
-# operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
+# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-#}}}
+# }}}
 
 
-from __future__ import absolute_import
+
 
 import os
 import logging
 import zmq
 from zmq import Frame, NOBLOCK, ZMQError, EINVAL, EHOSTUNREACH
 
+from volttron.utils.frame_serialization import serialize_frames
 
 __all__ = ['BaseRouter', 'OUTGOING', 'INCOMING', 'UNROUTABLE', 'ERROR']
-
 
 OUTGOING = 0
 INCOMING = 1
 UNROUTABLE = 2
 ERROR = 3
 
+_log = logging.getLogger(__name__)
 
 # Optimizing by pre-creating frames
 _ROUTE_ERRORS = {
@@ -83,8 +65,6 @@ _INVALID_SUBSYSTEM = (
     zmq.Frame(str(zmq.EPROTONOSUPPORT).encode('ascii')),
     zmq.Frame(os.strerror(zmq.EPROTONOSUPPORT).encode('ascii'))
 )
-
-_log = logging.getLogger(__name__)
 
 class BaseRouter(object):
     '''Abstract base class of VIP router implementation.
@@ -103,6 +83,7 @@ class BaseRouter(object):
 
     _context_class = zmq.Context
     _socket_class = zmq.Socket
+    _poller_class = zmq.Poller
 
     def __init__(self, context=None, default_user_id=None):
         '''Initialize the object instance.
@@ -114,13 +95,16 @@ class BaseRouter(object):
         self.default_user_id = default_user_id
         self.socket = None
         self._peers = set()
+        self._poller = self._poller_class()
+        self._ext_sockets = []
+        self._socket_id_mapping = {}
 
     def run(self):
         '''Main router loop.'''
         self.start()
         try:
-            while self.poll():
-                self.route()
+            while True:
+                self.poll_sockets()
         finally:
             self.stop()
 
@@ -137,6 +121,9 @@ class BaseRouter(object):
         sock.tcp_keepalive_idle = 180
         sock.tcp_keepalive_intvl = 20
         sock.tcp_keepalive_cnt = 6
+        self.context.set(zmq.MAX_SOCKETS, 30690)
+        sock.set_hwm(6000)
+        _log.debug("ROUTER SENDBUF: {0}, {1}".format(sock.getsockopt(zmq.SNDBUF), sock.getsockopt(zmq.RCVBUF)))
         self.setup()
 
     def stop(self, linger=1):
@@ -148,6 +135,13 @@ class BaseRouter(object):
 
         Implement this method to bind the socket, set identities and
         options, etc.
+        '''
+        raise NotImplementedError()
+
+    def poll_sockets(self):
+        '''Called inside run method
+
+        Implement this method to poll for sockets for incoming messages.
         '''
         raise NotImplementedError()
 
@@ -191,7 +185,9 @@ class BaseRouter(object):
             # pylint: disable=unused-argument
             # A user id might/should be set by the ZAP authenticator
             try:
-                return recipient.get('User-Id').encode('utf-8')
+                # _log.debug(f"THE TYPE IS:::::::: {type(recipient)}")
+                # recipient.get('User-Id').encode('utf-8') returns sender !!!
+                return sender
             except ZMQError as exc:
                 if exc.errno != EINVAL:
                     raise
@@ -208,20 +204,30 @@ class BaseRouter(object):
 
     def _distribute(self, *parts):
         drop = set()
-        empty = Frame(b'')
-        frames = [empty, empty, Frame(b'VIP1'), empty, empty]
-        frames.extend(Frame(f) for f in parts)
+        empty = ''
+        frames = [empty, empty, 'VIP1', empty, empty]
+        frames.extend(parts)
+        # _log.debug(f"_distribute {parts}")
         for peer in self._peers:
             frames[0] = peer
             drop.update(self._send(frames))
         for peer in drop:
             self._drop_peer(peer)
 
+    def _drop_pubsub_peers(self, peer):
+        '''Drop peers for pubsub subsystem. To be handled by subclasses'''
+        pass
+
+    def _add_pubsub_peers(self, peer):
+        '''Add peers for pubsub subsystem. To be handled by subclasses'''
+        pass
+
     def _add_peer(self, peer):
         if peer in self._peers:
             return
-        self._distribute(b'peerlist', b'add', peer)
+        self._distribute('peerlist', 'add', peer)
         self._peers.add(peer)
+        self._add_pubsub_peers(peer)
 
     def _drop_peer(self, peer):
         try:
@@ -229,8 +235,9 @@ class BaseRouter(object):
         except KeyError:
             return
         self._distribute(b'peerlist', b'drop', peer)
+        self._drop_pubsub_peers(peer)
 
-    def route(self):
+    def route(self, frames):
         '''Route one message and return.
 
         One message is read from the socket and processed. If the
@@ -241,52 +248,52 @@ class BaseRouter(object):
         '''
         socket = self.socket
         issue = self.issue
-        # Expecting incoming frames:
-        #   [SENDER, RECIPIENT, PROTO, USER_ID, MSG_ID, SUBSYS, ...]
-        frames = socket.recv_multipart(copy=False)
+
         issue(INCOMING, frames)
+        # _log.debug(f"ROUTER Receiving frames: {frames}")
         if len(frames) < 6:
             # Cannot route if there are insufficient frames, such as
             # might happen with a router probe.
             if len(frames) == 2 and frames[0] and not frames[1]:
                 issue(UNROUTABLE, frames, 'router probe')
-                self._add_peer(frames[0].bytes)
+                self._add_peer(frames[0])
             else:
                 issue(UNROUTABLE, frames, 'too few frames')
             return
         sender, recipient, proto, auth_token, msg_id = frames[:5]
-        if proto.bytes != b'VIP1':
+        # _log.debug(f"routing {sender}, {recipient}, {proto}, {auth_token}, {msg_id}")
+        if proto != 'VIP1':
             # Peer is not talking a protocol we understand
             issue(UNROUTABLE, frames, 'bad VIP signature')
             return
         user_id = self.lookup_user_id(sender, recipient, auth_token)
         if user_id is None:
-            user_id = b''
-
-        self._add_peer(sender.bytes)
+            user_id = ''
+        # _log.debug(f"user_id is {user_id}")
+        self._add_peer(sender)
         subsystem = frames[5]
-        if not recipient.bytes:
+        if not recipient:
             # Handle requests directed at the router
-            name = subsystem.bytes
-            if name == b'hello':
+            name = subsystem
+            if name == 'hello':
                 frames = [sender, recipient, proto, user_id, msg_id,
-                          b'hello', b'welcome', b'1.0', socket.identity, sender]
-            elif name == b'ping':
+                          'hello', 'welcome', '1.0', socket.identity, sender]
+            elif name == 'ping':
                 frames[:7] = [
-                    sender, recipient, proto, user_id, msg_id, b'ping', b'pong']
-            elif name == b'peerlist':
+                    sender, recipient, proto, user_id, msg_id, 'ping', 'pong']
+            elif name == 'peerlist':
                 try:
-                    op = frames[6].bytes
+                    op = frames[6]
                 except IndexError:
                     op = None
-                frames = [sender, recipient, proto, b'', msg_id, subsystem]
-                if op == b'list':
-                    frames.append(b'listing')
+                frames = [sender, recipient, proto, '', msg_id, subsystem]
+                if op == 'list':
+                    frames.append('listing')
                     frames.extend(self._peers)
                 else:
-                    error = (b'unknown' if op else b'missing') + b' operation'
-                    frames.extend([b'error', error])
-            elif name == b'error':
+                    error = ('unknown' if op else 'missing') + ' operation'
+                    frames.extend(['error', error])
+            elif name == 'error':
                 return
             else:
                 response = self.handle_subsystem(frames, user_id)
@@ -294,8 +301,8 @@ class BaseRouter(object):
                     # Handler does not know of the subsystem
                     errnum, errmsg = error = _INVALID_SUBSYSTEM
                     issue(ERROR, frames, error)
-                    frames = [sender, recipient, proto, b'', msg_id,
-                              b'error', errnum, errmsg, b'', subsystem]
+                    frames = [sender, recipient, proto, '', msg_id,
+                              'error', errnum, errmsg, '', subsystem]
                 elif not response:
                     # Subsystem does not require a response
                     return
@@ -314,10 +321,14 @@ class BaseRouter(object):
         recipient, sender = frames[:2]
         # Expecting outgoing frames:
         #   [RECIPIENT, SENDER, PROTO, USER_ID, MSG_ID, SUBSYS, ...]
+        # _log.debug(f"BASE_ROUTER sending frames: {frames}")
         try:
             # Try sending the message to its recipient
-            socket.send_multipart(frames, flags=NOBLOCK, copy=False)
-            issue(OUTGOING, frames)
+            # This is a zmq socket so we need to serialize it before sending
+            print(frames)
+            serialized_frames = serialize_frames(frames)
+            socket.send_multipart(serialized_frames, flags=NOBLOCK, copy=False)
+            issue(OUTGOING, serialized_frames)
         except ZMQError as exc:
             try:
                 errnum, errmsg = error = _ROUTE_ERRORS[exc.errno]
@@ -327,15 +338,16 @@ class BaseRouter(object):
                 raise
             issue(ERROR, frames, error)
             if exc.errno == EHOSTUNREACH:
-                drop.append(bytes(recipient))
+                drop.append(recipient)
             if exc.errno != EHOSTUNREACH or sender is not frames[0]:
                 # Only send errors if the sender and recipient differ
                 proto, user_id, msg_id, subsystem = frames[2:6]
-                frames = [sender, b'', proto, user_id, msg_id,
-                          b'error', errnum, errmsg, recipient, subsystem]
+                frames = [sender, '', proto, user_id, msg_id,
+                          'error', errnum, errmsg, recipient, subsystem]
+                serialized_frames = serialize_frames(frames)
                 try:
-                    socket.send_multipart(frames, flags=NOBLOCK, copy=False)
-                    issue(OUTGOING, frames)
+                    socket.send_multipart(serialized_frames, flags=NOBLOCK, copy=False)
+                    issue(OUTGOING, serialized_frames)
                 except ZMQError as exc:
                     try:
                         errnum, errmsg = error = _ROUTE_ERRORS[exc.errno]
@@ -343,7 +355,7 @@ class BaseRouter(object):
                         error = None
                     if error is None:
                         raise
-                    issue(ERROR, frames, error)
+                    issue(ERROR, serialized_frames, error)
                     if exc.errno == EHOSTUNREACH:
-                        drop.append(bytes(sender))
+                        drop.append(sender)
         return drop

@@ -1,69 +1,53 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2016, Battelle Memorial Institute
-# All rights reserved.
+# -*- coding: utf-8 -*- {{{
+# vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
+# Copyright 2019, Battelle Memorial Institute.
 #
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in
-#    the documentation and/or other materials provided with the
-#    distribution.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# http://www.apache.org/licenses/LICENSE-2.0
 #
-# The views and conclusions contained in the software and documentation
-# are those of the authors and should not be interpreted as representing
-# official policies, either expressed or implied, of the FreeBSD
-# Project.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
-# This material was prepared as an account of work sponsored by an
-# agency of the United States Government.  Neither the United States
-# Government nor the United States Department of Energy, nor Battelle,
-# nor any of their employees, nor any jurisdiction or organization that
-# has cooperated in the development of these materials, makes any
-# warranty, express or implied, or assumes any legal liability or
-# responsibility for the accuracy, completeness, or usefulness or any
-# information, apparatus, product, software, or process disclosed, or
-# represents that its use would not infringe privately owned rights.
-#
-# Reference herein to any specific commercial product, process, or
-# service by trade name, trademark, manufacturer, or otherwise does not
-# necessarily constitute or imply its endorsement, recommendation, or
+# This material was prepared as an account of work sponsored by an agency of
+# the United States Government. Neither the United States Government nor the
+# United States Department of Energy, nor Battelle, nor any of their
+# employees, nor any jurisdiction or organization that has cooperated in the
+# development of these materials, makes any warranty, express or
+# implied, or assumes any legal liability or responsibility for the accuracy,
+# completeness, or usefulness or any information, apparatus, product,
+# software, or process disclosed, or represents that its use would not infringe
+# privately owned rights. Reference herein to any specific commercial product,
+# process, or service by trade name, trademark, manufacturer, or otherwise
+# does not necessarily constitute or imply its endorsement, recommendation, or
 # favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors
-# expressed herein do not necessarily state or reflect those of the
+# Battelle Memorial Institute. The views and opinions of authors expressed
+# herein do not necessarily state or reflect those of the
 # United States Government or any agency thereof.
 #
-# PACIFIC NORTHWEST NATIONAL LABORATORY
-# operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
+# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-
+# }}}
 #}}}
 
 
 """Module for storing local public and secret keys and remote public keys"""
 
 
-import json
+from volttron.platform import jsonapi
 import logging
 import os
-import urlparse
+import urllib.parse
 
 from zmq import curve_keypair
 
@@ -87,16 +71,16 @@ class BaseJSONStore(object):
         fd = os.open(self.filename, os.O_CREAT | os.O_WRONLY | os.O_TRUNC,
                      self.permissions)
         try:
-            os.write(fd, json.dumps(data, indent=4))
+            os.write(fd, jsonapi.dumpb(data, indent=4))
         finally:
             os.close(fd)
 
     def load(self):
         try:
             with open(self.filename, 'r') as json_file:
-                return json.load(json_file)
+                return jsonapi.load(json_file)
         except ValueError:
-            # If the file is empty json.load will raise ValueError
+            # If the file is empty jsonapi.load will raise ValueError
             return {}
 
     def remove(self, key):
@@ -130,6 +114,12 @@ class KeyStore(BaseJSONStore):
         return os.path.join(get_home(), 'keystore')
 
     @staticmethod
+    def get_agent_keystore_path(identity=None):
+        if identity is None:
+            raise AttributeError("invalid identity")
+        return os.path.join(get_home(), f"keystores/{identity}/keystore.json")
+
+    @staticmethod
     def generate_keypair_dict():
         """Generate and return new keypair as dictionary"""
         public, secret = curve_keypair()
@@ -144,14 +134,14 @@ class KeyStore(BaseJSONStore):
         """Get key and make sure it's type is str (not unicode)
 
         The json module returns all strings as unicode type, but base64
-        decode expects str type as input. The conversion from unicode
+        decode expects byte type as input. The conversion from unicode
         type to str type is safe in this case, because encode_key
         returns str type (ASCII characters only).
         """
         key = self.load().get(keyname, None)
         if key:
             try:
-                key = str(key)
+                key.encode('ascii')
             except UnicodeEncodeError:
                 _log.warning(
                     'Non-ASCII character found for key {} in {}'
@@ -198,7 +188,7 @@ class KnownHostsStore(BaseJSONStore):
 
     @staticmethod
     def _parse_addr(addr):
-        url = urlparse.urlparse(addr)
+        url = urllib.parse.urlparse(addr)
         if url.netloc:
             return url.netloc
         return url.path

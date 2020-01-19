@@ -5,7 +5,11 @@ import tempfile
 
 import gevent
 import pytest
-from zmq.utils import jsonapi
+from pytest import approx
+
+from volttron.platform import get_services_core
+from volttron.platform.agent import utils
+from volttron.platform import jsonapi
 
 from volttron.platform.messaging import headers as headers_mod
 
@@ -19,9 +23,6 @@ FORWARDER_CONFIG = {
     "agentid": "forwarder",
     "destination-vip": {},
     "custom_topic_list": [],
-    "services_topic_list": [
-        "devices", "analysis", "record", "datalogger", "actuators"
-    ],
     "topic_replace_list": [
         {"from": "PNNL/BUILDING_1", "to": "PNNL/BUILDING1_ANON"}
     ]
@@ -62,11 +63,12 @@ def do_publish(agent1):
                     }]
 
     # Create timestamp
-    now = datetime.utcnow().isoformat(' ')
+    now = utils.format_timestamp(datetime.utcnow())
 
     # now = '2015-12-02T00:00:00'
     headers = {
-        headers_mod.DATE: now
+        headers_mod.DATE: now,
+        headers_mod.TIMESTAMP: now
     }
     print("Published time in header: " + now)
 
@@ -75,7 +77,7 @@ def do_publish(agent1):
     agent1.vip.pubsub.publish(
         'pubsub', DEVICES_ALL_TOPIC, headers, all_message).get(timeout=10)
     publishedmessages.append(all_message)
-    gevent.sleep(1)
+    gevent.sleep(1.5)
 
 
 def onmessage(peer, sender, bus, topic, headers, message):
@@ -88,7 +90,6 @@ def onmessage(peer, sender, bus, topic, headers, message):
 
 
 @pytest.mark.historian
-@pytest.mark.xfail(reason='need to see about auth stuff for this to work')
 def test_reconnect_forwarder(get_volttron_instances):
     from_instance, to_instance = get_volttron_instances(2, True)
     to_instance.allow_all_connections()
@@ -97,22 +98,23 @@ def test_reconnect_forwarder(get_volttron_instances):
     receiver = to_instance.build_agent()
 
     forwarder_config = deepcopy(BASE_FORWARD_CONFIG)
-    forwardtoaddr = build_vip_address(to_instance, receiver)
-    print("FORWARD ADDR: {}".format(forwardtoaddr))
-    forwarder_config['destination-vip'] = forwardtoaddr
+    #forwardtoaddr = build_vip_address(to_instance, receiver)
+    #print("FORWARD ADDR: {}".format(forwardtoaddr))
+    forwarder_config['destination-vip'] = to_instance.vip_address
+    forwarder_config['destination-serverkey'] = to_instance.keystore.public
 
     fuuid = from_instance.install_agent(
-        agent_dir="services/core/ForwardHistorian",start=True,
+        agent_dir=get_services_core("ForwardHistorian"),start=True,
         config_file=forwarder_config)
     assert from_instance.is_agent_running(fuuid)
     print('Before Subscribing')
     receiver.vip.pubsub.subscribe('pubsub', '', callback=onmessage)
     publisher.vip.pubsub.publish('pubsub', 'stuff', message='Fuzzy')
-    gevent.sleep(.2)
+    gevent.sleep(3)
 
     num_messages = 5
     for i in range(num_messages):
         do_publish(publisher)
 
-    for i in range(len(publishedmessages)):
-        assert allforwardedmessage[i] == publishedmessages[i]
+    for a,p in zip(allforwardedmessage, publishedmessages):
+        assert a[0] == approx(p[0])

@@ -1,97 +1,84 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
-
-# Copyright (c) 2016, Battelle Memorial Institute
-# All rights reserved.
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
+# Copyright 2019, Battelle Memorial Institute.
 #
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in
-#    the documentation and/or other materials provided with the
-#    distribution.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# http://www.apache.org/licenses/LICENSE-2.0
 #
-# The views and conclusions contained in the software and documentation
-# are those of the authors and should not be interpreted as representing
-# official policies, either expressed or implied, of the FreeBSD
-# Project.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
-# This material was prepared as an account of work sponsored by an
-# agency of the United States Government.  Neither the United States
-# Government nor the United States Department of Energy, nor Battelle,
-# nor any of their employees, nor any jurisdiction or organization that
-# has cooperated in the development of these materials, makes any
-# warranty, express or implied, or assumes any legal liability or
-# responsibility for the accuracy, completeness, or usefulness or any
-# information, apparatus, product, software, or process disclosed, or
-# represents that its use would not infringe privately owned rights.
-#
-# Reference herein to any specific commercial product, process, or
-# service by trade name, trademark, manufacturer, or otherwise does not
-# necessarily constitute or imply its endorsement, recommendation, or
+# This material was prepared as an account of work sponsored by an agency of
+# the United States Government. Neither the United States Government nor the
+# United States Department of Energy, nor Battelle, nor any of their
+# employees, nor any jurisdiction or organization that has cooperated in the
+# development of these materials, makes any warranty, express or
+# implied, or assumes any legal liability or responsibility for the accuracy,
+# completeness, or usefulness or any information, apparatus, product,
+# software, or process disclosed, or represents that its use would not infringe
+# privately owned rights. Reference herein to any specific commercial product,
+# process, or service by trade name, trademark, manufacturer, or otherwise
+# does not necessarily constitute or imply its endorsement, recommendation, or
 # favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors
-# expressed herein do not necessarily state or reflect those of the
+# Battelle Memorial Institute. The views and opinions of authors expressed
+# herein do not necessarily state or reflect those of the
 # United States Government or any agency thereof.
 #
-# PACIFIC NORTHWEST NATIONAL LABORATORY
-# operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
+# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
 
 """VOLTTRON platform™ agent helper classes/functions."""
 
+
 import argparse
 import calendar
 import errno
 import logging
-import sys
-import syslog
-import traceback
-from datetime import datetime, tzinfo, timedelta
-
-import gevent
 import os
-import pytz
 import re
 import stat
-import time
-from volttron.platform import get_home, get_address
+import subprocess
+import sys
+try:
+    HAS_SYSLOG = True
+    import syslog
+except ImportError:
+    HAS_SYSLOG = False
+import traceback
+from configparser import ConfigParser
+from datetime import datetime
+
+import gevent
+import psutil
+import pytz
+import yaml
 from dateutil.parser import parse
 from dateutil.tz import tzutc, tzoffset
 from tzlocal import get_localzone
-from zmq.utils import jsonapi
+from watchdog_gevent import Observer
 
-try:
-    from ..lib.inotify.green import inotify, IN_MODIFY
-except AttributeError:
-    # inotify library is not available on OS X/MacOS.
-    # @TODO Integrate with the OS X FS Events API
-    inotify = None
-    IN_MODIFY = None
+from volttron.platform import get_home, get_address
+from volttron.platform import jsonapi
+from volttron.utils import VolttronHomeFileReloader, AbsolutePathFileReloader
+from volttron.utils.prompt import prompt_response
+
 
 __all__ = ['load_config', 'run_agent', 'start_agent_thread',
-           'is_valid_identity']
+           'is_valid_identity', 'load_platform_config', 'get_messagebus',
+           'get_fq_identity', 'execute_command', 'get_aware_utc_now']
 
 __author__ = 'Brandon Carpenter <brandon.carpenter@pnnl.gov>'
 __copyright__ = 'Copyright (c) 2016, Battelle Memorial Institute'
-__license__ = 'FreeBSD'
+__license__ = 'Apache 2.0'
 
 _comment_re = re.compile(
     r'((["\'])(?:\\?.)*?\2)|(/\*.*?\*/)|((?:#|//).*?(?=\n|$))',
@@ -116,7 +103,24 @@ def is_valid_identity(identity_to_check):
         return False
 
     return _VALID_IDENTITY_RE.match(identity_to_check)
-    
+
+
+def normalize_identity(pre_identity):
+    if is_valid_identity(pre_identity):
+        return pre_identity
+
+    if pre_identity is None:
+        raise ValueError("Identity cannot be none.")
+
+    norm = ""
+    for s in pre_identity:
+        if _VALID_IDENTITY_RE.match(s):
+            norm += s
+        else:
+            norm += '_'
+
+    return norm
+
 
 def _repl(match):
     """Replace the matched group with an appropriate string."""
@@ -145,12 +149,159 @@ def load_config(config_path):
         _log.info("Config file specified by AGENT_CONFIG does not exist. load_config returning empty configuration.")
         return {}
 
+    # First attempt parsing the file with a yaml parser (allows comments natively)
+    # Then if that fails we fallback to our modified json parser.
     try:
         with open(config_path) as f:
-            return parse_json_config(f.read())
-    except StandardError as e:
-        _log.error("Problem parsing agent configuration")
-        raise
+            return yaml.safe_load(f.read())
+    except yaml.scanner.ScannerError as e:
+        try:
+            with open(config_path) as f:
+                return parse_json_config(f.read())
+        except Exception as e:
+            _log.error("Problem parsing agent configuration")
+            raise
+
+
+def load_platform_config(vhome=None):
+    """Loads the platform config file if the path exists."""
+    config_opts = {}
+    if not vhome:
+        vhome = get_home()
+    path = os.path.join(vhome, 'config')
+    if os.path.exists(path):
+        parser = ConfigParser()
+        parser.read(path)
+        options = parser.options('volttron')
+        for option in options:
+            config_opts[option] = parser.get('volttron', option)
+    return config_opts
+
+
+def get_platform_instance_name(vhome=None, prompt=False):
+    platform_config = load_platform_config(vhome)
+
+    instance_name = platform_config.get('instance-name', None)
+    if instance_name is not None:
+        instance_name = instance_name.strip('"')
+    if prompt:
+        if not instance_name:
+            instance_name = 'volttron1'
+        instance_name = prompt_response("Name of this volttron instance:",
+                                        mandatory=True, default=instance_name)
+    else:
+        if not instance_name:
+            _log.warning("Using hostname as instance name.")
+            if os.path.isfile('/etc/hostname'):
+                with open('/etc/hostname') as f:
+                    instance_name = f.read().strip()
+                bus = platform_config.get('message-bus')
+                if bus is None:
+                    bus = get_messagebus()
+                store_message_bus_config(bus, instance_name)
+            else:
+                err = "No instance-name is configured in $VOLTTRON_HOME/config. Please set instance-name in " \
+                      "$VOLTTRON_HOME/config"
+                _log.error(err)
+                raise KeyError(err)
+
+    return instance_name
+
+
+def get_fq_identity(identity, platform_instance_name=None):
+    """
+    Return the fully qualified identity for the passed core identity.
+
+    Fully qualified identities are instance_name.identity
+
+    :param identity:
+    :param platform_instance_name: str The name of the platform.
+    :return:
+    """
+    if not platform_instance_name:
+        platform_instance_name = get_platform_instance_name()
+    return "{}.{}".format(platform_instance_name, identity)
+
+
+def get_messagebus():
+    """Get type of message bus - zeromq or rabbbitmq."""
+    message_bus = os.environ.get('MESSAGEBUS')
+    if not message_bus:
+        config = load_platform_config()
+        message_bus = config.get('message-bus', 'zmq')
+    return message_bus
+
+
+def store_message_bus_config(message_bus, instance_name):
+    # If there is no config file or home directory yet, create volttron_home
+    # and config file
+    if not instance_name:
+        raise ValueError("Instance name should be a valid string and should "
+                         "be unique within a network of volttron instances "
+                         "that communicate with each other. start volttron "
+                         "process with '--instance-name <your instance>' if "
+                         "you are running this instance for the first time. "
+                         "Or add instance-name = <instance name> in "
+                         "vhome/config")
+
+    v_home = get_home()
+    config_path = os.path.join(v_home, "config")
+    if os.path.exists(config_path):
+        config = ConfigParser()
+        config.read(config_path)
+        config.set('volttron', 'message-bus', message_bus)
+        config.set('volttron','instance-name', instance_name)
+        with open(config_path, 'w') as configfile:
+            config.write(configfile)
+    else:
+        if not os.path.exists(v_home):
+            os.makedirs(v_home, 0o755)
+        config = ConfigParser()
+        config.add_section('volttron')
+        config.set('volttron', 'message-bus', message_bus)
+        config.set('volttron', 'instance-name', instance_name)
+
+        with open(config_path, 'w') as configfile:
+            config.write(configfile)
+
+
+def update_kwargs_with_config(kwargs, config):
+    """
+    Loads the user defined configurations into kwargs.
+     
+      1. Converts any dash/hyphen in config variables into underscores
+      2. Checks for configured "identity" value. Prints a deprecation 
+      warning and uses it. 
+      3. Checks for configured "agentid" value. Prints a deprecation warning 
+      and ignores it
+      
+    :param kwargs: kwargs to be updated
+    :param config: dictionary of user/agent configuration
+    """
+
+    if config.get('identity') is not None:
+        _log.warning("DEPRECATION WARNING: Setting a historian's VIP IDENTITY"
+                     " from its configuration file will no longer be supported"
+                     " after VOLTTRON 4.0")
+        _log.warning(
+            "DEPRECATION WARNING: Using the identity configuration setting "
+            "will override the value provided by the platform. This new value "
+            "will not be reported correctly by 'volttron-ctl status'")
+        _log.warning("DEPRECATION WARNING: Please remove 'identity' from your "
+                     "configuration file and use the new method provided by "
+                     "the platform to set an agent's identity. See "
+                     "scripts/core/make-mongo-historian.sh for an example of "
+                     "how this is done.")
+
+    if config.get('agentid') is not None:
+        _log.warning("WARNING: Agent id cannot be configured. It is a unique "
+                     "id assigned by VOLTTRON platform. Ignoring configured "
+                     "agentid")
+        config.pop('agentid')
+
+    for k, v in config.items():
+        kwargs[k.replace("-","_")] = v
+
 
 def parse_json_config(config_str):
     """Parse a JSON-encoded configuration file."""
@@ -252,10 +403,11 @@ def vip_main(agent_class, identity=None, version='0.1', **kwargs):
 
         config = os.environ.get('AGENT_CONFIG')
         identity = os.environ.get('AGENT_VIP_IDENTITY', identity)
+        message_bus = os.environ.get('MESSAGEBUS', 'zmq')
         if identity is not None:
             if not is_valid_identity(identity):
-                _log.warn('Deprecation warining')
-                _log.warn(
+                _log.warning('Deprecation warining')
+                _log.warning(
                     'All characters in {identity} are not in the valid set.'
                     .format(idenity=identity))
 
@@ -263,10 +415,16 @@ def vip_main(agent_class, identity=None, version='0.1', **kwargs):
         agent_uuid = os.environ.get('AGENT_UUID')
         volttron_home = get_home()
 
+        from volttron.platform.certs import Certs
+        certs = Certs()
+        if os.path.isfile(certs.remote_cert_bundle_file()):
+            os.environ['REQUESTS_CA_BUNDLE'] = certs.remote_cert_bundle_file()
+
         agent = agent_class(config_path=config, identity=identity,
                             address=address, agent_uuid=agent_uuid,
                             volttron_home=volttron_home,
-                            version=version, **kwargs)
+                            version=version,
+                            message_bus=message_bus, **kwargs)
         
         try:
             run = agent.run
@@ -281,22 +439,27 @@ def vip_main(agent_class, identity=None, version='0.1', **kwargs):
         pass
 
 
-class SyslogFormatter(logging.Formatter):
-    _level_map = {logging.DEBUG: syslog.LOG_DEBUG,
-                  logging.INFO: syslog.LOG_INFO,
-                  logging.WARNING: syslog.LOG_WARNING,
-                  logging.ERROR: syslog.LOG_ERR,
-                  logging.CRITICAL: syslog.LOG_CRIT}
+# Keep the ability to have system log output for linux
+# this will fail on windows because no syslog.
+if HAS_SYSLOG:
+    class SyslogFormatter(logging.Formatter):
+        _level_map = {logging.DEBUG: syslog.LOG_DEBUG,
+                      logging.INFO: syslog.LOG_INFO,
+                      logging.WARNING: syslog.LOG_WARNING,
+                      logging.ERROR: syslog.LOG_ERR,
+                      logging.CRITICAL: syslog.LOG_CRIT}
 
-    def format(self, record):
-        level = self._level_map.get(record.levelno, syslog.LOG_INFO)
-        return '<{}>'.format(level) + super(SyslogFormatter, self).format(
-            record)
+        def format(self, record):
+            level = self._level_map.get(record.levelno, syslog.LOG_INFO)
+            return '<{}>'.format(level) + super(SyslogFormatter, self).format(
+                record)
 
 
 class JsonFormatter(logging.Formatter):
     def format(self, record):
         dct = record.__dict__.copy()
+        dct["msg"] = record.getMessage()
+        dct.pop('args')
         exc_info = dct.pop('exc_info', None)
         if exc_info:
             dct['exc_text'] = ''.join(traceback.format_exception(*exc_info))
@@ -401,7 +564,7 @@ def parse_timestamp_string(time_stamp_str):
             base_time_stamp_str = time_stamp_str[:26]
             time_zone_str = time_stamp_str[26:]
             time_stamp = datetime.strptime(base_time_stamp_str, "%Y-%m-%dT%H:%M:%S.%f")
-            #Handle most common case.
+            # Handle most common case.
             if time_zone_str == "+00:00":
                 return time_stamp.replace(tzinfo=pytz.UTC)
 
@@ -488,15 +651,17 @@ def watch_file(fullpath, callback):
 
         Not available on OS X/MacOS.
     """
+
     dirname, filename = os.path.split(fullpath)
-    if inotify is None:
-        _log.warning("Runtime changes to: %s not supported on this platform.", fullpath)
-    else:
-        with inotify() as inot:
-            inot.add_watch(dirname, IN_MODIFY)
-            for event in inot:
-                if event.name == filename and event.mask & IN_MODIFY:
-                    callback()
+    _log.info("Adding file watch for %s dirname=%s, filename=%s", fullpath, get_home(), filename)
+    observer = Observer()
+    observer.schedule(
+        VolttronHomeFileReloader(filename, callback),
+        path=get_home()
+    )
+    observer.start()
+    _log.info("Added file watch for %s", fullpath)
+
 
 def watch_file_with_fullpath(fullpath, callback):
     """Run callback method whenever the file changes
@@ -504,14 +669,14 @@ def watch_file_with_fullpath(fullpath, callback):
         Not available on OS X/MacOS.
     """
     dirname, filename = os.path.split(fullpath)
-    if inotify is None:
-        _log.warning("Runtime changes to: %s not supported on this platform.", fullpath)
-    else:
-        with inotify() as inot:
-            inot.add_watch(dirname, IN_MODIFY)
-            for event in inot:
-                if event.name == filename and event.mask & IN_MODIFY:
-                    callback(fullpath)
+    _log.info("Adding file watch for %s", fullpath)
+    _observer = Observer()
+    _observer.schedule(
+        AbsolutePathFileReloader(fullpath, callback),
+        dirname
+    )
+    _log.info("Added file watch for %s", fullpath)
+    _observer.start()
 
 
 def create_file_if_missing(path, permission=0o660, contents=None):
@@ -523,7 +688,8 @@ def create_file_if_missing(path, permission=0o660, contents=None):
             if e.errno != errno.EEXIST:
                 raise
     try:
-        open(path)
+        with open(path) as fd:
+            pass
     except IOError as exc:
         if exc.errno != errno.ENOENT:
             raise
@@ -532,7 +698,7 @@ def create_file_if_missing(path, permission=0o660, contents=None):
         fd = os.open(path, os.O_CREAT | os.O_WRONLY, permission)
         try:
             if contents:
-                os.write(fd, contents)
+                os.write(fd, contents if isinstance(contents, bytes) else contents.encode("utf-8"))
         finally:
             os.close(fd)
 
@@ -550,5 +716,106 @@ def fix_sqlite3_datetime(sql=None):
     """
     if sql is None:
         import sqlite3 as sql
+
+    def parse(time_stamp_bytes):
+        return parse_timestamp_string(time_stamp_bytes.decode("utf-8"))
     sql.register_adapter(datetime, format_timestamp)
-    sql.register_converter("timestamp", parse_timestamp_string)
+    sql.register_converter("timestamp", parse)
+
+
+def execute_command(cmds, env=None, cwd=None, logger=None, err_prefix=None) -> str:
+    """ Executes a command as a subprocess
+
+    If the return code of the call is 0 then return stdout otherwise
+    raise a RuntimeError.  If logger is specified then write the exception
+    to the logger otherwise this call will remain silent.
+
+    :param cmds:list of commands to pass to subprocess.run
+    :param env: environment to run the command with
+    :param cwd: working directory for the command
+    :param logger: a logger to use if errors occure
+    :param err_prefix: an error prefix to allow better tracing through the error message
+    :return: stdout string if successful
+
+    :raises RuntimeError: if the return code is not 0 from suprocess.run
+    """
+
+    results = subprocess.run(cmds, env=env, cwd=cwd,
+                             stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+    if results.returncode != 0:
+        err_prefix = err_prefix if err_prefix is not None else "Error executing command"
+        err_message = "\n{}: Below Command failed with non zero exit code.\n" \
+                      "Command:{} \nStderr:\n{}\n".format(err_prefix,
+                                                          results.args,
+                                                          results.stderr)
+        if logger:
+            logger.exception(err_message)
+            raise RuntimeError()
+        else:
+            raise RuntimeError(err_message)
+
+    return results.stdout.decode('utf-8')
+
+#
+# def execute_command_p(cmds, env=None, cwd=None, logger=None, err_prefix=None):
+#     """ Executes a given command using a subprocess.
+#
+#     Returns the return code and stdout of the call.
+#
+#     :param cmds:
+#     :param env:
+#     :param cwd:
+#     :param logger:
+#     :param err_prefix:
+#     :return:
+#     """
+#     if cwd is None:
+#         cwd = os.getcwd()
+#
+# #    try:
+#     results = subprocess.run(cmds, env=env, cwd=cwd,
+#                              stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+#     if results.returncode != 0:
+#         err_prefix = "Error executing command"
+#         err_message = "\n{}: Below Command failed with non zero exit code.\n" \
+#                       "Command:{} \nStderr:\n{}\n".format(err_prefix,
+#                                                           results.args,
+#                                                           results.stderr)
+#         if logger:
+#             logger.exception(err_message)
+#             raise RuntimeError()
+#         else:
+#             raise RuntimeError(err_message)
+#     return results.returncode, results.stdout.decode('utf-8')
+#     # except BaseException as e:
+#     #     _log.error("Exception running cmd: {} . Exception: {}".format(cmds, e))
+#     #     raise e
+
+
+def is_volttron_running(volttron_home):
+    """
+    Checks if volttron is running for the given volttron home. Checks if a VOLTTRON_PID file exist and if it does
+    check if the PID in the file corresponds to a running process. If so, returns True else returns False
+    :param vhome: volttron home
+    :return: True if VOLTTRON_PID file exists and points to a valid process id
+    """
+
+    pid_file = os.path.join(volttron_home, 'VOLTTRON_PID')
+    if os.path.exists(pid_file):
+        running = False
+        with open(pid_file, 'r') as pf:
+            pid = int(pf.read().strip())
+            running = psutil.pid_exists(pid)
+        return running
+    else:
+        return False
+
+
+def wait_for_volttron_startup(vhome, timeout):
+    # Check for VOLTTRON_PID
+    sleep_time = 0
+    while (not is_volttron_running(vhome)) and sleep_time < timeout:
+        gevent.sleep(3)
+        sleep_time += 3
+    if sleep_time >= timeout:
+        raise Exception("Platform startup failed. Please check volttron.log in {}".format(vhome))

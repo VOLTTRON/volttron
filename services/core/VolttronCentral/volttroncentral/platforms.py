@@ -1,61 +1,42 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
-
-# Copyright (c) 2016, Battelle Memorial Institute
-# All rights reserved.
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
+# Copyright 2019, Battelle Memorial Institute.
 #
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in
-#    the documentation and/or other materials provided with the
-#    distribution.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# http://www.apache.org/licenses/LICENSE-2.0
 #
-# The views and conclusions contained in the software and documentation
-# are those of the authors and should not be interpreted as representing
-# official policies, either expressed or implied, of the FreeBSD
-# Project.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
-# This material was prepared as an account of work sponsored by an
-# agency of the United States Government.  Neither the United States
-# Government nor the United States Department of Energy, nor Battelle,
-# nor any of their employees, nor any jurisdiction or organization that
-# has cooperated in the development of these materials, makes any
-# warranty, express or implied, or assumes any legal liability or
-# responsibility for the accuracy, completeness, or usefulness or any
-# information, apparatus, product, software, or process disclosed, or
-# represents that its use would not infringe privately owned rights.
-#
-# Reference herein to any specific commercial product, process, or
-# service by trade name, trademark, manufacturer, or otherwise does not
-# necessarily constitute or imply its endorsement, recommendation, or
+# This material was prepared as an account of work sponsored by an agency of
+# the United States Government. Neither the United States Government nor the
+# United States Department of Energy, nor Battelle, nor any of their
+# employees, nor any jurisdiction or organization that has cooperated in the
+# development of these materials, makes any warranty, express or
+# implied, or assumes any legal liability or responsibility for the accuracy,
+# completeness, or usefulness or any information, apparatus, product,
+# software, or process disclosed, or represents that its use would not infringe
+# privately owned rights. Reference herein to any specific commercial product,
+# process, or service by trade name, trademark, manufacturer, or otherwise
+# does not necessarily constitute or imply its endorsement, recommendation, or
 # favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors
-# expressed herein do not necessarily state or reflect those of the
+# Battelle Memorial Institute. The views and opinions of authors expressed
+# herein do not necessarily state or reflect those of the
 # United States Government or any agency thereof.
 #
-# PACIFIC NORTHWEST NATIONAL LABORATORY
-# operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
+# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
 
-import datetime
+import base64
 import hashlib
 import logging
 from collections import defaultdict
@@ -73,7 +54,7 @@ from volttron.platform.messaging.health import Status, UNKNOWN_STATUS, \
     GOOD_STATUS, BAD_STATUS
 from volttron.platform.vip.agent import Unreachable
 from volttron.platform.vip.agent.utils import build_connection
-from zmq.utils import jsonapi
+from volttron.platform import jsonapi
 
 
 class Platforms(object):
@@ -100,9 +81,10 @@ class Platforms(object):
         :param vip_identity:
         :return:
         """
-        self._platforms[vip_identity] = PlatformHandler(self._vc, vip_identity)
+        encoded = base64.b64encode(vip_identity.encode('utf-8'))
+        self._platforms[encoded] = PlatformHandler(self._vc, vip_identity)
         self._debug_platform_list()
-        return self._platforms[vip_identity]
+        return self._platforms[encoded]
 
     def disconnect_platform(self, vip_identity):
         """
@@ -112,17 +94,18 @@ class Platforms(object):
         :param vip_identity:
         :return:
         """
-        del self._platforms[vip_identity]
+        encoded = base64.b64encode(vip_identity.encode('utf-8'))
+        del self._platforms[encoded]
         self._debug_platform_list()
 
-    def get_platform_keys(self):
+    def get_platform_vip_identities(self):
         """
         Get the "known list" of connected vcp platforms.  This returns a set of
         keys that are available.
 
         :return:
         """
-        return set(self._platforms.keys())
+        return set([x.vip_identity for x in self._platforms.values()])
 
     def _debug_platform_list(self):
         """
@@ -133,11 +116,12 @@ class Platforms(object):
         for k, o in self._platforms.items():
             self._log.debug("vip: {}, identity: {}".format(o.address,
                                                            o.vip_identity))
+
     @property
     def vc(self):
         return self._vc
 
-    def is_registered(self, platform_vip_identity):
+    def is_registered(self, platform_uuid):
         """
         Returns true if the platform is currently known.
 
@@ -145,8 +129,9 @@ class Platforms(object):
         :rtype: Boolean
         :return: Whether the platform is known or not.
         """
+
         # Make sure that the platform is known.
-        return platform_vip_identity in self._platforms
+        return platform_uuid in self._platforms
 
     def get_platform_list(self, session_user, params):
         """
@@ -175,7 +160,7 @@ class Platforms(object):
         results = []
         for x in self._platforms.values():
             results.append(
-                dict(uuid=x.vip_identity,
+                dict(uuid=base64.b64encode(x.vip_identity.encode('utf-8')),
                      name=x.display_name,
                      health=x.health)
             )
@@ -218,7 +203,7 @@ class Platforms(object):
         for p in self._platforms.values():
             performances.append(
                 {
-                    "platform.uuid": p.vip_identity,
+                    "platform.uuid": base64.b64encode(p.vip_identity),
                     "performance": p.get_stats("status/cpu")
                 }
             )
@@ -231,9 +216,9 @@ class Platforms(object):
 
         :return: list of str
         """
-        return self._platforms.keys()
+        return list(self._platforms.keys())
 
-    def get_platform(self, vip_identity, default=None):
+    def get_platform(self, platform_uuid, default=None):
         """
         Get a specific :ref:`PlatformHandler` associated with the passed
         address_hash.  If the hash is not available then the default parameter
@@ -244,7 +229,7 @@ class Platforms(object):
         :return: a :ref:`PlatformHandler` or default
         """
         self._debug_platform_list()
-        return self._platforms.get(vip_identity, default)
+        return self._platforms.get(platform_uuid, default)
 
     def register_platform(self, address, address_type, serverkey=None,
                           display_name=None):
@@ -310,8 +295,8 @@ class PlatformHandler(object):
         # router.
         self._vc = vc
         # Add some logging information about the vcp platform
-        self._external_vip_addresses = self.call('get_vip_addresses')
         self._instance_name = self.call('get_instance_name')
+        self._external_vip_addresses = self.call('get_vip_addresses')
 
         message = "Building handler for platform: {} from address: {}".format(
             self._instance_name,
@@ -351,11 +336,16 @@ class PlatformHandler(object):
         platform_prefix = "platforms/{}/".format(self.vip_identity)
 
         # Setup callbacks to listen to the local bus from the vcp instance.
+        #
+        # Note: the platform/{}/ is prepended to the vcp_topics below for
+        #   communication from the vcp in the field.
         vcp_topics = (
+            # ('device_updates', self._on_device_message),
+            # ('devices/update', self._on_device_message),
             # devices and status.
-            ('devices/', self._on_device_message),
+            # ('devices/', self._on_device_message),
             # statistics for showing performance in the ui.
-            ('datalogger/platform/status', self._on_platform_stats),
+            ('status', self._on_platform_stats),
             # iam and configure callbacks
             ('iam/', self._on_platform_message),
             # iam and configure callbacks
@@ -460,7 +450,7 @@ class PlatformHandler(object):
             self._log.debug("Calling store_agent_config on external platform.")
             self.call("store_agent_config", **params)
         except Exception as e:
-            self._log.error(str(e))
+            self._log.error(repr(e))
             return jsonrpc.json_error(message_id, INTERNAL_ERROR,
                                       str(e))
         config_name = params.get("config_name")
@@ -570,11 +560,24 @@ class PlatformHandler(object):
 
         return ""
 
+    def delete_agent_config(self, session_user, params):
+        agent_identity = params['agent_identity']
+        config_name = params['config_name']
+
+        try:
+            return self.call('delete_agent_config', agent_identity, config_name)
+        except KeyError:
+            self._log.error('Invalid configuration name: {}'.format(
+                config_name
+            ))
+
+        return ""
+
     def get_devices(self, session_user, params):
         self._log.debug('handling get_devices platform: {} ({})'.format(
             self.vip_identity, self.address))
-
-        return self._current_devices or {}
+        return self.call("get_devices")
+        # return self._current_devices or {}
 
     def get_stats(self, stat_type):
         # TODO Change so stat_type is available.
@@ -611,69 +614,69 @@ class PlatformHandler(object):
     def _on_heartbeat(self, peer, sender, bus, topic, headers, message):
         self._log.debug("HEARTBEAT MESSAGE: {}".format(message))
 
-    def _on_device_message(self, peer, sender, bus, topic, headers, message):
-        """
-        Handle device data coming from the platform represented by this
-        object.
-
-        this method only cares about the /all messages that are published to
-        the message bus.
-
-        :param peer:
-        :param sender:
-        :param bus:
-        :param topic:
-        :param headers:
-        :param message:
-        """
-
-        expected_prefix = "platforms/{}/".format(self.vip_identity)
-        self._log.debug("TOPIC WAS: {}".format(topic))
-        self._log.debug("MESSAGE WAS: {}".format(message))
-        self._log.debug("Expected topic: {}".format(expected_prefix))
-        self._log.debug("Are Equal: {}".format(topic.startswith(expected_prefix)))
-        self._log.debug("topic type: {} prefix_type: {}".format(type(topic), type(expected_prefix)))
-        if topic is None or not topic.startswith(expected_prefix):
-            self._log.error("INVALID DEVICE DATA FOR {}".format(self.vip_identity))
-            return
-
-        if topic is None or not topic.startswith(expected_prefix):
-            self._log.error('INVALID DEVICE TOPIC/MESSAGE DETECTED ON {}'.format(
-                self.vip_identity
-            ))
-            return
-
-        # Update the devices store for get_devices function call
-        if not topic.endswith('/all'):
-            self._log.debug("Skipping publish to {}".format(topic))
-            return
-
-        #
-        topic = topic[len(expected_prefix):]
-
-        self._log.debug("topic: {}, message: {}".format(topic, message))
-
-        ts = format_timestamp(get_aware_utc_now())
-        context = "Last received data on: {}".format(ts)
-        status = Status.build(GOOD_STATUS, context=context)
-
-        base_topic = topic[:-len('/all')]
-        base_topic_no_prefix = base_topic[len('devices/'):]
-
-        if base_topic_no_prefix not in self._current_devices:
-            self._current_devices[base_topic_no_prefix] = {}
-
-        device_dict = self._current_devices[base_topic_no_prefix]
-
-        points = [k for k, v in message[0].items()]
-
-        device_dict['points'] = points
-        device_dict['health'] = status.as_dict()
-        device_dict['last_publish_utc'] = ts
-
-        self._vc.send_management_message(
-            "DEVICE_STATUS_UPDATED", data=dict(context=context,
-                                               topic=base_topic))
+    # def _on_device_message(self, peer, sender, bus, topic, headers, message):
+    #     """
+    #     Handle device data coming from the platform represented by this
+    #     object.
+    #
+    #     this method only cares about the /all messages that are published to
+    #     the message bus.
+    #
+    #     :param peer:
+    #     :param sender:
+    #     :param bus:
+    #     :param topic:
+    #     :param headers:
+    #     :param message:
+    #     """
+    #
+    #     expected_prefix = "platforms/{}/".format(self.vip_identity)
+    #     self._log.debug("TOPIC WAS: {}".format(topic))
+    #     self._log.debug("MESSAGE WAS: {}".format(message))
+    #     self._log.debug("Expected topic: {}".format(expected_prefix))
+    #     self._log.debug("Are Equal: {}".format(topic.startswith(expected_prefix)))
+    #     self._log.debug("topic type: {} prefix_type: {}".format(type(topic), type(expected_prefix)))
+    #     if topic is None or not topic.startswith(expected_prefix):
+    #         self._log.error("INVALID DEVICE DATA FOR {}".format(self.vip_identity))
+    #         return
+    #
+    #     if topic is None or not topic.startswith(expected_prefix):
+    #         self._log.error('INVALID DEVICE TOPIC/MESSAGE DETECTED ON {}'.format(
+    #             self.vip_identity
+    #         ))
+    #         return
+    #
+    #     # Update the devices store for get_devices function call
+    #     if not topic.endswith('/all'):
+    #         self._log.debug("Skipping publish to {}".format(topic))
+    #         return
+    #
+    #     #
+    #     topic = topic[len(expected_prefix):]
+    #
+    #     self._log.debug("topic: {}, message: {}".format(topic, message))
+    #
+    #     ts = format_timestamp(get_aware_utc_now())
+    #     context = "Last received data on: {}".format(ts)
+    #     status = Status.build(GOOD_STATUS, context=context)
+    #
+    #     base_topic = topic[:-len('/all')]
+    #     base_topic_no_prefix = base_topic[len('devices/'):]
+    #
+    #     if base_topic_no_prefix not in self._current_devices:
+    #         self._current_devices[base_topic_no_prefix] = {}
+    #
+    #     device_dict = self._current_devices[base_topic_no_prefix]
+    #
+    #     points = [k for k, v in message[0].items()]
+    #
+    #     device_dict['points'] = points
+    #     device_dict['health'] = status.as_dict()
+    #     device_dict['last_publish_utc'] = ts
+    #
+    #     self._vc.send_management_message(
+    #         "DEVICE_STATUS_UPDATED", data=dict(context=context,
+    #                                            topic=base_topic))
 
     def _on_platform_stats(self, peer, sender, bus, topic, headers, message):
 
@@ -696,14 +699,14 @@ class PlatformHandler(object):
                                                                     expected_prefix)))
 
         # Pull off the "real" topic from the prefix
-        topic = topic[len(expected_prefix):]
+        which_stats = topic[len(expected_prefix):]
+        self._log.debug("WHICH STATS: {}".format(which_stats))
 
         prefix = "datalogger/platform"
-        which_stats = topic[len(prefix)+1:]
-        self._log.debug("WHICH STATS: {}".format(which_stats))
+
         point_list = []
 
-        for point, item in message.iteritems():
+        for point, item in message.items():
             point_list.append(point)
 
         # Note adding the s to the end of the prefix.
@@ -737,7 +740,7 @@ class PlatformHandler(object):
         the agent_list and other interesting things that the volttron
         central shsould want to know.
         """
-        self._log.debug('ON PLATFORM MESSAGE!')
+        self._log.debug('ON PLATFORM MESSAGE! {}'.format(message))
         expected_prefix = "platforms/{}/".format(self.vip_identity)
 
         if not topic.startswith(expected_prefix):
@@ -774,8 +777,8 @@ class PlatformHandler(object):
 
         _, platform_uuid, op_or_datatype, other = topicsplit[0], \
                                                   topicsplit[1], \
-                                                  topicsplit[2], topicsplit[
-                                                                 3:]
+                                                  topicsplit[2], \
+                                                  topicsplit[3:]
 
         if op_or_datatype in ('iam', 'configure'):
             if not other:

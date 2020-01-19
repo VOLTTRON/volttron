@@ -63,9 +63,10 @@ class TestPackaging(unittest.TestCase):
 
             self.certsobj = certs.Certs(self.certificate_dir)
             self.certsobj.create_root_ca()
-            self.certsobj.create_ca_signed_cert(self.admin_cert_name, **admin)
-            self.certsobj.create_ca_signed_cert(self.creator_cert_name, **creator)
-            self.certsobj.create_ca_signed_cert(self.initiator_cert_name, **initiator)
+            #TODO: send CA name
+            self.certsobj.create_signed_cert_files(self.admin_cert_name, **admin)
+            self.certsobj.create_signed_cert_files(self.creator_cert_name, **creator)
+            self.certsobj.create_signed_cert_files(self.initiator_cert_name, **initiator)
 
             from os.path import join
             assert(os.path.isfile(join(self.certs_dir,
@@ -105,7 +106,7 @@ packages = ['packagetest'],
 zip_safe = False,
 )
 ''')
-        p = subprocess.Popen([sys.executable, 'setup.py', 'bdist_wheel'])
+        p = subprocess.Popen([sys.executable, 'setup.py', 'bdist_wheel'], universal_newlines=True)
         p.wait()
         self.wheel = os.path.join('dist', 'packagetest-0.1-py2-none-any.whl')
 
@@ -149,7 +150,8 @@ zip_safe = False,
 
             print('successful!')
 
-    @pytest.mark.xfail(reason="#776 Needs updating")
+    @pytest.mark.xfail(reason="Refer #776. Replaced by test_packaging. "
+                              "To be used as reference when working on restricted code")
     def test_can_extract_package(self):
         wheelhouse = os.path.join(self.tmpdir, 'extract_package')
         expected_install_at = os.path.join(wheelhouse, 'listeneragent-0.1')
@@ -176,7 +178,8 @@ zip_safe = False,
         finally:
             shutil.rmtree(installed_at)
             shutil.rmtree(wheelhouse)
-    @pytest.mark.xfail(reason="#776 Needs updating")
+    @pytest.mark.xfail(reason="Refer #776. Replaced by test_packaging. "
+                              "To be used as reference when working on restricted code")
     def test_can_create_package(self):
         '''
         Tests that a proper wheel package is created from the create_package method of
@@ -212,7 +215,8 @@ zip_safe = False,
             wf.zipfile.close()
         finally:
             shutil.rmtree(package_tmp_dir)
-    @pytest.mark.xfail(reason="#776 Needs updating")
+    @pytest.mark.xfail(reason="Refer #776. Replaced by test_packaging. "
+                              "To be used as reference when working on restricted code")
     def test_raises_error_if_agent_dir_not_exists(self):
         '''
         This test passes under the following conditions:

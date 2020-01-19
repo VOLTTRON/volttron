@@ -33,3 +33,20 @@ VOLTTRON 3.0
 -  Secure and accountable communication using the VIP
 -  Web Console for Monitoring and Administering VOLTTRON Deployments
 
+VOLTTRON 4.0
+
+- Documentation moved to ReadTheDocs
+- VOLTTRON Configuration Wizard
+- Configuration store to dynamically configure agents
+- Aggregator agent for aggregating topics
+- More reliable remote install mechanism
+- UI for device configuration
+- Automatic registration of VOLTTRON instances with management agent
+
+
+VOLTTRON 5.0
+
+- Tagging service for attaching metadata to topics for simpler retrieval
+- Message bus performance improvement
+- Multi-platform publish/subscribe for simpler coordination across platforms
+- Drivers contributed back for SEP 2.0 and ChargePoint EV

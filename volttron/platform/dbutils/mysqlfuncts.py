@@ -1,57 +1,38 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
-
-# Copyright (c) 2016, Battelle Memorial Institute
-# All rights reserved.
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
+# Copyright 2019, Battelle Memorial Institute.
 #
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in
-#    the documentation and/or other materials provided with the
-#    distribution.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# http://www.apache.org/licenses/LICENSE-2.0
 #
-# The views and conclusions contained in the software and documentation
-# are those of the authors and should not be interpreted as representing
-# official policies, either expressed or implied, of the FreeBSD
-# Project.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
-# This material was prepared as an account of work sponsored by an
-# agency of the United States Government.  Neither the United States
-# Government nor the United States Department of Energy, nor Battelle,
-# nor any of their employees, nor any jurisdiction or organization that
-# has cooperated in the development of these materials, makes any
-# warranty, express or implied, or assumes any legal liability or
-# responsibility for the accuracy, completeness, or usefulness or any
-# information, apparatus, product, software, or process disclosed, or
-# represents that its use would not infringe privately owned rights.
-#
-# Reference herein to any specific commercial product, process, or
-# service by trade name, trademark, manufacturer, or otherwise does not
-# necessarily constitute or imply its endorsement, recommendation, or
+# This material was prepared as an account of work sponsored by an agency of
+# the United States Government. Neither the United States Government nor the
+# United States Department of Energy, nor Battelle, nor any of their
+# employees, nor any jurisdiction or organization that has cooperated in the
+# development of these materials, makes any warranty, express or
+# implied, or assumes any legal liability or responsibility for the accuracy,
+# completeness, or usefulness or any information, apparatus, product,
+# software, or process disclosed, or represents that its use would not infringe
+# privately owned rights. Reference herein to any specific commercial product,
+# process, or service by trade name, trademark, manufacturer, or otherwise
+# does not necessarily constitute or imply its endorsement, recommendation, or
 # favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors
-# expressed herein do not necessarily state or reflect those of the
+# Battelle Memorial Institute. The views and opinions of authors expressed
+# herein do not necessarily state or reflect those of the
 # United States Government or any agency thereof.
 #
-# PACIFIC NORTHWEST NATIONAL LABORATORY
-# operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
+# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
 import ast
@@ -60,11 +41,11 @@ from collections import defaultdict
 
 import pytz
 import re
-from basedb import DbDriver
+from .basedb import DbDriver
 from mysql.connector import Error as MysqlError
 from mysql.connector import errorcode as mysql_errorcodes
 from volttron.platform.agent import utils
-from zmq.utils import jsonapi
+from volttron.platform import jsonapi
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -93,7 +74,12 @@ class MySqlFuncts(DbDriver):
             self.meta_table = table_names['meta_table']
             self.agg_topics_table = table_names.get('agg_topics_table', None)
             self.agg_meta_table = table_names.get('agg_meta_table', None)
-        super(MySqlFuncts, self).__init__('mysql.connector', **connect_params)
+        # This is needed when reusing the same connection. Else cursor returns
+        # cached data even if we create a new cursor for each query and
+        # close the cursor after fetching results
+        connect_params['autocommit'] = True
+        super(MySqlFuncts, self).__init__('mysql.connector', auth_plugin='mysql_native_password',
+                                          **connect_params)
 
     def init_microsecond_support(self):
         rows = self.select("SELECT version()", None)
@@ -147,9 +133,8 @@ class MySqlFuncts(DbDriver):
                               '''(topic_id INTEGER NOT NULL,
                                metadata TEXT NOT NULL,
                                PRIMARY KEY(topic_id))''')
-            _log.debug("Created data topics and meta tables")
-
             self.commit()
+            _log.debug("Created data topics and meta tables")
         except MysqlError as err:
             err_msg = "Error creating " \
                       "historian tables as the configured user. " \
@@ -176,18 +161,19 @@ class MySqlFuncts(DbDriver):
 
         insert_stmt = 'REPLACE INTO ' + meta_table_name + \
                       ' VALUES (%s, %s, %s)'
-        self.insert_stmt(insert_stmt,
+        self.execute_stmt(insert_stmt,
                          ('data_table', tables_def['data_table'],
                           table_prefix))
-        self.insert_stmt(insert_stmt,
+        self.execute_stmt(insert_stmt,
                          ('topics_table', tables_def['topics_table'],
                           table_prefix))
-        self.insert_stmt(
+        self.execute_stmt(
             insert_stmt,
-            ('meta_table', tables_def['meta_table'], table_prefix))
-        self.commit()
+            ('meta_table', tables_def['meta_table'], table_prefix),
+            commit=True)
 
     def setup_aggregate_historian_tables(self, meta_table_name):
+        _log.debug("CREATING AGG TABLES")
         table_names = self.read_tablenames_from_db(meta_table_name)
 
         self.data_table = table_names['data_table']
@@ -212,12 +198,12 @@ class MySqlFuncts(DbDriver):
             '(agg_topic_id INTEGER NOT NULL, \
               metadata TEXT NOT NULL, \
               PRIMARY KEY(agg_topic_id));')
-
+        self.commit()
         _log.debug("Created aggregate topics and meta tables")
 
     def query(self, topic_ids, id_name_map, start=None, end=None, skip=0,
-              agg_type=None,
-              agg_period=None, count=None, order="FIRST_TO_LAST"):
+              agg_type=None, agg_period=None, count=None,
+              order="FIRST_TO_LAST"):
 
         table_name = self.data_table
         if agg_type and agg_period:
@@ -237,11 +223,15 @@ class MySqlFuncts(DbDriver):
         args = [topic_ids[0]]
 
         if start is not None:
+            if start.tzinfo != pytz.UTC:
+                start = start.astimezone(pytz.UTC)
             if not self.MICROSECOND_SUPPORT:
                 start_str = start.isoformat()
                 start = start_str[:start_str.rfind('.')]
 
         if end is not None:
+            if end.tzinfo !=pytz.UTC:
+                end = end.astimezone(pytz.UTC)
             if not self.MICROSECOND_SUPPORT:
                 end_str = end.isoformat()
                 end = end_str[:end_str.rfind('.')]
@@ -249,12 +239,13 @@ class MySqlFuncts(DbDriver):
         if start and end and start == end:
             where_clauses.append("ts = %s")
             args.append(start)
-        elif start:
-            where_clauses.append("ts >= %s")
-            args.append(start)
-        elif end:
-            where_clauses.append("ts < %s")
-            args.append(end)
+        else:
+            if start:
+                where_clauses.append("ts >= %s")
+                args.append(start)
+            if end:
+                where_clauses.append("ts < %s")
+                args.append(end)
 
         where_statement = ' AND '.join(where_clauses)
 
@@ -280,6 +271,7 @@ class MySqlFuncts(DbDriver):
         values = defaultdict(list)
         for topic_id in topic_ids:
             args[0] = topic_id
+            values[id_name_map[topic_id]] = []
             real_query = query.format(where=where_statement,
                                       limit=limit_statement,
                                       offset=offset_statement,
@@ -287,13 +279,15 @@ class MySqlFuncts(DbDriver):
             _log.debug("Real Query: " + real_query)
             _log.debug("args: " + str(args))
 
-            rows = self.select(real_query, args)
-            if rows:
-                for _id, ts, value in rows:
+            cursor = self.select(real_query, args, fetch_all=False)
+            if cursor:
+                for _id, ts, value in cursor:
                     values[id_name_map[topic_id]].append(
                         (utils.format_timestamp(ts.replace(tzinfo=pytz.UTC)),
                          jsonapi.loads(value)))
-            _log.debug("query result values {}".format(values))
+
+            if cursor is not None:
+                cursor.close()
         return values
 
     def insert_meta_query(self):
@@ -329,7 +323,7 @@ class MySqlFuncts(DbDriver):
         return '''UPDATE ''' + self.agg_topics_table + ''' SET
         agg_topic_name = %s WHERE agg_topic_id = %s '''
 
-    def insert_agg_meta_stmt(self):
+    def replace_agg_meta_stmt(self):
         return '''REPLACE INTO ''' + self.agg_meta_table + ''' values(%s,
         %s)'''
 
@@ -384,7 +378,7 @@ class MySqlFuncts(DbDriver):
             else:
                 raise
 
-    def find_topics_by_pattern(self, topic_pattern):
+    def query_topics_by_pattern(self, topic_pattern):
         q = "SELECT topic_id, topic_name FROM " + self.topics_table + \
             " WHERE lower(topic_name) REGEXP lower('" + topic_pattern + "');"
 
@@ -392,7 +386,7 @@ class MySqlFuncts(DbDriver):
         _log.debug("loading topic map from db")
         id_map = dict()
         for t, n in rows:
-            id_map[n.lower()] = t
+            id_map[n] = t
         _log.debug("topics that matched the pattern {} : {}".format(
             topic_pattern, id_map))
         return id_map
@@ -413,7 +407,7 @@ class MySqlFuncts(DbDriver):
                    "value_string TEXT NOT NULL, topics_list TEXT," \
                    " UNIQUE(topic_id, ts)," \
                    "INDEX (ts ASC))"
-        return self.execute_stmt(stmt)
+        return self.execute_stmt(stmt, commit=True)
 
     def insert_aggregate_stmt(self, table_name):
         return '''REPLACE INTO ''' + table_name + \

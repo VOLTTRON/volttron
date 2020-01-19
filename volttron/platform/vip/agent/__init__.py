@@ -1,61 +1,40 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
-
-# Copyright (c) 2016, Battelle Memorial Institute
-# All rights reserved.
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
+# Copyright 2019, Battelle Memorial Institute.
 #
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in
-#    the documentation and/or other materials provided with the
-#    distribution.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# http://www.apache.org/licenses/LICENSE-2.0
 #
-# The views and conclusions contained in the software and documentation
-# are those of the authors and should not be interpreted as representing
-# official policies, either expressed or implied, of the FreeBSD
-# Project.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
-# This material was prepared as an account of work sponsored by an
-# agency of the United States Government.  Neither the United States
-# Government nor the United States Department of Energy, nor Battelle,
-# nor any of their employees, nor any jurisdiction or organization that
-# has cooperated in the development of these materials, makes any
-# warranty, express or implied, or assumes any legal liability or
-# responsibility for the accuracy, completeness, or usefulness or any
-# information, apparatus, product, software, or process disclosed, or
-# represents that its use would not infringe privately owned rights.
-#
-# Reference herein to any specific commercial product, process, or
-# service by trade name, trademark, manufacturer, or otherwise does not
-# necessarily constitute or imply its endorsement, recommendation, or
+# This material was prepared as an account of work sponsored by an agency of
+# the United States Government. Neither the United States Government nor the
+# United States Department of Energy, nor Battelle, nor any of their
+# employees, nor any jurisdiction or organization that has cooperated in the
+# development of these materials, makes any warranty, express or
+# implied, or assumes any legal liability or responsibility for the accuracy,
+# completeness, or usefulness or any information, apparatus, product,
+# software, or process disclosed, or represents that its use would not infringe
+# privately owned rights. Reference herein to any specific commercial product,
+# process, or service by trade name, trademark, manufacturer, or otherwise
+# does not necessarily constitute or imply its endorsement, recommendation, or
 # favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors
-# expressed herein do not necessarily state or reflect those of the
+# Battelle Memorial Institute. The views and opinions of authors expressed
+# herein do not necessarily state or reflect those of the
 # United States Government or any agency thereof.
 #
-# PACIFIC NORTHWEST NATIONAL LABORATORY
-# operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
+# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-
-from __future__ import absolute_import
 
 import os
 import logging as _log
@@ -74,14 +53,18 @@ class Agent(object):
     class Subsystems(object):
         def __init__(self, owner, core, heartbeat_autostart,
                      heartbeat_period, enable_store, enable_web,
-                     enable_channel):
+                     enable_channel, enable_fncs, message_bus):
             self.peerlist = PeerList(core)
             self.ping = Ping(core)
-            self.rpc = RPC(core, owner)
+            self.rpc = RPC(core, owner, self.peerlist)
             self.hello = Hello(core)
-            self.pubsub = PubSub(core, self.rpc, self.peerlist, owner)
-            if enable_channel:
-                self.channel = Channel(core)
+            if message_bus == 'rmq':
+                self.pubsub = RMQPubSub(core, self.rpc, self.peerlist, owner)
+            else:
+                self.pubsub = PubSub(core, self.rpc, self.peerlist, owner)
+                # Available only for ZMQ agents
+                if enable_channel:
+                    self.channel = Channel(core)
             self.health = Health(owner, core, self.rpc)
             self.heartbeat = Heartbeat(owner, core, self.rpc, self.pubsub,
                                        heartbeat_autostart, heartbeat_period)
@@ -90,6 +73,8 @@ class Agent(object):
             if enable_web:
                 self.web = WebSubSystem(owner, core, self.rpc)
             self.auth = Auth(owner, core, self.rpc)
+            if enable_fncs:
+                self.fncs = FNCS(owner, core, self.pubsub)
 
     def __init__(self, identity=None, address=None, context=None,
                  publickey=None, secretkey=None, serverkey=None,
@@ -97,28 +82,47 @@ class Agent(object):
                  volttron_home=os.path.abspath(platform.get_home()),
                  agent_uuid=None, enable_store=True,
                  enable_web=False, enable_channel=False,
-                 reconnect_interval=None, version='0.1'):
+                 reconnect_interval=None, version='0.1', enable_fncs=False,
+                 instance_name=None, message_bus=None,
+                 volttron_central_address=None, volttron_central_instance_name=None):
 
-        self._version = version
+        try:
+            self._version = version
 
-        if identity is not None and not is_valid_identity(identity):
-            _log.warn('Deprecation warning')
-            _log.warn(
-                'All characters in {identity} are not in the valid set.'.format(
-                    identity=identity))
+            if identity is not None and not is_valid_identity(identity):
+                _log.warning('Deprecation warning')
+                _log.warning(
+                    'All characters in {identity} are not in the valid set.'.format(
+                        identity=identity))
 
-        self.core = Core(self, identity=identity, address=address,
-                         context=context, publickey=publickey,
-                         secretkey=secretkey, serverkey=serverkey,
-                         volttron_home=volttron_home, agent_uuid=agent_uuid,
-                         reconnect_interval=reconnect_interval,
-                         version=version)
-
-        self.vip = Agent.Subsystems(self, self.core, heartbeat_autostart,
-                                    heartbeat_period, enable_store, enable_web,
-                                    enable_channel)
-        self.core.setup()
-        self.vip.rpc.export(self.core.version, 'agent.version')
+            if message_bus is not None and message_bus.lower() == 'rmq':
+                _log.debug("Creating RMQ Core {}".format(identity))
+                self.core = RMQCore(self, identity=identity, address=address,
+                                    context=context, publickey=publickey,
+                                    secretkey=secretkey, serverkey=serverkey,
+                                    instance_name=instance_name,
+                                    volttron_home=volttron_home, agent_uuid=agent_uuid,
+                                    reconnect_interval=reconnect_interval,
+                                    version=version,
+                                    volttron_central_address=volttron_central_address,
+                                    volttron_central_instance_name=volttron_central_instance_name)
+            else:
+                _log.debug("Creating ZMQ Core {}".format(identity))
+                self.core = ZMQCore(self, identity=identity, address=address,
+                                    context=context, publickey=publickey,
+                                    secretkey=secretkey, serverkey=serverkey,
+                                    instance_name=instance_name,
+                                    volttron_home=volttron_home, agent_uuid=agent_uuid,
+                                    reconnect_interval=reconnect_interval,
+                                    version=version, enable_fncs=enable_fncs)
+            self.vip = Agent.Subsystems(self, self.core, heartbeat_autostart,
+                                        heartbeat_period, enable_store, enable_web,
+                                        enable_channel, enable_fncs, message_bus)
+            self.core.setup()
+            self.vip.rpc.export(self.core.version, 'agent.version')
+        except Exception as e:
+            _log.exception("Exception creating Agent. {}".format(e))
+            raise e
 
 
 class BasicAgent(object):

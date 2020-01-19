@@ -1,51 +1,40 @@
-# Copyright (c) 2016, Battelle Memorial Institute
-# All rights reserved.
+# -*- coding: utf-8 -*- {{{
+# vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
+# Copyright 2019, Battelle Memorial Institute.
 #
-# 1. Redistributions of source code must retain the above copyright notice, this
-#    list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright notice,
-#    this list of conditions and the following disclaimer in the documentation
-#    and/or other materials provided with the distribution.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-# ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-# ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# http://www.apache.org/licenses/LICENSE-2.0
 #
-# The views and conclusions contained in the software and documentation are those
-# of the authors and should not be interpreted as representing official policies,
-# either expressed or implied, of the FreeBSD Project.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
-# This material was prepared as an account of work sponsored by an
-# agency of the United States Government.  Neither the United States
-# Government nor the United States Department of Energy, nor Battelle,
-# nor any of their employees, nor any jurisdiction or organization
-# that has cooperated in the development of these materials, makes
-# any warranty, express or implied, or assumes any legal liability
-# or responsibility for the accuracy, completeness, or usefulness or
-# any information, apparatus, product, software, or process disclosed,
-# or represents that its use would not infringe privately owned rights.
-#
-# Reference herein to any specific commercial product, process, or
-# service by trade name, trademark, manufacturer, or otherwise does
-# not necessarily constitute or imply its endorsement, recommendation,
-# r favoring by the United States Government or any agency thereof,
-# or Battelle Memorial Institute. The views and opinions of authors
-# expressed herein do not necessarily state or reflect those of the
+# This material was prepared as an account of work sponsored by an agency of
+# the United States Government. Neither the United States Government nor the
+# United States Department of Energy, nor Battelle, nor any of their
+# employees, nor any jurisdiction or organization that has cooperated in the
+# development of these materials, makes any warranty, express or
+# implied, or assumes any legal liability or responsibility for the accuracy,
+# completeness, or usefulness or any information, apparatus, product,
+# software, or process disclosed, or represents that its use would not infringe
+# privately owned rights. Reference herein to any specific commercial product,
+# process, or service by trade name, trademark, manufacturer, or otherwise
+# does not necessarily constitute or imply its endorsement, recommendation, or
+# favoring by the United States Government or any agency thereof, or
+# Battelle Memorial Institute. The views and opinions of authors expressed
+# herein do not necessarily state or reflect those of the
 # United States Government or any agency thereof.
 #
-# PACIFIC NORTHWEST NATIONAL LABORATORY
-# operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
+# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
+# }}}
 
 """
 ==================
@@ -97,7 +86,7 @@ These methods are required but can be implemented using the :py:class:`BasicReve
 - :py:meth:`BaseInterface.revert_all`
 
 Each point on the device must be represented by an instance of the
-:py:class:`BaseInterface`. Create one or more subclasses of :py:class:`BaseInterface`
+:py:class:`BaseRegister`. Create one or more subclasses of :py:class:`BaseRegister`
 as needed to represent the points on a device.
 
 
@@ -184,8 +173,10 @@ import logging
 
 _log = logging.getLogger(__name__)
 
+
 class DriverInterfaceError(Exception):
     pass
+
 
 class BaseRegister(object):
     """
@@ -247,8 +238,9 @@ class BaseRegister(object):
         :rtype: str
         """
         return self.description
-    
-class BaseInterface(object):
+
+
+class BaseInterface(object, metaclass=abc.ABCMeta):
     """
     Main class for implementing support for new devices.
 
@@ -258,9 +250,9 @@ class BaseInterface(object):
     :param core: A reference to the parent driver agent's core subsystem.
 
     """
-    __metaclass__ = abc.ABCMeta
     def __init__(self, vip=None, core=None, **kwargs):
-        super(BaseInterface, self).__init__(**kwargs)
+        # Object does not take any arguments to the init.
+        super(BaseInterface, self).__init__()
         self.vip = vip
         self.core = core
         
@@ -310,6 +302,14 @@ class BaseInterface(object):
         Get a list of register names.
         :return: List of names
         :rtype: list
+        """
+        return list(self.point_map.keys())
+
+    def get_register_names_view(self):
+        """
+        Get a dictview of register names.
+        :return: Dictview of names
+        :rtype: dictview
         """
         return self.point_map.keys()
         
@@ -467,7 +467,7 @@ class RevertTracker(object):
         :type points: dict
         """
         clean_values = {}
-        for k, v in points.iteritems():
+        for k, v in points.items():
             if k not in self.dirty_points and k not in self.defaults:
                 clean_values[k] = v
         self.clean_values.update(clean_values)
@@ -545,8 +545,9 @@ class RevertTracker(object):
                 results[point] = DriverInterfaceError()
             
         return results
-    
-class BasicRevert(object):
+
+
+class BasicRevert(object, metaclass=abc.ABCMeta):
     """
     A mixin that implements the :py:meth:`BaseInterface.revert_all`
     and :py:meth:`BaseInterface.revert_point` methods on an
@@ -572,7 +573,6 @@ class BasicRevert(object):
     should be set in the :py:meth:`BaseInterface.configure` call.
 
     """
-    __metaclass__ = abc.ABCMeta
     def __init__(self, **kwargs):
         super(BasicRevert, self).__init__(**kwargs)
         self._tracker = RevertTracker()
@@ -589,8 +589,7 @@ class BasicRevert(object):
         :type point: str
         """
         self._tracker.set_default(point, value)
-        
-    
+
     def set_point(self, point_name, value):
         """
         Implementation of :py:meth:`BaseInterface.set_point`
@@ -660,15 +659,14 @@ class BasicRevert(object):
         """
         """Revert entire device to it's default state"""
         points = self._tracker.get_all_revert_values()
-        for point_name, value in points.iteritems():
+        for point_name, value in points.items():
             if not isinstance(value, DriverInterfaceError):
                 try:
                     self._set_point(point_name, value)
                     self._tracker.clear_dirty_point(point_name)
                 except Exception as e:
                     _log.warning("Error while reverting point {}: {}".format(point_name, str(e)))
-                
-          
+
     def revert_point(self, point_name, **kwargs):
         """
         Implementation of :py:meth:`BaseInterface.revert_point`

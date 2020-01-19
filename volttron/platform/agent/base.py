@@ -1,63 +1,44 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
-
-# Copyright (c) 2016, Battelle Memorial Institute
-# All rights reserved.
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
+# Copyright 2019, Battelle Memorial Institute.
 #
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in
-#    the documentation and/or other materials provided with the
-#    distribution.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# http://www.apache.org/licenses/LICENSE-2.0
 #
-# The views and conclusions contained in the software and documentation
-# are those of the authors and should not be interpreted as representing
-# official policies, either expressed or implied, of the FreeBSD
-# Project.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
-# This material was prepared as an account of work sponsored by an
-# agency of the United States Government.  Neither the United States
-# Government nor the United States Department of Energy, nor Battelle,
-# nor any of their employees, nor any jurisdiction or organization that
-# has cooperated in the development of these materials, makes any
-# warranty, express or implied, or assumes any legal liability or
-# responsibility for the accuracy, completeness, or usefulness or any
-# information, apparatus, product, software, or process disclosed, or
-# represents that its use would not infringe privately owned rights.
-#
-# Reference herein to any specific commercial product, process, or
-# service by trade name, trademark, manufacturer, or otherwise does not
-# necessarily constitute or imply its endorsement, recommendation, or
+# This material was prepared as an account of work sponsored by an agency of
+# the United States Government. Neither the United States Government nor the
+# United States Department of Energy, nor Battelle, nor any of their
+# employees, nor any jurisdiction or organization that has cooperated in the
+# development of these materials, makes any warranty, express or
+# implied, or assumes any legal liability or responsibility for the accuracy,
+# completeness, or usefulness or any information, apparatus, product,
+# software, or process disclosed, or represents that its use would not infringe
+# privately owned rights. Reference herein to any specific commercial product,
+# process, or service by trade name, trademark, manufacturer, or otherwise
+# does not necessarily constitute or imply its endorsement, recommendation, or
 # favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors
-# expressed herein do not necessarily state or reflect those of the
+# Battelle Memorial Institute. The views and opinions of authors expressed
+# herein do not necessarily state or reflect those of the
 # United States Government or any agency thereof.
 #
-# PACIFIC NORTHWEST NATIONAL LABORATORY
-# operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
+# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-#}}}
+# }}}
 
 '''VOLTTRON platform™ base agent and helper classes/functions.'''
 
-from __future__ import absolute_import
+
 
 import random
 import string
@@ -65,21 +46,19 @@ import time as time_mod
 
 import zmq
 from zmq import POLLIN, POLLOUT
-from zmq.utils import jsonapi
-
-import monotonic as clock
 
 from . import sched
 from .matching import iter_match_tests
 from .. import messaging
 from ..messaging import topics
+from volttron.platform import jsonapi
 
 
 __all__ = ['periodic', 'BaseAgent', 'PublishMixin']
 
 __author__ = 'Brandon Carpenter <brandon.carpenter@pnnl.gov>'
 __copyright__ = 'Copyright (c) 2016, Battelle Memorial Institute'
-__license__ = 'FreeBSD'
+__license__ = 'Apache 2.0'
 min_compatible_version = '1'
 max_compatible_version = '2'
 
@@ -87,7 +66,7 @@ _COOKIE_CHARS = string.ascii_letters + string.digits
 
 
 def random_cookie(length=40, choices=_COOKIE_CHARS):
-    return ''.join(random.choice(choices) for i in xrange(length))
+    return ''.join(random.choice(choices) for i in range(length))
 
 
 def remove_matching(test, items):
@@ -303,7 +282,7 @@ class BaseAgent(AgentBase):
         potentially causing the wait time to slip a bit.
         '''
         elapsed = 0.0
-        mono_time = clock.monotonic()
+        mono_time = time_mod.monotonic()
         while True:
             wall_time = time_mod.time()
             self._mono.execute(mono_time)
@@ -315,7 +294,7 @@ class BaseAgent(AgentBase):
             events = self.reactor.poll(delay)
             if events:
                 return events
-            last_time, mono_time = mono_time, clock.monotonic()
+            last_time, mono_time = mono_time, time_mod.monotonic()
             elapsed += mono_time - last_time
             if timeout is not None and elapsed >= timeout:
                 return []
@@ -339,10 +318,10 @@ class BaseAgent(AgentBase):
         except zmq.error.Again:
             return
         try:
-            # Iterate over items() rather than iteritems() so that
+            # Iterate over list(x.items()) rather than items() so that
             # handlers may subscribe and unsubscribe, which changes
             # the size of the _subscriptions dictionary.
-            for prefix, handlers in self._subscriptions.items():
+            for prefix, handlers in list(self._subscriptions.items()):
                 if topic.startswith(prefix):
                     for callback, test in handlers:
                         if not callback:
@@ -405,7 +384,7 @@ class BaseAgent(AgentBase):
             if handlers:
                 remove_handler(prefix, handlers)
         else:
-            for prefix, handlers in self._subscriptions.items():
+            for prefix, handlers in list(self._subscriptions.items()):
                 remove_handler(prefix, handlers)
 
     def unsubscribe_all(self, prefix):
@@ -447,7 +426,7 @@ class BaseAgent(AgentBase):
         parameters or to cancel using the cancel() method.
         '''
         timer = sched.Event(function, args, kwargs)
-        self._mono.schedule(clock.monotonic() + interval, timer)
+        self._mono.schedule(time_mod.monotonic() + interval, timer)
         return timer
 
     def periodic_timer(self, period, function, *args, **kwargs):
@@ -457,7 +436,7 @@ class BaseAgent(AgentBase):
         rearmed after the function completes.
         '''
         timer = sched.RecurringEvent(period, function, args, kwargs)
-        self._mono.schedule(clock.monotonic() + period, timer)
+        self._mono.schedule(time_mod.monotonic() + period, timer)
         return timer
 
 
@@ -486,7 +465,7 @@ class PublishMixin(AgentBase):
 
     def ping_back(self, callback, timeout=None, period=1):
         if timeout is not None:
-            start = clock.monotonic()
+            start = time_mod.monotonic()
         ping = topics.AGENT_PING(cookie=random_cookie())
         state = {}
         def finish(success):
@@ -495,7 +474,7 @@ class PublishMixin(AgentBase):
             callback(success)
         def send_ping():
             if timeout is not None:
-                if (clock.monotonic() - start) >= timeout:
+                if (time_mod.monotonic() - start) >= timeout:
                     finish(False)
             self.publish(ping, {})
         def on_ping(topic, headers, msg, match):

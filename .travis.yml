@@ -1,45 +1,14 @@
-language: python
+language: python2.7
 
-matrix:
-  include:
-    #precise with ones that don't include dist
-    - python: "2.7.6"
-      env: TOXENV=py276Precise
-      sudo: required
+# Each array entry will execute 1 job.
+env:
+  - NUM_PROCESSES=10 CI="travis"
 
-    - python: "2.7.11"
-      env: TOXENV=py2711Precise
-      sudo: required
-      
-    - dist: trusty
-      env: TOXENV=py276Trusty
-      sudo: required
-      python: "2.7.6"
+services:
+  - docker
 
-    - dist: trusty
-      env: TOXENV=py2711Trusty
-      sudo: required
-      python: "2.7.11"
-      
-before_install:
-  - sudo apt-get update -qq
-  - sudo apt-get install -y build-essential python-dev openssl libssl-dev libevent-dev
-  - sudo bash -c "$(curl -L install.crate.io)"
-
-  #- ./services/core/MongodbHistorian/tests/mongosetup.sh
-
-install:
-  - python2 bootstrap.py
-  # Installs testing toolkit
-  #- python2 bootstrap.py --crate
-  - python2 bootstrap.py --testing
-
-script: ci-integration/run-tests.sh
+script: ci-integration/run-test-docker.sh
 
 notifications:
   slack: volttron-team:EgnBsUcQ98b75kU59tV8TnEa
 
-addons:
-  apt:
-    packages:
-        - oracle-java8-installer

@@ -4,6 +4,9 @@
 # 2. test database and test user should exist
 # 3. Test user should have all privileges on test database
 # 4. Refer to the dictionary object mysql_platform for the server configuration
+
+import ast
+import copy
 import sqlite3
 from datetime import datetime, timedelta
 
@@ -11,38 +14,64 @@ import gevent
 import pytest
 import re
 from dateutil.parser import parse
+
+from volttron.platform import get_services_core
 from volttron.platform.messaging import headers as headers_mod
 from volttron.platform.agent.known_identities import CONFIGURATION_STORE
+from volttron.platform.agent import utils
 
 AGG_AGENT_VIP = 'aggregate_agent'
 
 try:
     import mysql.connector as mysql
-
+    from mysql.connector import Error as MysqlError
+    from mysql.connector import errorcode as mysql_errorcodes
     HAS_MYSQL_CONNECTOR = True
 except:
     HAS_MYSQL_CONNECTOR = False
 
 try:
     import pymongo
-
     HAS_PYMONGO = True
 except:
     HAS_PYMONGO = False
+
+try:
+    import psycopg2
+    import psycopg2.errorcodes
+    from psycopg2 import sql as pgsql
+
+    HAS_POSTGRESQL = True
+except:
+    HAS_POSTGRESQL = False
+
+redshift_params = {}
+if HAS_POSTGRESQL:
+    try:
+        with open('redshift.params') as file:
+            redshift_params = ast.literal_eval(file.read(4096))
+    except (IOError, OSError):
+        pass
 
 mysql_skipif = pytest.mark.skipif(not HAS_MYSQL_CONNECTOR,
                                   reason='No mysql connector available')
 pymongo_skipif = pytest.mark.skipif(not HAS_PYMONGO,
                                     reason='No pymongo client available.')
+postgresql_skipif = pytest.mark.skipif(not HAS_POSTGRESQL,
+                                       reason='No psycopg2 client available')
+redshift_skipif = pytest.mark.skipif(
+    not redshift_params, reason='No {} available'.format(
+        'redshift params' if HAS_POSTGRESQL else 'psycopg2 client'))
 
 # table_defs with prefix
 sqlite_aggregator = {
-    "source_historian": "services/core/SQLHistorian",
-    "source_agg_historian": "services/core/SQLAggregateHistorian",
+    "source_historian": get_services_core("SQLHistorian"),
+    "source_agg_historian": get_services_core("SQLAggregateHistorian"),
     "connection": {
         "type": "sqlite",
         "params": {
-            "database": 'test.sqlite'
+            "database": 'test.sqlite',
+            "timeout":15
         }
     },
     "tables_def": {
@@ -58,9 +87,9 @@ sqlite_aggregator = {
 
 # table_defs with prefix
 mysql_aggregator = {
-    "source_historian": "services/core/SQLHistorian",
-    "source_agg_historian": "services/core/SQLAggregateHistorian",
-    "agent_id": "test",
+    "source_historian": get_services_core("SQLHistorian"),
+    "source_agg_historian": get_services_core("SQLAggregateHistorian"),
+    "agentid": "test",
     "connection": {
         "type": "mysql",
         "params": {
@@ -74,8 +103,8 @@ mysql_aggregator = {
 }
 
 mongo_aggregator = {
-    "source_historian": "services/core/MongodbHistorian",
-    "source_agg_historian": "services/core/MongodbAggregateHistorian",
+    "source_historian": get_services_core("MongodbHistorian"),
+    "source_agg_historian": get_services_core("MongodbAggregateHistorian"),
     "connection": {
         "type": "mongodb",
         "params": {
@@ -86,6 +115,30 @@ mongo_aggregator = {
             "passwd": "test"
         }
     }
+}
+
+postgresql_aggregator = {
+    'source_historian': get_services_core('SQLHistorian'),
+    "source_agg_historian": get_services_core("SQLAggregateHistorian"),
+    'connection': {
+        'type': 'postgresql',
+        'params': {
+            'dbname': 'historian_test',
+            'port': 5433,
+            'host': '127.0.0.1',
+            'user' : 'historian',
+            'password': 'volttron'
+        },
+    },
+}
+
+redshift_aggregator = {
+    'source_historian': get_services_core('SQLHistorian'),
+    "source_agg_historian": get_services_core("SQLAggregateHistorian"),
+    'connection': {
+        'type': 'postgresql',
+        'params': redshift_params,
+    },
 }
 
 offset = timedelta(seconds=3)
@@ -99,11 +152,16 @@ def setup_mysql(connection_params, table_names):
     db_connection = mysql.connect(**connection_params)
     # clean up any rows from older runs
     cursor = db_connection.cursor()
-    cursor.execute("DELETE FROM " + table_names['data_table'])
-    cursor.execute("DELETE FROM " + table_names['topics_table'])
-    cursor.execute("DELETE FROM " + table_names['meta_table'])
-    cursor.execute("DELETE FROM " + table_names['agg_topics_table'])
-    cursor.execute("DELETE FROM " + table_names['agg_meta_table'])
+    for t in (table_names['data_table'], table_names['topics_table'],
+              table_names['meta_table'],table_names['agg_topics_table'],
+              table_names['agg_meta_table']):
+        try:
+            cursor.execute("DELETE FROM " + t)
+        except MysqlError as err:
+            if err.errno == mysql_errorcodes.ER_NO_SUCH_TABLE:
+                continue
+            else:
+                raise
     db_connection.commit()
     return db_connection
 
@@ -132,6 +190,22 @@ def setup_mongodb(connection_params, table_names):
     db[table_names['agg_meta_table']].remove()
     return db
 
+def setup_postgresql(connection_params, table_names):
+    print("setup postgresql", connection_params, table_names)
+    connection = psycopg2.connect(**connection_params)
+    connection.autocommit = True
+    prefix = table_names.get('table_prefix')
+    fmt = (prefix + '_{}' if prefix else '{}').format
+    truncate_tables = [fmt(name) for id_, name in table_names.items()
+                       if id_ != 'table_prefix' and name]
+    truncate_tables.append(fmt('volttron_table_definitions'))
+    try:
+        cleanup_postgresql(connection, truncate_tables)
+    except Exception as exc:
+        print('Error truncating existing tables: {}'.format(exc))
+    return connection
+
+setup_redshift = setup_postgresql
 
 def cleanup_sql(db_connection, truncate_tables):
     cursor = db_connection.cursor()
@@ -152,6 +226,20 @@ def cleanup_mysql(db_connection, truncate_tables):
 def cleanup_mongodb(db_connection, truncate_tables):
     for collection in truncate_tables:
         db_connection[collection].remove()
+
+def cleanup_postgresql(connection, truncate_tables):
+    print('cleanup_postgreql({!r}, {!r})'.format(connection, truncate_tables))
+    for table in truncate_tables:
+        with connection.cursor() as cursor:
+            try:
+                cursor.execute(pgsql.SQL('TRUNCATE TABLE {}').format(
+                    pgsql.Identifier(table)))
+            except psycopg2.ProgrammingError as exc:
+                if exc.pgcode != psycopg2.errorcodes.UNDEFINED_TABLE:
+                    raise
+                print("Error truncating {!r} table: {}".format(table, exc))
+
+cleanup_redshift = cleanup_postgresql
 
 
 def get_table_names(config):
@@ -187,16 +275,18 @@ def publish_test_data(publish_agent, start_time, start_reading, count):
 
     float_meta = {'units': 'F', 'tz': 'UTC', 'type': 'float'}
     for i in range(0, count):
-        print("publishing reading {} at time {}".format(reading,
-                                                        time.isoformat()))
+        #print("publishing reading {} at time {}".format(reading,
+        #                                                time.isoformat()))
         # Create a message for all points.
         all_message = [{'in_temp': reading,
                         'out_temp': reading},
                        {'in_temp': float_meta,
                         'out_temp': float_meta
                         }]
+        time_str = utils.format_timestamp(time)
         headers = {
-            headers_mod.DATE: time.isoformat()
+            headers_mod.DATE: time_str,
+            headers_mod.TIMESTAMP: time_str
         }
         publish_agent.vip.pubsub.publish('pubsub',
                                          "devices/device1/all",
@@ -237,7 +327,8 @@ def get_expected_sum(query_agent, topic, end_time, minutes_delta):
 def query_agent(request, volttron_instance):
     # 1: Start a fake fake_agent to query the sqlhistorian in volttron_instance
     fake_agent = volttron_instance.build_agent()
-
+    capabilities = {'edit_config_store': {'identity': AGG_AGENT_VIP}}
+    volttron_instance.add_capabilities(fake_agent.core.publickey, capabilities)
     # 2: add a tear down method to stop sqlhistorian fake_agent and the fake
     # fake_agent that published to message bus
     def stop_agent():
@@ -251,15 +342,18 @@ def query_agent(request, volttron_instance):
 # Fixtures for setup and teardown of sqlhistorian agent and aggregation agent
 @pytest.fixture(scope="module",
                 params=[
-                    mysql_skipif(mysql_aggregator),
+                    pytest.param(mysql_aggregator, marks=mysql_skipif),
                     sqlite_aggregator,
-                    pymongo_skipif(mongo_aggregator)
+                    pytest.param(mongo_aggregator, marks=pymongo_skipif),
+                    pytest.param(postgresql_aggregator, marks=postgresql_skipif),
+                    pytest.param(redshift_aggregator, marks=redshift_skipif),
                 ])
 def aggregate_agent(request, volttron_instance):
     global db_connection, table_names, connection_type
     print("** Setting up test_sqlhistorian module **")
 
     # Fix sqlite db path
+    # request.param = sqlite_aggregator
     print("request param", request.param)
     connection_type = request.param['connection']['type']
     if connection_type == 'sqlite':
@@ -270,33 +364,39 @@ def aggregate_agent(request, volttron_instance):
     # Set this hear so that we can create these table after connecting to db
     table_names = get_table_names(request.param)
 
+    print ("request.param -- {}".format(request.param))
+
     # 2: Open db connection that can be used for row deletes after
-    # each test method. Create tables
+    # each test method. Clean up old tables if any
     function_name = "setup_" + connection_type
     try:
         setup_function = globals()[function_name]
         db_connection = setup_function(request.param['connection']['params'],
                                        table_names)
     except NameError:
-        pytest.fail(msg="No setup method({}) found for connection type {} "
-                    .format(function_name, connection_type))
+        pytest.fail(
+            msg="No setup method({}) found for connection type {} ".format(
+                function_name, connection_type))
 
-    print ("request.param -- {}".format(request.param))
-    # 2. Install agents - sqlhistorian, sqlaggregatehistorian
+    # 3. Install agents - sqlhistorian, sqlaggregatehistorian
+    temp_config = copy.copy(request.param)
+    source = temp_config.pop('source_historian')
+    source_agg = temp_config.pop('source_agg_historian')
     historian_uuid = volttron_instance.install_agent(
         vip_identity='platform.historian',
-        agent_dir=request.param['source_historian'],
-        config_file=request.param,
+        agent_dir=source,
+        config_file=temp_config,
         start=True)
     print("agent id: ", historian_uuid)
-
     agg_agent_uuid = volttron_instance.install_agent(
-        agent_dir=request.param["source_agg_historian"],
-        config_file={},
+        agent_dir=source_agg,
+        config_file=request.param,
         vip_identity=AGG_AGENT_VIP,
         start=True)
+    request.param['source_historian'] = source
+    request.param['source_agg_historian'] = source_agg
 
-    # 3: add a tear down method to stop sqlhistorian agent and the fake
+    # 4: add a tear down method to stop sqlhistorian agent and the fake
     # agent that published to message bus
     def stop_agent():
         print("In teardown method of aggregate agent")
@@ -306,7 +406,8 @@ def aggregate_agent(request, volttron_instance):
         if volttron_instance.is_running():
             volttron_instance.remove_agent(historian_uuid)
             volttron_instance.remove_agent(agg_agent_uuid)
-
+        request.param['source_historian'] = source
+        request.param['source_agg_historian'] = source_agg
     request.addfinalizer(stop_agent)
     return request.param
 
@@ -321,30 +422,16 @@ def cleanup(connection_type, truncate_tables):
 
 
 @pytest.mark.aggregator
-@pytest.mark.skipif("True", "4.1 need to fix")
 def test_get_supported_aggregations(aggregate_agent, query_agent):
     """
     :param aggregate_agent: the aggregate historian configuration
     :param query_agent: fake agent used to query historian
     :return:
     """
-    # aggregate_agent['aggregations'] = [
-    #     {"aggregation_period": "1m",
-    #      "use_calendar_time_periods": True,
-    #      "points": [
-    #          {
-    #              "topic_name_pattern": "device1/out_.*",
-    #              "aggregation_topic_name": "device1/outsidetemp_aggregate",
-    #              "aggregation_type": "sum",
-    #              "min_count": 2
-    #          }
-    #      ]
-    #      }
-    # ]
     query_agent.vip.rpc.call(CONFIGURATION_STORE, "manage_store",
                              AGG_AGENT_VIP, "config",
                              aggregate_agent).get()
-
+    gevent.sleep(1)
     print('Aggregation agent: {}'.format(
         aggregate_agent.get('connection').get('type')
     ))
@@ -353,7 +440,7 @@ def test_get_supported_aggregations(aggregate_agent, query_agent):
         'get_supported_aggregations').get(timeout=10)
 
     assert result
-    print result
+    print (result)
     conn = aggregate_agent.get("connection")
     if conn:
         if conn.get("type") == "mysql":
@@ -370,7 +457,6 @@ def test_get_supported_aggregations(aggregate_agent, query_agent):
 
 
 @pytest.mark.aggregator
-@pytest.mark.skipif("True", "4.1 need to fix")
 def test_single_topic_pattern(aggregate_agent, query_agent):
     """
     Test the basic functionality of aggregate historian when aggregating a
@@ -396,10 +482,11 @@ def test_single_topic_pattern(aggregate_agent, query_agent):
     # Publish fake data.
     start_time = datetime.utcnow() - timedelta(minutes=2)
     publish_test_data(query_agent, start_time, 0, 10)
-    gevent.sleep(0.5)
+    gevent.sleep(1)
     try:
-
-        aggregate_agent['aggregations'] = [
+        # Changing request param would mess up parameterized test runs, so make a copy
+        new_config = copy.copy(aggregate_agent)
+        new_config['aggregations'] = [
             {"aggregation_period": "1m",
              "use_calendar_time_periods": True,
              "points": [
@@ -420,8 +507,8 @@ def test_single_topic_pattern(aggregate_agent, query_agent):
         ]
         query_agent.vip.rpc.call(CONFIGURATION_STORE, "manage_store",
                                  AGG_AGENT_VIP, "config",
-                                 aggregate_agent).get()
-
+                                 new_config).get()
+        gevent.sleep(1)
         result1 = query_agent.vip.rpc.call(
             'platform.historian',
             'query',
@@ -472,9 +559,8 @@ def test_single_topic_pattern(aggregate_agent, query_agent):
         cleanup(aggregate_agent['connection']['type'], ['sum_1m'])
 
 
-@pytest.mark.timeout(180)
+@pytest.mark.timeout(400)
 @pytest.mark.aggregator
-@pytest.mark.skipif("True", "4.1 need to fix")
 def test_single_topic(aggregate_agent, query_agent):
     """
     Test the basic functionality of aggregate historian when aggregating a
@@ -499,7 +585,8 @@ def test_single_topic(aggregate_agent, query_agent):
     publish_test_data(query_agent, start_time, 0, 30)
     gevent.sleep(0.5)
     try:
-        aggregate_agent['aggregations'] = [
+        new_config = copy.copy(aggregate_agent)
+        new_config['aggregations'] = [
             {
                 "aggregation_period": "1m",
                 "use_calendar_time_periods": True,
@@ -523,8 +610,8 @@ def test_single_topic(aggregate_agent, query_agent):
         ]
         query_agent.vip.rpc.call(CONFIGURATION_STORE, "manage_store",
                                  AGG_AGENT_VIP, "config",
-                                 aggregate_agent).get()
-        gevent.sleep(2.5 * 60)  # sleep till we see two rows in aggregate table
+                                 new_config).get()
+        gevent.sleep(3 * 60)  # sleep till we see two rows in aggregate table
 
         result1 = query_agent.vip.rpc.call(
             'platform.historian',
@@ -555,7 +642,7 @@ def test_single_topic(aggregate_agent, query_agent):
 
         diff = compute_timediff_seconds(result2['values'][1][0],
                                         result2['values'][0][0])
-        assert diff == 60
+        assert diff == 1*60
 
         assert (result1['metadata']) == (result2['metadata']) == \
             {'units': 'F', 'tz': 'UTC', 'type': 'float'}
@@ -654,7 +741,6 @@ def compute_timediff_seconds(time1_str, time2_str):
 
 
 @pytest.mark.aggregator
-@pytest.mark.skipif("True", "4.1 need to fix")
 def test_multiple_topic_pattern(aggregate_agent, query_agent):
     """
     Test aggregate historian when aggregating across multiple topics
@@ -680,8 +766,8 @@ def test_multiple_topic_pattern(aggregate_agent, query_agent):
     publish_test_data(query_agent, start_time, 0, 10)
     gevent.sleep(0.5)
     try:
-
-        aggregate_agent['aggregations'] = [
+        new_config = copy.copy(aggregate_agent)
+        new_config['aggregations'] = [
             {"aggregation_period": "1m",
              "use_calendar_time_periods": True,
              "points": [
@@ -697,8 +783,8 @@ def test_multiple_topic_pattern(aggregate_agent, query_agent):
 
         query_agent.vip.rpc.call(CONFIGURATION_STORE, "manage_store",
                                  AGG_AGENT_VIP, "config",
-                                 aggregate_agent).get()
-
+                                 new_config).get()
+        gevent.sleep(1)
         result1 = query_agent.vip.rpc.call(
             'platform.historian',
             'query',
@@ -734,7 +820,6 @@ def test_multiple_topic_pattern(aggregate_agent, query_agent):
 
 
 @pytest.mark.aggregator
-@pytest.mark.skipif("True", "4.1 need to fix")
 def test_multiple_topic_list(aggregate_agent, query_agent):
     """
     Test aggregate historian when aggregating across multiple topics
@@ -754,8 +839,8 @@ def test_multiple_topic_list(aggregate_agent, query_agent):
     publish_test_data(query_agent, start_time, 0, 5)
     gevent.sleep(0.5)
     try:
-
-        aggregate_agent['aggregations'] = [
+        new_config = copy.copy(aggregate_agent)
+        new_config['aggregations'] = [
             {"aggregation_period": "1m",
              "use_calendar_time_periods": True,
              "points": [
@@ -771,8 +856,8 @@ def test_multiple_topic_list(aggregate_agent, query_agent):
 
         query_agent.vip.rpc.call(CONFIGURATION_STORE, "manage_store",
                                  AGG_AGENT_VIP, "config",
-                                 aggregate_agent).get()
-
+                                 new_config).get()
+        gevent.sleep(1)
         result1 = query_agent.vip.rpc.call('platform.historian',
                                            'query',
                                            topic='device1/all2',
@@ -807,8 +892,8 @@ def test_multiple_topic_list(aggregate_agent, query_agent):
         cleanup(aggregate_agent['connection']['type'], ['sum_1m'])
 
 
+@pytest.mark.timeout(180)
 @pytest.mark.aggregator
-@pytest.mark.skipif("True", "4.1 need to fix")
 def test_topic_reconfiguration(aggregate_agent, query_agent):
     """
     Test aggregate historian when topic names/topic pattern is updated and
@@ -829,9 +914,10 @@ def test_topic_reconfiguration(aggregate_agent, query_agent):
 
     try:
         start_time = datetime.utcnow() - timedelta(minutes=2)
-        publish_test_data(query_agent, start_time, 0, 5)
+        publish_test_data(query_agent, start_time, 0, 3)
         gevent.sleep(0.5)
-        aggregate_agent['aggregations'] = [
+        new_config = copy.copy(aggregate_agent)
+        new_config['aggregations'] = [
             {"aggregation_period": "1m",
              "use_calendar_time_periods": True,
              "points": [
@@ -847,8 +933,8 @@ def test_topic_reconfiguration(aggregate_agent, query_agent):
 
         query_agent.vip.rpc.call(CONFIGURATION_STORE, "manage_store",
                                  AGG_AGENT_VIP, "config",
-                                 aggregate_agent).get()
-
+                                 new_config).get()
+        gevent.sleep(2)
         result1 = query_agent.vip.rpc.call(
             'platform.historian',
             'query',
@@ -868,7 +954,7 @@ def test_topic_reconfiguration(aggregate_agent, query_agent):
 
         assert (result1['metadata']) == {}
 
-        # Query if all four aggregate topics have been recorded into db
+        # Query if aggregate topic has been recorded into db
         result = query_agent.vip.rpc.call('platform.historian',
                                           'get_aggregate_topics').get(10)
         print("agg topic list {}".format(result))
@@ -885,16 +971,18 @@ def test_topic_reconfiguration(aggregate_agent, query_agent):
         publish_test_data(query_agent, start_time, 0, 5)
 
         # Update topic names
-        aggregate_agent['aggregations'][0]["points"][0]["topic_names"] = \
+        new_config['aggregations'][0]["points"][0]["topic_names"] = \
             ["device1/out_temp"]
+        new_config['aggregations'][0]["points"][0]["min_count"] = 1
+
         print("Before reinstall current time is {}".format(datetime.utcnow()))
 
         query_agent.vip.rpc.call(CONFIGURATION_STORE, "manage_store",
                                  AGG_AGENT_VIP, "config",
-                                 aggregate_agent).get()
+                                 new_config).get()
 
         print ("After configure\n\n")
-        gevent.sleep(2)
+        gevent.sleep(3)
 
         result1 = query_agent.vip.rpc.call(
             'platform.historian',

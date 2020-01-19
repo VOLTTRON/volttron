@@ -1,62 +1,43 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
-
-# Copyright (c) 2016, Battelle Memorial Institute
-# All rights reserved.
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
+# Copyright 2019, Battelle Memorial Institute.
 #
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in
-#    the documentation and/or other materials provided with the
-#    distribution.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# http://www.apache.org/licenses/LICENSE-2.0
 #
-# The views and conclusions contained in the software and documentation
-# are those of the authors and should not be interpreted as representing
-# official policies, either expressed or implied, of the FreeBSD
-# Project.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
-# This material was prepared as an account of work sponsored by an
-# agency of the United States Government.  Neither the United States
-# Government nor the United States Department of Energy, nor Battelle,
-# nor any of their employees, nor any jurisdiction or organization that
-# has cooperated in the development of these materials, makes any
-# warranty, express or implied, or assumes any legal liability or
-# responsibility for the accuracy, completeness, or usefulness or any
-# information, apparatus, product, software, or process disclosed, or
-# represents that its use would not infringe privately owned rights.
-#
-# Reference herein to any specific commercial product, process, or
-# service by trade name, trademark, manufacturer, or otherwise does not
-# necessarily constitute or imply its endorsement, recommendation, or
+# This material was prepared as an account of work sponsored by an agency of
+# the United States Government. Neither the United States Government nor the
+# United States Department of Energy, nor Battelle, nor any of their
+# employees, nor any jurisdiction or organization that has cooperated in the
+# development of these materials, makes any warranty, express or
+# implied, or assumes any legal liability or responsibility for the accuracy,
+# completeness, or usefulness or any information, apparatus, product,
+# software, or process disclosed, or represents that its use would not infringe
+# privately owned rights. Reference herein to any specific commercial product,
+# process, or service by trade name, trademark, manufacturer, or otherwise
+# does not necessarily constitute or imply its endorsement, recommendation, or
 # favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors
-# expressed herein do not necessarily state or reflect those of the
+# Battelle Memorial Institute. The views and opinions of authors expressed
+# herein do not necessarily state or reflect those of the
 # United States Government or any agency thereof.
 #
-# PACIFIC NORTHWEST NATIONAL LABORATORY
-# operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
+# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
 
 import logging
-import urlparse
+import urllib.parse
 import uuid
 import os
 
@@ -74,16 +55,18 @@ __author__ = 'Craig Allwardt <craig.allwardt@pnnl.gov>'
 
 DEFAULT_TIMEOUT = 30
 
+
 class Connection(object):
     """ A class that manages a connection to a peer and/or server.
 
     """
     def __init__(self, address, peer=None, publickey=None,
-                 secretkey=None, serverkey=None, volttron_home=None, **kwargs):
+                 secretkey=None, serverkey=None, volttron_home=None,
+                 instance_name=None, message_bus=None, **kwargs):
 
         self._log = logging.getLogger(__name__)
-        self._log.debug("Connection: {}, {}, {}, {}, {}"
-                   .format(address, peer, publickey, secretkey, serverkey))
+        self._log.debug("Connection: {}, {}, {}, {}, {}, {}"
+                   .format(address, peer, publickey, secretkey, serverkey, message_bus))
         self._address = address
         self._peer = peer
         self._serverkey = None
@@ -97,9 +80,9 @@ class Connection(object):
         if address.startswith('ipc'):
             full_address = address
         else:
-            parsed = urlparse.urlparse(address)
+            parsed = urllib.parse.urlparse(address)
             if parsed.scheme == 'tcp':
-                qs = urlparse.parse_qs(parsed.query)
+                qs = urllib.parse.parse_qs(parsed.query)
                 self._log.debug('QS IS: {}'.format(qs))
                 if 'serverkey' in qs:
                     self._serverkey = qs.get('serverkey')
@@ -107,8 +90,8 @@ class Connection(object):
                     self._serverkey = serverkey
 
                 # Handle case when the address has all the information in it.
-                if 'serverkey' in qs.keys() and 'publickey' in qs.keys() and \
-                                'secretkey' in qs.keys():
+                if 'serverkey' in qs and 'publickey' in qs and \
+                                'secretkey' in qs:
                     full_address = address
                 else:
                     full_address = build_vip_address_string(
@@ -125,6 +108,8 @@ class Connection(object):
                              volttron_home=self.volttron_home,
                              enable_store=False,
                              reconnect_interval=1000,
+                             instance_name=instance_name,
+                             message_bus=message_bus,
                              **kwargs)
         # TODO the following should work as well, but doesn't.  Not sure why!
         # self._server = Agent(address=address, serverkey=serverkey,
@@ -136,6 +121,7 @@ class Connection(object):
         self._last_publish = None
         self._last_publish_failed = False
         self._last_rpc_call = None
+
         # Make the actual attempt to connect to the server.
         self.is_connected()
 

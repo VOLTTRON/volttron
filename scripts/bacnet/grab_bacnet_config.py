@@ -1,68 +1,49 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
-
-# Copyright (c) 2016, Battelle Memorial Institute
-# All rights reserved.
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
+# Copyright 2019, Battelle Memorial Institute.
 #
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in
-#    the documentation and/or other materials provided with the
-#    distribution.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# http://www.apache.org/licenses/LICENSE-2.0
 #
-# The views and conclusions contained in the software and documentation
-# are those of the authors and should not be interpreted as representing
-# official policies, either expressed or implied, of the FreeBSD
-# Project.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
-# This material was prepared as an account of work sponsored by an
-# agency of the United States Government.  Neither the United States
-# Government nor the United States Department of Energy, nor Battelle,
-# nor any of their employees, nor any jurisdiction or organization that
-# has cooperated in the development of these materials, makes any
-# warranty, express or implied, or assumes any legal liability or
-# responsibility for the accuracy, completeness, or usefulness or any
-# information, apparatus, product, software, or process disclosed, or
-# represents that its use would not infringe privately owned rights.
-#
-# Reference herein to any specific commercial product, process, or
-# service by trade name, trademark, manufacturer, or otherwise does not
-# necessarily constitute or imply its endorsement, recommendation, or
+# This material was prepared as an account of work sponsored by an agency of
+# the United States Government. Neither the United States Government nor the
+# United States Department of Energy, nor Battelle, nor any of their
+# employees, nor any jurisdiction or organization that has cooperated in the
+# development of these materials, makes any warranty, express or
+# implied, or assumes any legal liability or responsibility for the accuracy,
+# completeness, or usefulness or any information, apparatus, product,
+# software, or process disclosed, or represents that its use would not infringe
+# privately owned rights. Reference herein to any specific commercial product,
+# process, or service by trade name, trademark, manufacturer, or otherwise
+# does not necessarily constitute or imply its endorsement, recommendation, or
 # favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors
-# expressed herein do not necessarily state or reflect those of the
+# Battelle Memorial Institute. The views and opinions of authors expressed
+# herein do not necessarily state or reflect those of the
 # United States Government or any agency thereof.
 #
-# PACIFIC NORTHWEST NATIONAL LABORATORY
-# operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
+# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-#}}}
+# }}}
 
 import sys
 import argparse
 import traceback
 from csv import DictWriter
-import json
 from os.path import basename
 from bacpypes.debugging import bacpypes_debugging, ModuleLogger
-from bacpypes.app import LocalDeviceObject, BIPSimpleApplication
+from bacpypes.app import BIPSimpleApplication
+from bacpypes.service.device import LocalDeviceObject
 from bacpypes.consolelogging import ConfigArgumentParser
 from bacpypes.pdu import Address, GlobalBroadcast
 from bacpypes.core import run, stop
@@ -72,6 +53,7 @@ from bacpypes.task import TaskManager
 from bacpypes.object import get_datatype, get_object_class, DeviceObject
 from bacpypes.primitivedata import Enumerated, Unsigned, Boolean, Integer, Real, Double
 from bacpypes.constructeddata import Array
+from volttron.platform import jsonapi
 
 """
 Simple utility to scrape device registers and write them to a configuration file.
@@ -243,7 +225,7 @@ def process_object(app, address, obj_type, index, max_range_report, config_write
     
     if issubclass(present_value_type, Enumerated):
         object_units = 'Enum'
-        values=present_value_type.enumerations.values()
+        values=list(present_value_type.enumerations.values())
         min_value = min(values)
         max_value = max(values)
         
@@ -326,7 +308,7 @@ def process_object(app, address, obj_type, index, max_range_report, config_write
         except:
             _log.debug(traceback.format_exc())
             
-        if isinstance(object_units, (int, long)):
+        if isinstance(object_units, int):
             object_units = 'UNKNOWN UNIT ENUM VALUE: ' + str(object_units)
             
         if obj_type.startswith('analog') or obj_type in ('largeAnalogValue', 'integerValue', 'positiveIntegerValue'):
@@ -464,7 +446,7 @@ def main():
         "registry_config":"config://registry_configs/{}".format(config_file_name)
     }
 
-    json.dump(config, args.driver_out_file,indent=4)
+    jsonapi.dump(config, args.driver_out_file, indent=4)
     
     try:
         device_name = read_prop(this_application, target_address, "device", device_id, "objectName")
@@ -504,7 +486,7 @@ def main():
     
     _log.debug('objectCount = ' + str(objectCount))
     
-    for object_index in xrange(1,objectCount+1):
+    for object_index in range(1,objectCount+1):
         _log.debug('object_device_index = ' + repr(object_index))
         
         bac_object = read_prop(this_application, 
@@ -526,7 +508,7 @@ def main():
         
 try:
     main()
-except Exception, e:
+except Exception as e:
     _log.exception("an error has occurred: %s", e)
 finally:
     _log.debug("finally")

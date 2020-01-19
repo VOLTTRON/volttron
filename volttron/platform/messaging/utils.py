@@ -1,70 +1,51 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
-
-# Copyright (c) 2016, Battelle Memorial Institute
-# All rights reserved.
-# 
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met: 
-# 
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer. 
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in
-#    the documentation and/or other materials provided with the
-#    distribution. 
-# 
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-# 
-# The views and conclusions contained in the software and documentation
-# are those of the authors and should not be interpreted as representing
-# official policies, either expressed or implied, of the FreeBSD
-# Project.
 #
-# This material was prepared as an account of work sponsored by an
-# agency of the United States Government.  Neither the United States
-# Government nor the United States Department of Energy, nor Battelle,
-# nor any of their employees, nor any jurisdiction or organization that
-# has cooperated in the development of these materials, makes any
-# warranty, express or implied, or assumes any legal liability or
-# responsibility for the accuracy, completeness, or usefulness or any
-# information, apparatus, product, software, or process disclosed, or
-# represents that its use would not infringe privately owned rights.
-# 
-# Reference herein to any specific commercial product, process, or
-# service by trade name, trademark, manufacturer, or otherwise does not
-# necessarily constitute or imply its endorsement, recommendation, or
+# Copyright 2019, Battelle Memorial Institute.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# This material was prepared as an account of work sponsored by an agency of
+# the United States Government. Neither the United States Government nor the
+# United States Department of Energy, nor Battelle, nor any of their
+# employees, nor any jurisdiction or organization that has cooperated in the
+# development of these materials, makes any warranty, express or
+# implied, or assumes any legal liability or responsibility for the accuracy,
+# completeness, or usefulness or any information, apparatus, product,
+# software, or process disclosed, or represents that its use would not infringe
+# privately owned rights. Reference herein to any specific commercial product,
+# process, or service by trade name, trademark, manufacturer, or otherwise
+# does not necessarily constitute or imply its endorsement, recommendation, or
 # favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors
-# expressed herein do not necessarily state or reflect those of the
+# Battelle Memorial Institute. The views and opinions of authors expressed
+# herein do not necessarily state or reflect those of the
 # United States Government or any agency thereof.
-# 
-# PACIFIC NORTHWEST NATIONAL LABORATORY
-# operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+#
+# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
+# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-#}}}
+# }}}
 
 '''VOLTTRON platform™ messaging utilities.'''
 
-from string import Formatter
+from string import _string, Formatter
 
 
 __all__ = ['normtopic', 'Topic']
 
 __author__ = 'Brandon Carpenter <brandon.carpenter@pnnl.gov>'
 __copyright__ = 'Copyright (c) 2016, Battelle Memorial Institute'
-__license__ = 'FreeBSD'
+__license__ = 'Apache 2.0'
 
 
 def normtopic(topic):
@@ -79,7 +60,7 @@ def normtopic(topic):
             comps.pop()
         else:
             comps.append(comp)
-    return (u'/' if isinstance(topic, unicode) else '/').join(comps)
+    return '/'.join(comps)
 
 
 class TopicFormatter(Formatter):
@@ -112,7 +93,7 @@ class TopicFormatter(Formatter):
     See the Formatter documentation for the built-in string module for
     more information on formatters and the role of each method.
     '''
-    def _vformat(self, format_string, args, kwargs, used_args, recursion_depth):
+    def _vformat(self, format_string, args, kwargs, used_args, recursion_depth, auto_arg_index=0):
         if recursion_depth < 0:
             raise ValueError('maximum string recursion exceeded')
         result = []
@@ -147,11 +128,11 @@ class TopicFormatter(Formatter):
                         ':' if format_spec else '', format_spec or '')
             else:
                 obj = self.convert_field(obj, conversion)
-                format_spec = self._vformat(format_spec, args, kwargs,
+                format_spec, auto_arg_index = self._vformat(format_spec, args, kwargs,
                                             used_args, recursion_depth - 1)
                 obj = self.format_field(obj, format_spec)
             result.append(obj)
-        return ''.join(result)
+        return ''.join(result), auto_arg_index
 
     def check_unused_args(self, used_args, args, kwargs):
         for name in kwargs:
@@ -159,15 +140,15 @@ class TopicFormatter(Formatter):
                 raise ValueError('unused keyword argument: {}'.format(name))
 
 
-class Topic(unicode):
+class Topic(str):
 
     def __init__(self, format_string):
         '''Perform minimal validation of names used in format fields.'''
-        for _, name, _, _ in format_string._formatter_parser():
+        for _, name, _, _ in _string.formatter_parser(format_string):
             if name is None:
                 continue
-            name, _ = name._formatter_field_name_split()
-            if isinstance(name, (int, long)) or not name:
+            name, _ = _string.formatter_field_name_split(name)
+            if isinstance(name, int) or not name:
                 raise ValueError('positional format fields are not supported;'
                                  ' use named format fields only')
             if name[:1].isdigit():

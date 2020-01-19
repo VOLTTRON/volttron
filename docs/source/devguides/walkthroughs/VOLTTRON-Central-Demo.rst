@@ -50,41 +50,83 @@ This helps us keep from losing terminal windows or duplicating work.
 One of our instances will have a VOLTTRON Central agent. We will install a
 platform agent and a historian on all three platforms.
 
-Run `volttron-cfg` in the first shell. This command will ask how the instance
+Run `vcfg` in the first shell. This command will ask how the instance
 should be set up. Many of the options have defaults that will be sufficient.
 When asked if this instance is a VOLTTRON Central enter `y`. Read through the
 options and use the enter key to accept default options. There are no default
-credentials for VOLTTRON Central.
+credentials for VOLTTRON Central. You can have it install the agents 
+at this time. Below is an example configuration. In this case, username is user
+and localhost is volttron-pc.
 
-|VC Config|
+ .. code-block:: console
 
-Continue by configuring the the platform agent and installing the historian.
-The platform agent is installed if you accept the default `y` when asked if
-the instance will be controlled by a VOLTTRON Central. If you kept the
-VOLTTRON Central defaults then no changes need to be made to the platform agent.
-There are no options for the historian.
+        (volttron)user@volttron-pc:~/volttron$ vcfg
+
+        Your VOLTTRON_HOME currently set to: /home/user/.volttron1
+
+        Is this the volttron you are attempting to setup? [Y]: 
+        What type of message bus (rmq/zmq)? [zmq]: 
+        What is the vip address? [tcp://127.0.0.1]: 
+        What is the port for the vip address? [22916]: 
+        Is this instance web enabled? [N]: y
+        What is the protocol for this instance? [https]: 
+        Web address set to: https://volttron-pc
+        What is the port for this instance? [8443]: 
+        Would you like to generate a new web certificate? [Y]: 
+        WARNING! CA certificate does not exist.
+        Create new root CA? [Y]: 
+
+        Please enter the following details for web server certificate:
+                Country: [US]: 
+                State: WA
+                Location: Richland
+                Organization: PNNL
+                Organization Unit: VOLTTRON
+        Created CA cert
+        Creating new web server certificate.
+        Is this an instance of volttron central? [N]: y
+        Configuring /home/user/volttron/services/core/VolttronCentral.
+        Enter volttron central admin user name: <your volttron central admin username here>
+        Enter volttron central admin password: <your volttron central admin password here>
+        Retype password: <retype your volttron central admin password here>
+        Installing volttron central.
+        Should the agent autostart? [N]: y
+        Will this instance be controlled by volttron central? [Y]: y
+        Configuring /home/user/volttron/services/core/VolttronCentralPlatform.
+        What is the name of this instance? [volttron1]: 
+        Volttron central address set to https://volttron-pc:8443 
+        Should the agent autostart? [N]: y
+        Would you like to install a platform historian? [N]: y
+        Configuring /home/user/volttron/services/core/SQLHistorian.
+        Should the agent autostart? [N]: y
+        Would you like to install a master driver? [N]: y
+        Configuring /home/user/volttron/services/core/MasterDriverAgent.
+        Would you like to install a fake device on the master driver? [N]: y
+        Should the agent autostart? [N]: y
+        Would you like to install a listener agent? [N]: y
+        Configuring examples/ListenerAgent.
+        Should the agent autostart? [N]: y
+        Finished configuration!
+
+        You can now start the volttron instance.
+
+        If you need to change the instance configuration you can edit
+        the config file is at /home/user/.volttron1/config
+
+        (volttron)user@volttron-pc:~/volttron$ 
+
 
 VOLTTRON Central needs to accept the connecting instances'
 public keys. For this example we'll allow any CURVE credentials to be accepted.
-After `starting <#starting-the-demo>`__, the command **volttron-ctl auth add** will prompt the user for
+After `starting <#starting-the-demo>`__, the command **vctl auth add** will prompt the user for
 information about how the credentials should be used. We can simply hit Enter
 to select defaults on all fields except **credentials**, where we will type
 `/.*/`
 
 .. code-block:: console
 
-   $ volttron-ctl auth add
-   domain []:
-   address []:
-   user_id []:
-   capabilities (delimit multiple entries with comma) []:
-   roles (delimit multiple entries with comma) []:
-   groups (delimit multiple entries with comma) []:
-   mechanism [CURVE]:
-   credentials []: /.*/
-   comments []:
-   enabled [True]:
-   added entry domain=None, address=None, mechanism='CURVE', credentials=u'/.*/', user_id=None
+   $ vctl auth add --credentials "/.*/"
+   added entry domain=None, address=None, mechanism='CURVE', credentials=u'/.*/', user_id='63b126a7-2941-4ebe-8588-711d1e6c70d1'
 
 For more information on authorization see :ref:`authentication<VIP-Authentication>`.
 
@@ -92,15 +134,46 @@ Remote Platform Configuration
 -----------------------------
 
 The next step is to configure the instances that will connect to VOLTTRON
-Central. In the second and third terminal windows run `volttron-cfg`. Like
+Central. In the second and third terminal windows run `vcfg`. Like
 the VOLTTRON\_HOME variable, these instances need to have unique addresses.
 
 Install a platform agent and a historian as before. Since we used the default
 options when configuring VOLTTRON Central, we can use the default options when
-configuring these platform agents as well.
+configuring these platform agents as well. The configuration will be a little
+different.
 
-|Platform Config|
 
+ .. code-block:: console
+
+         (volttron)user@volttron-pc:~/volttron$ vcfg
+         
+         Your VOLTTRON_HOME currently set to: /home/user/.volttron2 
+         
+         Is this the volttron you are attempting to setup? [Y]:
+         What type of message bus (rmq/zmq)? [zmq]: 
+         What is the vip address? [tcp://127.0.0.1]: tcp://127.0.0.2
+         What is the port for the vip address? [22916]: 
+         Is this instance web enabled? [N]: 
+         Is this an instance of volttron central? [N]: 
+         Will this instance be controlled by volttron central? [Y]: y
+         Configuring /home/user/volttron/services/core/VolttronCentralPlatform.
+         What is the name of this instance? [volttron1]: 
+         What is the hostname for volttron central? [https://volttron-pc]: 
+         What is the port for volttron central? [8443]: 
+         Should the agent autostart? [N]: y
+         Would you like to install a platform historian? [N]: y
+         Configuring /home/user/volttron/services/core/SQLHistorian.
+         Should the agent autostart? [N]: y
+         Would you like to install a master driver? [N]: 
+         Would you like to install a listener agent? [N]: 
+         Finished configuration!
+
+         You can now start the volttron instance.
+
+         If you need to change the instance configuration you can edit
+         the config file is at /home/user/.volttron2/config
+
+         (volttron)user@volttron-pc:~/volttron$ 
 
 Starting the Demo
 -----------------
@@ -113,12 +186,13 @@ should be different for each instance.
 
     $ volttron -l log1&
 
-If you choose to not start your agents with their platforms they will need to
-be started by hand. List the installed agents with
+.. note:: If you choose to not start your agents with their platforms they will need to be started by hand.  
+
+List the installed agents with
 
 .. code-block:: console
 
-    $ volttron-ctl status
+    $ vctl status
 
 A portion of each agent's uuid makes up the leftmost column of the status
 output. This is all that is needed to start or stop the agent. If any
@@ -127,17 +201,28 @@ to identify it.
 
 .. code-block:: console
 
-    $ volttron-ctl start uuid
+    $ vctl start uuid
 
 or
 
 .. code-block:: console
 
-    $ volttron-ctl start --tag tag
+    $ vctl start --tag tag
 
-Now point your browser to `localhost:8080` and and log in with the credentials
-you provided. The platform agents should automatically register with VOLTTRON
-central.
+.. note:: 
+
+        In each of the above examples one could use * suffix to match more 
+        than one agent.
+
+Open your browser to `localhost:8443/vc/index.hmtl` and and log in with the
+credentials you provided. The platform agents should be automatically register
+with VOLTTRON central.
+
+.. note::
+
+        localhost is the local host of your machine. In the above examples,
+        this was volttron-pc.
+
 
 Stopping the Demo
 -----------------
@@ -148,7 +233,7 @@ command in each terminal window.
 
 .. code-block:: console
 
-    $ volttron-ctl shutdown --platform
+    $ vctl shutdown --platform
 
 Once the demo is complete you may wish to see the
 :ref:`VOLTTRON Central Management Agent <VOLTTRON-Central>` page for more
@@ -157,8 +242,7 @@ details on how to configure the agent for your specific use case.
 Log In
 ------
 
-To log in to VOLTTRON Central, navigate in a browser to localhost:8080,
-and enter the user name and password on the login screen.
+To log in to VOLTTRON Central, navigate in a browser to localhost:8443/vc/index.html, and enter the user name and password on the login screen.
 
 |Login Screen|
 
@@ -234,21 +318,6 @@ of its agents. The platform's name is a link that can be clicked on
 to go to the platform management view.
 
 |Platforms|
-
-Register New Platform
----------------------
-
-To register a new VOLTTRON platform, click the Register Platform button.
-You'll need to provide a name and the IP address of the platform. Click
-the Advanced link for additional configuration options.
-
-|Register Platform Information|
-
-Deregister Platform
--------------------
-
-To deregister a VOLTTRON Platform, click on the X button for that platform
-in the list.
 
 Platform View
 ~~~~~~~~~~~~~
@@ -351,7 +420,6 @@ removes it from the Charts page and the Dashboard.
 .. |Login Screen| image:: files/login-screen.png
 .. |Logout Button| image:: files/logout-button.png
 .. |Platforms| image:: files/platforms.png
-.. |Register Platform Information| image:: files/register-new-platform.png
 .. |Platform Screen| image:: files/manage-platforms.png
 .. |Platforms Tree| image:: files/side-panel-open.png
 .. |Platforms Panel| image:: files/side-panel-closed.png

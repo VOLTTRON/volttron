@@ -21,5 +21,5 @@ for x in ids_dicts:
     count = count + db.data.find(
         {"topic_id":x['_id'],
          "ts":{"$gte":s_dt, "$lt":e_dt}}).count()
-print count
+print (count)
 print ("time taken: {}".format(datetime.datetime.now()-start))

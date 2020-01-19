@@ -1,6 +1,6 @@
 from crate import client
 import os
-from zmq.utils import jsonapi
+from volttron.platform import jsonapi
 
 root = os.path.dirname(os.path.abspath(__file__))
 with open('{}/crate_config'.format(root), 'r') as fp:
@@ -27,7 +27,7 @@ for t in tables:
 
         cursor.execute("DROP TABLE {}".format(full_table_name))
     except Exception as ex:
-        print(ex.message)
+        print(ex)
 
 cursor.close()
 conn.close()

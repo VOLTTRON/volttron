@@ -1,83 +1,66 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
-
-# Copyright (c) 2016, Battelle Memorial Institute
-# All rights reserved.
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
+# Copyright 2019, Battelle Memorial Institute.
 #
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in
-#    the documentation and/or other materials provided with the
-#    distribution.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# http://www.apache.org/licenses/LICENSE-2.0
 #
-# The views and conclusions contained in the software and documentation
-# are those of the authors and should not be interpreted as representing
-# official policies, either expressed or implied, of the FreeBSD
-# Project.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
-# This material was prepared as an account of work sponsored by an
-# agency of the United States Government.  Neither the United States
-# Government nor the United States Department of Energy, nor Battelle,
-# nor any of their employees, nor any jurisdiction or organization that
-# has cooperated in the development of these materials, makes any
-# warranty, express or implied, or assumes any legal liability or
-# responsibility for the accuracy, completeness, or usefulness or any
-# information, apparatus, product, software, or process disclosed, or
-# represents that its use would not infringe privately owned rights.
-#
-# Reference herein to any specific commercial product, process, or
-# service by trade name, trademark, manufacturer, or otherwise does not
-# necessarily constitute or imply its endorsement, recommendation, or
+# This material was prepared as an account of work sponsored by an agency of
+# the United States Government. Neither the United States Government nor the
+# United States Department of Energy, nor Battelle, nor any of their
+# employees, nor any jurisdiction or organization that has cooperated in the
+# development of these materials, makes any warranty, express or
+# implied, or assumes any legal liability or responsibility for the accuracy,
+# completeness, or usefulness or any information, apparatus, product,
+# software, or process disclosed, or represents that its use would not infringe
+# privately owned rights. Reference herein to any specific commercial product,
+# process, or service by trade name, trademark, manufacturer, or otherwise
+# does not necessarily constitute or imply its endorsement, recommendation, or
 # favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors
-# expressed herein do not necessarily state or reflect those of the
+# Battelle Memorial Institute. The views and opinions of authors expressed
+# herein do not necessarily state or reflect those of the
 # United States Government or any agency thereof.
 #
-# PACIFIC NORTHWEST NATIONAL LABORATORY
-# operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
+# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
 
-import json
 import os
 
 import gevent
 import pytest
-from py.test import raises
+from pytest import raises
 
-from volttron.platform import jsonrpc
 from volttron.platform.auth import (AuthEntry, AuthFile, AuthFileIndexError,
                                     AuthFileEntryAlreadyExists,
                                     AuthFileUserIdAlreadyExists,
                                     AuthEntryInvalid)
 from volttrontesting.platform.auth_control_test import assert_auth_entries_same
-
+from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM, CONTROL
+from volttron.platform import jsonapi
 
 @pytest.fixture(scope='function')
-def auth_file_platform_tuple(volttron_instance_encrypt):
-    platform = volttron_instance_encrypt
+def auth_file_platform_tuple(volttron_instance):
+    platform = volttron_instance
     auth_file = AuthFile(os.path.join(platform.volttron_home, 'auth.json'))
-
-    allow_entries, groups, roles = auth_file.read()
     gevent.sleep(0.5)
-    return auth_file, platform
+    yield auth_file, platform
+
+    allow_entries = auth_file.read_allow_entries()
+
+    auth_file.remove_by_indices(list(range(3, len(allow_entries))))
+    gevent.sleep(0.5)
 
 
 @pytest.fixture(scope='module')
@@ -136,15 +119,15 @@ def test_auth_file_api(auth_file_platform_tuple, auth_entry1,
     auth_file.add(auth_entry2)
     entries = auth_file.read_allow_entries()
     entries_len = len(entries)
-    assert entries_len >= 2
+    assert entries_len == 5
 
     # update entries
-    auth_file.update_by_index(auth_entry3, 0)
+    auth_file.update_by_index(auth_entry3, entries_len-2)
     entries = auth_file.read_allow_entries()
     assert entries_len == len(entries)
 
     # remove entries
-    auth_file.remove_by_index(1)
+    auth_file.remove_by_index(entries_len-1)
     entries = auth_file.read_allow_entries()
     assert entries_len - 1 == len(entries)
 
@@ -172,14 +155,16 @@ def test_remove_auth_by_credentials(auth_file_platform_tuple, auth_entry1,
 def test_remove_invalid_index(auth_file_platform_tuple):
     auth_file, _ = auth_file_platform_tuple
     with pytest.raises(AuthFileIndexError):
-        auth_file.remove_by_index(2)
+        # by default will have 3 entries - platform, control and dynamic_agent created by platform wrapper
+        auth_file.remove_by_index(3)
 
 
 @pytest.mark.auth
 def test_update_invalid_index(auth_file_platform_tuple, auth_entry1):
     auth_file, _ = auth_file_platform_tuple
     with pytest.raises(AuthFileIndexError):
-        auth_file.update_by_index(auth_entry1, 2)
+        # by default will have 3 entries - platform, control and dynamic_agent created by platform wrapper
+        auth_file.update_by_index(auth_entry1, 3)
 
 
 @pytest.mark.auth
@@ -249,7 +234,7 @@ def test_groups_and_roles(auth_file_platform_tuple):
 
 
 @pytest.mark.auth
-def test_upgrade_file_verison_0_to_1_1(tmpdir_factory):
+def test_upgrade_file_verison_0_to_1_2(tmpdir_factory):
     mechanism = "CURVE"
     publickey = "A" * 43
     version0 = {
@@ -276,7 +261,7 @@ def test_upgrade_file_verison_0_to_1_1(tmpdir_factory):
 
     filename = str(tmpdir_factory.mktemp('auth_test').join('auth.json'))
     with open(filename, 'w') as fp:
-        fp.write(json.dumps(version0, indent=2))
+        fp.write(jsonapi.dumps(version0, indent=2))
 
     upgraded = AuthFile(filename)
     entries, groups, roles = upgraded.read()
@@ -287,11 +272,13 @@ def test_upgrade_file_verison_0_to_1_1(tmpdir_factory):
     expected = version0['allow'][0]
     expected["credentials"] = publickey
     expected["mechanism"] = mechanism
+    expected["capabilities"] = {'can_publish_temperature': None,
+                                'edit_config_store': {'identity': entries[0].user_id}}
     assert_auth_entries_same(expected, vars(entries[0]))
 
 
 @pytest.mark.auth
-def test_upgrade_file_verison_0_to_1_1_minimum_entries(tmpdir_factory):
+def test_upgrade_file_verison_0_to_1_2_minimum_entries(tmpdir_factory):
     """The only required field in 'version 0' was credentials"""
     mechanism = "CURVE"
     publickey = "A" * 43
@@ -301,7 +288,7 @@ def test_upgrade_file_verison_0_to_1_1_minimum_entries(tmpdir_factory):
 
     filename = str(tmpdir_factory.mktemp('auth_test').join('auth.json'))
     with open(filename, 'w') as fp:
-        fp.write(json.dumps(version0, indent=2))
+        fp.write(jsonapi.dumps(version0, indent=2))
 
     upgraded = AuthFile(filename)
     entries = upgraded.read()[0]
@@ -313,10 +300,102 @@ def test_upgrade_file_verison_0_to_1_1_minimum_entries(tmpdir_factory):
     expected["mechanism"] = mechanism
     expected["domain"] = None
     expected["address"] = None
-    expected["user_id"] = entries[0].user_id # this will be a UUID
+    expected["user_id"] = entries[0].user_id #this will be a UUID
     expected["enabled"] = True
     expected["comments"] = None
-    expected["capabilities"] = []
+    expected["capabilities"] = {'edit_config_store': {'identity': entries[0].user_id}}
     expected["roles"] = []
     expected["groups"] = []
     assert_auth_entries_same(expected, vars(entries[0]))
+
+
+@pytest.mark.auth
+def test_upgrade_file_version_1_1_to_1_2(tmpdir_factory):
+    """The only required field in 'version 0' was credentials"""
+
+    version1_1 = {
+      "roles":{
+        "manager":[
+          "can_managed_platform"
+        ]
+      },
+      "version":{
+        "major":1,
+        "minor":1
+      },
+      "groups":{
+        "admin":[
+          "reader",
+          "writer"
+        ]
+      },
+      "allow":[
+        {
+          "domain":"vip",
+          "user_id":"user1",
+          "roles":[],
+          "enabled":True,
+          "mechanism":"CURVE",
+          "capabilities":["can_publish_temperature"],
+          "groups":[],
+          "address":"127.0.0.1",
+          "credentials":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+          "comments":"This is a test entry"
+        },
+        {
+          "domain": "vip",
+          "user_id": "user2",
+          "roles": [],
+          "enabled": True,
+          "mechanism": "CURVE",
+          "capabilities": ["blah", "foo"],
+          "groups": [],
+          "address": "127.0.0.1",
+          "credentials": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+          "comments": "This is a test entry"
+        },
+        {
+          "domain": "vip",
+          "user_id": CONTROL,
+          "roles": [],
+          "enabled": True,
+          "mechanism": "CURVE",
+          "capabilities": [],
+          "groups": [],
+          "address": "127.0.0.1",
+          "credentials": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+          "comments": "This is a test entry"
+        },
+        {
+          "domain": "vip",
+          "user_id": VOLTTRON_CENTRAL_PLATFORM,
+          "roles": [],
+          "enabled": True,
+          "mechanism": "CURVE",
+          "capabilities": [],
+          "groups": [],
+          "address": "127.0.0.1",
+          "credentials": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+          "comments": "This is a test entry"
+        }
+
+      ]
+    }
+
+    filename = str(tmpdir_factory.mktemp('auth_test').join('auth.json'))
+    with open(filename, 'w') as fp:
+        fp.write(jsonapi.dumps(version1_1, indent=2))
+
+    upgraded = AuthFile(filename)
+    entries = upgraded.read()[0]
+    assert len(entries) == 4
+    for entry in entries:
+        if entry.user_id in [CONTROL, VOLTTRON_CENTRAL_PLATFORM]:
+            assert entry.capabilities == {'edit_config_store': {'identity': '/.*/'}}
+        elif entry.user_id == "user1":
+            assert entry.capabilities == {'can_publish_temperature': None,
+                                           'edit_config_store': {'identity': 'user1'}}
+        elif entry.user_id == "user2":
+            assert entry.capabilities == {'blah': None, 'foo': None,
+                                          'edit_config_store': {'identity': 'user2'}}
+

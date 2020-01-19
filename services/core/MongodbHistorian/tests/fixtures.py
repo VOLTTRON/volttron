@@ -20,7 +20,7 @@ mongo_platform = {
 }
 
 
-@pytest.fixture
+# @pytest.fixture
 def mongo_connection_string():
     mongo_conn_str = 'mongodb://{user}:{passwd}@{host}:{port}/{database}'
     params = mongo_connection_params()
@@ -28,12 +28,12 @@ def mongo_connection_string():
     return mongo_conn_str
 
 
-@pytest.fixture
+# @pytest.fixture
 def mongo_agent_config():
     return mongo_platform
 
 
-@pytest.fixture
+# @pytest.fixture
 def mongo_connection_params():
     global mongo_platform
     mongo_params = mongo_platform['connection']['params']

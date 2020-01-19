@@ -4,15 +4,13 @@ Example Agents Overview
 Some example agents are included with the platform to help explore its
 features.
 
--  `Data Publisher <Data-Publisher>`__
--  `Listener <ListenerAgent.html>`__
--  `Ping-Pong <PingPongAgent.html>`__
--  `Non-Python agents <ProcessAgent>`__
--  `Scheduling Example <SchedulerExampleAgent.html>`__
--  `Weather <WeatherAgent>`__
--  `Multi-Node <MultiNodeExample>`__
--  `CAgent <CAgent.html>`__
--  `DDSAgent <DDSAgent>`__
+-  :ref:`DataPublisher`
+-  :ref:`ListenerAgent`
+-  :ref:`ProcessAgent`
+-  :ref:`SchedulerExampleAgent`
+-  :ref:`CAgent`
+-  :ref:`DDSAgent`
+-  :ref:`CSVHistorian`
 
 More complex agents contributed by other researchers can also be found
 in the examples directory. It is recommended that developers new to

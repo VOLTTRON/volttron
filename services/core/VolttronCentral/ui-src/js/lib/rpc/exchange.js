@@ -46,7 +46,7 @@ function RpcExchange(request, redactedParams) {
 
     exchange.promise = new xhr.Request({
         method: 'POST',
-        url: '/jsonrpc',
+        url: './jsonrpc',
         contentType: 'application/json',
         data: data,
         timeout: 60000,

@@ -1,65 +1,51 @@
-# Copyright (c) 2016, Battelle Memorial Institute
-# All rights reserved.
+# -*- coding: utf-8 -*- {{{
+# vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
+# Copyright 2019, Battelle Memorial Institute.
 #
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in
-#    the documentation and/or other materials provided with the
-#    distribution.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# http://www.apache.org/licenses/LICENSE-2.0
 #
-# The views and conclusions contained in the software and documentation
-# are those of the authors and should not be interpreted as representing
-# official policies, either expressed or implied, of the FreeBSD
-# Project.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
-# This material was prepared as an account of work sponsored by an
-# agency of the United States Government.  Neither the United States
-# Government nor the United States Department of Energy, nor Battelle,
-# nor any of their employees, nor any jurisdiction or organization that
-# has cooperated in the development of these materials, makes any
-# warranty, express or implied, or assumes any legal liability or
-# responsibility for the accuracy, completeness, or usefulness or any
-# information, apparatus, product, software, or process disclosed, or
-# represents that its use would not infringe privately owned rights.
-#
-# Reference herein to any specific commercial product, process, or
-# service by trade name, trademark, manufacturer, or otherwise does not
-# necessarily constitute or imply its endorsement, recommendation, or
+# This material was prepared as an account of work sponsored by an agency of
+# the United States Government. Neither the United States Government nor the
+# United States Department of Energy, nor Battelle, nor any of their
+# employees, nor any jurisdiction or organization that has cooperated in the
+# development of these materials, makes any warranty, express or
+# implied, or assumes any legal liability or responsibility for the accuracy,
+# completeness, or usefulness or any information, apparatus, product,
+# software, or process disclosed, or represents that its use would not infringe
+# privately owned rights. Reference herein to any specific commercial product,
+# process, or service by trade name, trademark, manufacturer, or otherwise
+# does not necessarily constitute or imply its endorsement, recommendation, or
 # favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors
-# expressed herein do not necessarily state or reflect those of the
+# Battelle Memorial Institute. The views and opinions of authors expressed
+# herein do not necessarily state or reflect those of the
 # United States Government or any agency thereof.
 #
-# PACIFIC NORTHWEST NATIONAL LABORATORY
-# operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
+# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-
+# }}}
 
 import os
 import weakref
 from datetime import datetime
 
 from .base import SubsystemBase
-from volttron.platform.messaging.headers import DATE
+from volttron.platform.messaging.headers import TIMESTAMP
 from volttron.platform.agent.utils import (get_aware_utc_now,
                                            format_timestamp)
+from volttron.platform.scheduling import periodic
+from ..errors import Unreachable, VIPError
 
 """The heartbeat subsystem adds an optional periodic publish to all agents.
 Heartbeats can be started with agents and toggled on and off at runtime.
@@ -79,6 +65,7 @@ class Heartbeat(SubsystemBase):
         self.autostart = heartbeat_autostart
         self.period = heartbeat_period
         self.enabled = False
+        self.connect_error = False
 
         def onsetup(sender, **kwargs):
             rpc.export(self.start, 'heartbeat.start')
@@ -93,6 +80,7 @@ class Heartbeat(SubsystemBase):
 
         core.onsetup.connect(onsetup, self)
         core.onstart.connect(onstart, self)
+        core.onconnected.connect(self.reconnect)
 
     def start(self):
         """RPC method
@@ -100,7 +88,7 @@ class Heartbeat(SubsystemBase):
         Starts an agent's heartbeat.
         """
         if not self.enabled:
-            self.greenlet = self.core().periodic(self.period, self.publish)
+            self.scheduled = self.core().schedule(periodic(self.period), self.publish)
             self.enabled = True
 
     def start_with_period(self, period):
@@ -113,13 +101,23 @@ class Heartbeat(SubsystemBase):
         self.set_period(period)
         self.start()
 
+    def reconnect(self, sender, **kwargs):
+        if self.connect_error:
+            self.restart()
+            self.connect_error = False
+
     def stop(self):
         """RPC method
 
         Stop an agent's heartbeat.
         """
         if self.enabled:
-            self.greenlet.kill()
+            # Trap the fact that scheduled may not have been
+            # set yet if the start hasn't been called.
+            try:
+                self.scheduled.cancel()
+            except AttributeError:
+                pass
             self.enabled = False
 
     def restart(self):
@@ -147,7 +145,11 @@ class Heartbeat(SubsystemBase):
 
     def publish(self):
         topic = 'heartbeat/' + self.core().identity
-        headers = {DATE: format_timestamp(get_aware_utc_now())}
-        message = self.owner.vip.health.get_status()
+        headers = {TIMESTAMP: format_timestamp(get_aware_utc_now())}
+        message = self.owner.vip.health.get_status_value()
+        try:
+            self.pubsub().publish('pubsub', topic, headers, message)
+        except Unreachable as exc:
+            self.connect_error = True
+            self.stop()
 
-        self.pubsub().publish('pubsub', topic, headers, message)

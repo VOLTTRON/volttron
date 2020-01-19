@@ -1,82 +1,67 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright (c) 2016, Battelle Memorial Institute
-# All rights reserved.
+# Copyright 2019, Battelle Memorial Institute.
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# 1. Redistributions of source code must retain the above copyright notice, this
-#    list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright notice,
-#    this list of conditions and the following disclaimer in the documentation
-#    and/or other materials provided with the distribution.
+# http://www.apache.org/licenses/LICENSE-2.0
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-# ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-# ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
-# The views and conclusions contained in the software and documentation are those
-# of the authors and should not be interpreted as representing official policies,
-# either expressed or implied, of the FreeBSD Project.
-#
-
-# This material was prepared as an account of work sponsored by an
-# agency of the United States Government.  Neither the United States
-# Government nor the United States Department of Energy, nor Battelle,
-# nor any of their employees, nor any jurisdiction or organization
-# that has cooperated in the development of these materials, makes
-# any warranty, express or implied, or assumes any legal liability
-# or responsibility for the accuracy, completeness, or usefulness or
-# any information, apparatus, product, software, or process disclosed,
-# or represents that its use would not infringe privately owned rights.
-#
-# Reference herein to any specific commercial product, process, or
-# service by trade name, trademark, manufacturer, or otherwise does
-# not necessarily constitute or imply its endorsement, recommendation,
-# r favoring by the United States Government or any agency thereof,
-# or Battelle Memorial Institute. The views and opinions of authors
-# expressed herein do not necessarily state or reflect those of the
+# This material was prepared as an account of work sponsored by an agency of
+# the United States Government. Neither the United States Government nor the
+# United States Department of Energy, nor Battelle, nor any of their
+# employees, nor any jurisdiction or organization that has cooperated in the
+# development of these materials, makes any warranty, express or
+# implied, or assumes any legal liability or responsibility for the accuracy,
+# completeness, or usefulness or any information, apparatus, product,
+# software, or process disclosed, or represents that its use would not infringe
+# privately owned rights. Reference herein to any specific commercial product,
+# process, or service by trade name, trademark, manufacturer, or otherwise
+# does not necessarily constitute or imply its endorsement, recommendation, or
+# favoring by the United States Government or any agency thereof, or
+# Battelle Memorial Institute. The views and opinions of authors expressed
+# herein do not necessarily state or reflect those of the
 # United States Government or any agency thereof.
 #
-# PACIFIC NORTHWEST NATIONAL LABORATORY
-# operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
+# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-
-#}}}
+# }}}
 
 import logging
 import sys
-import os
 import gevent
+from collections import defaultdict
 from volttron.platform.vip.agent import Agent, Core, RPC
 from volttron.platform.agent import utils
 from volttron.platform.agent import math_utils
 from volttron.platform.agent.known_identities import PLATFORM_DRIVER
-from driver import DriverAgent
+from .driver import DriverAgent
 import resource
 from datetime import datetime, timedelta
 import bisect
 import fnmatch
-from zmq.utils import jsonapi
-from interfaces import DriverInterfaceError
-from driver_locks import configure_socket_lock, configure_publish_lock
+from volttron.platform import jsonapi
+from .interfaces import DriverInterfaceError
+from .driver_locks import configure_socket_lock, configure_publish_lock
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-__version__ = '3.1.1'
+__version__ = '4.0'
+
 
 class OverrideError(DriverInterfaceError):
     """Error raised when the user tries to set/revert point when global override is set."""
     pass
+
 
 def master_driver_agent(config_path, **kwargs):
 
@@ -87,7 +72,6 @@ def master_driver_agent(config_path, **kwargs):
             return kwargs.pop(name)
         except KeyError:
             return config.get(name, default)
-        
 
     # Increase open files resource limit to max or 8192 if unlimited
     system_socket_limit = None
@@ -126,13 +110,16 @@ def master_driver_agent(config_path, **kwargs):
         _log.warning('Use the script "scripts/update_master_driver_config.py" to convert the configuration.')
 
     publish_depth_first_all = bool(get_config("publish_depth_first_all", True))
-    publish_breadth_first_all = bool(get_config("publish_breadth_first_all", True))
-    publish_depth_first = bool(get_config("publish_depth_first", True))
-    publish_breadth_first = bool(get_config("publish_breadth_first", True))
+    publish_breadth_first_all = bool(get_config("publish_breadth_first_all", False))
+    publish_depth_first = bool(get_config("publish_depth_first", False))
+    publish_breadth_first = bool(get_config("publish_breadth_first", False))
+
+    group_offset_interval = get_config("group_offset_interval", 0.0)
 
     return MasterDriverAgent(driver_config_list, scalability_test,
                              scalability_test_iterations,
                              driver_scrape_interval,
+                             group_offset_interval,
                              max_open_sockets,
                              max_concurrent_publishes,
                              system_socket_limit,
@@ -142,17 +129,19 @@ def master_driver_agent(config_path, **kwargs):
                              publish_breadth_first,
                              heartbeat_autostart=True, **kwargs)
 
+
 class MasterDriverAgent(Agent):
     def __init__(self, driver_config_list, scalability_test = False,
                  scalability_test_iterations = 3,
                  driver_scrape_interval = 0.02,
+                 group_offset_interval = 0.0,
                  max_open_sockets = None,
                  max_concurrent_publishes = 10000,
                  system_socket_limit = None,
                  publish_depth_first_all=True,
-                 publish_breadth_first_all=True,
-                 publish_depth_first=True,
-                 publish_breadth_first=True,
+                 publish_breadth_first_all=False,
+                 publish_depth_first=False,
+                 publish_breadth_first=False,
                  **kwargs):
         super(MasterDriverAgent, self).__init__(**kwargs)
         self.instances = {}
@@ -161,15 +150,24 @@ class MasterDriverAgent(Agent):
         try:
             self.driver_scrape_interval = float(driver_scrape_interval)
         except ValueError:
-            self.driver_scrape_interval = 0.05
+            _log.warning("Invalid driver_scrape_interval, setting to default value.")
+            self.driver_scrape_interval = 0.02
+
+        try:
+            self.group_offset_interval = float(group_offset_interval)
+        except ValueError:
+            _log.warning("Invalid group_offset_interval, setting to default value.")
+            self.group_offset_interval = 0.0
+
         self.system_socket_limit = system_socket_limit
-        self.freed_time_slots = []
+        self.freed_time_slots = defaultdict(list)
+        self.group_counts = defaultdict(int)
         self._name_map = {}
 
-        self.publish_depth_first_all = publish_depth_first_all
-        self.publish_breadth_first_all = publish_breadth_first_all
-        self.publish_depth_first = publish_depth_first
-        self.publish_breadth_first = publish_breadth_first
+        self.publish_depth_first_all = bool(publish_depth_first_all)
+        self.publish_breadth_first_all = bool(publish_breadth_first_all)
+        self.publish_depth_first = bool(publish_depth_first)
+        self.publish_breadth_first = bool(publish_breadth_first)
         self._override_devices = set()
         self._override_patterns = None
         self._override_interval_events = {}
@@ -184,18 +182,18 @@ class MasterDriverAgent(Agent):
                                "scalability_test_iterations": scalability_test_iterations,
                                "max_open_sockets": max_open_sockets,
                                "max_concurrent_publishes": max_concurrent_publishes,
-                               "driver_scrape_interval": driver_scrape_interval,
-                               "publish_depth_first_all": publish_depth_first_all,
-                               "publish_breadth_first_all": publish_breadth_first_all,
-                               "publish_depth_first": publish_depth_first,
-                               "publish_breadth_first": publish_breadth_first}
+                               "driver_scrape_interval": self.driver_scrape_interval,
+                               "group_offset_interval": self.group_offset_interval,
+                               "publish_depth_first_all": self.publish_depth_first_all,
+                               "publish_breadth_first_all": self.publish_breadth_first_all,
+                               "publish_depth_first": self.publish_depth_first,
+                               "publish_breadth_first": self.publish_breadth_first}
 
         self.vip.config.set_default("config", self.default_config)
         self.vip.config.subscribe(self.configure_main, actions=["NEW", "UPDATE"], pattern="config")
         self.vip.config.subscribe(self.update_driver, actions=["NEW", "UPDATE"], pattern="devices/*")
         self.vip.config.subscribe(self.remove_driver, actions="DELETE", pattern="devices/*")
         
-
     def configure_main(self, config_name, action, contents):
         config = self.default_config.copy()
         config.update(contents)
@@ -261,7 +259,7 @@ class MasterDriverAgent(Agent):
             except ValueError:
                 pass
 
-        #update override patterns
+        # update override patterns
         if self._override_patterns is None:
             try:
                 values = self.vip.config.get("override_patterns")
@@ -270,9 +268,9 @@ class MasterDriverAgent(Agent):
                 if isinstance(values, dict):
                     self._override_patterns = set()
                     for pattern, end_time in values.items():
-                        #check the end_time
+                        # check the end_time
                         now = utils.get_aware_utc_now()
-                        #If end time is indefinite, set override with indefinite duration
+                        # If end time is indefinite, set override with indefinite duration
                         if end_time == "0.0":
                             self._set_override_on(pattern, 0.0, from_config_store=True)
                         else:
@@ -295,29 +293,40 @@ class MasterDriverAgent(Agent):
             _log.error("Master driver scrape interval settings unchanged")
             # TODO: set a health status for the agent
 
+        try:
+            group_offset_interval = float(config["group_offset_interval"])
+        except ValueError as e:
+            _log.error("ERROR PROCESSING CONFIGURATION: {}".format(e))
+            _log.error("Master driver group interval settings unchanged")
+            # TODO: set a health status for the agent
+
         if self.scalability_test and action == "UPDATE":
             _log.info("Running scalability test. Settings may not be changed without restart.")
             return
 
-        if self.driver_scrape_interval != driver_scrape_interval:
+        if (self.driver_scrape_interval != driver_scrape_interval or
+                    self.group_offset_interval != group_offset_interval):
             self.driver_scrape_interval = driver_scrape_interval
+            self.group_offset_interval = group_offset_interval
 
             _log.info("Setting time delta between driver device scrapes to  " + str(driver_scrape_interval))
 
-            #Reset all scrape schedules
-            self.freed_time_slots = []
-            time_slot = 0
-            for driver in self.instances.itervalues():
-                driver.update_scrape_schedule(time_slot, self.driver_scrape_interval)
-                time_slot+=1
+            # Reset all scrape schedules
+            self.freed_time_slots.clear()
+            self.group_counts.clear()
+            for driver in self.instances.values():
+                time_slot = self.group_counts[driver.group]
+                driver.update_scrape_schedule(time_slot, self.driver_scrape_interval,
+                                              driver.group, self.group_offset_interval)
+                self.group_counts[driver.group] += 1
 
         self.publish_depth_first_all = bool(config["publish_depth_first_all"])
         self.publish_breadth_first_all = bool(config["publish_breadth_first_all"])
         self.publish_depth_first = bool(config["publish_depth_first"])
         self.publish_breadth_first = bool(config["publish_breadth_first"])
 
-        #Update the publish settings on running devices.
-        for driver in self.instances.itervalues():
+        # Update the publish settings on running devices.
+        for driver in self.instances.values():
             driver.update_publish_types(self.publish_depth_first_all,
                                         self.publish_breadth_first_all,
                                         self.publish_depth_first,
@@ -339,29 +348,34 @@ class MasterDriverAgent(Agent):
 
         try:
             driver.core.stop(timeout=5.0)
-        except StandardError as e:
+        except Exception as e:
             _log.error("Failure during {} driver shutdown: {}".format(real_name, e))
 
-        bisect.insort(self.freed_time_slots, driver.time_slot)
-
+        bisect.insort(self.freed_time_slots[driver.group], driver.time_slot)
+        self.group_counts[driver.group] -= 1
 
     def update_driver(self, config_name, action, contents):
+        _log.info("In update_driver")
         topic = self.derive_device_topic(config_name)
         self.stop_driver(topic)
 
-        slot = len(self.instances)
+        group = int(contents.get("group", 0))
 
-        if self.freed_time_slots:
-            slot = self.freed_time_slots.pop(0)
+        slot = self.group_counts[group]
+
+        if self.freed_time_slots[group]:
+            slot = self.freed_time_slots[group].pop(0)
 
         _log.info("Starting driver: {}".format(topic))
         driver = DriverAgent(self, contents, slot, self.driver_scrape_interval, topic,
+                             group, self.group_offset_interval,
                              self.publish_depth_first_all,
                              self.publish_breadth_first_all,
                              self.publish_depth_first,
                              self.publish_breadth_first)
         gevent.spawn(driver.core.run)
         self.instances[topic] = driver
+        self.group_counts[group] += 1
         self._name_map[topic.lower()] = topic
         self._update_override_state(topic, 'add')
 
@@ -380,14 +394,13 @@ class MasterDriverAgent(Agent):
             return
         
         if not self.waiting_to_finish:
-            #Start a new measurement
+            # Start a new measurement
             self.current_test_start = datetime.now()
-            self.waiting_to_finish = set(self.instances.iterkeys())
+            self.waiting_to_finish = set(self.instances.keys())
             
         if topic not in self.waiting_to_finish:
             _log.warning(topic + " started twice before test finished, increase the length of scrape interval and rerun test")
-            
-    
+
     def scrape_ending(self, topic):
         if not self.scalability_test:
             return
@@ -408,13 +421,13 @@ class MasterDriverAgent(Agent):
             _log.info("publish {} took {} seconds".format(self.test_iterations, delta))
             
             if self.test_iterations >= self.scalability_test_iterations:
-                #Test is now over. Button it up and shutdown.
+                # Test is now over. Button it up and shutdown.
                 mean = math_utils.mean(self.test_results) 
                 stdev = math_utils.stdev(self.test_results) 
                 _log.info("Mean total publish time: "+str(mean))
                 _log.info("Std dev publish time: "+str(stdev))
                 sys.exit(0)
-        
+
     @RPC.export
     def get_point(self, path, point_name, **kwargs):
         """RPC method
@@ -564,16 +577,15 @@ class MasterDriverAgent(Agent):
         stagger_interval = 0.05 #sec
         pattern = pattern.lower()
 
-        #Add to override patterns set
+        # Add to override patterns set
         self._override_patterns.add(pattern)
-        device_topic_actual = self.instances.keys()
         i = 0
 
-        for name in device_topic_actual:
+        for name in self.instances.keys():
             name = name.lower()
             i += 1
             if fnmatch.fnmatch(name, pattern):
-                #If revert to default state is needed
+                # If revert to default state is needed
                 if failsafe_revert:
                     if staggered_revert:
                         self.core.spawn_later(i*stagger_interval, self.instances[name].revert_all())
@@ -585,7 +597,7 @@ class MasterDriverAgent(Agent):
         # Set timer for interval of override condition
         config_update = self._update_override_interval(duration, pattern)
         if config_update and not from_config_store:
-            #Update config store
+            # Update config store
             patterns = dict()
             for pat in self._override_patterns:
                 if self._override_interval_events[pat] is None:
@@ -685,13 +697,13 @@ class MasterDriverAgent(Agent):
         :type pattern: str
         :return Flag to indicate if update is done or not.
         """
-        if interval <= 0.0: #indicative of indefinite duration
+        if interval <= 0.0: # indicative of indefinite duration
             if pattern in self._override_interval_events:
-                #If override duration is indifinite, do nothing
-                if self._override_interval_events[pattern] == None:
+                # If override duration is indifinite, do nothing
+                if self._override_interval_events[pattern] is None:
                     return False
                 else:
-                    #Cancel the old event
+                    # Cancel the old event
                     evt = self._override_interval_events.pop(pattern)
                     evt[0].cancel()
             self._override_interval_events[pattern] = None
@@ -701,13 +713,13 @@ class MasterDriverAgent(Agent):
             override_end = override_start + timedelta(seconds=interval)
             if pattern in self._override_interval_events:
                 evt = self._override_interval_events[pattern]
-                #If event is indefinite or greater than new end time, do nothing
+                # If event is indefinite or greater than new end time, do nothing
                 if evt is None or override_end < evt[1]:
                     return False
                 else:
                     evt = self._override_interval_events.pop(pattern)
                     evt[0].cancel()
-            #Schedule new override event
+            # Schedule new override event
             event = self.core.schedule(override_end, self._cancel_override, pattern)
             self._override_interval_events[pattern] = (event, override_end)
             return True
@@ -745,15 +757,28 @@ class MasterDriverAgent(Agent):
         device = device.lower()
 
         if state == 'add':
-            #If device falls under the existing overriden patterns, then add it to list of overriden devices.
+            # If device falls under the existing overriden patterns, then add it to list of overriden devices.
             for pattern in self._override_patterns:
                 if fnmatch.fnmatch(device, pattern):
                     self._override_devices.add(device)
                     return
         else:
-            #If device is in list of overriden devices, remove it.
+            # If device is in list of overriden devices, remove it.
             if device in self._override_devices:
                 self._override_devices.remove(device)
+
+    @RPC.export
+    def forward_bacnet_cov_value(self, source_address, point_name, point_values):
+        """
+        Called by the BACnet Proxy to pass the COV value to the driver agent
+        for publishing
+        :param source_address: path of the device used for publish topic
+        :param point_name: name of the point in the COV notification
+        :param point_values: dictionary of updated values sent by the device
+        """
+        for driver in self.instances.values():
+            if driver.device_path == source_address:
+                driver.publish_cov_value(point_name, point_values)
 
 
 def main(argv=sys.argv):

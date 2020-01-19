@@ -1,0 +1,17 @@
+{
+    "kafka_topic": "msg-to-volttron",
+    "message_list": [
+        {
+          "sender": "my-sender-1",
+          "topic": "my-topic-1",
+          "value": 101,
+          "description": "This message was came from kafka produser(out of volttron)"
+        },
+        {
+          "sender": "my-sender-2",
+          "topic": "my-topic-2",
+          "value": 102,
+          "description": "This message was came from kafka produser(out of volttron)"
+        }
+    ]
+}

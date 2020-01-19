@@ -1,5 +1,28 @@
 #!/usr/bin/env bash
 
+if [ -z $VOLTTRON_HOME ]
+then
+    vhome="$HOME/.volttron"
+else
+    vhome="$VOLTTRON_HOME"
+
+fi
+
+FILE="$vhome/VOLTTRON_PID"
+if [ -f $FILE ]; then
+   pid=`cat $FILE`
+   if ps -p $pid > /dev/null 2>&1
+   then
+       echo "VOLTTRON with process id $pid is already running"
+       exit 1
+   else
+       echo "PID file exists but process is not running. Removing old
+       VOLTTRON_PID file"
+       rm $FILE
+   fi
+fi
+
+
 SCRIPT_DIR="$( cd "$( echo "${BASH_SOURCE[0]%/*}" )" && pwd )"
 
 # Check to make sure the script is executed from the correct
@@ -18,10 +41,27 @@ fi
 source "$SCRIPT_DIR/env/bin/activate"
 
 if [ "$1" = '--rotating' ]; then
-    echo "Starting VOLTTRON with rotatinglog.py in the background."
+    echo "Starting VOLTTRON with rotatinglog.py in the background with VOLTTRON_HOME=$vhome"
     volttron -L examples/rotatinglog.py > volttron.log 2>&1 &
+    disown
 else
-    echo "Starting VOLTTRON verbosely in the background"
+    echo "Starting VOLTTRON verbosely in the background with VOLTTRON_HOME=$vhome"
     volttron -vv -l volttron.log > volttron.log 2>&1 &
+    disown
 fi
 
+echo "Waiting for VOLTTRON to startup.."
+count=0
+while [ ! -f $FILE ] && [ $count -lt 60 ]
+do
+  sleep 1
+  ((++count))
+done
+
+if [ -f $FILE ]; then
+ echo "VOLTTRON startup complete"
+ exit 0
+else
+ echo "VOLTTRON startup failed/timed out. Please check volttron.log for details"
+ exit 2
+fi

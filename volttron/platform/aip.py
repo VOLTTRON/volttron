@@ -1,65 +1,44 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
-
-# Copyright (c) 2016, Battelle Memorial Institute
-# All rights reserved.
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
+# Copyright 2019, Battelle Memorial Institute.
 #
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in
-#    the documentation and/or other materials provided with the
-#    distribution.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# http://www.apache.org/licenses/LICENSE-2.0
 #
-# The views and conclusions contained in the software and documentation
-# are those of the authors and should not be interpreted as representing
-# official policies, either expressed or implied, of the FreeBSD
-# Project.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
-# This material was prepared as an account of work sponsored by an
-# agency of the United States Government.  Neither the United States
-# Government nor the United States Department of Energy, nor Battelle,
-# nor any of their employees, nor any jurisdiction or organization that
-# has cooperated in the development of these materials, makes any
-# warranty, express or implied, or assumes any legal liability or
-# responsibility for the accuracy, completeness, or usefulness or any
-# information, apparatus, product, software, or process disclosed, or
-# represents that its use would not infringe privately owned rights.
-#
-# Reference herein to any specific commercial product, process, or
-# service by trade name, trademark, manufacturer, or otherwise does not
-# necessarily constitute or imply its endorsement, recommendation, or
+# This material was prepared as an account of work sponsored by an agency of
+# the United States Government. Neither the United States Government nor the
+# United States Department of Energy, nor Battelle, nor any of their
+# employees, nor any jurisdiction or organization that has cooperated in the
+# development of these materials, makes any warranty, express or
+# implied, or assumes any legal liability or responsibility for the accuracy,
+# completeness, or usefulness or any information, apparatus, product,
+# software, or process disclosed, or represents that its use would not infringe
+# privately owned rights. Reference herein to any specific commercial product,
+# process, or service by trade name, trademark, manufacturer, or otherwise
+# does not necessarily constitute or imply its endorsement, recommendation, or
 # favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors
-# expressed herein do not necessarily state or reflect those of the
+# Battelle Memorial Institute. The views and opinions of authors expressed
+# herein do not necessarily state or reflect those of the
 # United States Government or any agency thereof.
 #
-# PACIFIC NORTHWEST NATIONAL LABORATORY
-# operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
+# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
 
 
 """Component for the instantiation and packaging of agents."""
 
-
-import contextlib
 import errno
 import logging
 import os
@@ -70,33 +49,32 @@ import uuid
 
 import gevent
 import gevent.event
-from gevent.fileobject import FileObject
 from gevent import subprocess
 from gevent.subprocess import PIPE
 from wheel.tool import unpack
-import zmq
+
+from volttron.platform import certs
+from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM, \
+    CONTROL
 
 # Can't use zmq.utils.jsonapi because it is missing the load() method.
-try:
-    import simplejson as jsonapi
-except ImportError:
-    import json as jsonapi
+from volttron.platform import jsonapi
 
-from . import messaging
-from .agent.utils import is_valid_identity
-from .messaging import topics
+from .agent.utils import (is_valid_identity,
+                          get_messagebus,
+                          get_platform_instance_name)
+from volttron.platform import get_home
 from .packages import UnpackedPackage
 from .vip.agent import Agent
 from .keystore import KeyStore
 from .auth import AuthFile, AuthEntry, AuthFileEntryAlreadyExists
+from volttron.utils.rmq_mgmt import RabbitMQMgmt
 
 try:
     from volttron.restricted import auth
-    from volttron.restricted import certs
     from volttron.restricted.resmon import ResourceError
 except ImportError:
     auth = None
-
 
 _log = logging.getLogger(__name__)
 
@@ -113,14 +91,14 @@ def process_wait(p):
 
 
 # LOG_* constants from syslog module (not available on Windows)
-_level_map = {7: logging.DEBUG,      # LOG_DEBUG
-              6: logging.INFO,       # LOG_INFO
-              5: logging.INFO,       # LOG_NOTICE
-              4: logging.WARNING,    # LOG_WARNING
-              3: logging.ERROR,      # LOG_ERR
-              2: logging.CRITICAL,   # LOG_CRIT
-              1: logging.CRITICAL,   # LOG_ALERT
-              0: logging.CRITICAL,}  # LOG_EMERG
+_level_map = {7: logging.DEBUG,  # LOG_DEBUG
+              6: logging.INFO,  # LOG_INFO
+              5: logging.INFO,  # LOG_NOTICE
+              4: logging.WARNING,  # LOG_WARNING
+              3: logging.ERROR,  # LOG_ERR
+              2: logging.CRITICAL,  # LOG_CRIT
+              1: logging.CRITICAL,  # LOG_ALERT
+              0: logging.CRITICAL, }  # LOG_EMERG
 
 
 def log_entries(name, agent, pid, level, stream):
@@ -182,6 +160,7 @@ class IgnoreErrno(object):
         except AttributeError:
             pass
 
+
 ignore_enoent = IgnoreErrno(errno.ENOENT)
 
 
@@ -191,6 +170,7 @@ class ExecutionEnvironment(object):
     Deleting ExecutionEnvironment objects should cause the process to
     end and all resources to be returned to the system.
     '''
+
     def __init__(self):
         self.process = None
         self.env = None
@@ -198,7 +178,7 @@ class ExecutionEnvironment(object):
     def execute(self, *args, **kwargs):
         try:
             self.env = kwargs.get('env', None)
-            self.process = subprocess.Popen(*args, **kwargs)
+            self.process = subprocess.Popen(*args, **kwargs, universal_newlines=True)
         except OSError as e:
             if e.filename:
                 raise
@@ -214,6 +194,8 @@ class AIPplatform(object):
     def __init__(self, env, **kwargs):
         self.env = env
         self.agents = {}
+        if get_messagebus() == 'rmq':
+            self.rmq_mgmt = RabbitMQMgmt()
 
     def setup(self):
         '''Creates paths for used directories for the instance.'''
@@ -222,30 +204,43 @@ class AIPplatform(object):
                 os.makedirs(path, 0o755)
 
     def finish(self):
-        for exeenv in self.agents.itervalues():
+        for exeenv in self.agents.values():
             if exeenv.process.poll() is None:
                 exeenv.process.send_signal(signal.SIGINT)
-        for exeenv in self.agents.itervalues():
+        for exeenv in self.agents.values():
             if exeenv.process.poll() is None:
                 exeenv.process.terminate()
-        for exeenv in self.agents.itervalues():
+        for exeenv in self.agents.values():
             if exeenv.process.poll() is None:
                 exeenv.process.kill()
 
     def shutdown(self):
-        for agent_uuid in self.agents.iterkeys():
+        for agent_uuid in self.agents.keys():
+            _log.debug("Stopping agent UUID {}".format(agent_uuid))
             self.stop_agent(agent_uuid)
         event = gevent.event.Event()
-        agent = Agent(identity='aip', address='inproc://vip')
+        agent = Agent(identity='aip', address='inproc://vip',
+                      message_bus=get_messagebus())
         task = gevent.spawn(agent.core.run, event)
         try:
             event.wait()
-            agent.vip.pubsub.publish(
-                'pubsub', topics.PLATFORM_SHUTDOWN,
-                {'reason': 'Received shutdown command'}).get()
         finally:
             agent.core.stop()
             task.kill()
+
+    def brute_force_platform_shutdown(self):
+        for agent_uuid in list(self.agents.keys()):
+            _log.debug("Stopping agent UUID {}".format(agent_uuid))
+            self.stop_agent(agent_uuid)
+        # kill the platform
+        pid = None
+        pid_file = "{vhome}/VOLTTRON_PID".format(vhome=get_home())
+        with open(pid_file) as f:
+            pid = int(f.read())
+        if pid:
+            os.kill(pid, signal.SIGINT)
+            os.remove(pid_file)
+
 
     subscribe_address = property(lambda me: me.env.subscribe_address)
     publish_address = property(lambda me: me.env.publish_address)
@@ -256,7 +251,7 @@ class AIPplatform(object):
 
     def autostart(self):
         agents, errors = [], []
-        for agent_uuid, agent_name in self.list_agents().iteritems():
+        for agent_uuid, agent_name in self.list_agents().items():
             try:
                 priority = self._agent_priority(agent_uuid)
             except EnvironmentError as exc:
@@ -321,7 +316,7 @@ class AIPplatform(object):
     def _setup_agent_vip_id(self, agent_uuid, vip_identity=None):
         agent_path = os.path.join(self.install_dir, agent_uuid)
         name = self.agent_name(agent_uuid)
-        pkg = UnpackedPackage(os.path.join(agent_path,  name))
+        pkg = UnpackedPackage(os.path.join(agent_path, name))
         identity_template_filename = os.path.join(pkg.distinfo, "IDENTITY_TEMPLATE")
 
         rm_id_template = False
@@ -330,7 +325,7 @@ class AIPplatform(object):
             agent_name = self.agent_name(agent_uuid)
             name_template = agent_name + "_{n}"
         else:
-            with open(identity_template_filename, 'rb') as fp:
+            with open(identity_template_filename, 'r') as fp:
                 name_template = fp.read(64)
 
             rm_id_template = True
@@ -356,10 +351,10 @@ class AIPplatform(object):
 
         identity_filename = os.path.join(agent_path, "IDENTITY")
 
-        with open(identity_filename, 'wb') as fp:
+        with open(identity_filename, 'w') as fp:
             fp.write(final_identity)
 
-        _log.info("Agent {uuid} setup to use VIP ID {vip_identity}". format(
+        _log.info("Agent {uuid} setup to use VIP ID {vip_identity}".format(
             uuid=agent_uuid, vip_identity=final_identity))
 
         # Cleanup IDENTITY_TEMPLATE file.
@@ -379,7 +374,13 @@ class AIPplatform(object):
 
     def _authorize_agent_keys(self, agent_uuid, identity):
         publickey = self.get_agent_keystore(agent_uuid).public
+        capabilities = {'edit_config_store': {'identity': identity}}
+
+        if identity == VOLTTRON_CENTRAL_PLATFORM:
+            capabilities = {'edit_config_store': {'identity': '/.*/'}}
+
         entry = AuthEntry(credentials=publickey, user_id=identity,
+                          capabilities=capabilities,
                           comments='Automatically added on agent install')
         try:
             AuthFile().add(entry)
@@ -412,7 +413,7 @@ class AIPplatform(object):
         return results
 
     def get_all_agent_identities(self):
-       return self.get_agent_identity_to_uuid_mapping().keys()
+       return list(self.get_agent_identity_to_uuid_mapping().keys())
 
     def _get_available_agent_identity(self, name_template):
         all_agent_identities = self.get_all_agent_identities()
@@ -433,6 +434,13 @@ class AIPplatform(object):
         if agent_uuid not in os.listdir(self.install_dir):
             raise ValueError('invalid agent')
         self.stop_agent(agent_uuid)
+        msg_bus = get_messagebus()
+        if msg_bus == 'rmq':
+            # Delete RabbitMQ user for the agent
+            identity = self.agent_identity(agent_uuid)
+            instance_name = get_platform_instance_name()
+            rmq_user = instance_name + '.' + identity
+            self.rmq_mgmt.delete_user(rmq_user)
         self.agents.pop(agent_uuid, None)
         if remove_auth:
             self._unauthorize_agent_keys(agent_uuid)
@@ -458,11 +466,11 @@ class AIPplatform(object):
 
     def active_agents(self):
         return {agent_uuid: execenv.name
-                for agent_uuid, execenv in self.agents.iteritems()}
+                for agent_uuid, execenv in self.agents.items()}
 
     def clear_status(self, clear_all=False):
         remove = []
-        for agent_uuid, execenv in self.agents.iteritems():
+        for agent_uuid, execenv in self.agents.items():
             if execenv.process.poll() is not None:
                 if clear_all:
                     remove.append(agent_uuid)
@@ -475,7 +483,7 @@ class AIPplatform(object):
 
     def status_agents(self):
         return [(agent_uuid, agent_name, self.agent_status(agent_uuid))
-                for agent_uuid, agent_name in self.active_agents().iteritems()]
+                for agent_uuid, agent_name in self.active_agents().items()]
 
     def tag_agent(self, agent_uuid, tag):
         tag_file = os.path.join(self.install_dir, agent_uuid, 'TAG')
@@ -499,7 +507,7 @@ class AIPplatform(object):
         if '/' in agent_uuid or agent_uuid in ['.', '..']:
             raise ValueError('invalid agent')
         identity_file = os.path.join(self.install_dir, agent_uuid, 'IDENTITY')
-        with ignore_enoent, open(identity_file, 'r') as file:
+        with ignore_enoent, open(identity_file, 'rt') as file:
             return file.readline(64)
 
     def agent_tag(self, agent_uuid):
@@ -559,8 +567,8 @@ class AIPplatform(object):
         failed_terms = resmon.check_hard_resources(hard_reqs)
         if failed_terms:
             msg = '\n'.join('  {}: {} ({})'.format(
-                             term, hard_reqs[term], avail)
-                            for term, avail in failed_terms.iteritems())
+                            term, hard_reqs[term], avail)
+                                for term, avail in failed_terms.items())
             _log.error('hard resource requirements not met:\n%s', msg)
             raise ValueError('hard resource requirements not met')
         requirements = execreqs.get('requirements', {})
@@ -577,7 +585,7 @@ class AIPplatform(object):
             errmsg, failed_terms = exc.args
         msg = '\n'.join('  {}: {} ({})'.format(
                          term, requirements.get(term, '<unset>'), avail)
-                        for term, avail in failed_terms.iteritems())
+                        for term, avail in failed_terms.items())
         _log.error('%s:\n%s', errmsg, msg)
         raise ValueError(errmsg)
 
@@ -601,11 +609,9 @@ class AIPplatform(object):
                 return jsonapi.load(file)
         except Exception as exc:
             msg = 'error reading execution requirements: {}: {}'.format(
-                   execreqs_json, exc)
+                execreqs_json, exc)
             _log.error(msg)
             raise ValueError(msg)
-        _log.warning('missing execution requirements: %s', execreqs_json)
-        return {}
 
     def start_agent(self, agent_uuid):
         name = self.agent_name(agent_uuid)
@@ -637,7 +643,6 @@ class AIPplatform(object):
                 raise ValueError('no agent launch class specified in package')
         config = os.path.join(pkg.distinfo, 'config')
         tag = self.agent_tag(agent_uuid)
-
         environ = os.environ.copy()
         environ['PYTHONPATH'] = ':'.join([agent_path] + sys.path)
         environ['PATH'] = (os.path.abspath(os.path.dirname(sys.executable)) +
@@ -655,7 +660,7 @@ class AIPplatform(object):
         environ['AGENT_UUID'] = agent_uuid
         environ['_LAUNCHED_BY_PLATFORM'] = '1'
 
-        #For backwards compatibility create the identity file if it does not exist.
+        # For backwards compatibility create the identity file if it does not exist.
         identity_file = os.path.join(self.install_dir, agent_uuid, "IDENTITY")
         if not os.path.exists(identity_file):
             _log.debug('IDENTITY FILE MISSING: CREATING IDENTITY FILE WITH VALUE: {}'.format(agent_uuid))
@@ -703,8 +708,6 @@ class AIPplatform(object):
             return (None, None)
         return (execenv.process.pid, execenv.process.poll())
 
-
-
     def stop_agent(self, agent_uuid):
         try:
             execenv = self.agents[agent_uuid]
@@ -714,23 +717,23 @@ class AIPplatform(object):
             # pylint: disable=catching-non-exception
             execenv.process.send_signal(signal.SIGINT)
             try:
-                return gevent.with_timeout(3, process_wait, execenv.process)
+                return gevent.with_timeout(60, process_wait, execenv.process)
             except gevent.Timeout:
                 _log.warn("First timeout")
                 execenv.process.terminate()
             try:
-                return gevent.with_timeout(3, process_wait, execenv.process)
+                return gevent.with_timeout(30, process_wait, execenv.process)
             except gevent.Timeout:
                 _log.warn("2nd timeout")
                 execenv.process.kill()
             try:
-                return gevent.with_timeout(3, process_wait, execenv.process)
+                return gevent.with_timeout(30, process_wait, execenv.process)
             except gevent.Timeout:
                 _log.error("last timeout")
                 raise ValueError('process is unresponsive')
         return execenv.process.poll()
 
     def agent_uuid_from_pid(self, pid):
-        for agent_uuid, execenv in self.agents.iteritems():
+        for agent_uuid, execenv in self.agents.items():
             if execenv.process.pid == pid:
                 return agent_uuid if execenv.process.poll() is None else None

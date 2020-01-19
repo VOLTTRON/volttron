@@ -1,59 +1,40 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
-
-# Copyright (c) 2016, Battelle Memorial Institute
-# All rights reserved.
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
+# Copyright 2019, Battelle Memorial Institute.
 #
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in
-#    the documentation and/or other materials provided with the
-#    distribution.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# http://www.apache.org/licenses/LICENSE-2.0
 #
-# The views and conclusions contained in the software and documentation
-# are those of the authors and should not be interpreted as representing
-# official policies, either expressed or implied, of the FreeBSD
-# Project.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
-# This material was prepared as an account of work sponsored by an
-# agency of the United States Government.  Neither the United States
-# Government nor the United States Department of Energy, nor Battelle,
-# nor any of their employees, nor any jurisdiction or organization that
-# has cooperated in the development of these materials, makes any
-# warranty, express or implied, or assumes any legal liability or
-# responsibility for the accuracy, completeness, or usefulness or any
-# information, apparatus, product, software, or process disclosed, or
-# represents that its use would not infringe privately owned rights.
-#
-# Reference herein to any specific commercial product, process, or
-# service by trade name, trademark, manufacturer, or otherwise does not
-# necessarily constitute or imply its endorsement, recommendation, or
+# This material was prepared as an account of work sponsored by an agency of
+# the United States Government. Neither the United States Government nor the
+# United States Department of Energy, nor Battelle, nor any of their
+# employees, nor any jurisdiction or organization that has cooperated in the
+# development of these materials, makes any warranty, express or
+# implied, or assumes any legal liability or responsibility for the accuracy,
+# completeness, or usefulness or any information, apparatus, product,
+# software, or process disclosed, or represents that its use would not infringe
+# privately owned rights. Reference herein to any specific commercial product,
+# process, or service by trade name, trademark, manufacturer, or otherwise
+# does not necessarily constitute or imply its endorsement, recommendation, or
 # favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors
-# expressed herein do not necessarily state or reflect those of the
+# Battelle Memorial Institute. The views and opinions of authors expressed
+# herein do not necessarily state or reflect those of the
 # United States Government or any agency thereof.
 #
-# PACIFIC NORTHWEST NATIONAL LABORATORY
-# operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
+# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-#}}}
+# }}}
 
 '''VOLTTRON platform™ abstract agent for to drive VOLTTRON Nation apps.'''
 
@@ -71,12 +52,10 @@ __all__ = ['AbstractDrivenAgent', 'ConversionMapper', 'Results']
 
 __author__ = 'Craig Allwardt <craig.allwardt@pnnl.gov>'
 __copyright__ = 'Copyright (c) 2014, Battelle Memorial Institute'
-__license__ = 'FreeBSD'
+__license__ = 'Apache 2.0'
 
 
-class AbstractDrivenAgent(object):
-    __metaclass__ = ABCMeta
-
+class AbstractDrivenAgent(object, metaclass=ABCMeta):
     def __init__(self, out=None, **kwargs):
         """
         When applications extend this base class, they need to make
@@ -137,13 +116,13 @@ class Results(object):
         if device is None:
             self.commands[point] = value
         else:
-            if device not in self.devices.keys():
+            if device not in self.devices:
                 self.devices[device] = OrderedDict()
             self.devices[device][point] = value
         if self.devices is None:
             self.commands[point]=value
         else:
-            if  device not in self.devices.keys():
+            if  device not in self.devices:
                 self.devices[device] = OrderedDict()
             self.devices[device][point]=value
 
@@ -167,16 +146,16 @@ class ConversionMapper(object):
 
     def setup_conversion_map(self, conversion_map_config, field_names):
         #time_format = conversion_map_config.pop(TIME_STAMP_COLUMN)
-        re_exp_list = conversion_map_config.keys()
-        re_exp_list.sort(cmp=lambda x, y: cmp(len(x), len(y)))
+        re_exp_list = list(conversion_map_config.keys())
+        re_exp_list.sort(key=lambda x: len(x), reverse=True)
         re_exp_list.reverse()
         re_list = [re.compile(x) for x in re_exp_list]
 
         def default_handler():
             return lambda x:x
         self.conversion_map = defaultdict(default_handler)
-        def handle_time(item):
-            return datetime.strptime(item, time_format)
+        # def handle_time(item):
+        #     return datetime.strptime(item, time_format)
         #self.conversion_map[TIME_STAMP_COLUMN] = handle_time
 
         def handle_bool(item):
@@ -208,4 +187,4 @@ class ConversionMapper(object):
         null_values = {'NAN', 'NA', '#NA', 'NULL', 'NONE',
                        'nan', 'na', '#na', 'null', 'none',
                        '', None}
-        return dict((c,self.conversion_map[c](v)) if v not in null_values else (c,None) for c,v in row_dict.iteritems())
+        return dict((c,self.conversion_map[c](v)) if v not in null_values else (c,None) for c,v in row_dict.items())

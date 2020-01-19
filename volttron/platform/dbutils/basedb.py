@@ -1,75 +1,79 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright (c) 2016, Battelle Memorial Institute
-# All rights reserved.
+# Copyright 2019, Battelle Memorial Institute.
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# 1. Redistributions of source code must retain the above copyright notice,
-# this
-#    list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright notice,
-#    this list of conditions and the following disclaimer in the documentation
-#    and/or other materials provided with the distribution.
+# http://www.apache.org/licenses/LICENSE-2.0
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
-# IS" AND
-# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
-# LIABLE FOR
-# ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-# DAMAGES
-# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-# ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
-# The views and conclusions contained in the software and documentation are
-# those
-# of the authors and should not be interpreted as representing official
-# policies,
-# either expressed or implied, of the FreeBSD Project.
-#
-
-# This material was prepared as an account of work sponsored by an
-# agency of the United States Government.  Neither the United States
-# Government nor the United States Department of Energy, nor Battelle,
-# nor any of their employees, nor any jurisdiction or organization
-# that has cooperated in the development of these materials, makes
-# any warranty, express or implied, or assumes any legal liability
-# or responsibility for the accuracy, completeness, or usefulness or
-# any information, apparatus, product, software, or process disclosed,
-# or represents that its use would not infringe privately owned rights.
-#
-# Reference herein to any specific commercial product, process, or
-# service by trade name, trademark, manufacturer, or otherwise does
-# not necessarily constitute or imply its endorsement, recommendation,
-# r favoring by the United States Government or any agency thereof,
-# or Battelle Memorial Institute. The views and opinions of authors
-# expressed herein do not necessarily state or reflect those of the
+# This material was prepared as an account of work sponsored by an agency of
+# the United States Government. Neither the United States Government nor the
+# United States Department of Energy, nor Battelle, nor any of their
+# employees, nor any jurisdiction or organization that has cooperated in the
+# development of these materials, makes any warranty, express or
+# implied, or assumes any legal liability or responsibility for the accuracy,
+# completeness, or usefulness or any information, apparatus, product,
+# software, or process disclosed, or represents that its use would not infringe
+# privately owned rights. Reference herein to any specific commercial product,
+# process, or service by trade name, trademark, manufacturer, or otherwise
+# does not necessarily constitute or imply its endorsement, recommendation, or
+# favoring by the United States Government or any agency thereof, or
+# Battelle Memorial Institute. The views and opinions of authors expressed
+# herein do not necessarily state or reflect those of the
 # United States Government or any agency thereof.
 #
-# PACIFIC NORTHWEST NATIONAL LABORATORY
-# operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
+# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-
 # }}}
-from __future__ import absolute_import, print_function
 
+
+import contextlib
 import importlib
 import logging
 import threading
+from gevent.local import local
 
+import sys
 from abc import abstractmethod
 from volttron.platform.agent import utils
-from zmq.utils import jsonapi
+from volttron.platform import jsonapi
+import sqlite3
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
+
+
+class ConnectionError(Exception):
+    """Custom class for connection errors"""
+    pass
+
+
+@contextlib.contextmanager
+def closing(obj):
+    try:
+        yield obj
+    finally:
+        try:
+            obj.close()
+        except BaseException as exc:
+            # if exc.__class__.__module__ == 'exceptions':
+            if exc.__class__.__module__ == 'builtins':
+                # Don't ignore built-in exceptions because they likely indicate
+                # a bug that should stop execution. psycopg2.Error subclasses
+                # Exception, so the module must also be checked. :-(
+                raise
+            _log.exception('An exception was raised while closing '
+                           'the cursor and is being ignored.')
 
 
 class DbDriver(object):
@@ -83,27 +87,55 @@ class DbDriver(object):
     """
     def __init__(self, dbapimodule, **kwargs):
         thread_name = threading.currentThread().getName()
-        _log.debug("Constructing Driver for {} in thread: {}".format(
-            dbapimodule, thread_name)
-        )
-
-        self.__dbmodule = importlib.import_module(dbapimodule)
+        if callable(dbapimodule):
+            _log.debug("Constructing Driver for %s in thread: %s",
+                       dbapimodule.__name__, thread_name)
+            connect = dbapimodule
+        else:
+            _log.debug("Constructing Driver for %s in thread: %s",
+                       dbapimodule, thread_name)
+            _log.debug("kwargs for connect is %r", kwargs)
+            dbapimodule = importlib.import_module(dbapimodule)
+            connect = lambda: dbapimodule.connect(**kwargs)
+        self.__connect = connect
         self.__connection = None
-        self.__cursor = None
-        self.__connect_params = kwargs
+        self.stash = local()
 
-    def __connect(self):
+    @contextlib.contextmanager
+    def bulk_insert(self):
+        """
+        Function to meet bulk insert requirements. This function can be overridden by historian drivers to yield the
+        required method for data insertion during bulk inserts in the respective historians. In this generic case it
+        will yield the single insert method
+
+        :yields: insert method
+        """
+        yield self.insert_data
+
+    def cursor(self):
+
+        self.stash.cursor = None
+        if self.__connection is not None and not getattr(self.__connection, "closed", False):
+            try:
+                self.stash.cursor = self.__connection.cursor()
+                return self.stash.cursor
+            except Exception:
+                _log.warn("An exception occurred while creating "
+                          "a cursor. Will try establishing connection again")
+        self.__connection = None
         try:
-            if self.__connection is None:
-                self.__connection = self.__dbmodule.connect(
-                    **self.__connect_params)
-            if self.__cursor is None:
-                self.__cursor = self.__connection.cursor()
-
+            self.__connection = self.__connect()
         except Exception as e:
-            _log.warning(e.__class__.__name__ + "couldn't connect to database")
+            _log.error("Could not connect to database. Raise ConnectionError")
+            raise ConnectionError(e).with_traceback(sys.exc_info()[2])
+        if self.__connection is None:
+            raise ConnectionError(
+                "Unknown error. Could not connect to database")
 
-        return self.__connection is not None
+        # if any exception happens here have it go to the caller.
+        self.stash.cursor = self.__connection.cursor()
+
+        return self.stash.cursor
 
     def read_tablenames_from_db(self, meta_table_name):
         """
@@ -180,7 +212,7 @@ class DbDriver(object):
         pass
 
     @abstractmethod
-    def find_topics_by_pattern(self, topic_pattern):
+    def query_topics_by_pattern(self, topic_pattern):
         """
         Return a map of {topi_name.lower():topic_id} that matches the given
         pattern
@@ -241,27 +273,21 @@ class DbDriver(object):
         pass
 
     @abstractmethod
-    def insert_agg_meta_stmt(self):
+    def replace_agg_meta_stmt(self):
         """
         :return: query string to insert metadata for an aggregate topic into
         database
         """
         pass
 
-    def insert_stmt(self, stmt, args):
+    def manage_db_size(self, history_limit_timestamp, storage_limit_gb):
         """
-        Executes an insert statement with arguments
+        Optional function to manage database size.
 
-        :param stmt: insert statement
-        :param args: insert arguments
-        :return: True if execution completes. False if unable to connect to
-                 database
+        :param history_limit_timestamp: remove all data older than this timestamp
+        :param storage_limit_gb: remove oldest data until database is smaller than this value.
         """
-        if not self.__connect():
-            return False
-
-        self.__cursor.execute(stmt, args)
-        return True
+        pass
 
     def insert_meta(self, topic_id, metadata):
         """
@@ -269,14 +295,11 @@ class DbDriver(object):
 
         :param topic_id: topic id for which metadata is inserted
         :param metadata: metadata
-        :return: True if execution completes. False if unable to connect to
-                 database
+        :return: True if execution completes. Raises exception if unable to
+        connect to database
         """
-        if not self.__connect():
-            return False
-
-        self.__cursor.execute(self.insert_meta_query(),
-                              (topic_id, jsonapi.dumps(metadata)))
+        self.execute_stmt(self.insert_meta_query(),
+                          (topic_id, jsonapi.dumps(metadata)), commit=False)
         return True
 
     def insert_data(self, ts, topic_id, data):
@@ -285,15 +308,12 @@ class DbDriver(object):
 
         :param ts: timestamp
         :param topic_id: topic id for which data is inserted
-        :param metadata: data values
-        :return: True if execution completes. False if unable to connect to
-                 database
+        :param data: data value
+        :return: True if execution completes. raises Exception if unable to
+        connect to database
         """
-        if not self.__connect():
-            return False
-
-        self.__cursor.execute(self.insert_data_query(),
-                              (ts, topic_id, jsonapi.dumps(data)))
+        self.execute_stmt(self.insert_data_query(),
+                          (ts, topic_id, jsonapi.dumps(data)), commit=False)
         return True
 
     def insert_topic(self, topic):
@@ -302,14 +322,11 @@ class DbDriver(object):
 
         :param topic: topic to insert
         :return: id of the topic inserted if insert was successful.
-                 False if unable to connect to database
+                 Raises exception if unable to connect to database
         """
-        if not self.__connect():
-            return False
-
-        self.__cursor.execute(self.insert_topic_query(), (topic,))
-        row = [self.__cursor.lastrowid]
-        return row
+        with closing(self.cursor()) as cursor:
+            cursor.execute(self.insert_topic_query(), (topic,))
+            return cursor.lastrowid
 
     def update_topic(self, topic, topic_id):
         """
@@ -317,20 +334,11 @@ class DbDriver(object):
 
         :param topic: new topic name
         :param topic_id: topic id for which update is done
-        :return: True if execution is complete. False if unable to connect
-        to database
+        :return: True if execution is complete. Raises exception if unable to
+        connect to database
         """
-
-        self.__connect()
-
-        if self.__connection is None:
-            return False
-
-        if not self.__cursor:
-            self.__cursor = self.__connection.cursor()
-
-        self.__cursor.execute(self.update_topic_query(), (topic, topic_id))
-
+        self.execute_stmt(self.update_topic_query(), (topic, topic_id),
+                          commit=False)
         return True
 
     def insert_agg_meta(self, topic_id, metadata):
@@ -339,19 +347,11 @@ class DbDriver(object):
 
         :param topic_id: aggregate topic id for which metadata is inserted
         :param metadata: metadata
-        :return: True if execution completes. False if unable to connect to
-                 database
+        :return: True if execution completes. Raises exception if connection to
+        database fails
         """
-        if not self.__connect():
-            return False
-
-        if self.__connection is None:
-            return False
-
-        if not self.__cursor:
-            self.__cursor = self.__connection.cursor()
-        self.__cursor.execute(self.insert_agg_meta_stmt(),
-                              (topic_id, jsonapi.dumps(metadata)))
+        self.execute_stmt(self.replace_agg_meta_stmt(),
+                          (topic_id, jsonapi.dumps(metadata)), commit=False)
         return True
 
     def insert_agg_topic(self, topic, agg_type, agg_time_period):
@@ -362,21 +362,12 @@ class DbDriver(object):
         :param agg_type: type of aggregation
         :param agg_time_period: time period of aggregation
         :return: id of the topic inserted if insert was successful.
-                 False if unable to connect to database
+                 Raises exception if unable to connect to database
         """
-        if not self.__connect():
-            return False
-
-        if self.__connection is None:
-            return False
-
-        if not self.__cursor:
-            self.__cursor = self.__connection.cursor()
-
-        self.__cursor.execute(self.insert_agg_topic_stmt(),
-                              (topic, agg_type, agg_time_period))
-        row = [self.__cursor.lastrowid]
-        return row
+        with closing(self.cursor()) as cursor:
+            cursor.execute(self.insert_agg_topic_stmt(),
+                           (topic, agg_type, agg_time_period))
+            return cursor.lastrowid
 
     def update_agg_topic(self, agg_id, agg_topic_name):
         """
@@ -384,21 +375,12 @@ class DbDriver(object):
 
         :param agg_id: topic id for which update is done
         :param agg_topic_name: new aggregate topic name
-        :return: True if execution is complete. False if unable to
+        :return: True if execution is complete. Raises exception if unable to
         connect to database
         """
-        if not self.__connect():
-            return False
-
-        if self.__connection is None:
-            return False
-
-        if not self.__cursor:
-            self.__cursor = self.__connection.cursor()
-
-        self.__cursor.execute(self.update_agg_topic_stmt(),
-                              (agg_id, agg_topic_name))
-        self.commit()
+        self.execute_stmt(self.update_agg_topic_stmt(),
+                          (agg_topic_name, agg_id),commit=False)
+        return True
 
     def commit(self):
         """
@@ -406,17 +388,26 @@ class DbDriver(object):
 
         :return: True if successful, False otherwise
         """
-        successful = False
         if self.__connection is not None:
-            self.__connection.commit()
-            self.__connection.close()
-            successful = True
-        else:
-            _log.warning('connection was null during commit phase.')
-
-        self.__cursor = None
-        self.__connection = None
-        return successful
+            try:
+                self.__connection.commit()
+                return True
+            except sqlite3.OperationalError as e:
+                if "database is locked" in str(e):
+                    _log.error("EXCEPTION: SQLITE3 Database is locked. This "
+                               "error could occur when there are multiple "
+                               "simultaneous read and write requests, making "
+                               "individual request to wait more than the "
+                               "default timeout period. If you are using "
+                               "sqlite for frequent reads and write, please "
+                               "configure a higher timeout in agent "
+                               "configuration under \n"
+                               "config[\"connection\"][\"params\"]["
+                               "\"timeout\"]  "
+                               "Default value is 10. Timeout units is seconds")
+                raise
+        _log.warning('connection was null during commit phase.')
+        return False
 
     def rollback(self):
         """
@@ -424,65 +415,77 @@ class DbDriver(object):
 
         :return: True if successful, False otherwise
         """
-        successful = False
         if self.__connection is not None:
             self.__connection.rollback()
+            return True
+        _log.warning('connection was null during rollback phase.')
+        return False
+
+    def close(self):
+        """
+        Close connection to database
+        :return:
+        """
+        if self.__connection is not None:
             self.__connection.close()
-            successful = True
-        else:
-            _log.warning('connection was null during rollback phase.')
 
-        self.__cursor = None
-        self.__connection = None
-        return successful
-
-    def select(self, query, args):
+    def select(self, query, args=None, fetch_all=True):
         """
         Execute a select statement
 
         :param query: select statement
         :param args: arguments for the where clause
-        :return: resultant rows
+        :param fetch_all: Set to True if function should return retrieve all
+        the records from cursors and return it. Set to False to return cursor.
+        :return: resultant rows if fetch_all is True else returns the cursor
+        It is up to calling method to close the cursor
         """
+        if not args:
+            args = ()
+        cursor = self.cursor()
         try:
-            conn = self.__dbmodule.connect(**self.__connect_params)
-        except Exception as e:
-            _log.warning(e.__class__.__name__ + "couldn't connect to database")
-            conn = None
-
-        if conn is None:
-            return []
-
-        cursor = conn.cursor()
-        if args is not None:
             cursor.execute(query, args)
-        else:
-            cursor.execute(query)
-        rows = cursor.fetchall()
-        conn.close()
-        return rows
+        except Exception:
+            cursor.close()
+            raise
+        if fetch_all:
+            with closing(cursor):
+                return cursor.fetchall()
+        return cursor
 
-    def execute_stmt(self, stmt):
+    def execute_stmt(self, stmt, args=None, commit=False):
         """
         Execute a sql statement
 
         :param stmt: the statement to execute
-        :return: True if successful, False otherwise
+        :param args: optional arguments
+        :param commit: True if transaction should be committed. Defaults to
+        False
+        :return: count of the number of affected rows
         """
-        try:
-            conn = self.__dbmodule.connect(**self.__connect_params)
-        except Exception as e:
-            _log.warning(e.__class__.__name__ + "couldn't connect to database")
-            conn = None
+        if args is None:
+            args = ()
+        with closing(self.cursor()) as cursor:
+            cursor.execute(stmt, args)
+            if commit:
+                self.commit()
+            return cursor.rowcount
 
-        if conn is None:
-            return []
+    def execute_many(self, stmt, args, commit=False):
+        """
+        Execute a sql statement with multiple args
 
-        cursor = conn.cursor()
-        cursor.execute(stmt)
-        conn.commit()
-        conn.close()
-        return True
+        :param stmt: the statement to execute
+        :param args: optional arguments
+        :param commit: True if transaction should be committed. Defaults to
+        False
+        :return: count of the number of affected rows
+        """
+        with closing(self.cursor()) as cursor:
+            cursor.executemany(stmt, args)
+            if commit:
+                self.commit()
+            return cursor.rowcount
 
     @abstractmethod
     def query(self, topic_ids, id_name_map, start=None, end=None,
@@ -567,19 +570,16 @@ class DbDriver(object):
         :param data: computed aggregate
         :param topic_ids: topic ids or topic ids for which aggregate was
                           computed
-        :return: True if execution was successful, False otherwise
+        :return: True if execution was successful, raises exception
+        in case of connection failures
         """
-
-        if not self.__connect():
-            print("connect to database failed.......")
-            return False
         table_name = agg_type + '_' + period
         _log.debug("Inserting aggregate: {} {} {} {} into table {}".format(
             ts, agg_topic_id, jsonapi.dumps(data), str(topic_ids), table_name))
-        self.__cursor.execute(
+        self.execute_stmt(
             self.insert_aggregate_stmt(table_name),
-            (ts, agg_topic_id, jsonapi.dumps(data), str(topic_ids)))
-        self.commit()
+            (ts, agg_topic_id, jsonapi.dumps(data), str(topic_ids)),
+            commit=True)
         return True
 
     @abstractmethod

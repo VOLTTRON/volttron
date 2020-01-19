@@ -1,59 +1,40 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
-
-# Copyright (c) 2016, Battelle Memorial Institute
-# All rights reserved.
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
+# Copyright 2019, Battelle Memorial Institute.
 #
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in
-#    the documentation and/or other materials provided with the
-#    distribution.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# http://www.apache.org/licenses/LICENSE-2.0
 #
-# The views and conclusions contained in the software and documentation
-# are those of the authors and should not be interpreted as representing
-# official policies, either expressed or implied, of the FreeBSD
-# Project.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
-# This material was prepared as an account of work sponsored by an
-# agency of the United States Government.  Neither the United States
-# Government nor the United States Department of Energy, nor Battelle,
-# nor any of their employees, nor any jurisdiction or organization that
-# has cooperated in the development of these materials, makes any
-# warranty, express or implied, or assumes any legal liability or
-# responsibility for the accuracy, completeness, or usefulness or any
-# information, apparatus, product, software, or process disclosed, or
-# represents that its use would not infringe privately owned rights.
-#
-# Reference herein to any specific commercial product, process, or
-# service by trade name, trademark, manufacturer, or otherwise does not
-# necessarily constitute or imply its endorsement, recommendation, or
+# This material was prepared as an account of work sponsored by an agency of
+# the United States Government. Neither the United States Government nor the
+# United States Department of Energy, nor Battelle, nor any of their
+# employees, nor any jurisdiction or organization that has cooperated in the
+# development of these materials, makes any warranty, express or
+# implied, or assumes any legal liability or responsibility for the accuracy,
+# completeness, or usefulness or any information, apparatus, product,
+# software, or process disclosed, or represents that its use would not infringe
+# privately owned rights. Reference herein to any specific commercial product,
+# process, or service by trade name, trademark, manufacturer, or otherwise
+# does not necessarily constitute or imply its endorsement, recommendation, or
 # favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors
-# expressed herein do not necessarily state or reflect those of the
+# Battelle Memorial Institute. The views and opinions of authors expressed
+# herein do not necessarily state or reflect those of the
 # United States Government or any agency thereof.
 #
-# PACIFIC NORTHWEST NATIONAL LABORATORY
-# operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
+# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-#}}}
+# }}}
 
 '''VOLTTRON platform™ topic templates.
 
@@ -90,16 +71,17 @@ examples to demonstrate.
 '''
 
 import os
+import platform
 
 from .utils import Topic as _
 
 
 __author__ = 'Brandon Carpenter <brandon.carpenter@pnnl.gov>'
 __copyright__ = 'Copyright (c) 2016, Battelle Memorial Institute'
-__license__ = 'FreeBSD'
+__license__ = 'Apache 2.0'
 
 ALERTS_BASE = _('alerts')
-ALERTS = _('alerts/{agent_class}/{agent_uuid}') #/{agent_class}/{publickey}/{alert_key}')
+ALERTS = _('alerts/{agent_class}/{agent_identity}') #/{agent_class}/{publickey}/{alert_key}')
 
 HEARTBEAT = _('heartbeats')
 PLATFORM_BASE = _('platform')
@@ -111,8 +93,16 @@ PLATFORM_VCP_DEVICES = _('platforms/{platform_uuid}/devices/{topic}')
 RECORD_BASE = _('record')
 RECORD = _('record/{subtopic}')
 
+MARKET_BASE = _('market/{subtopic}')
+MARKET_RESERVE = _(MARKET_BASE.replace('{subtopic}', 'reserve'))
+MARKET_BID = _(MARKET_BASE.replace('{subtopic}', 'bid'))
+MARKET_CLEAR = _(MARKET_BASE.replace('{subtopic}', 'cleared_price'))
+MARKET_AGGREGATE = _(MARKET_BASE.replace('{subtopic}', 'aggregate'))
+MARKET_ERROR = _(MARKET_BASE.replace('{subtopic}', 'error'))
+MARKET_RECORD = _(RECORD.replace('{subtopic}', MARKET_CLEAR))
+
 AGENT_SHUTDOWN = _('agent/{agent}/shutdown')
-AGENT_PING = _('agent/ping/{}/{}/{{cookie}}'.format(os.uname()[1], os.getpid()))
+AGENT_PING = _('agent/ping/{}/{}/{{cookie}}'.format(platform.uname()[1], os.getpid()))
 
 LOGGER_BASE =_('datalogger')
 LOGGER = _('datalogger/{subtopic}')
@@ -201,6 +191,12 @@ DRIVER_CONFIG_UPDATE = _(_CONFIG_VALUE.replace('{category}', 'driver'))
 
 WEATHER_BASE = 'weather'
 WEATHER_REQUEST = 'weather/request'
+
+WEATHER2_BASE = 'weather2'
+WEATHER2_REQUEST = 'weather2/request'
+WEATHER2_POLL = 'weather2/polling'
+WEATHER2_RESPONSE = 'weather2/response'
+WEATHER2_ERROR = 'weather2/error'
 
 BACNET_INFO_BASE = _('bacnet/{indication}')
 BACNET_I_AM = _(BACNET_INFO_BASE.replace('{indication}', 'i_am'))

@@ -1,63 +1,45 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
-
-# Copyright (c) 2015, Battelle Memorial Institute
-# All rights reserved.
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
+# Copyright 2019, Battelle Memorial Institute.
 #
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in
-#    the documentation and/or other materials provided with the
-#    distribution.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# http://www.apache.org/licenses/LICENSE-2.0
 #
-# The views and conclusions contained in the software and documentation
-# are those of the authors and should not be interpreted as representing
-# official policies, either expressed or implied, of the FreeBSD
-# Project.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
-# This material was prepared as an account of work sponsored by an
-# agency of the United States Government.  Neither the United States
-# Government nor the United States Department of Energy, nor Battelle,
-# nor any of their employees, nor any jurisdiction or organization that
-# has cooperated in the development of these materials, makes any
-# warranty, express or implied, or assumes any legal liability or
-# responsibility for the accuracy, completeness, or usefulness or any
-# information, apparatus, product, software, or process disclosed, or
-# represents that its use would not infringe privately owned rights.
-#
-# Reference herein to any specific commercial product, process, or
-# service by trade name, trademark, manufacturer, or otherwise does not
-# necessarily constitute or imply its endorsement, recommendation, or
+# This material was prepared as an account of work sponsored by an agency of
+# the United States Government. Neither the United States Government nor the
+# United States Department of Energy, nor Battelle, nor any of their
+# employees, nor any jurisdiction or organization that has cooperated in the
+# development of these materials, makes any warranty, express or
+# implied, or assumes any legal liability or responsibility for the accuracy,
+# completeness, or usefulness or any information, apparatus, product,
+# software, or process disclosed, or represents that its use would not infringe
+# privately owned rights. Reference herein to any specific commercial product,
+# process, or service by trade name, trademark, manufacturer, or otherwise
+# does not necessarily constitute or imply its endorsement, recommendation, or
 # favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors
-# expressed herein do not necessarily state or reflect those of the
+# Battelle Memorial Institute. The views and opinions of authors expressed
+# herein do not necessarily state or reflect those of the
 # United States Government or any agency thereof.
 #
-# PACIFIC NORTHWEST NATIONAL LABORATORY
-# operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
+# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
 
 from collections import defaultdict
 import logging
 import weakref
+from enum import Enum
 
 from volttron.platform.agent.known_identities import MASTER_WEB
 from volttron.platform.vip.agent.subsystems.base import SubsystemBase
@@ -65,6 +47,13 @@ from volttron.platform.vip.agent.subsystems.base import SubsystemBase
 __docformat__ = 'reStructuredText'
 
 _log = logging.getLogger(__name__)
+
+
+class ResourceType(Enum):
+    JSONRPC = 'jsonrpc'
+    ENDPOINT = 'endpoint'
+    RAW = 'raw'
+    UNKNOWN = 99
 
 
 class WebSubSystem(SubsystemBase):
@@ -81,19 +70,29 @@ class WebSubSystem(SubsystemBase):
         self._endpoints = {}
         self._ws_endpoint = {}
 
-        rpc.export(self._opened, 'client.opened')
-        rpc.export(self._closed, 'client.closed')
-        rpc.export(self._message, 'client.message')
-        rpc.export(self._route_callback, 'route.callback')
+        def onsetup(sender, **kwargs):
+            rpc.export(self._opened, 'client.opened')
+            rpc.export(self._closed, 'client.closed')
+            rpc.export(self._message, 'client.message')
+            rpc.export(self._route_callback, 'route.callback')
 
         def onstop(sender, **kwargs):
             rpc.call(MASTER_WEB, 'unregister_all_agent_routes')
 
         core.onstop.connect(onstop, self)
+        core.onsetup.connect(onsetup, self)
 
-    def register_endpoint(self, endpoint, callback):
+    def get_user_claims(self, bearer):
+        return self._rpc().call(MASTER_WEB, 'get_user_claims', bearer).get(timeout=10)
+
+    def unregister_all_routes(self):
+        self._rpc().call(MASTER_WEB, 'unregister_all_agent_routes').get(timeout=10)
+
+    def register_endpoint(self, endpoint, callback,
+                          res_type: ResourceType = ResourceType.JSONRPC):
         """
         The :meth:`register_endpoint` method registers an endpoint with the
+        :param res_type:
         :class:`volttron.platform.web.MasterWebService` on the VOLTTRON
         instance.
 
@@ -116,11 +115,13 @@ class WebSubSystem(SubsystemBase):
         """
         _log.info('Registering route endpoint: {}'.format(endpoint))
         self._endpoints[endpoint] = callback
-        self._rpc().call(MASTER_WEB, 'register_endpoint', endpoint)
+        if isinstance(res_type, ResourceType):
+            res_type = res_type.value
+        self._rpc().call(MASTER_WEB, 'register_endpoint', endpoint, res_type).get(timeout=10)
 
     def register_path(self, prefix, static_path):
         """
-        The :meth:`register_endpoint` method registers a prefix that can be used
+        The :meth:`register_path` method registers a prefix that can be used
         for routing static files.
 
         .. versionadded:: VOLTTRON 4.0.1
@@ -132,11 +133,11 @@ class WebSubSystem(SubsystemBase):
         :type prefix: str
         :type static_path: str
         """
-        _log.info('Registirng path prefix: {}, path: {}'.format(
+        _log.info('Registering path prefix: {}, path: {}'.format(
             prefix, static_path
         ))
         self._rpc().call(MASTER_WEB, 'register_path_route', prefix,
-                         static_path)
+                         static_path).get(timeout=10)
 
     def register_websocket(self, endpoint, opened=None, closed=None,
                            received=None):
@@ -181,14 +182,14 @@ class WebSubSystem(SubsystemBase):
         :type closed: function
         :type received: function
         """
+        _log.info("Agent registering websocket at: {}".format(endpoint))
         self._ws_endpoint[endpoint] = (opened, closed, received)
         self._rpc().call(MASTER_WEB, 'register_websocket', endpoint).get(
             timeout=5)
 
     def unregister_websocket(self, endpoint):
         self._rpc().call(MASTER_WEB, 'unregister_websocket', endpoint).get(
-            timeout=5
-        )
+            timeout=5)
 
     def send(self, endpoint, message=''):
         """
@@ -204,12 +205,10 @@ class WebSubSystem(SubsystemBase):
         :type endpoint: str
         :type message: str
         """
-        _log.debug('SENDING DATA TO CALLBACK {} {}'.format(endpoint, message))
         self._rpc().call(MASTER_WEB, 'websocket_send', endpoint, message).get(
             timeout=5)
 
     def _route_callback(self, env, data):
-        _log.debug('Routing callback env: {} data: {}'.format(env, data))
         fn = self._endpoints.get(env['PATH_INFO'])
         if fn:
             _log.debug("Calling function: {}".format(fn.__name__))
@@ -218,7 +217,7 @@ class WebSubSystem(SubsystemBase):
         return None
 
     def _opened(self, fromip, endpoint):
-        _log.debug('Client opened callback ip: {} endpoint: {}'.format(
+        _log.info('Client opened websocket ip: {} endpoint: {}'.format(
             fromip, endpoint))
         callbacks = self._ws_endpoint.get(endpoint)
         if callbacks is None:
@@ -231,7 +230,7 @@ class WebSubSystem(SubsystemBase):
         return False
 
     def _closed(self, endpoint):
-        _log.debug('Client closed callback endpoint: {}'.format(endpoint))
+        _log.info('Client closed websocket endpoint: {}'.format(endpoint))
 
         callbacks = self._ws_endpoint.get(endpoint)
         if callbacks is None:
@@ -242,7 +241,6 @@ class WebSubSystem(SubsystemBase):
                 callbacks[1](endpoint)
 
     def _message(self, endpoint, message):
-        print('Client received message callback')
 
         callbacks = self._ws_endpoint.get(endpoint)
         if callbacks is None:
