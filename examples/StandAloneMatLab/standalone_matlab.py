@@ -59,20 +59,44 @@ utils.setup_logging()
 _log = logging.getLogger(__name__)
 
 logging.basicConfig(
-                level=logging.debug,
-                format='%(asctime)s   %(levelname)-8s %(message)s',
-                datefmt='%m-%d-%y %H:%M:%S')
+    level=logging.debug,
+    format='%(asctime)s   %(levelname)-8s %(message)s',
+    datefmt='%m-%d-%y %H:%M:%S')
+
 
 class StandAloneMatLab(Agent):
     '''The standalone version of the MatLab Agent'''
-    
+    def __init__(self, **kwargs):
+        super(StandAloneMatLab, self).__init__(**kwargs)
+        self.matlab_config = None
+
+    def logic(self, matlab_result):
+        if self.matlab_config is not None:
+            '''
+            Do something with the matlab results here to update the config.
+            For example, updating the command line argument passed to the
+            matlab script
+            '''
+
+            self.matlab_config['script_args'] = [[matlab_result.strip()]]
+            self.vip.pubsub.publish('pubsub', _topics['matlab_config_to_volttron'], message=json.dumps(self.matlab_config))
+            print("Config sent is: {}".format(self.matlab_config))            
+        else:
+            print("No Config has been sent!")
+
+
     @PubSub.subscribe('pubsub', _topics['volttron_to_matlab'])
     def print_message(self, peer, sender, bus, topic, headers, message):
         print('The Message is: ' + str(message))
-        messageOut = script_runner(message)
-        self.vip.pubsub.publish('pubsub', _topics['matlab_to_volttron'], message=messageOut)
-
-
+        message_out = script_runner(message)
+        self.logic(message_out)
+        self.vip.pubsub.publish(
+            'pubsub', _topics['matlab_to_volttron'], message=message_out)
+    
+    @PubSub.subscribe('pubsub', _topics['matlab_config_to_matlab'])
+    def get_config(self, peer, sender, bus, topic, headers, message):
+        self.matlab_config = json.loads(message)
+        print("Config received is: {}".format(message))
 
 if __name__ == '__main__':
     try:
@@ -82,10 +106,9 @@ if __name__ == '__main__':
             # get garbage collected and close the underlying descriptor.
             stdout = sys.stdout
             sys.stdout = os.fdopen(stdout.fileno(), 'w', 1)
-        
+
         print(remote_url())
-        agent = StandAloneMatLab(address=remote_url(),
-                                   identity='standalone_matlab')
+        agent = StandAloneMatLab(address=remote_url(), identity='standalone_matlab')
         task = gevent.spawn(agent.core.run)
         try:
             task.join()

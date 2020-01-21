@@ -1,4 +1,4 @@
 function out = testPy(z)
-x = 1:100
+x = 1
 out = x + z
 end
