@@ -11,6 +11,7 @@ stop_process_and_wait(){
     exit_code="$?"
     if [ $exit_code -ne 0 ]; then
        echo "Agent stop failed"
+       return 1
     fi
     # wait for agent to stop
     i=0
@@ -24,7 +25,6 @@ stop_process_and_wait(){
     done
     return $timeout
 }
-
 
 user=$1
 pid=$2
@@ -58,7 +58,7 @@ exit_code="$?"
 
 # If exit code is not 0 for the ps command then no such pid exists
 if [ $exit_code -ne 0 ]; then
-    echo "Invalid process id $pid. Process id does not correspond to any valid process"
+    echo "Invalid process id $pid. Process id does not correspond to any valid agent process"
     echo "Usage: <path>/secure_stop_agent.sh <user name of requester> <pid of agent to be stopped>"
     exit 3
 fi
@@ -73,31 +73,42 @@ if [[ ! $command =~ $re ]]; then
     echo "Usage: <path>/secure_stop_agent.sh <user name of requester> <pid of agent to be stopped>"
     exit 4
 fi
-echo "Sending SIGINT signal to $pid"
+
+agent_pid=`pgrep -P $pid `
+exit_code="$?"
+
+# If exit code is not 0 for the ps command then no such pid exists
+if [ $exit_code -ne 0 ]; then
+    echo "Invalid process id $pid. Process id does not have valid child process"
+    echo "Usage: <path>/secure_stop_agent.sh <user name of requester> <pid of agent to be stopped>"
+    exit 5
+fi
+
+echo "Sending SIGINT signal to $agent_pid  "
 # Attempt 1 send SIGINT give process to complete onstop functions
-stop_process_and_wait $pid SIGINT 10
+stop_process_and_wait $agent_pid SIGINT 10
 if [ $? -eq 0 ]; then
     echo  "Agent stopped"
     exit 0
 fi
 
-echo "Sending SIGTERM signal to $pid"
+echo "Sending SIGTERM signal to $agent_pid  "
 
 # Attempt 2 send terminate
-stop_process_and_wait $pid SIGTERM 10
+stop_process_and_wait $agent_pid SIGTERM 10
 if [ $? -eq 0 ]; then
     echo  "Agent terminated"
     exit 0
 fi
 
-echo "Sending SIGKILL signal to $pid"
+echo "Sending SIGKILL signal to $agent_pid  "
 
 # Attempt 3 kill
-stop_process_and_wait $pid SIGKILL 30
+stop_process_and_wait $agent_pid SIGKILL 30
 if [ $? -eq 0 ]; then
     echo  "Agent killed"
     exit 0
 else
-    echo "Unable to stop/kill agent"
+    echo "Unable to stop/kill agent  "
     exit 5
 fi
