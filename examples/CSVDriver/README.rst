@@ -1,4 +1,19 @@
-.. _CSV Driver Test Agent:
+.. _CSV Driver and Driver Test Agent:
+
+==========
+CSV Driver
+==========
+
+This example driver writes data to "registers" as lines in a CSV file. This
+driver is an example driver for development purposes only.
+
+In order to run this driver, put the csvdriver.py file into the master driver's
+interfaces directory, then configure the master driver normally using the
+included csv_driver.config configuration file and csv_registers.csv registry
+configuration file (see devguides > walkthroughs > Driver-Creation-Walkthrough
+for a more in-depth explanation of the driver framework, including configuration
+, directory structure, etc.) To see csv driver publishes, start the master
+driver and listener agents.
 
 =====================
 CSV Driver Test Agent
