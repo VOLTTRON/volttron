@@ -8,14 +8,20 @@
         phase: "UNINSTALL"
       register: instance_state
 
-    - debug:
-        var: instance_state
+    - name: Remove vollttron directory, files and other volttron artifacts
+      file:
+        state: absent
+        path: "{{ item }}"
+      with_items:
+        - "{{ ansible_env.HOME }}/volttron"
+        - "{{ ansible_env.HOME }}/.volttron"
+        - "{{ ansible_env.HOME }}/host.config.yml"
+        - "{{ ansible_env.HOME }}/rabbitmq_server"
+        - "{{ ansible_env.HOME }}/.volttron_rmq_home"
+        - "{{ ansible_env.HOME }}/.volttron_instances"
+        - "{{ ansible_env.HOME }}/ansible_logging.log"
+        - "{{ ansible_env.HOME }}/logfile.log"
+        - "{{ ansible_env.HOME }}/configs"
+        - "{{ ansible_env.HOME }}/volttron.tar.gz"
+        - "{{ ansible_env.HOME }}/ansible_venv"
 
-    - name: Remove vollttron and neccary folders and files
-      command:
-        # > joins the command by spaces
-        # | joins the lines with \n
-        cmd: >
-          rm -rf {{ ansible_env.HOME }}/volttron {{ ansible_env.HOME }}/.volttron
-          {{ ansible_env.HOME }}/rabbitmq_server {{ ansible_env.HOME }}/.volttron_rmq_home
-          {{ ansible_env.HOME }}/host.config.yml
