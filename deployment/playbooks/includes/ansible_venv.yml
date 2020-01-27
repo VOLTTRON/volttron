@@ -1,4 +1,13 @@
 ---
+- name: Check if ansible is already present
+  file:
+    path: "{{ ansible_env.HOME }}/ansible_venv"
+    state: directory
+  register: hasenv
+#
+#- debug:
+#    var: hasenv
+
 # Use anisible interperet to separate the volttron requirements from
 # the requirements of the volttron instance
 - name: Create ansbile virtual env
@@ -11,6 +20,8 @@
     - psutil
     - zmq
     - 'netifaces==0.10.9'
+    - 'deepdiff'
+  when: hasenv.changed  # if this happens then we needed to crate the venv dir
 
 # Sets the ansible interpreter to be the one that
 # is used for the rest of the tasks.
