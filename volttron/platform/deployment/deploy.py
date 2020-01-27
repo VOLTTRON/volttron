@@ -37,8 +37,10 @@
 # }}}
 
 # https://docs.ansible.com/ansible/latest/dev_guide/developing_api.html
-
+from copy import deepcopy
+import json
 import os
+import shutil
 import sys
 import yaml
 from ansible.cli import CLI
@@ -67,6 +69,7 @@ def setup_environment(hosts_path):
 
 
 def do_volttron_up(hosts_path, options):
+
     with open(hosts_path) as fp:
         cfg = yaml.safe_load(fp)
 
@@ -122,17 +125,73 @@ def do_volttron_up(hosts_path, options):
         #var_manager.eextra_vars = extra_vars
     # assert cfg['all']['hosts'], f"Invalid agents specified in {hosts_path}"
     # assert cfg['']
+    # Get all host facts from all the different hosts
+    results = get_all_facts_from_all_hosts(options)
+
     pbex = _get_executor(options.hosts_file, None, "volttron-instance", limit=options.limit,
-                         extra_vars=None)
+                         extra_vars={'volttron_host_facts': results})
                          #variable_manager=var_manager, inventory=inventory)
     # print(pbex._variable_manager.get_vars())
 
     results = pbex.run()
-    print(results)
+
+
+def get_all_facts_from_all_hosts(options):
+    class ResultCallback(CallbackBase):
+        def __init__(self):
+            super(ResultCallback, self).__init__()
+            self.results = {}
+
+        def v2_runner_on_ok(self, result):
+            self.results[result._host.name] = deepcopy(result._result['ansible_facts']['ansible_local'])
+
+            #for k, v in result._result.items():
+            #    print(f"k({k}), v({v})")
+            #host = result._host
+            #print(json.dumps({host.name: result._result}, indent=4))
+
+    results_callback = ResultCallback()
+    context.CLIARGS = _get_cli_args()
+    loader = DataLoader()
+    inventory = InventoryManager(loader=loader, sources=options.hosts_file)
+    variable_manager = VariableManager(loader=loader, inventory=inventory)
+    play_source = dict(name="Cool", hosts='all', tasks=[
+        dict(action=dict(module='gather_facts'))
+        #dict(action=dict(module='debug', args=dict(msg='{{all_facts}}')))
+    ])
+    play = Play().load(play_source, variable_manager=variable_manager, loader=loader)
+
+    tqm = None
+    try:
+        tqm = TaskQueueManager(
+            inventory=inventory,
+            variable_manager=variable_manager,
+            loader=loader,
+            passwords={}, #dict(become_pass="volttron"),
+            stdout_callback=results_callback,
+            # Use our custom callback instead of the ``default`` callback plugin, which prints to stdout
+        )
+
+        result = tqm.run(play)  # most interesting data for a play is actually sent to the callback's methods
+    finally:
+        # we always need to cleanup child procs and the structures we use to communicate with them
+        if tqm is not None:
+            tqm.cleanup()
+
+        # Remove ansible tmpdir
+        shutil.rmtree(C.DEFAULT_LOCAL_TMP, True)
+
+    return results_callback.results
 
 
 def do_volttron_status(options):
-    pbex = _get_executor(options.hosts_file, None, "status", limit=options.limit)
+
+    # Get all host facts from all the different hosts
+    results = get_all_facts_from_all_hosts(options)
+
+    # Creates a voltron_host_facts variable that can be used
+    pbex = _get_executor(options.hosts_file, None, "status", limit=options.limit,
+                         extra_vars={'volttron_host_facts': results})
 
     results = pbex.run()
 
@@ -215,33 +274,33 @@ def add_deployment_subparser(add_parser_fn):
 
 def do_deployment_command(opts):
 
-    try:
-        hosts_path = os.path.abspath(opts.hosts_file)
-        if not os.path.isfile(hosts_path):
-            sys.stderr.write(f"Invalid hosts-file path passed: {hosts_path}\n")
-            sys.exit(1)
-        opts.hosts_file = hosts_path
-
-        setup_environment(opts.hosts_file)
-
-        if opts.store_commands == 'init':
-            do_init_systems(opts)
-        elif opts.store_commands == 'destroy':
-            do_destroy_systems(opts)
-        elif opts.store_commands == 'up':
-            do_volttron_up(hosts_path, opts)
-        elif opts.store_commands == 'down':
-            do_volttron_down(opts)
-        elif opts.store_commands == 'status':
-            do_volttron_status(opts)
-        else:
-            _stderr.write(f"Invalid argument to parser {opts.store_commands}")
-    except AttributeError as exc:
-        if opts.store_commands is None:
-            opts.store_commands = ""
-        _stderr.write(f"Invalid command: '{opts.command} {opts.store_commands}' "
-                      "or command requires additional arguments\n")
+    #try:
+    hosts_path = os.path.abspath(opts.hosts_file)
+    if not os.path.isfile(hosts_path):
+        sys.stderr.write(f"Invalid hosts-file path passed: {hosts_path}\n")
         sys.exit(1)
+    opts.hosts_file = hosts_path
+
+    setup_environment(opts.hosts_file)
+
+    if opts.store_commands == 'init':
+        do_init_systems(opts)
+    elif opts.store_commands == 'destroy':
+        do_destroy_systems(opts)
+    elif opts.store_commands == 'up':
+        do_volttron_up(hosts_path, opts)
+    elif opts.store_commands == 'down':
+        do_volttron_down(opts)
+    elif opts.store_commands == 'status':
+        do_volttron_status(opts)
+    else:
+        _stderr.write(f"Invalid argument to parser {opts.store_commands}")
+    # except AttributeError as exc:
+    #     if opts.store_commands is None:
+    #         opts.store_commands = ""
+    #     _stderr.write(f"Invalid command: '{opts.command} {opts.store_commands}' "
+    #                   "or command requires additional arguments\n")
+    #     sys.exit(1)
 
 
 def get_playbook(playbook):
@@ -274,7 +333,8 @@ def _get_cli_args() -> ImmutableDict:
         verbosity=0, check=False, start_at_task=None)
 
 
-def _get_executor(hosts_file, sudo_password, playbooks, limit=None, variable_manager=None, inventory=None, extra_vars=None):
+def _get_executor(hosts_file, sudo_password, playbooks, limit=None, variable_manager=None, inventory=None,
+                  extra_vars=None):
     if not playbooks:
         raise ValueError("playbooks must be specified!")
 
@@ -297,6 +357,9 @@ def _get_executor(hosts_file, sudo_password, playbooks, limit=None, variable_man
                                            version_info=CLI.version_info(gitinfo=False))
     else:
         variable_manager.set_inventory(inventory)
+
+    if extra_vars is not None:
+        variable_manager._extra_vars = extra_vars
     passwords = dict(become_pass=sudo_password)
 
     pbex = PlaybookExecutor(playbooks=playbooks,

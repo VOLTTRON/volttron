@@ -12,6 +12,6 @@
 try:
     from ansible.utils.display import Display
 
-    display = Display(verbosity=0)
+    display = Display(verbosity=1)
 except ImportError:
     pass
