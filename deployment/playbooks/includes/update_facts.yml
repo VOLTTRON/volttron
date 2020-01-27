@@ -3,10 +3,11 @@
     volttron_instance_config:
       config_file: "{{ host_config }}"
     check_mode: True
+    # Used in instance.fact template below
     register: my_state
 
   - name: Create fact file
     template:
       owner: "{{ ansible_user }}"
       src: templates/instance.fact
-      dest: /etc/ansible/facts.d/instance.fac
+      dest: /etc/ansible/facts.d/instance.fact
