@@ -479,7 +479,7 @@ def main():
 
     # endregion
 
-    self.exit_json(msg="I am exiting now!")
+    module.exit_json(msg="I am exiting now!")
 
     write_volttron_config_file("/tmp/new_volttron_config", host_cfg)
 
