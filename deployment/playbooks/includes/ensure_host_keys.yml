@@ -1,0 +1,24 @@
+---
+- name: "ensure host key entries"
+  hosts: all
+  gather_facts: no
+  serial: yes # serial is a play-level variable, we must update client's known_host serially
+  tasks:
+    - name: get ssh known_host values
+      local_action: "shell ssh-keyscan -p {{ ansible_port | default(22) }} {{ ansible_host }}"
+      register: sshKnownHostEntry
+      vars:
+        ansible_python_interpreter: "{{ ansible_playbook_python }}"
+
+    - name: add/update the known_hosts public key
+      delegate_to: localhost
+      vars:
+        ansible_python_interpreter: "{{ ansible_playbook_python }}"
+      known_hosts:
+        state: present
+        name: "{{ sshKnownHostEntry.stdout.split(' ')[0] }}"
+        key: "{{ sshKnownHostEntry.stdout }}"
+        path: "~/.ssh/known_hosts"
+
+    - name: now gather facts
+      setup: ~
