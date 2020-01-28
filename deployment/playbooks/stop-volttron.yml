@@ -1,4 +1,6 @@
 ---
+- import_playbook: includes/ensure_host_keys.yml
+
 - hosts: all
   tasks:
     - include_tasks: includes/ansible_venv.yml
