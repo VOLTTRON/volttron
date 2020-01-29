@@ -9,6 +9,7 @@
     VOLTTRON_HOME: "{{ ansible_env.HOME }}/.volttron"
     VOLTTRON_ROOT: "{{ ansible_env.HOME }}/volttron"
     HOST_CONFIG: "{{ ansible_env.HOME }}/host.config.yml"
+    http_proxy: ""
   tasks:
 
     - name: Initialize git variables for downloading repository without git
@@ -20,6 +21,16 @@
       when: enable_web is not defined
       set_fact:
         enable_web: "no"
+
+    - name: Test for enable_drivers
+      when: enable_drivers is not defined
+      set_fact:
+        enable_drivers: no
+
+    - name: Test for extra_requires
+      when: extra_requirements is not defined
+      set_fact:
+        extra_requirements: []
 
     - name: Set messagebus zmq when not defined
       when: messagebus is not defined
@@ -162,10 +173,28 @@
       register: web_enabled
 
     - name: Enabling web packages for environment
-      when: (enable_web == 'yes' and "0" in web_enabled.stdout)
+      when: (enable_web == 'yes') # and "0" in web_enabled.stdout)
       command:
         cmd: "env/bin/python bootstrap.py --web"
         chdir: "{{ ansible_env.HOME }}/volttron"
+
+    - name: Enabling master driver packages for environment
+      when: (enable_drivers == 'yes')
+      command:
+        cmd: "env/bin/python bootstrap.py --drivers"
+        chdir: "{{ ansible_env.HOME }}/volttron"
+
+    - name: Install extra requirements for this instance
+      pip:
+        virtualenv: "{{ansible_env.HOME}}/volttron/env"
+        name: "{{ item }}"
+      with_items: "{{ extra_requirements }}"
+      environment:
+        # This module doesn't use the http_proxy as the env instead it uses the
+        # capitalized one
+        # reference https://docs.ansible.com/ansible/latest/modules/pip_module.html
+        HTTP_PROXY: "{{ ansible_env.http_proxy }}"
+      when: extra_requirements != []
 
     - set_fact:
         local_remote_config_file: "{{lookup('env','DEPLOYMENT_ROOT')}}/{{inventory_hostname}}/{{inventory_hostname}}.yml"

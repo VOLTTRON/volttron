@@ -1324,14 +1324,28 @@ def _show_filtered_agents(opts, field_name, field_callback, agents=None):
     tag_width = max(3, max(len(agent.tag or '') for agent in agents))
     identity_width = max(3, max(len(agent.vip_identity or '') for agent in agents))
     fmt = '{} {:{}} {:{}} {:{}} {:>6}\n'
-    _stderr.write(
-        fmt.format(' ' * n, 'AGENT', name_width, 'IDENTITY', identity_width,
-                   'TAG', tag_width, field_name))
-    for agent in agents:
-        _stdout.write(fmt.format(agent.uuid[:n], agent.name, name_width,
-                                 agent.vip_identity, identity_width,
-                                 agent.tag or '', tag_width,
-                                 field_callback(agent)))
+
+    if not opts.json:
+        _stderr.write(
+            fmt.format(' ' * n, 'AGENT', name_width, 'IDENTITY', identity_width,
+                       'TAG', tag_width, field_name))
+        for agent in agents:
+            _stdout.write(fmt.format(agent.uuid[:n], agent.name, name_width,
+                                     agent.vip_identity, identity_width,
+                                     agent.tag or '', tag_width,
+                                     field_callback(agent)))
+    else:
+        json_obj = {}
+
+        for agent in agents:
+            json_obj[agent.vip_identity] = dict(
+                agent_uuid=agent.uuid,
+                name=agent.name,
+                identity=agent.vip_identity,
+                agent_tag=agent.tag or ''
+            )
+            json_obj[agent.agent.vip_identity][field_name] = field_callback(agent)
+        _stdout.write(f"{jsonapi.dumps(json_obj, indent=2)}\n")
 
 
 def _show_filtered_agents_status(opts, status_callback, health_callback, agents=None):
@@ -1397,6 +1411,7 @@ def _show_filtered_agents_status(opts, status_callback, health_callback, agents=
                 health=health_callback(agent)
             )
         _stdout.write(f"{jsonapi.dumps(json_obj, indent=2)}\n")
+
 
 def get_agent_publickey(opts):
     def get_key(agent):
