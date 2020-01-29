@@ -10,6 +10,7 @@
     VOLTTRON_HOME: "{{ ansible_env.HOME }}/.volttron"
     VOLTTRON_ROOT: "{{ ansible_env.HOME }}/volttron"
     HOST_CONFIG: "{{ ansible_env.HOME }}/host.config.yml"
+    http_proxy: ""
   tasks:
     - name: "get ssh known_host values"
       local_action: "shell ssh-keyscan -p {{ ansible_port }} {{ ansible_host }}"
@@ -209,6 +210,11 @@
         virtualenv: "{{ansible_env.HOME}}/volttron/env"
         name: "{{ item }}"
       with_items: "{{ extra_requirements }}"
+      environment:
+        # This module doesn't use the http_proxy as the env instead it uses the
+        # capitalized one
+        # reference https://docs.ansible.com/ansible/latest/modules/pip_module.html
+        HTTP_PROXY: "{{ ansible_env.http_proxy }}"
       when: extra_requirements != []
 
     - set_fact:
