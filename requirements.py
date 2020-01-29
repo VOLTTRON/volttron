@@ -91,7 +91,7 @@ extras_require = {
     ],
     'drivers': [
         'pymodbus',
-        'bacpypes',
+        'bacpypes==0.16.7',
         'modbus-tk',
         'pyserial'
     ],
