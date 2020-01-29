@@ -455,7 +455,7 @@ class Router(BaseRouter):
                     value = None
             frames[6:] = ['', value]
             frames[3] = ''
-            _log.debug(f"FFFFFRRRRAAAAMMMEMMMES: {frames}")
+            
             return frames
         elif subsystem == 'pubsub':
             result = self.pubsub.handle_subsystem(frames, user_id)
