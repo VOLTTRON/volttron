@@ -42,7 +42,7 @@
         # This variable must be passed on for the module to be able to be used
         # if using the vctl deploy script this variable is created via extra_vars
         volttron_host_facts: "{{ volttron_host_facts }}"
-git gu
+
     - name: Configure VOLTTRON instance (external connection phase)
       volttron_instance_config:
         config_file: "{{ ansible_env.HOME }}/host.config.yml"
