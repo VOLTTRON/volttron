@@ -6,6 +6,7 @@
       volttron_instance_config:
         config_file: "{{ ansible_env.HOME }}/host.config.yml"
         state: "STOPPED"
+        phase: "NONE"
       register: instance_state
 
     - debug:
