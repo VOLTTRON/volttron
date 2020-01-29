@@ -1373,16 +1373,30 @@ def _show_filtered_agents_status(opts, status_callback, health_callback, agents=
     tag_width = max(3, max(len(agent.tag or '') for agent in agents))
     identity_width = max(3, max(len(agent.vip_identity or '') for agent in agents))
     fmt = '{} {:{}} {:{}} {:{}} {:>6} {:>15}\n'
-    _stderr.write(
-        fmt.format(' ' * n, 'AGENT', name_width, 'IDENTITY', identity_width,
-                   'TAG', tag_width, 'STATUS', 'HEALTH'))
-    fmt = '{} {:{}} {:{}} {:{}} {:<15} {:<}\n'
-    for agent in agents:
-        _stdout.write(fmt.format(agent.uuid[:n], agent.name, name_width,
-                                 agent.vip_identity, identity_width,
-                                 agent.tag or '', tag_width,
-                                 status_callback(agent), health_callback(agent)))
+    # only need head when not json output
+    if not opts.json:
+        _stderr.write(
+            fmt.format(' ' * n, 'AGENT', name_width, 'IDENTITY', identity_width,
+                       'TAG', tag_width, 'STATUS', 'HEALTH'))
+        fmt = '{} {:{}} {:{}} {:{}} {:<15} {:<}\n'
+        for agent in agents:
+            _stdout.write(fmt.format(agent.uuid[:n], agent.name, name_width,
+                                     agent.vip_identity, identity_width,
+                                     agent.tag or '', tag_width,
+                                     status_callback(agent), health_callback(agent)))
+    else:
+        json_obj = {}
 
+        for agent in agents:
+            json_obj[agent.vip_identity] = dict(
+                agent_uuid=agent.uuid,
+                name=agent.name,
+                identity=agent.vip_identity,
+                agent_tag=agent.tag or '',
+                status=status_callback(agent),
+                health=health_callback(agent)
+            )
+        _stdout.write(f"{jsonapi.dumps(json_obj, indent=2)}\n")
 
 def get_agent_publickey(opts):
     def get_key(agent):
@@ -2048,6 +2062,8 @@ def main(argv=sys.argv):
     parser.add_argument(
         '--show-config', action='store_true',
         help=argparse.SUPPRESS)
+    parser.add_argument("--json", action="store_true", default=False,
+                        help="Format output to json.")
 
     parser.add_help_argument()
     parser.set_defaults(
