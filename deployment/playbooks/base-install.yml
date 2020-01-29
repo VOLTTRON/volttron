@@ -17,12 +17,6 @@
         git_branch: remote-platforms
         git_organization: craig8
 
-    #TODO BHL
-    #- name: Test for enable_web
-    #  when: enable_web is not defined
-    #  set_fact:
-    #    enable_web: "no"
-
     - name: Test for enable_drivers
       when: enable_drivers is not defined
       set_fact:
@@ -158,7 +152,6 @@
         creates: "{{ ansible_env.HOME }}/volttron/env"
 
     - name: Test if pika installed
-      #raw: "cd ~/volttron && env/bin/pip list --disable-pip-version-check --format legacy| grep -F gevent-pika | wc -l"
       shell: "cd ~/volttron && env/bin/pip list --disable-pip-version-check --format legacy| grep -F gevent-pika | wc -l"
       args:
         chdir: "{{ ansible_env.HOME }}/volttron"
@@ -171,7 +164,6 @@
         chdir: "{{ ansible_env.HOME }}/volttron"
 
     - name: Test if ws4py installed
-      #raw: "cd {{ ansible_env.HOME }}/volttron && env/bin/pip list --disable-pip-version-check --format legacy| grep -F ws4py | wc -l"
       shell: "cd {{ ansible_env.HOME }}/volttron && env/bin/pip list --disable-pip-version-check --format legacy| grep -F ws4py | wc -l"
       args:
         chdir: "{{ ansible_env.HOME }}/volttron"
