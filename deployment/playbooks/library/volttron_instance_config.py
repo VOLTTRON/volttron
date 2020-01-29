@@ -51,15 +51,31 @@ class VolttronInstanceModule(AnsibleModule):
         self._vctl = os.path.join(self._vroot, "env/bin/vctl")
         self._ansible_python = sys.executable
         self._instance_state = InstanceState.NOT_BOOTSTRAPPED
-        self._agent_configuration = {}
-        self._agent_status = {}
+        self._agents_config = {}
+        self._agents_status = {}
         self._serverkey = None
 
         self._all_hosts = self.params['volttron_host_facts']
-        self._phase = self.params['phase']
-        self._requested_state = self.params['state']
-        self._build_multiplatform_file()
-        self._discover_current_state()
+        self._phase = self.params["phase"]
+        if self._phase is None:
+            self._phase = InstallPhaseEnum("NONE")
+        else:
+            self._phase = InstallPhaseEnum(self._phase)
+        self._requested_state = self.params["state"]
+        if self._requested_state is None:
+            self._requested_state = InstanceState("UNKNOWN")
+        else:
+            self._requested_state = InstanceState(self._requested_state)
+        # discover the state of the instance as well as the agents that make it up.
+        self.__discover_current_state__()
+
+    @property
+    def phase(self):
+        return self._phase
+
+    @property
+    def requested_state(self):
+        return self._requested_state
 
     def _build_multiplatform_file(self):
         # Only do this if we are not in check_mode
