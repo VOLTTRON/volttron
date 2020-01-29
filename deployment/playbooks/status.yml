@@ -16,11 +16,14 @@
       vars:
         host_config: "{{ ansible_env.HOME }}/host.config.yml"
 
-    - name: Retrieving Status
-      volttron_instance_config:
-        config_file: "{{ ansible_env.HOME }}/host.config.yml"
-      check_mode: True
-      register: instance_state
-
     - debug:
-        var: instance_state
+        var: volttron_host_facts #"MY host facts are:\n{{ volttron_host_facts | to_json }}"
+#
+#    - name: Retrieving Status
+#      volttron_instance_config:
+#        config_file: "{{ ansible_env.HOME }}/host.config.yml"
+#      check_mode: True
+#      register: instance_state
+#
+#    - debug:
+#        var: instance_state
