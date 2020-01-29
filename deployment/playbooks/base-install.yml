@@ -17,10 +17,11 @@
         git_branch: remote-platforms
         git_organization: craig8
 
-    - name: Test for enable_web
-      when: enable_web is not defined
-      set_fact:
-        enable_web: "no"
+    #TODO BHL
+    #- name: Test for enable_web
+    #  when: enable_web is not defined
+    #  set_fact:
+    #    enable_web: "no"
 
     - name: Test for enable_drivers
       when: enable_drivers is not defined
@@ -37,6 +38,8 @@
       set_fact:
           messagebus: "zmq"
 
+    #TODO BHL: this step is expected to be very sensitive to the OS
+    #          package names differ between ubuntu versions and/or to debian
     - name: Install base software
       become: yes
       become_method: sudo
@@ -155,31 +158,37 @@
         creates: "{{ ansible_env.HOME }}/volttron/env"
 
     - name: Test if pika installed
-      raw: "cd ~/volttron && env/bin/pip list --disable-pip-version-check --format legacy| grep -F gevent-pika | wc -l"
+      #raw: "cd ~/volttron && env/bin/pip list --disable-pip-version-check --format legacy| grep -F gevent-pika | wc -l"
+      shell: "cd ~/volttron && env/bin/pip list --disable-pip-version-check --format legacy| grep -F gevent-pika | wc -l"
       args:
         chdir: "{{ ansible_env.HOME }}/volttron"
       register: already_installed_pika
 
     - name: Boostrap rmq environment
-      when: (messagebus == "rmq" and "0" in already_installed_pika.stdout)
+      when: (messagebus == "rmq" and "0" not in already_installed_pika.stdout)
       command:
         cmd: "env/bin/python bootstrap.py --rabbitmq"
         chdir: "{{ ansible_env.HOME }}/volttron"
 
-    - name: Test if pika installed
-      raw: "cd {{ ansible_env.HOME }}/volttron && env/bin/pip list --disable-pip-version-check --format legacy| grep -F ws4py | wc -l"
+    - name: Test if ws4py installed
+      #raw: "cd {{ ansible_env.HOME }}/volttron && env/bin/pip list --disable-pip-version-check --format legacy| grep -F ws4py | wc -l"
+      shell: "cd {{ ansible_env.HOME }}/volttron && env/bin/pip list --disable-pip-version-check --format legacy| grep -F ws4py | wc -l"
       args:
         chdir: "{{ ansible_env.HOME }}/volttron"
       register: web_enabled
 
+    - name: confirm test for ws4py
+      debug:
+        var: web_enabled
+
     - name: Enabling web packages for environment
-      when: (enable_web == 'yes') # and "0" in web_enabled.stdout)
+      when: (enable_web is defined and enable_web == True) # and "0" not in web_enabled.stdout)
       command:
         cmd: "env/bin/python bootstrap.py --web"
         chdir: "{{ ansible_env.HOME }}/volttron"
 
     - name: Enabling master driver packages for environment
-      when: (enable_drivers == 'yes')
+      when: (enable_drivers is defined and enable_drivers == True)
       command:
         cmd: "env/bin/python bootstrap.py --drivers"
         chdir: "{{ ansible_env.HOME }}/volttron"
