@@ -169,10 +169,6 @@
         chdir: "{{ ansible_env.HOME }}/volttron"
       register: web_enabled
 
-    - name: confirm test for ws4py
-      debug:
-        var: web_enabled
-
     - name: Enabling web packages for environment
       when: (enable_web is defined and enable_web == True) # and "0" not in web_enabled.stdout)
       command:
