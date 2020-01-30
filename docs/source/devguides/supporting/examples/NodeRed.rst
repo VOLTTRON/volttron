@@ -27,18 +27,18 @@ Set the variables at the beginning of the `volttron.js` file to be a valid
 VOLTTRON environment, VOLTTRON home, and python path.
 
 Valid CURVE keys need to be added to the `settings.py` file. If they are
-generated with the `volttron-ctl auth keypair` command then the public key
+generated with the `vctl auth keypair` command then the public key
 should be added to VOLTTRON's authorization file with the following:
 
 .. code-block:: console
 
-    $ volttron-ctl auth add
+    $ vctl auth add
 
 The serverkey can be found with
 
 .. code-block:: console
 
-    $ volttron-ctl auth serverkey
+    $ vctl auth serverkey
 
 Usage
 -----

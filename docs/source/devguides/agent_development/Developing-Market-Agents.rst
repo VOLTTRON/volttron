@@ -1,8 +1,8 @@
 .. _Developing-Market-Agents:
 
-===========================
+========================
 Developing Market Agents
-===========================
+========================
 
 VOLTTRON provides a convenient base class for developing new market
 agents. The base class automatically subscribes to all pertinent topics,
@@ -19,7 +19,10 @@ MarketAgent
 
 All Market Agents must inherit from the MarketAgent class in
 volttron.platform.agent.base_market_agent and call the following
-method::
+method
+
+::
+
     self.join_market(market_name, buyer_seller, reservation_callback, offer_callback, aggregate_callback, price_callback, error_callback)
 
 This method causes the market agent to join a single market.  If the agent wishes to participate in several

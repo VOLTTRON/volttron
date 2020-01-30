@@ -1,3 +1,5 @@
+.. _Topics:
+
 Messaging and Topics
 ====================
 

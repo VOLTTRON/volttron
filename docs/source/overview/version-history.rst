@@ -1,8 +1,8 @@
 .. _version-history:
 
-========================
+===============
 Version History
-========================
+===============
 
 VOLTTRON 1.0 – 1.2
 
@@ -50,3 +50,5 @@ VOLTTRON 5.0
 - Message bus performance improvement
 - Multi-platform publish/subscribe for simpler coordination across platforms
 - Drivers contributed back for SEP 2.0 and ChargePoint EV
+
+VOLTTRON 6.0

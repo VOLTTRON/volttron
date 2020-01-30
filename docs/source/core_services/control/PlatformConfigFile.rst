@@ -1,4 +1,5 @@
 .. _PlatformConfigFile:
+
 VOLTTRON Config File
 ====================
 
@@ -26,21 +27,19 @@ agent options:
 
        --autostart           automatically start enabled agents and services
        --publish-address ZMQADDR
-                        ZeroMQ URL for used for agent publishing
+                            ZeroMQ URL for used for agent publishing
        --subscribe-address ZMQADDR
-                        ZeroMQ URL for used for agent subscriptions
+                            ZeroMQ URL for used for agent subscriptions
 
 control options:
 
 .. code-block:: console
 
        --control-socket FILE
-                        path to socket used for control messages
+                             path to socket used for control messages
        --allow-root          allow root to connect to control socket
        --allow-users LIST    users allowed to connect to control socket
        --allow-groups LIST   user groups allowed to connect to control socket
 
-| Boolean options, which take no argument, may be inversed by prefixing
-the
-| option with no- (e.g. --autostart may be inversed using
---no-autostart).
+| Boolean options, which take no argument, may be inversed by prefixing the
+| option with no- (e.g. --autostart may be inversed using --no-autostart).

@@ -1,4 +1,5 @@
 .. _MODBUS-config:
+
 Modbus Driver Configuration
 ---------------------------
 VOLTTRON's modbus driver supports the Modbus over TCP/IP protocol only. For Modbus RTU support,

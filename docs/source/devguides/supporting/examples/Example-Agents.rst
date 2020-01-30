@@ -1,3 +1,5 @@
+.. _Example-Agents:
+
 Example Agents Overview
 =======================
 
@@ -34,6 +36,6 @@ config file for use in topics.
 
 ::
 
-            @Pubsub.subscribe('pubsub', DEVICES_VALUE(campus=campus))
-            def actuate(self, peer, sender, bus,  topic, headers, message):
+    @Pubsub.subscribe('pubsub', DEVICES_VALUE(campus=campus))
+    def actuate(self, peer, sender, bus,  topic, headers, message):
 

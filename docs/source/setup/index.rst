@@ -5,6 +5,10 @@
 Installing VOLTTRON
 ===================
 
+.. note:: Volttron version 7.0 is currently tested for Ubuntu versions 18.04 and
+     18.10 as well as Linux Mint version 19.3. Version 6.x is tested for Ubuntu
+     versions 16.04 and 18.04 as well as Linux Mint version 19.1.
+
 
 Install Required Software
 -------------------------
@@ -121,6 +125,9 @@ Steps for RabbitMQ
 
       python bootstrap.py --rabbitmq [optional install directory defaults to
        <user_home>/rabbitmq_server]
+
+  .. note:: If your PYTHON_PATH is configured for Python 2.7, you'll need to use
+    ``python3 bootstrap.py ..``
 
   This will build the platform and create a virtual Python environment and
   dependencies for RabbitMQ. It also installs RabbitMQ server as the current user.

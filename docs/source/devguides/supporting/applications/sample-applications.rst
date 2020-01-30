@@ -81,14 +81,14 @@ Upon successful completion of this command, the terminal output will show the in
 
 ::
 
-	$ volttron-ctl start --tag passive-afdd
+	$ vctl start --tag passive-afdd
 
 
 3. Verify that the agent is running:
 
 ::
 
-	$ volttron-ctl status
+	$ vctl status
 	$ tail -f volttron.log
 
 
@@ -96,8 +96,8 @@ If changes are made to the Passive AFDD agent’s configuration file after the a
 
 ::
 
-	$ volttron-ctl stop --tag passive-afdd
-	$ volttron-ctl remove --tag passive-afdd
+	$ vctl stop --tag passive-afdd
+	$ vctl remove --tag passive-afdd
 
 
 Then re-build and start the updated agent.
@@ -375,14 +375,14 @@ Upon successful completion of this command, the terminal output will show the in
 
 ::
 
-	$ volttron-ctl start --tag dr-agent
+	$ vctl start --tag dr-agent
 
 
 3. Verify that agent is running:
 
 ::
 
-	$ volttron-ctl status
+	$ vctl status
 	$ tail -f volttron.log
 
 
@@ -390,8 +390,8 @@ If changes are made to the DR agent’s configuration file after the agent is la
 
 ::
 
-	$ volttron-ctl stop --tag dr-agent
-	$ volttron-ctl remove --tag dr-agent
+	$ vctl stop --tag dr-agent
+	$ vctl remove --tag dr-agent
 
 
 Then re-build and start the updated agent.

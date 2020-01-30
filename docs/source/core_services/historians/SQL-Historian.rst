@@ -23,6 +23,18 @@ shell in order to install it.
 
     pip install --allow-external mysql-connector-python mysql-connector-python
 
+or
+
+::
+
+    python bootstrap.py --mysql
+
+or
+
+::
+
+    python bootstrap.py --databases
+
 | In addition, the mysql database must be created and permissions
 granted for select, insert and update before the agent is started. In
 order to support timestamp with microseconds you need at least MySql
@@ -104,6 +116,8 @@ The PostgreSQL and Redshift database drivers require the **psycopg2** Python pac
 
     From an activated shell execute:
 
+    ::
+
         pip install psycopg2-binary
 
 Configuration
@@ -153,7 +167,7 @@ SQLHistorianAgent to use a remote PostgreSQL database.
     }
 
 TimescaleDB Support
-++++++++++++++++++++++++++
++++++++++++++++++++
 
 Both of the above PostgreSQL connection types can make
 use of TimescaleDB's high performance Hypertable backend

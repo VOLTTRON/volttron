@@ -375,7 +375,7 @@ Setup on Linux
 5. Run the below command and make a note of the server key. This is required for configuring the stand alone agent
    on windows. (This is run on the linux machine)
 
-        ``volttron-ctl auth serverkey``
+        ``vctl auth serverkey``
 
 
 Setup on Windows
@@ -384,7 +384,7 @@ Setup on Windows
 Install pre-requisites
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-1. Install python 2.7 64-bit from `here <https://www.python.org/downloads/windows/>`__.
+1. Install python 3.6 64-bit from `here <https://www.python.org/downloads/windows/>`__.
 
 2. Install MatLab engine from  `here <https://www.mathworks.com/help/matlab/matlab_external/install-the-matlab-engine-for-python.html>`_.
 
@@ -452,11 +452,11 @@ Windows environment.
         Open your MatLab application. Run the command **pyversion** This should print the path to python2.7. If you have
         multiple versions of python on your machine and pyversion points to a different version of python,
         use **pyversion /path/to/python.exe** to set the appropriate version of python for your system.
-        For example, to use python 2.7 with MatLab:
+        For example, to use python 3.6 with MatLab:
 
         .. code::
 
-                pyversion C:\Python27\python.exe
+                pyversion C:\Python36\python.exe
 
 4. Set up the environment.
 

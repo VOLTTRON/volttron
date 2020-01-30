@@ -55,15 +55,30 @@ Setup mongodb based on using one of the three below scripts.
        access to the current user
 
        -h print this help message
+
 2. Mongodb connector
 --------------------
 This historian requires a mongodb connector installed in your activated
 volttron environment to talk to mongodb. Please execute the following
 from an activated shell in order to install it.
 
-::
+    ::
 
-    pip install pymongo
+        python bootstrap.py --mongo
+
+
+or
+
+    ::
+
+        python bootstrap.py --databases
+
+
+or
+
+    ::
+
+        pip install pymongo
 
 
 3. Configuration Options

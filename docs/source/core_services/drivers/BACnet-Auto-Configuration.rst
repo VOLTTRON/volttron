@@ -23,7 +23,7 @@ read automatically when the utility is run.
 
 The only value that (usually) needs to be changed is the **address** field.
 **This is the address bound to the port on the machine you are running the script from, NOT
-A TARGET DEVICE! ** This value should be set to the IP address of the
+A TARGET DEVICE!** This value should be set to the IP address of the
 network interface used to communicate with the remote device. If there
 is more than one network interface you must use the address of the interface
 connected to the network that can reach the device.
@@ -119,8 +119,6 @@ The utility is invoked with the command:
     
 This will query the device with the matching device ID for configuration 
 information and print the resulting CSV file to the console.
-
-.. note:: Previous to VOLTTRON 3.5 ``grab_bacnet_config.py`` took the device address as an argument instead of the device ID.
 
 In order to save the configuration to a file use the ``--out-file`` option to specify the
 output file name.

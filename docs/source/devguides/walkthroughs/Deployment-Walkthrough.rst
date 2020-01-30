@@ -62,7 +62,7 @@ Configuring Platform
 
 On VC:
 
-- Run :ref:`volttron-cfg<VOLTTRON-Config>`
+- Run :ref:`vcfg <VOLTTRON-Config>`
 - Setup as VOLTTRON Central.
 - Set appropriate ip, port, etc for this machine 
 - Pick to install a platform historian (defaults to sqlite)
@@ -92,7 +92,7 @@ for testing purposes. For an actual deployment against real devices see the foll
  Now that data is being published to the bus, a :ref:`Forward Historian<Forward-Historian>` can be
  configured to send this data to the VC instance for storage.
  
-- Use: volttron-ctl keypair   to generate a keypair
+- Use: vctl keypair   to generate a keypair
 - cat VOLTTRON_HOME/keypair to get the public and secret keys
 - Create a config directory in the main project directory
 - Setup a :ref:`Forward Historian<ForwardHistorian>`

@@ -1,4 +1,5 @@
 .. _RabbitMQ-VOLTTRON:
+
 =======================
 RabbitMQ Based VOLTTRON
 =======================
@@ -343,13 +344,13 @@ on VOLTTRON instance "volttron2" on host "host_B".
 RabbitMQ Management Tool Integrated Into VOLTTRON
 =================================================
 Some of the important native RabbitMQ control and management commands are now integrated with
-"volttron-ctl" utility. Using volttron-ctl RabbitMQ management utility, we can control and
+"volttron-ctl" (vctl) utility. Using volttron-ctl RabbitMQ management utility, we can control and
 monitor the status of RabbitMQ message bus.
 
 ::
 
-    volttron-ctl rabbitmq --help
-    usage: volttron-ctl command [OPTIONS] ... rabbitmq [-h] [-c FILE] [--debug]
+    vctl rabbitmq --help
+    usage: vctl command [OPTIONS] ... rabbitmq [-h] [-c FILE] [--debug]
                                                        [-t SECS]
                                                        [--msgdebug MSGDEBUG]
                                                        [--vip-address ZMQADDR]

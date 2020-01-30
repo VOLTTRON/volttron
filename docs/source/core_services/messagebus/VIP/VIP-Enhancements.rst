@@ -1,3 +1,6 @@
+.. _VIP-Enhancements:
+
+
 VIP Enhancements
 ================
 

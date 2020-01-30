@@ -1,4 +1,5 @@
 .. _Eclipse:
+
 Agent Development in Eclipse
 ============================
 
@@ -460,21 +461,21 @@ From a terminal, in the base VOLTTRON directory, enter the following commands (w
 
 :: 
 
-	$ volttron-ctl start --tag test-agent
+	$ vctl start --tag test-agent
 
 3. Verify that the agent is running:
 
 ::
 
-	$ volttron-ctl status
+	$ vctl status
 	$ tail -f volttron.log
 
 If changes are made to the Passive AFDD agent’s configuration file after the agent is launched, stop and reload the agent. In a terminal, enter the following commands:
 
 ::
 
-	$ volttron-ctl stop --tag test-agent
-	$ volttron-ctl remove --tag test-agent
+	$ vctl stop --tag test-agent
+	$ vctl remove --tag test-agent
 
 Re-build and start the updated agent (Figure 37).
 

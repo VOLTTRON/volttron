@@ -38,8 +38,8 @@
 
 """VIP - VOLTTRON™ Interconnect Protocol implementation
 
-See https://github.com/VOLTTRON/volttron/wiki/VIP for protocol
-specification.
+See https://volttron.readthedocs.io/en/develop/core_services/messagebus/VIP/VIP-Overview.html
+for protocol specification.
 
 This module is useful for using VIP outside of gevent. Please understand
 that ZeroMQ sockets are not thread-safe and care must be used when using

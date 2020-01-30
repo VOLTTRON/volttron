@@ -1,4 +1,5 @@
-.. _PlatformConfiguration:
+olttron-.. _PlatformConfiguration:
+
 VOLTTRON Environment
 ====================
 

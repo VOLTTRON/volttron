@@ -17,8 +17,8 @@ VOLTTRON instance 1 forwards data to VOLTTRON instance 2
 VOLTTRON instance 1 
 ~~~~~~~~~~~~~~~~~~~
 
--  Vctl shutdown –platform (if the platform is already working)
--  Volttron-cfg (this helps in configuring the volttron instance 
+-  vctl shutdown –platform (if the platform is already working)
+-  vcfg (this helps in configuring the volttron instance
    http://volttron.readthedocs.io/en/releases-4.1/core_services/control/VOLTTRON-Config.html
 
    -  Specify the IP of the machine : tcp://130.20.*.*:22916"
@@ -28,10 +28,10 @@ VOLTTRON instance 1
 
       - Then install agents like Master driver Agent with fake driver agent for the instance.
       - Install a listener agent so see the topics that are coming from the diver agent
-      - Then run the volttron instance by : volttron –vv –l volttron.log&
+      - Then run the volttron instance by : ./start-volttron
 - Volttron authentication : We need to add the IP of the instance 2 in the auth.config file of the VOLTTRON agent.
   This is done as follow :
-   -  Vctl auth-add
+   -  vctl auth-add
    -  We specify the IP of the instance 2 and the credentials of the agent
       (http://volttron.readthedocs.io/en/releases-4.1/devguides/walkthroughs/Agent-Authentication-Walkthrough.html?highlight=auth-add)
    -  For specifying authentication for all the agents , we specify /.*/ for credentials as shown in 

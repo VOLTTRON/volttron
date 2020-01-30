@@ -22,7 +22,7 @@ not exist when the command is run.
 
 `tester` is the name of the agent module created by wizard.
 
-The Wizard will promt for the following information:
+The Wizard will prompt for the following information:
 
 ::
 
@@ -313,7 +313,11 @@ Packaging and Installing the Agent
 
 To install the agent the platform must be running. Start the platform with the command:
 
-``volttron -l volttron.log -vv&``
+``./start-volttron``
+
+.. note:: If you are not in an activated environment, this script will start
+    the platform running in the background in the correct environment, however
+    the environment will not be activated for you, you must activate it yourself.
 
 Now we must install it into the platform. Use the following command to install it and add a tag for easily referring to
 the agent. From the project directory, run the following command:
@@ -321,7 +325,7 @@ the agent. From the project directory, run the following command:
 ``python scripts/install-agent.py -s TestAgent/ -c TestAgent/config -t testagent``
 
 To verify it has been installed, use the following command:
-``volttron-ctl list``
+``vctl list``
 
 This will result in output similar to the following:
 
@@ -351,7 +355,7 @@ check the log file.
 -  With the VOLTTRON environment activated, start the platform by
    running (if needed):
 
-``volttron -l volttron.log -vv&``
+``./start-volttron``
 
 -  Launch the agent by <uuid> using the result of the list command:
 
@@ -363,11 +367,11 @@ check the log file.
 
 -  Launch the agent by tag with:
 
-``volttron-ctl start --tag testagent``
+``vctl start --tag testagent``
 
 -  Check that it is :ref:`running <AgentStatus>`:
 
-``volttron-ctl status``
+``vctl status``
 
 -  Start the ListenerAgent as in :ref:`Building VOLTTRON <Building-VOLTTRON>`
 -  Check the log file for messages indicating the TestAgent is receiving
