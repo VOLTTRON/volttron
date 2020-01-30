@@ -1,7 +1,8 @@
 ---
 - import_playbook: includes/ensure_host_keys.yml
 
-- hosts: all
+- name: base system install
+  hosts: all
   vars:
     # Ansible will use this path on remote hosts to run the interpreter with.
     ansible_python_interpreter: /usr/bin/python3
@@ -34,17 +35,23 @@
 
     #TODO BHL: this step is expected to be very sensitive to the OS
     #          package names differ between ubuntu versions and/or to debian
+#    - name: Update apt cache
+#      become: yes
+#      become_method: sudo
+#      apt:
+#        update-cache: yes
+#        autoclean: yes
     - name: Install base software
       become: yes
       become_method: sudo
       apt:
-        update_cache: yes
-        name: "{{item}}"
+        #update_cache: yes
         state: present
-      loop:
+        name: #"{{item}}"
+      #loop:
           - "build-essential"
           - "git"
-          - "python3.6-dev"
+          - "python3-dev"
           - "python3-venv"
           - "libssl-dev"
           - "libevent-dev"
