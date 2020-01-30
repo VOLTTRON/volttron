@@ -1,14 +1,19 @@
 
 from urllib.parse import urlencode
 
+from mock import MagicMock
 from deepdiff import DeepDiff
 import jwt
 import pytest
 
+from volttron.platform.agent.known_identities import AUTH
 from volttron.platform.certs import CertWrapper
+from volttron.platform.vip.agent import Agent
 from volttron.utils import get_random_key
 from volttrontesting.utils.platformwrapper import create_volttron_home
+from volttrontesting.utils.utils import AgentMock
 from volttrontesting.utils.web_utils import get_test_web_env
+from volttron.platform.web.master_web_service import MasterWebService
 from volttron.platform.web.admin_endpoints import AdminEndpoints
 from volttron.platform.web.authenticate_endpoint import AuthenticateEndpoints
 from volttrontesting.fixtures.cert_fixtures import certs_profile_1
@@ -108,3 +113,36 @@ def test_authenticate_endpoint(scheme):
         assert '200 OK' == response.status
         assert "text/plain" in response.content_type
         assert 3 == len(response.response[0].decode('utf-8').split('.'))
+
+
+@pytest.fixture()
+def mock_masterweb_service():
+    MasterWebService.__bases__ = (AgentMock.imitate(Agent, Agent()), )
+    masterweb = MasterWebService(serverkey=MagicMock(), identity=MagicMock(), address=MagicMock(), bind_web_address=MagicMock())
+    rpc_caller = masterweb.vip.rpc
+    masterweb._admin_endpoints = AdminEndpoints(rpc_caller=rpc_caller)
+    yield masterweb
+
+
+@pytest.mark.web
+def test_get_credentials(mock_masterweb_service):
+    mock_masterweb_service._admin_endpoints._pending_auths = mock_masterweb_service._admin_endpoints._rpc_caller.call(AUTH, 'get_authorization_failures')
+    mock_masterweb_service._admin_endpoints._denied_auths = mock_masterweb_service._admin_endpoints._rpc_caller.call(AUTH, 'get_authorization_denied')
+    pass
+
+
+@pytest.mark.web
+def test_accept_credential(mock_masterweb_service):
+    mock_masterweb_service._admin_endpoints._pending_auths = mock_masterweb_service._admin_endpoints._rpc_caller.call(AUTH, 'get_authorization_failures').get()
+    mock_masterweb_service._admin_endpoints._denied_auths = mock_masterweb_service._admin_endpoints._rpc_caller.call(AUTH, 'get_authorization_denied').get()
+    pass
+
+
+@pytest.mark.web
+def test_deny_credential():
+    pass
+
+
+@pytest.mark.web
+def test_delete_credential():
+    pass

@@ -154,6 +154,7 @@ class MasterWebService(Agent):
         # noinspection PyTypeChecker
         self._admin_endpoints: AdminEndpoints = None
 
+
     # pylint: disable=unused-argument
     @Core.receiver('onsetup')
     def onsetup(self, sender, **kwargs):
@@ -176,11 +177,12 @@ class MasterWebService(Agent):
     @RPC.export
     def get_user_claims(self, bearer):
         from volttron.platform.web import get_user_claim_from_bearer
-        if self._web_secret_key is not None:
-            return get_user_claim_from_bearer(bearer, web_secret_key=self._web_secret_key)
-        elif self.web_ssl_cert is not None:
+        if self.web_ssl_cert is not None:
             return get_user_claim_from_bearer(bearer,
                                               tls_public_key=CertWrapper.get_cert_public_key(self.web_ssl_cert))
+        elif self._web_secret_key is not None:
+            return get_user_claim_from_bearer(bearer, web_secret_key=self._web_secret_key)
+
         else:
             raise ValueError("Configuration error secret key or web ssl cert must be not None.")
 
@@ -623,13 +625,14 @@ class MasterWebService(Agent):
 
         ssl_key = self.web_ssl_key
         ssl_cert = self.web_ssl_cert
-
+        rpc_caller = self.vip.rpc
         if parsed.scheme == 'https':
             # Admin interface is only availble to rmq at present.
             if self.core.messagebus == 'rmq':
                 self._admin_endpoints = AdminEndpoints(rmq_mgmt=self.core.rmq_mgmt,
                                                        ssl_public_key=self._certs.get_cert_public_key(
-                                                           get_fq_identity(self.core.identity)))
+                                                           get_fq_identity(self.core.identity)),
+                                                       rpc_caller=rpc_caller)
             if ssl_key is None or ssl_cert is None:
                 # Because the master.web service certificate is a client to rabbitmq we
                 # can't use it directly therefore we use the -server on the file to specify
@@ -642,7 +645,8 @@ class MasterWebService(Agent):
                     self._certs.create_signed_cert_files(base_filename, cert_type='server')
 
             if ssl_key is not None and ssl_cert is not None and self._admin_endpoints is None:
-                self._admin_endpoints = AdminEndpoints(ssl_public_key=CertWrapper.get_cert_public_key(ssl_cert))
+                self._admin_endpoints = AdminEndpoints(ssl_public_key=CertWrapper.get_cert_public_key(ssl_cert),
+                                                       rpc_caller=rpc_caller)
         else:
             self._admin_endpoints = AdminEndpoints()
 

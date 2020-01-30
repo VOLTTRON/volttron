@@ -1037,6 +1037,12 @@ def start_volttron_process(opts):
                 web_secret_key=opts.web_secret_key
             ))
 
+        entry = AuthEntry(credentials=services[3].core.publickey,
+                          user_id=MASTER_WEB,
+                          capabilities=['allow_auth_modifications'],
+                          comments='Automatically added by platform on start')
+        AuthFile().add(entry, overwrite=True)
+
         events = [gevent.event.Event() for service in services]
         tasks = [gevent.spawn(service.core.run, event)
                  for service, event in zip(services, events)]

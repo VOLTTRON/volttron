@@ -75,24 +75,39 @@ def get_bearer(env):
         if not cookiestr:
             raise NotAuthorized()
         cookie = SimpleCookie(cookiestr)
-        bearer = cookie.get('Bearer').value.decode('utf-8')
-    return bearer
+        if 'Bearer' in cookie:
+            bearer = cookie.get('Bearer').value
+            return bearer
+        else:
+            return None
 
 
-def get_user_claims(env):
-    algorithm, encode_key = __get_key_and_algorithm__(env)
+def get_user_claims(env, ssl_public_key):
+    algorithm, encode_key = __get_key_and_algorithm__(env, ssl_public_key)
     bearer = get_bearer(env)
     return jwt.decode(bearer, encode_key, algorithm=algorithm)
 
 
-def __get_key_and_algorithm__(env):
+
+def __get_key_and_algorithm__(env, ssl_public_key):
     config = get_platform_config()
     publickey = env.get("WEB_PUBLIC_KEY")
-    algorithm = 'RS256' if publickey is not None else 'HS256'
+    if publickey is not None or ssl_public_key is not None:
+        algorithm = 'RS256'
+    else:
+        algorithm = 'HS256'
+
     if algorithm == 'HS256':
         if config.get('web-secret-key') is None:
             raise ValueError("invalid configuration detected web_secret_key must be set!")
-    encode_key = publickey if algorithm == 'RS256' else config.get('web-secret-key')
+
+    if algorithm == 'RS256' and ssl_public_key is None:
+        encode_key = publickey
+    elif algorithm == 'RS256' and ssl_public_key:
+        encode_key = ssl_public_key
+    else:
+        encode_key = config.get('web-secret-key')
+
     return algorithm, encode_key
 
 

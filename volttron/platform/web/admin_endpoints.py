@@ -41,6 +41,8 @@ import os
 import re
 from urllib.parse import parse_qs
 
+from volttron.platform.agent.known_identities import MASTER_WEB, AUTH
+
 try:
     from jinja2 import Environment, FileSystemLoader, select_autoescape, TemplateNotFound
 except ImportError:
@@ -70,21 +72,34 @@ def template_env(env):
 
 class AdminEndpoints(object):
 
-    def __init__(self, rmq_mgmt=None, ssl_public_key: bytes = None):
+    def __init__(self, rmq_mgmt=None, ssl_public_key: bytes = None, rpc_caller=None):
 
+        self._rpc_caller = rpc_caller
         self._rmq_mgmt = rmq_mgmt
+
+        if rmq_mgmt is not None:
+            self._certs = Certs()
+
+        self._pending_auths = None
+        self._denied_auths = None
+
         if ssl_public_key is None:
             self._insecure_mode = True
         else:
             self._insecure_mode = False
+
         # must have a none value for when we don't have an ssl context available.
         if ssl_public_key is not None:
             if isinstance(ssl_public_key, bytes):
                 self._ssl_public_key = ssl_public_key.decode('utf-8')
             elif isinstance(ssl_public_key, str):
                 self._ssl_public_key = ssl_public_key
+
             else:
                 raise ValueError("Invalid type for ssl_public_key")
+        else:
+            self._ssl_public_key = None
+
         self._userdict = None
         self.reload_userdict()
 
@@ -142,9 +157,9 @@ class AdminEndpoints(object):
         :param data: data associated with a web form or json/xml request data
         :return: Response object.
         """
-        from volttron.platform.web import get_user_claims, NotAuthorized
+        from volttron.platform.web import get_bearer, NotAuthorized
         try:
-            claims = get_user_claims(env)
+            claims = self._rpc_caller(MASTER_WEB, 'get_user_claims', get_bearer(env)).get()
         except NotAuthorized:
             _log.error("Unauthorized user attempted to connect to {}".format(env.get('PATH_INFO')))
             return Response('<h1>Unauthorized User</h1>', status="401 Unauthorized")
@@ -166,8 +181,11 @@ class AdminEndpoints(object):
 
             if page == 'list_certs.html':
                 html = template.render(certs=self._certs.get_all_cert_subjects())
-            elif page == 'pending_csrs.html':
-                html = template.render(csrs=self._certs.get_pending_csr_requests())
+            elif page == 'pending_auth_reqs.html':
+                self._pending_auths = self._rpc_caller.call(AUTH, 'get_authorization_failures').get()
+                self._denied_auths = self._rpc_caller.call(AUTH, 'get_authorization_denied').get()
+                html = template.render(csrs=self._certs.get_pending_csr_requests(),
+                                       auths=self._pending_auths, denied_auths=self._denied_auths)
             else:
                 # A template with no params.
                 html = template.render()
@@ -190,6 +208,12 @@ class AdminEndpoints(object):
             response = self.__deny_csr_api(endpoint.split('/')[1])
         elif endpoint.startswith('delete_csr/'):
             response = self.__delete_csr_api(endpoint.split('/')[1])
+        elif endpoint.startswith('approve_credential/'):
+            response = self.__approve_credential_api(endpoint.split('/')[1])
+        elif endpoint.startswith('deny_credential/'):
+            response = self.__deny_credential_api(endpoint.split('/')[1])
+        elif endpoint.startswith('delete_credential/'):
+            response = self.__delete_credential_api(endpoint.split('/')[1])
         else:
             response = Response('{"status": "Unknown endpoint {}"}'.format(endpoint),
                                 content_type="application/json")
@@ -239,6 +263,37 @@ class AdminEndpoints(object):
         subjects = [dict(common_name=x.common_name)
                     for x in self._certs.get_all_cert_subjects()]
         return Response(jsonapi.dumps(subjects), content_type="application/json")
+
+    def __approve_credential_api(self, user_id):
+        try:
+            _log.debug("Creating credential and permissions for user: {}".format(user_id))
+            self._rpc_caller.call(AUTH, 'approve_authorization_failure', user_id)
+            data = dict(status='APPROVED',
+                        message="The administrator has denied the request")
+        except ValueError as e:
+            data = dict(status="ERROR", message=e.message)
+
+        return Response(jsonapi.dumps(data), content_type="application/json")
+
+    def __deny_credential_api(self, user_id):
+        try:
+            self._rpc_caller.call(AUTH, 'deny_authorization_failure', user_id)
+            data = dict(status="DENIED",
+                        message="The administrator has denied the request")
+        except ValueError as e:
+            data = dict(status="ERROR", message=e.message)
+
+        return Response(jsonapi.dumps(data), content_type="application/json")
+
+    def __delete_credential_api(self, user_id):
+        try:
+            self._rpc_caller.call(AUTH, 'delete_authorization_failure', user_id)
+            data = dict(status="DELETED",
+                        message="The administrator has denied the request")
+        except ValueError as e:
+            data = dict(status="ERROR", message=e.message)
+
+        return Response(jsonapi.dumps(data), content_type="application/json")
 
     def add_user(self, username, unencrypted_pw, groups=None, overwrite=False):
         if self._userdict.get(username) and not overwrite:
