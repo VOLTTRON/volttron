@@ -13,14 +13,13 @@
 - name: Create ansbile virtual env
   pip:
     virtualenv: "{{ ansible_env.HOME }}/ansible_venv"
-    virtualenv_command: /usr/bin/python3.6 -m venv
-    name: "{{ item }}"
-  loop:
-    - pyyaml
-    - psutil
-    - zmq
-    - 'netifaces==0.10.9'
-    - 'deepdiff'
+    virtualenv_command: /usr/bin/python3 -m venv
+    name:
+     - pyyaml
+     - psutil
+     - zmq
+     - 'netifaces==0.10.9'
+     - 'deepdiff'
   when: hasenv.changed  # if this happens then we needed to crate the venv dir
 
 # Sets the ansible interpreter to be the one that
