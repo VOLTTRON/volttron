@@ -187,20 +187,20 @@
         cmd: "env/bin/python bootstrap.py --rabbitmq"
         chdir: "{{ ansible_env.HOME }}/volttron"
 
-    - name: Test if pika installed
+    - name: Test if ws4py is installed (test if web has been installed)
       raw: "cd {{ ansible_env.HOME }}/volttron && env/bin/pip list --disable-pip-version-check --format legacy| grep -F ws4py | wc -l"
       args:
         chdir: "{{ ansible_env.HOME }}/volttron"
       register: web_enabled
 
     - name: Enabling web packages for environment
-      when: (enable_web == 'yes') # and "0" in web_enabled.stdout)
+      when: (enable_web == True and "0" in web_enabled.stdout)
       command:
         cmd: "env/bin/python bootstrap.py --web"
         chdir: "{{ ansible_env.HOME }}/volttron"
 
     - name: Enabling master driver packages for environment
-      when: (enable_drivers == 'yes')
+      when: (enable_drivers == True)
       command:
         cmd: "env/bin/python bootstrap.py --drivers"
         chdir: "{{ ansible_env.HOME }}/volttron"
