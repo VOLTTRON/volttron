@@ -11,6 +11,12 @@
   - debug:
       var: local_remote_config_file
 
+  - name: ensure remote configs dir
+    file:
+      path: "{{ ansible_env.HOME }}/configs"
+      state: directory
+      mode: 0755
+
   - name: copy configs
     copy:
       # Note the / on the end means we don't want the containing folder

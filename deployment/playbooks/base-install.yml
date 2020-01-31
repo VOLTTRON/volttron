@@ -55,6 +55,7 @@
           - "python3-venv"
           - "libssl-dev"
           - "libevent-dev"
+          - libzmq3-dev
 
     - name: Installing extra system level things for rabbit.
       become: yes
@@ -106,7 +107,7 @@
         - "erlang-public-key"
         - "erlang-nox"
 
-    - name: Download repository
+    - name: Download volttron repository tarball
       get_url:
         url: https://github.com/{{ git_organization }}/volttron/archive/{{ git_branch }}.tar.gz
         dest: "/tmp/volttron.tar.gz"
