@@ -35,10 +35,11 @@ Here is an example device configuration file:
         "heart_beat_point": "heartbeat"
     }
 
-A sample Chargepoint configuration file can be found in the VOLTTRON repository in ``examples/configurations/drivers/chargepoint1.config``
-
+A sample Chargepoint configuration file can be found in the VOLTTRON repository
+in ``examples/configurations/drivers/chargepoint1.config``
 
 .. _Chargepoint-Driver:
+
 Chargepoint Registry Configuration File
 ***************************************
 

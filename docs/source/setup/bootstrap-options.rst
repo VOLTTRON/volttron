@@ -40,9 +40,6 @@ To facilitate bootstrapping the various configurations of the VOLTTRON platform,
 provides several options. Options exist for each message bus, specifying a new environment, updating
 an existing environment, and installing some optional dependencies for features like historians.
 
-Bootstrap Options
-~~~~~~~~~~~~~~~~~
-
 These options may be invoked to alter the operation of the bootstrap script.
 
 .. code-block::

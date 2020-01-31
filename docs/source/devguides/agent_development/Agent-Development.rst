@@ -385,7 +385,7 @@ elements.
 
 1. Integration and unit test cases
 2. README file that includes details of pre-requisite software, agent setup details (such as setting up databases,
-permissions, etc.)and sample configuration
+   permissions, etc.)and sample configuration
 
 VOLTTRON uses py.test as a framework for executing tests. All unit tests should be based on py.test framework.
 py.test is not installed with the distribution by default.  To install py.test and it's dependencies execute the

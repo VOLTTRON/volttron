@@ -39,6 +39,7 @@ A sample BACnet configuration file can be found `here <https://raw.githubusercon
 in the VOLTTRON repository in ``examples/configurations/drivers/bacnet1.config``
 
 .. _BACnet-Registry-Configuration-File:
+
 BACnet Registry Configuration File
 **********************************
 

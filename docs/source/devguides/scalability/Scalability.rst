@@ -110,8 +110,8 @@ platform (and how does it scale with the hardware)?
 
 -  | Regulation Agent
    | Every 10 minutes there is an action the master node determines.
-   Duty cycle cannot be faster than that but is set to 2 seconds for
-   simulation.
+     Duty cycle cannot be faster than that but is set to 2 seconds for
+     simulation.
    | Some clients miss duty cycle signal
    | Mathematically each node solves ODE.
    | Model notes accept switch on/off from master.

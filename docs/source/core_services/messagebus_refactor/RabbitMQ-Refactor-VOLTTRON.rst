@@ -144,7 +144,7 @@ publishes to same the topic.
 7. The pubsub subsystem unwraps the message and calls the appropriate callback method of Agent A.
 
 If agent wants to subscribe to topic from remote instances, it uses
-   agent.vip.subscribe(“pubsub”, “devices.hvac1”, all_platforms=True”)
+agent.vip.subscribe(“pubsub”, “devices.hvac1”, all_platforms=True”)
 It is internally set to “__pubsub__.*.<remainder of topic>”
 
 Pubsub subsystem for ZeroMQ message bus performs O(N) comparisons where N is the number of unique
@@ -216,8 +216,9 @@ on VOLTTRON instance "volttron2" on host "host_B".
 
 1. Agent A makes RPC call.
 .. code-block:: Python
+
     kwargs = {"external_platform": self.destination_instance_name}
-    agent_a.vip.rpc.call("agent_b", set_point, "point_name", 2.5, **kwargs)
+    agent_a.vip.rpc.call("agent_b", set_point, "point_name", 2.5, \**kwargs)
 
 2. The message is transferred over federation link to VOLTTRON instance "volttron2" as both the exchanges are made *federated*.
 
@@ -332,8 +333,9 @@ on VOLTTRON instance "volttron2" on host "host_B".
 
 1. Agent A makes RPC call.
 .. code-block:: Python
+
     kwargs = {"external_platform": self.destination_instance_name}
-    agent_a.vip.rpc.call("agent_b", set_point, "point_name", 2.5, **kwargs)
+    agent_a.vip.rpc.call("agent_b", set_point, "point_name", 2.5, \**kwargs)
 
 2. The message is transferred over shovel link to VOLTTRON instance "volttron2".
 

@@ -6,8 +6,6 @@ Installing Linux Virtual Machine
 
 VOLTTRON requires a Linux system to run. For Windows users this will require a virtual machine (VM).
 
-Installing Linux Virtual Machine
---------------------------------
 This section describes the steps necessary to install
 VOLTTRON using Oracle VirtualBox software. Virtual Box is free and can be downloaded from
 https://www.virtualbox.org/wiki/Downloads.

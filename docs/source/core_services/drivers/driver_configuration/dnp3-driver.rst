@@ -41,6 +41,7 @@ A sample DNP3 driver configuration file can be found in the VOLTTRON repository
 in ``services/core/MasterDriverAgent/example_configurations/test_dnp3.config``.
 
 .. _DNP3-Driver:
+
 DNP3 Registry Configuration File
 ********************************
 

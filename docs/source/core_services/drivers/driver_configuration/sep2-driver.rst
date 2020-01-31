@@ -38,6 +38,7 @@ A sample SEP2 driver configuration file can be found in the VOLTTRON repository
 in ``services/core/MasterDriverAgent/example_configurations/test_sep2_1.config``.
 
 .. _SEP2-Driver:
+
 SEP2 Registry Configuration File
 ********************************
 

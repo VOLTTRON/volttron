@@ -47,7 +47,7 @@ but only **device_address** is required:
     - **endian** (Optional) - Byte order: big or little. Defaults to big.
     - **write_multiple_registers** (Optional) - Write multiple coils or registers at a time. Defaults to true.
         - : If write_multiple_registers is set to false, only register types unsigned short (uint16) and boolean (bool)
-        are supported. The exception raised during the configure process.
+          are supported. The exception raised during the configure process.
     - **register_map** (Optional) - Register map csv of unchanged register variables. Defaults to registry_config csv.
 
 Sample Modbus-TK configuration files are checked into the VOLTTRON repository

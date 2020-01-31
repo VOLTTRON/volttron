@@ -98,8 +98,8 @@ For the first example, the IP address ``192.168.1.42`` can be used to reach
 the device. The second device is behind a BACnet router and can be
 reached at ``1002:11``. See RouterAddressing Remote Station addressing.
 
-Options
-*******
+BACNet Scan Options
+*******************
 
     - ``--address ADDRESS`` Send the WhoIs request only to a specific address. Useful as a way to ping devices on a network that blocks broadcast traffic.
     - ``--range LOW HIGH`` Specify the device ID range for the results. Useful for filtering.
@@ -169,8 +169,8 @@ The output is put in two directories. ``devices/`` contains basic driver configu
 ``grab_multiple_configs.py`` makes no assumptions about device names or topics, however the output is appropriate for the
 ``install_master_driver_configs.py`` script.
 
-Options
-*******
+Grab Multiple Configs Options
+*****************************
 
     - ``--out-directory OUT_DIRECTORY`` Specify the output directory.
     - ``--use-proxy`` Use ``proxy_grab_bacnet_config.py`` to gather configuration data.
