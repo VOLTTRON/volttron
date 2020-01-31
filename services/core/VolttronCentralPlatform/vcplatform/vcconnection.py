@@ -37,8 +37,6 @@
 # }}}
 
 
-
-
 import logging
 
 from volttron.platform.agent.known_identities import (
