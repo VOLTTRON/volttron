@@ -144,12 +144,7 @@ class VolttronInstanceModule(AnsibleModule):
 
     def handle_install_agent_phase(self):
 
-        if self._instance_state == InstanceState.STOPPED:
-            rc, stdout, stderr = self.__start_volttron__()
-            if rc != 0:
-                self.exit_json(changed=False, msg=f"Could not start the volttron platform\n{stderr}")
-        elif self._instance_state == InstanceState.NOT_BOOTSTRAPPED:
-            self.exit_json(changed=False, msg="Invalid state must bootstrap before we can run the install agent phase")
+        self.__start_volttron__("handle_install_agent_phase")
 
         self.__status_all_agents__()
         diff = DeepDiff(self._host_config_current, self._host_config_expected)
@@ -586,12 +581,13 @@ class VolttronInstanceModule(AnsibleModule):
         :return:
         """
 
-        cmd = [self._vctl, "install", agent_spec['source'], '--json', '--force',
+        cmd = [self._vctl, "install", '--json', '--force',
                '--vip-identity', identity]
 
         if "priority" in agent_spec:
             cmd.extend(['--priority', str(agent_spec['priority'])])
-
+        # needs to be last
+        cmd.extend([agent_spec['source']])
         logger().debug(f"Commands are {cmd}")
 
         response = subprocess.run(cmd, cwd=self._vroot,
@@ -875,6 +871,7 @@ class VolttronInstanceModule(AnsibleModule):
             else:
                 self._agents_status[identity] = dict(state=AgentState.RUNNING.name)
 
+
 def main():
     init_logging(expand_all("~/ansible_logging.log"))
     logger().debug("Before module instantiation")
@@ -909,6 +906,12 @@ def main():
         module.handle_external_connection_phase()
     elif module.phase == InstallPhaseEnum.START_AGENTS:
         module.handle_start_agent_phase()
+    elif module.phase == InstallPhaseEnum.UNINSTALL:
+        module.__stop_volttron__("uninstall_volttron")
+        module.exit_json(msg="VOLTTRON stopped")
+    elif module.phase == InstallPhaseEnum.NONE and module.requested_state == InstanceState.STOPPED:
+        module.__stop_volttron__("stopping volttron phase")
+        module.exit_json(msg="VOLTTRON stopped")
     else:
         module.fail_json(msg=f"Unknown phase {module.phase} {type(module.phase)}specified that should have been known.")
 
