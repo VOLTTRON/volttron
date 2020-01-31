@@ -60,7 +60,10 @@ from volttron.utils.prompt import prompt_response
 
 _stderr = sys.stderr
 _stdout = sys.stdout
-#os.environ['ANSIBLE_KEEP_REMOTE_FILES'] = "1"
+
+deployment_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+os.environ['ANSIBLE_CONFIG'] = os.path.join(deployment_dir, "deployment/ansible.cfg")
+assert os.path.exists(os.environ['ANSIBLE_CONFIG'])
 C.DEFAULT_DEBUG = False
 
 
