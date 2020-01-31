@@ -1,8 +1,9 @@
 ---
+- import_playbook: includes/ensure_host_keys.yml
+
 - hosts: all
 #  become: yes
 #  become_method: sudo
-#  gather_facts: True
   environment:
     VOLTTRON_HOME: "{{ ansible_env.HOME }}/.volttron"
     VOLTTRON_ROOT: "{{ ansible_env.HOME }}/volttron"

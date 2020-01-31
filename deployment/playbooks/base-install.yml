@@ -1,47 +1,22 @@
 ---
-- hosts: all
-  gather_facts: no #don't gather facts until after known_hosts is updated
+- import_playbook: includes/ensure_host_keys.yml
+
+- name: base system install
+  hosts: all
   vars:
     # Ansible will use this path on remote hosts to run the interpreter with.
     ansible_python_interpreter: /usr/bin/python3
-    # set default port, can be overridden in hosts file.
-    ansible_port: 22
   environment:
     VOLTTRON_HOME: "{{ ansible_env.HOME }}/.volttron"
     VOLTTRON_ROOT: "{{ ansible_env.HOME }}/volttron"
     HOST_CONFIG: "{{ ansible_env.HOME }}/host.config.yml"
     http_proxy: ""
   tasks:
-    - name: "get ssh known_host values"
-      local_action: "shell ssh-keyscan -p {{ ansible_port }} {{ ansible_host }}"
-      register: sshKnownHostEntry
-      vars:
-        ansible_python_interpreter: "{{ ansible_playbook_python }}"
-
-    - name: add/update the known_hosts public key
-      delegate_to: localhost
-      vars:
-        serial: yes #the known_host task needs to be serial
-        ansible_python_interpreter: "{{ ansible_playbook_python }}"
-      known_hosts:
-        state: present
-        # the name needs to match the heading of the key entry, this may be too hard coded
-        name: "{{ ansible_host }}"
-        key: "{{ sshKnownHostEntry.stdout }}"
-        path: "~/.ssh/known_hosts"
-
-    - name: Gathering facts # because we suppress this at the start so that we'll have keys first
-      setup: ~
 
     - name: Initialize git variables for downloading repository without git
       set_fact:
         git_branch: remote-platforms
         git_organization: craig8
-
-    - name: Test for enable_web
-      when: enable_web is not defined
-      set_fact:
-        enable_web: "no"
 
     - name: Test for enable_drivers
       when: enable_drivers is not defined
@@ -58,20 +33,29 @@
       set_fact:
           messagebus: "zmq"
 
+    #TODO BHL: this step is expected to be very sensitive to the OS
+    #          package names differ between ubuntu versions and/or to debian
+#    - name: Update apt cache
+#      become: yes
+#      become_method: sudo
+#      apt:
+#        update-cache: yes
+#        autoclean: yes
     - name: Install base software
       become: yes
       become_method: sudo
       apt:
-        update_cache: yes
-        name: "{{item}}"
+        #update_cache: yes
         state: present
-      loop:
+        name: #"{{item}}"
+      #loop:
           - "build-essential"
           - "git"
-          - "python3.6-dev"
+          - "python3-dev"
           - "python3-venv"
           - "libssl-dev"
           - "libevent-dev"
+          - libzmq3-dev
 
     - name: Installing extra system level things for rabbit.
       become: yes
@@ -123,7 +107,7 @@
         - "erlang-public-key"
         - "erlang-nox"
 
-    - name: Download repository
+    - name: Download volttron repository tarball
       get_url:
         url: https://github.com/{{ git_organization }}/volttron/archive/{{ git_branch }}.tar.gz
         dest: "/tmp/volttron.tar.gz"
@@ -176,13 +160,13 @@
         creates: "{{ ansible_env.HOME }}/volttron/env"
 
     - name: Test if pika installed
-      raw: "cd ~/volttron && env/bin/pip list --disable-pip-version-check --format legacy| grep -F gevent-pika | wc -l"
+      shell: "cd ~/volttron && env/bin/pip list --disable-pip-version-check --format legacy| grep -F gevent-pika | wc -l"
       args:
         chdir: "{{ ansible_env.HOME }}/volttron"
       register: already_installed_pika
 
     - name: Boostrap rmq environment
-      when: (messagebus == "rmq" and "0" in already_installed_pika.stdout)
+      when: (messagebus == "rmq" and "0" not in already_installed_pika.stdout)
       command:
         cmd: "env/bin/python bootstrap.py --rabbitmq"
         chdir: "{{ ansible_env.HOME }}/volttron"
@@ -194,13 +178,13 @@
       register: web_enabled
 
     - name: Enabling web packages for environment
-      when: (enable_web == True and "0" in web_enabled.stdout)
+      when: (enable_web is defined and enable_web == True) # and "0" not in web_enabled.stdout)
       command:
         cmd: "env/bin/python bootstrap.py --web"
         chdir: "{{ ansible_env.HOME }}/volttron"
 
     - name: Enabling master driver packages for environment
-      when: (enable_drivers == True)
+      when: (enable_drivers is defined and enable_drivers == True)
       command:
         cmd: "env/bin/python bootstrap.py --drivers"
         chdir: "{{ ansible_env.HOME }}/volttron"

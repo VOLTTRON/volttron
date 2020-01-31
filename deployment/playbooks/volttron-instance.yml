@@ -1,4 +1,6 @@
 ---
+- import_playbook: includes/ensure_host_keys.yml
+
 - hosts: all
 #  become: yes
 #  become_method: sudo

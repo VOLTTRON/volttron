@@ -2,12 +2,20 @@
     local_action: stat path="{{ local_configs_dir }}"
     register: directory_check
     ignore_errors: True
+    vars:
+      ansible_python_interpreter: "{{ ansible_playbook_python }}"
 
   - debug:
       var: directory_check
 
   - debug:
       var: local_remote_config_file
+
+  - name: ensure remote configs dir
+    file:
+      path: "{{ ansible_env.HOME }}/configs"
+      state: directory
+      mode: 0755
 
   - name: copy configs
     copy:
