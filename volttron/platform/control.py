@@ -1171,14 +1171,11 @@ def add_auth(opts):
         # Remove unspecified options so the default parameters are used
         fields = {k: v for k, v in fields.items() if v}
         fields['enabled'] = not opts.disabled
-        print("fields of capabilities: {}".format(fields["capabilities"]))
         entry = AuthEntry(**fields)
     else:
         # No options were specified, use interactive wizard
         responses = _ask_for_auth_fields()
         entry = AuthEntry(**responses)
-        print("fields of capabilities: {}".format(responses["capabilities"]))
-
 
     if opts.add_known_host:
         if entry.address is None:
@@ -1559,7 +1556,7 @@ def edit_config(opts):
 
     # Write raw data to temp file
     # This will not work on Windows, FYI
-    with tempfile.NamedTemporaryFile(suffix=".txt") as f:
+    with tempfile.NamedTemporaryFile(suffix=".txt", mode="r+") as f:
         f.write(raw_data)
         f.flush()
 
@@ -2047,7 +2044,7 @@ def remove_policies(opts):
 def create_ssl_keypair(opts):
     fq_identity = utils.get_fq_identity(opts.identity)
     certs = Certs()
-    certs.create_ca_signed_cert(fq_identity)
+    certs.create_signed_cert_files(fq_identity)
 
 
 def export_pkcs12_from_identity(opts):
@@ -2722,6 +2719,10 @@ def main(argv=sys.argv):
     except RemoteError as exc:
         print_tb = exc.print_tb
         error = exc.message
+    except AttributeError as exc:
+        _stderr.write("Invalid command: '{}' or command requires additional arguments\n".format(opts.command))
+        parser.print_help()
+        return 1
     # except Exception as exc:
     #     print_tb = traceback.print_exc
     #     error = str(exc)

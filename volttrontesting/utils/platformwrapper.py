@@ -170,6 +170,18 @@ def start_wrapper_platform(wrapper, with_http=False, with_tcp=True,
     assert wrapper.is_running()
 
 
+def create_volttron_home() -> str:
+    """
+    Creates a VOLTTRON_HOME temp directory for use within a testing context.
+    This function will return a string containing the VOLTTRON_HOME but will not
+    set the global variable.
+
+    :return: str: the temp directory
+    """
+    volttron_home = tempfile.mkdtemp()
+    return volttron_home
+
+
 class PlatformWrapper:
     def __init__(self, messagebus=None, ssl_auth=False, instance_name=None, remote_platform_ca=None):
         """ Initializes a new VOLTTRON instance
@@ -186,7 +198,7 @@ class PlatformWrapper:
         # lower level fixture calls shutdown, this won't hang.
         self._instance_shutdown = False
 
-        self.volttron_home = tempfile.mkdtemp()
+        self.volttron_home = create_volttron_home()
         self.packaged_dir = os.path.join(self.volttron_home, "packaged")
         os.makedirs(self.packaged_dir)
 
@@ -665,7 +677,7 @@ class PlatformWrapper:
 
         log = os.path.join(self.volttron_home, 'volttron.log')
 
-        cmd = ['env/bin/volttron']
+        cmd = ['volttron']
         # if msgdebug:
         #     cmd.append('--msgdebug')
         if enable_logging:
@@ -1282,7 +1294,9 @@ def mergetree(src, dst, symlinks=False, ignore=None):
 
 
 class WebAdminApi(object):
-    def __init__(self, platform_wrapper=PlatformWrapper()):
+    def __init__(self, platform_wrapper: PlatformWrapper = None):
+        if platform_wrapper is None:
+            platform_wrapper = PlatformWrapper()
         assert platform_wrapper.is_running(), "Platform must be running"
         assert platform_wrapper.bind_web_address, "Platform must have web address"
         assert platform_wrapper.ssl_auth, "Platform must be ssl enabled"

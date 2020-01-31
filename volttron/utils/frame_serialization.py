@@ -54,12 +54,23 @@ def deserialize_frames(frames: List[Frame]) -> List:
             decoded.append(deserialize_frames(x))
         elif isinstance(x, int):
             decoded.append(x)
+        elif isinstance(x, float):
+            decoded.append(x)
         elif isinstance(x, bytes):
             decoded.append(x.decode('utf-8'))
         elif isinstance(x, str):
             decoded.append(x)
         elif x is not None:
-            d = x.bytes.decode('utf-8')
+            # _log.debug(f'x is {x}')
+            if x == {}:
+                decoded.append(x)
+                continue
+            try:
+                d = x.bytes.decode('utf-8')
+            except UnicodeDecodeError as e:
+                _log.debug(e)
+                decoded.append(x)
+                continue
             try:
                 decoded.append(jsonapi.loads(d))
             except JSONDecodeError:
@@ -74,16 +85,16 @@ def serialize_frames(data: List[Any]) -> List[Frame]:
     # _log.debug("Serializing: {}".format(data))
     for x in data:
         try:
-            if isinstance(x, list):
-                frames.append(serialize_frames(x))
+            if isinstance(x, list) or isinstance(x, dict):
+                frames.append(Frame(jsonapi.dumps(x).encode('utf-8')))
             elif isinstance(x, Frame):
                 frames.append(x)
             elif isinstance(x, bytes):
                 frames.append(Frame(x))
-            elif isinstance(x, dict):
-                frames.append(Frame(jsonapi.dumps(x).encode('utf-8')))
             elif isinstance(x, int):
                 frames.append(struct.pack("I", x))
+            elif isinstance(x, float):
+                frames.append(struct.pack("f", x))
             else:
                 frames.append(Frame(x.encode('utf-8')))
         except TypeError as e:

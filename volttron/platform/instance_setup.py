@@ -79,7 +79,7 @@ def _load_config():
             config_opts[option] = parser.get('volttron', option)
 
 
-def _update_config_file(instance_name=None):
+def _update_config_file(instance_name=None, web_secret_key=None):
     if not config_opts:
         _load_config()
     home = get_home()
@@ -96,14 +96,18 @@ def _update_config_file(instance_name=None):
     for k, v in config_opts.items():
         config.set('volttron', k, v)
 
-    if 'instance-name' in config_opts:
-        # Overwrite existing if instance name was passed
-        if instance_name is not None:
+    if instance_name is not None:
+        if 'instance-name' in config_opts:
+            # Overwrite existing if instance name was passed
+            if instance_name is not None:
+                config.set('volttron', 'instance-name', instance_name)
+        else:
+            if instance_name is None:
+                instance_name = 'volttron1'
             config.set('volttron', 'instance-name', instance_name)
-    else:
-        if instance_name is None:
-            instance_name = 'volttron1'
-        config.set('volttron', 'instance-name', instance_name)
+
+    if web_secret_key is not None:
+        config.set('volttron', 'web-secret-key', web_secret_key)
 
     with open(path, 'w') as configfile:
         config.write(configfile)
@@ -131,7 +135,8 @@ def _is_bound_already(address):
     already_bound = False
     try:
         dealer_sock.bind(address)
-    except zmq.ZMQError:
+    except zmq.ZMQError as e:
+        print(e)
         already_bound = True
     finally:
         dealer_sock.close()
@@ -141,7 +146,7 @@ def _is_bound_already(address):
 def fail_if_instance_running():
 
     home = get_home()
-    ipc_address = 'ipc://@{}/run/vip.socket'.format(home)
+    ipc_address = 'ipc://{}/run/vip.socket'.format(home)
 
     if os.path.exists(home) and\
        _is_bound_already(ipc_address):
@@ -312,7 +317,7 @@ def _create_web_certs():
             return 1
     
     print("Creating new web server certificate.")
-    crts.create_ca_signed_cert(name=MASTER_WEB+"-server",type='server',ca_name=crts.root_ca_name, fqdn=get_hostname())
+    crts.create_signed_cert_files(name=MASTER_WEB + "-server", cert_type='server', ca_name=crts.root_ca_name, fqdn=get_hostname())
     return 0
 
 

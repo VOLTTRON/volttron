@@ -43,8 +43,10 @@ import logging
 import os
 import psutil
 import sys
+from configparser import ConfigParser
+from ..utils.frozendict import FrozenDict
 
-__version__ = '7.0rc'
+__version__ = '7.0rc2'
 
 
 def set_home(home=None):
@@ -75,6 +77,15 @@ def get_home():
             log.warn("Removing / from the end of VOLTTRON_HOME")
             os.environ['VOLTTRON_HOME'] = vhome
     return vhome
+
+
+def get_config_path() -> str:
+    """
+    Returns the platforms main configuration file.
+
+    :return:
+    """
+    return os.path.join(get_home(), "config")
 
 
 def get_address():
@@ -167,3 +178,51 @@ def is_rabbitmq_available():
         os.environ['RABBITMQ_NOT_AVAILABLE'] = "True"
         rabbitmq_available = False
     return rabbitmq_available
+
+
+__config__ = None
+
+
+def get_platform_config():
+    global __config__
+    if os.environ.get("VOLTTRON_HOME") is None:
+        raise Exception("VOLTTRON_HOME must be specified before calling this function.")
+
+    if __config__ is None:
+        __config__ = FrozenDict()
+        volttron_home = get_home()
+        config_file = os.path.join(volttron_home, "config")
+        if os.path.exists(config_file):
+            parser = ConfigParser()
+            parser.read(config_file)
+            options = parser.options('volttron')
+            for option in options:
+                __config__[option] = parser.get('volttron', option)
+            __config__.freeze()
+    return __config__
+
+
+def update_platform_config(values: dict) -> None:
+    global __config__
+
+    if __config__ is None:
+        cfg = get_platform_config()
+    else:
+        cfg = __config__
+        # Make sure we can update items
+        cfg._frozen = False
+
+    cfg.update(values)
+
+    config_file = get_config_path()
+    with open(config_file, "w") as fp:
+        p = ConfigParser()
+        p.add_section("volttron")
+        for k, v in cfg.items():
+            p.set("volttron", k, v)
+
+        cfg.freeze()
+        p.write(fp)
+
+    return get_platform_config()
+
