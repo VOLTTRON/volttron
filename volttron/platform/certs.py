@@ -758,7 +758,6 @@ class Certs(object):
         cert_file = self.remote_certs_file(name)
         if os.path.exists(cert_file):
             os.remove(cert_file)
-        self.remote_cert_bundle_file()
 
     def save_remote_cert(self, name, cert_string, remote_cert_dir=None):
         if remote_cert_dir:
