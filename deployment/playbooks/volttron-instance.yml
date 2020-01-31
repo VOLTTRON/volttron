@@ -12,8 +12,6 @@
     # After running this the ansible_python_interpretor is set to
     # the one explicitly created for us to execute ansible commands.
     - include_tasks: includes/ansible_venv.yml
-    - debug:
-        var: ansible_env
 
     - include_tasks: includes/update_facts.yml
       vars:
@@ -25,14 +23,6 @@
         python3: "{{lookup('env','DEPLOYMENT_ROOT')}}/env/bin/python"
 
     - include_tasks: includes/copy_configs.yml
-
-    - name: Start VOLTTRON
-      volttron_instance_config:
-        config_file: "{{ ansible_env.HOME }}/host.config.yml"
-        state: "RUNNING"
-        # This variable must be passed on for the module to be able to be used
-        # if using the vctl deploy script this variable is created via extra_vars
-        volttron_host_facts: "{{ volttron_host_facts }}"
 
     - name: Configure VOLTTRON instance (agent install phase)
       volttron_instance_config:

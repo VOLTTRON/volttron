@@ -55,6 +55,7 @@ class VolttronInstanceModule(AnsibleModule):
         self._agents_status = {}
         self._serverkey = None
 
+        logger().debug(f"PARAMS ARE:\n{json.dumps(self.params['volttron_host_facts'])}")
         self._all_hosts = self.params['volttron_host_facts']
         self._phase = self.params["phase"]
         if self._phase is None:
@@ -77,20 +78,27 @@ class VolttronInstanceModule(AnsibleModule):
     def requested_state(self):
         return self._requested_state
 
-    def _build_multiplatform_file(self):
-        # Only do this if we are not in check_mode
-        #if not self.check_mode and self._phase == InstallPhaseEnum.ALLOW_EXTERNAL_CONNECTIONS:
-        multiplatform_content = {}
+    def _write_multi_platform_file(self):
+        current_content = {}
+        if os.path.isfile(self._multiplatform_file):
+            current_content = json.loads(open(self._multiplatform_file).read())
+        expected_content = {}
         for host, v in self._all_hosts.items():
-            if v['instance'].get('participate-in-multiplatform'):
-                multiplatform_content[host] = {
+            if v['instance']['expected'].get('participate-in-multiplatform'):
+                expected_content[host] = {
                     "instance-name": v['instance']['expected']['config']['instance-name'],
                     "vip-address": v['instance']['expected']['config']['vip-address'],
                     "serverkey": v['instance']['serverkey']
                 }
-        # TODO See if we actually made a modification
-        with open(self._multiplatform_file, 'w') as fp:
-            fp.write(json.dumps(multiplatform_content, indent=2))
+
+        diff = DeepDiff(current_content, expected_content)
+
+        if diff:
+            with open(self._multiplatform_file, 'w') as fp:
+                fp.write(json.dumps(expected_content, indent=2))
+            return True
+
+        return False
 
     def handle_status(self):
 
@@ -111,22 +119,14 @@ class VolttronInstanceModule(AnsibleModule):
         self.exit_json(**results)
 
     def handle_external_connection_phase(self):
-        self._build_multiplatform_file()
-        rc, stdout, stderr = self.__stop_volttron__()
-        if rc != 0:
-            self.exit_json(msg=f"Coudln' stop volttron to restart the platform {stderr}")
-        rc, stdout, stderr = self.__start_volttron__()
-        if rc != 0:
-            self.exit_json(msg=f"Coudln' start volttron to restart the platform {stderr}")
-
-        self.exit_json(msg="completed handling external connections")
+        changed = self._write_multi_platform_file()
+        if changed:
+            self.__stop_volttron__("external_connection_phase")
+        self.__start_volttron__("external_connection_phase")
+        self.exit_json(changed=changed, msg="completed handling external connections")
 
     def handle_start_agent_phase(self):
-        rc, stdout, stderr = self.__start_volttron__()
-        if rc != 0:
-            self.fail_json(msg=f"Failed starting platform:\n{stderr}")
-
-        self._wait_for_state(InstanceState.RUNNING)
+        self.__start_volttron__("handle_start_agent_phase")
 
         installed_agents = self.__status_all_agents__()
         problems = []
@@ -160,15 +160,9 @@ class VolttronInstanceModule(AnsibleModule):
 
         if self._instance_state == InstanceState.RUNNING and requires_restart:
             logger().debug("instance is running but requires a restart")
-            rc, stdout, stderr = self.__stop_volttron__()
-            if rc != 0:
-                self.fail_json(msg=f"Failed stopping platform to update config:\n{stderr}")
+            self.__stop_volttron__("install agent phase instance requires restart")
 
-        rc, stdout, stderr = self.__start_volttron__()
-        if rc != 0:
-            self.fail_json(msg=f"Failed starting platform:\n{stderr}")
-
-        self._wait_for_state(InstanceState.RUNNING)
+        self.__start_volttron__("install agent phase starting volttron")
 
         for identity, spec in self._agents_config.items():
             self._install_agent(identity, spec)
@@ -213,10 +207,11 @@ class VolttronInstanceModule(AnsibleModule):
                 msg += ": configuration was updated"
             self.exit_json(changed=True, msg=msg)
 
-    def __start_volttron__(self):
+    def __start_volttron__(self, failure_message=''):
 
         if self._instance_state == InstanceState.RUNNING:
-            return 0, 'Already Running', ''
+            logger().debug("in start_volttron instance already running")
+            return
 
         cmd = [self._volttron_executable, '-L', 'examples/rotatinglog.py']
         proc = subprocess.Popen(cmd,
@@ -225,13 +220,14 @@ class VolttronInstanceModule(AnsibleModule):
                                 preexec_fn=os.setpgrp,
                                 cwd=self._vroot)
 
-        self._wait_for_state(InstanceState.RUNNING)
-        return 0, '', ''
+        if not self._wait_for_state(InstanceState.RUNNING):
+            self.fail_json(msg=f"{failure_message}: Failed to start volttron", stdout=open('logfile.log').read())
 
-    def __stop_volttron__(self):
+    def __stop_volttron__(self, failure_message=''):
         logger().debug(f"Stopping volttron instance state is: {self._instance_state}")
         if self._instance_state == InstanceState.STOPPED:
-            return 0, f'VOLTTRON is {InstanceState.STOPPED.name}', ''
+            logger().debug(f'VOLTTRON is {InstanceState.STOPPED.name}')
+            return
 
         cmd = [self._vctl, 'shutdown', '--platform']
 
@@ -249,7 +245,8 @@ class VolttronInstanceModule(AnsibleModule):
         except AttributeError:
             stderr = result.stderr
 
-        return result.returncode, stdout, stderr
+        if result.returncode != 0:
+            self.exit_json(msg=f"{failure_message}: Failed to stop volttron", stderr=stderr, stdout=stdout)
 
     def _wait_for_state(self, expected_state, timeout=10):
         countdown = timeout
@@ -261,6 +258,8 @@ class VolttronInstanceModule(AnsibleModule):
             if self._instance_state == expected_state:
                 break
 
+        return self._instance_state == expected_state
+
     def _write_volttron_config(self, config):
         os.makedirs(self._vhome, exist_ok=True)
         volttron_config_file = os.path.join(self._vhome, 'config')
@@ -269,7 +268,7 @@ class VolttronInstanceModule(AnsibleModule):
         config_parser = ConfigParser()
         config_parser.add_section("volttron")
         for k, v in expected_config.items():
-            config_parser.set("volttron", k, str(v))
+            config_parser.set("volttron", k, f'"{v}"')
         with open(volttron_config_file, 'w') as fp:
             config_parser.write(fp)
 
@@ -401,7 +400,7 @@ class VolttronInstanceModule(AnsibleModule):
             self.fail_json(msg="Must have config section in host configuration file.")
         if 'agents' not in host_cfg_loaded:
             self.fail_json(msg="Must have agents section in host configuration file.")
-        logger().debug(f"host config loaded: {host_cfg_loaded}")
+        logger().debug(f"host config loaded: {json.dumps(host_cfg_loaded, indent=2)}")
 
         # No agent configuration means that we have a platform just sitting there doing nothing,
         # however that is not an error state.
@@ -516,7 +515,8 @@ class VolttronInstanceModule(AnsibleModule):
         with open(os.path.join(self._vhome, "keystore")) as fp:
             keystore = json.loads(fp.read())
             self._host_config_expected['serverkey'] = keystore['public']
-
+        logger().debug("HOSTCONFIGEXPECTED:")
+        logger().debug(f"{json.dumps(self._host_config_expected, indent=2)}")
         if 'volttron-central-instance' in self._host_config_expected:
             vc_instance = self._host_config_expected['volttron-central-instance']
             # use as local and then modify to use other instance if necessary
@@ -532,7 +532,7 @@ class VolttronInstanceModule(AnsibleModule):
                 vc_config_specs['volttron-central-address'] = other_instance['config']['vip-address']
                 vc_config_specs['volttron-central-serverkey'] = other_instance['config']['serverkey']
 
-                self._host_config_expected['config'].update(vc_config_specs)
+            self._host_config_expected['config'].update(vc_config_specs)
 
         self._host_config_expected['config']['message-bus'] = self._host_config_expected.get('message-bus', 'zmq')
         self.__discover_agents_status__()
@@ -710,14 +710,21 @@ class VolttronInstanceModule(AnsibleModule):
         cmd_results = subprocess.run(cmd, cwd=self._vroot,
                                      stdout=subprocess.PIPE,
                                      stderr=subprocess.PIPE)
-
-        logger().debug(f"out:\n{cmd_results.stdout}\nerr:\n{cmd_results.stderr}")
         if cmd_results.returncode == 0:
             if cmd_results.stdout.decode('utf-8') == '':
                 return {}
             return json.loads(cmd_results.stdout.decode('utf-8'))
-        self.fail_json(msg=f"Failed to get the status of agents",
-                       stderr=cmd_results.stderr.decode('utf-8'))
+        else:
+            cmd = [self._vctl, "--json", "list"]
+            cmd_results = subprocess.run(cmd, cwd=self._vroot,
+                                         stdout=subprocess.PIPE,
+                                         stderr=subprocess.PIPE)
+            if cmd_results.returncode == 0:
+                if cmd_results.stdout.decode('utf-8') == '':
+                    return {}
+                return json.loads(cmd_results.stdout.decode('utf-8'))
+            return dict(msg=f"Failed to get the status of agents",
+                        stderr=cmd_results.stderr.decode('utf-8'))
 
     def __get_agent_status__(self, agent_dir):
         """
@@ -853,9 +860,9 @@ class VolttronInstanceModule(AnsibleModule):
         :return:
             dictionary identity -> state with pid
         """
-        logger().debug(f"Inside get_agents_state")
         agents_state = self.__find_all_agents__()
-        logger().debug(f"Inside get_agents_state\n {agents_state}")
+        runtime_status = self.__status_all_agents__()
+
         self._agents_status = {}
         for identity, spec in self._agents_config.items():
             if identity not in self._agents_status:
@@ -890,17 +897,12 @@ def main():
         # started=dict(default=True, type="bool")
     ), supports_check_mode=True)
 
-    logger().debug(f"PARAMS WERE:\n{json.dumps(module.params, indent=2)}")
+    logger().debug(f"Passed params:\n{json.dumps(module.params, indent=2)}")
     if module.check_mode:
-        logger().debug("Calling handle_status")
+        logger().debug("module.check_mode True calling handle_status")
         module.handle_status()
 
-    if module.requested_state == InstanceState.STOPPED:
-        module.handle_update_runtime_state()
-
-    if module.requested_state == InstanceState.RUNNING and InstallPhaseEnum.NONE:
-        module.handle_update_runtime_state()
-
+    logger().debug(f"allow external conn {module.phase.name}")
     if module.phase == InstallPhaseEnum.AGENT_INSTALL:
         module.handle_install_agent_phase()
     elif module.phase == InstallPhaseEnum.ALLOW_EXTERNAL_CONNECTIONS:
