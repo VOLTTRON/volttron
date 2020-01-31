@@ -48,11 +48,11 @@ are done. Changing the config file manually might result inconsistent \
 volttron behavior. If you would like to continue please note the following,
        1. This script will manually restrict permissions for existing files and directory.
        2. Volttron process and all agents have to be restarted to take effect.
-       3. If you have agents that connect to remote RMQ instances and then the \
-***CSR approval process has to be repeated***
-       4. Agents can only to write to its own agent-data dir. So if your agents \
+       3. Agents can only to write to its own agent-data dir. So if your agents \
 writes to any directory outside vhome/agents/<agent-uuid>/<agent-name>/agent-name.agent-data \
 move existing files and update configuration such that agent writes to agent-name.agent-data dir
+       4. If you have agents that **connect to remote RMQ instances** the script will attempt to move the \
+remote instance signed certificate into corresponding agent's agent-data directory
 "
     echo -n "Would you like to transition this existing VOLTTRON_HOME to secure mode (Y/N)"
     read continue
@@ -71,7 +71,7 @@ move existing files and update configuration such that agent writes to agent-nam
         # move installed agent's keystore.json from agent-data dir to dist-info
         # agents dir -remove rwx from other for all dirs and files
 
-        echo "Updating directory permissions...."
+        echo "####Updating directory permissions...."
         files=(`find $volttron_home/keystores -type d`)
         for f in "${files[@]}";
         do
@@ -79,14 +79,14 @@ move existing files and update configuration such that agent writes to agent-nam
             chmod o-rwx $f
         done
 
-        echo "Changing permissions for agents/* dir"
+        echo "####Changing permissions for agents/* dir"
         files=(`find $volttron_home/agents/* -type d`)
         for f in "${files[@]}";
         do
             chmod o-rwx $f
         done
 
-        echo "Updating file permissions....."
+        echo "####Updating file permissions....."
 
         if [ -f $volttron_home/known_hosts ]; then
             echo $volttron_home/known_hosts
@@ -114,7 +114,7 @@ move existing files and update configuration such that agent writes to agent-nam
             done
         fi
 
-        echo "Changing file permissions for agents dir"
+        echo "####Changing file permissions for agents dir"
         files=(`find $volttron_home/agents -type f`)
         for f in "${files[@]}";
         do
@@ -136,6 +136,35 @@ move existing files and update configuration such that agent writes to agent-nam
                 mv $f $new_dir/keystore.json
             fi
         done
+
+        if [ -d $volttron_home/certificates/remote_certs ]; then
+            echo "####Checking if remote signed certs exists and moving it into agent directory"
+            files=(`find $volttron_home/certificates/remote_certs -type f -name *.json`)
+            for f in "${files[@]}";
+            do
+                v1=`basename $f | cut -d"." -f1`
+                v2=`basename $f | cut -d"." -f2`
+                id=`basename -s .json $f | sed -e "s/^$v1.$v2.//"`
+                agent_id_file_path=`grep -r  --include IDENTITY -l $id $volttron_home/agents/`
+                agent_dir=$(dirname "$agent_id_file_path")
+                data_dir=`ls  -d $agent_dir/*/* | grep agent-data`
+                echo "moving $f to $data_dir"
+                mv $f $data_dir
+                echo "moving $volttron_home/certificates/remote_certs/$v1.$v2.$id.crt to $data_dir"
+                mv $volttron_home/certificates/remote_certs/$v1.$v2.$id.crt $data_dir
+                echo "Creating new requests_ca_bundle for $id"
+                cat $volttron_home/certificates/certs/$v2-root-ca.crt >> $data_dir/requests_ca_bundle
+                cat $volttron_home/certificates/remote_certs/${v1}_ca.crt >> $data_dir/requests_ca_bundle
+                rm $volttron_home/certificates/remote_certs/${v1}_ca.crt
+                file_name=`basename $f`
+                echo $file_name
+                chown ${volttron_user} $data_dir/requests_ca_bundle
+                chown ${volttron_user} $data_dir/$v1.$v2.$id.crt
+                chown ${volttron_user} $data_dir/$file_name
+            done
+        fi
+        echo "####Completed volttron home permission changes and file organization for secure mode"
+        echo  " "
 
     else
         exit 0
