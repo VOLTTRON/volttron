@@ -88,7 +88,7 @@ extras_require = {
     ],
     'drivers': [
         'pymodbus',
-        'bacpypes',
+        'bacpypes==0.16.7',
         'modbus-tk',
         'pyserial'
     ],
@@ -108,6 +108,9 @@ extras_require = {
     'pandas': [  # numpy and pandas for applications
         'numpy',
         'pandas',
+    ],
+    'postgres': [  # numpy and pandas for applications
+        'psycopg'
     ],
     'testing': [  # Testing infrastructure dependencies
         'mock',
