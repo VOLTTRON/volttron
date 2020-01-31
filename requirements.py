@@ -109,6 +109,9 @@ extras_require = {
         'numpy',
         'pandas',
     ],
+    'postgres': [  # numpy and pandas for applications
+        'psycopg'
+    ],
     'testing': [  # Testing infrastructure dependencies
         'mock',
         'pytest',
