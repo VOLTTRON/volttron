@@ -60,7 +60,7 @@ class ListenerAgent(Agent):
     """
 
     def __init__(self, config_path, **kwargs):
-        super().__init__(**kwargs)
+        super().__init__(enable_store=False, **kwargs)
         self.config = utils.load_config(config_path)
         self._agent_id = self.config.get('agentid', DEFAULT_AGENTID)
         self._message = self.config.get('message', DEFAULT_MESSAGE)
