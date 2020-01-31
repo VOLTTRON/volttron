@@ -72,6 +72,19 @@ def identity_exists(volttron_control, identity):
     return False
 
 
+def install_requirements(agent_source):
+    req_file = os.path.join(agent_source, "requirements.txt")
+
+    if os.path.exists(req_file):
+        _log.info(f"Installing requirements for agent from {req_file}.")
+        cmds = ["pip", "install", "-r", req_file]
+        try:
+            execute_command(cmds, logger=_log,
+                            err_prefix="Error installing requirements")
+        except RuntimeError:
+            sys.exit(1)
+
+
 def install_agent_directory(opts, package, agent_config):
     """
     The main installation method for installing the agent on the correct local
@@ -84,6 +97,8 @@ def install_agent_directory(opts, package, agent_config):
     if not os.path.isfile(os.path.join(opts.install_path, "setup.py")):
         _log.error("Agent source must contain a setup.py file.")
         sys.exit(-10)
+
+    install_requirements(opts.install_path)
 
     wheelhouse = os.path.join(get_home(), "packaged")
     opts.package = create_package(opts.install_path, wheelhouse, opts.vip_identity)
