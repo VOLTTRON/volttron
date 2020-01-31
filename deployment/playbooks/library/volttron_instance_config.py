@@ -359,8 +359,10 @@ class VolttronInstanceModule(AnsibleModule):
         # if the volttron path doesn't exist yet then then we know the user
         # hasn't inited this instance yet.
         if not os.path.exists(self._vroot):
-            self.fail_json(msg=f"volttron_path does not exist {self._vroot}. "
-                               f"Please run vctl deploy init on this host.")
+            if not self.check_mode:
+                self.fail_json(msg=f"volttron_path does not exist {self._vroot}. "
+                                   f"Please run vctl deploy init on this host.")
+            return
 
         # The host config file must be present for the script to understand
         # how to configure this instance.

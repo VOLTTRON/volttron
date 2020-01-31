@@ -2,22 +2,25 @@
 
 - hosts: all
   tasks:
-    - include_tasks: includes/ansible_venv.yml
+    - include_tasks: includes/common.yml
+
     - name: Configure VOLTTRON Instances
       volttron_instance_config:
-        config_file: "{{ ansible_env.HOME }}/host.config.yml"
+        config_file: "{{ host_config }}"
         state: "STOPPED"
         phase: "UNINSTALL"
       register: instance_state
+      ignore_errors: yes
 
     - name: Remove vollttron directory, files and other volttron artifacts
       file:
         state: absent
         path: "{{ item }}"
       with_items:
-        - "{{ ansible_env.HOME }}/volttron"
-        - "{{ ansible_env.HOME }}/.volttron"
-        - "{{ ansible_env.HOME }}/host.config.yml"
+        - "{{ volttron_home }}"
+        - "{{ volttron_root }}"
+        - "{{ host_config }}"
+        - "{{ my_ansible_vitualenv }}"
         - "{{ ansible_env.HOME }}/rabbitmq_server"
         - "{{ ansible_env.HOME }}/.volttron_rmq_home"
         - "{{ ansible_env.HOME }}/.volttron_instances"
@@ -25,5 +28,5 @@
         - "{{ ansible_env.HOME }}/logfile.log"
         - "{{ ansible_env.HOME }}/configs"
         - "{{ ansible_env.HOME }}/volttron.tar.gz"
-        - "{{ ansible_env.HOME }}/ansible_venv"
+
 

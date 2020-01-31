@@ -3,10 +3,10 @@
 
 - hosts: all
   tasks:
-    - include_tasks: includes/ansible_venv.yml
+    - include_tasks: includes/common.yml
     - name: Configure VOLTTRON Instances
       volttron_instance_config:
-        config_file: "{{ ansible_env.HOME }}/host.config.yml"
+        config_file: "{{ host_config }}/host.config.yml"
         state: "STOPPED"
         phase: "NONE"
       register: instance_state

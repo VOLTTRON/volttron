@@ -1,17 +1,17 @@
 ---
 - name: "Raspbian-specific ansible venv packages"
   pip:
-    virtualenv: "{{ ansible_env.HOME }}/ansible_venv"
+    virtualenv: "{{ my_ansible_vitualenv }}"
     virtualenv_command: /usr/bin/python3 -m venv
     name:
       - cython
   when: ansible_lsb.id == "Raspbian"
 
-# Use anisible interperet to separate the volttron requirements from
+# Use anisible interpreter to separate the volttron requirements from
 # the requirements of the volttron instance
 - name: Create ansbile virtual env
   pip:
-    virtualenv: "{{ ansible_env.HOME }}/ansible_venv"
+    virtualenv: "{{ my_ansible_vitualenv }}"
     virtualenv_command: /usr/bin/python3 -m venv
     name:
      - pyyaml
@@ -24,4 +24,4 @@
 # is used for the rest of the tasks.
 - name: Set ansible interpreter
   set_fact:
-    ansible_python_interpreter: "{{ ansible_env.HOME }}/ansible_venv/bin/python"
+    ansible_python_interpreter: "{{ my_ansible_python_interpreter }}"

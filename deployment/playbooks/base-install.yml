@@ -1,37 +1,23 @@
 ---
 - import_playbook: includes/ensure_host_keys.yml
 
+- name: environmental setup
+  hosts: all
+  tasks:
+    - include_tasks: includes/defaults.yml
+
 - name: base system install
   hosts: all
   vars:
     # Ansible will use this path on remote hosts to run the interpreter with.
     ansible_python_interpreter: /usr/bin/python3
-  environment:
-    VOLTTRON_HOME: "{{ ansible_env.HOME }}/.volttron"
-    VOLTTRON_ROOT: "{{ ansible_env.HOME }}/volttron"
-    HOST_CONFIG: "{{ ansible_env.HOME }}/host.config.yml"
-    http_proxy: ""
   tasks:
+    #- include_tasks: includes/common.yml
 
     - name: Initialize git variables for downloading repository without git
       set_fact:
         git_branch: remote-platforms
         git_organization: craig8
-
-    - name: Test for enable_drivers
-      when: enable_drivers is not defined
-      set_fact:
-        enable_drivers: no
-
-    - name: Test for extra_requires
-      when: extra_requirements is not defined
-      set_fact:
-        extra_requirements: []
-
-    - name: Set messagebus zmq when not defined
-      when: messagebus is not defined
-      set_fact:
-          messagebus: "zmq"
 
     #TODO BHL: this step is expected to be very sensitive to the OS
     #          package names differ between ubuntu versions and/or to debian
@@ -62,7 +48,6 @@
       become_method: sudo
       when: messagebus == "rmq"
       apt:
-        update_cache: yes
         name: "{{item}}"
         state: present
       loop:
@@ -110,23 +95,23 @@
     - name: Download volttron repository tarball
       get_url:
         url: https://github.com/{{ git_organization }}/volttron/archive/{{ git_branch }}.tar.gz
-        dest: "/tmp/volttron.tar.gz"
+        dest: "/tmp/volttron-{{ inventory_hostname }}.tar.gz"
         force: yes
 
     - name: Stat volttron dir
       stat:
-        path: "{{ ansible_env.HOME }}/volttron"
+        path: "{{ volttron_root }}"
       register: volttron_path_stat
 
     - name: Stat tar file
       stat:
-        path: "/tmp/volttron.tar.gz"
+        path: "/tmp/volttron-{{ inventory_hostname }}.tar.gz"
         get_checksum: yes
       register: new_tar_stat
 
     - name: Stat old tar
       stat:
-        path: "{{ ansible_env.HOME }}/volttron.tar.gz"
+        path: "{{ ansible_env.HOME }}/volttron-{{ inventory_hostname }}.tar.gz"
         get_checksum: yes
       register: old_tar_stat
 
@@ -135,59 +120,64 @@
         redo_volttron: "{{ (not volttron_path_stat.stat.exists or not old_tar_stat.stat.exists or (new_tar_stat.stat.checksum != old_tar_stat.stat.checksum)) }}"
 
     - name: Move new file
-      command: mv "/tmp/volttron.tar.gz" "{{ ansible_env.HOME }}/volttron.tar.gz"
+      command: mv "/tmp/volttron-{{ inventory_hostname }}.tar.gz" "{{ ansible_env.HOME }}/volttron-{{ inventory_hostname }}.tar.gz"
       when: redo_volttron
 
     - name: Remove volttron dir if exists
-      command: rm -rf {{ ansible_env.HOME }}/volttron
+      command: rm -rf {{ volttron_root }}
       when: redo_volttron
+
+    - name: make sure hostname folder exists
+      file:
+        path: "{{ ansible_env.HOME }}/{{ inventory_hostname }}"
+        state: directory
 
     - name: Extract archive
       unarchive:
-        src: "{{ ansible_env.HOME }}/volttron.tar.gz"
-        dest: "{{ ansible_env.HOME }}"
+        src: "{{ ansible_env.HOME }}/volttron-{{ inventory_hostname }}.tar.gz"
+        dest: "{{ ansible_env.HOME }}/{{ inventory_hostname }}/"
         remote_src: yes
       when: redo_volttron
 
     - name: rename folder
-      command: mv "{{ ansible_env.HOME }}/volttron-{{git_branch}}" "{{ansible_env.HOME }}/volttron"
+      command: mv "{{ ansible_env.HOME }}/{{ inventory_hostname }}/volttron-{{git_branch}}" "{{ volttron_root }}"
       when: redo_volttron
 
     - name: Bootstrap the python3 environment
       command:
         cmd: "python3 bootstrap.py"
-        chdir: "{{ ansible_env.HOME }}/volttron"
-        creates: "{{ ansible_env.HOME }}/volttron/env"
+        chdir: "{{ volttron_root }}"
+        creates: "{{ volttron_root }}/env"
 
     - name: Test if pika installed
-      shell: "cd ~/volttron && env/bin/pip list --disable-pip-version-check --format legacy| grep -F gevent-pika | wc -l"
+      shell: "cd {{ volttron_root }} && env/bin/pip list --disable-pip-version-check --format legacy| grep -F gevent-pika | wc -l"
       args:
-        chdir: "{{ ansible_env.HOME }}/volttron"
+        chdir: "{{ volttron_root }}"
       register: already_installed_pika
 
     - name: Boostrap rmq environment
       when: (messagebus == "rmq" and "0" not in already_installed_pika.stdout)
       command:
         cmd: "env/bin/python bootstrap.py --rabbitmq"
-        chdir: "{{ ansible_env.HOME }}/volttron"
+        chdir: "{{ volttron_root }}"
 
     - name: Test if ws4py is installed (test if web has been installed)
-      raw: "cd {{ ansible_env.HOME }}/volttron && env/bin/pip list --disable-pip-version-check --format legacy| grep -F ws4py | wc -l"
+      raw: "cd {{ volttron_root }} && env/bin/pip list --disable-pip-version-check --format legacy| grep -F ws4py | wc -l"
       args:
-        chdir: "{{ ansible_env.HOME }}/volttron"
+        chdir: "{{ volttron_root }}"
       register: web_enabled
 
     - name: Enabling web packages for environment
       when: (enable_web is defined and enable_web == True) # and "0" not in web_enabled.stdout)
       command:
-        cmd: "env/bin/python bootstrap.py --web"
-        chdir: "{{ ansible_env.HOME }}/volttron"
+        cmd: "{{ volttron_root }}/env/bin/python bootstrap.py --web"
+        chdir: "{{ volttron_root }}"
 
     - name: Enabling master driver packages for environment
       when: (enable_drivers is defined and enable_drivers == True)
       command:
-        cmd: "env/bin/python bootstrap.py --drivers"
-        chdir: "{{ ansible_env.HOME }}/volttron"
+        cmd: "{{ volttron_root }}/env/bin/python bootstrap.py --drivers"
+        chdir: "{{ volttron_root }}"
 
     - name: Install extra requirements for this instance
       pip:
@@ -198,8 +188,8 @@
         # This module doesn't use the http_proxy as the env instead it uses the
         # capitalized one
         # reference https://docs.ansible.com/ansible/latest/modules/pip_module.html
-        HTTP_PROXY: "{{ ansible_env.http_proxy }}"
-      when: extra_requirements != []
+        HTTP_PROXY: "{{ http_proxy }}"
+      when: extra_requirments is defined and extra_requirements != []
 
     - set_fact:
         local_remote_config_file: "{{lookup('env','DEPLOYMENT_ROOT')}}/{{inventory_hostname}}/{{inventory_hostname}}.yml"
@@ -219,5 +209,3 @@
         state: "directory"
 
     - include_tasks: includes/update_facts.yml
-      vars:
-        host_config: "{{ ansible_env.HOME }}/host.config.yml"

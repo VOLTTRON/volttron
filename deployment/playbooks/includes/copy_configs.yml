@@ -13,7 +13,7 @@
 
   - name: ensure remote configs dir
     file:
-      path: "{{ ansible_env.HOME }}/configs"
+      path: "{{ host_configs_dir }}"
       state: directory
       mode: 0755
 
@@ -23,12 +23,12 @@
       # only the files underneath.  So ignore 'sigma1' if it was the
       # host.
       src: "{{ local_configs_dir }}/"
-      dest: "{{ ansible_env.HOME }}/configs"
+      dest: "{{ host_configs_dir }}"
       mode: 0644
     when: directory_check.stat.exists
 
   - name: Copy host config to remote
     copy:
       src: "{{ local_remote_config_file }}"
-      dest: "{{ ansible_env.HOME }}/host.config.yml"
+      dest: "{{ host_config }}"
       mode: 0644

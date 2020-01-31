@@ -1,0 +1,5 @@
+---
+- include_tasks: includes/defaults.yml
+- include_tasks: includes/volttron_environment.yml
+- include_tasks: includes/ansible_venv.yml
+- include_tasks: includes/update_facts.yml

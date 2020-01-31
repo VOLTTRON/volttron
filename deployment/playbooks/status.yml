@@ -12,19 +12,13 @@
     # Ansible will use this path on remote hosts to run the interpreter with.
     ansible_python_interpreter: /usr/bin/python3
   tasks:
-    - include_tasks: includes/ansible_venv.yml
-    - include_tasks: includes/update_facts.yml
-      vars:
-        host_config: "{{ ansible_env.HOME }}/host.config.yml"
+    - include_tasks: includes/common.yml
+
+    - name: Retrieving Status
+      volttron_instance_config:
+        config_file: "{{ host_config }}"
+      check_mode: True
+      register: instance_state
 
     - debug:
-        var: volttron_host_facts #"MY host facts are:\n{{ volttron_host_facts | to_json }}"
-#
-#    - name: Retrieving Status
-#      volttron_instance_config:
-#        config_file: "{{ ansible_env.HOME }}/host.config.yml"
-#      check_mode: True
-#      register: instance_state
-#
-#    - debug:
-#        var: instance_state
+        var: instance_state

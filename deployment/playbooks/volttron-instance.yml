@@ -1,23 +1,24 @@
 ---
 - import_playbook: includes/ensure_host_keys.yml
 
+# Running this allows us to set the variables that are going to be used in the
+# environment block before the execution of the second play.
+- name: environmental setup
+  hosts: all
+  tasks:
+    - include_tasks: includes/defaults.yml
+
 - hosts: all
 #  become: yes
 #  become_method: sudo
   gather_facts: True
   environment:
-    VOLTTRON_HOME: "{{ ansible_env.HOME }}/.volttron"
-    VOLTTRON_ROOT: "{{ ansible_env.HOME }}/volttron"
-    CONFIG: "{{ ansible_env.HOME }}/configs"
-    HOST_CONFIG: "{{ ansible_env.HOME }}/host.config.yml"
+    VOLTTRON_HOME: "{{ volttron_home }}"
+    VOLTTRON_ROOT: "{{ volttron_root }}"
+    # CONFIG: "{{ host_configs_dir }}"
+    HOST_CONFIG: "{{ host_config }}"
   tasks:
-    # After running this the ansible_python_interpretor is set to
-    # the one explicitly created for us to execute ansible commands.
-    - include_tasks: includes/ansible_venv.yml
-
-    - include_tasks: includes/update_facts.yml
-      vars:
-        host_config: "{{ ansible_env.HOME }}/host.config.yml"
+    - include_tasks: includes/common.yml
 
     - set_fact:
         local_remote_config_file: "{{lookup('env','DEPLOYMENT_ROOT')}}/{{inventory_hostname}}/{{inventory_hostname}}.yml"
@@ -28,7 +29,8 @@
 
     - name: Configure VOLTTRON instance (agent install phase)
       volttron_instance_config:
-        config_file: "{{ ansible_env.HOME }}/host.config.yml"
+        volttron_home: volttron_home
+        config_file: "{{ host_config }}"
         state: "RUNNING"
         phase: "AGENT_INSTALL"
         # This variable must be passed on for the module to be able to be used
@@ -37,7 +39,7 @@
 
     - name: Configure VOLTTRON instance (external connection phase)
       volttron_instance_config:
-        config_file: "{{ ansible_env.HOME }}/host.config.yml"
+        config_file: "{{ host_config }}"
         state: "RUNNING"
         phase: "ALLOW_EXTERNAL_CONNECTIONS"
         # This variable must be passed on for the module to be able to be used
@@ -46,7 +48,7 @@
 
     - name: Configure VOLTTRON instance (start agents phase)
       volttron_instance_config:
-        config_file: "{{ ansible_env.HOME }}/host.config.yml"
+        config_file: "{{ host_config }}"
         state: "RUNNING"
         phase: "START_AGENTS"
         # This variable must be passed on for the module to be able to be used
@@ -96,7 +98,7 @@
 
 #    - name: Configure VOLTTRON instance (allow external collection phase)
 #      volttron_instance_config:
-#        config_file: "{{ ansible_env.HOME }}/host.config.yml"
+#        config_file: "{{ host_config }}"
 #        state: "RUNNING"
 #        phase: "ALLOW_EXTERNAL_CONNECTIONS"
 #        volttron_host_facts: "{{ volttron_host_facts }}"
@@ -104,7 +106,7 @@
 
 #    - name: Configure VOLTTRON instance (tag priority startup agents)
 #      volttron_instance_config:
-#        config_file: "{{ ansible_env.HOME }}/host.config.yml"
+#        config_file: "{{ host_config }}"
 #        state: "RUNNING"
 #        phase: "START_AGENTS"
 #      register: instance_state_final

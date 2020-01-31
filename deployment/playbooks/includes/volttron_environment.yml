@@ -1,0 +1,10 @@
+- name: Set environmental variables
+  ping:
+  environment:
+    VOLTTRON_HOME: "{{ volttron_home }}"
+    VOLTTRON_ROOT: "{{ volttron_root }}"
+    HOST_CONFIG: "{{ host_config }}"
+
+- name: ENV test?
+  debug:
+    var: ansible_env
