@@ -177,6 +177,10 @@ class MasterWebService(Agent):
     @RPC.export
     def get_user_claims(self, bearer):
         from volttron.platform.web import get_user_claim_from_bearer
+        if self.core.messagebus == 'rmq':
+            return get_user_claim_from_bearer(bearer,
+                                              tls_public_key=self._certs.get_cert_public_key(
+                                                           get_fq_identity(self.core.identity)))
         if self.web_ssl_cert is not None:
             return get_user_claim_from_bearer(bearer,
                                               tls_public_key=CertWrapper.get_cert_public_key(self.web_ssl_cert))
@@ -670,7 +674,7 @@ class MasterWebService(Agent):
             for rt in self._csr_endpoints.get_routes():
                 self.registeredroutes.append(rt)
 
-        # Register the admin endpoinds regardless of whether there is an ssl context
+        # Register the admin endpoints regardless of whether there is an ssl context
         # or not.
         for rt in self._admin_endpoints.get_routes():
             self.registeredroutes.append(rt)
