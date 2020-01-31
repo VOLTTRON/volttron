@@ -116,6 +116,8 @@ to install beyond those required for "vanilla" VOLTTRON. Multiple packaging argu
 
     --pandas: Install Pandas (pandas) and NumPy (numpy)
 
+    --postgres: Install Psycopg (postgres)
+
     --testing: Install testing infrastructure dependencies - Mock (mock), PyTest (pytest), PyTest-timeout
         (pytest-timeout), Websocket-Client (websocket-client)
 

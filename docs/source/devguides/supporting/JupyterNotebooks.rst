@@ -76,7 +76,7 @@ The VOLTTRON server should run on the same host as the Jupyter server.
 
     $ cd volttron
     $ git checkout develop
-    $ python3.6 bootstrap.py
+    $ python bootstrap.py
 
 *Activate and initialize the VOLTTRON virtual environment:*
 
