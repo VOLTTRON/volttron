@@ -142,7 +142,6 @@ def multi_messagebus_forwarder(volttron_multi_messagebus):
     yield from_instance, to_instance
 
     from_instance.stop_agent(forwarder_uuid)
-    from_instance.remove_agent(forwarder_uuid)
 
 
 def publish(publish_agent, topic, header, message):
