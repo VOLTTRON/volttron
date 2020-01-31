@@ -174,8 +174,15 @@ class Auth(SubsystemBase):
                     if info.messagebus_type == 'rmq':
                         _log.debug("Both remote and local are rmq messagebus.")
                         fqid_local = get_fq_identity(self._core().identity)
-                        # Discovery info for external platform
-                        response = self.request_cert(address, fqid_local, info)
+
+                        #Check if we already have the cert, if so use it instead of requesting cert again
+                        remote_certs_dir = self.get_remote_certs_dir()
+                        remote_cert_name = "{}.{}".format(info.instance_name, fqid_local)
+                        certfile = os.path.join(remote_certs_dir, remote_cert_name + ".crt")
+                        if os.path.exists(certfile):
+                            response = certfile
+                        else:
+                            response = self.request_cert(address, fqid_local, info)
 
                         if response is None:
                             _log.error("there was no response from the server")
