@@ -73,6 +73,7 @@ extras_require = {
         'pymongo',
         'crate',
         'influxdb',
+        'psycopg2-binary'
     ],
     'dnp3': [  # dnp3 agent requirements.
         'pydnp3'
@@ -110,7 +111,7 @@ extras_require = {
         'pandas',
     ],
     'postgres': [  # numpy and pandas for applications
-        'psycopg'
+        'psycopg2-binary'
     ],
     'testing': [  # Testing infrastructure dependencies
         'mock',
