@@ -215,6 +215,7 @@ Consider Agent A on volttron instance "volttron1" on host "host_A" wants to make
 on VOLTTRON instance "volttron2" on host "host_B".
 
 1. Agent A makes RPC call.
+
 .. code-block:: Python
 
     kwargs = {"external_platform": self.destination_instance_name}
@@ -332,6 +333,7 @@ Consider Agent A on volttron instance "volttron1" on host "host_A" wants to make
 on VOLTTRON instance "volttron2" on host "host_B".
 
 1. Agent A makes RPC call.
+
 .. code-block:: Python
 
     kwargs = {"external_platform": self.destination_instance_name}

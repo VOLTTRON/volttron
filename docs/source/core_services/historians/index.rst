@@ -7,7 +7,7 @@ VOLTTRON Historian Framework
 Historian Agents are the way by which device, actuator, datalogger, and
 analysis are captured and stored in some sort of data store. Historians exist for the following storage options:
 
-- A general :ref:`SQL Historian <SQL-Historian>` implemented for MySQL and SQLite
+- A general :ref:`SQL Historian <SQL-Historian>` implemented for MySQL, SQLite, PostgreSQL, and Amazon Redshift
 - :ref:`MongoDB Historian <Mongo-Historian>`
 - :ref:`Crate Historian <Crate-Historian>`
 - :ref:`Forward Historian <Forward-Historian>` for sending data to another VOLTTRON instance
