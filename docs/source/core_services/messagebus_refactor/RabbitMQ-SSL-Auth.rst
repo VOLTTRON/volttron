@@ -1,4 +1,5 @@
 .. _RabbitMQ-Auth:
+
 ==========================================================
 Authentication And Authorization With RabbitMQ Message Bus
 ==========================================================

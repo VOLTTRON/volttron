@@ -1,9 +1,10 @@
  .. _RabbitMQ-Overview:
+
 =================
 RabbitMQ Overview
 =================
 
-# NOTE: Some of the RabbitMQ summary/overview documentation and supporting images added here are taken from `RabbitMQ official documentation <https://www.rabbitmq.com/documentation.html>`_. 
+.. NOTE:: Some of the RabbitMQ summary/overview documentation and supporting images added here are taken from `RabbitMQ official documentation <https://www.rabbitmq.com/documentation.html>`_.
 
 RabbitMQ is the most popular messaging library with over 35,000 production deployments.
 It is highly scalable, easy to deploy, runs on many operating systems and cloud

@@ -1,8 +1,8 @@
 .. _Developing-Market-Agents:
 
-===========================
+========================
 Developing Market Agents
-===========================
+========================
 
 VOLTTRON provides a convenient base class for developing new market
 agents. The base class automatically subscribes to all pertinent topics,
@@ -19,14 +19,20 @@ MarketAgent
 
 All Market Agents must inherit from the MarketAgent class in
 volttron.platform.agent.base_market_agent and call the following
-method::
+method
+
+::
+
     self.join_market(market_name, buyer_seller, reservation_callback, offer_callback, aggregate_callback, price_callback, error_callback)
 
 This method causes the market agent to join a single market.  If the agent wishes to participate in several
 markets it may be called once for each market.  The first argument is the name of the market to join and this name must
 be unique across the entire volttron instance because all markets are implemented by a single market service agent for
 each volttron instance.  The second argument describes the role that this agent wished to play in this market.
-The value is imported as::
+The value is imported as
+
+::
+
     from volttron.platform.agent.base_market_agent.buy_sell import BUYER, SELLER
 
 Arguments 3-7 are callback methods that the agent may implement as needed for the agent's participation in the market.
@@ -114,7 +120,10 @@ The Error Callback
     error_callback(self, timestamp, market_name, buyer_seller, error_code, error_message, aux)
 
 This callback is called when an error occurs isn't in response to an RPC call.
-The error codes are documented in::
+The error codes are documented in
+
+::
+
     from volttron.platform.agent.base_market_agent.error_codes import NOT_FORMED, SHORT_OFFERS, BAD_STATE, NO_INTERSECT
 
 * NOT_FORMED - If a market fails to form this will be called at the offer time.

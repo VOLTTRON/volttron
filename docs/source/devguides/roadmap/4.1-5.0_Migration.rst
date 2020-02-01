@@ -1,4 +1,5 @@
 .. _4.1_to_5.0:
+
 Migration from 4.1 to 5.0
 =========================
 
@@ -44,7 +45,7 @@ Please see: https://github.com/VOLTTRON/volttron/blob/develop/services/core/Forw
 new options.
 
 .. note:: NOTE If you have no entry for service_topic_list in your configuration, the new default will cause
-ALL data to be forwarded. Please update your configuration if you are forwarding a subset of data.
+    ALL data to be forwarded. Please update your configuration if you are forwarding a subset of data.
 
 
 VOLTTRON Central Management UI

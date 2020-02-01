@@ -23,7 +23,7 @@ read automatically when the utility is run.
 
 The only value that (usually) needs to be changed is the **address** field.
 **This is the address bound to the port on the machine you are running the script from, NOT
-A TARGET DEVICE! ** This value should be set to the IP address of the
+A TARGET DEVICE!** This value should be set to the IP address of the
 network interface used to communicate with the remote device. If there
 is more than one network interface you must use the address of the interface
 connected to the network that can reach the device.
@@ -98,8 +98,8 @@ For the first example, the IP address ``192.168.1.42`` can be used to reach
 the device. The second device is behind a BACnet router and can be
 reached at ``1002:11``. See RouterAddressing Remote Station addressing.
 
-Options
-*******
+BACNet Scan Options
+*******************
 
     - ``--address ADDRESS`` Send the WhoIs request only to a specific address. Useful as a way to ping devices on a network that blocks broadcast traffic.
     - ``--range LOW HIGH`` Specify the device ID range for the results. Useful for filtering.
@@ -119,8 +119,6 @@ The utility is invoked with the command:
     
 This will query the device with the matching device ID for configuration 
 information and print the resulting CSV file to the console.
-
-.. note:: Previous to VOLTTRON 3.5 ``grab_bacnet_config.py`` took the device address as an argument instead of the device ID.
 
 In order to save the configuration to a file use the ``--out-file`` option to specify the
 output file name.
@@ -171,8 +169,8 @@ The output is put in two directories. ``devices/`` contains basic driver configu
 ``grab_multiple_configs.py`` makes no assumptions about device names or topics, however the output is appropriate for the
 ``install_master_driver_configs.py`` script.
 
-Options
-*******
+Grab Multiple Configs Options
+*****************************
 
     - ``--out-directory OUT_DIRECTORY`` Specify the output directory.
     - ``--use-proxy`` Use ``proxy_grab_bacnet_config.py`` to gather configuration data.

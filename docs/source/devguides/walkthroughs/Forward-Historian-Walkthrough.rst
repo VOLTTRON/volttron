@@ -16,8 +16,8 @@ VOLTTRON instance 1 forwards data to VOLTTRON instance 2
 
 VOLTTRON INSTANCE 1 
 ~~~~~~~~~~~~~~~~~~~
-- ``volttron-ctl shutdown --platform`` (If VOLTTRON is already running it must be shut down before running ``volttron-cfg``).
-- ``volttron-cfg`` - this helps in configuring the VOLTTRON instance(:ref:`VOLTTRON Config <VOLTTRON-Config>`).
+- ``vctl shutdown --platform`` (If VOLTTRON is already running it must be shut down before running ``volttron-cfg``).
+- ``vcfg`` - this helps in configuring the VOLTTRON instance(:ref:`VOLTTRON Config <VOLTTRON-Config>`).
 
   - Specify the IP of the machine : ``tcp://127.0.0.1:22916``.
   - Specify the port you want to use.
@@ -27,7 +27,7 @@ VOLTTRON INSTANCE 1
 - Install a listener agent so see the topics that are coming from the diver agent.
 - VOLTTRON authentication : We need to add the IP of the instance 1 in the auth.config file of the VOLTTRON agent .This is done as follow :
 
-  - ``volttron-ctl auth-add``
+  - ``vctl auth-add``
   - We specify the IP of the instance 1 and the credentials of the agent.(:ref:`Agent authentication walkthrough <AgentAuthentication>`)
   - For specifying authentication for all the agents , we specify ``/.*/`` for credentials as shown in :ref:`Agent Development<Agent_Development>`.
   - This should enable authentication for all the VOLTTRON instances based on the IP you specify here .
@@ -46,15 +46,15 @@ For this documentation, the topics from the driver agent will be sent to the ins
 VOLTTRON INSTANCE 2
 ~~~~~~~~~~~~~~~~~~~
 
-- ``volttron-ctl shutdown --platform`` (If VOLTTRON is already running it must be shut down before running ``volttron-cfg``).
-- ``volttron-cfg`` - this helps in configuring the VOLTTRON instance.(:ref:`VOLTTRON Config <VOLTTRON-Config>`)
+- ``vctl shutdown --platform`` (If VOLTTRON is already running it must be shut down before running ``volttron-cfg``).
+- ``vcfg`` - this helps in configuring the VOLTTRON instance.(:ref:`VOLTTRON Config <VOLTTRON-Config>`)
   - Specify the IP of the machine : ``tcp://127.0.0.1:22916``.
   - Specify the port you want to use.
   - Install the listener agent (this will show the connection from instance 1 if its successful and then show all the topics from instance 1.
 - Then start the VOLTTRON instance by : ``volttron -vv & > volttron.log&``.
 - VOLTTRON authentication : We need to add the IP of the instance 1 in the auth.config file of the VOLTTRON agent .This is done as follow :
 
-  - ``volttron-ctl auth-add``
+  - ``vctl auth-add``
   - We specify the IP of the instance 1 and the credentials of the agent.(:ref:`Agent authentication walkthrough <AgentAuthentication>`)
   - For specifying authentication for all the agents , we specify ``/.*/`` for credentials as shown in :ref:`Agent Development<Agent_Development>`.
   - This should enable authentication for all the VOLTTRON instances based on the IP you specify here .

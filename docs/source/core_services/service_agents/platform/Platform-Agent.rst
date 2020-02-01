@@ -1,6 +1,7 @@
+.. _Platform-Agent:
+
 Platform Agent
 ~~~~~~~~~~~~~~
-
 
 Introduction
 ============

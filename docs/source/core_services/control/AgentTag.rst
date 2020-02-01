@@ -5,11 +5,11 @@ Tagging Agents
 
 Agents can be tagged as they are installed with:
 
-``volttron-ctl install <TAG>=<AGENT_PACKAGE>``
+``vctl install <TAG>=<AGENT_PACKAGE>``
 
 Agents can be tagged after installation with:
 
-``volttron-ctl tag <AGENT_UUID> <TAG>``
+``vctl tag <AGENT_UUID> <TAG>``
 
 Agents can be "tagged" to provide a meaningful user defined way to
 reference the agent instead of the uuid or the name. This allows users

@@ -35,9 +35,9 @@ remove any leading or trailing whitespace, "/", and "\\" from the name.
 Configuration File Types
 ************************
 
-The configuration store will automatically parse configuration before presenting them to an agent. While the
+The configuration store will automatically parse configuration files before presenting them to an agent. Additionally, the
 configuration store does support storing raw data and giving to the agent unparsed. Most Agents will require the
-configuration to be parsed. Any Agent that requires raw data will specifically mention it in it's documentation.
+configuration to be parsed. Any Agent that requires raw data will specifically mention the requirement in its documentation.
 
 This system removes the requirement that configuration files for an agent be in a specific format. For instance
 a registry configuration for a driver may be JSON instead of CSV if that is more convenient for the user. This
@@ -162,7 +162,7 @@ The resulting configuration returns when an agent asks for "devices/vav1.config"
 Circular references are not allowed. Adding a file that creates a circular reference will cause
 that file to be rejected by the platform.
 
-If a configuration is changed in anyway and that configuration is referred to by another configuration then
+If a configuration is changed in any way and that configuration is referred to by another configuration then
 the agent considers the referring configuration as changed. Thus a set of configurations with references
 can be considered one large configuration broken into pieces for the users convenience.
 
