@@ -229,6 +229,7 @@ class AdminEndpoints(object):
                                                         True)
             data = dict(status=self._certs.get_csr_status(common_name),
                         cert=self._certs.get_cert_from_csr(common_name))
+            data['cert'] = data['cert'].decode('utf-8')
         except ValueError as e:
             data = dict(status="ERROR", message=e.message)
 
@@ -269,7 +270,7 @@ class AdminEndpoints(object):
             _log.debug("Creating credential and permissions for user: {}".format(user_id))
             self._rpc_caller.call(AUTH, 'approve_authorization_failure', user_id)
             data = dict(status='APPROVED',
-                        message="The administrator has denied the request")
+                        message="The administrator has approved the request")
         except ValueError as e:
             data = dict(status="ERROR", message=e.message)
 

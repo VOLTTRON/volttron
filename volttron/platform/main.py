@@ -1044,15 +1044,15 @@ def start_volttron_process(opts):
                           comments='Automatically added by platform on start')
         AuthFile().add(entry, overwrite=True)
 
-        # MASTER_WEB did not work on RMQ. Referred to agent as master
-        # Added this auth to allow RPC calls for credential authentication
-        # when using the RMQ messagebus.
-        ks_masterweb = KeyStore(KeyStore.get_agent_keystore_path('master'))
-        entry = AuthEntry(credentials=encode_key(decode_key(ks_masterweb.public)),
-                          user_id='master',
-                          capabilities=['allow_auth_modifications'],
-                          comments='Automatically added by platform on start')
-        AuthFile().add(entry, overwrite=True)
+        # # MASTER_WEB did not work on RMQ. Referred to agent as master
+        # # Added this auth to allow RPC calls for credential authentication
+        # # when using the RMQ messagebus.
+        # ks_masterweb = KeyStore(KeyStore.get_agent_keystore_path('master'))
+        # entry = AuthEntry(credentials=encode_key(decode_key(ks_masterweb.public)),
+        #                   user_id='master',
+        #                   capabilities=['allow_auth_modifications'],
+        #                   comments='Automatically added by platform on start')
+        # AuthFile().add(entry, overwrite=True)
 
 
         events = [gevent.event.Event() for service in services]

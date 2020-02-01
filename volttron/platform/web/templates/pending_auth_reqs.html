@@ -38,7 +38,7 @@
         {% endfor %}
         </ul>
     {% endif %}
-
+    <div style="float: left;">
     <h1>ZMQ Keys Pending Authorization</h1>
     {% if auths|length < 1 %}
         <div>No ZMQ keys requiring authorization at this time.</div>
@@ -61,7 +61,7 @@
                 <div style="float: left;">
                     <!-- {{c}}<br /> -->
                     Status: PENDING<br />
-                    Common Name: {{auth.user_id}}<br/>
+                    Public Key: {{auth.user_id}}<br/>
                     Remote IP: {{auth.address}}<br/>
                 </div>
                 <div style="float:none;"></div>
@@ -69,11 +69,14 @@
         {% endfor %}
         </ul>
     {% endif %}
-        <div id="status_zmq"></div>
+        <div id="status_zmq_denied"></div>
         <ul>
         {% for auth in denied_auths %}
             <li>
                 <div class="csr-row" data-common_name="{{auth.user_id}}">
+                    <a class="approve_denied"
+                       data-common_name="{{auth.user_id}}"
+                       data-status="DENIED" href="#">Approve</a>
                     <a class="delete_denied"
                        data-common_name="{{auth.user_id}}"
                        data-status="DENIED" href="#">Delete</a>
@@ -88,6 +91,7 @@
             </li>
         {% endfor %}
         </ul>
+    </div>
 {% endblock %}
 {% block js %}
     <script language="JavaScript">
@@ -100,11 +104,16 @@
         $(document).ready(() => {
             if (localStorage.status) {
                 set_status(localStorage.status);
-                localStorage.removeItem("status")
+                localStorage.removeItem("status");
             }
             else{
                 $("#status").hide();
             }
+
+            if (localStorage.zmq_approve) {
+                localStorage.removeItem("zmq_approve");
+                location.reload(true);
+                }
 
             $('a.approve').each((i, obj)=>{
                 if (obj.getAttribute('data-status') === 'APPROVED'){
@@ -127,7 +136,7 @@
                     url: url,
                     success: (data) => {
                         localStorage.status = data['status']+ " for "+common_name;
-                        location.reload();
+                        location.reload(true);
                     }
                 });
 
@@ -174,11 +183,10 @@
                 $.get({
                     url: url,
                     success: (data) => {
-                        localStorage.status_zmq = data['status']+ " for "+user_id;
-                        location.reload();
+                        localStorage.zmq_approve = data['status']+ " for "+user_id;
+                        location.reload(true);
                     }
                 });
-
                 return false;
             });
 
@@ -190,7 +198,7 @@
                 $.get({
                     url: url,
                     success: (data) => {
-                        localStorage.status_zmq = data['status']+ " for "+user_id;
+                        localStorage.status = data['status']+ " for "+user_id;
                         location.reload();
                     }
                 });
@@ -206,8 +214,24 @@
                 $.get({
                     url: url,
                     success: (data) => {
-                        localStorage.status_zmq = data['status']+ " for "+user_id;
+                        localStorage.status = data['status']+ " for "+user_id;
                         location.reload();
+                    }
+                });
+
+                return false;
+            });
+
+            $('a.approve_denied').click(function (e){
+                e.preventDefault();
+                var element = $(this);
+                var user_id = element.data("common_name");
+                var url = "/admin/api/approve_credential/"+ user_id;
+                $.get({
+                    url: url,
+                    success: (data) => {
+                        localStorage.zmq_approve = data['status']+ " for "+user_id;
+                        location.reload(true);
                     }
                 });
 
@@ -222,7 +246,7 @@
                 $.get({
                     url: url,
                     success: (data) => {
-                        localStorage.status_zmq = data['status']+ " for "+user_id;
+                        localStorage.status = data['status']+ " for "+user_id;
                         location.reload();
                     }
                 });
@@ -230,19 +254,5 @@
                 return false;
             });
         });
-    </script>
-{% endblock %}
-{% block content_zmq %}
-
-
-{% endblock %}
-{% block js_zmq %}
-    <script language="JavaScript">
-
-        function set_status(new_text){
-            $("#status").html(new_text);
-            $("#status").show();
-        }
-
     </script>
 {% endblock %}
