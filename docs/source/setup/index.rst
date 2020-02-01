@@ -5,7 +5,7 @@
 Installing VOLTTRON
 ===================
 
-.. note:: Volttron version 7.0 is currently tested for Ubuntu versions 18.04 and
+.. note:: Volttron version 7.0rc1 is currently tested for Ubuntu versions 18.04 and
      18.10 as well as Linux Mint version 19.3. Version 6.x is tested for Ubuntu
      versions 16.04 and 18.04 as well as Linux Mint version 19.1.
 
