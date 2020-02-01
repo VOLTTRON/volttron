@@ -66,7 +66,7 @@ VOLTTRON 6.0
 - Added multiplatform (zmq and rmq based platform) testing.
 - Integrated RabbitMQ documentation into the core documentation.
 
-VOLTTRON 7.0
+VOLTTRON 7.0rc1
 
 Python3 Upgrade
 
