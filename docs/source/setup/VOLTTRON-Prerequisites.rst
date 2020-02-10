@@ -19,7 +19,15 @@ command:
 .. code-block:: bash
 
        sudo apt-get update
-       sudo apt-get install build-essential python3.6-dev python3.6-venv openssl libssl-dev libevent-dev git
+       sudo apt-get install build-essential python3-dev python3-venv openssl libssl-dev libevent-dev git
+
+On Ubuntu-based systems, available packages allow you to specify the python3 version, 3.6 or greater is required (Debian itself does not provide those packages).
+
+On **Raspbian**, you must also install libffi-dev, you can do this with:
+
+.. code-block:: bash
+
+       sudo apt-get install libffi-dev
 
 On **Redhat or CENTOS systems**, these can all be installed with the following
 command:
