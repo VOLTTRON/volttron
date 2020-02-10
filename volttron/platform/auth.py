@@ -52,7 +52,7 @@ from gevent.fileobject import FileObject
 from zmq import green as zmq
 
 from volttron.platform import jsonapi
-from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM, CONTROL
+from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM, CONTROL, MASTER_WEB
 from volttron.platform.vip.agent.errors import VIPError
 from volttron.platform.vip.pubsubservice import ProtectedPubSubTopics
 from .agent.utils import strip_comments, create_file_if_missing, watch_file
@@ -106,6 +106,7 @@ class AuthService(Agent):
         self._protected_topics_for_rmq = ProtectedPubSubTopics()
         self._setup_mode = setup_mode
         self._auth_failures = []
+        self._auth_denied = []
 
         def topics():
             return defaultdict(set)
@@ -289,6 +290,8 @@ class AuthService(Agent):
                         _log.debug("AUTH response: {}".format(response))
                         sock.send_multipart(response)
                     else:
+                        if type(userid) == bytes:
+                            userid = userid.decode("utf-8")
                         self._update_auth_failures(domain, address, kind, credentials[0], userid)
 
                     try:
@@ -375,8 +378,81 @@ class AuthService(Agent):
                     return entry.capabilities, entry.groups, entry.roles
 
     @RPC.export
+    @RPC.allow(capabilities="allow_auth_modifications")
+    def approve_authorization_failure(self, user_id):
+        """RPC method
+
+        Approves a previously failed authorization
+
+        :param user_id: user id field from VOLTTRON Interconnect Protocol
+        :type user_id: str
+        """
+        if len(self._auth_failures) > 0:
+            for pending in self._auth_failures:
+                if user_id == pending['user_id']:
+                    self._update_auth_entry(
+                        pending['domain'],
+                        pending['address'],
+                        pending['mechanism'],
+                        pending['credentials'],
+                        pending['user_id']
+                        )
+                    del self._auth_failures[self._auth_failures.index(pending)]
+
+        if len(self._auth_denied) > 0:
+            for pending in self._auth_denied:
+                if user_id == pending['user_id']:
+                    self._update_auth_entry(
+                        pending['domain'],
+                        pending['address'],
+                        pending['mechanism'],
+                        pending['credentials'],
+                        pending['user_id']
+                        )
+                    del self._auth_denied[self._auth_denied.index(pending)]
+
+    @RPC.export
+    @RPC.allow(capabilities="allow_auth_modifications")
+    def deny_authorization_failure(self, user_id):
+        """RPC method
+
+        Denies a previously failed authorization
+
+        :param user_id: user id field from VOLTTRON Interconnect Protocol
+        :type user_id: str
+        """
+        if len(self._auth_failures) > 0:
+            for pending in self._auth_failures:
+                if user_id == pending['user_id']:
+                    self._auth_denied.append(pending)
+                    del self._auth_failures[self._auth_failures.index(pending)]
+
+    @RPC.export
+    @RPC.allow(capabilities="allow_auth_modifications")
+    def delete_authorization_failure(self, user_id):
+        """RPC method
+
+        Denies a previously failed authorization
+
+        :param user_id: user id field from VOLTTRON Interconnect Protocol
+        :type user_id: str
+        """
+        if len(self._auth_failures) > 0:
+            for pending in self._auth_failures:
+                if user_id == pending['user_id']:
+                    del self._auth_failures[self._auth_failures.index(pending)]
+        if len(self._auth_denied) > 0:
+            for pending in self._auth_denied:
+                if user_id == pending['user_id']:
+                    del self._auth_denied[self._auth_denied.index(pending)]
+
+    @RPC.export
     def get_authorization_failures(self):
         return list(self._auth_failures)
+
+    @RPC.export
+    def get_authorization_denied(self):
+        return list(self._auth_denied)
 
     def _get_authorizations(self, user_id, index):
         """Convenience method for getting authorization component by index"""
@@ -444,6 +520,15 @@ class AuthService(Agent):
             _log.error('ERROR: %s\n' % str(err))
 
     def _update_auth_failures(self, domain, address, mechanism, credential, user_id):
+        for entry in self._auth_denied:
+            # Check if failure entry has been denied. If so, increment the failure's denied count
+            if ((entry['domain'] == domain) and
+                    (entry['address'] == address) and
+                    (entry['mechanism'] == mechanism) and
+                    (entry['credentials'] == credential)):
+                entry['retries'] += 1
+                return
+
         for entry in self._auth_failures:
             # Check if failure entry exists. If so, increment the failure count
             if ((entry['domain'] == domain) and

@@ -661,7 +661,7 @@ def is_file_readable(file_path, log=True):
 def do_vcp():
     global config_opts
     is_vc = False
-    vctl_list_process = Popen(['vctl','list'], env=os.environ, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    vctl_list_process = Popen(['vctl', 'list'], env=os.environ, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     vctl_list = vctl_list_process.communicate()
     vctl_list_output = ''.join([v.decode('utf-8') for v in vctl_list])
 
