@@ -16,8 +16,8 @@ VIP Router
 The VIP Router on each platform is responsible for establishing and maintaining the connection with remote platforms.
 
 
-Functional Capabilities
-***********************
+Router Functional Capabilities
+******************************
 
 1. Each VOLTTRON platform shall have a list of other VOLTTRON platforms that it has to establish connection in a config
 file.
@@ -34,8 +34,8 @@ External RPC Subsystem
 External RPC subsystem allows an agent to make RPC method calls on agents running in remote platforms.
 
 
-Functional Capabilities
-***********************
+External RPC Functional Capabilities
+************************************
 1. The agent needs to specify the remote platform name as an additional argument in the original RPC call or notify
 method.
 
@@ -145,11 +145,11 @@ routes it to the calling agent.
 Methods for External RPC Subsystem
 **********************************
 
-call(peer, method, *args, **kwargs) - New 'external_platform' parameter  need to be added in kwargs to the
+call(peer, method, \*args, \**kwargs) - New 'external_platform' parameter  need to be added in kwargs to the
 original RPC subsystem call. If the platform name of the target platform is passed into the 'external_platform'
 parameter, the RPC method on the target platform gets executed.
 
-notify(peer, method, *args, **kwargs) - New 'external_platform' parameter  need to be added in kwargs to the
+notify(peer, method, \*args, \**kwargs) - New 'external_platform' parameter  need to be added in kwargs to the
 original RPC subsystem notify method. If the platform name of the target platform is passed into the 'external_platform'
 parameter, the RPC method on the target platform gets executed.
 

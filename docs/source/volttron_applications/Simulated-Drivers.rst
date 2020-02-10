@@ -74,17 +74,17 @@ With VOLTTRON running, load each simulation driver's configuration into a "simul
 
     $ export SIMULATION_DRIVER_ROOT=$VOLTTRON_ROOT/applications/kisensum/Simulation/SimulationDriverAgent
 
-    $ volttron-ctl config store simulation.driver simload.csv $SIMULATION_DRIVER_ROOT/simload.csv --csv
-    $ volttron-ctl config store simulation.driver devices/simload $SIMULATION_DRIVER_ROOT/simload.config
+    $ vctl config store simulation.driver simload.csv $SIMULATION_DRIVER_ROOT/simload.csv --csv
+    $ vctl config store simulation.driver devices/simload $SIMULATION_DRIVER_ROOT/simload.config
 
-    $ volttron-ctl config store simulation.driver simmeter.csv $SIMULATION_DRIVER_ROOT/simmeter.csv --csv
-    $ volttron-ctl config store simulation.driver devices/simmeter $SIMULATION_DRIVER_ROOT/simmeter.config
+    $ vctl config store simulation.driver simmeter.csv $SIMULATION_DRIVER_ROOT/simmeter.csv --csv
+    $ vctl config store simulation.driver devices/simmeter $SIMULATION_DRIVER_ROOT/simmeter.config
 
-    $ volttron-ctl config store simulation.driver simpv.csv $SIMULATION_DRIVER_ROOT/simpv.csv --csv
-    $ volttron-ctl config store simulation.driver devices/simpv $SIMULATION_DRIVER_ROOT/simpv.config
+    $ vctl config store simulation.driver simpv.csv $SIMULATION_DRIVER_ROOT/simpv.csv --csv
+    $ vctl config store simulation.driver devices/simpv $SIMULATION_DRIVER_ROOT/simpv.config
 
-    $ volttron-ctl config store simulation.driver simstorage.csv $SIMULATION_DRIVER_ROOT/simstorage.csv --csv
-    $ volttron-ctl config store simulation.driver devices/simstorage $SIMULATION_DRIVER_ROOT/simstorage.config
+    $ vctl config store simulation.driver simstorage.csv $SIMULATION_DRIVER_ROOT/simstorage.csv --csv
+    $ vctl config store simulation.driver devices/simstorage $SIMULATION_DRIVER_ROOT/simstorage.config
 
 Install and start each simulation agent:
 ::
@@ -396,10 +396,10 @@ simulation drivers need to be adjusted as follows:
 Add files with your driver's config and point definitions, and load them into the config store:
 ::
 
-    $ volttron-ctl config store simulation.driver \
+    $ vctl config store simulation.driver \
         yourdriver.csv \
         $VOLTTRON_ROOT/applications/kisensum/Simulation/SimulationDriverAgent/yourdriver.csv --csv
-    $ volttron-ctl config store simulation.driver \
+    $ vctl config store simulation.driver \
         devices/yourdriver \
         $VOLTTRON_ROOT/applications/kisensum/Simulation/SimulationDriverAgent/yourdriver.config
 

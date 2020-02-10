@@ -126,12 +126,12 @@ JSON-RPC Data Objects
                 "status", "string", "A status string made by the status rpc call, on an agent."
 
 
-.. csv-table:: DiscoveryRegistratyEntry
+.. csv-table:: DiscoveryRegistryEntry
     :header: "Key", "Type", "Value"
     :widths: 10, 10, 40
 
                 "name",
-                "discovery_address":
+                "discovery_address"
 
 .. csv-table:: AdvancedRegistratyEntry_TODO
     :header: "Key", "Type", "Value"
@@ -176,7 +176,7 @@ JSON-RPC API Methods
 ====================
 
 .. csv-table:: Methods
-:header: "method", "parameters", "returns"
+    :header: "method", "parameters", "returns"
     :widths: 10, 10, 40
 
                 "get_authentication", "(username, password)", "authentication token"

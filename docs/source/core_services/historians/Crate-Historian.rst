@@ -22,7 +22,7 @@ is a dead simple installer to get crate up and running on your system.
 
     ::
 
-        sudo bash -c "$(curl -L install.crate.io)"
+        sudo bash -c "$(curl -L https://try.crate.io)"
 
 This command will download and install all of the requirements for running
 crate, create a crate user and install a crate service.  After the installation
@@ -41,6 +41,14 @@ in the root of the volttron folder, execute the following command:
     ::
 
         python bootstrap.py --crate
+
+
+or
+
+    ::
+
+        python bootstrap.py --crate
+
 
 or
 

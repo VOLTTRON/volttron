@@ -3,9 +3,9 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-====================================
+==========================
 |VOLTTRON|  documentation!
-====================================
+==========================
 
 
 
@@ -21,7 +21,7 @@ Features
 Out of the box VOLTTRON provides:
 
 - a secure :ref:`message bus <messagebus index>` allowing agents to subscribe to data sources and publish results and messages.
-- secure connectivity between multiple instances.
+- secure connectivity between multiple VOLTTRON instances.
 - BACnet, ModBus and other device/system protocol connectivity through our :ref:`driver framework <VOLTTRON-Driver-Framework>` for collecting data from and sending control actions to buildings and devices.
 - automatic data capture and retrieval through our :ref:`historian framework <Historian Index>`.
 - platform based :ref:`agent lifecycle management <AgentManagement>`.
@@ -32,9 +32,9 @@ Out of the box VOLTTRON provides:
 Background
 ----------
 
-|VOLTTRON| is written in Python 2.7 and runs on Linux Operating Systems. For users unfamiliar with those technologies, the following resources are recommended:
+|VOLTTRON| is written in Python 3.6 and runs on Linux Operating Systems. For users unfamiliar with those technologies, the following resources are recommended:
 
-- https://docs.python.org/2.7/tutorial/
+- https://docs.python.org/3.6/tutorial/
 - http://ryanstutorials.net/linuxtutorial/
 
 License

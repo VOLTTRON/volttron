@@ -110,7 +110,7 @@ def log_entries(name, agent, pid, level, stream):
     extra = {'processName': agent, 'process': pid}
     for l in stream:
         for line in l.splitlines():
-            if line[0:1] == b'{' and line[-1:] == b'}':
+            if line.startswith('{') and line.endswith('}'):
                 try:
                     obj = jsonapi.loads(line)
                     try:

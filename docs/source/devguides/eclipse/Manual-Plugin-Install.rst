@@ -20,8 +20,7 @@ environment. In Eclipse:
 -  Help -> Install New Software
 -  Click on the "Add" button
 -  For name use: PyDev
--  For location:
-   `\\\ `http://pydev.org/updates\\ <http://pydev.org/updates\>`__ <http://pydev.org/updates>`__
+-  For location: `<http://pydev.org/updates>`__
 -  Check the box for PyDev
 -  Click through Next, Agree to Terms, Finish
 -  Allow Eclipse to restart
