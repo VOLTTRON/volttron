@@ -1,12 +1,13 @@
 .. _AuthenticationCommands:
+
 Authentication Commands
-=================
+=======================
 
 All authentication sub-commands can be viewed by entering following command.
 
 .. code-block:: console
 
-    volttron-ctl auth --help
+    vctl auth --help
 
 .. code-block:: console
 

@@ -2073,7 +2073,7 @@ def main(argv=sys.argv):
                              sections=[None, 'global', 'volttron-ctl'],
                              help='read configuration from FILE')
     global_args.add_argument('--debug', action='store_true',
-                             help='show tracbacks for errors rather than a brief message')
+                             help='show tracebacks for errors rather than a brief message')
     global_args.add_argument('-t', '--timeout', type=float, metavar='SECS',
                              help='timeout in seconds for remote calls (default: %(default)g)')
     global_args.add_argument('--msgdebug',

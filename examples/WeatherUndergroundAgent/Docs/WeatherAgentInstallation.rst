@@ -1,7 +1,7 @@
 .. _WeatherAgentInstallation:
 
 Weather Agent Installation
-============================
+==========================
 
 Configuring and Launching the Weather Agent
 ---------------------------------------------
@@ -90,7 +90,7 @@ Then:
     chmod +x make-weather
 
 Now you can run ./make-weather to stop, remove, build, and reinstall in one script. To start the agent, run:
-volttron-ctl start –tag weather
+vctl start –tag weather
 
 .. image:: files/output.png
 Figure 7: Example Output from the Weather Agent

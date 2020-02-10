@@ -1,4 +1,5 @@
 .. _PlatformCommands:
+
 Platform Commands
 =================
 
@@ -48,8 +49,6 @@ Full options:
       --log-level LOGGER:LEVEL
                             override default logger logging level
       --monitor             monitor and log connections (implies -v)
-      --msgdebug            publish all messages to a socket for debugging
-                            purposes; used with MessageDebuggerAgent
       -q, --quiet           decrease logger verboseness; may be used multiple
                             times
       -v, --verbose         increase logger verboseness; may be used multiple
@@ -91,6 +90,10 @@ volttron-ctl is used to issue commands to the platform from the command line. Th
 volttron-ctl it is possible to install and removed agents, start and stop agents,
 manage the configuration store, get the platform status, and shutdown the platform.
 
+In more recent versions of VOLTTRON, the commands 'vctl', 'vpkg', and 'vcfg'
+have been added to be used as a stand-in for 'volttron-ctl', 'volttron-pkg', and
+'volttron-cfg' in the CLI. The VOLTTRON documentation will often use this convention.
+
 .. warning::
     volttron-ctl creates a special temporary agent ito communicate with the
     platform with a specific VIP IDENTITY, thus multiple instances of volttron-ctl
@@ -99,9 +102,29 @@ manage the configuration store, get the platform status, and shutdown the platfo
 
 .. code-block:: console
 
-    usage: volttron-ctl command [OPTIONS] ...
+    usage: vctl command [OPTIONS] ...
 
     Manage and control VOLTTRON agents.
+
+    optional arguments:
+      -c FILE, --config FILE
+                            read configuration from FILE
+      --debug               show tracebacks for errors rather than a brief message
+      -t SECS, --timeout SECS
+                            timeout in seconds for remote calls (default: 60)
+      --msgdebug MSGDEBUG   route all messages to an agent while debugging
+      --vip-address ZMQADDR
+                            ZeroMQ URL to bind for VIP connections
+      -l FILE, --log FILE   send log output to FILE instead of stderr
+      -L FILE, --log-config FILE
+                            read logging configuration from FILE
+      -q, --quiet           decrease logger verboseness; may be used multiple
+                            times
+      -v, --verbose         increase logger verboseness; may be used multiple
+                            times
+      --verboseness LEVEL   set logger verboseness
+      -h, --help            show this help message and exit
+
 
 
     commands:
@@ -124,7 +147,7 @@ manage the configuration store, get the platform status, and shutdown the platfo
         send                send agent and start on a remote platform
         stats               manage router message statistics tracking
 
-volttron-ctl auth subcommands
+vctl auth subcommands
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: console
@@ -140,7 +163,7 @@ volttron-ctl auth subcommands
         serverkey           show the serverkey for the instance
         update              updates one authentication record by index
 
-volttron-ctl config subcommands
+vctl config subcommands
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: console
@@ -154,7 +177,7 @@ volttron-ctl config subcommands
 
 
 
-volttron-pkg Commands
+vpkg Commands
 ---------------------
 
 .. code-block:: console
@@ -176,7 +199,7 @@ volttron-pkg Commands
                         agent.
         configure           add a configuration file to an agent package
 
-volttron-pkg commands (with Volttron Restricted package installed and
+vpkg commands (with Volttron Restricted package installed and
 enabled):
 
 .. code-block:: console
@@ -213,7 +236,7 @@ enabled):
 
 volttron-cfg Commands
 ---------------------
-volttron-cfg is a tool aimed at making it easier to get up and running with
+volttron-cfg (vcfg) is a tool aimed at making it easier to get up and running with
 Volttron and a handful of agents. Running the tool without any arguments
 will start a *wizard* with a walk through for setting up instance configuration
 options and available agents.If only individual agents need to be configured
@@ -221,7 +244,7 @@ they can be listed at the command line.
 
 .. code-block:: console
 
-    usage: volttron-cfg [-h] [--list-agents | --agent AGENT [AGENT ...]]
+    usage: vcfg [-h] [--list-agents | --agent AGENT [AGENT ...]]
 
     optional arguments:
       -h, --help            show this help message and exit

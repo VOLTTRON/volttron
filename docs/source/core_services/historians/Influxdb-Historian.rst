@@ -51,8 +51,21 @@ install the InfluxDB library as follows:
 
     ::
 
-        pip install influxdb
+        python bootstrap.py --influxdb
 
+
+or
+
+    ::
+
+        python bootstrap.py --databases
+
+
+or
+
+    ::
+
+        pip install influxdb
 
 Configuration
 #############

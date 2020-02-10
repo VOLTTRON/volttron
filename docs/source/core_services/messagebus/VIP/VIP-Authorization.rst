@@ -1,4 +1,5 @@
 .. _VIP-Authorization:
+
 =================
 VIP Authorization
 =================
@@ -46,10 +47,10 @@ style used for Linux capabilities, but it is up to the agent author.)
 Now that a required capability has been specified, suppose a VOLLTRON platform
 owner wants to allow a specific agent, say AliceAgent, to set the temperature.
 
-The platform owner runs ``volttron-ctl auth add`` to add new authorization
-entries or ``volttron-ctl auth update`` to update an existing entry. 
+The platform owner runs ``vctl auth add`` to add new authorization
+entries or ``vctl auth update`` to update an existing entry.
 If AliceAgent is installed on the platform, then it already has an
-authorization entry. Running ``volttron-ctl auth list`` shows the existing
+authorization entry. Running ``vctl auth list`` shows the existing
 entries:
 
 .. code:: JSON
@@ -72,7 +73,7 @@ entries:
 
 Currently AliceAgent cannot set the temperature because it does
 not have the ``CAP_SET_TEMP`` capability. To grant this capability
-the platform owner runs ``volttron-ctl auth update 3``:
+the platform owner runs ``vctl auth update 3``:
 
 .. code:: Bash
 

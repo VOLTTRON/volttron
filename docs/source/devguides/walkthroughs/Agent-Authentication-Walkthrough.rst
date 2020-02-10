@@ -1,14 +1,14 @@
 .. _AgentAuthentication:
 
 How to authenticate an agent to communicate with VOLTTRON platform:
-======================================================================
+===================================================================
 
 An administrator can allow an agent to communicate with VOLTTRON platform by creating an authentication record for that agent.
-An authentication record is created by using :code:`volttron-ctl auth add` command and entering values to asked arguments.
+An authentication record is created by using :code:`vctl auth add` command and entering values to asked arguments.
 
 .. code-block:: console
 
-    volttron-ctl auth add
+    vctl auth add
 
         domain []:
         address []:
@@ -25,7 +25,7 @@ The listed fields can also be specified on the command line:
 
 .. code-block:: console
 
-    volttron-ctl auth add --user_id bob --credentials ABCD...
+    vctl auth add --user_id bob --credentials ABCD...
 
 If any field is specified on the command line, then the interactive menu
 will not be used.
@@ -36,7 +36,7 @@ for the agent. Create a public/private key pair for the agent and enter encoded 
 
 .. code-block:: console
 
-    volttron-ctl auth add
+    vctl auth add
 
         domain []:
         address []:
@@ -216,10 +216,10 @@ are purely for organizing sets of capabilities.
 
 Roles can be viewed and edited with the following commands:
 
-- ``volttron-ctl auth add-role``
-- ``volttron-ctl auth list-roles``
-- ``volttron-ctl auth remove-role``
-- ``volttron-ctl auth updated-role``
+- ``vctl auth add-role``
+- ``vctl auth list-roles``
+- ``vctl auth remove-role``
+- ``vctl auth updated-role``
 
 For example, suppose agents protect certain methods with the following capabilites:
 ``READ_BUILDING_A_TEMP``, ``SET_BUILDING_A_TEMP``, ``READ_BUILDLING_B_TEMP``,
@@ -229,11 +229,11 @@ These capabilities can be organized into various roles:
 
 .. code-block:: console
 
-    volttron-ctl auth add-role TEMP_READER READ_BUILDING_A_TEMP READ_BUILDLING_B_TEMP
-    volttron-ctl auth add-role BUILDING_A_ADMIN READ_BUILDING_A_TEMP SET_BUILDING_A_TEMP
-    volttron-ctl auth add-role BUILDING_B_ADMIN READ_BUILDING_B_TEMP SET_BUILDING_B_TEMP
+    vctl auth add-role TEMP_READER READ_BUILDING_A_TEMP READ_BUILDLING_B_TEMP
+    vctl auth add-role BUILDING_A_ADMIN READ_BUILDING_A_TEMP SET_BUILDING_A_TEMP
+    vctl auth add-role BUILDING_B_ADMIN READ_BUILDING_B_TEMP SET_BUILDING_B_TEMP
 
-To view these roles run ``volttron-ctl auth list-roles``:
+To view these roles run ``vctl auth list-roles``:
 
 .. code-block:: console
 
@@ -251,13 +251,13 @@ To add a new capabilities to an existing role:
 
 .. code-block:: console
 
-   volttron-ctl auth update-role BUILDING_A_ADMIN CLEAR_ALARM TRIGGER_ALARM
+   vctl auth update-role BUILDING_A_ADMIN CLEAR_ALARM TRIGGER_ALARM
 
 To remove a capability from a role:
 
 .. code-block:: console
 
-   volttron-ctl auth update-role BUILDING_A_ADMIN TRIGGER_ALARM --remove
+   vctl auth update-role BUILDING_A_ADMIN TRIGGER_ALARM --remove
 
 Groups:
 -------
@@ -266,10 +266,10 @@ Like roles, groups are optional and are meant to help with organization.
 
 Groups can be viewed and edited with the following commands:
 
-- ``volttron-ctl auth add-group``
-- ``volttron-ctl auth list-groups``
-- ``volttron-ctl auth remove-group``
-- ``volttron-ctl auth updated-group``
+- ``vctl auth add-group``
+- ``vctl auth list-groups``
+- ``vctl auth remove-group``
+- ``vctl auth updated-group``
 
 These commands behave the same as the *role* commands. For example, to
 further organize the capabilities in the previous section, one could create
@@ -277,7 +277,7 @@ create an ``ALL_BUILDING_ADMIN`` group:
 
 .. code-block:: console
 
-    volttron-ctl auth add-group ALL_BUILDING_ADMIN BUILDING_A_ADMIN BUILDING_B_ADMIN
+    vctl auth add-group ALL_BUILDING_ADMIN BUILDING_A_ADMIN BUILDING_B_ADMIN
 
 With this configuration, agents in the ``ALL_BUILDING_ADMIN`` group would
 implicity have the ``BUILDING_A_ADMIN`` and ``BUILDING_B_ADMIN`` roles. This means

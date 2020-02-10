@@ -1,10 +1,11 @@
+.. _VIP-Kwown-Identities:
+
 VIP Known Identities
 ====================
 
-
 It is critical for systems to have known locations for receiving
 resources and services from in a networked environment. The following
-table details the vip identities that are reserved for volttron specific
+table details the vip identities that are reserved for VOLTTRON specific
 usage.
 
 +----------------------+-----------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+

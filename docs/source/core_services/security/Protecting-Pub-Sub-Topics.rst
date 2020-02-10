@@ -1,5 +1,7 @@
+.. _Protected-Topics:
+
 Protecting Pub/Sub Topics
-========================
+=========================
 
 VIP :ref:`authorization <VIP-Authorization>` enables 
 VOLTTRON platform owners to protect pub/sub topics. More
@@ -28,7 +30,7 @@ meaningful names.
 
 Now only agents with the capability ``can_publish_to_foo`` can publish
 to the topic ``foo``. To add this capability to authenticated agents,
-run ``volttron-ctl auth update`` (or ``volttron-ctl auth add`` for new
+run ``vctl auth update`` (or ``volttron-ctl auth add`` for new
 authentication entries), and enter ``can_publish_to_foo`` in the capabilities
 field:
 

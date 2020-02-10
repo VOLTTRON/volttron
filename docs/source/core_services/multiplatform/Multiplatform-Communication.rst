@@ -1,7 +1,8 @@
  .. _Multi-Platform-Communication:
-===========================
+
+============================
 Multi-Platform Communication
-===========================
+============================
 
 To connect to remote VOLTTRON platforms, we would need platform discovery information of the remote platforms. This
 information contains the platform name, VIP address and serverkey of the remote platforms and we need to provide this
@@ -83,11 +84,12 @@ Each platform will use this information for future connections.
 
 Once the keys have been exchanged and stored in the auth module, we can restart all the VOLTTRON platforms in normal
 mode.
+
     ::
 
-        volttron-ctl shutdown --platform
+        ./stop-volttron
 
-        volttron -vv -l volttron.log&
+        ./start-volttron
 
 
 Manual Configuration of External Platform Information
@@ -120,7 +122,7 @@ Contents of the file:
 With this configuration, platforms can be started in normal mode.
     ::
 
-        volttron -vv -l volttron.log&
+        ./start-volttron
 
 For external platform connections to be authenticated, we would need to add the credentials of the connecting platforms
 in each platform using the volttron-ctl auth utility. For more details
