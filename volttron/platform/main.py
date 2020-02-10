@@ -117,8 +117,24 @@ else:
 _log = logging.getLogger(os.path.basename(sys.argv[0])
                          if __name__ == '__main__' else __name__)
 
-logging.getLogger("watchdog.observers.inotify_buffer").setLevel(logging.INFO)
-logging.getLogger("urllib3.connectionpool").setLevel(logging.INFO)
+# Only show debug on the platform when really necessary!
+log_level_info = (
+    'volttron.platform.main',
+    'volttron.platform.vip.zmq_connection',
+    'urllib3.connectionpool',
+    'watchdog.observers.inotify_buffer',
+    'volttron.platform.auth',
+    'volttron.platform.store',
+    'volttron.platform.control',
+    'volttron.platform.vip.agent.core',
+    'volttron.utils',
+    'volttron.platform.vip.router'
+)
+
+for log_name in log_level_info:
+    logging.getLogger(log_name).setLevel(logging.INFO)
+
+
 VOLTTRON_INSTANCES = '~/.volttron_instances'
 
 
