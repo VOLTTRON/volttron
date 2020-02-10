@@ -1,3 +1,5 @@
+.. _External-Address-Configuration:
+
 Platform External Address Configuration
 =======================================
 

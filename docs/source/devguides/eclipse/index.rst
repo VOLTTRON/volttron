@@ -124,6 +124,7 @@ You can do this either through `the shell <#execute-volttron-through-shell>`__ o
 `through Eclipse <#execute-volttron-through-eclipse>`__.
 
 .. _Execute-Volttron-From-Shell:
+
 Execute VOLTTRON Through Shell
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -157,6 +158,7 @@ Execute VOLTTRON Through Eclipse
    |Successful Start|
 
 :ref: _Start-Listener-Eclipse:
+
 Start a ListenerAgent
 ~~~~~~~~~~~~~~~~~~~~~
 

@@ -6,10 +6,10 @@ Contributing to VOLTTRON
 As an open source project VOLTTRON requires input from the community to keep development focused on new and useful
 features.  To that end were are revising our commit process to hopefully allow more committers to be apart of the
 community.  The following document outlines the process for source code and documentation to be submitted.
-There are gui tools that may make this process easier, however I am going to focus on what is required from the
+There are GUI tools that may make this process easier, however this document will focus on what is required from the
 command line.
 
-The only requirements for this is the program git and your favorite web browser.
+The only requirements for contributing are git (Linux version control software) and your favorite web browser.
 
 Getting Started
 ~~~~~~~~~~~~~~~
@@ -20,7 +20,7 @@ Forking the main VOLTTRON repository
 The first step to editing the repository is to fork it into your own user space.  This is done by pointing
 your favorite web browser to
 http://github.com/VOLTTRON/volttron and the clicking Fork on the upper right of the screen.  (Note you must have a
-github account to fork the repository, if you don't have one then click Sign Up in the upper
+github account to fork the repository, if you don't have one then click "Sign Up" in the upper
 right corner and create one).
 
 Cloning 'YOUR' VOLTTRON forked repository
@@ -28,10 +28,7 @@ Cloning 'YOUR' VOLTTRON forked repository
 
 The next step in the process is to get your forked repository down to your computer to work on.
 This will create an identical copy of the github on your local machine.  To do this you need to know the address of
-your repository.  Luckily the github has a convention so your repository address will be
-https://github.com/<YOUR USERNAME>/volttron.git.  From a terminal execute the following commands which will create a
-directory in your home directory and then change to that directory, clone from your repository, and finally change into
-the cloned repository.
+your repository.  URL to your repository address will be "https://github.com/<YOUR USERNAME>/volttron.git".  From a terminal execute the following commands which will create a directory "git" in your home directory and then change to that directory, clone from your repository, and finally change into the cloned repository.
 
 .. note::
 
@@ -48,7 +45,7 @@ Adding and Committing files
 ---------------------------
 
 Now that you have your repository cloned it's time to start doing some modifications.  Using a simple text editor
-you can create or modify any file under the volttron directory.  After making a modification or an creating a file
+you can create or modify any file under the volttron directory.  After making a modification or creating a file
 it is time to move it to the stage for review before committing to the local repository.  For this example let's assume
 we have made a change to README.md in the root of the volttron directory and add a new file called foo.py.  To get
 those files on the stage (preparing for committing to the local repository) we would execute the following commands
@@ -77,7 +74,7 @@ document it.  We do that with a commit message (the -m parameter) such as the fo
 Pushing to the remote repository
 --------------------------------
 
-Next we want to be able to share our changes with the world through github.  We can do this by pushing the commits
+Next step is to share our changes with the world through github.  We can do this by pushing the commits
 from your local repository out to your github repository.  This is done by the following command.
 
 .. code-block:: bash
@@ -91,13 +88,12 @@ Getting modifications to the main VOLTTRON repository
 -----------------------------------------------------
 
 Now we want our changes to get put into the main VOLTTRON repository.  After all our foo.py can cure a lot of the
-world's problems and of course it is always good to have a copyright the correct year.  Open your browser
-to https://github.com/VOLTTRON/volttron/compare/develop...<YOUR USERNAME>:develop.
+world's problems and of course it is always good to have a copyright with the correct year.  Open your browser
+to https://github.com/VOLTTRON/volttron/compare/develop...YOUR_USERNAME:develop.
 
 On that page the base fork should always be VOLTTRON/volttron with the base develop whilest the head fork should
 be <YOUR USERNAME>/volttron and the compare should be the branch in your repository to pull from.  Once you have
-verified that you have got the right changes made then you can enter a title and description that represent your
-changes.
+verified that you have got the right changes made then, click on create pull request, enter a title and description that represent your changes and submit pull request
 
 What happens next?
 ------------------
@@ -115,7 +111,7 @@ As time goes on the VOLTTRON code base will continually be modified so the next 
 your files the odds are your local and remote repository will be out of date.  In order to get your remote VOLTTRON
 repository up to date with the main VOLTTRON repository you could simply do a pull request to your remote repository
 from the main repository.  That would involve pointing your browser at
-https://github.com/<YOUR USERNAME>/volttron/compare/develop...VOLTTRON:develop.
+"https://github.com/YOUR_USERNAME/volttron/compare/develop...VOLTTRON:develop".
 
 Click the 'Create Pull Request' button.  On the following page click the
 'Create Pull Request' button.  On the next page click 'Merge Pull Request' button.

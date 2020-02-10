@@ -446,8 +446,9 @@ class Certs(object):
         pending_csr = []
         for c in os.listdir(self.csr_pending_dir):
             if c.endswith('.json'):
-                with open(os.path.join(self.csr_pending_dir, c)) as fp:
-                    pending_csr.append(jsonapi.loads(fp.read()))
+                if os.stat(os.path.join(self.csr_pending_dir, c)).st_size != 0:
+                    with open(os.path.join(self.csr_pending_dir, c)) as fp:
+                        pending_csr.append(jsonapi.loads(fp.read()))
 
         return pending_csr
 
@@ -526,7 +527,7 @@ class Certs(object):
 
         cert = self.sign_csr(csrfile)
         self.save_remote_cert(common_name, cert)
-        meta = jsonapi.loads(open(metafile, 'rb').read())
+        meta = jsonapi.loads(open(metafile, 'r').read())
         meta['status'] = 'APPROVED'
         with open(metafile, 'w') as fp:
             fp.write(jsonapi.dumps(meta))
@@ -552,10 +553,10 @@ class Certs(object):
             raise ValueError("Bad state unknown CSR for common_name {}".format(common_name))
 
         self.delete_remote_cert(common_name)
-        meta = jsonapi.loads(open(metafile, 'rb').read())
+        meta = jsonapi.loads(open(metafile, 'r').read())
         meta['status'] = 'DENIED'
 
-        with open(metafile, 'wb') as fp:
+        with open(metafile, 'w') as fp:
             fp.write(jsonapi.dumps(meta))
 
     def sign_csr(self, csr_file):

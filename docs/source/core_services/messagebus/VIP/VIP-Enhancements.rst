@@ -1,3 +1,5 @@
+.. _VIP-Enhancements:
+
 VIP Enhancements
 ================
 
@@ -27,13 +29,13 @@ used as the guiding principles for any future work on VIP and VOLTTRON.
 VOLTTRON Message Bus Guiding Principles:
 
 #. | All communications between two or more different VOLTTRON platforms
-   MUST go through the VIP Router. Said another way, a user agent
-   (application) should have NO capability to reach out to an agent on a
-   different VOLTTRON platform directly.
+     MUST go through the VIP Router. Said another way, a user agent
+     (application) should have NO capability to reach out to an agent on a
+     different VOLTTRON platform directly.
    | All communications between two or more VOLTTRON platforms must be
-   in the form of topics on the message bus. Agents MUST not use a
-   distinct platform address or name to communicate via a direct
-   connection between two platforms.
+     in the form of topics on the message bus. Agents MUST not use a
+     distinct platform address or name to communicate via a direct
+     connection between two platforms.
 
 #. VOLTTRON will use two TCP ports. One port is used to extend VIP
    across platforms. A second port is used for the VOLTTRON discovery

@@ -18,7 +18,7 @@ For a quick reference:
         sudo apt-get install build-essential python-dev openssl libssl-dev libevent-dev git
         git clone https://github.com/VOLTTRON/volttron/
         cd volttron
-        python2.7 bootstrap.py
+        python3 bootstrap.py
 
 
 

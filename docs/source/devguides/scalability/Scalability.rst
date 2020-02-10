@@ -1,3 +1,5 @@
+.. _Scalability:
+
 Scalability Setup
 ~~~~~~~~~~~~~~~~~
 
@@ -93,13 +95,13 @@ platform (and how does it scale with the hardware)?
 -  At what point are historians unable to keep up with the traffic being
    generated?
 -  Is the bottleneck the sqlite cache or the specific implementation
-   (SQLite, MySQL, sMAP)
+   (SQLite, MySQL)
 -  Do historian queues grow so large we have a memory problem?
 -  Large number of devices with small number of points vs small number
    of devices with large number of points
 -  How does a large message flow affect the router?
 -  Examine effects of the watermark (does increasing help)
--  Response time for volttron-ctl commands (for instance: status)
+-  Response time for vctl commands (for instance: status)
 -  Affect on round trip times (Agent A sends message, Agent B replies,
    Agent A receives reply)
 -  Do messages get lost at some point (EAgain error)?
@@ -108,8 +110,8 @@ platform (and how does it scale with the hardware)?
 
 -  | Regulation Agent
    | Every 10 minutes there is an action the master node determines.
-   Duty cycle cannot be faster than that but is set to 2 seconds for
-   simulation.
+     Duty cycle cannot be faster than that but is set to 2 seconds for
+     simulation.
    | Some clients miss duty cycle signal
    | Mathematically each node solves ODE.
    | Model notes accept switch on/off from master.

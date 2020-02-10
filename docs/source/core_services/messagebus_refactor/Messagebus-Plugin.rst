@@ -80,10 +80,3 @@ The above figure shows three VOLTTRON instances with V1 connected to ZMQ message
 to RMQ message bus and V3 connected to XYZ (some message bus of the future) and all three want to
 connect to each other. Then V2 and V3 will have proxy agents that get connected to the local bus
 and to the remote bus and forward messages from one to another.
-
-Authentication Related Changes
-==============================
-
-
-
-

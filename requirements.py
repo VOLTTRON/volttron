@@ -52,15 +52,15 @@ install_requires = [
     'psutil',
     'python-dateutil',
     'pytz',
-    'pyyaml',
+    'PyYAML',
     'pyzmq',
     'setuptools',
     'tzlocal',
-    'pyopenssl==19.0.0',
+    'pyOpenSSL==19.0.0',
     'cryptography==2.3',
     # Cross platform way of handling changes in file/directories.
     # https://github.com/Bogdanp/watchdog_gevent
-    'watchdog_gevent',
+    'watchdog-gevent',
     'wheel==0.30'
 ]
 
@@ -73,6 +73,7 @@ extras_require = {
         'pymongo',
         'crate',
         'influxdb',
+        'psycopg2-binary'
     ],
     'dnp3': [  # dnp3 agent requirements.
         'pydnp3'
@@ -82,9 +83,9 @@ extras_require = {
         'mysql-connector-python-rf',
         'psutil',
         'pymongo',
-        'sphinx',
+        'Sphinx',
         'recommonmark',
-        'sphinx_rtd_theme'
+        'sphinx-rtd-theme'
     ],
     'deployment': [
         'ansible'
@@ -112,6 +113,9 @@ extras_require = {
         'numpy',
         'pandas',
     ],
+    'postgres': [  # numpy and pandas for applications
+        'psycopg2-binary'
+    ],
     'testing': [  # Testing infrastructure dependencies
         'mock',
         'pytest',
@@ -125,13 +129,13 @@ extras_require = {
     ],
     'web': [    # Web support for launching web based agents including ssl and json web tokens.
         'ws4py',
-        'pyJWT',
-        'jinja2',
+        'PyJWT',
+        'Jinja2',
         'passlib',
-        'argon2_cffi',
+        'argon2-cffi',
         'Werkzeug'
     ],
     'weather': [
-        'pint'
+        'Pint'
     ],
 }

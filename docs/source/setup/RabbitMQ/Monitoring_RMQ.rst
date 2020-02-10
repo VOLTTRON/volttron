@@ -9,12 +9,12 @@ utility, we can control and monitor the status of RabbitMQ message bus.
 
 .. code-block:: bash
 
-    volttron-ctl rabbitmq --help
-    usage: volttron-ctl command [OPTIONS] ... rabbitmq [-h] [-c FILE] [--debug]
-                                                       [-t SECS]
-                                                       [--msgdebug MSGDEBUG]
-                                                       [--vip-address ZMQADDR]
-                                                       ...
+    vctl rabbitmq --help
+    usage: vctl command [OPTIONS] ... rabbitmq [-h] [-c FILE] [--debug]
+                                                    [-t SECS]
+                                                    [--msgdebug MSGDEBUG]
+                                                    [--vip-address ZMQADDR]
+                                                    ...
     subcommands:
 
         add-vhost           add a new virtual host

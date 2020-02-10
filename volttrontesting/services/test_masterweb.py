@@ -39,6 +39,8 @@ from volttrontesting.fixtures.cert_fixtures import certs_profile_1
 MasterWebService.__bases__ = (AgentMock.imitate(Agent, Agent()),)
 
 
+#TODO add tests for new RPC calls
+
 @pytest.fixture()
 def master_web_service():
     serverkey = "serverkey"

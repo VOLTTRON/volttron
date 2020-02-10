@@ -42,24 +42,24 @@ a production environment.
 Example of starting VOLTTRON with the ``--msgdebug`` command line option:
 ::
 
-    (volttron) volttron -vv -l log1 ``--msgdebug``
+    (volttron) ./start-volttron ``--msgdebug``
 
 If VOLTTRON is running in this mode, the stream of routed messages is available to
 a subscribing Message Debugger Agent. It can be started from volttron-ctl in the same
 fashion as other agents, for example:
 ::
 
-    (volttron) $ volttron-ctl status
+    (volttron) $ vctl status
        AGENT                      IDENTITY                 TAG                      STATUS
     fd listeneragent-3.2          listener                 listener
     08 messagedebuggeragent-0.1   platform.messagedebugger platform.messagedebugger
     e1 vcplatformagent-3.5.4      platform.agent           vcp
     47 volttroncentralagent-3.5.5 volttron.central         vc
 
-    (volttron) $ volttron-ctl start 08
+    (volttron) $ vctl start 08
     Starting 089c53f0-f225-4608-aecb-3e86e0df30eb messagedebuggeragent-0.1
 
-    (volttron) $ volttron-ctl status
+    (volttron) $ vctl status
        AGENT                      IDENTITY                 TAG                      STATUS
     fd listeneragent-3.2          listener                 listener
     08 messagedebuggeragent-0.1   platform.messagedebugger platform.messagedebugger running [43498]
@@ -67,7 +67,7 @@ fashion as other agents, for example:
     47 volttroncentralagent-3.5.5 volttron.central         vc
 
 See :ref:`Agent Creation Walkthrough <Agent-Development>` for further details on
-installing and starting agents from volttron-ctl.
+installing and starting agents from vctl.
 
 Once the Message Debugger Agent is running, it begins capturing message data and
 writing it to a SQLite database.
