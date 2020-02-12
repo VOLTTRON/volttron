@@ -41,7 +41,7 @@ sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
 # -- Project information -----------------------------------------------------
 
 project = 'VOLTTRON'
-copyright = '2018, The VOLTTRON Community'
+copyright = '2019, The VOLTTRON Community'
 author = 'The VOLTTRON Community'
 
 # The short X.Y version

@@ -23,16 +23,28 @@ shell in order to install it.
 
     pip install --allow-external mysql-connector-python mysql-connector-python
 
+or
+
+::
+
+    python bootstrap.py --mysql
+
+or
+
+::
+
+    python bootstrap.py --databases
+
 | In addition, the mysql database must be created and permissions
-granted for select, insert and update before the agent is started. In
-order to support timestamp with microseconds you need at least MySql
-5.6.4. Please see this `MySql
-documentation <http://dev.mysql.com/doc/refman/5.6/en/fractional-seconds.html>`__
-for more details
+  granted for select, insert and update before the agent is started. In
+  order to support timestamp with microseconds you need at least MySql
+  5.6.4. Please see this `MySql
+  documentation <http://dev.mysql.com/doc/refman/5.6/en/fractional-seconds.html>`__
+  for more details
 | The following is a minimal configuration file for using a MySQL based
-historian. Other options are available and are documented
-http://dev.mysql.com/doc/connector-python/en/connector-python-connectargs.html.
-**Not all parameters have been tested, use at your own risk**.
+  historian. Other options are available and are documented
+  http://dev.mysql.com/doc/connector-python/en/connector-python-connectargs.html.
+  **Not all parameters have been tested, use at your own risk**.
 
 ::
 
@@ -104,6 +116,8 @@ The PostgreSQL and Redshift database drivers require the **psycopg2** Python pac
 
     From an activated shell execute:
 
+    ::
+
         pip install psycopg2-binary
 
 Configuration
@@ -123,6 +137,7 @@ that is configured to use Unix domain sockets. The user executing
 volttron must have appropriate privileges.
 
 ::
+
     {
         "connection": {
             "type": "postgresql",
@@ -139,6 +154,7 @@ The following snippet demonstrates how to configure the
 SQLHistorianAgent to use a remote PostgreSQL database.
 
 ::
+
     {
         "connection": {
             "type": "postgresql",
@@ -153,7 +169,7 @@ SQLHistorianAgent to use a remote PostgreSQL database.
     }
 
 TimescaleDB Support
-++++++++++++++++++++++++++
++++++++++++++++++++
 
 Both of the above PostgreSQL connection types can make
 use of TimescaleDB's high performance Hypertable backend
@@ -165,6 +181,7 @@ To use, simply add 'timescale_dialect: true' to the
 connection params in the Agent Config as below
 
 ::
+
     {
         "connection": {
             "type": "postgresql",
@@ -186,6 +203,7 @@ The following snippet demonstrates how to configure the
 SQLHistorianAgent to use a Redshift database.
 
 ::
+
     {
         "connection": {
             "type": "redshift",

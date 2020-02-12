@@ -1,7 +1,8 @@
  .. _Multi-Platform-PubSub:
-==================================
+
+===================================
 Multi-Platform PubSub Communication
-==================================
+===================================
 
 Multi-Platform pubsub communication allows an agent on one platform to subscribe to receive messages from another
 platform without having to setup connection to the remote platform directly. The connection will be internally managed

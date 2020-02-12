@@ -1,7 +1,7 @@
 .. _VOLTTRON-Prerequisites:
 
-Required Sofware: Linux
-=======================
+Required Software: Linux
+========================
 
 The following packages will need to be installed on the system:
 

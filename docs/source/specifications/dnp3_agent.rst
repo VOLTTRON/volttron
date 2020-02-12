@@ -1,4 +1,4 @@
-.. _DNP3:
+.. _DNP3-Agent:
 
 DNP3
 ====

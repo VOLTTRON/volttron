@@ -1,4 +1,5 @@
 .. _VOLTTRON-Central:
+
 VOLTTRON Central Management Agent
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -111,4 +112,4 @@ shell in the root of the VOLTTRON repository execute
     ./scripts/core/pack_install.sh services/core/VolttronCentral services/core/VolttronCentral/config vc
 
     # Start the agent
-    volttron-ctl start --tag vc
+    vctl start --tag vc

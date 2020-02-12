@@ -62,12 +62,12 @@ Configuring Platform
 
 On VC:
 
-- Run :ref:`volttron-cfg<VOLTTRON-Config>`
+- Run :ref:`vcfg <VOLTTRON-Config>`
 - Setup as VOLTTRON Central.
 - Set appropriate ip, port, etc for this machine 
 - Pick to install a platform historian (defaults to sqlite)
 - Start up the platform and find the line with the server public key “cat volttron.log|grep “public key”:
-2016-05-19 08:42:58,062 () volttron.platform.main INFO: public key: <KEY>
+  2016-05-19 08:42:58,062 () volttron.platform.main INFO: public key: <KEY>
  
  
 On the data collector:
@@ -87,12 +87,12 @@ for testing purposes. For an actual deployment against real devices see the foll
    :ref:`BACnet drivers <BACnet-Driver>` to communicate through
 
  
- Setup the Forwarder
- -----------------------
+Setup the Forwarder
+-----------------------
  Now that data is being published to the bus, a :ref:`Forward Historian<Forward-Historian>` can be
  configured to send this data to the VC instance for storage.
  
-- Use: volttron-ctl keypair   to generate a keypair
+- Use: vctl keypair   to generate a keypair
 - cat VOLTTRON_HOME/keypair to get the public and secret keys
 - Create a config directory in the main project directory
 - Setup a :ref:`Forward Historian<ForwardHistorian>`

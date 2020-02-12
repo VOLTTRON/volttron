@@ -3,10 +3,11 @@
 VOLTTRON Config
 ===============
 
-The new volttron-cfg commands allows for the easy configuration of a VOLTTRON platform. This includes
-setting up the platform configuration, historian, VOLTTRON Central UI, and platform agent.
+The new volttron-cfg (vcfg) commands allows for the easy configuration of a
+VOLTTRON platform. This includes setting up the platform configuration,
+historian, VOLTTRON Central UI, and platform agent.
 
-example volttron-cfg output:
+example vcfg output:
 
 .. note:: 
 

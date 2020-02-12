@@ -54,7 +54,7 @@ PLATFORM_MARKET_SERVICE = 'platform.market'
 
 CONTROL = 'control'
 CONTROL_CONNECTION = 'control.connection'
-MASTER_WEB = 'master.web'
+MASTER_WEB = 'master_web'
 CONFIGURATION_STORE = 'config.store'
 PLATFORM_DRIVER = 'platform.driver'
 

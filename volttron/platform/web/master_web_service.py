@@ -154,6 +154,7 @@ class MasterWebService(Agent):
         # noinspection PyTypeChecker
         self._admin_endpoints: AdminEndpoints = None
 
+
     # pylint: disable=unused-argument
     @Core.receiver('onsetup')
     def onsetup(self, sender, **kwargs):
@@ -173,32 +174,37 @@ class MasterWebService(Agent):
             if p not in peers:
                 del self.peerroutes[p]
 
-    @RPC.export()
+    @RPC.export
     def get_user_claims(self, bearer):
         from volttron.platform.web import get_user_claim_from_bearer
-        if self._web_secret_key is not None:
-            return get_user_claim_from_bearer(bearer, web_secret_key=self._web_secret_key)
-        elif self.web_ssl_cert is not None:
+        if self.core.messagebus == 'rmq':
+            return get_user_claim_from_bearer(bearer,
+                                              tls_public_key=self._certs.get_cert_public_key(
+                                                           get_fq_identity(self.core.identity)))
+        if self.web_ssl_cert is not None:
             return get_user_claim_from_bearer(bearer,
                                               tls_public_key=CertWrapper.get_cert_public_key(self.web_ssl_cert))
+        elif self._web_secret_key is not None:
+            return get_user_claim_from_bearer(bearer, web_secret_key=self._web_secret_key)
+
         else:
             raise ValueError("Configuration error secret key or web ssl cert must be not None.")
 
-    @RPC.export()
+    @RPC.export
     def websocket_send(self, endpoint, message):
         _log.debug("Sending data to {} with message {}".format(endpoint,
                                                                message))
         self.appContainer.websocket_send(endpoint, message)
 
-    @RPC.export()
+    @RPC.export
     def get_bind_web_address(self):
         return self.bind_web_address
 
-    @RPC.export()
+    @RPC.export
     def get_serverkey(self):
         return self.serverkey
 
-    @RPC.export()
+    @RPC.export
     def get_volttron_central_address(self):
         """Return address of external Volttron Central
 
@@ -207,7 +213,7 @@ class MasterWebService(Agent):
         """
         return self.volttron_central_address
 
-    @RPC.export()
+    @RPC.export
     def register_endpoint(self, endpoint, res_type):
         """
         RPC method to register a dynamic route.
@@ -228,7 +234,7 @@ class MasterWebService(Agent):
 
         self.endpoints[endpoint] = (identity, res_type)
 
-    @RPC.export()
+    @RPC.export
     def register_agent_route(self, regex, fn):
         """ Register an agent route to an exported function.
 
@@ -248,7 +254,7 @@ class MasterWebService(Agent):
         self.peerroutes[identity].append(compiled)
         self.registeredroutes.insert(0, (compiled, 'peer_route', (identity, fn)))
 
-    @RPC.export()
+    @RPC.export
     def unregister_all_agent_routes(self):
         # Get calling identity from whom the request came from
         identity = self.vip.rpc.context.vip_message.peer
@@ -269,7 +275,7 @@ class MasterWebService(Agent):
         _log.debug(endpoints)
         self.endpoints = endpoints
 
-    @RPC.export()
+    @RPC.export
     def register_path_route(self, regex, root_dir):
         # Get calling identity from whom the request came from
         identity = self.vip.rpc.context.vip_message.peer
@@ -282,7 +288,7 @@ class MasterWebService(Agent):
         # to be before the last route which will resolve to .*
         self.registeredroutes.insert(len(self.registeredroutes) - 1, (compiled, 'path', root_dir))
 
-    @RPC.export()
+    @RPC.export
     def register_websocket(self, endpoint):
         # Get calling identity from whom the request came from
         identity = self.vip.rpc.context.vip_message.peer
@@ -297,7 +303,7 @@ class MasterWebService(Agent):
             raise AttributeError("self does not contain"
                                  " attribute appContainer")
 
-    @RPC.export()
+    @RPC.export
     def unregister_websocket(self, endpoint):
         # Get calling identity from whom the request came from
         identity = self.vip.rpc.context.vip_message.peer
@@ -623,13 +629,14 @@ class MasterWebService(Agent):
 
         ssl_key = self.web_ssl_key
         ssl_cert = self.web_ssl_cert
-
+        rpc_caller = self.vip.rpc
         if parsed.scheme == 'https':
             # Admin interface is only availble to rmq at present.
             if self.core.messagebus == 'rmq':
                 self._admin_endpoints = AdminEndpoints(rmq_mgmt=self.core.rmq_mgmt,
                                                        ssl_public_key=self._certs.get_cert_public_key(
-                                                           get_fq_identity(self.core.identity)))
+                                                           get_fq_identity(self.core.identity)),
+                                                       rpc_caller=rpc_caller)
             if ssl_key is None or ssl_cert is None:
                 # Because the master.web service certificate is a client to rabbitmq we
                 # can't use it directly therefore we use the -server on the file to specify
@@ -642,7 +649,8 @@ class MasterWebService(Agent):
                     self._certs.create_signed_cert_files(base_filename, cert_type='server')
 
             if ssl_key is not None and ssl_cert is not None and self._admin_endpoints is None:
-                self._admin_endpoints = AdminEndpoints(ssl_public_key=CertWrapper.get_cert_public_key(ssl_cert))
+                self._admin_endpoints = AdminEndpoints(ssl_public_key=CertWrapper.get_cert_public_key(ssl_cert),
+                                                       rpc_caller=rpc_caller)
         else:
             self._admin_endpoints = AdminEndpoints()
 
@@ -666,7 +674,7 @@ class MasterWebService(Agent):
             for rt in self._csr_endpoints.get_routes():
                 self.registeredroutes.append(rt)
 
-        # Register the admin endpoinds regardless of whether there is an ssl context
+        # Register the admin endpoints regardless of whether there is an ssl context
         # or not.
         for rt in self._admin_endpoints.get_routes():
             self.registeredroutes.append(rt)

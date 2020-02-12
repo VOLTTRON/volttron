@@ -1,3 +1,5 @@
+.. _Testing-Driver-Scalability:
+
 Scalability Planning
 ====================
 
@@ -75,7 +77,7 @@ Running a simple test
 ~~~~~~~~~~~~~~~~~~~~~
 
 | You will need 2 open terminals to run this test. (3 if you want to run
-the platform in it's own terminal)
+  the platform in it's own terminal)
 | Checkout the feature/scalability branch.
 
 Start the platform.
