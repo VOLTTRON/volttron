@@ -1,83 +1,85 @@
 {
-    "name": "EV_Controller",
+    "name": "federate1",
     "loglevel": 5,
     "coreType": "zmq",
     "timeDelta": 1.0,
     "uninterruptible": true,
+    "timedelta": 1.0,
+    "simulation_length": 360, #seconds
 
     "endpoints":[
         {
-            "name": "EV_Controller/EV6",
-            "destination": "IEEE_123_feeder_0/EV6",
+            "name": "federate1/EV6",
+            "destination": "federate2/EV6",
             "type": "genmessage",
             "global": true
         },
         {
-            "name": "EV_Controller/EV5",
-            "destination": "IEEE_123_feeder_0/EV5",
+            "name": "federate1/EV5",
+            "destination": "federate2/EV5",
             "type": "genmessage",
             "global": true
         },
         {
-            "name": "EV_Controller/EV4",
-            "destination": "IEEE_123_feeder_0/EV4",
+            "name": "federate1/EV4",
+            "destination": "federate2/EV4",
             "type": "genmessage",
             "global": true
         },
         {
-            "name": "EV_Controller/EV3",
-            "destination": "IEEE_123_feeder_0/EV3",
+            "name": "federate1/EV3",
+            "destination": "federate2/EV3",
             "type": "genmessage",
             "global": true
         },
         {
-            "name": "EV_Controller/EV2",
-            "destination": "IEEE_123_feeder_0/EV2",
+            "name": "federate1/EV2",
+            "destination": "federate2/EV2",
             "type": "genmessage",
             "global": true
         },
         {
-            "name": "EV_Controller/EV1",
-            "destination": "IEEE_123_feeder_0/EV1",
+            "name": "federate1/EV1",
+            "destination": "federate2/EV1",
             "type": "genmessage",
             "global": true
         }
     ],
     "subscriptions":[
         {
-            "key": "IEEE_123_feeder_0/totalLoad",
+            "key": "federate2/totalLoad",
             "volttron_topic": "helics/abc",
             "type": "complex",
             "required": true
         },
         {
-            "key": "IEEE_123_feeder_0/charge_EV6",
+            "key": "federate2/charge_EV6",
             "volttron_topic": "helics/ev6",
             "type": "complex",
             "required": true
         },
         {
-            "key": "IEEE_123_feeder_0/charge_EV5",
+            "key": "federate2/charge_EV5",
             "type": "complex",
             "required": true
         },
         {
-            "key": "IEEE_123_feeder_0/charge_EV4",
+            "key": "federate2/charge_EV4",
             "type": "complex",
             "required": true
         },
         {
-            "key": "IEEE_123_feeder_0/charge_EV3",
+            "key": "federate2/charge_EV3",
             "type": "complex",
             "required": true
         },
         {
-            "key": "IEEE_123_feeder_0/charge_EV2",
+            "key": "federate2/charge_EV2",
             "type": "complex",
             "required": true
         },
         {
-            "key": "IEEE_123_feeder_0/charge_EV1",
+            "key": "federate2/charge_EV1",
             "type": "complex",
             "required": true
         }],
