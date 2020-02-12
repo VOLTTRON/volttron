@@ -28,7 +28,8 @@ Setup agents to run using unique users
 
    This script prompts for:
 
-   a. **volttron platform user** - Unix user who would be running VOLTTRON platform
+   a. **volttron platform user** - Unix user who would be running VOLTTRON platform. This should be an existing unix user.
+      On a development machine this could be the unix user you logged in as checked out volttron source
 
    b. **VOLTTRON_HOME directory** - The absolute path of volttron home directory.
 
