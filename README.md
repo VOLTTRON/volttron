@@ -122,12 +122,14 @@ and not in RabbitMQ logs (/var/log/rabbitmq/rabbitmq@hostname.log)
 
 ```sh
 cd volttron
-python bootstrap.py --rabbitmq [optional install directory. defaults to
+python3 bootstrap.py --rabbitmq [optional install directory. defaults to
 <user_home>/rabbitmq_server]
 ```
 
 This will build the platform and create a virtual Python environment and
-dependencies for RabbitMQ. It also installs RabbitMQ server as the current user.
+dependencies for RabbitMQ. You may need to change the python executable name to match your system.
+This does not install drivers, add `--drivers` to the bootstrap command
+to also install those. It also installs RabbitMQ server as the current user.
 If an install path is provided, path should exists and be writeable. RabbitMQ
 will be installed under `<install dir>/rabbitmq_server-3.7.7` Rest of the
 documentation refers to the directory `<install dir>/rabbitmq_server-3.7.7` as
