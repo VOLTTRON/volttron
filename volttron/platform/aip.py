@@ -227,7 +227,6 @@ class SecureExecutionEnvironment(object):
             run_as_user = ['sudo', '-E', '-u', self.agent_user]
             run_as_user.extend(*args)
             _log.debug(run_as_user)
-            _log.debug("kwargs {}".format(kwargs))
             self.process = subprocess.Popen(run_as_user, **kwargs)
         except OSError as e:
             if e.filename:
@@ -877,11 +876,6 @@ class AIPplatform(object):
         name = self.agent_name(agent_uuid)
         agent_dir = os.path.join(self.install_dir, agent_uuid)
         agent_path_with_name = os.path.join(agent_dir, name)
-
-        # TODO this not here in new version
-        if self.secure_agent_user:
-            _log.info("Starting secure Volttron user")
-
         execenv = self.agents.get(agent_uuid)
         if execenv and execenv.process.poll() is None:
             _log.warning('request to start already running agent %s',

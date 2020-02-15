@@ -86,7 +86,7 @@ fi
 
 echo "Sending SIGINT signal to $agent_pid  "
 # Attempt 1 send SIGINT give process to complete onstop functions
-stop_process_and_wait $agent_pid SIGINT 10
+stop_process_and_wait $agent_pid SIGINT 60
 if [ $? -eq 0 ]; then
     echo  "Agent stopped"
     exit 0
@@ -95,7 +95,7 @@ fi
 echo "Sending SIGTERM signal to $agent_pid  "
 
 # Attempt 2 send terminate
-stop_process_and_wait $agent_pid SIGTERM 10
+stop_process_and_wait $agent_pid SIGTERM 30
 if [ $? -eq 0 ]; then
     echo  "Agent terminated"
     exit 0
