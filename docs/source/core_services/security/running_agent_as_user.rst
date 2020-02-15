@@ -22,7 +22,13 @@ Setup agents to run using unique users
 
    **apt-get install acl**
 
-2. **Run scripts/secure_users_permissions.sh as root or using sudo**
+2. Agents now run as a user different from VOLTTRON platform user. Agent users should have read and execute permissions
+   to all directories in the path to the python executable used by VOLTTRON. For example, if VOLTTRON is using a virtual
+   environment, then agent users should have read permissions to <ENV_DIR>/bin/python and read
+   and execute permission to all the directories in the path <ENV_DIR>/bin. This can be achieved by running
+   **chmod -R o+rx <ENV_DIR>/bin**
+
+3. **Run scripts/secure_users_permissions.sh as root or using sudo**
 
    This script should be run as root or using sudo. This script gives the volttron platform user limited sudo access to create a new unix user for each agent. All users created will be of the format volttron_<timestamp>.
 
@@ -41,11 +47,11 @@ Setup agents to run using unique users
    
    This script will also create VOLTTRON_HOME and the config file if given a new volttron home directory when prompted.
 
-3. **Continue with VOLTTRON bootstrap and setup as normal** - point to the VOLTTRON_HOME that you provided in step 2.
+4. **Continue with VOLTTRON bootstrap and setup as normal** - point to the VOLTTRON_HOME that you provided in step 2.
 
-4. **On agent install (or agent start for existing agents)** - a unique agent user(Unix user) is created and the agent is started as this user. The agent user name is recorded in USER_ID file under the agent install directory (VOLTTRON_HOME/agents/<agent-uuid>/USER_ID). Subsequent agent restarts will read content of USER_ID file and start the agent process as that user. 
+5. **On agent install (or agent start for existing agents)** - a unique agent user(Unix user) is created and the agent is started as this user. The agent user name is recorded in USER_ID file under the agent install directory (VOLTTRON_HOME/agents/<agent-uuid>/USER_ID). Subsequent agent restarts will read content of USER_ID file and start the agent process as that user.
 
-5. **On agent uninstall** - The agent user is deleted and the agent install directory is deleted. 
+6. **On agent uninstall** - The agent user is deleted and the agent install directory is deleted.
 
 Creating new Agents
 -------------------
