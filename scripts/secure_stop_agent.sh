@@ -67,7 +67,7 @@ fi
 # command should be of the pattern
 # sudo -E -u <username passed to this script> /<some path to volttron source>/env/bin/python -m <agent name>
 
-re="^sudo -E -u $user /.+/env/bin/python -m .+"
+re="^sudo -E -u $user /.+/python.* -m .+"
 if [[ ! $command =~ $re ]]; then
     echo "Invalid process id. pid does not correspond to a volttron agent owned by user $user"
     echo "Usage: <path>/secure_stop_agent.sh <user name of requester> <pid of agent to be stopped>"
