@@ -322,7 +322,7 @@ def get_test_volttron_home(messagebus: str, web_https=False, web_http=False, has
                            config_params: dict = None,
                            env_options: dict = None):
     """
-    Create a full volttronn_Home test environment with all of the options availalbe in the environment
+    Create a full volttronn_Home test environment with all of the options available in the environment
     (os.environ) and configuration file (volttron_home/config) in order to test from.
 
     @param messagebus:
