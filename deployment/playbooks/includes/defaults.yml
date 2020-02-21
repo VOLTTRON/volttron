@@ -1,6 +1,7 @@
 ---
 - name: Set default values
   set_fact:
+    ansible_python_interpreter: /usr/bin/python3
     volttron_home: "{{ volttron_home | default('{{ ansible_env.HOME }}/.volttron') }}"
     volttron_root: "{{ volttron_root | default('{{ ansible_env.HOME }}/volttron') }}"
     host_config: "{{ host_config | default('{{ ansible_env.HOME }}/host.config.yml') }}"
