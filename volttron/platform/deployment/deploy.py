@@ -214,10 +214,11 @@ def do_volttron_down(options):
 def do_init_systems(options):
 
     sudo_password = None
-    while not sudo_password:
-        sudo_password = prompt_response("SUDO Password: ", echo=False, mandatory=True)
-        if sudo_password:
-            break
+    if not options.no_sudo_pass:
+        while not sudo_password:
+            sudo_password = prompt_response("SUDO Password: ", echo=False, mandatory=True)
+            if sudo_password:
+                break
 
     pbex = _get_executor(options.hosts_file, sudo_password, "base-install", limit=options.limit)
 
@@ -235,6 +236,8 @@ def add_common(parser):
                         help="A hosts yaml file modeled after ansible's inventory file.")
     parser.add_argument("-l", "--limit",
                         help="Limit pattern for hosts in the inventory to run init on.")
+    parser.add_argument("--no-sudo-pass", action="store_true",
+                        help="Setting this assumes that sudo can be obtained without a password on the target machine.")
 
 
 def add_deployment_subparser(add_parser_fn):
@@ -363,7 +366,9 @@ def _get_executor(hosts_file, sudo_password, playbooks, limit=None, variable_man
 
     if extra_vars is not None:
         variable_manager._extra_vars = extra_vars
-    passwords = dict(become_pass=sudo_password)
+    passwords = {}
+    if sudo_password is not None:
+        passwords['become_pass'] = sudo_password
 
     pbex = PlaybookExecutor(playbooks=playbooks,
                             inventory=inventory,

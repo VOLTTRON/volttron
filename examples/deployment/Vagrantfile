@@ -1,0 +1,49 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+# All Vagrant configuration is done below. The "2" in Vagrant.configure
+# configures the configuration version (we support older styles for
+# backwards compatibility). Please don't change it unless you know what
+# you're doing.
+Vagrant.configure("2") do |config|
+  # The most common configuration options are documented and commented below.
+  # For a complete reference, please see the online documentation at
+  # https://docs.vagrantup.com.
+
+  # Every Vagrant development environment requires a box. You can search for
+  # boxes at https://vagrantcloud.com/search.
+  #config.vm.box = "base"
+
+  # provision to use public key
+  # key generated on the host machine via ssh-keygen -t rsa
+  config.vm.provision "file", source: "~/.ssh/id_rsa.pub", destination: "~/.ssh/me.pub"
+  config.vm.provision "shell" do |s|
+    s.inline = <<-SHELL
+    cat /home/vagrant/.ssh/me.pub >> /home/vagrant/.ssh/authorized_keys
+  SHELL
+  end
+
+
+  config.vm.provider "virtualbox" do |vb|
+    # Display the VirtualBox GUI when booting the machine
+    #vb.gui = true
+    vb.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
+    # Customize the amount of memory on the VM:
+    vb.memory = "1024"
+    vb.cpus = 1
+  end
+
+  #Disabling the default /vagrant share
+  config.vm.synced_folder ".", "/vagrant", disabled: true
+
+  MACHINE = ["web", "collector0", "collector1"]
+  N = 2
+
+  (0..N).each do |i|
+    config.vm.define MACHINE[i] do |node|
+      node.vm.hostname = MACHINE[i]
+      node.vm.box = "debian/buster64"
+      node.vm.network :private_network, ip: "192.168.44.#{10+i}"
+    end
+  end
+end
