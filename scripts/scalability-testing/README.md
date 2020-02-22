@@ -1,4 +1,4 @@
-#Message Bus Benchmarking
+# Message Bus Benchmarking
 
 Benchmarks the message bus is generally performed with the following configuration:
 
@@ -8,13 +8,16 @@ This will create configuration files in configs/ directory to produce fake data 
 
 To use put the configurations into the configuration store run the following command. **NOTE: the volttron platform must be running at this point**
 
-    python ../install_master_driver_configs.py configs
+````
+python ../install_master_driver_configs.py configs
+````
 
 To start the test launch the Master Driver Agent. A shortcut is to launch the Master Driver is found in the scripts directory
 
-    cd ..
-    ./launch_drivers.sh
-    
+````
+cd ..
+./launch_drivers.sh
+````    
 
 This will launch the master driver using the configurations created earlier. The MasterDriver will publish 5 sets of 1500 device "all" publishes and time the results. After 5 publishes have finished the master driver will print the average time and quit.
 
