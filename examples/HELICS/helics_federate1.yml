@@ -26,7 +26,7 @@ outputs:
     - sim_topic: federate2/charge_EV5
       type: complex
       required: true
-    - rsim_topic: federate2/charge_EV4
+    - sim_topic: federate2/charge_EV4
       type: complex
       required: true
     - sim_topic: federate2/charge_EV3

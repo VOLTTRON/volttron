@@ -47,6 +47,7 @@ from volttron.platform.agent import utils
 from volttron.platform.vip.agent import Agent, Core, RPC
 from integrations.helics_integration import HELICSSimIntegration
 
+
 _log = logging.getLogger(__name__)
 utils.setup_logging()
 __version__ = "0.1"
@@ -119,7 +120,7 @@ class HelicsExample(Agent):
                     self.vip.pubsub.subscribe(peer='pubsub',
                                               prefix=volttron_topic,
                                               callback=self.on_receive_volttron_message)
-                    self.volttron_messages[volttron_topic] = dict(pub_key=pub['key'],
+                    self.volttron_messages[volttron_topic] = dict(pub_key=pub['sim_topic'],
                                                                   value=None,
                                                                   global_flag=pub.get('global', False),
                                                                   received=False)
@@ -153,9 +154,9 @@ class HelicsExample(Agent):
         for endpoint in self.endpoints:
             val = '200000 + 0 j'
             status = self.helics_sim.send_to_endpoint(endpoint['name'], endpoint['destination'], val)
-
+        _log.debug("******publications: {}".format(self.publications))
         for pub in self.publications:
-            key = pub['key']
+            key = pub['sim_topic']
             # Check if VOLTTRON topic has been configured. If no, publish dummy value for the HELICS
             # publication key
             volttron_topic = pub.get('volttron_topic', None)

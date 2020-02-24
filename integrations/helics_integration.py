@@ -49,6 +49,7 @@ import gevent
 import weakref
 from volttron.platform.agent.base_simulation_integration.base_sim_integration import BaseSimIntegration
 from volttron.platform import jsonapi
+from copy import deepcopy
 
 _log = logging.getLogger(__name__)
 __version__ = '1.0'
@@ -89,18 +90,16 @@ class HELICSSimIntegration(BaseSimIntegration):
         :return:
         """
         self._work_callback = callback
-        # strip volttron topics from input config
-        config.pop('volttron_subscriptions', None)
-        properties = config.pop('properties', {})
+        # Build HELICS config from agent config
+        helics_config = deepcopy(config)
+
+        properties = helics_config.pop('properties', {})
         if not properties:
             raise RuntimeError("Invalid configuration. Missing properties dictionary")
         self._simulation_delta = properties.pop('timeDelta', 1.0)  # seconds
         self._simulation_length = properties.pop('simulation_length', 3600)  # seconds
 
-        for key, value in properties.items():
-            config[key] = value
-
-        subscriptions = config.get('outputs', [])
+        subscriptions = helics_config.pop('outputs', [])
         for sub in subscriptions:
             volttron_topic = sub.pop('volttron_topic', None)
             if volttron_topic is not None:
@@ -108,22 +107,23 @@ class HELICSSimIntegration(BaseSimIntegration):
             sub['key'] = sub.pop('sim_topic')
         # Replace 'outputs' key with 'subscriptions' key
         if subscriptions:
-            config['subscriptions'] = config.pop('outputs')
+            helics_config['subscriptions'] = subscriptions
 
-        publications = config.get('inputs', [])
+        publications = helics_config.pop('inputs', [])
         for pub in publications:
             volttron_topic = pub.pop('volttron_topic', None)
             pub['key'] = pub.pop('sim_topic')
-        # Replace 'outputs' key with 'subscriptions' key
+        # Replace 'inputs' key with 'publications' key
         if publications:
-            config['publications'] = config.pop('inputs')
-        _log.debug("new config: {}".format(config))
+            helics_config['publications'] = publications
+        _log.debug("new config: {}".format(helics_config))
 
         # Create a temporary json file
         tmp_file = os.path.join(os.getcwd(), 'fed_cfg.json')
         _log.debug("tmp file: {}".format(tmp_file))
         with open(tmp_file, 'w') as fout:
-            fout.write(jsonapi.dumps(config))
+            fout.write(jsonapi.dumps(helics_config))
+
         _log.debug("Create Combination Federate")
         # Create federate from provided config parameters
         try:
@@ -131,6 +131,7 @@ class HELICSSimIntegration(BaseSimIntegration):
         except h._helics.HelicsException as e:
             _log.exception("Error parsing HELICS config {}".format(e))
 
+        # Check if HELICS broker correctly registered inputs
         federate_name = h.helicsFederateGetName(self.fed)
         _log.debug("Federate name: {}".format(federate_name))
         endpoint_count = h.helicsFederateGetEndpointCount(self.fed)
