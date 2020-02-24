@@ -48,6 +48,7 @@ from gevent import subprocess
 from gevent.subprocess import Popen
 from zmq import green as zmq
 
+from requirements import extras_require
 from volttron.platform import certs, is_rabbitmq_available
 from volttron.platform import jsonapi
 from volttron.platform.agent.known_identities import MASTER_WEB, PLATFORM_DRIVER, VOLTTRON_CENTRAL
@@ -274,6 +275,40 @@ def is_valid_port(port):
 
 def is_valid_bus(bus_type):
     return bus_type in ['zmq', 'rmq']
+
+
+
+def _get_dependencies():
+    reqs = subprocess.check_output([sys.executable, "-m", "pip", "freeze"])
+    dependencies = [r.decode().split("==")[0] for r in reqs.split()]
+    return dependencies
+
+
+def _check_dependencies_met(requirement):
+    try:
+        dependencies_needed = extras_require[requirement]
+    except KeyError:
+        print("ERROR: Incorrect requirement chosen")
+        return False
+    current_dependencies = _get_dependencies()
+    if set(dependencies_needed).issubset(set(current_dependencies)):
+        return True
+    else:
+        return False
+
+def set_dependencies(requirement):
+    try:
+        dependencies_needed = extras_require[requirement]
+    except KeyError:
+        print("ERROR: Incorrect requirement chosen")
+        return
+    cmds = [sys.executable, "-m", "pip", "install"]
+    for dependency in dependencies_needed:
+        cmds.append(dependency)
+    subprocess.check_call(cmds)
+    return
+
+
 
 def _create_web_certs():
     global config_opts
@@ -802,7 +837,15 @@ def wizard():
     prompt = 'Is this instance web enabled?'
     response = prompt_response(prompt, valid_answers=y_or_n, default='N')
     if response in y:
+        if not _check_dependencies_met('web'):
+            print("Web dependencies not installed. Installing now...")
+            set_dependencies('web')
+            print("Done!")
         if config_opts['message-bus'] == 'rmq':
+            if not _check_dependencies_met('web'):
+                print("Rabbitmq dependencies not installed. Installing now...")
+                set_dependencies("rabbitmq")
+                print("Done!")
             do_web_enabled_rmq(volttron_home)
         elif config_opts['message-bus'] == 'zmq':
             do_web_enabled_zmq(volttron_home)
@@ -830,6 +873,10 @@ def wizard():
     prompt = 'Would you like to install a master driver?'
     response = prompt_response(prompt, valid_answers=y_or_n, default='N')
     if response in y:
+        if not _check_dependencies_met("drivers"):
+            print("Driver dependencies not installed. Installing now...")
+            set_dependencies("drivers")
+            print("Done!")
         do_master_driver()
 
     prompt = 'Would you like to install a listener agent?'
