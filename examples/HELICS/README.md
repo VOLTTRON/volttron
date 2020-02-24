@@ -1,73 +1,110 @@
-# FNCS Example Agent
+# HELICS Example Agent
 
-This is an example agent using the fncs subsystem built into volttron.
+This is an example agent that demonstrates how to integrate with HELICS co-simulation platform.
 
-## FNCS Versions
+## HELICS installation
+For installing setup in Ubuntu based systems, follow the steps described in 
+https://helics.readthedocs.io/en/latest/installation/linux.html
 
-FNCS must use the same version of ZMQ that volttron does in order for the two applications to be compatible.  The version of ZMQ used in volttron is 4.1.5.  This can be downloaded from 
-https://archive.org/download/zeromq_4.1.5/zeromq-4.1.5.tar.gz.  The most current version
-of CZMQ that can be used with this version of ZMQ is version 3.0.2.  You can download this from
-https://archive.org/download/zeromq_czmq_3.0.2/czmq-3.0.2.tar.gz.
+## Install python bindings of HELICS
 
-Follow the fncs installation from https://github.com/FNCS/fncs substituding the above urls for 
-ZMQ and CZMQ respectively. (NOTE: please use the develop branch for your fncs installation)
+We need to also install python bindings of HELICS inside VOLTTRON environment. 
+This can be done by the following steps:
 
-Also, fncs must be installed into the python environment.  This can be done by the following steps:
+1. Activate a VOLTTRON environment shell
+    ````
+    source env/bin/activate
+    ````
+2. VOLTTRON uses older version of pip3. Upgrade to latest pip version since HELICS needs it.
+    ````
+    pip install -U pip
+    ````
+3. Install python support for HELICS
+    ````
+    pip install helics
+    ````
 
-1. Activate a volttron environment shell
-1. In the fncs repository there is a python directory.  cd into that directory.
-1. Run python setup.py sdist
-1. Run pip install dist/fncs-2.0.1.tar.gz
-
-
-## Running the agent.
-
-Make sure to export the variable LD_LIBRARY_PATH to the fncs_installation/lib folder before
-starting any agent.
-
-## FNCS Agent Configuration
+## HELICS Agent Configuration
 
 You can specify the configuration in either json or yaml format.  The yaml format is specified
 below. 
 
 ```` yml
+# Config parameters for setting up HELICS federate
+properties:
+    name: federate1 # unique name for the federate
+    loglevel: 5 # log level
+    coreType: zmq # core type
+    timeDelta: 1.0 # time delta (defaults to 1s)
+    uninterruptible: true
+    simulation_length: 360 # simulation length in seconds (defaults to 360s)
 
-# Optional federate_name (defaults to vip identity)
-federate_name: federate1
-# Optional broker_location (defaults to tcp://localhost:5570
-broker_location: tcp://localhost:5570
-# Optional time_delta (defaults to 1s)
-time_delta: 1s
-# Optional sim_lenthg (defaults to 60s)
-sim_length: 60s
-# Optional stop_agent_when_sim_complete default False
-stop_agent_when_sim_complete: True
+# configuration for subscribing to HELICS simulation
+outputs:
+    # List of subscription information, typically contains
+    # - HELICS subscription topic,
+    # - datatype
+    # - publication topic for VOLTTRON (optional) to republish the
+    #   message on VOLTTRON message bus
+    # - additional/optional HELICS specific configuration
+    - sim_topic: federate2/totalLoad
+      volttron_topic: helics/abc
+      type: complex
+      required: true
 
-# Required topic_mapping
-topic_mapping:
-  # fncs key
-  a:
-    # fncs_topic to be subscribed to
-    fncs_topic: devices/abcd
-    volttron_topic: fncs/abc
-  b:
-    fncs_topic: alpha/betagama
+# configuration for publishing to HELICS simulation
+inputs:
+    # List of publication information, containing
+    # - HELICS publication topic,
+    # - datatype
+    # - metadata associated with the topic (for example unit)
+    # - subscription topic for VOLTTRON message bus (optional) which can then be
+    #   republished on HELICS with HELICS publication topic
+    # - additional/optional publication specific configuration
+    - sim_topic: pub1 # HELICS publication key
+      type: double    # datatype
+      unit: m         # unit
+      info: this is an information string for use by the application #additional info
+      volttron_topic: pub1/all # topic to subscribe on VOLTTRON bus
+      global: true
+    - sim_topic: pub2
+      type: double
+      volttron_topic: pub2/all
+
+# Send/Receive messages directly to endpoints
+endpoints:
+    # List of endpoint configuration
+    - name: federate1/EV6 # your endpoint (base prefix needs to be federate name, in our case it's "federate1")
+      destination: federate2/EV6 # destination endpoint
+      type: genmessage #message type
+      global: true # global endpoint: true/false
+    - name: federate1/EV5
+      destination: federate2/EV5
+      type: genmessage
+      global: true
+
+volttron_subscriptions:
+    - feeder0_output/all
 
 ````
 
-## FNCS example federate1
+## Running HELICS Example agent
 
-In an activated volttron environment, export LD_LIBRARY_PATH equal to fncs_install/lib.  This is
-the only requirement in order for fncs to be located within the environment.  The following
-commands will install the agent to a volttron instance.  If the fncs_broker is running
-and this is the last federate to be launched, the code should start publishing on fncs to 
-devices/abcd (on volttron fncs/abc will be available as well.).
+1. Start HELICS broker in new terminal. We will specify two federates - one for HELICS example agent and another for
+separate python federate script.
+    ````
+    helics_broker -f 2
+    ````
+2. Start HELICS example agent in new terminal at the root of VOLTTRON source directory
+    ````
+    source env/bin/activate
+    python scripts/install-agent.py -s examples/HELICS/ -c examples/HELICS/helics_federate1.yml -i hexample --start --force
+    ````
+3. In another terminal, start another python federate. At the root of VOLTTRON source directory.
+    ````
+    source env/bin/activate
+    python examples/HELICS/helics_federate.py examples/HELICS/helics_federate2.json 
+    ````
 
-````bash
-
-    (volttron)osboxes@osboxes ~/git/volttron $ export LD_LIBRARY_PATH=<fncs_install>/lib
-    (volttron)osboxes@osboxes ~/git/volttron $ python scripts/install-agent.py -s examples/FNCS \
-        -c examples/FNCS/federate1.yml -i federate1_test --force --start   
-
-````
+You will see that messages are being sent and received between the two federates
 
