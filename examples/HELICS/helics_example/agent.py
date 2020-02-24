@@ -149,12 +149,13 @@ class HelicsExample(Agent):
         _log.debug("Doing work: {}".format(self.core.identity))
         _log.debug("Current set of values from HELICS: {}".format(current_values))
         # Do something with HELICS messages
+        # agent specific work!!!
 
         # Send messages to endpoints as well
         for endpoint in self.endpoints:
             val = '200000 + 0 j'
             status = self.helics_sim.send_to_endpoint(endpoint['name'], endpoint['destination'], val)
-        _log.debug("******publications: {}".format(self.publications))
+
         for pub in self.publications:
             key = pub['sim_topic']
             # Check if VOLTTRON topic has been configured. If no, publish dummy value for the HELICS

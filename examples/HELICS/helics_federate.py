@@ -41,6 +41,7 @@ import time
 import helics as h
 import logging
 import argparse
+import random
 
 logger = logging.getLogger(__name__)
 
@@ -109,30 +110,31 @@ def federate_example(config_path):
         while grantedtime < t:
             grantedtime = h.helicsFederateRequestTime (fed, t)
         time.sleep(0.1)
-        print('########################   Publishing to topics  ##########################################')
+        print('########################   Time interval {}  ##########################################'.format(t))
+        print('########################   Publishing to topics  ######################################')
         real = real + 1
         for i in range(0, pubkeys_count):
             idx = pubid["m{}".format(i)]
             h.helicsPublicationPublishComplex(idx, real*i, 78)
 
-        print( '########################   Get input from subscribed topics  ##########################################')
+        print( '########################   Get input from subscribed topics  #########################')
         for i in range(0, subkeys_count):
             idx = subid["m{}".format(i)]
             value = h.helicsInputGetDouble(idx)
             key = h.helicsSubscriptionGetKey(idx)
             print("Value for key: {} is {}".format(key, value))
 
-        print('########################   Get from Endpoint  ##########################################')
+        print('########################   Get from Endpoint  #########################################')
         idx = endid["m{}".format(0)]
         while h.helicsEndpointHasMessage(idx):            
             msg = h.helicsEndpointGetMessage(idx)
             end_name = h.helicsEndpointGetName(idx)
             print("Value from endpoint name: {} is {}".format(end_name, msg.data))
 
-        print('########################   Send to VOLTTRON Endpoint  ##########################################')
+        print('########################   Send to VOLTTRON Endpoint  #################################')
         for i in range(0, endpoint_count):
             idx = endid["m{}".format(i)]
-            value = i + 89.7
+            value = i + random.randint(1, 101) + 89.7
             end_name = h.helicsEndpointGetName(idx)
             print("Sending Value:{0} for endpoint: {1}".format(value, end_name))
             h.helicsEndpointSendEventRaw(idx, '', str(value), t)

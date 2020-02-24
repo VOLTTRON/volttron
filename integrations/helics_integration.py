@@ -99,6 +99,8 @@ class HELICSSimIntegration(BaseSimIntegration):
         self._simulation_delta = properties.pop('timeDelta', 1.0)  # seconds
         self._simulation_length = properties.pop('simulation_length', 3600)  # seconds
 
+        for key, value in properties.items():
+            helics_config[key] = value
         subscriptions = helics_config.pop('outputs', [])
         for sub in subscriptions:
             volttron_topic = sub.pop('volttron_topic', None)
