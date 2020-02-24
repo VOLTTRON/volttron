@@ -47,7 +47,7 @@ import os
 import logging
 import gevent
 import weakref
-from volttron.platform.agent.base_simulation_integration import BaseSimIntegration
+from volttron.platform.agent.base_simulation_integration.base_sim_integration import BaseSimIntegration
 from volttron.platform import jsonapi
 
 _log = logging.getLogger(__name__)
@@ -65,8 +65,8 @@ class HELICSSimIntegration(BaseSimIntegration):
         self._work_callback = None
         self._simulation_started = False
         self._simulation_complete = False
-        self._simulation_delta = self.config.get('timedelta', 1.0) #seconds
-        self._simulation_length = self.config.get('simulation_length', 3600) #seconds
+        self._simulation_delta = None
+        self._simulation_length = None
         self.current_time = 0
         self.inputs = []
         self.outputs = {}
@@ -91,15 +91,33 @@ class HELICSSimIntegration(BaseSimIntegration):
         self._work_callback = callback
         # strip volttron topics from input config
         config.pop('volttron_subscriptions', None)
-        subscriptions = config.get('subscriptions', [])
+        properties = config.pop('properties', {})
+        if not properties:
+            raise RuntimeError("Invalid configuration. Missing properties dictionary")
+        self._simulation_delta = properties.pop('timeDelta', 1.0)  # seconds
+        self._simulation_length = properties.pop('simulation_length', 3600)  # seconds
 
+        for key, value in properties.items():
+            config[key] = value
+
+        subscriptions = config.get('outputs', [])
         for sub in subscriptions:
             volttron_topic = sub.pop('volttron_topic', None)
             if volttron_topic is not None:
                 self.helics_to_volttron_publish[sub.get('key')] = volttron_topic
-        publications = config.get('publications', [])
+            sub['key'] = sub.pop('sim_topic')
+        # Replace 'outputs' key with 'subscriptions' key
+        if subscriptions:
+            config['subscriptions'] = config.pop('outputs')
+
+        publications = config.get('inputs', [])
         for pub in publications:
             volttron_topic = pub.pop('volttron_topic', None)
+            pub['key'] = pub.pop('sim_topic')
+        # Replace 'outputs' key with 'subscriptions' key
+        if publications:
+            config['publications'] = config.pop('inputs')
+        _log.debug("new config: {}".format(config))
 
         # Create a temporary json file
         tmp_file = os.path.join(os.getcwd(), 'fed_cfg.json')
@@ -108,10 +126,13 @@ class HELICSSimIntegration(BaseSimIntegration):
             fout.write(jsonapi.dumps(config))
         _log.debug("Create Combination Federate")
         # Create federate from provided config parameters
-        self.fed = h.helicsCreateCombinationFederateFromConfig(tmp_file)
+        try:
+            self.fed = h.helicsCreateCombinationFederateFromConfig(tmp_file)
+        except h._helics.HelicsException as e:
+            _log.exception("Error parsing HELICS config {}".format(e))
+
         federate_name = h.helicsFederateGetName(self.fed)
         _log.debug("Federate name: {}".format(federate_name))
-
         endpoint_count = h.helicsFederateGetEndpointCount(self.fed)
         _log.debug("Endpoint count: {}".format(endpoint_count))
         subkeys_count = h.helicsFederateGetInputCount(self.fed)
@@ -120,28 +141,37 @@ class HELICSSimIntegration(BaseSimIntegration):
         _log.debug("Publication key count: {}".format(endpoint_count))
 
         for i in range(0, endpoint_count):
-            endpt_idx = h.helicsFederateGetEndpointByIndex(self.fed, i)
-            endpt_name = h.helicsEndpointGetName(endpt_idx)
-            self.endpoints[endpt_name] = endpt_idx
+            try:
+                endpt_idx = h.helicsFederateGetEndpointByIndex(self.fed, i)
+                endpt_name = h.helicsEndpointGetName(endpt_idx)
+                self.endpoints[endpt_name] = endpt_idx
+            except h._helics.HelicsException as e:
+                _log.exception("Error getting helics endpoint index: {}".format(e))
 
         for i in range(0, subkeys_count):
             inputs = dict()
-            idx = h.helicsFederateGetInputByIndex(self.fed, i)
-            inputs['sub_id'] = idx
-            inputs['type'] = h.helicsInputGetType(idx)
-            inputs['key'] = h.helicsSubscriptionGetKey(idx)
-            self.inputs.append(inputs)
-            data = dict(type=inputs['type'], value=None)
+            try:
+                idx = h.helicsFederateGetInputByIndex(self.fed, i)
+                inputs['sub_id'] = idx
+                inputs['type'] = h.helicsInputGetType(idx)
+                inputs['key'] = h.helicsSubscriptionGetKey(idx)
+                self.inputs.append(inputs)
+                data = dict(type=inputs['type'], value=None)
+            except h._helics.HelicsException as e:
+                _log.exception("Error getting helics input index: {}".format(e))
 
         for i in range(0, pubkeys_count):
             outputs = dict()
-            idx = h.helicsFederateGetPublicationByIndex(self.fed, i)
-            outputs['pub_id'] = idx
-            outputs['type'] = h.helicsPublicationGetType(idx)
-            pub_key = h.helicsPublicationGetKey(idx)
-            _log.debug("Publication: {}".format(pub_key))
-            self.outputs[pub_key] = outputs
-            data = dict(type=outputs['type'], value=None)
+            try:
+                idx = h.helicsFederateGetPublicationByIndex(self.fed, i)
+                outputs['pub_id'] = idx
+                outputs['type'] = h.helicsPublicationGetType(idx)
+                pub_key = h.helicsPublicationGetKey(idx)
+                _log.debug("Publication: {}".format(pub_key))
+                self.outputs[pub_key] = outputs
+                data = dict(type=outputs['type'], value=None)
+            except h._helics.HelicsException as e:
+                _log.exception("Error getting helics publication index: {}".format(e))
 
     def start_simulation(self):
         """
@@ -178,9 +208,12 @@ class HELICSSimIntegration(BaseSimIntegration):
 
             # Collect any messages from endpoints (messages are not persistent)
             for name, idx in self.endpoints.items():
-                if h.helicsEndpointHasMessage(idx):
-                    msg = h.helicsEndpointGetMessage(idx)
-                    self.current_values[name] = msg.data
+                try:
+                    if h.helicsEndpointHasMessage(idx):
+                        msg = h.helicsEndpointGetMessage(idx)
+                        self.current_values[name] = msg.data
+                except h._helics.HelicsException as e:
+                    _log.exception("Error getting endpoint message from  HELICS {}".format(e))
 
             # Call user provided callback to perform work on HELICS inputs
             self._work_callback()
@@ -213,20 +246,23 @@ class HELICSSimIntegration(BaseSimIntegration):
         :param output:
         :return:
         """
-        if output['type'] == 'integer':
-            h.helicsPublicationPublishInteger(output['pub_id'], output['value'])
-        elif output['type'] == 'double':
-            h.helicsPublicationPublishDouble(output['pub_id'], output['value'])
-        elif output['type'] == 'string':
-            h.helicsPublicationPublishString(output['pub_id'], output['value'])
-        elif output['type'] == 'complex':
-            h.helicsPublicationPublishComplex(output['pub_id'], output['value'])
-        elif output['type'] == 'vector':
-            h.helicsPublicationPublishVector(output['pub_id'], output['value'])
-        elif output['type'] == 'boolean':
-            h.helicsPublicationPublishBoolean(output['pub_id'], output['value'])
-        else:
-            _log.error("Unknown datatype: {}".format(output['type']))
+        try:
+            if output['type'] == 'integer':
+                h.helicsPublicationPublishInteger(output['pub_id'], output['value'])
+            elif output['type'] == 'double':
+                h.helicsPublicationPublishDouble(output['pub_id'], output['value'])
+            elif output['type'] == 'string':
+                h.helicsPublicationPublishString(output['pub_id'], output['value'])
+            elif output['type'] == 'complex':
+                h.helicsPublicationPublishComplex(output['pub_id'], output['value'])
+            elif output['type'] == 'vector':
+                h.helicsPublicationPublishVector(output['pub_id'], output['value'])
+            elif output['type'] == 'boolean':
+                h.helicsPublicationPublishBoolean(output['pub_id'], output['value'])
+            else:
+                _log.error("Unknown datatype: {}".format(output['type']))
+        except h._helics.HelicsException as e:
+            _log.exception("Error sending publication to  HELICS {}".format(e))
 
     def _get_input_based_on_type(self, in_put):
         """
@@ -236,21 +272,24 @@ class HELICSSimIntegration(BaseSimIntegration):
         """
         val = None
         sub_id = in_put['sub_id']
-        if in_put['type'] == 'integer':
-            val = h.helicsInputGetInteger(sub_id)
-        elif in_put['type'] == 'double':
-            val = h.helicsInputGetDouble(sub_id)
-        elif in_put['type'] == 'string':
-            val = h.helicsInputGetString(sub_id)
-        elif in_put['type'] == 'complex':
-            real, imag = h.helicsInputGetComplex(sub_id)
-            val = [real, imag]
-        elif in_put['type'] == 'vector':
-            val = h.helicsInputGetVector(sub_id)
-        elif in_put['type'] == 'boolean':
-            val = h.helicsInputGetBoolean(sub_id)
-        else:
-            _log.error("Unknown datatype: {}".format(in_put['type']))
+        try:
+            if in_put['type'] == 'integer':
+                val = h.helicsInputGetInteger(sub_id)
+            elif in_put['type'] == 'double':
+                val = h.helicsInputGetDouble(sub_id)
+            elif in_put['type'] == 'string':
+                val = h.helicsInputGetString(sub_id)
+            elif in_put['type'] == 'complex':
+                real, imag = h.helicsInputGetComplex(sub_id)
+                val = [real, imag]
+            elif in_put['type'] == 'vector':
+                val = h.helicsInputGetVector(sub_id)
+            elif in_put['type'] == 'boolean':
+                val = h.helicsInputGetBoolean(sub_id)
+            else:
+                _log.error("Unknown datatype: {}".format(in_put['type']))
+        except h._helics.HelicsException as e:
+            _log.exception("Error getting input from  HELICS {}".format(e))
         return val
 
     def make_blocking_time_request(self, time_request=None):
@@ -299,20 +338,21 @@ class HELICSSimIntegration(BaseSimIntegration):
         :return:
         """
         endpoint_idx = self.endpoints[endpoint_name]
-        _log.debug("destination: {}".format(destination))
-        h.helicsEndpointSendEventRaw(endpoint_idx, destination, str(56.7), self.current_time)
+        try:
+            h.helicsEndpointSendEventRaw(endpoint_idx, destination, str(56.7), self.current_time)
+        except h._helics.HelicsException as e:
+            _log.exception("Error sending endpoint message to  HELICS {}".format(e))
 
     def stop_simulation(self):
         """
         Disconnect the federate from helics core and close the library
         :return:
         """
-        h.helicsFederateFinalize(self.fed)
-        h.helicsFederateFree(self.fed)
-        h.helicsCloseLibrary()
+        try:
+            h.helicsFederateFinalize(self.fed)
+            h.helicsFederateFree(self.fed)
+            h.helicsCloseLibrary()
+        except h._helics.HelicsException as e:
+            _log.exception("Error stopping HELICS federate {}".format(e))
 
 
-if __name__ == "__main__":
-    hobj = HELICSSimIntegration('test')
-    hobj.register_inputs('test', 'callback')
-    hobj.start_simulation()
