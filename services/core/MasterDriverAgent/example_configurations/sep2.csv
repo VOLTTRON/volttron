@@ -1,4 +1,4 @@
-Volttron Point Name,SEP2 Resource Name,SEP2 Field Name,Units,Writable,Default
+Volttron Point Name,IEEE2030_5 Resource Name,IEEE2030_5 Field Name,Units,Writable,Default
 b1_Md,DeviceInformation,mfModel,NA,FALSE,NA
 b1_Opt,DeviceInformation,lFDI,NA,FALSE,NA
 b1_SN,DeviceInformation,sFDI,NA,FALSE,NA
