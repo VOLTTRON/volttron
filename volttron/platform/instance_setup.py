@@ -232,7 +232,6 @@ def installs(agent_dir, tag, identity=None, post_install_func=None):
                 _shutdown_platform()
                 return
 
-
             if post_install_func:
                 post_install_func()
 
@@ -832,6 +831,11 @@ def wizard():
     _load_config()
     _update_config_file()
     do_message_bus()
+    if config_opts['message-bus'] == 'rmq':
+        if not _check_dependencies_met('rabbitmq'):
+            print("Rabbitmq dependencies not installed. Installing now...")
+            set_dependencies("rabbitmq")
+            print("Done!")
     do_vip()
     _update_config_file()
     prompt = 'Is this instance web enabled?'
@@ -842,10 +846,6 @@ def wizard():
             set_dependencies('web')
             print("Done!")
         if config_opts['message-bus'] == 'rmq':
-            if not _check_dependencies_met('web'):
-                print("Rabbitmq dependencies not installed. Installing now...")
-                set_dependencies("rabbitmq")
-                print("Done!")
             do_web_enabled_rmq(volttron_home)
         elif config_opts['message-bus'] == 'zmq':
             do_web_enabled_zmq(volttron_home)
