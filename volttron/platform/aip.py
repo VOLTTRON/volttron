@@ -988,9 +988,13 @@ class AIPplatform(object):
 
             self.rmq_mgmt.create_user_with_permissions(rmq_user, self.rmq_mgmt.get_default_permissions(rmq_user),
                                                        ssl_auth=True)
+            key_file = certs.Certs().private_key_file(rmq_user)
+            if not os.path.exists(key_file):
+                _log.info(f"agent certs don't exists. creating certs for agent")
+                certs.Certs().create_signed_cert_files(rmq_user, overwrite=False)
+
             if self.secure_agent_user:
                 # give read access to user to its own private key file.
-                key_file = certs.Certs().private_key_file(rmq_user)
                 self.set_acl_for_path("r", agent_user, key_file)
 
         if resmon is None:
