@@ -484,7 +484,7 @@ __version__ = "1.0"
 
 
 class LockError(Exception):
-    """Error raised when the user does not have a device scheuled
+    """Error raised when the user does not have a device scheduled
     and tries to use methods that require exclusive access."""
     pass
 
@@ -557,6 +557,7 @@ class ActuatorAgent(Agent):
 
         super(ActuatorAgent, self).__init__(**kwargs)
         _log.debug("vip_identity: " + self.core.identity)
+        self.driver_vip_identity = driver_vip_identity
 
         self._update_event = None
         self._device_states = {}
@@ -567,16 +568,15 @@ class ActuatorAgent(Agent):
         self._schedule_manager = None
         self.schedule_publish_interval = schedule_publish_interval
         self.subscriptions_setup = False
-        #Only turn this on once we have confirmation from the config store.
+        # Only turn this on once we have confirmation from the config store.
         self.allow_no_lock_write = False
         self._update_event_time = None
 
         self.default_config = {"heartbeat_interval": heartbeat_interval,
-                              "schedule_publish_interval": schedule_publish_interval,
-                              "preempt_grace_time": preempt_grace_time,
-                              "driver_vip_identity": driver_vip_identity,
+                               "schedule_publish_interval": schedule_publish_interval,
+                               "preempt_grace_time": preempt_grace_time,
+                               "driver_vip_identity": driver_vip_identity,
                                "allow_no_lock_write": allow_no_lock_write}
-
 
         self.vip.config.set_default("config", self.default_config)
         self.vip.config.subscribe(self.configure, actions=["NEW", "UPDATE"], pattern="config")
@@ -596,7 +596,7 @@ class ActuatorAgent(Agent):
             allow_no_lock_write = bool(config["allow_no_lock_write"])
         except ValueError as e:
             _log.error("ERROR PROCESSING CONFIGURATION: {}".format(e))
-            #TODO: set a health status for the agent
+            # TODO: set a health status for the agent
             return
 
         self.driver_vip_identity = driver_vip_identity
@@ -606,10 +606,8 @@ class ActuatorAgent(Agent):
         _log.debug("MasterDriver VIP IDENTITY: {}".format(self.driver_vip_identity))
         _log.debug("Schedule publish interval: {}".format(self.schedule_publish_interval))
 
-        #Only restart the heartbeat if it changes.
-        if (self.heartbeat_interval != heartbeat_interval or
-                    action == "NEW" or
-                    self.heartbeat_greenlet is None):
+        # Only restart the heartbeat if it changes.
+        if self.heartbeat_interval != heartbeat_interval or action == "NEW" or self.heartbeat_greenlet is None:
             if self.heartbeat_greenlet is not None:
                 self.heartbeat_greenlet.kill()
 
@@ -629,9 +627,8 @@ class ActuatorAgent(Agent):
         else:
             self._schedule_manager.set_grace_period(preempt_grace_time)
 
-
         if not self.subscriptions_setup and self._schedule_manager is not None:
-            #Do this after the scheduler is setup.
+            # Do this after the scheduler is setup.
             self.vip.pubsub.subscribe(peer='pubsub',
                                       prefix=topics.ACTUATOR_GET(),
                                       callback=self.handle_get)
@@ -654,7 +651,6 @@ class ActuatorAgent(Agent):
 
             self.subscriptions_setup = True
 
-
     def _heart_beat(self):
         _log.debug("sending heartbeat")
         try:
@@ -665,11 +661,9 @@ class ActuatorAgent(Agent):
         except (Exception, gevent.Timeout) as e:
             _log.warning(''.join([e.__class__.__name__, '(', str(e), ')']))
 
-
     def _schedule_save_callback(self, state_file_contents):
         _log.debug("Saving schedule state")
         self.vip.config.set(self.schedule_state_file, state_file_contents, send_update=False)
-
 
     def _setup_schedule(self, preempt_grace_time, initial_state=None):
         now = utils.get_aware_utc_now()
@@ -699,9 +693,9 @@ class ActuatorAgent(Agent):
         _log.debug("device states is {}".format(
             self._device_states))
 
-        #device_only and publish tells us if we were called by a reservation change.
-        #If we are being called as part of a regularly scheduled publish
-        #we ignore our previous publish schedule time.
+        # device_only and publish tells us if we were called by a reservation change.
+        # If we are being called as part of a regularly scheduled publish
+        # we ignore our previous publish schedule time.
         if device_only is None and publish:
             self._update_event_time = None
 
@@ -882,7 +876,6 @@ class ActuatorAgent(Agent):
 
                       Only the <device topic> if point is specified.
         :param point: Point on the device. Uses old behavior if omitted.
-        :param \*\*kwargs: Any driver specific parameters
         :type topic: str
         :returns: point value
         :rtype: any base python type"""
@@ -910,7 +903,6 @@ class ActuatorAgent(Agent):
                       Only the <device topic> if point is specified.
         :param value: Value to set point to.
         :param point: Point on the device. Uses old behavior if omitted.
-        :param \*\*kwargs: Any driver specific parameters
         :type topic: str
         :type requester_id: str
         :type value: any basic python type
@@ -922,8 +914,7 @@ class ActuatorAgent(Agent):
         :rtype: any base python type
         
         .. warning:: Calling without previously scheduling a device and not
-        within
-                     the time allotted will raise a LockError"""
+        within the time allotted will raise a LockError"""
 
         rpc_peer = self.vip.rpc.context.vip_message.peer
         return self._set_point(rpc_peer, topic, value, point=point, **kwargs)
@@ -951,8 +942,7 @@ class ActuatorAgent(Agent):
             self._push_result_topic_pair(VALUE_RESPONSE_PREFIX,
                                          topic, headers, result)
         else:
-            raise LockError(
-                "caller ({}) does not have this lock".format(sender))
+            raise LockError("caller ({}) does not have this lock".format(sender))
 
         return result
 
@@ -979,7 +969,6 @@ class ActuatorAgent(Agent):
         RPC call to the master driver per device.
 
         :param topics: List of topics or list of [device, point] pairs.
-        :param \*\*kwargs: Any driver specific parameters
 
         :returns: Dictionary of points to values and dictonary of points to errors
 
@@ -1024,7 +1013,6 @@ class ActuatorAgent(Agent):
 
         :param requester_id: Ignored, VIP Identity used internally
         :param topics_values: List of (topic, value) tuples
-        :param \*\*kwargs: Any driver specific parameters
 
         :returns: Dictionary of points to exceptions raised.
                   If all points were set successfully an empty
@@ -1062,7 +1050,7 @@ class ActuatorAgent(Agent):
             results.update(r)
 
         return results
-    
+
     def handle_revert_point(self, peer, sender, bus, topic, headers, message):
         """
         Revert the value of a point.
@@ -1154,7 +1142,6 @@ class ActuatorAgent(Agent):
         :param requester_id: Ignored, VIP Identity used internally
         :param topic: The topic of the point to revert in the 
                       format <device topic>/<point name>
-        :param \*\*kwargs: Any driver specific parameters
         :type topic: str
         :type requester_id: str
         
@@ -1183,7 +1170,7 @@ class ActuatorAgent(Agent):
             self._push_result_topic_pair(REVERT_POINT_RESPONSE_PREFIX,
                                          topic, headers, None)
         else:
-            raise LockError("caller does not have this lock")
+            raise LockError("caller ({}) does not have this lock".format(sender))
 
     @RPC.export
     def revert_device(self, requester_id, topic, **kwargs):
@@ -1195,7 +1182,6 @@ class ActuatorAgent(Agent):
         
         :param requester_id: Ignored, VIP Identity used internally
         :param topic: The topic of the device to revert
-        :param \*\*kwargs: Any driver specific parameters
         :type topic: str
         :type requester_id: str
         
@@ -1220,7 +1206,7 @@ class ActuatorAgent(Agent):
             self._push_result_topic_pair(REVERT_DEVICE_RESPONSE_PREFIX,
                                          topic, headers, None)
         else:
-            raise LockError("caller does not have this lock")
+            raise LockError("caller ({}) does not have this lock".format(sender))
 
     def _check_lock(self, device, requester):
         _log.debug('_check_lock: {device}, {requester}'.format(
