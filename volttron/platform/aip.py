@@ -110,7 +110,7 @@ def log_entries(name, agent, pid, level, stream):
     extra = {'processName': agent, 'process': pid}
     for l in stream:
         for line in l.splitlines():
-            if line.startswith(b'{') and line.endswith(b'}'):
+            if line.startswith('{') and line.endswith('}'):
                 try:
                     obj = jsonapi.loads(line)
                     try:
@@ -227,7 +227,7 @@ class SecureExecutionEnvironment(object):
             run_as_user = ['sudo', '-E', '-u', self.agent_user]
             run_as_user.extend(*args)
             _log.debug(run_as_user)
-            self.process = subprocess.Popen(run_as_user, **kwargs)
+            self.process = subprocess.Popen(run_as_user, universal_newlines=True, **kwargs)
         except OSError as e:
             if e.filename:
                 raise
@@ -990,6 +990,7 @@ class AIPplatform(object):
                                                        ssl_auth=True)
             key_file = certs.Certs().private_key_file(rmq_user)
             if not os.path.exists(key_file):
+                # This could happen when user switches from zmq to rmq after installing agent
                 _log.info(f"agent certs don't exists. creating certs for agent")
                 certs.Certs().create_signed_cert_files(rmq_user, overwrite=False)
 
