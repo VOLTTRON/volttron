@@ -40,6 +40,8 @@ import hashlib
 import os
 import sys
 import tempfile
+import atexit
+import time
 from configparser import ConfigParser
 from shutil import copy
 from urllib.parse import urlparse
@@ -52,7 +54,8 @@ from requirements import extras_require
 from volttron.platform import certs, is_rabbitmq_available
 from volttron.platform import jsonapi
 from volttron.platform.agent.known_identities import MASTER_WEB, PLATFORM_DRIVER, VOLTTRON_CENTRAL
-from volttron.platform.agent.utils import get_platform_instance_name, wait_for_volttron_startup
+from volttron.platform.agent.utils import get_platform_instance_name, wait_for_volttron_startup, \
+    is_volttron_running, wait_for_volttron_shutdown
 from volttron.utils import get_hostname
 from volttron.utils.prompt import prompt_response, y, n, y_or_n
 from volttron.utils.rmq_config_params import RMQConfig
@@ -150,7 +153,7 @@ def fail_if_instance_running():
     ipc_address = 'ipc://{}/run/vip.socket'.format(home)
 
     if os.path.exists(home) and\
-       _is_bound_already(ipc_address):
+       is_volttron_running(home):
         print("""
 The current instance is running.  In order to configure an instance it cannot
 be running.  Please execute:
@@ -172,7 +175,7 @@ volttron-cfg needs to be run from the volttron top level source directory.
 
 
 def _start_platform():
-    vhome  = get_home()
+    vhome = get_home()
     cmd = ['volttron', '-vv',
            '-l', os.path.join(vhome, 'volttron.cfg.log')]
     print(cmd)
@@ -180,14 +183,28 @@ def _start_platform():
         print('Starting platform...')
     pid = Popen(cmd, env=os.environ.copy(), stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE)
-    wait_for_volttron_startup(vhome, 30)
+    wait_for_volttron_startup(vhome, 45)
 
 
 def _shutdown_platform():
-    if verbose:
-        print('Shutting down platform...')
-    _cmd(['volttron-ctl', 'shutdown', '--platform'])
+    vhome = get_home()
+    if is_volttron_running(vhome):
+        if verbose:
+            print('Shutting down platform...')
+        _cmd(['volttron-ctl', 'shutdown', '--platform'])
+        wait_for_volttron_shutdown(vhome, 45)
 
+
+def _cleanup_on_exit():
+    vhome = get_home()
+    retry_attempt = 30
+    while retry_attempt > 0:
+        if is_volttron_running(vhome):
+            time.sleep(1)
+            retry_attempt -= 1
+        else:
+            return
+    _shutdown_platform()
 
 def _install_agent(agent_dir, config, tag):
     if not isinstance(config, dict):
@@ -201,6 +218,7 @@ def _install_agent(agent_dir, config, tag):
     _cmd(['scripts/core/pack_install.sh',
           agent_dir, config_file, tag])
 
+
 def _is_agent_installed(tag):
     installed_list_process = Popen(['vctl','list'], env=os.environ, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     installed_list = installed_list_process.communicate()
@@ -209,6 +227,7 @@ def _is_agent_installed(tag):
         return True
     else:
         return False
+
 
 # Decorator to handle installing agents
 # Decorated functions need to return a config
@@ -224,7 +243,10 @@ def installs(agent_dir, tag, identity=None, post_install_func=None):
             print('Configuring {}.'.format(agent_dir))
             config = config_func(*args, **kwargs)
             _update_config_file()
+            #TODO: Optimize long vcfg install times
+            #TODO: (potentially only starting the platform once per vcfg)
             _start_platform()
+
             _install_agent(agent_dir, config, tag)
 
             if not _is_agent_installed(tag):
@@ -560,7 +582,7 @@ def do_web_agent():
 # TODO: Commented out so we don't prompt for installing vc or vcp until they
 # have been figured out totally for python3
 #
-# @installs(get_services_core("VolttronCentral"), 'vc')
+@installs(get_services_core("VolttronCentral"), 'vc')
 def do_vc():
     do_web_agent()
     resp = vc_config()
@@ -691,7 +713,7 @@ def is_file_readable(file_path, log=True):
 # Todo: Commented out so we don't prompt for installing vc or vcp until they
 # have been figured out totally for python3
 #
-# @installs(get_services_core("VolttronCentralPlatform"), 'vcp')
+@installs(get_services_core("VolttronCentralPlatform"), 'vcp')
 def do_vcp():
     global config_opts
     is_vc = False
@@ -852,24 +874,27 @@ def wizard():
         _update_config_file()
         # TODO: Commented out so we don't prompt for installing vc or vcp until they
         # have been figured out totally for python3
-        #
-        # prompt = 'Is this an instance of volttron central?'
-        # response = prompt_response(prompt, valid_answers=y_or_n, default='N')
-        # if response in y:
-        #     do_vc()
+
+        prompt = 'Is this an instance of volttron central?'
+        response = prompt_response(prompt, valid_answers=y_or_n, default='N')
+        if response in y:
+            do_vc()
     # TODO: Commented out so we don't prompt for installing vc or vcp until they
     # have been figured out totally for python3
-    #
-    # prompt = 'Will this instance be controlled by volttron central?'
-    # response = prompt_response(prompt, valid_answers=y_or_n, default='Y')
-    # if response in y:
-    #     do_vcp()
+
+    prompt = 'Will this instance be controlled by volttron central?'
+    response = prompt_response(prompt, valid_answers=y_or_n, default='Y')
+    if response in y:
+        if not _check_dependencies_met("drivers"):
+            print("VCP dependencies not installed. Installing now...")
+            set_dependencies("drivers")
+            print("Done!")
+        do_vcp()
 
     prompt = 'Would you like to install a platform historian?'
     response = prompt_response(prompt, valid_answers=y_or_n, default='N')
     if response in y:
         do_platform_historian()
-
     prompt = 'Would you like to install a master driver?'
     response = prompt_response(prompt, valid_answers=y_or_n, default='N')
     if response in y:
@@ -917,7 +942,6 @@ def process_rmq_inputs(args, instance_name=None):
 
 def main():
     global verbose, prompt_vhome
-
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('-v', '--verbose', action='store_true')
     parser.add_argument('--vhome', help="Path to volttron home")
@@ -945,10 +969,10 @@ def main():
     if args.vhome:
         set_home(args.vhome)
         prompt_vhome = False
-    if not args.rabbitmq or args.rabbitmq[0] in ["single"]:
-        fail_if_instance_running()
+    # if not args.rabbitmq or args.rabbitmq[0] in ["single"]:
+    fail_if_instance_running()
     fail_if_not_in_src_root()
-
+    atexit.register(_cleanup_on_exit)
     _load_config()
     if args.instance_name:
         _update_config_file(instance_name=args.instance_name)

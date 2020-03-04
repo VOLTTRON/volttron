@@ -808,7 +808,7 @@ def start_volttron_process(opts):
             _log.debug("Running zmq router")
             Router(opts.vip_local_address, opts.vip_address,
                    secretkey=secretkey, publickey=publickey,
-                   default_user_id=b'vip.service', monitor=opts.monitor,
+                   default_user_id='vip.service', monitor=opts.monitor,
                    tracker=tracker,
                    volttron_central_address=opts.volttron_central_address,
                    volttron_central_serverkey=opts.volttron_central_serverkey,
@@ -944,7 +944,7 @@ def start_volttron_process(opts):
             # Necessary for backward compatibility with ZMQ message bus
             green_router = GreenRouter(opts.vip_local_address, opts.vip_address,
                                        secretkey=secretkey, publickey=publickey,
-                                       default_user_id=b'vip.service', monitor=opts.monitor,
+                                       default_user_id='vip.service', monitor=opts.monitor,
                                        tracker=tracker,
                                        volttron_central_address=opts.volttron_central_address,
                                        volttron_central_serverkey=opts.volttron_central_serverkey,

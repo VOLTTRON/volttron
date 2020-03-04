@@ -81,7 +81,7 @@ class Platforms(object):
         :param vip_identity:
         :return:
         """
-        encoded = base64.b64encode(vip_identity.encode('utf-8'))
+        encoded = base64.b64encode(vip_identity.encode('utf-8')).decode('utf-8')
         self._platforms[encoded] = PlatformHandler(self._vc, vip_identity)
         self._debug_platform_list()
         return self._platforms[encoded]
@@ -94,7 +94,7 @@ class Platforms(object):
         :param vip_identity:
         :return:
         """
-        encoded = base64.b64encode(vip_identity.encode('utf-8'))
+        encoded = base64.b64encode(vip_identity.encode('utf-8')).decode("utf-8")
         del self._platforms[encoded]
         self._debug_platform_list()
 
@@ -160,7 +160,7 @@ class Platforms(object):
         results = []
         for x in self._platforms.values():
             results.append(
-                dict(uuid=base64.b64encode(x.vip_identity.encode('utf-8')),
+                dict(uuid=base64.b64encode(x.vip_identity.encode('utf-8')).decode('utf-8'),
                      name=x.display_name,
                      health=x.health)
             )
@@ -203,7 +203,7 @@ class Platforms(object):
         for p in self._platforms.values():
             performances.append(
                 {
-                    "platform.uuid": base64.b64encode(p.vip_identity),
+                    "platform.uuid": base64.b64encode(p.vip_identity.encode('utf-8')).decode("utf-8"),
                     "performance": p.get_stats("status/cpu")
                 }
             )
@@ -234,6 +234,7 @@ class Platforms(object):
     def register_platform(self, address, address_type, serverkey=None,
                           display_name=None):
         """
+        DEPRECATED VOLTTRON 7.0
         Allows an volttron central platform (vcp) to register with vc.  Note
         that if the address has already been used then the same
         PlatformHandler object reference will be returned to the caller.
