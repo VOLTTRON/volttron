@@ -1583,6 +1583,7 @@ def test_set_value_array(publish_agent, cancel_schedules, revert_devices):
     result_message = publish_agent.callback.call_args[0][5]
     # assert result_header['requesterID'] == agentid
     assert result_message['type'] == 'builtins.TypeError'
+    assert result_message['value'].endswith('["float() argument must be a string or a number, not \'list\'"]')
 
 
 @pytest.mark.actuator_pubsub
@@ -2071,7 +2072,7 @@ def test_set_lock_error(publish_agent):
     result_message = publish_agent.callback.call_args[0][5]
     # assert result_header['requesterID'] == TEST_AGENT
     assert result_message['type'] == 'LockError'
-    assert result_message['value'].endswith('does not have this lock')
+    assert result_message['value'].endswith('does not have lock for point SampleWritableFloat1 on device fakedriver1')
 
     # To test fix for bug #223
     new_value = publish_agent.vip.rpc.call(

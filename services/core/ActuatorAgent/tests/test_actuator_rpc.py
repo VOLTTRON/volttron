@@ -1528,8 +1528,7 @@ def test_set_lock_error(publish_agent):
         pytest.fail('Expecting LockError. Code returned: {}'.format(result))
     except RemoteError as e:
         assert e.exc_info['exc_type'] == 'actuator.agent.LockError'
-        assert e.message == 'caller ({}) does not have this lock'.format(
-            TEST_AGENT)
+        assert e.message.endswith('does not have lock for point SampleWritableFloat1 on device fakedriver1')
 
 
 @pytest.mark.actuator
