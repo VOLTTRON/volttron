@@ -2669,9 +2669,6 @@ def main(argv=sys.argv):
     # Below vctl commands can work even when volttron is not up. For others
     # volttron need to be up.
     if len(args) > 0:
-        _stderr.write("Args are {}".format(args))
-        _stderr.write("Volttron Home is: {}".format(volttron_home))
-        _stderr.write("Running Status is: {}".format(utils.is_volttron_running(volttron_home)))
         if args[0] not in ('list', 'tag', 'auth', 'rabbitmq', 'certs'):
             # check pid file
             if not utils.is_volttron_running(volttron_home):

@@ -50,6 +50,7 @@ from gevent import subprocess
 from gevent.subprocess import Popen
 from zmq import green as zmq
 
+from bootstrap import install_rabbit, default_rmq_dir
 from requirements import extras_require
 from volttron.platform import certs, is_rabbitmq_available
 from volttron.platform import jsonapi
@@ -298,10 +299,9 @@ def is_valid_bus(bus_type):
     return bus_type in ['zmq', 'rmq']
 
 
-
 def _get_dependencies():
     reqs = subprocess.check_output([sys.executable, "-m", "pip", "freeze"])
-    dependencies = [r.decode().split("==")[0] for r in reqs.split()]
+    dependencies = [r.decode() for r in reqs.split()]
     return dependencies
 
 
@@ -312,10 +312,19 @@ def _check_dependencies_met(requirement):
         print("ERROR: Incorrect requirement chosen")
         return False
     current_dependencies = _get_dependencies()
-    if set(dependencies_needed).issubset(set(current_dependencies)):
-        return True
-    else:
-        return False
+    for dependency in dependencies_needed:
+        if "==" in dependency:
+            if dependency in current_dependencies:
+                continue
+            else:
+                return False
+        else:
+            if dependency.split("==")[0] in [r.strip("==")[0] for r in current_dependencies]:
+                continue
+            else:
+                return False
+    return True
+
 
 def set_dependencies(requirement):
     try:
@@ -329,6 +338,9 @@ def set_dependencies(requirement):
     subprocess.check_call(cmds)
     return
 
+
+def set_dependencies_rmq():
+    install_rabbit(default_rmq_dir)
 
 
 def _create_web_certs():
@@ -390,24 +402,29 @@ def do_message_bus():
     bus_type = None
     valid_bus = False
     while not valid_bus:
-        try:
-            rmq_config = RMQConfig()
-            prompt = 'What type of message bus (rmq/zmq)?'
-            new_bus = prompt_response(prompt, default='zmq')
-            valid_bus = is_valid_bus(new_bus)
-            if valid_bus:
-                bus_type = new_bus
-            else:
-                print("Message type is not valid. Valid entries are zmq or rmq.")
-        except AssertionError:
-            new_bus = 'zmq'
-            valid_bus = is_valid_bus(new_bus)
-            if valid_bus:
-                bus_type = new_bus
-                print("Message bus set to zmq")
+        prompt = 'What type of message bus (rmq/zmq)?'
+        new_bus = prompt_response(prompt, default='zmq')
+        valid_bus = is_valid_bus(new_bus)
+        if valid_bus:
+            bus_type = new_bus
+        else:
+            print("Message type is not valid. Valid entries are zmq or rmq.")
 
-        if bus_type == 'rmq':
-            check_rmq_setup()
+    try:
+        rmq_config = RMQConfig()
+
+    except AssertionError:
+        print("RabbitMQ has not been set up!")
+        print("Setting up now...")
+        set_dependencies_rmq()
+        print("Done!")
+
+    if bus_type == 'rmq':
+        if not _check_dependencies_met('rabbitmq'):
+            print("Rabbitmq dependencies not installed. Installing now...")
+            set_dependencies("rabbitmq")
+            print("Done!")
+        check_rmq_setup()
 
     config_opts['message-bus'] = bus_type
 
@@ -853,11 +870,6 @@ def wizard():
     _load_config()
     _update_config_file()
     do_message_bus()
-    if config_opts['message-bus'] == 'rmq':
-        if not _check_dependencies_met('rabbitmq'):
-            print("Rabbitmq dependencies not installed. Installing now...")
-            set_dependencies("rabbitmq")
-            print("Done!")
     do_vip()
     _update_config_file()
     prompt = 'Is this instance web enabled?'
