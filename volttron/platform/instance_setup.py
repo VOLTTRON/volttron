@@ -315,12 +315,12 @@ def _check_dependencies_met(requirement):
     for dependency in dependencies_needed:
         if "==" in dependency:
             if dependency in current_dependencies:
-                continue
+                pass
             else:
                 return False
         else:
-            if dependency.split("==")[0] in [r.strip("==")[0] for r in current_dependencies]:
-                continue
+            if dependency.split("==")[0] in [r.split("==")[0] for r in current_dependencies]:
+                pass
             else:
                 return False
     return True
