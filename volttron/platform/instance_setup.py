@@ -897,9 +897,12 @@ def wizard():
     prompt = 'Will this instance be controlled by volttron central?'
     response = prompt_response(prompt, valid_answers=y_or_n, default='Y')
     if response in y:
-        if not _check_dependencies_met("drivers"):
+        if not _check_dependencies_met("drivers") or not _check_dependencies_met("web"):
             print("VCP dependencies not installed. Installing now...")
-            set_dependencies("drivers")
+            if not _check_dependencies_met("drivers"):
+                set_dependencies("drivers")
+            if not _check_dependencies_met("web"):
+                set_dependencies("web")
             print("Done!")
         do_vcp()
 
