@@ -431,7 +431,7 @@ class VolttronCentralPlatform(Agent):
         try:
             with gevent.Timeout(seconds=5):
                 hello = self._vc_connection.vip.ping(
-                    b'', self._instance_id).get()
+                    '', self._instance_id).get()
         except gevent.Timeout:
             self._vc_connection = None
             self._establish_connection_to_vc()
