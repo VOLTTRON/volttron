@@ -100,6 +100,7 @@ Setup the Forwarder
     
   - For ease of use, you can use the install-agent.py in the scripts directory to install the Forward Historian:
 
+::
     python scripts/install-agent.py -s services/core/ForwardHistorian -c config/forwarder.config
 
   - Execute that script and the forward historian should be installed
