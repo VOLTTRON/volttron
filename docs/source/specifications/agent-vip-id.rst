@@ -85,7 +85,7 @@ It is possible to use the auto numbering mechanism that the default VIP IDENTITY
 Script Features
 ---------------
 
-Both the make-agent.sh and pack_install.sh scripts support reading the desired VIP IDENTITY from the AGENT_VIP_IDENTITY environment variable.
+The scripts/install-agent.py script supports specifying the desired VIP IDENTITY using the -i (or --vip-identity) <identity> option
 
 Security/Privacy
 ----------------

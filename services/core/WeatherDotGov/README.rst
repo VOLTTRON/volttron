@@ -1,13 +1,22 @@
-.. _Weather.gov Agent:
+.. _WeatherDotgov Agent:
 
 =================
-Weather.gov Agent
+WeatherDotgov Agent
 =================
 
 This agent provides the ability to query for current and forecast weather
 data from NOAA. The agent extends BaseWeatherAgent that provides caching of
 recently requested data, as well as mapping of weather point names from NOAA's
 naming scheme to the standardized CF-conventions scheme.
+
+Requirements
+------------
+The WeatherDotgov agent requires the Pint package. This package can be installed in an
+activated environment with:
+
+::
+
+    pip install pint
 
 Configuration
 -------------
@@ -50,7 +59,7 @@ point names (Service_Point_Name) will be used.
 
 Notes
 ~~~~~
-The Weather.Gov agent does not utilize an API key, as NOAA allows users to
+The WeatherDotGov agent does not utilize an API key, as NOAA allows users to
 gather weather data for free, and does not provide nor require keys.
 
 This implementation of the weather agent does not include historical weather

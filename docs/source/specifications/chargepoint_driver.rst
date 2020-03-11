@@ -71,6 +71,17 @@ a chargestation can have multiple ports, each with their own set of telemetry, t
 index column on attributes that are specific to a port.  This will allow deployments to use an indexing convention
 that has been followed with other drivers. (See Registry Configuration for more details)
 
+Requirements
+------------
+
+The chargepoint driver requires at least one additional python library and has its own ``requirements.txt``.
+Make sure to run
+
+::
+
+    pip install -r <chargepoint driver path>/requirements.txt
+
+before using this driver.
 
 Driver Configuration
 --------------------
