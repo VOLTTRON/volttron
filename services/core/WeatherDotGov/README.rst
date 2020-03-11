@@ -59,7 +59,7 @@ point names (Service_Point_Name) will be used.
 
 Notes
 ~~~~~
-The Weather.Gov agent does not utilize an API key, as NOAA allows users to
+The WeatherDotGov agent does not utilize an API key, as NOAA allows users to
 gather weather data for free, and does not provide nor require keys.
 
 This implementation of the weather agent does not include historical weather
