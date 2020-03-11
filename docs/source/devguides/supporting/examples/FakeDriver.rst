@@ -40,6 +40,8 @@ fake-master-driver.config::
 
 - Use the scripts/install-agent.py script to install the Master Driver agent:
 
+::
+
     python scripts/install-agent.py -s services/core/MasterDriverAgent -c config/fake-master-driver.config
 
 - If you have a :ref:`Listener Agent<Listener-Agent>` already installed, you should start seeing data being published to the bus.
