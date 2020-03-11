@@ -36,9 +36,6 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-
-
-
 import logging
 import sys
 import csv
@@ -46,12 +43,12 @@ from ast import literal_eval
 from io import StringIO
 import requests
 from requests.auth import HTTPBasicAuth
-from volttron.platform.messaging.utils import Topic
 
-from volttron.platform.vip.agent import Agent, Core
+from volttron.platform.vip.agent import Agent
 from volttron.platform.agent import utils
 from volttron.platform.messaging import headers as headers_mod
 from volttron.platform.scheduling import periodic
+from volttron.platform.messaging.utils import Topic
 
 utils.setup_logging()
 __author__ = 'Kyle Monson'
@@ -100,9 +97,7 @@ class ExternalData(Agent):
 
     def _validate_sources(self, old_sources, global_topic_prefix):
         # Simple validation of sources
-        topic = PUBLISH_TOPIC(base=global_topic_prefix,
-                              source=None,
-                              key=None)
+        topic = PUBLISH_TOPIC(base=global_topic_prefix, source=None, key=None)
         new_sources = []
         for source in old_sources:
             url = source.get("url")
@@ -133,9 +128,7 @@ class ExternalData(Agent):
 
         self.sources = self._validate_sources(config.get("sources", []), global_topic_prefix)
 
-        self.topic = PUBLISH_TOPIC(base=global_topic_prefix,
-                                  source=None,
-                                  key=None)
+        self.topic = PUBLISH_TOPIC(base=global_topic_prefix, source=None, key=None)
 
         self.default_user = config.get('default_user')
         self.default_password = config.get('default_password')
@@ -150,7 +143,6 @@ class ExternalData(Agent):
             self.periodic.cancel()
 
         self.periodic = self.core.schedule(periodic(interval), self._publish_data)
-
 
     def _publish_data(self):
         for source in self.sources:
@@ -168,7 +160,7 @@ class ExternalData(Agent):
             password = source.get("password", self.default_password)
             source_type = source.get("type", "raw")
 
-            kwargs = {"params":params}
+            kwargs = {"params": params}
 
             if user is not None:
                 kwargs["auth"] = HTTPBasicAuth(user, password)
@@ -189,7 +181,6 @@ class ExternalData(Agent):
                     self._handle_raw(headers, r, url, source_topic, source)
             except Exception as e:
                 _log.error("General failure during processing of source {url} {reason}".format(url=url, reason=str(e)))
-
 
     def _handle_json(self, headers, request, url, source_topic, source_params):
         keys = source_params.get("key", [])
@@ -223,7 +214,7 @@ class ExternalData(Agent):
                 try:
                     for key_name in keys:
                         key_value = key_value[key_name]
-                except (KeyError, IndexError, TypeError) as e:
+                except (KeyError, IndexError, TypeError):
                     missing_key = dropped_rows = True
 
                 if missing_key:
@@ -239,8 +230,7 @@ class ExternalData(Agent):
                     dropped_rows = True
                     continue
 
-                self.vip.pubsub.publish(peer='pubsub', topic=topic, message=row, headers=headers).get(
-                    timeout=10.0)
+                self.vip.pubsub.publish(peer='pubsub', topic=topic, message=row, headers=headers).get(timeout=10.0)
             if dropped_rows:
                 _log.error("At least one key missing from the data from source {url}".format(url=url))
 
@@ -276,6 +266,7 @@ class ExternalData(Agent):
             new_csv_data = []
             for row in csv_data:
                 for parse_column in parse_columns:
+                    value_string = ""
                     try:
                         value_string = row[parse_column]
                         value = literal_eval(value_string)
@@ -295,8 +286,7 @@ class ExternalData(Agent):
                 key = row.pop(key_column, "")
                 topic = self.topic(source=source_topic, key=key)
                 if topic:
-                    self.vip.pubsub.publish(peer='pubsub', topic=topic, message=row, headers=headers).get(
-                        timeout=10.0)
+                    self.vip.pubsub.publish(peer='pubsub', topic=topic, message=row, headers=headers).get(timeout=10.0)
                 else:
                     dropped_rows = True
             if dropped_rows:
@@ -309,21 +299,23 @@ class ExternalData(Agent):
                 data = csv_data[0]
             else:
                 data = csv_data
-            self.vip.pubsub.publish(peer='pubsub', topic=topic, message=data, headers=headers).get(
-                timeout=10.0)
+            self.vip.pubsub.publish(peer='pubsub', topic=topic, message=data, headers=headers).get(timeout=10.0)
 
     def _handle_raw(self, headers, request, url, source_topic, source_params):
         topic = self.topic(source=source_topic, key="")
         self.vip.pubsub.publish(peer='pubsub', topic=topic, message=request.content, headers=headers).get(timeout=10.0)
 
+
 def main(argv=sys.argv):
-    '''Main method called by the eggsecutable.'''
+    """
+    Main method called by the eggsecutable.
+    """
     try:
         utils.vip_main(external_data_agent)
     except Exception as e:
         _log.exception('unhandled exception')
 
 
-if __name__ =='__main__':
+if __name__ == '__main__':
     # Entry point for script
     sys.exit(main())
