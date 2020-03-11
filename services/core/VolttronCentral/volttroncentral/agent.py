@@ -296,9 +296,10 @@ class VolttronCentralAgent(Agent):
             self._handle_platform_disconnect(vip_id)
 
         not_known = connected_platforms - self._platforms.get_platform_vip_identities()
-
+        _log.debug("SG: List of Platforms: {}".format(self._platforms.get_platform_vip_identities()))
         for vip_id in not_known:
             self._handle_platform_connection(vip_id)
+        _log.debug("SG: List of Platforms is now: {}".format(self._platforms.get_platform_vip_identities()))
 
         next_platform_scan = VolttronCentralAgent._get_next_time_seconds()
 
