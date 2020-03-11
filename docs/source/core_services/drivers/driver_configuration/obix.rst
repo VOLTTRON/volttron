@@ -1,7 +1,7 @@
 .. _Obix-config:
 
 Obix Driver Configuration
----------------------------
+-------------------------
 VOLTTRON's uses Obix's restful interface to facilitate communication.
 
 This driver does *not* handle reading data from the history section of the interface.
@@ -37,7 +37,7 @@ A sample Obix configuration file can be found in the VOLTTRON repository in ``ex
 .. _Obix-Driver:
 
 Obix Registry Configuration File
-**********************************
+********************************
 
 The registry configuration file is a `CSV <https://en.wikipedia.org/wiki/Comma-separated_values>`_ file. Each row configures a point on the device.
 

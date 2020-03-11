@@ -5,6 +5,15 @@ Modbus Driver Configuration
 VOLTTRON's modbus driver supports the Modbus over TCP/IP protocol only. For Modbus RTU support,
 see VOLTTRON's modbus-tk driver.
 
+Requirements
+------------
+The Modbus driver requires the pymodbus package. This package can be installed in an
+activated environment with:
+
+::
+
+    pip install pymodbus
+
 driver_config
 *************
 

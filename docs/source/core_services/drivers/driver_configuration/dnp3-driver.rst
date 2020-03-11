@@ -12,6 +12,15 @@ be configured and running. All communication between the VOLTTRON Outstation and
 DNP3 Master happens through this DNP3Agent.
 For information about the DNP3Agent, please see the :ref:`DNP3 Platform Specification <DNP3>`.
 
+Requirements
+------------
+The DNP3 driver requires the PyDNP3 package. This package can be installed in an
+activated environment with:
+
+::
+
+    pip install pydnp3
+
 driver_config
 *************
 

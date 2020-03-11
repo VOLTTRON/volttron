@@ -23,6 +23,17 @@ specify tag names with values or tags without values for boolean tags(markers).
 Queries can combine multiple conditions with keyword AND and OR,
 and use the keyword NOT to negate a conditions.
 
+Requirements
+------------
+
+This historian requires a mongodb connector installed in your activated
+volttron environment to talk to mongodb. Please execute the following
+from an activated shell in order to install it.
+
+::
+
+    pip install pymongo
+
 Dependencies and Limitations
 ----------------------------
 
