@@ -142,7 +142,6 @@ class Auth(SubsystemBase):
 
                 # We need to discover which type of bus is at the other end.
                 info = DiscoveryInfo.request_discovery_info(address)
-                _log.debug("Response of discovery info: {}".format(info))
                 remote_identity = "{}.{}.{}".format(info.instance_name,
                                                     get_platform_instance_name(),
                                                     self._core().identity)

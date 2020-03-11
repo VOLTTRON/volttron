@@ -321,7 +321,6 @@ class BaseRouter(object):
         recipient, sender = frames[:2]
         # Expecting outgoing frames:
         #   [RECIPIENT, SENDER, PROTO, USER_ID, MSG_ID, SUBSYS, ...]
-        _log.info(f"BASE_ROUTER sending frames: {frames}")
         try:
             # Try sending the message to its recipient
             # This is a zmq socket so we need to serialize it before sending

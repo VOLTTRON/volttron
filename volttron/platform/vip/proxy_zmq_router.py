@@ -274,7 +274,6 @@ class ZMQProxyRouter(Agent):
                 sender = sender
                 recipient = recipient
                 subsystem = subsystem
-                _log.info(f"PROXY_ROUTER sending frames: {frames}")
 
                 if subsystem == 'hello':
                     self.vip.peerlist.add_peer(sender, 'zmq')
