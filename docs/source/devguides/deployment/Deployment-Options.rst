@@ -34,7 +34,6 @@ A simple, more long term solution, is to run volttron in the background and diso
     directly to stdout and stderr. This will cause problems if those file descriptors
     are not redirected to ``/dev/null``.
 
-
 ::
 
     $volttron -vv -l volttron.log > /dev/null 2>&1&
@@ -86,7 +85,6 @@ for setting up VOLTTRON as a service. Note that as this will redirect all the ou
 be going to stdout - to the syslog.  This can be accessed using journalctl. For systems that run 
 all the time or have a high level of debugging turned on, we recommend checking the system's 
 logrotate settings.
-
 
 ::
 
