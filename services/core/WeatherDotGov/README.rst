@@ -1,7 +1,7 @@
-.. _Weather.gov Agent:
+.. _WeatherDotgov Agent:
 
 =================
-Weather.gov Agent
+WeatherDotgov Agent
 =================
 
 This agent provides the ability to query for current and forecast weather
@@ -11,7 +11,7 @@ naming scheme to the standardized CF-conventions scheme.
 
 Requirements
 ------------
-The Weather.Gov agent requires the Pint package. This package can be installed in an
+The WeatherDotgov agent requires the Pint package. This package can be installed in an
 activated environment with:
 
 ::
