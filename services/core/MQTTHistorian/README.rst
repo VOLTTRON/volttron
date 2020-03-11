@@ -13,8 +13,12 @@ Dependencies
 The Paho MQTT library from Eclipse is needed for the agent and can
 be installed with:
 
+::
+
     pip install paho-mqtt
 
 The Mosquitto MQTT broker may be useful for testing and can be installed with
+
+::
 
     apt-get install mosquitto

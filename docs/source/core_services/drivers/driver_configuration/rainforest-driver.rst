@@ -13,6 +13,10 @@ Rainforest Automation library which can be found
    The Emu Serial Api library has its own dependencies which should be installed
    with pip while the VOLTTRON environment is activated.
 
+    ::
+
+        pip install -r requirements.txt
+
 The Emu2 device interface is configured as follows. Set `emu_library_path`
 to the location of the cloned library. `tty` should be set to the name of the
 Emu2's character special file. One way to find this is to run `dmesg` before

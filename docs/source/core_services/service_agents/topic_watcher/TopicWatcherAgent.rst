@@ -8,6 +8,14 @@ they are not published within some time limit. In addition to "standard" topics
 the Topic Watcher Agent supports inspecting device `all` topics. This can be useful when
 a device contains volatile points that may not be published.
 
+Requirements
+------------
+The Topic Watcher agent requires the Sqlite 3 package. This package can
+be installed in an activated environment with:
+
+::
+
+    pip install sqlite3
 
 Configuration
 -------------
