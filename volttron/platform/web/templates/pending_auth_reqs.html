@@ -110,11 +110,6 @@
                 $("#status").hide();
             }
 
-            if (localStorage.zmq_approve) {
-                localStorage.removeItem("zmq_approve");
-                location.reload(true);
-                }
-
             $('a.approve').each((i, obj)=>{
                 if (obj.getAttribute('data-status') === 'APPROVED'){
                     obj.setAttribute('hidden', true);
@@ -136,7 +131,7 @@
                     url: url,
                     success: (data) => {
                         localStorage.status = data['status']+ " for "+common_name;
-                        location.reload(true);
+                        location.reload();
                     }
                 });
 
@@ -183,8 +178,8 @@
                 $.get({
                     url: url,
                     success: (data) => {
-                        localStorage.zmq_approve = data['status']+ " for "+user_id;
-                        location.reload(true);
+                        localStorage.status = data['status']+ " for "+user_id;
+                        location.reload();
                     }
                 });
                 return false;
@@ -230,8 +225,8 @@
                 $.get({
                     url: url,
                     success: (data) => {
-                        localStorage.zmq_approve = data['status']+ " for "+user_id;
-                        location.reload(true);
+                        localStorage.status = data['status']+ " for "+user_id;
+                        location.reload();
                     }
                 });
 

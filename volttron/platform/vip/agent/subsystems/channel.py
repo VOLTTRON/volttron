@@ -86,7 +86,7 @@ class Channel(SubsystemBase):
                     # XXX: Handle channel not found
                     continue
                 message[0] = name
-                vip_sock.send_vip(peer, b'channel', message, copy=False)
+                vip_sock.send_vip(peer, 'channel', message, copy=False)
         core.onstart.connect(start, self)
 
         def stop(sender, **kwargs):

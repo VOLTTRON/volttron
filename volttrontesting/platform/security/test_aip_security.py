@@ -26,6 +26,7 @@ pytestmark = pytest.mark.skipif(os.environ.get("CI") is not None,
                                 reason="Can't run on travis as this test needs root to run "
                                        "setup script before running test case")
 
+# Run as root or sudo scripts/secure_user_permissions.sh for both the below instance names before running these tests
 INSTANCE_NAME1 = "volttron1"
 INSTANCE_NAME2 = "volttron2"
 

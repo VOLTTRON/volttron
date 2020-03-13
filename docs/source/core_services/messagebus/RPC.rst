@@ -90,7 +90,7 @@ calls. Returns *None* if all requests were notifications.
     RPC.notify(peer, method, *args, **kwargs)
 
 Send a one-way notification message to *peer* by calling *method*
-without without returning a result.
+without returning a result.
 
 Here are some examples:
 

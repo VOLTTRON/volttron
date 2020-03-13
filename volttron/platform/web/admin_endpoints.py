@@ -268,7 +268,7 @@ class AdminEndpoints(object):
     def __approve_credential_api(self, user_id):
         try:
             _log.debug("Creating credential and permissions for user: {}".format(user_id))
-            self._rpc_caller.call(AUTH, 'approve_authorization_failure', user_id)
+            self._rpc_caller.call(AUTH, 'approve_authorization_failure', user_id).wait()
             data = dict(status='APPROVED',
                         message="The administrator has approved the request")
         except ValueError as e:
