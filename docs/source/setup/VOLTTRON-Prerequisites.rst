@@ -23,7 +23,7 @@ command:
 
 On Ubuntu-based systems, available packages allow you to specify the python3 version, 3.6 or greater is required (Debian itself does not provide those packages).
 
-On **Raspbian**, you must also install libffi-dev, you can do this with:
+On arm-based systems (including, but not limited to, Raspbian), you must also install libffi-dev, you can do this with:
 
 .. code-block:: bash
 
