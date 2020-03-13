@@ -8,6 +8,7 @@
     </style>
 {% endblock %}
 {% block content %}
+    <div style="float: left;">
     <h1>Certificate Requests</h1>
     {% if not csrs %}
         <div>No Certificate Requests</div>
@@ -37,6 +38,7 @@
             </li>
         {% endfor %}
         </ul>
+    </div>
     {% endif %}
     <div style="float: left;">
     <h1>ZMQ Keys Pending Authorization</h1>
@@ -69,6 +71,29 @@
         {% endfor %}
         </ul>
     {% endif %}
+        <div id="status_zmq_approved"></div>
+        <ul>
+        {% for auth in approved_auths %}
+            <li>
+                <div class="csr-row" data-common_name="{{auth.user_id}}">
+                    <a class="deny_approved"
+                       data-common_name="{{auth.user_id}}"
+                       data-status="APPROVED" href="#">Deny</a>
+                    <a class="delete_approved"
+                       data-common_name="{{auth.user_id}}"
+                       data-status="APPROVED" href="#">Delete</a>
+                </div>
+                <div style="float: left;">
+                    <!-- {{c}}<br /> -->
+                    Status: APPROVED<br />
+                    Common Name: {{auth.user_id}}<br/>
+                    Remote IP: {{auth.address}}<br/>
+                </div>
+                <div style="float:none;"></div>
+            </li>
+        {% endfor %}
+        </ul>
+
         <div id="status_zmq_denied"></div>
         <ul>
         {% for auth in denied_auths %}
@@ -202,6 +227,38 @@
             });
 
             $('a.delete_credential').click(function (e){
+                e.preventDefault();
+                var element = $(this);
+                var user_id = element.data("common_name");
+                var url = "/admin/api/delete_credential/"+ user_id;
+                $.get({
+                    url: url,
+                    success: (data) => {
+                        localStorage.status = data['status']+ " for "+user_id;
+                        location.reload();
+                    }
+                });
+
+                return false;
+            });
+
+            $('a.deny_approved').click(function (e){
+                e.preventDefault();
+                var element = $(this);
+                var user_id = element.data("common_name");
+                var url = "/admin/api/deny_credential/"+ user_id;
+                $.get({
+                    url: url,
+                    success: (data) => {
+                        localStorage.status = data['status']+ " for "+user_id;
+                        location.reload();
+                    }
+                });
+
+                return false;
+            });
+
+            $('a.delete_approved').click(function (e){
                 e.preventDefault();
                 var element = $(this);
                 var user_id = element.data("common_name");

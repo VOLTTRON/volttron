@@ -107,6 +107,7 @@ class AuthService(Agent):
         self._setup_mode = setup_mode
         self._auth_failures = []
         self._auth_denied = []
+        self._auth_approved = []
 
         def topics():
             return defaultdict(set)
@@ -397,6 +398,7 @@ class AuthService(Agent):
                         pending['credentials'],
                         pending['user_id']
                         )
+                    self._auth_approved.append(pending)
                     del self._auth_failures[self._auth_failures.index(pending)]
 
         if len(self._auth_denied) > 0:
@@ -409,6 +411,7 @@ class AuthService(Agent):
                         pending['credentials'],
                         pending['user_id']
                         )
+                    self._auth_approved.append(pending)
                     del self._auth_denied[self._auth_denied.index(pending)]
 
     @RPC.export
@@ -427,6 +430,14 @@ class AuthService(Agent):
                     self._auth_denied.append(pending)
                     del self._auth_failures[self._auth_failures.index(pending)]
 
+        if len(self._auth_approved) > 0:
+            for pending in self._auth_approved:
+                if user_id == pending['user_id']:
+                    self._remove_auth_entry(pending['credentials'])
+                    self._auth_denied.append(pending)
+                    del self._auth_approved[self._auth_approved.index(pending)]
+
+
     @RPC.export
     @RPC.allow(capabilities="allow_auth_modifications")
     def delete_authorization_failure(self, user_id):
@@ -441,6 +452,13 @@ class AuthService(Agent):
             for pending in self._auth_failures:
                 if user_id == pending['user_id']:
                     del self._auth_failures[self._auth_failures.index(pending)]
+
+        if len(self._auth_approved) > 0:
+            for pending in self._auth_approved:
+                if user_id == pending['user_id']:
+                    self._remove_auth_entry(pending['credentials'])
+                    del self._auth_approved[self._auth_approved.index(pending)]
+
         if len(self._auth_denied) > 0:
             for pending in self._auth_denied:
                 if user_id == pending['user_id']:
@@ -449,6 +467,10 @@ class AuthService(Agent):
     @RPC.export
     def get_authorization_failures(self):
         return list(self._auth_failures)
+
+    @RPC.export
+    def get_authorization_approved(self):
+        return list(self._auth_approved)
 
     @RPC.export
     def get_authorization_denied(self):
@@ -516,6 +538,12 @@ class AuthService(Agent):
 
         try:
             self.auth_file.add(new_entry, overwrite=False)
+        except AuthException as err:
+            _log.error('ERROR: %s\n' % str(err))
+
+    def _remove_auth_entry(self, credential):
+        try:
+            self.auth_file.remove_by_credentials(credential)
         except AuthException as err:
             _log.error('ERROR: %s\n' % str(err))
 

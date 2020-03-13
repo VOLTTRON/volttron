@@ -82,6 +82,7 @@ class AdminEndpoints(object):
 
         self._pending_auths = None
         self._denied_auths = None
+        self._approved_auths = None
 
         if ssl_public_key is None:
             self._insecure_mode = True
@@ -184,8 +185,11 @@ class AdminEndpoints(object):
             elif page == 'pending_auth_reqs.html':
                 self._pending_auths = self._rpc_caller.call(AUTH, 'get_authorization_failures').get()
                 self._denied_auths = self._rpc_caller.call(AUTH, 'get_authorization_denied').get()
+                self._approved_auths = self._rpc_caller.call(AUTH, 'get_authorization_approved').get()
                 html = template.render(csrs=self._certs.get_pending_csr_requests(),
-                                       auths=self._pending_auths, denied_auths=self._denied_auths)
+                                       auths=self._pending_auths,
+                                       denied_auths=self._denied_auths,
+                                       approved_auths=self._approved_auths)
             else:
                 # A template with no params.
                 html = template.render()
