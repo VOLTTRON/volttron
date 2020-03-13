@@ -220,7 +220,7 @@ class BACnetApplication(BIPSimpleApplication, RecurringTask):
     def _get_value_from_read_property_request(self, apdu, working_iocb):
         # find the datatype
 
-        _log.debug("WIGGEDYWACKYO")
+        #_log.debug("WIGGEDYWACKYO")
 
         datatype = get_datatype(apdu.objectIdentifier[0], apdu.propertyIdentifier)
         if not datatype:
