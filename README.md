@@ -37,7 +37,7 @@ On Debian-based systems (Ubuntu bionic, debian buster, raspbian buster), these c
 sudo apt-get update
 sudo apt-get install build-essential libffi-dev python3-dev python3-venv python3-venv openssl libssl-dev libevent-dev git
  ```
-(Note: `libffi-dev` seems to only be required on raspbian.)
+(Note: `libffi-dev` seems to only be required on arm-based systems.)
 
  On Redhat or CENTOS systems, these can all be installed with the following command:
 ```sh
