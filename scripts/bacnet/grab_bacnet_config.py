@@ -47,10 +47,10 @@ from bacpypes.service.device import LocalDeviceObject
 from bacpypes.consolelogging import ConfigArgumentParser
 from bacpypes.pdu import Address, GlobalBroadcast
 from bacpypes.core import run, stop
-from bacpypes.apdu import WhoIsRequest, IAmRequest, ReadPropertyRequest, ReadPropertyACK, UnconfirmedRequestSequence
+from bacpypes.apdu import WhoIsRequest, IAmRequest, ReadPropertyRequest, ReadPropertyACK
 from bacpypes.errors import DecodingError
 from bacpypes.task import TaskManager
-from bacpypes.object import get_datatype, get_object_class, DeviceObject
+from bacpypes.object import get_datatype
 from bacpypes.primitivedata import Enumerated, Unsigned, Boolean, Integer, Real, Double
 from bacpypes.constructeddata import Array
 from volttron.platform import jsonapi
@@ -59,10 +59,11 @@ from volttron.platform import jsonapi
 Simple utility to scrape device registers and write them to a configuration file.
 """
 
-#Make sure the TaskManager singleton exists...
+# Make sure the TaskManager singleton exists...
 task_manager = TaskManager()
 _debug = 0
 _log = ModuleLogger(globals())
+
 
 @bacpypes_debugging
 class SynchronousApplication(BIPSimpleApplication):
@@ -70,23 +71,25 @@ class SynchronousApplication(BIPSimpleApplication):
         SynchronousApplication._debug("__init__ %r", args)
         BIPSimpleApplication.__init__(self, *args)
         self.expect_confirmation = True
+        self.expected_device_id = ""
+        self.apdu = None
 
     def confirmation(self, apdu):
         self.apdu = apdu
         stop()
         
     def indication(self, apdu):
-        #We only care about indications if we sent out a who is request.
+        # We only care about indications if we sent out a who is request.
         if not isinstance(self._request, WhoIsRequest):
             _log.debug("Ignoring indication as we don't have an outstanding WhoIs")
             return
         
-        #We only care about IAmRequest
+        # We only care about IAmRequest
         if not isinstance(apdu, IAmRequest):
             _log.debug("Ignoring indication as apdu is not IAm")
             return
         
-        #Ignore IAmRequests that don't have the device id we care about.
+        # Ignore IAmRequests that don't have the device id we care about.
         if self.expected_device_id is not None:            
             device_type, device_instance = apdu.iAmDeviceIdentifier
             
@@ -94,7 +97,8 @@ class SynchronousApplication(BIPSimpleApplication):
                 raise DecodingError("invalid object type")
             
             if device_instance != self.expected_device_id:
-                _log.debug("Ignoring IAm. Expected ID: {} Received: {}".format(self.expected_device_id, device_instance))
+                _log.debug("Ignoring IAm. Expected ID: {} Received: {}".format(
+                    self.expected_device_id, device_instance))
                 return
             
         self.apdu = apdu
@@ -107,7 +111,8 @@ class SynchronousApplication(BIPSimpleApplication):
         self.request(request)
         run()
         return self.apdu
-    
+
+
 def get_iam(app, device_id, target_address = None):
     request = WhoIsRequest()
     
@@ -120,8 +125,9 @@ def get_iam(app, device_id, target_address = None):
         request.pduDestination = GlobalBroadcast()
         
     result = app.make_request(request, expected_device_id=device_id)
-    
+
     return result
+
 
 def read_prop(app, address, obj_type, obj_inst, prop_id, index=None):
     request = ReadPropertyRequest(
@@ -147,45 +153,11 @@ def read_prop(app, address, obj_type, obj_inst, prop_id, index=None):
 
     return value
 
-
-# def process_device_object_reference(app, address, obj_type, index, property_name, max_range_report, config_writer):
-#     objectCount = _read_prop(app, address, obj_type, index, property_name, index=0)
-#
-#     for object_index in xrange(1,objectCount+1):
-#         _log.debug('property_name index = ' + repr(object_index))
-#
-#         object_reference = _read_prop(app,
-#                                 address,
-#                                 obj_type,
-#                                 index,
-#                                 property_name,
-#                                 index=object_index)
-#
-#         #Skip references to objects on other devices.
-#         if object_reference.deviceIdentifier is not None:
-#             continue
-#
-#         sub_obj_type, sub_obj_index = object_reference.objectIdentifier
-#
-#         process_object(app, address, sub_obj_type, sub_obj_index, max_range_report, config_writer)
-
 def process_object(app, address, obj_type, index, max_range_report, config_writer):
     _log.debug('obj_type = ' + repr(obj_type))
     _log.debug('bacnet_index = ' + repr(index))
     
     writable = 'FALSE'
-    
-    # subondinate_list_property = get_datatype(obj_type, 'subordinateList')
-    # if subondinate_list_property is not None:
-    #     _log.debug('Processing StructuredViewObject')
-    #     process_device_object_reference(app, address, obj_type, index, 'subordinateList', max_range_report, config_writer)
-    #     return
-    #
-    # subondinate_list_property = get_datatype(obj_type, 'zoneMembers')
-    # if subondinate_list_property is not None:
-    #     _log.debug('Processing LifeSafetyZoneObject')
-    #     process_device_object_reference(app, address, obj_type, index, 'zoneMembers', max_range_report, config_writer)
-    #     return
     
     present_value_type = get_datatype(obj_type, 'presentValue')
     if present_value_type is None:
@@ -198,7 +170,7 @@ def process_object(app, address, obj_type, index, max_range_report, config_write
                                            Integer,
                                            Real,
                                            Double)):
-        _log.debug('presenValue is an unsupported type: ' + repr(present_value_type))
+        _log.debug('presentValue is an unsupported type: ' + repr(present_value_type))
         return
 
     object_name = "NO NAME! PLEASE NAME THIS."
@@ -207,25 +179,22 @@ def process_object(app, address, obj_type, index, max_range_report, config_write
         _log.debug('object name = ' + object_name)
     except TypeError:
         pass
-    except:
+    except Exception:
         _log.debug(traceback.format_exc())
-        
-#         _log.debug('  object type = ' + obj_type)
-#         _log.debug('  object index = ' + str(index))
 
     object_notes = ''
     try:
         object_notes = read_prop(app, address, obj_type, index, "description")
     except TypeError:
         pass
-    except:
+    except Exception:
         _log.debug(traceback.format_exc())
         
     object_units_details = ''
     
     if issubclass(present_value_type, Enumerated):
         object_units = 'Enum'
-        values=list(present_value_type.enumerations.values())
+        values = list(present_value_type.enumerations.values())
         min_value = min(values)
         max_value = max(values)
         
@@ -239,24 +208,24 @@ def process_object(app, address, obj_type, index, max_range_report, config_write
         if not obj_type.endswith('Input'):
             try:
                 default_value = read_prop(app, address, obj_type, index, "relinquishDefault")
-                object_units_details += ' (default {default})'.format(default=present_value_type.enumerations[default_value])
-                #writable = 'TRUE'
+                object_units_details += ' (default {default})'.format(
+                    default=present_value_type.enumerations[default_value])
+                # writable = 'TRUE'
             except TypeError:
                 pass
             except ValueError:
                 pass
-            except:
+            except Exception:
                 _log.debug(traceback.format_exc())
     
         if not object_notes:
-            enum_strings=[]
+            enum_strings = []
             for name in Enumerated.keylist(present_value_type(0)):
                 value = present_value_type.enumerations[name]
-                enum_strings.append(str(value)+'='+name)
+                enum_strings.append(str(value) + '=' + name)
                 
             object_notes = present_value_type.__name__ + ': ' + ', '.join(enum_strings)
-        
-        
+
     elif issubclass(present_value_type, Boolean):
         object_units = 'Boolean'
         
@@ -268,11 +237,11 @@ def process_object(app, address, obj_type, index, max_range_report, config_write
                 object_units_details = 'State count: {}'.format(state_count)
             except TypeError:
                 pass
-            except:
+            except Exception:
                 _log.debug(traceback.format_exc())
             
             try:
-                enum_strings=[]
+                enum_strings = []
                 state_list = read_prop(app, address, obj_type, index, "stateText")
                 for name in state_list[1:]:
                     enum_strings.append(name)
@@ -287,12 +256,12 @@ def process_object(app, address, obj_type, index, max_range_report, config_write
                     default_value = read_prop(app, address, obj_type, index, "relinquishDefault")
                     object_units_details += ' (default {default})'.format(default=default_value)
                     object_units_details = object_units_details.strip()
-                    #writable = 'TRUE'
+                    # writable = 'TRUE'
                 except TypeError:
                     pass
                 except ValueError:
                     pass
-                except:
+                except Exception:
                     _log.debug(traceback.format_exc())
                 
         elif obj_type == 'loop':
@@ -305,7 +274,7 @@ def process_object(app, address, obj_type, index, max_range_report, config_write
             object_units = read_prop(app, address, obj_type, index, "units")
         except TypeError:
             pass
-        except:
+        except Exception:
             _log.debug(traceback.format_exc())
             
         if isinstance(object_units, int):
@@ -336,10 +305,10 @@ def process_object(app, address, obj_type, index, max_range_report, config_write
                         object_units_details = 'Max: {max:.2f}'.format(max=max_value)
                     else:
                         object_units_details = 'No limits.'
-                    #object_units_details = '{min} to {max}'.format(min=min_value, max=max_value)            
+                    # object_units_details = '{min} to {max}'.format(min=min_value, max=max_value)
                 except TypeError:
                     pass
-                except:
+                except Exception:
                     _log.debug(traceback.format_exc())
             
             if obj_type != 'analogInput':
@@ -347,52 +316,55 @@ def process_object(app, address, obj_type, index, max_range_report, config_write
                     default_value = read_prop(app, address, obj_type, index, "relinquishDefault")
                     object_units_details += ' (default {default})'.format(default=default_value)
                     object_units_details = object_units_details.strip()
-                    #writable = 'TRUE'
+                    # writable = 'TRUE'
                 except TypeError:
                     pass
                 except ValueError:
                     pass
-                except:
+                except Exception:
                     _log.debug(traceback.format_exc())
    
     _log.debug('  object units = ' + str(object_units))
     _log.debug('  object units details = ' + str(object_units_details))
     _log.debug('  object notes = ' + object_notes)    
     
-    results = {}     
-    results['Reference Point Name'] = results['Volttron Point Name'] = object_name
-    results['Units'] = object_units
-    results['Unit Details'] = object_units_details
-    results['BACnet Object Type'] = obj_type
-    results['Property'] = 'presentValue'
-    results['Writable'] = writable
-    results['Index'] = index
-    results['Notes'] = object_notes
-    
+    results = {
+        'Reference Point Name': object_name,
+        'Volttron Point Name': object_name,
+        'Units': object_units,
+        'Unit Details': object_units_details,
+        'BACnet Object Type': obj_type,
+        'Property': 'presentValue',
+        'Writable': writable,
+        'Index': index,
+        'Notes': object_notes
+    }
+
     config_writer.writerow(results)
+
 
 def main():
     # parse the command line arguments
     arg_parser = ConfigArgumentParser(description=__doc__)
         
     arg_parser.add_argument("device_id", type=int,
-                            help="Device ID of the target device" )
+                            help="Device ID of the target device")
     
     arg_parser.add_argument("--address",
-                            help="Address of target device, may be needed to help route initial request to device." )
+                            help="Address of target device, may be needed to help route initial request to device.")
     
-    arg_parser.add_argument("--registry-out-file", type=argparse.FileType('wb'),
+    arg_parser.add_argument("--registry-out-file", type=argparse.FileType('w'),
                             help="Output registry to CSV file",
-                            default=sys.stdout )
+                            default=sys.stdout)
 
-    arg_parser.add_argument("--driver-out-file", type=argparse.FileType('wb'),
+    arg_parser.add_argument("--driver-out-file", type=argparse.FileType('w'),
                             help="Output driver configuration to JSON file.",
                             default=sys.stdout)
     
     arg_parser.add_argument("--max-range-report", nargs='?', type=float,
-                            help='Affects how very large numbers are reported in the "Unit Details" column of the output. ' 
-                            'Does not affect driver behavior.',
-                            default=1.0e+20 )
+                            help='Affects how very large numbers are reported in the "Unit Details" column of the '
+                                 'output. Does not affect driver behavior.',
+                            default=1.0e+20)
     
     args = arg_parser.parse_args()
 
@@ -414,19 +386,6 @@ def main():
     _log.debug("starting build")
     
     result = get_iam(this_application, args.device_id, args.address)
-    
-#     request = WhoIsRequest()
-#     request.pduDestination = target_address
-#     result = this_application.make_request(request, expect_confirmation = False)
-    
-#     if not isinstance(result, IAmRequest):
-#         result.debug_contents()
-#         raise TypeError("Error making WhoIs request, try running again.")
-        
-    
-#     device_type, device_instance = result.iAmDeviceIdentifier
-#     if device_type != 'device':
-#         raise DecodingError("invalid object type")
 
     target_address = result.pduSource
     device_id = result.iAmDeviceIdentifier[1]
@@ -440,10 +399,10 @@ def main():
     config_file_name = basename(args.registry_out_file.name)
 
     config = {
-        "driver_config":{"device_address":str(target_address),
-                         "device_id": device_id},
-        "driver_type":"bacnet",
-        "registry_config":"config://registry_configs/{}".format(config_file_name)
+        "driver_config": {"device_address": str(target_address),
+                          "device_id": device_id},
+        "driver_type": "bacnet",
+        "registry_config": "config://registry_configs/{}".format(config_file_name)
     }
 
     jsonapi.dump(config, args.driver_out_file, indent=4)
@@ -460,8 +419,6 @@ def main():
     except TypeError:
         _log.debug('device missing description')
     
-    
-    
     config_writer = DictWriter(args.registry_out_file,
                                ('Reference Point Name',
                                 'Volttron Point Name',
@@ -475,37 +432,30 @@ def main():
                                 'Notes'))
     
     config_writer.writeheader()
-    
-    
+
     try:
-        objectCount = read_prop(this_application, target_address, "device", device_id, "objectList", index=0)
+        object_count = read_prop(this_application, target_address, "device", device_id, "objectList", index=0)
         list_property = "objectList"
     except TypeError:
-        objectCount = read_prop(this_application, target_address, "device", device_id, "structuredObjectList", index=0)
+        object_count = read_prop(this_application, target_address, "device", device_id, "structuredObjectList", index=0)
         list_property = "structuredObjectList"
     
-    _log.debug('objectCount = ' + str(objectCount))
+    _log.debug('objectCount = ' + str(object_count))
     
-    for object_index in range(1,objectCount+1):
+    for object_index in range(1, object_count + 1):
         _log.debug('object_device_index = ' + repr(object_index))
         
-        bac_object = read_prop(this_application, 
-                                target_address, 
-                                "device", 
-                                device_id, 
-                                list_property,
-                                index=object_index)
+        bac_object = read_prop(this_application, target_address, "device", device_id, list_property, index=object_index)
         
         obj_type, index = bac_object
 
         try:
             process_object(this_application, target_address, obj_type, index, args.max_range_report, config_writer)
-        except:
+        except Exception:
             _log.debug("Unexpected error processing object: {} {}".format(obj_type, index))
             _log.debug(traceback.format_exc())
-        
-        
-        
+
+
 try:
     main()
 except Exception as e:
