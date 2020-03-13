@@ -40,15 +40,16 @@ import pytest
 import os
 import copy
 import gevent
-from mock import MagicMock
 import sqlite3
+import json
 import logging
-from volttron.platform.agent import utils
 from datetime import datetime, timedelta
+from mock import MagicMock
+
 from volttron.platform.agent.utils import get_aware_utc_now, format_timestamp
 from volttron.platform.messaging.health import STATUS_GOOD
-
 from volttron.platform import get_services_core
+from volttron.platform.agent import utils
 
 __version__ = "0.1.0"
 
@@ -725,3 +726,23 @@ def test_polling_locations_valid_config(volttron_instance, query_agent, config,
         if agent_uuid:
             volttron_instance.stop_agent(agent_uuid)
             volttron_instance.remove_agent(agent_uuid)
+
+
+@pytest.mark.darksky
+def test_default_config(volttron_instance):
+    """
+    Test the default configuration file included with the agent
+    """
+    publish_agent = volttron_instance.build_agent(identity="test_agent")
+    gevent.sleep(1)
+
+    config_path = os.path.join(get_services_core("Darksky"), "config")
+    with open(config_path, "r") as config_file:
+        config_json = json.load(config_file)
+    assert isinstance(config_json, dict)
+    volttron_instance.install_agent(
+        agent_dir=get_services_core("Darksky"),
+        config_file=config_json,
+        start=True,
+        vip_identity="health_test")
+    assert publish_agent.vip.rpc.call("health_test", "health.get_status").get(timeout=10).get('status') == STATUS_GOOD
