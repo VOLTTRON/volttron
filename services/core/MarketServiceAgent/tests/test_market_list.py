@@ -127,4 +127,3 @@ def test_market_unformed_market_list():
     assert market_list.market_count() == 2
     unformed_markets = market_list.unformed_market_list()
     assert len(unformed_markets) > 0
-

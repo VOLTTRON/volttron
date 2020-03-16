@@ -41,16 +41,16 @@ import random
 import pytest
 import gevent
 import pytz
+import os
+import json
 from pytest import approx
 from datetime import datetime, timedelta
 from dateutil import parser
 
 from volttron.platform import get_services_core, jsonapi
-from volttron.platform.agent.utils import format_timestamp, \
-                                          parse_timestamp_string, \
-                                          get_aware_utc_now
+from volttron.platform.agent.utils import format_timestamp, parse_timestamp_string, get_aware_utc_now
 from volttron.platform.messaging import headers as headers_mod
-
+from volttron.platform.messaging.health import STATUS_GOOD
 
 try:
     from influxdb import InfluxDBClient
@@ -61,7 +61,6 @@ except ImportError:
 if HAS_INFLUXDB:
     from volttron.platform.dbutils import influxdbutils
     from fixtures import *
-
 
 
 def clean_database(client, clean_updated_database=False):
@@ -1297,13 +1296,11 @@ def test_update_topic_case(volttron_instance, influxdb_client):
 
         publish_some_fake_data(publisher, 3)
 
-        old_topic_list = publisher.vip.rpc.call('influxdb.historian',
-                                                'get_topic_list').get(timeout=5)
+        old_topic_list = publisher.vip.rpc.call('influxdb.historian', 'get_topic_list').get(timeout=5)
 
         publish_data_with_updated_topic_case(publisher, 3)
 
-        new_topic_list = publisher.vip.rpc.call('influxdb.historian',
-                                                'get_topic_list').get(timeout=5)
+        new_topic_list = publisher.vip.rpc.call('influxdb.historian', 'get_topic_list').get(timeout=5)
 
         assert old_topic_list != new_topic_list
 
@@ -1324,7 +1321,6 @@ def test_update_config_store(volttron_instance, influxdb_client):
     """
     Test the case when user updates config store while an
     InfluxdbHistorian Agent is running.
-
     In this test, database name is updated and data should be
     stored in the updated one.
     """
@@ -1350,7 +1346,7 @@ def test_update_config_store(volttron_instance, influxdb_client):
 
         # Update config store
         publisher.vip.rpc.call('config.store', 'manage_store',
-                               'influxdb.historian','config',
+                               'influxdb.historian', 'config',
                                jsonapi.dumps(updated_influxdb_config), config_type="json").get(timeout=10)
         publish_some_fake_data(publisher, 5)
 
@@ -1377,3 +1373,23 @@ def test_update_config_store(volttron_instance, influxdb_client):
         volttron_instance.remove_agent(agent_uuid)
         clean_database(influxdb_client, clean_updated_database=True)
 
+
+@pytest.mark.historian
+@pytest.mark.skipif(not HAS_INFLUXDB, reason='No influxdb library. Please run \'pip install influxdb\'')
+def test_default_config(volttron_instance):
+    """
+    Test the default configuration file included with the agent
+    """
+    publish_agent = volttron_instance.build_agent(identity="test_agent")
+    gevent.sleep(1)
+
+    config_path = os.path.join(get_services_core("InfluxdbHistorian"), "config")
+    with open(config_path, "r") as config_file:
+        config_json = json.load(config_file)
+    assert isinstance(config_json, dict)
+    volttron_instance.install_agent(
+        agent_dir=get_services_core("InfluxdbHistorian"),
+        config_file=config_json,
+        start=True,
+        vip_identity="health_test")
+    assert publish_agent.vip.rpc.call("health_test", "health.get_status").get(timeout=10).get('status') == STATUS_GOOD

@@ -39,6 +39,7 @@
 import random
 import math
 import os
+import json
 import gevent
 import pytest
 from pytest import approx
@@ -49,6 +50,7 @@ from volttron.platform import get_services_core
 from volttron.platform.agent import utils
 from volttron.platform.messaging import headers as headers_mod
 from volttron.platform.vip.agent import Agent
+from volttron.platform.messaging.health import STATUS_GOOD
 from volttron.platform.keystore import KnownHostsStore
 
 # import types
@@ -617,6 +619,7 @@ def test_nan_value(publish_agent, query_agent):
 
 
 @pytest.mark.historian
+@pytest.mark.forwarder
 def test_reconnect_forwarder(volttron_instances):
     allforwardedmessage = []
     publishedmessages = []
@@ -684,3 +687,26 @@ def test_reconnect_forwarder(volttron_instances):
 
     for a, p in zip(allforwardedmessage, publishedmessages):
         assert a[0] == approx(p[0])
+
+
+@pytest.mark.historian
+@pytest.mark.forwarder
+def test_default_config(volttron_instances):
+    """
+    Test the default configuration file included with the agent
+    """
+    global volttron_instance1
+
+    publish_agent = volttron_instance1.build_agent(identity="test_agent")
+    gevent.sleep(1)
+
+    config_path = os.path.join(get_services_core("ForwardHistorian"), "config")
+    with open(config_path, "r") as config_file:
+        config_json = json.load(config_file)
+    assert isinstance(config_json, dict)
+    volttron_instance1.install_agent(
+        agent_dir=get_services_core("ForwardHistorian"),
+        config_file=config_json,
+        start=True,
+        vip_identity="health_test")
+    assert publish_agent.vip.rpc.call("health_test", "health.get_status").get(timeout=10).get('status') == STATUS_GOOD
