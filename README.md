@@ -73,7 +73,7 @@ For RabbitMQ based VOLTTRON, some of the RabbitMQ specific software packages hav
 ###### On Debian based systems and CentOS 6/7
 
 If you are running an Debian or CentOS system, you can install the RabbitMQ dependencies by running the rabbit 
-  dependencies script, passing in the OS name and approriate distribution as a parameter. The following are supported
+  dependencies script, passing in the OS name and appropriate distribution as parameters. The following are supported:
 
 -   `debian bionic` (for Ubuntu 18.04)
 
@@ -83,7 +83,7 @@ If you are running an Debian or CentOS system, you can install the RabbitMQ depe
 
 -   `debian stretch` (for Debian Stretch)
 
-Example command
+Example command:
 
 ```sh
 ./scripts/rabbit_dependencies.sh debian xenial
@@ -93,16 +93,16 @@ Example command
 
 You can download and install Erlang from [Erlang Solutions](https://www.erlang-solutions.com/resources/download.html).
 Please include OTP/components - ssl, public_key, asn1, and crypto.
-Also lock version of Erlang using the [yum-plugin-versionlock](https://access.redhat.com/solutions/98873)
+Also lock your version of Erlang using the [yum-plugin-versionlock](https://access.redhat.com/solutions/98873)
 
 ##### 2. Configure hostname
 
 Make sure that your hostname is correctly configured in /etc/hosts.
 See (<https://stackoverflow.com/questions/24797947/os-x-and-rabbitmq-error-epmd-error-for-host-xxx-address-cannot-connect-to-ho>). If you are testing with VMs make please make sure to provide unique host names for each of the VM you are using. 
 
-Hostname should be resolvable to a valid ip when running on bridged mode. RabbitMQ checks for this during initial boot. Without this (for example, when running on a VM in NAT mode) 
-RabbitMQ  start would fail with the error "unable to connect to empd (
-port 4369) on <hostname>." Note: RabbitMQ startup error would show up in syslog (/var/log/messages) file
+The hostname should be resolvable to a valid IP when running on bridged mode. RabbitMQ checks for this during initial 
+boot. Without this (for example, when running on a VM in NAT mode) RabbitMQ  start would fail with the error "unable to 
+connect to empd (port 4369) on <hostname>." Note: RabbitMQ startup error would show up in syslog (/var/log/messages) file
 and not in RabbitMQ logs (/var/log/rabbitmq/rabbitmq@hostname.log)
 
 ##### 3. Bootstrap
@@ -115,14 +115,14 @@ python bootstrap.py --rabbitmq [optional install directory. defaults to
 
 This will build the platform and create a virtual Python environment and
 dependencies for RabbitMQ. It also installs RabbitMQ server as the current user.
-If an install path is provided, path should exists and be writeable. RabbitMQ
-will be installed under `<install dir>/rabbitmq_server-3.7.7` Rest of the
-documentation refers to the directory `<install dir>/rabbitmq_server-3.7.7` as
+If an install path is provided, that path should exist and the user should have 
+write permissions. RabbitMQ will be installed under `<install dir>/rabbitmq_server-3.7.7`.
+The rest of the documentation refers to the directory `<install dir>/rabbitmq_server-3.7.7` as
 `$RABBITMQ_HOME`
 
-You can check if RabbitMQ server is installed by checking it's status. Please
+You can check if the RabbitMQ server is installed by checking its status. Please
 note, the `RABBITMQ_HOME` environment variable can be set in ~/.bashrc. If doing so,
-it needs to be set to RabbitMQ installation directory (default path is
+it needs to be set to the RabbitMQ installation directory (default path is
 `<user_home>/rabbitmq_server/rabbitmq_server/rabbitmq_server-3.7.7`)
 
 ```sh
@@ -148,27 +148,28 @@ Refer to [examples/configurations/rabbitmq/rabbitmq_config.yml](examples/configu
 for a sample configuration file.
 At a minimum you will need to provide the host name and a unique common-name
 (under certificate-data) in the configuration file. Note: common-name must be
-unique and the general conventions is to use `<voltttron instance name>-root-ca`.
+unique and the general convention is to use `<voltttron instance name>-root-ca`.
 
 Running the above command without the optional configuration file parameter will
-prompt user for all the needed data at the command prompt and use that to
-generate a rabbitmq_config.yml file in the `VOLTTRON_HOME` directory.
+cause the user user to be prompted for all the required data in the command prompt 
+vcfg will use that data to generate a rabbitmq_config.yml file in the `VOLTTRON_HOME` 
+directory.
 
 This script creates a new virtual host and creates SSL certificates needed
 for this VOLTTRON instance. These certificates get created under the subdirectory 
 "certificates" in your VOLTTRON home (typically in ~/.volttron). It
 then creates the main VIP exchange named "volttron" to route message between
-platform and agents and alternate exchange to capture unrouteable messages.
+the platform and agents and alternate exchange to capture unrouteable messages.
 
-NOTE: We configure RabbitMQ instance for a single volttron_home and
+NOTE: We configure the RabbitMQ instance for a single volttron_home and
 volttron_instance. This script will confirm with the user the volttron_home to
-be configured. volttron instance name will be read from volttron_home/config
-if available, if not user will be prompted for volttron instance name. To
-run the scripts without any prompts, save the volttron instance name in
-volttron_home/config file and pass the volttron home directory as command line
-argument For example: `vcfg --vhome /home/vdev/.new_vhome --rabbitmq single`
+be configured. The VOLTTRON instance name will be read from volttron_home/config
+if available, if not the user will be prompted for VOLTTRON instance name. To
+run the scripts without any prompts, save the the VOLTTRON instance name in
+volttron_home/config file and pass the VOLTTRON home directory as a command line
+argument. For example: `vcfg --vhome /home/vdev/.new_vhome --rabbitmq single`
 
-Following is the example inputs for `vcfg --rabbitmq single` command. Since no
+The Following are the example inputs for `vcfg --rabbitmq single` command. Since no
 config file is passed the script prompts for necessary details.
 
 ```sh
@@ -231,14 +232,17 @@ Notes:
 
 ### 4. Test
 
-We are now ready to start VOLTTRON instance. If configureds with RabbitMQ message bus a config file would have got generated in `$VOLTTRON\_HOME/config` with the entry message-bus=rmq. If you need to revert back to ZeroMQ based VOLTTRON, you
-will have to either remove "message-bus" parameter or set it to default "zmq" in `$VOLTTRON\_HOME/config` and restart the volttron process. The following command starts volttron process in the background
+We are now ready to start the VOLTTRON instance. If configured with a RabbitMQ message bus a config file would have been
+ generated in `$VOLTTRON\_HOME/config` with the entry `message-bus=rmq`. If you need to revert back to ZeroMQ based 
+ VOLTTRON, you will have to either remove "message-bus" parameter or set it to default "zmq" in `$VOLTTRON\_HOME/config`
+  and restart the volttron process. The following command starts the VOLTTORN process in the background:
 
 ```sh
 volttron -vv -l volttron.log &
 ```
 
-This enters the virtual Python environment and then starts the platform in debug (vv) mode with a log file named volttron.log.
+This command causes the shell to enter the virtual Python environment and then starts the platform in debug (vv) mode 
+with a log file named volttron.log.
 
 Next, start an example listener to see it publish and subscribe to the message bus:
 
@@ -246,13 +250,15 @@ Next, start an example listener to see it publish and subscribe to the message b
 scripts/core/upgrade-listener
 ```
 
-This script handles several different commands for installing and starting an agent after removing an old copy. This simple agent publishes a heartbeat message and listens to everything on the message bus. Look at the VOLTTRON log to see the activity:
+This script handles several different commands for installing and starting an agent after removing an old copy. This 
+simple agent publishes a heartbeat message and listens to everything on the message bus. Look at the VOLTTRON log to see 
+the activity:
 
 ```sh
 tail volttron.log
 ```
 
-Results in:
+Listenener agent heartbeat publishes appear in the logs as:
 
 ```sh
 2016-10-17 18:17:52,245 (listeneragent-3.2 11367) listener.agent INFO: Peer: 'pubsub', Sender: 'listeneragent-3.2_1'
@@ -261,10 +267,10 @@ Results in:
 Message: {'status': 'GOOD', 'last_updated': '2016-10-18T01:17:47.232972+00:00', 'context': 'hello'}
 ```
 
-Stop the platform:
+To top the platform run the following command:
 
 ```sh
-volttron-ctl shutdown --platform
+./stop-volttron
 ```
 
 ## Next Steps
@@ -279,8 +285,8 @@ There are several [walkthroughs](https://volttron.readthedocs.io/en/latest/devgu
 ## Acquiring Third Party Agent Code
 
 Third party agents are available under the volttron-applications repository. In
-order to use those agents, clone the volttron-applications repository in the same
-directory as the volttron source code:
+order to use those agents, clone the volttron-applications repository into the same
+directory as the VOLTTRON source code:
 
 ```sh
 cd <parent directory of volttron>
@@ -298,11 +304,12 @@ How to [contribute](http://volttron.readthedocs.io/en/latest/community_resources
 
 There are several options for VOLTTRONTM [support](https://volttron.readthedocs.io/en/latest/community_resources/index.html#volttron-community).
 
--   A VOLTTRONTM office hours telecon takes place every other Friday at 11am Pacific over Skype.
+-   A VOLTTRONTM office hours telecon takes place every other Friday at 11am Pacific over Zoom.
 -   A mailing list for announcements and reminders
 -   The VOLTTRONTM contact email for being added to office hours, the mailing list, and for inquiries is: volttron@pnnl.gov
 -   The preferred method for questions is through stackoverflow since this is easily discoverable by others who may have the same issue. <https://stackoverflow.com/questions/tagged/volttron>
 -   GitHub issue tracker for feature requests, bug reports, and following development activities <https://github.com/VOLTTRON/volttron/issues>
+-   VOLTTRON now has a Slack channel - Sign up here: <https://volttron-community.signup.team/>
 
 ## License
 
