@@ -50,7 +50,6 @@ from dateutil import parser
 from volttron.platform import get_services_core, jsonapi
 from volttron.platform.agent.utils import format_timestamp, parse_timestamp_string, get_aware_utc_now
 from volttron.platform.messaging import headers as headers_mod
-from volttron.platform.messaging.health import STATUS_GOOD
 
 try:
     from influxdb import InfluxDBClient
@@ -1376,20 +1375,91 @@ def test_update_config_store(volttron_instance, influxdb_client):
 
 @pytest.mark.historian
 @pytest.mark.skipif(not HAS_INFLUXDB, reason='No influxdb library. Please run \'pip install influxdb\'')
-def test_default_config(volttron_instance):
+def test_default_config(volttron_instance, influxdb_client):
     """
-    Test the default configuration file included with the agent
+    Test installing the InfluxdbHistorian agent and then
+    connect to influxdb client.
+
+
+    When it first connect to the client, there should be no
+    database yet. If database already existed, clean database.
     """
-    publish_agent = volttron_instance.build_agent(identity="test_agent")
-    gevent.sleep(1)
+    clean_database(influxdb_client)
 
     config_path = os.path.join(get_services_core("InfluxdbHistorian"), "config")
     with open(config_path, "r") as config_file:
         config_json = json.load(config_file)
     assert isinstance(config_json, dict)
-    volttron_instance.install_agent(
-        agent_dir=get_services_core("InfluxdbHistorian"),
-        config_file=config_json,
-        start=True,
-        vip_identity="health_test")
-    assert publish_agent.vip.rpc.call("health_test", "health.get_status").get(timeout=10).get('status') == STATUS_GOOD
+
+    clean_database(influxdb_client)
+    db = config_json['connection']['params']['database']
+    influxdb_client.create_database(db)
+
+    agent_uuid = start_influxdb_instance(volttron_instance, config_json)
+    assert agent_uuid is not None
+    assert volttron_instance.is_agent_running(agent_uuid)
+
+    try:
+        publisher = volttron_instance.build_agent()
+        assert publisher is not None
+        expected = publish_some_fake_data(publisher, 10)
+
+        rs = influxdb_client.get_list_database()
+
+        # the databases historian
+        assert {'name': 'historian'} in rs
+
+        # Check for measurement OutsideAirTemperature
+        query = 'SELECT value FROM outsideairtemperature ' \
+                'WHERE campus=\'building\' and building=\'lab\' and device=\'device\''
+        rs = influxdb_client.query(query)
+        rs = list(rs.get_points())
+        topic = query_topics["oat_point"]
+
+        assert len(rs) == 10
+
+        for point in rs:
+            ts = parser.parse(point['time'])
+            ts = format_timestamp(ts)
+            assert point["value"] == approx(expected['data'][ts][topic])
+
+        # Check for measurement MixedAirTemperature
+        query = 'SELECT value FROM mixedairtemperature ' \
+                'WHERE campus=\'building\' and building=\'lab\' and device=\'device\''
+        rs = influxdb_client.query(query)
+        rs = list(rs.get_points())
+        topic = query_topics["mixed_point"]
+
+        assert len(rs) == 10
+
+        for point in rs:
+            ts = parser.parse(point['time'])
+            ts = format_timestamp(ts)
+            assert point["value"] == approx(expected['data'][ts][topic])
+
+        # Check for measurement DamperSignal
+        query = 'SELECT value FROM dampersignal WHERE campus=\'building\' and building=\'lab\' and device=\'device\''
+        rs = influxdb_client.query(query)
+        rs = list(rs.get_points())
+        topic = query_topics["damper_point"]
+
+        assert len(rs) == 10
+
+        for point in rs:
+            ts = parser.parse(point['time'])
+            ts = format_timestamp(ts)
+            assert point["value"] == approx(expected['data'][ts][topic])
+
+        # Check correctness of 'meta' measurement
+        topic_id_map, meta_dicts = influxdbutils.get_all_topic_id_and_meta(influxdb_client)
+        assert len(meta_dicts) == 3
+
+        for topic_id in topic_id_map:
+            topic = topic_id_map[topic_id]
+
+            assert topic in expected['meta']
+            assert expected['meta'][topic] == meta_dicts[topic_id]
+    finally:
+        volttron_instance.stop_agent(agent_uuid)
+        volttron_instance.remove_agent(agent_uuid)
+        clean_database(influxdb_client)

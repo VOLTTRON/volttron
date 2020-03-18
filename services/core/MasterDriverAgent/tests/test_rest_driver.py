@@ -85,7 +85,7 @@ def agent(request, volttron_instance):
                        'manage_delete_store',
                        PLATFORM_DRIVER).get(timeout=10)
 
-    #Add test configurations.
+    # Add test configurations.
     agent.vip.rpc.call(CONFIGURATION_STORE,
                        'manage_store',
                        PLATFORM_DRIVER,
@@ -155,10 +155,10 @@ def test_restful_revert(agent):
     assert point == '42'
 
     # revert point
-    point = agent.vip.rpc.call(PLATFORM_DRIVER,
-                               'revert_point',
-                               'campus/building/unit',
-                               'test_point').get(timeout=10)
+    agent.vip.rpc.call(PLATFORM_DRIVER,
+                       'revert_point',
+                       'campus/building/unit',
+                       'test_point').get(timeout=10)
 
     # get point
     point = agent.vip.rpc.call(PLATFORM_DRIVER,

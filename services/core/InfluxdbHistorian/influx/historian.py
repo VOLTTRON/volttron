@@ -188,6 +188,8 @@ class InfluxdbHistorian(BaseHistorian):
             _log.info("Changing user to {}".format(user))
             self._user = user
 
+        _log.debug("INFLUX CONFIG = {}".format(params))
+
         client = influxdbutils.get_client(params)
 
         if not client:

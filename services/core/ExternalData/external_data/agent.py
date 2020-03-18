@@ -133,9 +133,7 @@ class ExternalData(Agent):
 
         self.sources = self._validate_sources(config.get("sources", []), global_topic_prefix)
 
-        self.topic = PUBLISH_TOPIC(base=global_topic_prefix,
-                                  source=None,
-                                  key=None)
+        self.topic = PUBLISH_TOPIC(base=global_topic_prefix, source=None, key=None)
 
         self.default_user = config.get('default_user')
         self.default_password = config.get('default_password')
@@ -150,7 +148,6 @@ class ExternalData(Agent):
             self.periodic.cancel()
 
         self.periodic = self.core.schedule(periodic(interval), self._publish_data)
-
 
     def _publish_data(self):
         for source in self.sources:
@@ -189,7 +186,6 @@ class ExternalData(Agent):
                     self._handle_raw(headers, r, url, source_topic, source)
             except Exception as e:
                 _log.error("General failure during processing of source {url} {reason}".format(url=url, reason=str(e)))
-
 
     def _handle_json(self, headers, request, url, source_topic, source_params):
         keys = source_params.get("key", [])
@@ -316,14 +312,15 @@ class ExternalData(Agent):
         topic = self.topic(source=source_topic, key="")
         self.vip.pubsub.publish(peer='pubsub', topic=topic, message=request.content, headers=headers).get(timeout=10.0)
 
+
 def main(argv=sys.argv):
-    '''Main method called by the eggsecutable.'''
+    """Main method called by the eggsecutable."""
     try:
         utils.vip_main(external_data_agent)
     except Exception as e:
         _log.exception('unhandled exception')
 
 
-if __name__ =='__main__':
+if __name__ == '__main__':
     # Entry point for script
     sys.exit(main())

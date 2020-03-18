@@ -49,6 +49,7 @@ from volttron.platform.agent.known_identities import PLATFORM_DRIVER
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
+
 @pytest.fixture(scope="module")
 def test_agent(request, volttron_instance):
     """Dynamic agent for sending rpc calls and listening to the bus"""
@@ -75,24 +76,20 @@ def test_cov_update_published(volttron_instance, test_agent):
     Master Driver and driver.py"""
     # Reset master driver config store
     cmd = ['volttron-ctl', 'config', 'delete', PLATFORM_DRIVER, '--all']
-    process = Popen(cmd, env=volttron_instance.env,
-                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    process = Popen(cmd, env=volttron_instance.env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     result = process.wait()
     assert result == 0
 
     # Add fake device configuration
     cmd = ['volttron-ctl', 'config', 'store', PLATFORM_DRIVER,
            'fake.csv', 'examples/configurations/drivers/fake.csv', '--csv']
-    process = Popen(cmd, env=volttron_instance.env,
-                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    process = Popen(cmd, env=volttron_instance.env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     result = process.wait()
     assert result == 0
 
     cmd = ['volttron-ctl', 'config', 'store', PLATFORM_DRIVER,
-           "devices/fakedriver", 'examples/configurations/drivers/fake.config',
-           '--json']
-    process = Popen(cmd, env=volttron_instance.env,
-                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+           "devices/fakedriver", 'examples/configurations/drivers/fake.config', '--json']
+    process = Popen(cmd, env=volttron_instance.env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     result = process.wait()
     assert result == 0
 
@@ -107,8 +104,7 @@ def test_cov_update_published(volttron_instance, test_agent):
     point_name = "PowerState"
     device_path = "fakedriver"
     result_dict = {"fake1": "test", "fake2": "test", "fake3": "test"}
-    test_agent.vip.rpc.call(PLATFORM_DRIVER, 'forward_bacnet_cov_value',
-                            device_path, point_name, result_dict)
+    test_agent.vip.rpc.call(PLATFORM_DRIVER, 'forward_bacnet_cov_value', device_path, point_name, result_dict)
     # wait for the publishes to make it to the bus
     gevent.sleep(2)
 

@@ -115,7 +115,7 @@ def agent(request, volttron_instance):
 
 class PPSPi32Client(Client):
     """
-        Define some registers to PPSPi32Client
+    Define some registers to PPSPi32Client
     """
 
     def __init__(self, *args, **kwargs):
@@ -191,7 +191,7 @@ def modbus_server(request):
 @pytest.mark.usefixtures("modbus_server")
 class TestModbusDriver:
     """
-        Regression tests for the modbus driver interface.
+    Regression tests for the modbus driver interface.
     """
 
     def get_point(self, agent, point_name):
@@ -202,8 +202,7 @@ class TestModbusDriver:
         @param point_name: The name of the point to query.
         @return: The returned value from the RPC call.
         """
-        return agent.vip.rpc.call(PLATFORM_DRIVER, 'get_point', 'modbus',
-                                  point_name).get(timeout=10)
+        return agent.vip.rpc.call(PLATFORM_DRIVER, 'get_point', 'modbus', point_name).get(timeout=10)
 
     def set_point(self, agent, point_name, point_value):
         """
@@ -215,8 +214,7 @@ class TestModbusDriver:
         @param point_value: The value to set on the point.
         @return: The returned value from the RPC call.
         """
-        return agent.vip.rpc.call(PLATFORM_DRIVER, 'set_point', 'modbus',
-                                  point_name, point_value).get(timeout=10)
+        return agent.vip.rpc.call(PLATFORM_DRIVER, 'set_point', 'modbus', point_name, point_value).get(timeout=10)
 
     def scrape_all(self, agent):
         """
@@ -225,8 +223,7 @@ class TestModbusDriver:
         @param agent: The test Agent.
         @return: The returned value from the RPC call.
         """
-        return agent.vip.rpc.call(PLATFORM_DRIVER, 'scrape_all',
-                                  'modbus').get(timeout=10)
+        return agent.vip.rpc.call(PLATFORM_DRIVER, 'scrape_all', 'modbus').get(timeout=10)
 
     def test_default_values(self, agent):
         """

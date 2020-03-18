@@ -90,24 +90,19 @@ polling_service = {
 }
 
 # global variable. Set to skip the module
-pytestmark = pytest.mark.skipif(not API_KEY, reason="No API key found. "
-                                                    "Darksky weather API "
-                                                    "key needs to be set in "
-                                                    "the environment variable "
-                                                    "DARKSKY_KEY")
+pytestmark = pytest.mark.skipif(not API_KEY, reason="No API key found. Darksky weather API key needs to be set in "
+                                                    "the environment variable DARKSKY_KEY")
 
 
 @pytest.fixture(scope="function")
 def cleanup_cache(volttron_instance, query_agent, weather):
     weather_uuid = weather[0]
     identity = weather[1]
-    tables = ["get_current_weather", "get_hourly_forecast",
-              "get_minutely_forecast", "get_daily_forecast"]
+    tables = ["get_current_weather", "get_hourly_forecast", "get_minutely_forecast", "get_daily_forecast"]
     version = query_agent.vip.rpc.call(identity, 'get_version').get(timeout=3)
     cwd = volttron_instance.volttron_home
-    database_file = "/".join([cwd, "agents", weather_uuid, "darkskyagent-" +
-                         version, "darkskyagent-" + version +
-                         ".agent-data", "weather.sqlite"])
+    database_file = "/".join([cwd, "agents", weather_uuid, "darkskyagent-" + version, "darkskyagent-" + version +
+                              ".agent-data", "weather.sqlite"])
     _log.debug(database_file)
     sqlite_connection = sqlite3.connect(database_file)
     cursor = sqlite_connection.cursor()
@@ -142,6 +137,7 @@ def query_agent(request, volttron_instance):
     request.addfinalizer(stop_agent)
     return agent
 
+
 @pytest.fixture(scope="module", params=[darksky_service, darksky_perf])
 def weather(request, volttron_instance):
     print("** Setting up weather agent module **")
@@ -167,20 +163,18 @@ def weather(request, volttron_instance):
     request.addfinalizer(stop_agent)
     return agent, identity
 
+
 @pytest.mark.parametrize("locations", [
     [{"lat": 39.7555, "long": -105.2211}],
     [{"lat": 39.7555, "long": -105.2211}, {"lat": 46.2804, "long": -119.2752}]
 ])
 @pytest.mark.darksky
-def test_success_current(volttron_instance, cleanup_cache, weather,
-                         query_agent,
-                         locations):
+def test_success_current(volttron_instance, cleanup_cache, weather, query_agent, locations):
     weather_uuid = weather[0]
     identity = weather[1]
     version = query_agent.vip.rpc.call(identity, 'get_version').get(timeout=3)
     cwd = volttron_instance.volttron_home
-    database_file = "/".join([cwd, "agents", weather_uuid, "darkskyagent-" +
-                              version, "darkskyagent-" + version +
+    database_file = "/".join([cwd, "agents", weather_uuid, "darkskyagent-" + version, "darkskyagent-" + version +
                               ".agent-data", "weather.sqlite"])
     sqlite_connection = sqlite3.connect(database_file)
     cursor = sqlite_connection.cursor()
@@ -189,8 +183,7 @@ def test_success_current(volttron_instance, cleanup_cache, weather,
     cursor.execute(api_calls_query)
     current_api_calls = cursor.fetchone()[0]
 
-    query_data = query_agent.vip.rpc.call(identity, 'get_current_weather',
-                                          locations).get(timeout=30)
+    query_data = query_agent.vip.rpc.call(identity, 'get_current_weather', locations).get(timeout=30)
 
     if query_data[0].get("weather_error"):
         error = query_data[0].get("weather_error")
@@ -217,18 +210,15 @@ def test_success_current(volttron_instance, cleanup_cache, weather,
         else:
             results = record.get("weather_error")
             if results.startswith("Remote API returned no data") or \
-                    results.startswith("Remote API redirected request, "
-                                       "but redirect failed") \
-                    or results.startswith("Remote API returned invalid "
-                                          "response") \
-                    or results.startswith("API request failed with unexpected "
-                                          "response"):
+                    results.startswith("Remote API redirected request, but redirect failed") \
+                    or results.startswith("Remote API returned invalid response") \
+                    or results.startswith("API request failed with unexpected response"):
                 assert True
             else:
                 assert False
     services = {"get_minutely_forecast": 60,
                 "get_hourly_forecast": 48,
-                "get_daily_forecast":7}
+                "get_daily_forecast": 7}
     for service, records_amount in services.items():
         query = 'SELECT COUNT(*) FROM {service}'.format(service=service)
         cursor.execute(query)
@@ -238,8 +228,7 @@ def test_success_current(volttron_instance, cleanup_cache, weather,
         else:
             assert num_records is records_amount*len(locations)
 
-    cache_data = query_agent.vip.rpc.call(identity, 'get_current_weather',
-                                          locations).get(timeout=30)
+    cache_data = query_agent.vip.rpc.call(identity, 'get_current_weather', locations).get(timeout=30)
 
     cursor.execute(api_calls_query)
     new_api_calls = cursor.fetchone()[0]
@@ -263,47 +252,40 @@ def test_success_current(volttron_instance, cleanup_cache, weather,
 
 
 @pytest.mark.darksky
-def test_calls_exceeded(volttron_instance, cleanup_cache, query_agent,
-                                weather):
+def test_calls_exceeded(volttron_instance, cleanup_cache, query_agent, weather):
     weather_uuid = weather[0]
     identity = weather[1]
     version = query_agent.vip.rpc.call(identity, 'get_version').get(timeout=3)
     cwd = volttron_instance.volttron_home
-    database_file = "/".join([cwd, "agents", weather_uuid, "darkskyagent-" +
-                              version, "darkskyagent-" + version +
+    database_file = "/".join([cwd, "agents", weather_uuid, "darkskyagent-" + version, "darkskyagent-" + version +
                               ".agent-data", "weather.sqlite"])
     sqlite_connection = sqlite3.connect(database_file)
     cursor = sqlite_connection.cursor()
 
     for i in range(0, 100):
         time = format_timestamp(get_aware_utc_now() + timedelta(seconds=i))
-        insert_query = """INSERT INTO API_CALLS
-                                         (CALL_TIME) VALUES (?);"""
+        insert_query = """INSERT INTO API_CALLS (CALL_TIME) VALUES (?);"""
         cursor.execute(insert_query, (time,))
     sqlite_connection.commit()
 
     locations = [{"lat": 39.7555, "long": -105.2211}]
-    query_data = query_agent.vip.rpc.call(identity, 'get_current_weather',
-                                          locations).get(timeout=30)
+    query_data = query_agent.vip.rpc.call(identity, 'get_current_weather', locations).get(timeout=30)
 
-    assert query_data[0]['weather_error'] == 'No calls currently available ' \
-                                               'for the configured API key'
+    assert query_data[0]['weather_error'] == 'No calls currently available for the configured API key'
     assert not query_data[0].get('weather_results')
 
-    query_data = query_data = query_agent.vip.rpc.call(
-        identity, 'get_hourly_forecast', locations).get(timeout=30)
+    query_data = query_agent.vip.rpc.call(identity, 'get_hourly_forecast', locations).get(timeout=30)
 
-    assert query_data[0]['weather_error'] == 'No calls currently available ' \
-                                             'for the configured API key'
+    assert query_data[0]['weather_error'] == 'No calls currently available for the configured API key'
     assert not query_data[0].get('weather_results')
 
     delete_query = "DROP TABLE IF EXISTS API_CALLS;"
     cursor.execute(delete_query)
 
-    create_query = """CREATE TABLE API_CALLS
-                      (CALL_TIME TIMESTAMP NOT NULL);"""
+    create_query = """CREATE TABLE API_CALLS (CALL_TIME TIMESTAMP NOT NULL);"""
     cursor.execute(create_query)
     sqlite_connection.commit()
+
 
 @pytest.mark.parametrize("locations", [
     ["fail"],
@@ -313,12 +295,10 @@ def test_calls_exceeded(volttron_instance, cleanup_cache, query_agent,
 @pytest.mark.darksky
 def test_current_fail(weather, query_agent, locations):
     identity = weather[1]
-    query_data = query_agent.vip.rpc.call(identity, 'get_current_weather',
-                                          locations).get(timeout=30)
+    query_data = query_agent.vip.rpc.call(identity, 'get_current_weather', locations).get(timeout=30)
     for record in query_data:
         error = record.get("weather_error")
-        assert error.startswith("Invalid location format.") or error.startswith(
-            "Invalid location")
+        assert error.startswith("Invalid location format.") or error.startswith("Invalid location")
         assert record.get("weather_results") is None
 
 
@@ -334,14 +314,12 @@ def test_current_fail(weather, query_agent, locations):
      'get_hourly_forecast'),
 ])
 @pytest.mark.darksky
-def test_success_forecast(volttron_instance, cleanup_cache, weather,
-                          query_agent, locations, service):
+def test_success_forecast(volttron_instance, cleanup_cache, weather, query_agent, locations, service):
     weather_uuid = weather[0]
     identity = weather[1]
     version = query_agent.vip.rpc.call(identity, 'get_version').get(timeout=3)
     cwd = volttron_instance.volttron_home
-    database_file = "/".join([cwd, "agents", weather_uuid, "darkskyagent-" +
-                              version, "darkskyagent-" + version +
+    database_file = "/".join([cwd, "agents", weather_uuid, "darkskyagent-" + version, "darkskyagent-" + version +
                               ".agent-data", "weather.sqlite"])
     sqlite_connection = sqlite3.connect(database_file)
     cursor = sqlite_connection.cursor()
@@ -353,14 +331,11 @@ def test_success_forecast(volttron_instance, cleanup_cache, weather,
     query_data = []
 
     if service == "get_minutely_forecast":
-        query_data = query_agent.vip.rpc.call(
-            identity, service, locations).get(timeout=30)
+        query_data = query_agent.vip.rpc.call(identity, service, locations).get(timeout=30)
     if service == "get_hourly_forecast":
-        query_data = query_agent.vip.rpc.call(
-            identity, service, locations).get(timeout=30)
+        query_data = query_agent.vip.rpc.call(identity, service, locations).get(timeout=30)
     if service == "get_daily_forecast":
-        query_data = query_agent.vip.rpc.call(
-            identity, service, locations).get(timeout=30)
+        query_data = query_agent.vip.rpc.call(identity, service, locations).get(timeout=30)
 
     if query_data[0].get("weather_error"):
         error = query_data[0].get("weather_error")
@@ -406,12 +381,9 @@ def test_success_forecast(volttron_instance, cleanup_cache, weather,
         error = location_data.get("weather_error")
         if error and not results:
             if error.startswith("Remote API returned no data") \
-                    or error.startswith("Remote API redirected request, but "
-                                        "redirect failed") \
-                    or error.startswith("Remote API returned invalid "
-                                        "response") \
-                    or error.startswith("API request failed with "
-                                        "unexpected response"):
+                    or error.startswith("Remote API redirected request, but redirect failed") \
+                    or error.startswith("Remote API returned invalid response") \
+                    or error.startswith("API request failed with unexpected response"):
                 assert True
             else:
                 assert False
@@ -429,16 +401,12 @@ def test_success_forecast(volttron_instance, cleanup_cache, weather,
     cache_data = []
 
     # default quantity
-
     if service == 'get_minutely_forecast':
-        cache_data = query_agent.vip.rpc.call(
-            identity, service, locations).get(timeout=30)
+        cache_data = query_agent.vip.rpc.call(identity, service, locations).get(timeout=30)
     if service == 'get_hourly_forecast':
-        cache_data = query_agent.vip.rpc.call(
-            identity, service, locations).get(timeout=30)
+        cache_data = query_agent.vip.rpc.call(identity, service, locations).get(timeout=30)
     if service == 'get_daily_forecast':
-        cache_data = query_agent.vip.rpc.call(
-            identity, service, locations).get(timeout=30)
+        cache_data = query_agent.vip.rpc.call(identity, service, locations).get(timeout=30)
 
     cursor.execute(api_calls_query)
     new_api_calls = cursor.fetchone()[0]
@@ -450,12 +418,9 @@ def test_success_forecast(volttron_instance, cleanup_cache, weather,
         print(query_location_data)
         cache_location_data = cache_data[x]
         print(cache_location_data)
-        assert cache_location_data.get(
-            "generation_time") == query_location_data.get("generation_time")
-        assert cache_location_data.get("lat") == query_location_data.get(
-            "lat")
-        assert cache_location_data.get("long") == query_location_data.get(
-            "long")
+        assert cache_location_data.get("generation_time") == query_location_data.get("generation_time")
+        assert cache_location_data.get("lat") == query_location_data.get("lat")
+        assert cache_location_data.get("long") == query_location_data.get("long")
         if cache_location_data.get("weather_results"):
 
             query_weather_results = query_location_data.get("weather_results")
@@ -471,26 +436,23 @@ def test_success_forecast(volttron_instance, cleanup_cache, weather,
         else:
             results = cache_location_data.get("weather_error")
             if results.startswith("Remote API returned no data") \
-                    or results.startswith("Remote API redirected request, but "
-                                          "redirect failed") \
-                    or results.startswith("Remote API returned invalid "
-                                          "response") \
-                    or results.startswith("API request failed with unexpected "
-                                          "response"):
+                    or results.startswith("Remote API redirected request, but redirect failed") \
+                    or results.startswith("Remote API returned invalid response") \
+                    or results.startswith("API request failed with unexpected response"):
                 assert True
             else:
                 assert False
 
     for service_name, records_amount in services.items():
         if not service_name == service:
-            query = 'SELECT COUNT(*) FROM {service}'.format(
-                service=service_name)
+            query = 'SELECT COUNT(*) FROM {service}'.format(service=service_name)
             cursor.execute(query)
             num_records = cursor.fetchone()[0]
             if identity == 'platform.darksky_perf':
                 assert num_records is 0
             else:
                 assert num_records is records_amount*len(locations)
+
 
 @pytest.mark.parametrize("locations, service", [
     ([{"lat": 39.7555, "long": -105.2211}], 'get_minutely_forecast'),
@@ -504,20 +466,16 @@ def test_success_forecast(volttron_instance, cleanup_cache, weather,
      'get_hourly_forecast'),
 ])
 @pytest.mark.darksky
-def test_less_than_default_forecast(volttron_instance, cleanup_cache, weather,
-                                    query_agent, locations, service):
+def test_less_than_default_forecast(volttron_instance, cleanup_cache, weather, query_agent, locations, service):
     query_data = []
     cache_data = []
     identity = weather[1]
     if service == 'get_minutely_forecast':
-        query_data = query_agent.vip.rpc.call(
-            identity, service, locations, minutes=2).get(timeout=30)
+        query_data = query_agent.vip.rpc.call(identity, service, locations, minutes=2).get(timeout=30)
     elif service == 'get_hourly_forecast':
-        query_data = query_agent.vip.rpc.call(
-            identity, service, locations, hours=2).get(timeout=30)
+        query_data = query_agent.vip.rpc.call(identity, service, locations, hours=2).get(timeout=30)
     elif service == 'get_daily_forecast':
-        query_data = query_agent.vip.rpc.call(
-            identity, service, locations, days=2).get(timeout=30)
+        query_data = query_agent.vip.rpc.call(identity, service, locations, days=2).get(timeout=30)
     else:
         pytest.fail('invalid request type')
     if query_data[0].get("weather_error"):
@@ -531,14 +489,11 @@ def test_less_than_default_forecast(volttron_instance, cleanup_cache, weather,
         assert len(record['weather_results']) == 2
 
     if service == 'get_minutely_forecast':
-        cache_data = query_agent.vip.rpc.call(
-            identity, service, locations, minutes=2).get(timeout=30)
+        cache_data = query_agent.vip.rpc.call(identity, service, locations, minutes=2).get(timeout=30)
     elif service == 'get_hourly_forecast':
-        cache_data = query_agent.vip.rpc.call(
-            identity, service, locations, hours=2).get(timeout=30)
+        cache_data = query_agent.vip.rpc.call(identity, service, locations, hours=2).get(timeout=30)
     elif service == 'get_daily_forecast':
-        cache_data = query_agent.vip.rpc.call(
-            identity, service, locations, days=2).get(timeout=30)
+        cache_data = query_agent.vip.rpc.call(identity, service, locations, days=2).get(timeout=30)
 
     assert len(cache_data) == len(query_data)
     for x in range(0, len(cache_data)):
@@ -546,12 +501,9 @@ def test_less_than_default_forecast(volttron_instance, cleanup_cache, weather,
         print(query_location_data)
         cache_location_data = cache_data[x]
         print(cache_location_data)
-        assert cache_location_data.get(
-            "generation_time") == query_location_data.get("generation_time")
-        assert cache_location_data.get("lat") == query_location_data.get(
-            "lat")
-        assert cache_location_data.get("long") == query_location_data.get(
-            "long")
+        assert cache_location_data.get("generation_time") == query_location_data.get("generation_time")
+        assert cache_location_data.get("lat") == query_location_data.get("lat")
+        assert cache_location_data.get("long") == query_location_data.get("long")
         if cache_location_data.get("weather_results"):
 
             query_weather_results = query_location_data.get("weather_results")
@@ -565,6 +517,7 @@ def test_less_than_default_forecast(volttron_instance, cleanup_cache, weather,
                 for key in cache_result[1]:
                     assert cache_result[1][key] == result[1][key]
 
+
 @pytest.mark.parametrize("locations, service", [
     ([{"lat": 39.7555, "long": -105.2211}], 'get_minutely_forecast'),
     ([{"lat": 39.7555, "long": -105.2211}, {"lat": 46.2804, "long": -119.2752}],
@@ -577,26 +530,22 @@ def test_less_than_default_forecast(volttron_instance, cleanup_cache, weather,
      'get_hourly_forecast'),
 ])
 @pytest.mark.darksky
-def test_more_than_default_forecast(volttron_instance, cleanup_cache, weather,
-                                    query_agent, locations, service):
+def test_more_than_default_forecast(volttron_instance, cleanup_cache, weather, query_agent, locations, service):
     identity = weather[1]
     big_request = 0
     query_data = []
     cache_data = []
     if service == 'get_minutely_forecast':
         big_request = 61
-        query_data = query_agent.vip.rpc.call(
-            identity, service, locations, minutes=big_request).get(timeout=30)
+        query_data = query_agent.vip.rpc.call(identity, service, locations, minutes=big_request).get(timeout=30)
         if big_request > 60:
             big_request = 60  # dark sky provides 60 minutes max.
     elif service == 'get_hourly_forecast':
         big_request = 50
-        query_data = query_agent.vip.rpc.call(
-            identity, service, locations, hours=big_request).get(timeout=30)
+        query_data = query_agent.vip.rpc.call(identity, service, locations, hours=big_request).get(timeout=30)
     elif service == 'get_daily_forecast':
         big_request = 9
-        query_data = query_agent.vip.rpc.call(
-            identity, service, locations, days=big_request).get(timeout=30)
+        query_data = query_agent.vip.rpc.call(identity, service, locations, days=big_request).get(timeout=30)
     else:
         pytest.fail('invalid request type')
     if query_data[0].get("weather_error"):
@@ -608,14 +557,11 @@ def test_more_than_default_forecast(volttron_instance, cleanup_cache, weather,
         assert len(record['weather_results']) == big_request
 
     if service == 'get_minutely_forecast':
-        cache_data = query_agent.vip.rpc.call(
-            identity, service, locations, minutes=big_request).get(timeout=30)
+        cache_data = query_agent.vip.rpc.call(identity, service, locations, minutes=big_request).get(timeout=30)
     elif service == 'get_hourly_forecast':
-        cache_data = query_agent.vip.rpc.call(
-            identity, service, locations, hours=big_request).get(timeout=30)
+        cache_data = query_agent.vip.rpc.call(identity, service, locations, hours=big_request).get(timeout=30)
     elif service == 'get_daily_forecast':
-        cache_data = query_agent.vip.rpc.call(
-            identity, service, locations, days=big_request).get(timeout=30)
+        cache_data = query_agent.vip.rpc.call(identity, service, locations, days=big_request).get(timeout=30)
 
     assert len(cache_data) == len(query_data)
     print("Query data: \n {}".format(query_data))
@@ -626,12 +572,9 @@ def test_more_than_default_forecast(volttron_instance, cleanup_cache, weather,
     for x in range(0, len(cache_data)):
         query_location_data = query_data[x]
         cache_location_data = cache_data[x]
-        assert cache_location_data.get(
-            "generation_time") == query_location_data.get("generation_time")
-        assert cache_location_data.get("lat") == query_location_data.get(
-            "lat")
-        assert cache_location_data.get("long") == query_location_data.get(
-            "long")
+        assert cache_location_data.get("generation_time") == query_location_data.get("generation_time")
+        assert cache_location_data.get("lat") == query_location_data.get("lat")
+        assert cache_location_data.get("long") == query_location_data.get("long")
         if cache_location_data.get("weather_results"):
 
             query_weather_results = query_location_data.get("weather_results")
@@ -660,8 +603,7 @@ def test_more_than_default_forecast(volttron_instance, cleanup_cache, weather,
 @pytest.mark.darksky
 def test_forecast_fail(weather, query_agent, locations, service):
     identity = weather[1]
-    query_data = query_agent.vip.rpc.call(identity, service,
-                                          locations).get(timeout=30)
+    query_data = query_agent.vip.rpc.call(identity, service, locations).get(timeout=30)
     for record in query_data:
         error = record.get("weather_error")
         if error.startswith("Invalid location format."):
@@ -689,8 +631,7 @@ def test_forecast_fail(weather, query_agent, locations, service):
       },
      ['weather/poll/current/test1', 'weather/poll/current/test2'])
 ])
-def test_polling_locations_valid_config(volttron_instance, query_agent, config,
-                                        result_topics):
+def test_polling_locations_valid_config(volttron_instance, query_agent, config, result_topics):
     agent_uuid = None
     query_agent.poll_callback.reset_mock()
     try:
@@ -719,9 +660,8 @@ def test_polling_locations_valid_config(volttron_instance, query_agent, config,
                 assert isinstance(results1, list)
                 assert len(results1) == len(config["poll_locations"])
             i = i + 1
-        assert query_agent.vip.rpc.call(
-            "poll.weather", "health.get_status").get(timeout=10).get(
-            'status') == STATUS_GOOD
+        assert query_agent.vip.rpc.call("poll.weather", "health.get_status").get(timeout=10).get('status') == \
+               STATUS_GOOD
     finally:
         if agent_uuid:
             volttron_instance.stop_agent(agent_uuid)

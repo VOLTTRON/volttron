@@ -596,9 +596,7 @@ def test_schedule_error_empty_message(publish_agent):
         'taskID': 'task_empty_message',
         'priority': 'LOW'
     }
-    msg = [
-
-    ]
+    msg = []
     # reset mock to ignore any previous callback
     publish_agent.callback.reset_mock()
     publish(publish_agent, topics.ACTUATOR_SCHEDULE_REQUEST, header, msg)
@@ -633,9 +631,7 @@ def test_schedule_error_multiple_missing_headers(publish_agent):
         'taskID': 'task_schedule_response-2'
         # 'priority': 'LOW'
     }
-    msg = [
-
-    ]
+    msg = []
     # reset mock to ignore any previous callback
     publish_agent.callback.reset_mock()
     publish(publish_agent, topics.ACTUATOR_SCHEDULE_REQUEST, header, msg)
