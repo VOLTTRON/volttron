@@ -1,4 +1,4 @@
-  
+
 
 ![image](docs/source/images/VOLLTRON_Logo_Black_Horizontal_with_Tagline.png)
 
@@ -11,10 +11,10 @@ with that data.
 
 ## Features
 
-* [Message Bus](https://volttron.readthedocs.io/en/latest/core_services/messagebus/index.html#messagebus-index) allows agents to subcribe to data sources and publish results and messages
+* [Message Bus](https://volttron.readthedocs.io/en/latest/core_services/messagebus/index.html#messagebus-index) allows agents to subscribe to data sources and publish results and messages
 * [Driver framework](https://volttron.readthedocs.io/en/latest/core_services/drivers/index.html#volttron-driver-framework) for collecting data from and sending control actions to buildings and devices
 * [Historian framework](https://volttron.readthedocs.io/en/latest/core_services/historians/index.html#historian-index) for storing data
-* [Agent lifecycle managment](https://volttron.readthedocs.io/en/latest/core_services/control/AgentManagement.html#agentmanagement) in the platform
+* [Agent lifecycle management](https://volttron.readthedocs.io/en/latest/core_services/control/AgentManagement.html#agentmanagement) in the platform
 * [Web UI](https://volttron.readthedocs.io/en/latest/core_services/service_agents/central_management/VOLTTRON-Central.html#volttron-central) for managing deployed instances from a single central instance.
 
 ## Background
@@ -45,7 +45,7 @@ http://ryanstutorials.net/linuxtutorial/
 
  ### 2. Clone VOLTTRON code
 
-From version 6.0 VOLTTRON supports two message bus - ZMQ and RabbitMQ. 
+From version 6.0 VOLTTRON supports two message bus - ZMQ and RabbitMQ.
 
 ```sh
 git clone https://github.com/VOLTTRON/volttron --branch <branch name>
@@ -62,7 +62,7 @@ python bootstrap.py
 source env/bin/activate
 ```
 
-Proceed to step 4. 
+Proceed to step 4.
 
 #### Steps for RabbitMQ
 
@@ -72,8 +72,8 @@ Proceed to step 4.
 
   **On Debian based systems and CentOS 6/7**
 
-  If you are running an Debian or CentOS system, you can install the RabbitMQ dependencies by running the rabbit 
-  dependencies script, passing in the os name and approriate distribution as a parameter. The following are  
+  If you are running an Debian or CentOS system, you can install the RabbitMQ dependencies by running the rabbit
+  dependencies script, passing in the OS name and appropriate distribution as a parameter. The following are  
   supported
 
   debian bionic (for Ubuntu 18.04)
@@ -97,7 +97,7 @@ Proceed to step 4.
   ##### 2. Configure hostname
 
   Make sure that your hostname is correctly configured in /etc/hosts.
-  See (https://stackoverflow.com/questions/24797947/os-x-and-rabbitmq-error-epmd-error-for-host-xxx-address-cannot-connect-to-ho). If you are testing with VMs make please make sure to provide unique host names for each of the VM you are using. 
+  See (https://stackoverflow.com/questions/24797947/os-x-and-rabbitmq-error-epmd-error-for-host-xxx-address-cannot-connect-to-ho). If you are testing with VMs make please make sure to provide unique host names for each of the VM you are using.
 
   Hostname should be resolvable to a valid ip when running on bridged mode. RabbitMQ checks for this during
   initial boot. Without this (for example, when running on a VM in NAT mode)
@@ -298,7 +298,7 @@ There are several options for VOLTTRONTM [support](https://volttron.readthedocs.
 * A VOLTTRONTM office hours telecon takes place every other Friday at 11am Pacific over Skype.
 * A mailing list for announcements and reminders
 * The VOLTTRONTM contact email for being added to office hours, the mailing list, and for inquiries is: volttron@pnnl.gov
-* The preferred method for questions is through stackoverflow since this is easily discoverable by others who may have the same issue. https://stackoverflow.com/questions/tagged/volttron
+* The preferred method for questions is through StackOverflow since this is easily discoverable by others who may have the same issue. https://stackoverflow.com/questions/tagged/volttron
 * GitHub issue tracker for feature requests, bug reports, and following development activities https://github.com/VOLTTRON/volttron/issues
 
 ## License
