@@ -176,7 +176,7 @@ class HttpProxy(Agent):
         if request_type.upper() == "GET":
             request = grequests.get(url, verify=requests.certs.where(), params=params, headers=headers, timeout=3)
         elif request_type.upper() == "POST":
-            request = grequests.post(url, verify=requests.certs.where(), params=params, headers=headers, json=body,
+            request = grequests.post(url, verify=requests.certs.where(), data=params, headers=headers, json=body,
                                      timeout=3)
         else:
             raise ValueError("Unsupported request type {} for HTTPProxy agent.".format(request_type))
