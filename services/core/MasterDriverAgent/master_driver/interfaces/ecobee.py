@@ -120,8 +120,9 @@ class Interface(BasicRevert, BaseInterface):
             self.authenticated = True
             try:
                 self.refresh_tokens()
-            except Exception:
-                _log.debug("Failed to refresh tokens with existing auth key, refreshing auth code and trying again.")
+            except Exception as rf:
+                _log.debug("Failed to refresh tokens with existing auth key: {}.  refreshing auth code and trying again"
+                           ".".format(rf))
                 self.request_pin()
         else:
             _log.warning("Ecobee failed to authenicate, refreshing tokens...")
