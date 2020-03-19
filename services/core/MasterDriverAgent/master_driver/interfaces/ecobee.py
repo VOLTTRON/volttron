@@ -116,8 +116,13 @@ class Interface(BasicRevert, BaseInterface):
                     "Ecobee driver requires Ecobee device identifier as int, got: {}".format(self.ecobee_id))
         # Update auth tokens as necessary using Ecobee API endpoints
         if self.authorization_code is not None:
-            _log.info("Ecobee is authenticated, refreshing tokens.")
+            _log.info("Ecobee using existing Ecobee authorization code.")
             self.authenticated = True
+            try:
+                self.refresh_tokens()
+            except Exception:
+                _log.debug("Failed to refresh tokens with existing auth key, refreshing auth code and trying again.")
+                self.request_pin()
         else:
             _log.warning("Ecobee failed to authenicate, refreshing tokens...")
             self.authenticated = False
@@ -144,21 +149,17 @@ class Interface(BasicRevert, BaseInterface):
             'refresh_token': self.refresh_token,
             'client_id': self.api_key
         }
-        try:
-            if not self.pin:
-                raise ValueError("Ecobee pin required for refreshing tokens.")
-            # Generate auth request and extract returned value
-            request = grequests.post(url, params=params)
-            response = grequests.map([request])[0]
-            self.handle_response_code(response.status_code, response.reason)
-            response_json = json.loads(response.content)
-            self.access_token = response_json['access_token']
-            _log.debug("Ecobee access token: {}".format(self.access_token))
-            self.refresh_token = response_json['refresh_token']
-            _log.debug("Ecobee refresh token: {}".format(self.refresh_token))
-        except Exception as re:
-            _log.debug("Failed to refresh Ecobee tokens: {}".format(re))
-            self.request_pin()
+        if not self.pin:
+            raise ValueError("Ecobee pin required for refreshing tokens.")
+        # Generate auth request and extract returned value
+        request = grequests.post(url, verify=requests.certs.where(), data=params)
+        response = grequests.map([request])[0]
+        self.handle_response_code(response.status_code, response.reason)
+        response_json = json.loads(response.content)
+        self.access_token = response_json['access_token']
+        _log.debug("Ecobee access token: {}".format(self.access_token))
+        self.refresh_token = response_json['refresh_token']
+        _log.debug("Ecobee refresh token: {}".format(self.refresh_token))
 
     def request_pin(self):
         """
@@ -175,15 +176,14 @@ class Interface(BasicRevert, BaseInterface):
             'client_id': self.api_key,
             'scope': 'smartWrite'
         }
-        request = grequests.get(url, params=params, timeout=10)
+        request = grequests.get(url, verify=requests.certs.where(), params=params, timeout=3)
         response = grequests.map([request])[0]
         try:
             self.handle_response_code(response.status_code, response.text)
         except RuntimeError as re:
             _log.error(re)
-            _log.warning(
-                "Error connecting to Ecobee. Possible connectivity outage. Could not request pin.".format(
-                    response.status_code))
+            _log.warning("Error connecting to Ecobee. Possible connectivity outage. Could not request pin.".format(
+                         response.status_code))
             return
         response_json = json.loads(response.content)
         self.authorization_code = response_json['code']
@@ -213,7 +213,7 @@ class Interface(BasicRevert, BaseInterface):
             'code': self.authorization_code,
             'client_id': self.api_key
         }
-        request = grequests.post(url, data=params)
+        request = grequests.post(url, verify=requests.certs.where(), data=params)
         response = grequests.map([request])[0]
         try:
             self.handle_response_code(response.status_code, response.text)
@@ -321,15 +321,12 @@ class Interface(BasicRevert, BaseInterface):
         self.config_dict["PIN"] = self.pin
         # Fetch existing driver configuration from config store
         driver_config = json.loads(
-            self.vip.rpc.call(CONFIGURATION_STORE, "manage_get",
-                              PLATFORM_DRIVER, self.config_name).get())
+            self.vip.rpc.call(CONFIGURATION_STORE, "manage_get", PLATFORM_DRIVER, self.config_name).get())
         # update driver configuration with new values from Ecobee remote
         driver_config["driver_config"].update(self.config_dict)
         # Config store update RPC call to update device configuration
-        self.vip.rpc.call(CONFIGURATION_STORE, "set_config", self.config_name,
-                          driver_config,
-                          trigger_callback=False, send_update=True).get(
-            timeout=10)
+        self.vip.rpc.call(CONFIGURATION_STORE, "set_config", self.config_name, driver_config, trigger_callback=False,
+                          send_update=True).get(timeout=10)
 
     def get_ecobee_data(self, refresh=False, retry=True):
         """
@@ -355,8 +352,8 @@ class Interface(BasicRevert, BaseInterface):
         url = "https://api.ecobee.com/1/thermostat"
         # ask the proxy for the most recent API data
         try:
-            data = self.vip.rpc.call(self.proxy_identity, "get_driver_data", "ecobee", self.group_id, "GET", url, headers,
-                                     update_frequency=180, params=params, refresh=refresh).get()
+            data = self.vip.rpc.call(self.proxy_identity, "get_driver_data", "ecobee", self.group_id, "GET", url,
+                                     headers, update_frequency=180, params=params, refresh=refresh).get()
             if data is None:
                 raise RuntimeError("No Ecobee data available from HTTP Proxy Agent.")
             _log.info("Last Ecobee data update occurred: {}".format(data.get("request_timestamp")))
@@ -827,7 +824,7 @@ def make_ecobee_request(request_type, url, headers, params=None, body=None):
     if request_type.upper() == "GET":
         request = grequests.get(url, verify=requests.certs.where(), params=params, headers=headers, timeout=3)
     elif request_type.upper() == "POST":
-        request = grequests.post(url, verify=requests.certs.where(), params=params, headers=headers, json=body,
+        request = grequests.post(url, verify=requests.certs.where(), data=params, headers=headers, json=body,
                                  timeout=3)
     else:
         raise ValueError("Unsupported request type {} for Ecobee driver.".format(request_type))

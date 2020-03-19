@@ -51,7 +51,7 @@ _log = logging.getLogger(__name__)
 __version__ = '3.3'
 DEFAULT_MESSAGE = 'Listener Message'
 DEFAULT_AGENTID = "listener"
-DEFAULT_HEARTBEAT_PERIOD = 5
+DEFAULT_HEARTBEAT_PERIOD = 60
 
 
 class ListenerAgent(Agent):
@@ -64,8 +64,7 @@ class ListenerAgent(Agent):
         self.config = utils.load_config(config_path)
         self._agent_id = self.config.get('agentid', DEFAULT_AGENTID)
         self._message = self.config.get('message', DEFAULT_MESSAGE)
-        self._heartbeat_period = self.config.get('heartbeat_period',
-                                                 DEFAULT_HEARTBEAT_PERIOD)
+        self._heartbeat_period = self.config.get('heartbeat_period', DEFAULT_HEARTBEAT_PERIOD)
         try:
             self._heartbeat_period = int(self._heartbeat_period)
         except:
@@ -75,7 +74,7 @@ class ListenerAgent(Agent):
         if log_level == 'ERROR':
             self._logfn = _log.error
         elif log_level == 'WARN':
-            self._logfn = _log.warn
+            self._logfn = _log.warning
         elif log_level == 'DEBUG':
             self._logfn = _log.debug
         else:
@@ -100,13 +99,12 @@ class ListenerAgent(Agent):
     @PubSub.subscribe('pubsub', '')
     def on_match(self, peer, sender, bus,  topic, headers, message):
         """Use match_all to receive all messages and print them out."""
-        self._logfn(
-            "Peer: {0}, Sender: {1}:, Bus: {2}, Topic: {3}, Headers: {4}, "
-            "Message: \n{5}".format(peer, sender, bus, topic, headers, pformat(message)))
+        self._logfn("Peer: {0}, Sender: {1}:, Bus: {2}, Topic: {3}, Headers: {4}, "
+                    "Message: \n{5}".format(peer, sender, bus, topic, headers, pformat(message)))
 
 
 def main(argv=sys.argv):
-    '''Main method called by the eggsecutable.'''
+    """Main method called by the eggsecutable."""
     try:
         utils.vip_main(ListenerAgent, version=__version__)
     except Exception as e:
