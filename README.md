@@ -44,7 +44,7 @@ sudo yum install make automake gcc gcc-c++ kernel-devel python3.6-devel pythone3
 
 ### 2. Clone VOLTTRON code
 
-From version 6.0, VOLTTRON supports two message buses - ZMQ and RabbitMQ. 
+From version 6.0, VOLTTRON supports two message buses - ZMQ and RabbitMQ.
 
 ```sh
 git clone https://github.com/VOLTTRON/volttron --branch <branch name>
@@ -62,7 +62,7 @@ python3 bootstrap.py
 source env/bin/activate
 ```
 
-Proceed to step 4. 
+Proceed to step 4.
 
 #### Steps for RabbitMQ
 
@@ -72,7 +72,7 @@ For RabbitMQ based VOLTTRON, some of the RabbitMQ specific software packages hav
 
 ###### On Debian based systems and CentOS 6/7
 
-If you are running an Debian or CentOS system, you can install the RabbitMQ dependencies by running the rabbit 
+If you are running an Debian or CentOS system, you can install the RabbitMQ dependencies by running the rabbit
   dependencies script, passing in the OS name and appropriate distribution as parameters. The following are supported:
 
 -   `debian bionic` (for Ubuntu 18.04)
@@ -98,10 +98,10 @@ Also lock your version of Erlang using the [yum-plugin-versionlock](https://acce
 ##### 2. Configure hostname
 
 Make sure that your hostname is correctly configured in /etc/hosts.
-See (<https://stackoverflow.com/questions/24797947/os-x-and-rabbitmq-error-epmd-error-for-host-xxx-address-cannot-connect-to-ho>). If you are testing with VMs make please make sure to provide unique host names for each of the VM you are using. 
+See (<https://stackoverflow.com/questions/24797947/os-x-and-rabbitmq-error-epmd-error-for-host-xxx-address-cannot-connect-to-ho>). If you are testing with VMs make please make sure to provide unique host names for each of the VM you are using.
 
-The hostname should be resolvable to a valid IP when running on bridged mode. RabbitMQ checks for this during initial 
-boot. Without this (for example, when running on a VM in NAT mode) RabbitMQ  start would fail with the error "unable to 
+The hostname should be resolvable to a valid IP when running on bridged mode. RabbitMQ checks for this during initial
+boot. Without this (for example, when running on a VM in NAT mode) RabbitMQ  start would fail with the error "unable to
 connect to empd (port 4369) on <hostname>." Note: RabbitMQ startup error would show up in syslog (/var/log/messages) file
 and not in RabbitMQ logs (/var/log/rabbitmq/rabbitmq@hostname.log)
 
@@ -115,12 +115,18 @@ python bootstrap.py --rabbitmq [optional install directory. defaults to
 
 This will build the platform and create a virtual Python environment and
 dependencies for RabbitMQ. It also installs RabbitMQ server as the current user.
-If an install path is provided, that path should exist and the user should have 
+If an install path is provided, that path should exist and the user should have
 write permissions. RabbitMQ will be installed under `<install dir>/rabbitmq_server-3.7.7`.
 The rest of the documentation refers to the directory `<install dir>/rabbitmq_server-3.7.7` as
 `$RABBITMQ_HOME`
 
-You can check if the RabbitMQ server is installed by checking its status. Please
+You can check if the RabbitMQ server is installed by checking its status:
+
+```sh
+sudo rabbitmqctl status
+```
+
+Please
 note, the `RABBITMQ_HOME` environment variable can be set in ~/.bashrc. If doing so,
 it needs to be set to the RabbitMQ installation directory (default path is
 `<user_home>/rabbitmq_server/rabbitmq_server/rabbitmq_server-3.7.7`)
@@ -151,12 +157,12 @@ At a minimum you will need to provide the host name and a unique common-name
 unique and the general convention is to use `<voltttron instance name>-root-ca`.
 
 Running the above command without the optional configuration file parameter will
-cause the user user to be prompted for all the required data in the command prompt 
-vcfg will use that data to generate a rabbitmq_config.yml file in the `VOLTTRON_HOME` 
+cause the user user to be prompted for all the required data in the command prompt
+vcfg will use that data to generate a rabbitmq_config.yml file in the `VOLTTRON_HOME`
 directory.
 
 This script creates a new virtual host and creates SSL certificates needed
-for this VOLTTRON instance. These certificates get created under the subdirectory 
+for this VOLTTRON instance. These certificates get created under the subdirectory
 "certificates" in your VOLTTRON home (typically in ~/.volttron). It
 then creates the main VIP exchange named "volttron" to route message between
 the platform and agents and alternate exchange to capture unrouteable messages.
@@ -233,7 +239,7 @@ Notes:
 ### 4. Test
 
 We are now ready to start the VOLTTRON instance. If configured with a RabbitMQ message bus a config file would have been
- generated in `$VOLTTRON\_HOME/config` with the entry `message-bus=rmq`. If you need to revert back to ZeroMQ based 
+ generated in `$VOLTTRON\_HOME/config` with the entry `message-bus=rmq`. If you need to revert back to ZeroMQ based
  VOLTTRON, you will have to either remove "message-bus" parameter or set it to default "zmq" in `$VOLTTRON\_HOME/config`
   and restart the volttron process. The following command starts the VOLTTORN process in the background:
 
@@ -241,7 +247,7 @@ We are now ready to start the VOLTTRON instance. If configured with a RabbitMQ m
 volttron -vv -l volttron.log &
 ```
 
-This command causes the shell to enter the virtual Python environment and then starts the platform in debug (vv) mode 
+This command causes the shell to enter the virtual Python environment and then starts the platform in debug (vv) mode
 with a log file named volttron.log.
 
 Next, start an example listener to see it publish and subscribe to the message bus:
@@ -250,8 +256,8 @@ Next, start an example listener to see it publish and subscribe to the message b
 scripts/core/upgrade-listener
 ```
 
-This script handles several different commands for installing and starting an agent after removing an old copy. This 
-simple agent publishes a heartbeat message and listens to everything on the message bus. Look at the VOLTTRON log to see 
+This script handles several different commands for installing and starting an agent after removing an old copy. This
+simple agent publishes a heartbeat message and listens to everything on the message bus. Look at the VOLTTRON log to see
 the activity:
 
 ```sh
