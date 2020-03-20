@@ -89,7 +89,7 @@ def main():
     arg_parser.add_argument("--range", type=int, nargs=2, metavar=('LOW', 'HIGH'),
                             help="Lower and upper limit on device ID in results")
 
-    arg_parser.add_argument("--timeout", type=int, metavar=('SECONDS'),
+    arg_parser.add_argument("--timeout", type=int, metavar='SECONDS',
                             help="Time, in seconds, to wait for responses. Default: %(default)s",
                             default=5)
 
@@ -150,7 +150,8 @@ def main():
     try:
         agent.send_iam(**kwargs)
     except errors.Unreachable:
-        _log.error("There is no BACnet proxy Agent running on the platform with the VIP IDENTITY {}".format(args.proxy_id))
+        _log.error("There is no BACnet proxy Agent running on the platform with the VIP IDENTITY {}".format(
+            args.proxy_id))
     else:
         gevent.sleep(args.timeout)
 
