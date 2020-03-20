@@ -19,6 +19,15 @@ interpreted as a Modbus-TK "Address". Backward-compatibility exceptions are:
     - If the config file has no **port**, the default is 0, not 502.
     - If the config file has no **slave_id**, the default is 1, not 0.
 
+Requirements
+------------
+The Modbus-TK driver requires the modbus-tk package. This package can be installed in an
+activated environment with:
+
+::
+
+    pip install modbus-tk
+
 driver_config
 *************
 

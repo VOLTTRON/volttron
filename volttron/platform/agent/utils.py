@@ -819,3 +819,13 @@ def wait_for_volttron_startup(vhome, timeout):
         sleep_time += 3
     if sleep_time >= timeout:
         raise Exception("Platform startup failed. Please check volttron.log in {}".format(vhome))
+
+
+def wait_for_volttron_shutdown(vhome, timeout):
+    # Check for VOLTTRON_PID
+    sleep_time = 0
+    while (is_volttron_running(vhome)) and sleep_time < timeout:
+        gevent.sleep(3)
+        sleep_time += 3
+    if sleep_time >= timeout:
+        raise Exception("Platform shutdown failed. Please check volttron.cfg.log in {}".format(vhome))

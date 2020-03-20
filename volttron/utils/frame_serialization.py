@@ -95,12 +95,17 @@ def serialize_frames(data: List[Any]) -> List[Frame]:
                 frames.append(struct.pack("I", x))
             elif isinstance(x, float):
                 frames.append(struct.pack("f", x))
+            elif x is None:
+                frames.append(Frame(x))
             else:
                 frames.append(Frame(x.encode('utf-8')))
         except TypeError as e:
             import sys
             sys.exit(0)
-
+        except AttributeError as e:
+            import sys
+            # _log.debug("Serializing: {}".format(data))
+            sys.exit(0)
     return frames
 
 

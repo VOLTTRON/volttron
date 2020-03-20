@@ -4,6 +4,15 @@ BACnet Driver Configuration
 ---------------------------
 Communicating with BACnet devices requires that the BACnet Proxy Agent is configured and running. All device communication happens through this agent.
 
+Requirements
+------------
+The BACnet driver requires the Pint package. This package can be installed in an
+activated environment with:
+
+::
+
+    pip install bacpypes
+
 driver_config
 *************
 

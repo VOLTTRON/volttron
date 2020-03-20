@@ -113,6 +113,7 @@ class CSREndpoints(object):
             else:
                 json_response['message'] = "An unkonwn error has occured during the respons phase"
 
+        response = None
         try:
             if json_response['cert']:
                 json_response['cert'] = json_response['cert'].decode('utf-8')

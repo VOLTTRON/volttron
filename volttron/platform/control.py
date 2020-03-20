@@ -268,7 +268,7 @@ class ControlService(BaseAgent):
         frames = [identity]
 
         # Was self.core.socket.send_vip(b'', b'agentstop', frames, copy=False)
-        self.core.connection.send_vip(b'', b'agentstop', args=frames, copy=False)
+        self.core.connection.send_vip('', 'agentstop', args=frames, copy=False)
 
     @RPC.export
     def restart_agent(self, uuid):
@@ -282,7 +282,7 @@ class ControlService(BaseAgent):
     @RPC.export
     def stop_platform(self):
         # XXX: Restrict call as it kills the process
-        self.core.connection.send_vip(b'', b'quit')
+        self.core.connection.send_vip('', 'quit')
 
     @RPC.export
     def list_agents(self):
@@ -321,7 +321,7 @@ class ControlService(BaseAgent):
         frames = [identity]
 
         # Send message to router that agent is shutting down
-        self.core.connection.send_vip(b'', b'agentstop', args=frames)
+        self.core.connection.send_vip('', 'agentstop', args=frames)
         self._aip.remove_agent(uuid, remove_auth=remove_auth)
 
     @RPC.export
@@ -446,7 +446,7 @@ class ControlService(BaseAgent):
                 while True:
                     # request a chunk of the file
                     channel.send_multipart([
-                        b'fetch',
+                        'fetch',
                         bytes(file_offset),
                         bytes(CHUNK_SIZE)
                     ])
@@ -461,7 +461,7 @@ class ControlService(BaseAgent):
 
                     # let volttron-ctl know that we have everything
                     if size < CHUNK_SIZE:
-                        channel.send_multipart([b'checksum', b'', b''])
+                        channel.send_multipart(['checksum', '', ''])
                         with gevent.Timeout(30):
                             checksum = channel.recv()
                         assert checksum == sha512.digest()
@@ -645,11 +645,11 @@ def install_agent(opts, publickey=None, secretkey=None, callback=None):
                     # get a request
                     with gevent.Timeout(60):
                         request, file_offset, chunk_size = channel.recv_multipart()
-                    if request == b'checksum':
+                    if request == 'checksum':
                         channel.send(sha512.digest())
                         break
 
-                    assert request == b'fetch'
+                    assert request == 'fetch'
 
                     # send a chunk of the file
                     file_offset = int(file_offset)
