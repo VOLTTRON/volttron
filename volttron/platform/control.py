@@ -79,6 +79,7 @@ from volttron.platform.vip.agent.subsystems.query import Query
 from volttron.utils.rmq_config_params import RMQConfig
 from volttron.utils.rmq_mgmt import RabbitMQMgmt
 from volttron.utils.rmq_setup import check_rabbit_status
+from volttron.platform.agent.utils import is_secure_mode
 
 try:
     import volttron.restricted
@@ -242,8 +243,8 @@ class ControlService(BaseAgent):
         return self._aip.agent_versions()
 
     @RPC.export
-    def status_agents(self):
-        return self._aip.status_agents()
+    def status_agents(self, get_agent_user=False):
+        return self._aip.status_agents(get_agent_user)
 
     @RPC.export
     def start_agent(self, uuid):
@@ -500,11 +501,11 @@ def log_to_file(file, level=logging.WARNING,
     root.addHandler(handler)
 
 
-Agent = collections.namedtuple('Agent', 'name tag uuid vip_identity')
+Agent = collections.namedtuple('Agent', 'name tag uuid vip_identity agent_user')
 
 
 def _list_agents(aip):
-    return [Agent(name, aip.agent_tag(uuid), uuid, aip.agent_identity(uuid))
+    return [Agent(name, aip.agent_tag(uuid), uuid, aip.agent_identity(uuid), '')
             for uuid, name in aip.list_agents().items()]
 
 
@@ -759,11 +760,17 @@ def list_peers(opts):
 def status_agents(opts):
     agents = {agent.uuid: agent for agent in _list_agents(opts.aip)}
     status = {}
-    for uuid, name, stat in opts.connection.call('status_agents'):
+    for details in opts.connection.call('status_agents', get_agent_user=True):
+        if is_secure_mode():
+            (uuid, name, agent_user, stat) = details
+        else:
+            (uuid, name, stat) = details
+            agent_user = ''
         try:
             agent = agents[uuid]
+            agents[uuid] = agent._replace(agent_user=agent_user)
         except KeyError:
-            agents[uuid] = agent = Agent(name, None, uuid)
+            agents[uuid] = agent = Agent(name, None, uuid, vip_identity=None, agent_user=agent_user)
         status[uuid] = stat
     agents = list(agents.values())
 
@@ -1443,16 +1450,30 @@ def _show_filtered_agents_status(opts, status_callback, health_callback, agents=
     name_width = max(5, max(len(agent.name) for agent in agents))
     tag_width = max(3, max(len(agent.tag or '') for agent in agents))
     identity_width = max(3, max(len(agent.vip_identity or '') for agent in agents))
-    fmt = '{} {:{}} {:{}} {:{}} {:>6} {:>15}\n'
-    _stderr.write(
-        fmt.format(' ' * n, 'AGENT', name_width, 'IDENTITY', identity_width,
-                   'TAG', tag_width, 'STATUS', 'HEALTH'))
-    fmt = '{} {:{}} {:{}} {:{}} {:<15} {:<}\n'
-    for agent in agents:
-        _stdout.write(fmt.format(agent.uuid[:n], agent.name, name_width,
-                                 agent.vip_identity, identity_width,
-                                 agent.tag or '', tag_width,
-                                 status_callback(agent), health_callback(agent)))
+    if is_secure_mode():
+        user_width = max(3, max(len(agent.agent_user or '') for agent in agents))
+        fmt = '{} {:{}} {:{}} {:{}} {:{}} {:>6} {:>15}\n'
+        _stderr.write(
+            fmt.format(' ' * n, 'AGENT', name_width, 'IDENTITY', identity_width,
+                       'TAG', tag_width, 'AGENT_USER', user_width, 'STATUS', 'HEALTH'))
+        fmt = '{} {:{}} {:{}} {:{}} {:{}} {:<15} {:<}\n'
+        for agent in agents:
+            _stdout.write(fmt.format(agent.uuid[:n], agent.name, name_width,
+                                     agent.vip_identity, identity_width,
+                                     agent.tag or '', tag_width,
+                                     agent.agent_user, user_width,
+                                     status_callback(agent), health_callback(agent)))
+    else:
+        fmt = '{} {:{}} {:{}} {:{}} {:>6} {:>15}\n'
+        _stderr.write(
+            fmt.format(' ' * n, 'AGENT', name_width, 'IDENTITY', identity_width,
+                       'TAG', tag_width, 'STATUS', 'HEALTH'))
+        fmt = '{} {:{}} {:{}} {:{}} {:<15} {:<}\n'
+        for agent in agents:
+            _stdout.write(fmt.format(agent.uuid[:n], agent.name, name_width,
+                                     agent.vip_identity, identity_width,
+                                     agent.tag or '', tag_width,
+                                     status_callback(agent), health_callback(agent)))
 
 
 def get_agent_publickey(opts):

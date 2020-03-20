@@ -57,7 +57,7 @@ from wheel.tool import unpack
 
 from volttron.platform import certs
 from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM
-from volttron.platform.agent.utils import get_fq_identity
+from volttron.platform.agent.utils import get_fq_identity, is_secure_mode
 # Can't use zmq.utils.jsonapi because it is missing the load() method.
 from volttron.platform import jsonapi
 from volttron.platform.certs import Certs
@@ -255,8 +255,7 @@ class AIPplatform(object):
     def __init__(self, env, **kwargs):
         self.env = env
         self.agents = {}
-        self.secure_agent_user = load_platform_config().get(
-            'secure-agent-users', False)
+        self.secure_agent_user = is_secure_mode()
         self.message_bus = get_messagebus()
         if self.message_bus == 'rmq':
             self.rmq_mgmt = RabbitMQMgmt()
@@ -716,9 +715,13 @@ class AIPplatform(object):
                 pass
         return agents
 
-    def active_agents(self):
-        return {agent_uuid: execenv.name
-                for agent_uuid, execenv in self.agents.items()}
+    def active_agents(self, get_agent_user=False):
+        if self.secure_agent_user and get_agent_user:
+            return {agent_uuid: (execenv.name, execenv.agent_user)
+                    for agent_uuid, execenv in self.agents.items()}
+        else:
+            return {agent_uuid: execenv.name
+                    for agent_uuid, execenv in self.agents.items()}
 
     def clear_status(self, clear_all=False):
         remove = []
@@ -733,9 +736,13 @@ class AIPplatform(object):
         for agent_uuid in remove:
             self.agents.pop(agent_uuid, None)
 
-    def status_agents(self):
-        return [(agent_uuid, agent_name, self.agent_status(agent_uuid))
-                for agent_uuid, agent_name in self.active_agents().items()]
+    def status_agents(self, get_agent_user=False):
+        if self.secure_agent_user and get_agent_user:
+            return [(agent_uuid, agent[0], agent[1], self.agent_status(agent_uuid))
+                    for agent_uuid, agent in self.active_agents(get_agent_user=True).items()]
+        else:
+            return [(agent_uuid, agent_name, self.agent_status(agent_uuid))
+                    for agent_uuid, agent_name in self.active_agents().items()]
 
     def tag_agent(self, agent_uuid, tag):
         tag_file = os.path.join(self.install_dir, agent_uuid, 'TAG')
