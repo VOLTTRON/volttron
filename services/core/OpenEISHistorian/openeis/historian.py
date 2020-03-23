@@ -40,12 +40,11 @@
 import datetime
 import logging
 import sys
-
 import requests
 from requests import ConnectionError
+
 from volttron.utils.docs import doc_inherit
 from volttron.platform import jsonapi
-
 from volttron.platform.agent.base_historian import BaseHistorian
 from volttron.platform.agent import utils
 
@@ -53,10 +52,11 @@ utils.setup_logging()
 _log = logging.getLogger(__name__)
 __version__ = '3.1'
 
+
 def historian(config_path, **kwargs):
 
     config = utils.load_config(config_path)
-    connection = config.get('connection');
+    connection = config.get('connection')
     
     assert connection
     assert connection.get('type') == 'openeis'
@@ -80,7 +80,7 @@ def historian(config_path, **kwargs):
     assert len(datasets) > 0
     
     headers = {'content-type': 'application/json'}
-        
+
     class OpenEISHistorian(BaseHistorian):
         '''An OpenEIS historian which allows the publishing of dynamic.
         
@@ -107,17 +107,15 @@ def historian(config_path, **kwargs):
 
         @doc_inherit
         def publish_to_historian(self, to_publish_list):
-            _log.debug("publish_to_historian number of items: {}"
-                       .format(len(to_publish_list)))
+            _log.debug("publish_to_historian number of items: {}".format(len(to_publish_list)))
             
-            #pprint(to_publish_list)
+            # print(to_publish_list)
             dataset_uri = uri + "/api/datasets/append"
             
-            # Build a paylooad for each of the points in each of the dataset
-            # definitions.
+            # Build a payload for each of the points in each of the dataset definitions.
             for dsk, dsv in datasets.items():
                 ds_id = dsv["dataset_id"]
-                ds_points = dsv['points'] #[unicode(p) for p in dsv['points']]
+                ds_points = dsv['points']  # [unicode(p) for p in dsv['points']]
                 ignore_unmapped = dsv.get('ignore_unmapped_points', 0) 
                 
                 point_map = {}
@@ -131,34 +129,28 @@ def historian(config_path, **kwargs):
                             if not openeis_sensor in point_map:
                                 point_map[openeis_sensor] = []
                                 
-                            point_map[openeis_sensor].append([to_pub['timestamp'],
-                                                               to_pub['value']])
+                            point_map[openeis_sensor].append([to_pub['timestamp'], to_pub['value']])
                         else:
                             if ignore_unmapped:
                                 self.report_handled(to_pub)
                             else:
-                                err = 'Point {topic} was not found in point map.' \
-                                    .format(**to_pub)
+                                err = 'Point {topic} was not found in point map.'.format(**to_pub)
                                 _log.error(err)
                                 
-                    #pprint(point_map)
+                    # pprint(point_map)
                         
                 if len(point_map) > 0:
-                    payload = { 'dataset_id': ds_id,
+                    payload = {'dataset_id': ds_id,
                                'point_map': point_map}
-                    payload = jsonapi.dumps(payload, 
-                                            default=datetime.datetime.isoformat)
+                    payload = jsonapi.dumps(payload, default=datetime.datetime.isoformat)
                     try:
-                        #resp = requests.post(login_uri, auth=auth)
-                        resp = requests.put(dataset_uri, verify=False, headers=headers, 
-                                            data=payload)
+                        # resp = requests.post(login_uri, auth=auth)
+                        resp = requests.put(dataset_uri, verify=False, headers=headers, data=payload)
                         if resp.status_code == requests.codes.ok:                       
                             self.report_handled(try_publish)
                     except ConnectionError:
                         _log.error('Unable to connect to openeis at {}'.format(uri))
                         return
-                        
-                        
             '''
             Transform the to_publish_list into a dictionary like the following
             
@@ -182,7 +174,9 @@ def historian(config_path, **kwargs):
 
 
 def main(argv=sys.argv):
-    '''Main method called by the eggsecutable.'''
+    """
+    Main method called by the eggsecutable.
+    """
     try:
         utils.vip_main(historian, version=__version__)
     except Exception as e:

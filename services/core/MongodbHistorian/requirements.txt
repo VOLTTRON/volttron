@@ -1,4 +1,3 @@
 pymongo
 bson
 ujson
-dateutil
