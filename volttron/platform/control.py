@@ -1458,11 +1458,12 @@ def _show_filtered_agents_status(opts, status_callback, health_callback, agents=
                        'TAG', tag_width, 'AGENT_USER', user_width, 'STATUS', 'HEALTH'))
         fmt = '{} {:{}} {:{}} {:{}} {:{}} {:<15} {:<}\n'
         for agent in agents:
+            status_str = status_callback(agent)
             _stdout.write(fmt.format(agent.uuid[:n], agent.name, name_width,
                                      agent.vip_identity, identity_width,
                                      agent.tag or '', tag_width,
-                                     agent.agent_user, user_width,
-                                     status_callback(agent), health_callback(agent)))
+                                     agent.agent_user if status_str.startswith("running") else "", user_width,
+                                     status_str, health_callback(agent)))
     else:
         fmt = '{} {:{}} {:{}} {:{}} {:>6} {:>15}\n'
         _stderr.write(
