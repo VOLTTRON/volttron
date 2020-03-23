@@ -38,6 +38,9 @@ if [ ! -d $volttron_home ]; then
     if [ $? -eq 0 ]; then
         chown $volttron_user $volttron_home
     else
+        echo "Unable set permission for $volttron_home"
+        # clean up the dir we just created before exiting with error
+        rmdir $volttron_home
         exit 1
     fi
 else
@@ -57,6 +60,24 @@ remote instance signed certificate into corresponding agent's agent-data directo
     echo -n "Would you like to transition this existing VOLTTRON_HOME to secure mode (Y/N)"
     read continue
     if [ $continue == "Y" ] || [ $continue == "y" ]; then
+
+        # First check if instance_name is valid. If not report and exit. User need to update it before running
+        # script again
+
+        if [ -f $volttron_home/config ]; then
+            # grab instance name from config and trim leading and trailing white spaces
+            name=`grep instance-name $volttron_home/config | cut -d "=" -f 2 | sed 's/^[ \t]*//;s/[ \t]*$//'`
+            if [[ ! $name =~ ^[a-z_]([a-z0-9_-]{1,23}|[a-z0-9_-]{1,23}\$)$ ]]; then
+                echo "ERROR"
+                echo "Instance name from $volttron_home/config is $name"
+                echo "Instance name is invalid"
+                echo "Instance name should be valid unix user name(can only contain a-z, 1-9 _ and -) and should be 23 characters or less"
+                exit 1
+            else
+                name_from_config=1
+            fi
+
+        fi
 
         # if this is a existing volttron home directory, update file permissions of
         # existing files. Agent specific users will be granted access to its own
@@ -181,8 +202,6 @@ if [ -f $volttron_home/config ]; then
         # replace false to true
         sed -i 's/secure-agent-users = False/secure-agent-users = True/' $volttron_home/config
     fi
-    # grab instance name from config and trim leading and trailing white spaces
-    name=`grep instance-name $volttron_home/config | cut -d "=" -f 2 | sed 's/^[ \t]*//;s/[ \t]*$//'`
 else
     echo "[volttron]" > $volttron_home/config
     echo "secure-agent-users = True" >> $volttron_home/config
@@ -207,9 +226,8 @@ while true; do
         echo "Instance name from $volttron_home/config is $name"
         name_from_config=1
     fi
-
-    if [[ $name =~ ^[a-z_]([a-z0-9_-]{1,23}|[a-z0-9_-]{1,23}\$)$ ]]
-    then
+    valid=0
+    if [[ $name =~ ^[a-z_]([a-z0-9_-]{1,23}|[a-z0-9_-]{1,23}\$)$ ]]; then
         if [ -f "/etc/sudoers.d/volttron" ]; then
             exists=`grep "volttron_$name" /etc/sudoers.d/volttron`
             if [ -z "$exists" ]; then
@@ -233,10 +251,7 @@ while true; do
                     exit 0
                 fi
             fi
-        else
-            valid=1
         fi
-
         if [ $valid -eq 1 ]; then
             echo "Setting Volttron instance name to $name"
             if [ -z "$name_from_config" ]; then
@@ -245,6 +260,10 @@ while true; do
             fi
             break
         fi
+    else
+        echo "Instance name is invalid"
+        echo "Instance name should be valid unix user name(can only contain a-z, 1-9 _ and -) and should be 23 characters or less"
+        name=""
     fi
 done
 
