@@ -1014,11 +1014,14 @@ def main():
 
     else:
         # Warn about unknown agents
+        valid_agents = False
         for agent in args.agent:
             if agent not in available_agents:
                 print('"{}" not configurable with this tool'.format(agent))
-
-        confirm_volttron_home()
+            else:
+                valid_agents = True
+        if valid_agents:
+            confirm_volttron_home()
 
         # Configure agents
         for agent in args.agent:
