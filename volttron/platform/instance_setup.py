@@ -61,7 +61,7 @@ from volttron.utils import get_hostname
 from volttron.utils.prompt import prompt_response, y, n, y_or_n
 from volttron.utils.rmq_config_params import RMQConfig
 from volttron.utils.rmq_setup import setup_rabbitmq_volttron
-from . import get_home, get_services_core, set_home, is_instance_running
+from . import get_home, get_services_core, set_home
 
 # Global configuration options.  Must be key=value strings.  No cascading
 # structure so that we can easily create/load from the volttron config file
@@ -150,7 +150,10 @@ def _is_bound_already(address):
 
 def fail_if_instance_running():
 
-    if is_instance_running():
+    home = get_home()
+
+    if os.path.exists(home) and\
+       is_volttron_running(home):
         print("""
 The current instance is running.  In order to configure an instance it cannot
 be running.  Please execute:
