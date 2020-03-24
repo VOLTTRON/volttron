@@ -35,17 +35,19 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-import copy
 
+import os
+import json
+import copy
 import pytest
 import gevent
-from mock import MagicMock
 import sqlite3
 import logging
-from volttron.platform.agent import utils
 from datetime import datetime
-from volttron.platform.messaging.health import STATUS_GOOD
+from mock import MagicMock
 
+from volttron.platform.messaging.health import STATUS_GOOD
+from volttron.platform.agent import utils
 from volttron.platform import get_services_core
 
 __version__ = "0.1.0"
@@ -76,9 +78,8 @@ def cleanup_cache(volttron_instance, query_agent, weather):
     tables = ["get_current_weather", "get_hourly_forecast"]
     version = query_agent.vip.rpc.call(identity, 'get_version').get(timeout=3)
     cwd = volttron_instance.volttron_home
-    database_file = "/".join([cwd, "agents", weather, "weatherdotgovagent-" +
-                         version, "weatherdotgovagent-" + version +
-                         ".agent-data", "weather.sqlite"])
+    database_file = "/".join([cwd, "agents", weather, "weatherdotgovagent-" + version, "weatherdotgovagent-" + version +
+                              ".agent-data", "weather.sqlite"])
     _log.debug(database_file)
     sqlite_connection = sqlite3.connect(database_file)
     cursor = sqlite_connection.cursor()
@@ -100,8 +101,7 @@ def query_agent(request, volttron_instance):
         prefix="weather/poll/current",
         callback=agent.poll_callback).get()
 
-    # 2: add a tear down method to stop the fake
-    # agent that published to message bus
+    # 2: add a tear down method to stop the fake agent that published to message bus
     def stop_agent():
         print("In teardown method of query_agent")
         agent.core.stop()
@@ -146,8 +146,7 @@ def test_success_current(cleanup_cache, weather, query_agent, locations):
     :param weather: instance of weather service to be tested
     :param query_agent: agent to leverage to use RPC calls
     """
-    query_data = query_agent.vip.rpc.call(identity, 'get_current_weather',
-                                          locations).get(timeout=30)
+    query_data = query_agent.vip.rpc.call(identity, 'get_current_weather', locations).get(timeout=30)
     print(query_data)
     assert len(query_data) == len(locations)
     for record in query_data:
@@ -162,18 +161,14 @@ def test_success_current(cleanup_cache, weather, query_agent, locations):
         else:
             results = record.get("weather_error")
             if results.startswith("Remote API returned no data") or \
-                    results.startswith("Remote API redirected request, "
-                                       "but redirect failed") \
-                    or results.startswith("Remote API returned invalid "
-                                          "response")\
-                    or results.startswith("API request failed with unexpected "
-                                          "response"):
+                    results.startswith("Remote API redirected request, but redirect failed") \
+                    or results.startswith("Remote API returned invalid response")\
+                    or results.startswith("API request failed with unexpected response"):
                 assert True
             else:
                 assert False
 
-    cache_data = query_agent.vip.rpc.call(identity, 'get_current_weather',
-                                          locations).get(timeout=30)
+    cache_data = query_agent.vip.rpc.call(identity, 'get_current_weather', locations).get(timeout=30)
 
     # check names returned are valid
     assert len(cache_data) == len(cache_data)
@@ -189,12 +184,10 @@ def test_success_current(cleanup_cache, weather, query_agent, locations):
     ()
 ])
 def test_current_fail(weather, query_agent, locations):
-    query_data = query_agent.vip.rpc.call(identity, 'get_current_weather',
-                                          locations).get(timeout=30)
+    query_data = query_agent.vip.rpc.call(identity, 'get_current_weather', locations).get(timeout=30)
     for record in query_data:
         error = record.get("weather_error")
-        assert error.startswith("Invalid location format.") or error.startswith(
-            "Invalid location")
+        assert error.startswith("Invalid location format.") or error.startswith("Invalid location")
         assert record.get("weather_results") is None
 
 
@@ -212,25 +205,20 @@ def test_success_forecast(cleanup_cache, weather, query_agent, locations):
     :param weather: instance of weather service to be tested
     :param query_agent: agent to leverage to use RPC calls
     """
-    query_data = query_agent.vip.rpc.call(identity, 'get_hourly_forecast',
-                                          locations, hours=2).get(timeout=30)
+    query_data = query_agent.vip.rpc.call(identity, 'get_hourly_forecast', locations, hours=2).get(timeout=30)
     # print(query_data)
     assert len(query_data) == len(locations)
     for x in range(0, len(query_data)):
         location_data = query_data[x]
         assert (location_data.get("lat") and location_data.get("long")) or \
-               (location_data.get("wfo") and location_data.get(
-                   "x") and location_data.get("y"))
+               (location_data.get("wfo") and location_data.get("x") and location_data.get("y"))
         results = location_data.get("weather_results")
         error = location_data.get("weather_error")
         if error and not results:
             if error.startswith("Remote API returned no data") \
-                    or error.startswith("Remote API redirected request, but "
-                                        "redirect failed") \
-                    or error.startswith("Remote API returned invalid "
-                                        "response") \
-                    or error.startswith("API request failed with "
-                                        "unexpected response"):
+                    or error.startswith("Remote API redirected request, but redirect failed") \
+                    or error.startswith("Remote API returned invalid response") \
+                    or error.startswith("API request failed with unexpected response"):
                 assert True
             else:
                 assert False
@@ -240,9 +228,7 @@ def test_success_forecast(cleanup_cache, weather, query_agent, locations):
                 forecast_time = utils.parse_timestamp_string(record[0])
                 assert isinstance(forecast_time, datetime)
 
-    cache_data = query_agent.vip.rpc.call(identity, 'get_hourly_forecast',
-                                          locations,
-                                          hours=2).get(timeout=30)
+    cache_data = query_agent.vip.rpc.call(identity, 'get_hourly_forecast', locations, hours=2).get(timeout=30)
     assert len(cache_data) == len(query_data)
     for x in range(0, len(cache_data)):
         query_location_data = query_data[x]
@@ -250,14 +236,10 @@ def test_success_forecast(cleanup_cache, weather, query_agent, locations):
         assert cache_location_data.get(
             "generation_time") == query_location_data.get("generation_time")
         if cache_location_data.get("lat") and cache_location_data.get("long"):
-            assert cache_location_data.get("lat") == query_location_data.get(
-                "lat")
-            assert cache_location_data.get("long") == query_location_data.get(
-                "long")
-        elif cache_location_data.get("wfo") and cache_location_data.get(
-                "x") and cache_location_data.get("y"):
-            assert cache_location_data.get("wfo") == query_location_data.get(
-                "wfo")
+            assert cache_location_data.get("lat") == query_location_data.get("lat")
+            assert cache_location_data.get("long") == query_location_data.get("long")
+        elif cache_location_data.get("wfo") and cache_location_data.get("x") and cache_location_data.get("y"):
+            assert cache_location_data.get("wfo") == query_location_data.get("wfo")
             assert cache_location_data.get("x") == query_location_data.get("x")
             assert cache_location_data.get("y") == query_location_data.get("y")
         else:
@@ -277,12 +259,9 @@ def test_success_forecast(cleanup_cache, weather, query_agent, locations):
         else:
             results = cache_location_data.get("weather_error")
             if results.startswith("Remote API returned no data") \
-                    or results.startswith("Remote API redirected request, but "
-                                          "redirect failed") \
-                    or results.startswith("Remote API returned invalid "
-                                          "response") \
-                    or results.startswith("API request failed with unexpected "
-                                          "response"):
+                    or results.startswith("Remote API redirected request, but redirect failed") \
+                    or results.startswith("Remote API returned invalid response") \
+                    or results.startswith("API request failed with unexpected response"):
                 assert True
             else:
                 assert False
@@ -297,8 +276,7 @@ def test_success_forecast(cleanup_cache, weather, query_agent, locations):
 
 ])
 def test_hourly_forecast_fail(weather, query_agent, locations):
-    query_data = query_agent.vip.rpc.call(identity, 'get_hourly_forecast',
-                                          locations).get(timeout=30)
+    query_data = query_agent.vip.rpc.call(identity, 'get_hourly_forecast', locations).get(timeout=30)
     for record in query_data:
         error = record.get("weather_error")
         if error.startswith("Invalid location format."):
@@ -322,8 +300,7 @@ def test_hourly_forecast_fail(weather, query_agent, locations):
      ['weather/poll/current/KLAX', 'weather/poll/current/KABQ']),
 
 ])
-def test_polling_locations_valid_config(volttron_instance, query_agent, config,
-                                        result_topics):
+def test_polling_locations_valid_config(volttron_instance, query_agent, config, result_topics):
     agent_uuid = None
     query_agent.poll_callback.reset_mock()
     try:
@@ -353,9 +330,39 @@ def test_polling_locations_valid_config(volttron_instance, query_agent, config,
                 assert len(results1) == len(config["poll_locations"])
             i = i + 1
         assert query_agent.vip.rpc.call(
-            "poll.weather", "health.get_status").get(timeout=10).get(
-            'status') == STATUS_GOOD
+            "poll.weather", "health.get_status").get(timeout=10).get('status') == STATUS_GOOD
     finally:
         if agent_uuid:
             volttron_instance.stop_agent(agent_uuid)
             volttron_instance.remove_agent(agent_uuid)
+
+
+@pytest.mark.weather2
+def test_default_config(volttron_instance, cleanup_cache, query_agent):
+    """
+    Test the default configuration file included with the agent
+    """
+    locations = [{"station": "KLAX"}]
+    publish_agent = volttron_instance.build_agent(identity="test_agent")
+    gevent.sleep(1)
+
+    config_path = os.path.join(get_services_core("WeatherDotGov"), "config")
+    with open(config_path, "r") as config_file:
+        config_json = json.load(config_file)
+    assert isinstance(config_json, dict)
+    volttron_instance.install_agent(
+        agent_dir=get_services_core("WeatherDotGov"),
+        config_file=config_json,
+        start=True,
+        vip_identity="health_test")
+    assert publish_agent.vip.rpc.call("health_test", "health.get_status").get(timeout=10).get('status') == STATUS_GOOD
+
+    query_data = query_agent.vip.rpc.call("health_test", 'get_current_weather', locations).get(timeout=30)
+    print(query_data)
+    assert len(query_data) == len(locations)
+    for record in query_data:
+        # check format here
+        assert record.get("observation_time")
+        assert record.get("station")
+        # check weather error message
+        results = record.get("weather_results")

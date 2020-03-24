@@ -46,7 +46,7 @@ from volttron.platform.messaging.health import STATUS_GOOD
 
 
 @pytest.mark.sqlhistorian
-@pytest.mark.aggregator
+@pytest.mark.tagging
 def test_default_config(volttron_instance):
     """
     Test the default configuration file included with the agent
@@ -54,13 +54,13 @@ def test_default_config(volttron_instance):
     publish_agent = volttron_instance.build_agent(identity="test_agent")
     gevent.sleep(1)
 
-    config_path = os.path.join(get_services_core("SQLAggregateHistorian"), "config")
+    config_path = os.path.join(get_services_core("SQLiteTaggingService"), "config")
     with open(config_path, "r") as config_file:
         config_json = json.load(config_file)
     assert isinstance(config_json, dict)
 
     volttron_instance.install_agent(
-        agent_dir=get_services_core("SQLAggregateHistorian"),
+        agent_dir=get_services_core("SQLiteTaggingService"),
         config_file=config_json,
         start=True,
         vip_identity="health_test")

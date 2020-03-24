@@ -46,6 +46,7 @@ from volttron.platform.messaging.health import STATUS_GOOD
 
 
 @pytest.mark.aggregator
+@pytest.mark.mongodb
 def test_default_config(volttron_instance):
     """
     Test the default configuration file included with the agent

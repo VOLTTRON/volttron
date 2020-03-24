@@ -1,12 +1,4 @@
 {
-    # By default the webroot will be relative to the installation directory
-    # of the agent when it is installed.  One can override this by specifying
-    # the root directory here.
-    # "webroot": "path/to/webroot", 
-
-    # Authentication for users is handled through a naive password algorithm
-    # import hashlib
-    # hashlib.sha512(password).hexdigest() where password is the plain text password.
     "users" : {
         "reader" : {
             "password" : "2d7349c51a3914cd6f5dc28e23c417ace074400d7c3e176bcf5da72fdbeb6ce7ed767ca00c6c1fb754b8df5114fc0b903960e7f3befe3a338d4a640c05dfaf2d",

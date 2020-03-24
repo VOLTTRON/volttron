@@ -75,8 +75,8 @@ expected_table_list = [
     u'topics'
 ]
 
-# used only in one test function. And clean up should happen between
-# different volttron_instance types
+
+# used only in one test function. And clean up should happen between different volttron_instance types
 @pytest.fixture()
 def crate_connection1():
     host = crate_config_no_schema['connection']['params']['host']
@@ -88,8 +88,7 @@ def crate_connection1():
     conn.close()
 
 
-# used only in one test function. And clean up should happen between
-# different volttron_instance types
+# used only in one test function. And clean up should happen between different volttron_instance types
 @pytest.fixture()
 def crate_connection2():
     host = crate_config['connection']['params']['host']
