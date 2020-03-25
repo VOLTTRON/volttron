@@ -101,15 +101,16 @@ def _update_config_file(instance_name=None, web_secret_key=None):
     for k, v in config_opts.items():
         config.set('volttron', k, v)
 
-    if instance_name is not None:
-        if 'instance-name' in config_opts:
-            # Overwrite existing if instance name was passed
-            if instance_name is not None:
-                config.set('volttron', 'instance-name', instance_name)
-        else:
-            if instance_name is None:
-                instance_name = 'volttron1'
+    # if instance_name is not None:
+
+    if 'instance-name' in config_opts:
+        # Overwrite existing if instance name was passed
+        if instance_name is not None:
             config.set('volttron', 'instance-name', instance_name)
+    else:
+        if instance_name is None:
+            instance_name = 'volttron1'
+        config.set('volttron', 'instance-name', instance_name)
 
     if web_secret_key is not None:
         config.set('volttron', 'web-secret-key', web_secret_key)
@@ -1013,11 +1014,14 @@ def main():
 
     else:
         # Warn about unknown agents
+        valid_agents = False
         for agent in args.agent:
             if agent not in available_agents:
                 print('"{}" not configurable with this tool'.format(agent))
-
-        confirm_volttron_home()
+            else:
+                valid_agents = True
+        if valid_agents:
+            confirm_volttron_home()
 
         # Configure agents
         for agent in args.agent:
