@@ -35,6 +35,7 @@ done
 
 if [ ! -d $volttron_home ]; then
     mkdir $volttron_home
+    vhome_created=1
     if [ $? -eq 0 ]; then
         chown $volttron_user $volttron_home
     else
@@ -69,7 +70,7 @@ remote instance signed certificate into corresponding agent's agent-data directo
             name=`grep instance-name $volttron_home/config | cut -d "=" -f 2 | sed 's/^[ \t]*//;s/[ \t]*$//'`
             if [[ ! $name =~ ^[a-z_]([a-z0-9_-]{1,23}|[a-z0-9_-]{1,23}\$)$ ]]; then
                 echo "ERROR"
-                echo "Instance name from $volttron_home/config is $name"
+                echo "Instance name from... $volttron_home/config is $name"
                 echo "Instance name is invalid"
                 echo "Instance name should be valid unix user name(can only contain a-z, 1-9 _ and -) and should be 23 characters or less"
                 exit 1
@@ -217,7 +218,6 @@ echo "Creating volttron_agent user group"
 echo "Adding Permissions to sudoers for user: $volttron_user"
 # allow user to add and delete users using the volttron agent user pattern
 while true; do
-    name_from_config=""
     valid=0
     if [ -z "$name" ]; then
         echo -n "Enter Volttron instance name (volttron_<instance name>must be valid unix group):"
@@ -228,29 +228,27 @@ while true; do
     fi
     valid=0
     if [[ $name =~ ^[a-z_]([a-z0-9_-]{1,23}|[a-z0-9_-]{1,23}\$)$ ]]; then
-        if [ -f "/etc/sudoers.d/volttron" ]; then
-            exists=`grep "volttron_$name" /etc/sudoers.d/volttron`
-            if [ -z "$exists" ]; then
-                valid=1
-            else
-                echo "Entries exists in /etc/sudoers.d/volttron for instance name $name"
-                if [ -z "$name_from_config" ]; then
-                    # If name is not from config as user option to pick different instance_name
-                    echo -n "Do you want to setup a different instance of volttron(Y/N)"
-                    read continue
-                    if [ $continue == "N" ] || [ $continue == "n" ]; then
-                        # write instance-name to config file
-                        echo "instance-name = $name" >> $volttron_home/config
-                        echo "Volttron secure mode setup is complete"
-                        exit 0
-                    else
-                        name=""
-                    fi
-                else
+        if [ -f "/etc/sudoers.d/volttron_$name" ]; then
+            echo "Entries  exists in /etc/sudoers.d for instance name $name"
+            if [ -z "$name_from_config" ]; then
+                # If name is not from config as user option to pick different instance_name
+                echo -n "Do you want to setup a different instance of volttron(Y/N)"
+                read continue
+                if [ $continue == "N" ] || [ $continue == "n" ]; then
+                    # write instance-name to config file
+                    echo "instance-name = $name" >> $volttron_home/config
                     echo "Volttron secure mode setup is complete"
                     exit 0
+                else
+                    name=""
                 fi
+            else
+                echo "Volttron secure mode setup is complete"
+                exit 0
             fi
+        else
+            # create the sudoer.d file
+            valid=1
         fi
         if [ $valid -eq 1 ]; then
             echo "Setting Volttron instance name to $name"
@@ -267,14 +265,14 @@ while true; do
     fi
 done
 
-echo "$volttron_user ALL= NOPASSWD: /usr/sbin/groupadd volttron_$name" | sudo EDITOR='tee -a' visudo -f /etc/sudoers.d/volttron
-echo "$volttron_user ALL= NOPASSWD: /usr/sbin/usermod -a -G volttron_$name $USER" | sudo EDITOR='tee -a' visudo -f /etc/sudoers.d/volttron
-echo "$volttron_user ALL= NOPASSWD: /usr/sbin/useradd volttron_[1-9]* -r -G volttron_$name" | sudo EDITOR='tee -a' visudo -f /etc/sudoers.d/volttron
-echo "$volttron_user ALL= NOPASSWD: $source_dir/scripts/secure_stop_agent.sh volttron_[1-9]* [1-9]*" | sudo EDITOR='tee -a' visudo -f /etc/sudoers.d/volttron
+echo "$volttron_user ALL= NOPASSWD: /usr/sbin/groupadd volttron_$name" | sudo EDITOR='tee -a' visudo -f /etc/sudoers.d/volttron_$name
+echo "$volttron_user ALL= NOPASSWD: /usr/sbin/usermod -a -G volttron_$name $USER" | sudo EDITOR='tee -a' visudo -f /etc/sudoers.d/volttron_$name
+echo "$volttron_user ALL= NOPASSWD: /usr/sbin/useradd volttron_[1-9]* -r -G volttron_$name" | sudo EDITOR='tee -a' visudo -f /etc/sudoers.d/volttron_$name
+echo "$volttron_user ALL= NOPASSWD: $source_dir/scripts/secure_stop_agent.sh volttron_[1-9]* [1-9]*" | sudo EDITOR='tee -a' visudo -f /etc/sudoers.d/volttron_$name
 
 # TODO want delete only users with pattern of particular group
-echo "$volttron_user ALL= NOPASSWD: /usr/sbin/userdel volttron_[1-9]*" | sudo EDITOR='tee -a' visudo -f /etc/sudoers.d/volttron
+echo "$volttron_user ALL= NOPASSWD: /usr/sbin/userdel volttron_[1-9]*" | sudo EDITOR='tee -a' visudo -f /etc/sudoers.d/volttron_$name
 # allow user to run all non-sudo commands for all volttron agent users
-echo "$volttron_user ALL=(%volttron_$name) NOPASSWD: ALL" | sudo EDITOR='tee -a' visudo -f /etc/sudoers.d/volttron
+echo "$volttron_user ALL=(%volttron_$name) NOPASSWD: ALL" | sudo EDITOR='tee -a' visudo -f /etc/sudoers.d/volttron_$name
 echo "Permissions set for $volttron_user"
 echo "Volttron secure mode setup is complete"
