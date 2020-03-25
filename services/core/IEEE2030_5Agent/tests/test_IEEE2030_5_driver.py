@@ -43,7 +43,7 @@ import requests
 
 from volttron.platform import get_services_core
 
-DRIVER_NAME = 'sep2'
+DRIVER_NAME = 'IEEE2030_5'
 DEVICE_ID = "097935300833"
 
 TEST_CONFIG = {
@@ -61,13 +61,13 @@ TEST_CONFIG = {
                         "pin_code": "130178"
                     }
                ],
-    "sep2_server_sfdi": "413707194130",
-    "sep2_server_lfdi": "29834592834729384728374562039847629",
+    "IEEE2030_5_server_sfdi": "413707194130",
+    "IEEE2030_5_server_lfdi": "29834592834729384728374562039847629",
     "load_shed_device_category": "0020",
     "timezone": "America/Los_Angeles"
 }
 
-REGISTRY_CONFIG_STRING = """Volttron Point Name,SEP2 Resource Name,SEP2 Field Name,Units,Writable,Default
+REGISTRY_CONFIG_STRING = """Volttron Point Name,IEEE2030_5 Resource Name,IEEE2030_5 Field Name,Units,Writable,Default
 b1_Md,DeviceInformation,mfModel,NA,FALSE,NA
 b1_Opt,DeviceInformation,lFDI,NA,FALSE,NA
 b1_SN,DeviceInformation,sFDI,NA,FALSE,NA
@@ -129,27 +129,27 @@ web_address = ""
 def agent(request, volttron_instance_module_web):
     test_agent = volttron_instance_module_web.build_agent()
 
-    # Configure a SEP2 device in the Master Driver
+    # Configure a IEEE 2030.5 device in the Master Driver
     test_agent.vip.rpc.call('config.store', 'manage_delete_store', 'platform.driver').get(timeout=10)
     test_agent.vip.rpc.call('config.store', 'manage_store', 'platform.driver',
                             'devices/{}'.format(DRIVER_NAME),
                             """{
                                 "driver_config": {
                                     "sfdi": "097935300833",
-                                    "sep2_agent_id": "test_sep2agent"
+                                    "IEEE2030_5_agent_id": "test_IEEE2030_5agent"
                                 },
                                 "campus": "campus",
                                 "building": "building",
-                                "unit": "sep2",
-                                "driver_type": "sep2",
-                                "registry_config": "config://sep2.csv",
+                                "unit": "IEEE2030_5",
+                                "driver_type": "IEEE2030_5",
+                                "registry_config": "config://IEEE2030_5.csv",
                                 "interval": 15,
                                 "timezone": "US/Pacific",
                                 "heart_beat_point": "Heartbeat"
                             }""",
                             'json').get(timeout=10)
     test_agent.vip.rpc.call('config.store', 'manage_store', 'platform.driver',
-                            'sep2.csv',
+                            'IEEE2030_5.csv',
                             REGISTRY_CONFIG_STRING,
                             'csv').get(timeout=10)
 
@@ -159,19 +159,19 @@ def agent(request, volttron_instance_module_web):
                                                        start=True)
     print('master driver agent id: ', md_id)
 
-    # Install and start a SEP2Agent
-    sep2_id = volttron_instance_module_web.install_agent(agent_dir=get_services_core("SEP2Agent"),
-                                                         config_file=TEST_CONFIG,
-                                                         vip_identity='test_sep2agent',
-                                                         start=True)
-    print('sep2 agent id: ', sep2_id)
+    # Install and start a IEEE2030_5Agent
+    IEEE2030_5_id = volttron_instance_module_web.install_agent(agent_dir=get_services_core("IEEE2030_5Agent"),
+                                                               config_file=TEST_CONFIG,
+                                                               vip_identity='test_IEEE2030_5agent',
+                                                               start=True)
+    print('IEEE 2030.5 agent id: ', IEEE2030_5_id)
 
     global web_address
     web_address = volttron_instance_module_web.bind_web_address
 
     def stop():
         volttron_instance_module_web.stop_agent(md_id)
-        volttron_instance_module_web.stop_agent(sep2_id)
+        volttron_instance_module_web.stop_agent(IEEE2030_5_id)
         test_agent.core.stop()
 
     gevent.sleep(10)        # wait for agents and devices to start
@@ -181,19 +181,19 @@ def agent(request, volttron_instance_module_web):
     return test_agent
 
 
-class TestSEP2Driver:
-    """Regression tests for the SEP2 driver."""
+class TestIEEE2030_5Driver:
+    """Regression tests for the IEEE 2030.5 driver."""
 
     def test_all_points(self, agent):
-        self.put_sep2_data('edev/0/di', 'edev.di')                  # device_information
-        self.put_sep2_data('edev/0/der/1/derg', 'der.derg')         # der_settings
-        self.put_sep2_data('edev/0/der/1/ders', 'der.ders')         # der_status
-        self.put_sep2_data('edev/0/der/1/dera', 'der.dera')         # der_availability
-        self.put_sep2_data('edev/0/der/1/dercap', 'der.dercap')     # der_capabililty
-        self.put_sep2_data('edev/0/ps', 'edev.ps')                  # power_status
-        self.put_sep2_data('mup', 'mup.mup')                        # mup
-        self.put_sep2_data('mup/0', 'mup.mup2')                     # mup (update)
-        self.put_sep2_data('mup/0', 'mup.mmr')                      # mmr
+        self.put_IEEE2030_5_data('edev/0/di', 'edev.di')                  # device_information
+        self.put_IEEE2030_5_data('edev/0/der/1/derg', 'der.derg')         # der_settings
+        self.put_IEEE2030_5_data('edev/0/der/1/ders', 'der.ders')         # der_status
+        self.put_IEEE2030_5_data('edev/0/der/1/dera', 'der.dera')         # der_availability
+        self.put_IEEE2030_5_data('edev/0/der/1/dercap', 'der.dercap')     # der_capabililty
+        self.put_IEEE2030_5_data('edev/0/ps', 'edev.ps')                  # power_status
+        self.put_IEEE2030_5_data('mup', 'mup.mup')                        # mup
+        self.put_IEEE2030_5_data('mup/0', 'mup.mup2')                     # mup (update)
+        self.put_IEEE2030_5_data('mup/0', 'mup.mmr')                      # mmr
 
         # Wait a few seconds to allow the HTTP requests to be processed (asynchronously?)
         time.sleep(5)
@@ -217,15 +217,16 @@ class TestSEP2Driver:
         return test_agent.vip.rpc.call('platform.driver', 'set_point', DRIVER_NAME, point_name, value).get(timeout=10)
 
     @staticmethod
-    def put_sep2_data(sep2_resource_name, sep2_filename):
+    def put_IEEE2030_5_data(IEEE2030_5_resource_name, IEEE2030_5_filename):
         """
-            PUT data for a SEP2 resource, using the contents of an XML file in the current directory.
+            PUT data for a IEEE 2030.5 resource, using the contents of an XML file in the current directory.
 
-        @param sep2_resource_name: The distinguishing part of the name of the SEP2 resource as it appears in the URL.
-        @param sep2_filename: The distinguishing part of the SEP2 sample data file name.
+        @param IEEE2030_5_resource_name: The distinguishing part of the name of the IEEE 2030.5 resource as it appears
+        in the URL.
+        @param IEEE2030_5_filename: The distinguishing part of the IEEE 2030.5 sample data file name.
         """
-        url = '{}/dcap/{}'.format(web_address, sep2_resource_name)
+        url = '{}/dcap/{}'.format(web_address, IEEE2030_5_resource_name)
         headers = {'content-type': 'application/sep+xml'}
         requests.post(url,
-                      data=open(get_services_core("SEP2Agent/tests/{}.PUT.xml".format(sep2_filename)), 'rb'),
+                      data=open(get_services_core("IEEE2030_5Agent/tests/{}.PUT.xml".format(IEEE2030_5_filename)), 'rb'),
                       headers=headers)
