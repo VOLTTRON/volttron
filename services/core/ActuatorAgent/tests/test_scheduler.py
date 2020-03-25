@@ -41,6 +41,9 @@ import sys
 from datetime import datetime, timedelta
 from dateutil.parser import parse
 
+test_dir = os.path.dirname(os.path.realpath(__file__))
+sys.path.append(test_dir + '/../actuator')
+
 from scheduler import ScheduleManager, DeviceState, PRIORITY_HIGH, PRIORITY_LOW, PRIORITY_LOW_PREEMPT
 
 test_dir = os.path.dirname(os.path.realpath(__file__))
