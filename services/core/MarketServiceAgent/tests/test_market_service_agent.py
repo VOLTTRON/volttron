@@ -41,6 +41,8 @@ import json
 import gevent
 import pytest
 
+from market_service.market_participant import MarketParticipant
+from volttron.platform.agent.base_market_agent.buy_sell import BUYER
 from volttron.platform.messaging.health import STATUS_GOOD
 from volttron.platform import get_services_core
 
@@ -67,3 +69,9 @@ def test_default_config(volttron_instance):
         start=True,
         vip_identity="health_test")
     assert publish_agent.vip.rpc.call("health_test", "health.get_status").get(timeout=10).get('status') == STATUS_GOOD
+
+    # perform basic sanity check
+    market_name = 'test_market'
+    buyer_participant = MarketParticipant(BUYER, 'agent_id1')
+
+    publish_agent.vip.rpc.call("health_test", "make_reservation", market_name, buyer_participant.buyer_seller)

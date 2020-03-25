@@ -44,13 +44,11 @@
 Pytest test cases for SysMonAgent
 """
 
+import os
 import pytest
 
-import gevent
-
-from volttron.platform import jsonapi
+from volttron.platform import jsonapi, get_ops
 from volttrontesting.utils.utils import poll_gevent_sleep
-from volttron.platform import get_ops
 
 _test_config = {
     "base_topic": "test1/sysmon",
@@ -59,6 +57,11 @@ _test_config = {
     "disk_check_interval": 1,
     "disk_path": "/"
 }
+
+config_path = os.path.join(get_ops("SysMonAgent"), "sysmonagent.config")
+with open(config_path, "r") as config_file:
+    default_config_json = jsonapi.load(config_file)
+assert isinstance(default_config_json, dict)
 
 
 @pytest.fixture()
@@ -71,7 +74,7 @@ def sysmon_tester_agent(request, volttron_instance, tmpdir):
 
     sysmon_uuid = volttron_instance.install_agent(
         agent_dir=get_ops("SysMonAgent"),
-        config_file=str(config),
+        config_file=_test_config,
         start=True)
 
     agent = volttron_instance.build_agent()
@@ -86,7 +89,9 @@ def sysmon_tester_agent(request, volttron_instance, tmpdir):
 
 
 def listen(agent, config):
-    """Assert all SysMonAgent topics have been heard"""
+    """
+    Assert all SysMonAgent topics have been heard
+    """
     base_topic = config['base_topic']
     short_topics = ['cpu_percent', 'memory_percent', 'disk_percent']
     topics = [base_topic + '/' + x for x in short_topics]
@@ -95,11 +100,9 @@ def listen(agent, config):
     def add_topic(peer, sender, bus, topic, headers, messages):
         seen_topics.add(topic)
 
-    agent.vip.pubsub.subscribe('pubsub', base_topic,
-                               callback=add_topic)
+    agent.vip.pubsub.subscribe('pubsub', base_topic, callback=add_topic)
 
-    max_wait = 1 + max(value for key, value in _test_config.items()
-                        if key.endswith('_interval'))
+    max_wait = 1 + max(value for key, value in config.items() if key.endswith('_interval'))
 
     all_topics_seen = lambda: set(topics) <= seen_topics
 
@@ -107,14 +110,25 @@ def listen(agent, config):
 
 
 def test_listen(sysmon_tester_agent):
-    """Test that data is published to expected topics"""
+    """
+    Test that data is published to expected topics
+    """
     listen(sysmon_tester_agent, _test_config)
 
 
 def test_reconfigure_then_listen(sysmon_tester_agent):
-    """Test that the topic can be reconfigured"""
+    """
+    Test that the topic can be reconfigured
+    """
     new_config = _test_config.copy()
     new_config['base_topic'] = 'test2/sysmon'
-    sysmon_tester_agent.vip.rpc.call('platform.sysmon', 'reconfigure',
-                                     **new_config)
+    sysmon_tester_agent.vip.rpc.call('platform.sysmon', 'reconfigure', **new_config)
     listen(sysmon_tester_agent, new_config)
+
+
+def test_default_config(sysmon_tester_agent):
+    """
+    Test that the topic can be reconfigured
+    """
+    sysmon_tester_agent.vip.rpc.call('platform.sysmon', 'reconfigure', **default_config_json)
+    listen(sysmon_tester_agent, default_config_json)

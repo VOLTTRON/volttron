@@ -37,109 +37,79 @@
 # }}}
 
 import os
+import gevent
 import json
 import pytest
-import gevent
+from mock import MagicMock
 
-from volttron.platform import get_ops, get_examples, jsonapi
 from volttron.platform.messaging.health import STATUS_GOOD
+from volttron.platform import get_ops, get_home
+from volttron.platform.vip.agent import Agent
 
-WATCHER_CONFIG = {
-    "watchlist": ["listener"],
-    "check-period": 1
+test_path = os.path.join(get_home(), "test.txt")
+
+test_config = {
+    "files": [
+        {
+            "file": test_path,
+            "topic": "platform/test_topic"
+        }
+    ]
 }
 
-alert_messages = {}
-listener_uuid = None
+
+@pytest.fixture(scope="module")
+def publish_agent(request, volttron_instance):
+    # 1: Start a fake agent to publish to message bus
+    agent = volttron_instance.build_agent(identity='test-agent')
+
+    with open(test_path, "w") as textfile:
+        textfile.write("test_data")
+
+    agent.callback = MagicMock(name="callback")
+    agent.callback.reset_mock()
+
+    agent.vip.pubsub.subscribe(peer='pubsub', prefix="platform/test_topic", callback=agent.callback).get()
+
+    def stop_agent():
+        print("In teardown method of publish_agent")
+        if isinstance(agent, Agent):
+            agent.core.stop()
+        os.remove(test_path)
+
+    request.addfinalizer(stop_agent)
+    return agent
 
 
-@pytest.fixture(scope='module')
-def platform(request, volttron_instance):
-    global listener_uuid
-
-    listener_uuid = volttron_instance.install_agent(
-        agent_dir=get_examples("ListenerAgent"),
-        vip_identity="listener",
-        start=True)
-    gevent.sleep(2)
-
-    watcher_uuid = volttron_instance.install_agent(
-        agent_dir=get_ops("AgentWatcher"),
-        config_file=WATCHER_CONFIG)
-    gevent.sleep(2)
-
-    agent = volttron_instance.build_agent()
-
-    def onmessage(peer, sender, bus, topic, headers, message):
-        global alert_messages
-
-        alert = jsonapi.loads(message)["context"]
-
-        try:
-            alert_messages[alert] += 1
-        except KeyError:
-            alert_messages[alert] = 1
-
-    agent.vip.pubsub.subscribe(peer='pubsub',
-                               prefix='alerts',
-                               callback=onmessage)
-
-    def stop():
-        volttron_instance.stop_agent(listener_uuid)
-        volttron_instance.stop_agent(watcher_uuid)
-
-        volttron_instance.remove_agent(listener_uuid)
-        volttron_instance.remove_agent(watcher_uuid)
-
-        agent.core.stop()
-        alert_messages.clear()
-
-    request.addfinalizer(stop)
-    return volttron_instance
-
-
-def test_agent_watcher(platform):
-    global alert_messages
-    global listener_uuid
-
-    gevent.sleep(2)
-    assert not alert_messages
-
-    platform.stop_agent(listener_uuid)
-    gevent.sleep(2)
-    assert alert_messages
-    assert "Agent(s) expected but but not running ['listener']" in alert_messages
-
-    platform.start_agent(listener_uuid)
-    alert_messages.clear()
-    gevent.sleep(2)
-
-    assert not alert_messages
-
-
-def test_default_config(volttron_instance):
+def test_default_config(volttron_instance, publish_agent):
     """
     Test the default configuration file included with the agent
     """
-    publish_agent = volttron_instance.build_agent(identity="test_agent")
-    gevent.sleep(1)
-
-    config_path = os.path.join(get_ops("AgentWatcher"), "config")
+    config_path = os.path.join(get_ops("FileWatchPublisher"), "filewatchpublisher.config")
     with open(config_path, "r") as config_file:
         config_json = json.load(config_file)
     assert isinstance(config_json, dict)
-
-    volttron_instance.install_agent(
-        agent_dir=get_ops("AgentWatcher"),
+    watcher_uuid = volttron_instance.install_agent(
+        agent_dir=get_ops("FileWatchPublisher"),
         config_file=config_json,
         start=True,
         vip_identity="health_test")
-
-    gevent.sleep(2)
-    assert not alert_messages
-
     assert publish_agent.vip.rpc.call("health_test", "health.get_status").get(timeout=10).get('status') == STATUS_GOOD
+    volttron_instance.remove_agent(watcher_uuid)
 
-    volttron_instance.stop_agent(listener_uuid)
-    gevent.sleep(2)
-    assert alert_messages
+
+# def test_file_watcher(volttron_instance, publish_agent):
+#     watcher_uuid = volttron_instance.install_agent(
+#         agent_dir=get_ops("FileWatchPublisher"),
+#         config_file=test_config,
+#         start=True,
+#         vip_identity="health_test")
+#
+#     with open(test_path, "w+") as textfile:
+#         textfile.write("more test_data")
+#
+#     gevent.sleep(1)
+#
+#     assert publish_agent.callback.call_count == 1
+#     print(publish_agent.callback.call_args)
+#     volttron_instance.remove_agent(watcher_uuid)

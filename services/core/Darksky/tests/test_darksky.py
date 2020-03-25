@@ -169,7 +169,7 @@ def weather(request, volttron_instance):
     [{"lat": 39.7555, "long": -105.2211}, {"lat": 46.2804, "long": -119.2752}]
 ])
 @pytest.mark.darksky
-def test_success_current(volttron_instance, cleanup_cache, weather, query_agent, locations):
+def test_success_current(volttron_instance, cleanup_cache, weather, locations):
     weather_uuid = weather[0]
     identity = weather[1]
     version = query_agent.vip.rpc.call(identity, 'get_version').get(timeout=3)
@@ -669,10 +669,12 @@ def test_polling_locations_valid_config(volttron_instance, query_agent, config, 
 
 
 @pytest.mark.darksky
-def test_default_config(volttron_instance):
+def test_default_config(volttron_instance, query_agent, cleanup_cache):
     """
     Test the default configuration file included with the agent
     """
+    locations = [{"lat": 39.7555, "long": -105.2211}]
+
     publish_agent = volttron_instance.build_agent(identity="test_agent")
     gevent.sleep(1)
 
@@ -680,9 +682,41 @@ def test_default_config(volttron_instance):
     with open(config_path, "r") as config_file:
         config_json = json.load(config_file)
     assert isinstance(config_json, dict)
+
+    config_json["api_key"] = API_KEY
+
     volttron_instance.install_agent(
         agent_dir=get_services_core("Darksky"),
         config_file=config_json,
         start=True,
         vip_identity="health_test")
     assert publish_agent.vip.rpc.call("health_test", "health.get_status").get(timeout=10).get('status') == STATUS_GOOD
+
+    query_data = query_agent.vip.rpc.call("health_test", 'get_current_weather', locations).get(timeout=30)
+
+    if query_data[0].get("weather_error"):
+        error = query_data[0].get("weather_error")
+        if error.endswith("Remote API returned Code 403"):
+            pytest.skip("API key has exceeded daily call limit")
+
+    print(query_data)
+
+    assert len(query_data) == len(locations)
+    for record in query_data:
+        # check format here
+        assert record.get("observation_time")
+        assert (record.get("lat") and record.get("long"))
+        results = record.get("weather_results")
+        if results:
+            assert isinstance(results, dict)
+            assert "data" not in results
+            assert results["attribution"] == "Powered by Dark Sky"
+        else:
+            results = record.get("weather_error")
+            if results.startswith("Remote API returned no data") or \
+                    results.startswith("Remote API redirected request, but redirect failed") \
+                    or results.startswith("Remote API returned invalid response") \
+                    or results.startswith("API request failed with unexpected response"):
+                assert True
+            else:
+                assert False

@@ -691,7 +691,7 @@ def test_reconnect_forwarder(volttron_instances):
 
 @pytest.mark.historian
 @pytest.mark.forwarder
-def test_default_config(volttron_instances):
+def test_default_config(volttron_instances, query_agent):
     """
     Test the default configuration file included with the agent
     """
@@ -710,3 +710,32 @@ def test_default_config(volttron_instances):
         start=True,
         vip_identity="health_test")
     assert publish_agent.vip.rpc.call("health_test", "health.get_status").get(timeout=10).get('status') == STATUS_GOOD
+
+    # do basic sanity check
+
+    oat_reading = random.uniform(30, 100)
+    float_meta = {'units': 'F', 'tz': 'UTC', 'type': 'float'}
+
+    all_message = [{'OutsideAirTemperature': oat_reading},
+                   {'OutsideAirTemperature': float_meta}]
+
+    time1 = utils.format_timestamp(datetime.utcnow())
+    headers = {
+        headers_mod.DATE: time1
+    }
+    publish(publish_agent, 'devices/PNNL/BUILDING_1/Device/all', headers, all_message)
+    gevent.sleep(1)
+
+    result = query_agent.vip.rpc.call(
+        'platform.historian',
+        'query',
+        topic='PNNL/BUILDING1_ANON/Device/OutsideAirTemperature',
+        start=time1,
+        count=20,
+        order="LAST_TO_FIRST").get(timeout=10)
+
+    assert (len(result['values']) == 1)
+    (time1_date, time1_time) = time1.split("T")
+    assert (result['values'][0][0] == time1_date + 'T' + time1_time + '+00:00')
+    assert (result['values'][0][1] == approx(oat_reading))
+    assert set(result['metadata'].items()) == set(float_meta.items())

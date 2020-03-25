@@ -328,7 +328,7 @@ class Catalog(Mapping):
 
             with open(yaml_path, 'rb') as yaml_file:
                 for map in yaml.load(yaml_file):
-                    map = dict((k.lower(), v) for k, v in map.items()())
+                    map = dict((k.lower(), v) for k, v in map.items())
                     Catalog._data[map['name']] = Map(file=map.get('file', ''),
                                                      map_dir=os.path.dirname(__file__),
                                                      addressing=map.get('addressing', 'offset'),
