@@ -151,6 +151,7 @@ def publish(publish_agent, topic, header, message):
                                      headers=header,
                                      message=message).get(timeout=10)
 
+
 @pytest.mark.secure
 def test_agent_rpc(secure_volttron_instance, security_agent, query_agent):
     """
@@ -215,7 +216,6 @@ def test_agent_pubsub(secure_volttron_instance, security_agent,
         "security_agent", "can_subscribe_to_messagebus").get(timeout=5)
 
 
-
 @pytest.mark.secure
 def test_install_dir_permissions(secure_volttron_instance, security_agent, query_agent):
     """
@@ -230,6 +230,7 @@ def test_install_dir_permissions(secure_volttron_instance, security_agent, query
     print(results)
     assert results is None
 
+
 @pytest.mark.secure
 def test_install_dir_file_permissions(secure_volttron_instance, security_agent, query_agent):
     """
@@ -242,6 +243,7 @@ def test_install_dir_file_permissions(secure_volttron_instance, security_agent, 
     """
     results = query_agent.vip.rpc.call("security_agent", "verify_install_dir_file_permissions").get(timeout=5)
     assert results is None
+
 
 @pytest.mark.secure
 def test_vhome_dir_permissions(secure_volttron_instance, security_agent, query_agent):
@@ -260,6 +262,7 @@ def test_vhome_dir_permissions(secure_volttron_instance, security_agent, query_a
     results = query_agent.vip.rpc.call("security_agent", "verify_vhome_dir_permissions").get(timeout=10)
     print(results)
     assert results is None
+
 
 @pytest.mark.secure
 def test_vhome_file_permissions(secure_volttron_instance, security_agent, query_agent):
@@ -362,6 +365,7 @@ def test_config_store_access(secure_volttron_instance, security_agent, query_age
             secure_volttron_instance.remove_agent(agent2)
 
 
+@pytest.mark.secure
 def test_multi_messagebus_forwarder(multi_messagebus_forwarder):
     """
     Forward Historian test with multi message bus combinations
