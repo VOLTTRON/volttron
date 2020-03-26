@@ -16,7 +16,7 @@ Two API Keys are required for all REST API requests:
     applicationKey - identifies the developer / application. To request an application key please email
     support@ambientweather.com
 
-    apiKey - grants access to past/present data for a given user's devices. A typical consumer-facing application will +
+    apiKey - grants access to past/present data for a given user's devices. A typical consumer-facing application will 
     initially ask the user to create an apiKey on thier AmbientWeather.net account page
     (https://dashboard.ambientweather.net/account) and paste it into the app. Developers for personal or in-house apps
     will also need to create an apiKey on their own account page.
@@ -34,11 +34,13 @@ will return a record containing "weather_error" if used).
 
 The location format for the Ambient agent is as follows:
 
-    {"location": "<location_string"}
+    {"location": "<location_string>"}
 
 Ambient locations are Arbitrary string identifiers given to a weather station by the weather station owner/operator.
 
 This is an example response:
+
+::
 
     2019-12-17 15:35:56,395 (listeneragent-3.3 3103) listener.agent INFO: Peer: pubsub, Sender: platform.ambient:, Bus: , Topic: weather/poll/current/all, Headers: {'Date': '2019-12-17T23:35:56.392709+00:00', 'Content-Type': 'Content-Type', 'min_compatible_version': '3.0', 'max_compatible_version': ''}, Message:
     [{'location': 'Lab Home A',
@@ -91,6 +93,8 @@ and "app_key" parameters are required while all others are optional.
 
 Example configuration:
 
+.. code-block:: json
+
     {
         "application_key" : "<api_key>",
         "api_key":"<application_key>",
@@ -128,15 +132,13 @@ Running Ambient Agent Tests
 The following instructions can be used to run PyTests for the Ambient agent.
 
 1. Set up the test file - test_ambient_agent.py is the PyTest file for the ambient agent. The test file features a few
-variables at the top of the tests will will need to be filled in by the runner of the Ambient agent tests. The LOCATIONS
+variables at the top of the tests. These will need to be filled in by the runner of the Ambient agent tests. The LOCATIONS
 variable specifies a list of "locations" of Ambient devices. The required format is a list of dictionaries of the form
 {"location": <ambient weather station location>}. Locations are determined by the user when configuring a weather
-station for the Ambient service using the Ambient app. For more information about these variables, please view the
-README.rst file. For more information about the Ambient API, visit https://www.ambientweather.com/api.html
+station for the Ambient service using the Ambient app. For more information about the Ambient API, visit https://www.ambientweather.com/api.html
 
 2. Set up the test environment - The tests are intended to be run from the Volttron root directory using the Volttron
-environment. it is also recommended to use the -s option. In PyCharm, setting the DEBUG_MODE environment variable to
-True can be useful for debugging purposes. The tests should target the Ambient agent's directory.
+environment. Setting the environment variable, DEBUG_MODE=True or DEBUG=1 will preserve the test setup and can be useful for debugging purposes. When testing from pycharm set the Working Directory value to be the root of volttron source/checkout directory.
 
 Example command line:
 
