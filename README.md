@@ -127,7 +127,6 @@ python3 bootstrap.py --rabbitmq [optional install directory. defaults to
 ```
 
 This will build the platform and create a virtual Python environment and
-
 dependencies for RabbitMQ. It also installs RabbitMQ server as the current user.
 If an install path is provided, that path should exist and the user should have 
 write permissions. RabbitMQ will be installed under `<install dir>/rabbitmq_server-3.7.7`.
