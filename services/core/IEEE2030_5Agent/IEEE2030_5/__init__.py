@@ -37,7 +37,7 @@ XML_HEADERS = [("Content-Type", "application/sep+xml")]
 CREATED_HEADERS = [("Content-Length", "0")]
 
 Endpoint = namedtuple('Endpoint', ['url', 'callback'])
-SEP2_ENDPOINTS = {
+IEEE2030_5_ENDPOINTS = {
     "dcap": Endpoint(url="/dcap", callback='dcap'),
     "tm": Endpoint(url="/dcap/tm", callback='tm'),
     "sdev": Endpoint(url="/dcap/sdev", callback='sdev'),
@@ -48,10 +48,10 @@ SEP2_ENDPOINTS = {
 
     "mup-list": Endpoint(url="/dcap/mup", callback='mup_list'),
 }
-SEP2_MUP_ENDPOINTS = {
+IEEE2030_5_MUP_ENDPOINTS = {
     "mup": Endpoint(url="/dcap/mup/{}", callback='mup'),
 }
-SEP2_EDEV_ENDPOINTS = {
+IEEE2030_5_EDEV_ENDPOINTS = {
     "edev": Endpoint(url="/dcap/edev/{}", callback='edev'),
     "reg": Endpoint(url="/dcap/edev/{}/reg", callback='edev_reg'),
     "di": Endpoint(url="/dcap/edev/{}/di", callback='edev_di'),
