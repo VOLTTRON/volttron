@@ -64,7 +64,7 @@ def IEEE2030_5_agent(config_path, **kwargs):
 
     :type config_path: str
     :returns: IEEE 2030.5 Agent
-    :rtype: IEEE 2030.5 Agent
+    :rtype: IEEE2030_5Agent
     """
     try:
         config = utils.load_config(config_path)
