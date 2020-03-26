@@ -40,10 +40,11 @@ import pytest
 import sqlite3
 import copy
 import os
-import json
 import gevent
 import logging
 from mock import MagicMock
+
+from volttron.platform import get_services_core
 from volttron.platform.agent import utils
 from volttron.platform.messaging.health import STATUS_GOOD
 
@@ -61,9 +62,7 @@ _log = logging.getLogger(__name__)
 # the test suite.
 
 # Replace get services core with something that will point us to our local directory
-ambient_agent_path = os.path.abspath(
-        os.path.normpath(
-            os.path.expanduser("~/house-deployment/Ambient")))
+ambient_agent_path = get_services_core("Ambient")
 
 API_KEY = "<api_key>"
 APP_KEY = "<application_key>"
