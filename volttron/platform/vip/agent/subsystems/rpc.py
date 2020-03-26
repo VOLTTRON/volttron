@@ -370,8 +370,12 @@ class RPC(SubsystemBase):
         dispatch = self._dispatcher.dispatch
 
         if self._message_bus == "rmq":
+            for idx, msg in enumerate(message.args):
+                if not isinstance(msg, dict):
+                    message.args[idx] = jsonapi.loads(msg)
+
             responses = [response for response in (
-                dispatch(jsonapi.loads(msg), message) for msg in message.args) if response]
+                dispatch(msg, message) for msg in message.args) if response]
         else:
             responses = [response for response in (
                 dispatch(msg, message) for msg in message.args) if response]

@@ -18,6 +18,19 @@ Once configured, the Master Driver Agent is :ref:`configured and deployed
 
 .. _MasterDriverConfig:
 
+Requirements
+------------
+
+VOLTTRON drivers operated by the master driver may have additional requirements for installation.
+Required libraries:
+
+::
+
+    BACnet driver - bacpypes
+    Modbus driver - pymodbus
+    Modbus_TK driver - modbus-tk
+    DNP3 and IEEE 2030.5 drivers - pydnp3
+
 Master Driver Agent Configuration
 ---------------------------------
 The Master Driver Agent configuration consists of general settings for all devices. The default values of the master driver should be sufficient for most users.

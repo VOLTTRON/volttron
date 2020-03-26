@@ -1,22 +1,22 @@
-.. _SEP-2:
+.. _IEEE2030_5:
 
-SEP 2.0 DER Support
-===================
+IEEE 2030.5 DER Support
+=======================
 
 Version 1.0
 
 Smart Energy Profile 2.0 (SEP2, IEEE 2030.5) specifies a REST architecture built
 around the core HTTP verbs: GET, HEAD, PUT, POST and DELETE.
-A specification for the SEP2 protocol can be found
-`here <http://www.csee.org.cn/Portal/zh-cn/Publications/atm/docs-13-0200-00-sep2-smart-energy-profile-2.pdf.pdf>`_.
+A specification for the IEEE 2030.5 protocol can be found
+`here <https://standards.ieee.org/content/dam/ieee-standards/standards/web/documents/presentations/smart_energy_slides.pdf>`_.
 
-SEP2 EndDevices (clients) POST XML resources representing their state,
+IEEE 2030.5 EndDevices (clients) POST XML resources representing their state,
 and GET XML resources containing command and control information from the server.
 The server never reaches out to the client unless a "subscription" is
 registered and supported for a particular resource type. This implementation
-does not use SEP2 registered subscriptions.
+does not use IEEE 2030.5 registered subscriptions.
 
-The SEP2 specification requires HTTP headers, and it explicitly requires RESTful
+The IEEE 2030.5 specification requires HTTP headers, and it explicitly requires RESTful
 response codes, for example:
 
     -   201 - "Created"
@@ -24,22 +24,22 @@ response codes, for example:
     -   301 - "Moved Permanently"
     -   etc.
 
-SEP2 message encoding may be either XML or EXI.
+IEEE 2030.5 message encoding may be either XML or EXI.
 Only XML is supported in this implementation.
 
-SEP2 requires HTTPS/TLS version 1.2 along with support for the
+IEEE 2030.5 requires HTTPS/TLS version 1.2 along with support for the
 cipher suite TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8.
-Production installation requires a certificate issued by a SEP2 CA.
+Production installation requires a certificate issued by a IEEE 2030.5 CA.
 The encryption requirement can be met by using a web server such as
 Apache to proxy the HTTPs traffic.
 
-SEP2 discovery, if supported, must be implemented by an xmDNS server.
+IEEE 2030.5 discovery, if supported, must be implemented by an xmDNS server.
 Avahi can be modified to perform this function.
 
 Function Sets
 -------------
 
-SEP2 groups XML resources into "Function Sets."  Some of these function sets
+IEEE 2030.5 groups XML resources into "Function Sets."  Some of these function sets
 provide a core set of functionality used across higher-level function sets.
 This implementation implements resources from the following function sets:
 
@@ -56,19 +56,19 @@ Distributed Energy Resources
 
 Distributed energy resources (DERs) are devices that generate energy, e.g., solar inverters,
 or store energy, e.g., battery storage systems, electric vehicle supply equipment (EVSEs).
-These devices are managed by a SEP2 DER server using DERPrograms which are described by
-the SEP2 specification as follows:
+These devices are managed by a IEEE 2030.5 DER server using DERPrograms which are described by
+the IEEE 2030.5 specification as follows:
 
     Servers host one or more DERPrograms, which in turn expose DERControl events to DER clients.
     DERControl instances contain attributes that allow DER clients to respond to events
     that are targeted to their device type. A DERControl instance also includes scheduling
     attributes that allow DER clients to store and process future events. These attributes
     include start time and duration, as well an indication of the need for randomization of
-    the start and / or duration of the event. The SEP2 DER client model is based on the
+    the start and / or duration of the event. The IEEE 2030.5 DER client model is based on the
     SunSpec Alliance Inverter Control Model [SunSpec] which is derived from
     IEC 61850-90-7 [61850] and [EPRI].
 
-EndDevices post multiple SEP2 resources describing their status.  The following is an
+EndDevices post multiple IEEE 2030.5 resources describing their status.  The following is an
 example of a Power Status resource that might be posted by an EVSE (vehicle charging
 station):
 
@@ -102,48 +102,48 @@ station):
 Design Details
 --------------
 
-.. image:: files/volttron_sep2.jpg
+.. image:: files/volttron_ieee2030_5.jpg
 
-VOLTTRON's SEP2 implementation includes a SEP2Agent and a SEP2 device driver,
+VOLTTRON's IEEE 2030.5 implementation includes a IEEE2030_5Agent and a IEEE 2030.5 device driver,
 as described below.
 
-VOLTTRON SEP2Agent
+VOLTTRON IEEE2030_5Agent
 ~~~~~~~~~~~~~~~~~~
 
-SEP2Agent implements a SEP2 server that receives HTTP POST/PUT
-requests from SEP2 devices. The requests are routed to SEP2Agent over the VOLTTRON
-message bus by VOLTTRON's MasterWebService. SEP2Agent returns an appropriate HTTP
+IEEE2030_5Agent implements a IEEE 2030.5 server that receives HTTP POST/PUT
+requests from IEEE 2030.5 devices. The requests are routed to IEEE2030_5Agent over the VOLTTRON
+message bus by VOLTTRON's MasterWebService. IEEE2030_5Agent returns an appropriate HTTP
 response. In some cases (e.g., DERControl requests), this response includes a data
 payload.
 
-SEP2Agent maps SEP2 resource data to a VOLTTRON SEP2 data model based on SunSpec,
+IEEE2030_5Agent maps IEEE 2030.5 resource data to a VOLTTRON IEEE 2030.5 data model based on SunSpec,
 using block numbers and point names as defined in the SunSpec Information Model,
 which in turn is harmonized with 61850. The data model is given in detail below.
 
-Each device's data is stored by SEP2Agent in an EndDevice memory structure. This
+Each device's data is stored by IEEE2030_5Agent in an EndDevice memory structure. This
 structure is not persisted to a database. Each EndDevice retains only the most
 recently received value for each field.
 
-SEP2Agent exposes RPC calls for getting and setting EndDevice data.
+IEEE2030_5Agent exposes RPC calls for getting and setting EndDevice data.
 
-VOLTTRON SEP2 Device Driver
+VOLTTRON IEEE 2030.5 Device Driver
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The SEP2 device driver is a new addition to VOLTTRON MasterDriverAgent's family of
-standard device drivers. It exposes get_point/set_point calls for SEP2 EndDevice fields.
+The IEEE 2030.5 device driver is a new addition to VOLTTRON MasterDriverAgent's family of
+standard device drivers. It exposes get_point/set_point calls for IEEE 2030.5 EndDevice fields.
 
-The SEP2 device driver periodically issues SEP2Agent RPC calls to refresh its cached
-representation of EndDevice data. It issues RPC calls to SEP2Agent as needed when
+The IEEE 2030.5 device driver periodically issues IEEE2030_5Agent RPC calls to refresh its cached
+representation of EndDevice data. It issues RPC calls to IEEE2030_5Agent as needed when
 responding to get_point, set_point and scrape_all calls.
 
 Field Definitions
 ~~~~~~~~~~~~~~~~~
 
-These field IDs correspond to the ones in the SEP2 device driver's configuration file, sep2.csv.
+These field IDs correspond to the ones in the IEEE 2030.5 device driver's configuration file, ieee2030_5.csv.
 They have been used in that file's "Volttron Point Name" column and also in its "Point Name" column.
 
 ================= ======================== ==================================================== ======= ======
-Field ID          SEP2 Resource/Property   Description                                          Units   Type
+Field ID          IEEE 2030.5 Resource/Property   Description                                          Units   Type
 ================= ======================== ==================================================== ======= ======
 b1_Md             device_information       Model (32 char lim).                                         string
                     mfModel
@@ -202,15 +202,15 @@ b802_State        der_status               DISCONNECTED=1, INITIALIZING=2, CONNE
 Revising and Expanding the Field Definitions
 --------------------------------------------
 
-The SEP2-to-SunSpec field mappings in this implementation are a relatively thin subset of all possible
+The IEEE 2030.5-to-SunSpec field mappings in this implementation are a relatively thin subset of all possible
 field definitions. Developers are encouraged to expand the definitions.
 
 The procedure for expanding the field mappings requires you to make changes in two places:
 
-1. Update the driver's point definitions in services/core/MasterDriverAgent/master_driver/sep2.csv
-2. Update the SEP2-to-SunSpec field mappings in services/core/SEP2Agent/sep2/end_device.py and __init__.py
+1. Update the driver's point definitions in services/core/MasterDriverAgent/master_driver/ieee2030_5.csv
+2. Update the IEEE 2030.5-to-SunSpec field mappings in services/core/IEEE2030_5Agent/ieee2030_5/end_device.py and __init__.py
 
-When updating VOLTTRON's SEP2 data model, please use field IDs that conform to the SunSpec
+When updating VOLTTRON's IEEE 2030.5 data model, please use field IDs that conform to the SunSpec
 block-number-and-field-name model outlined in the SunSpec Information Model Reference
 (see the link below).
 

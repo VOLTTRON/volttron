@@ -413,7 +413,7 @@ class _Socket(object):
 
     def send_vip(self, peer, subsystem, args=None, msg_id='',
                  user='', via=None, flags=0, copy=True, track=False):
-        """Send an entire VIP messamultipartge by individual parts.
+        """Send an entire VIP multipartmessage by individual parts.
 
         This method will raise a ProtocolError exception if the previous
         send was made with the SNDMORE flag or if other protocol

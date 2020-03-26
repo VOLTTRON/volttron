@@ -1,8 +1,8 @@
 .. _Darksky Agent:
 
-=============
-Darksky Agent
-=============
+==============
+Dark Sky Agent
+==============
 
 Powered by `Dark Sky <https://darksky.net/dev>`_
 
@@ -10,6 +10,15 @@ This agent provides the ability to query for current and forecast weather
 data from Dark Sky. The agent extends BaseWeatherAgent that provides caching of
 recently requested data, API call tracking, as well as mapping of weather
 point names from Darksky's naming scheme to the standardized CF-conventions scheme.
+
+Requirements
+------------
+The Dark Sky agent requires the Pint package. This package can be installed in an
+activated environment with:
+
+::
+
+    pip install pint
 
 ******************
 Dark Sky Endpoints
@@ -114,7 +123,7 @@ convention (Service_Point_Name) will be used.
     dewPoint,dew_point_temperature,degC,degK
 
 Notes
-~~~~~
+-----
 The Dark Sky agent requires an API key to be configured in order for users to
 request data. A user of the Dark Sky agent must obtain the key themselves.
 

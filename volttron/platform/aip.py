@@ -104,32 +104,33 @@ _level_map = {7: logging.DEBUG,  # LOG_DEBUG
 def log_entries(name, agent, pid, level, stream):
     log = logging.getLogger(name)
     extra = {'processName': agent, 'process': pid}
-    for line in (l.rstrip('\r\n') for l in stream):
-        if line[0:1] == '{' and line[-1:] == '}':
-            try:
-                obj = jsonapi.loads(line)
+    for l in stream:
+        for line in l.splitlines():
+            if line.startswith('{') and line.endswith('}'):
                 try:
-                    obj['args'] = tuple(obj['args'])
-                except (KeyError, TypeError, ValueError):
+                    obj = jsonapi.loads(line)
+                    try:
+                        obj['args'] = tuple(obj['args'])
+                    except (KeyError, TypeError, ValueError):
+                        pass
+                    record = logging.makeLogRecord(obj)
+                except Exception:
                     pass
-                record = logging.makeLogRecord(obj)
-            except Exception:
-                pass
-            else:
-                if record.name in log.manager.loggerDict:
-                    if not logging.getLogger(
-                            record.name).isEnabledFor(record.levelno):
+                else:
+                    if record.name in log.manager.loggerDict:
+                        if not logging.getLogger(
+                                record.name).isEnabledFor(record.levelno):
+                            continue
+                    elif not log.isEnabledFor(record.levelno):
                         continue
-                elif not log.isEnabledFor(record.levelno):
+                    record.remote_name, record.name = record.name, name
+                    record.__dict__.update(extra)
+                    log.handle(record)
                     continue
-                record.remote_name, record.name = record.name, name
-                record.__dict__.update(extra)
-                log.handle(record)
-                continue
-        if line[0:1] == '<' and line[2:3] == '>' and line[1:2].isdigit():
-            yield _level_map.get(int(line[1]), level), line[3:]
-        else:
-            yield level, line
+            if line[0:1] == '<' and line[2:3] == '>' and line[1:2].isdigit():
+                yield _level_map.get(int(line[1]), level), line[3:]
+            else:
+                yield level, line
 
 
 def log_stream(name, agent, pid, path, stream):
@@ -694,11 +695,11 @@ class AIPplatform(object):
         proc = execenv.process
         _log.info('agent %s has PID %s', agent_path, proc.pid)
         gevent.spawn(log_stream, 'agents.stderr', name, proc.pid, argv[0],
-                     log_entries('agents.log', name, proc.pid, logging.ERROR,
-                                 proc.stderr))
+                      log_entries('agents.log', name, proc.pid, logging.ERROR,
+                                  proc.stderr))
         gevent.spawn(log_stream, 'agents.stdout', name, proc.pid, argv[0],
-                     ((logging.INFO, line.rstrip('\r\n'))
-                      for line in proc.stdout))
+                   ((logging.INFO, line) for line in (l.splitlines() for l
+                      in proc.stdout)))
 
         return self.agent_status(agent_uuid)
 

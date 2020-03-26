@@ -44,7 +44,7 @@ from zmq import green as zmq
 from zmq.green import ZMQError, ENOTSOCK
 
 from volttron.platform import jsonapi
-from volttron.utils.frame_serialization import deserialize_frames
+from volttron.utils.frame_serialization import deserialize_frames, serialize_frames
 from .agent import Agent, Core
 from volttron.platform import is_rabbitmq_available
 
@@ -213,7 +213,7 @@ class ZMQProxyRouter(Agent):
         :return:
         """
         zmq_frames = []
-        frames = jsonapi.loads(body)
+        frames = serialize_frames(jsonapi.loads(body))
 
         try:
             self.zmq_router.socket.send_multipart(frames, copy=False)

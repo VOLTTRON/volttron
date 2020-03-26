@@ -38,8 +38,16 @@
                             $("#status").show();
                         },
                         200: function(response){
-                            document.cookie = "Bearer="+response.responseText+"; secure=True; path=/";
-                            window.location=window.location.origin + "/admin/pending_csrs.html";
+                            if(location.protocol != 'https:'){
+                                console.log("HTTP")
+                                document.cookie = "Bearer="+response.responseText+"; secure=False; path=/";
+                            }
+                            else{
+                                console.log("HTTPS")
+                                document.cookie = "Bearer="+response.responseText+"; secure=True; path=/";
+                            }
+
+                            window.location=window.location.origin + "/admin/pending_auth_reqs.html";
                         }
                     }
 

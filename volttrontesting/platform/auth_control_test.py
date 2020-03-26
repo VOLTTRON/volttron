@@ -2,9 +2,11 @@ import gevent
 import os
 import re
 import subprocess
-
 import pytest
-
+from mock import MagicMock
+from volttrontesting.utils.utils import AgentMock
+from volttron.platform.vip.agent import Agent
+from volttron.platform.auth import AuthService
 from volttron.platform.auth import AuthEntry
 from volttron.platform import jsonapi
 
@@ -36,6 +38,123 @@ _auth_entry4 = AuthEntry(
     capabilities=['test4_cap1', 'test4_cap2'],
     comments='test4 comment', enabled=False)
 
+
+@pytest.fixture()
+def mock_auth_service():
+    AuthService.__bases__ = (AgentMock.imitate(Agent, Agent()), )
+    yield AuthService(
+        auth_file=MagicMock(), protected_topics_file=MagicMock(), setup_mode=MagicMock(), aip=MagicMock())
+
+
+@pytest.fixture()
+def test_auth():
+    auth = {
+        "domain": "test_domain",
+        "address": "test_address",
+        "mechanism": "NULL",
+        "credentials": None,
+        "user_id": "test_auth",
+        "capabilities": ["test_caps"],
+        "groups": ["test_group"],
+        "roles": ["test_roles"],
+        "comments": "test_comment"
+    }
+    yield auth
+
+
+def test_get_authorization_failures(mock_auth_service, test_auth):
+    mock_auth = mock_auth_service
+    auth = test_auth
+    mock_auth._update_auth_failures(
+        auth['domain'], auth['address'], auth['mechanism'], auth['credentials'], auth['user_id'])
+    auth_failure = mock_auth.get_authorization_failures()[0]
+    assert auth['domain'] == auth_failure['domain']
+    assert auth['address'] == auth_failure['address']
+    assert auth['mechanism'] == auth_failure['mechanism']
+    assert auth['credentials'] == auth_failure['credentials']
+    assert auth['user_id'] == auth_failure['user_id']
+    assert auth_failure['retries'] == 1
+
+
+@pytest.mark.control
+def test_approve_authorization_failure(mock_auth_service, test_auth):
+    mock_auth = mock_auth_service
+    auth = test_auth
+    mock_auth._update_auth_failures(
+        auth['domain'], auth['address'], auth['mechanism'], auth['credentials'], auth['user_id'])
+    assert len(mock_auth._auth_failures) == 1
+
+    mock_auth.approve_authorization_failure(auth['user_id'])
+    assert len(mock_auth.auth_entries) == 0
+
+    mock_auth.read_auth_file()
+    assert len(mock_auth.auth_entries) == 1
+    assert len(mock_auth._auth_failures) == 0
+
+
+@pytest.mark.control
+def test_approve_denied_authorization_failure(mock_auth_service, test_auth):
+    mock_auth = mock_auth_service
+    auth = test_auth
+    mock_auth._update_auth_failures(
+        auth['domain'], auth['address'], auth['mechanism'], auth['credentials'], auth['user_id'])
+    assert len(mock_auth._auth_failures) == 1
+    assert len(mock_auth._auth_denied) == 0
+
+    mock_auth.deny_authorization_failure(auth['user_id'])
+    assert len(mock_auth._auth_denied) == 1
+    assert len(mock_auth._auth_failures) == 0
+
+    mock_auth.approve_authorization_failure(auth['user_id'])
+    assert len(mock_auth.auth_entries) == 0
+
+    mock_auth.read_auth_file()
+    assert len(mock_auth.auth_entries) == 1
+    assert len(mock_auth._auth_denied) == 0
+
+
+@pytest.mark.control
+def test_deny_authorization_failure(mock_auth_service, test_auth):
+    mock_auth = mock_auth_service
+    auth = test_auth
+    mock_auth._update_auth_failures(
+        auth['domain'], auth['address'], auth['mechanism'], auth['credentials'], auth['user_id'])
+    assert len(mock_auth._auth_failures) == 1
+    assert len(mock_auth._auth_denied) == 0
+
+    mock_auth.deny_authorization_failure(auth['user_id'])
+    assert len(mock_auth._auth_denied) == 1
+    assert len(mock_auth._auth_failures) == 0
+
+
+@pytest.mark.control
+def test_delete_authorization_failure(mock_auth_service, test_auth):
+    mock_auth = mock_auth_service
+    auth = test_auth
+    mock_auth._update_auth_failures(
+        auth['domain'], auth['address'], auth['mechanism'], auth['credentials'], auth['user_id'])
+    assert len(mock_auth._auth_failures) == 1
+    assert len(mock_auth._auth_denied) == 0
+    mock_auth.delete_authorization_failure(auth['user_id'])
+    assert len(mock_auth._auth_failures) == 0
+    assert len(mock_auth._auth_denied) == 0
+
+
+@pytest.mark.control
+def test_delete_denied_authorization_failure(mock_auth_service, test_auth):
+    mock_auth = mock_auth_service
+    auth = test_auth
+    mock_auth._update_auth_failures(
+        auth['domain'], auth['address'], auth['mechanism'], auth['credentials'], auth['user_id'])
+    assert len(mock_auth._auth_failures) == 1
+    assert len(mock_auth._auth_denied) == 0
+
+    mock_auth.deny_authorization_failure(auth['user_id'])
+    assert len(mock_auth._auth_denied) == 1
+    assert len(mock_auth._auth_failures) == 0
+
+    mock_auth.delete_authorization_failure(auth['user_id'])
+    assert len(mock_auth._auth_denied) == 0
 
 
 
@@ -370,3 +489,4 @@ def _remove_known_host(platform, host):
     p = subprocess.Popen(args, env=env, stdin=subprocess.PIPE, universal_newlines=True)
     p.communicate()
     assert p.returncode == 0
+

@@ -8,12 +8,18 @@ Introduction
 ------------
 
 Communication with BACnet device on a network happens via a single
-virtual BACnet device. Previous versions of Volttron used one virtual
-device per device on the network. This only worked in a limited number
-of circumstances. (This problem is fixed in the legacy sMap drivers in
-Volttron 3.0 only) In the new driver architecture, we have a separate
+virtual BACnet device. In VOLTTRON driver framework, we use a separate
 agent specifically for communicating with BACnet devices and managing
 the virtual BACnet device.
+
+Requirements
+------------
+The BACnet Proxy agent requires the BACPypes package. This package can
+be installed in an activated environment with:
+
+::
+
+    pip install bacpypes
 
 Configuration
 -------------

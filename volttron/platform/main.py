@@ -117,8 +117,24 @@ else:
 _log = logging.getLogger(os.path.basename(sys.argv[0])
                          if __name__ == '__main__' else __name__)
 
-logging.getLogger("watchdog.observers.inotify_buffer").setLevel(logging.INFO)
-logging.getLogger("urllib3.connectionpool").setLevel(logging.INFO)
+# Only show debug on the platform when really necessary!
+log_level_info = (
+    'volttron.platform.main',
+    'volttron.platform.vip.zmq_connection',
+    'urllib3.connectionpool',
+    'watchdog.observers.inotify_buffer',
+    'volttron.platform.auth',
+    'volttron.platform.store',
+    'volttron.platform.control',
+    'volttron.platform.vip.agent.core',
+    'volttron.utils',
+    'volttron.platform.vip.router'
+)
+
+for log_name in log_level_info:
+    logging.getLogger(log_name).setLevel(logging.INFO)
+
+
 VOLTTRON_INSTANCES = '~/.volttron_instances'
 
 
@@ -792,7 +808,7 @@ def start_volttron_process(opts):
             _log.debug("Running zmq router")
             Router(opts.vip_local_address, opts.vip_address,
                    secretkey=secretkey, publickey=publickey,
-                   default_user_id=b'vip.service', monitor=opts.monitor,
+                   default_user_id='vip.service', monitor=opts.monitor,
                    tracker=tracker,
                    volttron_central_address=opts.volttron_central_address,
                    volttron_central_serverkey=opts.volttron_central_serverkey,
@@ -928,7 +944,7 @@ def start_volttron_process(opts):
             # Necessary for backward compatibility with ZMQ message bus
             green_router = GreenRouter(opts.vip_local_address, opts.vip_address,
                                        secretkey=secretkey, publickey=publickey,
-                                       default_user_id=b'vip.service', monitor=opts.monitor,
+                                       default_user_id='vip.service', monitor=opts.monitor,
                                        tracker=tracker,
                                        volttron_central_address=opts.volttron_central_address,
                                        volttron_central_serverkey=opts.volttron_central_serverkey,
@@ -1036,6 +1052,24 @@ def start_volttron_process(opts):
                 web_ssl_cert=opts.web_ssl_cert,
                 web_secret_key=opts.web_secret_key
             ))
+
+        ks_masterweb = KeyStore(KeyStore.get_agent_keystore_path(MASTER_WEB))
+        entry = AuthEntry(credentials=encode_key(decode_key(ks_masterweb.public)),
+                          user_id=MASTER_WEB,
+                          capabilities=['allow_auth_modifications'],
+                          comments='Automatically added by platform on start')
+        AuthFile().add(entry, overwrite=True)
+
+        # # MASTER_WEB did not work on RMQ. Referred to agent as master
+        # # Added this auth to allow RPC calls for credential authentication
+        # # when using the RMQ messagebus.
+        # ks_masterweb = KeyStore(KeyStore.get_agent_keystore_path('master'))
+        # entry = AuthEntry(credentials=encode_key(decode_key(ks_masterweb.public)),
+        #                   user_id='master',
+        #                   capabilities=['allow_auth_modifications'],
+        #                   comments='Automatically added by platform on start')
+        # AuthFile().add(entry, overwrite=True)
+
 
         events = [gevent.event.Event() for service in services]
         tasks = [gevent.spawn(service.core.run, event)

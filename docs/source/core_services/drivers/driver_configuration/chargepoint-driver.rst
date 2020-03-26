@@ -4,8 +4,13 @@ Chargepoint Driver Configuration
 --------------------------------
 
 The chargepoint driver requires at least one additional python library and has its own ``requirements.txt``.
-Make sure to run ``pip install -r <chargepoint driver path>/requirements.txt`` before using this driver.
+Make sure to run
 
+::
+
+    pip install -r <chargepoint driver path>/requirements.txt
+
+before using this driver.
 
 driver_config
 *************
