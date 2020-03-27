@@ -61,74 +61,15 @@ import logging
 import datetime
 import pytz
 import sys
-import re
 
 import grequests
-# requests should be imported after grequests as
-# requests imports ssl and grequests patches ssl
+# requests should be imported after grequests as requests imports ssl and grequests patches ssl
 import requests
 
 import pkg_resources
 from volttron.platform.agent import utils
 from volttron.platform.vip.agent import RPC
-from volttron.platform.agent.utils import format_timestamp, get_aware_utc_now
-from volttron.platform.agent.base_weather import BaseWeatherAgent
-from volttron.platform.agent.base_weather import get_forecast_start_stop
-from volttron.platform import jsonapi# -*- coding: utf-8 -*- {{{
-# vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
-#
-# Copyright 2019, Battelle Memorial Institute.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-#
-# This material was prepared as an account of work sponsored by an agency of
-# the United States Government. Neither the United States Government nor the
-# United States Department of Energy, nor Battelle, nor any of their
-# employees, nor any jurisdiction or organization that has cooperated in the
-# development of these materials, makes any warranty, express or
-# implied, or assumes any legal liability or responsibility for the accuracy,
-# completeness, or usefulness or any information, apparatus, product,
-# software, or process disclosed, or represents that its use would not infringe
-# privately owned rights. Reference herein to any specific commercial product,
-# process, or service by trade name, trademark, manufacturer, or otherwise
-# does not necessarily constitute or imply its endorsement, recommendation, or
-# favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors expressed
-# herein do not necessarily state or reflect those of the
-# United States Government or any agency thereof.
-#
-# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
-# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
-# under Contract DE-AC05-76RL01830
-# }}}
-
-__docformat__ = 'reStructuredText'
-
-import logging
-import datetime
-import pytz
-import sys
-import re
-
-import grequests
-# requests should be imported after grequests as
-# requests imports ssl and grequests patches ssl
-import requests
-
-import pkg_resources
-from volttron.platform.agent import utils
-from volttron.platform.vip.agent import RPC
-from volttron.platform.agent.utils import format_timestamp, get_aware_utc_now
+from volttron.platform.agent.utils import format_timestamp
 from volttron.platform.agent.base_weather import BaseWeatherAgent
 from volttron.platform import jsonapi
 
@@ -136,17 +77,11 @@ _log = logging.getLogger(__name__)
 utils.setup_logging()
 __version__ = "0.1"
 
-WEATHER_WARN = "weather_warnings"
-WEATHER_ERROR = "weather_error"
-WEATHER_RESULTS = "weather_results"
-
 
 def ambient(config_path, **kwargs):
-    """Parses the Agent configuration and returns an instance of
-    the agent created using that configuration.
-
+    """
+    Parses the Agent configuration and returns an instance of the agent created using that configuration.
     :param config_path: Path to a configuration file.
-
     :type config_path: str
     :returns: Ambient
     :rtype: Ambient
@@ -157,11 +92,11 @@ def ambient(config_path, **kwargs):
         config = {}
     if not config:
         _log.error("Ambient agent configuration: ".format(config))
-    if "api_key" not in config:
+    api_key = config.get("api_key")
+    if not api_key or isinstance(api_key, str):
         raise RuntimeError("Ambient agent must be configured with an api key.")
     if "application_key" not in config:
-        raise RuntimeError("Ambient agent must be configured with an "
-                           "application key.")
+        raise RuntimeError("Ambient agent must be configured with an application key.")
     _log.debug("config_dict before init: {}".format(config))
     utils.update_kwargs_with_config(kwargs, config)
 
@@ -170,11 +105,8 @@ def ambient(config_path, **kwargs):
 
 class Ambient(BaseWeatherAgent):
     """
-    The Ambient agent requires having an API key to interact with the remote
-    API. The agent offers a performance_mode configuration option which
-    allows users to limit the amount of data returned by the API.
-
-    ***Powered by Dark Sky***
+    The Ambient agent requires having an API key to interact with the remote API. The agent offers a performance_mode
+    configuration option which allows users to limit the amount of data returned by the API.
     """
 
     def __init__(self, application_key="", **kwargs):
@@ -200,8 +132,7 @@ class Ambient(BaseWeatherAgent):
 
     def validate_location(self, service_name, location):
         """
-        Indicates whether the location dictionary provided matches the format
-        required by the remote weather API
+        Indicates whether the location dictionary provided matches the format required by the remote weather API
         :param service_name: name of the remote API service
         :param location: location dictionary to provide in the remote API url
         :return: True if the location matches the required format else False
@@ -215,31 +146,27 @@ class Ambient(BaseWeatherAgent):
         :return: datetime timedelta representing the time interval
         """
         if service_name == "get_current_weather":
-            return datetime.timedelta(seconds=3)
+            return datetime.timedelta(minutes=5)
         else:
             return None
 
     def get_api_description(self, service_name):
         """
-        Provides a human-readable description of the various endpoints provided
-        by the agent
+        Provides a human-readable description of the various endpoints provided by the agent
         :param service_name: requested service endpoint
         :return: Human-readable description string
         """
         if service_name is "get_current_weather":
-            "Provides current weather observations by Ambient weather" \
-            " station location name via RPC (Requires " \
-            "{'location': <station location string>})"
+            "Provides current weather observations for locations by their corresponding Ambient weather station name " \
+                "via RPC (Requires {'location': <station location string>})"
         else:
             raise RuntimeError(
                 "Service {} is not implemented by Ambient.".format(service_name))
 
     def get_point_name_defs_file(self):
         """
-        Constructs the point name mapping dict from the
-        mapping csv.
-        :return: dictionary containing a mapping of service point
-        names to standard point names with optional
+        Constructs the point name mapping dict from the mapping csv.
+        :return: dictionary containing a mapping of service point names to standard point names with optional
         """
         # returning resource file instead of stream, as csv.DictReader require file path or file like object opened in
         # text mode.
@@ -247,15 +174,13 @@ class Ambient(BaseWeatherAgent):
 
     def query_current_weather(self, location):
         """
-        Retrieve data from the Ambient API, return formatted current data and
-        store forecast data in cache
+        Retrieve data from the Ambient API, return formatted current data and store forecast data in cache
         :param location: location dictionary requested by the user
         :return: Timestamp and data for current data from the Ambient API
         """
         ambient_response = self.make_request()
         location_response = None
         current_time = None
-        cache_records = []
         for record in ambient_response:
             record_location = None
             record_info = record.pop("info")
@@ -291,17 +216,15 @@ class Ambient(BaseWeatherAgent):
         Unimplemented method stub
         :param service: forecast service type of weather data to return
         :param location: location dictionary requested during the RPC call
-        :param quantity: number of records to return, used to generate
-        Time Machine requests after the forecast request
-        :param forecast_start: forecast results that are prior to this
-         timestamp will be filtered by base weather agent
+        :param quantity: number of records to return, used to generate Time Machine requests after the forecast request
+        :param forecast_start: forecast results that are prior to this timestamp will be filtered by base weather agent
         :return: Timestamp and data returned by the Ambient weather API response
         """
         raise NotImplementedError
 
     def make_request(self):
-        """ Request data from the Ambient Weather API
-
+        """
+        Request data from the Ambient Weather API
         An example of the return value is as follows
 
         [
@@ -346,7 +269,7 @@ class Ambient(BaseWeatherAgent):
         # AuthenticationTwo API Keys are required for all REST API requests:applicationKey - identifies the
         #   developer / application. To request an application key please email support@ambient.comapiKey -
         #   grants access to past/present data for a given user's devices. A typical consumer-facing application will
-        #   initially ask the user to create an apiKey on thier Ambient.net account page
+        #   initially ask the user to create an apiKey on their Ambient.net account page
         #   (https://dashboard.ambientweather.net/account) and paste it into the app. Developers for personal or
         #   in-house apps will also need to create an apiKey on their own account page.
         # Rate LimitingAPI requests are capped at 1 request/second for each user's apiKey and 3 requests/second
@@ -357,11 +280,11 @@ class Ambient(BaseWeatherAgent):
         if not self.last_service_call_timestamp or (
                 datetime.datetime.now() - self.last_service_call_timestamp).total_seconds() > 3:
 
-            url = 'https://api.ambientweather.net/v1/devices?applicationKey=' + self.app_key + '&apiKey=' + self._api_key
+            url = 'https://api.ambientweather.net/v1/devices?applicationKey=' + self.app_key + '&apiKey=' + \
+                  self._api_key
 
             _log.info("requesting url: {}".format(url))
-            grequest = [grequests.get(url, verify=requests.certs.where(),
-                                      headers=self.headers, timeout=3)]
+            grequest = [grequests.get(url, verify=requests.certs.where(), headers=self.headers, timeout=3)]
             gresponse = grequests.map(grequest)[0]
             if gresponse is None:
                 raise RuntimeError("get request did not return any response")
@@ -379,10 +302,8 @@ class Ambient(BaseWeatherAgent):
     def query_hourly_forecast(self, location):
         """
         Unimplemented method stub
-        :param location: currently accepts lat/long location dictionary
-        format only
-        :return: time of forecast prediction as a timestamp string,
-        and a list of
+        :param location: currently accepts lat/long location dictionary format only
+        :return: time of forecast prediction as a timestamp string, and a list of
         """
         raise NotImplementedError
 
@@ -398,34 +319,25 @@ class Ambient(BaseWeatherAgent):
 
     def generate_response_error(self, url, response_code):
         """
-        raises a descriptive runtime error based on the response code
-        returned by a service.
+        Raises a descriptive runtime error based on the response code returned by a service.
         :param url: actual url used for requesting data from Ambient
-        :param response_code: Http response code returned by a service
-        following a request
+        :param response_code: Http response code returned by a service following a request
         """
         code_x100 = int(response_code / 100)
         if code_x100 == 2:
-            raise RuntimeError(
-                "Remote API returned no data(code:{}, url:{})".format(
-                    response_code, url))
+            raise RuntimeError("Remote API returned no data(code:{}, url:{})".format(response_code, url))
         elif code_x100 == 3:
             raise RuntimeError(
-                "Remote API redirected request, "
-                "but redirect failed (code:{}, url:{})".format(response_code,
-                                                               url))
+                "Remote API redirected request, but redirect failed (code:{}, url:{})".format(response_code, url))
         elif code_x100 == 4:
             raise RuntimeError(
-                "Request ({}) rejected by remote API: Remote API returned "
-                "Code {}".format(url, response_code))
+                "Request ({}) rejected by remote API: Remote API returned Code {}".format(url, response_code))
         elif code_x100 == 5:
             raise RuntimeError(
-                "Remote API returned invalid response "
-                "(code:{}, url:{})".format(response_code, url))
+                "Remote API returned invalid response (code:{}, url:{})".format(response_code, url))
         else:
             raise RuntimeError(
-                "API request failed with unexpected response "
-                "code (code:{}, url:{})".format(response_code, url))
+                "API request failed with unexpected response code (code:{}, url:{})".format(response_code, url))
 
 
 def main():
