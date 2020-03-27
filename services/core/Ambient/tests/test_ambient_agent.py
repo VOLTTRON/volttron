@@ -214,7 +214,7 @@ def test_success_current(volttron_instance, cleanup_cache, weather,
     cursor = sqlite_connection.cursor()
 
     query_data = query_agent.vip.rpc.call(identity, 'get_current_weather',
-                                          locations).get(timeout=30)
+                                          locations).get(timeout=33)
 
     if query_data[0].get("weather_error"):
         error = query_data[0].get("weather_error")
@@ -243,7 +243,7 @@ def test_success_current(volttron_instance, cleanup_cache, weather,
                 assert False
 
     cache_data = query_agent.vip.rpc.call(identity, 'get_current_weather',
-                                          locations).get(timeout=30)
+                                          locations).get(timeout=3)
 
     # check names returned are valid
     assert len(query_data) == len(cache_data)
@@ -266,7 +266,7 @@ def test_current_fail(weather, query_agent, locations, api_wait):
     """
     identity = weather[1]
     query_data = query_agent.vip.rpc.call(identity, 'get_current_weather',
-                                          locations).get(timeout=30)
+                                          locations).get(timeout=33)
     for record in query_data:
         error = record.get("weather_error")
         assert error.startswith("Invalid location format.") or error.startswith(
@@ -328,8 +328,7 @@ def test_polling_locations_valid_config(volttron_instance, query_agent, config,
                 assert len(results1) == len(config["poll_locations"])
             i = i + 1
         assert query_agent.vip.rpc.call(
-            "poll.weather", "health.get_status").get(timeout=10).get(
-            'status') == STATUS_GOOD
+            "poll.weather", "health.get_status").get(timeout=10).get('status') == STATUS_GOOD
     finally:
         if agent_uuid:
             volttron_instance.stop_agent(agent_uuid)

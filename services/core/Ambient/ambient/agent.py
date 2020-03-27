@@ -92,11 +92,9 @@ def ambient(config_path, **kwargs):
         config = {}
     if not config:
         _log.error("Ambient agent configuration: ".format(config))
-    api_key = config.get("api_key")
-    if not api_key or isinstance(api_key, str):
-        raise RuntimeError("Ambient agent must be configured with an api key.")
-    if "application_key" not in config:
-        raise RuntimeError("Ambient agent must be configured with an application key.")
+    for key in ["api_key", "application_key"]:
+        if not config.get(key) or not isinstance(config.get(key), str):
+            raise RuntimeError("Ambient agent must be configured with '{}' key.".format(key))
     _log.debug("config_dict before init: {}".format(config))
     utils.update_kwargs_with_config(kwargs, config)
 
@@ -284,7 +282,7 @@ class Ambient(BaseWeatherAgent):
                   self._api_key
 
             _log.info("requesting url: {}".format(url))
-            grequest = [grequests.get(url, verify=requests.certs.where(), headers=self.headers, timeout=3)]
+            grequest = [grequests.get(url, verify=requests.certs.where(), headers=self.headers, timeout=30)]
             gresponse = grequests.map(grequest)[0]
             if gresponse is None:
                 raise RuntimeError("get request did not return any response")
