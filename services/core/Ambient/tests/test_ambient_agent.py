@@ -64,8 +64,8 @@ _log = logging.getLogger(__name__)
 # Replace get services core with something that will point us to our local directory
 ambient_agent_path = get_services_core("Ambient")
 
-API_KEY = "<api_key>"
-APP_KEY = "<application_key>"
+API_KEY = os.environ.get('AMBIENT_API_KEY')
+APP_KEY = os.environ.get('AMBIENT_APP_KEY')
 LOCATIONS = [
       {"location": "<location"}
     ]
