@@ -16,7 +16,9 @@ All files and folder created by VOLTTRON process in this mode would by default n
 Permission for Unix group others would be provided to specific files and folder based on VOLTTRON process requirement.
 It is recommended that you use a new volttron home to run volttron in secure mode. Converting a existing VOLTTRON
 instance to secure mode is also possible but would involve some manual changes. Please see section
-`Porting existing volttron home to secure mode`_.
+`Porting existing volttron home to secure mode`_. 
+Please note VOLTTRON has to be bootstrapped as prerequisite to running agents as unique users.
+
 
 Setup agents to run using unique users
 ---------------------------------------
@@ -33,7 +35,7 @@ Setup agents to run using unique users
    and execute permission to all the directories in the path <ENV_DIR>/bin. This can be achieved by running
    **chmod -R o+rx <ENV_DIR>/bin**
 
-3. **Run scripts/secure_users_permissions.sh as root or using sudo**
+3. **Run scripts/secure_user_permissions.sh as root or using sudo**
 
    This script should be run as root or using sudo. This script gives the VOLTTRON platform user limited sudo access to
    create a new unix user for each agent. All users created will be of the format volttron_<timestamp>.
