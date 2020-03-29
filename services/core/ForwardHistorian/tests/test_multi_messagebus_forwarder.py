@@ -48,7 +48,7 @@ from mock import MagicMock
 
 @pytest.fixture(scope="module")
 def multi_messagebus_forwarder(volttron_multi_messagebus):
-    from_instance, to_instance = volttron_multi_messagebus
+    from_instance, to_instance = volttron_multi_messagebus()
     to_instance.allow_all_connections()
     forwarder_config = {"custom_topic_list": ["foo"]}
 

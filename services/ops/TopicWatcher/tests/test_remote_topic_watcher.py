@@ -115,7 +115,7 @@ def test_alert_multi_messagebus_publish(volttron_multi_messagebus):
     :return:
     """
 
-    source_instance, destination_instance = volttron_multi_messagebus
+    source_instance, destination_instance = volttron_multi_messagebus()
     destination_instance.allow_all_connections()
 
     if destination_instance.messagebus == 'rmq':

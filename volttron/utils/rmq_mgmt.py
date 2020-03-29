@@ -51,6 +51,7 @@ import gevent
 import requests
 from requests.packages.urllib3.connection import (ConnectionError,
                                                   NewConnectionError)
+import os
 from volttron.platform import certs
 from volttron.platform import jsonapi
 from . rmq_config_params import RMQConfig
@@ -123,7 +124,7 @@ class RabbitMQMgmt(object):
             raise e
         return response
 
-    
+
     def _get_authentication_args(self, ssl_auth):
         """
         Return authentication kwargs for request/greqeust
@@ -806,7 +807,8 @@ class RabbitMQMgmt(object):
             return None
         return conn_params
 
-    def build_remote_connection_param(self, rmq_user, rmq_address, ssl_auth=None, retry_attempt=30, retry_delay=2):
+    def build_remote_connection_param(self, rmq_user, rmq_address, ssl_auth=None, cert_dir=None,
+                                      retry_attempt=30, retry_delay=2):
         """
         Build Pika Connection parameters
         :param rmq_user: RabbitMQ user
@@ -824,19 +826,26 @@ class RabbitMQMgmt(object):
         try:
             if ssl_auth:
                 certfile = self.certs.cert_file(rmq_user, True)
+                if cert_dir:
+                    # remote cert file for agents will be in agent-data/remote-certs dir
+                    certfile = os.path.join(cert_dir, os.path.basename(certfile))
+
                 metafile = certfile[:-4] + ".json"
                 metadata = jsonapi.loads(open(metafile).read())
                 local_keyfile = metadata['local_keyname']
                 ca_file = self.certs.cert_file(metadata['remote_ca_name'], True)
+                if cert_dir:
+                    ca_file = os.path.join(cert_dir, os.path.basename(ca_file))
+
                 ssl_options = dict(
                     ssl_version=ssl.PROTOCOL_TLSv1,
                     ca_certs=ca_file,
                     keyfile=self.certs.private_key_file(local_keyfile),
-                    certfile=self.certs.cert_file(rmq_user, True),
+                    certfile=certfile,
                     cert_reqs=ssl.CERT_REQUIRED)
                 conn_params = pika.ConnectionParameters(
-                    host= parsed_addr.hostname,
-                    port= parsed_addr.port,
+                    host=parsed_addr.hostname,
+                    port=parsed_addr.port,
                     virtual_host=virtual_host,
                     ssl=True,
                     connection_attempts=retry_attempt,
@@ -936,11 +945,26 @@ class RabbitMQMgmt(object):
         permissions = self.get_default_permissions(rmq_user)
 
         if self.is_ssl:
-            self.rmq_config.crts.create_signed_cert_files(rmq_user, overwrite=False)
+            # This could fail with permission error when running in secure mode
+            # and agent was installed when volttron was running on ZMQ instance
+            # and then switched to RMQ instance. In that case
+            # vctl certs create-ssl-keypair should be used to create a cert/key pair
+            # and then agents should be started.
+            try:
+                _log.info("Creating ca signed certs for {}".format(rmq_user))
+                self.rmq_config.crts.create_signed_cert_files(rmq_user, overwrite=False)
+            except Exception as e:
+                _log.error("Exception creating certs. {}".format(e))
+                raise RuntimeError(e)
         param = None
 
         try:
-            self.create_user_with_permissions(rmq_user, permissions, ssl_auth=self.is_ssl)
+            root_ca_name, server_cert, admin_user = \
+                certs.Certs.get_admin_cert_names(self.rmq_config.instance_name)
+            if os.access(self.rmq_config.crts.private_key_file(admin_user), os.R_OK):
+                # this must be called from service agents. Create rmq user with permissions
+                # for installed agent this would be done by aip at start of agent
+                self.create_user_with_permissions(rmq_user, permissions, ssl_auth=self.is_ssl)
             param = self.build_connection_param(rmq_user, ssl_auth=self.is_ssl)
         except AttributeError:
             _log.error("Unable to create RabbitMQ user for the agent. Check if RabbitMQ broker is running")

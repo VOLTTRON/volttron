@@ -276,6 +276,10 @@ from volttron.platform.agent import utils
 
 _log = logging.getLogger(__name__)
 
+
+# Build the parser
+time_parser = None
+
 ACTUATOR_TOPIC_PREFIX_PARTS = len(topics.ACTUATOR_VALUE.split('/'))
 ALL_REX = re.compile('.*/all$')
 
@@ -1536,8 +1540,15 @@ class BackupDatabase:
         """ Creates a backup database for the historian if doesn't exist."""
 
         _log.debug("Setting up backup DB.")
+        if utils.is_secure_mode():
+            # we want to create it in the agent-data directory since agent will not have write access to any other
+            # directory in secure mode
+            backup_db = os.path.join(os.getcwd(), os.path.basename(os.getcwd()) + ".agent-data", 'backup.sqlite')
+        else:
+            backup_db = 'backup.sqlite'
+        _log.info(f"Creating  backup db at {backup_db}")
         self._connection = sqlite3.connect(
-            'backup.sqlite',
+            backup_db,
             detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES,
             check_same_thread=check_same_thread)
 
@@ -1666,6 +1677,22 @@ class BaseQueryHistorianAgent(Agent):
     their data stores.
     """
 
+    def __init__(self, **kwargs):
+        _log.debug('Constructor of BaseQueryHistorianAgent thread: {}'.format(
+            threading.currentThread().getName()
+        ))
+        global time_parser
+        if time_parser is None:
+            if utils.is_secure_mode():
+                # find agent's data dir. we have write access only to that dir
+                for d in os.listdir(os.getcwd()):
+                    if d.endswith(".agent-data"):
+                        agent_data_dir = os.path.join(os.getcwd(), d)
+                time_parser = yacc.yacc(write_tables=0,
+                                        outputdir=agent_data_dir)
+            else:
+                time_parser = yacc.yacc(write_tables=0)
+        super(BaseQueryHistorianAgent, self).__init__(**kwargs)
     @RPC.export
     def get_version(self):
         """RPC call to get the version of the historian
@@ -2136,5 +2163,4 @@ def p_error(p):
     raise ValueError("Syntax Error in Query")
 
 
-# Build the parser
-time_parser = yacc.yacc(write_tables=0)
+

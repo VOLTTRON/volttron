@@ -16,7 +16,7 @@ function print_usage {
 Command Usage:
 <path>/rabbit_dependencies.sh <debian or centos> <distribution name or centos version>
 Valid Debian distributions: ${list[@]}
-Valid centos versions: 6, 7
+Valid centos versions: 6, 7, 8
 "
  exit 0
 
@@ -29,8 +29,10 @@ function install_on_centos {
        erlang_url='https://dl.bintray.com/rabbitmq-erlang/rpm/erlang/21/el/6'
    elif [ "$DIST" == "7" ]; then
        erlang_url='https://dl.bintray.com/rabbitmq-erlang/rpm/erlang/21/el/7'
+   elif [ "$DIST" == "8" ]; then
+       erlang_url='https://dl.bintray.com/rabbitmq-erlang/rpm/erlang/21/el/8'
    else
-       printf "Invalid centos version. 6 and 7 are the only compatible versions\n"
+       printf "Invalid centos version. 6, 7, and 8 are the only compatible versions\n"
        print_usage
    fi
 

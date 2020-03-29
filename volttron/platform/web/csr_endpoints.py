@@ -121,5 +121,5 @@ class CSREndpoints(object):
                      content_type='application/json',
                      headers={'Content-type': 'application/json'})
         except BaseException as e:
-            _log.error(f"ERROR creating Response {e}")
+            _log.error(f"Exception creating Response {e}")
         return response
