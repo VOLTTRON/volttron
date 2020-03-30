@@ -129,7 +129,10 @@ class ConfigStoreService(Agent):
         _log.info("Initializing configuration store service.")
 
         try:
+            # explicitly provide access to others. Needed for secure mode.
+            # Agents needs access to its own store file in this dir
             os.makedirs(self.store_path)
+            os.chmod(self.store_path, 0o755)
         except OSError as e:
             if e.errno != errno.EEXIST:
                 _log.critical("Failed to create configuration store directory: " + str(e))

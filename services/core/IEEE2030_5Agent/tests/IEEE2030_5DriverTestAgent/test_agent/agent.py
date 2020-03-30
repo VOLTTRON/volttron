@@ -360,31 +360,31 @@ ASSERTED_VALUES = {
     'b802_State': '777'}
 
 TEST_WEB_ADDRESS = 'http://127.0.0.1:8080'
-DEFAULT_DRIVER = 'sep2_1'
+DEFAULT_DRIVER = 'IEEE2030_5_1'
 
 
-class SEP2DriverTestAgent(Agent):
+class IEEE2030_5DriverTestAgent(Agent):
     """
-        Test the SEP2 driver (not a pytest regression test).
+        Test the IEEE 2030.5 driver (not a pytest regression test).
 
-        Load a test data set by posting XML to SEP2Agent (assumed to be at port 8080 on the local host).
-        Periodically send get_point for each point on the SEP2 driver.
+        Load a test data set by posting XML to IEEE2030_5Agent (assumed to be at port 8080 on the local host).
+        Periodically send get_point for each point on the IEEE 2030.5 driver.
         Also send a set_point call to its der_control point, setting a power dispatch value.
 
         This agent can be installed as follows:
             export VIP_SOCKET="ipc://$VOLTTRON_HOME/run/vip.socket"
-            export SEP2_TEST_ROOT=$VOLTTRON_ROOT/services/core/SEP2Agent/tests/SEP2DriverTestAgent/test_agent
+            export IEEE2030_5_TEST_ROOT=$VOLTTRON_ROOT/services/core/IEEE2030_5Agent/tests/IEEE2030_5DriverTestAgent/test_agent
             cd $VOLTTRON_ROOT
             python scripts/install-agent.py \
-                -s $SEP2_TEST_ROOT \
-                -i sep2testagent \
-                -c $SEP2_TEST_ROOT/sep2drivertest.config \
-                -t sep2testagent \
+                -s $IEEE2030_5_TEST_ROOT \
+                -i IEEE2030_5testagent \
+                -c $IEEE2030_5_TEST_ROOT/IEEE2030_5drivertest.config \
+                -t IEEE2030_5testagent \
                 -f
     """
 
     def __init__(self, **kwargs):
-        super(SEP2DriverTestAgent, self).__init__(**kwargs)
+        super(IEEE2030_5DriverTestAgent, self).__init__(**kwargs)
         self.default_config = {}
         self.vip.config.set_default("config", self.default_config)
         self.vip.config.subscribe(self.configure, actions=["NEW", "UPDATE"], pattern="config")
@@ -409,7 +409,7 @@ class SEP2DriverTestAgent(Agent):
 
     @staticmethod
     def post_test_data():
-        """Post XML test data for a SEP2 resource to the SEP2Agent."""
+        """Post XML test data for a IEEE 2030.5 resource to the IEEE2030_5Agent."""
         headers = {'content-type': 'application/sep+xml'}
         requests.post('{}/dcap/edev/0/di'.format(TEST_WEB_ADDRESS), data=DEVICE_INFORMATION, headers=headers)
         requests.post('{}/dcap/edev/0/der/1/derg'.format(TEST_WEB_ADDRESS), data=DER_SETTINGS, headers=headers)
@@ -435,12 +435,12 @@ class SEP2DriverTestAgent(Agent):
         _log.debug('{}: Sent set_point for {} = {}'.format(driver, point_name, value))
 
 
-def test_sep2_agent(config_path, **kwargs):
-    return SEP2DriverTestAgent(**kwargs)
+def test_IEEE2030_5_agent(config_path, **kwargs):
+    return IEEE2030_5DriverTestAgent(**kwargs)
 
 
 def main():
-    utils.vip_main(test_sep2_agent, identity='sep2testagent', version=__version__)
+    utils.vip_main(test_IEEE2030_5_agent, identity='IEEE2030_5testagent', version=__version__)
 
 if __name__ == '__main__':
     try:

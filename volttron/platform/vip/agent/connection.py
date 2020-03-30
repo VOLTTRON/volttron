@@ -47,7 +47,7 @@ from volttron import platform
 from volttron.platform import get_home
 from volttron.platform.agent.utils import get_aware_utc_now
 from volttron.platform.vip.agent import Agent
-from volttron.platform.web import build_vip_address_string
+from volttron.platform import build_vip_address_string
 
 __version__ = '1.0.3'
 __author__ = 'Craig Allwardt <craig.allwardt@pnnl.gov>'

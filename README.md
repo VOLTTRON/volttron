@@ -30,12 +30,15 @@ users unfamiliar with those technologies, the following resources are recommende
 
 (<https://volttron.readthedocs.io/en/latest/setup/VOLTTRON-Prerequisites.html#volttron-prerequisites>).
 
- On Debian-based systems, these can all be installed with the following command:
+From version 7.0, VOLTTRON requires python 3 with a minimum version of 3.6; it is tested only systems supporting that as a native package.
+On Debian-based systems (Ubuntu bionic, debian buster, raspbian buster), these can all be installed with the following commands:
 
 ```sh
 sudo apt-get update
-sudo apt-get install build-essential python3.6-dev python3.6-venv python3-venv openssl libssl-dev libevent-dev git
+sudo apt-get install build-essential libffi-dev python3-dev python3-venv openssl libssl-dev libevent-dev git
  ```
+(Note: `libffi-dev` seems to only be required on arm-based systems.)
+
  On Redhat or CENTOS systems, these can all be installed with the following command:
 ```sh
 sudo yum update
@@ -70,7 +73,7 @@ Proceed to step 4.
 
 For RabbitMQ based VOLTTRON, some of the RabbitMQ specific software packages have to be installed.
 
-###### On Debian based systems and CentOS 6/7
+###### On Debian based systems (other than Raspbian) and CentOS 6/7
 
 If you are running an Debian or CentOS system, you can install the RabbitMQ dependencies by running the rabbit 
   dependencies script, passing in the OS name and appropriate distribution as parameters. The following are supported:
@@ -87,6 +90,16 @@ Example command:
 
 ```sh
 ./scripts/rabbit_dependencies.sh debian xenial
+```
+
+###### On Raspbian buster
+
+To get the rabbmq dependencies, install the system rabbitmq-server package, and disable the system daemon with the following commands:
+
+```sh
+sudo apt-get install rabbitmq-server
+sudo systemctl stop rabbitmq-server
+sudo systemctl disable rabbitmq-server
 ```
 
 ###### Alternatively
@@ -109,7 +122,7 @@ and not in RabbitMQ logs (/var/log/rabbitmq/rabbitmq@hostname.log)
 
 ```sh
 cd volttron
-python bootstrap.py --rabbitmq [optional install directory. defaults to
+python3 bootstrap.py --rabbitmq [optional install directory. defaults to
 <user_home>/rabbitmq_server]
 ```
 
@@ -258,7 +271,7 @@ the activity:
 tail volttron.log
 ```
 
-Listenener agent heartbeat publishes appear in the logs as:
+Listener agent heartbeat publishes appear in the logs as:
 
 ```sh
 2016-10-17 18:17:52,245 (listeneragent-3.2 11367) listener.agent INFO: Peer: 'pubsub', Sender: 'listeneragent-3.2_1'

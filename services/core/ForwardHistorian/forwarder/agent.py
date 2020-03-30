@@ -45,17 +45,15 @@ from urllib.parse import urlparse
 
 import gevent
 
-from volttron.platform.vip.agent import Agent, Core, compat, Unreachable
-from volttron.platform.vip.agent.utils import build_agent
+from volttron.platform.vip.agent import Agent, compat, Unreachable
 from volttron.platform.agent.base_historian import BaseHistorian, add_timing_data_to_header
 from volttron.platform.agent import utils
 from volttron.platform.keystore import KnownHostsStore
-from volttron.platform.messaging import topics, headers as headers_mod
+from volttron.platform.messaging import headers as headers_mod
 from volttron.platform.messaging.health import (STATUS_BAD,
                                                 STATUS_GOOD, Status)
 from volttron.utils.docs import doc_inherit
 from zmq.green import ZMQError, ENOTSOCK
-import os
 
 FORWARD_TIMEOUT_KEY = 'FORWARD_TIMEOUT_KEY'
 utils.setup_logging()
@@ -430,7 +428,7 @@ class ForwardHistorian(BaseHistorian):
             value = self.vip.auth.connect_remote_platform(address, serverkey=self.destination_serverkey)
 
         except gevent.Timeout:
-            _log.error("Couldn't connect to address: ({})".format(address))
+            _log.error("Couldn't connect to address. gevent timeout: ({})".format(address))
             self.vip.health.set_status(STATUS_BAD, "Timeout in setup of agent")
         except Exception as ex:
             _log.error(ex.args)
@@ -442,7 +440,7 @@ class ForwardHistorian(BaseHistorian):
                 self.vip.health.set_status(
                     STATUS_GOOD, "Connected to address ({})".format(address))
             else:
-                _log.error("Couldn't connect to address: ({})".format(address))
+                _log.error("Couldn't connect to address. Got Return value that is not Agent: ({})".format(address))
                 self.vip.health.set_status(STATUS_BAD, "Invalid agent detected.")
 
     @doc_inherit
