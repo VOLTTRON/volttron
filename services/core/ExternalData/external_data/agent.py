@@ -36,19 +36,16 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-
-
-
 import logging
 import sys
 import csv
+import requests
 from ast import literal_eval
 from io import StringIO
-import requests
 from requests.auth import HTTPBasicAuth
-from volttron.platform.messaging.utils import Topic
 
-from volttron.platform.vip.agent import Agent, Core
+from volttron.platform.messaging.utils import Topic
+from volttron.platform.vip.agent import Agent
 from volttron.platform.agent import utils
 from volttron.platform.messaging import headers as headers_mod
 from volttron.platform.scheduling import periodic
@@ -272,6 +269,7 @@ class ExternalData(Agent):
             new_csv_data = []
             for row in csv_data:
                 for parse_column in parse_columns:
+                    value_string = ""
                     try:
                         value_string = row[parse_column]
                         value = literal_eval(value_string)
@@ -318,7 +316,7 @@ def main(argv=sys.argv):
     try:
         utils.vip_main(external_data_agent)
     except Exception as e:
-        _log.exception('unhandled exception')
+        _log.exception('unhandled exception: {}'.format(e))
 
 
 if __name__ == '__main__':
