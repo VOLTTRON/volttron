@@ -67,11 +67,9 @@ def update_curve_key(curve_key_path, no_warn=False):
             print("Key update aborted.")
             return
 
-    keystore = KeyStore(keystore_path)
-    keystore.public = public
-    keystore.secret = secret
-    print("Keys from {} have been transfered to {}".format(curve_key_path, 
-            keystore.filename))
+    keystore = KeyStore(keystore_path, public, secret)
+    print("Keys from {} have been transfered to {}".format(curve_key_path,
+                                                           keystore.filename))
 
 
 if __name__ == "__main__":
