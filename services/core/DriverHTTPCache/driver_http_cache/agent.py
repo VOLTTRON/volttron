@@ -88,7 +88,7 @@ class DriverHTTPCache(Agent):
     def driver_data_post(self, driver_type, group_id, url, headers, params=None, body=None,
                          update_frequency=60, refresh=False):
         """
-        Get the most up to date remote API driver data based on provided update frequency
+        Post the updated data using remote API 
         :param group_id: arbitrary identifier to separate driver data between collections of devices
         :param driver_type: String representation of the type of driver
         :param url: String url for communicating with remote API
