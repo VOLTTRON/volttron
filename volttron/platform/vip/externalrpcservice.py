@@ -43,6 +43,7 @@ import zmq
 import logging
 from volttron.platform import jsonapi
 from zmq import SNDMORE, EHOSTUNREACH, ZMQError, EAGAIN, NOBLOCK
+from volttron.utils.frame_serialization import serialize_frames
 
 _log = logging.getLogger(__name__)
 # Optimizing by pre-creating frames
@@ -60,7 +61,7 @@ class ExternalRPCService(object):
     def __init__(self, socket, routing_service, *args, **kwargs):
         self._ext_router = routing_service
         self._vip_sock = socket
-        _log.debug("ExternalRPCService")
+        #_log.debug("ExternalRPCService")
 
     def handle_subsystem(self, frames):
         """
@@ -75,23 +76,21 @@ class ExternalRPCService(object):
             sender, recipient, proto, usr_id, msg_id, subsystem, op, msg = frames[:9]
         except IndexError:
             return False
-        subsystem = bytes(subsystem)
-        op = bytes(op)
 
-        if subsystem == b'external_rpc':
+        if subsystem == 'external_rpc':
             #If operation is to send to external platform
-            if op == b'send_platform':
+            if op == 'send_platform':
                 result = self._send_to_platform(frames)
             #If operation is to send to internal peer, use the internal router socket to send the frames
-            elif op == b'send_peer':
+            elif op == 'send_peer':
                 result = self._send_to_peer(frames)
             if not result:
                 response = result
             elif result is not None:
                 # Form response frame
                 response = [sender, recipient, proto, usr_id, msg_id, subsystem]
-                response.append(zmq.Frame(b'request_response'))
-                response.append(zmq.Frame(bytes(result)))
+                response.append('request_response')
+                response.append(result)
         return response
 
     def _send_to_platform(self, frames):
@@ -103,15 +102,16 @@ class ExternalRPCService(object):
         try:
             #Extract the frames and reorganize to add external platform and peer information
             sender, recipient, proto, usr_id, msg_id, subsystem, op, msg = frames[:9]
-            msg_data = jsonapi.loads(bytes(msg))
+            #msg_data = jsonapi.loads(msg)
+            msg_data = msg
             to_platform = msg_data['to_platform']
 
             msg_data['from_platform'] = self._ext_router.my_instance_name()
-            msg_data['from_peer'] = bytes(sender)
+            msg_data['from_peer'] = sender
             msg = jsonapi.dumps(msg_data)
-            op = b'send_peer'
+            op = 'send_peer'
 
-            frames = [b'', proto, usr_id, msg_id, subsystem, op, msg]
+            frames = ['', proto, usr_id, msg_id, subsystem, op, msg]
             #_log.debug("ROUTER: Sending EXT RernalPC message to: {}".format(to_platform))
             #Use external socket to send the message
             self._ext_router.send_external(to_platform, frames)
@@ -130,9 +130,10 @@ class ExternalRPCService(object):
         try:
             # Extract the frames and reorganize to send to local peer
             sender, recipient, proto, usr_id, msg_id, subsystem, op, msg = frames[:9]
-            msg_data = jsonapi.loads(bytes(msg))
+            #msg_data = jsonapi.loads(msg)
+            msg_data = msg
             peer = msg_data['to_peer']
-            frames[0] = bytes(peer)
+            frames[0] = peer
             drop = self._send_internal(frames)
             return False
         except KeyError as exc:
@@ -147,10 +148,10 @@ class ExternalRPCService(object):
         :return: peer to be dropped if not reachable
         """
         drop = []
-        peer = bytes(frames[0])
+        peer = frames[0]
         # Expecting outgoing frames:
         #   [RECIPIENT, SENDER, PROTO, USER_ID, MSG_ID, SUBSYS, ...]
-
+        frames = serialize_frames(frames)
         try:
             # Try sending the message to its recipient
             self._vip_sock.send_multipart(frames, flags=NOBLOCK, copy=False)
@@ -161,7 +162,7 @@ class ExternalRPCService(object):
                 error = None
             if exc.errno == EHOSTUNREACH:
                 _log.debug("Host unreachable {}".format(peer))
-                drop.append(bytes(peer))
+                drop.append(peer)
             elif exc.errno == EAGAIN:
                 _log.debug("EAGAIN error {}".format(peer))
         return drop
