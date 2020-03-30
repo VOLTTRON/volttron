@@ -596,16 +596,13 @@ def do_web_agent():
     _update_config_file()
 
 
-# TODO: Commented out so we don't prompt for installing vc or vcp until they
-# have been figured out totally for python3
-#
 @installs(get_services_core("VolttronCentral"), 'vc')
 def do_vc():
     do_web_agent()
-    resp = vc_config()
+    # resp = vc_config()
 
     print('Installing volttron central.')
-    return resp
+    return {}
 
 
 def vc_config():
@@ -727,9 +724,6 @@ def is_file_readable(file_path, log=True):
         return False
 
 
-# Todo: Commented out so we don't prompt for installing vc or vcp until they
-# have been figured out totally for python3
-#
 @installs(get_services_core("VolttronCentralPlatform"), 'vcp')
 def do_vcp():
     global config_opts
