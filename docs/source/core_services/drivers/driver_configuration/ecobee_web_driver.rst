@@ -8,8 +8,8 @@ interface is responsible for providing a way for the Master Driver to retrieve
 data from and set values for thermostats configured for a user using the Ecobee
 remote API (https://www.ecobee.com/home/developer/api/introduction/index.shtml)
 
-Configuration
--------------
+Configuration File
+------------------
 
 The Ecobee driver uses two configuration files, similar to many other VOLTTRON
 agents.
@@ -21,8 +21,8 @@ This is an example driver configuration:
     {
         "driver_config": {"ACCESS_TOKEN": "<Ecobee Access Token>",
                           "API_KEY":"<User Ecobee API key>",
-                          "REFRESH_TOKEN":"<Ecobee Auth Refresh Token>",
-                          "AUTHORIZATION_CODE":"<Ecobee Application Authorization Code>",
+                          "REFRESH_TOKEN": "<Ecobee Auth Refresh Token>",
+                          "AUTHORIZATION_CODE": "<Ecobee Application Authorization Code>",
                           "PIN": "<Ecobee Application Authorization Code>",
                           "DEVICE_ID": <User Ecobee thermostat serial number>,
                           "GROUP_ID": "<Arbitrary string identifier for all devices included in remote API data>",
@@ -77,7 +77,7 @@ The driver configuration works as follows:
         will result in the platform being unable to send requests to the Driver HTTP Cache
         agent, which is required to be running for the Ecobee driver's operations.
 
-        CONFIG_NAME - This should directly match the device topic used in the
+        config_name - This should directly match the device topic used in the
         installation of the Ecobee driver (see Installation below).
 
     driver_type: This value should match the name of the python file which contains
@@ -94,6 +94,51 @@ The driver configuration works as follows:
     will be published if a scrape occurs between updates.)
 
     timezone: Timezone to use for timestamps.
+
+Configuring Ecobee for First Time Use
+-------------------------------------
+
+The following configuration is the basic starting point configuration file:
+
+::
+
+    {
+        "driver_config": {"ACCESS_TOKEN": "",
+                          "API_KEY":"<User Ecobee API key>",
+                          "REFRESH_TOKEN": "",
+                          "AUTHORIZATION_CODE": "",
+                          "PIN": "",
+                          "DEVICE_ID": <User Ecobee thermostat serial number>,
+                          "GROUP_ID": "<Arbitrary string identifier for all devices included in remote API data>",
+                          "CACHE_IDENTITY": "platform.drivercache",
+                          "config_name": "devices/ecobee"},
+        "driver_type": "ecobee",
+        "registry_config":"config://ecobee.csv",
+        "interval": 180,
+        "timezone": "UTC"
+    }
+
+Notice:
+
+    ACCESS_TOKEN, REFRESH_TOKEN, AUTHORIZATION_CODE and PIN values are all left as empty strings. These
+    values will be obtained by the driver as it starts. After starting, the user will be required to validate the
+    Authorization code by inputting the pin in the Web UI by going to the UI "hamburger" > "MyApps" > "Add Application"
+    then select "Validate" and finally "Add Application".
+
+    Values for API_KEY and DEVICE_ID must be obtained by the user. Additional instructions for obtaining these values
+    can be found at the bottom of this documentation.
+
+    DEVICE_ID should be added as an integer representation of the thermostat's serial number.
+
+    The CACHE_IDENTITY value may be specified however the user specifies the Driver HTTP Cache agent's identity during
+    installation.
+
+    GROUP_ID is an arbitrarily chosen identifier which should correspond to one name given to the thermostats for one
+    Ecobee user account (all thermostats for that user account will be represented by this group id; group id does not
+    affect the data in any way, it is used by the Driver HTTP Cache agent as a way of mapping drivers to their
+    corresponding cached data).
+
+    config_name should match exactly the path used to store the driver configuration file in the config store.
 
 Registry Configuration
 ----------------------
@@ -194,7 +239,7 @@ to find the Ecobee interface.
 
     6. Load the driver's registry configuration into the configuration store
 
-        vctl config store platform.driver <registry configuration path from driver configuration> <path to registry configuration file>
+        vctl config store platform.driver <registry configuration path from driver configuration> <path to registry configuration file> --csv
 
     7. Start the master driver
 
