@@ -389,31 +389,29 @@ class AuthService(Agent):
         :param user_id: user id field from VOLTTRON Interconnect Protocol
         :type user_id: str
         """
-        if len(self._auth_failures) > 0:
-            for pending in self._auth_failures:
-                if user_id == pending['user_id']:
-                    self._update_auth_entry(
-                        pending['domain'],
-                        pending['address'],
-                        pending['mechanism'],
-                        pending['credentials'],
-                        pending['user_id']
-                        )
-                    self._auth_approved.append(pending)
-                    del self._auth_failures[self._auth_failures.index(pending)]
+        for pending in self._auth_failures:
+            if user_id == pending['user_id']:
+                self._update_auth_entry(
+                    pending['domain'],
+                    pending['address'],
+                    pending['mechanism'],
+                    pending['credentials'],
+                    pending['user_id']
+                    )
+                self._auth_approved.append(pending)
+                del self._auth_failures[self._auth_failures.index(pending)]
 
-        if len(self._auth_denied) > 0:
-            for pending in self._auth_denied:
-                if user_id == pending['user_id']:
-                    self._update_auth_entry(
-                        pending['domain'],
-                        pending['address'],
-                        pending['mechanism'],
-                        pending['credentials'],
-                        pending['user_id']
-                        )
-                    self._auth_approved.append(pending)
-                    del self._auth_denied[self._auth_denied.index(pending)]
+        for pending in self._auth_denied:
+            if user_id == pending['user_id']:
+                self._update_auth_entry(
+                    pending['domain'],
+                    pending['address'],
+                    pending['mechanism'],
+                    pending['credentials'],
+                    pending['user_id']
+                    )
+                self._auth_approved.append(pending)
+                del self._auth_denied[self._auth_denied.index(pending)]
 
     @RPC.export
     @RPC.allow(capabilities="allow_auth_modifications")
@@ -425,18 +423,16 @@ class AuthService(Agent):
         :param user_id: user id field from VOLTTRON Interconnect Protocol
         :type user_id: str
         """
-        if len(self._auth_failures) > 0:
-            for pending in self._auth_failures:
-                if user_id == pending['user_id']:
-                    self._auth_denied.append(pending)
-                    del self._auth_failures[self._auth_failures.index(pending)]
+        for pending in self._auth_failures:
+            if user_id == pending['user_id']:
+                self._auth_denied.append(pending)
+                del self._auth_failures[self._auth_failures.index(pending)]
 
-        if len(self._auth_approved) > 0:
-            for pending in self._auth_approved:
-                if user_id == pending['user_id']:
-                    self._remove_auth_entry(pending['credentials'])
-                    self._auth_denied.append(pending)
-                    del self._auth_approved[self._auth_approved.index(pending)]
+        for pending in self._auth_approved:
+            if user_id == pending['user_id']:
+                self._remove_auth_entry(pending['credentials'])
+                self._auth_denied.append(pending)
+                del self._auth_approved[self._auth_approved.index(pending)]
 
 
     @RPC.export
@@ -449,21 +445,18 @@ class AuthService(Agent):
         :param user_id: user id field from VOLTTRON Interconnect Protocol
         :type user_id: str
         """
-        if len(self._auth_failures) > 0:
-            for pending in self._auth_failures:
-                if user_id == pending['user_id']:
-                    del self._auth_failures[self._auth_failures.index(pending)]
+        for pending in self._auth_failures:
+            if user_id == pending['user_id']:
+                del self._auth_failures[self._auth_failures.index(pending)]
 
-        if len(self._auth_approved) > 0:
-            for pending in self._auth_approved:
-                if user_id == pending['user_id']:
-                    self._remove_auth_entry(pending['credentials'])
-                    del self._auth_approved[self._auth_approved.index(pending)]
+        for pending in self._auth_approved:
+            if user_id == pending['user_id']:
+                self._remove_auth_entry(pending['credentials'])
+                del self._auth_approved[self._auth_approved.index(pending)]
 
-        if len(self._auth_denied) > 0:
-            for pending in self._auth_denied:
-                if user_id == pending['user_id']:
-                    del self._auth_denied[self._auth_denied.index(pending)]
+        for pending in self._auth_denied:
+            if user_id == pending['user_id']:
+                del self._auth_denied[self._auth_denied.index(pending)]
 
     @RPC.export
     def get_authorization_failures(self):
