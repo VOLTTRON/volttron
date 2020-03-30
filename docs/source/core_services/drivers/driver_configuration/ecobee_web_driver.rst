@@ -324,6 +324,6 @@ Finding Device Identifier
 
 To find your Ecobee thermostat's device identifier:
 
-    1. Log into the Ecobee customer portal.
+    1. Log into the Ecobee customer portal (https://www.ecobee.com/consumerportal/index.html).
     2. From the Home screen click "About My Ecobee"
     3. The thermostat identifier is the serial number listed on the About screen
