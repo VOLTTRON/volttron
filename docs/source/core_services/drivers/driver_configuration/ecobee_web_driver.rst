@@ -180,7 +180,7 @@ to find the Ecobee interface.
 
     3. If the Driver Cache has not yet been installed and started:
 
-        python scripts/install-agent.py -s services/core/DriverHTTPCache -i <cache_identity from Ecobee driver config>
+        python scripts/install-agent.py -s services/core/DriverHTTPCache -i <CACHE_IDENTITY from Ecobee driver config>
 
         vctl start <Driver HTTP Cache Agent uuid or identity>
 
