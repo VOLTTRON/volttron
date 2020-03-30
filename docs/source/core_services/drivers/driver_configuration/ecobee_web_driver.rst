@@ -163,12 +163,7 @@ been installed and bootstrapped per the  instructions in the VOLTTRON README,
 and that the Driver HTTP Cache agent has been installed using the installation
 instructions above.
 
-First, the driver's Python file must be placed in the Master Driver's interfaces
-directory (services/core/MasterDriverAgent/master_driver/interfaces). Failure
-to place the file into this directory will cause the MasterDriver to be unable
-to find the Ecobee interface.
-
-    After putting the file in place:
+Below are the seup instructions.
 
     1. If the platform has not been started:
 
