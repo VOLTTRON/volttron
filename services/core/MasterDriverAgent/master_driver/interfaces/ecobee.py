@@ -161,7 +161,7 @@ class Interface(BasicRevert, BaseInterface):
         if not self.pin:
             raise ValueError("Ecobee pin required for refreshing tokens.")
         # Generate auth request and extract returned value
-        response = make_ecobee_request("POST", url, verify=requests.certs.where(), data=params)
+        response = make_ecobee_request("POST", url, data=params)
         for token in 'access_token', 'refresh_token':
             if token not in response:
                 raise RuntimeError("Ecobee response did not contain token{}:, response was {}".format(token, response))
@@ -186,7 +186,7 @@ class Interface(BasicRevert, BaseInterface):
             'scope': 'smartWrite'
         }
         try:
-            response = make_ecobee_request("GET", url, verify=requests.certs.where(), params=params, timeout=3)
+            response = make_ecobee_request("GET", url, params=params)
         except RuntimeError as re:
             _log.error(re)
             _log.warning("Error connecting to Ecobee. Possible connectivity outage. Could not request pin.")
@@ -223,7 +223,7 @@ class Interface(BasicRevert, BaseInterface):
             'client_id': self.api_key
         }
         try:
-            response = make_ecobee_request("POST", url, verify=requests.certs.where(), data=params)
+            response = make_ecobee_request("POST", url, data=params)
         except RuntimeError as re:
             _log.error(re)
             _log.warning("Error connecting to Ecobee. Possible connectivity outage. Could not request tokens.")
@@ -318,7 +318,7 @@ class Interface(BasicRevert, BaseInterface):
         driver_config["driver_config"].update(self.config_dict)
         # Config store update RPC call to update device configuration
         self.vip.rpc.call(CONFIGURATION_STORE, "set_config", self.config_name, driver_config, trigger_callback=False,
-                          send_update=True).get(timeout=10)
+                          send_update=True).get(timeout=3)
 
     def get_ecobee_data(self, refresh=False, retry=True):
         """
@@ -828,8 +828,8 @@ def make_ecobee_request(request_type, url, **kwargs):
     :return: Ecobee API response using provided request content
     """
     # Generate appropriate grequests object
-    if request_type.upper() in ["GET", "POST"]:
-        response = call_grequest(request_type, url, verify=requests.certs.where(), timeout=3, **kwargs)[0]
+    if request_type.lower() in ["get", "post"]:
+        response = call_grequest(request_type.lower(), url, verify=requests.certs.where(), timeout=30, **kwargs)[0]
     else:
         raise ValueError("Unsupported request type {} for Ecobee driver.".format(request_type))
     # Send request and extract data from response

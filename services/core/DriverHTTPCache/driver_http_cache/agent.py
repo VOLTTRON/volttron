@@ -24,8 +24,8 @@ def driver_http_cache(config_path, **kwargs):
     """Parses the Agent configuration and returns an instance of the agent created using that configuration.
     :param config_path: Path to a configuration file.
     :type config_path: str
-    :returns: Httpproxy agent instance
-    :rtype: Httpproxy agent
+    :returns: DriverHTTPCache agent instance
+    :rtype: DriverHTTPCache
     """
     try:
         config = utils.load_config(config_path)
@@ -78,7 +78,7 @@ class DriverHTTPCache(Agent):
         :param headers: HTTP request headers dictionary for remote API specified by driver
         :param params: HTTP request parameters dictionary for remote API specified by driver
         :param body: HTTP request body dictionary for remote API specified by driver
-        :param refresh: If true, HTTP Proxy agent will skip retrieving cached data
+        :param refresh: If true, Driver HTTP Cache agent will skip retrieving cached data
         :return: Remote API response data dictionary to be parsed by driver
         """
         return self.get_driver_data(driver_type, group_id, "GET", url, headers, params=params, body=body,
@@ -96,7 +96,7 @@ class DriverHTTPCache(Agent):
         :param headers: HTTP request headers dictionary for remote API specified by driver
         :param params: HTTP request parameters dictionary for remote API specified by driver
         :param body: HTTP request body dictionary for remote API specified by driver
-        :param refresh: If true, HTTP Proxy agent will skip retrieving cached data
+        :param refresh: If true, Driver HTTP Cache agent will skip retrieving cached data
         :return: Remote API response data dictionary to be parsed by driver
         """
         return self.get_driver_data(driver_type, group_id, "POST", url, headers, params=params, body=body,
@@ -114,7 +114,7 @@ class DriverHTTPCache(Agent):
         :param headers: HTTP request headers dictionary for remote API specified by driver
         :param params: HTTP request parameters dictionary for remote API specified by driver
         :param body: HTTP request body dictionary for remote API specified by driver
-        :param refresh: If true, HTTP Proxy agent will skip retrieving cached data
+        :param refresh: If true, Driver HTTP Cache agent will skip retrieving cached data
         :return: Remote API response data dictionary to be parsed by driver
         """
         # Input validation
@@ -157,7 +157,7 @@ class DriverHTTPCache(Agent):
         :return: Remote API response data dictionary from cache to be parsed by driver
         """
         if request_type.upper() not in ["POST", "GET"]:
-            raise ValueError("Unsupported request type for HTTP Proxy Agent: {}".format(request_type))
+            raise ValueError("Unsupported request type for Driver HTTP Cache Agent: {}".format(request_type))
         data_path = "{}_{}.json".format(driver_type, group_id)
         update_delta = datetime.timedelta(seconds=update_frequency)
         if not os.path.isfile(data_path):
@@ -187,7 +187,7 @@ class DriverHTTPCache(Agent):
         """
         _log.debug("Getting driver response from remote.")
         if request_type.upper() not in ["POST", "GET"]:
-            raise ValueError("Unsupported request type for HTTP Proxy Agent: {}".format(request_type))
+            raise ValueError("Unsupported request type for Driver HTTP Cache Agent: {}".format(request_type))
         response = self.grequests_wrapper(request_type, url, headers, params=params, body=body)
         json_data = {
             "request_timestamp": utils.format_timestamp(datetime.datetime.now()),
@@ -242,7 +242,7 @@ def main():
     """
     Main method called to start the agent.
     """
-    utils.vip_main(httpproxy, identity="platform.httpproxy", version=__version__)
+    utils.vip_main(driver_http_cache, identity="platform.drivercache", version=__version__)
 
 
 if __name__ == '__main__':
