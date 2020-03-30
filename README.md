@@ -271,7 +271,7 @@ the activity:
 tail volttron.log
 ```
 
-Listenener agent heartbeat publishes appear in the logs as:
+Listener agent heartbeat publishes appear in the logs as:
 
 ```sh
 2016-10-17 18:17:52,245 (listeneragent-3.2 11367) listener.agent INFO: Peer: 'pubsub', Sender: 'listeneragent-3.2_1'

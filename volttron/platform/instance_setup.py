@@ -708,8 +708,8 @@ def get_cert_and_key(vhome):
                       "should use RSA encryption")
         else:
             cert_error = _create_web_certs()
-            if not cert_error: 
-                master_web_cert = os.path.join(vhome, 'certificates/certs/', 
+            if not cert_error:
+                master_web_cert = os.path.join(vhome, 'certificates/certs/',
                         MASTER_WEB+"-server.crt")
                 master_web_key = os.path.join(vhome, 'certificates/private/', 
                         MASTER_WEB + "-server.pem")
@@ -808,9 +808,8 @@ def do_vcp():
 @installs(get_services_core("SQLHistorian"), 'platform_historian',
           identity='platform.historian')
 def do_platform_historian():
-    datafile = os.path.join(get_home(), 'data', 'platform.historian.sqlite')
+    datafile = 'platform.historian.sqlite'
     config = {
-        'agentid': 'sqlhistorian-sqlite',
         'connection': {
             'type': 'sqlite',
             'params': {
@@ -872,6 +871,7 @@ def wizard():
     do_message_bus()
     do_vip()
     _update_config_file()
+
     prompt = 'Is this instance web enabled?'
     response = prompt_response(prompt, valid_answers=y_or_n, default='N')
     if response in y:
@@ -977,6 +977,9 @@ def main():
                             'details when prompted. \nUsage: vcfg --rabbitmq '
                             'single|federation|shovel [rabbitmq config '
                             'file]')
+    group.add_argument('--secure-agent-users', action='store_true', dest='secure_agent_users',
+                       help='Require that agents run with their own users (this requires running '
+                            'scripts/secure_user_permissions.sh as sudo)')
 
     args = parser.parse_args()
     verbose = args.verbose
@@ -1009,6 +1012,9 @@ def main():
             exit(1)
         else:
             process_rmq_inputs(args.rabbitmq, args.instance_name)
+    elif args.secure_agent_users:
+        config_opts['secure-agent-users'] = args.secure_agent_users
+        _update_config_file()
     elif not args.agent:
         wizard()
 
