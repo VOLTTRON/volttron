@@ -342,12 +342,12 @@ class Interface(BasicRevert, BaseInterface):
                      '"includeSettings":"true"}}')
         })
         # ask the cache for the most recent API data
+        self.ecobee_data = None
         try:
             data = self.vip.rpc.call(
                 self.cache_identity, "driver_data_get", "ecobee", self.group_id, THERMOSTAT_URL, headers,
                 update_frequency=180, params=params, refresh=refresh).get()
             if data is None:
-                self.ecobee_data = None
                 raise RuntimeError("No Ecobee data available from Driver HTTP Cache Agent.")
             _log.info("Last Ecobee data update occurred: {}".format(data.get("request_timestamp")))
             self.ecobee_data = data.get("request_response")
