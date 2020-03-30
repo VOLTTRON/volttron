@@ -267,7 +267,7 @@ class AuthService(Agent):
                 address = address.decode("utf-8")
                 kind = kind.decode("utf-8")
                 user = self.authenticate(domain, address, kind, credentials)
-                _log.debug("AUTH: After authenticate user id: {0}, {1}".format(user, userid))
+                _log.info("AUTH: After authenticate user id: {0}, {1}".format(user, userid))
                 if user:
                     _log.info(
                         'authentication success: userid=%r domain=%r, address=%r, '
@@ -276,6 +276,7 @@ class AuthService(Agent):
                     response.extend([b'200', b'SUCCESS', user.encode("utf-8"), b''])
                     sock.send_multipart(response)
                 else:
+                    userid = str(uuid.uuid4())
                     _log.info(
                         'authentication failure: userid=%r, domain=%r, address=%r, '
                         'mechanism=%r, credentials=%r',
@@ -529,6 +530,7 @@ class AuthService(Agent):
             "address": address,
             "mechanism": mechanism,
             "credentials": credential,
+            "user_id": user_id,
             "groups": "",
             "roles": "",
             "capabilities": "",
