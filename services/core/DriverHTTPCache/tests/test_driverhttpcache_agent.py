@@ -149,7 +149,7 @@ def test_get_json_request():
     assert content.get('test') == "test"
 
     # Currently only GET and POST supported, others should throw value error below
-    with pytest.raises(ValueError, match=r"Unsupported request type for HTTP Proxy Agent: .+"):
+    with pytest.raises(ValueError, match=r"Unsupported request type for Driver HTTP Cache Agent: .+"):
         agent._get_json_request("test", "delete", "test", TEST_URL, HEADERS)
 
     # Clean up data file

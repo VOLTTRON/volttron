@@ -52,8 +52,8 @@ __version__ = "1.0"
 
 THERMOSTAT_URL = 'https://api.ecobee.com/1/thermostat'
 THERMOSTAT_HEADERS = {
-        'Content-Type': 'application/json;charset=UTF-8',
-        'Authorization': 'Bearer {}'
+    'Content-Type': 'application/json;charset=UTF-8',
+    'Authorization': 'Bearer {}'
 }
 
 
@@ -66,7 +66,7 @@ class Interface(BasicRevert, BaseInterface):
         super(Interface, self).__init__(**kwargs)
         # Configuration value defaults
         self.config_dict = None
-        self.proxy_identity = None
+        self.cache_identity = None
         self.ecobee_id = None
         self.group_id = None
         self.api_key = None
@@ -75,9 +75,9 @@ class Interface(BasicRevert, BaseInterface):
         self.authorization_code = None
         self.pin = None
         self.authenticated = False
-        # Config name for updating config during auth updates
+        # Config name for updating config during auth update
         self.config_name = None
-        # Un-initialized data response from HTTP Proxy agent
+        # Un-initialized data response from Driver Cache agent
         self.ecobee_data = None
         # Ecobee registers are of non-standard datatypes, so override existing register type dictionary
         self.registers = {
@@ -89,7 +89,7 @@ class Interface(BasicRevert, BaseInterface):
             ('vacation', False): [],
             ('programs', False): []
         }
-        # Un-initialized greenlet for querying proxy agent
+        # Un-initialized greenlet for querying cache agent
         self.poll_greenlet = None
 
     def configure(self, config_dict, registry_config_str):
@@ -101,10 +101,10 @@ class Interface(BasicRevert, BaseInterface):
         # populate class values from configuration store
         _log.debug("Starting Ecobee driver configuration.")
         self.config_dict = config_dict
-        self.proxy_identity = config_dict.get("PROXY_IDENTITY")
-        if not self.proxy_identity:
+        self.cache_identity = config_dict.get("CACHE_IDENTITY")
+        if not self.cache_identity:
             raise ValueError(
-                "Ecobee configuration requires identity of HTTPProxy Agent installed on the platform.")
+                "Ecobee configuration requires identity of Driver HTTP Cache Agent installed on the platform.")
         self.api_key = config_dict.get('API_KEY')
         self.refresh_token = config_dict.get('REFRESH_TOKEN')
         self.access_token = config_dict.get('ACCESS_TOKEN')
@@ -299,7 +299,7 @@ class Interface(BasicRevert, BaseInterface):
         self.insert_register(vacation_register)
 
         # Add a register for listing events and resuming programs
-        program_register = Program(self.ecobee_id,  self.access_token)
+        program_register = Program(self.ecobee_id, self.access_token)
         self.insert_register(program_register)
 
     def update_config(self):
@@ -322,13 +322,13 @@ class Interface(BasicRevert, BaseInterface):
 
     def get_ecobee_data(self, refresh=False, retry=True):
         """
-        Request most recent Ecobee data from HTTP Proxy agent - this prevents overwhelming remote API with data requests
-        and or incurring excessive costs
-        :param refresh: If true, the HTTP Proxy will skip cached data and try to query the API, may not return data if
-        the remote rejects due to timing or cost constraints
-        :param retry: If true try fetching data from proxy agent again
+        Request most recent Ecobee data from Driver Cache agent - this prevents overwhelming remote API with data
+        requests and or incurring excessive costs
+        :param refresh: If true, the Driver HTTP Cache will skip cached data and try to query the API, may not return
+        data if the remote rejects due to timing or cost constraints
+        :param retry: If true try fetching data from cache agent again
         """
-        # Generate request information to pass along to proxy agent
+        # Generate request information to pass along to cache agent
         headers = json.dumps({
             'Content-Type': 'application/json;charset=UTF-8',
             'Authorization': 'Bearer {}'.format(self.access_token)
@@ -341,22 +341,23 @@ class Interface(BasicRevert, BaseInterface):
                      '"includeEquipmentStatus":"true",'
                      '"includeSettings":"true"}}')
         })
-        # ask the proxy for the most recent API data
+        # ask the cache for the most recent API data
         try:
             data = self.vip.rpc.call(
-                self.proxy_identity, "driver_data_get", "ecobee", self.group_id, THERMOSTAT_URL, headers,
+                self.cache_identity, "driver_data_get", "ecobee", self.group_id, THERMOSTAT_URL, headers,
                 update_frequency=180, params=params, refresh=refresh).get()
             if data is None:
-                raise RuntimeError("No Ecobee data available from HTTP Proxy Agent.")
+                raise RuntimeError("No Ecobee data available from Driver HTTP Cache Agent.")
             _log.info("Last Ecobee data update occurred: {}".format(data.get("request_timestamp")))
             self.ecobee_data = data.get("request_response")
         except RemoteError:
             if retry:
-                _log.warning("Failed to get Ecobee data from HTTP Proxy, refreshing tokens and trying again.")
+                _log.warning("Failed to get Ecobee data from Driver HTTP Cache Agent, refreshing tokens and trying "
+                             "again.")
                 self.refresh_tokens()
                 self.get_ecobee_data(refresh=refresh, retry=False)
             else:
-                raise RuntimeError("Failed to get Ecobee data from HTTP Proxy after refreshing tokens. May be "
+                raise RuntimeError("Failed to get Ecobee data from Driver Cache after refreshing tokens. May be "
                                    "experiencing connection issues or Ecobee API may be down.")
 
     def get_point(self, point_name, **kwargs):
@@ -480,7 +481,7 @@ class Setting(BaseRegister):
 
     def get_state(self, ecobee_data):
         """
-        :param ecobee_data: Ecobee data dictionary obtained from HTTP Proxy agent
+        :param ecobee_data: Ecobee data dictionary obtained from Driver HTTP Cache agent
         :return: Most recently available data for this setting register
         """
         if not self.readable:
@@ -539,7 +540,7 @@ class Hold(BaseRegister):
 
     def get_state(self, ecobee_data):
         """
-        :param ecobee_data: Ecobee data dictionary obtained from HTTP Proxy agent
+        :param ecobee_data: Ecobee data dictionary obtained from Driver HTTP Cache agent
         :return: Most recently available data for this setting register
         """
         if not self.readable:
@@ -684,7 +685,7 @@ class Vacation(BaseRegister):
 
     def get_state(self, ecobee_data):
         """
-        :param ecobee_data: Ecobee data dictionary obtained from HTTP Proxy agent
+        :param ecobee_data: Ecobee data dictionary obtained from Driver HTTP Cache agent
         :return: List of vacation dictionaries returned by Ecobee remote API
         """
         if not ecobee_data:
@@ -752,7 +753,7 @@ class Program(BaseRegister):
 
     def get_state(self, ecobee_data):
         """
-        :param ecobee_data: Ecobee data dictionary obtained from HTTP Proxy agent
+        :param ecobee_data: Ecobee data dictionary obtained from Driver HTTP Cache agent
         :return: List of Ecobee event objects minus vacation events
         """
         if not ecobee_data:

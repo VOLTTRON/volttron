@@ -26,7 +26,7 @@ This is an example driver configuration:
                           "PIN": "<Ecobee Application Authorization Code>",
                           "DEVICE_ID": <User Ecobee thermostat serial number>,
                           "GROUP_ID": "<Arbitrary string identifier for all devices included in remote API data>",
-                          "PROXY_IDENTITY": "platform.httpproxy",
+                          "CACHE_IDENTITY": "platform.drivercache",
                           "config_name": "devices/ecobee"},
         "driver_type": "ecobee",
         "registry_config":"config://ecobee.csv",
@@ -72,9 +72,9 @@ The driver configuration works as follows:
         If only one user is running Ecobee drivers on a platform, this value can be
         left at the default, but it should contain some string in any case.
 
-        PROXY_IDENTITY - This should match the string provided as the identity when
-        installing the HTTP Proxy agent. failure to provide a matching identity
-        will result in the platform being unable to send requests to the HTTP Proxy
+        CACHE_IDENTITY - This should match the string provided as the identity when
+        installing the Driver HTTP Cache agent. failure to provide a matching identity
+        will result in the platform being unable to send requests to the Driver HTTP Cache
         agent, which is required to be running for the Ecobee driver's operations.
 
         CONFIG_NAME - This should directly match the device topic used in the
@@ -160,7 +160,7 @@ Installation
 These are the most basic installation steps for the Ecobee driver. This guide
 assumes the user is in the VOLTTRON_ROOT directory, the VOLTTRON platform has
 been installed and bootstrapped per the  instructions in the VOLTTRON README,
-and that the HTTP Proxy agent has been installed using the installation
+and that the Driver HTTP Cache agent has been installed using the installation
 instructions above.
 
 First, the driver's Python file must be placed in the Master Driver's interfaces
@@ -178,11 +178,11 @@ to find the Ecobee interface.
 
         . env/bin/activate
 
-    3. If the HTTP Proxy has not yet been installed and started:
+    3. If the Driver Cache has not yet been installed and started:
 
-        python scripts/install-agent.py -s services/core/HTTPProxy -i <proxy_identity from Ecobee driver config>
+        python scripts/install-agent.py -s services/core/DriverHTTPCache -i <cache_identity from Ecobee driver config>
 
-        vctl start <HTTP Proxy Agent uuid or identity>
+        vctl start <Driver HTTP Cache Agent uuid or identity>
 
     4. Install a Master Driver if one is not yet installed
 
