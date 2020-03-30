@@ -51,7 +51,7 @@ _log = logging.getLogger(__name__)
 __version__ = '3.3'
 DEFAULT_MESSAGE = 'Listener Message'
 DEFAULT_AGENTID = "listener"
-DEFAULT_HEARTBEAT_PERIOD = 60
+DEFAULT_HEARTBEAT_PERIOD = 5
 
 
 class ListenerAgent(Agent):
