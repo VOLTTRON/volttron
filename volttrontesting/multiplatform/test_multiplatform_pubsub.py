@@ -7,11 +7,11 @@ from volttron.platform import jsonapi
 from volttron.platform import get_ops
 from volttrontesting.utils.utils import (poll_gevent_sleep,
                                          messages_contains_prefix)
-
+from volttron.platform import get_examples
 from volttrontesting.fixtures.volttron_platform_fixtures import get_rand_vip, \
     build_wrapper, get_rand_ip_and_port
 from volttrontesting.utils.platformwrapper import PlatformWrapper
-from volttron.platform.agent.known_identities import PLATFORM_DRIVER, CONFIGURATION_STORE
+from volttron.platform.agent.known_identities import PLATFORM_DRIVER, CONFIGURATION_STORE, CONTROL
 
 subscription_results = {}
 count = 0
@@ -77,7 +77,7 @@ def get_volttron_instances(request):
         for i in range(0, n):
             instances[i].shutdown_platform()
 
-        gevent.sleep(1)
+        gevent.sleep(5)
         # del instances[:]
         for i in range(0, n):
             address = vip_addresses.pop(0)
@@ -85,7 +85,7 @@ def get_volttron_instances(request):
             print(address, web_address)
             instances[i].startup_platform(address, bind_web_address=web_address)
             instances[i].allow_all_connections()
-        gevent.sleep(11)
+        gevent.sleep(20)
         instances = instances if n > 1 else instances[0]
 
         get_n_volttron_instances.instances = instances
@@ -523,7 +523,7 @@ def test_multiplatform_bad_discovery_file(request, build_instances):
 
 @pytest.mark.xfail(reason="Issue #2107. rpc call to edit config store will fail due to capabilities check")
 @pytest.mark.multiplatform
-def test_multiplatform_rpc(request, get_volttron_instances):
+def test_multiplatform_configstore_rpc(request, get_volttron_instances):
     p1, p2 = get_volttron_instances(2)
     _default_config = {
         "test_max": {
@@ -568,5 +568,66 @@ def test_multiplatform_rpc(request, get_volttron_instances):
         p1.shutdown_platform()
         test_agent.core.stop()
         p1.shutdown_platform()
+
+    request.addfinalizer(stop)
+
+
+@pytest.mark.multiplatform
+def test_multiplatform_rpc(request, get_volttron_instances):
+    p1, p2 = get_volttron_instances(2)
+    auuid = p1.install_agent(
+        agent_dir=get_examples("ListenerAgent"), start=True)
+    assert auuid is not None
+
+    test_agent = p2.build_agent()
+    kwargs = {"external_platform": p1.instance_name}
+    agts = None
+    agts = test_agent.vip.rpc.call(CONTROL,
+                            'list_agents',
+                            **kwargs).get(timeout=10)
+
+    assert agts[0]['identity'].startswith('listener')
+
+    def stop():
+        p1.stop_agent(auuid)
+        #p1.remove_agent(auuid)
+        p1.shutdown_platform()
+        test_agent.core.stop()
+        p2.shutdown_platform()
+
+    request.addfinalizer(stop)
+
+
+@pytest.mark.multiplatform
+def test_multiplatform_stop_agent_rpc(request, get_volttron_instances):
+    p1, p2 = get_volttron_instances(2)
+    auuid = p1.install_agent(
+        agent_dir=get_examples("ListenerAgent"), start=True)
+    assert auuid is not None
+
+    test_agent = p2.build_agent()
+    kwargs = {"external_platform": p1.instance_name}
+    agts = None
+    agts = test_agent.vip.rpc.call(CONTROL,
+                            'list_agents',
+                            **kwargs).get(timeout=10)
+
+    assert agts[0]['identity'].startswith('listener')
+    listener_uuid = agts[0]['uuid']
+    test_agent.vip.rpc.call(CONTROL,
+                            'stop_agent',
+                            listener_uuid,
+                            **kwargs).get(timeout=10)
+    agt_status = test_agent.vip.rpc.call(CONTROL,
+                            'agent_status',
+                            listener_uuid,
+                            **kwargs).get(timeout=10)
+    assert agt_status[1] == 0
+    def stop():
+        p1.stop_agent(auuid)
+        p1.remove_agent(auuid)
+        p1.shutdown_platform()
+        test_agent.core.stop()
+        p2.shutdown_platform()
 
     request.addfinalizer(stop)

@@ -321,20 +321,23 @@ class RPC(SubsystemBase):
     @spawn
     def _handle_external_rpc_subsystem(self, message):
         ret_msg = dict()
-        _log.debug("EXT_RPC subsystem handler IN message {0}".format(message))
+        #_log.debug("EXT_RPC subsystem handler IN message {0}".format(message))
         op = message.args[0]
-        rpc_msg = jsonapi.loads(message.args[1])
+        rpc_msg = message.args[1] #jsonapi.loads(message.args[1])
         try:
-            # _log.debug("EXT_RPC subsystem handler IN message {0}, {1}".format(message.peer, rpc_msg))
+            #_log.debug("EXT_RPC subsystem handler IN message {0}, {1}".format(message.peer, rpc_msg))
             method_args = rpc_msg['args']
             #message.args = [method_args]
             message.args = method_args
+            for idx, msg in enumerate(message.args):
+                if isinstance(msg, str):
+                    message.args[idx] = jsonapi.loads(msg)
             dispatch = self._dispatcher.dispatch
-            # _log.debug("External RPC IN message args {}".format(message))
+            #_log.debug("External RPC IN message args {}".format(message))
 
             responses = [response for response in (
                 dispatch(msg, message) for msg in message.args) if response]
-            # _log.debug("External RPC Resonses {}".format(responses))
+            #_log.debug("External RPC Responses {}".format(responses))
             if responses:
                 message.user = ''
                 try:
