@@ -522,21 +522,22 @@ class Router(BaseRouter):
         # Expecting incoming frames to follow this VIP format:
         #   [SENDER, PROTO, USER_ID, MSG_ID, SUBSYS, ...]
         frames = socket.recv_multipart(copy=False)
+        self.route(deserialize_frames(frames))
         # for f in frames:
         #     _log.debug("PUBSUBSERVICE Frames: {}".format(bytes(f)))
         if len(frames) < 6:
             return
 
         sender, proto, user_id, msg_id, subsystem = frames[:5]
-        if proto.bytes != b'VIP1':
+        if proto != 'VIP1':
             return
 
         # Handle 'EXT_RPC' subsystem messages
-        name = subsystem.bytes
+        name = subsystem
         if name == 'external_rpc':
             # Reframe the frames
             sender, proto, usr_id, msg_id, subsystem, msg = frames[:6]
-            msg_data = jsonapi.loadb(msg.bytes)
+            msg_data = jsonapi.loads(msg)
             peer = msg_data['to_peer']
             # Send to destionation agent/peer
             # Form new frame for local
@@ -548,9 +549,9 @@ class Router(BaseRouter):
                 pass
         # Handle 'pubsub' subsystem messages
         elif name == 'pubsub':
-            if bytes(frames[1]) == b'VIP1':
-                recipient = b''
-                frames[:1] = [zmq.Frame(b''), zmq.Frame(b'')]
+            if frames[1] == 'VIP1':
+                recipient = ''
+                frames[:1] = ['', '']
                 # for f in frames:
                 #     _log.debug("frames: {}".format(bytes(f)))
             result = self.pubsub.handle_subsystem(frames, user_id)
@@ -559,8 +560,8 @@ class Router(BaseRouter):
         elif name == 'routing_table':
             # for f in frames:
             #     _log.debug("frames: {}".format(bytes(f)))
-            if bytes(frames[1]) == b'VIP1':
-                frames[:1] = [zmq.Frame(b''), zmq.Frame(b'')]
+            if frames[1] == 'VIP1':
+                frames[:1] = ['', '']
             result = self._ext_routing.handle_subsystem(frames)
             return result
 
