@@ -152,7 +152,6 @@ def _is_bound_already(address):
 def fail_if_instance_running():
 
     home = get_home()
-    ipc_address = 'ipc://{}/run/vip.socket'.format(home)
 
     if os.path.exists(home) and\
        is_volttron_running(home):
