@@ -103,9 +103,7 @@ class Auth(SubsystemBase):
 
         """
         from volttron.platform.vip.agent.utils import build_agent
-        from volttron.platform.web import DiscoveryInfo
         from volttron.platform.vip.agent import Agent
-        from volttron.platform.web import DiscoveryError
 
         if agent_class is None:
             agent_class = Agent
@@ -139,6 +137,8 @@ class Auth(SubsystemBase):
                                 message_bus='zmq',
                                 address=address)
         elif parsed_address.scheme in ('https', 'http'):
+            from volttron.platform.web import DiscoveryInfo
+            from volttron.platform.web import DiscoveryError
             try:
                 # TODO: Use known host instead of looking up for discovery info if possible.
 
