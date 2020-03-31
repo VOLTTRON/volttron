@@ -89,11 +89,57 @@ def test_approve_authorization_failure(mock_auth_service, test_auth):
 
     mock_auth.read_auth_file()
     assert len(mock_auth.auth_entries) == 1
+    assert len(mock_auth._auth_approved) == 1
     assert len(mock_auth._auth_failures) == 0
 
 
 @pytest.mark.control
-def test_approve_denied_authorization_failure(mock_auth_service, test_auth):
+def test_deny_approved_authorization(mock_auth_service, test_auth):
+    mock_auth = mock_auth_service
+    auth = test_auth
+    mock_auth._update_auth_failures(
+        auth['domain'], auth['address'], auth['mechanism'], auth['credentials'], auth['user_id'])
+    assert len(mock_auth._auth_failures) == 1
+    assert len(mock_auth._auth_approved) == 0
+
+    mock_auth.approve_authorization_failure(auth['user_id'])
+    mock_auth.read_auth_file()
+    assert len(mock_auth.auth_entries) == 1
+    assert len(mock_auth._auth_approved) == 1
+
+    mock_auth.deny_authorization_failure(auth['user_id'])
+    assert len(mock_auth._auth_denied) == 1
+    assert len(mock_auth._auth_approved) == 0
+
+    mock_auth.read_auth_file()
+    assert len(mock_auth.auth_entries) == 0
+
+
+@pytest.mark.control
+def test_delete_approved_authorization(mock_auth_service, test_auth):
+    mock_auth = mock_auth_service
+    auth = test_auth
+    mock_auth._update_auth_failures(
+        auth['domain'], auth['address'], auth['mechanism'], auth['credentials'], auth['user_id'])
+    assert len(mock_auth._auth_failures) == 1
+    assert len(mock_auth._auth_approved) == 0
+
+    mock_auth.approve_authorization_failure(auth['user_id'])
+    assert len(mock_auth._auth_approved) == 1
+    assert len(mock_auth._auth_failures) == 0
+
+    assert len(mock_auth.auth_entries) == 0
+    mock_auth.read_auth_file()
+    assert len(mock_auth.auth_entries) == 1
+
+    mock_auth.delete_authorization_failure(auth['user_id'])
+    assert len(mock_auth._auth_approved) == 0
+    mock_auth.read_auth_file()
+    assert len(mock_auth.auth_entries) == 0
+
+
+@pytest.mark.control
+def test_approve_denied_authorization(mock_auth_service, test_auth):
     mock_auth = mock_auth_service
     auth = test_auth
     mock_auth._update_auth_failures(
@@ -107,7 +153,7 @@ def test_approve_denied_authorization_failure(mock_auth_service, test_auth):
 
     mock_auth.approve_authorization_failure(auth['user_id'])
     assert len(mock_auth.auth_entries) == 0
-
+    assert len(mock_auth._auth_approved) == 1
     mock_auth.read_auth_file()
     assert len(mock_auth.auth_entries) == 1
     assert len(mock_auth._auth_denied) == 0
@@ -141,7 +187,7 @@ def test_delete_authorization_failure(mock_auth_service, test_auth):
 
 
 @pytest.mark.control
-def test_delete_denied_authorization_failure(mock_auth_service, test_auth):
+def test_delete_denied_authorization(mock_auth_service, test_auth):
     mock_auth = mock_auth_service
     auth = test_auth
     mock_auth._update_auth_failures(

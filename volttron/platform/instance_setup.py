@@ -410,16 +410,16 @@ def do_message_bus():
         else:
             print("Message type is not valid. Valid entries are zmq or rmq.")
 
+    try:
+        rmq_config = RMQConfig()
+
+    except AssertionError:
+        print("RabbitMQ has not been set up!")
+        print("Setting up now...")
+        set_dependencies_rmq()
+        print("Done!")
+
     if bus_type == 'rmq':
-        try:
-            rmq_config = RMQConfig()
-
-        except AssertionError:
-            print("RabbitMQ has not been set up!")
-            print("Setting up now...")
-            set_dependencies_rmq()
-            print("Done!")
-
         if not _check_dependencies_met('rabbitmq'):
             print("Rabbitmq dependencies not installed. Installing now...")
             set_dependencies("rabbitmq")

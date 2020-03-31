@@ -107,6 +107,7 @@ class AuthService(Agent):
         self._setup_mode = setup_mode
         self._auth_failures = []
         self._auth_denied = []
+        self._auth_approved = []
 
         def topics():
             return defaultdict(set)
@@ -266,7 +267,7 @@ class AuthService(Agent):
                 address = address.decode("utf-8")
                 kind = kind.decode("utf-8")
                 user = self.authenticate(domain, address, kind, credentials)
-                _log.debug("AUTH: After authenticate user id: {0}, {1}".format(user, userid))
+                _log.info("AUTH: After authenticate user id: {0}, {1}".format(user, userid))
                 if user:
                     _log.info(
                         'authentication success: userid=%r domain=%r, address=%r, '
@@ -275,6 +276,7 @@ class AuthService(Agent):
                     response.extend([b'200', b'SUCCESS', user.encode("utf-8"), b''])
                     sock.send_multipart(response)
                 else:
+                    userid = str(uuid.uuid4())
                     _log.info(
                         'authentication failure: userid=%r, domain=%r, address=%r, '
                         'mechanism=%r, credentials=%r',
@@ -387,29 +389,29 @@ class AuthService(Agent):
         :param user_id: user id field from VOLTTRON Interconnect Protocol
         :type user_id: str
         """
-        if len(self._auth_failures) > 0:
-            for pending in self._auth_failures:
-                if user_id == pending['user_id']:
-                    self._update_auth_entry(
-                        pending['domain'],
-                        pending['address'],
-                        pending['mechanism'],
-                        pending['credentials'],
-                        pending['user_id']
-                        )
-                    del self._auth_failures[self._auth_failures.index(pending)]
+        for pending in self._auth_failures:
+            if user_id == pending['user_id']:
+                self._update_auth_entry(
+                    pending['domain'],
+                    pending['address'],
+                    pending['mechanism'],
+                    pending['credentials'],
+                    pending['user_id']
+                    )
+                self._auth_approved.append(pending)
+                del self._auth_failures[self._auth_failures.index(pending)]
 
-        if len(self._auth_denied) > 0:
-            for pending in self._auth_denied:
-                if user_id == pending['user_id']:
-                    self._update_auth_entry(
-                        pending['domain'],
-                        pending['address'],
-                        pending['mechanism'],
-                        pending['credentials'],
-                        pending['user_id']
-                        )
-                    del self._auth_denied[self._auth_denied.index(pending)]
+        for pending in self._auth_denied:
+            if user_id == pending['user_id']:
+                self._update_auth_entry(
+                    pending['domain'],
+                    pending['address'],
+                    pending['mechanism'],
+                    pending['credentials'],
+                    pending['user_id']
+                    )
+                self._auth_approved.append(pending)
+                del self._auth_denied[self._auth_denied.index(pending)]
 
     @RPC.export
     @RPC.allow(capabilities="allow_auth_modifications")
@@ -421,11 +423,17 @@ class AuthService(Agent):
         :param user_id: user id field from VOLTTRON Interconnect Protocol
         :type user_id: str
         """
-        if len(self._auth_failures) > 0:
-            for pending in self._auth_failures:
-                if user_id == pending['user_id']:
-                    self._auth_denied.append(pending)
-                    del self._auth_failures[self._auth_failures.index(pending)]
+        for pending in self._auth_failures:
+            if user_id == pending['user_id']:
+                self._auth_denied.append(pending)
+                del self._auth_failures[self._auth_failures.index(pending)]
+
+        for pending in self._auth_approved:
+            if user_id == pending['user_id']:
+                self._remove_auth_entry(pending['credentials'])
+                self._auth_denied.append(pending)
+                del self._auth_approved[self._auth_approved.index(pending)]
+
 
     @RPC.export
     @RPC.allow(capabilities="allow_auth_modifications")
@@ -437,18 +445,26 @@ class AuthService(Agent):
         :param user_id: user id field from VOLTTRON Interconnect Protocol
         :type user_id: str
         """
-        if len(self._auth_failures) > 0:
-            for pending in self._auth_failures:
-                if user_id == pending['user_id']:
-                    del self._auth_failures[self._auth_failures.index(pending)]
-        if len(self._auth_denied) > 0:
-            for pending in self._auth_denied:
-                if user_id == pending['user_id']:
-                    del self._auth_denied[self._auth_denied.index(pending)]
+        for pending in self._auth_failures:
+            if user_id == pending['user_id']:
+                del self._auth_failures[self._auth_failures.index(pending)]
+
+        for pending in self._auth_approved:
+            if user_id == pending['user_id']:
+                self._remove_auth_entry(pending['credentials'])
+                del self._auth_approved[self._auth_approved.index(pending)]
+
+        for pending in self._auth_denied:
+            if user_id == pending['user_id']:
+                del self._auth_denied[self._auth_denied.index(pending)]
 
     @RPC.export
     def get_authorization_failures(self):
         return list(self._auth_failures)
+
+    @RPC.export
+    def get_authorization_approved(self):
+        return list(self._auth_approved)
 
     @RPC.export
     def get_authorization_denied(self):
@@ -507,6 +523,7 @@ class AuthService(Agent):
             "address": address,
             "mechanism": mechanism,
             "credentials": credential,
+            "user_id": user_id,
             "groups": "",
             "roles": "",
             "capabilities": "",
@@ -516,6 +533,12 @@ class AuthService(Agent):
 
         try:
             self.auth_file.add(new_entry, overwrite=False)
+        except AuthException as err:
+            _log.error('ERROR: %s\n' % str(err))
+
+    def _remove_auth_entry(self, credential):
+        try:
+            self.auth_file.remove_by_credentials(credential)
         except AuthException as err:
             _log.error('ERROR: %s\n' % str(err))
 
