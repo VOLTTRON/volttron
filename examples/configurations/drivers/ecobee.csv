@@ -1,0 +1,9 @@
+Point Name,Volttron Point Name,Units,Type,Writable,Readable,Default Value,Notes
+fanMinOnTime,fanMinOnTime,seconds,setting,True,True,,
+hvacMode,hvacMode,seconds,setting,True,True,,
+humidity,humidity,%,setting,False,True,,
+coolHoldTemp,coolHoldTemp,degF,hold,True,False,,
+heatHoldTemp,heatHoldTemp,degF,hold,True,False,,
+desiredCool,desiredCool,degF,hold,False,True,,
+desiredHeat,desiredHeat,degF,hold,False,True,,
+actualTemperature,actualTemperature,degF,hold,False,True,,
