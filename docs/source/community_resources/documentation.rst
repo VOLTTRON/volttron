@@ -16,7 +16,7 @@ Building the Documentation
 
 Static documentation can be found in the `docs/source` directory. Edit or create new .rst files to add new content
 using the `Restructured Text <http://docutils.sourceforge.net/docs/user/rst/quickref.html>`_ format. To see the results
-of your changes. the documenation can be built locally through the command line using the following instructions.
+of your changes. the documentation can be built locally through the command line using the following instructions.
 
 If you've already :ref:`bootstrapped <setup>` |VOLTTRON|, do the following while activated. If not,
 this will also pull down the necessary |VOLTTRON| libraries.
