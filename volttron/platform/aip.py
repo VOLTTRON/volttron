@@ -952,6 +952,9 @@ class AIPplatform(object):
         argv = [sys.executable, '-m', module]
         resmon = getattr(self.env, 'resmon', None)
         agent_user = None
+
+        data_dir = self._get_agent_data_dir(agent_path_with_name)
+
         if self.secure_agent_user:
             _log.info("Starting agent securely...")
             user_id_path = os.path.join(agent_dir, "USER_ID")
@@ -977,7 +980,9 @@ class AIPplatform(object):
                 # This is needed only for agents installed before switching to
                 # secure mode. Agents installed in secure mode will own files
                 # in agent-data dir
-                data_dir = self._get_agent_data_dir(agent_path_with_name)
+                # Moved this to the top so that "agent-data" directory gets
+                # created in the beginning
+                #data_dir = self._get_agent_data_dir(agent_path_with_name)
 
                 for (root, directories, files) in os.walk(data_dir,
                                                           topdown=True):
