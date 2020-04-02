@@ -40,7 +40,7 @@
                         200: function(response){
                             if(location.protocol != 'https:'){
                                 console.log("HTTP")
-                                document.cookie = "Bearer="+response.responseText+"; secure=False; path=/";
+                                document.cookie = "Bearer="+response.responseText+"; path=/";
                             }
                             else{
                                 console.log("HTTPS")
