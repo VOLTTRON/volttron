@@ -76,6 +76,7 @@ class AdminEndpoints(object):
 
         self._rpc_caller = rpc_caller
         self._rmq_mgmt = rmq_mgmt
+        self._certs = None
 
         if rmq_mgmt is not None:
             self._certs = Certs()
@@ -180,16 +181,21 @@ class AdminEndpoints(object):
             except TemplateNotFound:
                 return Response("<h1>404 Not Found</h1>", status="404 Not Found")
 
-            if page == 'list_certs.html':
-                html = template.render(certs=self._certs.get_all_cert_subjects())
-            elif page == 'pending_auth_reqs.html':
+            # if page == 'list_certs.html':
+            #     html = template.render(certs=self._certs.get_all_cert_subjects())
+            if page == 'pending_auth_reqs.html':
                 self._pending_auths = self._rpc_caller.call(AUTH, 'get_authorization_failures').get()
                 self._denied_auths = self._rpc_caller.call(AUTH, 'get_authorization_denied').get()
                 self._approved_auths = self._rpc_caller.call(AUTH, 'get_authorization_approved').get()
-                html = template.render(csrs=self._certs.get_pending_csr_requests(),
-                                       auths=self._pending_auths,
-                                       denied_auths=self._denied_auths,
-                                       approved_auths=self._approved_auths)
+                if self._certs:
+                    html = template.render(csrs=self._certs.get_pending_csr_requests(),
+                                           auths=self._pending_auths,
+                                           denied_auths=self._denied_auths,
+                                           approved_auths=self._approved_auths)
+                else:
+                    html = template.render(auths=self._pending_auths,
+                                           denied_auths=self._denied_auths,
+                                           approved_auths=self._approved_auths)
             else:
                 # A template with no params.
                 html = template.render()
