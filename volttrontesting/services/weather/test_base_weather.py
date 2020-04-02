@@ -486,7 +486,7 @@ def test_set_update_interval_fail(weather, service_name, interval):
 def test_manage_unit_conversion_success(weather, from_units, start, to_units,
                                         end):
     output = weather.manage_unit_conversion(from_units, start, to_units)
-    assert str(output).startswith(str(end))
+    assert pytest.approx(output, 0.0001) == end
 
 
 @pytest.mark.weather2
@@ -541,7 +541,7 @@ def test_get_current_valid_locations(weather, fake_locations):
             test_value = test_points[fake_point["name"]]
             assert test_value
             if test_value:
-                assert str(test_value).startswith(str(fake_point["value"]))
+                assert pytest.approx(test_value, 0.0001) == fake_point["value"]
         assert results1[0]["location"].startswith("fake_location")
 
         # Check data got cached
@@ -934,7 +934,7 @@ def test_poll_location(volttron_instance, query_agent):
             test_value = test_points[fake_point["name"]]
             assert test_value
             if test_value:
-                assert str(test_value).startswith(str(fake_point["value"]))
+                assert pytest.approx(test_value, 0.0001) == fake_point["value"]
         assert results1[0]["location"].startswith("fake_location")
 
         assert query_agent.vip.rpc.call(
@@ -961,6 +961,8 @@ def test_poll_location(volttron_instance, query_agent):
 ])
 def test_poll_multiple_locations(volttron_instance, query_agent, config,
                                  result_topics):
+    gevent.sleep(1)
+
     agent = None
     query_agent.poll_callback.reset_mock()
     try:
