@@ -986,8 +986,9 @@ class PlatformWrapper:
             assert self.is_agent_running(agent_uuid)
 
         # remove temp config_file
-        if os.path.isfile(temp_config):
-            os.remove(temp_config)
+        if agent_dir:
+            if os.path.isfile(temp_config):
+                os.remove(temp_config)
 
         return agent_uuid
 

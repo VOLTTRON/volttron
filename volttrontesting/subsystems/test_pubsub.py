@@ -84,10 +84,13 @@ def test_granularity(volttron_instance, publisher_agent, request):
     g2_topic = "testtopic1/test"
     g3_topic = "testtopic1/test/foo"
 
+    gevent.sleep(1)
     # Low level granularity callback method, will get least amount of messages
-    new_agent1_sub = volttron_instance.build_agent(identity='agenta')
-    new_agent2_sub = volttron_instance.build_agent(identity='agentb')
-    new_agent3_sub = volttron_instance.build_agent(identity='agentc')
+    #new_agent1_sub = volttron_instance.build_agent(identity='agentax')
+    new_agent1_sub = volttron_instance.dynamic_agent
+    new_agent2_sub = volttron_instance.build_agent(identity='agentbx')
+
+    new_agent3_sub = volttron_instance.build_agent(identity='agentcx')
 
     new_agent1_sub.callback = MagicMock(name="callback")
     new_agent1_sub.callback.reset_mock()
@@ -97,7 +100,7 @@ def test_granularity(volttron_instance, publisher_agent, request):
     new_agent3_sub.callback.reset_mock()
 
     def stop():
-        new_agent1_sub.core.stop()
+        #new_agent1_sub.core.stop()
         new_agent2_sub.core.stop()
         new_agent3_sub.core.stop()
 
