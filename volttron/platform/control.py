@@ -79,7 +79,7 @@ from volttron.platform.vip.agent.subsystems.query import Query
 from volttron.utils.rmq_config_params import RMQConfig
 from volttron.utils.rmq_mgmt import RabbitMQMgmt
 from volttron.utils.rmq_setup import check_rabbit_status
-from volttron.platform.agent.utils import is_secure_mode
+from volttron.platform.agent.utils import is_secure_mode, wait_for_volttron_shutdown
 
 try:
     import volttron.restricted
@@ -909,6 +909,7 @@ def shutdown_agents(opts):
     _log.debug("Calling stop_platform")
     if opts.platform:
         opts.connection.notify('stop_platform')
+        wait_for_volttron_shutdown(get_home(), 60)
 
 
 def create_cgroups(opts):
