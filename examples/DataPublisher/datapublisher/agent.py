@@ -196,7 +196,8 @@ class Publisher(Agent):
                 names = list(item.keys())
             self._data = self._input_data
         else:
-            handle = open(self._input_data, 'rb')
+            # python3 should open in text mode to get fieldnames properly.
+            handle = open(self._input_data)
             self._data = csv.DictReader(handle)
             names = self._data.fieldnames[:]
 
