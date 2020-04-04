@@ -1446,6 +1446,7 @@ class BackupDatabase:
                            f" free count is {f}")
                 # max_pages  gets updated based on inserts but freelist_count doesn't
                 # enter delete loop based on page_count
+                min_free_pages = p - self.max_pages
                 while p > self.max_pages:
                     cache_full = True
                     c.execute(
@@ -1460,7 +1461,7 @@ class BackupDatabase:
                         self._record_count -= c.rowcount
                     p = page_count()  #page count doesn't reflect delete without commit
                     f = free_count() # freelist count does. So using that to break from loop
-                    if f > 0:
+                    if f >= min_free_pages:
                         break
                     _log.debug(f" Cleaning cache since we are over the limit. "
                                f"After delete of 100 records from cache"
