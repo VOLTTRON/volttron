@@ -7,4 +7,6 @@
     # verbosity is decreased from left to right above
     # default: INFO
     "log-level": "INFO"
+    # stop time in seconds
+    "runtime_limit":30
 }
