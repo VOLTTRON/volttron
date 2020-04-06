@@ -40,6 +40,7 @@
 import logging
 import sys
 from pprint import pformat
+import datetime
 
 from volttron.platform.agent import utils
 from volttron.platform.messaging.health import STATUS_GOOD
@@ -52,6 +53,7 @@ __version__ = '3.3'
 DEFAULT_MESSAGE = 'Listener Message'
 DEFAULT_AGENTID = "listener"
 DEFAULT_HEARTBEAT_PERIOD = 5
+RUNTIME_LIMIT = 600
 
 
 class ListenerAgent(Agent):
@@ -61,11 +63,22 @@ class ListenerAgent(Agent):
 
     def __init__(self, config_path, **kwargs):
         super().__init__(**kwargs)
+        self.flag = True
         self.config = utils.load_config(config_path)
         self._agent_id = self.config.get('agentid', DEFAULT_AGENTID)
         self._message = self.config.get('message', DEFAULT_MESSAGE)
         self._heartbeat_period = self.config.get('heartbeat_period',
                                                  DEFAULT_HEARTBEAT_PERIOD)
+        try:
+            self.runtime_limit = int(self.config.get('runtime_limit', ''))
+            self.stop_time = datetime.datetime.now() + datetime.timedelta(seconds=self.runtime_limit)
+            _log.debug('Listener agent will stop at {}'.format(self.stop_time))
+        except:
+            _log.debug('Runtime limit is not given')
+            self.flag = False
+
+        if self.flag:
+            self.core.schedule(self.stop_time, self.core.stop)
         try:
             self._heartbeat_period = int(self._heartbeat_period)
         except:
@@ -84,6 +97,7 @@ class ListenerAgent(Agent):
     @Core.receiver('onsetup')
     def onsetup(self, sender, **kwargs):
         # Demonstrate accessing a value from the config file
+        self.start_time = datetime.datetime.now()
         _log.info(self.config.get('message', DEFAULT_MESSAGE))
         self._agent_id = self.config.get('agentid')
 
@@ -98,7 +112,7 @@ class ListenerAgent(Agent):
         _log.info('query: %r', query.query('serverkey').get())
 
     @PubSub.subscribe('pubsub', '')
-    def on_match(self, peer, sender, bus,  topic, headers, message):
+    def on_match(self, peer, sender, bus, topic, headers, message):
         """Use match_all to receive all messages and print them out."""
         self._logfn(
             "Peer: {0}, Sender: {1}:, Bus: {2}, Topic: {3}, Headers: {4}, "
