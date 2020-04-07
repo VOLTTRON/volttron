@@ -240,7 +240,6 @@ def test_update_config(threshold_tester_agent):
         threshold_tester_agent.reset_store()
 
 
-@pytest.mark.dev
 def test_device_publish(threshold_tester_agent):
     gevent.sleep(2)
     threshold_tester_agent.vip.pubsub.publish('pubsub', 'devices/all',
