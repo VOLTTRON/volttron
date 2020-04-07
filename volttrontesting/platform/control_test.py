@@ -121,7 +121,7 @@ class CrashTestAgent(Agent):
     @Core.receiver('onstart')
     def crash_after_five_seconds(self, sender, **kwargs):
         print("crash test agent on start")
-        gevent.sleep(10)
+        gevent.sleep(5)
         print("crash test agent quitting")
         sys.exit(5)
 
