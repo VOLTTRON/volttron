@@ -114,17 +114,6 @@ from volttron.platform.agent import utils
 from volttron.platform.vip.agent import Agent, Core
 import gevent
 
-def main(argv=sys.argv):
-    try:
-        utils.vip_main(CrashTestAgent, version='0.1')
-    except Exception as e:
-        print('unhandled exception: {}'.format(e))
-
-
-if __name__ == '__main__':
-    # Entry point for script
-    sys.exit(main())
-
 class CrashTestAgent(Agent):
     def __init__(self, config_path, **kwargs):
         super(CrashTestAgent, self).__init__(**kwargs)
@@ -135,6 +124,17 @@ class CrashTestAgent(Agent):
         gevent.sleep(10)
         print("crash test agent quitting")
         sys.exit(5)
+
+def main(argv=sys.argv):
+    try:
+        utils.vip_main(CrashTestAgent, version='0.1')
+    except Exception as e:
+        print('unhandled exception: {}'.format(e))
+
+if __name__ == '__main__':
+    # Entry point for script
+    sys.exit(main())
+
         ''')
         with open(os.path.join('setup.py'), 'w') as file:
             file.write('''

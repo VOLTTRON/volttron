@@ -903,6 +903,7 @@ class PlatformWrapper:
             agent_uuid = self._install_agent(wheel_file, start, vip_identity)
 
         # Now if the agent_dir is specified.
+        temp_config = None
         if agent_dir:
             assert not agent_wheel
             temp_config = os.path.join(self.volttron_home,
@@ -986,9 +987,8 @@ class PlatformWrapper:
             assert self.is_agent_running(agent_uuid)
 
         # remove temp config_file
-        if agent_dir:
-            if os.path.isfile(temp_config):
-                os.remove(temp_config)
+        if temp_config and os.path.isfile(temp_config):
+            os.remove(temp_config)
 
         return agent_uuid
 

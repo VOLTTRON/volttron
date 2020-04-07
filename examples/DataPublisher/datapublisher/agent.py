@@ -99,6 +99,8 @@ def DataPub(config_path, **kwargs):
 
     max_data_frequency = conf.get("max_data_frequency")
 
+    topic_separator = conf.get("topic_separator", "/")
+
     return Publisher(use_timestamp=use_timestamp,
                      publish_interval=publish_interval,
                      base_path=base_path,
@@ -108,6 +110,7 @@ def DataPub(config_path, **kwargs):
                      replay_data=replay_data,
                      remember_playback=remember_playback,
                      reset_playback=reset_playback,
+                     topic_separator=topic_separator,
                      **kwargs)
 
 
@@ -119,7 +122,7 @@ class Publisher(Agent):
     def __init__(self, use_timestamp=False,
                  publish_interval=5.0, base_path="", input_data=[], unittype_map={},
                  max_data_frequency=None, replay_data=False, remember_playback=False,
-                 reset_playback=False,
+                 reset_playback=False, topic_separator="/",
                  **kwargs):
         '''Initialize data publisher class attributes.'''
         super(Publisher, self).__init__(**kwargs)
@@ -137,6 +140,7 @@ class Publisher(Agent):
         self._reset_playback = bool(reset_playback)
         self._input_data = None
         self._line_marker = 0
+        self._topic_separator = topic_separator
 
         self.default_config = {"use_timestamp": use_timestamp,
                                "publish_interval": publish_interval,
@@ -146,7 +150,8 @@ class Publisher(Agent):
                                "replay_data": replay_data,
                                "max_data_frequency": max_data_frequency,
                                "remember_playback": self._remember_playback,
-                               "reset_playback": self._reset_playback}
+                               "reset_playback": self._reset_playback,
+                               "topic_separator": self._topic_separator}
 
         self.vip.config.set_default("config", self.default_config)
         self.vip.config.subscribe(self.configure, actions=["NEW"], pattern="config")
@@ -183,7 +188,7 @@ class Publisher(Agent):
         self._remember_playback = bool(config.get("remember_playback", False))
         # Reset anyway, even if remember_playback is true.
         self._reset_playback = bool(config.get("reset_playback", False))
-
+        self._topic_separator = config.get("topic_separator", "/")
         try:
             self._line_marker = int(self.vip.config.get(LINE_MARKER_CONFIG))
         except (KeyError, ValueError, TypeError, IndexError) as e:
@@ -196,7 +201,7 @@ class Publisher(Agent):
                 names = list(item.keys())
             self._data = self._input_data
         else:
-            handle = open(self._input_data, 'rb')
+            handle = open(self._input_data)
             self._data = csv.DictReader(handle)
             names = self._data.fieldnames[:]
 
@@ -213,15 +218,21 @@ class Publisher(Agent):
             results[topic][point] = unit_type
         return results
 
-    @staticmethod
-    def build_maps(names, base_path):
+    def build_maps(self, fieldnames, base_path):
+        """
+        Creates name an topic tree based upon the passed fieldnames.
+
+        Topics are generated based upon the topic separator and the field name passed.  All topics
+        will be separated by the / after they are created.  The topic can then be used to determine
+        the points associated with that topic.
+        """
         results = {}
-        for name in names:
+        for name in fieldnames:
             if name == "Timestamp":
                 continue
-            name_parts = name.split("/")
+            name_parts = name.split(self._topic_separator)
             point = name_parts[-1]
-            topic = normtopic(base_path + '/' + "/".join(name_parts[:-1]))
+            topic = normtopic(base_path + '/' + '/'.join(name_parts[:-1]))
 
             results[name] = (topic, point)
 
@@ -249,14 +260,20 @@ class Publisher(Agent):
                                 message=message,  # [data, {'source': 'publisher3'}],
                                 headers=headers).get(timeout=2)
 
-    def build_publishes(self, row):
+    def build_publish_with_meta(self, row):
         results = defaultdict(dict)
+        meta_results = defaultdict(dict)
         for name, value in row.items():
             topic, point = self._name_map[name]
-            parsed_value = float(value)
-            results[topic][point] = parsed_value
-        return results
 
+            try:
+                parsed_value = float(value)
+                results[topic][point] = parsed_value
+                meta_results[topic][point] = self._meta_data[topic][point]
+            except ValueError:
+                _log.error(f"Missing parseable float value for topic {topic}/{point}")
+            
+        return results, meta_results
 
     def check_frequency(self, now):
         """Check to see if the passed in timestamp exceeds the configured
@@ -300,7 +317,7 @@ class Publisher(Agent):
                     continue
 
                 self._line_marker += 1
-
+                
                 if self._use_timestamp and "Timestamp" in row:
                     now = row['Timestamp']
                     if not self.check_frequency(now):
@@ -311,12 +328,10 @@ class Publisher(Agent):
                 headers = {HEADER_NAME_DATE: now, HEADER_NAME_TIMESTAMP: now}
                 row.pop('Timestamp', None)
 
-                publish_dict = self.build_publishes(row)
+                publish_values, publish_meta = self.build_publish_with_meta(row)
 
-                _log.debug("Publishing data for timestamp: {}".format(now))
-
-                for topic, message in publish_dict.items():
-                    self._publish_point_all(topic, message, self._meta_data, headers)
+                for topic, message in publish_values.items():
+                    self._publish_point_all(topic, message, publish_meta[topic], headers)
 
                 if self._remember_playback:
                     self.vip.config.set(LINE_MARKER_CONFIG, str(self._line_marker), send_update=False)
@@ -329,7 +344,6 @@ class Publisher(Agent):
                 self.vip.config.set(LINE_MARKER_CONFIG, str(self._line_marker), send_update=False)
             if not self._replay_data:
                 sys.exit(0)
-                break
 
             # Reset the csv reader if we are reading from a file.
             _log.debug("Restarting playback.")
@@ -376,20 +390,11 @@ class Publisher(Agent):
 
         return results
 
-    # @Core.receiver('onfinish')
-    # def finish(self, sender):
-    #     if self._src_file_handle is not None:
-    #         try:
-    #             self._src_file_handle.close()
-    #         except Exception as e:
-    #             _log.error(e.message)
-
-
-
 
 def main(argv=sys.argv):
     '''Main method called by the eggsecutable.'''
     utils.vip_main(DataPub, version=__version__)
+
 
 if __name__ == '__main__':
     try:
