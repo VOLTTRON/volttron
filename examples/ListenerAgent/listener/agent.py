@@ -53,7 +53,6 @@ __version__ = '3.3'
 DEFAULT_MESSAGE = 'Listener Message'
 DEFAULT_AGENTID = "listener"
 DEFAULT_HEARTBEAT_PERIOD = 5
-RUNTIME_LIMIT = 600
 
 
 class ListenerAgent(Agent):
@@ -97,7 +96,6 @@ class ListenerAgent(Agent):
     @Core.receiver('onsetup')
     def onsetup(self, sender, **kwargs):
         # Demonstrate accessing a value from the config file
-        self.start_time = datetime.datetime.now()
         _log.info(self.config.get('message', DEFAULT_MESSAGE))
         self._agent_id = self.config.get('agentid')
 
