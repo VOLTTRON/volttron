@@ -120,9 +120,8 @@ class EmailerAgent(Agent):
 	
         # Keep track of keys that have been added to send with.
         self.tosend = {}
-	
-	# Keep track of how often we send an email out based on key so we don't overload admins.
-	self.sent_alert_emails = {}
+        # Keep track of how often we send an email out based on key so we don't overload admins.
+        self.sent_alert_emails = {}
 
     def _test_smtp_address(self, smtp_address,smtp_port,smtp_username,smtp_password):
         try:
@@ -150,7 +149,7 @@ class EmailerAgent(Agent):
         self.vip.pubsub.subscribe('pubsub', topics.PLATFORM_SEND_EMAIL, self.on_email_message)
 
         self.vip.pubsub.subscribe('pubsub', topics.ALERTS_BASE,self.on_alert_message)
-        self.vip.pubsub.subscribe('pubsub',prefix=topics.ALERTS.format(agent_class='',agent_uuid=''),callback=self.on_alert_message)
+        self.vip.pubsub.subscribe('pubsub',prefix=topics.ALERTS.format(agent_class='',agent_identity=''),callback=self.on_alert_message)
         self.current_config = self.default_config.copy()
         self.current_config.update(contents)
 
