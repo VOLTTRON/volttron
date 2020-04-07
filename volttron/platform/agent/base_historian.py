@@ -1417,33 +1417,63 @@ class BackupDatabase:
                     # In the case where we are upgrading an existing installed historian the
                     # unique constraint may still exist on the outstanding database.
                     # Ignore this case.
+                    _log.warning(f"sqlite3.Integrity error -- {e}")
                     pass
 
         cache_full = False
         if self._backup_storage_limit_gb is not None:
+            try:
+                def page_count():
+                    c.execute("PRAGMA page_count")
+                    return c.fetchone()[0]
 
-            def page_count():
-                c.execute("PRAGMA page_count")
-                return c.fetchone()[0]
+                def free_count():
+                    c.execute("PRAGMA freelist_count")
+                    return c.fetchone()[0]
 
-            while page_count() > self.max_pages:
-                c.execute(
-                    '''DELETE FROM outstanding
-                    WHERE ROWID IN
-                    (SELECT ROWID FROM outstanding
-                    ORDER BY ROWID ASC LIMIT 100)''')
-                if self._record_count < c.rowcount:
-                    self._record_count = 0
-                else:
-                    self._record_count -= c.rowcount
-                cache_full = True
+                p = page_count()
+                f = free_count()
 
-            # Catch case where we are not adding fast enough to trigger the above
-            # every time we add more data.
-            if page_count() >= self.max_pages - int(self.max_pages*(1.0-self._backup_storage_report)):
-                cache_full = True
+                # check if we are over the alert threshold.
+                if page_count() >= self.max_pages - int(self.max_pages * (1.0 - self._backup_storage_report)):
+                    cache_full = True
 
-        self._connection.commit()
+                # Now check if we are above the limit, if so start deleting in batches of 100
+                # page count doesnt update even after deleting all records
+                # and record count becomes zero. If we have deleted all record
+                # exit.
+                _log.debug(f"record count before check is {self._record_count} page count is {p}"
+                           f" free count is {f}")
+                # max_pages  gets updated based on inserts but freelist_count doesn't
+                # enter delete loop based on page_count
+                min_free_pages = p - self.max_pages
+                while p > self.max_pages:
+                    cache_full = True
+                    c.execute(
+                        '''DELETE FROM outstanding
+                        WHERE ROWID IN
+                        (SELECT ROWID FROM outstanding
+                        ORDER BY ROWID ASC LIMIT 100)''')
+                    #self._connection.commit()
+                    if self._record_count < c.rowcount:
+                        self._record_count = 0
+                    else:
+                        self._record_count -= c.rowcount
+                    p = page_count()  #page count doesn't reflect delete without commit
+                    f = free_count() # freelist count does. So using that to break from loop
+                    if f >= min_free_pages:
+                        break
+                    _log.debug(f" Cleaning cache since we are over the limit. "
+                               f"After delete of 100 records from cache"
+                               f" record count is {self._record_count} page count is {p} freelist count is{f}")
+
+            except Exception as e:
+                _log.warning(f"Exception when check page count and deleting{e}")
+
+        try:
+            self._connection.commit()
+        except Exception as e:
+            _log.warning(f"Exception in committing after back db storage {e}")
 
         return cache_full
 
@@ -1559,6 +1589,7 @@ class BackupDatabase:
             page_size = c.fetchone()[0]
             max_storage_bytes = self._backup_storage_limit_gb * 1024 ** 3
             self.max_pages = max_storage_bytes / page_size
+            _log.debug(f"Max pages is {self.max_pages}")
 
         c.execute("SELECT name FROM sqlite_master WHERE type='table' "
                   "AND name='outstanding';")
@@ -2161,6 +2192,4 @@ def p_reltime(t):
 # Error rule for syntax errors
 def p_error(p):
     raise ValueError("Syntax Error in Query")
-
-
 

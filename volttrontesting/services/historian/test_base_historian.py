@@ -64,18 +64,18 @@ class Historian(BaseHistorian):
     def query_topic_list(self):
         pass
 
-    def query_historian(self):
+    def query_historian(self, **kwargs):
         pass
 
 
 def prep_config(volttron_home):
-    src_driver = os.getcwd() + '/services/core/MasterDriverAgent/master_driver/test_fakedriver.config'
+    src_driver = os.getcwd() + '/services/core/MasterDriverAgent/example_configurations/test_fakedriver.config'
     new_driver = volttron_home + '/test_fakedriver.config'
     shutil.copy(src_driver, new_driver)
 
     with open(new_driver, 'r+') as f:
         config = jsonapi.load(f)
-        config['registry_config'] = os.getcwd() + '/services/core/MasterDriverAgent/master_driver/fake.csv'
+        config['registry_config'] = os.getcwd() + '/services/core/MasterDriverAgent/example_configurations/fake.csv'
         f.seek(0)
         f.truncate()
         jsonapi.dump(config, f)
@@ -107,12 +107,12 @@ def test_base_historian(volttron_instance):
     master_uuid = v1.install_agent(agent_dir=get_services_core("MasterDriverAgent"),
                                    config_file=master_config)
     gevent.sleep(2)
-
-    db = Historian({}, address=v1.vip_address[0],
+    assert v1.is_agent_running(master_uuid)
+    db = Historian(address=v1.vip_address[0],
                    backup_storage_limit_gb=0.00002)
     gevent.spawn(db.core.run).join(0)
 
-    agent = v1.build_agent()
+    agent = v1.dynamic_agent
     gevent.sleep(2)
     agent.vip.pubsub.subscribe('pubsub', 'backupdb/nomore', callback=listener)
 
@@ -158,9 +158,114 @@ def client_agent(request, volttron_instance):
 
 alert_publishes = []
 
-
 def message_handler(peer, sender, bus, topic, headers, message):
     alert_publishes.append(Status.from_json(message))
+
+
+@pytest.mark.historian
+def test_cache_backlog(request, volttron_instance, client_agent):
+    """
+    Test basic use of health subsystem in the base historian.
+    """
+    global alert_publishes
+    historian = None
+    alert_publishes = []
+    try:
+        # subscribe to alerts
+        client_agent.vip.pubsub.subscribe("pubsub", "alerts/BasicHistorian", message_handler)
+
+        identity = 'platform.historian'
+        historian = volttron_instance.build_agent(agent_class=BasicHistorian,
+                                              identity=identity,
+                                              submit_size_limit=2,
+                                              max_time_publishing=1,
+                                              retry_period=1.0,
+                                              backup_storage_limit_gb=0.0001)  # 100K
+        DEVICES_ALL_TOPIC = "devices/Building/LAB/Device/all"
+        gevent.sleep(5) #wait for historian to be fully up
+        print("\n** test_basic_function for {}**".format(
+            request.keywords.node.name))
+
+        # Publish fake data. The format mimics the format used by VOLTTRON drivers.
+        # Make some random readings.  Randome readings are going to be
+        # within the tolerance here.
+        format_spec = "{0:.13f}"
+        oat_reading = random.uniform(30, 100)
+        mixed_reading = oat_reading + random.uniform(-5, 5)
+        damper_reading = random.uniform(0, 100)
+
+        float_meta = {'units': 'F', 'tz': 'UTC', 'type': 'float'}
+        percent_meta = {'units': '%', 'tz': 'UTC', 'type': 'float'}
+
+        # Create a message for all points.
+        all_message = [{'OutsideAirTemperature': oat_reading,
+                        'MixedAirTemperature': mixed_reading,
+                        'DamperSignal': damper_reading},
+                       {'OutsideAirTemperature': float_meta,
+                        'MixedAirTemperature': float_meta,
+                        'DamperSignal': percent_meta
+                        }]
+
+        # Test publish slow or backlogged
+        historian.publish_sleep = 1.5
+        d_now = datetime.utcnow()
+        now = utils.format_timestamp(d_now)
+        headers = {
+            headers_mod.DATE: now, headers_mod.TIMESTAMP: now
+        }
+        # d_now = d_now + timedelta(seconds=1)
+        from datetime import timedelta
+        for i in range(500):
+            client_agent.vip.pubsub.publish('pubsub',
+                                            DEVICES_ALL_TOPIC,
+                                            headers=headers,
+                                            message=all_message)
+            if i % 10 == 0:
+                # So that we don't send a huge batch to only get deleted from cache right after
+                # inserting. Dumping a big batch in one go will make the the cache size to be
+                # over the limit so right after insert, cache size will be checked and cleanup
+                # will be delete records
+                gevent.sleep(0.5)
+            gevent.sleep(0.00001)  # yield to historian thread to do the publishing
+
+        gevent.sleep(4)
+        status = client_agent.vip.rpc.call("platform.historian", "health.get_status").get(timeout=10)
+        print(f"STATUS: {status}")
+        assert status["status"] == STATUS_BAD
+        assert status["context"][STATUS_KEY_BACKLOGGED]
+
+        # Cache count can be 0 even if we are backlogged and cache is full because
+        # cache might have just got deleted
+        #assert status["context"][STATUS_KEY_CACHE_COUNT] > 0
+
+        # Cache need not be full if it is backlogged. but if cache is full backlogged should be true
+        # and alert should be sent
+        if status["context"][STATUS_KEY_CACHE_FULL] :
+            gevent.sleep(1)
+            print(alert_publishes)
+            alert_publish = alert_publishes[-1]
+            assert alert_publish.status == STATUS_BAD
+            context = alert_publish.context
+            assert context[STATUS_KEY_CACHE_FULL]
+            assert STATUS_KEY_CACHE_FULL in status["context"]
+        else:
+            print("cache is not full")
+
+        historian.publish_sleep = 0
+        gevent.sleep(10)
+        status = client_agent.vip.rpc.call("platform.historian", "health.get_status").get(timeout=10)
+        print(f"current time: {utils.format_timestamp(datetime.utcnow())}")
+        print(f"status is {status}")
+        assert status["status"] == STATUS_GOOD
+        assert status["context"][STATUS_KEY_PUBLISHING]
+        assert not status["context"][STATUS_KEY_BACKLOGGED]
+        assert not status["context"][STATUS_KEY_CACHE_FULL]
+        assert not bool(status["context"][STATUS_KEY_CACHE_COUNT])
+    finally:
+        if historian:
+            historian.core.stop()
+        # wait for cleanup to complete
+        gevent.sleep(2)
 
 
 @pytest.mark.historian
@@ -261,47 +366,11 @@ def test_health_stuff(request, volttron_instance, client_agent):
         assert not status["context"][STATUS_KEY_BACKLOGGED]
         assert not status["context"][STATUS_KEY_CACHE_FULL]
         assert not bool(status["context"][STATUS_KEY_CACHE_COUNT])
-
-        # Test publish slow or backlogged
-
-        historian.publish_sleep = 1
-
-        for _ in range(1500):
-            client_agent.vip.pubsub.publish('pubsub',
-                                            DEVICES_ALL_TOPIC,
-                                            headers=headers,
-                                            message=all_message).get(timeout=10)
-
-        gevent.sleep(2)
-
-        status = client_agent.vip.rpc.call("platform.historian", "health.get_status").get(timeout=10)
-
-        assert status["status"] == STATUS_BAD
-        assert status["context"][STATUS_KEY_BACKLOGGED]
-        assert status["context"][STATUS_KEY_CACHE_COUNT] > 0
-        alert_publish = alert_publishes[-1]
-        assert alert_publish.status == STATUS_BAD
-        context = alert_publish.context
-        assert context[STATUS_KEY_CACHE_FULL]
-
-        # Cache need not be full if it is backlogged. but if cache is full backlogged should be true and cache_count
-        # should be greater than 0
-        assert STATUS_KEY_CACHE_FULL in status["context"]
-
-        historian.publish_sleep = 0
-
-        gevent.sleep(2.0)
-
-        status = client_agent.vip.rpc.call("platform.historian", "health.get_status").get(timeout=10)
-
-        assert status["status"] == STATUS_GOOD
-        assert status["context"][STATUS_KEY_PUBLISHING]
-        assert not status["context"][STATUS_KEY_BACKLOGGED]
-        assert not status["context"][STATUS_KEY_CACHE_FULL]
-        assert not bool(status["context"][STATUS_KEY_CACHE_COUNT])
     finally:
         if historian:
             historian.core.stop()
+        # wait for cleanup to complete
+        gevent.sleep(2)
 
 
 class FailureHistorian(BaseHistorian):
@@ -378,7 +447,7 @@ def test_failing_historian(request, volttron_instance, client_agent):
         assert fail_historian._process_thread.is_alive()
 
         fail_historian.stop_process_thread()
-
+        gevent.sleep(1)
         assert fail_historian.teardown_run
         assert fail_historian.setup_run
         assert fail_historian._process_thread is None
@@ -543,8 +612,9 @@ def test_failing_historian(request, volttron_instance, client_agent):
         # Stop agent as this might keep publishing backlogged message if left running.
         # This may cause test case right after this to timeout
         if fail_historian:
-
             fail_historian.core.stop()
+        # wait for cleanup to complete
+        gevent.sleep(2)
 
 
 @pytest.mark.historian
@@ -615,7 +685,7 @@ def test_additional_custom_topics(request, volttron_instance, client_agent):
                                             headers=headers,
                                             message=all_message).get(timeout=10)
 
-        gevent.sleep(2.0)
+        gevent.sleep(1.0)
 
         assert len(historian.seen) == 12
         found_device_topic = 0
@@ -630,6 +700,8 @@ def test_additional_custom_topics(request, volttron_instance, client_agent):
     finally:
         if historian:
             historian.core.stop()
+        # wait for cleanup to complete
+        gevent.sleep(2)
 
 
 @pytest.mark.historian
@@ -718,3 +790,5 @@ def test_restricting_topics(request, volttron_instance, client_agent):
     finally:
         if historian:
             historian.core.stop()
+        # wait for cleanup to complete
+        gevent.sleep(2)
