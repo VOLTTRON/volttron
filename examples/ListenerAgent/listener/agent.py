@@ -62,22 +62,20 @@ class ListenerAgent(Agent):
 
     def __init__(self, config_path, **kwargs):
         super().__init__(**kwargs)
-        self.flag = True
         self.config = utils.load_config(config_path)
         self._agent_id = self.config.get('agentid', DEFAULT_AGENTID)
         self._message = self.config.get('message', DEFAULT_MESSAGE)
         self._heartbeat_period = self.config.get('heartbeat_period',
                                                  DEFAULT_HEARTBEAT_PERIOD)
-        try:
-            self.runtime_limit = int(self.config.get('runtime_limit', ''))
-            self.stop_time = datetime.datetime.now() + datetime.timedelta(seconds=self.runtime_limit)
-            _log.debug('Listener agent will stop at {}'.format(self.stop_time))
-        except:
-            _log.debug('Runtime limit is not given')
-            self.flag = False
 
-        if self.flag:
-            self.core.schedule(self.stop_time, self.core.stop)
+        runtime_limit = int(self.config.get('runtime_limit', 0))
+        if runtime_limit and runtime_limit > 0:
+            stop_time = datetime.datetime.now() + datetime.timedelta(seconds=runtime_limit)
+            _log.info('Listener agent will stop at {}'.format(stop_time))
+            self.core.schedule(stop_time, self.core.stop)
+        else:
+            _log.info('No valid runtime_limit configured; listener agent will run until manually stopped')
+
         try:
             self._heartbeat_period = int(self._heartbeat_period)
         except:
