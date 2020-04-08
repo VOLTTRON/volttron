@@ -19,3 +19,7 @@ SampleLong3,SampleLong3,Enumeration,1 through 13,FALSE,50,int,Status indicator o
 SampleWritableShort3,SampleWritableShort3,%,0.00 to 100.00 (20 default),TRUE,20,int,Minimum damper position during the standard mode
 SampleBool3,SampleBool3,On / Off,on/off,FALSE,TRUE,boolean,Status indidcator of cooling stage 1
 SampleWritableBool3,SampleWritableBool3,On / Off,on/off,TRUE,TRUE,boolean,Status indicator
+HPWH_Phy0_PowerState,PowerState,1/0,1/0,TRUE,0,int,Power on off status
+ERWH_Phy0_ValveState,ValveState,1/0,1/0,TRUE,0,int,power on off status
+EKG_Sin,EKG_Sin,1-0,SIN Wave,TRUE,0,float,SIN wave
+EKG_Cos,EKG_Cos,1-0,COS Wave,TRUE,0,float,COS wave
