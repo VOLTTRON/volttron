@@ -44,7 +44,7 @@ from volttron.platform.messaging import headers as headers_mod
 from volttron.platform.agent import utils
 from datetime import datetime
 from mock import MagicMock
-
+from volttrontesting.fixtures.volttron_platform_fixtures import volttron_multi_messagebus
 
 @pytest.fixture(scope="module")
 def multi_messagebus_forwarder(volttron_multi_messagebus):
