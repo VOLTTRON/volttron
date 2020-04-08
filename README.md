@@ -168,6 +168,10 @@ cause the user user to be prompted for all the required data in the command prom
 vcfg will use that data to generate a rabbitmq_config.yml file in the `VOLTTRON_HOME` 
 directory.
 
+If the above configuration file is being used as a basis, be sure to update it with 
+the hostname of the deployment (this should be the fully qualified domain name
+of the system).
+
 This script creates a new virtual host and creates SSL certificates needed
 for this VOLTTRON instance. These certificates get created under the subdirectory 
 "certificates" in your VOLTTRON home (typically in ~/.volttron). It
