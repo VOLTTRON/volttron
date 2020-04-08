@@ -254,7 +254,6 @@ def volttron_multi_messagebus(request):
     :param request:
     :return:
     """
-    print("Here a")
     def get_volttron_multi_msgbus_instances(instance_name1=None, instance_name2=None):
         print("volttron_multi_messagebus source: {} sink: {}".format(request.param['source'],
                                                                      request.param['sink']))
@@ -295,7 +294,6 @@ def volttron_multi_messagebus(request):
                                    remote_platform_ca=sink.certsobj.cert_file(sink.certsobj.root_ca_name),
                                    instance_name='volttron2')
         else:
-            print("Here b")
             source = build_wrapper(source_address,
                                    ssl_auth=ssl_auth,
                                    messagebus=messagebus,
@@ -306,7 +304,6 @@ def volttron_multi_messagebus(request):
         return source, sink
 
     def cleanup():
-        print("Here c")
         cleanup_wrapper(get_volttron_multi_msgbus_instances.source)
         cleanup_wrapper(get_volttron_multi_msgbus_instances.sink)
 
