@@ -435,5 +435,5 @@ def get_test_volttron_home(messagebus: str, web_https=False, web_http=False, has
     finally:
         os.environ.clear()
         os.environ.update(env_cpy)
-        if not os.environ["DEBUG"] != 1 and not os.environ["DEBUG_MODE"]:
+        if not os.environ.get("DEBUG", 0) != 1 and not os.environ.get("DEBUG_MODE",0):
             shutil.rmtree(volttron_home, ignore_errors=True)

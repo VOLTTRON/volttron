@@ -49,7 +49,7 @@ def test_authenticate_must_use_post_request():
         authorize_ep = AuthenticateEndpoints(web_secret_key=get_random_key())
         response = authorize_ep.get_auth_token(env, {})
         assert ('Content-Type', 'text/html') in response.headers.items()
-        assert '401 Unauthorized' == response.status
+        assert '401 Unauthorized' in response.status
 
 
 def test_no_private_key_or_passphrase():
