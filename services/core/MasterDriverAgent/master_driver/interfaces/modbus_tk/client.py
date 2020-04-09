@@ -89,7 +89,7 @@ class Field(object):
 
         A logical field may be mapped to one or more modbus registers or coils.
 
-        Field implemements the 'descriptor' pattern with __get__ and __set__ methods.
+        Field implements the 'descriptor' pattern with __get__ and __set__ methods.
 
         A field defines the modbus table, address offset, length and datatype of the
         logical field.  Getting and setting of field values is as simple as
@@ -217,6 +217,8 @@ class Field(object):
                         transform_args.append(getattr(modbus_client, reg_name))
 
                 transformed_value = self._transform.inverse(*transform_args)
+                if not isinstance(transformed_value, type(value)):
+                    transformed_value = type(value)(transformed_value)
             except ZeroDivisionError:
                 transformed_value = 0
         return transformed_value
@@ -282,8 +284,8 @@ class Field(object):
     def __set__(self, instance, value):
         # If value is None, its a No Op, the field is not updated
         if value is not None:
-            if value < 0 and self._type in (helpers.USHORT, helpers.UINT, helpers.UINT64):
-                raise ValueError("Attempting to assign negative value to unisgned type.")
+            if not isinstance(value, str) and value < 0 and self._type in (helpers.USHORT, helpers.UINT, helpers.UINT64):
+                raise ValueError("Attempting to assign negative value to unsigned type.")
             if not instance._ignore_op_mode and self._op_mode == helpers.OP_MODE_READ_ONLY:
                 raise ValueError("Attempting to write read-only field.")
             value = self.value_for_transport(value, instance)
@@ -725,6 +727,7 @@ class Client (object):
                     else:
                         values.append(value)
                 # Temp workaround for COIL write problem.
+                values = [value.encode('utf-8') if isinstance(value, str) else value for value in values]
                 if r.write_function_code == modbus_constants.WRITE_SINGLE_COIL:
                     values = values[0]
                 self.client.execute(
@@ -736,7 +739,6 @@ class Client (object):
                     data_format=r.formatting,
                     threadsafe=False
                 )
-
         if self._pending_writes:
             logger.warning("Did not write ALL values!")
         self._pending_writes.clear()

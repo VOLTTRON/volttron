@@ -107,6 +107,9 @@ class ModbusTKRegister(BaseRegister):
 
         :return: python type
         """
+        # Python 2.7 strings are byte arrays, this no longer works for 3.x
+        if isinstance(datatype, tuple) and datatype[0] == 's':
+            return str
         try:
             parse_struct = struct.Struct(datatype)
         except TypeError:
@@ -116,7 +119,6 @@ class ModbusTKRegister(BaseRegister):
 
         if len(struct_types) != 1:
             raise ValueError("Invalid length Modbus Register for point {}".format(self.point_name))
-
         return struct_types[0]
 
     def get_default_value(self, datatype, str_value):
@@ -152,7 +154,8 @@ class ModbusTKRegister(BaseRegister):
 
         :type modbus_client: Client
         """
-        return getattr(modbus_client, self.name)
+        state = getattr(modbus_client, self.name)
+        return state.decode('utf-8') if isinstance(state, bytes) else state
 
     def set_state(self, modbus_client, value):
         """
@@ -367,4 +370,5 @@ class Interface(BasicRevert, BaseInterface):
     def _scrape_all(self):
         """Get a dictionary mapping point name to values of all defined registers
         """
-        return dict((self.name_map[field.name], value) for field, value, timestamp in self.modbus_client.dump_all())
+        return dict((self.name_map[field.name], value.decode('utf-8') if isinstance(value, bytes) else value) for
+                    field, value, timestamp in self.modbus_client.dump_all())
