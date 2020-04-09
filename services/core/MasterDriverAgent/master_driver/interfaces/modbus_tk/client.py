@@ -218,6 +218,8 @@ class Field(object):
 
                 transformed_value = self._transform.inverse(*transform_args)
                 if not isinstance(transformed_value, type(value)):
+                    # Inverse causes integer values to be converted to float,
+                    # convert value to original datatype and pass it back
                     transformed_value = type(value)(transformed_value)
             except ZeroDivisionError:
                 transformed_value = 0
