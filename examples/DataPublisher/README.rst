@@ -52,6 +52,7 @@ Configuration
         # If the filename is used, the full file path is required. This can be found using
         # the `pwd` command.
         "input_data": "test.csv",
+
         # Publish interval in seconds
         "publish_interval": 1,
 
