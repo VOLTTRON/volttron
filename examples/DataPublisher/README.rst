@@ -48,9 +48,10 @@ Configuration
         },
         # Path to input CSV file.
         # May also be a list of records or reference to a CSV file in the config store.
-        # Large CSV files should be referenced by file name and not
-        # stored in the config store.
-        "input_data": "econ_test2.csv",
+        # Large CSV files should be referenced by file name and not stored in the config store.
+        # If the filename is used, the full file path is required. This can be found using
+        # the `pwd` command.
+        "input_data": "test.csv",
         # Publish interval in seconds
         "publish_interval": 1,
 
