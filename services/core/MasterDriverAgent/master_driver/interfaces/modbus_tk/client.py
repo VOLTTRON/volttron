@@ -730,7 +730,7 @@ class Client (object):
                 self.client.execute(
                     self.slave_address,
                     r.write_function_code,
-                    int(r.address),
+                    r.address,
                     quantity_of_x=r.count,
                     output_value=values,
                     data_format=r.formatting,
