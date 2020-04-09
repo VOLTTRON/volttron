@@ -309,8 +309,7 @@ class Field(object):
         for i in range(0, len(value_bytes), 2):
             register_values.extend(struct.unpack(">H", value_bytes[i:i + 2]))
         register_values.reverse()
-        convert_bytes = ''.join([struct.pack(">H", i) for i in register_values])
-
+        convert_bytes = bytes.join(b'', [struct.pack(">H", i) for i in register_values])
         return parse_struct.unpack(convert_bytes)[0]
 
     def fix_address(self, address_style):
@@ -731,7 +730,7 @@ class Client (object):
                 self.client.execute(
                     self.slave_address,
                     r.write_function_code,
-                    r.address,
+                    int(r.address),
                     quantity_of_x=r.count,
                     output_value=values,
                     data_format=r.formatting,

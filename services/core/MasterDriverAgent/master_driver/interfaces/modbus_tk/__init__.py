@@ -112,7 +112,7 @@ class ModbusTKRegister(BaseRegister):
         except TypeError:
             parse_struct = struct.Struct(datatype[0])
 
-        struct_types = [type(x) for x in parse_struct.unpack('\x00' * parse_struct.size)]
+        struct_types = [type(x) for x in parse_struct.unpack(('\x00' * parse_struct.size).encode('utf-8'))]
 
         if len(struct_types) != 1:
             raise ValueError("Invalid length Modbus Register for point {}".format(self.point_name))
@@ -140,7 +140,7 @@ class ModbusTKRegister(BaseRegister):
             elif python_type is str:
                 return str_value
             else:
-                raise ValueError("Invalid data type for point {}".format(self.point_name))
+                raise ValueError("Invalid data type for point {}: {}".format(self.point_name, python_type))
         else:
             return None
 
