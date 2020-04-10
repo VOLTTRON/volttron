@@ -892,7 +892,9 @@ class AuthFile(object):
             with open(self.auth_file) as fil:
                 # Use gevent FileObject to avoid blocking the thread
                 before_strip_comments = FileObject(fil, close=False).read()
-                data = strip_comments(before_strip_comments.decode("utf-8"))
+                if isinstance(before_strip_comments, bytes):
+                    before_strip_comments.decode("utf-8")
+                data = strip_comments(before_strip_comments)
                 if data:
                     auth_data = jsonapi.loads(data)
         except Exception:
