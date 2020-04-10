@@ -258,7 +258,7 @@ class Map(object):
         self._endian = helpers.LITTLE_ENDIAN if endian.lower() == 'little' else helpers.BIG_ENDIAN
         self._name = name
         self._description = description
-        self._registry_config_lst = [dict((k.lower(), v) for k, v in i.items()()) for i in registry_config_lst]
+        self._registry_config_lst = [dict((k.lower(), v) for k, v in i.items()) for i in registry_config_lst]
         self._registers = dict()
 
     def _convert_csv_registers(self):
@@ -328,7 +328,7 @@ class Catalog(Mapping):
 
             with open(yaml_path, 'rb') as yaml_file:
                 for map in yaml.load(yaml_file):
-                    map = dict((k.lower(), v) for k, v in map.items()())
+                    map = dict((k.lower(), v) for k, v in map.items())
                     Catalog._data[map['name']] = Map(file=map.get('file', ''),
                                                      map_dir=os.path.dirname(__file__),
                                                      addressing=map.get('addressing', 'offset'),
