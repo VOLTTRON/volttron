@@ -65,7 +65,9 @@ python3 bootstrap.py
 source env/bin/activate
 ```
 
-Proceed to step 4. 
+Proceed to step 4.
+
+You can deactivate the environment at any time by running `deactivate`.
 
 #### Steps for RabbitMQ
 
@@ -150,6 +152,8 @@ $RABBITMQ_HOME/sbin/rabbitmqctl status
 ```sh
 source env/bin/activate
 ```
+
+You can deactivate the environment at any time by running `deactivate`.
 
 ##### 5. Create RabbitMQ setup for VOLTTRON:
 
