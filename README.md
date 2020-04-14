@@ -147,7 +147,7 @@ source ~/.bashrc
 $RABBITMQ_HOME/sbin/rabbitmqctl status
 ```
 
-###### 4. Activate the environment
+##### 4. Activate the environment
 
 ```sh
 source env/bin/activate
