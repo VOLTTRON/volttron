@@ -39,57 +39,63 @@ The ``vcfg`` command allows for an easy configuration of the VOLTTRON environmen
 
 .. note::
         
-        To create a simple instance of VOLTTRON, leave the default response, or select yes (y) if prompted for a yes or no response [Y/N]. You must choose a username and password for the VOLTTRON Central admin account.
+        To create a simple instance of VOLTTRON, leave the default response, or select yes (y) if
+        prompted for a yes or no response [Y/N]. You must choose a username and password for the
+        VOLTTRON Central admin account.
 
 A set of example responses are included here (username is user, localhost is volttron-pc):
 
 .. code-block:: console
 
-        (volttron)user@volttron-pc:~/volttron$ vcfg
+        (volttron) user@volttron-pc:~/volttron$ vcfg
 
         Your VOLTTRON_HOME currently set to: /home/user/.volttron
 
-        Is this the volttron you are attempting to setup? [Y]: 
-        What type of message bus (rmq/zmq)? [zmq]: 
-        What is the vip address? [tcp://127.0.0.1]: 
-        What is the port for the vip address? [22916]: 
+        Is this the volttron you are attempting to setup? [Y]:
+        What type of message bus (rmq/zmq)? [zmq]:
+        What is the vip address? [tcp://127.0.0.1]:
+        What is the port for the vip address? [22916]:
         Is this instance web enabled? [N]: y
-        What is the protocol for this instance? [https]: 
+        What is the protocol for this instance? [https]:
         Web address set to: https://volttron-pc
-        What is the port for this instance? [8443]: 
-        Would you like to generate a new web certificate? [Y]: 
+        What is the port for this instance? [8443]:
+        Would you like to generate a new web certificate? [Y]:
         WARNING! CA certificate does not exist.
-        Create new root CA? [Y]: 
+        Create new root CA? [Y]:
 
         Please enter the following details for web server certificate:
-                Country: [US]: 
-                State: WA
-                Location: Richland
-                Organization: PNNL
-                Organization Unit: VOLTTRON
+            Country: [US]:
+            State: WA
+            Location: Richland
+            Organization: PNNL
+            Organization Unit: VOLTTRON
         Created CA cert
         Creating new web server certificate.
         Is this an instance of volttron central? [N]: y
         Configuring /home/user/volttron/services/core/VolttronCentral.
-        Enter volttron central admin user name: <your volttron central admin username here>
-        Enter volttron central admin password: <your volttron central admin password here>
-        Retype password: <retype your volttron central admin password here>
         Installing volttron central.
+        ['volttron', '-vv', '-l', '/home/user/.volttron/volttron.cfg.log']
         Should the agent autostart? [N]: y
-        Will this instance be controlled by volttron central? [Y]: y
+        VC admin and password are set up using the admin web interface.
+        After starting VOLTTRON, please go to https://volttron-pc:8443/admin/login.html to complete the setup.
+        Will this instance be controlled by volttron central? [Y]:
         Configuring /home/user/volttron/services/core/VolttronCentralPlatform.
-        What is the name of this instance? [volttron1]: 
-        Volttron central address set to https://volttron-pc:8443 
+        What is the name of this instance? [volttron1]:
+        Volttron central address set to https://volttron-pc:8443
+        ['volttron', '-vv', '-l', '/home/user/.volttron/volttron.cfg.log']
         Should the agent autostart? [N]: y
         Would you like to install a platform historian? [N]: y
         Configuring /home/user/volttron/services/core/SQLHistorian.
+        ['volttron', '-vv', '-l', '/home/user/.volttron/volttron.cfg.log']
         Should the agent autostart? [N]: y
         Would you like to install a master driver? [N]: y
         Configuring /home/user/volttron/services/core/MasterDriverAgent.
+        ['volttron', '-vv', '-l', '/home/user/.volttron/volttron.cfg.log']
         Would you like to install a fake device on the master driver? [N]: y
         Should the agent autostart? [N]: y
         Would you like to install a listener agent? [N]: y
         Configuring examples/ListenerAgent.
+        ['volttron', '-vv', '-l', '/home/user/.volttron/volttron.cfg.log']
         Should the agent autostart? [N]: y
         Finished configuration!
 
@@ -98,7 +104,6 @@ A set of example responses are included here (username is user, localhost is vol
         If you need to change the instance configuration you can edit
         the config file is at /home/user/.volttron/config
 
-        (volttron)user@volttron-pc:~/volttron$ 
 
 
 Once this is finished, run VOLTTRON and test the new configuration.
@@ -115,13 +120,14 @@ To test that the configuration was successful, start an instance of VOLTTRON in 
 
 .. note::
 
-        This command must be run from the root volttron directory.
+        This command must be run from the root VOLTTRON directory.
 
 
 Command Line
 ~~~~~~~~~~~~
 
-If the example ``vcfg`` responses were used, the listener, master_driver, platform_historian, vcp, and vc agents should have all started automatically. This can be checked using ``vctl status``. 
+If the example ``vcfg`` responses were used, the listener, master_driver, platform_historian, vcp, and vc agents
+should have all started automatically. This can be checked using ``vctl status``.
 
 The output should look similar to this:
 
@@ -137,17 +143,16 @@ The output should look similar to this:
 
 You can further verify that the agents are functioning correctly with ``tail -f volttron.log``
 
-VOLTTRON Central
-~~~~~~~~~~~~~~~~
 
-Open a web browser and navigate to \https://volttron-pc:8443/vc/index.html
+VOLTTRON Admin
+~~~~~~~~~~~~~~
 
-There may be a message warning about a potential security risk. Check to see if the certificate that was created in vcfg is being used. The process below is for firefox.
+The admin page allows the user to manage RMQ and ZMQ certificates and credentials.
 
-.. note::
+Open a web browser and navigate to https://volttron-pc:8443/admin/login.html
 
-        Chrome does not allow one to accept certificate errors. You will need to use a different browser.
-        Firefox is recommended.
+There may be a message warning about a potential security risk. Check to see if the certificate
+that was created in vcfg is being used. The process below is for firefox.
 
 |vc-cert-warning-1|
 
@@ -165,8 +170,23 @@ There may be a message warning about a potential security risk. Check to see if 
 
 .. |vc-cert-warning-4| image:: files/vc-cert-warning-4.png
 
+When the admin page is accessed for the first time, the user will be prompted to set up a master
+username and password.
 
-Log in using the username and password you created during the ``vctl`` prompt.
+|admin-page-login|
+
+.. |admin-page-login| image:: files/volttron-admin-page.png
+
+
+This will allow the user to log into both the admin page and VOLTTRON Central.
+
+
+VOLTTRON Central
+~~~~~~~~~~~~~~~~
+
+Navigate to https://volttron-pc:8443/vc/index.html
+
+Log in using the username and password you set up on the admin web page.
 
 |vc-login|
 
