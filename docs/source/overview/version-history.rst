@@ -82,7 +82,7 @@ RabbitMQ Message Bus
 
     - Client code for integrating non-VOLTTRON applications with the message bus
        available at: https://github.com/VOLTTRON/external-clients-for-rabbitmq
-    - Includes support for MQTT, non-VOLTTRON Python, and Java based Rabbit MQ
+    - Includes support for MQTT, non-VOLTTRON Python, and Java-based RabbitMQ
       clients
 
 Config store secured
