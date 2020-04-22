@@ -531,7 +531,6 @@ class AIPplatform(object):
                 self.set_agent_user_permissions(created_user,
                                                 agent_uuid,
                                                 agent_path)
-
         except Exception:
             shutil.rmtree(agent_path)
             raise
@@ -623,6 +622,10 @@ class AIPplatform(object):
         if not os.path.exists(data_dir):
             os.mkdir(data_dir)
         return data_dir
+
+    def create_agent_data_dir_if_missing(self, agent_uuid):
+        new_agent_data_dir = self._get_agent_data_dir(self.agent_dir(agent_uuid))
+        return new_agent_data_dir
 
     def _get_data_dir(self, agent_path, agent_name):
         pkg = UnpackedPackage(agent_path)
