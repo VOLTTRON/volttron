@@ -625,7 +625,7 @@ class AIPplatform(object):
             os.mkdir(data_dir)
         return data_dir
 
-    def create_agent_data_dir(self, agent_uuid):
+    def create_agent_data_dir_if_missing(self, agent_uuid):
         new_agent_data_dir = self._get_agent_data_dir(self.agent_dir(agent_uuid))
         return new_agent_data_dir
 

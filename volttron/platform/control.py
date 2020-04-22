@@ -558,13 +558,8 @@ def restore_agent_data_from_tgz(source_file, output_dir):
 
 
 def find_agent_data_dir(opts, agent_uuid):
-    agent_data_dir = None
-    for x in os.listdir(opts.aip.agent_dir(agent_uuid)):
-        if x.endswith("agent-data"):
-            agent_data_dir = os.path.join(opts.aip.agent_dir(agent_uuid), x)
-            break
-    if not agent_data_dir:
-        agent_data_dir = opts.aip.create_agent_data_dir(agent_uuid)
+    # Find agent-data directory path, create if missing
+    agent_data_dir = opts.aip.create_agent_data_dir_if_missing(agent_uuid)
     return agent_data_dir
 
 

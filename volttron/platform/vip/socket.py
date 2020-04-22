@@ -85,6 +85,7 @@ def nonblocking(sock):
 
 def encode_key(key):
     '''Base64-encode and return a key in a URL-safe manner.'''
+    # There is no easy way to test if key is already base64 encoded and ASCII decoded. This seems the best way.
     if len(key) % 4 != 0:
         return key
     key = key if isinstance(key, bytes) else key.encode("utf-8")
