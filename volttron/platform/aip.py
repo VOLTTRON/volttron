@@ -531,8 +531,6 @@ class AIPplatform(object):
                 self.set_agent_user_permissions(created_user,
                                                 agent_uuid,
                                                 agent_path)
-            _log.info("Creating agent data direectory: {}".format(agent_path))
-            #agent_data_dir = self._get_agent_data_dir(agent_path)
         except Exception:
             shutil.rmtree(agent_path)
             raise
