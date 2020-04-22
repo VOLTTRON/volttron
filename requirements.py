@@ -75,6 +75,9 @@ extras_require = {
         'influxdb',
         'psycopg2-binary'
     ],
+    'deployment': [ # requirements for the deployment recipes system
+        'ansible',
+    ],
     'dnp3': [  # dnp3 agent requirements.
         'pydnp3'
     ],
