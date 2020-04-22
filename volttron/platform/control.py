@@ -563,6 +563,8 @@ def find_agent_data_dir(opts, agent_uuid):
         if x.endswith("agent-data"):
             agent_data_dir = os.path.join(opts.aip.agent_dir(agent_uuid), x)
             break
+    if not agent_data_dir:
+        agent_data_dir = opts.aip.create_agent_data_dir(agent_uuid)
     return agent_data_dir
 
 

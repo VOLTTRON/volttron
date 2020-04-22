@@ -85,7 +85,13 @@ def nonblocking(sock):
 
 def encode_key(key):
     '''Base64-encode and return a key in a URL-safe manner.'''
-    assert len(key) in (32, 40)
+    if len(key) % 4 != 0:
+        return key
+    key = key if isinstance(key, bytes) else key.encode("utf-8")
+    try:
+        assert len(key) in (32, 40)
+    except AssertionError:
+        raise AssertionError("Assertion error while encoding key:{}, len:{}".format(key, len(key)))
     if len(key) == 40:
         key = z85.decode(key)
     return base64.urlsafe_b64encode(key)[:-1].decode("ASCII")

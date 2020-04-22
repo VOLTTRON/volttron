@@ -705,6 +705,28 @@ def create_file_if_missing(path, permission=0o660, contents=None):
             if e.errno != errno.EEXIST:
                 raise
     try:
+        open(path)
+    except IOError as exc:
+        if exc.errno != errno.ENOENT:
+            raise
+        _log.debug('missing file %s', path)
+        _log.info('creating file %s', path)
+        fd = os.open(path, os.O_CREAT | os.O_WRONLY, permission)
+        try:
+            if contents:
+                os.write(fd, contents)
+        finally:
+            os.close(fd)
+
+def create_file_if_missing(path, permission=0o660, contents=None):
+    dirname = os.path.dirname(path)
+    if dirname and not os.path.exists(dirname):
+        try:
+            os.makedirs(dirname)
+        except OSError as e:
+            if e.errno != errno.EEXIST:
+                raise
+    try:
         with open(path) as fd:
             pass
     except IOError as exc:
@@ -716,8 +738,11 @@ def create_file_if_missing(path, permission=0o660, contents=None):
         success = False
         try:
             if contents:
-                os.write(fd, contents if isinstance(contents, bytes) else contents.encode("utf-8"))
+                contents = contents if isinstance(contents, bytes) else contents.encode("utf-8")
+                os.write(fd, contents)
                 success = True
+        except Exception as e:
+            raise e
         finally:
             os.close(fd)
         return success
