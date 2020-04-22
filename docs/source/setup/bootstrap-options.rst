@@ -94,6 +94,9 @@ to install beyond those required for "vanilla" VOLTTRON. Multiple packaging argu
     --databases: Install Python database drivers for historians - Crate (crate), InfluxDB (influxdb),
         MongoDB (pymongo), MySQL (mysql-connector-python-rf)
 
+    --deployment: Install ansible, required for running the packaged playbooks as well as 
+        the deploy subcommands.
+
     --dnp3: Install Python Distributed Network Protocol 3 wrapper (pydnp3)
 
     --documentation: Install requirements for building VOLTTRON documentation - Mock (mock), MySQL
