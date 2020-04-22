@@ -1,0 +1,42 @@
+### We have a single role to set default variables used throughtout other roles, playbooks, etc.
+### The reason for this is that many settings need to agree, despite being used in different roles
+### and we want to ensure that the defaults are set/updated in a single place. This also serves to
+### gather the configurable parameters in a single place for easier referece.
+---
+- name: Set default values
+  set_fact:
+    ansible_user: "{{ ansible_user | default(ansible_user_id) }}"
+    ansible_python_interpreter: "{{ ansible_python_interpreter | default('/usr/bin/python3') }}"
+    ## variables related to the version of volttron to be installed
+    volttron_git_organization: "{{ volttron_git_organization | default('volttron') }}"
+    volttron_git_repo: "{{ volttron_git_repo | default('volttron') }}"
+    volttron_git_branch: "{{ volttron_git_branch | default('develop') }}"
+    ## variables related to where volttron source and platform state are stored on the node
+    volttron_home: "{{ volttron_home | default('{{ ansible_env.HOME }}/.volttron') }}"
+    volttron_root: "{{ volttron_root | default('{{ ansible_env.HOME }}/volttron') }}"
+    ## variables defining where the (locally versioned) platform configuration will be placed on the node
+    host_config: "{{ host_config | default('{{ ansible_env.HOME }}/host.config.yml') }}"
+    host_configs_dir: "{{ host_configs_dir | default('{{ ansible_env.HOME }}/configs') }}"
+    ## installation feature options for the installed volttron platform
+    enable_web: "{{ enable_web | default(False) }}"
+    enable_drivers: "{{ enable_drivers | default(False) }}"
+    extra_requirements: "{{ extra_requirements | default([]) }}"
+    http_proxy: "{{ http_proxy | default('') }}"
+
+## the following facts must be set in separate tasks because they build on earlier facts
+## NOTE: ansible does not consider paths relative to CWD, these paths must be absolute
+##       (or in the tree of the playbook in a default searched location)
+- set_fact:
+    original_ansible_python_interpreter: "{{ ansible_python_interpreter }}"
+- set_fact:
+    ## absolute path to configurations directory for all deployments in inventory
+    deployment_config_root: "{{ deployment_config_root | default(inventory_dir) }}"
+- set_fact:
+    ## absolute path to configurations directory specific to this node in the inventory
+    deployment_host_config_dir: "{{ deployment_host_config_dir | default( deployment_config_root + '/' + inventory_hostname ) }}"
+- set_fact:
+    ## absolute path to the agent configurations directory specific to this node
+    deployment_platform_config_dir: "{{ deployment_platform_config_dir | default( deployment_host_config_dir + '/' + '/configs') }}"
+- set_fact:
+    ## absolute path to the platform configuration file for this node
+    deployment_platform_config_file: "{{ deployment_platform_config_file | default( deployment_host_config_dir + '/' + inventory_hostname + '.yml' ) }}"

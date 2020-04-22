@@ -1,0 +1,92 @@
+---
+- name: base system install
+  hosts: all
+  #vars:
+    # Ansible will use this path on remote hosts to run the interpreter with.
+   #ansible_python_interpreter: /usr/bin/python3
+  roles:
+   - set-defaults
+  tasks:
+
+    - name: ensure that the host OS is a supported system
+      assert:
+        that:
+        - (ansible_distribution == "Ubuntu" and
+           ansible_distribution_major_version | int >= 18 and
+           ansible_distribution_major_version | int < 20)
+          or
+          (ansible_distribution == "Debian" and
+           ansible_distribution_major_version | int >= 10 and
+           ansible_distribution_major_version | int < 11)
+        fail_msg: "the system ({{ ansible_distribution }} : {{ansible_distribution_major_version }}) is not supported"
+        success_msg: "system is supported"
+
+    - name: load host configuration
+      local_action:
+        module: include_vars
+        file: "{{ deployment_platform_config_file }}"
+        name: host_configuration
+
+    - name: install system packages
+      become: yes
+      become_method: sudo
+      block:
+
+      - name: Install base software
+        apt:
+          state: present
+          name:
+          - build-essential
+          - git
+          - python3-dev
+          - python3-venv
+          - libssl-dev
+          - libevent-dev
+          - libzmq3-dev
+
+      - name: install rabbitmq
+        when: (host_configuration['config']['message-bus'] | default('zmq')) == 'rmq'
+        block:
+        - name: Installing extra system level things for rabbit.
+          apt:
+            state: present
+            name:
+            - apt-transport-https
+            - libwxbase3.0-0v5
+            - libwxgtk3.0-0v5
+            - libsctp1
+        - name: Adding apt_key for erlang solutions
+          apt_key:
+            url: https://packages.erlang-solutions.com/ubuntu/erlang_solutions.asc
+            state: present
+        - name: Adding apt repo for erlang
+          apt_repository:
+            update_cache: yes
+            repo: deb https://packages.erlang-solutions.com/ubuntu bionic contrib
+            state: present
+            filename: erlang.solutions.list
+        - name: Install erlang requirements
+          apt:
+            update_cache: yes
+            state: present
+            name:
+            - "erlang-base"
+            - "erlang-diameter"
+            - "erlang-eldap"
+            - "erlang-ssl"
+            - "erlang-crypto"
+            - "erlang-asn1"
+            - "erlang-public-key"
+            - "erlang-nox"
+        ## end of RMQ extra dependencies block
+
+    ## end of system package install block
+
+    - name: "Create custom fact directory"
+      become: True
+      become_method: sudo
+      file:
+        owner: "{{ ansible_user }}"
+        recurse: yes
+        path: "/etc/ansible/facts.d"
+        state: "directory"

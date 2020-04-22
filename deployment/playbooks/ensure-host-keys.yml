@@ -1,0 +1,29 @@
+## A utility playbook which updates your local known_hosts file to ensure
+## that all of the managed nodes are included. This is particularly useful
+## when those hosts are VMs or some other resource which my be automatically
+## provisioned with your public ssh key, but has not been logged into.
+---
+- name: "ensure host key entries"
+  hosts: all
+  gather_facts: no
+  serial: yes # serial is a play-level variable, we must update client's known_host serially
+  tasks:
+    - name: ensure host keys condition
+      when: (skip_hostkey_check is not defined or skip_hostkey_check == False)
+      block:
+      - name: get ssh known_host values
+        changed_when: false
+        local_action: "shell ssh-keyscan -p {{ ansible_port | default(22) }} {{ ansible_host }}"
+        register: sshKnownHostEntry
+        vars:
+          ansible_python_interpreter: "{{ ansible_playbook_python }}"
+
+      - name: add/update the known_hosts public key
+        delegate_to: localhost
+        vars:
+          ansible_python_interpreter: "{{ ansible_playbook_python }}"
+        known_hosts:
+          state: present
+          name: "{{ sshKnownHostEntry.stdout.split(' ')[0] }}"
+          key: "{{ sshKnownHostEntry.stdout }}"
+          path: "~/.ssh/known_hosts"
