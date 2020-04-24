@@ -1,0 +1,115 @@
+##TODO there are many command tasks without a changed condition, this should be fixed.
+---
+- import_playbook: includes/ensure_host_keys.yml
+
+- name: environmental setup
+  hosts: all
+  tasks:
+    - include_tasks: includes/defaults.yml
+
+- name: update VOLTTRON platform
+  hosts: all
+  vars:
+    # Ansible will use this path on remote hosts to run the interpreter with.
+    ansible_python_interpreter: /usr/bin/python3
+  tasks:
+    ##TODO add support for specifying to copy the local repo (including unmerged)
+    ##     otherwise, to dev you have to specify a branch and keep pushing to it
+    - name: Download volttron repository tarball
+      get_url:
+        url: https://github.com/{{ volttron_git_organization }}/{{ volttron_git_repo }}/archive/{{ volttron_git_branch }}.tar.gz
+        dest: "/tmp/volttron-{{ volttron_git_branch }}.tar.gz"
+        force: yes
+
+    - name: Stat volttron dir
+      stat:
+        path: "{{ volttron_root }}"
+      register: volttron_path_stat
+
+    - name: Stat tar file
+      stat:
+        path: "/tmp/volttron-{{ volttron_git_branch }}.tar.gz"
+        get_checksum: yes
+      register: new_tar_stat
+
+    - name: Stat old tar
+      stat:
+        path: "{{ ansible_env.HOME }}/volttron-source.tar.gz"
+        get_checksum: yes
+      register: old_tar_stat
+
+    - name: Check if volttron source is updated
+      set_fact:
+        redo_volttron: "{{ (not volttron_path_stat.stat.exists or not old_tar_stat.stat.exists or (new_tar_stat.stat.checksum != old_tar_stat.stat.checksum)) }}"
+
+    - name: "[re]establish volttron source directory"
+      when: redo_volttron
+      block:
+      - name: Move new file
+        command: mv "/tmp/volttron-{{ volttron_git_branch }}.tar.gz" "{{ ansible_env.HOME }}/volttron-source.tar.gz"
+
+      - name: Remove volttron source root dir if exists
+        file:
+          path: "{{ volttron_root }}"
+          state: absent
+
+      - name: Create a path to unarchive into
+        file:
+          path: "/tmp/volttron_source"
+          state: absent
+      - name: Create a path to unarchive into
+        file:
+          path: "/tmp/volttron_source"
+          state: directory
+      - name: Extract source archive
+        unarchive:
+          src: "{{ ansible_env.HOME }}/volttron-source.tar.gz"
+          dest: "/tmp/volttron_source"
+          remote_src: yes
+
+      - name: Place source tree at volttron root
+        command: mv "/tmp/volttron_source/{{volttron_git_repo}}-{{volttron_git_branch}}" "{{ volttron_root }}"
+      - name: Cleanup unarchive artifacts
+        file:
+          path: "/tmp/volttron_source"
+          state: absent
+    ## end of block to update volttron source
+
+    ##TODO this should support an arbitrary number of bootstrap flags
+    - name: Bootstrap the python3 environment
+      command:
+        cmd: "python3 bootstrap.py"
+        chdir: "{{ volttron_root }}"
+        creates: "{{ volttron_root }}/env"
+
+    - name: Boostrap rmq environment
+      when: (message_bus == "rmq")
+      command:
+        cmd: "{{ volttron_root }}/env/bin/python bootstrap.py --rabbitmq"
+        chdir: "{{ volttron_root }}"
+
+    - name: Enabling web packages for environment
+      when: (enable_web == True)
+      command:
+        cmd: "{{ volttron_root }}/env/bin/python bootstrap.py --web"
+        chdir: "{{ volttron_root }}"
+
+    - name: Enabling master driver packages for environment
+      when: (enable_drivers == True)
+      command:
+        cmd: "{{ volttron_root }}/env/bin/python bootstrap.py --drivers"
+        chdir: "{{ volttron_root }}"
+
+    - name: Install extra requirements for this instance
+      pip:
+        virtualenv: "{{ansible_env.HOME}}/volttron/env"
+        name: "{{ extra_requirements }}"
+      environment:
+        HTTP_PROXY: "{{ http_proxy }}"
+      when: (extra_requirements | length) > 0
+
+    - include_tasks: includes/ansible_venv.yml
+
+    - include_tasks: includes/copy_configs.yml
+
+    - include_tasks: includes/update_facts.yml

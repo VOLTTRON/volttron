@@ -14,6 +14,7 @@
     ## variables related to where volttron source and platform state are stored on the node
     volttron_home: "{{ volttron_home | default('{{ ansible_env.HOME }}/.volttron') }}"
     volttron_root: "{{ volttron_root | default('{{ ansible_env.HOME }}/volttron') }}"
+    volttron_venv: "{{ volttron_env | default('{{ ansible_env.HOME }}/volttron.venv') }}"
     ## variables defining where the (locally versioned) platform configuration will be placed on the node
     host_config: "{{ host_config | default('{{ ansible_env.HOME }}/host.config.yml') }}"
     host_configs_dir: "{{ host_configs_dir | default('{{ ansible_env.HOME }}/configs') }}"
