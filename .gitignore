@@ -2,6 +2,7 @@
 *.py[co]
 *.egg-info
 *~
+.vagrant/
 .svn
 .metadata
 parser.out
@@ -9,6 +10,7 @@ node_modules
 applications
 .cache
 .idea
+.vscode/
 /env/
 /Agents/*/{build,dist}/
 /Agents/*.egg
