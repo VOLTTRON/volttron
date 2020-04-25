@@ -1,81 +1,21 @@
 ##TODO there are many command tasks without a changed condition, this should be fixed.
 ---
-- import_playbook: includes/ensure_host_keys.yml
-
-- name: environmental setup
-  hosts: all
-  tasks:
-    - include_tasks: includes/defaults.yml
-
-- name: update VOLTTRON platform
+- name: install VOLTTRON platform
   hosts: all
   vars:
-    # Ansible will use this path on remote hosts to run the interpreter with.
-    ansible_python_interpreter: /usr/bin/python3
+    volttron_source_changed: no
+  roles:
+  - set-defaults
+  - get-volttron-source
   tasks:
-    ##TODO add support for specifying to copy the local repo (including unmerged)
-    ##     otherwise, to dev you have to specify a branch and keep pushing to it
-    - name: Download volttron repository tarball
-      get_url:
-        url: https://github.com/{{ volttron_git_organization }}/{{ volttron_git_repo }}/archive/{{ volttron_git_branch }}.tar.gz
-        dest: "/tmp/volttron-{{ volttron_git_branch }}.tar.gz"
-        force: yes
+    - name: check on source updated
+      debug:
+        msg: "volttron_source_changed: {{volttron_source_changed}}"
 
-    - name: Stat volttron dir
-      stat:
-        path: "{{ volttron_root }}"
-      register: volttron_path_stat
-
-    - name: Stat tar file
-      stat:
-        path: "/tmp/volttron-{{ volttron_git_branch }}.tar.gz"
-        get_checksum: yes
-      register: new_tar_stat
-
-    - name: Stat old tar
-      stat:
-        path: "{{ ansible_env.HOME }}/volttron-source.tar.gz"
-        get_checksum: yes
-      register: old_tar_stat
-
-    - name: Check if volttron source is updated
-      set_fact:
-        redo_volttron: "{{ (not volttron_path_stat.stat.exists or not old_tar_stat.stat.exists or (new_tar_stat.stat.checksum != old_tar_stat.stat.checksum)) }}"
-
-    - name: "[re]establish volttron source directory"
-      when: redo_volttron
-      block:
-      - name: Move new file
-        command: mv "/tmp/volttron-{{ volttron_git_branch }}.tar.gz" "{{ ansible_env.HOME }}/volttron-source.tar.gz"
-
-      - name: Remove volttron source root dir if exists
-        file:
-          path: "{{ volttron_root }}"
-          state: absent
-
-      - name: Create a path to unarchive into
-        file:
-          path: "/tmp/volttron_source"
-          state: absent
-      - name: Create a path to unarchive into
-        file:
-          path: "/tmp/volttron_source"
-          state: directory
-      - name: Extract source archive
-        unarchive:
-          src: "{{ ansible_env.HOME }}/volttron-source.tar.gz"
-          dest: "/tmp/volttron_source"
-          remote_src: yes
-
-      - name: Place source tree at volttron root
-        command: mv "/tmp/volttron_source/{{volttron_git_repo}}-{{volttron_git_branch}}" "{{ volttron_root }}"
-      - name: Cleanup unarchive artifacts
-        file:
-          path: "/tmp/volttron_source"
-          state: absent
-    ## end of block to update volttron source
-
-    ##TODO this should support an arbitrary number of bootstrap flags
+    ##TODO do we really need to bootstrap multiple times? couldn't we
+    ##     figure out the flags we want and the run one bootstrap?
+    ##TODO there is no way to tell if the bootstrap steps are producing
+    ##     changes or not, this is not idiomatic ansible
     - name: Bootstrap the python3 environment
       command:
         cmd: "python3 bootstrap.py"
@@ -108,8 +48,39 @@
         HTTP_PROXY: "{{ http_proxy }}"
       when: (extra_requirements | length) > 0
 
-    - include_tasks: includes/ansible_venv.yml
+    # configure the platform
+    - name: ensure VOLTTRON_HOME exists
+      file:
+        path: "{{ volttron_home }}"
+        state: directory
+        mode: 0755
+    - name: set instance name
+      ini_file:
+        path: "{{ volttron_home }}/config"
+        section: volttron
+        option: instance-name
+        value: "{{ host_configuration['config']['instance-name'] | default({{inventory_hostname}}) }}"
+        mode: '0600'
+        backup: yes
+    - name: ensure platform configuration
+      loop: "{{ host_configuration.config | dict2items }}"
+      ini_file:
+        path: "{{ volttron_home }}/config"
+        section: volttron
+        option: "{{ item.key }}"
+        value: "{{ item.value }}"
+        mode: '0600'
+        backup: yes
 
-    - include_tasks: includes/copy_configs.yml
+    # For RMQ, do the extra bootstrapping/cert generation
+    - fail:
+        msg: "Platform configuration for RMQ is currently not implemented"
+      when: (message_bus == "rmq")
 
-    - include_tasks: includes/update_facts.yml
+    #- name: include ansible_venv
+    #  include_role:
+    #    name: ansible-venv
+
+    #- name: copy the platform and agent configuration
+    #  include_role:
+    #    name: copy-configs

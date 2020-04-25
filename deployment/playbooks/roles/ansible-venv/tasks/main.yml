@@ -1,0 +1,28 @@
+---
+- name: Raspbian-specific ansible venv packages
+  ##TODO: do we need this on all arm systems?
+  pip:
+    virtualenv: "{{ venv_for_ansible }}"
+    virtualenv_command: /usr/bin/python3 -m venv
+    name:
+      - cython
+  when: ansible_lsb.id == "Raspbian"
+
+# Use anisible interpreter to separate the volttron requirements from
+# the requirements of the volttron instance
+- name: Create ansbile virtual env
+  pip:
+    virtualenv: "{{ venv_for_ansible }}"
+    virtualenv_command: /usr/bin/python3 -m venv
+    name:
+     - pyyaml
+     - psutil
+     - zmq
+     - netifaces==0.10.9
+     - deepdiff
+
+# Sets the ansible venv python interpreter to be the one that
+# is used for the rest of the tasks.
+- name: Set ansible interpreter
+  set_fact:
+    ansible_python_interpreter: "{{ venv_for_ansible }}/bin/python"

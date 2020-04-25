@@ -21,12 +21,6 @@
       fail_msg: "the system ({{ ansible_distribution }} : {{ansible_distribution_major_version }}) is not supported"
       success_msg: "system is supported"
 
-  - name: load host configuration
-    local_action:
-      module: include_vars
-      file: "{{ deployment_platform_config_file }}"
-      name: host_configuration
-
   - name: install system packages
     become: yes
     become_method: sudo
@@ -45,7 +39,7 @@
         - libzmq3-dev
 
     - name: install rabbitmq
-      when: (host_configuration['config']['message-bus'] | default('zmq')) == 'rmq'
+      when: message_bus == 'rmq'
       block:
       - name: Installing extra system level things for rabbit.
         apt:
