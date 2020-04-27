@@ -969,7 +969,6 @@ def test_poll_location(volttron_instance, query_agent):
 def test_poll_multiple_locations(volttron_instance, query_agent, config,
                                  result_topics):
     gevent.sleep(1)
-
     agent = None
     query_agent.poll_callback.reset_mock()
     try:
