@@ -71,6 +71,8 @@ EXPECTED_OUTPUT_VALUES = {"fake1": {"value": 2.54,
                                     "name": "fake4"}
                           }
 
+DATABASE_FILE = None
+
 
 @pytest.fixture(scope="module")
 def query_agent(request, volttron_instance):
@@ -205,6 +207,10 @@ def weather(request, volttron_instance):
     )
     gevent.sleep(2)
 
+    global DATABASE_FILE
+    DATABASE_FILE = agent._database_file
+    assert DATABASE_FILE.endswith("weather.sqlite")
+
     yield agent
     agent.core.stop()
     request.addfinalizer(remove_temp_file)
@@ -228,7 +234,7 @@ def test_create_tables(weather):
     connection = weather._cache._sqlite_conn
     cursor = connection.cursor()
 
-    assert os.path.isfile(weather._database_file)
+    assert os.path.isfile(DATABASE_FILE)
 
     weather._cache.create_tables()
 
@@ -282,7 +288,8 @@ def test_manage_cache_size(volttron_instance):
     connection = weather._cache._sqlite_conn
     cursor = connection.cursor()
 
-    assert os.path.isfile("weather.sqlite")
+    database_file = weather._cache._db_file_path
+    assert os.path.isfile(database_file)
 
     for service_name in weather._api_services:
         query = "DELETE FROM {};".format(service_name)
@@ -1037,9 +1044,8 @@ def test_poll_errors(volttron_instance, query_agent, config,
 
 
 def delete_database_file():
-    db_path = "weather.sqlite"
-    if os.path.isfile(db_path):
-        os.remove(db_path)
+    if os.path.isfile(DATABASE_FILE):
+        os.remove(DATABASE_FILE)
 
 
 @pytest.mark.weather2
@@ -1055,8 +1061,8 @@ def test_unhandled_cache_store_exception(volttron_instance, weather,
         conn.commit()
         # workaround to open the file in read only mode
         weather._cache._sqlite_conn.close()
-        os.chmod(weather._database_file, 0o444)
-        weather._cache._sqlite_conn = sqlite3.connect(weather._database_file)
+        os.chmod(DATABASE_FILE, 0o444)
+        weather._cache._sqlite_conn = sqlite3.connect(DATABASE_FILE)
         query_agent.alert_callback.reset_mock()
         results1 = query_agent.vip.rpc.call(identity,
                                             "get_current_weather",
@@ -1103,8 +1109,8 @@ def test_unhandled_cache_store_exception(volttron_instance, weather,
         assert results1["observation_time"] != results2["observation_time"]
     finally:
         weather._cache._sqlite_conn.close()
-        os.chmod(weather._database_file, 0o666)
-        weather._cache._sqlite_conn = sqlite3.connect(weather._database_file)
+        os.chmod(DATABASE_FILE, 0o666)
+        weather._cache._sqlite_conn = sqlite3.connect(DATABASE_FILE)
 
 
 @pytest.mark.weather2
@@ -1153,4 +1159,4 @@ def test_unhandled_cache_read_exception(volttron_instance, weather,
         assert read_warning
     finally:
         # make sure the cache is ready to be used again
-        weather._cache._sqlite_conn = sqlite3.connect(weather._database_file)
+        weather._cache._sqlite_conn = sqlite3.connect(DATABASE_FILE)
