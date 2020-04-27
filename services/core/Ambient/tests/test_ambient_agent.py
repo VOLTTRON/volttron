@@ -66,9 +66,16 @@ ambient_agent_path = get_services_core("Ambient")
 
 API_KEY = os.environ.get('AMBIENT_API_KEY')
 APP_KEY = os.environ.get('AMBIENT_APP_KEY')
+
+# Locations should be a list of location objects with the value string matching the name of the location as configured
+# in Ambient
 LOCATIONS = [
-      {"location": "<location"}
+        {"location": "<location a>"},
+        {"location": "<location b>"}
     ]
+
+# Poll test topics should be a list of weather topic strings with number of entries == length of locations
+POLL_TEST_TOPICS = ['weather/poll/current/test_a', 'weather/poll/current/test_b']
 
 ambient_service = {
     'weather_service': ambient_agent_path,
@@ -285,9 +292,9 @@ def test_current_fail(weather, query_agent, locations, api_wait):
       'poll_interval': 5,
       'api_key': API_KEY,
       'application_key': APP_KEY,
-      'poll_topic_suffixes': ['test1', 'test2']
+      'poll_topic_suffixes': ['test_a', 'test_b']
       },
-     ['weather/poll/current/test1', 'weather/poll/current/test2'])
+     POLL_TEST_TOPICS)
 ])
 def test_polling_locations_valid_config(volttron_instance, query_agent, config,
                                         result_topics, api_wait):
