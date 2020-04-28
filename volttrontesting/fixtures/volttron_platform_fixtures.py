@@ -254,7 +254,6 @@ def volttron_multi_messagebus(request):
     :param request:
     :return:
     """
-
     def get_volttron_multi_msgbus_instances(instance_name1=None, instance_name2=None):
         print("volttron_multi_messagebus source: {} sink: {}".format(request.param['source'],
                                                                      request.param['sink']))
@@ -275,7 +274,6 @@ def volttron_multi_messagebus(request):
                              messagebus=messagebus,
                              bind_web_address=web_address,
                              volttron_central_address=web_address,
-                             secure_agent_users=True,
                              instance_name="volttron1")
 
         source_address = get_rand_vip()
@@ -294,14 +292,12 @@ def volttron_multi_messagebus(request):
                                    messagebus=messagebus,
                                    volttron_central_address=sink.bind_web_address,
                                    remote_platform_ca=sink.certsobj.cert_file(sink.certsobj.root_ca_name),
-                                   secure_agent_users=True,
                                    instance_name='volttron2')
         else:
             source = build_wrapper(source_address,
                                    ssl_auth=ssl_auth,
                                    messagebus=messagebus,
                                    volttron_central_address=sink.bind_web_address,
-                                   secure_agent_users=True,
                                    instance_name='volttron2')
         get_volttron_multi_msgbus_instances.source = source
         get_volttron_multi_msgbus_instances.sink = sink
@@ -436,5 +432,5 @@ def get_test_volttron_home(messagebus: str, web_https=False, web_http=False, has
     finally:
         os.environ.clear()
         os.environ.update(env_cpy)
-        if not os.environ["DEBUG"] != 1 and not os.environ["DEBUG_MODE"]:
+        if not os.environ.get("DEBUG", 0) != 1 and not os.environ.get("DEBUG_MODE",0):
             shutil.rmtree(volttron_home, ignore_errors=True)

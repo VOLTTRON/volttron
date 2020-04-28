@@ -37,6 +37,7 @@
 # }}}
 
 import logging
+import os
 
 import gevent
 
@@ -140,8 +141,18 @@ class AlertAgent(Agent):
         """
         Setup database tables for persistent logs
         """
+        db_dir = os.getcwd()
+        data_dir = ""
+        if utils.is_secure_mode():
+            for d  in os.listdir(os.path.basename(os.getcwd())):
+                if d.endswith(".agent-data"):
+                    data_dir = d
+                    break
+            if data_dir:
+                db_dir = os.path.join(os.getcwd(), data_dir)
+
         self._connection = sqlite3.connect(
-            'alert_log.sqlite',
+            os.path.join(db_dir, 'alert_log.sqlite'),
             detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
         c = self._connection.cursor()
 
@@ -188,6 +199,7 @@ class AlertAgent(Agent):
                   " WHERE start_time = (SELECT max(start_time) from agent_log)",
                   (get_aware_utc_now(),))
         c.close()
+        gevent.sleep(0.1)
         self._connection.commit()
         self._connection.close()
 
@@ -270,9 +282,9 @@ class AlertAgent(Agent):
             alert_topics = set()
 
             # Loop through topics in alert group
-            for topic in self.group_instances[name].wait_time.iterkeys():
+            for topic in self.group_instances[name].wait_time.keys():
 
-                # Send an alert if a topic hasn't been seen
+                # Send an alert if a topic hasn't been
                 self.group_instances[name].topic_ttl[topic] -= 1
                 if self.group_instances[name].topic_ttl[topic] <= 0:
                     alert_topics.add(topic)
@@ -527,8 +539,10 @@ class AlertGroup():
         :type unseen_topics: list
         """
         alert_key = "AlertAgent Timeout for group {}".format(self.group_name)
+        _log.debug(f"unseen_topics {unseen_topics}")
+        _log.debug(f"sorted : {sorted(unseen_topics, key = lambda x: x[0] if isinstance(x, tuple) else x)}")
         context = "Topic(s) not published within time limit: {}".format(
-            sorted(unseen_topics))
+             sorted(unseen_topics, key = lambda x: x[0] if isinstance(x, tuple) else x))
         status = Status.build(STATUS_BAD, context=context)
         if self.publish_remote:
             try:

@@ -108,6 +108,7 @@ def test_can_restart_platform_without_addresses_changing(get_volttron_instances)
     assert inst_forward.is_running()
     inst_forward.stop_platform()
     assert not inst_forward.is_running()
+    gevent.sleep(5)
     inst_forward.restart_platform()
     assert inst_forward.is_running()
     assert original_vip == inst_forward.vip_address
@@ -124,6 +125,7 @@ def test_can_restart_platform(volttron_instance):
 
     assert volttron_instance.is_running()
     volttron_instance.stop_platform()
+
     assert not volttron_instance.is_running()
     volttron_instance.restart_platform()
     assert volttron_instance.is_running()

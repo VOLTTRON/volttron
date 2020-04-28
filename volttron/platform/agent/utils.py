@@ -716,8 +716,11 @@ def create_file_if_missing(path, permission=0o660, contents=None):
         success = False
         try:
             if contents:
-                os.write(fd, contents if isinstance(contents, bytes) else contents.encode("utf-8"))
+                contents = contents if isinstance(contents, bytes) else contents.encode("utf-8")
+                os.write(fd, contents)
                 success = True
+        except Exception as e:
+            raise e
         finally:
             os.close(fd)
         return success

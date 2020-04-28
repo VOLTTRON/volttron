@@ -65,7 +65,9 @@ python3 bootstrap.py
 source env/bin/activate
 ```
 
-Proceed to step 4. 
+Proceed to step 4.
+
+You can deactivate the environment at any time by running `deactivate`.
 
 #### Steps for RabbitMQ
 
@@ -145,11 +147,13 @@ source ~/.bashrc
 $RABBITMQ_HOME/sbin/rabbitmqctl status
 ```
 
-###### 4. Activate the environment
+##### 4. Activate the environment
 
 ```sh
 source env/bin/activate
 ```
+
+You can deactivate the environment at any time by running `deactivate`.
 
 ##### 5. Create RabbitMQ setup for VOLTTRON:
 
@@ -167,6 +171,10 @@ Running the above command without the optional configuration file parameter will
 cause the user user to be prompted for all the required data in the command prompt 
 vcfg will use that data to generate a rabbitmq_config.yml file in the `VOLTTRON_HOME` 
 directory.
+
+If the above configuration file is being used as a basis, be sure to update it with 
+the hostname of the deployment (this should be the fully qualified domain name
+of the system).
 
 This script creates a new virtual host and creates SSL certificates needed
 for this VOLTTRON instance. These certificates get created under the subdirectory 

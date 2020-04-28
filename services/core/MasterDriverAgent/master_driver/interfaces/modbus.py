@@ -154,8 +154,9 @@ class ModbusByteRegister(ModbusRegisterBase):
             register_values.reverse()
 
             target_bytes = ""
-            for value in register_values:
-                target_bytes += PYMODBUS_REGISTER_STRUCT.pack(value)
+            target_bytes = bytes.join(b'', [PYMODBUS_REGISTER_STRUCT.pack(value) for value in register_values])
+            # for value in register_values:
+            #     target_bytes += PYMODBUS_REGISTER_STRUCT.pack(value).decode('utf-8')
         
         return self.parse_struct.unpack(target_bytes)[0]
     
