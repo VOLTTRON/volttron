@@ -48,6 +48,15 @@
         HTTP_PROXY: "{{ http_proxy }}"
       when: (extra_requirements | length) > 0
 
+    - name: create environment activation script
+      template:
+        src: activate-instance-env.j2
+        dest: "{{ ansible_env.HOME }}/activate-{{host_configuration['config']['instance-name'] | default('{{inventory_hostname}}')}}-env"
+    - name: fail because the venv is wrong
+      ##TODO: this ^^^
+      fail:
+        msg: need to make sure the volttron install venv is used above
+
     # configure the platform
     - name: ensure VOLTTRON_HOME exists
       file:
@@ -59,7 +68,7 @@
         path: "{{ volttron_home }}/config"
         section: volttron
         option: instance-name
-        value: "{{ host_configuration['config']['instance-name'] | default({{inventory_hostname}}) }}"
+        value: "{{ host_configuration['config']['instance-name'] | default('{{inventory_hostname}}') }}"
         mode: '0600'
         backup: yes
     - name: ensure platform configuration
