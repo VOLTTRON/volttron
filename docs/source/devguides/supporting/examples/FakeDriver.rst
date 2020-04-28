@@ -28,7 +28,7 @@ fake.config::
         "publish_breadth_first": false
    	}
 
-- cp examples/configurations/drivers/master-driver.agent config/fake-master-driver.config
+- cp services/core/MasterDriverAgent/master-driver.agent config/fake-master-driver.config
 - Add fake.csv and fake.config to the :ref:`configuration store<config-store>`.
 - Edit fake-master-driver.config to reflect paths on your system
 
