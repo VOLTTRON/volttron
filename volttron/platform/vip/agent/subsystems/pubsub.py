@@ -687,7 +687,6 @@ class PubSub(SubsystemBase):
             elif len(response) == 1: #bool
                 response = struct.unpack('?', response.encode('utf-8'))
                 response = response[0]
-            _log.info("PUBSUB response: {}".format(response))
             if result:
                 result.set(response)
 
