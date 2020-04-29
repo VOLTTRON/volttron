@@ -525,6 +525,10 @@ class Request (object):
         return requests
 
 
+# WARNING: Currently the modbus_tk library is not able to make connections from 2 masters on one host to 2 slaves on
+# one host - this will will prevent a single platform from being able to communicate to 2 slaves on one IP as each
+# instance of a Modbus_Tk driver creates a new Modbus master.
+# Issue on Modbus_Tk Github: https://github.com/ljean/modbus-tk/issues/124
 class Client (object):
 
     """
