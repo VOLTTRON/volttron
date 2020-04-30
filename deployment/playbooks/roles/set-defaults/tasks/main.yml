@@ -54,3 +54,4 @@
     name: host_configuration
 - set_fact:
     message_bus: "{{ host_configuration['config']['message-bus'] | default('zmq') }}"
+    instance_name: "{{ host_configuration['config']['instance-name'] | default(inventory_hostname) }}"

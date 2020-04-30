@@ -5,7 +5,7 @@
     virtualenv: "{{ venv_for_ansible }}"
     virtualenv_command: /usr/bin/python3 -m venv
     name:
-      - cython
+    - cython
   when: ansible_lsb.id == "Raspbian"
 
 # Use anisible interpreter to separate the volttron requirements from
@@ -15,11 +15,13 @@
     virtualenv: "{{ venv_for_ansible }}"
     virtualenv_command: /usr/bin/python3 -m venv
     name:
-     - pyyaml
-     - psutil
-     - zmq
-     - netifaces==0.10.9
-     - deepdiff
+    - pexpect
+    #TODO none of these are currently required
+    #- pyyaml
+    #- psutil
+    #- zmq
+    #- netifaces==0.10.9
+    #- deepdiff
 
 # Sets the ansible venv python interpreter to be the one that
 # is used for the rest of the tasks.

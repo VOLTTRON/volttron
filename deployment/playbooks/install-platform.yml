@@ -7,42 +7,54 @@
   roles:
   - set-defaults
   - get-volttron-source
+  - ansible-venv
   tasks:
-    - name: check on source updated
+    - name: print condition indicating if source updated
       debug:
-        msg: "volttron_source_changed: {{volttron_source_changed}}"
+        msg: "volttron_source_changed -> {{volttron_source_changed}}"
 
     ##TODO do we really need to bootstrap multiple times? couldn't we
     ##     figure out the flags we want and the run one bootstrap?
     ##TODO there is no way to tell if the bootstrap steps are producing
     ##     changes or not, this is not idiomatic ansible
+    - name: create volttron platform venv
+      pip:
+        virtualenv: "{{ volttron_venv }}"
+        ##TODO: Does this path need to be more generic?
+        virtualenv_command: "/usr/bin/python3 -m venv"
+        ## We add setuptools here because the module needs at
+        ## a non-empty target list to avoid warnings and report
+        ## change status correctly
+        name:
+        - setuptools
+
     - name: Bootstrap the python3 environment
       command:
-        cmd: "python3 bootstrap.py"
+        cmd: "{{ volttron_venv }}/bin/python bootstrap.py"
         chdir: "{{ volttron_root }}"
-        creates: "{{ volttron_root }}/env"
+      register: bootstrap_output
 
     - name: Boostrap rmq environment
       when: (message_bus == "rmq")
       command:
-        cmd: "{{ volttron_root }}/env/bin/python bootstrap.py --rabbitmq"
+        cmd: "{{ volttron_venv }}/bin/python bootstrap.py --rabbitmq"
         chdir: "{{ volttron_root }}"
 
     - name: Enabling web packages for environment
       when: (enable_web == True)
       command:
-        cmd: "{{ volttron_root }}/env/bin/python bootstrap.py --web"
+        cmd: "{{ volttron_venv }}/bin/python bootstrap.py --web"
         chdir: "{{ volttron_root }}"
 
     - name: Enabling master driver packages for environment
       when: (enable_drivers == True)
       command:
-        cmd: "{{ volttron_root }}/env/bin/python bootstrap.py --drivers"
+        cmd: "{{ volttron_venv }}/bin/python bootstrap.py --drivers"
         chdir: "{{ volttron_root }}"
 
     - name: Install extra requirements for this instance
       pip:
-        virtualenv: "{{ansible_env.HOME}}/volttron/env"
+        virtualenv: "{{ volttron_venv }}"
         name: "{{ extra_requirements }}"
       environment:
         HTTP_PROXY: "{{ http_proxy }}"
@@ -51,11 +63,7 @@
     - name: create environment activation script
       template:
         src: activate-instance-env.j2
-        dest: "{{ ansible_env.HOME }}/activate-{{host_configuration['config']['instance-name'] | default('{{inventory_hostname}}')}}-env"
-    - name: fail because the venv is wrong
-      ##TODO: this ^^^
-      fail:
-        msg: need to make sure the volttron install venv is used above
+        dest: "{{ ansible_env.HOME }}/activate-{{ instance_name }}-env"
 
     # configure the platform
     - name: ensure VOLTTRON_HOME exists
@@ -68,7 +76,7 @@
         path: "{{ volttron_home }}/config"
         section: volttron
         option: instance-name
-        value: "{{ host_configuration['config']['instance-name'] | default('{{inventory_hostname}}') }}"
+        value: "{{ instance_name }}"
         mode: '0600'
         backup: yes
     - name: ensure platform configuration
@@ -82,14 +90,16 @@
         backup: yes
 
     # For RMQ, do the extra bootstrapping/cert generation
-    - fail:
-        msg: "Platform configuration for RMQ is currently not implemented"
+    - name: run vcfg to configure for RMQ
+      expect:
+        command: "{{ volttron_venv }}/bin/vcfg --vhome {{volttron_home}} --instance-name {{ instance_name }} --rabbitmq single {{ volttron_root }}/examples/configurations/rabbitmq/rabbitmq_config.yml"
+        responses:
+          '.*Remove [a-zA-Z1-9_\-./]*/rabbitmq.conf?.*': 'y'
+          '.*Do you want to use this certificate.*': ''
+        timeout: 90
       when: (message_bus == "rmq")
+      register: vcfg_result
+    - debug:
+        msg: "vcfg result: {{vcfg_result}}"
+      when: vcfg_result.failed
 
-    #- name: include ansible_venv
-    #  include_role:
-    #    name: ansible-venv
-
-    #- name: copy the platform and agent configuration
-    #  include_role:
-    #    name: copy-configs
