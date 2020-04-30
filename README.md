@@ -1,11 +1,11 @@
 ![image](docs/source/images/VOLLTRON_Logo_Black_Horizontal_with_Tagline.png)
 
-Distributed Control System Platform.
-
 VOLTTRON™ is an open source platform for distributed sensing and control. The
 platform provides services for collecting and storing data from buildings and
 devices and provides an environment for developing applications which interact
 with that data.
+
+[![Build Status](https://travis-ci.org/VOLTTRON/volttron.svg?branch=develop)](https://travis-ci.org/VOLTTRON/volttron)
 
 ## Features
 
@@ -15,16 +15,13 @@ with that data.
 -   [Agent lifecycle managment](https://volttron.readthedocs.io/en/latest/core_services/control/AgentManagement.html#agentmanagement) in the platform
 -   [Web UI](https://volttron.readthedocs.io/en/latest/core_services/service_agents/central_management/VOLTTRON-Central.html#volttron-central) for managing deployed instances from a single central instance.
 
-## Background
+## Installation
 
 VOLTTRON is written in Python 3.6+ and runs on Linux Operating Systems. For
 users unfamiliar with those technologies, the following resources are recommended:
 
 -   <https://docs.python.org/3.6/tutorial/>
 -   <http://ryanstutorials.net/linuxtutorial>
-
-
-## Installation
 
 ### 1. Install prerequisites
 
