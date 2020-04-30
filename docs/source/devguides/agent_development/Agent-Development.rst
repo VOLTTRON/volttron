@@ -167,16 +167,16 @@ store values and setting up a configuration handler.
 Values in the default config can be built into the agent or come from the
 packaged configuration file. The subscribe method tells our agent which function
 to call whenever there is a new or updated config file. For more information
-on using the configuration store see :doc:`Agent Configuration Store <Agent-Configuration-Store>`
+on using the configuration store see :doc:`Agent Configuration Store <Agent-Configuration-Store>`.
 
-`_create_subscriptions` (covered in the next section) will use the value in self.setting2
+`_create_subscriptions` (covered in the next section) will use the value in `self.setting2`
 to create a new subscription.
 
 Setting up a Subscription
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The Agent creates a subscription using the value of self.setting2 in the method
-`_create_subscription`. The messages for this subscription hare handeled with
+The Agent creates a subscription using the value of `self.setting2` in the method
+`_create_subscription`. The messages for this subscription are handled with
 the `_handle_publish` method:
 
 ::
@@ -191,20 +191,21 @@ the `_handle_publish` method:
 
         def _handle_publish(self, peer, sender, bus, topic, headers,
                                     message):
+            #By default no action is taken.
             pass
 
 Agent Lifecycle Events
 ^^^^^^^^^^^^^^^^^^^^^^
 
-Methods may be setup to be called at agent startup and shudown:
+Methods may be setup to be called at agent startup and shutdown:
 
 ::
 
         @Core.receiver("onstart")
         def onstart(self, sender, **kwargs):
             """
-            This is method is called once the Agent has successfully connected to the platform.
-            This is a good place to setup subscriptions if they are not dynamic or
+            This method is called once the Agent has successfully connected to the platform.
+            This is a good place to setup subscriptions if they are not dynamic or to
             do any other startup activities that require a connection to the message bus.
             Called after any configurations methods that are called at startup.
 
@@ -224,15 +225,15 @@ Methods may be setup to be called at agent startup and shudown:
             """
             pass
 
-As the comment mentions. With the new configuration store feature `onstart` methods
+As the comment mentions, with the new configuration store feature `onstart` methods
 are mostly unneeded. However this code does include an example of how to do a Remote
-Proceedure Call to another agent.
+Procedure Call to another agent.
 
-Agent Remote Proceedure Calls
+Agent Remote Procedure Calls
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-An agent may receive commands from other agents via a Remote Proceedure Call or RPC for short.
-This is done with the @RPC.export decorattor:
+An agent may receive commands from other agents via a Remote Procedure Call (RPC).
+This is done with the `@RPC.export` decorator:
 
 ::
 
@@ -248,7 +249,7 @@ This is done with the @RPC.export decorattor:
 Packaging Configuration
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-The wizard will automatically create a setup.py file. This file sets up the
+The wizard will automatically create a `setup.py` file. This file sets up the
 name, version, required packages, method to execute, etc. for the agent based on
 your answers to the wizard. The packaging process will also use this
 information to name the resulting file.
@@ -288,20 +289,20 @@ information to name the resulting file.
 Launch Configuration
 ~~~~~~~~~~~~~~~~~~~~
 
-In TestAgent, the wizard will automatically create a file called "config".
+In TestAgent, the wizard will automatically create a JSON file called "config".
 It contains configuration information for the agent. This file contains
-examples every datatype supported by the configuration system:
+examples of every datatype supported by the configuration system:
 
 ::
 
     {
       # VOLTTRON config files are JSON with support for python style comments.
       "setting1": 2, #Integers
-      "setting2": "some/random/topic2", #strings
+      "setting2": "some/random/topic2", #Strings
       "setting3": true, #Booleans: remember that in JSON true and false are not capitalized.
       "setting4": false,
       "setting5": 5.1, #Floating point numbers.
-      "setting6": [1,2,3,4], # Lists
+      "setting6": [1,2,3,4], #Lists
       "setting7": {"setting7a": "a", "setting7b": "b"} #Objects
     }
 
@@ -316,8 +317,8 @@ To install the agent the platform must be running. Start the platform with the c
 ``./start-volttron``
 
 .. note:: If you are not in an activated environment, this script will start
-    the platform running in the background in the correct environment, however
-    the environment will not be activated for you, you must activate it yourself.
+    the platform running in the background in the correct environment. However
+    the environment will not be activated for you; you must activate it yourself.
 
 Now we must install it into the platform. Use the following command to install it and add a tag for easily referring to
 the agent. From the project directory, run the following command:
@@ -331,16 +332,16 @@ This will result in output similar to the following:
 
 .. code-block:: bash
 
-      AGENT                    IDENTITY           TAG       STATUS          HEALTH
-    e testeragent-0.5          testeragent-0.5_1  testagent
+      AGENT                    IDENTITY           TAG       PRI
+  df  testeragent-0.5          testeragent-0.5_1  testagent
 
-Where the number or letter is the unique portion of the full uuid for the agent. AGENT is
+The initial number or letter is a unique portion of the full UUID for the agent. AGENT is
 the "name" of the agent based on the contents of its class name and the version in its setup.py. IDENTITY is the
 agent's identity in the platform. This is automatically assigned based on class name and instance number. This agent's
-ID is _1 because it is the first instance. TAG is the name we assigned in the command above. HEALTH
-is the current health of the agent as reported by the agents health subsystem. 
+ID is _1 because it is the first instance. TAG is the name we assigned in the command above. PRI is the priority for
+agents which have been "enabled" using the ``vctl enable`` command.
 
-When using lifecycle commands on agents, they can be referred to be UUID (default) or AGENT (name) or TAG.
+When using lifecycle commands on agents, they can be referred to by the UUID (default) or AGENT (name) or TAG.
 
 
 Testing the Agent
@@ -352,28 +353,30 @@ From the Command Line
 To test the agent, we will start the platform (if not already running), launch the agent, and
 check the log file.
 
--  With the VOLTTRON environment activated, start the platform by
-   running (if needed):
+With the VOLTTRON environment activated, start the platform by running (if needed):
 
 ``./start-volttron``
 
--  Launch the agent by <uuid> using the result of the list command:
+You can launch the agent in three ways, all of which you can find by using the
+``vctl list`` command:
+
+-  By using the <uuid>:
 
 ``vctl start <uuid>``
 
--  Launch the agent by name with:
+-  By name:
 
 ``vctl start --name testeragent-0.1``
 
--  Launch the agent by tag with:
+-  By tag:
 
 ``vctl start --tag testagent``
 
--  Check that it is :ref:`running <AgentStatus>`:
+Check that it is :ref:`running <AgentStatus>`:
 
 ``vctl status``
 
--  Start the ListenerAgent as in :ref:`Building VOLTTRON <Building-VOLTTRON>`
+-  Start the ListenerAgent as in :ref:`Building VOLTTRON <Building-VOLTTRON>`.
 -  Check the log file for messages indicating the TestAgent is receiving
    the ListenerAgents messages:
 
