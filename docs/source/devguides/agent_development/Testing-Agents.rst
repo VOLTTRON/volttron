@@ -59,8 +59,8 @@ Naming Conventions
 
 Pytest tests are discovered and run using some conventions:
 
-    * Tests will be found recursively in either the directory specified when running Pytest, or the CWD if no argument
-      was supplied
+    * Tests will be found recursively in either the directory specified when running Pytest, or the current
+      working directory if no argument was supplied
     * Pytest will search in those directories for files called test_<name of test>.py or <name of test>_test.py
     * In those files, Pytest will test:
         * functions and methods prefixed by "test" outside of any class
@@ -469,7 +469,7 @@ following in general:
     * Add any optional arguments (-s will prevent standard output from being displayed in the console window, -m is used
       to specify a mark)
 
-.. image:: files/run_configuration.jpg
+.. image:: files/run_configuration.png
 
 `PyCharm testing instructions <https://www.jetbrains.com/help/pycharm/run-debug-configuration-py-test.html>`_
 
