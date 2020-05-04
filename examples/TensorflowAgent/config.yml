@@ -1,10 +1,10 @@
 #hostname/ipaddress of tensor_model_server and port number
 #Default port number for serving GPRC API requests -> 8500
 #Default port number for serving REST API requests -> 8501
-hostport: localhost:8501
+hostport: localhost:8500
 #Version number of the model
 model_version: v1
 #Model name
 model_name: mnist
 #Request type -> grpc or rest
-api_request_type: rest
+api_request_type: grpc
