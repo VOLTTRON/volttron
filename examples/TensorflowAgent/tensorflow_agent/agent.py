@@ -47,9 +47,7 @@ def tensorflow_agent(config_path, **kwargs):
         raise ValueError("Configuration must have a hostport entry.")
     hostport = config.get("hostport")
 
-    api_request_type = config.get("api_request_type", "grpc")
-
-    return TensorflowAgent(hostport, model_name, model_version, api_request_type, **kwargs)
+    return TensorflowAgent(config, hostport, **kwargs)
 
 
 class TensorflowAgent(Agent):
@@ -58,15 +56,17 @@ class TensorflowAgent(Agent):
     """
 
     def __init__(self, config, hostport, **kwargs):
-        super(TensorflowAgent, self).__init__(enable_store=False, **kwargs)
-        self.default_config = {
+        super(TensorflowAgent, self).__init__(enable_store=True, **kwargs)
+        default_config = {
             "hostport": hostport,
             "model_name": "mnist",
             "model_version": "v1",
             "api_request_type": "grpc"
         }
         if config:
-            self.default_config.copy(config)
+            default_config.update(config)
+        self.default_config = default_config
+        
         self.vip.config.set_default("config", self.default_config)
         self.vip.config.subscribe(self.configure_main,
                                   actions=["NEW", "UPDATE"],
@@ -89,7 +89,7 @@ class TensorflowAgent(Agent):
         config.update(contents)
         _log.debug("Update agent %s configuration -- config --  %s", self.core.identity, config)
         if action == "NEW" or "UPDATE":
-            self.api_type = config.get("request_type")
+            self.api_type = config.get("api_request_type")
             self.hostport = config.get("hostport")
             model_name = config.get("model_name")
             model_version = config.get("model_version")
