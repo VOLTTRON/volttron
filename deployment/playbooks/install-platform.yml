@@ -15,12 +15,13 @@
 
     ##TODO do we really need to bootstrap multiple times? couldn't we
     ##     figure out the flags we want and the run one bootstrap?
+    ##     -> seems like a low priority refactor
     ##TODO there is no way to tell if the bootstrap steps are producing
-    ##     changes or not, this is not idiomatic ansible
+    ##     changes or not, this is not idiomatic ansible.
     - name: create volttron platform venv
       pip:
         virtualenv: "{{ volttron_venv }}"
-        ##TODO: Does this path need to be more generic?
+        ##TODO Is this python path okay for creating a new venv?
         virtualenv_command: "/usr/bin/python3 -m venv"
         ## We add setuptools here because the module needs at
         ## a non-empty target list to avoid warnings and report
@@ -91,6 +92,8 @@
 
     # For RMQ, do the extra bootstrapping/cert generation
     - name: run vcfg to configure for RMQ
+      ##TODO: note that this task will always report changes and will replace and recreate the rmq confg (even if no changes)
+      ##      this is not great design generally, and violates idempotent expectations in ansible. For now we roll with it.
       expect:
         command: "{{ volttron_venv }}/bin/vcfg --vhome {{volttron_home}} --instance-name {{ instance_name }} --rabbitmq single {{ volttron_root }}/examples/configurations/rabbitmq/rabbitmq_config.yml"
         responses:
@@ -98,8 +101,3 @@
           '.*Do you want to use this certificate.*': ''
         timeout: 90
       when: (message_bus == "rmq")
-      register: vcfg_result
-    - debug:
-        msg: "vcfg result: {{vcfg_result}}"
-      when: vcfg_result.failed
-
