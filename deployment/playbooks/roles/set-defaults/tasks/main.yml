@@ -7,7 +7,9 @@
   set_fact:
     ## some standard ansible vars where we want to ensure assignment and defaults
     ansible_user: "{{ ansible_user | default(ansible_user_id) }}"
-    ansible_python_interpreter: "{{ ansible_python_interpreter | default('/usr/bin/python3') }}"
+    ansible_python_interpreter: "{{ ansible_python_interpreter | default('{{discovered_interpreter_python}}') }}"
+    ## extra system-level pacakges to install
+    extra_system_packages: "{{ extra_system_packages | default([]) }}"
     ## our custom ansible module has dependencies, install them to a venv
     venv_for_ansible: "{{ venv_for_ansible | default('{{ ansible_env.HOME }}/ansible_venv') }}"
     ## variables related to the version of volttron to be installed

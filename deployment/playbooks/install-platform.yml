@@ -28,6 +28,15 @@
         ## change status correctly
         name:
         - setuptools
+    ## TODO: the start-volttron and stop-volttron scripts both hard code
+    ##       this relative path so I'll create a symbolic link.
+    ##       ... I don't like this solution, but there are a bunch of options to refactor and I don't want to prioritize working through it right now. (probably recipes don't use these scripts at all, but they could also be made more generally usable in ways that make fewer assumptions about how the system must be configured.
+    - name: link the platform venv
+      when: volttron_venv != "{{volttron_root}}/env}}"
+      file:
+        src: "{{ volttron_venv }}"
+        dest: "{{ volttron_root }}/env"
+        state: link
 
     - name: Bootstrap the python3 environment
       command:
@@ -41,6 +50,8 @@
         cmd: "{{ volttron_venv }}/bin/python bootstrap.py --rabbitmq"
         chdir: "{{ volttron_root }}"
 
+    ## TODO: can we base this on the existance of bind_web_address
+    ##       in the host config?
     - name: Enabling web packages for environment
       when: (enable_web == True)
       command:

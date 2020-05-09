@@ -1,0 +1,74 @@
+### Install packages on yum-based systems (tested centos)
+---
+- name: check centos versions
+  when: ansible_distribution == "CentOS"
+  assert:
+    that:
+      - ansible_distribution_major_version | int >= 7
+      - ansible_distribution_major_version | int < 9
+
+- name: install system packages
+  become: yes
+  become_method: sudo
+  block:
+
+  - name: Install base software
+    yum:
+      update_cache: yes
+      state: present
+      name:
+      - make
+      - automake
+      - gcc
+      - gcc-c++
+      - kernel-devel
+      - python3
+      - python3-devel
+      - openssl
+      - openssl-devel
+      - libevent-devel
+      - git
+    ignore_errors: yes
+    register: yum_result
+  - name: yum result failure details
+    when: yum_result is failed
+    debug:
+      msg:
+      - "{{yum_result}}"
+
+  - name: se linux for new python if required
+    when: ansible_selinux.status == "enabled"
+    yum:
+      state: present
+      name:
+      - libselinux-python3
+
+  - name: install extra packages from inventory
+    when: (extra_system_packages | length) >0
+    yum:
+      state: present
+      name: extra_system_packages
+
+  - name: install rabbitmq
+    when: message_bus == 'rmq'
+    block:
+    - name: Add yum repository for erlang
+      yum_repository:
+        name: "rabbitmq-erlang"
+        description: "rabbitmq-erlang"
+        baseurl: "https://dl.bintray.com/rabbitmq-erlang/rpm/erlang/21/el/{{ ansible_distribution_major_version }}"
+        gpgcheck: yes
+        gpgkey: https://dl.bintray.com/rabbitmq/Keys/rabbitmq-release-signing-key.asc
+        repo_gpgcheck: no
+        enabled: yes
+    - name:
+      yum:
+        state: present
+        name:
+        - erlang
+
+  - name: note that dependencies were installed
+    set_fact:
+      dependencies_installed: yes
+
+  #TODO the RTD say "If you have an agent which requires the pyodbc package, install the following: [freetds-bin, unixodbc-dev]"

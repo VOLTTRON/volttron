@@ -1,0 +1,78 @@
+### Install packages on apt-based systems (ubuntu and debian are supported)
+---
+- name: check ubuntu major versions
+  when: ansible_distribution == "Ubuntu"
+  assert:
+    that:
+      - (ansible_distribution_major_version | int >= 18)
+      - (ansible_distribution_major_version | int < 20)
+    fail_msg: "the system is identified as Ubuntu:{{ansible_distribution_major_version}}, which is not supported"
+- name: check debian version
+  when: ansible_distribution == "Debian"
+  assert:
+    that:
+      - ansible_distribution_major_version | int >= 10
+      - ansible-distribution_major_version | int < 11
+    fail_msg: "the system is identified as Debian:{{ansible_distribution_major_version}}, which is not supported"
+
+- name: install system packages
+  become: yes
+  become_method: sudo
+  block:
+
+  - name: Install base software
+    apt:
+      state: present
+      name:
+      - build-essential
+      - git
+      - python3-dev
+      - python3-venv
+      - libssl-dev
+      - libevent-dev
+      - libzmq3-dev
+
+  - name: install extra packages from inventory
+    when: (extra_system_packages | length) > 0
+    apt:
+      state: present
+      name: extra_system_packages
+
+  - name: install rabbitmq
+    when: message_bus == 'rmq'
+    block:
+    - name: Installing extra system level things for rabbit.
+      apt:
+        state: present
+        name:
+        - apt-transport-https
+        - libwxbase3.0-0v5
+        - libwxgtk3.0-0v5
+        - libsctp1
+    - name: Adding apt_key for erlang solutions
+      apt_key:
+        url: https://packages.erlang-solutions.com/ubuntu/erlang_solutions.asc
+        state: present
+    - name: Adding apt repo for erlang
+      apt_repository:
+        update_cache: yes
+        repo: deb https://packages.erlang-solutions.com/ubuntu bionic contrib
+        state: present
+        filename: erlang.solutions.list
+    - name: Install erlang requirements
+      apt:
+        update_cache: yes
+        state: present
+        name:
+        - erlang-base
+        - erlang-diameter
+        - erlang-eldap
+        - erlang-ssl
+        - erlang-crypto
+        - erlang-asn1
+        - erlang-public-key
+        - erlang-nox
+
+- name: note that dependencies were installed
+  set_fact:
+    dependencies_installed: yes

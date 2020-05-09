@@ -22,6 +22,12 @@
     #- zmq
     #- netifaces==0.10.9
     #- deepdiff
+- name: add selinux to ansible_venv if needed
+  when: ansible_selinux.status == "enabled"
+  pip:
+    virtualenv: "{{ venv_for_ansible }}"
+    name:
+    - selinux
 
 # Sets the ansible venv python interpreter to be the one that
 # is used for the rest of the tasks.
