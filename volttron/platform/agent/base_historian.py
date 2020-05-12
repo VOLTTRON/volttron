@@ -366,7 +366,7 @@ class BaseHistorianAgent(Agent):
                  storage_limit_gb=None,
                  sync_timestamp=False,
                  custom_topics={},
-                 data_filter={},
+                 device_data_filter={},
                  all_platforms=False,
                  **kwargs):
 
