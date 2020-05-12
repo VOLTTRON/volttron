@@ -844,7 +844,7 @@ class BaseHistorianAgent(Agent):
         device = '/'.join(parts[1:-1])
         try:
             if self.device_data_filter:
-                for filter, point_list  in self.data_filter.items():
+                for filter, point_list  in self.device_data_filter.items():
                     if filter in device:
                         for point in point_list:
                             if point in message[0]:
