@@ -5,6 +5,8 @@
 ---
 - name: Set default values
   set_fact:
+    ## enable verbose debugging tasks
+    verbose_debug_tasks: "{{ verbose_debug_tasks | default(False) }}"
     ## some standard ansible vars where we want to ensure assignment and defaults
     ansible_user: "{{ ansible_user | default(ansible_user_id) }}"
     ansible_python_interpreter: "{{ ansible_python_interpreter | default('{{discovered_interpreter_python}}') }}"

@@ -9,9 +9,6 @@
   - get-volttron-source
   - ansible-venv
   tasks:
-    - name: print condition indicating if source updated
-      debug:
-        msg: "volttron_source_changed -> {{volttron_source_changed}}"
 
     ##TODO do we really need to bootstrap multiple times? couldn't we
     ##     figure out the flags we want and the run one bootstrap?
@@ -39,6 +36,7 @@
         state: link
 
     - name: Bootstrap the python3 environment
+      when: volttron_source_changed
       command:
         cmd: "{{ volttron_venv }}/bin/python bootstrap.py"
         chdir: "{{ volttron_root }}"
@@ -120,6 +118,7 @@
             '.*Do you want to use this certificate.*': ''
           timeout: 90
         register: vcfg_result
-      - name: vcfg results
+      - name: debug pint of vcfg results
+        when: verbose_debug_tasks
         debug:
           msg: "{{ vcfg_result }}"
