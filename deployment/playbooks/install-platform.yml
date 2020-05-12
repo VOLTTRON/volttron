@@ -18,7 +18,7 @@
     ##     -> seems like a low priority refactor
     ##TODO there is no way to tell if the bootstrap steps are producing
     ##     changes or not, this is not idiomatic ansible.
-    - name: create volttron platform venv
+    - name: create volttron platform venv {{ volttron_venv }}
       pip:
         virtualenv: "{{ volttron_venv }}"
         ##TODO Is this python path okay for creating a new venv?
@@ -32,7 +32,7 @@
     ##       this relative path so I'll create a symbolic link.
     ##       ... I don't like this solution, but there are a bunch of options to refactor and I don't want to prioritize working through it right now. (probably recipes don't use these scripts at all, but they could also be made more generally usable in ways that make fewer assumptions about how the system must be configured.
     - name: link the platform venv
-      when: volttron_venv != "{{volttron_root}}/env}}"
+      when: volttron_venv != (volttron_root + "/env")
       file:
         src: "{{ volttron_venv }}"
         dest: "{{ volttron_root }}/env"
@@ -101,14 +101,25 @@
         mode: '0600'
         backup: yes
 
-    # For RMQ, do the extra bootstrapping/cert generation
-    - name: run vcfg to configure for RMQ
-      ##TODO: note that this task will always report changes and will replace and recreate the rmq confg (even if no changes)
-      ##      this is not great design generally, and violates idempotent expectations in ansible. For now we roll with it.
-      expect:
-        command: "{{ volttron_venv }}/bin/vcfg --vhome {{volttron_home}} --instance-name {{ instance_name }} --rabbitmq single {{ volttron_root }}/examples/configurations/rabbitmq/rabbitmq_config.yml"
-        responses:
-          '.*Remove [a-zA-Z1-9_\-./]*/rabbitmq.conf?.*': 'y'
-          '.*Do you want to use this certificate.*': ''
-        timeout: 90
-      when: (message_bus == "rmq")
+    # For RMQ, do the extra config/bootstrapping/cert generation
+    - name: rabbitmq configuration
+      when: message_bus == "rmq"
+      block:
+      - name: create rabbitmq config
+        template:
+          src: rabbitmq_config.yml.j2
+          dest: "{{volttron_home }}/rabbitmq_config.yml"
+
+      - name: run vcfg to configure for RMQ
+        ##TODO: note that this task will always report changes and will replace and recreate the rmq confg (even if no changes)
+        ##      this is not great design generally, and violates idempotent expectations in ansible. For now we roll with it.
+        expect:
+          command: "{{ volttron_venv }}/bin/vcfg --vhome {{volttron_home}} --instance-name {{ instance_name }} --rabbitmq single {{ volttron_home }}/rabbitmq_config.yml"
+          responses:
+            '.*Remove [a-zA-Z1-9_\-./]*/rabbitmq.conf?.*': 'y'
+            '.*Do you want to use this certificate.*': ''
+          timeout: 90
+        register: vcfg_result
+      - name: vcfg results
+        debug:
+          msg: "{{ vcfg_result }}"
