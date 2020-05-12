@@ -138,7 +138,7 @@ The rest of the documentation refers to the directory `<install dir>/rabbitmq_se
 You can check if the RabbitMQ server is installed by checking its status. Please
 note, the `RABBITMQ_HOME` environment variable can be set in ~/.bashrc. If doing so,
 it needs to be set to the RabbitMQ installation directory (default path is
-`<user_home>/rabbitmq_server/rabbitmq_server/rabbitmq_server-3.7.7`)
+`<user_home>/rabbitmq_server/rabbitmq_server-3.7.7`)
 
 ```sh
 echo 'export RABBITMQ_HOME=$HOME/rabbitmq_server/rabbitmq_server-3.7.7'|sudo tee --append ~/.bashrc
