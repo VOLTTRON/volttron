@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -219,13 +219,13 @@ the same date over again.
 
 """
 
-from __future__ import absolute_import, print_function
+
 
 import logging
 import sqlite3
 import threading
 import weakref
-from Queue import Queue, Empty
+from queue import Queue, Empty
 from abc import abstractmethod
 from collections import defaultdict
 from datetime import datetime, timedelta
@@ -246,7 +246,7 @@ from volttron.platform.vip.agent import *
 from volttron.platform.vip.agent import compat
 from volttron.platform.vip.agent.subsystems.query import Query
 
-from volttron.platform.async import AsyncCall
+from volttron.platform.async_ import AsyncCall
 
 from volttron.platform.messaging.health import (STATUS_BAD,
                                                 STATUS_UNKNOWN,
@@ -256,25 +256,29 @@ from volttron.platform.messaging.health import (STATUS_BAD,
 
 try:
     import ujson
-    from zmq.utils.jsonapi import dumps as _dumps, loads as _loads
+    from volttron.platform.jsonapi import dumps as _dumps, loads as _loads
 
     def dumps(data):
         try:
             return ujson.dumps(data, double_precision=15)
-        except:
+        except Exception:
             return _dumps(data)
 
     def loads(data_string):
         try:
             return ujson.loads(data_string, precise_float=True)
-        except:
+        except Exception:
             return _loads(data_string)
 except ImportError:
-    from zmq.utils.jsonapi import dumps, loads
+    from volttron.platform.jsonapi import dumps, loads
 
 from volttron.platform.agent import utils
 
 _log = logging.getLogger(__name__)
+
+
+# Build the parser
+time_parser = None
 
 ACTUATOR_TOPIC_PREFIX_PARTS = len(topics.ACTUATOR_VALUE.split('/'))
 ALL_REX = re.compile('.*/all$')
@@ -296,7 +300,7 @@ def add_timing_data_to_header(headers, agent_id, phase):
 
     agent_timing_data[phase] = utils.format_timestamp(utils.get_aware_utc_now())
 
-    values = agent_timing_data.values()
+    values = list(agent_timing_data.values())
 
     if len(values) < 2:
         return 0.0
@@ -535,7 +539,7 @@ class BaseHistorianAgent(Agent):
             return
 
         query = Query(self.core)
-        self.instance_name = query.query(b'instance-name').get()
+        self.instance_name = query.query('instance-name').get()
 
         # Reset replace map.
         self._topic_replace_map = {}
@@ -580,7 +584,6 @@ class BaseHistorianAgent(Agent):
 
         self.stop_process_thread()
         self.device_data_filter = config.get("device_data_filter")
-        _log.debug("Setup data filter: {}".format(self.data_filter))
         try:
             self.configure(config)
         except Exception as e:
@@ -644,7 +647,7 @@ class BaseHistorianAgent(Agent):
         if self.no_insert:
             raise RuntimeError("Insert not supported by this historian.")
 
-        rpc_peer = bytes(self.vip.rpc.context.vip_message.peer)
+        rpc_peer = self.vip.rpc.context.vip_message.peer
         _log.debug("insert called by {} with {} records".format(rpc_peer, len(records)))
 
         for r in records:
@@ -700,7 +703,7 @@ class BaseHistorianAgent(Agent):
         table_prefix = tables_def.get('table_prefix', None)
         table_prefix = table_prefix + "_" if table_prefix else ""
         if table_prefix:
-            for key, value in table_names.items():
+            for key, value in list(table_names.items()):
                 table_names[key] = table_prefix + table_names[key]
         table_names["agg_topics_table"] = table_prefix + \
             "aggregate_" + tables_def["topics_table"]
@@ -719,7 +722,7 @@ class BaseHistorianAgent(Agent):
         # Only if we have some topics to replace.
         if self._topic_replace_list:
             # if we have already cached the topic then return it.
-            if input_topic_lower in self._topic_replace_map.keys():
+            if input_topic_lower in self._topic_replace_map:
                 output_topic = self._topic_replace_map[input_topic_lower]
             else:
                 self._topic_replace_map[input_topic_lower] = input_topic
@@ -791,7 +794,7 @@ class BaseHistorianAgent(Agent):
         if self.gather_timing_data:
             add_timing_data_to_header(headers, self.core.agent_uuid or self.core.identity, "collected")
 
-        for point, item in data.iteritems():
+        for point, item in data.items():
             if 'Readings' not in item or 'Units' not in item:
                 _log.error("logging request for {topic} missing Readings "
                            "or Units".format(topic=topic))
@@ -838,7 +841,6 @@ class BaseHistorianAgent(Agent):
         # Because of the above if we know that all is in the topic so
         # we strip it off to get the base device
         parts = topic.split('/')
-        msg = [{},{}]
         device = '/'.join(parts[1:-1])
         try:
             if self.device_data_filter:
@@ -853,8 +855,7 @@ class BaseHistorianAgent(Agent):
         except:
             _log.debug("Error handling device_data_filter.")
             msg = message
-        
-        self._capture_data(peer, sender, bus, topic, headers, msg, device)
+        self._capture_data(peer, sender, bus, topic, headers, message, device)
 
     def _capture_analysis_data(self, peer, sender, bus, topic, headers,
                                message):
@@ -927,7 +928,7 @@ class BaseHistorianAgent(Agent):
         if self.gather_timing_data:
             add_timing_data_to_header(headers, self.core.agent_uuid or self.core.identity, "collected")
 
-        for key, value in values.iteritems():
+        for key, value in values.items():
             point_topic = device + '/' + key
             self._event_queue.put({'source': source,
                                    'topic': point_topic,
@@ -1035,7 +1036,7 @@ class BaseHistorianAgent(Agent):
         # is setting up connections that are shared for both query and write
         # operations
 
-        self._historian_setup() # should be called even for readonly as this
+        self._historian_setup()  # should be called even for readonly as this
         # might load the topic id name map
 
         if self._readonly:
@@ -1074,7 +1075,6 @@ class BaseHistorianAgent(Agent):
                         new_to_publish.append(self._event_queue.get_nowait())
                     except Empty:
                         break
-
 
             # We wake the thread after a configuration change by passing a None to the queue.
             # Backup anything new before checking for a stop.
@@ -1141,7 +1141,6 @@ class BaseHistorianAgent(Agent):
                         self._send_alert({STATUS_KEY_PUBLISHING: False}, "historian_not_publishing")
                         break
 
-
                     backupdb.remove_successfully_published(
                         self._successful_published, self._submit_size_limit)
 
@@ -1179,7 +1178,7 @@ class BaseHistorianAgent(Agent):
 
         try:
             self.historian_teardown()
-        except:
+        except Exception:
             _log.exception("Historian teardown failed!")
 
         _log.debug("Process loop stopped.")
@@ -1187,7 +1186,7 @@ class BaseHistorianAgent(Agent):
 
     def _historian_setup(self):
         try:
-            _log.exception("Trying to setup historian")
+            _log.info("Trying to setup historian")
             self.historian_setup()
             if not self._readonly:
                 # Record the names of data, topics, meta tables in a metadata table
@@ -1412,7 +1411,7 @@ class BackupDatabase:
                 self._backup_cache[topic] = topic_id
 
             meta_dict = self._meta_data[(source, topic_id)]
-            for name, value in meta.iteritems():
+            for name, value in meta.items():
                 current_meta_value = meta_dict.get(name)
                 if current_meta_value != value:
                     c.execute('''INSERT OR REPLACE INTO metadata
@@ -1433,33 +1432,63 @@ class BackupDatabase:
                     # In the case where we are upgrading an existing installed historian the
                     # unique constraint may still exist on the outstanding database.
                     # Ignore this case.
+                    _log.warning(f"sqlite3.Integrity error -- {e}")
                     pass
 
         cache_full = False
         if self._backup_storage_limit_gb is not None:
+            try:
+                def page_count():
+                    c.execute("PRAGMA page_count")
+                    return c.fetchone()[0]
 
-            def page_count():
-                c.execute("PRAGMA page_count")
-                return c.fetchone()[0]
+                def free_count():
+                    c.execute("PRAGMA freelist_count")
+                    return c.fetchone()[0]
 
-            while page_count() > self.max_pages:
-                c.execute(
-                    '''DELETE FROM outstanding
-                    WHERE ROWID IN
-                    (SELECT ROWID FROM outstanding
-                    ORDER BY ROWID ASC LIMIT 100)''')
-                if self._record_count < c.rowcount:
-                    self._record_count = 0
-                else:
-                    self._record_count -= c.rowcount
-                cache_full = True
+                p = page_count()
+                f = free_count()
 
-            # Catch case where we are not adding fast enough to trigger the above
-            # every time we add more data.
-            if page_count() >= self.max_pages - int(self.max_pages*(1.0-self._backup_storage_report)):
-                cache_full = True
+                # check if we are over the alert threshold.
+                if page_count() >= self.max_pages - int(self.max_pages * (1.0 - self._backup_storage_report)):
+                    cache_full = True
 
-        self._connection.commit()
+                # Now check if we are above the limit, if so start deleting in batches of 100
+                # page count doesnt update even after deleting all records
+                # and record count becomes zero. If we have deleted all record
+                # exit.
+                _log.debug(f"record count before check is {self._record_count} page count is {p}"
+                           f" free count is {f}")
+                # max_pages  gets updated based on inserts but freelist_count doesn't
+                # enter delete loop based on page_count
+                min_free_pages = p - self.max_pages
+                while p > self.max_pages:
+                    cache_full = True
+                    c.execute(
+                        '''DELETE FROM outstanding
+                        WHERE ROWID IN
+                        (SELECT ROWID FROM outstanding
+                        ORDER BY ROWID ASC LIMIT 100)''')
+                    #self._connection.commit()
+                    if self._record_count < c.rowcount:
+                        self._record_count = 0
+                    else:
+                        self._record_count -= c.rowcount
+                    p = page_count()  #page count doesn't reflect delete without commit
+                    f = free_count() # freelist count does. So using that to break from loop
+                    if f >= min_free_pages:
+                        break
+                    _log.debug(f" Cleaning cache since we are over the limit. "
+                               f"After delete of 100 records from cache"
+                               f" record count is {self._record_count} page count is {p} freelist count is{f}")
+
+            except Exception as e:
+                _log.warning(f"Exception when check page count and deleting{e}")
+
+        try:
+            self._connection.commit()
+        except Exception as e:
+            _log.warning(f"Exception in committing after back db storage {e}")
 
         return cache_full
 
@@ -1556,8 +1585,15 @@ class BackupDatabase:
         """ Creates a backup database for the historian if doesn't exist."""
 
         _log.debug("Setting up backup DB.")
+        if utils.is_secure_mode():
+            # we want to create it in the agent-data directory since agent will not have write access to any other
+            # directory in secure mode
+            backup_db = os.path.join(os.getcwd(), os.path.basename(os.getcwd()) + ".agent-data", 'backup.sqlite')
+        else:
+            backup_db = 'backup.sqlite'
+        _log.info(f"Creating  backup db at {backup_db}")
         self._connection = sqlite3.connect(
-            'backup.sqlite',
+            backup_db,
             detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES,
             check_same_thread=check_same_thread)
 
@@ -1568,6 +1604,7 @@ class BackupDatabase:
             page_size = c.fetchone()[0]
             max_storage_bytes = self._backup_storage_limit_gb * 1024 ** 3
             self.max_pages = max_storage_bytes / page_size
+            _log.debug(f"Max pages is {self.max_pages}")
 
         c.execute("SELECT name FROM sqlite_master WHERE type='table' "
                   "AND name='outstanding';")
@@ -1686,6 +1723,22 @@ class BaseQueryHistorianAgent(Agent):
     their data stores.
     """
 
+    def __init__(self, **kwargs):
+        _log.debug('Constructor of BaseQueryHistorianAgent thread: {}'.format(
+            threading.currentThread().getName()
+        ))
+        global time_parser
+        if time_parser is None:
+            if utils.is_secure_mode():
+                # find agent's data dir. we have write access only to that dir
+                for d in os.listdir(os.getcwd()):
+                    if d.endswith(".agent-data"):
+                        agent_data_dir = os.path.join(os.getcwd(), d)
+                time_parser = yacc.yacc(write_tables=0,
+                                        outputdir=agent_data_dir)
+            else:
+                time_parser = yacc.yacc(write_tables=0)
+        super(BaseQueryHistorianAgent, self).__init__(**kwargs)
     @RPC.export
     def get_version(self):
         """RPC call to get the version of the historian
@@ -1880,7 +1933,6 @@ class BaseQueryHistorianAgent(Agent):
                 start = time_parser.parse(start)
             if start and start.tzinfo is None:
                 start = start.replace(tzinfo=pytz.UTC)
-
         if end is not None:
             try:
                 end = parse_timestamp_string(end)
@@ -2155,7 +2207,3 @@ def p_reltime(t):
 # Error rule for syntax errors
 def p_error(p):
     raise ValueError("Syntax Error in Query")
-
-
-# Build the parser
-time_parser = yacc.yacc(write_tables=0)
