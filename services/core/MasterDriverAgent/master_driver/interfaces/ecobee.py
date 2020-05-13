@@ -145,6 +145,7 @@ class Interface(BasicRevert, BaseInterface):
         if not self.poll_greenlet:
             self.poll_greenlet = self.core.periodic(180, self.get_ecobee_data)
         _log.debug("Ecobee configuration complete.")
+        print(self.poll_greenlet)
 
     def refresh_tokens(self):
         """
@@ -347,10 +348,12 @@ class Interface(BasicRevert, BaseInterface):
             data = self.vip.rpc.call(
                 self.cache_identity, "driver_data_get", "ecobee", self.group_id, THERMOSTAT_URL, headers,
                 update_frequency=180, params=params, refresh=refresh).get()
+            print(data)
             if data is None:
                 raise RuntimeError("No Ecobee data available from Driver HTTP Cache Agent.")
             _log.info("Last Ecobee data update occurred: {}".format(data.get("request_timestamp")))
             self.ecobee_data = data.get("request_response")
+            print(self.ecobee_data)
         except RemoteError:
             if retry:
                 _log.warning("Failed to get Ecobee data from Driver HTTP Cache Agent, refreshing tokens and trying "
@@ -832,6 +835,7 @@ def make_ecobee_request(request_type, url, **kwargs):
     # Generate appropriate grequests object
     if request_type.lower() in ["get", "post"]:
         response = call_grequest(request_type.lower(), url, verify=requests.certs.where(), timeout=30, **kwargs)[0]
+        #response = call_grequest(request_type.lower(), url, timeout=30, **kwargs)[0]
     else:
         raise ValueError("Unsupported request type {} for Ecobee driver.".format(request_type))
     # Send request and extract data from response

@@ -92,6 +92,7 @@ top level source directory; git will ignore changes to these files.
 
 
 |Run Forwarder|
+|Run Historian|
 
 
 Testing an Agent
@@ -112,3 +113,4 @@ is set as the VOLTTRON source root.
 .. |Run Listener| image:: files/05_run_listener.png
 .. |Run Tests| image:: files/06_run_tests.png
 .. |Run Forwarder| image:: files/07_run_forwarder.png
+.. |Run Historian| image:: files/08_run_historian.png
