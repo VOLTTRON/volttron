@@ -3,6 +3,11 @@
 Modbus-TK Driver Configuration
 ------------------------------
 
+.. warning:: Currently the modbus_tk library is not able to make connections from 2 masters on one host to 2 slaves
+    on one host - this will will prevent a single platform from being able to communicate to 2 slaves on IP as each
+    instance of a Modbus_Tk driver creates a new Modbus master.
+    `Issue on Modbus_Tk Github <https://github.com/ljean/modbus-tk/issues/124>`_.
+
 VOLTTRON's Modbus-TK driver, built on the Python Modbus-TK library, is an alternative to the
 original VOLTTRON modbus driver. Unlike the original modbus driver, the Modbus-TK driver
 supports Modbus RTU as well as Modbus over TCP/IP.
