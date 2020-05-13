@@ -1,6 +1,6 @@
-### grab the volttron source from github
+### download volttron source from github and place at volttron_root
+### registers `volttron_source_changed` fact (based on hash of tarball)
 ---
-##TODO there are many command tasks without a changed condition, this should be fixed.
 - name: Download volttron repository tarball
   get_url:
     url: https://github.com/{{ volttron_git_organization }}/{{ volttron_git_repo }}/archive/{{ volttron_git_branch }}.tar.gz

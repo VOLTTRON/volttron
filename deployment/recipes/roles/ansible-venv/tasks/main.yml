@@ -1,28 +1,25 @@
 ---
-- name: Raspbian-specific ansible venv packages
-  ##TODO: do we need this on all arm systems?
+- name: arm-specific ansible venv packages
   pip:
     virtualenv: "{{ venv_for_ansible }}"
     virtualenv_command: /usr/bin/python3 -m venv
     name:
     - cython
-  when: ansible_lsb.id == "Raspbian"
+  when: ansible_architecture in ["arm7l"]
+  ## NOTE: on arm-based systems we require cython to be able to install some other dependencies.
+  ##       I believe that this is because there are not available binary distributions on PyPI
 
-# Use anisible interpreter to separate the volttron requirements from
-# the requirements of the volttron instance
+# Create a dedicated venv to be used by ansible, where dependencies for any
+# modules may be installed, leaving both the system, and the volttron venv
+# free of those packages
 - name: Create ansbile virtual env
   pip:
     virtualenv: "{{ venv_for_ansible }}"
     virtualenv_command: /usr/bin/python3 -m venv
     name:
     - pexpect
-    #TODO none of these are currently required
-    #- pyyaml
-    #- psutil
-    #- zmq
-    #- netifaces==0.10.9
-    #- deepdiff
-- name: add selinux to ansible_venv if needed
+
+- name: add selinux to ansible_venv on systems using selinux
   when: ansible_selinux.status == "enabled"
   pip:
     virtualenv: "{{ venv_for_ansible }}"

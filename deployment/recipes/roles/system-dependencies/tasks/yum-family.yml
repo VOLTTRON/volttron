@@ -1,4 +1,4 @@
-### Install packages on yum-based systems (tested centos)
+### Install system packages on yum-based systems (tested centos)
 ---
 - name: check centos versions
   when: ansible_distribution == "CentOS"
@@ -17,17 +17,16 @@
       update_cache: yes
       state: present
       name:
-      - make
       - automake
       - gcc
       - gcc-c++
       - kernel-devel
-      - python3
-      - python3-devel
+      - libevent-devel
+      - make
       - openssl
       - openssl-devel
-      - libevent-devel
-      - git
+      - python3
+      - python3-devel
     ignore_errors: yes
     register: yum_result
   - name: yum result failure details
@@ -36,14 +35,14 @@
       msg:
       - "{{yum_result}}"
 
-  - name: se linux for new python if required
+  - name: SELinux for new python if required
     when: ansible_selinux.status == "enabled"
     yum:
       state: present
       name:
       - libselinux-python3
 
-  - name: install extra packages from inventory
+  - name: install extra system packages from inventory
     when: (extra_system_packages | length) >0
     yum:
       state: present
@@ -70,5 +69,3 @@
   - name: note that dependencies were installed
     set_fact:
       dependencies_installed: yes
-
-  #TODO the RTD say "If you have an agent which requires the pyodbc package, install the following: [freetds-bin, unixodbc-dev]"

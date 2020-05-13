@@ -1,4 +1,3 @@
-##TODO there are many command tasks without a changed condition, this should be fixed.
 ---
 - name: install VOLTTRON platform
   hosts: all
@@ -10,24 +9,20 @@
   - ansible-venv
   tasks:
 
-    ##TODO do we really need to bootstrap multiple times? couldn't we
-    ##     figure out the flags we want and the run one bootstrap?
-    ##     -> seems like a low priority refactor
-    ##TODO there is no way to tell if the bootstrap steps are producing
-    ##     changes or not, this is not idiomatic ansible.
+    ##NOTE there is no way to tell if the bootstrap steps are producing
+    ##     changes or not, this is not idiomatic ansible. It would be
+    ##     better if there were a changed condition.
+    ##     >> could achieve this with a custom module that checks pip freeze
+    ##        from before and after each call, maybe something simpler
     - name: create volttron platform venv {{ volttron_venv }}
       pip:
         virtualenv: "{{ volttron_venv }}"
-        ##TODO Is this python path okay for creating a new venv?
         virtualenv_command: "/usr/bin/python3 -m venv"
         ## We add setuptools here because the module needs at
         ## a non-empty target list to avoid warnings and report
         ## change status correctly
         name:
         - setuptools
-    ## TODO: the start-volttron and stop-volttron scripts both hard code
-    ##       this relative path so I'll create a symbolic link.
-    ##       ... I don't like this solution, but there are a bunch of options to refactor and I don't want to prioritize working through it right now. (probably recipes don't use these scripts at all, but they could also be made more generally usable in ways that make fewer assumptions about how the system must be configured.
     - name: link the platform venv
       when: volttron_venv != (volttron_root + "/env")
       file:
@@ -48,10 +43,8 @@
         cmd: "{{ volttron_venv }}/bin/python bootstrap.py --rabbitmq"
         chdir: "{{ volttron_root }}"
 
-    ## TODO: can we base this on the existance of bind_web_address
-    ##       in the host config?
     - name: Enabling web packages for environment
-      when: (enable_web == True)
+      when: host_configuration['config']['bind-web-address'] is defined
       command:
         cmd: "{{ volttron_venv }}/bin/python bootstrap.py --web"
         chdir: "{{ volttron_root }}"
@@ -109,7 +102,7 @@
           dest: "{{volttron_home }}/rabbitmq_config.yml"
 
       - name: run vcfg to configure for RMQ
-        ##TODO: note that this task will always report changes and will replace and recreate the rmq confg (even if no changes)
+        ##NOTE: note that this task will always report changes and will replace and recreate the rmq confg (even if no changes)
         ##      this is not great design generally, and violates idempotent expectations in ansible. For now we roll with it.
         expect:
           command: "{{ volttron_venv }}/bin/vcfg --vhome {{volttron_home}} --instance-name {{ instance_name }} --rabbitmq single {{ volttron_home }}/rabbitmq_config.yml"
