@@ -80,6 +80,19 @@ top level source directory; git will ignore changes to these files.
 |Listener Settings|
 |Run Listener|
 
+.. note::
+
+    There will be issues if two agents create a file with the same name in the same working directory.
+    For instance: SQLHistorian agent and Forwarder agent both create a backup.sqlite
+    directory on the same working directory. When that happens both the agents attempt to use
+    the same backup db and eventually lock the db. To avoid this situation, create
+    different working directories for each agent and add the absolute path for the config file.
+    The best way to go about this is to create a new folder and assign working
+    directory to that folder as shown below.
+
+|Run Forwarder|
+|Run Historian|
+
 
 Testing an Agent
 ----------------
@@ -98,3 +111,5 @@ is set as the VOLTTRON source root.
 .. |Listener Settings| image:: files/04_listener_settings.png
 .. |Run Listener| image:: files/05_run_listener.png
 .. |Run Tests| image:: files/06_run_tests.png
+.. |Run Forwarder| image:: files/07_run_forwarder.png
+.. |Run Historian| image:: files/08_run_historian.png
