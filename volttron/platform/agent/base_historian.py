@@ -842,7 +842,8 @@ class BaseHistorianAgent(Agent):
         # we strip it off to get the base device
         parts = topic.split('/')
         device = '/'.join(parts[1:-1])
-        msg = {}
+        # msg = [{data},{meta}] format
+        msg = [{},{}]
         try:
             # If the filter is empty pass all data.
             if self._device_data_filter:
@@ -860,6 +861,7 @@ class BaseHistorianAgent(Agent):
         except:
             _log.debug("Error handling device_data_filter.")
             msg = message
+
         self._capture_data(peer, sender, bus, topic, headers, msg, device)
 
     def _capture_analysis_data(self, peer, sender, bus, topic, headers,
