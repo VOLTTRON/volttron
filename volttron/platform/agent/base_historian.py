@@ -858,8 +858,8 @@ class BaseHistorianAgent(Agent):
                                 msg[1][point] = message[1][point]
             else:
                 msg = message
-        except:
-            _log.debug("Error handling device_data_filter.")
+        except Exception as e:
+            _log.debug("Error handling device_data_filter. {}".format(e))
             msg = message
 
         self._capture_data(peer, sender, bus, topic, headers, msg, device)
