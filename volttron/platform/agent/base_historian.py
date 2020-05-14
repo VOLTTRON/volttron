@@ -842,11 +842,16 @@ class BaseHistorianAgent(Agent):
         # we strip it off to get the base device
         parts = topic.split('/')
         device = '/'.join(parts[1:-1])
+        msg = {}
         try:
+            # If the filter is empty pass all data.
             if self.device_data_filter:
                 for filter, point_list  in self.device_data_filter.items():
+                    # If filter is not empty only topics that contain the key
+                    # will be kept.
                     if filter in device:
                         for point in point_list:
+                            # Only points in the point list will be added to the message payload
                             if point in message[0]:
                                 msg[0][point] = message[0][point]
                                 msg[1][point] = message[1][point]
@@ -855,7 +860,7 @@ class BaseHistorianAgent(Agent):
         except:
             _log.debug("Error handling device_data_filter.")
             msg = message
-        self._capture_data(peer, sender, bus, topic, headers, message, device)
+        self._capture_data(peer, sender, bus, topic, headers, msg, device)
 
     def _capture_analysis_data(self, peer, sender, bus, topic, headers,
                                message):
