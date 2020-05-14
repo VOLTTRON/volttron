@@ -583,7 +583,7 @@ class BaseHistorianAgent(Agent):
                                    custom_topics_list)
 
         self.stop_process_thread()
-        self.device_data_filter = config.get("device_data_filter")
+        self._device_data_filter = config.get("device_data_filter")
         try:
             self.configure(config)
         except Exception as e:
@@ -845,11 +845,11 @@ class BaseHistorianAgent(Agent):
         msg = {}
         try:
             # If the filter is empty pass all data.
-            if self.device_data_filter:
-                for filter, point_list  in self.device_data_filter.items():
+            if self._device_data_filter:
+                for _filter, point_list  in self._device_data_filter.items():
                     # If filter is not empty only topics that contain the key
                     # will be kept.
-                    if filter in device:
+                    if _filter in device:
                         for point in point_list:
                             # Only points in the point list will be added to the message payload
                             if point in message[0]:
