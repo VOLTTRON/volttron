@@ -243,8 +243,6 @@ class VolttronCentralAgent(Agent):
 
         self._authenticated_sessions = SessionHandler(Authenticate(users))
 
-        self.vip.web.register_endpoint(r'/vc/jsonrpc', self.jsonrpc)
-
         self.vip.web.register_websocket(r'/vc/ws',
                                         self.open_authenticate_ws_endpoint,
                                         self._ws_closed,

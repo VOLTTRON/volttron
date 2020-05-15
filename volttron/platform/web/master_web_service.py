@@ -50,7 +50,6 @@ import gevent.pywsgi
 from cryptography.hazmat.primitives import serialization
 from gevent import Greenlet
 from jinja2 import Environment, FileSystemLoader, select_autoescape
-from volttron.platform.agent.web import Response
 
 from ws4py.server.geventserver import WSGIServer
 
@@ -58,20 +57,29 @@ from .admin_endpoints import AdminEndpoints
 from .authenticate_endpoint import AuthenticateEndpoints
 from .csr_endpoints import CSREndpoints
 from .webapp import WebApplicationWrapper
+from volttron.platform.agent import utils
+from volttron.platform.agent.known_identities import CONTROL
 from ..agent.utils import get_fq_identity
 from ..agent.web import Response, JsonResponse
 from ..auth import AuthEntry, AuthFile, AuthFileEntryAlreadyExists
 from ..certs import Certs, CertWrapper
 from ..jsonrpc import (json_result,
                        json_validate_request,
-                       UNAUTHORIZED)
-from ..vip.agent import Agent, Core, RPC
+                       INVALID_REQUEST, METHOD_NOT_FOUND,
+                       UNHANDLED_EXCEPTION, UNAUTHORIZED,
+                       UNAVAILABLE_PLATFORM, INVALID_PARAMS,
+                       UNAVAILABLE_AGENT, INTERNAL_ERROR)
+
+from ..vip.agent import Agent, Core, RPC, Unreachable
 from ..vip.agent.subsystems import query
 from ..vip.socket import encode_key
-from ...platform import jsonapi, get_platform_config
+from ...platform import jsonapi, jsonrpc, get_platform_config
 from ...platform.aip import AIPplatform
 from ...utils import is_ip_private
 from ...utils.rmq_config_params import RMQConfig
+
+# must be after importing of utils which imports grequest.
+import requests
 
 _log = logging.getLogger(__name__)
 
@@ -208,7 +216,7 @@ class MasterWebService(Agent):
     def get_volttron_central_address(self):
         """Return address of external Volttron Central
 
-        Note: this only applies to Volltron Central agents that are
+        Note: this only applies to Volttron Central agents that are
         running on a different platform.
         """
         return self.volttron_central_address
@@ -621,6 +629,100 @@ class MasterWebService(Agent):
 
         return FileWrapper(open(filename, 'rb'))
 
+    def _to_jsonrpc_obj(self, jsonrpcstr):
+        """ Convert data string into a JsonRpcData named tuple.
+
+        :param object data: Either a string or a dictionary representing a json document.
+        """
+        return jsonrpc.JsonRpcData.parse(jsonrpcstr)
+
+    def jsonrpc(self, env, data):
+        """ The main entry point for ^jsonrpc data
+
+        This method will only accept rpcdata.  The first time this method
+        is called, per session, it must be using get_authorization.  That
+        will return a session token that must be included in every
+        subsequent request.  The session is tied to the ip address
+        of the caller.
+
+        :param object env: Environment dictionary for the request.
+        :param object data: The JSON-RPC 2.0 method to call.
+        :return object: An JSON-RPC 2.0 response.
+        """
+        if env['REQUEST_METHOD'].upper() != 'POST':
+            return JsonResponse(jsonapi.dumps(jsonrpc.json_error('NA', INVALID_REQUEST,
+                                      'Invalid request method, only POST allowed')))
+
+        try:
+            rpcdata = self._to_jsonrpc_obj(data)
+            _log.info('rpc method: {}'.format(rpcdata.method))
+            # Authentication url
+            # This does not need to be local, however for now we are going to
+            # make it so assuming only one level of authentication.
+            # auth_url = "{url_scheme}://{HTTP_HOST}/authenticate".format(
+            #     url_scheme=env['wsgi.url_scheme'],
+            #     HTTP_HOST=env['HTTP_HOST'])
+            # args = {'username': rpcdata.params['username'],
+            #         'password': rpcdata.params['password'],
+            #         'ip': env['REMOTE_ADDR']}
+            # resp = requests.post(auth_url, json=args, verify=False)
+            #
+            # if resp.ok and resp.text:
+            #     from volttron.platform.web import get_bearer, NotAuthorized
+            #     try:
+            #         claims = self.get_user_claims(resp.text)
+            #     except NotAuthorized:
+            #         _log.info('Invalid username/password for {}'.format(
+            #             rpcdata.params['username']))
+            #         return JsonResponse(jsonrpc.json_error(
+            #             rpcdata.id, UNAUTHORIZED,
+            #             "Invalid username/password specified."))
+
+            _log.debug('RPC METHOD IS: {}'.format(rpcdata.method))
+            if not rpcdata.method:
+                return JsonResponse(jsonapi.dumps(jsonrpc.json_error(
+                    'NA', INVALID_REQUEST, 'Invalid rpc data {}'.format(data))))
+            else:
+                if rpcdata.params:
+                    result_or_error = self.vip.rpc(rpcdata.id, rpcdata.method, rpcdata.params).get()
+                else:
+                    result_or_error = self.vip.rpc(rpcdata.id, rpcdata.method).get()
+
+        except AssertionError:
+            return JsonResponse(jsonapi.dumps(jsonrpc.json_error(
+                'NA', INVALID_REQUEST, 'Invalid rpc data {}'.format(data))))
+        except Unreachable:
+            return JsonResponse(jsonapi.dumps(jsonrpc.json_error(
+                rpcdata.id, UNAVAILABLE_PLATFORM,
+                "Couldn't reach platform with method {} params: {}".format(
+                    rpcdata.method,
+                    rpcdata.params))))
+        except Exception as e:
+
+            return JsonResponse(jsonapi.dumps(jsonrpc.json_error(
+                'NA', UNHANDLED_EXCEPTION, e
+            )))
+
+        return JsonResponse(jsonapi.dumps(self._get_jsonrpc_response(rpcdata.id, result_or_error)))
+
+    def _get_jsonrpc_response(self, id, result_or_error):
+        """ Wrap the response in either a json-rpc error or result.
+
+        :param id:
+        :param result_or_error:
+        :return:
+        """
+        if isinstance(result_or_error, dict):
+            if 'jsonrpc' in result_or_error:
+                return result_or_error
+
+        if result_or_error is not None and isinstance(result_or_error, dict):
+            if 'error' in result_or_error:
+                error = result_or_error['error']
+                _log.debug("RPC RESPONSE ERROR: {}".format(error))
+                return jsonrpc.json_error(id, error['code'], error['message'])
+        return jsonrpc.json_result(id, result_or_error)
+
     @Core.receiver('onstart')
     def startupagent(self, sender, **kwargs):
 
@@ -660,11 +762,9 @@ class MasterWebService(Agent):
         _log.info('Starting web server binding to {}://{}:{}.'.format(parsed.scheme,
                                                                       hostname, port))
         # Handle the platform.web routes here.
-        self.registeredroutes.append((re.compile('^/discovery/$'), 'callable',
-                                      self._get_discovery))
-        self.registeredroutes.append((re.compile('^/discovery/allow$'),
-                                      'callable',
-                                      self._allow))
+        self.registeredroutes.append((re.compile('^/discovery/$'), 'callable', self._get_discovery))
+        self.registeredroutes.append((re.compile('^/discovery/allow$'), 'callable', self._allow))
+        self.registeredroutes.append((re.compile(r'/jsonrpc'), 'callable', self.jsonrpc))
         # these routes are only available for rmq based message bus
         # at present.
         if self.core.messagebus == 'rmq':
