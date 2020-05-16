@@ -684,7 +684,7 @@ class MasterWebService(Agent):
                     'NA', INVALID_REQUEST, 'Invalid rpc data {}'.format(data))))
             else:
                 if rpcdata.params:
-                    result_or_error = self.vip.rpc(rpcdata.id, rpcdata.method, rpcdata.params).get()
+                    result_or_error = self.vip.rpc(rpcdata.id, rpcdata.method, **rpcdata.params).get()
                 else:
                     result_or_error = self.vip.rpc(rpcdata.id, rpcdata.method).get()
 
