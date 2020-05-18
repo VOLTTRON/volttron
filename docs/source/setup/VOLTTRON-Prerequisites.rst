@@ -35,10 +35,10 @@ command:
 .. code-block:: bash
 
    sudo yum update
-   sudo yum install make automake gcc gcc-c++ kernel-devel python3.6-devel pythone3.6-venv openssl openssl-devel libevent-devel git
+   sudo yum install make automake gcc gcc-c++ kernel-devel python3-devel openssl openssl-devel libevent-devel git
 
 .. note::
-   The above commands are specific to 3.6, however you could use 3.6 or greater in them.
+   Python 3.6 or greater is required.
 
 If you have an agent which requires the pyodbc package, install the
 following:
@@ -46,9 +46,24 @@ following:
 -  freetds-bin
 -  unixodbc-dev
 
-::
+On **Debian-based systems** these can be installed with the following command:
+
+.. code-block:: bash
 
     sudo apt-get install freetds-bin  unixodbc-dev
+
+On **Redhat or CentOS systems**, these can be installed from the Extra Packages for Enterprise Linux (EPEL) repository:
+
+.. code-block:: bash
+
+    sudo yum install https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
+    sudo yum install freetds unixODBC-devel
+
+.. note::
+    The above command to install the EPEL repository is for Centos/Redhat 8. Change the number to match your OS version.
+
+    EPEL packages are included in Fedora repositories, so installing EPEL is not required on Fedora.
+
 
 Possible issues
 ~~~~~~~~~~~~~~~
