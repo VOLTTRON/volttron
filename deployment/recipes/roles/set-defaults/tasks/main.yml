@@ -5,21 +5,28 @@
 ---
 - name: Set default values
   set_fact:
+    ## enable verbose debugging tasks
+    verbose_debug_tasks: "{{ verbose_debug_tasks | default(False) }}"
+    ## some standard ansible vars where we want to ensure assignment and defaults
     ansible_user: "{{ ansible_user | default(ansible_user_id) }}"
-    ansible_python_interpreter: "{{ ansible_python_interpreter | default('/usr/bin/python3') }}"
+    ansible_python_interpreter: "{{ ansible_python_interpreter | default('{{discovered_interpreter_python}}') }}"
+    ## extra system-level pacakges to install
+    extra_system_packages: "{{ extra_system_packages | default([]) }}"
+    ## our custom ansible module has dependencies, install them to a venv
+    venv_for_ansible: "{{ venv_for_ansible | default('{{ ansible_env.HOME }}/ansible_venv') }}"
     ## variables related to the version of volttron to be installed
+    volttron_use_local_source: "{{ volttron_use_local_source | default(False) }}"
     volttron_git_organization: "{{ volttron_git_organization | default('volttron') }}"
     volttron_git_repo: "{{ volttron_git_repo | default('volttron') }}"
     volttron_git_branch: "{{ volttron_git_branch | default('develop') }}"
     ## variables related to where volttron source and platform state are stored on the node
     volttron_home: "{{ volttron_home | default('{{ ansible_env.HOME }}/.volttron') }}"
     volttron_root: "{{ volttron_root | default('{{ ansible_env.HOME }}/volttron') }}"
-    volttron_venv: "{{ volttron_env | default('{{ ansible_env.HOME }}/volttron.venv') }}"
-    ## variables defining where the (locally versioned) platform configuration will be placed on the node
+    volttron_venv: "{{ volttron_venv | default('{{ ansible_env.HOME }}/volttron.venv') }}"
+    ## variables defining where the platform configuration will be placed on the node
     host_config: "{{ host_config | default('{{ ansible_env.HOME }}/host.config.yml') }}"
     host_configs_dir: "{{ host_configs_dir | default('{{ ansible_env.HOME }}/configs') }}"
     ## installation feature options for the installed volttron platform
-    enable_web: "{{ enable_web | default(False) }}"
     enable_drivers: "{{ enable_drivers | default(False) }}"
     extra_requirements: "{{ extra_requirements | default([]) }}"
     http_proxy: "{{ http_proxy | default('') }}"
@@ -27,8 +34,6 @@
 ## the following facts must be set in separate tasks because they build on earlier facts
 ## NOTE: ansible does not consider paths relative to CWD, these paths must be absolute
 ##       (or in the tree of the playbook in a default searched location)
-- set_fact:
-    original_ansible_python_interpreter: "{{ ansible_python_interpreter }}"
 - set_fact:
     ## absolute path to configurations directory for all deployments in inventory
     deployment_config_root: "{{ deployment_config_root | default(inventory_dir) }}"
@@ -41,3 +46,15 @@
 - set_fact:
     ## absolute path to the platform configuration file for this node
     deployment_platform_config_file: "{{ deployment_platform_config_file | default( deployment_host_config_dir + '/' + inventory_hostname + '.yml' ) }}"
+
+## Derived facts, not configurable in inventory
+- set_fact:
+    original_ansible_python_interpreter: "{{ ansible_python_interpreter }}"
+- name: load host configuration
+  local_action:
+    module: include_vars
+    file: "{{ deployment_platform_config_file }}"
+    name: host_configuration
+- set_fact:
+    message_bus: "{{ host_configuration['config']['message-bus'] | default('zmq') }}"
+    instance_name: "{{ host_configuration['config']['instance-name'] | default(inventory_hostname) }}"

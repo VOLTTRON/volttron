@@ -1,0 +1,14 @@
+### copy the local volttron_root to the remote (useful for deploying a local development
+### branch without needing to iterate through commit/push/pull cycles)
+---
+- name: copy local volttron root
+  synchronize:
+    src: "{{ playbook_dir }}/../.."
+    dest: "{{ volttron_root }}"
+    rsync_opts:
+    - "--exclude=.git"
+    - "--exclude-from={{ playbook_dir }}/../../.gitignore"
+  register: local_copy_result
+- name: update volttron_source_changed
+  set_fact:
+    volttron_source_changed: "{{local_copy_result.changed}}"

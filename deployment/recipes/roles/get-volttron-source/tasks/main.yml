@@ -1,0 +1,10 @@
+### A role for placing the volttron source on a remote system in the expected location.
+### It is only responsible for updating the source, not updating what is installed.
+### (Though an editable pip install uses symbolic links and may still update in place)
+---
+- name: copy volttron source from github
+  when: not volttron_use_local_source
+  include: from-github.yml
+- name: copy local volttron source
+  when: volttron_use_local_source
+  include: from-local.yml

@@ -1,0 +1,62 @@
+### download volttron source from github and place at volttron_root
+### registers `volttron_source_changed` fact (based on hash of tarball)
+---
+- name: Download volttron repository tarball
+  get_url:
+    url: https://github.com/{{ volttron_git_organization }}/{{ volttron_git_repo }}/archive/{{ volttron_git_branch }}.tar.gz
+    dest: "/tmp/volttron-{{ volttron_git_branch }}.tar.gz"
+    force: yes
+
+- name: Stat volttron dir
+  stat:
+    path: "{{ volttron_root }}"
+  register: volttron_path_stat
+
+- name: Stat tar file
+  stat:
+    path: "/tmp/volttron-{{ volttron_git_branch }}.tar.gz"
+    get_checksum: yes
+  register: new_tar_stat
+
+- name: Stat old tar
+  stat:
+    path: "{{ ansible_env.HOME }}/volttron-source.tar.gz"
+    get_checksum: yes
+  register: old_tar_stat
+
+- name: Check if volttron source is updated
+  set_fact:
+    volttron_source_changed: "{{ (not volttron_path_stat.stat.exists or not old_tar_stat.stat.exists or (new_tar_stat.stat.checksum != old_tar_stat.stat.checksum)) }}"
+
+- name: "[re]establish volttron source directory"
+  when: volttron_source_changed
+  block:
+  - name: Move new file
+    command: mv "/tmp/volttron-{{ volttron_git_branch }}.tar.gz" "{{ ansible_env.HOME }}/volttron-source.tar.gz"
+
+  - name: Remove volttron source root dir if exists
+    file:
+      path: "{{ volttron_root }}"
+      state: absent
+
+  - name: Create a path to unarchive into
+    file:
+      path: "/tmp/volttron_source"
+      state: absent
+  - name: Create a path to unarchive into
+    file:
+      path: "/tmp/volttron_source"
+      state: directory
+  - name: Extract source archive
+    unarchive:
+      src: "{{ ansible_env.HOME }}/volttron-source.tar.gz"
+      dest: "/tmp/volttron_source"
+      remote_src: yes
+
+  - name: Place source tree at volttron root
+    command: mv "/tmp/volttron_source/{{volttron_git_repo}}-{{volttron_git_branch}}" "{{ volttron_root }}"
+  - name: Cleanup unarchive artifacts
+    file:
+      path: "/tmp/volttron_source"
+      state: absent
+## end of block to update volttron source
