@@ -27,7 +27,7 @@
     host_config: "{{ host_config | default('{{ ansible_env.HOME }}/host.config.yml') }}"
     host_configs_dir: "{{ host_configs_dir | default('{{ ansible_env.HOME }}/configs') }}"
     ## installation feature options for the installed volttron platform
-    enable_drivers: "{{ enable_drivers | default(False) }}"
+    volttron_features: "{{ volttron_features | default([]) }}"
     extra_requirements: "{{ extra_requirements | default([]) }}"
     http_proxy: "{{ http_proxy | default('') }}"
 
