@@ -87,6 +87,6 @@ class ResultsDictionary(WeakValueDictionary):
 
     def __next__(self):
         result = AsyncResult()
-        result.ident = ident = '%s.%s' % (next(self._counter), hash(result))
+        result.ident = ident = '%f.%f' % (next(self._counter), hash(result))
         self[ident] = result
         return result
