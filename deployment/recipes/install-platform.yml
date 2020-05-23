@@ -30,8 +30,7 @@
         dest: "{{ volttron_root }}/env"
         state: link
 
-    ## Testing bootrap module
-    - name: bootstrap module test
+    - name: bootstrap the VOLTTRON environment
       volttron_bootstrap:
         volttron_root: "{{volttron_root}}"
         features:
@@ -39,32 +38,9 @@
         - "{{ (message_bus == 'rmq') | ternary('rabbitmq', None) }}"
         - "{{ volttron_features }}"
       register: v_b_result
-    #- debug:
-    #    #msg: "{{ v_b_result | dict2items }}"
-    #    msg: "{{ item.key }}: {{ item.value }}"
-    #  with_dict: "{{ v_b_result }}"
     - debug:
-       msg: "{{ v_b_result.command }}"
-
-    #- name: Bootstrap the python3 environment
-    #  when: volttron_source_changed
-    #  command:
-    #    cmd: "{{ volttron_venv }}/bin/python bootstrap.py"
-    #    chdir: "{{ volttron_root }}"
-    #  register: bootstrap_output
-
-    #- name: Boostrap rmq environment
-    #  when: (message_bus == "rmq")
-    #  command:
-    #    cmd: "{{ volttron_venv }}/bin/python bootstrap.py --rabbitmq"
-    #    chdir: "{{ volttron_root }}"
-
-    #- name: Enabling web packages for environment
-    #  when: host_configuration['config']['bind-web-address'] is defined
-    #  command:
-    #    cmd: "{{ volttron_venv }}/bin/python bootstrap.py --web"
-    #    chdir: "{{ volttron_root }}"
-
+        msg: "{{ v_b_result.command }}"
+      when: verbose_debug_tasks
 
     - name: Install extra requirements for this instance
       pip:

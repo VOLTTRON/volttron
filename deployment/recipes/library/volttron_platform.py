@@ -41,10 +41,12 @@
 # Note for reference, this module is developed per the patter in the ansible
 # docs here: https://docs.ansible.com/ansible/latest/dev_guide/developing_modules_documenting.html
 
-import itertools
+##TODO remove imports if we don't need them
+#import itertools
 import os
+import psutil
 import subprocess
-import sys
+#import sys
 
 ANSIBLE_METADATA = {
     'metadata_version': '1.1',
@@ -54,62 +56,63 @@ ANSIBLE_METADATA = {
 
 DOCUMENTATION = '''
 ---
-module: volttron_bootstrap
+module: volttron_platform
 
-short_description: Use VOLTTRON's bootstrap script to install user-space dependencies
+short_description: Manage the state of an existing platform
 
 description:
-    - This module makes use of the packaged "bootstrap.py" script that is included with VOLTTRON to install extra dependencies.
-    - It assumes that the full VOLTTRON source tree exists on the target system and executes the command using python's subprocess.
-    - This is basically some extra logic on top of direct use of the shell module to add logic to detect when the system has been changed.
+    - Manage the state of an installed VOLTTRON platform (start/stop).
+    - Note that there is no 'restart' state (that would not be idempotent), you can use two tasks to set "stopped" immediately followed by "running"
 
 options:
     volttron_root:
         description:
-            - path to the VOLTTRON source tree (where bootstrap.py will be found)
+            - path to the VOLTTRON source tree (where start_volttron and stop_volttron are found)
         default: $HOME/volttron
-    volttron_env:
+        type: string
+    volttron_home:
         description:
-            - path to the VOLTTRON virtual environment to be used
-        default: $volttron_root/env
-    features:
+            - path to the VOLTTRON_HOME directory for this instance
+        default: $HOME/.volttron'
+        type: string
+    state:
         description:
-            - List of the bootstrap options to enable on the remote system.
-            - Dynamically supports all options of bootstrap.py (run `python3 /path/to/bootstrap.py --help` for a complete listing)
-            - Options should be listed without the argument prefix (`--`)
-            - If missing or an empty list, bootstraps the base system without any extra options.
-            - Any elements which evaluate to false is ignored, allowing logic statements in the playbook list elements.
-        required: false
-        type: list
-        elements: string
+            - set if the platform should be "running" or "stopped"
+        default: "running"
+        choices:
+            - "running"
+            - "stopped"
+        type: string
 
 '''
 
 EXAMPLES = '''
-# Bootstrap only the base system
-- name: Test bootstrap the base system only
-  volttron_bootstrap:
+# Start the platform
+- name: Start platform
+  volttron_platform:
     volttron_root: /home/username/volttron
+    state: running
 
 '''
 
 RETURN = '''
-bootstrap_stdout:
-    description: the stdout from the bootstrap subprocess
+stdout:
+    description: the stdout from the [start,stop]_volttron script
     type: str
-    returned: always
-bootstrap_stderr:
-    description: the stderr from the bootstrap subprocess
+    returned: when subprocess is executed
+stderr:
+    description: the stderr from the [start,stop]_volttron script
     type: str
-    returned: always
+    returned: when subprocess is executed
 command:
-    description: the full bootstrap command as executed
-    type: str
-    returned: always
+    description: the full details of the command as executed in subprocess
+    type: list
+    elements: string
+    returned: when subprocess is executed
 return_code:
-    description: the shell return code from the bootstrap subprocess
-    type: str
-    returned: always
+    description: the shell return code produced by the subprocess
+    type: int
+    returned: when subprocess is executed
 '''
 
 from ansible.module_utils.basic import AnsibleModule
@@ -118,57 +121,73 @@ def update_logical_defaults(module):
     params = module.params
 
     if params['volttron_root'] is None:
-        params['volttron_root'] = f'{os.path.expanduser("~")}/volttron'
-    if params['volttron_env'] is None:
-        params['volttron_env'] = os.path.join(params['volttron_root'], 'env')
+        params['volttron_root'] = f'{os.path.join(os.path.expanduser("~"), "volttron")}'
+    if params['volttron_home'] is None:
+        params['volttron_home'] = f'{os.path.join(os.path.expanduser("~"), ".volttron")}'
 
     return params
 
-def get_package_list(volttron_python):
-    freeze_result = subprocess.run(
-        args = [volttron_python, '-m', 'pip', 'freeze'],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        check = True,
-    )
-    return freeze_result.stdout.decode()
+def check_pid(pid_file):
+    is_running = False
+    if os.path.exists(pid_file):
+        pid = int(open(pid_file, 'r').read())
+        if psutil.pid_exists(pid):
+            is_running = True
+    return is_running
 
-def execute_bootstrap(module):
+def execute_task(module):
     results = {}
     params = module.params
 
-    volttron_python = os.path.join(params['volttron_env'], 'bin/python')
-    if not os.path.exists(volttron_python):
-        module.fail_json("volttron python not found, volttron_bootstrap requires an existing venv")
+    available_scripts = {
+        "running": "./start-volttron",
+        "stopped": "./stop-volttron",
+    }
 
-    initial_packages = get_package_list(volttron_python)
+    is_running = False
+    pid_file_path = os.path.join(params['volttron_home'], 'VOLTTRON_PID')
+    is_running = check_pid(pid_file_path)
 
-    ## unpack one layer of nested lists
-    features = itertools.chain(*[item if isinstance(item, list) else [item] for item in params['features']])
-    bootstrap_result = subprocess.run(
+    # if already in the desired state, do nothing
+    if params['state'] == "running" and is_running:
+        return results
+    if params['state'] == "stopped" and not is_running:
+        return results
+
+    # since not in the desired state, attempt to move to that state
+    subprocess_env = dict(os.environ)
+    subprocess_env.update({
+        'VOLTTRON_HOME': params['volttron_home'],
+    })
+    script_result = subprocess.run(
         args = [
-            volttron_python,
-            os.path.join(params['volttron_root'], 'bootstrap.py'),
-            *[f'--{feature}' for feature in features if feature],
+            available_scripts[params['state']],
         ],
         stdout = subprocess.PIPE,
         stderr = subprocess.PIPE,
+        cwd = params['volttron_root'],
+        env = subprocess_env,
+        preexec_fn=os.setpgrp,
     )
     results.update({
-        'command': bootstrap_result.args,
-        'return_code': bootstrap_result.returncode,
-        'bootstrap_stdout': bootstrap_result.stdout.decode(),
-        'bootstrap_stderr': bootstrap_result.stderr.decode(),
+        'command': script_result.args,
+        'return_code': script_result.returncode,
+        'stdout': script_result.stdout.decode(),
+        'stderr': script_result.stderr.decode(),
+        'changed': True,
     })
 
-    final_packages = get_package_list(volttron_python)
+    # if script failed, propagate failure
+    if script_result.returncode != 0:
+        module.fail_json(msg=f'{available_scripts[params["state"]]} returned an error', **results)
+    # re-check state and fail if not in desired state
+    is_running = check_pid(pid_file_path)
+    if params['state'] == "running" and not is_running:
+        module.fail_json(msg='start script returned success but VOLTTRON PID not found', **results)
+    if params['state'] == 'stopped' and is_running:
+        module.fail_json(msg='stop script returned success but VOLTTRON PID still exists', **results)
 
-    if final_packages != initial_packages:
-        results['changed'] = True
-    if 'rabbitmq' in params['features']:
-        ## TODO is it possible to bootstrap with --rabbitmq and not cause change/disruption? I think the bootstrap script may always overwrite things, need to check.
-        results['changed'] = True
-
+    # if no failures, return results
     return results
 
 def run_module():
@@ -177,17 +196,21 @@ def run_module():
     module_args = {
         "volttron_root": {
             "type": "str",
-            "required": True,
+            "default": None,
         },
-        "volttron_env": {
+        "volttron_home": {
             "type": "str",
             "required": False,
             "default": None,
         },
-        "features": {
-            "type": "list",
+        "state": {
+            "type": "str",
             "required": False,
-            "default": [],
+            "default": "running",
+            "choices": [
+                "running",
+                "stopped",
+            ]
         }
     }
 
@@ -198,8 +221,10 @@ def run_module():
     # for consumption, for example, in a subsequent task
     result = {
         'changed': False,
-        'bootstrap_stdout': '',
-        'bootstrap_stderr': '',
+        'stdout': '',
+        'stderr': '',
+        'command': [],
+        'return_code': None,
     }
 
     # the AnsibleModule object will be our abstraction working with Ansible
@@ -210,7 +235,6 @@ def run_module():
         argument_spec=module_args,
         supports_check_mode=True
     )
-
     module.params = update_logical_defaults(module)
 
     # if the user is working with this module in only check mode we do not
@@ -219,8 +243,9 @@ def run_module():
     if module.check_mode:
         module.exit_json(**result)
 
+    # actually execute the task
     try:
-        result.update(execute_bootstrap(module))
+        result.update(execute_task(module))
     except Exception as e:
         module.fail_json(msg='volttron_bootstrap had an unhandled exception', error=repr(e))
 
