@@ -815,7 +815,7 @@ class BaseHistorianAgent(Agent):
                 if tz:
                     meta['tz'] = tz
                 elif my_tz:
-                    meta['tz'] = my_tz
+                    meta['tz'] = my_tz.zone
 
             self._event_queue.put({'source': 'log',
                                    'topic': topic + '/' + point,
