@@ -80,6 +80,18 @@ ActuatorAgent.core.identity = "Foo"
 
 
 @pytest.mark.actuator
+@pytest.mark.parametrize("topic, point", [("foo/bar", None), ("foo/bar", "dfadsf")])
+def test_get_point_should_succeed(topic, point):
+    actuator_agent = ActuatorAgent()
+    actuator_agent.driver_vip_identity = "foo"
+    actuator_agent.vip.rpc.call.return_value = FakeResponse({})
+
+    result = actuator_agent.get_point(topic, point=point)
+
+    assert result is not None
+
+
+@pytest.mark.actuator
 @pytest.mark.parametrize(
     "point, device_state",
     [
@@ -129,6 +141,18 @@ def test_set_point_should_raise_lock_error():
         value = "some value"
 
         actuator_agent.set_point(requester_id, topic, value)
+
+
+@pytest.mark.actuator
+def test_scrape_all_should_succeed():
+    actuator_agent = ActuatorAgent()
+    actuator_agent.driver_vip_identity = "fdafd"
+    actuator_agent.vip.rpc.call.return_value = FakeResponse({})
+    topic = "foo/bar"
+
+    result = actuator_agent.scrape_all(topic)
+
+    assert result is not None
 
 
 @pytest.mark.actuator
