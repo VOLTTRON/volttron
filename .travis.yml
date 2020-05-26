@@ -1,8 +1,16 @@
-language: python2.7
+dist: xenial # current default for Linux is Ubuntu 16.04; see https://docs.travis-ci.com/user/reference/xenial/
 
-# Each array entry will execute 1 job.
+language: python 
+python:
+ - 3.6 # current default on Travis CI
+ - 3.7
+ - 3.8
+
+# environment variables that are global will be used for every job
 env:
-  - NUM_PROCESSES=10 CI="travis"
+  global:
+  - NUM_PROCESSES=10 
+  - CI="travis"
 
 services:
   - docker
