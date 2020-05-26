@@ -65,6 +65,15 @@ TIME_SLOT_REQUESTS = [
     ["fakedriver0", str(datetime.now()), str(datetime.now() + timedelta(seconds=1))]
 ]
 
+
+class FakeResponse:
+    def __init__(self, result):
+        self.result = result
+
+    def get(self):
+        return self.result
+
+
 actuator.agent._log = logging.getLogger("test_logger")
 ActuatorAgent.__bases__ = (AgentMock.imitate(Agent, Agent()),)
 ActuatorAgent.core.identity = "Foo"
@@ -135,12 +144,7 @@ def test_set_point_should_raise_lock_error():
 def test_get_multiple_points_should_succeed(topics):
     actuator_agent = ActuatorAgent()
     actuator_agent.driver_vip_identity = "some vip identity"
-
-    class Response:
-        def get(self):
-            return ({"result": "value"}, {})
-
-    actuator_agent.vip.rpc.call.return_value = Response()
+    actuator_agent.vip.rpc.call.return_value = FakeResponse(({"result": "value"}, {}))
 
     results, errors = actuator_agent.get_multiple_points(topics)
     assert results is not None
@@ -182,12 +186,7 @@ def test_set_multiple_points_should_succeed(topic_values, device_states):
     actuator_agent.vip.rpc.context.vip_message.peer = "requester-id-1"
     actuator_agent.driver_vip_identity = "some_vip_id"
     actuator_agent._device_states = device_states
-
-    class Response:
-        def get(self):
-            return {}
-
-    actuator_agent.vip.rpc.call.return_value = Response()
+    actuator_agent.vip.rpc.call.return_value = FakeResponse(({}))
 
     result = actuator_agent.set_multiple_points("request-id-1", topic_values)
 
