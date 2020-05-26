@@ -69,7 +69,7 @@ from crate.client.exceptions import ConnectionError, ProgrammingError
 from volttron.platform.jsonapi import dumps
 from volttron.utils.docs import doc_inherit
 
-__version__ = '3.2'
+__version__ = '3.3'
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -97,7 +97,6 @@ def historian(config_path, **kwargs):
         config_dict = utils.load_config(config_path)
 
     cn_node = config_dict.pop('connection', {})
-
     CrateHistorian.__name__ = 'CrateHistorian'
     utils.update_kwargs_with_config(kwargs, config_dict)
     return CrateHistorian(cn_node, **kwargs)
@@ -109,8 +108,7 @@ class CrateHistorian(BaseHistorian):
 
     """
 
-    def __init__(self, config_connection, schema="historian", tables_def=None, error_trace=False,
-                 **kwargs):
+    def __init__(self, config_connection, tables_def=None, **kwargs):
         """
         Initialize the historian.
 
@@ -121,7 +119,7 @@ class CrateHistorian(BaseHistorian):
         In addition, the _topic_map is used for caching topics and its metadata.
 
         :param connection: dictionary that contains necessary information to
-        establish a connection to the crate database. The dictionary should
+        establish a: connection to the crate database. The dictionary should
         contain two entries -
          1. 'type' - describe the type of database and
          2. 'params' - parameters for connecting to the database.
@@ -147,10 +145,10 @@ class CrateHistorian(BaseHistorian):
         self._data_table = table_names['data_table']
         self._topic_table = table_names['topics_table']
         self._params = config_connection.get("params", {})
-        self._schema = schema
+        self._schema = config_connection.get("schema", "historian")
         self._error_trace = config_connection.get("error_trace", False)
         config = {
-            "schema": schema,
+            "schema": self._schema,
             "connection": config_connection
         }
         if tables_def:
