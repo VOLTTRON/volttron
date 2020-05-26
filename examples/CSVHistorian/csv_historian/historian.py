@@ -36,7 +36,6 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-
 import sys
 import logging
 
@@ -53,12 +52,10 @@ __version__ = '1.0.1'
 
 def historian(config_path, **kwargs):
     """
-    This method is called by the :py:func:`crate_historian.historian.main` to parse
+    This method is called by the main method to parse
     the passed config file or configuration dictionary object, validate the
-    configuration entries, and create an instance of CSVHistorian
-
-    :param config_path: could be a path to a configuration file or can be a
-                        dictionary object
+    configuration entries, and create an instance of the CSVHistorian class
+    :param config_path: could be a path to a configuration file or can be a dictionary object
     :param kwargs: additional keyword arguments if any
     :return: an instance of :py:class:`CSVHistorian`
     """
@@ -69,7 +66,7 @@ def historian(config_path, **kwargs):
 
     output_path = config_dict.get("output", "historian_output.csv")
 
-    return CSVHistorian(output_path = output_path, **kwargs)
+    return CSVHistorian(output_path=output_path, **kwargs)
 
 
 class CSVHistorian(BaseHistorian):
@@ -81,12 +78,15 @@ class CSVHistorian(BaseHistorian):
     def __init__(self, output_path="", **kwargs):
         self.output_path = output_path
         self.csv_dict = None
+        self.csv_file = None
         super(CSVHistorian, self).__init__(**kwargs)
 
+    def version(self):
+        return __version__
 
     def publish_to_historian(self, to_publish_list):
         for record in to_publish_list:
-            row = {}
+            row = dict()
             row["timestamp"] = record["timestamp"]
 
             row["source"] = record["source"]
@@ -96,13 +96,13 @@ class CSVHistorian(BaseHistorian):
             self.csv_dict.writerow(row)
 
         self.report_all_handled()
-        self.f.flush()
+        self.csv_file.flush()
 
     def historian_setup(self):
-        self.f = open(self.output_path, "wb")
-        self.csv_dict = csv.DictWriter(self.f, ["timestamp", "source", "topic", "value"])
+        self.csv_file = open(self.output_path, "w")
+        self.csv_dict = csv.DictWriter(self.csv_file, fieldnames=["timestamp", "source", "topic", "value"])
         self.csv_dict.writeheader()
-        self.f.flush()
+        self.csv_file.flush()
 
 
 def main(argv=sys.argv):
