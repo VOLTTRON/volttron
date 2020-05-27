@@ -1,0 +1,33 @@
+---
+- name: arm-specific ansible venv packages
+  pip:
+    virtualenv: "{{ venv_for_ansible }}"
+    virtualenv_command: /usr/bin/python3 -m venv
+    name:
+    - cython
+  when: ansible_architecture in ["arm7l"]
+  ## NOTE: on arm-based systems we require cython to be able to install some other dependencies.
+  ##       I believe that this is because there are not available binary distributions on PyPI
+
+# Create a dedicated venv to be used by ansible, where dependencies for any
+# modules may be installed, leaving both the system, and the volttron venv
+# free of those packages
+- name: Create ansbile virtual env
+  pip:
+    virtualenv: "{{ venv_for_ansible }}"
+    virtualenv_command: /usr/bin/python3 -m venv
+    name:
+    - pexpect
+
+- name: add selinux to ansible_venv on systems using selinux
+  when: ansible_selinux.status == "enabled"
+  pip:
+    virtualenv: "{{ venv_for_ansible }}"
+    name:
+    - selinux
+
+# Sets the ansible venv python interpreter to be the one that
+# is used for the rest of the tasks.
+- name: Set ansible interpreter
+  set_fact:
+    ansible_python_interpreter: "{{ venv_for_ansible }}/bin/python"

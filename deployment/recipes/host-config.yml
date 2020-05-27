@@ -1,0 +1,19 @@
+---
+- name: base system install
+  hosts: all
+  #vars:
+    # Ansible will use this path on remote hosts to run the interpreter with.
+   #ansible_python_interpreter: /usr/bin/python3
+  roles:
+  - set-defaults
+  - system-dependencies
+  tasks:
+
+  - name: Create custom fact directory
+    become: True
+    become_method: sudo
+    file:
+      owner: "{{ ansible_user }}"
+      recurse: yes
+      path: /etc/ansible/facts.d
+      state: directory

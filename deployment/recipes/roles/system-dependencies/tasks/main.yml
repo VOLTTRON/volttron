@@ -1,0 +1,25 @@
+### A role for ensuring that all system-level dependencies are installed.
+### Many tasks in this role require admin-level access, it will make changes
+### to the system and their is no support for reverting them.
+---
+- name: initialize install tracker fackt
+  set_fact:
+    dependencies_installed: no
+
+- name: install system packages
+  become: yes
+  become_method: sudo
+  block:
+
+  - name: install packages on apt-based systems
+    when: ansible_pkg_mgr == "apt"
+    include: apt-family.yml
+  - name: install packages on yum-based system
+    when: ansible_pkg_mgr == "yum"
+    include: yum-family.yml
+
+- name: ensure a distro-specific set of tasks executed
+  assert:
+    that:
+    - dependencies_installed
+    fail_msg: "the system ({{ansible_distribution}}:{{ansible_distribution_version}}) did not match any available distro types; packages not installed"

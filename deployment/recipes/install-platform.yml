@@ -1,0 +1,117 @@
+---
+- name: install VOLTTRON platform
+  hosts: all
+  vars:
+    volttron_source_changed: no
+  roles:
+  - set-defaults
+  - get-volttron-source
+  - ansible-venv
+  tasks:
+
+    ##NOTE there is no way to tell if the bootstrap steps are producing
+    ##     changes or not, this is not idiomatic ansible. It would be
+    ##     better if there were a changed condition.
+    ##     >> could achieve this with a custom module that checks pip freeze
+    ##        from before and after each call, maybe something simpler
+    - name: create volttron platform venv {{ volttron_venv }}
+      pip:
+        virtualenv: "{{ volttron_venv }}"
+        virtualenv_command: "/usr/bin/python3 -m venv"
+        ## We add setuptools here because the module needs at
+        ## a non-empty target list to avoid warnings and report
+        ## change status correctly
+        name:
+        - setuptools
+    - name: link the platform venv
+      when: volttron_venv != (volttron_root + "/env")
+      file:
+        src: "{{ volttron_venv }}"
+        dest: "{{ volttron_root }}/env"
+        state: link
+
+    - name: Bootstrap the python3 environment
+      when: volttron_source_changed
+      command:
+        cmd: "{{ volttron_venv }}/bin/python bootstrap.py"
+        chdir: "{{ volttron_root }}"
+      register: bootstrap_output
+
+    - name: Boostrap rmq environment
+      when: (message_bus == "rmq")
+      command:
+        cmd: "{{ volttron_venv }}/bin/python bootstrap.py --rabbitmq"
+        chdir: "{{ volttron_root }}"
+
+    - name: Enabling web packages for environment
+      when: host_configuration['config']['bind-web-address'] is defined
+      command:
+        cmd: "{{ volttron_venv }}/bin/python bootstrap.py --web"
+        chdir: "{{ volttron_root }}"
+
+    - name: Enabling master driver packages for environment
+      when: (enable_drivers == True)
+      command:
+        cmd: "{{ volttron_venv }}/bin/python bootstrap.py --drivers"
+        chdir: "{{ volttron_root }}"
+
+    - name: Install extra requirements for this instance
+      pip:
+        virtualenv: "{{ volttron_venv }}"
+        name: "{{ extra_requirements }}"
+      environment:
+        HTTP_PROXY: "{{ http_proxy }}"
+      when: (extra_requirements | length) > 0
+
+    - name: create environment activation script
+      template:
+        src: activate-instance-env.j2
+        dest: "{{ ansible_env.HOME }}/activate-{{ instance_name }}-env"
+
+    # configure the platform
+    - name: ensure VOLTTRON_HOME exists
+      file:
+        path: "{{ volttron_home }}"
+        state: directory
+        mode: 0755
+    - name: set instance name
+      ini_file:
+        path: "{{ volttron_home }}/config"
+        section: volttron
+        option: instance-name
+        value: "{{ instance_name }}"
+        mode: '0600'
+        backup: yes
+    - name: ensure platform configuration
+      loop: "{{ host_configuration.config | dict2items }}"
+      ini_file:
+        path: "{{ volttron_home }}/config"
+        section: volttron
+        option: "{{ item.key }}"
+        value: "{{ item.value }}"
+        mode: '0600'
+        backup: yes
+
+    # For RMQ, do the extra config/bootstrapping/cert generation
+    - name: rabbitmq configuration
+      when: message_bus == "rmq"
+      block:
+      - name: create rabbitmq config
+        template:
+          src: rabbitmq_config.yml.j2
+          dest: "{{volttron_home }}/rabbitmq_config.yml"
+
+      - name: run vcfg to configure for RMQ
+        ##NOTE: note that this task will always report changes and will replace and recreate the rmq confg (even if no changes)
+        ##      this is not great design generally, and violates idempotent expectations in ansible. For now we roll with it.
+        expect:
+          command: "{{ volttron_venv }}/bin/vcfg --vhome {{volttron_home}} --instance-name {{ instance_name }} --rabbitmq single {{ volttron_home }}/rabbitmq_config.yml"
+          responses:
+            '.*Remove [a-zA-Z1-9_\-./]*/rabbitmq.conf?.*': 'y'
+            '.*Do you want to use this certificate.*': ''
+          timeout: 90
+        register: vcfg_result
+      - name: debug pint of vcfg results
+        when: verbose_debug_tasks
+        debug:
+          msg: "{{ vcfg_result }}"
