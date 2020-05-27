@@ -42,13 +42,14 @@ def get_hostname_and_random_port(min_ip=5000, max_ip=6000):
     except socket.gaierror:
         err = "Lookup of hostname {} unssucessful, please verify your /etc/hosts " \
               "doesn't have a local resolution to hostname".format(hostname)
-        raise StandardError(err)
+        raise AttributeError(err)
     return hostname, port
 
 
 def poll_gevent_sleep(max_seconds, condition=lambda: True, sleep_time=0.2):
     """Sleep until condition is true or max_seconds has passed.
 
+    :param sleep_time:
     :param int max_seconds: max seconds to wait for condition
     :param function condition: function to run (must return bool)
     :return: True if condition returned true; False on timeout
@@ -179,7 +180,7 @@ def validate_published_device_data(expected_headers, expected_message,
 
 
 class AgentMock(object):
-    '''
+    """
     The purpose for this parent class is to be used for unit
     testing of agents. It takes in the class methods of other
     classes, turns them into it's own mock methods. For testing,
@@ -193,7 +194,7 @@ class AgentMock(object):
     Also, the parent class Agent is passed as both Agent and the
     instantiated Agent(), since it contains a class within it
     that needs to be mocked as well
-    '''
+    """
     @classmethod
     def imitate(cls, *others):
         for other in others:

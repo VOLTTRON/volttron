@@ -1,11 +1,13 @@
+.. _Driven-Applications:
+
 Driven Agents
 =============
 
-Configuration for running openeis applications within volttron.
+Configuration for running OpenEIS applications within VOLTTRON.
 ---------------------------------------------------------------
 
-The configuration of an agent within volttron requires a small
-modification to the imports of the openeis application and a couple of
+The configuration of an agent within VOLTTRON requires a small
+modification to the imports of the OpenEIS application and a couple of
 configuration parameters.
 
 Import and Extend

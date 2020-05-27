@@ -76,7 +76,7 @@ The VOLTTRON server should run on the same host as the Jupyter server.
 
     $ cd volttron
     $ git checkout develop
-    $ python2.7 bootstrap.py
+    $ python bootstrap.py
 
 *Activate and initialize the VOLTTRON virtual environment:*
 
@@ -126,14 +126,14 @@ Note: If ``pip install`` fails due to an untrusted cert, try using this command 
 
 **Configure VOLTTRON**
 
-Use the ``volttron-cfg`` wizard to configure the VOLTTRON instance. By default, the wizard
+Use the ``vcfg`` wizard to configure the VOLTTRON instance. By default, the wizard
 configures a VOLTTRON instance that communicates with agents only on the local host (ip 127.0.0.1).
 This set of notebooks manages communications among multiple VOLTTRON instances on different hosts.
 To enable this cross-host communication on VOLTTRON's web server, replace 127.0.0.1 with the
 host's IP address, as follows:
 ::
 
-    $ volttron-cfg
+    $ vcfg
 
 -   Accept all defaults, except as follows.
 -   If a prompt defaults to 127.0.0.1 as an IP address, substitute the ``host's IP address`` (this may happen multiple times).
@@ -150,7 +150,7 @@ Start the main VOLTTRON process, logging to $VOLTTRON_ROOT/volttron.log:
 This runs VOLTTRON as a foreground process. To run it in the background, use:
 ::
 
-    $ volttron -vv -l volttron.log --msgdebug &
+    $ ./start-volttron --msgdebug
 
 This also enables the Message Debugger, a non-production VOLTTRON debugging aid
 that's used by some notebooks. To run with the Message Debugger disabled (VOLTTRON's normal state),

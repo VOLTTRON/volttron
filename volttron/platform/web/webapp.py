@@ -1,9 +1,8 @@
 import logging
 
-
 from ws4py.server.geventserver import WebSocketWSGIApplication
 
-from websocket import VolttronWebSocket
+from .websocket import VolttronWebSocket
 
 _log = logging.getLogger(__name__)
 

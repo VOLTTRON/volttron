@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -41,10 +41,6 @@ from csv import DictWriter
 
 import logging
 import argparse
-
-from bacpypes.object import get_datatype
-from bacpypes.primitivedata import (Enumerated, Unsigned, Boolean, Integer,
-                                    Real, Double)
 import gevent
 from gevent.event import AsyncResult
 
@@ -52,21 +48,19 @@ from volttron.platform import get_address, get_home
 from volttron.platform.agent import utils
 from volttron.platform.agent.bacnet_proxy_reader import BACnetReader
 from volttron.platform.keystore import KeyStore
-from volttron.platform.messaging import topics
-from volttron.platform.vip.agent import Agent, PubSub, errors
+from volttron.platform.vip.agent import errors
 from volttron.platform.vip.agent.utils import build_agent
-from volttron.platform.jsonrpc import RemoteError
 
+config_writer = None
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
 
 def bacnet_response(context, results):
-    """ Response function used as a callback.
-
+    """
+    Response function used as a callback.
     This function is used during the retrieval of bacnet responses.
-
     :param context:
     :param results:
     :return:
@@ -91,23 +85,23 @@ def main():
     arg_parser = argparse.ArgumentParser(description=__doc__)
 
     arg_parser.add_argument("device_id", type=int,
-                            help="Device ID of the target device" )
+                            help="Device ID of the target device")
 
     arg_parser.add_argument("--address",
-                            help="Address of target device, may be needed to help route initial request to device." )
+                            help="Address of target device, may be needed to help route initial request to device.")
 
-    arg_parser.add_argument("--registry-out-file", type=argparse.FileType('wb'),
+    arg_parser.add_argument("--registry-out-file", type=argparse.FileType('w'),
                             help="Output registry to CSV file",
-                            default=sys.stdout )
+                            default=sys.stdout)
 
-    arg_parser.add_argument("--driver-out-file", type=argparse.FileType('wb'),
+    arg_parser.add_argument("--driver-out-file", type=argparse.FileType('w'),
                             help="Output driver configuration to JSON file.",
                             default=sys.stdout)
 
     arg_parser.add_argument("--max-range-report", nargs='?', type=float,
-                            help='Affects how very large numbers are reported in the "Unit Details" column of the output. '
-                            'Does not affect driver behavior.',
-                            default=1.0e+20 )
+                            help='Affects how very large numbers are reported in the "Unit Details" column of the '
+                                 'output. Does not affect driver behavior.',
+                            default=1.0e+20)
 
     arg_parser.add_argument("--proxy-id",
                             help="VIP IDENTITY of the BACnet proxy agent.",
@@ -120,16 +114,16 @@ def main():
 
     key_store = KeyStore()
     config_writer = DictWriter(args.registry_out_file,
-                              ('Reference Point Name',
-                               'Volttron Point Name',
-                               'Units',
-                               'Unit Details',
-                               'BACnet Object Type',
-                               'Property',
-                               'Writable',
-                               'Index',
-                               'Write Priority',
-                               'Notes'))
+                               ('Reference Point Name',
+                                'Volttron Point Name',
+                                'Units',
+                                'Unit Details',
+                                'BACnet Object Type',
+                                'Property',
+                                'Writable',
+                                'Index',
+                                'Write Priority',
+                                'Notes'))
 
     config_writer.writeheader()
 
@@ -145,9 +139,9 @@ def main():
 
     try:
         bn.get_iam(args.device_id, async_result.set, args.address)
-    except errors.Unreachable:
-        msg = "No BACnet proxy Agent running on the platform with the " \
-              "VIP IDENTITY {}".format(args.proxy_id)
+    except errors.Unreachable as ure:
+        _log.error(ure)
+        _log.error("No BACnet proxy Agent running on the platform with the VIP IDENTITY {}".format(args.proxy_id))
         sys.exit(1)
 
     try:
@@ -157,23 +151,21 @@ def main():
         sys.exit(1)
 
     if args.address and args.address != results["address"]:
-        msg = "Inconsistent results from passed address " \
-              "({}) and device address ({}) using results.".format(
+        msg = "Inconsistent results from passed address ({}) and device address ({}) using results.".format(
             args.address, results["address"])
         _log.warning(msg)
         args.address = results["address"]
     elif results["address"]:
         args.address = results["address"]
 
-    bn.read_device_properties(target_address=args.address,
-                              device_id=args.device_id)
+    bn.read_device_properties(target_address=args.address, device_id=args.device_id)
 
     agent.core.stop()
 
 
 try:
     main()
-except Exception, e:
+except Exception as e:
     _log.exception("an error has occurred: %s", e)
 finally:
     _log.debug("finally")

@@ -4,7 +4,7 @@
 VOLTTRON Central Web Services Api Documentation
 ===============================================
 
-VOLTTRON Central (VC) is meant to be the hub of communcation within a cluster of
+VOLTTRON Central (VC) is meant to be the hub of communication within a cluster of
 VOLTTRON instances. VC exposes a
 `JSON-RPC 2.0 <http://www.jsonrpc.org/specification>`_ based api that allows
 a user to control multple instances of VOLTTRON.
@@ -126,12 +126,12 @@ JSON-RPC Data Objects
                 "status", "string", "A status string made by the status rpc call, on an agent."
 
 
-.. csv-table:: DiscoveryRegistratyEntry
+.. csv-table:: DiscoveryRegistryEntry
     :header: "Key", "Type", "Value"
     :widths: 10, 10, 40
 
                 "name",
-                "discovery_address":
+                "discovery_address"
 
 .. csv-table:: AdvancedRegistratyEntry_TODO
     :header: "Key", "Type", "Value"
@@ -176,7 +176,7 @@ JSON-RPC API Methods
 ====================
 
 .. csv-table:: Methods
-:header: "method", "parameters", "returns"
+    :header: "method", "parameters", "returns"
     :widths: 10, 10, 40
 
                 "get_authentication", "(username, password)", "authentication token"

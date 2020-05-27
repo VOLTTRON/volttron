@@ -296,6 +296,7 @@ Setup on Linux
 
 
 .. _MatlabAgent_config:
+
 3. Update the configuration for MatLabAgent_v2 at <volttron source dir>/example/MatLabAgent_v2/config. 
 
         The configuration file for the MatLab agent has four variables.
@@ -375,7 +376,7 @@ Setup on Linux
 5. Run the below command and make a note of the server key. This is required for configuring the stand alone agent
    on windows. (This is run on the linux machine)
 
-        ``volttron-ctl auth serverkey``
+        ``vctl auth serverkey``
 
 
 Setup on Windows
@@ -384,7 +385,7 @@ Setup on Windows
 Install pre-requisites
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-1. Install python 2.7 64-bit from `here <https://www.python.org/downloads/windows/>`__.
+1. Install python 3.6 64-bit from `here <https://www.python.org/downloads/windows/>`__.
 
 2. Install MatLab engine from  `here <https://www.mathworks.com/help/matlab/matlab_external/install-the-matlab-engine-for-python.html>`_.
 
@@ -452,11 +453,11 @@ Windows environment.
         Open your MatLab application. Run the command **pyversion** This should print the path to python2.7. If you have
         multiple versions of python on your machine and pyversion points to a different version of python,
         use **pyversion /path/to/python.exe** to set the appropriate version of python for your system.
-        For example, to use python 2.7 with MatLab:
+        For example, to use python 3.6 with MatLab:
 
         .. code::
 
-                pyversion C:\Python27\python.exe
+                pyversion C:\Python36\python.exe
 
 4. Set up the environment.
 
@@ -489,18 +490,18 @@ Windows environment.
         **settings.py**
 
         * 'volttron_to_matlab' needs to be set to the topic that will send your script
-        and command line arguments to your stand alone agent. This was defined in :ref:`config. <MatlabAgent_config>`
+          and command line arguments to your stand alone agent. This was defined in :ref:`config. <MatlabAgent_config>`
 
         * 'matlab_to_volttron' needs to be set to the topic that will send your script's
-        output back to your volttron platform. This was defined in :ref:`config. <MatlabAgent_config>`
+          output back to your volttron platform. This was defined in :ref:`config. <MatlabAgent_config>`
 
         * 'vip_address' needs to be set to the address of your volttron instance
 
         * 'port' needs to be set to the port of your volttron instance
 
         * 'server_key' needs to be set to the public server key of your primary volttron platform.
-        This can be obtained from the primary volttron platform  using ``vctl auth serverkey``.
-        (volttron must be running to use this command)
+          This can be obtained from the primary volttron platform  using ``vctl auth serverkey``.
+          (volttron must be running to use this command)
 
 
         It is possible to have multiple standalone agents running. In this case,
@@ -520,8 +521,8 @@ Windows environment.
         * Copy the public key from settings.py in the StandAloneMatLab folder.
 
         * While the primary volttron platform is running on the linux machine, 
-        add the agent public key using the vctl auth command on the linux machine. This will make volttron platform
-        allow connections from the standalone agent
+          add the agent public key using the vctl auth command on the linux machine. This will make volttron platform
+          allow connections from the standalone agent
 
         .. code::
 
@@ -576,6 +577,7 @@ To load a new configuration or to change the current configuration enter
                 2019-08-01 10:43:18,979 (matlab_agentV2agent-0.3 3539) matlab_agentV2.agent INFO: Agent: matlab/to_volttron/1
                 Message:
                 '20'
+
    Once the matlab agent publishes the message (in the above case, "testScript2.py,20") on the windows command prompt
    running the standalone agent, you should see the message that was received by the standalone agent.
 

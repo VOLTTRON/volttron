@@ -77,6 +77,7 @@ The following is an example of a Obix History Agent registry confugration file:
 A sample Obix History Agent configuration can be found in the VOLTTRON repository in ``services/core/ObixHistoryPublish/registry_config.csv``
 
 .. _Obix-History-AutoConfiguration:
+
 Automatic Obix Configuration File Creation
 ******************************************
 A script that will automatically create both a device and register

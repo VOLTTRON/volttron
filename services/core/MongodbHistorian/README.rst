@@ -101,6 +101,17 @@ from an activated shell in order to install it.
 
     pip install pymongo
 
+The Mongodb Historian also requires the following libraries:
+
+::
+
+    bson, ujson, dateutil
+
+And install with
+
+::
+
+    pip install <library>
 
 Configuration
 ~~~~~~~~~~~~~

@@ -1,55 +1,39 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
-
-# Copyright (c) 2017, SLAC National Laboratory / Kisensum Inc.
-# All rights reserved.
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
+# Copyright 2019, Battelle Memorial Institute.
 #
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in
-#    the documentation and/or other materials provided with the
-#    distribution.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# http://www.apache.org/licenses/LICENSE-2.0
 #
-# The views and conclusions contained in the software and documentation
-# are those of the authors and should not be interpreted as representing
-# official policies, either expressed or implied, of the FreeBSD
-# Project.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
-# This material was prepared as an account of work sponsored by an
-# agency of the United States Government.  Neither the United States
-# Government nor the United States Department of Energy, nor SLAC / Kisensum,
-# nor any of their employees, nor any jurisdiction or organization that
-# has cooperated in the development of these materials, makes any
-# warranty, express or implied, or assumes any legal liability or
-# responsibility for the accuracy, completeness, or usefulness or any
-# information, apparatus, product, software, or process disclosed, or
-# represents that its use would not infringe privately owned rights.
-#
-# Reference herein to any specific commercial product, process, or
-# service by trade name, trademark, manufacturer, or otherwise does not
-# necessarily constitute or imply its endorsement, recommendation, or
+# This material was prepared as an account of work sponsored by an agency of
+# the United States Government. Neither the United States Government nor the
+# United States Department of Energy, nor Battelle, nor any of their
+# employees, nor any jurisdiction or organization that has cooperated in the
+# development of these materials, makes any warranty, express or
+# implied, or assumes any legal liability or responsibility for the accuracy,
+# completeness, or usefulness or any information, apparatus, product,
+# software, or process disclosed, or represents that its use would not infringe
+# privately owned rights. Reference herein to any specific commercial product,
+# process, or service by trade name, trademark, manufacturer, or otherwise
+# does not necessarily constitute or imply its endorsement, recommendation, or
 # favoring by the United States Government or any agency thereof, or
-# SLAC / Kisensum. The views and opinions of authors
-# expressed herein do not necessarily state or reflect those of the
+# Battelle Memorial Institute. The views and opinions of authors expressed
+# herein do not necessarily state or reflect those of the
 # United States Government or any agency thereof.
 #
+# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
+# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# under Contract DE-AC05-76RL01830
 # }}}
 
 from gevent import monkey
@@ -123,16 +107,18 @@ class ModbusTKRegister(BaseRegister):
 
         :return: python type
         """
+        # Python 2.7 strings are byte arrays, this no longer works for 3.x
+        if isinstance(datatype, tuple) and datatype[0] == 's':
+            return str
         try:
             parse_struct = struct.Struct(datatype)
         except TypeError:
             parse_struct = struct.Struct(datatype[0])
 
-        struct_types = [type(x) for x in parse_struct.unpack('\x00' * parse_struct.size)]
+        struct_types = [type(x) for x in parse_struct.unpack(('\x00' * parse_struct.size).encode('utf-8'))]
 
         if len(struct_types) != 1:
             raise ValueError("Invalid length Modbus Register for point {}".format(self.point_name))
-
         return struct_types[0]
 
     def get_default_value(self, datatype, str_value):
@@ -156,7 +142,7 @@ class ModbusTKRegister(BaseRegister):
             elif python_type is str:
                 return str_value
             else:
-                raise ValueError("Invalid data type for point {}".format(self.point_name))
+                raise ValueError("Invalid data type for point {}: {}".format(self.point_name, python_type))
         else:
             return None
 
@@ -168,7 +154,8 @@ class ModbusTKRegister(BaseRegister):
 
         :type modbus_client: Client
         """
-        return getattr(modbus_client, self.name)
+        state = getattr(modbus_client, self.name)
+        return state.decode('utf-8') if isinstance(state, bytes) else state
 
     def set_state(self, modbus_client, value):
         """
@@ -259,8 +246,8 @@ class Interface(BasicRevert, BaseInterface):
         """
 
         # Convert keys to lowercase
-        config_dict = dict((k.lower(), v) for k, v in config_dict.iteritems())
-        registry_config_lst = [dict((k.lower(), v) for k, v in i.iteritems()) for i in registry_config_lst]
+        config_dict = dict((k.lower(), v) for k, v in config_dict.items())
+        registry_config_lst = [dict((k.lower(), v) for k, v in i.items()) for i in registry_config_lst]
 
         # Log warning if registry_config_lst is empty
         if not registry_config_lst:
@@ -285,7 +272,7 @@ class Interface(BasicRevert, BaseInterface):
 
         # Get register map and convert everything to lowercase
         register_map = dict((reg['register name'], reg) for reg in
-                            [dict((k.lower(), v) for k, v in i.iteritems()) for i in
+                            [dict((k.lower(), v) for k, v in i.items()) for i in
                              config_dict.get('register_map', registry_config_lst)])
 
         # Log warning for ignored config fields
@@ -295,7 +282,7 @@ class Interface(BasicRevert, BaseInterface):
 
         try:
             # Log warning for ignored register map csv column
-            ignored_register_map_csv_columns = [c for c in register_map.values()[0].keys() if c not in register_map_columns]
+            ignored_register_map_csv_columns = [c for c in list(register_map.values())[0].keys() if c not in register_map_columns]
             if ignored_register_map_csv_columns:
                 _log.warning("%s: Ignored register map csv columns: %s", name, ','.join(ignored_register_map_csv_columns))
         except IndexError:
@@ -383,4 +370,5 @@ class Interface(BasicRevert, BaseInterface):
     def _scrape_all(self):
         """Get a dictionary mapping point name to values of all defined registers
         """
-        return dict((self.name_map[field.name], value) for field, value, timestamp in self.modbus_client.dump_all())
+        return dict((self.name_map[field.name], value.decode('utf-8') if isinstance(value, bytes) else value) for
+                    field, value, timestamp in self.modbus_client.dump_all())

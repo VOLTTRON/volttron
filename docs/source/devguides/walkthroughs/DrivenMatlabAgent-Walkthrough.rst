@@ -23,7 +23,7 @@ Data Flow Architecture:
 Installation steps for system running Matlab:
 ---------------------------------------------
 
-1. Install python. Suggested 3.4. Other supported versions are 2.7, 3.3.
+1. Install python. Suggested 3.6.
 
 2. Install pyzmq (tested with version 15.2.0)
    Follow steps at: https://github.com/zeromq/pyzmq

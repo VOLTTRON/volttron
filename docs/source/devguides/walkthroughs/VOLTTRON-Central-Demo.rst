@@ -184,7 +184,7 @@ should be different for each instance.
 
 .. code-block:: console
 
-    $ volttron -l log1&
+    $ ./start-volttron
 
 .. note:: If you choose to not start your agents with their platforms they will need to be started by hand.  
 
@@ -233,7 +233,7 @@ command in each terminal window.
 
 .. code-block:: console
 
-    $ vctl shutdown --platform
+    $ ./stop-volttron
 
 Once the demo is complete you may wish to see the
 :ref:`VOLTTRON Central Management Agent <VOLTTRON-Central>` page for more

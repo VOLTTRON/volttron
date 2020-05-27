@@ -226,7 +226,7 @@ The below example demonstrates backward compatibility using multi-platform conne
 
   .. code-block:: bash
 
-   volttron -vv -l volttron.log --setup-mode&
+   ./start-volttron --setup-mode
 
 
   If you tail the logs of both instances, there should be a message indicating that starting with setup mode was complete upon

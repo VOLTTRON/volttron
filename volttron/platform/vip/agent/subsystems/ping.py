@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -36,7 +36,7 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-from __future__ import absolute_import
+
 
 import logging
 import weakref
@@ -63,12 +63,12 @@ class Ping(SubsystemBase):
     def ping(self, peer, *args):
         result = next(self._results)
         args = list(args)
-        args.insert(0, b'ping')
+        args.insert(0, 'ping')
         connection = self.core().connection
         try:
-            connection.send_vip(b'',
-                                b'ping',
-                                args=[b'drop', bytes(peer)],
+            connection.send_vip('',
+                                'ping',
+                                args=['drop', peer],
                                 msg_id=result.ident)
         except ZMQError as exc:
             if exc.errno == ENOTSOCK:
@@ -80,26 +80,26 @@ class Ping(SubsystemBase):
     def _handle_ping(self, message):
         connection = self.core().connection
         try:
-            op = bytes(message.args[0])
+            op = message.args[0]
         except IndexError:
             _log.error('missing ping subsystem operation')
             return
-        if op == b'ping':
-            message.user = b''
-            message.args[0] = b'pong'
+        if op == 'ping':
+            message.user = ''
+            message.args[0] = 'pong'
             connection.send_vip_object(message, copy=False)
-        elif op == b'pong':
+        elif op == 'pong':
             try:
-                result = self._results.pop(bytes(message.id))
+                result = self._results.pop(message.id)
             except KeyError:
                 return
-            result.set([bytes(arg) for arg in message.args[1:]])
+            result.set([arg for arg in message.args[1:]])
         else:
             _log.error('unknown ping subsystem operation')
 
     def _handle_error(self, sender, message, error, **kwargs):
         try:
-            result = self._results.pop(bytes(message.id))
+            result = self._results.pop(message.id)
         except KeyError:
             return
         result.set_exception(error)

@@ -54,9 +54,9 @@ class PrometheusScrapeAgent(Agent):
         keys_to_delete = defaultdict(list)
         if len(self._cache) > 0:
             result = "# TYPE volttron_data gauge\n"
-            for device, device_topics in self._cache.iteritems():
+            for device, device_topics in self._cache.items():
                 device_tags = device.replace("-", "_").split('/')
-                for topic, value in device_topics.iteritems():
+                for topic, value in device_topics.items():
                     if value[1] + self._cache_time > scrape_time:
                         metric_props = re.split(self._tag_delimiter_re,
                                                 topic.lower())
@@ -77,14 +77,14 @@ class PrometheusScrapeAgent(Agent):
                         continue
         else:
             result = "#No Data to Scrape"
-        for device, delete_topics in keys_to_delete.iteritems():
+        for device, delete_topics in keys_to_delete.items():
             for topic in delete_topics:
                 del self._cache[device][topic]
         gzip_compress = zlib.compressobj(9, zlib.DEFLATED,
                                          zlib.MAX_WBITS | 16)
         data = gzip_compress.compress(result) + gzip_compress.flush()
 
-        return "200 OK", base64.b64encode(data), [
+        return "200 OK", base64.b64encode(data).decode('ascii'), [
             ('Content-Type', 'text/plain'),
             ('Content-Encoding', 'gzip')]
 
@@ -115,7 +115,7 @@ class PrometheusScrapeAgent(Agent):
         except:
             return
 
-        for point, item in data.iteritems():
+        for point, item in data.items():
             if 'Readings' not in item or 'Units' not in item:
                 _log.error("logging request for {topic} missing Readings "
                            "or Units".format(topic=topic))
@@ -188,7 +188,7 @@ class PrometheusScrapeAgent(Agent):
             "Queuing {topic} from {source} for publish".format(topic=topic,
                                                                source=source))
 
-        for key, value in values.iteritems():
+        for key, value in values.items():
             self._add_to_cache(device, key, value)
 
     def _add_to_cache(self, device, topic, value):

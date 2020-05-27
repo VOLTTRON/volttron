@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -108,7 +108,7 @@ class RMQConfig(object):
         """Loads the config file if the path exists."""
         
         with open(self.volttron_rmq_config, 'r') as yaml_file:
-            self.config_opts = yaml.load(yaml_file)
+            self.config_opts = yaml.safe_load(yaml_file)
             if self.config_opts.get('rmq-home'):
                 self.config_opts['rmq-home'] = os.path.expanduser(
                     self.config_opts['rmq-home'])
@@ -123,6 +123,9 @@ class RMQConfig(object):
             with open(self.volttron_rmq_config, 'w') as \
                     yaml_file:
                 yaml.dump(self.config_opts, yaml_file, default_flow_style=False)
+            # Explicitly give read access to group and others. RMQ user and
+            # agents should be able to read this config file
+            os.chmod(self.volttron_rmq_config, 0o744)
         except IOError as exc:
             _log.error("Error writing to rabbitmq_config.yml file. Please"
                        "check VOLTTRON_HOME".format(self.volttron_home))

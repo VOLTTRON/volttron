@@ -23,7 +23,7 @@ Agent Installation
 ------------------
 
 After building the shared object library the standard agent can be installed
-with the make-agent script.
+with the scripts/install-agent.py script.
 
 The driver interface example must be copied or moved to the master driver's
 interface directory. The C Driver configuration tells the interface where to

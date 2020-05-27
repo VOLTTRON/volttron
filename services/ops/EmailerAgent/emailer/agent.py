@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -36,7 +36,7 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-from __future__ import absolute_import, print_function
+
 
 from collections import defaultdict
 
@@ -120,9 +120,8 @@ class EmailerAgent(Agent):
 	
         # Keep track of keys that have been added to send with.
         self.tosend = {}
-	
-	# Keep track of how often we send an email out based on key so we don't overload admins.
-	self.sent_alert_emails = {}
+        # Keep track of how often we send an email out based on key so we don't overload admins.
+        self.sent_alert_emails = {}
 
     def _test_smtp_address(self, smtp_address,smtp_port,smtp_username,smtp_password):
         try:
@@ -150,7 +149,7 @@ class EmailerAgent(Agent):
         self.vip.pubsub.subscribe('pubsub', topics.PLATFORM_SEND_EMAIL, self.on_email_message)
 
         self.vip.pubsub.subscribe('pubsub', topics.ALERTS_BASE,self.on_alert_message)
-        self.vip.pubsub.subscribe('pubsub',prefix=topics.ALERTS.format(agent_class='',agent_uuid=''),callback=self.on_alert_message)
+        self.vip.pubsub.subscribe('pubsub',prefix=topics.ALERTS.format(agent_class='',agent_identity=''),callback=self.on_alert_message)
         self.current_config = self.default_config.copy()
         self.current_config.update(contents)
 
@@ -295,12 +294,12 @@ class EmailerAgent(Agent):
         _log.info('Sending email {}'.format(subject))
         _log.debug('Mail from: {}, to: {}'.format(from_address, to_addresses))
         recipients = to_addresses
-        if isinstance(recipients, basestring):
+        if isinstance(recipients, str):
             recipients = [recipients]
 
         # Use unicode to protect against encod error
         # http://stackoverflow.com/questions/25891541/attributeerror-encode
-        msg = MIMEText(unicode(message))
+        msg = MIMEText(str(message))
         msg['To'] = ', '.join(recipients)
         msg['FROM'] = from_address
         msg['Subject'] = subject
@@ -360,7 +359,7 @@ class EmailerAgent(Agent):
 
         from_address = self.current_config['alert_from_address']
         recipients = self.current_config['alert_to_addresses']
-        if isinstance(recipients, basestring):
+        if isinstance(recipients, str):
             recipients = [recipients]
 
         # After here we are going to attempt to send the email out
@@ -368,7 +367,7 @@ class EmailerAgent(Agent):
 
         # Use unicode to protect against encod error
         # http://stackoverflow.com/questions/25891541/attributeerror-encode
-        msg = MIMEText(unicode(message))
+        msg = MIMEText(str(message))
         msg['To'] = ', '.join(recipients)
         msg['FROM'] = from_address
         msg['Subject'] = subject

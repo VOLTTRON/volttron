@@ -1,7 +1,7 @@
 Configuration Store Command Line Tools
 ======================================
 
-Command line management of the Configuration Store is done with the `volttron-ctl config` sub-commands.
+Command line management of the Configuration Store is done with the `vctl config` sub-commands.
 
 Store Configuration
 -------------------
@@ -10,7 +10,7 @@ To store a configuration in the Configuration Store use the `store` sub-command:
 
 .. code-block:: bash
 
-    volttron-ctl config store <agent vip identity> <configuration name> <infile>
+    vctl config store <agent vip identity> <configuration name> <infile>
 
 - **agent vip identity** - The agent store to add the configuration to.
 - **configuration name** - The name to give the configuration in the store.
@@ -29,7 +29,7 @@ To delete a configuration in the Configuration Store use the `delete` sub-comman
 
 .. code-block:: bash
 
-    volttron-ctl config delete <agent vip identity> <configuration name>
+    vctl config delete <agent vip identity> <configuration name>
 
 - **agent vip identity** - The agent store to delete the configuration from.
 - **configuration name** - The name of the configuration to delete.
@@ -39,7 +39,7 @@ switch in place of the configuration name:
 
 .. code-block:: bash
 
-    volttron-ctl config delete <agent vip identity> --all
+    vctl config delete <agent vip identity> --all
 
 
 Get Configuration
@@ -49,7 +49,7 @@ To get the current contents of a configuration in the Configuration Store use th
 
 .. code-block:: bash
 
-    volttron-ctl config get <agent vip identity> <configuration name>
+    vctl config get <agent vip identity> <configuration name>
 
 - **agent vip identity** - The agent store to retrieve the configuration from.
 - **configuration name** - The name of the configuration to get.
@@ -65,14 +65,14 @@ To get the current list of agents with configurations in the Configuration Store
 
 .. code-block:: bash
 
-    volttron-ctl config list
+    vctl config list
 
 
 To get the current list of configurations for an agent include the Agent's VIP IDENTITY:
 
 .. code-block:: bash
 
-    volttron-ctl config list <agent vip identity>
+    vctl config list <agent vip identity>
 
 - **agent vip identity** - The agent store to retrieve the configuration from.
 
@@ -84,7 +84,7 @@ To edit a configuration in the Configuration Store use the `edit` sub-command:
 
 .. code-block:: bash
 
-    volttron-ctl config edit <agent vip identity> <configuration name>
+    vctl config edit <agent vip identity> <configuration name>
 
 - **agent vip identity** - The agent store containing the configuration.
 - **configuration name** - The name of the configuration to edit.

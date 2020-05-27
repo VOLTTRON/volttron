@@ -15,8 +15,8 @@ downloading the newest source code and re-installing.
 
 The master branch is now the default branch for VOLTTRON (meaning this
 is what you clone if you do not use the “-b” option). This branch will
-get the latest stable features as they are pushed. 3.x has stopped being
-updated (except for fixes) and 4.x will track master.
+get the latest stable features as they are pushed. The current major
+version is 7.x.
 
 The “develop” branch contains the latest features as they are developed.
 Once a feature is considered “finished” it is merged back into develop.

@@ -53,8 +53,8 @@ it shall use Routing Service to send the publish message to the corresponding ex
 message.
 
     a. If the destination platform is the local platform, it hand overs the publish message to PubSubService which
-     checks the topic against list of external subscriptions. If an external subscription matches, PubSubService forwards
-     the message to all the local subscribers subscribed to that topic.
+       checks the topic against list of external subscriptions. If an external subscription matches, PubSubService forwards
+       the message to all the local subscribers subscribed to that topic.
 
     b. If the destination platform is not the local platform, it discards the message.
 
@@ -65,44 +65,44 @@ Routing Service
 1. Routing Service shall maintain connection status (CONNECTING, CONNECTED, DISCONNECTED etc.) for each external platform.
 
 2. In order to establish connection with an external VOLTTRON platform, the server key of the remote platform is needed.
- The Routing Service shall connect to an external platform once it obtains the server key for that platform from the
- KeyDiscoveryService.
+   The Routing Service shall connect to an external platform once it obtains the server key for that platform from the
+   KeyDiscoveryService.
 
 3. Routing Service shall exchange "hello"/"welcome" handshake messages with the newly connected remote platform to
-confirm the connection. It shall use VIP protocol with the subsystem frame set to “routing_table” for the handshake
-messages.
+   confirm the connection. It shall use VIP protocol with the subsystem frame set to “routing_table” for the handshake
+   messages.
 
-3. Routing Service shall monitor the connection status and inform PubSubService whenever a remote platform gets
-connected/disconnected.
+4. Routing Service shall monitor the connection status and inform PubSubService whenever a remote platform gets
+   connected/disconnected.
 
 
 For Future
 
 1. Each VIP router shall exchange its routing table with its connected platforms on startup and whenever a new platform
-gets connected or disconnected.
+   gets connected or disconnected.
 
 2. The router shall go through each entry in the routing table that it received from other platforms and calculate the
-shortest, most stable path to each remote platform. It then sends the updated routing table to other platforms for
-adjustments in the forwarding paths (in their local routing table) if any.
+   shortest, most stable path to each remote platform. It then sends the updated routing table to other platforms for
+   adjustments in the forwarding paths (in their local routing table) if any.
 
 3. Whenever a VIP router detects a new connection, it adds an entry into the routing table and sends updated routing
-table to its neighboring platforms. Each router in the other platforms shall update and re-calculate the forwarding
-paths in its local routing table and forward to rest of the platforms.
+   table to its neighboring platforms. Each router in the other platforms shall update and re-calculate the forwarding
+   paths in its local routing table and forward to rest of the platforms.
 
 4. Similarly, whenever a VIP router detects a remote platform disconnection, it deletes the entry in the routing table
-for that platform and forwards the routing table to other platforms to do the same.
+   for that platform and forwards the routing table to other platforms to do the same.
 
 
 KeyDiscovery Service
 ++++++++++++++++++++
 
 1. Each platform tries to obtain the platform discovery information - platform name, VIP address and server key of
-remote VOLTTRON platforms through HTTP discovery service at startup.
+   remote VOLTTRON platforms through HTTP discovery service at startup.
 
 2. If unsuccessful, it shall make regular attempts to obtain discovery information until successful.
 
 3. The platform discovery information shall then be sent to the Routing Service using VIP protocol with subsystem
-frame set to "routing_table".
+   frame set to "routing_table".
 
 
 Messages for Routing Service

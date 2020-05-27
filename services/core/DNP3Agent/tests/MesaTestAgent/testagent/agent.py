@@ -27,7 +27,7 @@
 # favoring by 8minutenergy or Kisensum.
 # }}}
 
-from __future__ import print_function
+
 
 import logging
 import sys
@@ -84,7 +84,7 @@ def mesa_test_agent(config_path, **kwargs):
     """
     try:
         config = utils.load_config(config_path)
-    except (StandardError, err):
+    except (Exception, err):
         _log.error("Error loading MesaTestAgent configuration: {}".format(err))
         config = {}
     mesaagent_id = config.get('mesaagent_id', 'mesaagent')

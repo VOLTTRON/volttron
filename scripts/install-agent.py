@@ -1,5 +1,5 @@
+#!/usr/bin/env python3
 import argparse
-import json
 import logging
 import os
 import sys
@@ -10,13 +10,13 @@ import yaml
 
 from volttron.platform.agent.utils import execute_command
 
-logging.basicConfig(level=logging.WARN)
+logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(os.path.basename(__file__))
 
 # determine whether or not the script is being run from an activated environment
 # or not.  If we are then we need to call this script again from the correct
 # python interpreter.
-if not hasattr(sys, 'real_prefix'):
+if sys.base_prefix == sys.prefix:
     inenv = False
 else:
     inenv = True
@@ -56,7 +56,7 @@ if not ignore_env_check and not inenv and not corrected:
     except RuntimeError:
         sys.exit(1)
 
-from zmq.utils import jsonapi
+from volttron.platform import jsonapi
 from volttron.platform import get_address, get_home, get_volttron_root, \
     is_instance_running
 from volttron.platform.packaging import create_package, add_files_to_package
@@ -95,14 +95,16 @@ def remove_agent(opts, agent_uuid):
 
 def install_requirements(agent_source):
     req_file = os.path.join(agent_source, "requirements.txt")
+
     if os.path.exists(req_file):
-        log.info("Installing requirements for agent.")
+        log.info(f"Installing requirements for agent from {req_file}.")
         cmds = ["pip", "install", "-r", req_file]
         try:
             execute_command(cmds, logger=log,
                             err_prefix="Error installing requirements")
         except RuntimeError:
             sys.exit(1)
+
 
 def install_agent(opts, package, config):
     """
@@ -122,13 +124,12 @@ def install_agent(opts, package, config):
     else:
         cfg = tempfile.NamedTemporaryFile()
         with open(cfg.name, 'w') as fout:
-            fout.write(yaml.safe_dump(config)) # jsonapi.dumps(config))
+            fout.write(yaml.safe_dump(config))
         config_file = cfg.name
 
     try:
         with open(config_file) as fp:
             data = yaml.safe_load(fp)
-            # data = json.load(fp)
     except:
         log.error("Invalid yaml/json config file.")
         sys.exit(-10)
@@ -209,12 +210,12 @@ def install_agent(opts, package, config):
             output_dict['agent_pid'] = int(outputdata[pidpos: pidend])
 
     if opts.json:
-        sys.stdout.write("%s\n" % json.dumps(output_dict, indent=4))
+        sys.stdout.write("%s\n" % jsonapi.dumps(output_dict, indent=4))
     if opts.csv:
-        keylen = len(output_dict.keys())
+        keylen = len(output_dict)
         keyline = ''
         valueline = ''
-        keys = output_dict.keys()
+        keys = list(output_dict.keys())
         for k in range(keylen):
             if k < keylen - 1:
                 keyline += "%s," % keys[k]
@@ -227,8 +228,9 @@ def install_agent(opts, package, config):
 
 if __name__ == '__main__':
 
-    parser = argparse.ArgumentParser(version=__version__)
+    parser = argparse.ArgumentParser()
 
+    parser.add_argument('--version', action='version', version=__version__)
     parser.add_argument("-a", "--vip-address", default=get_address(),
                         help="vip-address to connect to.")
     parser.add_argument("-vh", "--volttron-home", default=get_home(),
@@ -239,7 +241,7 @@ if __name__ == '__main__':
                         help="source directory of the agent which is to be installed.")
     parser.add_argument("-i", "--vip-identity", default=None,
                         help="identity of the agent to be installed (unique per instance)")
-    parser.add_argument("-c", "--config", default=None, type=file,
+    parser.add_argument("-c", "--config", default=None, type=argparse.FileType('r'),
                         help="agent configuration file that will be packaged with the agent.")
     parser.add_argument("-wh", "--wheelhouse", default=None,
                         help="location of agents after they have been built")
@@ -278,7 +280,7 @@ if __name__ == '__main__':
         sys.exit(-10)
 
     if opts.volttron_home.endswith('/'):
-        log.warn("VOLTTRON_HOME should not have / on the end trimming it.")
+        log.warning("VOLTTRON_HOME should not have / on the end trimming it.")
         opts.volttron_home = opts.volttron_home[:-1]
 
     if not is_instance_running(opts.volttron_home):

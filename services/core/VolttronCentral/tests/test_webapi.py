@@ -39,7 +39,7 @@ def test_platform_inspect(auto_registered_local):
     for agent in agents:
         agent_uuid = agent['uuid']
         result = webapi.inspect(platform_uuid, agent_uuid)
-        print result
+        print(result)
         method = 'health.get_status'
         assert method in result['methods']
 

@@ -2,16 +2,16 @@ import os
 
 import gevent
 import pytest
-import json
 
+from volttron.platform import jsonapi
 from volttron.platform import get_ops
 from volttrontesting.utils.utils import (poll_gevent_sleep,
                                          messages_contains_prefix)
-
+from volttron.platform import get_examples
 from volttrontesting.fixtures.volttron_platform_fixtures import get_rand_vip, \
     build_wrapper, get_rand_ip_and_port
 from volttrontesting.utils.platformwrapper import PlatformWrapper
-from volttron.platform.agent.known_identities import PLATFORM_DRIVER, CONFIGURATION_STORE
+from volttron.platform.agent.known_identities import PLATFORM_DRIVER, CONFIGURATION_STORE, CONTROL
 
 subscription_results = {}
 count = 0
@@ -67,7 +67,7 @@ def get_volttron_instances(request):
             addr_file = os.path.join(wrapper.volttron_home, 'external_address.json')
             if address_file:
                 with open(addr_file, 'w') as f:
-                    json.dump(web_addresses, f)
+                    jsonapi.dump(web_addresses, f)
                     gevent.sleep(.1)
             wrapper.startup_platform(address, bind_web_address=web_address, setupmode=True)
             wrapper.skip_cleanup = True
@@ -77,15 +77,15 @@ def get_volttron_instances(request):
         for i in range(0, n):
             instances[i].shutdown_platform()
 
-        gevent.sleep(1)
+        gevent.sleep(5)
         # del instances[:]
         for i in range(0, n):
             address = vip_addresses.pop(0)
             web_address = web_addresses.pop(0)
-            print address, web_address
+            print(address, web_address)
             instances[i].startup_platform(address, bind_web_address=web_address)
             instances[i].allow_all_connections()
-        gevent.sleep(11)
+        gevent.sleep(20)
         instances = instances if n > 1 else instances[0]
 
         get_n_volttron_instances.instances = instances
@@ -151,7 +151,7 @@ def build_instances(request):
             address_file = os.path.join(instances[i].volttron_home, 'external_platform_discovery.json')
             if address_file:
                 with open(address_file, 'w') as f:
-                    json.dump(addr_config, f)
+                    jsonapi.dump(addr_config, f)
 
         gevent.sleep(1)
         for i in range(0, n):
@@ -234,7 +234,7 @@ def test_multiplatform_pubsub(request, multi_platform_connection):
                                      prefix='devices',
                                      callback=onmessage)
     gevent.sleep(1)
-    print "publish"
+
     prefix = 'devices'
     for i in range(10):
         p1_publisher.vip.pubsub.publish(peer='pubsub',
@@ -291,7 +291,6 @@ def test_multiplatform_2_publishers(request, five_platform_connection):
                                       prefix='analysis',
                                       callback=callback5)
     gevent.sleep(5)
-    print "publish"
     prefix = 'devices'
     for i in range(5):
         p1_publisher.vip.pubsub.publish(peer='pubsub', topic='devices/campus/building1', message=[{'point': 'value'}])
@@ -350,7 +349,7 @@ def test_multiplatform_subscribe_unsubscribe(request, multi_platform_connection)
 
         message = subscription_results3['devices/campus/building1']['message']
         assert message == [{'point': 'value' + str(i)}]
-        print "pass"
+        print("pass")
 
     # Listener agent on platform 2 unsubscribes frm prefix='devices'
     p2_listener.vip.pubsub.unsubscribe(peer='pubsub', prefix='devices', callback=callback2, all_platforms=True)
@@ -401,8 +400,10 @@ def test_multiplatform_stop_subscriber(request, multi_platform_connection):
         assert message == [{'point': 'value' + str(i)}]
         message = subscription_results3['devices/campus/building1']['message']
         assert message == [{'point': 'value' + str(i)}]
-        print "pass"
+
     subscription_results2.clear()
+    print("pass")
+
     # Stop listener agent on platform 2
     p2_listener.core.stop()
     gevent.sleep(0.2)
@@ -522,7 +523,7 @@ def test_multiplatform_bad_discovery_file(request, build_instances):
 
 @pytest.mark.xfail(reason="Issue #2107. rpc call to edit config store will fail due to capabilities check")
 @pytest.mark.multiplatform
-def test_multiplatform_rpc(request, get_volttron_instances):
+def test_multiplatform_configstore_rpc(request, get_volttron_instances):
     p1, p2 = get_volttron_instances(2)
     _default_config = {
         "test_max": {
@@ -546,7 +547,7 @@ def test_multiplatform_rpc(request, get_volttron_instances):
                             'manage_store',
                             'platform.thresholddetection',
                             'config',
-                            json.dumps(updated_config),
+                            jsonapi.dumps(updated_config),
                             'json',
                             **kwargs).get(timeout=10)
     config = test_agent.vip.rpc.call(CONFIGURATION_STORE,
@@ -555,7 +556,7 @@ def test_multiplatform_rpc(request, get_volttron_instances):
                                      'config',
                                      raw=True,
                                      **kwargs).get(timeout=10)
-    config = json.loads(config)
+    config = jsonapi.loads(config)
     try:
         assert config == updated_config
     except KeyError:
@@ -567,5 +568,66 @@ def test_multiplatform_rpc(request, get_volttron_instances):
         p1.shutdown_platform()
         test_agent.core.stop()
         p1.shutdown_platform()
+
+    request.addfinalizer(stop)
+
+
+@pytest.mark.multiplatform
+def test_multiplatform_rpc(request, get_volttron_instances):
+    p1, p2 = get_volttron_instances(2)
+    auuid = p1.install_agent(
+        agent_dir=get_examples("ListenerAgent"), start=True)
+    assert auuid is not None
+
+    test_agent = p2.build_agent()
+    kwargs = {"external_platform": p1.instance_name}
+    agts = None
+    agts = test_agent.vip.rpc.call(CONTROL,
+                            'list_agents',
+                            **kwargs).get(timeout=10)
+
+    assert agts[0]['identity'].startswith('listener')
+
+    def stop():
+        p1.stop_agent(auuid)
+        #p1.remove_agent(auuid)
+        p1.shutdown_platform()
+        test_agent.core.stop()
+        p2.shutdown_platform()
+
+    request.addfinalizer(stop)
+
+
+@pytest.mark.multiplatform
+def test_multiplatform_stop_agent_rpc(request, get_volttron_instances):
+    p1, p2 = get_volttron_instances(2)
+    auuid = p1.install_agent(
+        agent_dir=get_examples("ListenerAgent"), start=True)
+    assert auuid is not None
+
+    test_agent = p2.build_agent()
+    kwargs = {"external_platform": p1.instance_name}
+    agts = None
+    agts = test_agent.vip.rpc.call(CONTROL,
+                            'list_agents',
+                            **kwargs).get(timeout=10)
+
+    assert agts[0]['identity'].startswith('listener')
+    listener_uuid = agts[0]['uuid']
+    test_agent.vip.rpc.call(CONTROL,
+                            'stop_agent',
+                            listener_uuid,
+                            **kwargs).get(timeout=10)
+    agt_status = test_agent.vip.rpc.call(CONTROL,
+                            'agent_status',
+                            listener_uuid,
+                            **kwargs).get(timeout=10)
+    assert agt_status[1] == 0
+    def stop():
+        p1.stop_agent(auuid)
+        p1.remove_agent(auuid)
+        p1.shutdown_platform()
+        test_agent.core.stop()
+        p2.shutdown_platform()
 
     request.addfinalizer(stop)

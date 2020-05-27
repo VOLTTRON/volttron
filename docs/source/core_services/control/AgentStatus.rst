@@ -1,4 +1,4 @@
-.. _AgentStatus:
+.. _Agent-Status:
 
 Agent List Display
 ~~~~~~~~~~~~~~~~~~
@@ -10,7 +10,7 @@ Agent List Display
     d listeneragent-3.0 listeneragent-3.0_1   30
     2 testeragent-0.1   testeragent-0.1_1
 
-``volttron-ctl list`` shows the agents which have been installed on the
+``vctl list`` shows the agents which have been installed on the
 platform along with their uuid, associated `tag <AgentTag>`__, and
 `priority <AgentAutostart>`__.
 
@@ -25,7 +25,7 @@ platform along with their uuid, associated `tag <AgentTag>`__, and
    track and refer to agents. Using "--tag " agents can be controlled
    using this
 -  PRI is the priority for agents which have been "enabled" using the
-   ``volttron-ctl enable`` command. When enabled, agents will be
+   ``vctl enable`` command. When enabled, agents will be
    automatically started in priority order along with the platform.
 
 Agent Status Display
@@ -38,7 +38,7 @@ Agent Status Display
     d listeneragent-3.0 listener running [3813]
     2 testeragent-0.1                 0
 
-``volttron-ctl statu`` shows a list of all agents installed on the
+``vctl status`` shows a list of all agents installed on the
 platform and their current status.
 
 -  uuid is the first column of the display and is displayed as the

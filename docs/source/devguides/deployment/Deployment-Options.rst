@@ -34,15 +34,27 @@ A simple, more long term solution, is to run volttron in the background and diso
     directly to stdout and stderr. This will cause problems if those file descriptors
     are not redirected to ``/dev/null``.
 
-
 ::
 
     $volttron -vv -l volttron.log > /dev/null 2>&1&
 
-    #If there are other jobs running in your terminal be sure to disown the correct one.
+Alternatively:
+
+::
+
+    ``./start-volttron``
+
+.. note:: If you are not in an activated environment, this script will start
+    the platform running in the background in the correct environment, however
+    the environment will not be activated for you, you must activate it yourself.
+
+**If there are other jobs running in your terminal be sure to disown the correct one.**
+
+::
+
     $jobs
     [1]+  Running                 something else
-    [2]+  Running                 volttron -vv -l volttron.log > /dev/null 2>&1 &
+    [2]+  Running                 ./start-volttron
 
     #Disown VOLTTRON
     $disown %2
@@ -73,7 +85,6 @@ for setting up VOLTTRON as a service. Note that as this will redirect all the ou
 be going to stdout - to the syslog.  This can be accessed using journalctl. For systems that run 
 all the time or have a high level of debugging turned on, we recommend checking the system's 
 logrotate settings.
-
 
 ::
 

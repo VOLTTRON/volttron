@@ -1,4 +1,5 @@
 .. _ActuatorHeartbeat:
+
 Heartbeat Signal
 ----------------
 

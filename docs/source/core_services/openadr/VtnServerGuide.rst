@@ -97,7 +97,7 @@ the Sites that are associated with that DR Program.
 .. image:: files/vtn_create_event.png
 
 Active DR events are displayed on the **Overview** screen.  DR Events are considered active
-if they have not been cancelled and if they have not been completed.
+if they have not been canceled and if they have not been completed.
 
 .. image:: files/vtn_event_overview.png
 

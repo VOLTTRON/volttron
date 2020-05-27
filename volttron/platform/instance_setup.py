@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -40,23 +40,27 @@ import hashlib
 import os
 import sys
 import tempfile
-import urlparse
-import StringIO
-from ConfigParser import ConfigParser
+import atexit
+import time
+from configparser import ConfigParser
 from shutil import copy
+from urllib.parse import urlparse
+
 from gevent import subprocess
 from gevent.subprocess import Popen
 from zmq import green as zmq
+
+from bootstrap import install_rabbit, default_rmq_dir
+from requirements import extras_require
 from volttron.platform import certs, is_rabbitmq_available
-from volttron.platform.agent import json as jsonapi
+from volttron.platform import jsonapi
 from volttron.platform.agent.known_identities import MASTER_WEB, PLATFORM_DRIVER, VOLTTRON_CENTRAL
-
-from volttron.platform.agent.utils import get_platform_instance_name
-from volttron.utils.prompt import prompt_response, y, n, y_or_n
-from volttron.utils.rmq_setup import setup_rabbitmq_volttron, _create_certs
-from volttron.utils.rmq_config_params import RMQConfig
+from volttron.platform.agent.utils import get_platform_instance_name, wait_for_volttron_startup, \
+    is_volttron_running, wait_for_volttron_shutdown
 from volttron.utils import get_hostname
-
+from volttron.utils.prompt import prompt_response, y, n, y_or_n
+from volttron.utils.rmq_config_params import RMQConfig
+from volttron.utils.rmq_setup import setup_rabbitmq_volttron
 from . import get_home, get_services_core, set_home
 
 # Global configuration options.  Must be key=value strings.  No cascading
@@ -80,7 +84,7 @@ def _load_config():
             config_opts[option] = parser.get('volttron', option)
 
 
-def _update_config_file(instance_name=None):
+def _update_config_file(instance_name=None, web_secret_key=None):
     if not config_opts:
         _load_config()
     home = get_home()
@@ -97,6 +101,8 @@ def _update_config_file(instance_name=None):
     for k, v in config_opts.items():
         config.set('volttron', k, v)
 
+    # if instance_name is not None:
+
     if 'instance-name' in config_opts:
         # Overwrite existing if instance name was passed
         if instance_name is not None:
@@ -105,6 +111,9 @@ def _update_config_file(instance_name=None):
         if instance_name is None:
             instance_name = 'volttron1'
         config.set('volttron', 'instance-name', instance_name)
+
+    if web_secret_key is not None:
+        config.set('volttron', 'web-secret-key', web_secret_key)
 
     with open(path, 'w') as configfile:
         config.write(configfile)
@@ -120,7 +129,10 @@ def _cmd(cmdargs):
         print(cmdargs)
     process = Popen(cmdargs, env=os.environ, stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE)
-    process.wait()
+    out, error = process.communicate()
+    if process.returncode != 0:
+        print("Error executing command: {} \nSTDOUT: {}\nSTDERR: {}".format(cmdargs, out, error))
+        exit(10)
 
 
 def _is_bound_already(address):
@@ -129,7 +141,8 @@ def _is_bound_already(address):
     already_bound = False
     try:
         dealer_sock.bind(address)
-    except zmq.ZMQError:
+    except zmq.ZMQError as e:
+        print(e)
         already_bound = True
     finally:
         dealer_sock.close()
@@ -139,10 +152,9 @@ def _is_bound_already(address):
 def fail_if_instance_running():
 
     home = get_home()
-    ipc_address = 'ipc://@{}/run/vip.socket'.format(home)
 
     if os.path.exists(home) and\
-       _is_bound_already(ipc_address):
+       is_volttron_running(home):
         print("""
 The current instance is running.  In order to configure an instance it cannot
 be running.  Please execute:
@@ -157,26 +169,43 @@ to stop the instance.
 def fail_if_not_in_src_root():
     in_src_root = os.path.exists("./volttron")
     if not in_src_root:
-        print """
+        print("""
 volttron-cfg needs to be run from the volttron top level source directory.
-"""
+""")
         sys.exit()
 
 
 def _start_platform():
+    vhome = get_home()
     cmd = ['volttron', '-vv',
-           '-l', os.path.join(get_home(), 'volttron.cfg.log')]
+           '-l', os.path.join(vhome, 'volttron.cfg.log')]
+    print(cmd)
     if verbose:
         print('Starting platform...')
     pid = Popen(cmd, env=os.environ.copy(), stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE)
+    wait_for_volttron_startup(vhome, 45)
 
 
 def _shutdown_platform():
-    if verbose:
-        print('Shutting down platform...')
-    _cmd(['volttron-ctl', 'shutdown', '--platform'])
+    vhome = get_home()
+    if is_volttron_running(vhome):
+        if verbose:
+            print('Shutting down platform...')
+        _cmd(['volttron-ctl', 'shutdown', '--platform'])
+        wait_for_volttron_shutdown(vhome, 45)
 
+
+def _cleanup_on_exit():
+    vhome = get_home()
+    retry_attempt = 30
+    while retry_attempt > 0:
+        if is_volttron_running(vhome):
+            time.sleep(1)
+            retry_attempt -= 1
+        else:
+            return
+    _shutdown_platform()
 
 def _install_agent(agent_dir, config, tag):
     if not isinstance(config, dict):
@@ -190,14 +219,16 @@ def _install_agent(agent_dir, config, tag):
     _cmd(['scripts/core/pack_install.sh',
           agent_dir, config_file, tag])
 
+
 def _is_agent_installed(tag):
     installed_list_process = Popen(['vctl','list'], env=os.environ, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     installed_list = installed_list_process.communicate()
-    installed = "".join(installed_list)
-    if tag in installed:
+    installed = b"".join(installed_list)
+    if tag.encode('utf-8') in installed:
         return True
     else:
         return False
+
 
 # Decorator to handle installing agents
 # Decorated functions need to return a config
@@ -210,17 +241,19 @@ def installs(agent_dir, tag, identity=None, post_install_func=None):
             if identity is not None:
                 os.environ['AGENT_VIP_IDENTITY'] = identity
 
-            print 'Configuring {}.'.format(agent_dir)
+            print('Configuring {}.'.format(agent_dir))
             config = config_func(*args, **kwargs)
             _update_config_file()
+            #TODO: Optimize long vcfg install times
+            #TODO: (potentially only starting the platform once per vcfg)
             _start_platform()
+
             _install_agent(agent_dir, config, tag)
 
             if not _is_agent_installed(tag):
                 print(tag + ' not installed correctly!')
                 _shutdown_platform()
                 return
-
 
             if post_install_func:
                 post_install_func()
@@ -244,7 +277,7 @@ def installs(agent_dir, tag, identity=None, post_install_func=None):
 def is_valid_url(url, accepted_schemes):
     if url is None:
         return False
-    parsed = urlparse.urlparse(url)
+    parsed = urlparse(url)
     if parsed.scheme not in accepted_schemes:
         return False
     if not parsed.hostname:
@@ -264,6 +297,51 @@ def is_valid_port(port):
 
 def is_valid_bus(bus_type):
     return bus_type in ['zmq', 'rmq']
+
+
+def _get_dependencies():
+    reqs = subprocess.check_output([sys.executable, "-m", "pip", "freeze"])
+    dependencies = [r.decode() for r in reqs.split()]
+    return dependencies
+
+
+def _check_dependencies_met(requirement):
+    try:
+        dependencies_needed = extras_require[requirement]
+    except KeyError:
+        print("ERROR: Incorrect requirement chosen")
+        return False
+    current_dependencies = _get_dependencies()
+    for dependency in dependencies_needed:
+        if "==" in dependency:
+            if dependency in current_dependencies:
+                pass
+            else:
+                return False
+        else:
+            if dependency.split("==")[0] in [r.split("==")[0] for r in current_dependencies]:
+                pass
+            else:
+                return False
+    return True
+
+
+def set_dependencies(requirement):
+    try:
+        dependencies_needed = extras_require[requirement]
+    except KeyError:
+        print("ERROR: Incorrect requirement chosen")
+        return
+    cmds = [sys.executable, "-m", "pip", "install"]
+    for dependency in dependencies_needed:
+        cmds.append(dependency)
+    subprocess.check_call(cmds)
+    return
+
+
+def set_dependencies_rmq():
+    install_rabbit(default_rmq_dir)
+
 
 def _create_web_certs():
     global config_opts
@@ -307,8 +385,9 @@ def _create_web_certs():
             return 1
     
     print("Creating new web server certificate.")
-    crts.create_ca_signed_cert(name=MASTER_WEB+"-server",type='server',ca_name=crts.root_ca_name, fqdn=get_hostname())
+    crts.create_signed_cert_files(name=MASTER_WEB + "-server", cert_type='server', ca_name=crts.root_ca_name, fqdn=get_hostname())
     return 0
+
 
 def check_rmq_setup():
     global config_opts
@@ -317,37 +396,43 @@ def check_rmq_setup():
         setup_rabbitmq_volttron('single', verbose, prompt=True, instance_name=None)
     _load_config()
 
+
 def do_message_bus():
     global config_opts
     bus_type = None
     valid_bus = False
     while not valid_bus:
+        prompt = 'What type of message bus (rmq/zmq)?'
+        new_bus = prompt_response(prompt, default='zmq')
+        valid_bus = is_valid_bus(new_bus)
+        if valid_bus:
+            bus_type = new_bus
+        else:
+            print("Message type is not valid. Valid entries are zmq or rmq.")
+
+    if bus_type == 'rmq':
         try:
             rmq_config = RMQConfig()
-            prompt = 'What type of message bus (rmq/zmq)?'
-            new_bus = prompt_response(prompt, default='zmq')
-            valid_bus = is_valid_bus(new_bus)
-            if valid_bus:
-                bus_type = new_bus
-            else:
-                print("Message type is not valid. Valid entries are zmq or rmq.")
-        except AssertionError:
-            new_bus = 'zmq'
-            valid_bus = is_valid_bus(new_bus)
-            if valid_bus:
-                bus_type = new_bus
-                print("Message bus set to zmq")
 
-        if bus_type == 'rmq':
-            check_rmq_setup()
+        except AssertionError:
+            print("RabbitMQ has not been set up!")
+            print("Setting up now...")
+            set_dependencies_rmq()
+            print("Done!")
+
+        if not _check_dependencies_met('rabbitmq'):
+            print("Rabbitmq dependencies not installed. Installing now...")
+            set_dependencies("rabbitmq")
+            print("Done!")
+        check_rmq_setup()
 
     config_opts['message-bus'] = bus_type
+
 
 def do_vip():
     global config_opts
 
-    parsed = urlparse.urlparse(config_opts.get('vip-address',
-                                               'tcp://127.0.0.1:22916'))
+    parsed = urlparse(config_opts.get('vip-address', 'tcp://127.0.0.1:22916'))
     vip_address = None
     if parsed.hostname is not None and parsed.scheme is not None:
         vip_address = parsed.scheme + '://' + parsed.hostname
@@ -403,7 +488,7 @@ def do_web_enabled_rmq(vhome):
     full_bind_web_address = config_opts.get('bind-web-address',
             'https://' + get_hostname())
 
-    parsed = urlparse.urlparse(full_bind_web_address)
+    parsed = urlparse(full_bind_web_address)
 
     address_only = full_bind_web_address
     port_only = None
@@ -435,9 +520,10 @@ def do_web_enabled_rmq(vhome):
     while external_ip.endswith("/"):
         external_ip = external_ip[:-1]
 
-    parsed = urlparse.urlparse(external_ip)
+    parsed = urlparse(external_ip)
 
     config_opts['bind-web-address'] = '{}:{}'.format(external_ip, vc_port)
+
 
 def do_web_enabled_zmq(vhome):
     global config_opts
@@ -448,7 +534,7 @@ def do_web_enabled_zmq(vhome):
     full_bind_web_address = config_opts.get('bind-web-address',
             'https://' + get_hostname())
 
-    parsed = urlparse.urlparse(full_bind_web_address)
+    parsed = urlparse(full_bind_web_address)
 
     address_only = full_bind_web_address
     port_only = None
@@ -484,12 +570,13 @@ def do_web_enabled_zmq(vhome):
     while external_ip.endswith("/"):
         external_ip = external_ip[:-1]
 
-    parsed = urlparse.urlparse(external_ip)
+    parsed = urlparse(external_ip)
 
     config_opts['bind-web-address'] = '{}:{}'.format(external_ip, vc_port)
 
     if config_opts['message-bus'] == 'zmq' and parsed.scheme == "https":
         get_cert_and_key(vhome)
+
 
 def do_web_agent():
     global config_opts
@@ -508,13 +595,15 @@ def do_web_agent():
             do_web_enabled_zmq(volttron_home)
     _update_config_file()
 
+
 @installs(get_services_core("VolttronCentral"), 'vc')
 def do_vc():
     do_web_agent()
-    resp = vc_config()
+    # resp = vc_config()
 
     print('Installing volttron central.')
-    return resp
+    return {}
+
 
 def vc_config():
     username = ''
@@ -541,7 +630,7 @@ def vc_config():
     config = {
         'users': {
             username: {
-                'password': hashlib.sha512(password).hexdigest(),
+                'password': hashlib.sha512(password.encode('utf-8')).hexdigest(),
                 'groups': ['admin']
             }
         }
@@ -561,7 +650,8 @@ def get_cert_and_key(vhome):
     if is_file_readable(master_web_cert, False) and is_file_readable(master_web_key, False):
         try:
             if certs.Certs.validate_key_pair(master_web_cert, master_web_key):
-                print('\nThe following certificate and keyfile exists for web access over https: \n{}\n{}'.format(master_web_cert,master_web_key))
+                print('\nThe following certificate and keyfile exists for web access over https: \n{}\n{}'.format(
+                    master_web_cert,master_web_key))
                 prompt = '\nDo you want to use these certificates for the web server?'
                 if prompt_response(prompt, valid_answers=y_or_n, default='Y') in y:
                     config_opts['web-ssl-cert'] = master_web_cert
@@ -571,7 +661,7 @@ def get_cert_and_key(vhome):
                     print('\nPlease provide the path to cert and key files. '
                           'This will overwrite existing files: \n{} and {}'.format(master_web_cert, master_web_key))
             else:
-                print("Existing key pair is not valid. ")
+                print("Existing key pair is not valid.")
         except RuntimeError as e:
             print(e)
             pass
@@ -615,13 +705,14 @@ def get_cert_and_key(vhome):
                       "should use RSA encryption")
         else:
             cert_error = _create_web_certs()
-            if not cert_error: 
-                master_web_cert = os.path.join(vhome, 'certificates/certs/', 
+            if not cert_error:
+                master_web_cert = os.path.join(vhome, 'certificates/certs/',
                         MASTER_WEB+"-server.crt")
                 master_web_key = os.path.join(vhome, 'certificates/private/', 
                         MASTER_WEB + "-server.pem")
                 config_opts['web-ssl-cert'] = master_web_cert
                 config_opts['web-ssl-key'] = master_web_key
+
 
 def is_file_readable(file_path, log=True):
     file_path = os.path.expanduser(os.path.expandvars(file_path))
@@ -632,13 +723,14 @@ def is_file_readable(file_path, log=True):
             print("\nInvalid file path. Path does not exists or is not readable.")
         return False
 
+
 @installs(get_services_core("VolttronCentralPlatform"), 'vcp')
 def do_vcp():
     global config_opts
     is_vc = False
-    vctl_list_process = Popen(['vctl','list'], env=os.environ, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    vctl_list_process = Popen(['vctl', 'list'], env=os.environ, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     vctl_list = vctl_list_process.communicate()
-    vctl_list_output = ''.join(vctl_list)
+    vctl_list_output = ''.join([v.decode('utf-8') for v in vctl_list])
 
     # Default instance name to the vip address.
     instance_name = config_opts.get('instance-name',
@@ -668,10 +760,10 @@ def do_vcp():
         
     except KeyError:
         vc_address = config_opts.get('volttron-central-address',
-                                 config_opts.get('bind-web-address',
+                                     config_opts.get('bind-web-address',
                                      'https://' + get_hostname()))
-    if is_vc == False:
-        parsed = urlparse.urlparse(vc_address)
+    if not is_vc:
+        parsed = urlparse(vc_address)
         address_only = vc_address
         port_only = None
         if parsed.port is not None:
@@ -710,9 +802,8 @@ def do_vcp():
 @installs(get_services_core("SQLHistorian"), 'platform_historian',
           identity='platform.historian')
 def do_platform_historian():
-    datafile = os.path.join(get_home(), 'data', 'platform.historian.sqlite')
+    datafile = 'platform.historian.sqlite'
     config = {
-        'agentid': 'sqlhistorian-sqlite',
         'connection': {
             'type': 'sqlite',
             'params': {
@@ -744,6 +835,7 @@ def do_master_driver():
 def do_listener():
     return {}
 
+
 def confirm_volttron_home():
     global prompt_vhome
     volttron_home = get_home()
@@ -755,6 +847,7 @@ def confirm_volttron_home():
                 '\nPlease execute with VOLTRON_HOME=/your/path volttron-cfg to '
                 'modify VOLTTRON_HOME.\n')
             exit(1)
+
 
 def wizard():
     global config_opts
@@ -772,32 +865,57 @@ def wizard():
     do_message_bus()
     do_vip()
     _update_config_file()
+
     prompt = 'Is this instance web enabled?'
     response = prompt_response(prompt, valid_answers=y_or_n, default='N')
     if response in y:
+        if not _check_dependencies_met('web'):
+            print("Web dependencies not installed. Installing now...")
+            set_dependencies('web')
+            print("Done!")
         if config_opts['message-bus'] == 'rmq':
             do_web_enabled_rmq(volttron_home)
         elif config_opts['message-bus'] == 'zmq':
             do_web_enabled_zmq(volttron_home)
         _update_config_file()
+        # TODO: Commented out so we don't prompt for installing vc or vcp until they
+        # have been figured out totally for python3
+
         prompt = 'Is this an instance of volttron central?'
         response = prompt_response(prompt, valid_answers=y_or_n, default='N')
         if response in y:
             do_vc()
+            if _is_agent_installed('vc'):
+                print("VC admin and password are set up using the admin web interface.\n"
+                      "After starting VOLTTRON, please go to {} to complete the setup.".format(
+                        os.path.join(config_opts['bind-web-address'], "admin", "login.html")
+                        ))
+    # TODO: Commented out so we don't prompt for installing vc or vcp until they
+    # have been figured out totally for python3
 
     prompt = 'Will this instance be controlled by volttron central?'
     response = prompt_response(prompt, valid_answers=y_or_n, default='Y')
     if response in y:
+        if not _check_dependencies_met("drivers") or not _check_dependencies_met("web"):
+            print("VCP dependencies not installed. Installing now...")
+            if not _check_dependencies_met("drivers"):
+                set_dependencies("drivers")
+            if not _check_dependencies_met("web"):
+                set_dependencies("web")
+            print("Done!")
         do_vcp()
 
     prompt = 'Would you like to install a platform historian?'
     response = prompt_response(prompt, valid_answers=y_or_n, default='N')
     if response in y:
         do_platform_historian()
-
     prompt = 'Would you like to install a master driver?'
     response = prompt_response(prompt, valid_answers=y_or_n, default='N')
     if response in y:
+        if not _check_dependencies_met("drivers"):
+            print("Driver dependencies not installed. Installing now...")
+            set_dependencies("drivers")
+            print("Done!")
         do_master_driver()
 
     prompt = 'Would you like to install a listener agent?'
@@ -838,7 +956,6 @@ def process_rmq_inputs(args, instance_name=None):
 
 def main():
     global verbose, prompt_vhome
-
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('-v', '--verbose', action='store_true')
     parser.add_argument('--vhome', help="Path to volttron home")
@@ -859,6 +976,9 @@ def main():
                             'details when prompted. \nUsage: vcfg --rabbitmq '
                             'single|federation|shovel [rabbitmq config '
                             'file]')
+    group.add_argument('--secure-agent-users', action='store_true', dest='secure_agent_users',
+                       help='Require that agents run with their own users (this requires running '
+                            'scripts/secure_user_permissions.sh as sudo)')
 
     args = parser.parse_args()
     verbose = args.verbose
@@ -866,15 +986,15 @@ def main():
     if args.vhome:
         set_home(args.vhome)
         prompt_vhome = False
-    if not args.rabbitmq or args.rabbitmq[0] in ["single"]:
-        fail_if_instance_running()
+    # if not args.rabbitmq or args.rabbitmq[0] in ["single"]:
+    fail_if_instance_running()
     fail_if_not_in_src_root()
-
+    atexit.register(_cleanup_on_exit)
     _load_config()
     if args.instance_name:
         _update_config_file(instance_name=args.instance_name)
     if args.list_agents:
-        print "Agents available to configure:{}".format(agent_list)
+        print("Agents available to configure:{}".format(agent_list))
     elif args.rabbitmq:
         if len(args.rabbitmq) > 2:
             print("vcfg --rabbitmq can at most accept 2 arguments")
@@ -891,16 +1011,22 @@ def main():
             exit(1)
         else:
             process_rmq_inputs(args.rabbitmq, args.instance_name)
+    elif args.secure_agent_users:
+        config_opts['secure-agent-users'] = args.secure_agent_users
+        _update_config_file()
     elif not args.agent:
         wizard()
 
     else:
         # Warn about unknown agents
+        valid_agents = False
         for agent in args.agent:
             if agent not in available_agents:
-                print '"{}" not configurable with this tool'.format(agent)
-
-        confirm_volttron_home()
+                print('"{}" not configurable with this tool'.format(agent))
+            else:
+                valid_agents = True
+        if valid_agents:
+            confirm_volttron_home()
 
         # Configure agents
         for agent in args.agent:

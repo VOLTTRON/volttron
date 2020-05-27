@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -37,6 +37,7 @@
 # }}}
 
 import logging
+import os
 
 import gevent
 
@@ -117,7 +118,7 @@ class AlertAgent(Agent):
                             self.remote_address)
                         _log.error(status_context)
                         self._remote_agent = None
-                except gevent.Timeout, ZMQError:
+                except (gevent.Timeout, ZMQError):
                     _log.error("Exception creation remote agent")
                     status_context = "Couldn't connect to remote platform at: {}".format(
                         self.remote_address)
@@ -140,8 +141,18 @@ class AlertAgent(Agent):
         """
         Setup database tables for persistent logs
         """
+        db_dir = os.getcwd()
+        data_dir = ""
+        if utils.is_secure_mode():
+            for d  in os.listdir(os.path.basename(os.getcwd())):
+                if d.endswith(".agent-data"):
+                    data_dir = d
+                    break
+            if data_dir:
+                db_dir = os.path.join(os.getcwd(), data_dir)
+
         self._connection = sqlite3.connect(
-            'alert_log.sqlite',
+            os.path.join(db_dir, 'alert_log.sqlite'),
             detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
         c = self._connection.cursor()
 
@@ -178,7 +189,7 @@ class AlertAgent(Agent):
                            main_agent=self,
                            publish_local=self.publish_local,
                            publish_remote=self.publish_remote)
-        
+
         return group
 
     @Core.receiver('onstop')
@@ -188,6 +199,7 @@ class AlertAgent(Agent):
                   " WHERE start_time = (SELECT max(start_time) from agent_log)",
                   (get_aware_utc_now(),))
         c.close()
+        gevent.sleep(0.1)
         self._connection.commit()
         self._connection.close()
 
@@ -270,9 +282,9 @@ class AlertAgent(Agent):
             alert_topics = set()
 
             # Loop through topics in alert group
-            for topic in self.group_instances[name].wait_time.iterkeys():
+            for topic in self.group_instances[name].wait_time.keys():
 
-                # Send an alert if a topic hasn't been seen
+                # Send an alert if a topic hasn't been
                 self.group_instances[name].topic_ttl[topic] -= 1
                 if self.group_instances[name].topic_ttl[topic] <= 0:
                     alert_topics.add(topic)
@@ -325,7 +337,7 @@ class AlertGroup():
     def parse_config(self):
         _log.info("Listening for alert group {}".format(self.group_name))
         config = self.config
-        for topic in config.iterkeys():
+        for topic in config.keys():
 
             # Optional config option with a list of points that
             # might not be published.
@@ -400,7 +412,6 @@ class AlertGroup():
             for point in self.point_ttl[topic]:
                 self.point_ttl[topic][point] = self.wait_time[topic]
 
-
     def reset_time(self, peer, sender, bus, topic, headers, message):
         """Callback for topic subscriptions
 
@@ -435,7 +446,7 @@ class AlertGroup():
 
         # Reset timeouts on volatile points
         if topic in self.point_ttl:
-            received_points = set(message[0].keys())
+            received_points = message[0].keys()
             expected_points = self.point_ttl[topic].keys()
             for point in expected_points:
                 if point in received_points:
@@ -528,8 +539,10 @@ class AlertGroup():
         :type unseen_topics: list
         """
         alert_key = "AlertAgent Timeout for group {}".format(self.group_name)
+        _log.debug(f"unseen_topics {unseen_topics}")
+        _log.debug(f"sorted : {sorted(unseen_topics, key = lambda x: x[0] if isinstance(x, tuple) else x)}")
         context = "Topic(s) not published within time limit: {}".format(
-            sorted(unseen_topics))
+             sorted(unseen_topics, key = lambda x: x[0] if isinstance(x, tuple) else x))
         status = Status.build(STATUS_BAD, context=context)
         if self.publish_remote:
             try:

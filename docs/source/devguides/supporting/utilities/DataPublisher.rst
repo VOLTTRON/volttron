@@ -79,7 +79,7 @@ CSV File Format
 
 The CSV file must have a single header line. The column names are appended to the
 `basepath` setting in the configuration file and the resulting topic is normalized
-to remove extra `/`s. The values are all treated as floating
+to remove extra `/` characters. The values are all treated as floating
 point values and converted accordingly.
 
 The corresponding device for each point is determined and the values are combined

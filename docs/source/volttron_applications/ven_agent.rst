@@ -1,4 +1,4 @@
-.. _styleguide: ven_agent
+.. _ven_agent:
 
 VEN Agent: OpenADR 2.0b Interface Specification
 ===============================================

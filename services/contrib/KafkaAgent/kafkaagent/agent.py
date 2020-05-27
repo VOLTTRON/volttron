@@ -3,7 +3,6 @@ import logging
 import os
 import sys
 import datetime
-import json
 from dateutil.parser import parse
 import multiprocessing
 import ast
@@ -16,6 +15,7 @@ from kafka.errors import KafkaError
 from volttron.platform.vip.agent import Agent, Core, PubSub
 from volttron.platform.messaging import topics
 from volttron.platform.agent import utils
+from volttron.platform import jsonapi
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -153,7 +153,7 @@ class KafkaAgent(Agent):
         # produce json messages
         self.kafka_consumer_addr = '{0}:{1}'.format(self.kafka_broker_ip, self.kafka_broker_port)
         self.producer = KafkaProducer(bootstrap_servers=[self.kafka_consumer_addr],
-                        value_serializer=lambda v: json.dumps(v).encode('utf-8')
+                        value_serializer=lambda v: jsonapi.dumps(v).encode('utf-8')
                          )
 
     # configuration callbacks

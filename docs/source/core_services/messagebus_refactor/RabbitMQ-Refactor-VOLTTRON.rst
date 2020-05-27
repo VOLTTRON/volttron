@@ -1,4 +1,5 @@
 .. _RabbitMQ-VOLTTRON:
+
 =======================
 RabbitMQ Based VOLTTRON
 =======================
@@ -143,7 +144,7 @@ publishes to same the topic.
 7. The pubsub subsystem unwraps the message and calls the appropriate callback method of Agent A.
 
 If agent wants to subscribe to topic from remote instances, it uses
-   agent.vip.subscribe(“pubsub”, “devices.hvac1”, all_platforms=True”)
+agent.vip.subscribe(“pubsub”, “devices.hvac1”, all_platforms=True”)
 It is internally set to “__pubsub__.*.<remainder of topic>”
 
 Pubsub subsystem for ZeroMQ message bus performs O(N) comparisons where N is the number of unique
@@ -214,9 +215,11 @@ Consider Agent A on volttron instance "volttron1" on host "host_A" wants to make
 on VOLTTRON instance "volttron2" on host "host_B".
 
 1. Agent A makes RPC call.
+
 .. code-block:: Python
+
     kwargs = {"external_platform": self.destination_instance_name}
-    agent_a.vip.rpc.call("agent_b", set_point, "point_name", 2.5, **kwargs)
+    agent_a.vip.rpc.call("agent_b", set_point, "point_name", 2.5, \**kwargs)
 
 2. The message is transferred over federation link to VOLTTRON instance "volttron2" as both the exchanges are made *federated*.
 
@@ -330,9 +333,11 @@ Consider Agent A on volttron instance "volttron1" on host "host_A" wants to make
 on VOLTTRON instance "volttron2" on host "host_B".
 
 1. Agent A makes RPC call.
+
 .. code-block:: Python
+
     kwargs = {"external_platform": self.destination_instance_name}
-    agent_a.vip.rpc.call("agent_b", set_point, "point_name", 2.5, **kwargs)
+    agent_a.vip.rpc.call("agent_b", set_point, "point_name", 2.5, \**kwargs)
 
 2. The message is transferred over shovel link to VOLTTRON instance "volttron2".
 
@@ -343,13 +348,13 @@ on VOLTTRON instance "volttron2" on host "host_B".
 RabbitMQ Management Tool Integrated Into VOLTTRON
 =================================================
 Some of the important native RabbitMQ control and management commands are now integrated with
-"volttron-ctl" utility. Using volttron-ctl RabbitMQ management utility, we can control and
+"volttron-ctl" (vctl) utility. Using volttron-ctl RabbitMQ management utility, we can control and
 monitor the status of RabbitMQ message bus.
 
 ::
 
-    volttron-ctl rabbitmq --help
-    usage: volttron-ctl command [OPTIONS] ... rabbitmq [-h] [-c FILE] [--debug]
+    vctl rabbitmq --help
+    usage: vctl command [OPTIONS] ... rabbitmq [-h] [-c FILE] [--debug]
                                                        [-t SECS]
                                                        [--msgdebug MSGDEBUG]
                                                        [--vip-address ZMQADDR]

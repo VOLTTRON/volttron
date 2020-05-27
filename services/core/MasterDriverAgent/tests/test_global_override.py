@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -119,7 +119,7 @@ def config_store(request, config_store_connection):
 
     def cleanup():
         # Reset master driver config store
-        print "Wiping out store."
+        print("Wiping out store.")
         config_store_connection.call("manage_delete_store", PLATFORM_DRIVER)
         gevent.sleep(0.1)
 
@@ -130,7 +130,7 @@ def config_store(request, config_store_connection):
 
 def setup_config(config_store, config_name, config_string, **kwargs):
     config = config_string.format(**kwargs)
-    print "Adding", config_name, "to store"
+    print("Adding", config_name, "to store")
     config_store.call("manage_store", PLATFORM_DRIVER, config_name, config, config_type="json")
 
 
@@ -152,7 +152,7 @@ def test_agent(request, volttron_instance):
 @pytest.mark.driver
 def test_set_override(config_store, test_agent):
     setup_config(config_store, "config", master_driver_config)
-    for i in xrange(4):
+    for i in range(4):
         config_name = "devices/fakedriver{}".format(i)
         setup_config(config_store, config_name, fake_device_config)
     device_path = "fakedriver1"
@@ -182,7 +182,7 @@ def test_set_override(config_store, test_agent):
         ).get(timeout=10)
         pytest.fail("Expecting Override Error. Code returned: {}".format(result))
     except RemoteError as e:
-        assert e.exc_info['exc_type'] == 'master_driver.agent.OverrideError'
+        assert e.exc_info['exc_type'].endswith('OverrideError')
         assert e.message == 'Cannot set point on device {} since global override is set'.format(
             device_path)
 
@@ -195,7 +195,7 @@ def test_set_override(config_store, test_agent):
 
         pytest.fail("Expecting Override Error. Code returned: {}".format(result))
     except RemoteError as e:
-        assert e.exc_info['exc_type'] == 'master_driver.agent.OverrideError'
+        assert e.exc_info['exc_type'].endswith('OverrideError')
         assert e.message == 'Cannot revert device {} since global override is set'.format(
             device_path)
 
@@ -203,7 +203,7 @@ def test_set_override(config_store, test_agent):
 @pytest.mark.driver
 def test_set_point_after_override_elapsed_interval(config_store, test_agent):
     setup_config(config_store, "config", master_driver_config)
-    for i in xrange(4):
+    for i in range(4):
         config_name = "devices/fakedriver{}".format(i)
         setup_config(config_store, config_name, fake_device_config)
 
@@ -233,7 +233,7 @@ def test_set_point_after_override_elapsed_interval(config_store, test_agent):
         ).get(timeout=10)
         assert result == new_value
     except RemoteError as e:
-        assert e.exc_info['exc_type'] == 'master_driver.agent.OverrideError'
+        assert e.exc_info['exc_type'].endswith('OverrideError')
         assert e.message == 'Cannot set point on device {} since global override is set'.format(
             device_path)
         pytest.fail("Expecting successful set point. Code raised OverrideError: {}".format(e.message))
@@ -243,7 +243,7 @@ def test_set_point_after_override_elapsed_interval(config_store, test_agent):
 @pytest.mark.driver
 def test_set_hierarchical_override(config_store, test_agent):
     setup_config(config_store, "config", master_driver_config)
-    for i in xrange(4):
+    for i in range(4):
         config_name = "devices/fakedriver{}".format(i)
         setup_config(config_store, config_name, fake_device_config)
     device_path = '*'
@@ -270,7 +270,7 @@ def test_set_hierarchical_override(config_store, test_agent):
         ).get(timeout=10)
         pytest.fail("Expecting Override Error. Code returned: {}".format(result))
     except RemoteError as e:
-        assert e.exc_info['exc_type'] == 'master_driver.agent.OverrideError'
+        assert e.exc_info['exc_type'].endswith('OverrideError')
         assert e.message == 'Cannot set point on device {} since global override is set'.format(
             fakedriver1_path)
     gevent.sleep(4)
@@ -279,7 +279,7 @@ def test_set_hierarchical_override(config_store, test_agent):
 @pytest.mark.driver
 def test_set_override_no_revert(config_store, test_agent):
     setup_config(config_store, "config", master_driver_config)
-    for i in xrange(4):
+    for i in range(4):
         config_name = "devices/fakedriver{}".format(i)
         setup_config(config_store, config_name, fake_device_config)
     device_path = 'fakedriver1'
@@ -316,7 +316,7 @@ def test_set_override_no_revert(config_store, test_agent):
 @pytest.mark.driver
 def test_set_override_off(config_store, test_agent):
     setup_config(config_store, "config", master_driver_config)
-    for i in xrange(4):
+    for i in range(4):
         config_name = "devices/fakedriver{}".format(i)
         setup_config(config_store, config_name, fake_device_config)
     device_path = 'fakedriver1'
@@ -367,7 +367,7 @@ def test_set_override_off(config_store, test_agent):
         ).get(timeout=10)
         assert result == value
     except RemoteError as e:
-        assert e.exc_info['exc_type'] == 'master_driver.agent.OverrideError'
+        assert e.exc_info['exc_type'].endswith('OverrideError')
         assert e.message == 'Cannot set point on device {} since global override is set'.format(
             device_path)
         pytest.fail("Expecting successful set point. Code raised OverrideError: {}".format(e.message))
@@ -389,7 +389,7 @@ def test_set_override_off(config_store, test_agent):
 
 @pytest.mark.driver
 def test_overlapping_override_onoff(config_store, test_agent):
-    for i in xrange(4):
+    for i in range(4):
         config_name = "devices/fakedriver{}".format(i)
         setup_config(config_store, config_name, fake_device_config)
 
@@ -439,7 +439,7 @@ def test_overlapping_override_onoff(config_store, test_agent):
         ).get(timeout=10)
         pytest.fail("Expecting Override Error. Code returned : {}".format(result))
     except RemoteError as e:
-        assert e.exc_info['exc_type'] == 'master_driver.agent.OverrideError'
+        assert e.exc_info['exc_type'].endswith('OverrideError')
         assert e.message == 'Cannot set point on device {} since global override is set'.format(
             fakedriver1_device_path)
 
@@ -455,7 +455,7 @@ def test_overlapping_override_onoff(config_store, test_agent):
         ).get(timeout=10)
         pytest.fail("Expecting Override Error. Code returned : {}".format(result))
     except RemoteError as e:
-        assert e.exc_info['exc_type'] == 'master_driver.agent.OverrideError'
+        assert e.exc_info['exc_type'].endswith('OverrideError')
         assert e.message == 'Cannot set point on device {} since global override is set'.format(
             fakedriver2_device_path)
 
@@ -473,7 +473,7 @@ def test_overlapping_override_onoff(config_store, test_agent):
         assert result == new_value
         print("New value of fake driver2, SampleWritableFloat1: {}".format(new_value))
     except RemoteError as e:
-        assert e.exc_info['exc_type'] == 'master_driver.agent.OverrideError'
+        assert e.exc_info['exc_type'].endswith('OverrideError')
         assert e.message == 'Cannot set point on device {} since global override is set'.format(
             fakedriver2_device_path)
         pytest.fail("Expecting successful set point. Code raised OverrideError: {}".format(e.message))
@@ -481,7 +481,7 @@ def test_overlapping_override_onoff(config_store, test_agent):
 
 @pytest.mark.driver
 def test_overlapping_override_onoff2(config_store, test_agent):
-    for i in xrange(4):
+    for i in range(4):
         config_name = "devices/fakedriver{}".format(i)
         setup_config(config_store, config_name, fake_device_config)
     all_device_path = '*'
@@ -530,7 +530,7 @@ def test_overlapping_override_onoff2(config_store, test_agent):
         ).get(timeout=10)
         pytest.fail("Expecting Override Error. Code returned : {}".format(result))
     except RemoteError as e:
-        assert e.exc_info['exc_type'] == 'master_driver.agent.OverrideError'
+        assert e.exc_info['exc_type'].endswith('OverrideError')
         assert e.message == 'Cannot set point on device {} since global override is set'.format(
             fakedriver1_device_path)
 
@@ -546,7 +546,7 @@ def test_overlapping_override_onoff2(config_store, test_agent):
         ).get(timeout=10)
         assert result == new_value
     except RemoteError as e:
-        assert e.exc_info['exc_type'] == 'master_driver.agent.OverrideError'
+        assert e.exc_info['exc_type'].endswith('OverrideError')
         assert e.message == 'Cannot set point on device {} since global override is set'.format(
             fakedriver2_device_path)
         pytest.fail("Expecting successful set point. Code raised OverrideError: {}".format(e.message))
@@ -566,7 +566,7 @@ def test_overlapping_override_onoff2(config_store, test_agent):
         assert result == new_value
         print("New value of fake driver1, SampleWritableFloat1: {}".format(new_value))
     except RemoteError as e:
-        assert e.exc_info['exc_type'] == 'master_driver.agent.OverrideError'
+        assert e.exc_info['exc_type'].endswith('OverrideError')
         assert e.message == 'Cannot set point on device {} since global override is set'.format(
             fakedriver1_device_path)
         pytest.fail("Expecting successful set point. Code raised OverrideError: {}".format(e.message))
@@ -574,7 +574,7 @@ def test_overlapping_override_onoff2(config_store, test_agent):
 
 @pytest.mark.driver
 def test_duplicate_override_on(config_store, test_agent):
-    for i in xrange(4):
+    for i in range(4):
         config_name = "devices/fakedriver{}".format(i)
         setup_config(config_store, config_name, fake_device_config)
     all_device_path = '*'
@@ -614,14 +614,14 @@ def test_duplicate_override_on(config_store, test_agent):
         ).get(timeout=10)
         pytest.fail("Expecting Override Error. Code returned : {}".format(result))
     except RemoteError as e:
-        assert e.exc_info['exc_type'] == 'master_driver.agent.OverrideError'
+        assert e.exc_info['exc_type'].endswith('OverrideError')
         assert e.message == 'Cannot set point on device {} since global override is set'.format(
             fakedriver1_device_path)
 
 
 @pytest.mark.driver
 def test_indefinite_override_on(config_store, test_agent):
-    for i in xrange(4):
+    for i in range(4):
         config_name = "devices/fakedriver{}".format(i)
         setup_config(config_store, config_name, fake_device_config)
     device_path = 'fakedriver2'
@@ -660,7 +660,7 @@ def test_indefinite_override_on(config_store, test_agent):
         ).get(timeout=10)
         pytest.fail("Expecting Override Error. Code returned : {}".format(result))
     except RemoteError as e:
-        assert e.exc_info['exc_type'] == 'master_driver.agent.OverrideError'
+        assert e.exc_info['exc_type'].endswith('OverrideError')
         assert e.message == 'Cannot set point on device {} since global override is set'.format(
             device_path)
     result = test_agent.vip.rpc.call(
@@ -671,7 +671,7 @@ def test_indefinite_override_on(config_store, test_agent):
 
 @pytest.mark.driver
 def test_indefinite_override_after_restart(config_store, test_agent, volttron_instance):
-    for i in xrange(4):
+    for i in range(4):
         config_name = "devices/fakedriver{}".format(i)
         setup_config(config_store, config_name, fake_device_config)
     device_path = 'fakedriver2'
@@ -709,7 +709,7 @@ def test_indefinite_override_after_restart(config_store, test_agent, volttron_in
         ).get(timeout=10)
         pytest.fail("Expecting Override Error. Code returned : {}".format(result))
     except RemoteError as e:
-        assert e.exc_info['exc_type'] == 'master_driver.agent.OverrideError'
+        assert e.exc_info['exc_type'].endswith('OverrideError')
         assert e.message == 'Cannot set point on device {} since global override is set'.format(
             device_path)
     result = test_agent.vip.rpc.call(

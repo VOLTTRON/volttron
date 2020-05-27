@@ -91,7 +91,7 @@ def test_pid_file():
     (output, error) = process.communicate()
     assert process.returncode == 1
     assert "VOLTTRON with process id " + pid_str + " is already running" in \
-           output
+           output.decode("utf-8")
 
 
 

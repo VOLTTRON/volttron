@@ -4,7 +4,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -42,7 +42,6 @@
 
 import logging
 import sys
-
 import psutil
 
 from volttron.platform.vip.agent import Agent, RPC, Core
@@ -98,21 +97,18 @@ class SysMonAgent(Agent):
         self.disk_check_interval = config.pop('disk_check_interval', 5)
         self.disk_path = config.pop('disk_path', '/')
         for key in config:
-            _log.warn('Ignoring unrecognized cofiguration parameter %s', key)
+            _log.warning('Ignoring unrecognized configuration parameter %s', key)
 
         self._scheduled = []
 
     def _configure(self, config):
         self.base_topic = config.pop('base_topic', self.base_topic)
-        self.cpu_check_interval = config.pop('cpu_check_interval',
-                                             self.cpu_check_interval)
-        self.memory_check_interval = config.pop('memory_check_interval',
-                                                self.memory_check_interval)
-        self.disk_check_interval = config.pop('disk_check_interval',
-                                              self.disk_check_interval)
+        self.cpu_check_interval = config.pop('cpu_check_interval', self.cpu_check_interval)
+        self.memory_check_interval = config.pop('memory_check_interval', self.memory_check_interval)
+        self.disk_check_interval = config.pop('disk_check_interval', self.disk_check_interval)
         self.disk_path = config.pop('disk_path', self.disk_path)
         for key in config:
-            _log.warn('Ignoring unrecognized cofiguration parameter %s', key)
+            _log.warning('Ignoring unrecognized configuration parameter %s', key)
 
     @Core.receiver('onstart')
     def start(self, sender, **kwargs):
@@ -124,8 +120,7 @@ class SysMonAgent(Agent):
         def pub_wrapper():
             data = func()
             topic = self.base_topic + '/' + func.__name__
-            self.vip.pubsub.publish(peer='pubsub', topic=topic,
-                                    message=data)
+            self.vip.pubsub.publish(peer='pubsub', topic=topic, message=data)
         sched = self.core.schedule(periodic(period), pub_wrapper)
         self._scheduled.append(sched)
 
@@ -167,8 +162,7 @@ class SysMonAgent(Agent):
 
 def main(argv=sys.argv):
     """Main method called by the platform."""
-    utils.vip_main(sysmon_agent, identity='platform.sysmon',
-                   version=__version__)
+    utils.vip_main(sysmon_agent, identity='platform.sysmon', version=__version__)
 
 
 if __name__ == '__main__':

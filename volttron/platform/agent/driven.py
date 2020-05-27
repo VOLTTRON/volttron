@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -52,12 +52,10 @@ __all__ = ['AbstractDrivenAgent', 'ConversionMapper', 'Results']
 
 __author__ = 'Craig Allwardt <craig.allwardt@pnnl.gov>'
 __copyright__ = 'Copyright (c) 2014, Battelle Memorial Institute'
-__license__ = 'FreeBSD'
+__license__ = 'Apache 2.0'
 
 
-class AbstractDrivenAgent(object):
-    __metaclass__ = ABCMeta
-
+class AbstractDrivenAgent(object, metaclass=ABCMeta):
     def __init__(self, out=None, **kwargs):
         """
         When applications extend this base class, they need to make
@@ -118,13 +116,13 @@ class Results(object):
         if device is None:
             self.commands[point] = value
         else:
-            if device not in self.devices.keys():
+            if device not in self.devices:
                 self.devices[device] = OrderedDict()
             self.devices[device][point] = value
         if self.devices is None:
             self.commands[point]=value
         else:
-            if  device not in self.devices.keys():
+            if  device not in self.devices:
                 self.devices[device] = OrderedDict()
             self.devices[device][point]=value
 
@@ -148,16 +146,16 @@ class ConversionMapper(object):
 
     def setup_conversion_map(self, conversion_map_config, field_names):
         #time_format = conversion_map_config.pop(TIME_STAMP_COLUMN)
-        re_exp_list = conversion_map_config.keys()
-        re_exp_list.sort(cmp=lambda x, y: cmp(len(x), len(y)))
+        re_exp_list = list(conversion_map_config.keys())
+        re_exp_list.sort(key=lambda x: len(x), reverse=True)
         re_exp_list.reverse()
         re_list = [re.compile(x) for x in re_exp_list]
 
         def default_handler():
             return lambda x:x
         self.conversion_map = defaultdict(default_handler)
-        def handle_time(item):
-            return datetime.strptime(item, time_format)
+        # def handle_time(item):
+        #     return datetime.strptime(item, time_format)
         #self.conversion_map[TIME_STAMP_COLUMN] = handle_time
 
         def handle_bool(item):
@@ -189,4 +187,4 @@ class ConversionMapper(object):
         null_values = {'NAN', 'NA', '#NA', 'NULL', 'NONE',
                        'nan', 'na', '#na', 'null', 'none',
                        '', None}
-        return dict((c,self.conversion_map[c](v)) if v not in null_values else (c,None) for c,v in row_dict.iteritems())
+        return dict((c,self.conversion_map[c](v)) if v not in null_values else (c,None) for c,v in row_dict.items())

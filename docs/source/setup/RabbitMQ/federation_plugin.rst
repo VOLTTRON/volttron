@@ -78,7 +78,7 @@ upstream servers on the downstream server and make the VOLTTRON exchange
 
         .. code-block:: bash
 
-             volttron-ctl rabbitmq add-user <username> <password>
+             vctl rabbitmq add-user <username> <password>
              Do you want to set READ permission  [Y/n]
              Do you want to set WRITE permission  [Y/n]
              Do you want to set CONFIGURE permission  [Y/n]
@@ -129,7 +129,7 @@ upstream servers on the downstream server and make the VOLTTRON exchange
       upstream link will be displayed on the page. Click on the upstream link name and
       delete it.
 
-   b. Using "volttron-ctl" command on the upstream server.
+   b. Using "vctl" command on the upstream server.
 
        .. code-block:: bash
 

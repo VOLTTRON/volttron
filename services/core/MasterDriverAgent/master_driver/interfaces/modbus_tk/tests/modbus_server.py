@@ -99,11 +99,11 @@ def watts_on_server():
                              False)
 
     # Get reading values for defined registers
-    print dict((field.name, value) for field, value, timestamp in client.dump_all())
+    print(dict((field.name, value) for field, value, timestamp in client.dump_all()))
 
     setattr(client, "serial_baud_rate", 115)
     client.write_all()
-    print getattr(client, "serial_baud_rate")
+    print(getattr(client, "serial_baud_rate"))
 
 
 if __name__ == '__main__':

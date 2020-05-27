@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -38,47 +38,49 @@
 
 """VOLTTRON platform™ agent helper classes/functions."""
 
+
 import argparse
 import calendar
 import errno
 import logging
-import sys
-import traceback
-from datetime import datetime, tzinfo, timedelta
-
-import psutil
-import gevent
 import os
+import re
+import stat
+import subprocess
+import sys
+try:
+    HAS_SYSLOG = True
+    import syslog
+except ImportError:
+    HAS_SYSLOG = False
+import traceback
+from configparser import ConfigParser
+from datetime import datetime
+
+import gevent
+import psutil
 import pytz
 import re
 import stat
-import time
 import yaml
-from volttron.platform import get_home, get_address
-from volttron.utils.prompt import prompt_response
 from dateutil.parser import parse
 from dateutil.tz import tzutc, tzoffset
 from tzlocal import get_localzone
-from volttron.platform.agent import json as jsonapi
-from ConfigParser import ConfigParser
-import subprocess
-from subprocess import Popen
+from watchdog_gevent import Observer
 
-try:
-    from volttron.platform.lib.inotify.green import inotify, IN_MODIFY
-except AttributeError:
-    # inotify library is not available on OS X/MacOS.
-    # @TODO Integrate with the OS X FS Events API
-    inotify = None
-    IN_MODIFY = None
+from volttron.platform import get_home, get_address
+from volttron.platform import jsonapi
+from volttron.utils import VolttronHomeFileReloader, AbsolutePathFileReloader
+from volttron.utils.prompt import prompt_response
+
 
 __all__ = ['load_config', 'run_agent', 'start_agent_thread',
            'is_valid_identity', 'load_platform_config', 'get_messagebus',
-           'get_fq_identity', 'execute_command']
+           'get_fq_identity', 'execute_command', 'get_aware_utc_now', 'is_secure_mode']
 
 __author__ = 'Brandon Carpenter <brandon.carpenter@pnnl.gov>'
 __copyright__ = 'Copyright (c) 2016, Battelle Memorial Institute'
-__license__ = 'FreeBSD'
+__license__ = 'Apache 2.0'
 
 _comment_re = re.compile(
     r'((["\'])(?:\\?.)*?\2)|(/\*.*?\*/)|((?:#|//).*?(?=\n|$))',
@@ -158,7 +160,7 @@ def load_config(config_path):
         try:
             with open(config_path) as f:
                 return parse_json_config(f.read())
-        except StandardError as e:
+        except Exception as e:
             _log.error("Problem parsing agent configuration")
             raise
 
@@ -232,6 +234,22 @@ def get_messagebus():
     return message_bus
 
 
+def is_secure_mode():
+    """Get type of message bus - zeromq or rabbbitmq."""
+    string_value = os.environ.get('SECURE_AGENT_USERS')
+    _log.debug("value from env {}".format(string_value))
+    if not string_value:
+        config = load_platform_config()
+        string_value = config.get('secure-agent-users', 'False')
+        _log.debug("value from config {}".format(string_value))
+
+    if string_value == "True":
+        _log.debug("returning True")
+        return True
+
+    return False
+
+
 def store_message_bus_config(message_bus, instance_name):
     # If there is no config file or home directory yet, create volttron_home
     # and config file
@@ -243,7 +261,8 @@ def store_message_bus_config(message_bus, instance_name):
                          "you are running this instance for the first time. "
                          "Or add instance-name = <instance name> in "
                          "vhome/config")
-    v_home= get_home()
+
+    v_home = get_home()
     config_path = os.path.join(v_home, "config")
     if os.path.exists(config_path):
         config = ConfigParser()
@@ -262,6 +281,8 @@ def store_message_bus_config(message_bus, instance_name):
 
         with open(config_path, 'w') as configfile:
             config.write(configfile)
+        # all agents need read access to config file
+        os.chmod(config_path, 0o744)
 
 
 def update_kwargs_with_config(kwargs, config):
@@ -299,7 +320,7 @@ def update_kwargs_with_config(kwargs, config):
         config.pop('agentid')
 
     for k, v in config.items():
-        kwargs[k.replace("-","_")] = v
+        kwargs[k.replace("-", "_")] = v
 
 
 def parse_json_config(config_str):
@@ -405,8 +426,8 @@ def vip_main(agent_class, identity=None, version='0.1', **kwargs):
         message_bus = os.environ.get('MESSAGEBUS', 'zmq')
         if identity is not None:
             if not is_valid_identity(identity):
-                _log.warn('Deprecation warining')
-                _log.warn(
+                _log.warning('Deprecation warining')
+                _log.warning(
                     'All characters in {identity} are not in the valid set.'
                     .format(idenity=identity))
 
@@ -416,9 +437,6 @@ def vip_main(agent_class, identity=None, version='0.1', **kwargs):
 
         from volttron.platform.certs import Certs
         certs = Certs()
-        if os.path.isfile(certs.remote_cert_bundle_file()):
-            os.environ['REQUESTS_CA_BUNDLE'] = certs.remote_cert_bundle_file()
-
         agent = agent_class(config_path=config, identity=identity,
                             address=address, agent_uuid=agent_uuid,
                             volttron_home=volttron_home,
@@ -436,6 +454,22 @@ def vip_main(agent_class, identity=None, version='0.1', **kwargs):
             task.kill()
     except KeyboardInterrupt:
         pass
+
+
+# Keep the ability to have system log output for linux
+# this will fail on windows because no syslog.
+if HAS_SYSLOG:
+    class SyslogFormatter(logging.Formatter):
+        _level_map = {logging.DEBUG: syslog.LOG_DEBUG,
+                      logging.INFO: syslog.LOG_INFO,
+                      logging.WARNING: syslog.LOG_WARNING,
+                      logging.ERROR: syslog.LOG_ERR,
+                      logging.CRITICAL: syslog.LOG_CRIT}
+
+        def format(self, record):
+            level = self._level_map.get(record.levelno, syslog.LOG_INFO)
+            return '<{}>'.format(level) + super(SyslogFormatter, self).format(
+                record)
 
 
 class JsonFormatter(logging.Formatter):
@@ -634,19 +668,16 @@ def watch_file(fullpath, callback):
 
         Not available on OS X/MacOS.
     """
+
     dirname, filename = os.path.split(fullpath)
-    if inotify is None:
-        _log.warning("Runtime changes to: %s not supported on this platform.", fullpath)
-    else:
-        try:
-            with inotify() as inot:
-                inot.add_watch(dirname, IN_MODIFY)
-                for event in inot:
-                    if event.name == filename and event.mask & IN_MODIFY:
-                        callback()
-        except Exception as e:
-            _log.warning("Runtime changes to {} not supported due to "
-                         "exception initializing inotify. Exception: {}".format(fullpath, e))
+    _log.info("Adding file watch for %s dirname=%s, filename=%s", fullpath, get_home(), filename)
+    observer = Observer()
+    observer.schedule(
+        VolttronHomeFileReloader(filename, callback),
+        path=get_home()
+    )
+    observer.start()
+    _log.info("Added file watch for %s", fullpath)
 
 
 def watch_file_with_fullpath(fullpath, callback):
@@ -655,14 +686,14 @@ def watch_file_with_fullpath(fullpath, callback):
         Not available on OS X/MacOS.
     """
     dirname, filename = os.path.split(fullpath)
-    if inotify is None:
-        _log.warning("Runtime changes to: %s not supported on this platform.", fullpath)
-    else:
-        with inotify() as inot:
-            inot.add_watch(dirname, IN_MODIFY)
-            for event in inot:
-                if event.name == filename and event.mask & IN_MODIFY:
-                    callback(fullpath)
+    _log.info("Adding file watch for %s", fullpath)
+    _observer = Observer()
+    _observer.schedule(
+        AbsolutePathFileReloader(fullpath, callback),
+        dirname
+    )
+    _log.info("Added file watch for %s", fullpath)
+    _observer.start()
 
 
 def create_file_if_missing(path, permission=0o660, contents=None):
@@ -674,18 +705,25 @@ def create_file_if_missing(path, permission=0o660, contents=None):
             if e.errno != errno.EEXIST:
                 raise
     try:
-        open(path)
+        with open(path) as fd:
+            pass
     except IOError as exc:
         if exc.errno != errno.ENOENT:
             raise
         _log.debug('missing file %s', path)
         _log.info('creating file %s', path)
         fd = os.open(path, os.O_CREAT | os.O_WRONLY, permission)
+        success = False
         try:
             if contents:
+                contents = contents if isinstance(contents, bytes) else contents.encode("utf-8")
                 os.write(fd, contents)
+                success = True
+        except Exception as e:
+            raise e
         finally:
             os.close(fd)
+        return success
 
 
 def fix_sqlite3_datetime(sql=None):
@@ -701,34 +739,80 @@ def fix_sqlite3_datetime(sql=None):
     """
     if sql is None:
         import sqlite3 as sql
+
+    def parse(time_stamp_bytes):
+        return parse_timestamp_string(time_stamp_bytes.decode("utf-8"))
     sql.register_adapter(datetime, format_timestamp)
-    sql.register_converter("timestamp", parse_timestamp_string)
+    sql.register_converter("timestamp", parse)
 
 
-def execute_command(cmds, env=None, cwd=None, logger=None, err_prefix=None):
-    _, output = execute_command_p(cmds, env, cwd, logger, err_prefix)
-    return output
+def execute_command(cmds, env=None, cwd=None, logger=None, err_prefix=None) -> str:
+    """ Executes a command as a subprocess
 
+    If the return code of the call is 0 then return stdout otherwise
+    raise a RuntimeError.  If logger is specified then write the exception
+    to the logger otherwise this call will remain silent.
 
-def execute_command_p(cmds, env=None, cwd=None, logger=None, err_prefix=None):
-    """ Executes a given command. If commands return code is 0 return stdout.
-    If not logs stderr and raises RuntimeException"""
-    process = Popen(cmds, env=env, cwd=cwd, stderr=subprocess.PIPE,
-                    stdout=subprocess.PIPE)
-    (output, error) = process.communicate()
-    if not err_prefix:
-        err_prefix = "Error executing command"
-    if process.returncode != 0:
+    :param cmds:list of commands to pass to subprocess.run
+    :param env: environment to run the command with
+    :param cwd: working directory for the command
+    :param logger: a logger to use if errors occure
+    :param err_prefix: an error prefix to allow better tracing through the error message
+    :return: stdout string if successful
+
+    :raises RuntimeError: if the return code is not 0 from suprocess.run
+    """
+
+    results = subprocess.run(cmds, env=env, cwd=cwd,
+                             stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+    if results.returncode != 0:
+        err_prefix = err_prefix if err_prefix is not None else "Error executing command"
         err_message = "\n{}: Below Command failed with non zero exit code.\n" \
                       "Command:{} \nStderr:\n{}\n".format(err_prefix,
-                                                          " ".join(cmds),
-                                                          error)
+                                                          results.args,
+                                                          results.stderr)
         if logger:
             logger.exception(err_message)
             raise RuntimeError()
         else:
             raise RuntimeError(err_message)
-    return process.returncode, output
+
+    return results.stdout.decode('utf-8')
+
+#
+# def execute_command_p(cmds, env=None, cwd=None, logger=None, err_prefix=None):
+#     """ Executes a given command using a subprocess.
+#
+#     Returns the return code and stdout of the call.
+#
+#     :param cmds:
+#     :param env:
+#     :param cwd:
+#     :param logger:
+#     :param err_prefix:
+#     :return:
+#     """
+#     if cwd is None:
+#         cwd = os.getcwd()
+#
+# #    try:
+#     results = subprocess.run(cmds, env=env, cwd=cwd,
+#                              stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+#     if results.returncode != 0:
+#         err_prefix = "Error executing command"
+#         err_message = "\n{}: Below Command failed with non zero exit code.\n" \
+#                       "Command:{} \nStderr:\n{}\n".format(err_prefix,
+#                                                           results.args,
+#                                                           results.stderr)
+#         if logger:
+#             logger.exception(err_message)
+#             raise RuntimeError()
+#         else:
+#             raise RuntimeError(err_message)
+#     return results.returncode, results.stdout.decode('utf-8')
+#     # except BaseException as e:
+#     #     _log.error("Exception running cmd: {} . Exception: {}".format(cmds, e))
+#     #     raise e
 
 
 def is_volttron_running(volttron_home):
@@ -748,3 +832,23 @@ def is_volttron_running(volttron_home):
         return running
     else:
         return False
+
+
+def wait_for_volttron_startup(vhome, timeout):
+    # Check for VOLTTRON_PID
+    sleep_time = 0
+    while (not is_volttron_running(vhome)) and sleep_time < timeout:
+        gevent.sleep(3)
+        sleep_time += 3
+    if sleep_time >= timeout:
+        raise Exception("Platform startup failed. Please check volttron.log in {}".format(vhome))
+
+
+def wait_for_volttron_shutdown(vhome, timeout):
+    # Check for VOLTTRON_PID
+    sleep_time = 0
+    while (is_volttron_running(vhome)) and sleep_time < timeout:
+        gevent.sleep(1)
+        sleep_time += 1
+    if sleep_time >= timeout:
+        raise Exception("Platform shutdown failed. Please check volttron.cfg.log in {}".format(vhome))

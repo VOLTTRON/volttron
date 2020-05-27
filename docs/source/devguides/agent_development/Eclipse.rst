@@ -1,4 +1,5 @@
 .. _Eclipse:
+
 Agent Development in Eclipse
 ============================
 
@@ -53,6 +54,7 @@ Enter the following text, as shown in Figure 1, and save the file. To avoid typo
 	Name[en]=eclipse
 
 .. image:: files/1-eclipse-desktop.jpg
+
 Figure 1. Eclipse Desktop File
 
 4. Copy the shortcut to the desktop:
@@ -70,11 +72,13 @@ The transactional network code is stored in a Git repository. A plug-in is avail
 1. Select Help. Select Install New Software (Figure 2).
 
 .. image:: files/2-egit-plugin.jpg
+
 Figure 2. Installing Eclipse EGit Plugin
 
 2. Click the Add button (Figure 3).
 
 .. image:: files/3-egit-plugin.jpg
+
 Figure 3. Installing Eclipse EGit Plugin (continued)
 
 3. As shown in Figure 4, enter the following information:
@@ -82,6 +86,7 @@ Figure 3. Installing Eclipse EGit Plugin (continued)
 	- For location: http://download.eclipse.org/egit/updates
 
 .. image:: files/4-egit-plugin.jpg
+
 Figure 4. Installing Eclipse Egit Plugin (continued)
 
 4. After clicking OK, check the Select All button.
@@ -99,6 +104,7 @@ In Eclipse:
 	- Click OK.
 
 .. image:: files/5-install-eclipse-pydev-plugin.jpg
+
 Figure 5. Installing Eclipse PyDev Plugin
 
 7. Check the box for PyDev.
@@ -115,41 +121,49 @@ To import an existing VOLTTRON project into Eclipse, complete the following step
 1. Select File and select Import (Figure 6).
 
 .. image:: files/6-check-volttron-with-eclipse.jpg
+
 Figure 6. Checking VOLTTRON with Eclipse from Local Source
 
 2. Select Git. Select Projects from Git. Click the Next button (Figure 7).
 
 .. image:: files/7-check-volttron-with-eclipse.jpg
+
 Figure 7. Checking VOLTTRON with Eclipse from Local Source (continued)
 
 3. Select Existing local repository and click the Next button (Figure 8).
 
 .. image:: files/8-check-volttron-with-eclipse.jpg
+
 Figure 8. Checking VOLTTRON with Eclipse from Local Source (continued)
 
 4. Select Add (Figure 9).
 
 .. image:: files/9-check-volttron-with-eclipse.jpg
+
 Figure 9. Checking VOLTTRON with Eclipse from Local Source (continued)
 
 5. Select Browse. Navigate to the top-level base VOLTTRON directory. Select OK (Figure 10).
 
 .. image:: files/10-check-volttron-with-eclipse.jpg
+
 Figure 10. Checking Out VOLTTRON with Eclipse from Local Source (continued)
 
 6. Click Finish (Figure 11).
 
 .. image:: files/11-check-volttron-with-eclipse.jpg
+
 Figure 11. Checking Out VOLTTRON with Eclipse from Local Source (continued)
 
 7. Click Next (Figure 12).
 
 .. image:: files/12-check-volttron-with-eclipse.jpg
+
 Figure 12. Checking Out VOLTTRON with Eclipse from Local Source (continued)
 
 8. Select Import as general project. Click Next. Click Finish (Figure 13). The project will be imported into the workspace.
 
 .. image:: files/13-check-volttron-with-eclipse.jpg
+
 Figure 13. Checking Out VOLTTRON with Eclipse from Local Source (continued)
  
 Import New VOLTTRON Project from GitHub
@@ -159,36 +173,43 @@ To import a new VOLTTRON project directly from GitHub into Eclipse, complete the
 1. Select File and select Import (Figure 14).
 
 .. image:: files/14-check-volttron-from-github.jpg
+
 Figure 14. Checking Out VOLTTRON with Eclipse from GitHub
 
 2. Select Git. Select Projects from Git. Click the Next button (Figure 15).
 
 .. image:: files/15-check-volttron-from-github.jpg
+
 Figure 15. Checking Out VOLTTRON with Eclipse from GitHub (continued)
 
 3. Select Clone URI and select Next (Figure 16).
 
 .. image:: files/16-check-volttron-from-github.jpg
+
 Figure 16. Checking Out VOLTTRON with Eclipse GitHub (continued)
 
 4. Fill in https://github.com/VOLTTRON/volttron.git for the URI. If you have a GitHub account, enter a username and password in the User and Password sections. This is not required but will allow you to receive notifications from GitHub for VOLTTRON related news. (Figure 17)
 
 .. image:: files/17-check-volttron-from-github.jpg
+
 Figure 17. Checking Out VOLTTRON with Eclipse from GitHub (continued)
 
 5. Select the master branch (Figure 18).
 
 .. image:: files/18-check-volttron-from-github.jpg
+
 Figure 18. Checking Out VOLTTRON with Eclipse from GitHub (continued)
 
 6. Select a location to save the local repository (Figure 19).
 
 .. image:: files/19-check-volttron-from-github.jpg
+
 Figure 19. Checking Out VOLTTRON with Eclipse from GitHub (continued)
 
 7. Select Import as general project. Select Next. Select Finish (Figure 20). The project will now be imported into the workspace.
 
 .. image:: files/20-check-volttron-from-github.jpg
+
 Figure 20. Checking Out VOLTTRON with Eclipse from GitHub (continued)
 
 If the VOLTTRON project has not been built (<project directory>/bootstrap.py file has not been run), proceed to ##Section 2.4 Building the VOLTTRON Platform## and follow the instruction for running the bootstrap.py script before proceeding to the following sections.
@@ -203,6 +224,7 @@ PyDev must now be configured to use the Python interpreter packaged with VOLTTRO
 4. Select New (Figure 21).
 
 .. image:: files/21-configuring-pydev.jpg
+
 Figure 21. Configuring PyDev
 
 5. Select Browse and navigate to the pydev-python file located at (``<project directory>/scripts/pydev-python``) (Figure 22).
@@ -210,21 +232,25 @@ Figure 21. Configuring PyDev
 6. Select OK (Figure 22).
 
 .. image:: files/22-configuring-pydev.jpg
+
 Figure 22. Configuring PyDev (continued)
 
 7. Select All and uncheck the VOLTTRON base directory (Figure 23).
 
 .. image:: files/23-configuring-pydev.jpg
+
 Figure 23. Configuring PyDev (continued)
 
 8. In the Project/PackageExplorer view on the left, right-click on the project, PyDev, and set as PyDev Project (Figure 24).
 
 .. image:: files/24-setting-pydev-project.jpg
+
 Figure 24. Setting as PyDev Project
 
 9. Switch to the PyDev perspective: Select Window. Select Perspective. Select Open Perspective. Select Other. Select PyDev (Figure 25). Eclipse should now be configured to use the project's environment. 
 
 .. image:: files/25-setting-pydev-perspective.jpg
+
 Figure 25. Setting PyDev Perspective in Eclipse
 
 Running the VOLTTRON Platform and Agents
@@ -239,11 +265,13 @@ The following steps describe the process for running VOLTTRON within Eclipse:
 1. Select Run and select Run Configurations (Figure 26).
 
 .. image:: files/26-running-volttron.jpg
+
 Figure 26. Running VOLTTRON Platform, Setting Up a Run Configuration
 
 2. Select Python Run from the menu on left. Click the New launch configuration button (Figure 27).
 
 .. image:: files/27-running-volttron.jpg
+
 Figure 27. Running VOLTTRON Platform, Setting Up a Run Configuration (continued)
 
 3. Change the name (any name may be used but for this example the name VOLTTRON was chosen) and select the main module (``<project directory>/volttron/platform/main.py``).
@@ -251,11 +279,13 @@ Figure 27. Running VOLTTRON Platform, Setting Up a Run Configuration (continued)
 4. Select the Arguments tab and enter '-vv' in the Program arguments field (Figure 28) then select the Run button.
 
 .. image:: files/28-running-volttron.jpg
+
 Figure 28. Running VOLTTRON Platform, Setting Up a Run Configuration (continued)
 
 5. If the run is successful, the console should appear similar to Figure 29. If the run does not succeed (red text describing why the run failed will populate the console), click the all stop icon (two red boxes overlaid) on the console and then retry.
 
 .. image:: files/29-running-volttron.jpg
+
 Figure 29. Running VOLTTRON Platform, Console View on Successful Run
 
 Configure a Run Configuration for the Listener Agent
@@ -266,21 +296,25 @@ The following steps  describe the process for configuring an agent within Eclips
 1. Select Run and select Run Configurations (Figure 30).
 
 .. image:: files/30-running-listener-agent.jpg
+
 Figure 30. Running the Listener Agent, Setting Up a Run Configuration
 
 2. Select Python Run from the menu on left and click the New launch configuration button (Figure 31).
 
 .. image:: files/31-running-listener-agent.jpg
+
 Figure 31. Running the Listener Agent, Setting Up a Run Configuration (continued)
 
 3. Change the name (for this example Listener is used) and select the main module (``<project directory>/examples/ListenerAgent/listener/agent.py``) (Figure 32).
 
 .. image:: files/32-running-listener-agent.jpg
+
 Figure 32. Running the Listener Agent, Setting Up a Run Configuration (continued)
 
 4. Click the Arguments tab and change Working directory to Default (Figure 33).
 
 .. image:: files/33-running-listener-agent.jpg
+
 Figure 33. Running the Listener Agent, Setting Up a Run Configuration (continued)
 
 5. In the Environment tab, select New and add the following environment variables (bulleted list below), as shown in Figure 34:
@@ -290,11 +324,13 @@ Figure 33. Running the Listener Agent, Setting Up a Run Configuration (continued
 AGENT_CONFIG is the absolute path the agent’s configuration file. To access a remote message bus, use the VIP address as described in ##Section 3.5 Platform Management:VOLTTRON Management Central.##
 
 .. image:: files/34-running-listener-agent.jpg
+
 Figure 34. Running the Listener Agent, Setting Up a Run Configuration
 
 6. Click Run. This launches the agent. You should see the agent start to publish and receive its own heartbeat message (Figure 35).
 
 .. image:: files/35-listening_agent_output.jpg
+
 Figure 35. Listener Agent Output on Eclipse Console
 
 The process for running other agents in Eclipse is identical to that of the Listener agent. Several useful development tools are available within Eclipse and PyDev that make development, debugging, and testing of agents much simpler.
@@ -313,6 +349,7 @@ Create a folder within the workspace to help consolidate the code your agent wil
 2. In TestAgent, create a new folder tester. This is the package where the Python code will be created (Figure 36).
 
 .. image:: files/36-agent-test-folder.jpg
+
 Figure 36. Creating an Agent Test Folder
 
 Create Agent Code
@@ -460,25 +497,26 @@ From a terminal, in the base VOLTTRON directory, enter the following commands (w
 
 :: 
 
-	$ volttron-ctl start --tag test-agent
+	$ vctl start --tag test-agent
 
 3. Verify that the agent is running:
 
 ::
 
-	$ volttron-ctl status
+	$ vctl status
 	$ tail -f volttron.log
 
 If changes are made to the Passive AFDD agent’s configuration file after the agent is launched, stop and reload the agent. In a terminal, enter the following commands:
 
 ::
 
-	$ volttron-ctl stop --tag test-agent
-	$ volttron-ctl remove --tag test-agent
+	$ vctl stop --tag test-agent
+	$ vctl remove --tag test-agent
 
 Re-build and start the updated agent (Figure 37).
 
 .. image:: files/37-testagent-output.jpg
+
 Figure 37. TestAgent Output In VOLTTRON Log
 
 Running the TestAgent in Eclipse
@@ -496,6 +534,7 @@ If you are working in Eclipse, create a run configuration for the TestAgent base
 3. Launch the Listener agent. TestAgent should start receiving the heartbeats from Listener agent and the following should be displayed in the console (Figure 38).
 
 .. image:: files/38-console-output.jpg
+
 Figure 38. Console Output for TestAgent
 
 Adding Additional Features to the TestAgent
@@ -523,6 +562,7 @@ Add the callback method ``on_weather``:
 The platform log file should appear similar to Figure 39.
 
 .. image:: files/39-testagent-output-weather-subscribed.jpg
+
 Figure 39. TestAgent Output when Subscribing to Weather Topic
 
 Utilizing the Scheduler Agent

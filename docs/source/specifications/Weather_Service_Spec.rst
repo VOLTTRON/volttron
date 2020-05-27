@@ -8,7 +8,7 @@ Weather service specification
 Description
 ***********
 
-The weather service agent will provide  API to access current weather data,
+The weather service agent provides  API to access current weather data,
 historical data and weather forecast data.  There are several weather data
 providers, some paid and some free. Weather data providers differs from one
 and other
@@ -20,19 +20,18 @@ and other
   4. Units of data returned
   5. Frequency of data updates
 
-The weather service agent would have a design similar to historians. There
-would be a single base weather service that defines the api signatures and
-the ontology of the weather data points. There would be one concrete
+The weather service agent has a design similar to historians. There
+is a single base weather service that defines the api signatures and
+the ontology of the weather data points. There is one concrete
 weather service agents for each weather provider. Users can install one or
 more provider specific agent to access weather data.
 
-The initial implementations would be for `NOAA <http://www.noaa.gov>`_ and
-would support current and forecast. NOAA does not support accessing
-historical weather data through their api.
+The initial implementation is for `NOAA <http://www.noaa.gov>`_ and
+would support current and forecast data requests. NOAA does not support
+accessing historical weather data through their api. This agent implements
+request data caching.
 
-The next implementation would be for `darksky.net <https://darksky.net/dev>`_
-and when implementing this, caching of history data would be added to base
-weather agent.
+The second implementation is for `darksky.net <https://darksky.net/dev>`_.
 
 
 ********
@@ -42,7 +41,7 @@ Features
 Base weather agent features:
  1. Caching
 
-    The weather service will provide basic caching capability so that
+    The weather service provides basic caching capability so that
     repeated request for same data can be returned from cache instead of network
     round trip to the weather data provider. This is also useful to limit the
     number of request made to the provider as most weather data provider
@@ -51,10 +50,10 @@ Base weather agent features:
     parameter 'max_size_gb'
  2. Name mapping
 
-    Data points returned by  concrete weather agents would be mapped to
+    Data points returned by  concrete weather agents is mapped to
     standard names based on
     `CF standard names table <http://cfconventions.org/Data/cf-standard-names/57/build/cf-standard-name-table.html>`_
-    Name mapping would be done using a CSV file. See `Configuration`_ section
+    Name mapping is done using a CSV file. See `Configuration`_ section
     for an example configuration
 
  3. Unit conversion
@@ -62,8 +61,8 @@ Base weather agent features:
     If data returned from the provider is of the format
     {"data_point_name":value}, base weather agent can do unit conversions on
     the value.  Both name mapping and unit conversions can be specified as a
-    csv file and packaged with the concrete implementing agent. This file is
-    not mandatory. See `Configuration`_ section for an example
+    csv file and packaged with the concrete implementing agent. This feature
+    is not mandatory. See `Configuration`_ section for an example
     configuration
 
 Core weather data retrieval features :
@@ -76,14 +75,14 @@ Core weather data retrieval features :
      agent will periodically poll for current weather data for the configured
      locations and publish the results to message bus.
 
-The set of points returned from the above queries would depends on the specific
-weather data provider, however the point names returned would be from the
+The set of points returned from the above queries depends on the specific
+weather data provider, however the point names returned are from the
 standard schema.
 
 Note:
 
   1. Since individual weather data provider can support slightly different
-     sets of features, users should be able to query for the list of available
+     sets of features, users are able to query for the list of available
      features. For example a provider could provide daily weather forecast in
      addition to the hourly forecast data.
 
@@ -108,7 +107,7 @@ rpc call to weather service method **’get_current_weather’**
 Parameters:
 
     1. **locations** - dictionary containing location details. The format of
-       location accepted would differ between different weather providers and
+       location accepted differs between different weather providers and
        even different APIs supported by the same provider
        For example the location input could be either
        {“zipcode”:value} or {“region”:value, “country”: value}.
@@ -125,14 +124,14 @@ rpc call to weather service method **’get_hourly_forecast’**
 Parameters:
 
     1. **locations** - dictionary containing location details. The format of
-       location accepted would differ between different weather providers and
+       location accepted differs between different weather providers and
        even different APIs supported by the same provider
        For example the location input could be either
        {“zipcode”:value} or {“region”:value, “country”: value}.
 
 optional parameters:
 
-    2. **hours** - The number of hours for which forecast data should be
+    2. **hours** - The number of hours for which forecast data are
        returned. By default, it is 24 hours.
 
 Returns:

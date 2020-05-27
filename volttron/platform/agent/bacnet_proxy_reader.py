@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -37,16 +37,13 @@
 # }}}
 
 
-from __future__ import absolute_import, print_function
-from collections import defaultdict
 import logging
 import weakref
-
 import gevent
+from collections import defaultdict
 from bacpypes.basetypes import EngineeringUnits
 from bacpypes.object import get_datatype
-from bacpypes.primitivedata import (Enumerated, Unsigned, Boolean, Integer,
-                                    Real, Double)
+from bacpypes.primitivedata import Enumerated, Unsigned, Boolean, Integer, Real, Double
 
 from volttron.platform.jsonrpc import RemoteError
 from volttron.platform.messaging import topics
@@ -218,14 +215,11 @@ class BACnetReader(object):
                 where the bacnet_type is one of the bacnet_type strings and the
                 [index] is an array of indexes to return.
         """
-        _log.info(
-            'read_device_properties called target_address: {} device_id: {}'.format(
-                target_address, device_id
-            ))
+        _log.info('read_device_properties called target_address: {} device_id: {}'.format(
+                  target_address, device_id))
         try:
             _log.debug("Reading objectList from device index 0")
-            object_count = self._read_prop(target_address, "device", device_id,
-                                           "objectList", index=0)
+            object_count = self._read_prop(target_address, "device", device_id, "objectList", index=0)
             list_property = "objectList"
         except TypeError:
             _log.debug("Type error so reading structuredObjectList of index 0")
@@ -242,19 +236,17 @@ class BACnetReader(object):
 
         query_map = {}
         count = 0
-        results = None
 
         # type_map contains a dictionary keyed off of the bacnet_type string
         # each value holds a list of the lines in the csv file that contains
         # that specific datatype.
-        type_map = defaultdict(list)
 
         _log.debug("query_map: {}".format(query_map))
         # Loop over each of the objects and interrogate the device for the
         # properties types and indexes.  After this for loop type_map will
         # hold the readable properties from the bacnet device ordered by
         # the type i.e. type_map['analogInput'] = [300324,304050]
-        for object_index in xrange(1, object_count + 1):
+        for object_index in range(1, object_count + 1):
             count += 1
 
             query_map[object_index] = [
@@ -392,11 +384,10 @@ class BACnetReader(object):
 
     def _process_enumerated(self, object_type, obj):
         units = 'Enum'
-        units_details = ''
         notes = obj.get('description', '').strip()
 
         present_value_type = get_datatype(object_type, 'presentValue')
-        values = present_value_type.enumerations.values()
+        values = list(present_value_type.enumerations.values())
         min_value = min(values)
         max_value = max(values)
 
@@ -414,8 +405,7 @@ class BACnetReader(object):
             if "relinquishDefault" in obj:
                 default_value = obj['relinquishDefault']
                 _log.debug('DEFAULT VALUE IS: {}'.format(default_value))
-                _log.debug('ENUMERATION VALUES: {}'.format(
-                    present_value_type.enumerations))
+                _log.debug('ENUMERATION VALUES: {}'.format(present_value_type.enumerations))
                 for k, v in present_value_type.enumerations.items():
                     if v == default_value:
                         units_details += ' (default {default})'.format(
@@ -424,17 +414,15 @@ class BACnetReader(object):
 
         if not notes:
             enum_strings = []
-            for name in Enumerated.keylist(present_value_type(0)):
-                value = present_value_type.enumerations[name]
+            enum_items = sorted(present_value_type(0).enumerations.items())
+            for name, value in enum_items:
                 enum_strings.append(str(value) + '=' + name)
 
-            notes = present_value_type.__name__ + ': ' + ', '.join(
-                enum_strings)
+            notes = present_value_type.__name__ + ': ' + ', '.join(enum_strings)
 
         return units, units_details, notes
 
     def _process_units(self, object_type, obj):
-        units = ''
         units_details = ''
         notes = obj.get('description', '').strip()
 
@@ -442,15 +430,14 @@ class BACnetReader(object):
             units = 'State'
             state_count = obj.get('numberOfStates')
             if state_count:
-                units_detailes = 'State count: {}'.format(state_count)
+                units_details = 'State count: {}'.format(state_count)
 
             enum_strings = []
             state_list = obj.get('stateText')
             if state_list:
                 for name in state_list[1:]:
                     enum_strings.append(name)
-                notes = ', '.join('{}={}'.format(x, y) for x, y in
-                                             enumerate(enum_strings, start=1))
+                notes = ', '.join('{}={}'.format(x, y) for x, y in enumerate(enum_strings, start=1))
 
             if object_type != 'multiStateInput':
                 default_value = obj.get('relinquishDefault')
@@ -470,7 +457,7 @@ class BACnetReader(object):
         obj_units = "UNKNOWN UNIT ENUM VALUE"
         try:
             obj_units = EngineeringUnits(obj.get('units')).value
-            if isinstance(obj_units, (int, long)):
+            if isinstance(obj_units, int):
                 obj_units = 'UNKNOWN UNIT ENUM VALUE: ' + str(obj.get('units'))
         except ValueError:
             if obj.get('units'):
@@ -540,7 +527,6 @@ class BACnetReader(object):
             present_value_type = get_datatype(object_type, 'presentValue')
 
             object_units_details = ''
-            object_units = ''
             object_notes = ''
 
             if issubclass(present_value_type, Boolean):
@@ -571,10 +557,7 @@ class BACnetReader(object):
     def _process_input(self, target_address, device_id, input_items):
         _log.debug('process_input: items: {}'.format(input_items))
         query_mapping = {}
-        results = None
-        object_notes = None
         count = 0
-        output = {}
         processed = {}
 
         for item in input_items:
@@ -638,11 +621,8 @@ class BACnetReader(object):
         return presentValues
 
     def _read_props(self, address, parameters):
-        _log.debug("_read_props for address: {} params: {}".format(
-            address, parameters
-        ))
-        return self._rpc().call(self._proxy_identity, "read_properties",
-                                address, parameters).get(timeout=20)
+        _log.debug("_read_props for address: {} params: {}".format(address, parameters))
+        return self._rpc().call(self._proxy_identity, "read_properties", address, parameters).get(timeout=20)
 
     def _read_prop(self, address, obj_type, obj_inst, prop_id, index=None):
         point_map = {"result": [obj_type,
@@ -666,7 +646,7 @@ class BACnetReader(object):
         object_count = self._read_prop(address, obj_type, obj_inst,
                                        property_name, index=0)
 
-        for object_index in xrange(1, object_count + 1):
+        for object_index in range(1, object_count + 1):
             _log.debug('property_name index = ' + repr(object_index))
 
             object_reference = self._read_prop(address,
@@ -745,7 +725,7 @@ class BACnetReader(object):
 
         if issubclass(present_value_type, Enumerated):
             object_units = 'Enum'
-            values = present_value_type.enumerations.values()
+            values = list(present_value_type.enumerations.values())
             min_value = min(values)
             max_value = max(values)
 
@@ -761,8 +741,7 @@ class BACnetReader(object):
 
             if not obj_type.endswith('Input'):
                 try:
-                    default_value = self._read_prop(address, obj_type, index,
-                                                   "relinquishDefault")
+                    default_value = self._read_prop(address, obj_type, index, "relinquishDefault")
                     object_units_details += ' (default {default})'.format(
                         default=present_value_type.enumerations[default_value])
                     # writable = 'TRUE'
@@ -775,12 +754,11 @@ class BACnetReader(object):
 
             if not object_notes:
                 enum_strings = []
-                for name in Enumerated.keylist(present_value_type(0)):
-                    value = present_value_type.enumerations[name]
+                enum_items = sorted(present_value_type(0).enumerations.items())
+                for name, value in enum_items:
                     enum_strings.append(str(value) + '=' + name)
 
-                object_notes = present_value_type.__name__ + ': ' + ', '.join(
-                    enum_strings)
+                object_notes = present_value_type.__name__ + ': ' + ', '.join(enum_strings)
 
         elif issubclass(present_value_type, Boolean):
             object_units = 'Boolean'
@@ -789,31 +767,26 @@ class BACnetReader(object):
             if obj_type.startswith('multiState'):
                 object_units = 'State'
                 try:
-                    state_count = self._read_prop(address, obj_type, index,
-                                                 "numberOfStates")
+                    state_count = self._read_prop(address, obj_type, index, "numberOfStates")
                     object_units_details = 'State count: {}'.format(state_count)
                 except TypeError:
                     pass
 
                 try:
                     enum_strings = []
-                    state_list = self._read_prop(address, obj_type, index,
-                                                "stateText")
+                    state_list = self._read_prop(address, obj_type, index, "stateText")
                     for name in state_list[1:]:
                         enum_strings.append(name)
 
-                    object_notes = ', '.join('{}={}'.format(x, y) for x, y in
-                                             enumerate(enum_strings, start=1))
+                    object_notes = ', '.join('{}={}'.format(x, y) for x, y in enumerate(enum_strings, start=1))
 
                 except TypeError:
                     pass
 
                 if obj_type != 'multiStateInput':
                     try:
-                        default_value = self._read_prop(address, obj_type, index,
-                                                       "relinquishDefault")
-                        object_units_details += ' (default {default})'.format(
-                            default=default_value)
+                        default_value = self._read_prop(address, obj_type, index, "relinquishDefault")
+                        object_units_details += ' (default {default})'.format(default=default_value)
                         object_units_details = object_units_details.strip()
                         # writable = 'TRUE'
                     except TypeError:
@@ -831,7 +804,7 @@ class BACnetReader(object):
             except TypeError:
                 object_units = 'UNKNOWN UNITS'
 
-            if isinstance(object_units, (int, long)):
+            if isinstance(object_units, int):
                 object_units = 'UNKNOWN UNIT ENUM VALUE: ' + str(object_units)
 
             if obj_type.startswith('analog') or obj_type in (
@@ -839,8 +812,7 @@ class BACnetReader(object):
                 # Value objects never have a resolution property in practice.
                 if not object_notes and not obj_type.endswith('Value'):
                     try:
-                        res_value = self._read_prop(address, obj_type, index,
-                                                   "resolution")
+                        res_value = self._read_prop(address, obj_type, index, "resolution")
                         object_notes = 'Resolution: {resolution:.6g}'.format(
                             resolution=res_value)
                     except (TypeError, ValueError):
@@ -850,23 +822,18 @@ class BACnetReader(object):
                         'largeAnalogValue', 'integerValue',
                         'positiveIntegerValue'):
                     try:
-                        min_value = self._read_prop(address, obj_type, index,
-                                                   "minPresValue")
-                        max_value = self._read_prop(address, obj_type, index,
-                                                   "maxPresValue")
+                        min_value = self._read_prop(address, obj_type, index, "minPresValue")
+                        max_value = self._read_prop(address, obj_type, index, "maxPresValue")
 
                         has_min = (min_value is not None) and (min_value > -max_range_report)
                         has_max = (max_value is not None) and (max_value < max_range_report)
 
                         if has_min and has_max:
-                            object_units_details = '{min:.2f} to {max:.2f}'.format(
-                                min=min_value, max=max_value)
+                            object_units_details = '{min:.2f} to {max:.2f}'.format(min=min_value, max=max_value)
                         elif has_min:
-                            object_units_details = 'Min: {min:.2f}'.format(
-                                min=min_value)
+                            object_units_details = 'Min: {min:.2f}'.format(min=min_value)
                         elif has_max:
-                            object_units_details = 'Max: {max:.2f}'.format(
-                                max=max_value)
+                            object_units_details = 'Max: {max:.2f}'.format(max=max_value)
                         else:
                             object_units_details = 'No limits.'
                     except (TypeError, ValueError):
@@ -874,12 +841,9 @@ class BACnetReader(object):
 
                 if obj_type != 'analogInput':
                     try:
-                        default_value = self._read_prop(address, obj_type, index,
-                                                       "relinquishDefault")
-                        object_units_details += ' (default {default})'.format(
-                            default=default_value)
+                        default_value = self._read_prop(address, obj_type, index, "relinquishDefault")
+                        object_units_details += ' (default {default})'.format(default=default_value)
                         object_units_details = object_units_details.strip()
-                        # writable = 'TRUE'
                     except (TypeError, ValueError):
                         pass
 
@@ -899,5 +863,3 @@ class BACnetReader(object):
         results['Notes'] = object_notes
 
         self._response_function(context, results)
-
-        # config_writer.writerow(results)

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -36,9 +36,12 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
+# without this we can get random batch process query failure with the error
+# 'Cannot switch to different thread'
+import socket
+from importlib import reload
+reload(socket)
 import logging
-from multiprocessing import cpu_count # used to default number of shards.
-from pkg_resources import parse_version
 
 
 def select_all_topics_query(schema, table_name):

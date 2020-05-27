@@ -43,5 +43,5 @@ required = Required()   # pylint: disable=invalid-name
 def assertempty(kwargs):
     '''Raise TypeError if kwargs is not empty.'''
     if kwargs:
-        name = next(kwargs.iterkeys())
+        name = next(iter(kwargs))
         raise TypeError('got an unexpected keyword argument %r' % (name,))

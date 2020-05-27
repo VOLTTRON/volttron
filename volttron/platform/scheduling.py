@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -50,7 +50,7 @@ __all__ = ['cron', 'periodic']
 
 __author__ = 'Brandon Carpenter <brandon.carpenter@pnnl.gov>'
 __copyright__ = 'Copyright (c) 2016, Battelle Memorial Institute'
-__license__ = 'FreeBSD'
+__license__ = 'Apache 2.0'
 
 
 _range_re = re.compile(r'^(.{0}(?=\*)|\w*(?=-)|\w+(?!\*))'
@@ -115,8 +115,8 @@ def _convert_range(rng, minimum, maximum, translate=None):
         return [first]
     skip = _convert_item(skip, 1)
     if skip is None:
-        return range(first, last + 1)
-    return range(first, last + 1, skip)
+        return list(range(first, last + 1))
+    return list(range(first, last + 1, skip))
 
 
 def _coallesce_ranges(fieldname, ranges, minimum, maximum, translate=None):
@@ -181,11 +181,11 @@ def _start_stop(start, stop):
     # Default start date/time to current time
     if start is None:
         start = datetime.now()
-    elif isinstance(start, (int, long, float)):
+    elif isinstance(start, (int, float)):
         start = datetime.fromtimestamp(start)
     elif isinstance(start, timedelta):
         start = datetime.now() + start
-    if isinstance(stop, (int, long, float)):
+    if isinstance(stop, (int, float)):
         stop = datetime.fromtimestamp(stop)
     elif isinstance(stop, timedelta):
         stop = start + stop
@@ -268,9 +268,9 @@ def cron(cron_string, start=None, stop=None, second=0):
     start, stop = _start_stop(start, stop)
 
     # Default fields to full range of values
-    months = months or range(1, 13)
-    hours = hours or range(0, 24)
-    minutes = minutes or range(0, 60)
+    months = months or list(range(1, 13))
+    hours = hours or list(range(0, 24))
+    minutes = minutes or list(range(0, 60))
 
     def _weekdays(year, month, day=1):
         '''Iterate over all the days in weekdays for the given year and
@@ -315,7 +315,7 @@ def cron(cron_string, start=None, stop=None, second=0):
             elif weekdays:
                 _days = _weekdays(year, month, first_day)
             else:
-                _days = range(first_day, 32)
+                _days = list(range(first_day, 32))
             for day in _days:
                 for hour in hours:
                     for minute in minutes:

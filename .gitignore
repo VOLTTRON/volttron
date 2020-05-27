@@ -20,7 +20,7 @@ applications
 /configs/
 /config/
 /docs/build/*
-/docs/source/apidocs
+/docs/source/volttron_api
 volttron.log
 __pycache__
 .python-version

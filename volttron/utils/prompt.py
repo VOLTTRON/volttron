@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -44,6 +44,7 @@ y_or_n = ('Y', 'N', 'y', 'n')
 y = ('Y', 'y')
 n = ('N', 'n')
 
+
 def prompt_response(prompt, valid_answers=None, default=None, echo=True,
                     mandatory=False):
 
@@ -52,7 +53,7 @@ def prompt_response(prompt, valid_answers=None, default=None, echo=True,
         prompt += '[{}]: '.format(default)
     if echo:
         while True:
-            resp = raw_input(prompt)
+            resp = input(prompt)
             if resp == '' and default is not None:
                 return default
             if str.strip(resp) == '' and mandatory:

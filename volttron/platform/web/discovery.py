@@ -1,15 +1,14 @@
 import logging
-from urlparse import urlparse, urljoin
-
 import requests
+from urllib.parse import urlparse, urljoin
 
-from volttron.platform.agent import json as jsonapi
+from volttron.platform import jsonapi
 from volttron.platform.certs import Certs
 
 _log = logging.getLogger(__name__)
 
 
-class DiscoveryError(StandardError):
+class DiscoveryError(Exception):
     """ Raised when a different volttron central tries to register.
     """
     pass
@@ -88,10 +87,12 @@ class DiscoveryInfo(object):
         dk = {
             'discovery_address': self.discovery_address,
             'instance_name': self.instance_name,
-            'rmq_address': self.rmq_address,
-            'rmq_ca_cert': self.rmq_ca_cert,
             'messagebus_type': self.messagebus_type
         }
+        if self.messagebus_type == 'rmq':
+            dk['rmq_address'] = self.rmq_address
+            dk['rmq_ca_cert'] = self.rmq_ca_cert
+
         if self.vip_address:
             dk['vip_address'] = self.vip_address
             dk['serverkey'] = self.serverkey

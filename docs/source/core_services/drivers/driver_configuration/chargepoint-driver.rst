@@ -1,10 +1,16 @@
 .. _Chargepoint-config:
+
 Chargepoint Driver Configuration
 --------------------------------
 
 The chargepoint driver requires at least one additional python library and has its own ``requirements.txt``.
-Make sure to run ``pip install -r <chargepoint driver path>/requirements.txt`` before using this driver.
+Make sure to run
 
+::
+
+    pip install -r <chargepoint driver path>/requirements.txt
+
+before using this driver.
 
 driver_config
 *************
@@ -34,10 +40,11 @@ Here is an example device configuration file:
         "heart_beat_point": "heartbeat"
     }
 
-A sample Chargepoint configuration file can be found in the VOLTTRON repository in ``examples/configurations/drivers/chargepoint1.config``
-
+A sample Chargepoint configuration file can be found in the VOLTTRON repository
+in ``examples/configurations/drivers/chargepoint1.config``
 
 .. _Chargepoint-Driver:
+
 Chargepoint Registry Configuration File
 ***************************************
 

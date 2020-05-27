@@ -36,7 +36,7 @@ import logging
 import sys
 
 from volttron.platform.agent import utils
-from base_dnp3_agent import BaseDNP3Agent
+from dnp3.base_dnp3_agent import BaseDNP3Agent
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -76,7 +76,7 @@ def dnp3_agent(config_path, **kwargs):
     """
     try:
         config = utils.load_config(config_path)
-    except StandardError:
+    except Exception:
         config = {}
     return DNP3Agent(points=config.get('points', None),
                      point_topic=config.get('point_topic', 'dnp3/point'),

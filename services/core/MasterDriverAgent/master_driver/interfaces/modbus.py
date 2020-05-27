@@ -1,52 +1,44 @@
+# -*- coding: utf-8 -*- {{{
+# vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright (c) 2017, Battelle Memorial Institute
-# All rights reserved.
+# Copyright 2019, Battelle Memorial Institute.
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# 1. Redistributions of source code must retain the above copyright notice, this
-#    list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright notice,
-#    this list of conditions and the following disclaimer in the documentation
-#    and/or other materials provided with the distribution.
+# http://www.apache.org/licenses/LICENSE-2.0
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-# ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-# ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
-# The views and conclusions contained in the software and documentation are those
-# of the authors and should not be interpreted as representing official policies,
-# either expressed or implied, of the FreeBSD Project.
-#
-# This material was prepared as an account of work sponsored by an
-# agency of the United States Government.  Neither the United States
-# Government nor the United States Department of Energy, nor Battelle,
-# nor any of their employees, nor any jurisdiction or organization
-# that has cooperated in the development of these materials, makes
-# any warranty, express or implied, or assumes any legal liability
-# or responsibility for the accuracy, completeness, or usefulness or
-# any information, apparatus, product, software, or process disclosed,
-# or represents that its use would not infringe privately owned rights.
-#
-# Reference herein to any specific commercial product, process, or
-# service by trade name, trademark, manufacturer, or otherwise does
-# not necessarily constitute or imply its endorsement, recommendation,
-# r favoring by the United States Government or any agency thereof,
-# or Battelle Memorial Institute. The views and opinions of authors
-# expressed herein do not necessarily state or reflect those of the
+# This material was prepared as an account of work sponsored by an agency of
+# the United States Government. Neither the United States Government nor the
+# United States Department of Energy, nor Battelle, nor any of their
+# employees, nor any jurisdiction or organization that has cooperated in the
+# development of these materials, makes any warranty, express or
+# implied, or assumes any legal liability or responsibility for the accuracy,
+# completeness, or usefulness or any information, apparatus, product,
+# software, or process disclosed, or represents that its use would not infringe
+# privately owned rights. Reference herein to any specific commercial product,
+# process, or service by trade name, trademark, manufacturer, or otherwise
+# does not necessarily constitute or imply its endorsement, recommendation, or
+# favoring by the United States Government or any agency thereof, or
+# Battelle Memorial Institute. The views and opinions of authors expressed
+# herein do not necessarily state or reflect those of the
 # United States Government or any agency thereof.
 #
-# PACIFIC NORTHWEST NATIONAL LABORATORY
-# operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
+# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
+# }}}
+
+import struct
+import logging
+import os.path
 
 from gevent import monkey
 monkey.patch_socket()
@@ -55,24 +47,18 @@ from pymodbus.client.sync import ModbusTcpClient as SyncModbusClient
 from pymodbus.exceptions import ConnectionException, ModbusIOException, ModbusException
 from pymodbus.pdu import ExceptionResponse
 from pymodbus.constants import Defaults
-from volttron.platform.agent import utils
-
-from master_driver.interfaces import BaseInterface, BaseRegister, BasicRevert, DriverInterfaceError
-
-import struct
-import logging
-from csv import DictReader
-from StringIO import StringIO
-import os.path
-
 from contextlib import contextmanager, closing
+
 from master_driver.driver_locks import socket_lock
+from master_driver.interfaces import BaseInterface, BaseRegister, BasicRevert, DriverInterfaceError
+from volttron.platform.agent import utils
 
 @contextmanager
 def modbus_client(address, port):
     with socket_lock():
         with closing(SyncModbusClient(address, port)) as client:
             yield client
+
 
 modbus_logger = logging.getLogger("pymodbus")
 modbus_logger.setLevel(logging.WARNING)
@@ -91,11 +77,13 @@ configFile = os.path.join(path, "example.csv")
 class ModbusInterfaceException(ModbusException):
     pass
 
+
 class ModbusRegisterBase(BaseRegister):
-    def __init__(self, address, register_type, read_only, pointName, units, description = '', slave_id=0):
-        super(ModbusRegisterBase, self).__init__(register_type, read_only, pointName, units, description = '')
+    def __init__(self, address, register_type, read_only, pointName, units, description='', slave_id=0):
+        super(ModbusRegisterBase, self).__init__(register_type, read_only, pointName, units, description=description)
         self.address = address
         self.slave_id = slave_id
+
 
 class ModbusBitRegister(ModbusRegisterBase):
     def __init__(self, address, type_string, pointName, units, read_only, mixed_endian=False, description = '', slave_id=0):
@@ -105,7 +93,7 @@ class ModbusBitRegister(ModbusRegisterBase):
         self.python_type = bool
     
     def parse_value(self, starting_address, bit_stream):
-        #find the bytes we care about
+        # find the bytes we care about
         index = (self.address - starting_address)        
         return bit_stream[index]
     
@@ -138,7 +126,7 @@ class ModbusByteRegister(ModbusRegisterBase):
         except struct.error:
             raise ValueError("Invalid Modbus Register '" + type_string + "' for point " + pointName)
         
-        struct_types = [type(x) for x in self.parse_struct.unpack('\x00'*self.parse_struct.size)]
+        struct_types = [type(x) for x in self.parse_struct.unpack(b'\x00'*self.parse_struct.size)]
         
         if len(struct_types) != 1:
             raise ValueError("Invalid length Modbus Register '" + type_string + "' for point " + pointName)
@@ -151,7 +139,7 @@ class ModbusByteRegister(ModbusRegisterBase):
         return self.parse_struct.size // MODBUS_REGISTER_SIZE
     
     def parse_value(self, starting_address, byte_stream):
-        #find the bytes we care about
+        # find the bytes we care about
         index = (self.address - starting_address) * 2
         width = self.parse_struct.size
         
@@ -161,17 +149,17 @@ class ModbusByteRegister(ModbusRegisterBase):
 
         if self.mixed_endian:
             register_values = []
-            for i in xrange(0, len(target_bytes), PYMODBUS_REGISTER_STRUCT.size):
+            for i in range(0, len(target_bytes), PYMODBUS_REGISTER_STRUCT.size):
                 register_values.extend(PYMODBUS_REGISTER_STRUCT.unpack_from(target_bytes, i))
             register_values.reverse()
 
             target_bytes = ""
-            for value in register_values:
-                target_bytes += PYMODBUS_REGISTER_STRUCT.pack(value)
+            target_bytes = bytes.join(b'', [PYMODBUS_REGISTER_STRUCT.pack(value) for value in register_values])
+            # for value in register_values:
+            #     target_bytes += PYMODBUS_REGISTER_STRUCT.pack(value).decode('utf-8')
         
         return self.parse_struct.unpack(target_bytes)[0]
-    
-   
+
     def get_state(self, client):
         if self.read_only:
             response = client.read_input_registers(self.address, count=self.get_register_count(), unit=self.slave_id)
@@ -185,14 +173,14 @@ class ModbusByteRegister(ModbusRegisterBase):
             response.registers.reverse()
             
         response_bytes = response.encode()
-        #skip the result count
+        # skip the result count
         return self.parse_struct.unpack(response_bytes[1:])[0]
 
     def set_state(self, client, value):
         if not self.read_only:
             value_bytes = self.parse_struct.pack(value)
             register_values = []
-            for i in xrange(0, len(value_bytes), PYMODBUS_REGISTER_STRUCT.size):
+            for i in range(0, len(value_bytes), PYMODBUS_REGISTER_STRUCT.size):
                 register_values.extend(PYMODBUS_REGISTER_STRUCT.unpack_from(value_bytes, i))
             if self.mixed_endian:
                 register_values.reverse()
@@ -207,7 +195,7 @@ class Interface(BasicRevert, BaseInterface):
         self.build_ranges_map()
         
     def configure(self, config_dict, registry_config_str):
-        self.slave_id=config_dict.get("slave_id", 0)
+        self.slave_id = config_dict.get("slave_id", 0)
         self.ip_address = config_dict["device_address"]
         self.port = config_dict.get("port", Defaults.Port)
         self.parse_config(registry_config_str) 
@@ -221,15 +209,14 @@ class Interface(BasicRevert, BaseInterface):
     def insert_register(self, register):
         super(Interface, self).insert_register(register)
 
-        #MODBUS requires extra bookkeeping.
+        # MODBUS requires extra bookkeeping.
         register_type = register.get_register_type()
         register_range = self.register_ranges[register_type]
         register_count = register.get_register_count()
 
-        #Store the range of registers for each point.
+        # Store the range of registers for each point.
         start, end = register.address, register.address + register_count - 1
-        register_range.append([start,end,[register]])
-
+        register_range.append([start, end, [register]])
 
     def merge_register_ranges(self):
         """Merges any adjacent registers for more efficient scraping.
@@ -253,8 +240,7 @@ class Interface(BasicRevert, BaseInterface):
 
             self.register_ranges[key] = result
 
-        
-    def get_point(self, point_name):    
+    def get_point(self, point_name):
         register = self.get_register_by_name(point_name)
         with modbus_client(self.ip_address, self.port) as client:
             try:
@@ -272,7 +258,7 @@ class Interface(BasicRevert, BaseInterface):
             try:
                 result = register.set_state(client, value)
             except (ConnectionException, ModbusIOException, ModbusInterfaceException) as ex:
-                IOError("Error encountered trying to write to point {}: {}".format(point_name, ex))
+                raise IOError("Error encountered trying to write to point {}: {}".format(point_name, ex))
         return result
     
     def scrape_byte_registers(self, client, read_only):
@@ -283,15 +269,17 @@ class Interface(BasicRevert, BaseInterface):
 
         for register_range in register_ranges:
             start, end, registers = register_range
-            result = ''
+            result = b''
 
-            for group in xrange(start, end + 1, MODBUS_READ_MAX):
+            for group in range(start, end + 1, MODBUS_READ_MAX):
                 count = min(end - group + 1, MODBUS_READ_MAX)
                 response = read_func(group, count, unit=self.slave_id)
                 if response is None:
                     raise ModbusInterfaceException("pymodbus returned None")
+                if isinstance(response, ModbusException):
+                    raise response
                 response_bytes = response.encode()
-                #Trim off length byte.
+                # Trim off length byte.
                 result += response_bytes[1:]
 
             for register in registers:
@@ -312,11 +300,14 @@ class Interface(BasicRevert, BaseInterface):
 
             result = []
 
-            for group in xrange(start, end + 1, MODBUS_READ_MAX):
+            for group in range(start, end + 1, MODBUS_READ_MAX):
                 count = min(end - group + 1, MODBUS_READ_MAX)
-                response = client.read_discrete_inputs(group, count, unit=self.slave_id) if read_only else client.read_coils(group, count, unit=self.slave_id)
+                response = client.read_discrete_inputs(group, count, unit=self.slave_id) if read_only else \
+                    client.read_coils(group, count, unit=self.slave_id)
                 if response is None:
                     raise ModbusInterfaceException("pymodbus returned None")
+                if isinstance(response, ModbusException):
+                    raise response
                 result += response.bits
 
             for register in registers:
@@ -327,7 +318,7 @@ class Interface(BasicRevert, BaseInterface):
         return result_dict
         
     def _scrape_all(self):
-        result_dict={}
+        result_dict = {}
         with modbus_client(self.ip_address, self.port) as client:
             try:
                 
@@ -337,9 +328,9 @@ class Interface(BasicRevert, BaseInterface):
                 result_dict.update(self.scrape_bit_registers(client, True))
                 result_dict.update(self.scrape_bit_registers(client, False))
             except (ConnectionException, ModbusIOException, ModbusInterfaceException) as e:
-                raise DriverInterfaceError ("Failed to scrape device at " + 
-                           self.ip_address + ":" + str(self.port) + " " + 
-                           "ID: " + str(self.slave_id) + str(e))
+                raise DriverInterfaceError("Failed to scrape device at " +
+                                           self.ip_address + ":" + str(self.port) + " " +
+                                           "ID: " + str(self.slave_id) + str(e))
                 
         return result_dict
     
@@ -348,7 +339,7 @@ class Interface(BasicRevert, BaseInterface):
             return
         
         for regDef in configDict:
-            #Skip lines that have no address yet.
+            # Skip lines that have no address yet.
             if not regDef['Volttron Point Name']:
                 continue
             
@@ -371,7 +362,7 @@ class Interface(BasicRevert, BaseInterface):
             self.insert_register(register)
             
             if not read_only:
-                if default_value is not None:
+                if default_value:
                     if isinstance(register, ModbusBitRegister):
                         try:
                             value = bool(int(default_value))
@@ -382,9 +373,10 @@ class Interface(BasicRevert, BaseInterface):
                         try:
                             value = register.python_type(default_value)
                             self.set_default(point_path, value)
-                        except ValueError:
-                            _log.warning("Unable to set default value for {}, "
-                            "bad default value in configuration. Using default revert method.".format(point_path))
+                        except ValueError as ve:
+                            _log.warning("Unable to set default value for {}: {}. "
+                                         "Bad default value in configuration. Using default revert method.".format(
+                                point_path, ve))
                             
                 else:
                     _log.info("No default value supplied for point {}. Using default revert method.".format(point_path))

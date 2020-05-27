@@ -1,4 +1,5 @@
 .. _Historian Index:
+
 ============================
 VOLTTRON Historian Framework
 ============================
@@ -6,7 +7,7 @@ VOLTTRON Historian Framework
 Historian Agents are the way by which device, actuator, datalogger, and
 analysis are captured and stored in some sort of data store. Historians exist for the following storage options:
 
-- A general :ref:`SQL Historian <SQL-Historian>` implemented for MySQL and SQLite
+- A general :ref:`SQL Historian <SQL-Historian>` implemented for MySQL, SQLite, PostgreSQL, and Amazon Redshift
 - :ref:`MongoDB Historian <Mongo-Historian>`
 - :ref:`Crate Historian <Crate-Historian>`
 - :ref:`Forward Historian <Forward-Historian>` for sending data to another VOLTTRON instance
@@ -109,8 +110,8 @@ All historians support the following settings:
 By default the base historian will listen to 4 separate root topics
 `datalogger/*`, `record/*`, `analysis/*`, and `device/*`.
 
-Each of root
-topics has a :ref:`specific message syntax <Historian-Topic-Syntax>` that
+Each root
+topic has a :ref:`specific message syntax <Historian-Topic-Syntax>` that
 it is expecting for incoming data.
 
 Messages published to `datalogger`
@@ -121,10 +122,10 @@ graphed easily.
 Messages published to `devices` are data that comes
 directly from drivers.
 
-Messages published to `analysis` are analysis data published by agnets
+Messages published to `analysis` are analysis data published by agents
 in the form of key value pairs.
 
-Finally Messages that are published to `record`
+Finally, messages that are published to `record`
 will be handled as string data and can be customized to the user
 specific situation.
 

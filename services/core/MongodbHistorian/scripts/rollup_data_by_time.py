@@ -41,13 +41,13 @@ sys.stderr = log
 
 
 def connect_mongodb(connection_params):
-    #print ("setup mongodb")
+
     mongo_conn_str = 'mongodb://{user}:{passwd}@{host}:{port}/{database}'
     if connection_params.get('authSource'):
         mongo_conn_str = mongo_conn_str + '?authSource={authSource}'
     params = connection_params
     mongo_conn_str = mongo_conn_str.format(**params)
-    #print (mongo_conn_str)
+
     mongo_client = pymongo.MongoClient(mongo_conn_str)
     db = mongo_client[connection_params['database']]
     return db
@@ -210,8 +210,6 @@ def rollup_data(source_params, dest_params, start_date, end_date, topic_id,
             source_db.client.close()
         if dest_db:
             dest_db.client.close()
-        #print ("Total time for roll up of data in topics {}: {}".format(
-        #    topic_name, datetime.utcnow() - start))
 
 
 def get_last_back_filled_data(db, collection, topic_id, topic_name):
@@ -221,8 +219,7 @@ def get_last_back_filled_data(db, collection, topic_id, topic_name):
         pymongo.DESCENDING).limit(1)
     for row in cursor:
         id = row.get('last_back_filled_data')
-        #print ("last processed data for topic_pattern {} in {} is {}".format(
-        #    topic_name, collection, id))
+
     return id
 
 
@@ -407,7 +404,7 @@ if __name__ == '__main__':
                 print("Total number of topics with the pattern{}: {}".format(
                     topic_pattern, max))
 
-                for i in xrange(0, max):
+                for i in range(0, max):
                     print("Processing topic: {} {}".format(topics[i]['_id'],
                                                            topics[i]['topic_name']))
                     pool.spawn(rollup_data, local_source_params,

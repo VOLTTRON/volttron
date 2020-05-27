@@ -1,3 +1,5 @@
+.. _Remote-Procedure-Calls:
+
 Remote Procedure Calls
 ======================
 
@@ -88,7 +90,7 @@ calls. Returns *None* if all requests were notifications.
     RPC.notify(peer, method, *args, **kwargs)
 
 Send a one-way notification message to *peer* by calling *method*
-without without returning a result.
+without returning a result.
 
 Here are some examples:
 
@@ -114,7 +116,6 @@ Implementation
 --------------
 
 See the
-`rpc </VOLTTRON/volttron/blob/3.x/volttron/platform/vip/agent/subsystems/rpc.py>`__
-module for implementation details.
+`RPC module <https://github.com/VOLTTRON/volttron/blob/develop/volttron/platform/vip/agent/subsystems/rpc.py>`_ for implementation details.
 
-Also see `RPC by example <RPC-by-example>`__ for additional examples.
+Also see :ref:`Multi-Platform RPC Communication <Multi-Platform-RPC>` and :ref:`RPC in RabbitMQ <RabbitMQ-VOLTTRON>` for additional resources.

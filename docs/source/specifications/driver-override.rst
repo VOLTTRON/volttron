@@ -26,7 +26,7 @@ Functional Capabilities
 
 2. User shall be able to disable/turn off the override behavior on devices by specifying:
 
-    * Pattern on which the override/lock feature has be disabled. (example: campus/building/*)
+    * Pattern on which the override/lock feature has be disabled. (example: campus/building/\*)
 
 3. User shall be able to get a list of all the devices with the override condition set.
 

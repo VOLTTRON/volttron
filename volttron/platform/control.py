@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -36,54 +36,50 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-from __future__ import absolute_import, print_function
-
 import argparse
 import collections
-import json
+import hashlib
 import logging
 import logging.handlers
+import logging.config
 import os
 import re
 import shutil
+import subprocess
 import sys
+import tarfile
 import tempfile
 import traceback
 import uuid
-import hashlib
-import tarfile
-import subprocess
 from datetime import timedelta
 
-import requests
 import gevent
 import gevent.event
+# noinspection PyUnresolvedReferences
+import grequests
+import requests
+from requests.exceptions import ConnectionError
 
-from volttron.platform.agent.utils import get_platform_instance_name, get_fq_identity
-from volttron.platform.certs import Certs
-from volttron.platform.vip.agent.subsystems.query import Query
+from volttron.platform import aip as aipmod
+from volttron.platform import config
 from volttron.platform import get_home, get_address
-from volttron.platform.messaging.health import Status, STATUS_BAD
-
+from volttron.platform import jsonapi
 from volttron.platform.agent import utils
 from volttron.platform.agent.known_identities import CONTROL_CONNECTION, \
     CONFIGURATION_STORE
-from volttron.platform.vip.agent import Agent as BaseAgent, Core, RPC
-from volttron.platform import aip as aipmod
-from volttron.platform import config
-from volttron.platform.jsonrpc import RemoteError
 from volttron.platform.auth import AuthEntry, AuthFile, AuthException
+from volttron.platform.certs import Certs
+from volttron.platform.jsonrpc import RemoteError
 from volttron.platform.keystore import KeyStore, KnownHostsStore
-from volttron.platform.vip.socket import Message
-from volttron.utils.prompt import prompt_response, y, n, y_or_n
-from .vip.agent.errors import VIPError
+from volttron.platform.messaging.health import Status, STATUS_BAD
+from volttron.platform.scheduling import periodic
+from volttron.platform.vip.agent import Agent as BaseAgent, Core, RPC
+from volttron.platform.vip.agent.errors import VIPError
+from volttron.platform.vip.agent.subsystems.query import Query
+from volttron.utils.rmq_config_params import RMQConfig
 from volttron.utils.rmq_mgmt import RabbitMQMgmt
 from volttron.utils.rmq_setup import check_rabbit_status
-from volttron.utils.rmq_config_params import RMQConfig
-from requests.packages.urllib3.connection import (ConnectionError,
-                                                  NewConnectionError)
-from volttron.platform.scheduling import periodic
-
+from volttron.platform.agent.utils import is_secure_mode, wait_for_volttron_shutdown
 
 try:
     import volttron.restricted
@@ -189,8 +185,6 @@ class ControlService(BaseAgent):
     def send_alert(self, agent_id, agent_name):
         """Send an alert for the group, summarizing missing topics.
 
-        :param unseen_topics: List of topics that were expected but not received
-        :type unseen_topics: list
         """
         alert_key = "Agent {}({}) stopped unexpectedly".format(agent_name,
                                                                agent_id)
@@ -201,7 +195,10 @@ class ControlService(BaseAgent):
 
     @RPC.export
     def peerlist(self):
-        return self.vip.peerlist().get(timeout=5)
+        # We want to keep the same interface so we convert the byte array to
+        # string array when returning.
+        peer_list = self.vip.peerlist().get(timeout=5)
+        return peer_list
 
     @RPC.export
     def serverkey(self):
@@ -216,8 +213,8 @@ class ControlService(BaseAgent):
 
     @RPC.export
     def agent_status(self, uuid):
-        if not isinstance(uuid, basestring):
-            identity = bytes(self.vip.rpc.context.vip_message.peer)
+        if not isinstance(uuid, str):
+            identity = bytes(self.vip.rpc.context.vip_message.peer).decode("utf-8")
             raise TypeError("expected a string for 'uuid';"
                             "got {!r} from identity: {}".format(
                 type(uuid).__name__, identity))
@@ -225,8 +222,8 @@ class ControlService(BaseAgent):
 
     @RPC.export
     def agent_name(self, uuid):
-        if not isinstance(uuid, basestring):
-            identity = bytes(self.vip.rpc.context.vip_message.peer)
+        if not isinstance(uuid, str):
+            identity = bytes(self.vip.rpc.context.vip_message.peer).decode("utf-8")
             raise TypeError("expected a string for 'uuid';"
                             "got {!r} from identity: {}".format(
                 type(uuid).__name__, identity))
@@ -234,8 +231,8 @@ class ControlService(BaseAgent):
 
     @RPC.export
     def agent_version(self, uuid):
-        if not isinstance(uuid, basestring):
-            identity = bytes(self.vip.rpc.context.vip_message.peer)
+        if not isinstance(uuid, str):
+            identity = bytes(self.vip.rpc.context.vip_message.peer).decode("utf-8")
             raise TypeError("expected a string for 'uuid';"
                             "got {!r} from identity: {}".format(
                 type(uuid).__name__, identity))
@@ -246,13 +243,13 @@ class ControlService(BaseAgent):
         return self._aip.agent_versions()
 
     @RPC.export
-    def status_agents(self):
-        return self._aip.status_agents()
+    def status_agents(self, get_agent_user=False):
+        return self._aip.status_agents(get_agent_user)
 
     @RPC.export
     def start_agent(self, uuid):
-        if not isinstance(uuid, basestring):
-            identity = bytes(self.vip.rpc.context.vip_message.peer)
+        if not isinstance(uuid, str):
+            identity = bytes(self.vip.rpc.context.vip_message.peer).decode("utf-8")
             raise TypeError("expected a string for 'uuid';"
                             "got {!r} from identity: {}".format(
                 type(uuid).__name__, identity))
@@ -260,8 +257,8 @@ class ControlService(BaseAgent):
 
     @RPC.export
     def stop_agent(self, uuid):
-        if not isinstance(uuid, basestring):
-            identity = bytes(self.vip.rpc.context.vip_message.peer)
+        if not isinstance(uuid, str):
+            identity = bytes(self.vip.rpc.context.vip_message.peer).decode("utf-8")
             raise TypeError("expected a string for 'uuid';"
                             "got {!r} from identity: {}".format(
                 type(uuid).__name__, identity))
@@ -269,9 +266,10 @@ class ControlService(BaseAgent):
         identity = self.agent_vip_identity(uuid)
         self._aip.stop_agent(uuid)
         # Send message to router that agent is shutting down
-        frames = [bytes(identity)]
+        frames = [identity]
 
-        self.core.connection.send_vip(b'', 'agentstop', args=frames, copy=False)
+        # Was self.core.socket.send_vip(b'', b'agentstop', frames, copy=False)
+        self.core.connection.send_vip('', 'agentstop', args=frames, copy=False)
 
     @RPC.export
     def restart_agent(self, uuid):
@@ -285,7 +283,7 @@ class ControlService(BaseAgent):
     @RPC.export
     def stop_platform(self):
         # XXX: Restrict call as it kills the process
-        self.core.connection.send_vip(b'', b'quit')
+        self.core.connection.send_vip('', 'quit')
 
     @RPC.export
     def list_agents(self):
@@ -294,17 +292,17 @@ class ControlService(BaseAgent):
         return [{'name': name, 'uuid': uuid,
                  'tag': tag(uuid), 'priority': priority(uuid),
                  'identity': self.agent_vip_identity(uuid)}
-                for uuid, name in self._aip.list_agents().iteritems()]
+                for uuid, name in self._aip.list_agents().items()]
 
     @RPC.export
     def tag_agent(self, uuid, tag):
-        if not isinstance(uuid, basestring):
-            identity = bytes(self.vip.rpc.context.vip_message.peer)
+        if not isinstance(uuid, str):
+            identity = bytes(self.vip.rpc.context.vip_message.peer).decode("utf-8")
             raise TypeError("expected a string for 'uuid';"
                             "got {!r} from identity: {}".format(
                 type(uuid).__name__, identity))
-        if not isinstance(tag, (type(None), basestring)):
-            identity = bytes(self.vip.rpc.context.vip_message.peer)
+        if not isinstance(tag, (type(None), str)):
+            identity = bytes(self.vip.rpc.context.vip_message.peer).decode("utf-8")
             raise TypeError("expected a string for 'tag';"
                             "got {!r} from identity: {}".format(
                 type(uuid).__name__, identity))
@@ -312,28 +310,30 @@ class ControlService(BaseAgent):
 
     @RPC.export
     def remove_agent(self, uuid, remove_auth=True):
-        if not isinstance(uuid, basestring):
-            identity = bytes(self.vip.rpc.context.vip_message.peer)
+        if not isinstance(uuid, str):
+            identity = bytes(self.vip.rpc.context.vip_message.peer).decode("utf-8")
             raise TypeError("expected a string for 'uuid';"
                             "got {!r} from identity: {}".format(
                 type(uuid).__name__, identity))
 
         identity = self.agent_vip_identity(uuid)
-        frames = [bytes(identity)]
+        # Because we are using send_vip we should pass frames that have bytes rather than
+        # strings.
+        frames = [identity]
 
         # Send message to router that agent is shutting down
-        self.core.connection.send_vip(b'', 'agentstop', args=frames, copy=False)
+        self.core.connection.send_vip('', 'agentstop', args=frames)
         self._aip.remove_agent(uuid, remove_auth=remove_auth)
 
     @RPC.export
     def prioritize_agent(self, uuid, priority='50'):
-        if not isinstance(uuid, basestring):
-            identity = bytes(self.vip.rpc.context.vip_message.peer)
+        if not isinstance(uuid, str):
+            identity = bytes(self.vip.rpc.context.vip_message.peer).decode("utf-8")
             raise TypeError("expected a string for 'uuid';"
                             "got {!r} from identity: {}".format(
                 type(uuid).__name__, identity))
-        if not isinstance(priority, (type(None), basestring)):
-            identity = bytes(self.vip.rpc.context.vip_message.peer)
+        if not isinstance(priority, (type(None), str)):
+            identity = bytes(self.vip.rpc.context.vip_message.peer).decode("utf-8")
             raise TypeError("expected a string or null for 'priority';"
                             "got {!r} from identity: {}".format(
                 type(uuid).__name__, identity))
@@ -346,11 +346,10 @@ class ControlService(BaseAgent):
         @param uuid:
         @return:
         """
-        if not isinstance(uuid, basestring):
-            identity = bytes(self.vip.rpc.context.vip_message.peer)
+        if not isinstance(uuid, str):
+            identity = bytes(self.vip.rpc.context.vip_message.peer).decode("utf-8")
             raise TypeError("expected a string for 'uuid';"
-                            "got {!r} from identity: {}".format(
-                type(uuid).__name__, identity))
+                            "got {!r} from identity: {}".format(type(uuid).__name__, identity))
         return self._aip.agent_identity(uuid)
 
     @RPC.export
@@ -434,7 +433,7 @@ class ControlService(BaseAgent):
             Encoded secret key the installed agent will use
         """
 
-        peer = bytes(self.vip.rpc.context.vip_message.peer)
+        peer = bytes(self.vip.rpc.context.vip_message.peer).decode("utf-8")
         channel = self.vip.channel(peer, channel_name)
 
         try:
@@ -448,7 +447,7 @@ class ControlService(BaseAgent):
                 while True:
                     # request a chunk of the file
                     channel.send_multipart([
-                        b'fetch',
+                        'fetch',
                         bytes(file_offset),
                         bytes(CHUNK_SIZE)
                     ])
@@ -463,7 +462,7 @@ class ControlService(BaseAgent):
 
                     # let volttron-ctl know that we have everything
                     if size < CHUNK_SIZE:
-                        channel.send_multipart([b'checksum', b'', b''])
+                        channel.send_multipart(['checksum', '', ''])
                         with gevent.Timeout(30):
                             checksum = channel.recv()
                         assert checksum == sha512.digest()
@@ -502,12 +501,12 @@ def log_to_file(file, level=logging.WARNING,
     root.addHandler(handler)
 
 
-Agent = collections.namedtuple('Agent', 'name tag uuid vip_identity')
+Agent = collections.namedtuple('Agent', 'name tag uuid vip_identity agent_user')
 
 
 def _list_agents(aip):
-    return [Agent(name, aip.agent_tag(uuid), uuid, aip.agent_identity(uuid))
-            for uuid, name in aip.list_agents().iteritems()]
+    return [Agent(name, aip.agent_tag(uuid), uuid, aip.agent_identity(uuid), '')
+            for uuid, name in aip.list_agents().items()]
 
 
 def escape(pattern):
@@ -554,16 +553,13 @@ def backup_agent_data(output_filename, source_dir):
 
 def restore_agent_data_from_tgz(source_file, output_dir):
     # Open tarfile
-    with tarfile.open(mode="r:gz", fileobj=file(source_file)) as tar:
+    with tarfile.open(source_file, mode="r:gz") as tar:
         tar.extractall(output_dir)
 
 
 def find_agent_data_dir(opts, agent_uuid):
-    agent_data_dir = None
-    for x in os.listdir(opts.aip.agent_dir(agent_uuid)):
-        if x.endswith("agent-data"):
-            agent_data_dir = os.path.join(opts.aip.agent_dir(agent_uuid), x)
-            break
+    # Find agent-data directory path, create if missing
+    agent_data_dir = opts.aip.create_agent_data_dir_if_missing(agent_uuid)
     return agent_data_dir
 
 
@@ -647,11 +643,11 @@ def install_agent(opts, publickey=None, secretkey=None, callback=None):
                     # get a request
                     with gevent.Timeout(60):
                         request, file_offset, chunk_size = channel.recv_multipart()
-                    if request == b'checksum':
+                    if request == 'checksum':
                         channel.send(sha512.digest())
                         break
 
-                    assert request == b'fetch'
+                    assert request == 'fetch'
 
                     # send a chunk of the file
                     file_offset = int(file_offset)
@@ -761,13 +757,19 @@ def list_peers(opts):
 def status_agents(opts):
     agents = {agent.uuid: agent for agent in _list_agents(opts.aip)}
     status = {}
-    for uuid, name, stat in opts.connection.call('status_agents'):
+    for details in opts.connection.call('status_agents', get_agent_user=True):
+        if is_secure_mode():
+            (uuid, name, agent_user, stat) = details
+        else:
+            (uuid, name, stat) = details
+            agent_user = ''
         try:
             agent = agents[uuid]
+            agents[uuid] = agent._replace(agent_user=agent_user)
         except KeyError:
-            agents[uuid] = agent = Agent(name, None, uuid)
+            agents[uuid] = agent = Agent(name, None, uuid, vip_identity=None, agent_user=agent_user)
         status[uuid] = stat
-    agents = agents.values()
+    agents = list(agents.values())
 
     def get_status(agent):
         try:
@@ -783,9 +785,13 @@ def status_agents(opts):
 
     def get_health(agent):
         try:
-            return opts.connection.server.vip.rpc.call(agent.vip_identity, 'health.get_status_json').get(timeout=4)[
-                'status']
-        except VIPError:
+            # TODO Modify this later so that we aren't calling peerlist before we call the status of the agent.
+            if agent.vip_identity in opts.connection.server.vip.peerlist().get(timeout=4):
+                return opts.connection.server.vip.rpc.call(agent.vip_identity,
+                                                           'health.get_status_json').get(timeout=4)['status']
+            else:
+                return ''
+        except (VIPError, gevent.Timeout):
             return ''
 
     _show_filtered_agents_status(opts, get_status, get_health, agents)
@@ -799,7 +805,7 @@ def agent_health(opts):
         return
     agent = agents.pop()
     try:
-        _stderr.write(json.dumps(
+        _stderr.write(jsonapi.dumps(
             opts.connection.server.vip.rpc.call(agent.vip_identity, 'health.get_status_json').get(timeout=4),
             indent=4) + '\n'
                       )
@@ -900,6 +906,7 @@ def shutdown_agents(opts):
     _log.debug("Calling stop_platform")
     if opts.platform:
         opts.connection.notify('stop_platform')
+        wait_for_volttron_shutdown(get_home(), 60)
 
 
 def create_cgroups(opts):
@@ -946,7 +953,7 @@ def send_agent(opts):
 
 def gen_keypair(opts):
     keypair = KeyStore.generate_keypair_dict()
-    _stdout.write('{}\n'.format(json.dumps(keypair, indent=2)))
+    _stdout.write('{}\n'.format(jsonapi.dumps(keypair, indent=2)))
 
 
 def add_server_key(opts):
@@ -1036,7 +1043,7 @@ def list_auth(opts, indices=None):
             if indices is None or index in indices:
                 _stdout.write('\nINDEX: {}\n'.format(index))
                 _stdout.write(
-                    '{}\n'.format(json.dumps(vars(entry), indent=2)))
+                    '{}\n'.format(jsonapi.dumps(vars(entry), indent=2)))
     else:
         _stdout.write('No entries in {}\n'.format(auth_file.auth_file))
 
@@ -1070,7 +1077,7 @@ def _ask_for_auth_fields(domain=None, address=None, user_id=None,
                 question = '{} {}[{}]: '.format(name, note, default_str)
                 valid = False
                 while not valid:
-                    response = raw_input(question).strip()
+                    response = input(question).strip()
                     if response == '':
                         response = default
                     if response == 'clear':
@@ -1084,7 +1091,7 @@ def _ask_for_auth_fields(domain=None, address=None, user_id=None,
             return {k: self._fields[k]['response'] for k in self._fields}
 
     def to_true_or_false(response):
-        if isinstance(response, basestring):
+        if isinstance(response, str):
             return {'true': True, 'false': False}[response.lower()]
         return response
 
@@ -1099,14 +1106,14 @@ def _ask_for_auth_fields(domain=None, address=None, user_id=None,
             mechanism = fields['mechanism']['response']
             AuthEntry.valid_credentials(creds, mechanism=mechanism)
         except AuthException as e:
-            return False, e.message
+            return False, str(e)
         return True, None
 
     def valid_mech(mech, fields):
         try:
             AuthEntry.valid_mechanism(mech)
         except AuthException as e:
-            return False, e.message
+            return False, str(e)
         return True, None
 
     asker = Asker()
@@ -1129,7 +1136,7 @@ def _ask_for_auth_fields(domain=None, address=None, user_id=None,
 
 
 def _comma_split(line):
-    if not isinstance(line, basestring):
+    if not isinstance(line, str):
         return line
     line = line.strip()
     if not line:
@@ -1138,11 +1145,11 @@ def _comma_split(line):
 
 
 def _parse_capabilities(line):
-    if not isinstance(line, basestring):
+    if not isinstance(line, str):
         return line
     line = line.strip()
     try:
-       result = json.loads(line.replace("'", "\""))
+       result = jsonapi.loads(line.replace("'", "\""))
     except Exception as e:
         result = _comma_split(line)
     return result
@@ -1191,7 +1198,7 @@ def add_auth(opts):
         auth_file.add(entry, overwrite=False)
         _stdout.write('added entry {}\n'.format(entry))
     except AuthException as err:
-        _stderr.write('ERROR: %s\n' % err.message)
+        _stderr.write('ERROR: %s\n' % str(err))
 
 
 def _ask_yes_no(question, default='yes'):
@@ -1206,7 +1213,7 @@ def _ask_yes_no(question, default='yes'):
     else:
         raise ValueError("invalid default answer: '%s'" % default)
     while True:
-        choice = raw_input('{} [{}/{}] '.format(question, y, n)).lower()
+        choice = input('{} [{}/{}] '.format(question, y, n)).lower()
         if choice == '':
             choice = default
         if choice in yes:
@@ -1237,7 +1244,7 @@ def remove_auth(opts):
             msg = msg = 'removed entry at index {}'.format(opts.indices)
         _stdout.write(msg + '\n')
     except AuthException as err:
-        _stderr.write('ERROR: %s\n' % err.message)
+        _stderr.write('ERROR: %s\n' % str(err))
 
 
 def update_auth(opts):
@@ -1255,7 +1262,7 @@ def update_auth(opts):
     except IndexError:
         _stderr.write('ERROR: invalid index %s\n' % opts.index)
     except AuthException as err:
-        _stderr.write('ERROR: %s\n' % err.message)
+        _stderr.write('ERROR: %s\n' % str(err))
 
 
 def add_role(opts):
@@ -1384,7 +1391,7 @@ def _show_filtered_agents(opts, field_name, field_callback, agents=None):
     if not agents:
         _stderr.write('No installed Agents found\n')
         return
-    agents.sort()
+    agents = sorted(agents, key=lambda x: x.name)
     if not opts.min_uuid_len:
         n = 36
     else:
@@ -1432,7 +1439,8 @@ def _show_filtered_agents_status(opts, status_callback, health_callback, agents=
     if not agents:
         _stderr.write('No installed Agents found\n')
         return
-    agents.sort()
+
+    agents = sorted(agents, key=lambda x: x.name)
     if not opts.min_uuid_len:
         n = 36
     else:
@@ -1440,16 +1448,31 @@ def _show_filtered_agents_status(opts, status_callback, health_callback, agents=
     name_width = max(5, max(len(agent.name) for agent in agents))
     tag_width = max(3, max(len(agent.tag or '') for agent in agents))
     identity_width = max(3, max(len(agent.vip_identity or '') for agent in agents))
-    fmt = '{} {:{}} {:{}} {:{}} {:>6} {:>15}\n'
-    _stderr.write(
-        fmt.format(' ' * n, 'AGENT', name_width, 'IDENTITY', identity_width,
-                   'TAG', tag_width, 'STATUS', 'HEALTH'))
-    fmt = '{} {:{}} {:{}} {:{}} {:<15} {:<}\n'
-    for agent in agents:
-        _stdout.write(fmt.format(agent.uuid[:n], agent.name, name_width,
-                                 agent.vip_identity, identity_width,
-                                 agent.tag or '', tag_width,
-                                 status_callback(agent), health_callback(agent)))
+    if is_secure_mode():
+        user_width = max(3, max(len(agent.agent_user or '') for agent in agents))
+        fmt = '{} {:{}} {:{}} {:{}} {:{}} {:>6} {:>15}\n'
+        _stderr.write(
+            fmt.format(' ' * n, 'AGENT', name_width, 'IDENTITY', identity_width,
+                       'TAG', tag_width, 'AGENT_USER', user_width, 'STATUS', 'HEALTH'))
+        fmt = '{} {:{}} {:{}} {:{}} {:{}} {:<15} {:<}\n'
+        for agent in agents:
+            status_str = status_callback(agent)
+            _stdout.write(fmt.format(agent.uuid[:n], agent.name, name_width,
+                                     agent.vip_identity, identity_width,
+                                     agent.tag or '', tag_width,
+                                     agent.agent_user if status_str.startswith("running") else "", user_width,
+                                     status_str, health_callback(agent)))
+    else:
+        fmt = '{} {:{}} {:{}} {:{}} {:>6} {:>15}\n'
+        _stderr.write(
+            fmt.format(' ' * n, 'AGENT', name_width, 'IDENTITY', identity_width,
+                       'TAG', tag_width, 'STATUS', 'HEALTH'))
+        fmt = '{} {:{}} {:{}} {:{}} {:<15} {:<}\n'
+        for agent in agents:
+            _stdout.write(fmt.format(agent.uuid[:n], agent.name, name_width,
+                                     agent.vip_identity, identity_width,
+                                     agent.tag or '', tag_width,
+                                     status_callback(agent), health_callback(agent)))
 
 
 def get_agent_publickey(opts):
@@ -1529,7 +1552,7 @@ def get_config(opts):
         if isinstance(results, str):
             _stdout.write(results)
         else:
-            _stdout.write(json.dumps(results, indent=2))
+            _stdout.write(jsonapi.dumps(results, indent=2))
             _stdout.write("\n")
 
 
@@ -1553,7 +1576,7 @@ def edit_config(opts):
 
     # Write raw data to temp file
     # This will not work on Windows, FYI
-    with tempfile.NamedTemporaryFile(suffix=".txt") as f:
+    with tempfile.NamedTemporaryFile(suffix=".txt", mode="r+") as f:
         f.write(raw_data)
         f.flush()
 
@@ -1580,13 +1603,11 @@ def edit_config(opts):
 
 
 class ControlConnection(object):
-    def __init__(self, address, peer='control',
-                 publickey=None, secretkey=None, serverkey=None):
+    def __init__(self, address, peer='control'):
         self.address = address
         self.peer = peer
         message_bus = utils.get_messagebus()
-        self._server = BaseAgent(address=self.address, publickey=publickey,
-                                 secretkey=secretkey, serverkey=serverkey,
+        self._server = BaseAgent(address=self.address,
                                  enable_store=False,
                                  identity=CONTROL_CONNECTION,
                                  message_bus=message_bus,
@@ -1642,7 +1663,7 @@ def add_vhost(opts):
         rmq_mgmt.create_vhost(opts.vhost)
     except requests.exceptions.HTTPError as e:
         _stdout.write("Error adding a Virtual Host: {} \n".format(opts.vhost))
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
 
@@ -1664,7 +1685,7 @@ def add_user(opts):
         rmq_mgmt.set_user_permissions(permissions, opts.user)
     except requests.exceptions.HTTPError as e:
         _stdout.write("Error Setting User permissions : {} \n".format(opts.user))
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
 
@@ -1688,7 +1709,7 @@ def add_exchange(opts):
         rmq_mgmt.create_exchange(opts.name, properties)
     except requests.exceptions.HTTPError as e:
         _stdout.write("Error Adding Exchange : {} \n".format(opts.name))
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
 
@@ -1702,7 +1723,7 @@ def add_queue(opts):
         rmq_mgmt.create_queue(opts.name, properties)
     except requests.exceptions.HTTPError as e:
         _stdout.write("Error Adding Queue : {} \n".format(opts.name))
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
 
@@ -1714,7 +1735,7 @@ def list_vhosts(opts):
             _stdout.write(item + "\n")
     except requests.exceptions.HTTPError as e:
         _stdout.write("No Virtual Hosts Found: {} \n")
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
 
@@ -1726,7 +1747,7 @@ def list_users(opts):
             _stdout.write(item + "\n")
     except requests.exceptions.HTTPError as e:
         _stdout.write("No Users Found: {} \n")
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
 
@@ -1734,11 +1755,11 @@ def list_users(opts):
 def list_user_properties(opts):
     try:
         props = rmq_mgmt.get_user_props(opts.user)
-        for key, value in props.iteritems():
+        for key, value in props.items():
             _stdout.write("{0}: {1} \n".format(key, value))
     except requests.exceptions.HTTPError as e:
         _stdout.write("No User Found: {} \n".format(opts.user))
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
 
@@ -1750,7 +1771,7 @@ def list_exchanges(opts):
             _stdout.write(exch + "\n")
     except requests.exceptions.HTTPError as e:
         _stdout.write("No exchanges found \n")
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
 
@@ -1762,7 +1783,7 @@ def list_exchanges_with_properties(opts):
     except requests.exceptions.HTTPError as e:
         _stdout.write("No exchanges found \n")
         return
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
         return
@@ -1793,7 +1814,7 @@ def list_queues(opts):
     except requests.exceptions.HTTPError as e:
         _stdout.write("No queues found \n")
         return
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
         return
@@ -1809,7 +1830,7 @@ def list_queues_with_properties(opts):
     except requests.exceptions.HTTPError as e:
         _stdout.write("No queues found \n")
         return
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
         return
@@ -1842,7 +1863,7 @@ def list_connections(opts):
     except requests.exceptions.HTTPError as e:
         _stdout.write("No connections found \n")
         return
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
         return
@@ -1855,7 +1876,7 @@ def list_fed_parameters(opts):
     except requests.exceptions.HTTPError as e:
         _stdout.write("No Federation Parameters Found \n")
         return
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
         return
@@ -1880,7 +1901,7 @@ def list_shovel_parameters(opts):
     except requests.exceptions.HTTPError as e:
         _stdout.write("No Shovel Parameters Found \n")
         return
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
         return
@@ -1915,7 +1936,7 @@ def list_bindings(opts):
     except requests.exceptions.HTTPError as e:
         _stdout.write("No Bindings Found \n")
         return
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
         return
@@ -1945,7 +1966,7 @@ def list_policies(opts):
     except requests.exceptions.HTTPError as e:
         _stdout.write("No Policies Found \n")
         return
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
         return
@@ -1969,7 +1990,7 @@ def remove_vhosts(opts):
             rmq_mgmt.delete_vhost(vhost)
     except requests.exceptions.HTTPError as e:
         _stdout.write("No Vhost Found {} \n".format(opts.vhost))
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
 
@@ -1980,7 +2001,7 @@ def remove_users(opts):
             rmq_mgmt.delete_user(user)
     except requests.exceptions.HTTPError as e:
         _stdout.write("No User Found {} \n".format(opts.user))
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
 
@@ -1991,7 +2012,7 @@ def remove_exchanges(opts):
             rmq_mgmt.delete_exchange(e)
     except requests.exceptions.HTTPError as e:
         _stdout.write("No Exchange Found {} \n".format(opts.exchanges))
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
 
@@ -2002,7 +2023,7 @@ def remove_queues(opts):
             rmq_mgmt.delete_queue(q)
     except requests.exceptions.HTTPError as e:
         _stdout.write("No Queues Found {} \n".format(opts.queues))
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
 
@@ -2013,7 +2034,7 @@ def remove_fed_parameters(opts):
             rmq_mgmt.delete_multiplatform_parameter('federation-upstream', param)
     except requests.exceptions.HTTPError as e:
         _stdout.write("No Federation Parameters Found {} \n".format(opts.parameters))
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
 
@@ -2024,7 +2045,7 @@ def remove_shovel_parameters(opts):
             rmq_mgmt.delete_multiplatform_parameter('shovel', param)
     except requests.exceptions.HTTPError as e:
         _stdout.write("No Shovel Parameters Found {} \n".format(opts.parameters))
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
 
@@ -2035,20 +2056,20 @@ def remove_policies(opts):
             rmq_mgmt.delete_policy(policy)
     except requests.exceptions.HTTPError as e:
         _stdout.write("No Policies Found {} \n".format(opts.policies))
-    except (ConnectionError, NewConnectionError) as e:
+    except ConnectionError as e:
         _stdout.write("Error making request to RabbitMQ Management interface.\n"
                       "Check Connection Parameters: {} \n".format(e))
 
 
 def create_ssl_keypair(opts):
-    fq_identity = get_fq_identity(opts.identity)
+    fq_identity = utils.get_fq_identity(opts.identity)
     certs = Certs()
-    certs.create_ca_signed_cert(fq_identity)
+    certs.create_signed_cert_files(fq_identity)
 
 
 def export_pkcs12_from_identity(opts):
 
-    fq_identity = get_fq_identity(opts.identity)
+    fq_identity = utils.get_fq_identity(opts.identity)
 
     certs = Certs()
     certs.export_pkcs12(fq_identity, opts.outfile)
@@ -2072,7 +2093,7 @@ def main(argv=sys.argv):
                              sections=[None, 'global', 'volttron-ctl'],
                              help='read configuration from FILE')
     global_args.add_argument('--debug', action='store_true',
-                             help='show tracbacks for errors rather than a brief message')
+                             help='show tracebacks for errors rather than a brief message')
     global_args.add_argument('-t', '--timeout', type=float, metavar='SECS',
                              help='timeout in seconds for remote calls (default: %(default)g)')
     global_args.add_argument('--msgdebug',
@@ -2686,7 +2707,7 @@ def main(argv=sys.argv):
         opts.log_config = config.expandall(opts.log_config)
     opts.vip_address = config.expandall(opts.vip_address)
     if getattr(opts, 'show_config', False):
-        for name, value in sorted(vars(opts).iteritems()):
+        for name, value in sorted(vars(opts).items()):
             print(name, repr(value))
         return
 
@@ -2707,8 +2728,7 @@ def main(argv=sys.argv):
 
     opts.aip = aipmod.AIPplatform(opts)
     opts.aip.setup()
-    opts.connection = ControlConnection(opts.vip_address,
-                                        **get_keys(opts))
+    opts.connection = ControlConnection(opts.vip_address)
 
     try:
         with gevent.Timeout(opts.timeout):
@@ -2719,9 +2739,13 @@ def main(argv=sys.argv):
     except RemoteError as exc:
         print_tb = exc.print_tb
         error = exc.message
-    except Exception as exc:
-        print_tb = traceback.print_exc
-        error = str(exc)
+    except AttributeError as exc:
+        _stderr.write("Invalid command: '{}' or command requires additional arguments\n".format(opts.command))
+        parser.print_help()
+        return 1
+    # except Exception as exc:
+    #     print_tb = traceback.print_exc
+    #     error = str(exc)
     else:
         return 0
     if opts.debug:

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -40,8 +40,8 @@ import logging
 import sys
 import datetime
 
-from volttron.platform.vip.agent import Agent, Core, RPC
-from volttron.platform.async import AsyncCall
+from volttron.platform.vip.agent import Agent, RPC
+from volttron.platform.async_ import AsyncCall
 from volttron.platform.agent import utils
 from volttron.platform.messaging import topics, headers
 
@@ -54,7 +54,7 @@ __version__ = '0.5'
 
 from collections import defaultdict
 
-from Queue import Queue, Empty
+from queue import Queue, Empty
 
 from bacpypes.task import RecurringTask
 
@@ -99,43 +99,28 @@ from volttron.platform.agent.known_identities import PLATFORM_DRIVER
 # Make sure the TaskManager singleton exists...
 task_manager = TaskManager()
 
-#IO callback
-# class IOCB:
-#
-#     def __init__(self, request, asynccall):
-#         # requests and responses
-#         self.ioRequest = request
-#         self.ioResult = AsyncResult()
-#         self.ioCall = asynccall
-#
-#     def set(self, value):
-#         self.ioCall.send(None, self.ioResult.set, value)
-#
-#     def set_exception(self, exception):
-#         self.ioCall.send(None, self.ioResult.set_exception, exception)
 
 class SubscriptionContext(object):
-    """Object for maintaining BACnet change of value subscriptions with
-    points on a device"""
+    """
+    Object for maintaining BACnet change of value subscriptions with points on a device
+    """
 
-    def __init__(self, device_path, address, point_name, object_type,
-                 instance_number,
-                 sub_process_ID, lifetime=None):
+    def __init__(self, device_path, address, point_name, object_type, instance_number, sub_process_id, lifetime=None):
 
         self.device_path = device_path
         self.device_address = address
 
         # Arbitrary value which ties COVRequests to a subscription object
-        self.subscriberProcessIdentifier = sub_process_ID
+        self.subscriberProcessIdentifier = sub_process_id
 
         self.point_name = point_name
         self.monitoredObjectIdentifier = (object_type, instance_number)
         self.lifetime = lifetime
 
 
-class BACnet_application(BIPSimpleApplication, RecurringTask):
-    def __init__(self, i_am_callback, send_cov_subscription_callback,
-                 forward_cov_callback, request_check_interval, *args):
+class BACnetApplication(BIPSimpleApplication, RecurringTask):
+    def __init__(self, i_am_callback, send_cov_subscription_callback, forward_cov_callback, request_check_interval,
+                 *args):
         BIPSimpleApplication.__init__(self, *args)
         RecurringTask.__init__(self, request_check_interval)
 
@@ -173,20 +158,20 @@ class BACnet_application(BIPSimpleApplication, RecurringTask):
     def get_next_invoke_id(self, addr):
         """Called to get an unused invoke ID."""
 
-        initialID = self.nextInvokeID
+        initial_id = self.nextInvokeID
         while 1:
-            invokeID = self.nextInvokeID
+            invoke_id = self.nextInvokeID
             self.nextInvokeID = (self.nextInvokeID + 1) % 256
 
             # see if we've checked for them all
-            if initialID == self.nextInvokeID:
+            if initial_id == self.nextInvokeID:
                 raise RuntimeError("no available invoke ID")
 
             # see if this one is used
-            if (addr, invokeID) not in self.iocb:
+            if (addr, invoke_id) not in self.iocb:
                 break
 
-        return invokeID
+        return invoke_id
 
     def handle_request(self, iocb):
         apdu = iocb.ioRequest
@@ -203,15 +188,13 @@ class BACnet_application(BIPSimpleApplication, RecurringTask):
 
         try:
             self.request(apdu)
-        except StandardError as e:
+        except Exception as e:
             iocb.set_exception(e)
 
     def _get_iocb_key_for_apdu(self, apdu):
-        return (apdu.pduSource, apdu.apduInvokeID)
-
+        return apdu.pduSource, apdu.apduInvokeID
 
     def _get_iocb_for_apdu(self, apdu, invoke_key):
-
         # find the request
         working_iocb = self.iocb.get(invoke_key, None)
         if working_iocb is None:
@@ -220,35 +203,32 @@ class BACnet_application(BIPSimpleApplication, RecurringTask):
         del self.iocb[invoke_key]
 
         if isinstance(apdu, AbortPDU):
-            working_iocb.set_exception(RuntimeError(
-                "Device communication aborted: " + str(apdu)))
+            working_iocb.set_exception(RuntimeError("Device communication aborted: " + str(apdu)))
             return None
 
         elif isinstance(apdu, Error):
-            working_iocb.set_exception(RuntimeError(
-                "Error during device communication: " + str(apdu)))
+            working_iocb.set_exception(RuntimeError("Error during device communication: " + str(apdu)))
             return None
         elif isinstance(apdu, RejectPDU):
             working_iocb.set_exception(
-                RuntimeError("Device at {source} rejected the request:"
-                             " {reason}".format(
-                                 source=apdu.pduSource,
-                                 reason=apdu.apduAbortRejectReason)))
+                RuntimeError("Device at {source} rejected the request: {reason}".format(
+                    source=apdu.pduSource, reason=apdu.apduAbortRejectReason)))
             return None
         else:
             return working_iocb
 
     def _get_value_from_read_property_request(self, apdu, working_iocb):
         # find the datatype
-        datatype = get_datatype(apdu.objectIdentifier[0],
-                                apdu.propertyIdentifier)
+
+        #_log.debug("WIGGEDYWACKYO")
+
+        datatype = get_datatype(apdu.objectIdentifier[0], apdu.propertyIdentifier)
         if not datatype:
             working_iocb.set_exception(TypeError("unknown datatype"))
             return
 
         # special case for array parts, others are managed by cast_out
-        if issubclass(datatype, Array) and (
-                apdu.propertyArrayIndex is not None):
+        if issubclass(datatype, Array) and apdu.propertyArrayIndex is not None:
             if apdu.propertyArrayIndex == 0:
                 value = apdu.propertyValue.cast_out(Unsigned)
             else:
@@ -259,24 +239,22 @@ class BACnet_application(BIPSimpleApplication, RecurringTask):
                 value = datatype(value).get_long()
         return value
 
-    def _get_value_from_property_value(self, propertyValue,
-                                       datatype, working_iocb):
-        value = propertyValue.cast_out(datatype)
+    def _get_value_from_property_value(self, property_value, datatype, working_iocb):
+        value = property_value.cast_out(datatype)
         if issubclass(datatype, Enumerated):
             value = datatype(value).get_long()
 
         try:
-            if issubclass(datatype, Array) and (
-                    issubclass(datatype.subtype, Choice)):
+            if issubclass(datatype, Array) and issubclass(datatype.subtype, Choice):
                 new_value = []
                 for item in value.value[1:]:
-                    result = item.dict_contents().values()
+                    result = list(item.dict_contents().values())
                     if result[0] != ():
                         new_value.append(result[0])
                     else:
                         new_value.append(None)
                 value = new_value
-        except StandardError as e:
+        except Exception as e:
             _log.exception(e)
             working_iocb.set_exception(e)
             return
@@ -289,132 +267,107 @@ class BACnet_application(BIPSimpleApplication, RecurringTask):
         if not working_iocb:
             return
 
-        if (isinstance(working_iocb.ioRequest, ReadPropertyRequest) and
-                isinstance(apdu, ReadPropertyACK)):
+        if isinstance(working_iocb.ioRequest, ReadPropertyRequest) and isinstance(apdu, ReadPropertyACK):
             # handle receiving covIncrement read results by calling
             # the send_cov_subscription callback if a subscription exists and
             # the covIncrement is valid
             value = self._get_value_from_read_property_request(apdu, working_iocb)
             if apdu.propertyIdentifier == 'covIncrement':
-                _log.debug("received read covIncrement property response from "
-                           "{}".format(apdu.pduSource))
+                _log.debug("received read covIncrement property response from {}".format(apdu.pduSource))
                 subscription = None
                 subscription_id = -1
-                for key, sub in self.sub_cov_contexts.iteritems():
-                    if sub.device_address == apdu.pduSource and (
-                            sub.monitoredObjectIdentifier[0] ==
-                            apdu.objectIdentifier[0] and
-                            sub.monitoredObjectIdentifier[1] ==
-                            apdu.objectIdentifier[1]):
+                for key, sub in self.sub_cov_contexts.items():
+                    if sub.device_address == apdu.pduSource and \
+                       sub.monitoredObjectIdentifier[0] == apdu.objectIdentifier[0] and \
+                       sub.monitoredObjectIdentifier[1] == apdu.objectIdentifier[1]:
                         subscription = sub
                         subscription_id = key
                 if subscription:
                     if value:
-                        _log.info("covIncrement is {} for point {} on "
-                                  "device".format(value,
-                                                  subscription.point_name,
-                                                  subscription.device_path))
+                        _log.info("covIncrement is {} for point {} on device".format(
+                            value, subscription.point_name, subscription.device_path))
                         self.send_cov_subscription_callback(apdu.pduSource,
                                                             subscription.subscriberProcessIdentifier,
                                                             subscription.monitoredObjectIdentifier,
                                                             subscription.lifetime,
                                                             subscription.point_name)
                     else:
-                        _log.warning("point {} on device {} does not have a "
-                                     "valid covIncrement property")
-                        self.this_application.sub_cov_contexts.pop(
-                            subscription_id)
+                        _log.warning("point {} on device {} does not have a valid covIncrement property")
+                        self.bacnet_application.sub_cov_contexts.pop(subscription_id)
                 else:
-                    _log.error('Received read covIncrement response, but no '
-                               'subscription context exists for {} on {'
-                               '}').format(subscription.device_path,
-                                           subscription.point_name)
+                    _log.error('Received read covIncrement response, but no subscription context exists for {} on {}'.
+                               format(subscription.device_path, subscription.point_name))
             else:
                 working_iocb.set(value)
             return
 
-        elif (isinstance(working_iocb.ioRequest, WritePropertyRequest) and
-              isinstance(apdu, SimpleAckPDU)):
+        elif isinstance(working_iocb.ioRequest, WritePropertyRequest) and isinstance(apdu, SimpleAckPDU):
             working_iocb.set(apdu)
             return
 
         # Simple record-keeping for subscription request responses
-        elif (isinstance(working_iocb.ioRequest, SubscribeCOVRequest) and
-                isinstance(apdu, SimpleAckPDU)):
-            _log.debug("COV subscription established for {} on {}"
-                       .format(working_iocb.ioRequest.monitoredObjectIdentifer,
-                               working_iocb.ioRequest.pduSource))
+        elif isinstance(working_iocb.ioRequest, SubscribeCOVRequest) and isinstance(apdu, SimpleAckPDU):
+            _log.debug("COV subscription established for {} on {}".format(
+                working_iocb.ioRequest.monitoredObjectIdentifer, working_iocb.ioRequest.pduSource))
             working_iocb.set(apdu)
             return
-        elif (isinstance(working_iocb.ioRequest, SubscribeCOVRequest) and
-              not isinstance(apdu, SimpleAckPDU)):
-            _log.error("The SubscribeCOVRequest for {} failed to establish a "
-                       "subscription."
-                       .format(SubscribeCOVRequest.monitoredObjectIdentifier))
+        elif isinstance(working_iocb.ioRequest, SubscribeCOVRequest) and not isinstance(apdu, SimpleAckPDU):
+            _log.error("The SubscribeCOVRequest for {} failed to establish a subscription.".format(
+                SubscribeCOVRequest.monitoredObjectIdentifier))
             return
 
-        elif (isinstance(working_iocb.ioRequest,
-                         ReadPropertyMultipleRequest) and
-              isinstance(apdu, ReadPropertyMultipleACK)):
+        elif isinstance(working_iocb.ioRequest, ReadPropertyMultipleRequest) and \
+            isinstance(apdu, ReadPropertyMultipleACK):
 
             result_dict = {}
             for result in apdu.listOfReadAccessResults:
                 # here is the object identifier
-                objectIdentifier = result.objectIdentifier
+                object_identifier = result.objectIdentifier
 
                 # now come the property values per object
                 for element in result.listOfResults:
                     # get the property and array index
-                    propertyIdentifier = element.propertyIdentifier
-                    propertyArrayIndex = element.propertyArrayIndex
+                    property_identifier = element.propertyIdentifier
+                    property_array_index = element.propertyArrayIndex
 
                     # here is the read result
-                    readResult = element.readResult
+                    read_result = element.readResult
 
                     # check for an error
-                    if readResult.propertyAccessError is not None:
-                        error_obj = readResult.propertyAccessError
+                    if read_result.propertyAccessError is not None:
+                        error_obj = read_result.propertyAccessError
 
                         msg = 'ERROR DURING SCRAPE of {2} (Class: {0} Code: {1})'
-                        _log.error(msg.format(error_obj.errorClass,
-                                              error_obj.errorCode,
-                                              objectIdentifier))
+                        _log.error(msg.format(error_obj.errorClass, error_obj.errorCode, object_identifier))
 
                     else:
                         # here is the value
-                        propertyValue = readResult.propertyValue
+                        property_value = read_result.propertyValue
 
                         # find the datatype
-                        datatype = get_datatype(objectIdentifier[0],
-                                                propertyIdentifier)
+                        datatype = get_datatype(object_identifier[0], property_identifier)
                         if not datatype:
-                            working_iocb.set_exception(
-                                TypeError("unknown datatype"))
+                            working_iocb.set_exception(TypeError("unknown datatype"))
                             return
 
                         # special case for array parts, others are managed
                         # by cast_out
-                        if issubclass(datatype, Array) and (
-                             propertyArrayIndex is not None):
-                            if propertyArrayIndex == 0:
-                                value = propertyValue.cast_out(Unsigned)
+                        if issubclass(datatype, Array) and property_array_index is not None:
+                            if property_array_index == 0:
+                                value = property_value.cast_out(Unsigned)
                             else:
-                                value = propertyValue.cast_out(datatype.subtype)
+                                value = property_value.cast_out(datatype.subtype)
                         else:
-                            value = self._get_value_from_property_value(
-                                propertyValue, datatype, working_iocb)
+                            value = self._get_value_from_property_value(property_value, datatype, working_iocb)
 
-                        result_dict[objectIdentifier[0], objectIdentifier[1],
-                                    propertyIdentifier,
-                                    propertyArrayIndex] = value
+                        result_dict[object_identifier[0], object_identifier[1], property_identifier,
+                                    property_array_index] = value
 
             working_iocb.set(result_dict)
 
         else:
-            _log.error("For invoke key {key} Unsupported Request Response pair"
-                       " Request: {request} Response: {response}".
-                       format(key=invoke_key, request=working_iocb.ioRequest,
-                              response=apdu))
+            _log.error("For invoke key {key} Unsupported Request Response pair Request: {request} Response: {response}".
+                       format(key=invoke_key, request=working_iocb.ioRequest, response=apdu))
             working_iocb.set_exception(TypeError('Unsupported Request Type'))
 
     def indication(self, apdu):
@@ -438,8 +391,7 @@ class BACnet_application(BIPSimpleApplication, RecurringTask):
             # past the covIncrement threshold(See COV_Detection class in
             # Bacpypes:
             # https://bacpypes.readthedocs.io/en/latest/modules/service/cov.html)
-            _log.debug("ConfirmedCOVNotificationRequest received from {}"
-                       .format(apdu.pduSource))
+            _log.debug("ConfirmedCOVNotificationRequest received from {}".format(apdu.pduSource))
             point_name = None
             device_path = None
 
@@ -456,23 +408,20 @@ class BACnet_application(BIPSimpleApplication, RecurringTask):
                         result_dict[property_id] = values
 
             if result_dict:
-                context = \
-                    self.sub_cov_contexts[apdu.subscriberProcessIdentifier]
+                context = self.sub_cov_contexts[apdu.subscriberProcessIdentifier]
                 point_name = context.point_name
                 device_path = context.device_path
 
             if point_name and device_path:
                 self.forward_cov_callback(device_path, point_name, result_dict)
             else:
-                _log.debug("Device {} does not have a subscription context."
-                           .format(apdu.monitoredObjectIdentifier))
+                _log.debug("Device {} does not have a subscription context.".format(apdu.monitoredObjectIdentifier))
 
         # forward it along
         BIPSimpleApplication.indication(self, apdu)
 
 
-write_debug_str = ("Writing: {target} {type} {instance} {property} (Priority: "
-                   "{priority}, Index: {index}): {value}")
+write_debug_str = "Writing: {target} {type} {instance} {property} (Priority: {priority}, Index: {index}): {value}"
 
 
 def bacnet_proxy_agent(config_path, **kwargs):
@@ -486,27 +435,20 @@ def bacnet_proxy_agent(config_path, **kwargs):
     max_per_request = config.get("default_max_per_request", 1000000)
     request_check_interval = config.get("request_check_interval", 100)
 
-    return BACnetProxyAgent(device_address,
-                            max_apdu_len, seg_supported,
-                            obj_id, obj_name, ven_id,
-                            max_per_request,
-                            request_check_interval=request_check_interval,
-                            heartbeat_autostart=True,
-                            **kwargs)
+    return BACnetProxyAgent(device_address, max_apdu_len, seg_supported, obj_id, obj_name, ven_id, max_per_request,
+                            request_check_interval=request_check_interval, heartbeat_autostart=True, **kwargs)
 
 
 class BACnetProxyAgent(Agent):
-    '''This agent creates a virtual bacnet device that is used by
-    the bacnet driver interface to communicate with devices.
-    '''
-    def __init__(self, device_address,
-                 max_apdu_len, seg_supported,
-                 obj_id, obj_name, ven_id, max_per_request,
-                 request_check_interval=100,
-                 **kwargs):
+    """
+    This agent creates a virtual bacnet device that is used by the bacnet driver interface to communicate with devices.
+    """
+    def __init__(self, device_address, max_apdu_len, seg_supported, obj_id, obj_name, ven_id, max_per_request,
+                 request_check_interval=100, **kwargs):
         super(BACnetProxyAgent, self).__init__(**kwargs)
 
         async_call = AsyncCall()
+        self.bacnet_application = None
 
         # IO callback
         class IOCB:
@@ -524,9 +466,7 @@ class BACnetProxyAgent(Agent):
         self.iocb_class = IOCB
         self._max_per_request = max_per_request
 
-        self.setup_device(async_call, device_address,
-                          max_apdu_len, seg_supported,
-                          obj_id, obj_name, ven_id,
+        self.setup_device(async_call, device_address, max_apdu_len, seg_supported, obj_id, obj_name, ven_id,
                           request_check_interval)
 
     def setup_device(self, async_call, address,
@@ -545,9 +485,8 @@ class BACnetProxyAgent(Agent):
 
         # Check to see if they gave a valid apdu length.
         if encode_max_apdu_length_accepted(max_apdu_len) is None:
-            raise ValueError("Invalid max_apdu_len: {} Valid options are 50, "
-                             "128, 206, 480, 1024, and 1476".format(
-                                 max_apdu_len))
+            raise ValueError("Invalid max_apdu_len: {} Valid options are 50, 128, 206, 480, 1024, and 1476".format(
+                             max_apdu_len))
 
         this_device = LocalDeviceObject(
             objectName=obj_name,
@@ -565,34 +504,30 @@ class BACnetProxyAgent(Agent):
         # set the property value to be just the bits
         this_device.protocolServicesSupported = pss.value
 
-        def i_am_callback(address, device_id, max_apdu_len,
-                          seg_supported, vendor_id):
-            async_call.send(None, self.i_am, address, device_id, max_apdu_len,
-                            seg_supported, vendor_id)
+        def i_am_callback(address, device_id, max_apdu_len, seg_supported, vendor_id):
+            async_call.send(None, self.i_am, address, device_id, max_apdu_len, seg_supported, vendor_id)
 
-        def send_cov_subscription_callback(device_address,
-                                           subscriberProcessIdentifier,
-                                           monitoredObjectIdentifier, lifetime,
-                                           point_name):
-            """Asynchronus cov subscription callback for gevent"""
-            async_call.send(None, self.send_cov_subscription, device_address,
-                            subscriberProcessIdentifier,
-                            monitoredObjectIdentifier, lifetime, point_name)
+        def send_cov_subscription_callback(device_address, subscriber_process_identifier, monitored_object_identifier,
+                                           lifetime, point_name):
+            """
+            Asynchronous cov subscription callback for gevent
+            """
+            async_call.send(None, self.send_cov_subscription, device_address, subscriber_process_identifier,
+                            monitored_object_identifier, lifetime, point_name)
 
         def forward_cov_callback(point_name, apdu, result_dict):
-            """Asynchronus callback to forward cov values to the master driver
-            for gevent"""
+            """
+            Asynchronous callback to forward cov values to the master driver
+            for gevent
+            """
             async_call.send(None, self.forward_cov, point_name, apdu, result_dict)
 
-
-        #i_am_callback('foo', 'bar', 'baz', 'foobar', 'foobaz')
-
-        self.this_application = BACnet_application(i_am_callback,
-                                                   send_cov_subscription_callback,
-                                                   forward_cov_callback,
-                                                   request_check_interval,
-                                                   this_device,
-                                                   address)
+        self.bacnet_application = BACnetApplication(i_am_callback,
+                                                    send_cov_subscription_callback,
+                                                    forward_cov_callback,
+                                                    request_check_interval,
+                                                    this_device,
+                                                    address)
 
         # Having a recurring task makes the spin value kind of irrelevant.
         kwargs = {"spin": 0.1,
@@ -606,23 +541,20 @@ class BACnetProxyAgent(Agent):
         server_thread.start()
 
     def i_am(self, address, device_id, max_apdu_len, seg_supported, vendor_id):
-        """Called by the BACnet application when a WhoIs is received.
-        Publishes the IAm to the pubsub."""
-        _log.debug(("IAm received: Address: {} Device ID: {}"
-                   " Max APDU: {} Segmentation: {} Vendor:"
-                    " {}").format(address, device_id, max_apdu_len,
-                                  seg_supported, vendor_id))
+        """
+        Called by the BACnet application when a WhoIs is received. Publishes the IAm to the pubsub.
+        """
+        _log.debug("IAm received: Address: {} Device ID: {} Max APDU: {} Segmentation: {} Vendor: {}".format(
+            address, device_id, max_apdu_len, seg_supported, vendor_id))
 
-        header = {headers.TIMESTAMP: utils.format_timestamp(
-            datetime.datetime.utcnow())}
+        header = {headers.TIMESTAMP: utils.format_timestamp(datetime.datetime.utcnow())}
         value = {"address": address,
                  "device_id": device_id,
                  "max_apdu_length": max_apdu_len,
                  "segmentation_supported": seg_supported,
                  "vendor_id": vendor_id}
 
-        self.vip.pubsub.publish('pubsub', topics.BACNET_I_AM, header,
-                                message=value)
+        self.vip.pubsub.publish('pubsub', topics.BACNET_I_AM, header, message=value)
 
     def forward_cov(self, device_path, point_name, result_dict):
         """
@@ -633,15 +565,12 @@ class BACnetProxyAgent(Agent):
         :param point_name: COV notification contains values for this point
         :param result_dict: dictionary of values from the point
         """
-        self.vip.rpc.call(PLATFORM_DRIVER, 'forward_bacnet_cov_value',
-                          device_path, point_name, result_dict)
+        self.vip.rpc.call(PLATFORM_DRIVER, 'forward_bacnet_cov_value', device_path, point_name, result_dict)
 
     @RPC.export
-    def who_is(self, low_device_id=None, high_device_id=None,
-               target_address=None):
-        _log.debug(("Sending WhoIs: low_id: {low} high: {high} address: "
-                   "{address}").format(low=low_device_id, high=high_device_id,
-                                       address=target_address))
+    def who_is(self, low_device_id=None, high_device_id=None, target_address=None):
+        _log.debug("Sending WhoIs: low_id: {low} high: {high} address: {address}".format(
+            low=low_device_id, high=high_device_id, address=target_address))
         request = WhoIsRequest()
 
         if low_device_id is not None:
@@ -655,12 +584,14 @@ class BACnetProxyAgent(Agent):
             request.pduDestination = GlobalBroadcast()
 
         iocb = self.iocb_class(request)
-        self.this_application.submit_request(iocb)
+        self.bacnet_application.submit_request(iocb)
 
     @RPC.export
     def ping_device(self, target_address, device_id):
-        """Ping a device with a whois to potentially setup routing."""
-        _log.debug("Pinging "+target_address)
+        """
+        Ping a device with a whois to potentially setup routing.
+        """
+        _log.debug("Pinging " + target_address)
         self.who_is(device_id, device_id, target_address)
 
     def _cast_value(self, value, datatype):
@@ -673,10 +604,11 @@ class BACnetProxyAgent(Agent):
             return datatype(value)
 
     @RPC.export
-    def write_property(self, target_address, value, object_type,
-                       instance_number, property_name, priority=None,
+    def write_property(self, target_address, value, object_type, instance_number, property_name, priority=None,
                        index=None):
-        """Write to a property."""
+        """
+        Write to a property.
+        """
 
         _log.debug(write_debug_str.format(target=target_address,
                                           type=object_type,
@@ -686,12 +618,12 @@ class BACnetProxyAgent(Agent):
                                           index=index,
                                           value=value))
 
-        request = WritePropertyRequest(
-            objectIdentifier=(object_type, instance_number),
-            propertyIdentifier=property_name)
+        request = WritePropertyRequest(objectIdentifier=(object_type, instance_number),
+                                       propertyIdentifier=property_name)
 
         datatype = get_datatype(object_type, property_name)
-        if (value is None or value == 'null'):
+        bac_value = None
+        if value is None or value == 'null':
             bac_value = Null()
         elif issubclass(datatype, Atomic):
             bac_value = self._cast_value(value, datatype)
@@ -701,11 +633,9 @@ class BACnetProxyAgent(Agent):
             elif issubclass(datatype.subtype, Atomic):
                 bac_value = datatype.subtype(value)
             elif not isinstance(value, datatype.subtype):
-                raise TypeError("invalid result datatype, expecting {}".format(
-                    datatype.subtype.__name__,))
+                raise TypeError("invalid result datatype, expecting {}".format(datatype.subtype.__name__,))
         elif not isinstance(value, datatype):
-            raise TypeError("invalid result datatype, expecting %s".format(
-                datatype.__name__,))
+            raise TypeError("invalid result datatype, expecting %s".format(datatype.__name__,))
 
         request.propertyValue = Any()
         request.propertyValue.cast_in(bac_value)
@@ -721,7 +651,7 @@ class BACnetProxyAgent(Agent):
             request.priority = priority
 
         iocb = self.iocb_class(request)
-        self.this_application.submit_request(iocb)
+        self.bacnet_application.submit_request(iocb)
         result = iocb.ioResult.get(10)
         if isinstance(result, SimpleAckPDU):
             return value
@@ -730,7 +660,7 @@ class BACnetProxyAgent(Agent):
     def read_using_single_request(self, target_address, point_map):
         results = {}
 
-        for point, properties in point_map.iteritems():
+        for point, properties in point_map.items():
             if len(properties) == 3:
                 object_type, instance_number, property_name = properties
                 property_index = None
@@ -738,30 +668,26 @@ class BACnetProxyAgent(Agent):
                 (object_type, instance_number, property_name,
                  property_index) = properties
             else:
-                _log.error(("skipping {} in request to {}: incorrect number of"
-                           " parameters").format(point, target_address))
+                _log.error("skipping {} in request to {}: incorrect number of parameters".format(point, target_address))
                 continue
 
             try:
                 results[point] = self.read_property(
-                    target_address, object_type,
-                    instance_number, property_name, property_index)
+                    target_address, object_type, instance_number, property_name, property_index)
             except Exception as e:
-                _log.error("Error reading point {} from {}: {}".format(
-                    point, target_address, e))
+                _log.error("Error reading point {} from {}: {}".format(point, target_address, e))
 
         return results
 
     @RPC.export
-    def read_property(self, target_address, object_type, instance_number,
-                      property_name, property_index=None):
+    def read_property(self, target_address, object_type, instance_number, property_name, property_index=None):
         request = ReadPropertyRequest(
             objectIdentifier=(object_type, instance_number),
             propertyIdentifier=property_name,
             propertyArrayIndex=property_index)
         request.pduDestination = Address(target_address)
         iocb = self.iocb_class(request)
-        self.this_application.submit_request(iocb)
+        self.bacnet_application.submit_request(iocb)
         bacnet_results = iocb.ioResult.get(10)
         return bacnet_results
 
@@ -775,19 +701,17 @@ class BACnetProxyAgent(Agent):
                 prop_ref.propertyArrayIndex = prop_index
             prop_ref_list.append(prop_ref)
             count += 1
-        return (ReadAccessSpecification(
-            objectIdentifier=(obj_type, obj_inst),
-            listOfPropertyReferences=prop_ref_list), count)
+        return (ReadAccessSpecification(objectIdentifier=(obj_type, obj_inst), listOfPropertyReferences=prop_ref_list),
+                count)
 
     def _get_object_properties(self, point_map, target_address):
-        # This will be used to get the results mapped
-        # back on the the names
+        # This will be used to get the results mapped back on the the names
         reverse_point_map = {}
 
         # Used to group properties together for the request.
         object_property_map = defaultdict(list)
 
-        for name, properties in point_map.iteritems():
+        for name, properties in point_map.items():
             if len(properties) == 3:
                 (object_type, instance_number,
                  property_name) = properties
@@ -796,21 +720,19 @@ class BACnetProxyAgent(Agent):
                 (object_type, instance_number, property_name,
                  property_index) = properties
             else:
-                _log.error("skipping {} in request to {}: incorrect number of "
-                           "parameters".format(name, target_address))
+                _log.error("skipping {} in request to {}: incorrect number of parameters".format(name, target_address))
                 continue
-            object_property_map[object_type, instance_number].append(
-                (property_name, property_index))
+            object_property_map[object_type, instance_number].append((property_name, property_index))
 
-            reverse_point_map[object_type, instance_number, property_name,
-                              property_index] = name
+            reverse_point_map[object_type, instance_number, property_name, property_index] = name
 
-        return (object_property_map, reverse_point_map)
+        return object_property_map, reverse_point_map
 
     @RPC.export
-    def read_properties(self, target_address, point_map, max_per_request=None,
-                        use_read_multiple=True):
-        """Read a set of points and return the results"""
+    def read_properties(self, target_address, point_map, max_per_request=None, use_read_multiple=True):
+        """
+        Read a set of points and return the results
+        """
 
         if not use_read_multiple:
             return self.read_using_single_request(target_address, point_map)
@@ -819,14 +741,11 @@ class BACnetProxyAgent(Agent):
         if max_per_request is None:
             max_per_request = self._max_per_request
 
-        _log.debug("Reading {count} points on {target}, max per"
-                   " scrape: {max}".format(count=len(point_map),
-                                           target=target_address,
-                                           max=max_per_request))
+        _log.debug("Reading {count} points on {target}, max per scrape: {max}".format(
+            count=len(point_map), target=target_address, max=max_per_request))
         # process point map and populate object_property_map and
         # reverse_point_map
-        (object_property_map, reverse_point_map) = self._get_object_properties(
-            point_map, target_address)
+        (object_property_map, reverse_point_map) = self._get_object_properties(point_map, target_address)
 
         result_dict = {}
         finished = False
@@ -834,43 +753,36 @@ class BACnetProxyAgent(Agent):
         while not finished:
             read_access_spec_list = []
             count = 0
-            for _ in xrange(max_per_request):
+            for _ in range(max_per_request):
                 try:
                     obj_data, properties = object_property_map.popitem()
                 except KeyError:
                     finished = True
                     break
-                (spec_list, spec_count) = self._get_access_spec(
-                    obj_data, properties)
+                (spec_list, spec_count) = self._get_access_spec(obj_data, properties)
                 count += spec_count
                 read_access_spec_list.append(spec_list)
 
             if read_access_spec_list:
-                _log.debug(("Requesting {count} properties from "
-                           "{target}").format(count=count,
-                                              target=target_address))
-                request = ReadPropertyMultipleRequest(
-                    listOfReadAccessSpecs=read_access_spec_list)
+                _log.debug("Requesting {count} properties from {target}".format(count=count, target=target_address))
+                request = ReadPropertyMultipleRequest(listOfReadAccessSpecs=read_access_spec_list)
                 request.pduDestination = Address(target_address)
 
                 iocb = self.iocb_class(request)
-                self.this_application.submit_request(iocb)
+                self.bacnet_application.submit_request(iocb)
                 bacnet_results = iocb.ioResult.get(10)
 
-                _log.debug(("Received read response from {target} count: "
-                            "{count}").format(count=count,
-                                              target=target_address))
+                _log.debug("Received read response from {target} count: {count}".format(
+                    count=count, target=target_address))
 
-                for prop_tuple, value in bacnet_results.iteritems():
+                for prop_tuple, value in bacnet_results.items():
                     name = reverse_point_map[prop_tuple]
                     result_dict[name] = value
 
         return result_dict
 
-    #
     @RPC.export
-    def create_COV_subscription(self, address, device_path, point_name,
-                                object_type, instance_number, lifetime=None):
+    def create_cov_subscription(self, address, device_path, point_name, object_type, instance_number, lifetime=None):
         """
         Called by the BACnet interface to establish a COV subscription with a
         BACnet device. IF there is an existing subscription for the point, a
@@ -889,15 +801,13 @@ class BACnetProxyAgent(Agent):
         subscription
         """
         if not isinstance(address, str):
-            raise RuntimeError(
-                "COV subscriptions require the address of the "
-                "target device as a string")
+            raise RuntimeError("COV subscriptions require the address of the target device as a string")
         # if a subscription exists, send a cov subscription request
         # otherwise check the point's covIncrement
         subscription = None
-        for check_sub in self.this_application.sub_cov_contexts.itervalues():
+        for check_sub in self.bacnet_application.sub_cov_contexts.values():
             if check_sub.point_name == point_name and \
-                    check_sub.monitoredObjectIdentifier == (object_type, instance_number):
+               check_sub.monitoredObjectIdentifier == (object_type, instance_number):
                 subscription = check_sub
         if subscription:
             self.send_cov_subscription(subscription.device_address,
@@ -909,34 +819,29 @@ class BACnetProxyAgent(Agent):
             subscription = SubscriptionContext(device_path, Address(address),
                                                point_name,
                                                object_type, instance_number,
-                                               self.this_application.cov_sub_process_ID,
+                                               self.bacnet_application.cov_sub_process_ID,
                                                lifetime)
             # check whether the device has a usable covIncrement
             try:
-                _log.debug("establishing cov subscription for point {} on "
-                           "device {}".format(point_name, device_path))
-                self.this_application.sub_cov_contexts[
-                    self.this_application.cov_sub_process_ID] = subscription
-                self.this_application.cov_sub_process_ID += 1
-                _log.debug("sending read property request for point {} on "
-                           "device {}".format(point_name, device_path))
-                self.read_property(address, object_type, instance_number,
-                                   'covIncrement')
+                _log.debug("establishing cov subscription for point {} on device {}".format(point_name, device_path))
+                self.bacnet_application.sub_cov_contexts[self.bacnet_application.cov_sub_process_ID] = subscription
+                self.bacnet_application.cov_sub_process_ID += 1
+                _log.debug("sending read property request for point {} on device {}".format(point_name, device_path))
+                self.read_property(address, object_type, instance_number, 'covIncrement')
             except Exception as error:
-                _log.warning("the covIncrement for {} on {} could not be "
-                             "read, no cov subscription was "
-                             "established".format(point_name, device_path))
+                _log.warning("the covIncrement for {} on {} could not be read, no cov subscription was established".
+                             format(point_name, device_path))
                 _log.error(error)
 
-    def send_cov_subscription(self, address, subscriberProcessIdentifier,
-                              monitoredObjectIdentifier, lifetime, point_name):
+    def send_cov_subscription(self, address, subscriber_process_identifier, monitored_object_identifier, lifetime,
+                              point_name):
         """
-
+        Send request to remote BACnet device to create subscription for COV on a point.
         :param address: address of the device to which the subscription
         request will be sent
-        :param subscriberProcessIdentifier: arbitrarily set value for
+        :param subscriber_process_identifier: arbitrarily set value for
         tracking cov subscriptions
-        :param monitoredObjectIdentifier: (object_type, instance_number) from
+        :param monitored_object_identifier: (object_type, instance_number) from
         the subscription context
         :param lifetime: lifetime in seconds for the device to maintain the
         subscription
@@ -945,22 +850,23 @@ class BACnetProxyAgent(Agent):
         :return:
         """
         subscribe_cov_request = SubscribeCOVRequest(
-            subscriberProcessIdentifier=subscriberProcessIdentifier,
-            monitoredObjectIdentifier=monitoredObjectIdentifier,
+            subscriberProcessIdentifier=subscriber_process_identifier,
+            monitoredObjectIdentifier=monitored_object_identifier,
             issueConfirmedNotifications=True,
             lifetime=lifetime
         )
 
         subscribe_cov_request.pduDestination = address
         iocb = self.iocb_class(subscribe_cov_request)
-        self.this_application.submit_request(iocb)
-        _log.debug("COV subscription sent to device at {} for {}"
-                   .format(address, point_name))
+        self.bacnet_application.submit_request(iocb)
+        _log.debug("COV subscription sent to device at {} for {}".format(address, point_name))
+
 
 def main(argv=sys.argv):
-    '''Main method called to start the agent.'''
-    utils.vip_main(bacnet_proxy_agent, identity="platform.bacnet_proxy",
-                   version=__version__)
+    """
+    Main method called to start the agent.
+    """
+    utils.vip_main(bacnet_proxy_agent, identity="platform.bacnet_proxy", version=__version__)
 
 
 if __name__ == '__main__':

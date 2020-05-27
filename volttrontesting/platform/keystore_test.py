@@ -1,10 +1,8 @@
-import json
 import os
-import tempfile
 
 import pytest
 
-from volttron.platform import keystore
+from volttron.platform import keystore, jsonapi
 
 host_pair1 = {'addr': 'tcp://127.0.0.1:1234', 'key': 'ABCDEFG'}
 host_pair2 = {'addr': 'tcp://192.168.0.2:1234', 'key': '123456789'}
@@ -100,7 +98,7 @@ def test_invalid_unicode_key(keystore_instance1):
     against a corrupted key store.
     """
     with open(keystore_instance1.filename) as fp:
-        keystore_json = json.load(fp)
-    keystore_json['public'] = u'\u0100'
+        keystore_json = jsonapi.load(fp)
+    keystore_json['public'] = '\u0100'
     keystore_instance1.update(keystore_json)
     assert keystore_instance1.public is None

@@ -4,7 +4,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -44,11 +44,9 @@
 Pytest test cases for SysMonAgent
 """
 
-import json
 import pytest
 
-import gevent
-
+from volttron.platform import jsonapi
 from volttrontesting.utils.utils import poll_gevent_sleep
 from volttron.platform import get_ops
 
@@ -67,12 +65,9 @@ def sysmon_tester_agent(request, volttron_instance, tmpdir):
     Fixture used for setting up SysMonAgent and tester agent
     """
     config = tmpdir.mkdir('config').join('config')
-    config.write(json.dumps(_test_config))
+    config.write(jsonapi.dumps(_test_config))
 
-    sysmon_uuid = volttron_instance.install_agent(
-        agent_dir=get_ops("SysMonAgent"),
-        config_file=str(config),
-        start=True)
+    sysmon_uuid = volttron_instance.install_agent(agent_dir=get_ops("SysMonAgent"), config_file=str(config), start=True)
 
     agent = volttron_instance.build_agent()
 
@@ -95,15 +90,11 @@ def listen(agent, config):
     def add_topic(peer, sender, bus, topic, headers, messages):
         seen_topics.add(topic)
 
-    agent.vip.pubsub.subscribe('pubsub', base_topic,
-                               callback=add_topic)
+    agent.vip.pubsub.subscribe('pubsub', base_topic, callback=add_topic)
 
-    max_wait = 1 + max([value for key, value in _test_config.items()
-                        if key.endswith('_interval')])
+    max_wait = 1 + max(value for key, value in _test_config.items() if key.endswith('_interval'))
 
-    all_topics_seen = lambda: set(topics) <= seen_topics
-
-    assert poll_gevent_sleep(max_wait, all_topics_seen)
+    assert poll_gevent_sleep(max_wait, lambda: set(topics) <= seen_topics)
 
 
 def test_listen(sysmon_tester_agent):
@@ -115,6 +106,5 @@ def test_reconfigure_then_listen(sysmon_tester_agent):
     """Test that the topic can be reconfigured"""
     new_config = _test_config.copy()
     new_config['base_topic'] = 'test2/sysmon'
-    sysmon_tester_agent.vip.rpc.call('platform.sysmon', 'reconfigure',
-                                     **new_config)
+    sysmon_tester_agent.vip.rpc.call('platform.sysmon', 'reconfigure', **new_config)
     listen(sysmon_tester_agent, new_config)

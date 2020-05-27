@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -44,11 +44,11 @@ from volttron.platform.messaging import headers as headers_mod
 from volttron.platform.agent import utils
 from datetime import datetime
 from mock import MagicMock
-
+from volttrontesting.fixtures.volttron_platform_fixtures import volttron_multi_messagebus
 
 @pytest.fixture(scope="module")
 def multi_messagebus_forwarder(volttron_multi_messagebus):
-    from_instance, to_instance = volttron_multi_messagebus
+    from_instance, to_instance = volttron_multi_messagebus()
     to_instance.allow_all_connections()
     forwarder_config = {"custom_topic_list": ["foo"]}
 
@@ -113,7 +113,7 @@ def test_multi_messagebus_forwarder(multi_messagebus_forwarder):
                                           prefix='analysis',
                                           callback=subscriber_agent.analysis_callback).get()
     sub_list = subscriber_agent.vip.pubsub.list('pubsub').get()
-    gevent.sleep(3)
+    gevent.sleep(6)
 
     # Create timestamp
     now = utils.format_timestamp(datetime.utcnow())

@@ -45,7 +45,7 @@ For a complete working example of these messages please see
 - :py:mod:`examples.ExampleSubscriber.subscriber.subscriber_agent`
 
 Format of header and message for device topics (i.e. messages published to
-topics with pattern "devices/*/all"):
+topics with pattern "devices/\*/all"):
 
 ::
 
@@ -89,7 +89,7 @@ analysis/\*
 
 Data sent to analysis/* topics is result of analysis done by applications.
 The format of data sent to analysis/* topics is similar to data sent to
-devices/*/all topics.
+devices/\*/all topics.
 
 datalogger/\*
 -------------

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -35,28 +35,25 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-from __future__ import absolute_import, print_function
 
 import datetime
 import logging
 import sys
 import time
 import traceback
-from urlparse import urlparse
+from urllib.parse import urlparse
 
 import gevent
 
-from volttron.platform.vip.agent import Agent, Core, compat, Unreachable
-from volttron.platform.vip.agent.utils import build_agent
+from volttron.platform.vip.agent import Agent, compat, Unreachable
 from volttron.platform.agent.base_historian import BaseHistorian, add_timing_data_to_header
 from volttron.platform.agent import utils
 from volttron.platform.keystore import KnownHostsStore
-from volttron.platform.messaging import topics, headers as headers_mod
+from volttron.platform.messaging import headers as headers_mod
 from volttron.platform.messaging.health import (STATUS_BAD,
                                                 STATUS_GOOD, Status)
 from volttron.utils.docs import doc_inherit
 from zmq.green import ZMQError, ENOTSOCK
-import os
 
 FORWARD_TIMEOUT_KEY = 'FORWARD_TIMEOUT_KEY'
 utils.setup_logging()
@@ -240,9 +237,7 @@ class ForwardHistorian(BaseHistorian):
                 #_log.debug("data in capture_data {}".format(data))
             if isinstance(data, dict):
                 data = data
-            elif isinstance(data, int) or \
-                    isinstance(data, float) or \
-                    isinstance(data, long):
+            elif isinstance(data, (int, float)):
                 data = data
                 # else:
                 #     data = data[0]
@@ -412,7 +407,7 @@ class ForwardHistorian(BaseHistorian):
 
         if timeout_occurred:
             _log.debug('Sending alert from the ForwardHistorian')
-            status = Status.from_json(self.vip.health.get_status())
+            status = Status.from_json(self.vip.health.get_status_json())
             self.vip.health.send_alert(FORWARD_TIMEOUT_KEY,
                                        status)
         else:
@@ -433,11 +428,11 @@ class ForwardHistorian(BaseHistorian):
             value = self.vip.auth.connect_remote_platform(address, serverkey=self.destination_serverkey)
 
         except gevent.Timeout:
-            _log.error("Couldn't connect to address: ({})".format(address))
+            _log.error("Couldn't connect to address. gevent timeout: ({})".format(address))
             self.vip.health.set_status(STATUS_BAD, "Timeout in setup of agent")
         except Exception as ex:
             _log.error(ex.args)
-            self.vip.health.set_status(STATUS_BAD, "Error message: {}".format(ex.message))
+            self.vip.health.set_status(STATUS_BAD, "Error message: {}".format(ex))
         else:
             if isinstance(value, Agent):
                 self._target_platform = value
@@ -445,7 +440,7 @@ class ForwardHistorian(BaseHistorian):
                 self.vip.health.set_status(
                     STATUS_GOOD, "Connected to address ({})".format(address))
             else:
-                _log.error("Couldn't connect to address: ({})".format(address))
+                _log.error("Couldn't connect to address. Got Return value that is not Agent: ({})".format(address))
                 self.vip.health.set_status(STATUS_BAD, "Invalid agent detected.")
 
     @doc_inherit

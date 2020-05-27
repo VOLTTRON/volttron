@@ -334,8 +334,9 @@ Message Db Schema
     message(id, created_on, issue_topic, extras, sender, recipient, user_id, msg_id, subsystem, data)
 
 msg_id will be used to associate pairs of incoming/outgoing messages.
-**note: data will be a jsonified list of frames, alternatively we could add a message_data table with one
-row per frame.
+
+.. note:: data will be a jsonified list of frames, alternatively we could add a message_data table with one
+    row per frame.
 
 A session table will track the start and end of a debug session and, at the end of a session, record statistics
 on the messages in the session.
