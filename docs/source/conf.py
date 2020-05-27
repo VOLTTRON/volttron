@@ -72,6 +72,8 @@ extensions = [
     'sphinx.ext.autosectionlabel',
     # http://www.sphinx-doc.org/en/master/usage/extensions/todo.html
     'sphinx.ext.todo',
+    # http://https://github.com/Jakski/sphinxcontrib-autoyaml
+    'sphinxcontrib.autoyaml',
 ]
 
 # prefix sections with the document so that we can cross link

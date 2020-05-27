@@ -5,46 +5,105 @@
 ---
 - name: Set default values
   set_fact:
-    ## enable verbose debugging tasks
-    verbose_debug_tasks: "{{ verbose_debug_tasks | default(False) }}"
     ## some standard ansible vars where we want to ensure assignment and defaults
     ansible_user: "{{ ansible_user | default(ansible_user_id) }}"
     ansible_python_interpreter: "{{ ansible_python_interpreter | default('{{discovered_interpreter_python}}') }}"
-    ## extra system-level pacakges to install
+
+    ###
+    #  [boolean] default: ``False``
+    #    enable verbose ansible debug tasks
+    verbose_debug_tasks: "{{ verbose_debug_tasks | default(False) }}"
+    ###
+    #  [list of package names] default ``[]``
+    #    extra system-level pacakges to install via package manager
     extra_system_packages: "{{ extra_system_packages | default([]) }}"
-    ## our custom ansible module has dependencies, install them to a venv
+    ###
+    #  [path] default ``$HOME/ansible_venv``
+    #    where we will create a venv on the managed node where
+    #    dependencies of ansible and our ansible modules get installed. This includes both custom VOLTTRON modules,
+    #    as well as dependencies of ansible's modules
     venv_for_ansible: "{{ venv_for_ansible | default('{{ ansible_env.HOME }}/ansible_venv') }}"
-    ## variables related to the version of volttron to be installed
+
+    ## variables related to the version of volttron to be installed ##
+    ###
+    #  [boolean] default: ``False``
+    #    if true then copy the volttron source tree where this playbook is located, rather than a github clone
     volttron_use_local_source: "{{ volttron_use_local_source | default(False) }}"
+    ###
+    #  [string] default ``volttron``
+    #    The github organization portion of the source url used to retrieve the VOLTTRON source.
+    #    The full url is of the form
+    #    ``https://github.com/{{ volttron_git_organization }}/{{ volttron_git_repo }}/archive/{{ volttron_git_branch }}.tar.gz``
     volttron_git_organization: "{{ volttron_git_organization | default('volttron') }}"
+    ###
+    #  [string] default: ``volttron``
+    #    The repo portion of the source url used to retrieve the VOLTTRON source.
+    #    The full url is of the form
+    #    ``https://github.com/{{ volttron_git_organization }}/{{ volttron_git_repo }}/archive/{{ volttron_git_branch }}.tar.gz``
     volttron_git_repo: "{{ volttron_git_repo | default('volttron') }}"
+    ###
+    #  [string] default: ``develop``
+    #    The branch portion of the source url used to retrieve the VOLTTRON source.
+    #    The full url is of the form
+    #    ``https://github.com/{{ volttron_git_organization }}/{{ volttron_git_repo }}/archive/{{ volttron_git_branch }}.tar.gz``
     volttron_git_branch: "{{ volttron_git_branch | default('develop') }}"
+
     ## variables related to where volttron source and platform state are stored on the node
+    ###
+    #  [string - path] default: ``$HOME/.volttron``
+    #    path to the VOLTTRON home where all platform runtime files are stored
     volttron_home: "{{ volttron_home | default('{{ ansible_env.HOME }}/.volttron') }}"
+    ###
+    #  [string - path] default: ``$HOME/volttron``
+    #    path to the volttron root directory where VOLTTRON source is placed
     volttron_root: "{{ volttron_root | default('{{ ansible_env.HOME }}/volttron') }}"
+    ###
+    #  [string - path] default: ``$HOME/volttron.venv``
+    #    path to the python virtual environment into which the VOLTTRON package will be installed
     volttron_venv: "{{ volttron_venv | default('{{ ansible_env.HOME }}/volttron.venv') }}"
+
     ## variables defining where the platform configuration will be placed on the node
-    host_config: "{{ host_config | default('{{ ansible_env.HOME }}/host.config.yml') }}"
+    ###
+    #  [string - path] default: ``$HOME/configs``
+    #    Path on the managed host where agent-related configuration files are placed
     host_configs_dir: "{{ host_configs_dir | default('{{ ansible_env.HOME }}/configs') }}"
-    ## installation feature options for the installed volttron platform
+
+    ###
+    #  [bool] default: ``False``
+    #    Boolean option to enable the extra drivers feature when bootstrapping the platform
     enable_drivers: "{{ enable_drivers | default(False) }}"
+    ###
+    #  [list of strings] default: ``[]``
+    #    A list of extra python packages to install into the VOLTTRON virtual environment
     extra_requirements: "{{ extra_requirements | default([]) }}"
+    ###
+    #  [string] default: ``''``
+    #    Configurable http proxy passed to pip when installing extra packages
     http_proxy: "{{ http_proxy | default('') }}"
 
 ## the following facts must be set in separate tasks because they build on earlier facts
 ## NOTE: ansible does not consider paths relative to CWD, these paths must be absolute
-##       (or in the tree of the playbook in a default searched location)
+##       or in the tree of the playbook in a default searched location
 - set_fact:
-    ## absolute path to configurations directory for all deployments in inventory
+    ###
+    #  [string - path] default: ``inventory_dir``
+    #    Absolute path to the directory containing remote platform configurations on the control computer
+    #    This is the source which is used when setting up the remotes.
     deployment_config_root: "{{ deployment_config_root | default(inventory_dir) }}"
 - set_fact:
-    ## absolute path to configurations directory specific to this node in the inventory
+    ###
+    #  [string - path] default: ``${deployment_config_root}/inventory_hostname``
+    #    Absolute path to the directory containing the configuration for the specific remote host
     deployment_host_config_dir: "{{ deployment_host_config_dir | default( deployment_config_root + '/' + inventory_hostname ) }}"
 - set_fact:
-    ## absolute path to the agent configurations directory specific to this node
-    deployment_platform_config_dir: "{{ deployment_platform_config_dir | default( deployment_host_config_dir + '/' + '/configs') }}"
+    ###
+    #  [string - path] default: ``${deployment_host_config_dir}/configs``
+    #    absolute path to the agent configurations directory for the specific remote host
+    deployment_platform_config_dir: "{{ deployment_platform_config_dir | default( deployment_host_config_dir + '/configs') }}"
 - set_fact:
-    ## absolute path to the platform configuration file for this node
+    ###
+    #  [string - path] default: ``${deployment_host_config_dir}/${inventory_hostname}.yml``
+    #    absolute path to the platform configuration file for this node
     deployment_platform_config_file: "{{ deployment_platform_config_file | default( deployment_host_config_dir + '/' + inventory_hostname + '.yml' ) }}"
 
 ## Derived facts, not configurable in inventory

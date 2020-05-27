@@ -67,3 +67,24 @@ example, support for rabbitMQ message bus or web support), as well asl supportin
 options and PyPI packages to be included. It also creates an activation script which will set
 VOLTTRON-related environmental variables as well as activating the virtual environment, making
 it easy to interact with the platfor locally if required.
+
+Recipes configuration
+---------------------
+
+Configuration is available in two layers. The ansible inventory is used to configure variables
+which impact inventory behavior. These are used to override default fact values in the ``set-defaults``
+role, which is included in all playbooks. This single role is used to assign fact values to
+all variables which are used in any of the included roles and playbooks. The deployment configuration
+directory contains the platform configurations for the deployed VOLTTRON instances (and is used
+by the various ansible plays to achieve that configuration). Where relevant, play configurations
+are taken from the platform configuration to ensure that there is a single source of truth.
+
+Available inventory configuration
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Building ansible inventory can be an expansive topic and is beyond the scope of this documentation,
+the `official documentation on building inventory <https://docs.ansible.com/ansible/latest/user_guide/intro_inventory.html>`_
+is a great resource for complete and current details. In addition to ansible's standard variables
+and facts, the following configurations are used by VOLTTRON's recipes:
+
+.. autoyaml:: ../deployment/recipes/roles/set-defaults/tasks/main.yml
