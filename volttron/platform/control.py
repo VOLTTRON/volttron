@@ -295,6 +295,11 @@ class ControlService(BaseAgent):
                 for uuid, name in self._aip.list_agents().items()]
 
     @RPC.export
+    def list_agents_rpc(self):
+        agents = self.list_agents()
+        return [jsonapi.dumps(self.vip.rpc.call(agent.vip_identity, 'inspect').get(timeout=4)) for agent in agents]
+
+    @RPC.export
     def tag_agent(self, uuid, tag):
         if not isinstance(uuid, str):
             identity = bytes(self.vip.rpc.context.vip_message.peer).decode("utf-8")
@@ -752,6 +757,13 @@ def list_peers(opts):
     peers = sorted(conn.call('peerlist'))
     for peer in peers:
         sys.stdout.write("{}\n".format(peer))
+
+
+def list_agents_rpc(opts):
+    agents = _list_agents(opts.aip)
+    for agent in agents:
+        _stdout.write(jsonapi.dumps(opts.connection.server.vip.rpc.call
+                                    (agent.vip_identity, 'inspect').get(timeout=4)))
 
 
 def status_agents(opts):
@@ -2199,6 +2211,12 @@ def main(argv=sys.argv):
     list_.add_argument('-n', dest='min_uuid_len', type=int, metavar='N',
                        help='show at least N characters of UUID (0 to show all)')
     list_.set_defaults(func=list_agents, min_uuid_len=1)
+
+    list_rpc = add_parser('rpc',
+                       help='list the rpc methods of installed agents')
+    list_rpc.add_argument('pattern', nargs='*',
+                       help='UUID or name of agent')
+    list_rpc.set_defaults(func=list_agents_rpc)
 
     status = add_parser('status', parents=[filterable],
                         help='show status of agents')
