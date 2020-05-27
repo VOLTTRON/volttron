@@ -2,7 +2,7 @@
 ### Many tasks in this role require admin-level access, it will make changes
 ### to the system and their is no support for reverting them.
 ---
-- name: initialize install tracker fackt
+- name: initialize install tracker fact
   set_fact:
     dependencies_installed: no
 
