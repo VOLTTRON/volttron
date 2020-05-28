@@ -843,11 +843,11 @@ class BaseHistorianAgent(Agent):
         parts = topic.split('/')
         device = '/'.join(parts[1:-1])
         # msg = [{data},{meta}] format
-        msg = [{},{}]
+        msg = [{}, {}]
         try:
             # If the filter is empty pass all data.
             if self._device_data_filter:
-                for _filter, point_list  in self._device_data_filter.items():
+                for _filter, point_list in self._device_data_filter.items():
                     # If filter is not empty only topics that contain the key
                     # will be kept.
                     if _filter in device:
@@ -861,7 +861,7 @@ class BaseHistorianAgent(Agent):
         except Exception as e:
             _log.debug("Error handling device_data_filter. {}".format(e))
             msg = message
-        if not msg:
+        if not msg[0]:
             _log.debug("Topic: {} - is not in configured to be stored in db".format(topic))
         else:
             self._capture_data(peer, sender, bus, topic, headers, msg, device)
