@@ -227,7 +227,10 @@ class ForwardHistorian(BaseHistorian):
         except Exception as e:
             _log.debug("Error handling device_data_filter. {}".format(e))
             msg = message
-        self.capture_data(peer, sender, bus, topic, headers, msg)
+        if not msg:
+            _log.debug("Topic: {} - is not in configured to be forwarded".format(topic))
+        else:
+            self.capture_data(peer, sender, bus, topic, headers, msg)
 
     def _capture_log_data(self, peer, sender, bus, topic, headers, message):
         self.capture_data(peer, sender, bus, topic, headers, message)

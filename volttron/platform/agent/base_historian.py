@@ -861,8 +861,10 @@ class BaseHistorianAgent(Agent):
         except Exception as e:
             _log.debug("Error handling device_data_filter. {}".format(e))
             msg = message
-
-        self._capture_data(peer, sender, bus, topic, headers, msg, device)
+        if not msg:
+            _log.debug("Topic: {} - is not in configured to be stored in db".format(topic))
+        else:
+            self._capture_data(peer, sender, bus, topic, headers, msg, device)
 
     def _capture_analysis_data(self, peer, sender, bus, topic, headers,
                                message):
