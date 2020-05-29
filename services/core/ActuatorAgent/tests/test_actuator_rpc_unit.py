@@ -41,8 +41,8 @@
 """
 Pytest test cases for testing actuator agent using rpc calls.
 """
-from datetime import datetime, timedelta
 import logging
+from datetime import datetime, timedelta
 
 import pytest
 from mock import create_autospec

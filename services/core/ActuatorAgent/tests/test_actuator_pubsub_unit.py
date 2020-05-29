@@ -1,8 +1,8 @@
+import logging
 from datetime import datetime, timedelta
 from dateutil.tz import tzutc
-import logging
-
 from mock import create_autospec
+
 import pytest
 
 from services.core.ActuatorAgent.actuator import agent
