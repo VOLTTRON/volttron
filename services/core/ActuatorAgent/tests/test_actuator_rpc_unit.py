@@ -42,17 +42,15 @@
 Pytest test cases for testing actuator agent using rpc calls.
 """
 from datetime import datetime, timedelta
-
-
 import logging
-import pytest
 
+import pytest
 from mock import create_autospec
 
-import actuator.agent
-from actuator.agent import ActuatorAgent, ScheduleManager, LockError
-from actuator.scheduler import RequestResult, DeviceState
-from volttrontesting.utils.utils import AgentMock
+from services.core.ActuatorAgent.actuator import agent
+from services.core.ActuatorAgent.actuator.agent import ActuatorAgent, ScheduleManager, LockError
+from services.core.ActuatorAgent.actuator.scheduler import RequestResult, DeviceState
+from volttrontesting.utils.utils import AgentMock, FakeResponse
 from volttron.platform.vip.agent import Agent
 
 
@@ -65,16 +63,7 @@ TIME_SLOT_REQUESTS = [
     ["fakedriver0", str(datetime.now()), str(datetime.now() + timedelta(seconds=1))]
 ]
 
-
-class FakeResponse:
-    def __init__(self, result):
-        self.result = result
-
-    def get(self):
-        return self.result
-
-
-actuator.agent._log = logging.getLogger("test_logger")
+agent._log = logging.getLogger("test_logger")
 ActuatorAgent.__bases__ = (AgentMock.imitate(Agent, Agent()),)
 ActuatorAgent.core.identity = "Foo"
 
