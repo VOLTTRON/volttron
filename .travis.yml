@@ -1,8 +1,11 @@
-dist: xenial # current default for Linux is Ubuntu 16.04; see https://docs.travis-ci.com/user/reference/xenial/
+# This configuration will run 6 jobs: 3 python versions x 2 Ubuntu versions
+
+os: linux
+dist: xenial # default for Linux is Ubuntu 16.04
 
 language: python 
 python:
- - 3.6 # current default on Travis CI
+ - 3.6 # current default
  - 3.7
  - 3.8
 
@@ -11,6 +14,24 @@ env:
   global:
   - NUM_PROCESSES=10 
   - CI="travis"
+
+# The first job will create three jobs using different versions of Python defined above
+# Any job after the first job must explicitly state the Python version;
+# otherwise, TravisCI will only run the first version
+jobs:
+    include:
+        - os: linux
+          dist: xenial # Ubuntu 16.04
+        - os: linux
+          dist: bionic # Ubuntu 18.04
+          python: 3.6
+        - os: linux
+          dist: bionic
+          python: 3.7
+        - os: linux
+          dist: bionic
+          python: 3.8
+
 
 services:
   - docker
