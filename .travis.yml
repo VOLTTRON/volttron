@@ -12,6 +12,18 @@ env:
   - NUM_PROCESSES=10 
   - CI="travis"
 
+jobs:
+    include:
+        - os: linux
+          dist: xenial # this is not strictly necessary
+          python: 3.6 # this is not strictly necessary
+        - os: linux
+          dist: bionic
+          python: 3.6
+        - os: linux
+          dist: bionic
+          python: 3.7
+
 services:
   - docker
 
