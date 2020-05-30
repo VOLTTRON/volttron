@@ -68,6 +68,15 @@ options and PyPI packages to be included. It also creates an activation script w
 VOLTTRON-related environmental variables as well as activating the virtual environment, making
 it easy to interact with the platfor locally if required.
 
+Run platform
+~~~~~~~~~~~~
+
+The ``run-platform.yml`` playbook ensures that the remote VOLTTRON platform instances are in the
+desired running state. The default state is "running", but this is configurable in the inventory
+(and since variables can be set from the CLI, both starting and stopping are achievable without
+changing the playbook or inventory).
+
+
 Recipe examples
 ---------------
 
