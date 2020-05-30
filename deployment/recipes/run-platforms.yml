@@ -11,6 +11,7 @@
     - name: "start or stop the platform (set to {{ platform_state }})"
       volttron_platform:
         volttron_root: "{{volttron_root}}"
+        volttron_home: "{{volttron_home}}"
         state: "{{ platform_state }}"
       register: v_p_result
     - debug:
