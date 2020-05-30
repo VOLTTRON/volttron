@@ -10,8 +10,34 @@ availability, automatic sharding, and fast joins, aggregations and sub-selects.
 
 Find out more about crate from `<https://crate.io/>`_.
 
+Upgrading
+~~~~~~~~~
+
+As of version 3 of the CrateHistorian the default topics table is topics instead of topic.  To continue
+using the same table name for topics please add a tabledef section to your configuration file
+
+.. code-block:: python
+
+    {
+        "connection": {
+            "type": "crate",
+            # Optional table prefix defaults to historian
+            "schema": "testing",
+            "params": {
+                "host": "localhost:4200"
+            }
+        },
+        "tables_def": {
+            "table_prefix": "",
+            "data_table": "data",
+            "topics_table": "topics",
+            "meta_table": "meta"
+        }
+    }
+
 Note
 ~~~~
+
 CrateHistorian is still alpha, schemas could change in the future, do not use
 this for production data until schema is confirmed as final
 Currently the historian supports two schemas for numerical data, the primary
