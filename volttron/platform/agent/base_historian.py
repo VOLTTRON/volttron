@@ -867,7 +867,7 @@ class BaseHistorianAgent(Agent):
                                     break
                 if (isinstance(msg, list) and not msg[0]) or \
                         (isinstance(msg, (float, int, str)) and msg is None):
-                    _log.debug("Topic: {} - is not in configured to be forwarded".format(topic))
+                    _log.debug("Topic: {} - is not in configured to be stored".format(topic))
                     return
             else:
                 msg = message
