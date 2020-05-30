@@ -1,0 +1,9 @@
+---
+all:
+  hosts:
+    web:
+      ansible_host: web
+    collector1:
+      ansible_host: collector1
+    collector2:
+      ansible_host: collector2

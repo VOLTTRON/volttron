@@ -61,6 +61,8 @@
         path: "{{ volttron_home }}"
         state: directory
         mode: 0755
+    ##TODO: this isn't good logic, if we set then change the instance
+    #       name then we're not idempotent (it gets reset every time)
     - name: set instance name
       ini_file:
         path: "{{ volttron_home }}/config"
