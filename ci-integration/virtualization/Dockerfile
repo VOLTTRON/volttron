@@ -3,21 +3,20 @@ ARG image_repo=volttron-docker
 ARG image_tag=deps-master-amd64
 
 FROM ${image_user}/${image_repo}:${image_tag} as volttron_deps
-
+USER root
+RUN mkdir -p /var/lib/apt/lists/partial \
+    && apt-get update \
+    && apt-get install -y python3-pip;
 # Note I couldn't get variable expansion on the chown argument to work here
 # so must hard code the user.  Note this is a feature request for docker
 # https://github.com/moby/moby/issues/35018
+# Now resolved: https://github.com/moby/moby/issues/35018#event-2301021020
 COPY --chown=volttron:volttron . ${VOLTTRON_ROOT}
 
 USER $VOLTTRON_USER
 
-# The following lines ar no longer necesary because of the copy command above.
-#WORKDIR /code
-#RUN git clone https://github.com/VOLTTRON/volttron -b ${VOLTTRON_GIT_BRANCH}
-
 WORKDIR /code/volttron
-#RUN pip install --user -r requirements.txt
-RUN pip install -e . --user
+RUN python3 -m pip install -e . --user
 
 ############################################
 # RABBITMQ SPECIFIC INSTALLATION
