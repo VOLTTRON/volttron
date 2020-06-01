@@ -36,6 +36,7 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
+import os
 import sys
 import logging
 
@@ -72,13 +73,13 @@ def historian(config_path, **kwargs):
 class CSVHistorian(BaseHistorian):
     """
     Historian that stores the data into crate tables.
-
     """
 
     def __init__(self, output_path="", **kwargs):
         self.output_path = output_path
         self.csv_dict = None
         self.csv_file = None
+        self.default_dir = "./data"
         super(CSVHistorian, self).__init__(**kwargs)
 
     def version(self):
@@ -99,7 +100,16 @@ class CSVHistorian(BaseHistorian):
         self.csv_file.flush()
 
     def historian_setup(self):
+        # if the current file doesn't exist, or the path provided doesn't include a directory, use the default dir
+        # in <agent dir>/data
+        if not (os.path.isfile(self.output_path) or os.path.dirname(self.output_path)):
+            if not os.path.isdir(self.default_dir):
+                os.mkdir(self.default_dir)
+            self.output_path = os.path.join(self.default_dir, self.output_path)
+
         self.csv_file = open(self.output_path, "w")
+
+
         self.csv_dict = csv.DictWriter(self.csv_file, fieldnames=["timestamp", "source", "topic", "value"])
         self.csv_dict.writeheader()
         self.csv_file.flush()
