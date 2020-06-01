@@ -1,0 +1,6 @@
+Point Name,Pin,Device Type,Active High,Initial Value,Pull Up,Bounce Time
+Solenoid,24,output,TRUE,TRUE,,
+flowSensor,12,digital_input,,,TRUE,
+flowLED,13,output,TRUE,TRUE,,
+abortButton,16,digital_input,,,FALSE,
+sensorPoint,21,output,TRUE,TRUE,,

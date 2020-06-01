@@ -2,3 +2,6 @@ bacpypes
 pymodbus
 modbus-tk
 pyserial
+gpiozero
+pigpio
+RPi.GPIO
