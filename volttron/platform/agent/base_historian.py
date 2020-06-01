@@ -366,6 +366,7 @@ class BaseHistorianAgent(Agent):
                  storage_limit_gb=None,
                  sync_timestamp=False,
                  custom_topics={},
+                 device_data_filter={},
                  all_platforms=False,
                  **kwargs):
 
@@ -433,6 +434,7 @@ class BaseHistorianAgent(Agent):
                                 "storage_limit_gb": storage_limit_gb,
                                 "history_limit_days": history_limit_days,
                                 "custom_topics": custom_topics,
+                                "device_data_filter": device_data_filter,
                                 "all_platforms": self._all_platforms
                                }
 
@@ -581,7 +583,7 @@ class BaseHistorianAgent(Agent):
                                    custom_topics_list)
 
         self.stop_process_thread()
-
+        self._device_data_filter = config.get("device_data_filter")
         try:
             self.configure(config)
         except Exception as e:
@@ -840,7 +842,29 @@ class BaseHistorianAgent(Agent):
         # we strip it off to get the base device
         parts = topic.split('/')
         device = '/'.join(parts[1:-1])
-        self._capture_data(peer, sender, bus, topic, headers, message, device)
+        # msg = [{data},{meta}] format
+        msg = [{}, {}]
+        try:
+            # If the filter is empty pass all data.
+            if self._device_data_filter:
+                for _filter, point_list in self._device_data_filter.items():
+                    # If filter is not empty only topics that contain the key
+                    # will be kept.
+                    if _filter in device:
+                        for point in point_list:
+                            # Only points in the point list will be added to the message payload
+                            if point in message[0]:
+                                msg[0][point] = message[0][point]
+                                msg[1][point] = message[1][point]
+            else:
+                msg = message
+        except Exception as e:
+            _log.debug("Error handling device_data_filter. {}".format(e))
+            msg = message
+        if not msg[0]:
+            _log.debug("Topic: {} - is not in configured to be stored in db".format(topic))
+        else:
+            self._capture_data(peer, sender, bus, topic, headers, msg, device)
 
     def _capture_analysis_data(self, peer, sender, bus, topic, headers,
                                message):
@@ -2192,4 +2216,3 @@ def p_reltime(t):
 # Error rule for syntax errors
 def p_error(p):
     raise ValueError("Syntax Error in Query")
-
