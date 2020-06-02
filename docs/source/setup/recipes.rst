@@ -25,6 +25,34 @@ so, you require a python environment with ansible installed. You can do this usi
 environment you like; it is included as an optional feature when bootstrapping the VOLTTRON environment,
 to do that use the :ref:`Bootstrap-Options` and include the ``--deployment`` flag.
 
+As described in the next section, the recipes themselves can all be found in the ``$VOLTTRON_ROOT/deployment/recipes``
+directory. Additionally, to use the recipes you will need to create a set of recipe configuration
+files (discussed in more detail in the :ref:`recipes-configuration` section). These include:
+
+.. glossary::
+
+  host inventory file
+    A file which uses a valid ansible inventory (`official docs <https://docs.ansible.com/ansible/latest/user_guide/intro_inventory.html>`_)
+    to configure the details of each remote server to be managed. This file contains details of
+    how the recipe deploys the system, including paths to where files are to be found on the user's
+    system and where files should be created and stored on the managed systems.
+
+  platform configuration file
+    A file for each remote VOLTTRON platform containing the runtime configuration details for the
+    platform itself. This file is used to generate the platform's configuration file and to define
+    the agents to be installed in the remote platform (remote agent management is not yet supported,
+    see :ref:`recipes-feature-planning`).
+
+When working with recipes, a user will generally use the ``ansible-playbook`` command (see the full
+`official documentation <https://docs.ansible.com/ansible/latest/cli/ansible-playbook.html>`_).
+This command is used to execute a playbook, which applies a set of ansible "roles" and "tasks" to
+remote systems based on their respective definitions and the user provided inventory. In the
+:ref:`recipe-example` section there are several working examples, which demonstrate common flags
+such as ``-i`` for specifying the inventory file, or ``-K`` when administrative privileges are
+required. The official docs provide details for more advanced options, such as using ``-l`` to
+apply a playbook to only a subset of the inventory, or other flags for executing only part of a
+playbook.
+
 Available recipes
 -----------------
 
@@ -76,6 +104,7 @@ desired running state. The default state is "running", but this is configurable 
 (and since variables can be set from the CLI, both starting and stopping are achievable without
 changing the playbook or inventory).
 
+.. _recipe-exampe:
 
 Recipe examples
 ---------------
