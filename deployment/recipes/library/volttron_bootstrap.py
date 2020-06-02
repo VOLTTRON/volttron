@@ -38,7 +38,7 @@
 # }}}
 
 
-# Note for reference, this module is developed per the patter in the ansible
+# Note for reference, this module is developed per the pattern in the ansible
 # docs here: https://docs.ansible.com/ansible/latest/dev_guide/developing_modules_documenting.html
 
 import itertools
@@ -115,6 +115,18 @@ return_code:
 from ansible.module_utils.basic import AnsibleModule
 
 def update_logical_defaults(module):
+    '''
+    Compute the as-documented default values for parameters assigned a default
+    'None' value by the ansible interface.
+
+    Programmatically, the default value assigned by ansible to these variables (volttron_root,
+    and volttron_env) is None. When that is the case, we need to use other configurations
+    and the runtime environment to compute the literal value of those parameters as documented.
+
+    Note: this function takes a reference to the ansible module object and returns a new params
+    dictionary object. It does not modify the object in the calling scope, though you can update
+    that variable with the return.
+    '''
     params = module.params
 
     if params['volttron_root'] is None:
@@ -125,6 +137,11 @@ def update_logical_defaults(module):
     return params
 
 def get_package_list(volttron_python):
+    ''' Use pip freeze to get a snapshot of the venv
+
+    Per the pip documentation, PIP does *not* provide a library interface. We therefore
+    use a subprocess to call 'pip freeze' and return a string representation of the result.
+    '''
     freeze_result = subprocess.run(
         args = [volttron_python, '-m', 'pip', 'freeze'],
         stdout=subprocess.PIPE,
@@ -134,6 +151,22 @@ def get_package_list(volttron_python):
     return freeze_result.stdout.decode()
 
 def execute_bootstrap(module):
+    '''Construct and execute the volttron bootstrap command
+
+    This function uses a subprocess to execute the VOLTTRON bootstrap in the configured
+    virtual environment and with the set of optional features included per the passed parameters.
+    The bootstrap script will always be run, but the packages in the environment will be checked
+    prior to execution and compared after to determine if there were any changes made, this is
+    used to report the 'changed' status for ansible.
+
+    Note:
+    - If the rabbitmq feature is included, the module will always report the status as "changed"
+      more sophisticated change detection may be possible but is not yet implemented.
+    - If the bootstrap process fails, this function will still return like normal, the returned
+      dictionary includes a return_code field with the shell's return value, the calling scope
+      is expected to evaluate and handle this value.
+
+    '''
     results = {}
     params = module.params
 
@@ -172,6 +205,22 @@ def execute_bootstrap(module):
     return results
 
 def run_module():
+    ''' execution logic for the ansible module
+
+    This function is organized per the ansible documentation
+    (https://docs.ansible.com/ansible/latest/dev_guide/developing_modules_documenting.html)
+    and implements the standardized logic sequence for a custom module:
+    1. define the module's input spec
+    2. define the module's return spec
+    3. construct an instance of the AnsibleModule class using the above
+       (ansible internally takes care of populating the params member)
+    4. execute the module's custom logic
+    4.1 update the params using update_logical_defaults
+    4.2 call the bootstrap script in a subprocess
+    5. use ansible's fail_json or exit_json functions to send results back to the ansible
+       execution
+    '''
+
     # define available arguments/parameters a user can pass to the module
     # these should match the DOCUMENTATION above
     module_args = {
@@ -228,8 +277,5 @@ def run_module():
     # simple AnsibleModule.exit_json(), passing the key/value results
     module.exit_json(**result)
 
-def main():
-    run_module()
-
 if __name__ == '__main__':
-    main()
+    run_module()

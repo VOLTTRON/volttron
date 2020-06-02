@@ -219,7 +219,12 @@ Step 2: Configured the systems
 
 With the configuration files written, we can start running some actual recipes. The first needed
 is host-config. Since this needs admin access on the remote systems, we add the ``-K`` flag, so
-the execution command looks like ``ansible-playbook -i <path/to/your/inventory>.yml <path/to/>volttron/deployment/recipes/host-config.yml -K``.
+the execution command looks like::
+
+  ansible-playbook -K \
+                   -i <path/to/your/inventory>.yml \
+                   <path/to/>volttron/deployment/recipes/host-config.yml
+
 Take note of the output while running, each step reports on the action taken on every remote,
 which may differ based on configuration choices made in the prior step.
 
@@ -228,7 +233,11 @@ Step 3: Install the platform
 
 Having configured the system in the last step, we now are able to install and configure the
 VOLTTRON platform. Because this is a user-space process, the ``-K`` flag is not used. This
-command looks like ``ansible-playbook -i <path/to/your/inventory>.yml <path/to/>volttron/deployment/recipes/install-platform.yml``.
+command looks like::
+
+  ansible-playbook -i <path/to/your/inventory>.yml \
+                   <path/to/>volttron/deployment/recipes/install-platform.yml
+
 Again, if you review the console output your will see that platform configuration differences
 are reflected.
 
@@ -239,8 +248,11 @@ ssh to those systems you can inspect those directories and files which have been
 Step 4: Start the platform
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Starting the platform follows the same pattern as the prior two steps, the command is
-``ansible-playbook -i <path/to/your/inventory>.yml <path/to/>volttron/deployment/recipes/install-platform.yml``.
+Starting the platform follows the same pattern as the prior two steps, the command is::
+
+  ansible-playbook -i <path/to/your/inventory>.yml \
+                   <path/to/>volttron/deployment/recipes/run-platforms.yml
+
 This particular playbook simply starts the platform (assuming it is not already running).
 
 If you connect to one of the remote systems, you can source the activation script created
@@ -252,12 +264,20 @@ Extra steps
 ~~~~~~~~~~~
 
 Having started the platform, you can leverage ansible's ad-hoc commands to interact with them.
-For example, ``ansible -i <path/to/your/inventory>.yml -m shell -a "volttron/env/bin/vctl status"``
+For example,::
+
+  ansible -i <path/to/your/inventory>.yml \
+          -m shell \
+          -a "volttron/env/bin/vctl status"
+
 will attempt to run the ``vctl status`` command on each remote (assuming they are all using the
 default VOLTTRON_ROOT location. Similarly, you can override default inventory values from the CLI.
 If you'd like to shutdown the remote platforms you could either set the ``platform_status`` variable
-to ``"stopped"`` in the inventory, or do it on the fly with:
-``ansible-playbook -i <path/to/your/inventory>.yml <path/to/>volttron/deployment/recipes/install-platform.yml -e platform_status=stopped``.
+to ``"stopped"`` in the inventory, or do it on the fly with::
+
+  ansible-playbook -i <path/to/your/inventory>.yml \
+                   <path/to/>volttron/deployment/recipes/install-platform.yml \
+                   -e platform_status=stopped
 
 
 .. _recipes-feature-planning:

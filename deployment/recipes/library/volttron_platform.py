@@ -41,12 +41,9 @@
 # Note for reference, this module is developed per the patter in the ansible
 # docs here: https://docs.ansible.com/ansible/latest/dev_guide/developing_modules_documenting.html
 
-##TODO remove imports if we don't need them
-#import itertools
 import os
 import psutil
 import subprocess
-#import sys
 
 ANSIBLE_METADATA = {
     'metadata_version': '1.1',
@@ -118,6 +115,18 @@ return_code:
 from ansible.module_utils.basic import AnsibleModule
 
 def update_logical_defaults(module):
+     '''
+     Compute the as-documented default values for parameters assigned a default
+     'None' value by the ansible interface.
+
+     Programmatically, the default value assigned by ansible to these variables (volttron_root,
+     and volttron_env) is None. When that is the case, we need to use other configurations
+     and the runtime environment to compute the literal value of those parameters as documented.
+
+     Note: this function takes a reference to the ansible module object and returns a new params
+     dictionary object. It does not modify the object in the calling scope, though you can update
+     that variable with the return.
+     '''
     params = module.params
 
     if params['volttron_root'] is None:
@@ -128,6 +137,13 @@ def update_logical_defaults(module):
     return params
 
 def check_pid(pid_file):
+    '''check if a process corresonding to a PID file exists
+
+    Given a potential path to a PID file, return a boolean indicating if there
+    exists a corresponding process.
+
+    Note that if the file does not exist, the function also returns False
+    '''
     is_running = False
     if os.path.exists(pid_file):
         pid = int(open(pid_file, 'r').read())
@@ -136,6 +152,22 @@ def check_pid(pid_file):
     return is_running
 
 def execute_task(module):
+    ''' ensure that the platform is in the desired running/not-running state
+
+    Uses the VOLTTRON_PID file in the configured volttron_home to determine if the platform
+    is currently running, and compares that against the configured desired state. If the
+    state does not match the desired state, uses a subprocess to call either the stop-volttron
+    or the start-volttron script as appropriate to reach the desired state and then uses the
+    (possibly updated) VOLTTRON_PID file to re-check the resulting state.
+
+    In the even that the detected state is found to be present, the function returns with 'changed'=False
+    If a start or stopped script is run, 'changed' will always be True, but the process may
+    still report as failed if either the start/stop script return code indicates an error, or if
+    the state detected after the script is run does not match the desired state.
+
+    Note:
+    - In the event of failure, this function will call the module's fail_json method immediately.
+    '''
     results = {}
     params = module.params
 
@@ -191,6 +223,23 @@ def execute_task(module):
     return results
 
 def run_module():
+    '''execution logic for the ansible module
+
+    This function is organized per the ansible documentation
+    (https://docs.ansible.com/ansible/latest/dev_guide/developing_modules_documenting.html)
+    and implements the standardized logic sequence for a custom module:
+    1. define the module's input spec
+    2. define the module's return spec
+    3. create an instance of the AnsibleModule class using the above
+       (ansible internally takes care of populating hte params member)
+    4. execute the module's custom logic
+    4.1 update the params using update_logical_defaults
+    4.2 parse the params into a desired action, check if it needs to be executed, and possibly
+        execute (execute_task function)
+    5. use ansible's exit_json or fail_json to ensure results are sent back to the execution
+       environmentas expected.
+    '''
+
     # define available arguments/parameters a user can pass to the module
     # these should match the DOCUMENTATION above
     module_args = {
@@ -253,8 +302,5 @@ def run_module():
     # simple AnsibleModule.exit_json(), passing the key/value results
     module.exit_json(**result)
 
-def main():
-    run_module()
-
 if __name__ == '__main__':
-    main()
+    run_module()
