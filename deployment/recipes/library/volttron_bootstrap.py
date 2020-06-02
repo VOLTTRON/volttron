@@ -44,7 +44,7 @@
 import itertools
 import os
 import subprocess
-import sys
+from ansible.module_utils.basic import AnsibleModule
 
 ANSIBLE_METADATA = {
     'metadata_version': '1.1',
@@ -112,7 +112,6 @@ return_code:
     returned: always
 '''
 
-from ansible.module_utils.basic import AnsibleModule
 
 def update_logical_defaults(module):
     '''
@@ -143,10 +142,10 @@ def get_package_list(volttron_python):
     use a subprocess to call 'pip freeze' and return a string representation of the result.
     '''
     freeze_result = subprocess.run(
-        args = [volttron_python, '-m', 'pip', 'freeze'],
+        args=[volttron_python, '-m', 'pip', 'freeze'],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
-        check = True,
+        check=True,
     )
     return freeze_result.stdout.decode()
 
@@ -270,8 +269,8 @@ def run_module():
 
     try:
         result.update(execute_bootstrap(module))
-    except Exception as e:
-        module.fail_json(msg='volttron_bootstrap had an unhandled exception', error=repr(e))
+    except Exception as an_exception:
+        module.fail_json(msg='volttron_bootstrap had an unhandled exception', error=repr(an_exception))
 
     # in the event of a successful module execution, you will want to
     # simple AnsibleModule.exit_json(), passing the key/value results
