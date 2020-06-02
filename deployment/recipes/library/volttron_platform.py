@@ -115,18 +115,18 @@ return_code:
 from ansible.module_utils.basic import AnsibleModule
 
 def update_logical_defaults(module):
-     '''
-     Compute the as-documented default values for parameters assigned a default
-     'None' value by the ansible interface.
+    '''
+    Compute the as-documented default values for parameters assigned a default
+    'None' value by the ansible interface.
 
-     Programmatically, the default value assigned by ansible to these variables (volttron_root,
-     and volttron_env) is None. When that is the case, we need to use other configurations
-     and the runtime environment to compute the literal value of those parameters as documented.
+    Programmatically, the default value assigned by ansible to these variables (volttron_root,
+    and volttron_env) is None. When that is the case, we need to use other configurations
+    and the runtime environment to compute the literal value of those parameters as documented.
 
-     Note: this function takes a reference to the ansible module object and returns a new params
-     dictionary object. It does not modify the object in the calling scope, though you can update
-     that variable with the return.
-     '''
+    Note: this function takes a reference to the ansible module object and returns a new params
+    dictionary object. It does not modify the object in the calling scope, though you can update
+    that variable with the return.
+    '''
     params = module.params
 
     if params['volttron_root'] is None:
