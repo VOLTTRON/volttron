@@ -126,10 +126,10 @@ Before you can run anthing on a remote machine, you'll need to have the machine 
 access to it. This could be physical or virtual machines; in this example we just need three available
 systems. One option for doing this is with `vagrant <vagrantup.com>`_; if you follow their
 documentation to install vagrant and virtualbox as your hypervisor, then you can use the the
-``Vagrantfile`` included. To start the VMs you run ``vagrant up``. You may then use
-``vagrant ssh-config >> ~/.ssh/config`` to add store the ssh access configuration for the VMs for
-your user. All of the input/configuration files used here can be found in the ``examples/deployment``
-subdirectory of the VOLTTRON repository.
+``Vagrantfile`` included with the VOLTTRON source ($VOLTTRON_ROOT/examples/deployment/Vagrantfile).
+To start the VMs you run ``vagrant up``. You may then use ``vagrant ssh-config >> ~/.ssh/config``
+to add store the ssh access configuration for the VMs for your user. All of the input/configuration
+files used here can be found in the ``examples/deployment`` subdirectory of the VOLTTRON repository.
 
 .. note::
    #. The above instructions assume you are working on a MacOS or native linux system, for Windows
@@ -243,7 +243,16 @@ are reflected.
 
 Having completed this step, many components have been added to the user's home directory on
 the remote systems (or whatever alternate location configured in the inventory file). If you
-ssh to those systems you can inspect those directories and files which have been created.
+ssh to those systems you can inspect those directories and files which have been created. In
+the example, the web node will have the following extra content in the user's home directory::
+
+   .
+   ├── activate-web-env/
+   ├── ansible_venv/
+   ├── vhome/
+   ├── volttron/
+   ├── volttron-source.tar.gz
+   └── volttron.venv/
 
 Step 4: Start the platform
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -278,6 +287,10 @@ to ``"stopped"`` in the inventory, or do it on the fly with::
   ansible-playbook -i <path/to/your/inventory>.yml \
                    <path/to/>volttron/deployment/recipes/install-platform.yml \
                    -e platform_status=stopped
+
+You can also make use of the ``-l`` flag to limit either of the above to either a specific host or group
+from the inventory. You'd simply pass the name of the host or group from the inventory as the argument
+to that flag.
 
 
 .. _recipes-feature-planning:
