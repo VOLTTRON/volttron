@@ -91,11 +91,6 @@ class MatlabAgentV2(Agent):
         self.topics_to_matlab = topics_to_matlab
         self.topics_to_volttron = topics_to_volttron
         self._create_subscriptions(self.topics_to_volttron)
-        self._create_subscriptions("matlab/config/to_volttron")
-        
-        self.vip.pubsub.publish('pubsub', topic="matlab/config/to_matlab",
-            message=json.dumps(self.vip.config.get(config_name='config')))
-        _log.debug("Config sent to StandAloneMatlab:\n{}".format(config))
 
         for script in range(len(self.script_names)):
             cmd_args = ""
@@ -118,16 +113,7 @@ class MatlabAgentV2(Agent):
                                   callback=self._handle_publish)
 
     def _handle_publish(self, peer, sender, bus, topic, headers, message):
-        if topic == "matlab/config/to_volttron":
-            _log.info("Configuration Received is {}".format(json.loads(message)))
-            self.vip.config.set('config', json.loads(message))
-        else:
-            _log.info("Agent: " + topic + "\nMessage: \n" + pformat(message[:-1]))
-
-    @PubSub.subscribe('pubsub', 'matlab/config/to_volttron')
-    def set_config(self, peer, sender, bus, topic, headers, message):
-        _log.info("Setting config to: {}".format(json.loads(message)))
-        self.vip.config.set('config', json.loads(message), trigger_callback=True)
+        _log.info("Agent: " + topic + "\nMessage: \n" + pformat(message[:-1]))
 
 
 def main():

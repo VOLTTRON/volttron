@@ -1,8 +1,6 @@
 _topics = {
     'volttron_to_matlab': 'matlab/to_matlab/1',
     'matlab_to_volttron': 'matlab/to_volttron/1',
-    'matlab_config_to_matlab': 'matlab/config/to_matlab',
-    'matlab_config_to_volttron': 'matlab/config/to_volttron'
 }
 
 # The parameters dictionary is used to populate the agent's
@@ -12,8 +10,8 @@ _params = {
     # Note:
     # 1. volttron instance should be configured to use tcp. use command vcfg
     # to configure
-    'vip_address': 'tcp://192.168.56.102',
-    'port': 22915,
+    'vip_address': 'tcp://192.168.56.101',
+    'port': 22916,
 
     # public and secret key for the standalone_matlab agent.
     # These can be created using the command:  volttron-ctl auth keypair
@@ -22,13 +20,13 @@ _params = {
     # command 'vctl auth add' Provide this agent's public key when prompted
     # for credential.
 
-    'agent_public': 'dpu13XKPvGB3XJNVUusCNn2U0kIWcuyDIP5J8mAgBQ0',
-    'agent_secret': 'Hlya-6BvfUot5USdeDHZ8eksDkWgEEHABs1SELmQhMs',
+    'agent_public': 'qtYEDEqN7G0MAuw-HhxXFc5lTyTaqCoYdgLHL5WZBBc',
+    'agent_secret': 'Qq9AI5ZeL5cFS9_-ZtTklnxCHeeq-rk4gXzl5pKaJLk',
 
     # Public server key from the remote platform.  This can be
     # obtained using the command:
     # volttron-ctl auth serverkey
-    'server_key': 'tTSc8_SY-FiCXFHL3F9Njd5CK-TpbCQj47NVbjKUmFE'
+    'server_key': '4e-WQpYCsvyamj23k44OO9673aWGY4blR98b2vC7yQ4'
 
 }
 

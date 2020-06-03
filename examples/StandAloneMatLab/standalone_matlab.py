@@ -62,39 +62,14 @@ logging.basicConfig(
 
 class StandAloneMatLab(Agent):
     '''The standalone version of the MatLab Agent'''
-    def __init__(self, **kwargs):
-        super(StandAloneMatLab, self).__init__(**kwargs)
-        self.matlab_config = None
-
-    def modify_config(self, matlab_result):
-        if self.matlab_config is not None:
-            '''
-            Do something with the matlab results here to update the config.
-            For example, updating the command line argument passed to the
-            matlab script
-            '''
-
-            self.matlab_config['script_args'] = [[matlab_result.strip()]]
-            # Comment out this line if you do not want to modify the config using this method
-            #self.vip.pubsub.publish('pubsub', _topics['matlab_config_to_volttron'], message=json.dumps(self.matlab_config))
-            print("Config sent is: {}".format(self.matlab_config))            
-        else:
-            print("No Config has been sent!")
-
 
     @PubSub.subscribe('pubsub', _topics['volttron_to_matlab'])
     def print_message(self, peer, sender, bus, topic, headers, message):
         print('The Message is: ' + str(message))
         message_out = script_runner(message)
-        self.modify_config(message_out)
         self.vip.pubsub.publish(
             'pubsub', _topics['matlab_to_volttron'], message=message_out)
     
-    @PubSub.subscribe('pubsub', _topics['matlab_config_to_matlab'])
-    def get_config(self, peer, sender, bus, topic, headers, message):
-        self.matlab_config = json.loads(message)
-        print("Config received is: {}".format(message))
-
 if __name__ == '__main__':
     try:
         # If stdout is a pipe, re-open it line buffered
