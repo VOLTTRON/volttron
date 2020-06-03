@@ -32,6 +32,7 @@ def master_driver_agent():
     master_driver_agent.vip.reset_mock()
 
 
+@pytest.mark.driver_unit
 @pytest.mark.parametrize("pattern, expected_device_override", [("campus/building1/*", 1),
                                                                ("campus/building1/", 1),
                                                                ("wrongcampus/building", 0)])
@@ -47,6 +48,7 @@ def test_set_override_on_should_succeed(master_driver_agent, pattern, expected_d
     master_driver_agent.vip.config.set.assert_called_once()
 
 
+@pytest.mark.driver_unit
 def test_set_override_on_should_succeed_on_definite_duration(master_driver_agent):
     master_driver_agent._override_patterns = set()
     master_driver_agent.instances = {"campus/building1/": FakeInstanceValue()}
@@ -62,6 +64,7 @@ def test_set_override_on_should_succeed_on_definite_duration(master_driver_agent
     master_driver_agent.vip.config.set.assert_not_called()
 
 
+@pytest.mark.driver_unit
 def test_set_override_off_should_succeed(master_driver_agent):
     master_driver_agent._override_patterns = {"foobar", "device1"}
     override_patterns_count = len(master_driver_agent._override_patterns)
@@ -76,6 +79,7 @@ def test_set_override_off_should_succeed(master_driver_agent):
     master_driver_agent.vip.config.set.assert_called_once()
 
 
+@pytest.mark.driver_unit
 def test_set_override_off_should_raise_override_error(master_driver_agent):
     with pytest.raises(OverrideError):
         master_driver_agent._override_patterns = set()
