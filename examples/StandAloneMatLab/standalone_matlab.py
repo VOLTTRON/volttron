@@ -40,7 +40,7 @@ from scriptwrapper import script_runner
 
 import os
 import sys
-
+import json
 import gevent
 import logging
 
@@ -66,7 +66,7 @@ class StandAloneMatLab(Agent):
         super(StandAloneMatLab, self).__init__(**kwargs)
         self.matlab_config = None
 
-    def logic(self, matlab_result):
+    def modify_config(self, matlab_result):
         if self.matlab_config is not None:
             '''
             Do something with the matlab results here to update the config.
@@ -75,7 +75,8 @@ class StandAloneMatLab(Agent):
             '''
 
             self.matlab_config['script_args'] = [[matlab_result.strip()]]
-            self.vip.pubsub.publish('pubsub', _topics['matlab_config_to_volttron'], message=json.dumps(self.matlab_config))
+            # Comment out this line if you do not want to modify the config using this method
+            #self.vip.pubsub.publish('pubsub', _topics['matlab_config_to_volttron'], message=json.dumps(self.matlab_config))
             print("Config sent is: {}".format(self.matlab_config))            
         else:
             print("No Config has been sent!")
@@ -85,7 +86,7 @@ class StandAloneMatLab(Agent):
     def print_message(self, peer, sender, bus, topic, headers, message):
         print('The Message is: ' + str(message))
         message_out = script_runner(message)
-        self.logic(message_out)
+        self.modify_config(message_out)
         self.vip.pubsub.publish(
             'pubsub', _topics['matlab_to_volttron'], message=message_out)
     
