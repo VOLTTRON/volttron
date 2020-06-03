@@ -36,6 +36,7 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
+import copy
 import datetime
 import json
 import logging
@@ -79,7 +80,7 @@ def get_mock_response(obj, request_type, url, headers, params=None, body=None):
     return {
         "content": {
             "request_type": request_type.upper(),
-            "test": "test"
+            "request_url": url
         }
     }
 
@@ -104,52 +105,76 @@ def test_get_json_request():
     request_response = response.get("request_response")
     content = request_response.get('content')
     assert content.get('request_type') == "GET"
-    assert content.get('test') == "test"
+    assert content.get('request_url') == TEST_URL1
+
+    response = agent._get_json_request(driver_type, group_id, "GET", TEST_URL2, HEADERS)
+    request_response = response.get("request_response")
+    content = request_response.get('content')
+    assert content.get('request_type') == "GET"
+    assert content.get('request_url') == TEST_URL2
 
     # compare stored data
     assert os.path.isfile(data_path)
     with open(data_path, "r") as data_file:
         saved_data = json.load(data_file)
-        test_data = saved_data.get(TEST_URL1)
-        request_timestring = test_data.get("request_timestamp")
-        get_request_timestamp = utils.parse_timestamp_string(request_timestring)
-        assert get_request_timestamp < datetime.datetime.now()
-        request_response = test_data.get("request_response")
+        test1_data = saved_data.get(TEST_URL1)
+        request_timestring = test1_data.get("request_timestamp")
+        get_request1_timestamp = utils.parse_timestamp_string(request_timestring)
+        assert get_request1_timestamp < datetime.datetime.now()
+        request_response = test1_data.get("request_response")
         content = request_response.get('content')
         assert content.get('request_type') == "GET"
-        assert content.get('test') == "test"
+        assert content.get('request_url') == TEST_URL1
+
+        test2_data = saved_data.get(TEST_URL2)
+        request_timestring = test2_data.get("request_timestamp")
+        get_request2_timestamp = utils.parse_timestamp_string(request_timestring)
+        assert get_request2_timestamp < datetime.datetime.now()
+        request_response = test2_data.get("request_response")
+        content = request_response.get('content')
+        assert content.get('request_type') == "GET"
+        assert content.get('request_url') == TEST_URL2
 
     # Check get request bad capitals - should still work
     response = agent._get_json_request(driver_type, group_id, "get", TEST_URL1, HEADERS)
     request_response = response.get("request_response")
     content = request_response.get('content')
     assert content.get('request_type') == "GET"
-    assert content.get('test') == "test"
+    assert content.get('request_url') == TEST_URL1
 
     # Check POST with same rules as GET
     response = agent._get_json_request(driver_type, group_id, "POST", TEST_URL1, HEADERS)
     request_response = response.get("request_response")
     content = request_response.get('content')
     assert content.get('request_type') == "POST"
-    assert content.get('test') == "test"
+    assert content.get('request_url') == TEST_URL1
 
     assert os.path.isfile(data_path)
     with open(data_path, "r") as data_file:
         saved_data = json.load(data_file)
-        test_data = saved_data.get(TEST_URL1)
-        request_timestring = test_data.get("request_timestamp")
-        post_request_timestamp = utils.parse_timestamp_string(request_timestring)
-        assert get_request_timestamp < post_request_timestamp < datetime.datetime.now()
-        request_response = test_data.get("request_response")
+        test1_data = saved_data.get(TEST_URL1)
+        request_timestring = test1_data.get("request_timestamp")
+        post_request1_timestamp = utils.parse_timestamp_string(request_timestring)
+        assert get_request1_timestamp < post_request1_timestamp < datetime.datetime.now()
+        request_response = test1_data.get("request_response")
         content = request_response.get('content')
         assert content.get('request_type') == "POST"
-        assert content.get('test') == "test"
+        assert content.get('request_url') == TEST_URL1
+
+        # The other request should not have been affected
+        test2_data = saved_data.get(TEST_URL2)
+        request_timestring = test2_data.get("request_timestamp")
+        request2_timestamp = utils.parse_timestamp_string(request_timestring)
+        assert get_request2_timestamp == request2_timestamp
+        request_response = test2_data.get("request_response")
+        content = request_response.get('content')
+        assert content.get('request_type') == "GET"
 
     response = agent._get_json_request(driver_type, group_id, "post", TEST_URL1, HEADERS)
     request_response = response.get("request_response")
     content = request_response.get('content')
     assert content.get('request_type') == "POST"
-    assert content.get('test') == "test"
+    assert content.get('request_url') == TEST_URL1
 
     # Currently only GET and POST supported, others should throw value error below
     with pytest.raises(ValueError, match=r"Unsupported request type for Driver HTTP Cache Agent: .+"):
@@ -200,7 +225,7 @@ def test_get_json_cache():
         }
     }
 
-    store_cache = contents.copy()
+    store_cache = copy.deepcopy(contents)
     curr_timestamp = utils.format_timestamp(now)
     store_cache[TEST_URL1]["request_timestamp"] = curr_timestamp
     store_cache[TEST_URL2]["request_timestamp"] = curr_timestamp
@@ -213,7 +238,7 @@ def test_get_json_cache():
     utils.parse_timestamp_string(read_cache.get("request_timestamp"))
     assert read_cache == store_cache.get(TEST_URL1)
 
-    store_cache = contents.copy()
+    store_cache = copy.deepcopy(contents)
     prev_timestamp = utils.format_timestamp(now - datetime.timedelta(seconds=120))
     store_cache[TEST_URL1]["request_timestamp"] = prev_timestamp
     store_cache[TEST_URL2]["request_timestamp"] = prev_timestamp
@@ -256,48 +281,77 @@ def test_get_driver_data(method):
 
     update_frequency = 120
 
-    driver_data_start = None
+    # Check that we can ask for data for 2 different endpoints and fetch both independently
+    driver_data1_start = None
+    driver_data2_start = None
     if method == "GET":
-        driver_data_start = agent.driver_data_get(driver_type, group_id, TEST_URL1, HEADERS,
-                                                  update_frequency=update_frequency)
-    elif method == "POST":
-        driver_data_start = agent.driver_data_post(driver_type, group_id, TEST_URL1, HEADERS,
+        driver_data1_start = agent.driver_data_get(driver_type, group_id, TEST_URL1, HEADERS,
                                                    update_frequency=update_frequency)
-
-    # First set of data should contain entirely new response
-    utils.parse_timestamp_string(driver_data_start.get("request_timestamp"))
-    assert driver_data_start.get("request_response") == content
-
-    # Second set of data should be an exact copy, since a new response should not have been sent
-    driver_data_repeat = None
-    if method == "GET":
-        driver_data_repeat = agent.driver_data_get(driver_type, group_id, TEST_URL1, HEADERS,
+        driver_data2_start = agent.driver_data_get(driver_type, group_id, TEST_URL2, HEADERS,
                                                    update_frequency=update_frequency)
     elif method == "POST":
-        driver_data_repeat = agent.driver_data_post(driver_type, group_id, TEST_URL1, HEADERS,
+        driver_data1_start = agent.driver_data_post(driver_type, group_id, TEST_URL1, HEADERS,
+                                                    update_frequency=update_frequency)
+        driver_data2_start = agent.driver_data_post(driver_type, group_id, TEST_URL2, HEADERS,
                                                     update_frequency=update_frequency)
 
-    assert driver_data_repeat == driver_data_start
+    # First set of data should contain entirely new response
+    # TODO what's with this timestamp string
+    # utils.parse_timestamp_string(driver_data1_start.get("request_timestamp"))
+    request1_content = copy.deepcopy(content)
+    request2_content = copy.deepcopy(content)
+    request1_content["content"]["request_url"] = TEST_URL1
+    assert driver_data1_start.get("request_response") == request1_content
+
+    request2_content["content"]["request_url"] = TEST_URL2
+    assert driver_data2_start.get("request_response") == request2_content
+
+    # Second set of data should be an exact copy, since a new response should not have been sent
+    driver_data1_repeat = None
+    if method == "GET":
+        driver_data1_repeat = agent.driver_data_get(driver_type, group_id, TEST_URL1, HEADERS,
+                                                    update_frequency=update_frequency)
+    elif method == "POST":
+        driver_data1_repeat = agent.driver_data_post(driver_type, group_id, TEST_URL1, HEADERS,
+                                                     update_frequency=update_frequency)
+
+    assert driver_data1_repeat == driver_data1_start
 
     # Now lets try "jumping ahead in time a bit - this should result in a new request
     now = datetime.datetime.now()
-    store_cache = content.copy()
-    store_cache["request_timestamp"] = utils.format_timestamp(now - datetime.timedelta(seconds=120))
+
+    with open(data_path, "r") as data_file:
+        stored = json.load(data_file)
+        test1_stored = stored.get(TEST_URL1)
+        test1_stored["request_timestamp"] = utils.format_timestamp(now - datetime.timedelta(seconds=120))
+        stored.update({TEST_URL1: test1_stored})
 
     with open(data_path, "w") as data_file:
-        json.dump(store_cache, data_file)
+        json.dump(stored, data_file)
 
-    driver_data_new = None
+    driver_data1_new = None
+    driver_data2_new = None
     if method == "GET":
-        driver_data_new = agent.driver_data_get(driver_type, group_id, TEST_URL1, HEADERS,
-                                                update_frequency=update_frequency)
+        driver_data1_new = agent.driver_data_get(driver_type, group_id, TEST_URL1, HEADERS,
+                                                 update_frequency=update_frequency)
+        driver_data2_new = agent.driver_data_get(driver_type, group_id, TEST_URL2, HEADERS,
+                                                 update_frequency=update_frequency)
     elif method == "POST":
-        driver_data_new = agent.driver_data_post(driver_type, group_id, TEST_URL1, HEADERS,
+        driver_data1_new = agent.driver_data_post(driver_type, group_id, TEST_URL1, HEADERS,
+                                                  update_frequency=update_frequency)
+        driver_data2_new = agent.driver_data_get(driver_type, group_id, TEST_URL2, HEADERS,
                                                  update_frequency=update_frequency)
 
-    assert utils.parse_timestamp_string(driver_data_new.get("request_timestamp")) > now
-    assert driver_data_new.get("request_response") == content
+    # the timestamp of the the newly requested data should be newer
+    assert utils.parse_timestamp_string(driver_data1_new.get("request_timestamp")) > now
+    assert driver_data1_new.get("request_response") == request1_content
 
+    # The timestamp of our other request should not have updated
+    assert utils.parse_timestamp_string(driver_data2_new.get("request_timestamp")) == \
+           utils.parse_timestamp_string(driver_data2_start.get("request_timestamp"))
+    assert driver_data2_new.get("request_response") == request2_content
+
+    # See if timestamps using the refresh keyword are newer than the previous timestamp1
     driver_data_refresh = None
     if method == "GET":
         driver_data_refresh = agent.driver_data_get(driver_type, group_id, TEST_URL1, HEADERS, refresh=True,
@@ -307,7 +361,7 @@ def test_get_driver_data(method):
                                                      update_frequency=update_frequency)
 
     assert utils.parse_timestamp_string(driver_data_refresh.get("request_timestamp")) > utils.parse_timestamp_string(
-        driver_data_new.get("request_timestamp"))
+        driver_data1_new.get("request_timestamp"))
 
     # If the data file is removed, we should get a new response
     os.remove(data_path)
@@ -321,7 +375,7 @@ def test_get_driver_data(method):
                                                 update_frequency=update_frequency)
 
     assert utils.parse_timestamp_string(driver_data_rm.get("request_timestamp")) > now
-    assert driver_data_rm.get("request_response") == content
+    assert driver_data_rm.get("request_response") == request1_content
 
     # And if we repeat once more, it should be the same as the previous
     driver_data_rerepeat = None
