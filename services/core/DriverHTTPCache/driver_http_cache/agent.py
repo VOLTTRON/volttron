@@ -140,24 +140,23 @@ class DriverHTTPCache(Agent):
         else:
             # try to get recently cached data - will throw exception if the dat is out of date
             try:
-                return self._get_json_cache(driver_type, group_id, request_type, update_frequency)
+                return self._get_json_cache(driver_type, group_id, url, update_frequency)
             # if no recently cached data is available, request data from remote API based on provided parameters
-            except RuntimeError as re:
+            except (RuntimeError, KeyError):
                 request_data = self._get_json_request(
                     driver_type, group_id, request_type, url, headers, params=params, body=body)
                 return request_data
 
-    def _get_json_cache(self, driver_type, group_id, request_type, update_frequency):
+    def _get_json_cache(self, driver_type, group_id, request_url, update_frequency):
         """
-
+        Fetch data from cache file corresponding to the driver type/group id based on request's url
         :param driver_type: String representation of the type of driver
         :param group_id: arbitrary identifier to separate driver data between collections of devices
-        :param request_type: HTTP request type for communicating with remote API - used here for input validation
+        :param request_url: HTTP request URL used to differentiate request endpoints (allows caching of multiple
+        endpoints per driver)
         :param update_frequency: Frequency in seconds between remote API data updates, defaults to 60
         :return: Remote API response data dictionary from cache to be parsed by driver
         """
-        if request_type.upper() not in ["POST", "GET"]:
-            raise ValueError("Unsupported request type for Driver HTTP Cache Agent: {}".format(request_type))
         data_path = "{}_{}.json".format(driver_type, group_id)
         update_delta = datetime.timedelta(seconds=update_frequency)
         if not os.path.isfile(data_path):
@@ -166,16 +165,19 @@ class DriverHTTPCache(Agent):
             _log.debug("Checking cache at: {}".format(data_path))
             with open(data_path) as data_file:
                 json_data = json.load(data_file)
-                request_timestamp = utils.parse_timestamp_string(json_data.get("request_timestamp"))
+                if request_url not in json_data:
+                    raise KeyError("No data for url found in driver cache: {}".format(request_url))
+                url_data = json_data.get(request_url)
+                request_timestamp = utils.parse_timestamp_string(url_data.get("request_timestamp"))
                 next_update_timestamp = request_timestamp + update_delta
                 if next_update_timestamp < datetime.datetime.now():
                     raise RuntimeError("Request timestamp out of date, send new request")
                 else:
-                    return json_data
+                    return url_data
 
     def _get_json_request(self, driver_type, group_id, request_type, url, headers, params=None, body=None):
         """
-
+        Fetch data from remote API using grequests wrapper method then store the data in the cache for later retrieval
         :param group_id: arbitrary identifier to separate driver data between collections of devices
         :param request_type: String representation of the type of driver
         :param driver_type: HTTP request type for communicating with remote API
@@ -189,13 +191,24 @@ class DriverHTTPCache(Agent):
         if request_type.upper() not in ["POST", "GET"]:
             raise ValueError("Unsupported request type for Driver HTTP Cache Agent: {}".format(request_type))
         response = self.grequests_wrapper(request_type, url, headers, params=params, body=body)
-        json_data = {
+        url_data = {
             "request_timestamp": utils.format_timestamp(datetime.datetime.now()),
             "request_response": response
         }
-        with open("{}_{}.json".format(driver_type, group_id), "w") as data_file:
-            jsonapi.dump(json_data, data_file)
-        return json_data
+        json_data = {
+            url: url_data
+        }
+        file_path = "{}_{}.json".format(driver_type, group_id)
+        if not os.path.isfile(file_path):
+            with open(file_path, "w") as data_file:
+                jsonapi.dump(json_data, data_file)
+        else:
+            with open(file_path, "r") as data_file:
+                cache = jsonapi.load(data_file)
+            cache.update(json_data)
+            with open(file_path, "w") as data_file:
+                jsonapi.dump(cache, data_file)
+        return url_data
 
     def grequests_wrapper(self, request_type, url, headers, params=None, body=None):
         """
