@@ -389,14 +389,21 @@ Install pre-requisites
 
 2. Install MatLab engine from  `here <https://www.mathworks.com/help/matlab/matlab_external/install-the-matlab-engine-for-python.html>`_.
 
+   .. warning::
 
-   .. note::
+        The MatLab engine for Python only supports certain version of Python
+        depending on the version of MatLab used.
+        Please check `here <https://www.mathworks.com/help/matlab/matlab-engine-for-python.html>`__ to see
+        if the current version of MatLab supports your version of Python.
 
-        At this time, you may want to verify that you are able to communicate with
-        your Linux machine across your network. The simplest method would be to open
-        up the command terminal and use ``ping <ip of Linux machine>``, and ``telnet <ip of Linux machine>
-        <port of volttron instance. default port is 22916>`` If you are using redhat linux, the port will
-        need to be explicitly opened for outside access.
+
+.. note::
+
+    At this time, you may want to verify that you are able to communicate with
+    your Linux machine across your network. The simplest method would be to open
+    up the command terminal and use ``ping <ip of Linux machine>``, and ``telnet <ip of Linux machine>
+    <port of volttron instance. default port is 22916>`` If you are using redhat linux, the port will
+    need to be explicitly opened for outside access.
 
 Install StandAloneMatLab Agent
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
