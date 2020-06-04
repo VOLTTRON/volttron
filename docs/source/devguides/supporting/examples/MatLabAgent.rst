@@ -208,7 +208,7 @@ In this example, the script that is to be run is testScript.py.
 
         import time
         import sys
-        from StringIO import StringIO
+        from io import StringIO
 
 
         def script_runner(message):
@@ -221,13 +221,13 @@ In this example, the script that is to be run is testScript.py.
             try:
                 out = StringIO()
                 sys.stdout = out
-                execfile(sys.argv[0])
+                exec(open(sys.argv[0]).read())
                 sys.stdout = original
-        return out.getvalue()
-        except Exception as ex:
-        out = str(ex)
-        sys.stdout = original
-        return out
+                return out.getvalue()
+            except Exception as ex:
+                out = str(ex)
+                sys.stdout = original
+                return out
 
 .. note::
 
@@ -471,7 +471,7 @@ Windows environment.
 
         Use pip to install and setup dependencies.
 
-        ``pip install -r requirements.txt``
+        ``pip install -r examples/StandAloneMatLab/requirements.txt``
 
         ``pip install -e .``
 
