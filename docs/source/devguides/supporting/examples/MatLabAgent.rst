@@ -402,8 +402,7 @@ Install pre-requisites
     At this time, you may want to verify that you are able to communicate with
     your Linux machine across your network. The simplest method would be to open
     up the command terminal and use ``ping <ip of Linux machine>``, and ``telnet <ip of Linux machine>
-    <port of volttron instance. default port is 22916>`` If you are using redhat linux, the port will
-    need to be explicitly opened for outside access.
+    <port of volttron instance. default port is 22916>`` Please make sure that the port is opened for outside access.
 
 Install StandAloneMatLab Agent
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
