@@ -471,7 +471,7 @@ Windows environment.
 
         Use pip to install and setup dependencies.
 
-        ``pip install -r examples/StandAloneMatLab/requirements.txt``
+        ``pip install -r examples\StandAloneMatLab\requirements.txt``
 
         ``pip install -e .``
 
