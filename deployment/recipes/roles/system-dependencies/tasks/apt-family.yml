@@ -12,7 +12,7 @@
   assert:
     that:
       - ansible_distribution_major_version | int >= 10
-      - ansible-distribution_major_version | int < 11
+      - ansible_distribution_major_version | int < 11
     fail_msg: "the system is identified as Debian:{{ansible_distribution_major_version}}, which is not supported"
 
 - name: install system packages
@@ -27,6 +27,7 @@
       - build-essential
       - git
       - python3-dev
+      - python3-pip
       - python3-venv
       - libssl-dev
       - libevent-dev

@@ -1,0 +1,19 @@
+---
+- name: install VOLTTRON platform
+  hosts: all
+  vars:
+    volttron_source_changed: no
+  roles:
+  - set-defaults
+  - ansible-venv
+  tasks:
+
+    - name: "start or stop the platform (set to {{ platform_state }})"
+      volttron_platform:
+        volttron_root: "{{volttron_root}}"
+        volttron_home: "{{volttron_home}}"
+        state: "{{ platform_state }}"
+      register: v_p_result
+    - debug:
+        msg: "{{ v_p_result }}"
+      when: verbose_debug_tasks

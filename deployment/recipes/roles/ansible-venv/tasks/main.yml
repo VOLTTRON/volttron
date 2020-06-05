@@ -1,4 +1,8 @@
 ---
+- name: force python3 for steps to create the venv
+  set_fact:
+    ansible_python_interpreter: "/usr/bin/python3"
+
 - name: arm-specific ansible venv packages
   pip:
     virtualenv: "{{ venv_for_ansible }}"
@@ -18,6 +22,7 @@
     virtualenv_command: /usr/bin/python3 -m venv
     name:
     - pexpect
+    - psutil #required for volttron_platform module
 
 - name: add selinux to ansible_venv on systems using selinux
   when: ansible_selinux.status == "enabled"

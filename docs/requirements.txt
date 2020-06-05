@@ -1,6 +1,7 @@
 sphinx_rtd_theme
 sphinx-autobuild
 sphinx
+sphinxcontrib-autoyaml
 recommonmark
 bacpypes
 enum34
