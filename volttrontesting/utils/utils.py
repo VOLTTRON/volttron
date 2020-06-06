@@ -204,14 +204,3 @@ class AgentMock(object):
                 except (TypeError, AttributeError):
                     pass
         return cls
-
-
-class FakeResponse:
-    """
-    This class is used to help mock Responses from the vip subsystem
-    """
-    def __init__(self, result):
-        self.result = result
-
-    def get(self):
-        return self.result

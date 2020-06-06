@@ -1,3 +1,41 @@
+# -*- coding: utf-8 -*- {{{
+# vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
+#
+# Copyright 2019, Battelle Memorial Institute.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# This material was prepared as an account of work sponsored by an agency of
+# the United States Government. Neither the United States Government nor the
+# United States Department of Energy, nor Battelle, nor any of their
+# employees, nor any jurisdiction or organization that has cooperated in the
+# development of these materials, makes any warranty, express or
+# implied, or assumes any legal liability or responsibility for the accuracy,
+# completeness, or usefulness or any information, apparatus, product,
+# software, or process disclosed, or represents that its use would not infringe
+# privately owned rights. Reference herein to any specific commercial product,
+# process, or service by trade name, trademark, manufacturer, or otherwise
+# does not necessarily constitute or imply its endorsement, recommendation, or
+# favoring by the United States Government or any agency thereof, or
+# Battelle Memorial Institute. The views and opinions of authors expressed
+# herein do not necessarily state or reflect those of the
+# United States Government or any agency thereof.
+#
+# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
+# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# under Contract DE-AC05-76RL01830
+# }}}
+
 import logging
 from datetime import datetime, timedelta
 from dateutil.tz import tzutc
@@ -8,7 +46,7 @@ import pytest
 from services.core.ActuatorAgent.actuator import agent
 from services.core.ActuatorAgent.actuator.agent import ActuatorAgent, ScheduleManager
 from services.core.ActuatorAgent.actuator.scheduler import RequestResult, DeviceState
-from volttrontesting.utils.utils import AgentMock, FakeResponse
+from volttrontesting.utils.utils import AgentMock
 from volttron.platform.vip.agent import Agent
 
 
@@ -28,6 +66,17 @@ ActuatorAgent.__bases__ = (AgentMock.imitate(Agent, Agent()),)
 ActuatorAgent.core.identity = "foobar"
 
 
+class FakeResponse:
+    """
+    This class is used to help mock Responses from the vip subsystem
+    """
+    def __init__(self, result):
+        self.result = result
+
+    def get(self):
+        return self.result
+
+
 @pytest.fixture()
 def actuator_agent():
     actuator_agent = ActuatorAgent()
@@ -36,7 +85,7 @@ def actuator_agent():
     actuator_agent.vip.reset_mock()
 
 
-@pytest.mark.actuator_pubsub
+@pytest.mark.actuator_unit
 def test_handle_get_should_succeed(actuator_agent):
     actuator_agent.vip.rpc.call.return_value = FakeResponse({"foo": "bar"})
     actuator_agent.driver_vip_identity = "vip identity"
@@ -47,7 +96,7 @@ def test_handle_get_should_succeed(actuator_agent):
     actuator_agent.vip.pubsub.publish.assert_called_once()
 
 
-@pytest.mark.actuator_pubsub
+@pytest.mark.actuator_unit
 def test_handle_get_should_handle_standard_error(actuator_agent, caplog):
     actuator_agent.handle_get(PEER, SENDER, BUS, GET_TOPIC, HEADERS, MESSAGE)
 
@@ -60,34 +109,32 @@ def test_handle_get_should_handle_standard_error(actuator_agent, caplog):
     )
 
 
-@pytest.mark.actuator_pubsub
+@pytest.mark.actuator_unit
 @pytest.mark.parametrize(
-    "sender, message, device_states",
+    "sender, device_states",
     [
         (
             SENDER,
-            MESSAGE,
             {"somepath": DeviceState("sender-1", "task-id-1", "anytime")},
         ),
         (
             "pubsub.compat",
-            MESSAGE,
             {"somepath": DeviceState("pubsub.compat", "task-id-1", "anytime")},
         ),
     ],
 )
-def test_handle_set_should_succeed(actuator_agent, sender, message, device_states):
+def test_handle_set_should_succeed(actuator_agent, sender, device_states):
     actuator_agent._device_states = device_states
     actuator_agent.vip.rpc.call.return_value = FakeResponse({"foo": "bar"})
     actuator_agent.driver_vip_identity = "vip identity"
 
-    actuator_agent.handle_set(PEER, sender, BUS, SET_TOPIC, HEADERS, message)
+    actuator_agent.handle_set(PEER, sender, BUS, SET_TOPIC, HEADERS, MESSAGE)
 
     actuator_agent.vip.rpc.call.assert_called_once()
     actuator_agent.vip.pubsub.publish.assert_called()
 
 
-@pytest.mark.actuator_pubsub
+@pytest.mark.actuator_unit
 def test_handle_set_should_return_none_on_none_message(actuator_agent, caplog):
     result = actuator_agent.handle_set(PEER, SENDER, BUS, SET_TOPIC, HEADERS, None)
 
@@ -100,7 +147,7 @@ def test_handle_set_should_return_none_on_none_message(actuator_agent, caplog):
     )
 
 
-@pytest.mark.actuator_pubsub
+@pytest.mark.actuator_unit
 def test_handle_set_should_handle_type_error_on_invalid_sender(actuator_agent, caplog):
     actuator_agent.handle_set(PEER, None, BUS, SET_TOPIC, HEADERS, MESSAGE)
 
@@ -112,7 +159,7 @@ def test_handle_set_should_handle_type_error_on_invalid_sender(actuator_agent, c
     )
 
 
-@pytest.mark.actuator_pubsub
+@pytest.mark.actuator_unit
 def test_handle_set_should_handle_lock_error(actuator_agent, caplog):
     actuator_agent.handle_set(PEER, SENDER, BUS, SET_TOPIC, HEADERS, MESSAGE)
 
@@ -124,7 +171,7 @@ def test_handle_set_should_handle_lock_error(actuator_agent, caplog):
     )
 
 
-@pytest.mark.actuator_pubsub
+@pytest.mark.actuator_unit
 def test_handle_revert_point_should_succeed(actuator_agent):
     actuator_agent._device_states = {
         "actuators/revert/point/somedevicepath": DeviceState(
@@ -142,7 +189,7 @@ def test_handle_revert_point_should_succeed(actuator_agent):
     actuator_agent.vip.pubsub.publish.assert_called_once()
 
 
-@pytest.mark.actuator_pubsub
+@pytest.mark.actuator_unit
 def test_handle_revert_point_should_handle_lock_error(actuator_agent, caplog):
     actuator_agent.handle_revert_point(
         PEER, SENDER, BUS, REVERT_POINT_TOPIC, HEADERS, MESSAGE
@@ -156,7 +203,7 @@ def test_handle_revert_point_should_handle_lock_error(actuator_agent, caplog):
     )
 
 
-@pytest.mark.actuator_pubsub
+@pytest.mark.actuator_unit
 def test_handle_revert_device_should_succeed(actuator_agent):
     actuator_agent._device_states = {
         "somedevicepath": DeviceState("sender-1", "task-id-1", "anytime")
@@ -172,7 +219,7 @@ def test_handle_revert_device_should_succeed(actuator_agent):
     actuator_agent.vip.pubsub.publish.assert_called_once()
 
 
-@pytest.mark.actuator_pubsub
+@pytest.mark.actuator_unit
 def test_handle_revert_device_should_handle_lock_error(actuator_agent, caplog):
     actuator_agent.handle_revert_device(
         PEER, SENDER, BUS, REVERT_DEVICE_TOPIC, HEADERS, MESSAGE
@@ -186,7 +233,7 @@ def test_handle_revert_device_should_handle_lock_error(actuator_agent, caplog):
     )
 
 
-@pytest.mark.actuator_pubsub
+@pytest.mark.actuator_unit
 @pytest.mark.parametrize(
     "priority, success",
     [
@@ -220,7 +267,7 @@ def test_handle_schedule_request_should_succeed_on_new_schedule_request_type(
     actuator_agent.vip.pubsub.publish.assert_called()
 
 
-@pytest.mark.actuator_pubsub
+@pytest.mark.actuator_unit
 @pytest.mark.parametrize("success", [True, False])
 def test_handle_schedule_request_should_succeed_on_cancel_schedule_request_type(
     actuator_agent, success
@@ -241,7 +288,7 @@ def test_handle_schedule_request_should_succeed_on_cancel_schedule_request_type(
     actuator_agent.vip.pubsub.publish.assert_called()
 
 
-@pytest.mark.actuator_pubsub
+@pytest.mark.actuator_unit
 @pytest.mark.parametrize("invalid_request_type", ["bad request type", None])
 def test_handle_schedule_request_should_log_invalid_request_type(
     actuator_agent, invalid_request_type, caplog

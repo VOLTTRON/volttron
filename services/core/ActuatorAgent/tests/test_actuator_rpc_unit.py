@@ -1,5 +1,3 @@
-# TEST
-
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
@@ -50,7 +48,7 @@ from mock import create_autospec
 from services.core.ActuatorAgent.actuator import agent
 from services.core.ActuatorAgent.actuator.agent import ActuatorAgent, ScheduleManager, LockError
 from services.core.ActuatorAgent.actuator.scheduler import RequestResult, DeviceState
-from volttrontesting.utils.utils import AgentMock, FakeResponse
+from volttrontesting.utils.utils import AgentMock
 from volttron.platform.vip.agent import Agent
 
 
@@ -68,7 +66,18 @@ ActuatorAgent.__bases__ = (AgentMock.imitate(Agent, Agent()),)
 ActuatorAgent.core.identity = "Foo"
 
 
-@pytest.mark.actuator
+class FakeResponse:
+    """
+    This class is used to help mock Responses from the vip subsystem
+    """
+    def __init__(self, result):
+        self.result = result
+
+    def get(self):
+        return self.result
+
+
+@pytest.mark.actuator_unit
 @pytest.mark.parametrize("topic, point", [("foo/bar", None), ("foo/bar", "dfadsf")])
 def test_get_point_should_succeed(topic, point):
     actuator_agent = ActuatorAgent()
@@ -80,7 +89,7 @@ def test_get_point_should_succeed(topic, point):
     assert result is not None
 
 
-@pytest.mark.actuator
+@pytest.mark.actuator_unit
 @pytest.mark.parametrize(
     "point, device_state",
     [
@@ -105,10 +114,10 @@ def test_set_point_should_succeed(point, device_state):
     assert result is not None
 
 
-@pytest.mark.actuator
+@pytest.mark.actuator_unit
 @pytest.mark.parametrize("rpc_peer", [None, 42, []])
 def test_set_point_should_raise_type_error(rpc_peer):
-    with pytest.raises(TypeError):
+    with pytest.raises(TypeError, match="Agent id must be a nonempty string"):
         actuator_agent = ActuatorAgent()
         actuator_agent.vip.rpc.context.vip_message.peer = rpc_peer
         requester_id = "requester-id-1"
@@ -119,7 +128,7 @@ def test_set_point_should_raise_type_error(rpc_peer):
         actuator_agent.set_point(requester_id, topic, value, point=point)
 
 
-@pytest.mark.actuator
+@pytest.mark.actuator_unit
 def test_set_point_should_raise_lock_error():
     with pytest.raises(LockError):
         actuator_agent = ActuatorAgent()
@@ -132,7 +141,7 @@ def test_set_point_should_raise_lock_error():
         actuator_agent.set_point(requester_id, topic, value)
 
 
-@pytest.mark.actuator
+@pytest.mark.actuator_unit
 def test_scrape_all_should_succeed():
     actuator_agent = ActuatorAgent()
     actuator_agent.driver_vip_identity = "fdafd"
@@ -144,7 +153,7 @@ def test_scrape_all_should_succeed():
     assert result is not None
 
 
-@pytest.mark.actuator
+@pytest.mark.actuator_unit
 @pytest.mark.parametrize(
     "topics",
     [
@@ -160,11 +169,12 @@ def test_get_multiple_points_should_succeed(topics):
     actuator_agent.vip.rpc.call.return_value = FakeResponse(({"result": "value"}, {}))
 
     results, errors = actuator_agent.get_multiple_points(topics)
+
     assert results is not None
     assert not errors
 
 
-@pytest.mark.actuator
+@pytest.mark.actuator_unit
 @pytest.mark.parametrize("invalid_topics", [[(123,)], [(None)], [[123]], [[None]]])
 def test_get_multiple_points_should_return_errors(invalid_topics):
     actuator_agent = ActuatorAgent()
@@ -175,7 +185,7 @@ def test_get_multiple_points_should_return_errors(invalid_topics):
     assert errors is not None
 
 
-@pytest.mark.actuator
+@pytest.mark.actuator_unit
 @pytest.mark.parametrize(
     "topic_values, device_states",
     [
@@ -193,7 +203,7 @@ def test_get_multiple_points_should_return_errors(invalid_topics):
         ),
     ],
 )
-@pytest.mark.actuator
+@pytest.mark.actuator_unit
 def test_set_multiple_points_should_succeed(topic_values, device_states):
     actuator_agent = ActuatorAgent()
     actuator_agent.vip.rpc.context.vip_message.peer = "requester-id-1"
@@ -206,7 +216,7 @@ def test_set_multiple_points_should_succeed(topic_values, device_states):
     assert result == {}
 
 
-@pytest.mark.actuator
+@pytest.mark.actuator_unit
 @pytest.mark.parametrize("invalid_topic_values", [[(None,)], [(1234,)]])
 def test_set_multiple_points_should_raise_value_error(invalid_topic_values):
     with pytest.raises(ValueError):
@@ -216,7 +226,7 @@ def test_set_multiple_points_should_raise_value_error(invalid_topic_values):
         actuator_agent.set_multiple_points("request-id-1", invalid_topic_values)
 
 
-@pytest.mark.actuator
+@pytest.mark.actuator_unit
 def test_set_multiple_points_should_raise_lock_error_on_empty_devices():
     with pytest.raises(LockError):
         actuator_agent = ActuatorAgent()
@@ -226,7 +236,7 @@ def test_set_multiple_points_should_raise_lock_error_on_empty_devices():
         actuator_agent.set_multiple_points("request-id-1", topic_values)
 
 
-@pytest.mark.actuator
+@pytest.mark.actuator_unit
 def test_set_multiple_points_should_raise_lock_error_on_non_matching_requester():
     with pytest.raises(LockError):
         actuator_agent = ActuatorAgent()
@@ -239,7 +249,7 @@ def test_set_multiple_points_should_raise_lock_error_on_non_matching_requester()
         actuator_agent.set_multiple_points("request-id-1", topic_values)
 
 
-@pytest.mark.actuator
+@pytest.mark.actuator_unit
 @pytest.mark.parametrize("point", [None, "foobarpoint"])
 def test_revert_point_should_raise_lock_error_on_empty_devices(point):
     with pytest.raises(LockError):
@@ -251,7 +261,7 @@ def test_revert_point_should_raise_lock_error_on_empty_devices(point):
         actuator_agent.revert_point(requester_id, topic, point=point)
 
 
-@pytest.mark.actuator
+@pytest.mark.actuator_unit
 @pytest.mark.parametrize("point", [None, "foobarpoint"])
 def test_revert_point_should_raise_lock_error_on_non_matching_requester(point):
     with pytest.raises(LockError):
@@ -266,7 +276,7 @@ def test_revert_point_should_raise_lock_error_on_non_matching_requester(point):
         actuator_agent.revert_point(requester_id, topic, point=point)
 
 
-@pytest.mark.actuator
+@pytest.mark.actuator_unit
 def test_revert_device_should_raise_lock_error_on_empty_devices():
     with pytest.raises(LockError):
         actuator_agent = ActuatorAgent()
@@ -277,7 +287,7 @@ def test_revert_device_should_raise_lock_error_on_empty_devices():
         actuator_agent.revert_device(requester_id, topic)
 
 
-@pytest.mark.actuator
+@pytest.mark.actuator_unit
 def test_revert_device_should_raise_lock_error_on_non_matching_requester():
     with pytest.raises(LockError):
         actuator_agent = ActuatorAgent()
@@ -291,7 +301,7 @@ def test_revert_device_should_raise_lock_error_on_non_matching_requester():
         actuator_agent.revert_device(requester_id, topic)
 
 
-@pytest.mark.actuator
+@pytest.mark.actuator_unit
 def test_request_new_schedule_should_succeed_happy_path():
     actuator_agent = ActuatorAgent()
     actuator_agent._schedule_manager = create_autospec(ScheduleManager)
@@ -307,7 +317,7 @@ def test_request_new_schedule_should_succeed_happy_path():
     assert result["result"] == SUCCESS
 
 
-@pytest.mark.actuator
+@pytest.mark.actuator_unit
 def test_request_new_schedule_should_succeed_when_stop_start_times_overlap():
     actuator_agent = ActuatorAgent()
     actuator_agent._schedule_manager = create_autospec(ScheduleManager)
@@ -327,7 +337,7 @@ def test_request_new_schedule_should_succeed_when_stop_start_times_overlap():
     assert result["result"] == SUCCESS
 
 
-@pytest.mark.actuator
+@pytest.mark.actuator_unit
 @pytest.mark.parametrize(
     "task_id, expected_info",
     [
@@ -352,7 +362,7 @@ def test_request_new_schedule_should_fail_on_invalid_taskid(task_id, expected_in
     assert result["info"] == expected_info
 
 
-@pytest.mark.actuator
+@pytest.mark.actuator_unit
 @pytest.mark.parametrize(
     "invalid_priority, expected_info",
     [("LOW2", "INVALID_PRIORITY"), (None, "MISSING_PRIORITY")],
@@ -375,7 +385,7 @@ def test_request_new_schedule_should_fail_on_invalid_priority(
     assert result["info"] == expected_info
 
 
-@pytest.mark.actuator
+@pytest.mark.actuator_unit
 @pytest.mark.parametrize(
     "time_slot_request, expected_info",
     [
@@ -409,7 +419,7 @@ def test_request_new_schedule_should_fail_invalid_time_slot_requests(
     assert result["info"] == expected_info
 
 
-@pytest.mark.actuator
+@pytest.mark.actuator_unit
 def test_request_cancel_schedule_should_succeed_happy_path():
     actuator_agent = ActuatorAgent()
     actuator_agent._schedule_manager = create_autospec(ScheduleManager)
@@ -423,7 +433,7 @@ def test_request_cancel_schedule_should_succeed_happy_path():
     assert result["result"] == SUCCESS
 
 
-@pytest.mark.actuator
+@pytest.mark.actuator_unit
 def test_request_cancel_schedule_should_fail_on_invalid_task_id():
     actuator_agent = ActuatorAgent()
     actuator_agent._schedule_manager = create_autospec(ScheduleManager)
