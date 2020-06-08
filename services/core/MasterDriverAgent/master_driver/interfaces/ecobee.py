@@ -43,6 +43,7 @@ import logging
 import requests
 from requests.packages.urllib3.connection import ConnectionError, NewConnectionError
 
+from integrations.DriverHTTPCache.driver_cache import DriverHTTPCache
 from master_driver.interfaces import BaseInterface, BaseRegister, BasicRevert
 from volttron.platform.jsonrpc import RemoteError
 from volttron.platform.agent.known_identities import CONFIGURATION_STORE, PLATFORM_DRIVER
@@ -71,7 +72,7 @@ class Interface(BasicRevert, BaseInterface):
         self.ecobee_id = -1
         self.group_id = ""
         # which agent is being used as the caching agent
-        self.cache_identity = ""
+        self.cache = DriverHTTPCache(__name__)
         # Authorization tokens
         self.refresh_token = None
         self.access_token = None
@@ -251,7 +252,6 @@ class Interface(BasicRevert, BaseInterface):
                 raise RuntimeError("Request tokens response did  not contain {}: {}".format(token, response))
         self.access_token = response.get('access_token')
         self.refresh_token = response.get('refresh_token')
-        self.update_register_tokens()
         self.authorization_stage = "AUTHORIZED"
 
     def refresh_tokens(self):
@@ -338,10 +338,8 @@ class Interface(BasicRevert, BaseInterface):
                      '"includeSettings":"true"}}')
         })
         # ask the cache for the most recent API data
-        self.ecobee_data = None
-        data = self.vip.rpc.call(
-            self.cache_identity, "driver_data_get", "ecobee", self.group_id, THERMOSTAT_URL, headers,
-            update_frequency=180, params=params, refresh=refresh).get()
+        data = self.cache.driver_data_get(self.group_id, THERMOSTAT_URL, headers, update_frequency=180,
+                                          params=params, refresh=refresh)
         if data is None:
             raise RuntimeError("No Ecobee data available from Driver HTTP Cache Agent.")
         _log.info("Last Ecobee data update occurred: {}".format(data.get("request_timestamp")))

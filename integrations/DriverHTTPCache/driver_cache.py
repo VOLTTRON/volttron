@@ -8,66 +8,28 @@ import datetime
 import grequests
 import json
 import logging
-import os
 import requests
-import sys
 from volttron.platform import jsonapi
 from volttron.platform.agent import utils
-from volttron.platform.vip.agent import Agent, RPC
+from volttron.utils.persistance import PersistentDict
 
 _log = logging.getLogger(__name__)
 utils.setup_logging()
 __version__ = "0.1"
 
 
-def driver_http_cache(config_path, **kwargs):
-    """Parses the Agent configuration and returns an instance of the agent created using that configuration.
-    :param config_path: Path to a configuration file.
-    :type config_path: str
-    :returns: DriverHTTPCache agent instance
-    :rtype: DriverHTTPCache
-    """
-    try:
-        config = utils.load_config(config_path)
-    except Exception:
-        config = {}
-
-    return DriverHTTPCache(**kwargs)
-
-
-class DriverHTTPCache(Agent):
+class DriverHTTPCache(object):
     """
     Document for retrieving remote API driver data and caching it during it's update period
     """
 
-    def __init__(self, **kwargs):
-        super(DriverHTTPCache, self).__init__(**kwargs)
-        self.default_config = {}
-        # Set a default configuration to ensure that self.configure is called immediately to setup the agent.
-        self.vip.config.set_default("config", self.default_config)
-        # Hook self.configure up to changes to the configuration file "config".
-        self.vip.config.subscribe(self.configure, actions=["NEW", "UPDATE"], pattern="config")
+    def __init__(self, driver_name):
+        super(DriverHTTPCache, self).__init__()
+        store_path = "driver_cache.json"
+        self.driver_name = driver_name
+        self.cache = PersistentDict(filename=store_path, format='json')
 
-    def configure(self, config_name, action, contents):
-        """
-        Set agent configuration from config store
-        :param config_name: Unused configuration name string
-        :param action: Unused configuration action
-        :param contents: Configuration store contents dictionary
-        """
-        config = self.default_config.copy()
-        config.update(contents)
-
-    @RPC.export
-    def get_version(self):
-        """
-        :return: Agent version
-        """
-        return __version__
-
-
-    @RPC.export
-    def driver_data_get(self, driver_type, group_id, url, headers, params=None, body=None,
+    def driver_data_get(self, group_id, url, headers, params=None, body=None,
                         update_frequency=60, refresh=False):
         """
         Get the most up to date remote API driver data based on provided update frequency
@@ -81,14 +43,13 @@ class DriverHTTPCache(Agent):
         :param refresh: If true, Driver HTTP Cache agent will skip retrieving cached data
         :return: Remote API response data dictionary to be parsed by driver
         """
-        return self.get_driver_data(driver_type, group_id, "GET", url, headers, params=params, body=body,
+        return self.get_driver_data(group_id, "GET", url, headers, params=params, body=body,
                                     update_frequency=update_frequency, refresh=refresh)
 
-    @RPC.export
-    def driver_data_post(self, driver_type, group_id, url, headers, params=None, body=None,
+    def driver_data_post(self, group_id, url, headers, params=None, body=None,
                          update_frequency=60, refresh=False):
         """
-        Post the updated data using remote API 
+        Post the updated data using remote API
         :param group_id: arbitrary identifier to separate driver data between collections of devices
         :param driver_type: String representation of the type of driver
         :param url: String url for communicating with remote API
@@ -99,10 +60,10 @@ class DriverHTTPCache(Agent):
         :param refresh: If true, Driver HTTP Cache agent will skip retrieving cached data
         :return: Remote API response data dictionary to be parsed by driver
         """
-        return self.get_driver_data(driver_type, group_id, "POST", url, headers, params=params, body=body,
+        return self.get_driver_data(group_id, "POST", url, headers, params=params, body=body,
                                     update_frequency=update_frequency, refresh=refresh)
 
-    def get_driver_data(self, driver_type, group_id, request_type, url, headers, params=None, body=None,
+    def get_driver_data(self, group_id, request_type, url, headers, params=None, body=None,
                         update_frequency=60, refresh=False):
         """
         Get the most up to date remote API driver data based on provided update frequency
@@ -118,8 +79,6 @@ class DriverHTTPCache(Agent):
         :return: Remote API response data dictionary to be parsed by driver
         """
         # Input validation
-        if not isinstance(driver_type, str):
-            raise ValueError("Invalid driver type: {}, expected unique string".format(driver_type))
         if not isinstance(group_id, str):
             raise ValueError("Invalid driver group ID: {}, expected unique string".format(group_id))
         if not isinstance(update_frequency, int):
@@ -134,53 +93,52 @@ class DriverHTTPCache(Agent):
             body = json.loads(body)
         # Override if "fresh" data requested by driver
         if refresh:
-            request_data = self._get_json_request(
-                driver_type, group_id, request_type, url, headers, params=params, body=body)
+            request_data = self._get_json_request(group_id, request_type, url, headers, params=params, body=body)
             return request_data
         else:
-            # try to get recently cached data - will throw exception if the dat is out of date
+            # try to get recently cached data - will throw exception if the data is out of date
             try:
-                return self._get_json_cache(driver_type, group_id, url, update_frequency)
+                return self._get_json_cache(group_id, url, update_frequency)
             # if no recently cached data is available, request data from remote API based on provided parameters
-            except (RuntimeError, KeyError):
-                request_data = self._get_json_request(
-                    driver_type, group_id, request_type, url, headers, params=params, body=body)
+            except (RuntimeError, ValueError, KeyError):
+                request_data = self._get_json_request(group_id, request_type, url, headers, params=params, body=body)
                 return request_data
 
-    def _get_json_cache(self, driver_type, group_id, request_url, update_frequency):
+    # TODO rework storage to use shared persistent dict
+    def _get_json_cache(self, group_id, request_url, update_frequency):
         """
         Fetch data from cache file corresponding to the driver type/group id based on request's url
-        :param driver_type: String representation of the type of driver
         :param group_id: arbitrary identifier to separate driver data between collections of devices
         :param request_url: HTTP request URL used to differentiate request endpoints (allows caching of multiple
         endpoints per driver)
         :param update_frequency: Frequency in seconds between remote API data updates, defaults to 60
         :return: Remote API response data dictionary from cache to be parsed by driver
         """
-        data_path = "{}_{}.json".format(driver_type, group_id)
         update_delta = datetime.timedelta(seconds=update_frequency)
-        if not os.path.isfile(data_path):
-            raise RuntimeError("Data file for driver {}, id {} not found".format(driver_type, group_id))
-        else:
-            _log.debug("Checking cache at: {}".format(data_path))
-            with open(data_path) as data_file:
-                json_data = json.load(data_file)
-                if request_url not in json_data:
-                    raise KeyError("No data for url found in driver cache: {}".format(request_url))
-                url_data = json_data.get(request_url)
+        # If there is a group entry containing data for the given URL in the cache
+        if self.cache.get(self.driver_name):
+            driver_data = self.cache.get(self.driver_name)
+            if driver_data.get(group_id):
+                url_data = driver_data.get(group_id).get(request_url)
+                if not url_data or not isinstance(url_data, dict):
+                    raise ValueError("No valid data stored for group {} url {}".format(group_id, request_url))
+                # Determine if the cached data is out of date
                 request_timestamp = utils.parse_timestamp_string(url_data.get("request_timestamp"))
                 next_update_timestamp = request_timestamp + update_delta
                 if next_update_timestamp < datetime.datetime.now():
                     raise RuntimeError("Request timestamp out of date, send new request")
                 else:
                     return url_data
+            else:
+                raise KeyError("No {} data for url found in driver cache: {}".format(group_id, request_url))
+        else:
+            raise KeyError("No data found for {} driver in driver cache".format(self.driver_name))
 
-    def _get_json_request(self, driver_type, group_id, request_type, url, headers, params=None, body=None):
+    def _get_json_request(self, group_id, request_type, url, headers, params=None, body=None):
         """
         Fetch data from remote API using grequests wrapper method then store the data in the cache for later retrieval
         :param group_id: arbitrary identifier to separate driver data between collections of devices
         :param request_type: String representation of the type of driver
-        :param driver_type: HTTP request type for communicating with remote API
         :param url: String url for communicating with remote API
         :param headers: HTTP request headers dictionary for remote API specified by driver
         :param params: HTTP request parameters dictionary for remote API specified by driver
@@ -198,16 +156,12 @@ class DriverHTTPCache(Agent):
         json_data = {
             url: url_data
         }
-        file_path = "{}_{}.json".format(driver_type, group_id)
-        if not os.path.isfile(file_path):
-            with open(file_path, "w") as data_file:
-                jsonapi.dump(json_data, data_file)
+        if self.driver_name not in self.cache:
+            self.cache[self.driver_name] = {}
+        if group_id not in self.cache[self.driver_name]:
+            self.cache[self.driver_name][group_id] = json_data
         else:
-            with open(file_path, "r") as data_file:
-                cache = jsonapi.load(data_file)
-            cache.update(json_data)
-            with open(file_path, "w") as data_file:
-                jsonapi.dump(cache, data_file)
+            self.cache[self.driver_name][group_id].update(json_data)
         return url_data
 
     def grequests_wrapper(self, request_type, url, headers, params=None, body=None):
@@ -249,18 +203,3 @@ class DriverHTTPCache(Agent):
             return
         else:
             raise RuntimeError("Request to Ecobee failed with response code {}: {}.".format(response_code, text))
-
-
-def main():
-    """
-    Main method called to start the agent.
-    """
-    utils.vip_main(driver_http_cache, identity="platform.drivercache", version=__version__)
-
-
-if __name__ == '__main__':
-    # Entry point for script
-    try:
-        sys.exit(main())
-    except KeyboardInterrupt:
-        pass
