@@ -3,6 +3,15 @@
 OpenADR VTN Server: Installation and Configuration
 ==================================================
 
+The OpenADR VTN server is a partial implementation of the OpenADR VTN specification developed by Kisensum for
+interoperability with the VOLTTRON core VEN agent implementation. The VTN server resides in the VOLTTRON applications
+repository, and is not supported by the VOLTTRON core team.
+
+Known issues: The Kisensum implementation of the VTN server does not currently include support for registration,
+including QueryRegistration requests, create and cancel party requests, etc. Additionally, it does not implement opt-in
+behavior as specified by OpenADR. Finally, it has been found that requests containing empty basic authentication will
+be served a 403 error, while requests with no authentication will proceed to the correct endpoint normally.
+
 The Kisensum VTN server is a Django application written in Python 3 and utilizing a Postgres database.
 
 .. warning:: 

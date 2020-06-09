@@ -3,7 +3,7 @@
 
 import time
 import sys
-from StringIO import StringIO
+from io import StringIO
 
 
 def script_runner(message):
@@ -16,7 +16,7 @@ def script_runner(message):
     try:
         out = StringIO()
         sys.stdout = out
-        execfile(sys.argv[0])
+        exec(open(sys.argv[0]).read())
         sys.stdout = original
         return out.getvalue()
     except Exception as ex:
