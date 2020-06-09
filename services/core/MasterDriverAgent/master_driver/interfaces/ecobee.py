@@ -82,6 +82,7 @@ class Interface(BasicRevert, BaseInterface):
         # Un-initialized data response from Driver Cache agent
         self.ecobee_data = None
         # Ecobee registers are of non-standard data types, so override existing register type dictionary
+        # TODO deal with these types, some should be convertible to int types
         self.registers = {
             ('hold', False): [],
             ('hold', True): [],
@@ -99,7 +100,6 @@ class Interface(BasicRevert, BaseInterface):
     def configure(self, config_dict, registry_config_str):
         self.config_dict.update(config_dict)
         self.api_key = self.config_dict.get("API_KEY")
-        self.cache_identity = self.config_dict.get("CACHE_IDENTITY")
         self.ecobee_id = self.config_dict.get('DEVICE_ID')
         if not isinstance(self.ecobee_id, int):
             try:
@@ -147,19 +147,15 @@ class Interface(BasicRevert, BaseInterface):
             return
         # Parse configuration file for registry parameters, then add new register to the interface
         for index, regDef in enumerate(config_dict):
-            if not regDef.get("Point Name"):
+            point_name = regDef.get("Point Name")
+            if not point_name:
                 _log.warning("Registry configuration contained entry without a point name: {}".format(regDef))
                 continue
             read_only = regDef.get('Writable', "").lower() != 'true'
             readable = regDef.get('Readable', "").lower() == 'true'
-            point_name = regDef.get('Volttron Point Name')
-            if not point_name:
-                point_name = regDef.get("Point Name")
-            if not point_name:
-                # We require something we can use as a name for the register, so
-                # don't try to create a register without the name
-                raise ValueError(
-                    "Registry config entry {} did not have a point name or VOLTTRON point name".format(index))
+            volttron_point_name = regDef.get('Volttron Point Name')
+            if not volttron_point_name:
+                volttron_point_name = point_name
             description = regDef.get('Notes', '')
             units = regDef.get('Units', None)
             default_value = regDef.get("Default Value", "").strip()
@@ -169,15 +165,18 @@ class Interface(BasicRevert, BaseInterface):
             type_name = regDef.get("Type", 'string')
             # Create an instance of the register class based on the register type
             if type_name.lower().startswith("setting"):
-                register = Setting(self.ecobee_id, read_only, readable, point_name, units, description=description)
+                register = Setting(self.ecobee_id, read_only, readable, volttron_point_name, point_name, units,
+                                   description=description)
             elif type_name.lower() == "hold":
                 if first_hold:
                     _log.warning("Hold registers' set_point requires dictionary value, for best practices, visit "
                                  "https://www.ecobee.com/home/developer/api/documentation/v1/functions/SetHold.shtml")
                     first_hold = False
-                register = Hold(self.ecobee_id, read_only, readable, point_name, units, description=description)
+                register = Hold(self.ecobee_id, read_only, readable, volttron_point_name, point_name, units,
+                                description=description)
             else:
-                raise ValueError("Unsupported register type {} in Ecobee registry configuration".format(type_name))
+                _log.warning("Unsupported register type {} in Ecobee registry configuration".format(type_name))
+                continue
             if default_value is not None:
                 self.set_default(point_name, register.value)
             # Add the register instance to our list of registers
@@ -353,6 +352,8 @@ class Interface(BasicRevert, BaseInterface):
         """
         # Find the named register and get its current state from the periodic Ecobee API data
         register = self.get_register_by_name(point_name)
+        if not register.readable:
+            raise RuntimeError("Requested read from non-readable point {}".format(point_name))
         if isinstance(register, Status):
             return register.get_state(self.access_token)
         else:
@@ -432,10 +433,12 @@ class Setting(BaseRegister):
     Register to wrap around points contained in setting field of Ecobee API's thermostat data response
     """
 
-    def __init__(self, thermostat_identifier, read_only, readable, point_name, units, description=''):
+    def __init__(self, thermostat_identifier, read_only, readable, point_name, point_path, units,
+                 description=''):
         super(Setting, self).__init__("setting", read_only, point_name, units, description=description)
         self.thermostat_id = thermostat_identifier
         self.readable = readable
+        self.point_path = point_path
 
     def set_state(self, value, access_token):
         """
@@ -450,7 +453,7 @@ class Setting(BaseRegister):
         thermostat_body = {
             "thermostat": {
                 "settings": {
-                    self.point_name: value
+                    self.point_path: value
                 }
             }
         }
@@ -470,12 +473,13 @@ class Setting(BaseRegister):
         # Parse the state out of the data dictionary
         for thermostat in ecobee_data.get("thermostatList"):
             if int(thermostat["identifier"]) == self.thermostat_id:
-                if self.point_name not in thermostat["settings"]:
+                if self.point_path not in thermostat["settings"]:
                     raise RuntimeError("Register name {} could not be found in latest Ecobee data".format(
                         self.point_name))
                 else:
-                    return thermostat["settings"].get(self.point_name)
-        raise RuntimeError("Point {} not available in Ecobee data.".format(self.point_name))
+                    return thermostat["settings"].get(self.point_path)
+        raise RuntimeError("Point {} not available in Ecobee data (Volttron Point Name {}).".format(self.point_path,
+                                                                                                    self.point_name))
 
 
 class Hold(BaseRegister):
@@ -483,11 +487,12 @@ class Hold(BaseRegister):
     Register to wrap around points contained in hold field of Ecobee API's thermostat data response
     """
 
-    def __init__(self, thermostat_identifier, read_only, readable, point_name, units, description=''):
+    def __init__(self, thermostat_identifier, read_only, readable, point_name, point_path, units, description=''):
         super(Hold, self).__init__("hold", read_only, point_name, units, description=description)
         self.thermostat_id = thermostat_identifier
         self.readable = readable
         self.python_type = int
+        self.point_path = point_path
 
     def set_state(self, value, access_token):
         """
@@ -500,7 +505,7 @@ class Hold(BaseRegister):
             raise ValueError("Hold register set_state expects dict, received {}".format(type(value)))
         if "holdType" not in value:
             raise ValueError('Hold register requires "holdType" in value dict')
-        if self.point_name not in value:
+        if self.point_path not in value:
             raise ValueError("Point name {} not found in Hold set_state value dict")
         # Generate set state request content and send reques
         params = {"format": "json"}
@@ -531,8 +536,9 @@ class Hold(BaseRegister):
                 runtime_data = thermostat.get("runtime")
                 if not runtime_data:
                     raise RuntimeError("No runtime data included in Ecobee response")
-                return runtime_data.get(self.point_name)
-        raise RuntimeError("Point {} not available in Ecobee data.".format(self.point_name))
+                return runtime_data.get(self.point_path)
+        raise RuntimeError("Point {} not available in Ecobee data (Volttron Point Name {}).".format(self.point_path,
+                                                                                                    self.point_name))
 
 
 class Status(BaseRegister):
