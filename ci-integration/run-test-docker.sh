@@ -1,5 +1,5 @@
 #!/bin/bash
-set -x # log all shell commands for debugging.
+# set -x # log all shell commands for debugging.
 set -e # fail if any command errors without being caught with an || or an 'if'.
 
 # The following script builds a volttron test image and then
