@@ -86,6 +86,13 @@
     #    Configurable http proxy passed to pip when installing extra packages
     http_proxy: "{{ http_proxy | default('') }}"
 
+    ###
+    #  [string] default: (the default is system dependent)
+    #    If using the RMQ bus, this sets the version of erlang packages to install
+    erlang_package_version: >
+      "{{ erlang_package_version | default( (ansible_architecture is search('arm')) |
+                                            ternary('1:21.2.6+dfsg-1', '1:22.1.8.1-1') ) }}"
+
 ## the following facts must be set in separate tasks because they build on earlier facts
 ## NOTE: ansible does not consider paths relative to CWD, these paths must be absolute
 ##       or in the tree of the playbook in a default searched location
