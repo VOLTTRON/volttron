@@ -1,5 +1,8 @@
+.. _ecobee-web-driver:
+
+*************
 Ecobee Driver
-=============
+*************
 
 The Ecobee driver is an implementation of a VOLTTRON driver frame work Interface.
 An instance of a VOLTTRON Interface serves as an interface between the VOLTTRON
@@ -9,7 +12,7 @@ data from and set values for thermostats configured for a user using the Ecobee
 remote API (https://www.ecobee.com/home/developer/api/introduction/index.shtml)
 
 Configuration File
-------------------
+##################
 
 The Ecobee driver uses two configuration files, similar to many other VOLTTRON
 agents.
@@ -19,15 +22,10 @@ This is an example driver configuration:
 ::
 
     {
-        "driver_config": {"ACCESS_TOKEN": "<Ecobee Access Token>",
-                          "API_KEY":"<User Ecobee API key>",
-                          "REFRESH_TOKEN": "<Ecobee Auth Refresh Token>",
-                          "AUTHORIZATION_CODE": "<Ecobee Application Authorization Code>",
-                          "PIN": "<Ecobee Application Authorization Code>",
+        "driver_config": {"API_KEY":"<User Ecobee API key>",
                           "DEVICE_ID": <User Ecobee thermostat serial number>,
                           "GROUP_ID": "<Arbitrary string identifier for all devices included in remote API data>",
-                          "CACHE_IDENTITY": "platform.drivercache",
-                          "config_name": "devices/ecobee"},
+                          "CACHE_IDENTITY": "platform.drivercache"},
         "driver_type": "ecobee",
         "registry_config":"config://ecobee.csv",
         "interval": 180,
@@ -36,30 +34,14 @@ This is an example driver configuration:
 
 The driver configuration works as follows:
 
+::
+
     driver_config: this section specifies values used by the driver agent during
     operation.
-
-        ACCESS_TOKEN - This is the access token provided by Ecobee. If the user
-        does not initially have this value, it can be left as an empty string and
-        fetched by the driver later.
 
         API_KEY - This is the User's API key. This must be obtained by the user from
         the Ecobee web UI and provided in this part of the configuration. Notes
         on how to do this will be provided below.
-
-        REFRESH_TOKEN - This is the access token provided by Ecobee. If the user
-        does not initially have this value, it can be left as an empty string and
-        fetched by the driver later.
-
-        AUTHORIZATION_CODE - This is the access token provided by Ecobee. If the user
-        does not initially have this value, it can be left as an empty string and
-        fetched by the driver later.
-
-        PIN - This pin is provided by the Ecobee API when requesting a new
-        authorization code. The driver will obtain a new authorization code and pin
-        for the driver's user, however the user is responsible for validating the
-        authorization code using the pin. Notes on how to do this will be provided
-        below.
 
         DEVICE_ID - This is the device number of the Ecobee thermostat the driver
         is responsible for operating. This must be obtained by the user from the
@@ -76,9 +58,6 @@ The driver configuration works as follows:
         installing the Driver HTTP Cache agent. failure to provide a matching identity
         will result in the platform being unable to send requests to the Driver HTTP Cache
         agent, which is required to be running for the Ecobee driver's operations.
-
-        config_name - This should directly match the device topic used in the
-        installation of the Ecobee driver (see Installation below).
 
     driver_type: This value should match the name of the python file which contains
     the interface class implementation for the ecobee driver. This should not change
@@ -103,42 +82,43 @@ The following configuration is the basic starting point configuration file:
 ::
 
     {
-        "driver_config": {"ACCESS_TOKEN": "",
-                          "API_KEY":"<User Ecobee API key>",
-                          "REFRESH_TOKEN": "",
-                          "AUTHORIZATION_CODE": "",
-                          "PIN": "",
+        "driver_config": {"API_KEY":"<User Ecobee API key>",
                           "DEVICE_ID": <User Ecobee thermostat serial number>,
                           "GROUP_ID": "<Arbitrary string identifier for all devices included in remote API data>",
-                          "CACHE_IDENTITY": "platform.drivercache",
-                          "config_name": "devices/ecobee"},
+                          "CACHE_IDENTITY": "platform.drivercache"},
         "driver_type": "ecobee",
         "registry_config":"config://ecobee.csv",
         "interval": 180,
         "timezone": "UTC"
     }
 
-Notice:
+.. note::
 
-    ACCESS_TOKEN, REFRESH_TOKEN, AUTHORIZATION_CODE and PIN values are all left as empty strings. These
-    values will be obtained by the driver as it starts. After starting, the user will be required to validate the
-    Authorization code by inputting the pin in the Web UI by going to the UI "hamburger" > "MyApps" > "Add Application"
-    then select "Validate" and finally "Add Application".
+    Values for API_KEY and DEVICE_ID must be obtained by the user. DEVICE_ID should be added as an integer representation of the thermostat's serial number.
 
-    Values for API_KEY and DEVICE_ID must be obtained by the user. Additional instructions for obtaining these values
-    can be found at the bottom of this documentation.
+    **Getting API Key**
 
-    DEVICE_ID should be added as an integer representation of the thermostat's serial number.
+    Instructions for finding your API key as well as authenticating the Ecobee Driver using the PIN can be found here:
+    https://www.ecobee.com/home/developer/api/examples/ex1.shtml Under the Example 1 header.
 
-    The CACHE_IDENTITY value may be specified however the user specifies the Driver HTTP Cache agent's identity during
-    installation.
+    **Finding Device Identifier**
 
-    GROUP_ID is an arbitrarily chosen identifier which should correspond to one name given to the thermostats for one
+
+    To find your Ecobee thermostat's device identifier:
+
+        1. Log into the Ecobee customer portal (https://www.ecobee.com/consumerportal/index.html).
+        2. From the Home screen click "About My Ecobee"
+        3. The thermostat identifier is the serial number listed on the About screen
+
+    **CACHE_IDENTITY** - value must be specified however the user specifies the Driver HTTP Cache agent's identity during
+    installation (for instance, if driver cache agent is installed with `-i platform.drivercache` this entry must also
+    be `platform.drivercache`.)
+
+    **GROUP_ID** is an arbitrarily chosen identifier which should correspond to one name given to the thermostats for one
     Ecobee user account (all thermostats for that user account will be represented by this group id; group id does not
     affect the data in any way, it is used by the Driver HTTP Cache agent as a way of mapping drivers to their
     corresponding cached data).
 
-    config_name should match exactly the path used to store the driver configuration file in the config store.
 
 Registry Configuration
 ----------------------
@@ -155,6 +135,8 @@ same range of data in a similar format.
 
 This is an example registry configuration:
 
+.. csv-table::
+
     Point Name,Volttron Point Name,Units,Type,Writable,Readable,Default Value,Notes
     fanMinOnTime,fanMinOnTime,seconds,setting,True,True,,
     hvacMode,hvacMode,seconds,setting,True,True,,
@@ -166,6 +148,8 @@ This is an example registry configuration:
     actualTemperature,actualTemperature,degF,hold,False,True,,
 
 This configuration works as follows:
+
+::
 
     Point Name - Name of a point as it appears in Ecobee response data (example
     below)
@@ -194,13 +178,11 @@ This configuration works as follows:
 
     Notes - Any user specified notes, this is optional
 
----
-Explanation on the quirks of Ecobee's readable/writable points, visit:
+For additional explanation on the quirks of Ecobee's readable/writable points, visit:
 https://www.ecobee.com/home/developer/api/documentation/v1/functions/SetHold.shtml
----
 
 Installation
-------------
+############
 
 These are the most basic installation steps for the Ecobee driver. This guide
 assumes the user is in the VOLTTRON_ROOT directory, the VOLTTRON platform has
@@ -208,7 +190,9 @@ been installed and bootstrapped per the  instructions in the VOLTTRON README,
 and that the Driver HTTP Cache agent has been installed using the installation
 instructions above.
 
-Below are the seup instructions.
+Below are the setup instructions.
+
+::
 
     1. If the platform has not been started:
 
@@ -260,7 +244,7 @@ This text can be found in the logs to specify the pin:
 
 
 Ecobee Driver Usage
--------------------
+###################
 
 At the configured interval, the master driver will publish a JSON object
 with data obtained from Ecobee based on the provided configuration files.
@@ -319,6 +303,8 @@ The following is an example publish:
 Individual points can be obtained via JSON RPC on the VOLTTRON Platform.
 In an agent:
 
+::
+
     self.vip.rpc.call("platform.driver", "get_point", <device topic>, <kwargs>)
 
 Set_point
@@ -349,29 +335,6 @@ all programs on the program stack.
 
 For all other points, the corresponding integer, string, boolean, etc. value may
 be sent.
-
-Additional Instructions
-=======================
-
-Getting API Key
----------------
-
-Instructions for finding your API key can be found here:
-https://www.ecobee.com/home/developer/api/examples/ex1.shtml Under the Example
-1 header.
-
-Authenicating the Ecobee Driver using the PIN can be found at the same link
-under Example 1 step 1 subheader.
-
-Finding Device Identifier
--------------------------
-
-
-To find your Ecobee thermostat's device identifier:
-
-    1. Log into the Ecobee customer portal (https://www.ecobee.com/consumerportal/index.html).
-    2. From the Home screen click "About My Ecobee"
-    3. The thermostat identifier is the serial number listed on the About screen
 
 Versioning
 ~~~~~~~~~~
