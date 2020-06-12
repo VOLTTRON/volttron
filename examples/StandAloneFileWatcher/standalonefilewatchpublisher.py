@@ -1,8 +1,6 @@
 '''
-    This python script will listen to the defined vip address for specific
-    topics. This script prints all output to standard  out rather than using the
-    logging facilities. This script will also publish a heart beat
-    (which will be returned if listening to the heartbeat topic).
+    This python script will listen to the specified files and publish
+    updates to specific topics to the remote instance.
 
     Setup:
     ~~~~~
@@ -31,29 +29,14 @@
          roles (delimit multiple entries with comma) []:
          groups (delimit multiple entries with comma) []:
          mechanism [CURVE]:
-         credentials []: GsEq7mIsU6mJ31TN44lQJeGwkJlb6_zbWgRxVo2gUUU
+         credentials []: rn_V3vxTLMwaIRUEIAIHee4-qM8X70irDThcn_TX6FA
          comments []:
          enabled [True]:
 
       4. With a volttron activated shell this script can be run like:
 
-         python standalonelistener.py
+         python standalonefilewatchpublisher.py
 
-
-    Example output to standard out:
-
-        {"topic": "heartbeat/standalonelistener",
-         "headers": {"Date": "2015-10-22 15:22:43.184351Z", "Content-Type": "text/plain"},
-         "message": "2015-10-22 15:22:43.184351Z"}
-        {"topic": "devices/building/campus/hotwater/heater/resistive/information/power/part_realpwr_avg",
-         "headers": {"Date": "2015-10-22 00:45:15.480339"},
-         "message": [{"part_realpwr_avg": 0.0}, {"part_realpwr_avg": {"units": "percent", "tz": "US/Pacific", "type": "float"}}]}
-
-    The heartbeat message is a simple plain text message with just a date stamp
-    
-    A "data" message contains an array of 2 elements.  The first element 
-    contains a dictionary of (point name: value) pairs.  The second element
-    contains context around the point data and the "Date" header.
 '''
 
 from datetime import datetime
@@ -64,7 +47,6 @@ import gevent
 import logging
 
 
-from volttron.platform.messaging import headers as headers_mod
 from volttron.platform.vip.agent import Agent, PubSub, RPC, Core
 from volttron.platform.agent import utils
 from volttron.platform.agent.utils import watch_file_with_fullpath
@@ -72,7 +54,7 @@ from volttron.platform import jsonapi
 
 
 # These are the options that can be set from the settings module.
-from settings import remote_url, topics_prefixes_to_watch, heartbeat_period
+from settings import remote_url, config
 
 # Setup logging so that we could use it if we needed to.
 utils.setup_logging()
@@ -86,7 +68,7 @@ logging.basicConfig(
 
 class StandAloneFileWatchPublisher(Agent):
     ''' A standalone version of the FileWatcherPublisher'''
-    def __init__(self, config, **kwargs):
+    def __init__(self, **kwargs):
         super(StandAloneFileWatchPublisher, self).__init__(**kwargs)
         self.config = config
         items = config[:]
