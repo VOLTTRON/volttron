@@ -1,12 +1,12 @@
 '''
     This python script will listen to the specified files and publish
-    updates to specific topics to the remote instance.
+    updates to specific topics on the remote instance.
 
     Setup:
     ~~~~~
 
       1. Make sure volttron instance is running using tcp address. use vcfg
-         command to configure volttron instance address,.
+         command to configure the volttron instance address.
 
       2. Update settings.py
 
