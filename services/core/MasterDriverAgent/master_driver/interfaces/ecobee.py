@@ -672,7 +672,7 @@ class Vacation(BaseRegister):
         for thermostat in ecobee_data.get("thermostatList"):
             if int(thermostat.get("identifier")) == self.thermostat_id:
                 events_data = thermostat.get("events")
-                if not events_data:
+                if not isinstance(events_data, list):
                     raise ValueError("Point name {} could not be found in latest Ecobee data".format(
                         self.point_name))
                 return [event for event in events_data if event.get("type") == "vacation"]
@@ -740,7 +740,7 @@ class Program(BaseRegister):
         for thermostat in ecobee_data.get("thermostatList"):
             if int(thermostat.get("identifier")) == self.thermostat_id:
                 events_data = thermostat.get("events")
-                if not events_data:
+                if not isinstance(events_data, list):
                     raise ValueError("Point name {} could not be found in latest Ecobee data".format(
                         self.point_name))
                 return [event for event in events_data if event.get("type") != "vacation"]
@@ -776,10 +776,10 @@ class Status(BaseRegister):
         for thermostat in ecobee_data.get("thermostatList"):
             if int(thermostat.get("identifier")) == self.thermostat_id:
                 status_string = thermostat.get("equipmentStatus")
-                if not status_string:
+                if not isinstance(status_string, str):
                     raise ValueError("Point name {} could not be found in latest Ecobee data".format(
                         self.point_name))
-                return status_string.split(",")
+                return [status for status in status_string.split(",") if len(status)]
         raise ValueError("Point {} not available in Ecobee data.".format(self.point_name))
 
 
