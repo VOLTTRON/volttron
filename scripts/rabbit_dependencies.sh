@@ -79,7 +79,7 @@ function install_on_debian {
         echo "deb https://packages.erlang-solutions.com/ubuntu $DIST contrib" | sudo tee /etc/apt/sources.list.d/erlang.solutions.list
     fi
 
-    version="1:22.1.8.1-1"
+    version=${erlang_package_version}
     ${prefix} apt-get update
     ${prefix} apt-get install -yf
     ${prefix} apt-get install -y "erlang-asn1=$version" \
@@ -122,6 +122,10 @@ fi
 ${prefix} pwd > /dev/null
 
 if [[ "$os_name" == "debian" ]]; then
+    erlang_package_version="1:22.1.8.1-1"
+    install_on_debian
+elif [[ "$os_name" == "raspbian" ]]; then
+    erlang_package_version="1:21.2.6+dfsg-1"
     install_on_debian
 elif [[ "$os_name" == "centos" ]]; then
     install_on_centos
