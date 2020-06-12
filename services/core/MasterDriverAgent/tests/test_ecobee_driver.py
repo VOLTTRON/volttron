@@ -325,6 +325,18 @@ def test_ecobee_get_point_success(mock_ecobee, point_name, expected_value):
     assert mock_ecobee.get_point(point_name) == expected_value
 
 
+def test_ecobee_empty_values(mock_ecobee):
+    mock_ecobee.configure(VALID_ECOBEE_CONFIG, VALID_ECOBEE_REGISTRY)
+    empty_response = copy.deepcopy(REMOTE_RESPONSE)
+    empty_response["thermostatList"][0]["equipmentStatus"] = ""
+    empty_response["thermostatList"][0]["events"] = []
+    mock_ecobee.thermostat_data = empty_response
+
+    assert mock_ecobee.get_point("Status") == []
+    assert mock_ecobee.get_point("Vacations") == []
+    assert mock_ecobee.get_point("Programs") == []
+
+
 def test_ecobee_get_point_unreadable(mock_ecobee):
     mixed_readable_registry = [{
         "Point Name": "hold1",
