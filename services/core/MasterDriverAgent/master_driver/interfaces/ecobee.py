@@ -100,7 +100,7 @@ class Interface(BasicRevert, BaseInterface):
                 self.ecobee_id = int(self.ecobee_id)
             except ValueError:
                 raise ValueError(
-                    "Ecobee driver requires Ecobee device identifier as int, got: {}".format(self.ecobee_id))
+                    f"Ecobee driver requires Ecobee device identifier as int, got: {self.ecobee_id}")
         self.cache = PersistentDict("ecobee_" + str(self.ecobee_id) + ".json", format='json')
         self.auth_config_path = AUTH_CONFIG_PATH.format(self.ecobee_id)
         self.parse_config(registry_config_str)
@@ -146,7 +146,7 @@ class Interface(BasicRevert, BaseInterface):
         for index, regDef in enumerate(config_dict):
             point_name = regDef.get("Point Name")
             if not point_name:
-                _log.warning("Registry configuration contained entry without a point name: {}".format(regDef))
+                _log.warning(f"Registry configuration contained entry without a point name: {regDef}")
                 continue
             read_only = regDef.get('Writable', "").lower() != 'true'
             readable = regDef.get('Readable', "").lower() == 'true'
@@ -172,7 +172,7 @@ class Interface(BasicRevert, BaseInterface):
                 register = Hold(self.ecobee_id, read_only, readable, volttron_point_name, point_name, units,
                                 description=description)
             else:
-                _log.warning("Unsupported register type {} in Ecobee registry configuration".format(type_name))
+                _log.warning(f"Unsupported register type {type_name} in Ecobee registry configuration")
                 continue
             if default_value is not None:
                 self.set_default(point_name, default_value)
@@ -217,15 +217,15 @@ class Interface(BasicRevert, BaseInterface):
             return
         for auth_item in ['code', 'ecobeePin']:
             if auth_item not in response:
-                raise RuntimeError("Ecobee authorization response was missing required item: {}, response contained {}".
-                                   format(auth_item, response))
+                raise RuntimeError(f"Ecobee authorization response was missing required item: {auth_item}, response "
+                                   "contained {response}")
         self.authorization_code = response.get('code')
         pin = response.get('ecobeePin')
         _log.warning("***********************************************************")
         _log.warning(
-            'Please authorize your Ecobee developer app with PIN code {}.\nGo to '
+            f'Please authorize your Ecobee developer app with PIN code {pin}.\nGo to '
             'https://www.ecobee.com/consumerportal /index.html, click My Apps, Add application, Enter Pin and click '
-            'Authorize.'.format(pin))
+            'Authorize.')
         _log.warning("***********************************************************")
         self.authorization_stage = "REQUEST_TOKENS"
         gevent.sleep(60)
@@ -245,7 +245,7 @@ class Interface(BasicRevert, BaseInterface):
         response = make_ecobee_request("POST", url, data=params)
         for token in ["access_token", "refresh_token"]:
             if token not in response:
-                raise RuntimeError("Request tokens response did  not contain {}: {}".format(token, response))
+                raise RuntimeError(f"Request tokens response did  not contain {token}: {response}")
         self.access_token = response.get('access_token')
         self.refresh_token = response.get('refresh_token')
         self.authorization_stage = "AUTHORIZED"
@@ -266,7 +266,7 @@ class Interface(BasicRevert, BaseInterface):
         response = make_ecobee_request("POST", url, data=params)
         for token in 'access_token', 'refresh_token':
             if token not in response:
-                raise RuntimeError("Ecobee response did not contain token {}:, response was {}".format(token, response))
+                raise RuntimeError(f"Ecobee response did not contain token {token}:, response was {response}")
         self.access_token = response['access_token']
         self.refresh_token = response['refresh_token']
         self.authorization_stage = "AUTHORIZED"
@@ -283,6 +283,10 @@ class Interface(BasicRevert, BaseInterface):
                           send_update=False).get(timeout=3)
 
     def get_auth_config_from_store(self):
+        """
+        :return: Fetch currently stored auth configuration info from config store, returns empty dict if none is
+        present
+        """
         try:
             return jsonapi.loads(self.vip.rpc.call(
                 CONFIGURATION_STORE, "manage_get", PLATFORM_DRIVER, self.auth_config_path).get(timeout=3))
@@ -293,7 +297,7 @@ class Interface(BasicRevert, BaseInterface):
     def get_thermostat_data(self, refresh=False):
         """
         Collects most up to date thermostat object data for the configured Ecobee thermostat ID
-        :return:
+        :param refresh: whether or not to force obtaining new data from the remote Ecobee API
         """
         params = {
             "json": jsonapi.dumps({
@@ -315,7 +319,7 @@ class Interface(BasicRevert, BaseInterface):
     def get_ecobee_data(self, request_type, url, update_frequency, refresh=False, **kwargs):
         """
         Checks cache for up to date Ecobee data. If none is available for the URL, makes a request to remote Ecobee API.
-        :param refresh:
+        :param refresh: force Ecobee data to be obtained from the remote API rather than cache
         :param request_type: HTTP request type for request sent to remote
         :param url: URL of remote Ecobee API endpoint
         :param update_frequency: period for which cached data is considered up to date
@@ -340,15 +344,14 @@ class Interface(BasicRevert, BaseInterface):
         :param request_type: HTTP request type for making request
         :param url: URL corresponding to "register" data
         :param kwargs: HTTP request arguments
-        :return:
+        :return: remote API response body
         """
         try:
             response = make_ecobee_request(request_type, url, **kwargs)
             self.authorization_stage = "AUTHORIZED"
             return response
         except HTTPError:
-            _log.warning("HTTPError occurred while fetching data from Ecobee API url: {}".format(
-                url))
+            _log.warning(f"HTTPError occurred while fetching data from Ecobee API url: {url}")
             # The request to the remote failed, try refreshing the tokens and trying again using the refresh token
             self.authorization_stage = "REFRESH_TOKENS"
             try:
@@ -393,14 +396,14 @@ class Interface(BasicRevert, BaseInterface):
                 "request_response": response
             }
         })
-        _log.info("Last Ecobee update occurred at {}".format(timestamp))
+        _log.info(f"Last Ecobee update occurred at {timestamp}")
         self.cache.sync()
 
     def get_point(self, point_name, **kwargs):
         """
         Return a point's most recent stored value from remote API
-        :param point_name:
-        :return:
+        :param point_name: The name of the point corresponding to a register to get the state of
+        :return: register's most recent state from remote API response
         """
         # Find the named register and get its current state from the periodic Ecobee API data
         register = self.get_register_by_name(point_name)
@@ -420,7 +423,7 @@ class Interface(BasicRevert, BaseInterface):
         # Find the correct register by name, set its state, then fetch the new state based on the register's type
         register = self.get_register_by_name(point_name)
         if register.read_only:
-            raise IOError("Trying to write to a point configured read only: {}".format(point_name))
+            raise IOError(f"Trying to write to a point configured read only: {point_name}")
         try:
             if register.register_type == "setting" or register.register_type == "hold":
                 register.set_state(value)
@@ -442,10 +445,8 @@ class Interface(BasicRevert, BaseInterface):
         :return: dictionary of most recent data for all points configured for the driver
         """
         result = {}
-        # Get static registers
-        # Get all holds, filter holds that aren't readable points
-        bytes = self.get_registers_by_type("byte", True) + self.get_registers_by_type("byte", False)
-        registers = [register for register in bytes if register.readable]
+        byte_registers = self.get_registers_by_type("byte", True) + self.get_registers_by_type("byte", False)
+        registers = [register for register in byte_registers if register.readable]
         refresh = True
         # Add data for all holds and settings to our results
         for register in registers:
@@ -466,8 +467,8 @@ class Interface(BasicRevert, BaseInterface):
                     else:
                         result[register.point_name] = register_data
             finally:
-                _log.warning("Ecobee data for register {} could not be found during periodic scrape".format(
-                    register.point_name))
+                _log.warning(
+                    f"Ecobee data for register {register.point_name} could not be found during periodic scrape")
         return result
 
 
@@ -487,11 +488,11 @@ class Setting(BaseRegister):
         """
         Set Ecobee thermostat setting value by configured point name and provided value
         :param value: Arbitrarily specified value to request as set point
-        :param access_token:
+        :param access_token: Ecobee access token to provide as bearer auth in request
         :return: request response values from settings request
         """
         if self.read_only:
-            raise RuntimeError("Attempted write of read-only point {}".format(self.point_name))
+            raise RuntimeError(f"Attempted write of read-only point {self.point_name}")
         # Generate set state request content and send request
         params = {"format": "json"}
         thermostat_body = {
@@ -518,12 +519,11 @@ class Setting(BaseRegister):
             if int(thermostat["identifier"]) == self.thermostat_id:
                 if self.point_path not in thermostat.get("settings") or \
                         thermostat["settings"].get(self.point_path) is None:
-                    raise ValueError("Point name {} could not be found in latest Ecobee data".format(
-                        self.point_name))
+                    raise ValueError(f"Point name {self.point_name} could not be found in latest Ecobee data")
                 else:
                     return thermostat["settings"].get(self.point_path)
-        raise ValueError("Point {} not available in Ecobee data (Volttron Point Name {}).".format(self.point_path,
-                                                                                                  self.point_name))
+        raise ValueError(
+            f"Point {self.point_path} not available in Ecobee data (Volttron Point Name {self.point_name}).")
 
 
 class Hold(BaseRegister):
@@ -543,16 +543,16 @@ class Hold(BaseRegister):
         Set Ecobee thermostat hold by configured point name and provided value dictionary
         :param value: Arbitrarily specified value dictionary. Ecobee API documentation provides best practice
         information for each hold.
-        :param access_token:
+        :param access_token: Ecobee access token to provide as bearer auth in request
         :return: request response values from settings request
         """
         if not isinstance(value, dict):
-            raise ValueError("Hold register set_state expects dict, received {}".format(type(value)))
+            raise ValueError(f"Hold register set_state expects dict, received {type(value)}")
         if "holdType" not in value:
             raise ValueError('Hold register requires "holdType" in value dict')
         if self.point_path not in value:
-            raise ValueError("Point name {} not found in Hold set_state value dict")
-        # Generate set state request content and send reques
+            raise ValueError(f"Point name {self.point_name} not found in Hold set_state value dict")
+        # Generate set state request content and send request
         params = {"format": "json"}
         function_body = {
             "functions": [
@@ -571,7 +571,7 @@ class Hold(BaseRegister):
         :return: Most recently available data for this setting register
         """
         if not self.readable:
-            raise RuntimeError("Requested read of write-only point {}".format(self.point_name))
+            raise RuntimeError(f"Requested read of write-only point {self.point_name}")
         if not ecobee_data:
             raise ValueError("No Ecobee data from cache available during point scrape.")
         # Parse the value from the data dictionary
@@ -579,11 +579,10 @@ class Hold(BaseRegister):
             if int(thermostat.get("identifier")) == self.thermostat_id:
                 runtime_data = thermostat.get("runtime")
                 if not runtime_data or runtime_data.get(self.point_path) is None:
-                    raise ValueError("Point name {} could not be found in latest Ecobee data".format(
-                        self.point_name))
+                    raise ValueError(f"Point name {self.point_name} could not be found in latest Ecobee data")
                 return runtime_data.get(self.point_path)
-        raise ValueError("Point {} not available in Ecobee data (Volttron Point Name {}).".format(self.point_path,
-                                                                                                  self.point_name))
+        raise ValueError(
+            f"Point {self.point_path} not available in Ecobee data (Volttron Point Name {self.point_name}).")
 
 
 # TODO deleting a vacation is currently broken
@@ -606,7 +605,7 @@ class Vacation(BaseRegister):
         """
         Send delete or create vacation request to Ecobee API for the configured thermostat
         :param vacation: Vacation name for delete, or vacation object dictionary for create
-        :param access_token:
+        :param access_token: Ecobee access token to provide as bearer auth in request
         :param delete: Whether to delete the named vacation
         """
         if delete:
@@ -673,10 +672,9 @@ class Vacation(BaseRegister):
             if int(thermostat.get("identifier")) == self.thermostat_id:
                 events_data = thermostat.get("events")
                 if not isinstance(events_data, list):
-                    raise ValueError("Point name {} could not be found in latest Ecobee data".format(
-                        self.point_name))
+                    raise ValueError(f"Point name {self.point_name} could not be found in latest Ecobee data")
                 return [event for event in events_data if event.get("type") == "vacation"]
-        raise ValueError("Point {} not available in Ecobee data.".format(self.point_name))
+        raise ValueError(f"Point {self.point_name} not available in Ecobee data.")
 
 
 # TODO deleting a program currently broken
@@ -696,7 +694,7 @@ class Program(BaseRegister):
         """
         Set a new program, resume the next program on the programs stack, or "resume all"
         :param program: Program dictionary as specified by Ecobee API docs if setting a new program, else None
-        :param access_token:
+        :param access_token: Ecobee access token to provide as bearer auth in request
         :param resume_all: Whether or not to "resume all" if using the resume program function
         """
         params = {"format": "json"}
@@ -741,10 +739,9 @@ class Program(BaseRegister):
             if int(thermostat.get("identifier")) == self.thermostat_id:
                 events_data = thermostat.get("events")
                 if not isinstance(events_data, list):
-                    raise ValueError("Point name {} could not be found in latest Ecobee data".format(
-                        self.point_name))
+                    raise ValueError(f"Point name {self.point_name} could not be found in latest Ecobee data")
                 return [event for event in events_data if event.get("type") != "vacation"]
-        raise ValueError("Point {} not available in Ecobee data.".format(self.point_name))
+        raise ValueError(f"Point {self.point_name} not available in Ecobee data.")
 
 
 class Status(BaseRegister):
@@ -777,10 +774,9 @@ class Status(BaseRegister):
             if int(thermostat.get("identifier")) == self.thermostat_id:
                 status_string = thermostat.get("equipmentStatus")
                 if not isinstance(status_string, str):
-                    raise ValueError("Point name {} could not be found in latest Ecobee data".format(
-                        self.point_name))
+                    raise ValueError(f"Point name {self.point_name} could not be found in latest Ecobee data")
                 return [status for status in status_string.split(",") if len(status)]
-        raise ValueError("Point {} not available in Ecobee data.".format(self.point_name))
+        raise ValueError(f"Point {self.point_name} not available in Ecobee data.")
 
 
 def populate_thermostat_headers(access_token):
@@ -830,7 +826,7 @@ def call_grequest(method_name, url, **kwargs):
         response.raise_for_status()
         return response
     except (ConnectionError, NewConnectionError) as e:
-        _log.error("Error connecting to {} with args {}: {}".format(url, kwargs, e))
+        _log.error(f"Error connecting to {url} with args {kwargs}: {e}")
         raise e
 
 
@@ -843,7 +839,7 @@ def make_ecobee_request(request_type, url, **kwargs):
     if request_type.lower() in ["get", "post"]:
         response = call_grequest(request_type.lower(), url, verify=requests.certs.where(), timeout=30, **kwargs)
     else:
-        raise ValueError("Unsupported request type {} for Ecobee driver.".format(request_type))
+        raise ValueError(f"Unsupported request type {request_type} for Ecobee driver.")
     # Send request and extract data from response
     headers = response.headers
     if "json" in headers.get("Content-Type"):
