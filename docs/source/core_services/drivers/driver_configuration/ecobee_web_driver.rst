@@ -22,10 +22,10 @@ This is an example driver configuration:
 ::
 
     {
-        "driver_config": {"API_KEY":"<User Ecobee API key>",
-                          "DEVICE_ID": <User Ecobee thermostat serial number>,
-                          "GROUP_ID": "<Arbitrary string identifier for all devices included in remote API data>",
-                          "CACHE_IDENTITY": "platform.drivercache"},
+        "driver_config": {
+            "API_KEY":"<User Ecobee API key>",
+            "DEVICE_ID": <User Ecobee thermostat serial number>
+        },
         "driver_type": "ecobee",
         "registry_config":"config://ecobee.csv",
         "interval": 180,
@@ -47,18 +47,6 @@ The driver configuration works as follows:
         is responsible for operating. This must be obtained by the user from the
         Ecobee web UI. Notes on how to do this will be provided below.
 
-        GROUP_ID - This is an arbitrary string used to specify groups of thermostats.
-        For the purposes of the Ecobee driver, it is recommended that a group correspond
-        to the list of thermostats operated under a single user account (as Ecobee
-        provides data foor all thermostats on a user's account with a data request).
-        If only one user is running Ecobee drivers on a platform, this value can be
-        left at the default, but it should contain some string in any case.
-
-        CACHE_IDENTITY - This should match the string provided as the identity when
-        installing the Driver HTTP Cache agent. failure to provide a matching identity
-        will result in the platform being unable to send requests to the Driver HTTP Cache
-        agent, which is required to be running for the Ecobee driver's operations.
-
     driver_type: This value should match the name of the python file which contains
     the interface class implementation for the ecobee driver. This should not change
     if the user has not changed the name of that Python file.
@@ -74,27 +62,10 @@ The driver configuration works as follows:
 
     timezone: Timezone to use for timestamps.
 
-Configuring Ecobee for First Time Use
--------------------------------------
-
-The following configuration is the basic starting point configuration file:
-
-::
-
-    {
-        "driver_config": {"API_KEY":"<User Ecobee API key>",
-                          "DEVICE_ID": <User Ecobee thermostat serial number>,
-                          "GROUP_ID": "<Arbitrary string identifier for all devices included in remote API data>",
-                          "CACHE_IDENTITY": "platform.drivercache"},
-        "driver_type": "ecobee",
-        "registry_config":"config://ecobee.csv",
-        "interval": 180,
-        "timezone": "UTC"
-    }
-
 .. note::
 
-    Values for API_KEY and DEVICE_ID must be obtained by the user. DEVICE_ID should be added as an integer representation of the thermostat's serial number.
+    Values for API_KEY and DEVICE_ID must be obtained by the user. DEVICE_ID should be added as an integer
+    representation of the thermostat's serial number.
 
     **Getting API Key**
 
@@ -103,22 +74,11 @@ The following configuration is the basic starting point configuration file:
 
     **Finding Device Identifier**
 
-
     To find your Ecobee thermostat's device identifier:
 
         1. Log into the Ecobee customer portal (https://www.ecobee.com/consumerportal/index.html).
         2. From the Home screen click "About My Ecobee"
         3. The thermostat identifier is the serial number listed on the About screen
-
-    **CACHE_IDENTITY** - value must be specified however the user specifies the Driver HTTP Cache agent's identity during
-    installation (for instance, if driver cache agent is installed with `-i platform.drivercache` this entry must also
-    be `platform.drivercache`.)
-
-    **GROUP_ID** is an arbitrarily chosen identifier which should correspond to one name given to the thermostats for one
-    Ecobee user account (all thermostats for that user account will be represented by this group id; group id does not
-    affect the data in any way, it is used by the Driver HTTP Cache agent as a way of mapping drivers to their
-    corresponding cached data).
-
 
 Registry Configuration
 ----------------------
@@ -186,9 +146,7 @@ Installation
 
 These are the most basic installation steps for the Ecobee driver. This guide
 assumes the user is in the VOLTTRON_ROOT directory, the VOLTTRON platform has
-been installed and bootstrapped per the  instructions in the VOLTTRON README,
-and that the Driver HTTP Cache agent has been installed using the installation
-instructions above.
+been installed and bootstrapped per the  instructions in the VOLTTRON README.
 
 Below are the setup instructions.
 
@@ -201,12 +159,6 @@ Below are the setup instructions.
     2. If the environment has not been activated - you should see (volttron) next to <user>@<host> in your terminal window
 
         . env/bin/activate
-
-    3. If the Driver Cache has not yet been installed and started:
-
-        python scripts/install-agent.py -s services/core/DriverHTTPCache -i <CACHE_IDENTITY from Ecobee driver config>
-
-        vctl start <Driver HTTP Cache Agent uuid or identity>
 
     4. Install a Master Driver if one is not yet installed
 
