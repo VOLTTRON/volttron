@@ -22,7 +22,7 @@
     #    where we will create a venv on the managed node where
     #    dependencies of ansible and our ansible modules get installed. This includes both custom VOLTTRON modules,
     #    as well as dependencies of ansible's modules
-    venv_for_ansible: "{{ venv_for_ansible | default('{{ ansible_env.HOME }}/ansible_venv') | expanduser }}"
+    venv_for_ansible: "{{ venv_for_ansible | default('{{ ansible_env.HOME }}/ansible_venv') | regex_replace('^~\/', '{{ ansible_env.HOME }}/') }}"
 
     ## variables related to the version of volttron to be installed ##
     ###
@@ -52,15 +52,15 @@
     ###
     #  [string - path] default: ``$HOME/.volttron``
     #    path to the VOLTTRON home where all platform runtime files are stored
-    volttron_home: "{{ volttron_home | default('{{ ansible_env.HOME }}/.volttron') | expanduser }}"
+    volttron_home: "{{ volttron_home | default('{{ ansible_env.HOME }}/.volttron') | regex_replace('^~\/', '{{ ansible_env.HOME }}/') }}"
     ###
     #  [string - path] default: ``$HOME/volttron``
     #    path to the volttron root directory where VOLTTRON source is placed
-    volttron_root: "{{ volttron_root | default('{{ ansible_env.HOME }}/volttron') | expanduser }}"
+    volttron_root: "{{ volttron_root | default('{{ ansible_env.HOME }}/volttron') | regex_replace('^~\/', '{{ ansible_env.HOME }}/') }}"
     ###
     #  [string - path] default: ``$HOME/volttron.venv``
     #    path to the python virtual environment into which the VOLTTRON package will be installed
-    volttron_venv: "{{ volttron_venv | default('{{ ansible_env.HOME }}/volttron.venv') | expanduser }}"
+    volttron_venv: "{{ volttron_venv | default('{{ ansible_env.HOME }}/volttron.venv') | regex_replace('^~\/', '{{ ansible_env.HOME }}/') }}"
     ## configure if the platform should be running
     platform_state: "{{ platform_state | default('running') }}"
 
@@ -129,3 +129,32 @@
 - set_fact:
     message_bus: "{{ host_configuration['config']['message-bus'] | default('zmq') }}"
     instance_name: "{{ host_configuration['config']['instance-name'] | default(inventory_hostname) }}"
+
+- name: print all default VOLTTRON recipe facts
+  debug:
+    msg:
+    - "verbose_debug_tasks {{ verbose_debug_tasks }}"
+    - "extra_system_packages {{ extra_system_packages }}"
+    - "extra_system_packages {{ extra_system_packages }}"
+    - "venv_for_ansible {{ venv_for_ansible }}"
+    - "volttron_use_local_source {{ volttron_use_local_source }}"
+    - "volttron_git_organization {{ volttron_git_organization }}"
+    - "volttron_git_repo {{ volttron_git_repo }}"
+    - "volttron_git_branch {{ volttron_git_branch }}"
+    - "volttron_home {{ volttron_home }}"
+    - "volttron_root {{ volttron_root }}"
+    - "volttron_venv {{ volttron_venv }}"
+    - "platform_state {{ platform_state }}"
+    - "host_configs_dir {{ host_configs_dir }}"
+    - "volttron_features {{ volttron_features }}"
+    - "extra_requirements {{ extra_requirements }}"
+    - "http_proxy {{ http_proxy }}"
+    - "erlang_package_version {{ erlang_package_version }}"
+    - "deployment_config_root {{ deployment_config_root }}"
+    - "deployment_host_config_dir {{ deployment_host_config_dir }}"
+    - "deployment_platform_config_dir {{ deployment_platform_config_dir }}"
+    - "deployment_platform_config_file {{ deployment_platform_config_file }}"
+    - "--- values determined from configuration files ---"
+    - "message_bus {{ message_bus }}"
+    - "instance_name {{ instance_name }}"
+  when: verbose_debug_tasks
