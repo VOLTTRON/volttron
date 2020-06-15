@@ -88,19 +88,21 @@
       - name: create rabbitmq config
         template:
           src: rabbitmq_config.yml.j2
-          dest: "{{volttron_home }}/rabbitmq_config.yml"
+          dest: "{{ volttron_home }}/rabbitmq_config.yml"
 
       - name: run vcfg to configure for RMQ
         ##NOTE: note that this task will always report changes and will replace and recreate the rmq confg (even if no changes)
         ##      this is not great design generally, and violates idempotent expectations in ansible. For now we roll with it.
         expect:
-          command: "{{ volttron_venv }}/bin/vcfg --vhome {{volttron_home}} --instance-name {{ instance_name }} --rabbitmq single {{ volttron_home }}/rabbitmq_config.yml"
+          command: "{{ volttron_venv }}/bin/vcfg --vhome {{ volttron_home }} --instance-name {{ instance_name }} --rabbitmq single {{ volttron_home }}/rabbitmq_config.yml"
           responses:
             '.*Remove [a-zA-Z1-9_\-./]*/rabbitmq.conf?.*': 'y'
             '.*Do you want to use this certificate.*': ''
           timeout: 90
         register: vcfg_result
-      - name: debug pint of vcfg results
-        when: verbose_debug_tasks
+        ignore_errors: "{{verbose_debug_tasks | bool}}"
+      - name: debug print of vcfg results
+        when: verbose_debug_tasks | bool
         debug:
           msg: "{{ vcfg_result }}"
+        failed_when: vcfg_result.failed
