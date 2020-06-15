@@ -22,7 +22,7 @@
     #    where we will create a venv on the managed node where
     #    dependencies of ansible and our ansible modules get installed. This includes both custom VOLTTRON modules,
     #    as well as dependencies of ansible's modules
-    venv_for_ansible: "{{ venv_for_ansible | default('{{ ansible_env.HOME }}/ansible_venv') }}"
+    venv_for_ansible: "{{ venv_for_ansible | default('{{ ansible_env.HOME }}/ansible_venv') | expanduser }}"
 
     ## variables related to the version of volttron to be installed ##
     ###
@@ -52,15 +52,15 @@
     ###
     #  [string - path] default: ``$HOME/.volttron``
     #    path to the VOLTTRON home where all platform runtime files are stored
-    volttron_home: "{{ volttron_home | default('{{ ansible_env.HOME }}/.volttron') }}"
+    volttron_home: "{{ volttron_home | default('{{ ansible_env.HOME }}/.volttron') | expanduser }}"
     ###
     #  [string - path] default: ``$HOME/volttron``
     #    path to the volttron root directory where VOLTTRON source is placed
-    volttron_root: "{{ volttron_root | default('{{ ansible_env.HOME }}/volttron') }}"
+    volttron_root: "{{ volttron_root | default('{{ ansible_env.HOME }}/volttron') | expanduser }}"
     ###
     #  [string - path] default: ``$HOME/volttron.venv``
     #    path to the python virtual environment into which the VOLTTRON package will be installed
-    volttron_venv: "{{ volttron_venv | default('{{ ansible_env.HOME }}/volttron.venv') }}"
+    volttron_venv: "{{ volttron_venv | default('{{ ansible_env.HOME }}/volttron.venv') | expanduser }}"
     ## configure if the platform should be running
     platform_state: "{{ platform_state | default('running') }}"
 
@@ -99,23 +99,23 @@
 - set_fact:
     ###
     #  [string - path] default: ``inventory_dir``
-    #    Absolute path to the directory containing remote platform configurations on the control computer
+    #    Absolute path (on the control system) to the directory containing remote platform configurations
     #    This is the source which is used when setting up the remotes.
     deployment_config_root: "{{ deployment_config_root | default(inventory_dir) }}"
 - set_fact:
     ###
     #  [string - path] default: ``${deployment_config_root}/inventory_hostname``
-    #    Absolute path to the directory containing the configuration for the specific remote host
+    #    Absolute path (on the control system) to the directory containing the configuration for the specific remote host
     deployment_host_config_dir: "{{ deployment_host_config_dir | default( deployment_config_root + '/' + inventory_hostname ) }}"
 - set_fact:
     ###
     #  [string - path] default: ``${deployment_host_config_dir}/configs``
-    #    absolute path to the agent configurations directory for the specific remote host
+    #    absolute path (on the control system) to the agent configurations directory for the specific remote host
     deployment_platform_config_dir: "{{ deployment_platform_config_dir | default( deployment_host_config_dir + '/configs') }}"
 - set_fact:
     ###
     #  [string - path] default: ``${deployment_host_config_dir}/${inventory_hostname}.yml``
-    #    absolute path to the platform configuration file for this node
+    #    absolute path (on the control system) to the platform configuration file for this node
     deployment_platform_config_file: "{{ deployment_platform_config_file | default( deployment_host_config_dir + '/' + inventory_hostname + '.yml' ) }}"
 
 ## Derived facts, not configurable in inventory
