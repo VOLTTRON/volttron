@@ -65,14 +65,31 @@
         update_cache: yes
         state: present
         name:
-        - erlang-base
-        - erlang-diameter
-        - erlang-eldap
-        - erlang-ssl
-        - erlang-crypto
-        - erlang-asn1
-        - erlang-public-key
-        - erlang-nox
+        - "erlang-asn1={{ erlang_package_version | regex_replace('\"','') }}"
+        - "erlang-base={{ erlang_package_version | regex_replace('\"','') }}"
+        - "erlang-crypto={{ erlang_package_version | regex_replace('\"','') }}"
+        - "erlang-diameter={{ erlang_package_version | regex_replace('\"','') }}"
+        - "erlang-edoc={{ erlang_package_version | regex_replace('\"','') }}"
+        - "erlang-eldap={{ erlang_package_version | regex_replace('\"','') }}"
+        - "erlang-erl-docgen={{ erlang_package_version | regex_replace('\"','') }}"
+        - "erlang-eunit={{ erlang_package_version | regex_replace('\"','') }}"
+        - "erlang-ic={{ erlang_package_version | regex_replace('\"','') }}"
+        - "erlang-inets={{ erlang_package_version | regex_replace('\"','') }}"
+        - "erlang-inviso={{ erlang_package_version | regex_replace('\"','') }}"
+        - "erlang-mnesia={{ erlang_package_version | regex_replace('\"','') }}"
+        - "erlang-odbc={{ erlang_package_version | regex_replace('\"','') }}"
+        - "erlang-os-mon={{ erlang_package_version | regex_replace('\"','') }}"
+        - "erlang-parsetools={{ erlang_package_version | regex_replace('\"','') }}"
+        - "erlang-percept={{ erlang_package_version | regex_replace('\"','') }}"
+        - "erlang-public-key={{ erlang_package_version | regex_replace('\"','') }}"
+        - "erlang-runtime-tools={{ erlang_package_version | regex_replace('\"','') }}"
+        - "erlang-snmp={{ erlang_package_version | regex_replace('\"','') }}"
+        - "erlang-ssh={{ erlang_package_version | regex_replace('\"','') }}"
+        - "erlang-ssl={{ erlang_package_version | regex_replace('\"','') }}"
+        - "erlang-syntax-tools={{ erlang_package_version | regex_replace('\"','') }}"
+        - "erlang-tools={{ erlang_package_version | regex_replace('\"','') }}"
+        - "erlang-xmerl={{ erlang_package_version | regex_replace('\"','') }}"
+        - "erlang-nox={{ erlang_package_version | regex_replace('\"','') }}"
 
 - name: note that dependencies were installed
   set_fact:
