@@ -72,7 +72,7 @@ You can deactivate the environment at any time by running `deactivate`.
 
 For RabbitMQ based VOLTTRON, some of the RabbitMQ specific software packages have to be installed.
 
-###### On Debian based systems (other than Raspbian) and CentOS 6/7
+###### On Debian based systems and CentOS 6/7
 
 If you are running an Debian or CentOS system, you can install the RabbitMQ dependencies by running the rabbit 
   dependencies script, passing in the OS name and appropriate distribution as parameters. The following are supported:
@@ -85,20 +85,14 @@ If you are running an Debian or CentOS system, you can install the RabbitMQ depe
 
 -   `debian stretch` (for Debian Stretch)
 
+-   `debian buster` (for Debian Buster)
+
+-   `raspbian buster` (for Raspbian/Raspberry Pi OS buster)
+
 Example command:
 
 ```sh
 ./scripts/rabbit_dependencies.sh debian xenial
-```
-
-###### On Raspbian buster
-
-To get the rabbmq dependencies, install the system rabbitmq-server package, and disable the system daemon with the following commands:
-
-```sh
-sudo apt-get install rabbitmq-server
-sudo systemctl stop rabbitmq-server
-sudo systemctl disable rabbitmq-server
 ```
 
 ###### Alternatively
