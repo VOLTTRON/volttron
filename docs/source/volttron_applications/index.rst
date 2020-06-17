@@ -1,18 +1,14 @@
-.. _applications:
-
 ============
 Applications
 ============
+These resources summarize the use of the sample applications that are pre-packaged with VOLTTRON. For detailed
+information on these applications, refer to the report Transactional Network Platform: Applications available
+at http://www.pnl.gov/main/publications/external/technical_reports/PNNL-22941.pdf.
 
-Community-contributed applications, agents and drivers that are not directly
-integrated into the VOLTTRON core platform reside in a separate github
-repository, https://github.com/VOLTTRON/volttron-applications. This section
-provides user guides and other documents for those contributions.
+Note, as of VOLTTRON 4.0, applications are now in their own repository at: https://github.com/VOLTTRON/volttron-applications
 
 .. toctree::
     :glob:
-    :maxdepth: 1
+    :maxdepth: 2
 
-   Simulated-Drivers
-   ven_agent
-   Reference-App
+    *

@@ -1,28 +1,27 @@
-.. VOLTTRON documentation master file, created by
-   sphinx-quickstart on Thu Feb  4 21:15:08 2016.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
+.. VOLTTRON documentation master file
 
 ==========================
 |VOLTTRON|  documentation!
 ==========================
 
-
-
 |VOLTTRON Tagline|
 
-|VOLTTRON| is an open-source platform for distributed sensing and control. The platform provides services for collecting and storing data from buildings and devices and provides an environment for developing applications
+|VOLTTRON| is an open-source platform for distributed sensing and control.  The platform provides services for
+collecting and storing data from buildings and devices and provides an environment for developing applications
 that interact with that data.
 
 
 Features
---------
+========
 
 Out of the box VOLTTRON provides:
 
-- a secure :ref:`message bus <messagebus index>` allowing agents to subscribe to data sources and publish results and messages.
+- a secure :ref:`message bus <messagebus index>` allowing agents to subscribe to data sources and publish results and
+  messages.
 - secure connectivity between multiple VOLTTRON instances.
-- BACnet, ModBus and other device/system protocol connectivity through our :ref:`driver framework <VOLTTRON-Driver-Framework>` for collecting data from and sending control actions to buildings and devices.
+- BACnet, ModBus and other device/system protocol connectivity through our
+  :ref:`driver framework <VOLTTRON-Driver-Framework>` for collecting data from and sending control actions to buildings
+  and devices.
 - automatic data capture and retrieval through our :ref:`historian framework <Historian Index>`.
 - platform based :ref:`agent lifecycle management <AgentManagement>`.
 - a :ref:`web based management <VOLTTRON-Central>` tool for managing several instances from a central instance.
@@ -30,32 +29,46 @@ Out of the box VOLTTRON provides:
 
 
 Background
-----------
+==========
 
-|VOLTTRON| is written in Python 3.6 and runs on Linux Operating Systems. For users unfamiliar with those technologies, the following resources are recommended:
+|VOLTTRON| is written in Python 3.6 and runs on Linux Operating Systems.  For users unfamiliar with those technologies,
+the following resources are recommended:
 
 - https://docs.python.org/3.6/tutorial/
 - http://ryanstutorials.net/linuxtutorial/
 
 License
--------
+=======
 
 The project is :ref:`licensed <license>` under Apache 2 license.
 
 
-Contents:
 
 .. toctree::
-   :maxdepth: 2
+   :caption: Getting Started
+   :hidden:
+   :maxdepth: 1
 
-   overview/index
-   community_resources/index
-   setup/index
-   devguides/index
-   core_services/index
-   specifications/index
-   volttron_applications/index
-   VOLTTRON Platform API <volttron_api/modules>
+   getting_started/getting-started
+   getting_started/definitions
+   getting_started/license
+
+.. toctree::
+   :caption: Developing in VOLTTRON
+   :hidden:
+   :maxdepth: 1
+
+   developing_volttron/contributing/index
+   developing_volttron/developing_agents/agent-development-walkthrough
+   developing_volttron/developing_drivers/driver-development-walkthrough
+   developing_volttron/development_environment
+
+.. toctree::
+   :caption: Deploying VOLTTRON
+   :hidden:
+   :maxdepth: 1
+
+
 
 
 Indices and tables
