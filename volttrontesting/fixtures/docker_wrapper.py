@@ -31,7 +31,7 @@ if HAS_DOCKER:
 
         :param image_name: The image name (from dockerhub) that is to be instantiated
         :param ports:
-            a dictionary following the convention {'portincontainre/protocoll': portonhost}
+            a dictionary following the convention {'portincontainre/protocol': portonhost}
 
             ::
                 # example port exposing mysql's known port.
