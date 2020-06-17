@@ -308,7 +308,7 @@ class Interface(BasicRevert, BaseInterface):
                     for conductor in prop:
                         point_name = 'mtu-{}/{}-{}'.format(
                             mtu["MTUNumber"], MTU_REGISTER_MAP[prop.tag]["point_name"], conductor.tag.lower())
-                        output[point_name] = conductor.text
+                        output[point_name] = float(conductor.text)
                 elif prop.tag in MTU_REGISTER_MAP:
                     point_name = 'mtu-{}/{}'.format(
                         mtu["MTUNumber"], MTU_REGISTER_MAP[prop.tag]["point_name"])
