@@ -33,6 +33,13 @@
       - libevent-dev
       - libzmq3-dev
 
+  - name: install rsync if local volttron source is being used
+    when: volttron_use_local_source
+    apt:
+      state: present
+      name:
+      - rsync
+
   - name: install extra packages from inventory
     when: (extra_system_packages | length) > 0
     apt:
