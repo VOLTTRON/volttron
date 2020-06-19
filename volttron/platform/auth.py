@@ -137,6 +137,9 @@ class AuthService(Agent):
         if self._is_connected:
             try:
                 _log.debug("Sending auth updates to peers")
+                # Give it few seconds for platform to startup or for the
+                # router to detect agent install/remove action
+                gevent.sleep(5)
                 self._send_update()
             except BaseException as e:
                 _log.error("Exception sending auth updates to peer. {}".format(e))
@@ -176,6 +179,8 @@ class AuthService(Agent):
                 peers = self.vip.peerlist().get(timeout=0.5)
             except BaseException as e:
                 _log.warning("Attempt {} to get peerlist failed with exception {}".format(i, e))
+                peers = list(self.vip.peerlist.peers_list)
+                _log.warning("Get list of peers from subsystem directly".format(peers))
                 exception = e
 
         if not peers:

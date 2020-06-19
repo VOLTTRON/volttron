@@ -61,6 +61,7 @@ class PeerList(SubsystemBase):
         core.register('peerlist', self._handle_subsystem, self._handle_error)
         self.onadd = Signal()
         self.ondrop = Signal()
+        self.peers_list = set()
 
     def list(self):
         connection = self.core().connection
@@ -146,6 +147,11 @@ class PeerList(SubsystemBase):
                 getattr(self, onop).send(self, peer=peer, message_bus=message_bus)
             else:
                 getattr(self, onop).send(self, peer=peer)
+            if op == 'add':
+                self.peers_list.add(peer)
+            else:
+                if peer in self.peers_list:
+                    self.peers_list.remove(peer)
         elif op == 'listing':
             try:
                 result = self._results.pop(message.id)
@@ -153,7 +159,9 @@ class PeerList(SubsystemBase):
                 return
             # The response will have frames, we convert to bytes and then from bytes
             # we decode to strings for the final response.
-            result.set([arg for arg in message.args[1:]])
+            peers = [arg for arg in message.args[1:]]
+            result.set(peers)
+            self.peers_list = set(peers)
         elif op == 'listing_with_messagebus':
             try:
                 result = self._results.pop(message.id)
