@@ -158,6 +158,7 @@ class Interface(BasicRevert, BaseInterface):
     def __init__(self, **kwargs):
         super(Interface, self).__init__(**kwargs)
         self.logger = TED_METER_LOGGER
+        self.device_path = kwargs.get("device_path")
 
     def configure(self, config_dict, registry_config_str):
         """Configure method called by the master driver with configuration 
