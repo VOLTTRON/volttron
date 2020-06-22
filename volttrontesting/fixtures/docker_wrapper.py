@@ -65,11 +65,11 @@ if HAS_DOCKER:
                 break
             time.sleep(0.1)
             container.reload()
-
-        if invalid:
-            yield None
-        else:
-            yield container
-
-        container.kill()
+        try:
+            if invalid:
+                yield None
+            else:
+                yield container
+        finally:
+            container.kill()
 
