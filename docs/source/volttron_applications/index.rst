@@ -1,3 +1,5 @@
+.. _Volttron-Applications:
+
 ============
 Applications
 ============

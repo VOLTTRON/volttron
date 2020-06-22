@@ -1,4 +1,4 @@
-.. _install-vm:
+.. _Install-VM:
 
 ================================
 Installing Linux Virtual Machine

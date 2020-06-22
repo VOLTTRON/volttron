@@ -43,15 +43,16 @@ License
 The project is :ref:`licensed <license>` under Apache 2 license.
 
 
-
 .. toctree::
-   :caption: Getting Started
+   :caption: Getting Started with VOLTTRON
    :hidden:
    :maxdepth: 1
 
    getting_started/getting-started
+   getting_started/platform_install
    getting_started/definitions
    getting_started/license
+
 
 .. toctree::
    :caption: Developing in VOLTTRON
@@ -61,7 +62,8 @@ The project is :ref:`licensed <license>` under Apache 2 license.
    developing_volttron/contributing/index
    developing_volttron/developing_agents/agent-development-walkthrough
    developing_volttron/developing_drivers/driver-development-walkthrough
-   developing_volttron/development_environment
+   developing_volttron/development_environment/index
+
 
 .. toctree::
    :caption: Deploying VOLTTRON
@@ -69,6 +71,22 @@ The project is :ref:`licensed <license>` under Apache 2 license.
    :maxdepth: 1
 
 
+.. toctree::
+   :caption: Platform Features
+   :hidden:
+   :maxdepth: 1
+
+   platform_features/messagebus/index
+   platform_features/security/index
+   platform_features/multiplatform/index
+   platform_features/config_store/index
+
+
+.. toctree::
+   :caption: VOLTTRON Topics
+   :hidden:
+
+   agent_framework/agents-overview
 
 
 Indices and tables
