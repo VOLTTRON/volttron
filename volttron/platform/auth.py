@@ -139,7 +139,7 @@ class AuthService(Agent):
                 _log.debug("Sending auth updates to peers")
                 # Give it few seconds for platform to startup or for the
                 # router to detect agent install/remove action
-                gevent.sleep(5)
+                gevent.sleep(2)
                 self._send_update()
             except BaseException as e:
                 _log.error("Exception sending auth updates to peer. {}".format(e))
