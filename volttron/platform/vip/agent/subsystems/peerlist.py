@@ -157,8 +157,7 @@ class PeerList(SubsystemBase):
                 result = self._results.pop(message.id)
             except KeyError:
                 return
-            # The response will have frames, we convert to bytes and then from bytes
-            # we decode to strings for the final response.
+
             peers = [arg for arg in message.args[1:]]
             result.set(peers)
             self.peers_list = set(peers)
