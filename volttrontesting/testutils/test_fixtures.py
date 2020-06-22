@@ -17,13 +17,14 @@ def test_web_setup_properly(volttron_instance_web):
 
 @pytest.mark.skipif(SKIP_DOCKER, reason="No docker available in api (install pip install docker) for availability")
 def test_docker_wrapper():
-    with create_container("mysql") as container:
-        print(container.status)
-        print(container.logs())
+    with create_container("mysql", ports={"3306/tcp": 3306}, env={"MYSQL_ROOT_PASSWORD": "12345"}) as container:
+        print(f"\nStatus: {container.status}")
+        print(f"\nLogs: {container.logs()}")
+        assert container.status == 'running'
 
 
 @pytest.mark.skipif(SKIP_DOCKER, reason="No docker available in api (install pip install docker) for availability")
 def test_docker_run_crate_latest():
-    with create_container("crate", {"4200/tcp": 4200}) as container:
+    with create_container("crate", ports={"4200/tcp": 4200}) as container:
         assert container.status == 'running'
 
