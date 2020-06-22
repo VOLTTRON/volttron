@@ -31,12 +31,16 @@ if HAS_DOCKER:
 
         :param image_name: The image name (from dockerhub) that is to be instantiated
         :param ports:
-            a dictionary following the convention {'portincontainre/protocol': portonhost}
+            a dictionary following the convention {'portincontainer/protocol': portonhost}
 
             ::
                 # example port exposing mysql's known port.
                 {'3306/tcp': 3306}
-        :param env:
+        :param env: environment variables to set inside the container, as a dictionary following the convention
+
+            ::
+                example environment variable for mysql's root password.
+                {'MYSQL_ROOT_PASSWORD': '12345'}
         :param command: string or list of commands to run during the startup of the container.
         :param startup_time_seconds: Allow this many seconds for the startup of the container before raising a
             runtime exception (Download of image and instantiation could take a while)
