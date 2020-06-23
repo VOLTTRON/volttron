@@ -36,11 +36,7 @@ if HAS_DOCKER:
             ::
                 # example port exposing mysql's known port.
                 {'3306/tcp': 3306}
-        :param env: environment variables to set inside the container, as a dictionary following the convention
-
-            ::
-                example environment variable for mysql's root password.
-                {'MYSQL_ROOT_PASSWORD': '12345'}
+        :param env: environment variables to set inside the container.
         :param command: string or list of commands to run during the startup of the container.
         :param startup_time_seconds: Allow this many seconds for the startup of the container before raising a
             runtime exception (Download of image and instantiation could take a while)
@@ -53,19 +49,13 @@ if HAS_DOCKER:
         client = docker.from_env()
 
         try:
-            repo = image_name
-            if ":" not in repo:
+            full_docker_image = image_name
+            if ":" not in full_docker_image:
                 # So all tags aren't pulled. According to docs https://docker-py.readthedocs.io/en/stable/images.html.
-                repo = repo + ":latest"
-            client.images.pull(repo)
-        except APIError as e:
-            raise RuntimeError(e)
-
-        try:
+                full_docker_image = full_docker_image + ":latest"
+            client.images.pull(full_docker_image)
             container = client.containers.run(image_name, ports=ports, environment=env, auto_remove=True, detach=True)
-        except ImageNotFound as e:
-            raise RuntimeError(e)
-        except APIError as e:
+        except (ImageNotFound, APIError, RuntimeError) as e:
             raise RuntimeError(e)
 
         if container is None:
