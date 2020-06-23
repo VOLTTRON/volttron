@@ -10,13 +10,6 @@ except ImportError:
 SKIP_REASON = "No docker available in api (install pip install docker) for availability"
 
 
-def test_web_setup_properly(volttron_instance_web):
-    instance = volttron_instance_web
-
-    assert instance.is_running()
-    assert instance.bind_web_address == instance.volttron_central_address
-
-
 @pytest.mark.skipif(SKIP_DOCKER, reason=SKIP_REASON)
 def test_docker_wrapper():
     with create_container("mysql", ports={"3306/tcp": 3306}, env={"MYSQL_ROOT_PASSWORD": "12345"}) as container:
@@ -44,7 +37,7 @@ def test_docker_wrapper_should_throw_runtime_error_on_false_image_when_pull():
 def test_docker_wrapper_should_throw_runtime_error_when_ports_clash():
     port = 4200
     with pytest.raises(RuntimeError) as execinfo:
-        with create_container("crate", ports={"4200/tcp": port}) as container1:
+        with create_container("crate", ports={"4200/tcp": port}):
             with create_container("crate", ports={"4200/tcp": port}) as container2:
                 assert container2.status == 'running'
 
