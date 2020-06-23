@@ -1,4 +1,4 @@
-.. _VOLTTRON-Driver-Framework:
+.. _Driver-Framework:
 
 =========================
 VOLTTRON Driver Framework
@@ -19,7 +19,7 @@ by using JSON-RPC with the Actuator agent to set up a schedule and calling the "
 
 
 Driver Conventions
-------------------
+******************
 
 -  Drivers are polled by the Master Driver agent and values can be set using the `Actuator Agent`
 -  Drivers should have a 1-to-1 relationship with a device
@@ -29,11 +29,148 @@ Driver Conventions
 -  Driver code consists of an Interface class (exactly named), supported in most cases by one or more Register classes
 
 
-Driver Communication Patterns
-=============================
+.. _Driver_Communication:
+
+Agent-Driver Communication Patterns
+***********************************
+
+The VOLTTRON message bus has been developed to allow agents on the platform to interact with each other, as well as with
+ICS (Industrial Control Systems) and IOT (Internet of Things) devices via the VOLTTRON driver framework. Agents and
+drivers have the ability to publish data to the message bus and to subscribe to message bus topics to read in data as it
+is published. Additionally, agents may implement JSONRPC calls and expose JSONRPC endpoints to communicate more directly
+with other agents. The following diagram demonstrates typical platform communication patterns for a single platform
+deployment.
+
+
+Typical Single Platform Behavior
+================================
+
+.. |Single Platform Communication Pattern| image:: files/driver_data_flow.png
+
+The diagram features several entities that comprise the platform and its connected components:
+
+* The VOLTTRON message bus - The message bus is the means of transmission of information in VOLTTRON. The VOLTTRON
+  message bus is built around existing message bus software; currently VOLTTRON supports RabbitMQ and ZeroMQ. The
+  VOLTTRON integration includes Pub/Sub and JSON RPC interfaces for agent and driver communication.
+* VOLTTRON Platform Agents and Subsystems - These agents and subsystems are installed on the platform to manage the
+  platform. They provide many user facing functions, aid in communication and manage other agents and drivers.
+* User's Agents - These agents are either agents included in the core repository but installed by a user, or user built
+  agent modules. They may perform a huge variety of user specified tasks, including data collection, device control,
+  simulation, etc.
+* Master Driver Agent - This agent is installed by a user to facilitate communication with drivers. Drivers should not
+  communicated with directly - the master driver implements several features for communicating with drivers to ensure
+  smooth operation and consistent driver behavior.
+* Actuator agent - This agent is installed by user to provide scheduling capability for controlling drivers. The master
+  driver does not include protections for race conditions, etc. It is always recommended to use the Actuator agent to
+  set values on a device.
+* Device Driver - Drivers are special purpose agents which provide an interface between the master driver and devices
+  such as Modbus, and BACnet devices. Drivers implement a specific set of features for protecting device communication
+  ensuring uniform behaviors across different devices.
+* Device - Devices may be low level physical computers for controlling various systems such as PLCs (Programmable Logic
+  Controller), devices which communicate on the local network (such as a Smart T.V.), or devices which are accessed via
+  a remote web API (other smart devices).
+
+
+Lines of Communication
+----------------------
+
+Connectivity of the platform follows the following paradigm:
+
+* Platform agents (including the Master Driver and Actuator), subsystems, and user agents communicate with the message
+  bus via a publish/subscribe system.
+* Agents can communicate "directly" to each other via JSONRPC calls - JSONRPC calls use the VOLTTRON message bus router
+  to "direct" messages to an intended recipient. RPC calls from an agent specify a function for the recipient to
+  perform including input parameters, and the response to the sender should contain the value output by the specified
+  function.
+* The Master Driver will periodically poll device drivers. This functionality is intentionally not user-facing. The
+  Master Driver iterates over the configured drivers and calls their respective "scrape_all" methods. This will trigger
+  the drivers to collect point values.
+* The Driver will communicate with its configured end devices to collect data points which it then returns to the
+  driver. The driver then publishes the point data to the bus under the `<campus>/<building>/<device id>/all` topic.
+* To get an individual device point, the user agent should send an RPC call to the Master Driver for "get_point",
+  providing the point's corresponding topic. After the Master Driver processes the request, communication happens very
+  similarly to polling, but rather than an "all" publish, the data is returned via the Master Driver to the user agent.
+* To set a point on a device, it is recommended to use an Actuator Agent. The user agent sends an RPC request to the
+  Actuator to schedule time for the agent to control the device. During that scheduled time the user agent may send it
+  a set point request. If the schedule has been created, the actuator will then forward that request to the Master
+  Driver, at which point the communication happens similarly to a "get_point" request.
+
+The general paradigm for the device-driver relationship as specified by the VOLTTRON driver framework is a 1-to-1
+relationship. Each end device should be interacted with via a single device driver configured on one platform. To
+distribute device data, the datapuller and forwarder agents can be used at the platform level. Multiple platforms are
+not intended to collect data or share control of a single device.
+
+
+Special Case Drivers
+====================
+
+Some drivers require a different communication paradigm. One common alternative is shown in the diagram below:
+
+.. |Driver Proxy Pattern| image:: files/proxy_driver_data_flow.png
+
+This example describes an alternative pattern wherein BACnet drivers communicate via a BACnet proxy agent to communicate
+with end devices. This behavior is derived from the networking requirements of the BACnet specification. BACnet
+specifies a star topology for a given network; "slave" devices in a BACnet network communicate with a single "master".
+In this case, the BACnet proxy acts as a virtual BACnet master, and device drivers forward their requests to this agent
+which then performs the BACnet communication (whereas the typical pattern would have devices communicate directly with
+the corresponding device). There are many other situations which may require this paradigm to be adopted (such as
+working with remote APIs with request limits), and it is up to the party implementing the driver to determine if this
+pattern or another pattern may be the most appropriate implementation pattern for their respective use case.
+
+
+Installing the Fake Driver
+**************************
+
+The FakeDriver is included as a way to quickly see data published to the message bus in a format that mimics what a true
+Driver would produce.  This is an extremely simple implementation of the VOLTTRON driver framework.   The following
+commands can be used to install the fake driver:
+
+
+Step 1 - Activate the virtual environment and start the platform
+================================================================
+
+.. code-block:: Bash
+
+    cd <path to cloned volttron repository>
+    source env/bin/activate
+    ./start-volttron
+
+
+Step 2 - Install and configure the Master Driver agent
+======================================================
+
+Prior to this stage, consider making changes to the master driver config in a copy of the example configuration file
+(`examples/configurations/drivers/master-driver.agent`) copied into a "configs" directory.
+
+.. code-block:: Bash
+
+    python scripts/install-agent.py -s services/core/MasterDriverAgent -c <path to configuration file> -t master-driver
+
+
+Step 3 - Add the driver configuration and registry configuration to the configuration store
+===========================================================================================
+
+Driver configurations are stored in the Master Driver's configuration store, the following commands will store the
+config files:
+
+.. code-block:: Bash
+
+    vctl config store platform.driver devices/campus/building/fake examples/configurations/drivers/fake.config
+
+.. note::
+
+    The `devices/campus/building/fake` string follows the convention for a device topic. For more information on device
+    topics, view the :ref:`driver configuration <>`_ docs.
+
+    vctl config store platform.driver fake.csv examples/configurations/drivers/fake.csv --csv
 
 
 
+Step 4 - Install a Listener Agent
+=================================
+
+This step is not strictly necessary for running a driver on the platform, but the Listener will output device data to
+the message bus for viewing.
 
 .. toctree::
     :maxdepth: 2
