@@ -47,6 +47,7 @@ from requests.packages.urllib3.connection import ConnectionError, NewConnectionE
 from volttron.platform import jsonapi
 from volttron.platform.agent import utils
 from volttron.platform.agent.known_identities import CONFIGURATION_STORE, PLATFORM_DRIVER
+from volttron.platform.jsonrpc import RemoteError
 from volttron.utils.persistance import PersistentDict
 from services.core.MasterDriverAgent.master_driver.interfaces import BaseInterface, BaseRegister, BasicRevert
 
@@ -290,7 +291,7 @@ class Interface(BasicRevert, BaseInterface):
         try:
             return jsonapi.loads(self.vip.rpc.call(
                 CONFIGURATION_STORE, "manage_get", PLATFORM_DRIVER, self.auth_config_path).get(timeout=3))
-        except KeyError:
+        except (KeyError, RemoteError):
             _log.warning("No Ecobee auth file found in config store")
             return {}
 
