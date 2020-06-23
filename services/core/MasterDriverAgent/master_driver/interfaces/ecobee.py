@@ -288,10 +288,11 @@ class Interface(BasicRevert, BaseInterface):
         :return: Fetch currently stored auth configuration info from config store, returns empty dict if none is
         present
         """
-        try:
+        configs = self.vip.rpc.call(CONFIGURATION_STORE, "manage_list_configs", PLATFORM_DRIVER).get(timeout=3)
+        if self.auth_config_path in configs:
             return jsonapi.loads(self.vip.rpc.call(
                 CONFIGURATION_STORE, "manage_get", PLATFORM_DRIVER, self.auth_config_path).get(timeout=3))
-        except (KeyError, RemoteError):
+        else:
             _log.warning("No Ecobee auth file found in config store")
             return {}
 
@@ -467,9 +468,6 @@ class Interface(BasicRevert, BaseInterface):
                         result.update(register_data)
                     else:
                         result[register.point_name] = register_data
-            finally:
-                _log.warning(
-                    f"Ecobee data for register {register.point_name} could not be found during periodic scrape")
         return result
 
 
