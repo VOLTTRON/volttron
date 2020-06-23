@@ -1,6 +1,6 @@
 try:
     import docker
-
+    from docker.errors import APIError, ImageNotFound
     HAS_DOCKER = True
 except ImportError:
     HAS_DOCKER = False
@@ -51,18 +51,39 @@ if HAS_DOCKER:
 
         # Create docker client (Uses localhost as agent connection.
         client = docker.from_env()
-        if ":" in image_name:
-            client.images.pull(image_name)
-        else:
-            # So all tags aren't pulled. According to docs https://docker-py.readthedocs.io/en/stable/images.html.
-            client.images.pull(image_name + ":latest")
-        container = client.containers.run(image_name, ports=ports, environment=env, auto_remove=True, detach=True)
+
+        try:
+            repo = image_name
+            if ":" not in repo:
+                # So all tags aren't pulled. According to docs https://docker-py.readthedocs.io/en/stable/images.html.
+                repo = repo + ":latest"
+            client.images.pull(repo)
+        except APIError as e:
+            raise RuntimeError(e)
+
+        try:
+            container = client.containers.run(image_name, ports=ports, environment=env, auto_remove=True, detach=True)
+        except ImageNotFound as e:
+            raise RuntimeError(e)
+        except APIError as e:
+            raise RuntimeError(e)
 
         if container is None:
             raise RuntimeError(f"Unable to run image {image_name}")
 
+        # wait for a certain amount of time to let container complete its build
+        try:
+            if _not_valid_container(container, startup_time_seconds):
+                yield None
+            else:
+                yield container
+        finally:
+            container.kill()
+
+    def _not_valid_container(container, startup_time_seconds):
         error_time = time.time() + startup_time_seconds
         invalid = False
+
         while container.status != 'running':
             if time.time() > error_time:
                 invalid = True
@@ -76,4 +97,3 @@ if HAS_DOCKER:
                 yield container
         finally:
             container.kill()
-
