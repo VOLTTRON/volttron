@@ -179,7 +179,8 @@ class Dispatcher(jsonrpc.Dispatcher):
             if p.default is not inspect.Parameter.empty:
                 response['params'][p.name]['default'] = p.default
             if p.annotation is not inspect.Parameter.empty:
-                response['params'][p.name]['annotation'] = p.annotation
+                annotation = p.annotation.__name__ if type(p.annotation) is type else str(p.annotation)
+                response['params'][p.name]['annotation'] = annotation
         doc = inspect.getdoc(method)
         if doc:
             response['doc'] = doc
@@ -195,8 +196,9 @@ class Dispatcher(jsonrpc.Dispatcher):
                 'file': source,
                 'line_number': lineno
             }
-        if signature.return_annotation is not inspect.Signature.empty:
-            response['return'] = signature.return_annotation
+        ret = signature.return_annotation
+        if ret is not inspect.Signature.empty:
+            response['return'] = ret.__name__ if type(ret) is type else str(ret)
         return response
 
 
