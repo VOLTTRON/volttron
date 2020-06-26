@@ -4,7 +4,7 @@
 Ecobee Driver
 *************
 
-The Ecobee driver is an implementation of a `VOLTTRON driver framework <VOLTTRON Driver Framework>`_ Interface.
+The Ecobee driver is an implementation of a :ref:`VOLTTRON driver framework <VOLTTRON-Driver-Framework>` Interface.
 In this case, the Master Driver issues commands to the Ecobee driver to collect data from and send control signals to
 `Ecobee's remote web API <https://www.ecobee.com/home/developer/api/introduction/index.shtml>`_
 
@@ -15,15 +15,46 @@ In this case, the Master Driver issues commands to the Ecobee driver to collect 
 
 This guide covers:
 
-* Creating a driver configuration file, including finding the user's Ecobee API key and Ecobee thermostat serial number
-* Creating the registry configuration file
+* Creating an Ecobee application via the web interface
+* Creating an Ecobee driver configuration file, including finding the user's Ecobee API key and Ecobee thermostat serial
+  number
+* Creating an Ecobee registry configuration file
 * Installing the Master Driver and loading Ecobee driver and registry configurations
 * Starting the driver and viewing Ecobee data publishes
+
+
+.. _Ecobee-Application:
+
+Ecobee Application
+##################
+
+Connecting the Ecobee driver to the Ecobee API requires configuring your account with an Ecobee application.
+
+#. Log into the `Ecobee site <https://ecobee.com/>`_
+
+#. Click on the "hamburger" icon on the right to open the account menu, then click "Developer"
+
+    .. image:: files/ecobee_developer_menu.png
+
+#. On the bottom-left corner of the screen that appears, click "Create New"
+
+    .. image:: files/ecobee_create_app.png
+
+#. Fill out the name, summary, and description forms as desired. Click "Authorization Method" and from the drop-down
+   that appears, select "ecobee PIN" (this will enable an extra layer of authentication to protect your account)
+
+#. Record the API key for the Application from the Developer menu
+
+    .. figure:: files/ecobee_api_key.png
+
+        From Ecobee `authenication docs <https://www.ecobee.com/home/developer/api/examples/ex1.shtml>`_
+
 
 Configuration File
 ##################
 
-The Ecobee driver uses two configuration files, similar to many other VOLTTRON agents.
+The Ecobee driver uses two configuration files, a driver configuration which sets the parameters of the behavior of the
+driver, and registry configuration which instructs the driver on how to interact with each point.
 
 This is an example driver configuration:
 
@@ -31,45 +62,45 @@ This is an example driver configuration:
 
     {
         "driver_config": {
-            "API_KEY": "<User Ecobee API key>",
-            "DEVICE_ID": <User Ecobee thermostat serial number>
+            "API_KEY": "abc123",
+            "DEVICE_ID": 8675309
         },
         "driver_type": "ecobee",
-        "registry_config":"config://ecobee.csv",
+        "registry_config":"config://campus/building/ecobee.csv",
         "interval": 180,
         "timezone": "UTC"
     }
 
 The driver configuration works as follows:
 
-::
-
-    driver_config- this section specifies values used by the driver agent during
-    operation.
-
-        API_KEY - This is the User's API key. This must be obtained by the user from
-        the Ecobee web UI and provided in this part of the configuration. Notes
-        on how to do this will be provided below.
-
-        DEVICE_ID - This is the device number of the Ecobee thermostat the driver
-        is responsible for operating. This must be obtained by the user from the
-        Ecobee web UI. Notes on how to do this will be provided below.
-
-    driver_type - This value should match the name of the python file which contains
-    the interface class implementation for the ecobee driver. This should not change
-    if the user has not changed the name of that Python file.
-
-    registry_config - This should match the path to the registry configuration file
-    specified during installation (see Installation below).
-
-    interval - This should specify the time in seconds between publishes to the
-    message bus by the Master Driver for the Ecobee driver (Note: the user can
-    specify an interval for the Ecobee driver which is shorter than 180 seconds,
-    however Ecobee API data is only updated at 180 second intervals, so old data
-    will be published if a scrape occurs between updates.)
-
-    timezone: Timezone to use for publishing timestamps. This value should match the `timezone from the Ecobee device
-    <https://www.support.com/how-to/how-to-set-the-date-and-time-on-an-ecobee-thermostat-12344#:~:text=From%20the%20Thermostat,make%20changes%20to%20Time%20Format.>`_
++-----------------+----------------------------------------------------------------------------------------------------+
+| config field    | description                                                                                        |
++=================+====================================================================================================+
+| driver_config   | this section specifies values used by the driver agent during operation                            |
++-----------------+----------------------------------------------------------------------------------------------------+
+| API_KEY         | This is the User's API key. This must be obtained by the user from the Ecobee web UI and provided  |
+|                 | in this part of the configuration. Notes on how to do this will be provided below.                 |
++-----------------+----------------------------------------------------------------------------------------------------+
+| DEVICE_ID       | This is the device number of the Ecobee thermostat the driver is responsible for operating. This   |
+|                 | must be obtained by the user from the Ecobee web UI. Notes on how to do this will be provided      |
+|                 | below.                                                                                             |
++-----------------+----------------------------------------------------------------------------------------------------+
+| driver_type     | This value should match the name of the python file which contains the interface class             |
+|                 | implementation for the Ecobee driver and should not change.                                        |
++-----------------+----------------------------------------------------------------------------------------------------+
+| registry_config | This should a user specified path of the form "config://<path>. It is recommended to use the       |
+|                 | device topic string following "devices" with the file extension                                    |
+|                 | ("config://<campus>/<building?/ecobee.csv")to help the user keep track of configuration pairs in   |
+|                 | the store.  This value must be used when storing the config (see installation step below).         |
++-----------------+----------------------------------------------------------------------------------------------------+
+| interval        | This should specify the time in seconds between publishes to the message bus by the Master Driver  |
+|                 | for the Ecobee driver (Note: the user can specify an interval for the Ecobee driver which is       |
+|                 | shorter than 180 seconds, however Ecobee API data is only updated at 180 second intervals, so old  |
+|                 | data will be published if a scrape occurs between updates.)                                        |
++-----------------+----------------------------------------------------------------------------------------------------+
+| timezone        | Timezone to use for publishing timestamps. This value should match the                             |
+|                 | `timezone from the Ecobee device <https://bit.ly/2Bvnols>`_                                        |
++-----------------+----------------------------------------------------------------------------------------------------+
 
 .. note::
 
@@ -78,8 +109,9 @@ The driver configuration works as follows:
 
     **Getting API Key**
 
-    Instructions for finding your API key as well as authenticating the Ecobee Driver using the PIN can be found `here
-    <https://www.ecobee.com/home/developer/api/examples/ex1.shtml>`_ Under the Example 1 header.
+    Ecobee API keys require configuring an application using the Ecobee web UI. For more information on configuring an
+    application and obtaining the API key, please refer to the `Ecobee Application <Ecobee-Application>`_ heading in
+    this documentation.
 
     **Finding Device Identifier**
 
@@ -93,57 +125,60 @@ The driver configuration works as follows:
 Registry Configuration
 ----------------------
 
-This file specifies the behavior of "registers" in Ecobee API data.
+This file specifies how data is read from Ecobee API response data as well as how points are set via the Master Driver
+and actuator.
 
-It is likely that more points may be added to obtain additional data, but
-barring implementation changes by Ecobee it is unlikely that the values in this
-configuration will need to change substantially, as most thermostats provide the
+It is likely that more points may be added to obtain additional data, but barring implementation changes by Ecobee it is
+unlikely that the values in this configuration will need to change substantially, as most thermostats provide the
 same range of data in a similar format.
 
 This is an example registry configuration:
 
-.. csv-table::
++-------------------+---------------------+---------+---------+----------+----------+---------------+-------+
+| Point Name        | Volttron Point Name | Units   | Type    | Writable | Readable | Default Value | Notes |
++===================+=====================+=========+=========+==========+==========+===============+=======+
+| fanMinOnTime      | fanMinOnTime        | seconds | setting | True     | True     |               |       |
++-------------------+---------------------+---------+---------+----------+----------+---------------+-------+
+| hvacMode          | hvacMode            | seconds | setting | True     | True     |               |       |
++-------------------+---------------------+---------+---------+----------+----------+---------------+-------+
+| humidity          | humidity            | %       | setting | False    | True     |               |       |
++-------------------+---------------------+---------+---------+----------+----------+---------------+-------+
+| coolHoldTemp      | coolHoldTemp        | degF    | hold    | True     | False    |               |       |
++-------------------+---------------------+---------+---------+----------+----------+---------------+-------+
+| heatHoldTemp      | heatHoldTemp        | degF    | hold    | True     | False    |               |       |
++-------------------+---------------------+---------+---------+----------+----------+---------------+-------+
+| actualTemperature | actualTemperature   | degF    | hold    | False    | True     |               |       |
++-------------------+---------------------+-------------------+----------+----------+---------------+-------+
 
-    Point Name,Volttron Point Name,Units,Type,Writable,Readable,Default Value,Notes
-    fanMinOnTime,fanMinOnTime,seconds,setting,True,True,,
-    hvacMode,hvacMode,seconds,setting,True,True,,
-    humidity,humidity,%,setting,False,True,,
-    coolHoldTemp,coolHoldTemp,degF,hold,True,False,,
-    heatHoldTemp,heatHoldTemp,degF,hold,True,False,,
-    desiredCool,desiredCool,degF,hold,False,True,,
-    desiredHeat,desiredHeat,degF,hold,False,True,,
-    actualTemperature,actualTemperature,degF,hold,False,True,,
 
 This configuration works as follows:
 
-::
-
-    Point Name - Name of a point as it appears in Ecobee response data (example
-    below)
-
-    Volttron Point Name - Name of a point as a user would like it to be displayed
-    in Volttron
-
-    Units - Unit of measurement specified by remote API
-
-    Type - The Ecobee driver registry configuration supports "setting" and "hold"
-    register types, based on how the data is represented in Ecobee response data (
-    example below)
-
-    Writable - Whether or not the point is able to be written to. This may be
-    determined by what Ecobee allows, and by the operation of Ecobee's API (to set
-    an Ecobee cool/heat hold, cool/HoldTemp is used, but to read other data points
-    are used and therefore are not writable; this is a quirk of Ecobee's API)
-
-    Readable - Whether or not the point is able to be read as specified. This may be
-    determined by what Ecobee allows, and by the operation of Ecobee's API
-    (to set an Ecobee cool/heat hold, cool/HoldTemp is used, however the requested
-    hold values are represented as desiredCool/Heat in Ecobee's response data; this
-    is a quirk of Ecobee's API)
-
-    Default Value - Used to send device defaults to the Ecobee API, this is optional.
-
-    Notes - Any user specified notes, this is optional
++---------------------+------------------------------------------------------------------------------------------------+
+| config field        | description                                                                                    |
++=====================+================================================================================================+
+| Point Name          | Name of a point as it appears in Ecobee response data (example below)                          |
++---------------------+------------------------------------------------------------------------------------------------+
+| Volttron Point Name | Name of a point as a user would like it to be displayed in data publishes to the message bus   |
++---------------------+------------------------------------------------------------------------------------------------+
+| Units               | Unit of measurement specified by remote API                                                    |
++---------------------+------------------------------------------------------------------------------------------------+
+| Type                | The Ecobee driver registry configuration supports "setting" and "hold" register types, based   |
+|                     | on how the data is represented in Ecobee response data (example below)                         |
++---------------------+------------------------------------------------------------------------------------------------+
+| Writable            | Whether or not the point is able to be written to. This may be determined by what Ecobee       |
+|                     | allows, and by the operation of Ecobee's API (to set an Ecobee cool/heat hold, cool/HoldTemp   |
+|                     | is used, but to read other data points are used and therefore are not writable; this is a      |
+|                     | quirk of Ecobee's API)                                                                         |
++---------------------+------------------------------------------------------------------------------------------------+
+| Readable            | Whether or not the point is able to be read as specified. This may be determined by what       |
+|                     | Ecobee allows, and by the operation of Ecobee's API (to set an Ecobee cool/heat hold,          |
+|                     | cool/HoldTemp is used, however the requested hold values are represented as desiredCool/Heat   |
+|                     | in Ecobee's response data; this is a quirk of Ecobee's API)                                    |
++---------------------+------------------------------------------------------------------------------------------------+
+| Default Value       | Used to send device defaults to the Ecobee API, this is optional.                              |
++---------------------+------------------------------------------------------------------------------------------------+
+| Notes               | Any user specified notes, this is optional                                                     |
++---------------------+------------------------------------------------------------------------------------------------+
 
 For additional explanation on the quirks of Ecobee's readable/writable points, visit:
 https://www.ecobee.com/home/developer/api/documentation/v1/functions/SetHold.shtml
@@ -152,53 +187,51 @@ https://www.ecobee.com/home/developer/api/documentation/v1/functions/SetHold.sht
 Installation
 ############
 
-These are the most basic installation steps for the Ecobee driver.
+The following instructions make up the minimal steps required to set up an instance of the Ecobee driver on the VOLTTRON
+platform and connect it to the Ecobee remote API:
 
-.. note::
+#. Create a directory using the path $VOLTTRON_ROOT/configs and create two files, `ecobee.csv` and `ecobee.config`.
+   Copy the registry config to the `ecobee.csv` file and the driver config to the `ecobee.config file`.  Modify the
+   `API_KEY` and `DEVICE_ID` fields from the driver config with your own API key and device serial number.
 
-    This guide assumes the user is in the VOLTTRON_ROOT directory, the VOLTTRON platform has been installed and
-    bootstrapped per the instructions in the VOLTTRON README.
+#. If the platform has not been started:
 
-Below are the setup instructions for the Ecobee driver.
+    .. code-block:: Bash
 
+        ./start-volttron
 
-1. If the platform has not been started:
+#. Be sure that the environment has been activated - you should see (volttron) next to <user>@<host> in your terminal
+   window. To activate an environment, use the following command.
 
-.. code-block:: Bash
+    .. code-block:: Bash
 
-    ./start-volttron
+        source env/bin/activate
 
-2. Be sure that the environment has been activated - you should see (volttron) next to <user>@<host> in your terminal
-window. To activate an environment, use the following command.
+#. Install a Master Driver if one is not yet installed
 
-.. code-block:: Bash
+    .. code-block:: Bash
 
-    . env/bin/activate
+        python scripts/install-agent.py --agent-source services/core/MasterDriverAgent --config \
+        examples/configurations/drivers/master-driver.agent --tag platform.driver
 
-3. Install a Master Driver if one is not yet installed
-
-.. code-block:: Bash
-
-    python scripts/install-agent.py -s services/core/MasterDriverAgent -c <master driver configuration file>
-
-4. Load the driver configuration into the configuration store ("vctl config list platform.driver" can be used to show
+#. Load the driver configuration into the configuration store ("vctl config list platform.driver" can be used to show
    installed configurations)
 
-.. code-block:: Bash
+    .. code-block:: Bash
 
-    vctl config store platform.driver <device topic (mentioned in driver configuration section)> <path to driver configuration>
+        vctl config store platform.driver devices/campus/building/ecobee $VOLTTRON_ROOT/configs/ecobee.config
 
-5. Load the driver's registry configuration into the configuration store
+#. Load the driver's registry configuration into the configuration store
 
-.. code-block:: Bash
+    .. code-block:: Bash
 
-    vctl config store platform.driver <registry configuration path from driver configuration> <path to registry configuration file> --csv
+        vctl config store platform.driver campus/building/ecobee.csv $VOLTTRON_ROOT/configs/ecobee.csv --csv
 
-6. Start the master driver
+#. Start the master driver
 
-.. code-block:: Bash
+    .. code-block:: Bash
 
-    vctl start platform.driver
+        vctl start platform.driver
 
 At this point, the master driver will start, configure the driver agent, and data should start to publish on the publish
 interval.
@@ -215,27 +248,25 @@ interval.
 PIN Verification steps:
 -----------------------
 
-* Step 1 - Obtain the pin from the VOLTTRON logs. The pin is a 4 character long string in the logs flanked by 2 rows of
-  asterisks
+#. Obtain the pin from the VOLTTRON logs. The pin is a 4 character long string in the logs flanked by 2 rows of
+   asterisks
 
-This text can be found in the logs to specify the pin:
+   .. image:: files/ecobee_pin.png
 
-.. code-block:: Bash
+#.  Log into the `Ecobee UI <https://www.ecobee.com/consumerportal/index.html#/login>`_ . After logging in, the
+    customer dashboard will be brought up, which features a series of panels (where the serial number was found for
+    device configuration) and a "hamburger" menu.
 
-     WARNING: ***********************************************************
-    2020-03-02 11:02:41,913 (master_driveragent-4.0 23053) master_driver.interfaces.ecobee WARNING: Please authorize your ecobee developer app with PIN code <code>.
-    Go to https://www.ecobee.com/consumerportal /index.html, click My Apps, Add application, Enter Pin and click Authorize.
-    2020-03-02 11:02:41,913 (master_driveragent-4.0 23053) master_driver.interfaces.ecobee WARNING: ***********************************************************
+    .. image:: files/ecobee_console.png
 
-* Step 2 - Log into the `Ecobee UI <https://www.ecobee.com/consumerportal/index.html#/login>`_ . After logging in, the
-  customer dashboard will be brought up, which features a series of panels (where the serial number was found for
-  device configuration) and a "hamburger" menu.
+#.  Add the application: Click the "hamburger" icon which will display a list of items in a panel that becomes
+    visible on the right. Click "My Apps", then "Add application". A text form will appear, enter the pin provided in
+    VOLTTRON logs here, then click "validate" and "add application.
 
-* Step 3 - Add the application: Click the "hamburger" icon which will display a list of items in a panel that becomes
-  visible on the right. Click "My Apps", then "Add application". A text form will appear, enter the pin provided in
-  VOLTTRON logs here, then click "validate" and "add application.
+    .. image:: files/ecobee_verify_pin.png
 
 This will complete the pin verification step.
+
 
 Ecobee Driver Usage
 ###################
@@ -324,10 +355,6 @@ https://www.ecobee.com/home/developer/api/documentation/v1/functions/CreateVacat
 
 Documentation for Program structure can be found here:
 https://www.ecobee.com/home/developer/api/examples/ex11.shtml
-
-When using set_point for vacation, the user may specify True for the delete
-keyword to remove an existing vacation. If deleting a vacation, the value
-parameter should specify the name of a vacation to delete.
 
 When using set_point for program, specifying a program structure will create a
 new program. Otherwise, if the user has not specified resume_all, Ecobee will
