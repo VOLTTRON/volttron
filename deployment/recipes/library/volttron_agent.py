@@ -41,8 +41,8 @@
 # Note for reference, this module is developed per the patter in the ansible
 # docs here: https://docs.ansible.com/ansible/latest/dev_guide/developing_modules_documenting.html
 
+import json
 import os
-import psutil
 import subprocess
 
 ANSIBLE_METADATA = {
@@ -70,7 +70,7 @@ options:
             - path to the VOLTTRON source tree (where start_volttron and stop_volttron are found)
         default: $HOME/volttron
         type: path
-    volttron_env:
+    volttron_venv:
         description:
             - path to the virtual environment where VOLTTRON is installed
         default: $volttron_root/env
@@ -85,30 +85,55 @@ options:
             - path to directory on the remote system where agent configuration files have been placed
         default: $HOME/configs
         type: path
-    agents:
+    agent_vip_id:
         description:
-            - A list of dictionaries, each of which defines an agent in the system.
-            - The following keys are supported:
-                - 'vip_id' (string, required): vip identity
-                - 'state' (string, default="present"): either "present" or "absent" indicates if the
-                                                       must or must not be present
-                - 'enabled' (bool, default=False): indicates if the agent should be enabled to
-                                                   automatically start with the platform
-                - 'priority' (int, default=50): ignored unless enabled==True. Used to determined
-                                                agent start order when a platform (re)starts.
-                - 'running' (bool, default=False): indicates if the agent should be running or not.
-                - 'source' (string - path, required): path to the source directory for the agent.
-                                                      If relative, is relative to agent_configs_dir, may use
-                                                      VOLTTRON_HOME, VOLTTRON_ROOT, or absolute path.
-                - 'config' (string - path, optional): if present, a path to the agent configuration file
-                                                      to package with the agent. If relative, is relative
-                                                      to agent_configs_dir, may use VOLTTRON_HOME, VOLTTRON_ROOT,
-                                                      or absolute path.
-                - 'tag' (string, default=''): if not empty, defines a tag to apply to the agent
-        type: list
+            - vip identity of the agent to be installed
+        type: string
         required: true
-        elements: dict
-
+    agent_state:
+        description:
+            - either "present" or "absent" indicates if the must or must not be present
+        type: string
+        default: 'present'
+        choices:
+            - 'present'
+            - 'absent'
+    agent_enabled:
+        description:
+            - indicates if the agent should be enabled to automatically start with the platform
+            - (note that this is independent of, and does not imply, agent_running)
+        type: bool
+        default: false
+    agent_priority:
+        description:
+            - Used to determined agent start order when a platform (re)starts. (ignored unless enabled==True)
+        type: int
+        default: 50
+    agent_running:
+        description:
+            - indicates if the agent should be started as part of the install
+            - (note that this is independent of enabling an agent)
+        type: bool
+        default: false
+    agent_source:
+        description:
+            - path to the source directory for the agent.
+            - If relative, is relative to agent_configs_dir
+            - May use $VOLTTRON_HOME, $VOLTTRON_ROOT, or absolute path.
+        type: path
+        required: true
+    agent_config:
+        description:
+            - If present, a path to the agent configuration file to package with the agent.
+            - If relative, is relative to agent_configs_dir.
+            - May use $VOLTTRON_HOME, $VOLTTRON_ROOT, or absolute path.
+        type: path
+        required: false
+    agent_tag:
+        description:
+            - If not empty, defines a tag to apply to the agent
+        type: string
+        default: ''
 '''
 
 #TODO: add some number of examples
@@ -134,7 +159,7 @@ def update_logical_defaults(module):
     'None' value by the ansible interface.
 
     Programmatically, the default value assigned by ansible to these variables (volttron_root,
-    and volttron_env) is None. When that is the case, we need to use other configurations
+    and volttron_venv) is None. When that is the case, we need to use other configurations
     and the runtime environment to compute the literal value of those parameters as documented.
 
     Note: this function takes a reference to the ansible module object and returns a new params
@@ -145,8 +170,8 @@ def update_logical_defaults(module):
 
     if params['volttron_root'] is None:
         params['volttron_root'] = f'{os.path.join(os.path.expanduser("~"), "volttron")}'
-    if params['volttron_env'] is None:
-        params['volttron_env'] = os.path.join(params['volttron_root'], 'env')
+    if params['volttron_venv'] is None:
+        params['volttron_venv'] = os.path.join(params['volttron_root'], 'env')
     if params['volttron_home'] is None:
         params['volttron_home'] = f'{os.path.join(os.path.expanduser("~"), ".volttron")}'
     if params['agent_configs_dir'] is None:
@@ -157,44 +182,135 @@ def update_logical_defaults(module):
 def install_agent(agent_specs, process_env):
     '''execute a subprocess to install and configure an agent
     '''
+    pass
 
-def remove_agent(agent_id, process_env):
+def get_platform_status(module, process_env):
+    '''use vctl to get info about running agents
+    '''
+    params = module.params
+    cmd_result = subprocess.run(
+        args=[
+            os.path.join(params['volttron_venv'], 'bin/vctl'),
+            '--json',
+            'status',
+        ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        cwd=params['volttron_root'],
+        env=process_env,
+    )
+    if cmd_result.returncode == 2 and "unrecognized arguments: --json" in cmd_result.stderr:
+        module.fail_json(msg='agent installation currently requires a volttron version which supports the --json flag in vctl')
+    if cmd_result.returncode != 0:
+        module.fail_json(msg='agent state not recognized', stderr=cmd_result.stderr, stdout=cmd_result.stdout)
+
+    agents = json.loads(cmd_result.stdout)
+    return agents
+
+
+def remove_agent(params, process_env):
     '''uninstall an agent
     '''
-    remove_result = subprocess.run(
+    module_result = {}
+
+    #TODO: we can't remove an agent by VIP_ID, need to parse out a UUID
+    cmd_result = subprocess.run(
+        args=[
+            os.path.join(params['volttron_venv'], 'bin/vctl'),
+            'remove',
+            params['agent_vip_id'],
+        ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        cwd=params['volttron_root'],
+        env=process_env,
+        check=True,
     )
+    module_result.update({
+        'command': cmd_result.args,
+        'return_code': cmd_result.returncode,
+        'stdout': cmd_result.stdout.decode(),
+        'stderr': cmd_result.stderr.decode(),
+        'changed': True,
+    })
 
-##TODO: add logic for removing an agent
-##TODO: add logic for installing an agent
-##TODO: add logic for adding config store entries to an agent
+    return module_result
 
+def install_agent(params, process_env):
+    '''
+    '''
+    module_result = {}
+
+    install_cmd=[
+        os.path.join(params['volttron_venv'], 'bin/python'),
+        os.path.join(params['volttron_root'], 'scripts/install-agent.py'),
+        '-i', params['agent_vip_id'],
+        '-vh', params['volttron_home'],
+        '-vr', params['volttron_root'],
+        '-s', params['agent_source'],
+    ]
+    if params['agent_enabled']:
+        install_cmd.append('--enable')
+        install_cmd.extend(['--priority', params['agent_priority']])
+    if params['agent_running']:
+        install_cmd.append('--start')
+    cmd_result = subprocess.run(
+        args=install_cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        cwd=params['volttron_root'],
+        env=process_env,
+        shell=True,
+        #check=True,
+    )
+    module_result.update({
+        'command': cmd_result.args,
+        'return_code': cmd_result.returncode,
+        'stdout': cmd_result.stdout.decode(),
+        'stderr': cmd_result.stderr.decode(),
+        'changed': True,
+    })
+
+    return module_result
+
+def add_config_store():
+    '''
+    '''
+    ##TODO: add logic for adding config store entries to an agent
+
+#TODO make sure there are sufficient try/except blocks to return useful
+#     failure case data
 def execute_task(module):
-    ''' ensure that the platform is in the desired running/not-running state
-
-    Uses the VOLTTRON_PID file in the configured volttron_home to determine if the platform
-    is currently running, and compares that against the configured desired state. If the
-    state does not match the desired state, uses a subprocess to call either the stop-volttron
-    or the start-volttron script as appropriate to reach the desired state and then uses the
-    (possibly updated) VOLTTRON_PID file to re-check the resulting state.
-
-    In the even that the detected state is found to be present, the function returns with 'changed'=False
-    If a start or stopped script is run, 'changed' will always be True, but the process may
-    still report as failed if either the start/stop script return code indicates an error, or if
-    the state detected after the script is run does not match the desired state.
-
-    Note:
-    - In the event of failure, this function will call the module's fail_json method immediately.
+    '''
     '''
     results = {'process_results':[]}
     params = module.params
 
-    # since not in the desired state, attempt to move to that state
     subprocess_env = dict(os.environ)
     subprocess_env.update({
         'VOLTTRON_HOME': params['volttron_home'],
         'VOLTTRON_ROOT': params['volttron_root'],
     })
 
+    existing_agents = get_platform_status(module, subprocess_env)
+    results['initial_agents'] = existing_agents
+
+    if params['agent_state'] == 'present':
+        if params['agent_vip_id'] in existing_agents:
+            results['changed'] = False
+        else:
+            results.update(install_agent(params=params, process_env=subprocess_env))
+            if results['return_code']:
+                module.fail_json(msg='install agent failed', subprocess_details=results)
+    elif params['agent_state'] == 'absent':
+        if params['agent_vip_id'] not in existing_agents:
+            results['changed'] = False
+        else:
+            results.update(remove_agent(params=params, process_env=subprocess_env))
+    else:
+        module.fail_json(msg='agent state not recognized')
+
+    results['final_agents'] = get_platform_status(module, subprocess_env)
     # if no failures, return results
     return results
 
@@ -224,7 +340,7 @@ def run_module():
             "type": "path",
             "default": None,
         },
-        "volttron_env": {
+        "volttron_venv": {
             "type": "path",
             "default": None,
         },
@@ -237,10 +353,42 @@ def run_module():
             "type": "path",
             "default": None,
         },
-        "agents": {
-            "type": "dict",
+        "agent_vip_id": {
+            "type": "str",
             "required": True,
-        }
+        },
+        "agent_state": {
+            "type": "str",
+            "default": "present",
+            "choices": [
+                "present",
+                "absent",
+            ],
+        },
+        "agent_enabled": {
+            "type": "bool",
+            "default": False,
+        },
+        "agent_priority": {
+            "type": "int",
+            "default": 50,
+        },
+        "agent_running": {
+            "type": "bool",
+            "default": False,
+        },
+        "agent_source": {
+            "type": "path",
+            "required": True,
+        },
+        "agent_config": {
+            "type": "path",
+            "required": False,
+        },
+        "agent_tag": {
+            "type": "str",
+            "default": '',
+        },
     }
 
     # seed the result dict in the object
@@ -276,7 +424,7 @@ def run_module():
     try:
         result.update(execute_task(module))
     except Exception as e:
-        module.fail_json(msg='volttron_bootstrap had an unhandled exception', error=repr(e))
+        module.fail_json(msg='volttron_agent had an unhandled exception', error=repr(e))
 
     # in the event of a successful module execution, you will want to
     # simple AnsibleModule.exit_json(), passing the key/value results

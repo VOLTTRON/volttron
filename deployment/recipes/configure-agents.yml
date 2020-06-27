@@ -1,0 +1,27 @@
+---
+- name: configure agents
+  hosts: all
+  roles:
+  - set-defaults
+  - ansible-venv
+  - copy-agent-configs
+  tasks:
+
+  # TODO: let's start by brute-force installing a listener
+  - name: install listener
+    volttron_agent:
+      volttron_root: "{{ volttron_root }}"
+      volttron_home: "{{ volttron_home }}"
+      volttron_venv: "{{ volttron_venv }}"
+      agent_vip_id: 'listener'
+      agent_state: 'present'
+      agent_source: '$VOLTTRON_ROOT/examples/ListenerAgent'
+    register: listener_agent_install_result
+    ignore_errors: yes
+  - debug:
+      msg: "{{ listener_agent_install_result }}"
+    failed_when: listener_agent_install_result.failed
+
+  # TODO: let's also brute force install an agent that requires config
+
+  # TODO: let's get the agents to install from inventory or host config

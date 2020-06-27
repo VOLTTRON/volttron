@@ -1,4 +1,4 @@
-- name: check locally for configuration root directory
+- name: check locally (to controller) for configuration root directory
   local_action:
     module: stat
     path: "{{ deployment_config_root }}"
@@ -15,6 +15,19 @@
     path: "{{ host_configs_dir }}"
     state: directory
     mode: 0755
+
+- name: check locally (to controller) for agent configs dir
+  local_action:
+    module: stat
+    path: "{{ deployment_platform_config_dir }}"
+  register: agent_directory_check
+  ignore_errors: True
+  run_once: True
+  vars:
+    ## we changed pythons to install deps on the remotes, need
+    ## to set back because we're deleagting to localhost
+    ansible_python_interpreter: "{{ ansible_playbook_python }}"
+
 - name: recursively copy agent configs dir content to remote
   copy:
     # Note the / on the end means we don't want the containing folder
@@ -23,4 +36,4 @@
     src: "{{ deployment_platform_config_dir }}/"
     dest: "{{ host_configs_dir }}"
     mode: 0644
-  when: directory_check.stat.exists
+  when: agent_directory_check.stat.exists

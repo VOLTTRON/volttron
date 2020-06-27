@@ -67,10 +67,12 @@ options:
     volttron_root:
         description:
             - path to the VOLTTRON source tree (where bootstrap.py will be found)
+        type: path
         default: $HOME/volttron
     volttron_env:
         description:
             - path to the VOLTTRON virtual environment to be used
+        type:path
         default: $volttron_root/env
     features:
         description:
@@ -224,11 +226,11 @@ def run_module():
     # these should match the DOCUMENTATION above
     module_args = {
         "volttron_root": {
-            "type": "str",
+            "type": "path",
             "required": True,
         },
         "volttron_env": {
-            "type": "str",
+            "type": "path",
             "required": False,
             "default": None,
         },
