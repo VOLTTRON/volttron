@@ -47,7 +47,6 @@ from requests.packages.urllib3.connection import ConnectionError, NewConnectionE
 from volttron.platform import jsonapi
 from volttron.platform.agent import utils
 from volttron.platform.agent.known_identities import CONFIGURATION_STORE, PLATFORM_DRIVER
-from volttron.platform.jsonrpc import RemoteError
 from volttron.utils.persistance import PersistentDict
 from services.core.MasterDriverAgent.master_driver.interfaces import BaseInterface, BaseRegister, BasicRevert
 
