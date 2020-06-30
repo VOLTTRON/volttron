@@ -66,6 +66,8 @@ def get_bearer(env):
         auth_type, bearer = http_auth.split(' ')
         if auth_type.upper() != 'BEARER':
             raise NotAuthorized("Invalid HTTP_AUTHORIZATION header passed, must be Bearer")
+        else:
+            return bearer
     else:
         cookiestr = env.get('HTTP_COOKIE')
         if not cookiestr:
