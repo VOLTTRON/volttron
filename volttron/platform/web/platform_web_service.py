@@ -491,11 +491,6 @@ class PlatformWebService(Agent):
 
                     if isinstance(retvalue, Response):
                         return retvalue(env, start_response)
-                        #return self.process_response(start_response, retvalue)
-                    elif isinstance(retvalue, Response):  # werkzueg Response
-                        for d in retvalue(env, start_response):
-                            print(d)
-                        return retvalue(env, start_response)
                     else:
                         return retvalue[0]
 
