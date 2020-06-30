@@ -202,7 +202,7 @@ def get_platform_status(module, process_env):
     if cmd_result.returncode == 2 and "unrecognized arguments: --json" in cmd_result.stderr:
         module.fail_json(msg='agent installation currently requires a volttron version which supports the --json flag in vctl')
     if cmd_result.returncode != 0:
-        module.fail_json(msg='agent state not recognized', stderr=cmd_result.stderr.decode(), stdout=cmd_result.stdout.decode())
+        module.fail_json(msg='agent state not recognized', subprocess_result=repr(cmd_result))
 
     try:
         agents = {}
@@ -258,9 +258,11 @@ def install_agent(module, process_env):
     ]
     if params['agent_enabled']:
         install_cmd.append('--enable')
-        install_cmd.extend(['--priority', params['agent_priority']])
+        install_cmd.extend(['--priority', f"{params['agent_priority']}"])
     if params['agent_running']:
         install_cmd.append('--start')
+    if params['agent_config']:
+        install_cmd.extend(['--config', params['agent_config']])
     try:
         module_result['command'] = ' '.join(install_cmd)
         module_result['process_env'] = process_env
@@ -268,16 +270,22 @@ def install_agent(module, process_env):
             args=' '.join(install_cmd),
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            cwd=params['volttron_root'],
+            cwd=params['agent_configs_dir'],
             env=process_env,
             shell=True,
             timeout=params['time_limit'],
         )
         module_result.pop('process_env')
     except subprocess.TimeoutExpired:
-        module.fail_json(msg=f"agent install script timed out ({params['time_limit']})", command=' '.join(install_cmd), process_env=process_env)
+        module.fail_json(msg=f"agent install script timed out ({params['time_limit']})",
+                         command=' '.join(install_cmd),
+                         process_env=process_env,
+                        )
     except Exception as e:
-        module.fail_json(msg=f"subprocess to install agent failed with unhandled exception: {repr(e)}")
+        module.fail_json(msg=f"subprocess to install agent failed with unhandled exception: {repr(e)}",
+                         command=' '.join(install_cmd),
+                         process_env=process_env,
+                        )
     module_result.update({
         'command': cmd_result.args,
         'return_code': cmd_result.returncode,
