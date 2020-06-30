@@ -14,7 +14,7 @@
       volttron_home: "{{ volttron_home }}"
       volttron_venv: "{{ volttron_venv }}"
       agent_vip_id: 'listener'
-      agent_state: 'present'
+      agent_state: 'absent'
       agent_source: '$VOLTTRON_ROOT/examples/ListenerAgent'
     register: listener_agent_install_result
     ignore_errors: yes

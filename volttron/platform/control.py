@@ -801,7 +801,10 @@ def agent_health(opts):
     agents = {agent.uuid: agent for agent in _list_agents(opts.aip)}.values()
     agents = get_filtered_agents(opts, agents)
     if not agents:
-        _stderr.write('No installed Agents found\n')
+        if not opts.json:
+            _stderr.write('No installed Agents found\n')
+        else:
+            _stdout.write(f'{jsonapi.dumps({}, indent=2)}\n')
         return
     agent = agents.pop()
     try:
@@ -1389,7 +1392,10 @@ def _show_filtered_agents(opts, field_name, field_callback, agents=None):
     agents = get_filtered_agents(opts, agents)
 
     if not agents:
-        _stderr.write('No installed Agents found\n')
+        if not opts.json:
+            _stderr.write('No installed Agents found\n')
+        else:
+            _stdout.write(f'{jsonapi.dumps({}, indent=2)}\n')
         return
     agents = sorted(agents, key=lambda x: x.name)
     if not opts.min_uuid_len:
@@ -1450,7 +1456,10 @@ def _show_filtered_agents_status(opts, status_callback, health_callback, agents=
     agents = get_filtered_agents(opts, agents)
 
     if not agents:
-        _stderr.write('No installed Agents found\n')
+        if not opts.json:
+            _stderr.write('No installed Agents found\n')
+        else:
+            _stdout.write(f'{jsonapi.dumps({}, indent=2)}\n')
         return
 
     agents = sorted(agents, key=lambda x: x.name)

@@ -85,6 +85,11 @@ options:
             - path to directory on the remote system where agent configuration files have been placed
         default: $HOME/configs
         type: path
+    time_limit:
+        description:
+            - Time limit, in seconds, for subprocess calls used by the module.
+        type: int
+        default: 30
     agent_vip_id:
         description:
             - vip identity of the agent to be installed
@@ -179,11 +184,6 @@ def update_logical_defaults(module):
 
     return params
 
-def install_agent(agent_specs, process_env):
-    '''execute a subprocess to install and configure an agent
-    '''
-    pass
-
 def get_platform_status(module, process_env):
     '''use vctl to get info about running agents
     '''
@@ -202,13 +202,19 @@ def get_platform_status(module, process_env):
     if cmd_result.returncode == 2 and "unrecognized arguments: --json" in cmd_result.stderr:
         module.fail_json(msg='agent installation currently requires a volttron version which supports the --json flag in vctl')
     if cmd_result.returncode != 0:
-        module.fail_json(msg='agent state not recognized', stderr=cmd_result.stderr, stdout=cmd_result.stdout)
+        module.fail_json(msg='agent state not recognized', stderr=cmd_result.stderr.decode(), stdout=cmd_result.stdout.decode())
 
-    agents = json.loads(cmd_result.stdout)
+    try:
+        agents = {}
+        if not "No installed Agents found" in cmd_result.stderr.decode():
+            agents = json.loads(cmd_result.stdout)
+    except json.JSONDecodeError:
+        module.fail_json(msg='unable to decode platform status', status_output=cmd_result.stdout.decode(), status_error=cmd_result.stderr.decode())
+    except Exception as e:
+        module.fail_json(msg='unexpected exception decoding stats', error_repr=repr(e))
     return agents
 
-
-def remove_agent(params, process_env):
+def remove_agent(agent_uuid, params, process_env):
     '''uninstall an agent
     '''
     module_result = {}
@@ -218,7 +224,7 @@ def remove_agent(params, process_env):
         args=[
             os.path.join(params['volttron_venv'], 'bin/vctl'),
             'remove',
-            params['agent_vip_id'],
+            agent_uuid,
         ],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -236,9 +242,10 @@ def remove_agent(params, process_env):
 
     return module_result
 
-def install_agent(params, process_env):
+def install_agent(module, process_env):
     '''
     '''
+    params = module.params
     module_result = {}
 
     install_cmd=[
@@ -254,15 +261,23 @@ def install_agent(params, process_env):
         install_cmd.extend(['--priority', params['agent_priority']])
     if params['agent_running']:
         install_cmd.append('--start')
-    cmd_result = subprocess.run(
-        args=install_cmd,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        cwd=params['volttron_root'],
-        env=process_env,
-        shell=True,
-        #check=True,
-    )
+    try:
+        module_result['command'] = ' '.join(install_cmd)
+        module_result['process_env'] = process_env
+        cmd_result = subprocess.run(
+            args=' '.join(install_cmd),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            cwd=params['volttron_root'],
+            env=process_env,
+            shell=True,
+            timeout=params['time_limit'],
+        )
+        module_result.pop('process_env')
+    except subprocess.TimeoutExpired:
+        module.fail_json(msg=f"agent install script timed out ({params['time_limit']})", command=' '.join(install_cmd), process_env=process_env)
+    except Exception as e:
+        module.fail_json(msg=f"subprocess to install agent failed with unhandled exception: {repr(e)}")
     module_result.update({
         'command': cmd_result.args,
         'return_code': cmd_result.returncode,
@@ -299,14 +314,14 @@ def execute_task(module):
         if params['agent_vip_id'] in existing_agents:
             results['changed'] = False
         else:
-            results.update(install_agent(params=params, process_env=subprocess_env))
+            results.update(install_agent(module=module, process_env=subprocess_env))
             if results['return_code']:
                 module.fail_json(msg='install agent failed', subprocess_details=results)
     elif params['agent_state'] == 'absent':
         if params['agent_vip_id'] not in existing_agents:
             results['changed'] = False
         else:
-            results.update(remove_agent(params=params, process_env=subprocess_env))
+            results.update(remove_agent(agent_uuid=existing_agents[params['agent_vip_id']]['agent_uuid'], params=params, process_env=subprocess_env))
     else:
         module.fail_json(msg='agent state not recognized')
 
@@ -352,6 +367,10 @@ def run_module():
         "agent_configs_dir": {
             "type": "path",
             "default": None,
+        },
+        "time_limit": {
+            "type": "int",
+            "default": 30,
         },
         "agent_vip_id": {
             "type": "str",
@@ -424,7 +443,8 @@ def run_module():
     try:
         result.update(execute_task(module))
     except Exception as e:
-        module.fail_json(msg='volttron_agent had an unhandled exception', error=repr(e))
+        import traceback
+        module.fail_json(msg='volttron_agent had an unhandled exception', exception=repr(e), trace=traceback.format_stack())
 
     # in the event of a successful module execution, you will want to
     # simple AnsibleModule.exit_json(), passing the key/value results
