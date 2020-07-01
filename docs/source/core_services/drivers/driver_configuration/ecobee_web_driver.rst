@@ -150,6 +150,11 @@ This is an example registry configuration:
 | actualTemperature | actualTemperature   | degF    | hold    | False    | True     |               |       |
 +-------------------+---------------------+-------------------+----------+----------+---------------+-------+
 
+.. note::
+
+    An example registry configuration containing all points from the development device is available in the
+    `examples/configurations/drivers/ecobee.csv` file in the VOLTTRON repository.
+
 
 This configuration works as follows:
 
@@ -179,9 +184,6 @@ This configuration works as follows:
 +---------------------+------------------------------------------------------------------------------------------------+
 | Notes               | Any user specified notes, this is optional                                                     |
 +---------------------+------------------------------------------------------------------------------------------------+
-
-An example registry configuration containing all points from the development device is available in the
-`examples/configurations/drivers/ecobee.csv` file in the VOLTTRON repository.
 
 For additional explanation on the quirks of Ecobee's readable/writable points, visit:
 https://www.ecobee.com/home/developer/api/documentation/v1/functions/SetHold.shtml
