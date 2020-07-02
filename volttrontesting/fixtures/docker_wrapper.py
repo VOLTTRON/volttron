@@ -63,14 +63,14 @@ if HAS_DOCKER:
 
         # wait for a certain amount of time to let container complete its build
         try:
-            if _not_valid_container(container, startup_time_seconds):
+            if _is_not_valid_container(container, startup_time_seconds):
                 yield None
             else:
                 yield container
         finally:
             container.kill()
 
-    def _not_valid_container(container, startup_time_seconds):
+    def _is_not_valid_container(container, startup_time_seconds):
         error_time = time.time() + startup_time_seconds
         invalid = False
 
@@ -80,10 +80,5 @@ if HAS_DOCKER:
                 break
             time.sleep(0.1)
             container.reload()
-        try:
-            if invalid:
-                yield None
-            else:
-                yield container
-        finally:
-            container.kill()
+
+        return invalid
