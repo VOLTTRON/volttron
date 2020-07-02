@@ -1,15 +1,13 @@
 import copy
-import gevent
+import datetime
+import mock
 from mock import MagicMock
 import os
-import re
 import requests
 from requests.exceptions import HTTPError
 import pytest
 
 from services.core.MasterDriverAgent.master_driver.interfaces import ecobee
-from volttron.platform.agent.known_identities import CONFIGURATION_STORE, PLATFORM_DRIVER
-from volttron.platform import get_services_core, get_examples, jsonapi
 from volttron.platform.agent import utils
 
 API_KEY = os.environ.get("ECOBEE_KEY")
@@ -427,6 +425,95 @@ def test_get_point_malformed_data(mock_ecobee, point_name, expected_value):
     assert refresh_timestamp > curr_timestamp
 
 
+# Mock the set state from the Setting class so we don't trigger the HTTP request
+@mock.patch.object(ecobee.Setting, 'set_state', MagicMock(name="set_point_callback"))
+def test_set_setting_success(mock_ecobee):
+    success_registry_config = [{
+        "Point Name": "setting1",
+        "Volttron Point Name": "testSetting",
+        "Units": "degC",
+        "Type": "setting",
+        "Writable": "True",
+        "Readable": "True"
+    }]
+    mock_ecobee.configure(VALID_ECOBEE_CONFIG, success_registry_config)
+    assert mock_ecobee._set_point("testSetting", "test_value") == 0
+    assert mock_ecobee.get_register_by_name("testSetting").set_state.call_count == 1
+    # call args should be (<set value>, <access token>)
+    assert mock_ecobee.get_register_by_name("testSetting").set_state.call_args.args == ("test_value", True)
+
+
+def test_set_setting_no_write(mock_ecobee):
+    mock_ecobee.configure(VALID_ECOBEE_CONFIG, VALID_ECOBEE_REGISTRY)
+    with pytest.raises(IOError, match=r"Trying to write to a point configured read only: testSetting"):
+        mock_ecobee._set_point("testSetting", "test_value")
+
+
+# Mock the set state from the Setting class so we don't trigger the HTTP request
+@mock.patch.object(ecobee.Setting, 'set_state', MagicMock(name="set_point_callback"))
+def test_set_setting_no_read(mock_ecobee):
+    no_read_registry_config = [{
+        "Point Name": "setting1",
+        "Volttron Point Name": "testSetting",
+        "Units": "degC",
+        "Type": "setting",
+        "Writable": "True",
+        "Readable": "False"
+    }]
+    mock_ecobee.configure(VALID_ECOBEE_CONFIG, no_read_registry_config)
+    # None returned if the point is not configured readable
+    assert mock_ecobee._set_point("testSetting", "test_value") is None
+    assert mock_ecobee.get_register_by_name("testSetting").set_state.call_count == 1
+    # call args should be (<set value>, <access token>)
+    assert mock_ecobee.get_register_by_name("testSetting").set_state.call_args.args == ("test_value", True)
+
+
+def test_set_hold_bad_structure(mock_ecobee):
+    # holds should be dicts containing at least a "holdType" key which is used by the remote
+    mock_ecobee.configure(VALID_ECOBEE_CONFIG, VALID_ECOBEE_REGISTRY)
+    hold_not_dict = "test_value"
+    with pytest.raises(ValueError, match=r"Hold register set_state expects dict, received <class 'str'>"):
+        assert mock_ecobee._set_point("testHold", hold_not_dict)
+
+    hold_no_type = {
+        "test": "test"
+    }
+    with pytest.raises(ValueError, match=r'Hold register requires "holdType" in value dict'):
+        assert mock_ecobee._set_point("testHold", hold_no_type)
+
+    hold_missing_point_name = {
+        "holdType": "testHoldType"
+    }
+    with pytest.raises(ValueError, match=r"Point name testHold not found in Hold set_state value dict"):
+        assert mock_ecobee._set_point("testHold", hold_missing_point_name)
+
+
+def test_set_vacation_bad_structure(mock_ecobee):
+    # Vacations should be dictionary containing at least the minimal set of keys below
+    mock_ecobee.configure(VALID_ECOBEE_CONFIG, VALID_ECOBEE_REGISTRY)
+    vacation_not_dict = "test_value"
+    with pytest.raises(ValueError, match=r"Creating vacation on Ecobee thermostat requires dict:.*"):
+        assert mock_ecobee._set_point("Vacations", vacation_not_dict)
+
+    vacation_missing_required = {
+        "name": "test_name",
+        "heatHoldTemp": -1,
+        "startDate": "2020-07-01",
+        "startTime": "00:00:00",
+        "endDate": "2020-07-01",
+        "endTime": "23:59:59"
+    }
+    with pytest.raises(ValueError, match=r"Creating vacation on Ecobee thermostat requires dict:.*"):
+        assert mock_ecobee._set_point("Vacations", vacation_missing_required)
+
+
+def test_set_status_read_only(mock_ecobee):
+    # Status registers are hard-coded and read-only by default
+    mock_ecobee.configure(VALID_ECOBEE_CONFIG, VALID_ECOBEE_REGISTRY)
+    with pytest.raises(IOError, match=r"Trying to write to a point configured read only: Status"):
+        assert mock_ecobee._set_point("Status", "set status")
+
+
 def test_scrape_all_success(mock_ecobee):
     mock_ecobee.configure(VALID_ECOBEE_CONFIG, VALID_ECOBEE_REGISTRY)
     all_scrape = mock_ecobee._scrape_all()
@@ -515,3 +602,5 @@ def test_scrape_all_trigger_refresh(mock_ecobee):
 #     # Close agents after test
 #     query_agent.core.stop()
 #     volttron_instance.stop_agent(master_driver)
+
+# TODO integration tests for set point registers
