@@ -426,7 +426,6 @@ class Interface(BasicRevert, BaseInterface):
         if register.read_only:
             raise IOError(f"Trying to write to a point configured read only: {point_name}")
         try:
-            print(type(register))
             if isinstance(register, Setting) or isinstance(register, Hold):
                 register.set_state(value, self.access_token)
             elif isinstance(register, Vacation) or isinstance(register, Program):
