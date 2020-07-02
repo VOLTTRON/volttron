@@ -208,7 +208,7 @@ In this example, the script that is to be run is testScript.py.
 
         import time
         import sys
-        from StringIO import StringIO
+        from io import StringIO
 
 
         def script_runner(message):
@@ -221,13 +221,13 @@ In this example, the script that is to be run is testScript.py.
             try:
                 out = StringIO()
                 sys.stdout = out
-                execfile(sys.argv[0])
+                exec(open(sys.argv[0]).read())
                 sys.stdout = original
-        return out.getvalue()
-        except Exception as ex:
-        out = str(ex)
-        sys.stdout = original
-        return out
+                return out.getvalue()
+            except Exception as ex:
+                out = str(ex)
+                sys.stdout = original
+                return out
 
 .. note::
 
@@ -389,14 +389,20 @@ Install pre-requisites
 
 2. Install MatLab engine from  `here <https://www.mathworks.com/help/matlab/matlab_external/install-the-matlab-engine-for-python.html>`_.
 
+   .. warning::
 
-   .. note::
+        The MatLab engine for Python only supports certain version of Python
+        depending on the version of MatLab used.
+        Please check `here <https://www.mathworks.com/help/matlab/matlab-engine-for-python.html>`__ to see
+        if the current version of MatLab supports your version of Python.
 
-        At this time, you may want to verify that you are able to communicate with
-        your Linux machine across your network. The simplest method would be to open
-        up the command terminal and use ``ping <ip of Linux machine>``, and ``telnet <ip of Linux machine>
-        <port of volttron instance. default port is 22916>`` If you are using redhat linux, the port will
-        need to be explicitly opened for outside access.
+
+.. note::
+
+    At this time, you may want to verify that you are able to communicate with
+    your Linux machine across your network. The simplest method would be to open
+    up the command terminal and use ``ping <ip of Linux machine>``, and ``telnet <ip of Linux machine>
+    <port of volttron instance. default port is 22916>`` Please make sure that the port is opened for outside access.
 
 Install StandAloneMatLab Agent
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -471,7 +477,7 @@ Windows environment.
 
         Use pip to install and setup dependencies.
 
-        ``pip install -r requirements.txt``
+        ``pip install -r examples\StandAloneMatLab\requirements.txt``
 
         ``pip install -e .``
 
