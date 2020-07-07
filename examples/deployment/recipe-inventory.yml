@@ -4,6 +4,7 @@ all:
     web:
       ansible_host: web
       volttron_home: "~/vhome"
+      volttron_use_local_source: yes
     collector1:
       ansible_host: collector1
       volttron_use_local_source: yes
