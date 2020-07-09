@@ -13,7 +13,7 @@ if HAS_DOCKER:
 
     @contextlib.contextmanager
     def create_container(image_name: str, ports: dict = None, env: dict = None, command: (list, str) = None,
-                         startup_time_seconds: int = 30) -> \
+                         volumes: (dict, list) = None, startup_time_seconds: int = 30) -> \
             (docker.models.containers.Container, None):
         """ Creates a container instance in a context that will clean up after itself.
 
@@ -38,6 +38,17 @@ if HAS_DOCKER:
                 {'3306/tcp': 3306}
         :param env: environment variables to set inside the container.
         :param command: string or list of commands to run during the startup of the container.
+        :param volumes: dict or list A dictionary to configure volumes mounted inside the container.
+            The key is either the host path or a volume name, and the value is a dictionary with the keys:
+
+            - 'bind' The path to mount the volume inside the container
+            - 'mode' Either 'rw' to mount the volume read/write, or 'ro' to mount it read-only.
+
+            ::
+                # Example
+
+                {'/home/user1/': {'bind': '/mnt/vol2', 'mode': 'rw'},
+                 '/var/www': {'bind': '/mnt/vol1', 'mode': 'ro'}}
         :param startup_time_seconds: Allow this many seconds for the startup of the container before raising a
             runtime exception (Download of image and instantiation could take a while)
 
@@ -54,7 +65,8 @@ if HAS_DOCKER:
                 # So all tags aren't pulled. According to docs https://docker-py.readthedocs.io/en/stable/images.html.
                 full_docker_image = full_docker_image + ":latest"
             client.images.pull(full_docker_image)
-            container = client.containers.run(image_name, ports=ports, environment=env, auto_remove=True, detach=True)
+            container = client.containers.run(image_name, ports=ports, environment=env, auto_remove=True, detach=True,
+                                              volumes=volumes)
         except (ImageNotFound, APIError, RuntimeError) as e:
             raise RuntimeError(e)
 
