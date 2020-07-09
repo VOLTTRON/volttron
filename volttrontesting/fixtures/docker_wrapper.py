@@ -38,7 +38,7 @@ if HAS_DOCKER:
                 {'3306/tcp': 3306}
         :param env: environment variables to set inside the container.
         :param command: string or list of commands to run during the startup of the container.
-        :param volumes: dict or list A dictionary to configure volumes mounted inside the container.
+        :param volumes: dict or list to configure volumes mounted inside the container.
             The key is either the host path or a volume name, and the value is a dictionary with the keys:
 
             - 'bind' The path to mount the volume inside the container
