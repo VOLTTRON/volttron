@@ -11,8 +11,6 @@ from volttron.platform.agent.utils import is_volttron_running
 from volttrontesting.fixtures.rmq_test_setup import create_rmq_volttron_setup
 from volttrontesting.utils.platformwrapper import create_volttron_home
 '''
-NOTE: ZMQ tests only. RMQ tests will be added in 7.1
-
 Example variables to be used during each of the tests, depending on the prompts that will be asked
 
 message_bus = "zmq"
