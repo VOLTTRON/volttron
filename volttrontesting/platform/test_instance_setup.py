@@ -2,7 +2,6 @@ import contextlib
 import os
 import shutil
 import subprocess
-import gevent
 import pytest
 from configparser import ConfigParser
 from volttron.platform.instance_setup import _is_agent_installed
@@ -159,9 +158,7 @@ def test_zmq_case_with_agents(monkeypatch):
                               text=True
                               ) as vcfg:
             out, err = vcfg.communicate(vcfg_args)
-        # print("CWD is: {}".format(os.getcwd()))
-        print("OUT is: {}".format(out))
-        print("ERROR is: {}".format(err))
+
         assert os.path.exists(config_path)
         config = ConfigParser()
         config.read(config_path)
@@ -229,9 +226,7 @@ def test_zmq_case_web_no_agents(monkeypatch):
                               text=True
                               ) as vcfg:
             out, err = vcfg.communicate(vcfg_args)
-        # print("CWD is: {}".format(os.getcwd()))
-        # print("OUT is: {}".format(out))
-        # print("ERROR is: {}".format(err))
+
         assert os.path.exists(config_path)
         config = ConfigParser()
         config.read(config_path)
@@ -313,9 +308,7 @@ def test_zmq_case_web_with_agents(monkeypatch):
                               text=True
                               ) as vcfg:
             out, err = vcfg.communicate(vcfg_args)
-        # print("CWD is: {}".format(os.getcwd()))
-        print("OUT is: {}".format(out))
-        print("ERROR is: {}".format(err))
+
         assert os.path.exists(config_path)
         config = ConfigParser()
         config.read(config_path)
@@ -352,8 +345,6 @@ def test_zmq_case_web_vc(monkeypatch):
         ca_organization = "test-org"
         ca_org_unit = "test-org-unit"
         is_vc = "Y"
-        vc_admin_name = "test"
-        vc_admin_password = "test"
         is_vcp = "Y"
         instance_name = "test_zmq"
         install_historian = "N"
@@ -374,9 +365,6 @@ def test_zmq_case_web_vc(monkeypatch):
                                ca_organization,
                                ca_org_unit,
                                is_vc,
-                               # vc_admin_name,
-                               # vc_admin_password,
-                               # vc_admin_password,
                                agent_autostart,
                                is_vcp,
                                instance_name,
@@ -394,9 +382,6 @@ def test_zmq_case_web_vc(monkeypatch):
                               text=True
                               ) as vcfg:
             out, err = vcfg.communicate(vcfg_args)
-        print("OUT is: {}".format(out))
-        print("ERROR is: {}".format(err))
-        # print("CWD is: {}".format(os.getcwd()))
 
         assert os.path.exists(config_path)
         config = ConfigParser()
@@ -434,8 +419,6 @@ def test_zmq_case_web_vc_with_agents(monkeypatch):
         ca_organization = "test-org"
         ca_org_unit = "test-org-unit"
         is_vc = "Y"
-        vc_admin_name = "test"
-        vc_admin_password = "test"
         is_vcp = "Y"
         instance_name = "test_zmq"
         install_historian = "Y"
@@ -457,9 +440,6 @@ def test_zmq_case_web_vc_with_agents(monkeypatch):
                                ca_organization,
                                ca_org_unit,
                                is_vc,
-                               # vc_admin_name,
-                               # vc_admin_password,
-                               # vc_admin_password,
                                agent_autostart,
                                is_vcp,
                                instance_name,
@@ -481,9 +461,6 @@ def test_zmq_case_web_vc_with_agents(monkeypatch):
                               text=True
                               ) as vcfg:
             out, err = vcfg.communicate(vcfg_args)
-        print("OUT is: {}".format(out))
-        print("ERROR is: {}".format(err))
-        # print("CWD is: {}".format(os.getcwd()))
 
         assert os.path.exists(config_path)
         config = ConfigParser()
@@ -512,16 +489,6 @@ def test_rmq_case_no_agents(monkeypatch):
 
         message_bus = "rmq"
         instance_name = "test_rmq"
-        rmq_home = ""
-        domain_name = ""
-        new_root_ca = "Y"
-        ca_country = "US"
-        ca_state = "WA"
-        ca_location = "Richland"
-        ca_organization = "PNNL"
-        ca_org_unit = "VOLTTRON"
-        default_rmq_values = "Y"
-        remove_rmq_conf = "Y"
         vip_address = "tcp://127.0.0.15"
         vip_port = "22916"
         is_web_enabled = "N"
@@ -533,17 +500,6 @@ def test_rmq_case_no_agents(monkeypatch):
         create_rmq_volttron_setup(vhome=vhome, env=os.environ, ssl_auth=True, instance_name=instance_name)
 
         vcfg_args = "\n".join([message_bus,
-                               # instance_name,
-                               # rmq_home,
-                               # domain_name,
-                               # new_root_ca,
-                               # ca_country,
-                               # ca_state,
-                               # ca_location,
-                               # ca_organization,
-                               # ca_org_unit,
-                               # default_rmq_values,
-                               # remove_rmq_conf,
                                vip_address,
                                vip_port,
                                is_web_enabled,
@@ -561,9 +517,7 @@ def test_rmq_case_no_agents(monkeypatch):
                               text=True
                               ) as vcfg:
             out, err = vcfg.communicate(vcfg_args)
-        print("CWD is: {}".format(os.getcwd()))
-        print("OUT is: {}".format(out))
-        print("ERROR is: {}".format(err))
+
         assert os.path.exists(config_path)
         config = ConfigParser()
         config.read(config_path)
@@ -587,16 +541,6 @@ def test_rmq_case_with_agents(monkeypatch):
 
         message_bus = "rmq"
         instance_name = "test_rmq"
-        rmq_home = ""
-        domain_name = ""
-        new_root_ca = "Y"
-        ca_country = "US"
-        ca_state = "WA"
-        ca_location = "Richland"
-        ca_organization = "PNNL"
-        ca_org_unit = "VOLTTRON"
-        default_rmq_values = "Y"
-        remove_rmq_conf = "Y"
         vip_address = "tcp://127.0.0.15"
         vip_port = "22916"
         is_web_enabled = "N"
@@ -612,17 +556,6 @@ def test_rmq_case_with_agents(monkeypatch):
         create_rmq_volttron_setup(vhome=vhome, env=os.environ, ssl_auth=True, instance_name=instance_name)
 
         vcfg_args = "\n".join([message_bus,
-                               # instance_name,
-                               # rmq_home,
-                               # domain_name,
-                               # new_root_ca,
-                               # ca_country,
-                               # ca_state,
-                               # ca_location,
-                               # ca_organization,
-                               # ca_org_unit,
-                               # default_rmq_values,
-                               # remove_rmq_conf,
                                vip_address,
                                vip_port,
                                is_web_enabled,
@@ -648,10 +581,7 @@ def test_rmq_case_with_agents(monkeypatch):
                               text=True
                               ) as vcfg:
             out, err = vcfg.communicate(vcfg_args)
-        # print("CWD is: {}".format(os.getcwd()))
-        print("CWD is: {}".format(os.getcwd()))
-        print("OUT is: {}".format(out))
-        print("ERROR is: {}".format(err))
+
         assert os.path.exists(config_path)
         config = ConfigParser()
         config.read(config_path)
@@ -676,16 +606,6 @@ def test_rmq_case_web_no_agents(monkeypatch):
 
         message_bus = "rmq"
         instance_name = "test_rmq"
-        rmq_home = ""
-        domain_name = ""
-        new_root_ca = "Y"
-        ca_country = "US"
-        ca_state = "WA"
-        ca_location = "Richland"
-        ca_organization = "PNNL"
-        ca_org_unit = "VOLTTRON"
-        default_rmq_values = "Y"
-        remove_rmq_conf = "Y"
         is_web_enabled = "Y"
         web_port = "8443"
         is_vc = "N"
@@ -699,17 +619,6 @@ def test_rmq_case_web_no_agents(monkeypatch):
         create_rmq_volttron_setup(vhome=vhome, env=os.environ, ssl_auth=True, instance_name=instance_name)
 
         vcfg_args = "\n".join([message_bus,
-                               # instance_name,
-                               # rmq_home,
-                               # domain_name,
-                               # new_root_ca,
-                               # ca_country,
-                               # ca_state,
-                               # ca_location,
-                               # ca_organization,
-                               # ca_org_unit,
-                               # default_rmq_values,
-                               # remove_rmq_conf,
                                vip_address,
                                vip_port,
                                is_web_enabled,
@@ -729,9 +638,7 @@ def test_rmq_case_web_no_agents(monkeypatch):
                               text=True
                               ) as vcfg:
             out, err = vcfg.communicate(vcfg_args)
-        # print("CWD is: {}".format(os.getcwd()))
-        # print("OUT is: {}".format(out))
-        # print("ERROR is: {}".format(err))
+
         assert os.path.exists(config_path)
         config = ConfigParser()
         config.read(config_path)
@@ -756,16 +663,6 @@ def test_rmq_case_web_with_agents(monkeypatch):
 
         message_bus = "rmq"
         instance_name = "test_rmq"
-        rmq_home = ""
-        domain_name = ""
-        new_root_ca = "Y"
-        ca_country = "US"
-        ca_state = "WA"
-        ca_location = "Richland"
-        ca_organization = "PNNL"
-        ca_org_unit = "VOLTTRON"
-        default_rmq_values = "Y"
-        remove_rmq_conf = "Y"
         is_web_enabled = "Y"
         web_port = "8443"
         is_vc = "N"
@@ -783,17 +680,6 @@ def test_rmq_case_web_with_agents(monkeypatch):
         create_rmq_volttron_setup(vhome=vhome, env=os.environ, ssl_auth=True, instance_name=instance_name)
 
         vcfg_args = "\n".join([message_bus,
-                               # instance_name,
-                               # rmq_home,
-                               # domain_name,
-                               # new_root_ca,
-                               # ca_country,
-                               # ca_state,
-                               # ca_location,
-                               # ca_organization,
-                               # ca_org_unit,
-                               # default_rmq_values,
-                               # remove_rmq_conf,
                                vip_address,
                                vip_port,
                                is_web_enabled,
@@ -821,9 +707,6 @@ def test_rmq_case_web_with_agents(monkeypatch):
                               text=True
                               ) as vcfg:
             out, err = vcfg.communicate(vcfg_args)
-        # print("CWD is: {}".format(os.getcwd()))
-        print("OUT is: {}".format(out))
-        print("ERROR is: {}".format(err))
         assert os.path.exists(config_path)
         config = ConfigParser()
         config.read(config_path)
@@ -848,16 +731,6 @@ def test_rmq_case_web_vc(monkeypatch):
 
         message_bus = "rmq"
         instance_name = "test_rmq"
-        rmq_home = ""
-        domain_name = ""
-        new_root_ca = "Y"
-        ca_country = "US"
-        ca_state = "WA"
-        ca_location = "Richland"
-        ca_organization = "PNNL"
-        ca_org_unit = "VOLTTRON"
-        default_rmq_values = "Y"
-        remove_rmq_conf = "Y"
         vip_address = "tcp://127.0.0.15"
         vip_port = "22916"
         is_web_enabled = "Y"
@@ -874,25 +747,11 @@ def test_rmq_case_web_vc(monkeypatch):
         create_rmq_volttron_setup(vhome=vhome, env=os.environ, ssl_auth=True, instance_name=instance_name)
 
         vcfg_args = "\n".join([message_bus,
-                               # instance_name,
-                               # rmq_home,
-                               # domain_name,
-                               # new_root_ca,
-                               # ca_country,
-                               # ca_state,
-                               # ca_location,
-                               # ca_organization,
-                               # ca_org_unit,
-                               # default_rmq_values,
-                               # remove_rmq_conf,
                                vip_address,
                                vip_port,
                                is_web_enabled,
                                web_port,
                                is_vc,
-                               # vc_admin_name,
-                               # vc_admin_password,
-                               # vc_admin_password,
                                agent_autostart,
                                is_vcp,
                                instance_name,
@@ -910,9 +769,6 @@ def test_rmq_case_web_vc(monkeypatch):
                               text=True
                               ) as vcfg:
             out, err = vcfg.communicate(vcfg_args)
-        print("OUT is: {}".format(out))
-        print("ERROR is: {}".format(err))
-        # print("CWD is: {}".format(os.getcwd()))
 
         assert os.path.exists(config_path)
         config = ConfigParser()
@@ -939,23 +795,11 @@ def test_rmq_case_web_vc_with_agents(monkeypatch):
 
         message_bus = "rmq"
         instance_name = "test_rmq"
-        rmq_home = ""
-        domain_name = ""
-        new_root_ca = "Y"
-        ca_country = "US"
-        ca_state = "WA"
-        ca_location = "Richland"
-        ca_organization = "PNNL"
-        ca_org_unit = "VOLTTRON"
-        default_rmq_values = "Y"
-        remove_rmq_conf = "Y"
         vip_address = "tcp://127.0.0.15"
         vip_port = "22916"
         is_web_enabled = "Y"
         web_port = "8443"
         is_vc = "Y"
-        vc_admin_name = "test"
-        vc_admin_password = "test"
         is_vcp = "Y"
         install_historian = "Y"
         install_driver = "Y"
@@ -966,25 +810,11 @@ def test_rmq_case_web_vc_with_agents(monkeypatch):
         create_rmq_volttron_setup(vhome=vhome, env=os.environ, ssl_auth=True, instance_name=instance_name)
 
         vcfg_args = "\n".join([message_bus,
-                               # instance_name,
-                               # rmq_home,
-                               # domain_name,
-                               # new_root_ca,
-                               # ca_country,
-                               # ca_state,
-                               # ca_location,
-                               # ca_organization,
-                               # ca_org_unit,
-                               # default_rmq_values,
-                               # remove_rmq_conf,
                                vip_address,
                                vip_port,
                                is_web_enabled,
                                web_port,
                                is_vc,
-                               # vc_admin_name,
-                               # vc_admin_password,
-                               # vc_admin_password,
                                agent_autostart,
                                is_vcp,
                                instance_name,
@@ -1006,9 +836,6 @@ def test_rmq_case_web_vc_with_agents(monkeypatch):
                               text=True
                               ) as vcfg:
             out, err = vcfg.communicate(vcfg_args)
-        print("OUT is: {}".format(out))
-        print("ERROR is: {}".format(err))
-        # print("CWD is: {}".format(os.getcwd()))
 
         assert os.path.exists(config_path)
         config = ConfigParser()
