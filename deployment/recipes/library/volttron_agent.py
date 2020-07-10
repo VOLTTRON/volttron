@@ -456,7 +456,37 @@ def get_agent_config_store(module, process_env):
 def remove_config_store(module, process_env, identity, stored_name):
     '''
     '''
-    return {}
+    module_result = {}
+
+    cmd=[
+        os.path.join(module.params['volttron_venv'], 'bin/vctl'),
+        'config',
+        'delete',
+        identity,
+        stored_name,
+    ]
+    cmd_result = subprocess.run(
+        args=cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        cwd=module.params['volttron_root'],
+        env=process_env,
+    )
+    if cmd_result.returncode:
+        module.fail_json(msg=f'failed while deleting config store [{stored_name}] for agent [{identity}]',
+                         command=' '.join(cmd),
+                         stdout=cmd_result.stdout.decode(),
+                         stderr=cmd_result.stderr.decode(),
+        )
+    module_result.update({
+        'command': ' '.join(cmd),
+        'return_code': cmd_result.returncode,
+        'stdout': cmd_result.stdout.decode(),
+        'stderr': cmd_result.stderr.decode(),
+        'changed': True,
+    })
+
+    return module_result
 
 #TODO add to config store
 def add_config_store(module, process_env, identity, stored_name, file_path):

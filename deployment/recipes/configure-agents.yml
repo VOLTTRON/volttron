@@ -34,13 +34,9 @@
       agent_vip_id: 'listener'
       agent_state: 'present'
       agent_source: '$VOLTTRON_ROOT/examples/ListenerAgent'
-      agent_config_store:
-      - path: listener_store
-        name: ""
-        absolute_path: no
-        present: yes
       #agent_running: True
       #agent_enabled: True
+      agent_config_store: "{{ host_configuration['agents']['listener']['agent_config_store'] }}"
     register: listener_agent_install_result
     ignore_errors: yes
   - debug:
