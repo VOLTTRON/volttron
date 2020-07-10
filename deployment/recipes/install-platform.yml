@@ -62,13 +62,22 @@
         state: directory
         mode: 0755
     ##TODO: this isn't good logic, if we set then change the instance
-    #       name then we're not idempotent (it gets reset every time)
+    #       name (because it is also define din host_configurationl.config)
+    #       then we're not idempotent (it gets reset every time)
     - name: set instance name
       ini_file:
         path: "{{ volttron_home }}/config"
         section: volttron
         option: instance-name
         value: "{{ instance_name }}"
+        mode: '0600'
+        backup: yes
+    - name: set message bus
+      ini_file:
+        path: "{{ volttron_home }}/config"
+        section: volttron
+        option: message-bus
+        value: "{{ message_bus }}"
         mode: '0600'
         backup: yes
     - name: ensure platform configuration
@@ -106,3 +115,6 @@
         debug:
           msg: "{{ vcfg_result }}"
         failed_when: vcfg_result.failed
+
+    ##TODO: if a platform is already running, this will have changed the config but not have restarted it.
+    ##      the install & config above belongs in a role, this playbook should inteligently determine if it needs to restart the platform

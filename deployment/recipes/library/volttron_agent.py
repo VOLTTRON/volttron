@@ -41,6 +41,9 @@
 # Note for reference, this module is developed per the patter in the ansible
 # docs here: https://docs.ansible.com/ansible/latest/dev_guide/developing_modules_documenting.html
 
+import csv
+import io
+import glob
 import json
 import os
 import subprocess
@@ -139,6 +142,11 @@ options:
             - If not empty, defines a tag to apply to the agent
         type: string
         default: ''
+    agent_config_store:
+        description:
+            - A list of dictionaries, each describing a config store entry, or directory of files to store
+        type: list
+        default: []
 '''
 
 #TODO: add some number of examples
@@ -296,17 +304,210 @@ def install_agent(module, process_env):
 
     return module_result
 
-def add_config_store():
+def resolve_config_store(module, process_env):
     '''
     '''
-    ##TODO: add logic for adding config store entries to an agent
+    original_store = get_agent_config_store(module, process_env)
+    target_store = {}
+
+    def _construct_entry_args(path, name=None, absolute_path=False, present=True):
+        '''
+        '''
+        action = None
+        if not present:
+            if name not in original_store:
+                # the config store entry should not exist and already does not
+                action = (lambda: {}, {})
+            else:
+                # the config store entry exists and should be removed
+                action = (remove_config_store,
+                          {'module': module,
+                           'process_env': process_env,
+                           'identity': module.params['agent_vip_id'],
+                           'stored_name': name,
+                          }
+                )
+        else:
+            data_path = None
+            if absolute_path:
+                data_path = path
+            else:
+                data_path = os.path.join(module.params['agent_configs_dir'], path)
+            if name in original_store:
+                # the config store entry already exists, check it
+                existing_data = open(data_path, 'r').read()
+                ##TODO:remove
+                target_store[name] = existing_data
+                data_differs = False
+                if name.endswith('.json'):
+                    data_differs = json.loads(existing_data) == json.loads(original_store[name])
+                elif name.endswith('.csv'):
+                    data_differs = list(csv.reader(io.StringIO(existing_data))) == list(csv.reader(io.StringIO(original_store[name])))
+                else:
+                    data_differs = (existing_data == original_store[name])
+                if data_differs:
+                    # the config store will not be changed, no action
+                    action = (lambda: {}, {})
+                else:
+                    action = (add_config_store,
+                              {'module': module,
+                               'process_env': process_env,
+                               'identity': module.params['agent_vip_id'],
+                               'stored_name': name,
+                               'file_path': data_path,
+                              }
+                    )
+            else:
+                # the config store entry is missing, add it
+                action = (add_config_store,
+                          {'module': module,
+                           'process_env': process_env,
+                           'identity': module.params['agent_vip_id'],
+                           'stored_name': name,
+                           'file_path': data_path,
+                          }
+                )
+        return action
+
+    store_entries = []
+    for a_config_listing in module.params['agent_config_store']:
+        data_path = None
+        if a_config_listing.get('absolute_path', False):
+            data_path = a_config_listing['path']
+        else:
+            data_path = os.path.join(module.params['agent_configs_dir'], a_config_listing['path'])
+        ##module.fail_json(msg=f'determed that data_path is {data_path}')
+        if os.path.isdir(os.path.join(module.params['agent_configs_dir'], a_config_listing['path'])):
+            for a_file in glob.glob(os.path.join(data_path, '**'), recursive=True):
+                if os.path.isdir(a_file):
+                    continue
+                stored_name = a_file.split(a_config_listing['path'])[-1].lstrip('/')
+                stored_name = os.path.join(a_config_listing.get('name',''), stored_name)
+                store_entries.append(_construct_entry_args(
+                    a_file,
+                    name=stored_name,
+                    absolute_path=True,
+                    present=a_config_listing.get('present', True),
+                ))
+        else:
+            # the name of the config entry will be the same as the file path if not specified
+            this_name = a_config_listing.get('name', a_config_listing['path'])
+            store_entries.append(_construct_entry_args(
+                a_config_listing['path'],
+                this_name,
+                a_config_listing.get('absolute_path', False),
+                a_config_listing.get('present', True),
+            ))
+
+    resolver_results = []
+    changed = False
+    for resolver_function, resolver_args in store_entries:
+        a_resolution = resolver_function(**resolver_args)
+        changed = changed or a_resolution.get('changed', False)
+        resolver_results.append(a_resolution)
+
+    return {'original_store': original_store,
+            'target_store': target_store,
+            'changed': changed,
+            'config_store_changed': changed,
+            'config_store_resolutions': resolver_results,
+           }
+
+def get_agent_config_store(module, process_env):
+    '''
+    '''
+    config_store = {}
+    list_result = subprocess.run(
+        args=' '.join([
+            os.path.join(module.params['volttron_venv'], 'bin/vctl'),
+            'config',
+            'list',
+            module.params['agent_vip_id'],
+        ]),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        env=process_env,
+        shell=True,
+        timeout=module.params['time_limit'],
+    )
+    if list_result.returncode:
+        module.fail_json(msg=f"listing config store failed", stdout=list_result.stdout.decode(), stderr=list_result.stderr.decode())
+    for a_store in list_result.stdout.decode().split():
+        store_data = subprocess.run(
+            args=' '.join([
+                os.path.join(module.params['volttron_venv'], 'bin/vctl'),
+                'config',
+                'get',
+                module.params['agent_vip_id'],
+                a_store,
+            ]),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            env=process_env,
+            shell=True,
+            timeout=module.params['time_limit'],
+        )
+        if store_data.returncode:
+            module.fail_json(msg=f'getting config store {a_store} failed', stdout=store_data.stdout.decode(), stderr=store_data.stderr.decode())
+        config_store[a_store] = store_data.stdout.decode()
+    return config_store
+
+#TODO remove from config store
+def remove_config_store(module, process_env, identity, stored_name):
+    '''
+    '''
+    return {}
+
+#TODO add to config store
+def add_config_store(module, process_env, identity, stored_name, file_path):
+    ''' add data to an agent's config store
+    '''
+    module_result = {}
+
+    cmd=[
+        os.path.join(module.params['volttron_venv'], 'bin/vctl'),
+        'config',
+        'store',
+        identity,
+        stored_name,
+        file_path,
+    ]
+    if file_path.endswith('json'):
+        cmd.append('--json')
+    if file_path.endswith('csv'):
+        cmd.append('--csv')
+    cmd_result = subprocess.run(
+        args=cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        cwd=module.params['volttron_root'],
+        env=process_env,
+    )
+    if cmd_result.returncode:
+        module.fail_json(msg=f'failed while adding config store [{stored_name}] to agent [{identity}]',
+                         command=' '.join(cmd),
+                         stdout=cmd_result.stdout.decode(),
+                         stderr=cmd_result.stderr.decode(),
+        )
+    module_result.update({
+        'command': cmd_result.args,
+        'return_code': cmd_result.returncode,
+        'stdout': cmd_result.stdout.decode(),
+        'stderr': cmd_result.stderr.decode(),
+        'changed': True,
+    })
+
+    return module_result
 
 #TODO make sure there are sufficient try/except blocks to return useful
 #     failure case data
 def execute_task(module):
     '''
     '''
-    results = {'process_results':[]}
+    results = {
+        'process_results':[],
+        'changed': False,
+    }
     params = module.params
 
     subprocess_env = dict(os.environ)
@@ -320,14 +521,19 @@ def execute_task(module):
 
     if params['agent_state'] == 'present':
         if params['agent_vip_id'] in existing_agents:
-            results['changed'] = False
+            pass
         else:
             results.update(install_agent(module=module, process_env=subprocess_env))
             if results['return_code']:
                 module.fail_json(msg='install agent failed', subprocess_details=results)
+        if params['agent_config_store']:
+            results.update(resolve_config_store(module=module, process_env=subprocess_env))
+            results.update({'zzzz_config_store': True})
+        else:
+            pass
     elif params['agent_state'] == 'absent':
         if params['agent_vip_id'] not in existing_agents:
-            results['changed'] = False
+            pass
         else:
             results.update(remove_agent(agent_uuid=existing_agents[params['agent_vip_id']]['agent_uuid'], params=params, process_env=subprocess_env))
     else:
@@ -415,6 +621,10 @@ def run_module():
         "agent_tag": {
             "type": "str",
             "default": '',
+        },
+        "agent_config_store": {
+            "type": "list",
+            "default": [],
         },
     }
 

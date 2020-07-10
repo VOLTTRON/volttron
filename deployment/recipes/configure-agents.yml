@@ -7,23 +7,6 @@
   - copy-agent-configs
   tasks:
 
-  # TODO: let's start by brute-force installing a listener
-  - name: install listener
-    volttron_agent:
-      volttron_root: "{{ volttron_root }}"
-      volttron_home: "{{ volttron_home }}"
-      volttron_venv: "{{ volttron_venv }}"
-      agent_vip_id: 'listener'
-      agent_state: 'present'
-      agent_source: '$VOLTTRON_ROOT/examples/ListenerAgent'
-      #agent_running: True
-      #agent_enabled: True
-    register: listener_agent_install_result
-    ignore_errors: yes
-  - debug:
-      msg: "{{ listener_agent_install_result }}"
-    failed_when: listener_agent_install_result.failed
-
   # TODO: let's also brute force install an agent that requires config (SQLite seems good)
   - name: install sqlite historian
     volttron_agent:
@@ -41,6 +24,28 @@
   - debug:
       msg: "{{ historian_agent_install_result }}"
     failed_when: historian_agent_install_result.failed
+
+  # TODO: let's start by brute-force installing a listener
+  - name: install listener
+    volttron_agent:
+      volttron_root: "{{ volttron_root }}"
+      volttron_home: "{{ volttron_home }}"
+      volttron_venv: "{{ volttron_venv }}"
+      agent_vip_id: 'listener'
+      agent_state: 'present'
+      agent_source: '$VOLTTRON_ROOT/examples/ListenerAgent'
+      agent_config_store:
+      - path: listener_store
+        name: ""
+        absolute_path: no
+        present: yes
+      #agent_running: True
+      #agent_enabled: True
+    register: listener_agent_install_result
+    ignore_errors: yes
+  - debug:
+      msg: "{{ listener_agent_install_result }}"
+    failed_when: listener_agent_install_result.failed
 
   # TODO: and one with a config store (Master Driver with some fake devices)
 
