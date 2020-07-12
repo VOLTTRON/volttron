@@ -40,7 +40,7 @@ from scriptwrapper import script_runner
 
 import os
 import sys
-
+import json
 import gevent
 import logging
 
@@ -55,21 +55,21 @@ utils.setup_logging()
 _log = logging.getLogger(__name__)
 
 logging.basicConfig(
-                level=logging.debug,
-                format='%(asctime)s   %(levelname)-8s %(message)s',
-                datefmt='%m-%d-%y %H:%M:%S')
+    level=logging.debug,
+    format='%(asctime)s   %(levelname)-8s %(message)s',
+    datefmt='%m-%d-%y %H:%M:%S')
+
 
 class StandAloneMatLab(Agent):
     '''The standalone version of the MatLab Agent'''
-    
+
     @PubSub.subscribe('pubsub', _topics['volttron_to_matlab'])
     def print_message(self, peer, sender, bus, topic, headers, message):
         print('The Message is: ' + str(message))
-        messageOut = script_runner(message)
-        self.vip.pubsub.publish('pubsub', _topics['matlab_to_volttron'], message=messageOut)
-
-
-
+        message_out = script_runner(message)
+        self.vip.pubsub.publish(
+            'pubsub', _topics['matlab_to_volttron'], message=message_out)
+    
 if __name__ == '__main__':
     try:
         # If stdout is a pipe, re-open it line buffered
@@ -78,10 +78,9 @@ if __name__ == '__main__':
             # get garbage collected and close the underlying descriptor.
             stdout = sys.stdout
             sys.stdout = os.fdopen(stdout.fileno(), 'w', 1)
-        
+
         print(remote_url())
-        agent = StandAloneMatLab(address=remote_url(),
-                                   identity='standalone_matlab')
+        agent = StandAloneMatLab(address=remote_url(), identity='standalone_matlab')
         task = gevent.spawn(agent.core.run)
         try:
             task.join()
