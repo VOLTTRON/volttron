@@ -3,6 +3,7 @@ __docformat__ = 'reStructuredText'
 
 import logging
 import sys
+import json
 from pprint import pformat
 from volttron.platform.agent import utils
 from volttron.platform.vip.agent import Agent, Core, PubSub, RPC
@@ -111,9 +112,9 @@ class MatlabAgentV2(Agent):
                                   prefix=topic,
                                   callback=self._handle_publish)
 
-    def _handle_publish(self, peer, sender, bus, topic, headers,
-                                message):
+    def _handle_publish(self, peer, sender, bus, topic, headers, message):
         _log.info("Agent: " + topic + "\nMessage: \n" + pformat(message[:-1]))
+
 
 def main():
     """Main method called to start the agent."""
