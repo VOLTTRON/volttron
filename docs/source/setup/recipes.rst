@@ -42,6 +42,11 @@ files (discussed in more detail in the :ref:`recipes-configuration` section). Th
     platform itself. This file is used to generate the platform's configuration file and to define
     the agents to be installed in the remote platform (remote agent management is not yet supported,
     see :ref:`recipes-feature-planning`).
+    
+.. note::
+
+  Examples of these files can be found in the ``$VOLTTRON_ROOT/examples/deployment`` directory.
+
 
 When working with recipes, a user will generally use the ``ansible-playbook`` command (see the full
 `official documentation <https://docs.ansible.com/ansible/latest/cli/ansible-playbook.html>`_).
