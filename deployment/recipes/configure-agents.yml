@@ -7,42 +7,11 @@
   - copy-agent-configs
   tasks:
 
-  # TODO: let's also brute force install an agent that requires config (SQLite seems good)
-  - name: install sqlite historian
+  - name: install agents
     volttron_agent:
       volttron_root: "{{ volttron_root }}"
       volttron_home: "{{ volttron_home }}"
       volttron_venv: "{{ volttron_venv }}"
-      agent_vip_id: 'historian.sqlite'
-      agent_state: 'present'
-      agent_source: '$VOLTTRON_ROOT/services/core/SQLHistorian'
-      agent_config: 'config.sqlite'
-      agent_running: True
-      agent_enabled: True
-    register: historian_agent_install_result
-    ignore_errors: yes
-  - debug:
-      msg: "{{ historian_agent_install_result }}"
-    failed_when: historian_agent_install_result.failed
-
-  # TODO: let's start by brute-force installing a listener
-  - name: install listener
-    volttron_agent:
-      volttron_root: "{{ volttron_root }}"
-      volttron_home: "{{ volttron_home }}"
-      volttron_venv: "{{ volttron_venv }}"
-      agent_vip_id: 'listener'
-      agent_state: 'present'
-      agent_source: '$VOLTTRON_ROOT/examples/ListenerAgent'
-      #agent_running: True
-      #agent_enabled: True
-      agent_config_store: "{{ host_configuration['agents']['listener']['agent_config_store'] }}"
-    register: listener_agent_install_result
-    ignore_errors: yes
-  - debug:
-      msg: "{{ listener_agent_install_result }}"
-    failed_when: listener_agent_install_result.failed
-
-  # TODO: and one with a config store (Master Driver with some fake devices)
-
-  # TODO: let's get the agents to install from inventory or host config
+      agent_vip_id: "{{ item.key }}"
+      agent_spec: "{{ item.value }}"
+    loop: "{{ host_configuration['agents'] | default({}) | dict2items }}"

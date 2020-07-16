@@ -98,55 +98,6 @@ options:
             - vip identity of the agent to be installed
         type: string
         required: true
-    agent_state:
-        description:
-            - either "present" or "absent" indicates if the must or must not be present
-        type: string
-        default: 'present'
-        choices:
-            - 'present'
-            - 'absent'
-    agent_enabled:
-        description:
-            - indicates if the agent should be enabled to automatically start with the platform
-            - (note that this is independent of, and does not imply, agent_running)
-        type: bool
-        default: false
-    agent_priority:
-        description:
-            - Used to determined agent start order when a platform (re)starts. (ignored unless enabled==True)
-        type: int
-        default: 50
-    agent_running:
-        description:
-            - indicates if the agent should be started as part of the install
-            - (note that this is independent of enabling an agent)
-        type: bool
-        default: false
-    agent_source:
-        description:
-            - path to the source directory for the agent.
-            - If relative, is relative to agent_configs_dir
-            - May use $VOLTTRON_HOME, $VOLTTRON_ROOT, or absolute path.
-        type: path
-        required: true
-    agent_config:
-        description:
-            - If present, a path to the agent configuration file to package with the agent.
-            - If relative, is relative to agent_configs_dir.
-            - May use $VOLTTRON_HOME, $VOLTTRON_ROOT, or absolute path.
-        type: path
-        required: false
-    agent_tag:
-        description:
-            - If not empty, defines a tag to apply to the agent
-        type: string
-        default: ''
-    agent_config_store:
-        description:
-            - A list of dictionaries, each describing a config store entry, or directory of files to store
-        type: list
-        default: []
 '''
 
 #TODO: add some number of examples
@@ -189,6 +140,11 @@ def update_logical_defaults(module):
         params['volttron_home'] = f'{os.path.join(os.path.expanduser("~"), ".volttron")}'
     if params['agent_configs_dir'] is None:
         params['agent_configs_dir'] = f'{os.path.join(os.path.expanduser("~"), "configs")}'
+
+    # set agent spec optional params to their defaults if missing
+    params['agent_spec']['agent_state'] = params['agent_spec'].get('agent_state', 'present')
+    params['agent_spec']['agent_tag'] = params['agent_spec'].get('agent_tag', '')
+    params['agent_spec']['agent_config_store'] = params['agent_spec'].get('agent_config_store', [])
 
     return params
 
@@ -253,24 +209,27 @@ def remove_agent(agent_uuid, params, process_env):
 def install_agent(module, process_env):
     '''
     '''
-    params = module.params
+    #params = module.params
+    module_spec = module.params['agent_spec']
     module_result = {}
 
     install_cmd=[
-        os.path.join(params['volttron_venv'], 'bin/python'),
-        os.path.join(params['volttron_root'], 'scripts/install-agent.py'),
-        '-i', params['agent_vip_id'],
-        '-vh', params['volttron_home'],
-        '-vr', params['volttron_root'],
-        '-s', params['agent_source'],
+        os.path.join(module.params['volttron_venv'], 'bin/python'),
+        os.path.join(module.params['volttron_root'], 'scripts/install-agent.py'),
+        '-i', module.params['agent_vip_id'],
+        '-vh', module.params['volttron_home'],
+        '-vr', module.params['volttron_root'],
+        '-s', module_spec['agent_source'],
     ]
-    if params['agent_enabled']:
+    if module_spec.get('agent_enabled', False):
         install_cmd.append('--enable')
-        install_cmd.extend(['--priority', f"{params['agent_priority']}"])
-    if params['agent_running']:
+        install_cmd.extend(['--priority', f"{module_spec.get('agent_priority', 50)}"])
+    if module_spec.get('agent_running', False):
         install_cmd.append('--start')
-    if params['agent_config']:
-        install_cmd.extend(['--config', params['agent_config']])
+    if module_spec.get('agent_config', False):
+        install_cmd.extend(['--config', module_spec['agent_config']])
+    if module_spec.get('agent_tag', ''):
+        install_cmd.extend(['-t', module_spec['agent_tag']])
     try:
         module_result['command'] = ' '.join(install_cmd)
         module_result['process_env'] = process_env
@@ -278,10 +237,10 @@ def install_agent(module, process_env):
             args=' '.join(install_cmd),
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            cwd=params['agent_configs_dir'],
+            cwd=module.params['agent_configs_dir'],
             env=process_env,
             shell=True,
-            timeout=params['time_limit'],
+            timeout=module.params['time_limit'],
         )
         module_result.pop('process_env')
     except subprocess.TimeoutExpired:
@@ -370,7 +329,7 @@ def resolve_config_store(module, process_env):
         return action
 
     store_entries = []
-    for a_config_listing in module.params['agent_config_store']:
+    for a_config_listing in module.params['agent_spec']['agent_config_store']:
         data_path = None
         if a_config_listing.get('absolute_path', False):
             data_path = a_config_listing['path']
@@ -452,7 +411,6 @@ def get_agent_config_store(module, process_env):
         config_store[a_store] = store_data.stdout.decode()
     return config_store
 
-#TODO remove from config store
 def remove_config_store(module, process_env, identity, stored_name):
     '''
     '''
@@ -488,7 +446,6 @@ def remove_config_store(module, process_env, identity, stored_name):
 
     return module_result
 
-#TODO add to config store
 def add_config_store(module, process_env, identity, stored_name, file_path):
     ''' add data to an agent's config store
     '''
@@ -529,8 +486,6 @@ def add_config_store(module, process_env, identity, stored_name, file_path):
 
     return module_result
 
-#TODO make sure there are sufficient try/except blocks to return useful
-#     failure case data
 def execute_task(module):
     '''
     '''
@@ -538,34 +493,34 @@ def execute_task(module):
         'process_results':[],
         'changed': False,
     }
-    params = module.params
+    agent_spec = module.params['agent_spec']
 
     subprocess_env = dict(os.environ)
     subprocess_env.update({
-        'VOLTTRON_HOME': params['volttron_home'],
-        'VOLTTRON_ROOT': params['volttron_root'],
+        'VOLTTRON_HOME': module.params['volttron_home'],
+        'VOLTTRON_ROOT': module.params['volttron_root'],
     })
 
     existing_agents = get_platform_status(module, subprocess_env)
     results['initial_agents'] = existing_agents
 
-    if params['agent_state'] == 'present':
-        if params['agent_vip_id'] in existing_agents:
+    if agent_spec['agent_state'] == 'present':
+        if module.params['agent_vip_id'] in existing_agents:
             pass
         else:
             results.update(install_agent(module=module, process_env=subprocess_env))
             if results['return_code']:
                 module.fail_json(msg='install agent failed', subprocess_details=results)
-        if params['agent_config_store']:
+        if agent_spec['agent_config_store']:
             results.update(resolve_config_store(module=module, process_env=subprocess_env))
             results.update({'zzzz_config_store': True})
         else:
             pass
-    elif params['agent_state'] == 'absent':
-        if params['agent_vip_id'] not in existing_agents:
+    elif agent_spec['agent_state'] == 'absent':
+        if agent_spec['agent_vip_id'] not in existing_agents:
             pass
         else:
-            results.update(remove_agent(agent_uuid=existing_agents[params['agent_vip_id']]['agent_uuid'], params=params, process_env=subprocess_env))
+            results.update(remove_agent(agent_uuid=existing_agents[agent_spec['agent_vip_id']]['agent_uuid'], params=module.params, process_env=subprocess_env))
     else:
         module.fail_json(msg='agent state not recognized')
 
@@ -620,42 +575,49 @@ def run_module():
             "type": "str",
             "required": True,
         },
-        "agent_state": {
-            "type": "str",
-            "default": "present",
-            "choices": [
-                "present",
-                "absent",
-            ],
-        },
-        "agent_enabled": {
-            "type": "bool",
-            "default": False,
-        },
-        "agent_priority": {
-            "type": "int",
-            "default": 50,
-        },
-        "agent_running": {
-            "type": "bool",
-            "default": False,
-        },
-        "agent_source": {
-            "type": "path",
+        ## agent spec
+#TODO rm this block
+#        "agent_state": {
+#            "type": "str",
+#            "default": "present",
+#            "choices": [
+#                "present",
+#                "absent",
+#            ],
+#        },
+#        "agent_enabled": {
+#            "type": "bool",
+#            "default": False,
+#        },
+#        "agent_priority": {
+#            "type": "int",
+#            "default": 50,
+#        },
+#        "agent_running": {
+#            "type": "bool",
+#            "default": False,
+#        },
+#        "agent_source": {
+#            "type": "path",
+#            "required": True,
+#        },
+#        "agent_config": {
+#            "type": "path",
+#            "required": False,
+#        },
+#        "agent_tag": {
+#            "type": "str",
+#            "default": '',
+#        },
+#        "agent_config_store": {
+#            "type": "list",
+#            "default": [],
+#        },
+        ## end agent spec
+        "agent_spec": {
+            "type": "dict",
             "required": True,
-        },
-        "agent_config": {
-            "type": "path",
-            "required": False,
-        },
-        "agent_tag": {
-            "type": "str",
-            "default": '',
-        },
-        "agent_config_store": {
-            "type": "list",
-            "default": [],
-        },
+        }
     }
 
     # seed the result dict in the object
@@ -692,7 +654,8 @@ def run_module():
         result.update(execute_task(module))
     except Exception as e:
         import traceback
-        module.fail_json(msg='volttron_agent had an unhandled exception', exception=repr(e), trace=traceback.format_stack())
+        raise e
+        #module.fail_json(msg='volttron_agent had an unhandled exception', exception=repr(e), trace=traceback.format_stack())
 
     # in the event of a successful module execution, you will want to
     # simple AnsibleModule.exit_json(), passing the key/value results
