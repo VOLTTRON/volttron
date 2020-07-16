@@ -1,0 +1,15 @@
+gevent
+grequests
+requests
+ply
+psutil
+python-dateutil
+pytz
+PyYAML
+pyzmq
+setuptools
+tzlocal
+pyOpenSSL==19.0.0
+cryptography==2.3
+watchdog-gevent
+wheel==0.30

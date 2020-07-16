@@ -45,9 +45,9 @@ option_requirements = [
 ]
 
 install_requires = [
-    'gevent',
+    'gevent==20.6.1',
     'grequests',
-    'requests',
+    'requests==2.23.0',
     'ply',
     'psutil',
     'python-dateutil',
