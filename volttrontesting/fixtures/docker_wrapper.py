@@ -13,7 +13,7 @@ if HAS_DOCKER:
 
     @contextlib.contextmanager
     def create_container(image_name: str, ports: dict = None, env: dict = None, command: (list, str) = None,
-                         volumes: (dict, list) = None, startup_time_seconds: int = 30) -> \
+                         startup_time_seconds: int = 30) -> \
             (docker.models.containers.Container, None):
         """ Creates a container instance in a context that will clean up after itself.
 
@@ -54,8 +54,7 @@ if HAS_DOCKER:
                 # So all tags aren't pulled. According to docs https://docker-py.readthedocs.io/en/stable/images.html.
                 full_docker_image = full_docker_image + ":latest"
             client.images.pull(full_docker_image)
-            container = client.containers.run(image_name, ports=ports, environment=env, auto_remove=True, detach=True,
-                                              volumes=volumes)
+            container = client.containers.run(image_name, ports=ports, environment=env, auto_remove=True, detach=True)
         except (ImageNotFound, APIError, RuntimeError) as e:
             raise RuntimeError(e)
 
