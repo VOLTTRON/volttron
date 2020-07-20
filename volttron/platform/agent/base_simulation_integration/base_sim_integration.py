@@ -66,6 +66,4 @@ class BaseSimIntegration(object):
     def stop_simulation(self):
         pass
 
-    def resume_simulation(self):
-        pass
 
