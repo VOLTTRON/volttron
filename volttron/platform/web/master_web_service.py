@@ -770,7 +770,7 @@ class MasterWebService(Agent):
         # Handle the platform.web routes here.
         self.registeredroutes.append((re.compile('^/discovery/$'), 'callable', self._get_discovery))
         self.registeredroutes.append((re.compile('^/discovery/allow$'), 'callable', self._allow))
-        self.registeredroutes.append((re.compile(r'/jsonrpc'), 'callable', self.jsonrpc))
+        self.registeredroutes.append((re.compile(r'/gs'), 'callable', self.jsonrpc))
         # these routes are only available for rmq based message bus
         # at present.
         if self.core.messagebus == 'rmq':
