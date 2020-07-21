@@ -10,9 +10,9 @@ all:
       volttron_use_local_source: yes
       volttron_features:
       - drivers
-      extra_requirements:
-      - ipython
-      - jwt #TODO seems like this may need to be a core dependency?
+      #extra_requirements:
+      #- ipython
+      #- jwt #TODO seems like this may need to be a core dependency?
     collector2:
       ansible_host: collector2
   vars:

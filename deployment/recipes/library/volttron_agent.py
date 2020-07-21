@@ -254,7 +254,7 @@ def install_agent(module, process_env):
         )
         module_result.pop('process_env')
     except subprocess.TimeoutExpired:
-        module.fail_json(msg=f"agent install script timed out ({params['time_limit']})",
+        module.fail_json(msg=f"agent install script timed out ({module.params['time_limit']})",
                          command=' '.join(install_cmd),
                          process_env=process_env,
                         )
