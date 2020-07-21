@@ -113,16 +113,18 @@ class GridAPPSDSimIntegration(BaseSimIntegration):
 
         _log.debug('Gridappsd connected')
         # Register event callbacks - on measurement, on timestep, on finish
+        _log.debug(f"connection config is: {self.config}")
         self.sim = Simulation(self.gridappsd, self.config)
         _log.debug('Gridappsd adding onstart callback')
-        self.sim.add_onstart_callback()
-        for name, cb in self.event_callbacks:
+
+        self.sim.add_onstart_callback(self.sim_on_start)
+        for name, cb in self.event_callbacks.items():
             if name == 'MEASUREMENT':
                 _log.debug('Gridappsd adding measurement callback')
                 self.sim.add_onmesurement_callback(cb)
             elif name == 'TIMESTEP':
                 _log.debug('Gridappsd adding timestep callback')
-                self.add_ontimestep_callback(cb)
+                self.sim.add_ontimestep_callback(cb)
             elif name == 'FINISH':
                 _log.debug('Gridappsd adding finish callback')
                 self.sim.add_oncomplete_callback(cb)
@@ -134,7 +136,7 @@ class GridAPPSDSimIntegration(BaseSimIntegration):
 
     def sim_on_start(self, sim):
         _log.debug(f"GridAppsD simulation id: {sim.simulation_id}")
-        self.sim.sim_id = sim.simulation_id
+        self.sim_id = sim.simulation_id
 
     def receiver_thread(self, arg):
         self._receiver_thread = gevent.threading.Thread(group=None, target=arg)

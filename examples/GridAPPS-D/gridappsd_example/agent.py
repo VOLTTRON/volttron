@@ -39,6 +39,9 @@
 
 __docformat__ = 'reStructuredText'
 
+from gevent.monkey import patch_all
+patch_all()
+
 import gevent
 import logging
 import random
@@ -124,9 +127,16 @@ class GridappsdExample(Agent):
             # Register the config file with GridAPPS-D
             self.Gridappsd_sim.register_inputs(self.config, self.do_work)
             self.Gridappsd_sim.start_simulation()
-            if not self.Gridappsd_sim.sim_id:
-                self.Gridappsd_sim.subscribe(t.simulation_log_topic(self.Gridappsd_sim.sim_id),
+            i = 1
+            while not self.Gridappsd_sim.sim_id and i < 20:
+                _log.debug(f"waiting for simulation to start {i}")
+                gevent.sleep(1)
+                i += 1
+            if self.Gridappsd_sim.sim_id:
+                self.Gridappsd_sim.gridappsd.subscribe(t.simulation_log_topic(self.Gridappsd_sim.sim_id),
                                              self.on_message)
+            else:
+                _log.debug("Simulation did not start")
         except ValueError as ex:
             _log.error("Unable to register inputs with Gridappsd: {}".format(ex))
             self.core.stop()
