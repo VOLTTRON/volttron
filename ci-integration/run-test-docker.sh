@@ -72,7 +72,8 @@ run_test(){
     # Run a specific script for level one integration tests
     if [[ $filename =~ "volttrontesting/platform/dbutils/"* ]]; then
         docker run -e "IGNORE_ENV_CHECK=1" --name "$base_filename" \
-            -t --network="host" -v /var/run/docker.sock:/var/run/docker.sock volttron_test_image pytest -m dbutils "$filename" > "$base_filename.result.txt" 2>&1 &
+            -t --network="host" -v /var/run/docker.sock:/var/run/docker.sock volttron_test_image pytest -m dbutils \
+            "$filename" > "$base_filename.result.txt" 2>&1 &
     else
         docker run -e "IGNORE_ENV_CHECK=1" --name "$base_filename" \
             -t volttron_test_image pytest "$filename" > "$base_filename.result.txt" 2>&1 &
