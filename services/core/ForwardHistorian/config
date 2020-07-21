@@ -1,4 +1,4 @@
 {
     "destination-vip": "tcp://127.0.0.1:22916",
-    "destination-serverkey": KWjcDJ_SmrgvTCITd1iiJZu3NhQ5u-bsvgMVFE1YNV8
+    "destination-serverkey": null
 }
