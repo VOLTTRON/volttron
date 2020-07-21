@@ -98,6 +98,20 @@ options:
             - vip identity of the agent to be installed
         type: string
         required: true
+    agent_spec:
+        description:
+            - a dictionary of configuration details for the agent
+            - valid keys are:
+                - agent_state: (either 'present' or 'absent'), indicates if the agent should or should not be present
+                - agent_enabled: (bool), if true, indicates that the agent should be started when the platform starts (does not imply running)
+                - agent_priority: (int; default 50) sets the priority ordering for starting an enalbed agent
+                - agent_running: (bool), if true, indicates that the agent should be started as it is installed (does not imply enabled)
+                - agent_tag: (string), if installing the agent, apply this tag
+                - agent_config_store: (list) a list of config store entries to apply to the agent, each entry is a dict supporting the following keys:
+                    - absolute_path: (bool, default False) if true, the agents path configuration is assumed absolute on the remote, otherwise the path is prepended with the agent_configs_dir
+                    - path: (string - path) path to either a file to add to the config store, or a directory of files to add. If a directory, all files contained will be added to the config store
+                    - name: (string) name of the entry to place in the config store. For files this is used instead of the file name. For directories this is prefixed to every contained file (the directory is included recursively and intermediate directories are included in the name).
+
 '''
 
 #TODO: add some number of examples
@@ -110,9 +124,6 @@ process_results:
     description: a list of dictionaries containing the result details from interacting with each agent
                  each element will include stdout, stderr, command, and return_code
     elements: dict
-changed_agents:
-    type: list
-    description: a list of the VIP Identities of agents which were changed
 '''
 
 from ansible.module_utils.basic import AnsibleModule
@@ -183,7 +194,6 @@ def remove_agent(agent_uuid, params, process_env):
     '''
     module_result = {}
 
-    #TODO: we can't remove an agent by VIP_ID, need to parse out a UUID
     cmd_result = subprocess.run(
         args=[
             os.path.join(params['volttron_venv'], 'bin/vctl'),
@@ -294,16 +304,16 @@ def resolve_config_store(module, process_env):
                 data_path = os.path.join(module.params['agent_configs_dir'], path)
             if name in original_store:
                 # the config store entry already exists, check it
-                existing_data = open(data_path, 'r').read()
-                ##TODO:remove
-                target_store[name] = existing_data
+                desired_data = open(data_path, 'r').read()
+                # TODO
+                target_store[name] = desired_data
                 data_differs = False
                 if name.endswith('.json'):
-                    data_differs = json.loads(existing_data) == json.loads(original_store[name])
+                    data_differs = json.loads(desired_data) == json.loads(original_store[name])
                 elif name.endswith('.csv'):
-                    data_differs = list(csv.reader(io.StringIO(existing_data))) == list(csv.reader(io.StringIO(original_store[name])))
+                    data_differs = list(csv.reader(io.StringIO(desired_data))) == list(csv.reader(io.StringIO(original_store[name])))
                 else:
-                    data_differs = (existing_data == original_store[name])
+                    data_differs = (desired_data == original_store[name])
                 if data_differs:
                     # the config store will not be changed, no action
                     action = (lambda: {}, {})
@@ -545,10 +555,7 @@ def run_module():
     5. use ansible's exit_json or fail_json to ensure results are sent back to the execution
        environmentas expected.
     '''
-    #TODO: update the above
 
-    # define available arguments/parameters a user can pass to the module
-    # these should match the DOCUMENTATION above
     module_args = {
         "volttron_root": {
             "type": "path",
@@ -575,45 +582,6 @@ def run_module():
             "type": "str",
             "required": True,
         },
-        ## agent spec
-#TODO rm this block
-#        "agent_state": {
-#            "type": "str",
-#            "default": "present",
-#            "choices": [
-#                "present",
-#                "absent",
-#            ],
-#        },
-#        "agent_enabled": {
-#            "type": "bool",
-#            "default": False,
-#        },
-#        "agent_priority": {
-#            "type": "int",
-#            "default": 50,
-#        },
-#        "agent_running": {
-#            "type": "bool",
-#            "default": False,
-#        },
-#        "agent_source": {
-#            "type": "path",
-#            "required": True,
-#        },
-#        "agent_config": {
-#            "type": "path",
-#            "required": False,
-#        },
-#        "agent_tag": {
-#            "type": "str",
-#            "default": '',
-#        },
-#        "agent_config_store": {
-#            "type": "list",
-#            "default": [],
-#        },
-        ## end agent spec
         "agent_spec": {
             "type": "dict",
             "required": True,
