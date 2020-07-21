@@ -14,7 +14,7 @@ from volttrontesting.utils.utils import get_rand_port
 # Current documentation claims that we have tested Historian on Postgres 10
 # See https://volttron.readthedocs.io/en/develop/core_services/historians/SQL-Historian.html#postgresql-and-redshift
 IMAGES = ["postgres:10"]
-ALLOW_CONNECTION_TIME = 2
+ALLOW_CONNECTION_TIME = 3
 TEST_DATABASE = "test_historian"
 ROOT_USER = "postgres"
 ROOT_PASSWORD = "password"
@@ -32,6 +32,7 @@ METADATA_TABLE = "metadata"
 
 
 @pytest.mark.postgresqlfuncts
+@pytest.mark.dbutils
 def test_setup_historian_tables_should_create_tables(get_container_func, ports_config):
     get_container, image = get_container_func
     with get_container(
@@ -53,6 +54,7 @@ def test_setup_historian_tables_should_create_tables(get_container_func, ports_c
 
 
 @pytest.mark.postgresqlfuncts
+@pytest.mark.dbutils
 def test_record_table_definitions_should_create_meta_table(
     get_container_func, ports_config
 ):
@@ -81,6 +83,7 @@ def test_record_table_definitions_should_create_meta_table(
 
 
 @pytest.mark.postgresqlfuncts
+@pytest.mark.dbutils
 def test_read_tablenames_from_db_should_return_table_names(
     get_container_func, ports_config
 ):
@@ -107,6 +110,7 @@ def test_read_tablenames_from_db_should_return_table_names(
 
 
 @pytest.mark.postgresqlfuncts
+@pytest.mark.dbutils
 def test_setup_aggregate_historian_tables_should_create_aggregate_tables(
     get_container_func, ports_config
 ):
@@ -161,6 +165,7 @@ def test_setup_aggregate_historian_tables_should_create_aggregate_tables(
     ],
 )
 @pytest.mark.postgresqlfuncts
+@pytest.mark.dbutils
 def test_query_should_return_data(
     get_container_func, ports_config, topic_ids, id_name_map, expected_values
 ):
@@ -184,6 +189,7 @@ def test_query_should_return_data(
 
 
 @pytest.mark.postgresqlfuncts
+@pytest.mark.dbutils
 def test_insert_topic_should_return_topic_id(get_container_func, ports_config):
     get_container, image = get_container_func
 
@@ -205,6 +211,7 @@ def test_insert_topic_should_return_topic_id(get_container_func, ports_config):
 
 
 @pytest.mark.postgresqlfuncts
+@pytest.mark.dbutils
 def test_insert_agg_topic_should_return_agg_topic_id(get_container_func, ports_config):
     get_container, image = get_container_func
 
@@ -231,6 +238,7 @@ def test_insert_agg_topic_should_return_agg_topic_id(get_container_func, ports_c
 
 
 @pytest.mark.postgresqlfuncts
+@pytest.mark.dbutils
 def test_insert_meta_should_return_true(get_container_func, ports_config):
     get_container, image = get_container_func
 
@@ -253,6 +261,7 @@ def test_insert_meta_should_return_true(get_container_func, ports_config):
 
 
 @pytest.mark.postgresqlfuncts
+@pytest.mark.dbutils
 def test_insert_data_should_return_true(get_container_func, ports_config):
     get_container, image = get_container_func
 
@@ -276,6 +285,7 @@ def test_insert_data_should_return_true(get_container_func, ports_config):
 
 
 @pytest.mark.postgresqlfuncts
+@pytest.mark.dbutils
 def test_update_topic_should_return_true(get_container_func, ports_config):
     get_container, image = get_container_func
 
@@ -300,6 +310,7 @@ def test_update_topic_should_return_true(get_container_func, ports_config):
 
 
 @pytest.mark.postgresqlfuncts
+@pytest.mark.dbutils
 def test_get_aggregation_list_should_return_list(get_container_func, ports_config):
     get_container, image = get_container_func
 
@@ -333,6 +344,7 @@ def test_get_aggregation_list_should_return_list(get_container_func, ports_confi
 
 
 @pytest.mark.postgresqlfuncts
+@pytest.mark.dbutils
 def test_insert_agg_topic_should_return_true(get_container_func, ports_config):
     get_container, image = get_container_func
 
@@ -358,6 +370,7 @@ def test_insert_agg_topic_should_return_true(get_container_func, ports_config):
 
 
 @pytest.mark.postgresqlfuncts
+@pytest.mark.dbutils
 def test_update_agg_topic_should_return_true(get_container_func, ports_config):
     get_container, image = get_container_func
 
@@ -391,6 +404,7 @@ def test_update_agg_topic_should_return_true(get_container_func, ports_config):
 
 
 @pytest.mark.postgresqlfuncts
+@pytest.mark.dbutils
 def test_insert_agg_meta_should_return_true(get_container_func, ports_config):
     get_container, image = get_container_func
 
@@ -414,6 +428,7 @@ def test_insert_agg_meta_should_return_true(get_container_func, ports_config):
 
 
 @pytest.mark.postgresqlfuncts
+@pytest.mark.dbutils
 def test_get_topic_map_should_return_maps(get_container_func, ports_config):
     get_container, image = get_container_func
 
@@ -443,6 +458,7 @@ def test_get_topic_map_should_return_maps(get_container_func, ports_config):
 
 
 @pytest.mark.postgresqlfuncts
+@pytest.mark.dbutils
 def test_get_agg_topics_should_return_list(get_container_func, ports_config):
     get_container, image = get_container_func
 
@@ -470,6 +486,7 @@ def test_get_agg_topics_should_return_list(get_container_func, ports_config):
 
 
 @pytest.mark.postgresqlfuncts
+@pytest.mark.dbutils
 def test_get_agg_topic_map_should_return_dict(get_container_func, ports_config):
     get_container, image = get_container_func
 
@@ -495,6 +512,7 @@ def test_get_agg_topic_map_should_return_dict(get_container_func, ports_config):
 
 
 @pytest.mark.postgresqlfuncts
+@pytest.mark.dbutils
 def test_query_topics_by_pattern_should_return_matching_results(
     get_container_func, ports_config
 ):
@@ -526,6 +544,7 @@ def test_query_topics_by_pattern_should_return_matching_results(
 
 
 @pytest.mark.postgresqlfuncts
+@pytest.mark.dbutils
 def test_create_aggregate_store_should_succeed(get_container_func, ports_config):
     get_container, image = get_container_func
 
@@ -552,6 +571,7 @@ def test_create_aggregate_store_should_succeed(get_container_func, ports_config)
 
 
 @pytest.mark.postgresqlfuncts
+@pytest.mark.dbutils
 def test_insert_aggregate_stmt_should_succeed(get_container_func, ports_config):
     get_container, image = get_container_func
 
@@ -605,6 +625,7 @@ def test_insert_aggregate_stmt_should_succeed(get_container_func, ports_config):
 
 
 @pytest.mark.postgresqlfuncts
+@pytest.mark.dbutils
 def test_collect_aggregate_stmt_should_return_rows(get_container_func, ports_config):
     get_container, image = get_container_func
 
@@ -634,6 +655,7 @@ def test_collect_aggregate_stmt_should_return_rows(get_container_func, ports_con
 
 
 @pytest.mark.postgresqlfuncts
+@pytest.mark.dbutils
 def test_collect_aggregate_stmt_should_raise_value_error(
     get_container_func, ports_config
 ):
