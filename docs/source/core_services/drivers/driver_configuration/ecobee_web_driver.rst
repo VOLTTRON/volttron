@@ -343,32 +343,6 @@ In an agent:
 
     self.vip.rpc.call("platform.driver", "get_point", <device topic>, <kwargs>)
 
-
-Set_point Conventions
-#####################
-
-To set points using the Ecobee driver, it is recommended to use the actuator
-agent. Explanations of the actuation can be found in the VOLTTRON readthedocs
-and example agent code can be found in the CsvDriverAgent (
-examples/CSVDriver/CsvDriverAgent/agent.py in the VOLTTRON repository)
-
-Setting values for Vacations and Programs requires understanding Vacation and
-Program object structure for Ecobee.
-
-Documentation for Vacation structure can be found here:
-https://www.ecobee.com/home/developer/api/documentation/v1/functions/CreateVacation.shtml
-
-Documentation for Program structure can be found here:
-https://www.ecobee.com/home/developer/api/examples/ex11.shtml
-
-When using set_point for program, specifying a program structure will create a
-new program. Otherwise, if the user has not specified resume_all, Ecobee will
-resume the next program on the program stack. If resume_all, Ecobee will resume
-all programs on the program stack.
-
-For all other points, the corresponding integer, string, boolean, etc. value may
-be sent.
-
 Versioning
 ----------
 

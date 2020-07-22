@@ -426,16 +426,16 @@ class Interface(BasicRevert, BaseInterface):
         if register.read_only:
             raise IOError(f"Trying to write to a point configured read only: {point_name}")
         try:
-            if register.register_type == "setting" or register.register_type == "hold":
-                register.set_state(value)
-            elif register.register_type in ["vacation", "programs"]:
-                register.set_state(value, **kwargs)
+            if isinstance(register, Setting) or isinstance(register, Hold):
+                register.set_state(value, self.access_token)
+            elif isinstance(register, Vacation) or isinstance(register, Program):
+                register.set_state(value, self.access_token, **kwargs)
         except HTTPError:
             self.refresh_tokens()
-            if register.register_type == "setting" or register.register_type == "hold":
-                register.set_state(value)
-            elif register.register_type in ["vacation", "programs"]:
-                register.set_state(value, **kwargs)
+            if isinstance(register, Setting) or isinstance(register, Hold):
+                register.set_state(value, self.access_token)
+            elif isinstance(register, Vacation) or isinstance(register, Program):
+                register.set_state(value, self.access_token, **kwargs)
         self.get_thermostat_data(refresh=True)
         if register.readable:
             return register.get_state(self.thermostat_data)
@@ -489,8 +489,6 @@ class Setting(BaseRegister):
         :param access_token: Ecobee access token to provide as bearer auth in request
         :return: request response values from settings request
         """
-        if self.read_only:
-            raise RuntimeError(f"Attempted write of read-only point {self.point_name}")
         # Generate set state request content and send request
         params = {"format": "json"}
         thermostat_body = {
@@ -696,7 +694,7 @@ class Program(BaseRegister):
         :param resume_all: Whether or not to "resume all" if using the resume program function
         """
         params = {"format": "json"}
-        if not program:
+        if not isinstance(program, dict) and not len(program):
             if not resume_all:
                 _log.warning("No program specified, resuming next event on Ecobee event stack. To learn how to create "
                              "an Ecobee program, Visit "
