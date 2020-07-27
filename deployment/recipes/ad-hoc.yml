@@ -1,0 +1,31 @@
+---
+## This playbook is based on this stack overflow answer: https://stackoverflow.com/a/20572360
+## To use, you must pass the command of interest in the "command" variable (required by the playbook)
+## Note that proper string quoting is important to run `vctl status` you'd need something like:
+##      ansible-playbook [...] path/to/ad-hoc.yml -e "command='vctl status'"
+##      where the [...] is any normal ansible-playbook options, including inventory or limits.
+- name: install VOLTTRON platform
+  hosts: all
+  roles:
+  - set-defaults
+  tasks:
+  - template:
+      src: venv_execute.j2
+      dest: "{{ volttron_venv }}/bin/venv_execute"
+      mode: '0755'
+  - name: execute shell command
+    shell:
+      cmd: "{{ volttron_venv }}/bin/venv_execute {{ command | mandatory }}"
+    environment:
+      VOLTTRON_ROOT: "{{ volttron_root }}"
+      VOLTTRON_HOME: "{{ volttron_home }}"
+    ignore_errors: True
+    register: cmd_results
+  - name: results
+    debug:
+      msg:
+      - "passed command: [{{ command }}]"
+      - "return code: {{ cmd_results.rc }}"
+      - "command: [{{ cmd_results.cmd }}]"
+      - "standard err:\n{{ cmd_results.stderr }}"
+      - "standard out:\n{{ cmd_results.stdout }}"
