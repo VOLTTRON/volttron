@@ -801,7 +801,10 @@ def agent_health(opts):
     agents = {agent.uuid: agent for agent in _list_agents(opts.aip)}.values()
     agents = get_filtered_agents(opts, agents)
     if not agents:
-        _stderr.write('No installed Agents found\n')
+        if not opts.json:
+            _stderr.write('No installed Agents found\n')
+        else:
+            _stdout.write(f'{jsonapi.dumps({}, indent=2)}\n')
         return
     agent = agents.pop()
     try:
@@ -1389,7 +1392,10 @@ def _show_filtered_agents(opts, field_name, field_callback, agents=None):
     agents = get_filtered_agents(opts, agents)
 
     if not agents:
-        _stderr.write('No installed Agents found\n')
+        if not opts.json:
+            _stderr.write('No installed Agents found\n')
+        else:
+            _stdout.write(f'{jsonapi.dumps({}, indent=2)}\n')
         return
     agents = sorted(agents, key=lambda x: x.name)
     if not opts.min_uuid_len:
@@ -1400,14 +1406,27 @@ def _show_filtered_agents(opts, field_name, field_callback, agents=None):
     tag_width = max(3, max(len(agent.tag or '') for agent in agents))
     identity_width = max(3, max(len(agent.vip_identity or '') for agent in agents))
     fmt = '{} {:{}} {:{}} {:{}} {:>6}\n'
-    _stderr.write(
-        fmt.format(' ' * n, 'AGENT', name_width, 'IDENTITY', identity_width,
-                   'TAG', tag_width, field_name))
-    for agent in agents:
-        _stdout.write(fmt.format(agent.uuid[:n], agent.name, name_width,
-                                 agent.vip_identity, identity_width,
-                                 agent.tag or '', tag_width,
-                                 field_callback(agent)))
+
+    if not opts.json:
+        _stderr.write(
+            fmt.format(' ' * n, 'AGENT', name_width, 'IDENTITY', identity_width,
+                       'TAG', tag_width, field_name))
+        for agent in agents:
+            _stdout.write(fmt.format(agent.uuid[:n], agent.name, name_width,
+                                     agent.vip_identity, identity_width,
+                                     agent.tag or '', tag_width,
+                                     field_callback(agent)))
+    else:
+        json_obj = {}
+        for agent in agents:
+            json_obj[agent.vip_identity] = {
+                'agent_uuid': agent.uuid,
+                'name': agent.name,
+                'identity': agent.vip_identity,
+                'agent_tag': agent.tag or '',
+                field_name: field_callback(agent),
+            }
+        _stdout.write(f'{jsonapi.dumps(json_obj, indent=2)}\n')
 
 
 def _show_filtered_agents_status(opts, status_callback, health_callback, agents=None):
@@ -1437,7 +1456,10 @@ def _show_filtered_agents_status(opts, status_callback, health_callback, agents=
     agents = get_filtered_agents(opts, agents)
 
     if not agents:
-        _stderr.write('No installed Agents found\n')
+        if not opts.json:
+            _stderr.write('No installed Agents found\n')
+        else:
+            _stdout.write(f'{jsonapi.dumps({}, indent=2)}\n')
         return
 
     agents = sorted(agents, key=lambda x: x.name)
@@ -1445,34 +1467,50 @@ def _show_filtered_agents_status(opts, status_callback, health_callback, agents=
         n = 36
     else:
         n = max(_calc_min_uuid_length(agents), opts.min_uuid_len)
-    name_width = max(5, max(len(agent.name) for agent in agents))
-    tag_width = max(3, max(len(agent.tag or '') for agent in agents))
-    identity_width = max(3, max(len(agent.vip_identity or '') for agent in agents))
-    if is_secure_mode():
-        user_width = max(3, max(len(agent.agent_user or '') for agent in agents))
-        fmt = '{} {:{}} {:{}} {:{}} {:{}} {:>6} {:>15}\n'
-        _stderr.write(
-            fmt.format(' ' * n, 'AGENT', name_width, 'IDENTITY', identity_width,
-                       'TAG', tag_width, 'AGENT_USER', user_width, 'STATUS', 'HEALTH'))
-        fmt = '{} {:{}} {:{}} {:{}} {:{}} {:<15} {:<}\n'
-        for agent in agents:
-            status_str = status_callback(agent)
-            _stdout.write(fmt.format(agent.uuid[:n], agent.name, name_width,
-                                     agent.vip_identity, identity_width,
-                                     agent.tag or '', tag_width,
-                                     agent.agent_user if status_str.startswith("running") else "", user_width,
-                                     status_str, health_callback(agent)))
+    if not opts.json:
+        name_width = max(5, max(len(agent.name) for agent in agents))
+        tag_width = max(3, max(len(agent.tag or '') for agent in agents))
+        identity_width = max(3, max(len(agent.vip_identity or '') for agent in agents))
+        if is_secure_mode():
+            user_width = max(3, max(len(agent.agent_user or '') for agent in agents))
+            fmt = '{} {:{}} {:{}} {:{}} {:{}} {:>6} {:>15}\n'
+            _stderr.write(
+                fmt.format(' ' * n, 'AGENT', name_width, 'IDENTITY', identity_width,
+                           'TAG', tag_width, 'AGENT_USER', user_width, 'STATUS', 'HEALTH'))
+            fmt = '{} {:{}} {:{}} {:{}} {:{}} {:<15} {:<}\n'
+            for agent in agents:
+                status_str = status_callback(agent)
+                _stdout.write(fmt.format(agent.uuid[:n], agent.name, name_width,
+                                         agent.vip_identity, identity_width,
+                                         agent.tag or '', tag_width,
+                                         agent.agent_user if status_str.startswith("running") else "", user_width,
+                                         status_str, health_callback(agent)))
+        else:
+            fmt = '{} {:{}} {:{}} {:{}} {:>6} {:>15}\n'
+            _stderr.write(
+                fmt.format(' ' * n, 'AGENT', name_width, 'IDENTITY', identity_width,
+                           'TAG', tag_width, 'STATUS', 'HEALTH'))
+            fmt = '{} {:{}} {:{}} {:{}} {:<15} {:<}\n'
+            for agent in agents:
+                _stdout.write(fmt.format(agent.uuid[:n], agent.name, name_width,
+                                         agent.vip_identity, identity_width,
+                                         agent.tag or '', tag_width,
+                                         status_callback(agent), health_callback(agent)))
     else:
-        fmt = '{} {:{}} {:{}} {:{}} {:>6} {:>15}\n'
-        _stderr.write(
-            fmt.format(' ' * n, 'AGENT', name_width, 'IDENTITY', identity_width,
-                       'TAG', tag_width, 'STATUS', 'HEALTH'))
-        fmt = '{} {:{}} {:{}} {:{}} {:<15} {:<}\n'
+        json_obj = {}
         for agent in agents:
-            _stdout.write(fmt.format(agent.uuid[:n], agent.name, name_width,
-                                     agent.vip_identity, identity_width,
-                                     agent.tag or '', tag_width,
-                                     status_callback(agent), health_callback(agent)))
+            json_obj[agent.vip_identity] = {
+                'agent_uuid': agent.uuid,
+                'name': agent.name,
+                'identity': agent.vip_identity,
+                'agent_tag': agent.tag or '',
+                'status': status_callback(agent),
+                'health': health_callback(agent),
+            }
+            if is_secure_mode():
+                json_obj[agent.vip_identity]['agent_user'] = agent_user if json_obj[agent.vip_identity]['status'].startswith('running') else ''
+        _stdout.write(f'{jsonapi.dumps(json_obj, indent=2)}\n')
+
 
 
 def get_agent_publickey(opts):
@@ -2139,6 +2177,7 @@ def main(argv=sys.argv):
     parser.add_argument(
         '--show-config', action='store_true',
         help=argparse.SUPPRESS)
+    parser.add_argument("--json", action="store_true", default=False, help="format output to json")
 
     parser.add_help_argument()
     parser.set_defaults(

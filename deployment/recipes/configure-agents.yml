@@ -1,0 +1,17 @@
+---
+- name: configure agents
+  hosts: all
+  roles:
+  - set-defaults
+  - ansible-venv
+  - copy-agent-configs
+  tasks:
+
+  - name: install agents
+    volttron_agent:
+      volttron_root: "{{ volttron_root }}"
+      volttron_home: "{{ volttron_home }}"
+      volttron_venv: "{{ volttron_venv }}"
+      agent_vip_id: "{{ item.key }}"
+      agent_spec: "{{ item.value }}"
+    loop: "{{ host_configuration['agents'] | default({}) | dict2items }}"

@@ -1,3 +1,28 @@
 ---
-config:
-  message-bus: rmq
+config: {}
+  #message-bus: rmq
+
+#TODO this isn't used yet
+agents:
+  listener:
+    agent_state: present
+    agent_source: '$VOLTTRON_ROOT/examples/ListenerAgent'
+    agent_running: True
+    agent_enabled: True
+    agent_tag: listen
+    agent_config_store:
+    - path: listener_store
+      name: ""
+      absolute_path: False
+      present: True
+    - path: "asdf"
+      name: "foo.json"
+      present: False
+    - path: top_store.json
+      name: pnnl/richland/isb/magaix.json
+
+  historian.sqlite:
+    agent_source: '$VOLTTRON_ROOT/services/core/SQLHistorian'
+    agent_config: 'config.sqlite'
+    agent_running: True
+    agent_enabled: True
