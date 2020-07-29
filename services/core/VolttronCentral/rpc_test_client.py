@@ -13,7 +13,7 @@ def do_rpc(method, params=None ):
     json_package = {
         'jsonrpc': '2.0',
         'id': '2503402',
-        'method':method,
+        'method': method,
     }
 
     if authentication:
