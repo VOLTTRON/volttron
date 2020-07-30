@@ -2,6 +2,7 @@ import contextlib
 import datetime
 from time import time
 
+from mysql.connector import OperationalError
 import pytest
 import mysql.connector
 
@@ -13,7 +14,13 @@ from volttrontesting.utils.utils import get_rand_port
 # mysqlfuncts was written for MYSQL 5.7; however, the latest version is 8.0
 # these tests cannot use latest or anything 8.0 and above and will fail if the latest image/8.0 is used
 # for example, latest/8.0 will throw a "specified key was too long; max key length is 3072 bytes" error
-IMAGES = ["mysql:5.7", ]  # To test more images, add them here
+IMAGES = [
+    "mysql:5",
+    "mysql:5.6",
+    "mysql:5.6.49",
+    "mysql:5.7",
+    "mysql:5.7.31",
+]  # To test more images, add them here
 TEST_DATABASE = "test_historian"
 ROOT_PASSWORD = "12345"
 ENV_MYSQL = {"MYSQL_ROOT_PASSWORD": ROOT_PASSWORD, "MYSQL_DATABASE": TEST_DATABASE}
@@ -607,7 +614,13 @@ def get_cnx_cursor(port):
                       "database": TEST_DATABASE,
                       "user": "root",
                       "passwd": ROOT_PASSWORD}
-    cnx = mysql.connector.connect(**connect_params)
-    cursor = cnx.cursor()
-    return cnx, cursor
+    try:
+        cnx = mysql.connector.connect(**connect_params)
+        if cnx.is_connected():
+            cursor = cnx.cursor()
+            return cnx, cursor
+        else:
+            print("No connection")
+    except OperationalError as e:
+        print("OperationalError", e)
 
