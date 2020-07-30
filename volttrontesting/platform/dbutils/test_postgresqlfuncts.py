@@ -13,8 +13,22 @@ from volttrontesting.utils.utils import get_rand_port
 
 # Current documentation claims that we have tested Historian on Postgres 10
 # See https://volttron.readthedocs.io/en/develop/core_services/historians/SQL-Historian.html#postgresql-and-redshift
-IMAGES = ["postgres:10"]
-ALLOW_CONNECTION_TIME = 3
+IMAGES = [
+    "postgres:9",
+    "postgres:9.5",
+    "postgres:9.5.22",
+    "postgres:9.6",
+    "postgres:9.6.18",
+    "postgres:10",
+    "postgres:10.13",
+    "postgres:11",
+    "postgres:11.8",
+    "postgres:12",
+    "postgres:12.3",
+    "postgres:13",
+    "postgres:13-beta2",
+]
+ALLOW_CONNECTION_TIME = 5
 TEST_DATABASE = "test_historian"
 ROOT_USER = "postgres"
 ROOT_PASSWORD = "password"
