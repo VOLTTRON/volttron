@@ -14,7 +14,13 @@ Here, we make a script to build and deploy the fake driver.
 
 
 - Create a config directory (if one doesn't already exist) inside your Volttron repository: :code:`mkdir config`. All local config files will be worked on here.
-- Copy over the example file: :bash:`cp examples/configurations/drivers/fake.config config/`
+- Copy over the example config file and registry config file:
+
+.. code-block:: bash
+
+    `cp examples/configurations/drivers/fake.config config/`
+    `cp examples/configurations/drivers/fake.csv config/`
+
 - Edit :code:`registry_config` for the paths on your system:
 
 fake.config::
@@ -31,8 +37,20 @@ fake.config::
         "publish_breadth_first": false
    	}
 
-- :bash:`cp examples/configurations/drivers/master-driver.agent config/fake-master-driver.config`
-- Add fake.csv and fake.config to the :ref:`configuration store<config-store>`. ## TODO Which fake.csv? How do I add them to my configuration store?
+
+- Create a copy of the Master Driver config:
+
+.. code-block:: bash
+
+    cp examples/configurations/drivers/master-driver.agent config/fake-master-driver.config
+
+- Add fake.csv and fake.config to the :ref:`configuration store<config-store>`:
+
+.. code-block:: bash
+
+    vctl config store platform.driver devices/campus/building/fake config/fake.config
+    vcfl config store platform.driver fake.csv config/fake.csv --csv
+
 - Edit fake-master-driver.config to reflect paths on your system
 
 fake-master-driver.config::
