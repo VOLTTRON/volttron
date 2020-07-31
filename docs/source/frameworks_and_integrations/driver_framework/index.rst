@@ -171,6 +171,3 @@ Step 4 - Install a Listener Agent
 
 This step is not strictly necessary for running a driver on the platform, but the Listener will output device data to
 the message bus for viewing.
-
-.. toctree::
-    :maxdepth: 2

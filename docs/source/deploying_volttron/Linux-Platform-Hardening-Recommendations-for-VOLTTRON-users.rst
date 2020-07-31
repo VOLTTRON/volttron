@@ -8,7 +8,7 @@ Rev. 0 \| 1/29/2015 \| Initial Document Development
 Rev. 1 \| 2/5/2015 \| Integrate comments from extended VOLTTRON team.
 
 Introduction
-============
+------------
 
 VOLTTRON is an agent-based application development platform for
 distributed control systems. VOLTTRON itself is built with modern
@@ -23,7 +23,7 @@ cyber security strategy that is recommended in this document is based on
 risk management.
 
 Linux System Hardening
-======================
+----------------------
 
 Here are the non-exhaustive recommendations for Linux
 hardening from the VOLTTRON team:
@@ -178,7 +178,7 @@ hardening from the VOLTTRON team:
    e recommend using mod\_security and mod\_evasive modules.
 
 System Monitoring
-=================
+-----------------
 
 -  Monitor system state and resources. Use a monitoring tool such as
    Xymon (http://xymon.sourceforge.net) or big brother
@@ -207,7 +207,7 @@ System Monitoring
    (http://cipherdyne.org/psad/) can be used to look for intrusions as well.
 
 Security Testing
-================
+----------------
 
 Every security control discussed in the previous sections must be
 tested to determine correct operation and impact.
@@ -220,7 +220,7 @@ tools such as Nessus (http://www.tenable.com/products/nessus) and nmap
 (http://nmap.org) should be used to perform cyber security testing.
 
 Conclusion
-==========
+----------
 
 No system is 100% secure unless it is disconnected from the network and
 is in a physically secure location. VOLTTRON team recommends a
