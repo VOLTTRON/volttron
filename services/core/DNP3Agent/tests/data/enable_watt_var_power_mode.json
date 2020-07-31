@@ -1,0 +1,13 @@
+{
+  "function_id": "enable_watt-var_power_mode",
+  "function_name": "Enable Watt-Var Power Mode",
+  "DWVR.ModPrio.AO221": 1,
+  "DWVR.WinTms.AO222": 2,
+  "DWVR.RmpTms.AO223": 3,
+  "DWVR.RvrtTms.AO224": 4,
+  "DWVR.EcpRef.AO225": 5,
+  "DWVR.OpnLoopMax.AO227": 10,
+  "DWVR.OpnLoopMax.AO228": 1,
+  "DWVR.WVArCrv.AO226": 2,
+  "DWVR.ModEna.BO30": true
+}

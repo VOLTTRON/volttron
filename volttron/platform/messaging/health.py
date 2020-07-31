@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -38,7 +38,7 @@
 
 import logging
 
-from volttron.platform.agent import json as jsonapi
+from volttron.platform import jsonapi
 from volttron.platform.agent.utils import (get_aware_utc_now,
                                            format_timestamp,
                                            parse_timestamp_string)
@@ -89,7 +89,7 @@ class Status(object):
     @property
     def context(self):
         if self._context:
-            if isinstance(self._context, basestring):
+            if isinstance(self._context, str):
                 return self._context
             return self._context.copy()
         return None
@@ -122,7 +122,7 @@ class Status(object):
         self._last_updated = format_timestamp(get_aware_utc_now())
 
         if status_changed and self._status_changed_callback:
-            print(self._status_changed_callback())
+            self._status_changed_callback()
 
     def as_dict(self):
         """

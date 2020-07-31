@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -36,7 +36,7 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-from __future__ import absolute_import
+
 
 import logging
 import sys
@@ -107,9 +107,9 @@ class SQLAggregateHistorian(AggregateHistorian):
         agg_id = self.dbfuncts_class.insert_agg_topic(aggregation_topic_name,
                                                       agg_type,
                                                       agg_time_period)
-        self.dbfuncts_class.insert_agg_meta(agg_id[0], topics_meta)
+        self.dbfuncts_class.insert_agg_meta(agg_id, topics_meta)
         self.dbfuncts_class.commit()
-        return agg_id[0]
+        return agg_id
 
     def update_aggregate_metadata(self, agg_id, aggregation_topic_name,
                                   topic_meta):
@@ -142,7 +142,7 @@ def main(argv=sys.argv):
     try:
         utils.vip_main(SQLAggregateHistorian, version=__version__)
     except Exception as e:
-        _log.exception('unhandled exception' + e.message)
+        _log.exception('unhandled exception' + str(e))
 
 
 if __name__ == '__main__':

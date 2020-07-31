@@ -1,6 +1,6 @@
-===========
-Alert Agent
-===========
+===================
+Topic Watcher Agent
+===================
 
 .. toctree::
     :glob:

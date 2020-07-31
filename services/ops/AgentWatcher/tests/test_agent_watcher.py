@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -38,9 +38,9 @@
 
 import pytest
 import gevent
-import json
 
-from volttron.platform import get_ops, get_examples
+
+from volttron.platform import get_ops, get_examples, jsonapi
 
 WATCHER_CONFIG = {
     "watchlist": ["listener"],
@@ -51,26 +51,26 @@ alert_messages = {}
 listener_uuid = None
 
 @pytest.fixture(scope='module')
-def platform(request, volttron_instance1):
+def platform(request, volttron_instance):
     global listener_uuid
 
-    listener_uuid = volttron_instance1.install_agent(
+    listener_uuid = volttron_instance.install_agent(
         agent_dir=get_examples("ListenerAgent"),
         vip_identity="listener",
         start=True)
     gevent.sleep(2)
 
-    watcher_uuid = volttron_instance1.install_agent(
+    watcher_uuid = volttron_instance.install_agent(
         agent_dir=get_ops("AgentWatcher"),
         config_file=WATCHER_CONFIG)
     gevent.sleep(2)
 
-    agent = volttron_instance1.build_agent()
+    agent = volttron_instance.build_agent()
 
     def onmessage(peer, sender, bus, topic, headers, message):
         global alert_messages
 
-        alert = json.loads(message)["context"]
+        alert = jsonapi.loads(message)["context"]
 
         try:
             alert_messages[alert] += 1
@@ -78,16 +78,17 @@ def platform(request, volttron_instance1):
             alert_messages[alert] = 1
 
     agent.vip.pubsub.subscribe(peer='pubsub',
-                               prefix='alert',
+                               prefix='alerts',
                                callback=onmessage)
 
     def stop():
-        volttron_instance1.stop_agent(listener_uuid)
-        volttron_instance1.stop_agent(watcher_uuid)
+        volttron_instance.stop_agent(listener_uuid)
+        volttron_instance.stop_agent(watcher_uuid)
         agent.core.stop()
+        alert_messages.clear()
 
     request.addfinalizer(stop)
-    return volttron_instance1
+    return volttron_instance
 
 
 def test_agent_watcher(platform):

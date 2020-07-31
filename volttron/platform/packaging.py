@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -50,23 +50,21 @@ import traceback
 import errno
 
 from wheel.install import WheelFile
-from .packages import *
-from . import config
-from .agent import utils
-from volttron.platform import get_volttron_data
+from volttron.platform.packages import *
+from volttron.platform.agent import utils
+from volttron.platform import get_volttron_data, get_home
 from volttron.utils.prompt import prompt_response
+from volttron.platform import certs
+from volttron.platform import config
 
 try:
-     from volttron.restricted import (auth, certs)
+     from volttron.restricted import auth
 except ImportError:
      auth = None
-     certs = None
 
 
 _log = logging.getLogger(os.path.basename(sys.argv[0])
                          if __name__ == '__main__' else __name__)
-
-DEFAULT_CERTS_DIR = '~/.volttron/certificates'
 
 AGENT_TEMPLATE_PATH_TEMPLATE = "agent_templates/{name}/{file}"
 AGENT_TEMPLATE_PATH = "agent_templates/"
@@ -88,6 +86,7 @@ def log_to_file(file, level=logging.WARNING,
 class AgentPackageError(Exception):
     """Raised for errors during packaging, extraction and signing."""
     pass
+
 
 def _get_agent_template_list():
     data_root = get_volttron_data()
@@ -123,6 +122,7 @@ def _load_agent_template(template_name):
 
     return setup_template, agent_template, config_template
 
+
 def _get_agent_metadata(silent):
     results = {
         "version": "0.1",
@@ -143,10 +143,11 @@ def _get_agent_metadata(silent):
 
     return results
 
+
 def _get_setup_py(template, agent_package, metadata):
     metadata_strings = []
 
-    for key, value in metadata.iteritems():
+    for key, value in metadata.items():
         if value:
             metadata_strings.append('{key}="{value}",'.format(key=key, value=value))
 
@@ -156,6 +157,7 @@ def _get_setup_py(template, agent_package, metadata):
     template = template.replace("__meta_data__", metadata_string)
 
     return template
+
 
 def _get_agent_py(template, module_name, class_name, version, agent_id):
     template = template.replace("__version_string__", version)
@@ -294,7 +296,7 @@ def repackage(directory, dest=None):
         except Exception as e:
             raise AgentPackageError("Unable to create destination directory "
                                     "{}. Exception {}".format(
-                                    dest, e.message))
+                                    dest, e.args[0]))
     if not os.path.exists(directory):
         raise AgentPackageError("Agent directory {} does not "
                                 "exist".format(directory))
@@ -342,14 +344,19 @@ def _create_initial_package(agent_dir_to_package, wheelhouse, identity=None):
 
     Returns The path and file name of the packaged whl file.
     """
-    tmpdir = tempfile.mkdtemp()
     try:
+        tmpdir = tempfile.mkdtemp()
+
         builddir = os.path.join(tmpdir, 'pkg')
         distdir = os.path.join(builddir, 'dist')
         shutil.copytree(agent_dir_to_package, builddir)
-        subprocess.check_call([sys.executable, 'setup.py', '--no-user-cfg',
-                               'bdist_wheel'], cwd=builddir,
-                              stderr=subprocess.STDOUT)
+        cmd = [sys.executable, 'setup.py', '--no-user-cfg', 'bdist_wheel']
+        response = subprocess.run(cmd, cwd=builddir, stderr=subprocess.PIPE,
+                                  stdout=subprocess.PIPE)
+        if response.returncode != 0:
+            _log.error(response.stderr)
+            print(response.stderr)
+            return None
 
         wheel_name = os.listdir(distdir)[0]
         wheel_path = os.path.join(distdir, wheel_name)
@@ -372,6 +379,7 @@ def _create_initial_package(agent_dir_to_package, wheelhouse, identity=None):
         return wheel_dest
     except subprocess.CalledProcessError as ex:
         traceback.print_last()
+        raise ex
     finally:
         shutil.rmtree(tmpdir, True)
 
@@ -389,7 +397,7 @@ def _files_from_kwargs(**kwargs):
     if 'config_file' in kwargs and kwargs['config_file'] != None:
         files['config_file'] = kwargs['config_file']
 
-    if len(files.keys()) > 0:
+    if len(files) > 0:
         return files
 
     return None
@@ -423,7 +431,7 @@ def _sign_agent_package(agent_package, **kwargs):
         raise AgentPackageError('Unknown packaging options')
 
     if verified:
-        print('{} signed as {}'.format(agent_package, cert_type))
+        print('f{agent_package} signed as {cert_type}')
     else:
         print('Verification of signing failed!')
 
@@ -442,29 +450,30 @@ def _cert_type_from_kwargs(**kwargs):
     return None
 
 
-def _create_ca(certs_dir=DEFAULT_CERTS_DIR):
+def _create_ca(override=True, data=None):
     """Creates a root ca cert using the Certs class"""
-    crts = certs.Certs(certs_dir)
+    crts = certs.Certs()
     if crts.ca_exists():
-        msg = '''Creating a new root ca will overwrite the current ca and
-invalidate any signed certs.
+        if override:
+            msg = '''Creating a new root ca will overwrite the current ca and
+    invalidate any signed certs.
+    
+    Are you sure you want to do this? type 'yes' to continue: '''
 
-Are you sure you want to do this? type 'yes' to continue: '''
-
-        continue_yes = raw_input(msg)
+        continue_yes = input(msg)
         if continue_yes.upper() != 'YES':
             return
-
-    data = _create_cert_ui(certs.DEFAULT_ROOT_CA_CN)
+    if not data:
+        data = _create_cert_ui(crts.default_root_ca_cn)
     crts.create_root_ca(**data)
 
 
-def _create_cert(name=None, certs_dir= DEFAULT_CERTS_DIR,**kwargs):
+def _create_cert(name=None, **kwargs):
     """Create a cert using options specified on the command line"""
 
-    crts = certs.Certs(certs_dir)
+    crts = certs.Certs()
     if not crts.ca_exists():
-        sys.stderr.write('Root CA ot must be created before certificates\n')
+        sys.stderr.write('Root CA must be created before certificates\n')
         sys.exit(0)
 
     cert_type = _cert_type_from_kwargs(**kwargs)
@@ -475,8 +484,7 @@ def _create_cert(name=None, certs_dir= DEFAULT_CERTS_DIR,**kwargs):
     else:
         cert_data = _create_cert_ui('{} ({})'.format(cert_type, name))
 
-
-    crts.create_ca_signed_cert(name, **cert_data)
+    crts.create_signed_cert_files(name, **cert_data)
 
 
 def _create_cert_ui(cn):
@@ -508,7 +516,7 @@ def _create_cert_ui(cn):
     for item in input_order:
         cmd = '\t{} - {}({}): '.format(item, input_help[item],
                                               input_defaults[item])
-        output_items[item] = raw_input(cmd)
+        output_items[item] = input(cmd)
         if len(output_items[item].strip()) == 0:
             output_items[item] = input_defaults[item]
 
@@ -535,134 +543,112 @@ def main(argv=sys.argv):
         prog=progname,
         description='VOLTTRON packaging and signing utility',
     )
-    parser.set_defaults(log_config=None)
+    parser.set_defaults(log_config=None, verboseness=logging.INFO)
 
     parser.add_argument('-l', '--log', metavar='FILE', default=None,
-        help='send log output to FILE instead of stderr')
+                        help='send log output to FILE instead of stderr')
     parser.add_argument('-L', '--log-config', metavar='FILE',
-        help='read logging configuration from FILE')
+                        help='read logging configuration from FILE')
     parser.add_argument('-q', '--quiet', action='add_const', const=10, dest='verboseness',
-        help='decrease logger verboseness; may be used multiple times')
+                        help='decrease logger verboseness; may be used multiple times')
     parser.add_argument('-v', '--verbose', action='add_const', const=-10, dest='verboseness',
-        help='increase logger verboseness; may be used multiple times')
+                        help='increase logger verboseness; may be used multiple times')
     parser.add_argument('--verboseness', type=int, metavar='LEVEL',
-        default=logging.WARNING,
-        help='set logger verboseness')
+                        default=logging.WARNING,
+                        help='set logger verboseness')
 
     subparsers = parser.add_subparsers(title = 'subcommands',
                                        description = 'valid subcommands',
                                        help = 'additional help',
                                        dest='subparser_name')
     package_parser = subparsers.add_parser('package',
-        help="Create agent package (whl) from a directory")
+                                           help="Create agent package (whl) from a directory")
 
     package_parser.add_argument('agent_directory',
-        help='Directory for packaging an agent for the first time (requires setup.py file).')
+                                help='Directory for packaging an agent for the first time (requires setup.py file).')
     package_parser.add_argument('--dest',
-        help='Directory to place the wheel file')
+                                help='Directory to place the wheel file')
     package_parser.set_defaults(dest=default_wheelhouse)
     package_parser.add_argument('--vip-identity',
-        help='Override the Agents desired VIP IDENTITY (if any). '
-             'Takes precedent over default VIP IDENTITY generated by '
-             'the platform and the preferred identity of the agent (if any).')
+                                help='Override the Agents desired VIP IDENTITY (if any). '
+                                     'Takes precedent over default VIP IDENTITY generated by '
+                                     'the platform and the preferred identity of the agent (if any).')
     package_parser.set_defaults(identity=None)
 
     init_parser = subparsers.add_parser('init',
-                                           help="Create new agent code package from a template."
-                                                " Will prompt for additional metadata.")
+                                        help="Create new agent code package from a template."
+                                             " Will prompt for additional metadata.")
 
     init_parser.add_argument('directory',
-                                help='Directory to create the new agent in (must not exist).')
+                             help='Directory to create the new agent in (must not exist).')
     init_parser.add_argument('module_name',
-                                help='Module name for agent. Class name is derived from this name.')
+                             help='Module name for agent. Class name is derived from this name.')
     init_parser.add_argument('--template', choices=_get_agent_template_list(),
                              help='Name of the template to use. Defaults to "common".')
     init_parser.add_argument('--identity',
-                                help='Set agent to have a fixed VIP identity. Useful for new service agents.')
+                             help='Set agent to have a fixed VIP identity. Useful for new service agents.')
     init_parser.add_argument('--silent', action="store_true",
                              help='Use defaults for meta data and do not prompt.')
     init_parser.set_defaults(identity=None, template="common")
 
     repackage_parser = subparsers.add_parser('repackage',
-                                           help="Creates agent package from a currently installed agent.")
+                                             help="Creates agent package from a currently installed agent.")
     repackage_parser.add_argument('directory',
-        help='Directory where agent is installed')
+                                  help='Directory where agent is installed')
     repackage_parser.add_argument('--dest',
-        help='Directory to place the wheel file')
+                                  help='Directory to place the wheel file')
     repackage_parser.set_defaults(dest=default_wheelhouse)
 
     config_parser = subparsers.add_parser('configure',
-        help='add a configuration file to an agent package')
+                                          help='add a configuration file to an agent package')
     config_parser.add_argument('package', metavar='PACKAGE',
-            help='agent package to configure')
+                               help='agent package to configure')
     config_parser.add_argument('config_file', metavar='CONFIG',
-        help='configuration file to add to wheel.')
+                               help='configuration file to add to wheel.')
+
+    create_ca_cmd = subparsers.add_parser('create_ca')
 
     if auth is not None:
-        cert_dir = os.path.expanduser(DEFAULT_CERTS_DIR)
-        if not os.path.exists(cert_dir):
-            os.makedirs('/'.join((cert_dir, 'certs')))
-            os.makedirs('/'.join((cert_dir, 'private')))
-        create_ca_cmd = subparsers.add_parser('create_ca')
         create_cert_cmd = subparsers.add_parser('create_cert')
         create_cert_opts = create_cert_cmd.add_mutually_exclusive_group(required=True)
         create_cert_opts.add_argument('--creator', action='store_true',
-            help='create a creator cert')
+                                      help='create a creator cert')
         create_cert_opts.add_argument('--admin', action='store_true',
-            help='create an admin administrator cert')
+                                      help='create an admin administrator cert')
         create_cert_opts.add_argument('--initiator', action='store_true',
-            help='create an initiator cert')
+                                      help='create an initiator cert')
         create_cert_opts.add_argument('--platform', action='store_true',
-            help='create a platform cert')
+                                      help='create a platform cert')
         create_cert_cmd.add_argument('--name',
-            help='file name to store the cert under (no extension)')
+                                     help='file name to store the cert under (no extension)')
 
         sign_cmd = subparsers.add_parser('sign',
-            help='sign a package')
+                                         help='sign a package')
 
         sign_opts = sign_cmd.add_mutually_exclusive_group(required=True)
         sign_opts.add_argument('--creator', action='store_true',
-            help='sign as the creator of the package')
+                               help='sign as the creator of the package')
         sign_opts.add_argument('--admin', action='store_true',
-            help='sign as the soi administrator')
+                               help='sign as the soi administrator')
         sign_opts.add_argument('--initiator', action='store_true',
-            help='sign as the initiator of the package')
+                               help='sign as the initiator of the package')
         sign_opts.add_argument('--platform', action='store_true',
-            help='sign the mutable luggage of the package as the platform')
+                               help='sign the mutable luggage of the package as the platform')
         sign_cmd.add_argument('--cert', metavar='CERT',
-            help='certificate to use to sign the package')
+                              help='certificate to use to sign the package')
         sign_cmd.add_argument('--config-file', metavar='CONFIG',
-            help='agent configuration file')
+                              help='agent configuration file')
         sign_cmd.add_argument('--contract', metavar='CONTRACT',
-            help='agent resource contract file')
+                              help='agent resource contract file')
         sign_cmd.add_argument('--certs_dir', metavar='CERTS_DIR',
-            help='certificates directory')
+                              help='certificates directory')
         sign_cmd.add_argument('package', metavar='PACKAGE',
-            help='agent package to sign')
-
-        #restricted = subparsers.add_parser('sign')
-#         restricted.add_argument('package',
-#             help='The agent package to sign (whl).')
+                              help='agent package to sign')
 
         verify_cmd = subparsers.add_parser('verify',
-            help='verify an agent package')
+                                           help='verify an agent package')
         verify_cmd.add_argument('package', metavar='PACKAGE',
-            help='agent package to verify')
-
-#         enable_restricted_parser = subparsers.add_parser('enable-restricted',
-#             help='Enable the restricted features of VOLTTRON')
-#
-#         creator_key_parser = subparsers.add_parser('set-creator-key',
-#             help='Set the key for the creator of the agent code')
-#
-#         soi_admin_key_parser = subparsers.add_parser('set-SOI-admin-key',
-#             help='Set the key for administrator of this Scope of Influence')
-#
-#         initiator_key_parser = subparsers.add_parser('set-initiator-key',
-#             help='Set the key for the initator of this agent')
-#
-#         source_key_parser = subparsers.add_parser('set-source-key',
-#             help='Set the key for the most recent host of this agent')
+                                help='agent package to verify')
 
     opts = parser.parse_args(argv[1:])
 
@@ -694,49 +680,44 @@ def main(argv=sys.argv):
             add_files_to_package(opts.package, {'config_file': opts.config_file})
         elif opts.subparser_name == 'init' :
             init_agent(opts.directory, opts.module_name, opts.template, opts.silent, opts.identity)
+        elif opts.subparser_name == 'create_ca':
+            _create_ca()
         else:
             if auth is not None:
                 try:
-                    if opts.subparser_name == 'create_ca':
-                        _create_ca()
-                    elif opts.subparser_name == 'verify':
+                    if opts.subparser_name == 'verify':
                         if not os.path.exists(opts.package):
-                            print('Invalid package name {}'.format(opts.package))
+                            print(f'Invalid package name {opts.package}')
                         verifier = auth.SignedZipPackageVerifier(opts.package)
                         verifier.verify()
-                        print "Package is verified"
+                        print("Package is verified")
                     else:
                         user_type = {'admin': opts.admin,
-                                  'creator': opts.creator,
-                                  'initiator': opts.initiator,
-                                  'platform': opts.platform}
+                                     'creator': opts.creator,
+                                     'initiator': opts.initiator,
+                                     'platform': opts.platform}
                         if opts.subparser_name == 'sign':
                             in_args = {
-                                    'config_file': opts.config_file,
-                                    'user_type': user_type,
-                                    'contract': opts.contract,
-                                    'certs_dir': opts.certs_dir
-                                }
+                                'config_file': opts.config_file,
+                                'user_type': user_type,
+                                'contract': opts.contract,
+                                'certs_dir': opts.certs_dir
+                            }
                             _sign_agent_package(opts.package, **in_args)
 
                         elif opts.subparser_name == 'create_cert':
                             _create_cert(name=opts.name, **user_type)
                 except auth.AuthError as e:
                     _log.error(e.message)
-                    #print(e.message)
 
-
-#         elif opts.subparser_name == 'create_cert':
-#             _create_cert(name=opts.name, **)
     except AgentPackageError as e:
-        _log.error(e.message)
-        #print(e.message)
+        print(e)
+
     except Exception as e:
-        _log.error(str(e))
-        #print e
+        _log.exception(e)
 
     if whl_path:
-        print("Package created at: {}".format(whl_path))
+        print(f"Package created at: {whl_path}")
 
 
 def _main():

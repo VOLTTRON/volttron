@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -49,7 +49,7 @@ from volttron.platform.messaging.topics import (DRIVER_TOPIC_BASE,
                                                 DEVICES_PATH)
 
 from volttron.platform.vip.agent.errors import VIPError, Again
-from driver_locks import publish_lock
+from .driver_locks import publish_lock
 import datetime
 
 utils.setup_logging()
@@ -149,11 +149,12 @@ class DriverAgent(BasicAgent):
 
     def get_interface(self, driver_type, config_dict, config_string):
         """Returns an instance of the interface"""
-        module_name = "interfaces." + driver_type
-        module = __import__(module_name,globals(),locals(),[], -1)
-        sub_module = getattr(module, driver_type)
+        module_name = "master_driver.interfaces." + driver_type
+        module = __import__(module_name,globals(),locals(),[], 0)
+        interfaces = module.interfaces
+        sub_module = getattr(interfaces, driver_type)
         klass = getattr(sub_module, "Interface")
-        interface = klass(vip=self.vip, core=self.core)
+        interface = klass(vip=self.vip, core=self.core, device_path=self.device_path)
         interface.configure(config_dict, config_string)
         return interface
 
@@ -242,7 +243,7 @@ class DriverAgent(BasicAgent):
         try:
             results = self.interface.scrape_all()
             register_names = self.interface.get_register_names_view()
-            for point in (register_names - results.viewkeys()):
+            for point in (register_names - results.keys()):
                 depth_first_topic = self.base_topic(point=point)
                 _log.error("Failed to scrape point: "+depth_first_topic)
         except (Exception, gevent.Timeout) as ex:
@@ -256,16 +257,16 @@ class DriverAgent(BasicAgent):
 
         utcnow = utils.get_aware_utc_now()
         utcnow_string = utils.format_timestamp(utcnow)
+        sync_timestamp = utils.format_timestamp(now - datetime.timedelta(seconds=self.time_slot_offset))
 
         headers = {
             headers_mod.DATE: utcnow_string,
             headers_mod.TIMESTAMP: utcnow_string,
+            headers_mod.SYNC_TIMESTAMP: sync_timestamp
         }
 
-
-
         if self.publish_depth_first or self.publish_breadth_first:
-            for point, value in results.iteritems():
+            for point, value in results.items():
                 depth_first_topic, breadth_first_topic = self.get_paths_for_point(point)
                 message = [value, self.meta_data[point]]
 
@@ -292,30 +293,28 @@ class DriverAgent(BasicAgent):
 
         self.parent.scrape_ending(self.device_name)
 
-
     def _publish_wrapper(self, topic, headers, message):
         while True:
             try:
                 with publish_lock():
                     _log.debug("publishing: " + topic)
                     self.vip.pubsub.publish('pubsub',
-                                        topic,
-                                        headers=headers,
-                                        message=message).get(timeout=10.0)
+                                            topic,
+                                            headers=headers,
+                                            message=message).get(timeout=10.0)
 
                     _log.debug("finish publishing: " + topic)
             except gevent.Timeout:
-                _log.warn("Did not receive confirmation of publish to "+topic)
+                _log.warning("Did not receive confirmation of publish to "+topic)
                 break
             except Again:
-                _log.warn("publish delayed: " + topic + " pubsub is busy")
+                _log.warning("publish delayed: " + topic + " pubsub is busy")
                 gevent.sleep(random.random())
             except VIPError as ex:
-                _log.warn("driver failed to publish " + topic + ": " + str(ex))
+                _log.warning("driver failed to publish " + topic + ": " + str(ex))
                 break
             else:
                 break
-
 
     def heart_beat(self):
         if self.heart_beat_point is None:
@@ -364,24 +363,42 @@ class DriverAgent(BasicAgent):
         self.interface.revert_all(**kwargs)
 
     def publish_cov_value(self, point_name, point_values):
-        """Called in the master driver agent to publish a cov from a point"""
+        """
+        Called in the master driver agent to publish a cov from a point
+        :param point_name: point which sent COV notifications
+        :param point_values: COV point values
+        """
         utcnow = utils.get_aware_utc_now()
         utcnow_string = utils.format_timestamp(utcnow)
         headers = {
             headers_mod.DATE: utcnow_string,
             headers_mod.TIMESTAMP: utcnow_string,
         }
-        for value in point_values:
-            results = {point_name: point_values[value]}
+        for point, value in point_values.items():
+            results = {point_name: value}
             meta = {point_name: self.meta_data[point_name]}
-            message = [results, meta]
+            all_message = [results, meta]
+            individual_point_message = [value, self.meta_data[point_name]]
+
+            depth_first_topic, breadth_first_topic = self.get_paths_for_point(
+                point_name)
 
             if self.publish_depth_first:
-                self._publish_wrapper(self.all_path_depth,
+                self._publish_wrapper(depth_first_topic,
                                       headers=headers,
-                                      message=message)
+                                      message=individual_point_message)
             #
             if self.publish_breadth_first:
+                self._publish_wrapper(breadth_first_topic,
+                                      headers=headers,
+                                      message=individual_point_message)
+
+            if self.publish_depth_first_all:
+                self._publish_wrapper(self.all_path_depth,
+                                      headers=headers,
+                                      message=all_message)
+
+            if self.publish_breadth_first_all:
                 self._publish_wrapper(self.all_path_breadth,
                                       headers=headers,
-                                      message=message)
+                                      message=all_message)

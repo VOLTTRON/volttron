@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -46,9 +46,8 @@ If the file does not exist it will be created with the given name.
 """
 
 import argparse
-import json
 
-from volttron.platform import get_address
+from volttron.platform import get_address, jsonapi
 from volttron.platform.agent.known_identities import CONFIGURATION_STORE
 from volttron.platform.keystore import KeyStore, KnownHostsStore
 from volttron.platform.vip.agent.utils import build_agent
@@ -108,14 +107,14 @@ def main():
                                     'manage_get',
                                     vip_id,
                                     filename).get(timeout=10)
-        config = json.loads(config)
+        config = jsonapi.loads(config)
         config[key] = value
 
     agent.vip.rpc.call(CONFIGURATION_STORE,
                        'manage_store',
                        vip_id,
                        filename,
-                       json.dumps(config),
+                       jsonapi.dumps(config),
                        'json').get(timeout=10)
 
 

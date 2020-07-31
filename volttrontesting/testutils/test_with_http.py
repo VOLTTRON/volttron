@@ -1,16 +1,15 @@
 import pytest
 import requests
 import gevent
-
-from volttrontesting.utils.platformwrapper import start_wrapper_platform
-from volttrontesting.utils.skip_if import skip_if_not_encrypted
+import os
 
 
-@pytest.mark.wrapper
-def test_can_start_webserver(get_volttron_instances):
-    wrapper = get_volttron_instances(1, False)
+def test_web_service_running(volttron_instance_web):
+    instance = volttron_instance_web
+    # This allows the requests object to use the root ca to validate the
+    # server client connection.
+    if instance.ssl_auth:
+        os.environ['REQUESTS_CA_BUNDLE'] = instance.certsobj.cert_file(instance.certsobj.root_ca_name)
+    resp = requests.get(volttron_instance_web.discovery_address)
 
-    start_wrapper_platform(wrapper, with_http=True, with_tcp=True)
-
-    gevent.sleep(0.5)
-    assert requests.get(wrapper.discovery_address).ok
+    assert resp.ok

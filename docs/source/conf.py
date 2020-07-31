@@ -23,6 +23,8 @@ from glob import glob
 from mock import Mock as MagicMock
 from recommonmark.parser import CommonMarkParser
 
+from volttron.platform.agent.utils import execute_command
+
 
 class Mock(MagicMock):
     @classmethod
@@ -38,14 +40,14 @@ sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
 
 # -- Project information -----------------------------------------------------
 
-project = u'VOLTTRON'
-copyright = u'2018, The VOLTTRON Community'
-author = u'The VOLTTRON Community'
+project = 'VOLTTRON'
+copyright = '2019, The VOLTTRON Community'
+author = 'The VOLTTRON Community'
 
 # The short X.Y version
-version = u'5.1.0'
+version = '7.0'
 # The full version, including alpha/beta/rc tags
-release = u'5.1.0'
+release = '7.0 Release Candidate'
 
 
 # -- General configuration ---------------------------------------------------
@@ -66,7 +68,18 @@ extensions = [
     'sphinx.ext.ifconfig',
     'sphinx.ext.viewcode',
     'sphinx.ext.githubpages',
+    # https://www.sphinx-doc.org/en/master/usage/extensions/autosectionlabel.html
+    'sphinx.ext.autosectionlabel',
+    # http://www.sphinx-doc.org/en/master/usage/extensions/todo.html
+    'sphinx.ext.todo',
 ]
+
+# prefix sections with the document so that we can cross link
+# sections from different pages.
+autosectionlabel_prefix_document = True
+autosectionlabel_maxdepth = 5
+
+todo_include_todos = True
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -113,7 +126,7 @@ html_theme = 'sphinx_rtd_theme'
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = []
+html_static_path = ['_static']
 
 # Custom sidebar templates, must be a dictionary that maps document names
 # to template names.
@@ -156,8 +169,8 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'VOLTTRON.tex', u'VOLTTRON Documentation',
-     u'The VOLTTRON Community', 'manual'),
+    (master_doc, 'VOLTTRON.tex', 'VOLTTRON Documentation',
+     'The VOLTTRON Community', 'manual'),
 ]
 
 
@@ -166,7 +179,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, 'volttron', u'VOLTTRON Documentation',
+    (master_doc, 'volttron', 'VOLTTRON Documentation',
      [author], 1)
 ]
 
@@ -177,7 +190,7 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'VOLTTRON', u'VOLTTRON Documentation',
+    (master_doc, 'VOLTTRON', 'VOLTTRON Documentation',
      author, 'VOLTTRON', 'One line description of project.',
      'Miscellaneous'),
 ]
@@ -239,7 +252,7 @@ def generate_apidoc(app):
     cmd.extend(exlusions)
     print("The command is: {}".format(cmd))
 
-    subprocess.check_call(cmd)
+    execute_command(cmd)
 
 #     print("\n##In run_apidocs##\n")
 #     global script_dir, apidocs_base_dir

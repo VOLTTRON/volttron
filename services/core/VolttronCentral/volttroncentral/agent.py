@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -57,45 +57,38 @@ instance with VCA.
    to VCA after being deployed.
 
 """
-import errno
-import hashlib
+
+import datetime
 import logging
 import os
 import os.path as p
 import sys
-from collections import defaultdict, namedtuple
-from copy import deepcopy
-from urlparse import urlparse
+from collections import namedtuple
 
-import datetime
 import gevent
-from volttron.platform.auth import AuthFile, AuthEntry
-from volttron.platform.agent import json as jsonapi
 
-from authenticate import Authenticate
-from platforms import Platforms, PlatformHandler
-from sessions import SessionHandler
+from volttron.platform import jsonapi
 from volttron.platform import jsonrpc
 from volttron.platform.agent import utils
-from volttron.platform.agent.exit_codes import INVALID_CONFIGURATION_CODE
 from volttron.platform.agent.known_identities import (
-    VOLTTRON_CENTRAL, VOLTTRON_CENTRAL_PLATFORM, PLATFORM_HISTORIAN)
+    VOLTTRON_CENTRAL, PLATFORM_HISTORIAN)
 from volttron.platform.agent.utils import (
-    get_aware_utc_now, format_timestamp)
+    get_aware_utc_now, get_messagebus)
+from volttron.platform.auth import AuthFile, AuthEntry
 from volttron.platform.jsonrpc import (
     INVALID_REQUEST, METHOD_NOT_FOUND,
     UNHANDLED_EXCEPTION, UNAUTHORIZED,
-    DISCOVERY_ERROR,
-    UNABLE_TO_UNREGISTER_INSTANCE, UNAVAILABLE_PLATFORM, INVALID_PARAMS,
+    UNAVAILABLE_PLATFORM, INVALID_PARAMS,
     UNAVAILABLE_AGENT, INTERNAL_ERROR)
-from volttron.platform.messaging.health import Status, \
-    BAD_STATUS, GOOD_STATUS, UNKNOWN_STATUS
-from volttron.platform.vip.agent import Agent, RPC, PubSub, Core, Unreachable
-from volttron.platform.vip.agent.connection import Connection
-from volttron.platform.vip.agent.subsystems.query import Query
-from volttron.platform.web import (DiscoveryInfo, DiscoveryError)
+from volttron.platform.vip.agent import Agent, RPC, Unreachable
+from .authenticate import Authenticate
+from .platforms import Platforms, PlatformHandler
+from .sessions import SessionHandler
 
-__version__ = "4.2"
+# must be after importing of utils which imports grequest.
+import requests
+
+__version__ = "5.2"
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -107,6 +100,7 @@ DEFAULT_WEB_ROOT = p.abspath(p.join(p.dirname(__file__), 'webroot/'))
 Platform = namedtuple('Platform', ['instance_name', 'serverkey', 'vip_address'])
 RequiredArgs = namedtuple('RequiredArgs', ['id', 'session_user',
                                            'platform_uuid'])
+
 
 def init_volttron_central(config_path, **kwargs):
     # Load the configuration into a dictionary
@@ -242,7 +236,7 @@ class VolttronCentralAgent(Agent):
 
         if users is None:
             users = {}
-            _log.warn("No users are available for logging in!")
+            _log.warning("No users are available for logging in!")
 
         # Unregister all routes for vc and then re-add down below.
         self.vip.web.unregister_all_routes()
@@ -255,13 +249,12 @@ class VolttronCentralAgent(Agent):
                                         self.open_authenticate_ws_endpoint,
                                         self._ws_closed,
                                         self._ws_received)
-
         self.vip.web.register_path(r'^/vc/.*',
                                    config.get('webroot'))
 
         # Start scanning for new platforms connections as well as for
         # disconnects that happen.
-        self._scan_platform_connect_disconnect()
+        gevent.spawn_later(1, self._scan_platform_connect_disconnect)
 
     @staticmethod
     def _get_next_time_seconds(seconds=10):
@@ -294,15 +287,15 @@ class VolttronCentralAgent(Agent):
         # Identities of all platform agents that are connecting to us should
         # have an identity of platform.md5hash.
         connected_platforms = set([x for x in self.vip.peerlist().get(timeout=5)
-                                   if x.startswith('vcp-')])
+                                   if x.startswith('vcp-') or x.endswith('.platform.agent')])
 
-        disconnected = self._platforms.get_platform_keys() - connected_platforms
+        _log.debug("Connected: {}".format(connected_platforms))
+        disconnected = self._platforms.get_platform_vip_identities() - connected_platforms
 
         for vip_id in disconnected:
             self._handle_platform_disconnect(vip_id)
 
-        not_known = connected_platforms - self._platforms.get_platform_keys()
-
+        not_known = connected_platforms - self._platforms.get_platform_vip_identities()
         for vip_id in not_known:
             self._handle_platform_connection(vip_id)
 
@@ -311,7 +304,6 @@ class VolttronCentralAgent(Agent):
         # reschedule the next scan.
         self._platform_scan_event = self.core.schedule(
             next_platform_scan, self._scan_platform_connect_disconnect)
-
 
     def configure_platforms(self, config_name, action, contents):
         _log.debug('Platform configuration updated.')
@@ -381,33 +373,6 @@ class VolttronCentralAgent(Agent):
         """
         return self.core.publickey
 
-    @RPC.export
-    def unregister_platform(self, platform_uuid):
-        _log.debug('unregister_platform')
-
-        platform = self._registered_platforms.get(platform_uuid)
-        if platform:
-            connected = self._platform_connections.get(platform_uuid)
-            if connected is not None:
-                connected.call('unmanage')
-                connected.kill()
-            address = None
-            for v in self._address_to_uuid.values():
-                if v == platform_uuid:
-                    address = v
-                    break
-            if address:
-                del self._address_to_uuid[address]
-            del self._platform_connections[platform_uuid]
-            del self._registered_platforms[platform_uuid]
-            self._registered_platforms.sync()
-            context = 'Unregistered platform {}'.format(platform_uuid)
-            return {'status': 'SUCCESS', 'context': context}
-        else:
-            msg = 'Unable to unregistered platform {}'.format(platform_uuid)
-            return {'error': {'code': UNABLE_TO_UNREGISTER_INSTANCE,
-                              'message': msg}}
-
     def _to_jsonrpc_obj(self, jsonrpcstr):
         """ Convert data string into a JsonRpcData named tuple.
 
@@ -430,17 +395,41 @@ class VolttronCentralAgent(Agent):
         """
         if env['REQUEST_METHOD'].upper() != 'POST':
             return jsonrpc.json_error('NA', INVALID_REQUEST,
-                                      'Invalid request method, only POST allowed'
-                                      )
+                                      'Invalid request method, only POST allowed')
 
         try:
             rpcdata = self._to_jsonrpc_obj(data)
             _log.info('rpc method: {}'.format(rpcdata.method))
+
             if rpcdata.method == 'get_authorization':
+
+                # Authentication url
+                # This does not need to be local, however for now we are going to
+                # make it so assuming only one level of authentication.
+                auth_url = "{url_scheme}://{HTTP_HOST}/authenticate".format(
+                    url_scheme=env['wsgi.url_scheme'],
+                    HTTP_HOST=env['HTTP_HOST'])
+                user = rpcdata.params['username']
                 args = {'username': rpcdata.params['username'],
                         'password': rpcdata.params['password'],
                         'ip': env['REMOTE_ADDR']}
-                sess = self._authenticated_sessions.authenticate(**args)
+                resp = requests.post(auth_url, json=args, verify=False)
+
+                if resp.ok and resp.text:
+                    claims = self.vip.web.get_user_claims(resp.text)
+                    # Because the web-user.json has the groups under a key and the
+                    # groups is just passed into the session we need to make sure
+                    # we pass in the proper thing to the _add_sesion function.
+                    assert 'groups' in claims
+                    authentication_token = resp.text
+                    sess = authentication_token
+                    self._authenticated_sessions._add_session(user=user,
+                                                              groups=claims['groups'],
+                                                              token=authentication_token,
+                                                              ip=env['REMOTE_ADDR'])
+                else:
+                    sess = self._authenticated_sessions.authenticate(**args)
+
                 if not sess:
                     _log.info('Invalid username/password for {}'.format(
                         rpcdata.params['username']))
@@ -518,7 +507,7 @@ class VolttronCentralAgent(Agent):
         :param groups:
         :return:
         """
-        _log.debug('_get_agents')
+        _log.debug('_get_agents with groups: {}'.format(groups))
         connected_to_pa = self._platform_connections[instance_uuid]
 
         agents = connected_to_pa.agent.vip.rpc.call(
@@ -813,6 +802,7 @@ class VolttronCentralAgent(Agent):
             # config store related
             store_agent_config="store_agent_config",
             get_agent_config="get_agent_config",
+            delete_agent_config="delete_agent_config",
             list_agent_configs="get_agent_config_list",
             # management related
 
@@ -855,7 +845,7 @@ class VolttronCentralAgent(Agent):
                 platform = self._platforms.get_platform(platform_uuid)
                 # Determine whether the method to call is on the current class
                 # or on the platform object.
-                if isinstance(class_method, basestring):
+                if isinstance(class_method, str):
                     method_ref = getattr(platform, class_method)
                 else:
                     method_ref = class_method
@@ -998,7 +988,7 @@ class VolttronCentralAgent(Agent):
                             user
                         ))
 
-                    if 'groups' not in item.keys():
+                    if 'groups' not in item:
                         problems.append('missing groups key for user {}'.format(
                             user
                         ))

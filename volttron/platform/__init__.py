@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -43,8 +43,13 @@ import logging
 import os
 import psutil
 import sys
+from configparser import ConfigParser
+from ..utils.frozendict import FrozenDict
+from urllib.parse import urlparse
 
-__version__ = '5.1.0'
+__version__ = '7.0'
+
+_log = logging.getLogger(__name__)
 
 
 def set_home(home=None):
@@ -75,6 +80,15 @@ def get_home():
             log.warn("Removing / from the end of VOLTTRON_HOME")
             os.environ['VOLTTRON_HOME'] = vhome
     return vhome
+
+
+def get_config_path() -> str:
+    """
+    Returns the platforms main configuration file.
+
+    :return:
+    """
+    return os.path.join(get_home(), "config")
 
 
 def get_address():
@@ -134,7 +148,7 @@ def get_examples(agent_dir):
 
 
 def is_instance_running(volttron_home=None):
-    from volttron.platform.agent import json as jsonapi
+    from volttron.platform import jsonapi
 
     if volttron_home is None:
         volttron_home = get_home()
@@ -156,3 +170,87 @@ def is_instance_running(volttron_home=None):
         return False
 
     return psutil.pid_exists(pid)
+
+
+def is_rabbitmq_available():
+    rabbitmq_available = True
+    try:
+        import pika
+        rabbitmq_available = True
+    except ImportError:
+        os.environ['RABBITMQ_NOT_AVAILABLE'] = "True"
+        rabbitmq_available = False
+    return rabbitmq_available
+
+
+__config__ = None
+
+
+def get_platform_config():
+    global __config__
+    if os.environ.get("VOLTTRON_HOME") is None:
+        raise Exception("VOLTTRON_HOME must be specified before calling this function.")
+
+    if __config__ is None:
+        __config__ = FrozenDict()
+        volttron_home = get_home()
+        config_file = os.path.join(volttron_home, "config")
+        if os.path.exists(config_file):
+            parser = ConfigParser()
+            parser.read(config_file)
+            options = parser.options('volttron')
+            for option in options:
+                __config__[option] = parser.get('volttron', option)
+            __config__.freeze()
+    return __config__
+
+
+def update_platform_config(values: dict) -> None:
+    global __config__
+
+    if __config__ is None:
+        cfg = get_platform_config()
+    else:
+        cfg = __config__
+        # Make sure we can update items
+        cfg._frozen = False
+
+    cfg.update(values)
+
+    config_file = get_config_path()
+    with open(config_file, "w") as fp:
+        p = ConfigParser()
+        p.add_section("volttron")
+        for k, v in cfg.items():
+            p.set("volttron", k, v)
+
+        cfg.freeze()
+        p.write(fp)
+
+    return get_platform_config()
+
+
+def build_vip_address_string(vip_root, serverkey, publickey, secretkey):
+    """ Build a full vip address string based upon the passed arguments
+
+    All arguments are required to be non-None in order for the string to be
+    created successfully.
+
+    :raises ValueError if one of the parameters is None.
+    """
+    _log.debug("root: {}, serverkey: {}, publickey: {}, secretkey: {}".format(
+        vip_root, serverkey, publickey, secretkey))
+    parsed = urlparse(vip_root)
+    if parsed.scheme == 'tcp':
+        if not (serverkey and publickey and secretkey and vip_root):
+            raise ValueError("All parameters must be entered.")
+
+        root = "{}?serverkey={}&publickey={}&secretkey={}".format(
+            vip_root, serverkey, publickey, secretkey)
+
+    elif parsed.scheme == 'ipc':
+        root = vip_root
+    else:
+        raise ValueError('Invalid vip root specified!')
+
+    return root

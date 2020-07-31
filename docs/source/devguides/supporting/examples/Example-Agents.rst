@@ -1,10 +1,12 @@
+.. _Example-Agents:
+
 Example Agents Overview
 =======================
 
 Some example agents are included with the platform to help explore its
 features.
 
--  :ref:`Data-Publisher`
+-  :ref:`DataPublisher`
 -  :ref:`ListenerAgent`
 -  :ref:`ProcessAgent`
 -  :ref:`SchedulerExampleAgent`
@@ -34,6 +36,6 @@ config file for use in topics.
 
 ::
 
-            @Pubsub.subscribe('pubsub', DEVICES_VALUE(campus=campus))
-            def actuate(self, peer, sender, bus,  topic, headers, message):
+    @Pubsub.subscribe('pubsub', DEVICES_VALUE(campus=campus))
+    def actuate(self, peer, sender, bus,  topic, headers, message):
 

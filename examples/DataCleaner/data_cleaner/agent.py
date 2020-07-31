@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2018, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -43,6 +43,7 @@ import sys
 from volttron.platform.agent import utils
 from volttron.platform.messaging import headers
 from volttron.platform.vip.agent import Agent
+from volttron.platform.scheduling import periodic
 from datetime import datetime, timedelta
 
 _log = logging.getLogger(__name__)
@@ -62,7 +63,7 @@ def data_cleaner(config_path, **kwargs):
     """
     try:
         config = utils.load_config(config_path)
-    except StandardError:
+    except Exception:
         config = {}
 
     if not config:
@@ -124,13 +125,13 @@ class DataCleaner(Agent):
         self.points = points
 
         if self.periodic is not None:
-            self.periodic.kill()
+            self.periodic.cancel()
 
-        self.periodic = self.core.periodic(self.period, self.process_points)
+        self.periodic = self.core.schedule(periodic(self.period), self.process_points)
 
     def process_points(self):
         now = utils.get_aware_utc_now()
-        for topic, settings in self.points.iteritems():
+        for topic, settings in self.points.items():
             self.process_point(now, topic, **settings)
 
     def process_point(self, now, topic, min_value=None, max_value=None, output_topic=None,

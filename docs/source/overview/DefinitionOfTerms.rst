@@ -42,7 +42,7 @@ VOLTTRON Terms
 
     .. _bootstrap-environment:
 
-    Bootstrap Enviornment
+    Bootstrap Environment
         The process by which an operating environment (activated environment)
         is produced.  From the :ref:`VOLTTRON_ROOT` directory executing
         ``python bootstrap.py`` will start the bootstrap process.
@@ -77,7 +77,7 @@ VOLTTRON Terms
     .. _VIP:
 
     VIP
-        VOLTTRON Interconnect Protocal is a secure routing protocol that facilitates
+        VOLTTRON Interconnect Protocol is a secure routing protocol that facilitates
         communications between agents, controllers, services and the supervisory
         :ref:`VOLTTRON_INSTANCE`.
 

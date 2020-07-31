@@ -1,0 +1,7 @@
+{
+  # VOLTTRON config files are JSON with support for python style comments.
+  "script_names": ["testScript2.py"], 
+  "script_args": [["20"]],
+  "topics_to_matlab": ["matlab/to_matlab/1"], 
+  "topics_to_volttron": "matlab/to_volttron/"
+}

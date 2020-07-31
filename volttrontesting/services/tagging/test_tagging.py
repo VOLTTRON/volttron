@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -45,20 +45,48 @@ from datetime import datetime
 import gevent
 import pytest
 from mock import MagicMock
+import sys
 
 from volttron.platform import get_services_core
 from volttron.platform.jsonrpc import RemoteError
 from volttron.platform.messaging import headers as headers_mod
 from volttron.platform.messaging import topics
+from volttron.platform.agent import utils
+from volttron.platform import get_volttron_root
 
 try:
     import pymongo
 
-    HAS_PYMONGO = True
+    # Disabling mongo tagging service for now
+    # Need to fix mongo gevent loop error
+    HAS_PYMONGO = False
 except:
     HAS_PYMONGO = False
 pymongo_skipif = pytest.mark.skipif(not HAS_PYMONGO,
                                     reason='No pymongo client available.')
+
+try:
+    from crate import client
+    from crate.client.exceptions import ProgrammingError
+    # Adding crate historian to the path so we have access to it's packages
+    # for removing/creating schema for testing with.
+    root = get_volttron_root()
+    crate_path = get_services_core("CrateHistorian")
+
+    sys.path.insert(0, crate_path)
+    from volttron.platform.dbutils import crateutils as crate_utils
+    HAS_CRATE_CONNECTOR = True
+except:
+    HAS_CRATE_CONNECTOR = False
+
+try:
+    import mysql.connector as mysql
+    from mysql.connector import errorcode
+
+    HAS_MYSQL_CONNECTOR = True
+except:
+    HAS_MYSQL_CONNECTOR = False
+
 connection_type = ""
 db_connection = None
 tagging_service_id = None
@@ -101,40 +129,44 @@ mongo_historian = {
                               "authSource": "admin"}
                    }
 }
+
 crate_historian = {
     "source": get_services_core("CrateHistorian"),
+    "schema": "testing_historian",
     "connection": {
         "type": "crate",
-        "schema": "testing",
         "params": {
-            "host": "localhost:4200"
+            "host": "http://localhost:4200",
+            "debug": False
         }
     }
 }
-
 historians = [
     None,
-    sqlite_historian,
-    mysql_historian,
-    mongo_historian,
-    crate_historian
+    sqlite_historian
 ]
+if HAS_PYMONGO:
+    historians.append(mongo_historian)
+if HAS_MYSQL_CONNECTOR:
+    historians.append(mysql_historian)
+if HAS_CRATE_CONNECTOR:
+    historians.append(crate_historian)
 
 
 def setup_sqlite(config):
-    print ("setup sqlite")
+    print("setup sqlite")
     connection_params = config['connection']['params']
     database_path = connection_params['database']
-    print ("connecting to sqlite path " + database_path)
+    print("connecting to sqlite path " + database_path)
     db_connection = sqlite3.connect(database_path)
-    print ("successfully connected to sqlite")
+    print("successfully connected to sqlite")
     return db_connection
 
 
 def setup_mongodb(config):
-    print ("setup mongodb")
+    print("setup mongodb")
     connection_params = config['connection']['params']
-    mongo_conn_str = 'mongodb://{user}:{passwd}@{host}:{port}/{database}'
+    mongo_conn_str = 'mongodb://{user}:{passwd}@{host}:{port}/{database}?authSource={authSource}'
     params = connection_params
     mongo_conn_str = mongo_conn_str.format(**params)
     mongo_client = pymongo.MongoClient(mongo_conn_str)
@@ -146,7 +178,7 @@ def setup_mongodb(config):
     return db
 
 
-def cleanup_sqlite(db_connection, truncate_tables):
+def cleanup_sql(db_connection, truncate_tables):
     cursor = db_connection.cursor()
     for table in truncate_tables:
         try:
@@ -155,7 +187,14 @@ def cleanup_sqlite(db_connection, truncate_tables):
             print("Unable to truncate table {}. {}".format(table, e))
 
     db_connection.commit()
-    pass
+
+
+def cleanup_sqlite(db_connection, truncate_tables):
+    cleanup_sql(db_connection, truncate_tables)
+
+
+def cleanup_mysql(db_connection, truncate_tables):
+    cleanup_sql(db_connection, truncate_tables)
 
 
 def cleanup_mongodb(db_connection, truncate_tables):
@@ -164,9 +203,13 @@ def cleanup_mongodb(db_connection, truncate_tables):
     print("Finished removing {}".format(truncate_tables))
 
 
+def cleanup_crate(db_connection, truncate_tables):
+    crate_utils.drop_schema(db_connection, truncate_tables, schema=crate_historian["schema"])
+
+
 @pytest.fixture(scope="module")
 def query_agent(request, volttron_instance):
-    # 1: Start a fake agent to query the historian agent in volttron_instance2
+    # 1: Start a fake agent to query the historian agent in volttron_instance
     agent = volttron_instance.build_agent()
 
     # 2: add a tear down method to stop the fake
@@ -183,7 +226,7 @@ def query_agent(request, volttron_instance):
 @pytest.fixture(scope="module",
                 params=[
                     sqlite_config,
-                    pymongo_skipif(mongodb_config)
+                    # pytest.param(mongodb_config, marks=pymongo_skipif)
                 ])
 def tagging_service(request, volttron_instance):
     global connection_type, db_connection, tagging_service_id
@@ -203,7 +246,7 @@ def tagging_service(request, volttron_instance):
             msg="No setup method({}) found for connection type {} ".format(
                 function_name, connection_type))
 
-    print ("request.param -- {}".format(request.param))
+    print("request.param -- {}".format(request.param))
     # 2. Install agent
     source = request.param.pop('source')
     tagging_service_id = volttron_instance.install_agent(
@@ -254,6 +297,7 @@ def test_init_failure(volttron_instance, tagging_service, query_agent):
             volttron_instance.start_agent(agent_id)
         except:
             pass
+        gevent.sleep(1)
         print ("Call back count {}".format(query_agent.callback.call_count))
         assert query_agent.callback.call_count == 1
         print("Call args {}".format(query_agent.callback.call_args))
@@ -283,7 +327,9 @@ def test_reinstall(volttron_instance, tagging_service,
             config_file=hist_config,
             start=True)
         gevent.sleep(2)
-        headers = {headers_mod.DATE: datetime.utcnow().isoformat()}
+        now = utils.format_timestamp(datetime.utcnow())
+        headers = {headers_mod.DATE: now,
+                   headers_mod.TIMESTAMP: now}
         to_send = [{'topic': 'devices/campus1/d2/all', 'headers': headers,
                     'message': [{'p1': 2, 'p2': 2}]}]
         query_agent.vip.rpc.call('platform.historian', 'insert', to_send).get(
@@ -304,7 +350,7 @@ def test_reinstall(volttron_instance, tagging_service,
         # [['campus', '1'],
         # ['dis', 'Test description'],
         # ['geoCountry', 'US']]
-        print result1
+        print(result1)
         assert len(result1) == 3
         assert len(result1[0]) == len(result1[1]) == 2
         assert result1[0][0] == 'campus'
@@ -334,7 +380,7 @@ def test_reinstall(volttron_instance, tagging_service,
         # [['campus', '1'],
         # ['dis', 'Test description'],
         # ['geoCountry', 'US']]
-        print result1
+        print(result1)
         assert len(result1) == 3
         assert len(result1[0]) == len(result1[1]) == 2
         assert result1[0][0] == 'campus'
@@ -359,12 +405,12 @@ def test_get_categories_no_desc(tagging_service, query_agent):
                                       order="FIRST_TO_LAST").get(timeout=10)
     assert isinstance(result, list)
     assert len(result) == 4
-    print ("Categories returned: {}".format(result))
+    print("Categories returned: {}".format(result))
     result2 = query_agent.vip.rpc.call('platform.tagging', 'get_categories',
                                        skip=1, count=4,
                                        order="FIRST_TO_LAST").get(timeout=10)
     assert isinstance(result2, list)
-    print ("result2 returned: {}".format(result2))
+    print("result2 returned: {}".format(result2))
     assert len(result2) == 4
     assert isinstance(result, list)
     assert isinstance(result[0], str)
@@ -381,7 +427,7 @@ def test_get_categories_with_desc(tagging_service, query_agent):
     assert isinstance(result1[0], list)
     assert len(result1) == 4
     assert len(result1[0]) == 2
-    print ("Categories returned: {}".format(result1))
+    print("Categories returned: {}".format(result1))
     result2 = query_agent.vip.rpc.call('platform.tagging', 'get_categories',
                                        include_description=True, skip=1,
                                        count=4, order="LAST_TO_FIRST").get(
@@ -389,7 +435,7 @@ def test_get_categories_with_desc(tagging_service, query_agent):
     assert isinstance(result2, list)
     assert len(result2) == 4
     assert isinstance(result2[0], list)
-    print ("result2 returned: {}".format(result2))
+    print("result2 returned: {}".format(result2))
 
     # Verify skip param
     assert result1[1][0] == result2[0][0]
@@ -412,7 +458,7 @@ def test_tags_by_category_no_metadata(tagging_service, query_agent):
     result1 = query_agent.vip.rpc.call(
         'platform.tagging', 'get_tags_by_category', category='AHU', skip=0,
         count=3, order="FIRST_TO_LAST").get(timeout=10)
-    print ("tags returned: {}".format(result1))
+    print("tags returned: {}".format(result1))
     assert isinstance(result1, list)
     assert len(result1) == 3
     assert isinstance(result1[0], str)
@@ -421,7 +467,7 @@ def test_tags_by_category_no_metadata(tagging_service, query_agent):
                                        'get_tags_by_category', category='AHU',
                                        skip=2, count=3,
                                        order="FIRST_TO_LAST").get(timeout=10)
-    print ("tags returned: {}".format(result2))
+    print("tags returned: {}".format(result2))
     assert isinstance(result2, list)
     assert len(result2) == 3  # verify count
     assert isinstance(result2[0], str)
@@ -434,7 +480,7 @@ def test_tags_by_category_with_metadata(tagging_service, query_agent):
         'platform.tagging', 'get_tags_by_category', category='AHU',
         include_kind=True, skip=0, count=3,
         order="FIRST_TO_LAST").get(timeout=10)
-    print ("tags returned: {}".format(result1))
+    print("tags returned: {}".format(result1))
     assert isinstance(result1, list)
     assert len(result1) == 3
     assert isinstance(result1[0], list)
@@ -444,7 +490,7 @@ def test_tags_by_category_with_metadata(tagging_service, query_agent):
         'platform.tagging', 'get_tags_by_category',
         category='AHU', include_description=True,
         skip=0, count=3, order="FIRST_TO_LAST").get(timeout=10)
-    print ("tags returned: {}".format(result2))
+    print("tags returned: {}".format(result2))
     assert isinstance(result2, list)
     assert len(result2) == 3
     assert isinstance(result2[0], list)
@@ -454,7 +500,7 @@ def test_tags_by_category_with_metadata(tagging_service, query_agent):
         'platform.tagging', 'get_tags_by_category', category='AHU',
         include_kind=True, include_description=True, skip=0,
         count=3, order="FIRST_TO_LAST").get(timeout=10)
-    print ("tags returned: {}".format(result3))
+    print("tags returned: {}".format(result3))
     assert isinstance(result3, list)
     assert len(result3) == 3
     assert isinstance(result3[0], list)
@@ -462,6 +508,7 @@ def test_tags_by_category_with_metadata(tagging_service, query_agent):
 
 
 @pytest.mark.parametrize("historian_config", historians)
+# @pytest.mark.parametrize(historians)
 @pytest.mark.tagging
 def test_insert_topic_tags(volttron_instance, tagging_service, query_agent,
                            historian_config):
@@ -477,7 +524,9 @@ def test_insert_topic_tags(volttron_instance, tagging_service, query_agent,
                                        tagging_service,
                                        tag_table_prefix)
 
-        headers = {headers_mod.DATE: datetime.utcnow().isoformat()}
+        now = utils.format_timestamp(datetime.utcnow())
+        headers = {headers_mod.DATE: now,
+                   headers_mod.TIMESTAMP: now}
         to_send = [{'topic': 'devices/campus1/d1/all', 'headers': headers,
                     'message': [{'p1': 2, 'p2': 2}]}]
         query_agent.vip.rpc.call(historian_vip_identity, 'insert', to_send).get(
@@ -500,7 +549,7 @@ def test_insert_topic_tags(volttron_instance, tagging_service, query_agent,
         # entity.'],
         #  ['campus', '1', 'Marker',
         #   'Marks a campus that might have one or more site/building']]
-        print result3
+        print(result3)
         assert len(result3) == 3
         assert len(result3[0]) == len(result3[1]) == 4
         assert result3[0][0] == 'id'
@@ -529,6 +578,7 @@ def test_insert_topic_tags(volttron_instance, tagging_service, query_agent,
 
 
 @pytest.mark.parametrize("historian_config", historians)
+# @pytest.mark.parametrize(historians)
 @pytest.mark.tagging
 def test_insert_topic_pattern_tags(volttron_instance, tagging_service,
                                    query_agent, historian_config):
@@ -547,7 +597,9 @@ def test_insert_topic_pattern_tags(volttron_instance, tagging_service,
                                        tag_table_prefix)
 
         to_send = []
-        headers = {headers_mod.DATE: datetime.utcnow().isoformat()}
+        now = utils.format_timestamp(datetime.utcnow())
+        headers = {headers_mod.DATE: now,
+                   headers_mod.TIMESTAMP: now}
         to_send.append({'topic': 'devices/campus1/d1/all', 'headers': headers,
                         'message': [{'p1': 2, 'p2': 2}]})
         to_send.append({'topic': 'devices/campus2/d1/all', 'headers': headers,
@@ -592,15 +644,17 @@ def test_insert_topic_pattern_tags(volttron_instance, tagging_service,
                           'campus*/d*/p2': ['campus2/d2/p2', 'campus2/d1/p2',
                                             'campus1/d2/p2', 'campus1/d1/p2']}
         expected_err = {'asbaskuhdf/asdfasdf': 'No matching topic found'}
-        assert cmp(expected_err, result['error']) == 0
-        assert cmp(exepected_info, result['info']) == 0
+        assert expected_err == result['error']
+        assert set(exepected_info.keys()) == set(result['info'].keys())
+        for key in result['info'].keys():
+            assert set(exepected_info[key]) == set(result['info'][key])
 
         result1 = query_agent.vip.rpc.call(new_tagging_vip_id,
                                            'get_tags_by_topic',
                                            topic_prefix='campus2/d2/p2',
                                            skip=0, count=3,
                                            order="FIRST_TO_LAST").get()
-        print result1
+        print(result1)
         assert len(result1) == 3
         assert len(result1[0]) == len(result1[1]) == 2
         assert result1[0][0] == 'air'
@@ -615,7 +669,7 @@ def test_insert_topic_pattern_tags(volttron_instance, tagging_service,
                                            topic_prefix='campus2', skip=0,
                                            count=3,
                                            order="FIRST_TO_LAST").get()
-        print ("Result1: {} ".format(result1))
+        print("Result1: {} ".format(result1))
         assert len(result1) == 3
         assert len(result1[0]) == len(result1[1]) == 2
         assert result1[0][0] == 'campus'
@@ -630,7 +684,7 @@ def test_insert_topic_pattern_tags(volttron_instance, tagging_service,
                                            topic_prefix='campus1', skip=0,
                                            count=3,
                                            order="LAST_TO_FIRST").get()
-        print ("Result2:{}".format(result2))
+        print("Result2:{}".format(result2))
         assert len(result2) == 3
         assert len(result2[0]) == len(result2[1]) == 2
         assert result2[2][0] == 'dis'
@@ -650,6 +704,7 @@ def test_insert_topic_pattern_tags(volttron_instance, tagging_service,
 
 
 @pytest.mark.parametrize("historian_config", historians)
+# @pytest.mark.parametrize(historians)
 @pytest.mark.tagging
 def test_insert_topic_tags_update(volttron_instance, tagging_service,
                                   query_agent, historian_config):
@@ -665,7 +720,9 @@ def test_insert_topic_tags_update(volttron_instance, tagging_service,
                                        tagging_service,
                                        tag_table_prefix)
         to_send = []
-        headers = {headers_mod.DATE: datetime.utcnow().isoformat()}
+        now = utils.format_timestamp(datetime.utcnow())
+        headers = {headers_mod.DATE: now,
+                   headers_mod.TIMESTAMP: now}
         to_send.append({'topic': 'devices/campus1/d1/all', 'headers': headers,
                         'message': [{'p1': 2, 'p2': 2}]})
 
@@ -684,7 +741,7 @@ def test_insert_topic_tags_update(volttron_instance, tagging_service,
                                            topic_prefix='campus1', skip=0,
                                            count=3,
                                            order="LAST_TO_FIRST").get()
-        print result2
+        print(result2)
         assert len(result2) == 2
         assert len(result2[0]) == len(result2[1]) == 2
         assert result2[1][0] == 'geoCity'
@@ -701,7 +758,7 @@ def test_insert_topic_tags_update(volttron_instance, tagging_service,
                                            topic_prefix='campus1', skip=0,
                                            count=3,
                                            order="LAST_TO_FIRST").get()
-        print result2
+        print(result2)
         assert len(result2) == 2
         assert len(result2[0]) == len(result2[1]) == 2
         assert result2[1][0] == 'geoCity'
@@ -736,7 +793,9 @@ def test_update_topic_tags(volttron_instance, tagging_service, query_agent):
             config_file=hist_config,
             start=True)
         gevent.sleep(1)
-        headers = {headers_mod.DATE: datetime.utcnow().isoformat()}
+        now = utils.format_timestamp(datetime.utcnow())
+        headers = {headers_mod.DATE: now,
+                   headers_mod.TIMESTAMP: now}
         to_send = [{'topic': 'devices/campus1/d2/all', 'headers': headers,
                     'message': [{'p1': 2, 'p2': 2}]}]
         query_agent.vip.rpc.call('platform.historian', 'insert', to_send).get(
@@ -761,7 +820,7 @@ def test_update_topic_tags(volttron_instance, tagging_service, query_agent):
         # entity.'],
         #  ['campus', '1', 'Marker',
         #   'Marks a campus that might have one or more site/building']]
-        print result3
+        print(result3)
         assert len(result3) == 2
         assert len(result3[0]) == len(result3[1]) == 4
         assert result3[0][0] == 'id'
@@ -792,7 +851,7 @@ def test_update_topic_tags(volttron_instance, tagging_service, query_agent):
         # entity.'],
         #  ['campus', '1', 'Marker',
         #   'Marks a campus that might have one or more site/building']]
-        print result3
+        print(result3)
         assert len(result3) == 4
         assert len(result3[0]) == len(result3[1]) == 4
         assert result3[0][0] == 'id'
@@ -832,9 +891,8 @@ def test_insert_tags_invalid_tag_error(tagging_service, query_agent):
             topic_prefix='test_topic',
             tags={'t1': 1, 't2': 'val'}).get(timeout=10)
         pytest.fail("Expecting exception for invalid tags but got none")
-    except Exception as e:
-        assert e.exc_info['exc_type'] == 'ValueError'
-        assert e.message == 'Invalid tag name:t2'
+    except RemoteError as e:
+        assert e.message in ['Invalid tag name:t1', 'Invalid tag name:t1']
 
 
 @pytest.mark.tagging
@@ -856,7 +914,9 @@ def test_tags_by_topic_no_metadata(volttron_instance, tagging_service,
             config_file=hist_config,
             start=True)
         gevent.sleep(2)
-        headers = {headers_mod.DATE: datetime.utcnow().isoformat()}
+        now = utils.format_timestamp(datetime.utcnow())
+        headers = {headers_mod.DATE: now,
+                   headers_mod.TIMESTAMP: now}
         to_send = [{'topic': 'devices/campus1/d2/all', 'headers': headers,
                     'message': [{'p1': 2, 'p2': 2}]}]
         query_agent.vip.rpc.call('platform.historian', 'insert', to_send).get(
@@ -877,7 +937,7 @@ def test_tags_by_topic_no_metadata(volttron_instance, tagging_service,
         # [['campus', '1'],
         # ['dis', 'Test description'],
         # ['geoCountry', 'US']]
-        print result1
+        print(result1)
         assert len(result1) == 3
         assert len(result1[0]) == len(result1[1]) == 2
         assert result1[0][0] == 'campus'
@@ -894,7 +954,7 @@ def test_tags_by_topic_no_metadata(volttron_instance, tagging_service,
             order="FIRST_TO_LAST").get(timeout=10)
         # [['dis', 'Test description'],
         # ['geoCountry', 'US']]
-        print result2
+        print(result2)
         assert len(result2) == 3
         assert len(result2[0]) == len(result2[1]) == 2
         assert result2[0][0] == 'dis'
@@ -912,7 +972,7 @@ def test_tags_by_topic_no_metadata(volttron_instance, tagging_service,
             order="FIRST_TO_LAST").get(timeout=10)
         # [['dis', 'Test description'],
         # ['geoCountry', 'US']]
-        print result3
+        print(result3)
         assert len(result3) == 3
         assert len(result3[0]) == len(result3[1]) == 2
         assert result3[0][0] == 'dis'
@@ -928,7 +988,7 @@ def test_tags_by_topic_no_metadata(volttron_instance, tagging_service,
             topic_prefix='campus1/d2', skip=0, count=3,
             order="LAST_TO_FIRST").get(timeout=10)
 
-        print result1
+        print(result1)
         assert len(result1) == 3
         assert len(result1[0]) == len(result1[1]) == 2
         assert result1[2][0] == 'dis'
@@ -962,7 +1022,9 @@ def test_tags_by_topic_with_metadata(volttron_instance, tagging_service,
             config_file=hist_config,
             start=True)
         gevent.sleep(1)
-        headers = {headers_mod.DATE: datetime.utcnow().isoformat()}
+        now = utils.format_timestamp(datetime.utcnow())
+        headers = {headers_mod.DATE: now,
+                   headers_mod.TIMESTAMP: now}
         to_send = [{'topic': 'devices/campus1/d2/all', 'headers': headers,
                     'message': [{'p1': 2, 'p2': 2}]}]
         query_agent.vip.rpc.call('platform.historian', 'insert', to_send).get(
@@ -980,7 +1042,7 @@ def test_tags_by_topic_with_metadata(volttron_instance, tagging_service,
         # [['campus', '1', 'Marks a campus that might have one or more
         # site/building'],
         # ['dis', 'Test description', 'Short display name for an entity.']]
-        print result1
+        print(result1)
         assert len(result1) == 3
         assert len(result1[0]) == len(result1[1]) == 3
         assert result1[0][0] == 'campus'
@@ -1001,7 +1063,7 @@ def test_tags_by_topic_with_metadata(volttron_instance, tagging_service,
             topic_prefix='campus1/d2', include_kind=True,
             skip=0, count=1, order="LAST_TO_FIRST").get(timeout=10)
         # [['dis', 'Test description', 'Str']]
-        print result2
+        print(result2)
         assert len(result2) == 1
         assert len(result2[0]) == 3
         assert result2[0][0] == 'id'
@@ -1018,7 +1080,7 @@ def test_tags_by_topic_with_metadata(volttron_instance, tagging_service,
         # entity.'],
         #  ['campus', '1', 'Marker',
         #   'Marks a campus that might have one or more site/building']]
-        print result3
+        print(result3)
         assert len(result3) == 2
         assert len(result3[0]) == len(result3[1]) == 4
         assert result3[0][0] == 'id'
@@ -1057,7 +1119,9 @@ def test_topic_by_tags_param_and_or(volttron_instance, tagging_service,
             config_file=hist_config,
             start=True)
         gevent.sleep(2)
-        headers = {headers_mod.DATE: datetime.utcnow().isoformat()}
+        now = utils.format_timestamp(datetime.utcnow())
+        headers = {headers_mod.DATE: now,
+                   headers_mod.TIMESTAMP: now}
         to_send = [{'topic': 'devices/campus1/d2/all', 'headers': headers,
                     'message': [
                         {'p1': 2, 'p2': 2, 'p3': 1, 'p4': 2, 'p5': 2}]}]
@@ -1117,7 +1181,7 @@ def test_topic_by_tags_param_and_or(volttron_instance, tagging_service,
         result1 = query_agent.vip.rpc.call(
             'platform.tagging', 'get_topics_by_tags',
             and_condition={'campus': True, 'geoCountry': 'US'}).get(timeout=10)
-        print ("Results of simple AND query: {} ".format(result1))
+        print("Results of simple AND query: {} ".format(result1))
         assert result1 == ['campus1']
 
         # Array
@@ -1132,7 +1196,7 @@ def test_topic_by_tags_param_and_or(volttron_instance, tagging_service,
             'get_topics_by_tags',
             or_condition={"geoCountry": "UK",
                           'dis': "Test campus description"}).get(timeout=10)
-        print ("Results of simple AND query: {} ".format(result1))
+        print("Results of simple AND query: {} ".format(result1))
         assert result1 == ['campus1', 'campus2']
 
         # Array
@@ -1151,7 +1215,7 @@ def test_topic_by_tags_param_and_or(volttron_instance, tagging_service,
             and_condition={'campus': True,
                            'geoCountry': "US"},
             or_condition=['campus', 'equip']).get(timeout=10)
-        assert result1 == ['campus1', 'campus2']
+        assert result1 == ['campus1']
 
         result1 = query_agent.vip.rpc.call(
             'platform.tagging',
@@ -1160,7 +1224,7 @@ def test_topic_by_tags_param_and_or(volttron_instance, tagging_service,
                            'elec': True,
                            'campusRef.geoCountry': "UK",
                            'campusRef.dis': "United Kingdom"}).get(timeout=10)
-        print("Result of NOT LIKE query: {}".format(result1))
+        print("Result of AND and OR query: {}".format(result1))
         assert result1 == ['campus2/d1']
 
     finally:
@@ -1192,7 +1256,9 @@ def test_topic_by_tags_custom_condition(volttron_instance, tagging_service,
             config_file=hist_config,
             start=True)
         gevent.sleep(2)
-        headers = {headers_mod.DATE: datetime.utcnow().isoformat()}
+        now = utils.format_timestamp(datetime.utcnow())
+        headers = {headers_mod.DATE: now,
+                   headers_mod.TIMESTAMP: now}
         to_send = [{'topic': 'devices/campus1/d2/all', 'headers': headers,
                     'message': [
                         {'p1': 2, 'p2': 2, 'p3': 1, 'p4': 2, 'p5': 2}]}]
@@ -1246,7 +1312,7 @@ def test_topic_by_tags_custom_condition(volttron_instance, tagging_service,
         result1 = query_agent.vip.rpc.call(
             'platform.tagging', 'get_topics_by_tags',
             condition="campus AND geoCountry='US'").get(timeout=10)
-        print ("Results of simple AND query: {} ".format(result1))
+        print("Results of simple AND query: {} ".format(result1))
         assert len(result1) == 1
         assert result1[0] == 'campus1'
 
@@ -1254,7 +1320,7 @@ def test_topic_by_tags_custom_condition(volttron_instance, tagging_service,
         result1 = query_agent.vip.rpc.call(
             'platform.tagging', 'get_topics_by_tags',
             condition='minVal<0 OR maxVal>=5 AND maxVal<10').get(timeout=10)
-        print ("Results of AND and OR query: {} ".format(result1))
+        print("Results of AND and OR query: {} ".format(result1))
         assert len(result1) == 6
         # Check  default order
         assert result1 == ['campus1/d1/p1', 'campus1/d1/p3', 'campus1/d2/p1',
@@ -1264,7 +1330,7 @@ def test_topic_by_tags_custom_condition(volttron_instance, tagging_service,
         result1 = query_agent.vip.rpc.call(
             'platform.tagging', 'get_topics_by_tags',
             condition='(minVal<0 OR maxVal>=5) AND maxVal<10').get(timeout=10)
-        print ("Results of AND and OR query with parenthesis: {} ".format(
+        print("Results of AND and OR query with parenthesis: {} ".format(
             result1))
         assert len(result1) == 3
         assert result1 == ['campus1/d1/p3', 'campus1/d2/p3', 'campus2/d1/p3']
@@ -1345,7 +1411,9 @@ def test_topic_by_tags_parent_topic_query(volttron_instance, tagging_service,
             config_file=hist_config,
             start=True)
         gevent.sleep(2)
-        headers = {headers_mod.DATE: datetime.utcnow().isoformat()}
+        now = utils.format_timestamp(datetime.utcnow())
+        headers = {headers_mod.DATE: now,
+                   headers_mod.TIMESTAMP: now}
         to_send = [{'topic': 'devices/campus1/d2/all', 'headers': headers,
                     'message': [
                         {'p1': 2, 'p2': 2, 'p3': 1, 'p4': 2, 'p5': 2}]}]
@@ -1447,7 +1515,7 @@ def test_topic_by_tags_condition_errors(volttron_instance, tagging_service,
     except RemoteError as e:
         assert e.message == 'Invalid tag minValue at line number 1 and ' \
                             'column number 0'
-        assert e.exc_info['exc_type'] == 'ValueError'
+        print(e.exc_info['exc_type'])
 
     # Missing parenthesis
     try:
@@ -1463,19 +1531,19 @@ def test_topic_by_tags_condition_errors(volttron_instance, tagging_service,
         query_agent.vip.rpc.call('platform.tagging', 'get_topics_by_tags',
                                  condition='maxVal like 10').get(timeout=10)
         pytest.fail("Expected value error. Got none")
-    except Exception as e:
+    except RemoteError as e:
         assert e.message == 'Syntax error in query condition. ' \
                             'Invalid token 10 at line ' \
                             'number 1 and column number 12'
-        assert e.exc_info['exc_type'] == 'ValueError'
 
 
 def setup_test_specific_agents(volttron_instance, historian_config,
                                tagging_service, table_prefix):
     new_tag_service = copy.copy(tagging_service)
-    if historian_config is None or \
-            historian_config["connection"]["type"] == "sqlite":
-        historian_config = {
+    temp_config = copy.copy(historian_config)
+    if temp_config is None or \
+            temp_config["connection"]["type"] == "sqlite":
+        temp_config = {
             "source": get_services_core("SQLHistorian"),
             "connection":
                 {"type": "sqlite",
@@ -1487,22 +1555,18 @@ def setup_test_specific_agents(volttron_instance, historian_config,
         }
     historian_vip_identity = "platform.historian"
     historian_source = get_services_core("SQLHistorian")
-    if historian_config is not None:
-        historian_vip_identity = historian_config["connection"]["type"] \
+    if temp_config is not None:
+        historian_vip_identity = temp_config["connection"]["type"] \
                                  + ".historian"
-        historian_source = historian_config.pop("source")
+        historian_source = temp_config.pop("source")
         new_tag_service['historian_vip_identity'] = historian_vip_identity
         new_tag_service["table_prefix"] = table_prefix
 
     hist_id = volttron_instance.install_agent(
         vip_identity=historian_vip_identity,
-        agent_dir=historian_source, config_file=historian_config,
+        agent_dir=historian_source, config_file=temp_config,
         start=True)
     gevent.sleep(1)
-
-    # put source back in config after install so that it can be used for next
-    # test case
-    historian_config["source"] = historian_source
 
     new_tagging_id = volttron_instance.install_agent(
         vip_identity='new_tagging',

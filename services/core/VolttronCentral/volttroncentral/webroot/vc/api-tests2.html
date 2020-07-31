@@ -1,7 +1,6 @@
 <html>
 <head>
-    <script language="javascript"
-            src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+    <script src="/js/jquery-3.5.0.min.js"></script>
     <style type="text/css">
         input {
             width: 400px;
@@ -83,7 +82,7 @@
         $('#request_sent').val(JSON.stringify(pdata));
         $.ajax({
             type: 'POST',
-            url: '/jsonrpc',
+            url: '/vc/jsonrpc',
             data: JSON.stringify(pdata),
             dataType: 'json',
             success: function (data) {
@@ -122,7 +121,7 @@
         $('#request_sent').val(JSON.stringify(pdata));
         $.ajax({
             type: 'POST',
-            url: '/jsonrpc',
+            url: '/vc/jsonrpc',
             data: JSON.stringify(pdata),
             dataType: 'json',
             success: function (data) {
@@ -149,7 +148,7 @@
      */
     function do_request_agent_method(method, data, callback) {
         var platform_uuid = $('#agent_platform_uuid').val();
-        var agent_uuid = $('#agent_uuid').val()
+        var agent_uuid = $('#agent_uuid').val();
         var req_method = 'platform.uuid.' + platform_uuid + '.agent.uuid.' +
                 agent_uuid + '.' + method;
         console.log("Method is: " + req_method);
@@ -166,7 +165,7 @@
         $('#request_sent').val(JSON.stringify(pdata));
         $.ajax({
             type: 'POST',
-            url: '/jsonrpc',
+            url: '/vc/jsonrpc',
             data: JSON.stringify(pdata),
             dataType: 'json',
             success: function (data) {
@@ -200,7 +199,7 @@
         $('#request_sent').val(JSON.stringify(pdata));
         $.ajax({
             type: 'POST',
-            url: '/jsonrpc',
+            url: '/vc/jsonrpc',
             data: JSON.stringify(pdata),
             dataType: 'json',
             success: function (data) {
@@ -230,7 +229,7 @@
         $('#request_sent').val(JSON.stringify(pdata));
         $.ajax({
             type: 'POST',
-            url: '/jsonrpc',
+            url: '/vc/jsonrpc',
             data: JSON.stringify(pdata),
             dataType: 'json',
             success: function (data) {
@@ -255,9 +254,9 @@
             platform_uuid: $('#agent_platform_uuid').val(),
             address: discover[0],
             device_id: parseInt(discover[1])
-        }
+        };
 
-        var method = 'publish_bacnet_props'
+        var method = 'publish_bacnet_props';
         do_request(method, data, function(response) {
             var token = "/vc/ws/".concat($("#token").val());
             var socket_name = token.concat("/configure");
@@ -273,7 +272,7 @@
         var data = {
             proxy_identity: $('#bacnet_proxy_identity').val(),
             platform_uuid: $('#agent_platform_uuid').val()
-        }
+        };
         if ($('#bacnet_low_device_id').val() !== '')
             data['low_device_id'] = $('#bacnet_low_device_id').val();
         if ($('#bacnet_high_device_id').val() !== '')
@@ -283,7 +282,7 @@
         if ($('#bacnet_scan_length').val() !== '')
             data['scan_length'] = $('#bacnet_scan_length').val();
 
-        var method = 'start_bacnet_scan'
+        var method = 'start_bacnet_scan';
         do_request(method, data, function(response){
             //alert(JSON.stringify(response))
             var token = "/vc/ws/".concat($("#token").val());
@@ -292,7 +291,7 @@
             removeOptions(sel);
 
             open_socket(iam, function(msg){
-                msg = JSON.parse(msg)
+                msg = JSON.parse(msg);
                 console.log(msg);
                 if (msg.address && msg.device_id) {
                     var name = msg.address+" (" + msg.device_id+")";
@@ -325,21 +324,20 @@
         pre.innerHTML = msg;*/
         $("#responses").append(msg+"\n");
         $('#responses').scrollTop($('#responses')[0].scrollHeight);
-    };
-
+    }
     function open_socket(path, data_callback) {
         var endpoint = "ws"; // location.protocol;
-        console.log(location.protocal)
-        console.log(location)
+        console.log(location.protocal);
+        console.log(location);
         if (location.protocol == 'https:'){
             endpoint = "wss";
         }
-        console.log('Endpoint is: ' + endpoint)
+        console.log('Endpoint is: ' + endpoint);
         var slashes = endpoint.concat("://");
         var host = slashes.concat(window.location.host);
-        var websocket = host.concat(path)
-        writeMessage("Opening websocket to:")
-        writeMessage(websocket)
+        var websocket = host.concat(path);
+        writeMessage("Opening websocket to:");
+        writeMessage(websocket);
         if (window.WebSocket) {
             ws = new WebSocket(websocket);
         }
@@ -382,7 +380,7 @@
         var data = {
             key: $('#setting_key').val(),
             value: $('#setting_value').val()
-        }
+        };
         do_request('set_setting', data)
     });
 
@@ -390,14 +388,14 @@
         var data = {
             key: $('#setting_key').val(),
             value: null
-        }
+        };
         do_request('set_setting', data)
     });
 
     $('#get_setting').click(function () {
         var data = {
             key: $('#setting_key').val()
-        }
+        };
         do_request('get_setting', data, function (res) {
             $('#setting_value').val(res['result']);
         });
@@ -477,7 +475,7 @@
             "topic": $("#historian_topic").val(),
             "count": 20,
             "order": "LAST_TO_FIRST"
-        }
+        };
         do_request('historian.query', data);
     });
 
@@ -500,7 +498,7 @@
         $('#request_sent').val(JSON.stringify(pdata));
         $.ajax({
             type: 'POST',
-            url: '/jsonrpc',
+            url: '/vc/jsonrpc',
             data: JSON.stringify(pdata),
             dataType: 'json',
             success: function (data) {
@@ -548,7 +546,7 @@
             do_request_agent_method(method, data);
         }
         catch (ex) {
-            console.error("arguments must be parsable JSON.")
+            console.error("arguments must be parsable JSON.");
             console.error(ex);
         }
 

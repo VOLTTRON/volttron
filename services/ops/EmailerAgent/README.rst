@@ -15,7 +15,7 @@ following header and message to the emailer topic.  The emailer monitors the
 message body and the optional header.
 
 Optional Headers
-~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~
 
 Emails by default will be sent to the initial configured email addresses.  The
 below headers will overwrite those properties for the current email being sent.
@@ -28,7 +28,7 @@ below headers will overwrite those properties for the current email being sent.
     }
 
 Required Message Body
-~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: python
 
@@ -38,7 +38,7 @@ Required Message Body
     }
 
 Example Sending of Email
-~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: python
 
@@ -65,9 +65,22 @@ by the ForwardHistorian agent.
 
     {
         # The smtp-address (Simple Mail Transfer Protocol) to ship the email
-        # from the "from-address" to each of the recipients.  This value
-        # currently does not support authenticated connections.
+        # from the "from-address" to each of the recipients.
         "smtp-address": "smtp.example.com",
+
+        # The smtp-username is to provide the username of the SMTP server
+        # which is being used for sending the messages.
+        "smtp-username":"<smtp-username>",
+
+        # The smtp-password is to provide the password of the SMTP server
+        # corresponding to the username which is being used for sending the messages.
+        "smtp-password":"<smtp-password>",
+
+        # The smtp-port is to provide the port of the SMTP server.
+        "smtp-port":"<smtp-port>",
+
+        # The smtp-tls yes or no if we want to use TLS.
+        "smtp-tls":<true/false>,
 
         # The sending address of the email.  This value will be listed in the
         # FROM attributed of the message envelop.  It will also be show in the

@@ -32,12 +32,17 @@
 # United States Government or any agency thereof.
 # }}}
 
+import pytest
+try:
+    import dnp3
+except ImportError:
+    pytest.skip("pydnp3 not found!", allow_module_level=True)
+
 import gevent
-import json
 import os
 import pytest
 
-from volttron.platform import get_services_core
+from volttron.platform import get_services_core, jsonapi
 from volttron.platform.agent.utils import strip_comments
 
 from dnp3.points import PointDefinitions
@@ -52,8 +57,8 @@ PORT = 20000
 
 DNP3_AGENT_ID = 'dnp3agent'
 POINT_TOPIC = "dnp3/point"
-TEST_GET_POINT_NAME = 'DCHD.VArAct (out)'
-TEST_SET_POINT_NAME = 'DCHD.WinTms (in)'
+TEST_GET_POINT_NAME = 'DCTE.WinTms.AO11'
+TEST_SET_POINT_NAME = 'DCTE.WinTms.AI55'
 
 input_group_map = {
     1: "Binary",
@@ -104,7 +109,7 @@ def dict_compare(source_dict, target_dict):
 
        Ignores keys in target_dict that are not in source_dict.
     """
-    for name, source_val in source_dict.iteritems():
+    for name, source_val in source_dict.items():
         target_val = target_dict.get(name, None)
         assert source_val == target_val, "Source value of {}={}, target value={}".format(name, source_val, target_val)
 
@@ -112,7 +117,7 @@ def dict_compare(source_dict, target_dict):
 def add_definitions_to_config_store(test_agent):
     """Add PointDefinitions to the mesaagent's config store."""
     with open(POINT_DEFINITIONS_PATH, 'r') as f:
-        points_json = json.loads(strip_comments(f.read()))
+        points_json = jsonapi.loads(strip_comments(f.read()))
     test_agent.vip.rpc.call('config.store', 'manage_store', DNP3_AGENT_ID,
                             'mesa_points.config', points_json, config_type='raw')
 
@@ -121,8 +126,9 @@ def add_definitions_to_config_store(test_agent):
 def agent(request, volttron_instance):
     """Build the test agent for rpc call."""
 
-    test_agent = volttron_instance.build_agent()
-
+    test_agent = volttron_instance.build_agent(identity="test_agent")
+    capabilities = {'edit_config_store': {'identity': 'dnp3agent'}}
+    volttron_instance.add_capabilities(test_agent.core.publickey, capabilities)
     add_definitions_to_config_store(test_agent)
 
     print('Installing DNP3Agent')
@@ -142,7 +148,7 @@ def agent(request, volttron_instance):
             volttron_instance.remove_agent(agent_id)
             test_agent.core.stop()
 
-    gevent.sleep(2)        # wait for agents and devices to start
+    gevent.sleep(12)        # wait for agents and devices to start
 
     request.addfinalizer(stop)
 
@@ -168,7 +174,7 @@ def reset(agent):
     """Reset agent and global variable messages before running every test."""
     global messages
     messages = {}
-    agent.vip.rpc.call(DNP3_AGENT_ID, 'reset')
+    agent.vip.rpc.call(DNP3_AGENT_ID, 'reset').get()
 
 
 class TestDNP3Agent:
@@ -185,15 +191,15 @@ class TestDNP3Agent:
         return agent.vip.rpc.call(DNP3_AGENT_ID, 'get_point_definitions', point_names).get(timeout=10)
 
     @staticmethod
-    def get_point_by_index(agent, group, index):
+    def get_point_by_index(agent, data_type, index):
         """Ask DNP3Agent for a point value for a DNP3 resource."""
-        return agent.vip.rpc.call(DNP3_AGENT_ID, 'get_point_by_index', group, index).get(timeout=10)
+        return agent.vip.rpc.call(DNP3_AGENT_ID, 'get_point_by_index', data_type, index).get(timeout=10)
 
     @staticmethod
     def set_point(agent, point_name, value):
         """Use DNP3Agent to set a point value for a DNP3 resource."""
         response = agent.vip.rpc.call(DNP3_AGENT_ID, 'set_point', point_name, value).get(timeout=10)
-        gevent.sleep(1)     # Give the Master time to receive an echoed point value back from the Outstation.
+        gevent.sleep(5)     # Give the Master time to receive an echoed point value back from the Outstation.
         return response
 
     @staticmethod
@@ -249,11 +255,9 @@ class TestDNP3Agent:
 
     def test_send_point(self, run_master, agent, reset):
         """Send a point from the master and get its value from DNP3Agent."""
-        self.get_point_definition(agent, TEST_GET_POINT_NAME)
         exceptions = self.send_single_point(run_master, TEST_GET_POINT_NAME, 45)
         assert exceptions == {}
         received_point = self.get_point(agent, TEST_GET_POINT_NAME)
-        assert exceptions == {}
         # Confirm that the agent's received point value matches the value that was sent.
         assert received_point == 45, "Expected {} = {}, got {}".format(TEST_GET_POINT_NAME, 45, received_point)
         dict_compare({TEST_GET_POINT_NAME: 45}, self.subscribed_points())

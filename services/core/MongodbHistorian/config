@@ -6,14 +6,15 @@
             "port": 27017,
             "database": "mongo_test",
             "user": "test",
-            "passwd": "test"
+            "passwd": "test",
+            "authSource": "admin"
         }
     },
     "readonly":false,
 
     ## configurations related to rollup data creation
 
-    "initial_rollup_start_time":"2017-01-01T00:00:00.000000",
+    "initial_rollup_start_time":"2018-01-21T00:00:00.000000",
     "periodic_rollup_initial_wait":0.1,
     "periodic_rollup_frequency":1,
 

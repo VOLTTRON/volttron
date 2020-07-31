@@ -1,0 +1,26 @@
+{
+  "function_id": "curve",
+  "function_name": "Watt-Var Curve",
+  "DGSMn.InCrv.AO244": 2,
+  "DGSMn.ModTyp.AO245": 4,
+  "FMARn.IndpUnits.AO247": 138,
+  "FMARn.DepRef.AO248": 2,
+  "FMARn.PairArr.CrvPts.AO249": [
+      {"FMARn.PairArr.CrvPts.AO249.xVal": 1,
+       "FMARn.PairArr.CrvPts.AO249.yVal": 2
+      },
+      {"FMARn.PairArr.CrvPts.AO249.xVal": 3,
+       "FMARn.PairArr.CrvPts.AO249.yVal": 4
+      },
+      {"FMARn.PairArr.CrvPts.AO249.xVal": 5,
+       "FMARn.PairArr.CrvPts.AO249.yVal": 6
+      },
+      {"FMARn.PairArr.CrvPts.AO249.xVal": 7,
+       "FMARn.PairArr.CrvPts.AO249.yVal": 8
+      },
+      {"FMARn.PairArr.CrvPts.AO249.xVal": 9,
+       "FMARn.PairArr.CrvPts.AO249.yVal": 10
+      }
+  ],
+  "FMARn.PairArr.NumPts.AO246": 5
+}

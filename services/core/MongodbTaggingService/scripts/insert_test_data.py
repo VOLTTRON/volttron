@@ -45,6 +45,7 @@ sqlite_bulk = []
 sqlite_batch_size = 0
 sqlite_max_batch_size = 100
 
+
 def get_campus_tags(campus):
     tags = {
         "id":campus,
@@ -56,8 +57,8 @@ def get_campus_tags(campus):
         "tz": "New_York"
     }
 
-    #print tags["id"]
     return tags
+
 
 def get_site_tags(campus, site):
     n = random.randint(1000, 2000)
@@ -77,8 +78,9 @@ def get_site_tags(campus, site):
         "geoCoord": "C(38.898, -77.037)",
         "tz": "New_York"
     }
-    #print tags["id"]
+
     return tags
+
 
 def get_equip_tags(campus, site, parent_equip, equip):
     equip_type = random.choice(["ahu", "boiler","chiller","tank","vav"])
@@ -97,7 +99,7 @@ def get_equip_tags(campus, site, parent_equip, equip):
             }
     if parent_equip:
         tags["equipRef"] = parent_equip
-    #print tags["id"]
+
     return tags
 
 
@@ -107,7 +109,7 @@ def get_point_tags(campus, site, equip, point):
     tag3 = "tag_{}".format(random.randint(51, 55))
     tag4 = "tag_{}".format(random.randint(60, 65))
     tag5 = "tag_{}".format(random.randint(70, 75))
-    tags =  {"id": point,
+    tags = {"id": point,
             "point": True,
             "campusRef": campus,
             "siteRef": site,
@@ -119,14 +121,16 @@ def get_point_tags(campus, site, equip, point):
             tag4: random.choice([True, False]),
             tag5: "str {}".format(random.randint(0,10))
             }
-    #print tags["id"]
+
     return tags
+
 
 def db_insert(tags, execute_now=False):
     r1 = r2 = True
     r2 = sqlite_insert(tags, execute_now)
     r1 = mongo_insert(tags, execute_now)
     return r1 and r2
+
 
 def mongo_insert(tags, execute_now=False):
     global mongo_bulk, mongo_batch_size, mongo_max_batch_size
@@ -151,11 +155,11 @@ def mongo_insert(tags, execute_now=False):
             mongo_bulk = tags_mongodb[tags_table].initialize_ordered_bulk_op()
     return errors
 
+
 def sqlite_insert(tags, execute_now=False):
     global sqlite_bulk, sqlite_batch_size, sqlite_max_batch_size
 
     if tags:
-        #topic_prefix = tags["id"][1:] #remove @ symbol
         topic_prefix = tags["id"]
         for k, v in tags.items():
             if isinstance(v, bool):
@@ -164,12 +168,12 @@ def sqlite_insert(tags, execute_now=False):
                 else:
                     v = 0
             sqlite_bulk.append((topic_prefix, k, v))
-        #print sqlite_bulk
+
+        # print sqlite_bulk
         sqlite_batch_size += len(tags)
 
     errors = False
     if sqlite_batch_size > sqlite_max_batch_size or execute_now:
-        #print ("Execute many")
         sqlite_connection.executemany("insert into " +
                                       tags_table + "(topic_prefix, "
                                       "tag, value) values (?,?,?)",
@@ -178,14 +182,16 @@ def sqlite_insert(tags, execute_now=False):
         sqlite_bulk = []
         sqlite_batch_size = 0
 
+
 def db_close():
     sqlite_connection.close()
     tags_client.close()
     topics_mongodb.client.close()
 
+
 def test_tags():
     test_mongo_tags()
-    #test_sqlite_tags()
+
 
 def test_mongo_tags():
 
@@ -201,6 +207,7 @@ def test_mongo_tags():
     print("example query result: {}".format(topics))
     print ("Time taken by mongo for result: {}".format(
         datetime.datetime.now() - start))
+
 
 def test_sqlite_tags():
     start = datetime.datetime.now()
@@ -238,7 +245,6 @@ def insert_topic_tags():
     current_point = ""
     n = 0
     for row in cursor:
-        # print row
         parts = row["topic_name"].split("/")
         num_parts = len(parts)
         if num_parts == 4 or num_parts == 5:
@@ -274,7 +280,7 @@ def insert_topic_tags():
 
 
 if __name__ == '__main__':
-    insert_topic_tags()# now perform test query and time them
+    insert_topic_tags()  # now perform test query and time them
     test_tags()
     db_close()
 

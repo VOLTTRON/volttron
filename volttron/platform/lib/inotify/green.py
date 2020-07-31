@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -46,6 +46,9 @@ from gevent.select import select
 
 from . import _inotify, __all__, _main
 from . import *
+import logging
+
+_log = logging.getLogger(__name__)
 
 
 class inotify(_inotify):
@@ -56,7 +59,13 @@ class inotify(_inotify):
             pass
 
     def __init__(self, flags=0):
-        super(inotify, self).__init__(flags | IN_NONBLOCK)
+        try:
+            super(inotify, self).__init__(flags | IN_NONBLOCK)
+        except Exception as e:
+            # Could happen due to I/O errors. Example - too many open files
+            _log.error("Error instantiating inotify. "
+                      "Auth files will not be monitored for updates. Exception: {}".format(e))
+            raise e
 
     def read(self):
         while True:

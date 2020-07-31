@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -36,7 +36,7 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-from __future__ import print_function
+
 
 from collections import namedtuple
 from datetime import datetime as dt
@@ -44,7 +44,6 @@ from datetime import timedelta
 from dateutil import parser
 import gevent
 # OpenADR rule 1: use ISO8601 timestamp
-import json
 import logging
 import lxml.etree as etree_
 import os
@@ -52,7 +51,7 @@ import random
 import requests
 from requests.exceptions import ConnectionError
 import signxml
-import StringIO
+import io
 import sys
 
 from sqlalchemy import create_engine
@@ -63,13 +62,15 @@ from volttron.platform.agent import utils
 from volttron.platform.agent.utils import format_timestamp
 from volttron.platform.messaging import topics, headers
 from volttron.platform.vip.agent import Agent, Core, RPC
+from volttron.platform.scheduling import periodic
+from volttron.platform import jsonapi
 
-from oadr_builder import *
-from oadr_extractor import *
-from oadr_20b import parseString, oadrSignedObject
-from oadr_common import *
-from models import ORMBase
-from models import EiEvent, EiReport, EiTelemetryValues
+from .oadr_builder import *
+from .oadr_extractor import *
+from .oadr_20b import parseString, oadrSignedObject
+from .oadr_common import *
+from .models import ORMBase
+from .models import EiEvent, EiReport, EiTelemetryValues
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -125,7 +126,7 @@ def ven_agent(config_path, **kwargs):
     """
     try:
         config = utils.load_config(config_path)
-    except StandardError, err:
+    except Exception as err:
         _log.error("Error loading configuration: {}".format(err))
         config = {}
     db_path = config.get('db_path')
@@ -352,7 +353,7 @@ class OpenADRVenAgent(Agent):
             self.send_oadr_create_party_registration()
         else:
             # Schedule an hourly database-cleanup task.
-            self.core.periodic(60 * 60, self.telemetry_cleanup)
+            self.core.schedule(periodic(60 * 60), self.telemetry_cleanup)
 
             # Populate the caches with all of the database's events and reports that are active.
             for event in self._get_events():
@@ -371,9 +372,9 @@ class OpenADRVenAgent(Agent):
                 if USE_REPORTS:
                     # Send an initial report-registration request to the VTN.
                     self.send_oadr_register_report()
-            except Exception, err:
+            except Exception as err:
                 _log.error('Error in agent startup: {}'.format(err), exc_info=True)
-            self.core.periodic(PROCESS_LOOP_FREQUENCY_SECS, self.main_process_loop)
+            self.core.schedule(periodic(PROCESS_LOOP_FREQUENCY_SECS), self.main_process_loop)
 
     def main_process_loop(self):
         """
@@ -407,7 +408,7 @@ class OpenADRVenAgent(Agent):
                 for report in self.active_reports():
                     self.process_report(report)
 
-        except Exception, err:
+        except Exception as err:
             _log.error('Error in main process loop: {}'.format(err), exc_info=True)
 
     def process_event(self, evt):
@@ -632,18 +633,18 @@ class OpenADRVenAgent(Agent):
                 # A non-default response was received from the VTN. Issue a followup poll request.
                 self.send_oadr_poll()
 
-        except OpenADRInternalException, err:
+        except OpenADRInternalException as err:
             if err.error_code == OADR_EMPTY_DISTRIBUTE_EVENT:
                 _log.warning('Error handling VTN request: {}'.format(err))          # No need for a stack trace
             else:
                 _log.warning('Error handling VTN request: {}'.format(err), exc_info=True)
-        except OpenADRInterfaceException, err:
+        except OpenADRInterfaceException as err:
             _log.warning('Error handling VTN request: {}'.format(err), exc_info=True)
             # OADR rule 48: Log the validation failure, send an oadrResponse.eiResponse with an error code.
-            self.send_oadr_response(err.message, err.error_code or OADR_BAD_DATA)
-        except Exception, err:
+            self.send_oadr_response(err, err.error_code or OADR_BAD_DATA)
+        except Exception as err:
             _log.error("Error handling VTN request: {}".format(err), exc_info=True)
-            self.send_oadr_response(err.message, OADR_BAD_DATA)
+            self.send_oadr_response(err, OADR_BAD_DATA)
 
     @staticmethod
     def vtn_request_element_name(signed_object):
@@ -716,7 +717,7 @@ class OpenADRVenAgent(Agent):
                 event = self.handle_oadr_event(oadr_event)
                 if event:
                     oadr_event_ids.append(event.event_id)
-            except OpenADRInterfaceException, err:
+            except OpenADRInterfaceException as err:
                 # OADR rule 19: If a VTN message contains a mix of valid and invalid events,
                 # respond to the valid ones. Don't reject the entire message due to invalid events.
                 # OADR rule 48: Log the validation failure and send the error code in oadrCreatedEvent.eventResponse.
@@ -733,10 +734,10 @@ class OpenADRVenAgent(Agent):
                 error_event.modification_number = modification_number
                 self.send_oadr_created_event(error_event,
                                              error_code=err.error_code or OADR_BAD_DATA,
-                                             error_message=err.message)
-            except Exception, err:
+                                             error_message=err)
+            except Exception as err:
                 _log.warning('Unanticipated error during event processing: {}'.format(err), exc_info=True)
-                self.send_oadr_response(err.message, OADR_BAD_DATA)
+                self.send_oadr_response(err, OADR_BAD_DATA)
 
         for agent_event in self._get_events():
             if agent_event.event_id not in oadr_event_ids:
@@ -1041,14 +1042,14 @@ class OpenADRVenAgent(Agent):
                         else:
                             create_rpt(temp_report)
                             self.send_oadr_created_report(oadr_report_request)
-        except OpenADRInterfaceException, err:
+        except OpenADRInterfaceException as err:
             # If a VTN message contains a mix of valid and invalid reports, respond to the valid ones.
             # Don't reject the entire message due to an invalid report.
             _log.warning('Report error: {}'.format(err), exc_info=True)
-            self.send_oadr_response(err.message, err.error_code or OADR_BAD_DATA)
-        except Exception, err:
+            self.send_oadr_response(err, err.error_code or OADR_BAD_DATA)
+        except Exception as err:
             _log.warning('Unanticipated error during report processing: {}'.format(err), exc_info=True)
-            self.send_oadr_response(err.message, OADR_BAD_DATA)
+            self.send_oadr_response(err, OADR_BAD_DATA)
 
         all_active_reports = self._get_reports()
         for agent_report in all_active_reports:
@@ -1229,22 +1230,22 @@ class OpenADRVenAgent(Agent):
         signed_object = oadrSignedObject(**{request_name: request_object})
         try:
             # Export the SignedObject as an XML string.
-            buff = StringIO.StringIO()
+            buff = io.StringIO()
             signed_object.export(buff, 1, pretty_print=True)
             signed_object_xml = buff.getvalue()
-        except Exception, err:
+        except Exception as err:
             raise OpenADRInterfaceException('Error exporting the SignedObject: {}'.format(err), None)
 
         if self.security_level == 'high':
             try:
                 signature_lxml, signed_object_lxml = self.calculate_signature(signed_object_xml)
-            except Exception, err:
+            except Exception as err:
                 raise OpenADRInterfaceException('Error signing the SignedObject: {}'.format(err), None)
             payload_lxml = self.payload_element(signature_lxml, signed_object_lxml)
             try:
                 # Verify that the payload, with signature, is well-formed and can be validated.
                 signxml.XMLVerifier().verify(payload_lxml, ca_pem_file=VTN_CA_CERT_FILENAME)
-            except Exception, err:
+            except Exception as err:
                 raise OpenADRInterfaceException('Error verifying the SignedObject: {}'.format(err), None)
         else:
             signed_object_lxml = etree_.fromstring(signed_object_xml)
@@ -1280,7 +1281,7 @@ class OpenADRVenAgent(Agent):
         except ConnectionError:
             _log.warning('ConnectionError in http request to {} (is the VTN offline?)'.format(endpoint))
             return None
-        except Exception, err:
+        except Exception as err:
             raise OpenADRInterfaceException('Error posting OADR XML: {}'.format(err), None)
 
     # ***************** VOLTTRON RPCs ********************
@@ -1634,7 +1635,7 @@ class OpenADRVenAgent(Agent):
             error_msg = 'Default report interval {} is not an integer number of seconds'.format(default)
             raise OpenADRInternalException(error_msg, OADR_BAD_DATA)
         report.interval_secs = interval_secs
-        report.telemetry_parameters = json.dumps(params.get('telemetry_parameters', None))
+        report.telemetry_parameters = jsonapi.dumps(params.get('telemetry_parameters', None))
         report.report_specifier_id = specifier_id
         report.status = report.STATUS_INACTIVE
         return report
@@ -1681,7 +1682,7 @@ class OpenADRVenAgent(Agent):
                 engine = create_engine(engine_path).connect()
                 ORMBase.metadata.create_all(engine)
                 self._db_session = sessionmaker(bind=engine)()
-            except AttributeError, err:
+            except AttributeError as err:
                 error_msg = 'Unable to open sqlite database named {}: {}'.format(self.db_path, err)
                 raise OpenADRInterfaceException(error_msg, None)
         return self._db_session
@@ -1737,18 +1738,18 @@ class OpenADRVenAgent(Agent):
             not by responses to VEN polls.
         """
         _log.debug("Registering Endpoints: {}".format(self.__class__.__name__))
-        for endpoint in OPENADR_ENDPOINTS.itervalues():
+        for endpoint in OPENADR_ENDPOINTS.values():
             self.vip.web.register_endpoint(endpoint.url, getattr(self, endpoint.callback), "raw")
 
     def json_object(self, obj):
         """Ensure that an object is valid JSON by dumping it with json_converter and then reloading it."""
-        obj_string = json.dumps(obj, default=self.json_converter)
-        obj_json = json.loads(obj_string)
+        obj_string = jsonapi.dumps(obj, default=self.json_converter)
+        obj_json = jsonapi.loads(obj_string)
         return obj_json
 
     @staticmethod
     def json_converter(object_to_dump):
-        """When calling json.dumps, convert datetime instances to strings."""
+        """When calling jsonapi.dumps, convert datetime instances to strings."""
         if isinstance(object_to_dump, dt):
             return object_to_dump.__str__()
 

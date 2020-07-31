@@ -1,8 +1,9 @@
 .. _Agent-Development:
+
 Agent Creation Walkthrough
 --------------------------
 
-The VOLTTRON platfrom now has utilities to speed the creation and installation
+The VOLTTRON platform now has utilities to speed the creation and installation
 of new agents. To use these utilities the VOLTTRON environment must be activated.
 
 From the project directory, activate the VOLTTRON environment with:
@@ -168,7 +169,7 @@ packaged configuration file. The subscribe method tells our agent which function
 to call whenever there is a new or updated config file. For more information
 on using the configuration store see :doc:`Agent Configuration Store <Agent-Configuration-Store>`
 
-`_create_subscriptions` (convered in the next section) will use the value in self.setting2
+`_create_subscriptions` (covered in the next section) will use the value in self.setting2
 to create a new subscription.
 
 Setting up a Subscription
@@ -312,7 +313,11 @@ Packaging and Installing the Agent
 
 To install the agent the platform must be running. Start the platform with the command:
 
-``volttron -l volttron.log -vv&``
+``./start-volttron``
+
+.. note:: If you are not in an activated environment, this script will start
+    the platform running in the background in the correct environment, however
+    the environment will not be activated for you, you must activate it yourself.
 
 Now we must install it into the platform. Use the following command to install it and add a tag for easily referring to
 the agent. From the project directory, run the following command:
@@ -320,7 +325,7 @@ the agent. From the project directory, run the following command:
 ``python scripts/install-agent.py -s TestAgent/ -c TestAgent/config -t testagent``
 
 To verify it has been installed, use the following command:
-``volttron-ctl list``
+``vctl list``
 
 This will result in output similar to the following:
 
@@ -350,7 +355,7 @@ check the log file.
 -  With the VOLTTRON environment activated, start the platform by
    running (if needed):
 
-``volttron -l volttron.log -vv&``
+``./start-volttron``
 
 -  Launch the agent by <uuid> using the result of the list command:
 
@@ -362,12 +367,53 @@ check the log file.
 
 -  Launch the agent by tag with:
 
-``volttron-ctl start --tag testagent``
+``vctl start --tag testagent``
 
 -  Check that it is :ref:`running <AgentStatus>`:
 
-``volttron-ctl status``
+``vctl status``
 
 -  Start the ListenerAgent as in :ref:`Building VOLTTRON <Building-VOLTTRON>`
 -  Check the log file for messages indicating the TestAgent is receiving
    the ListenerAgents messages:
+
+Automated Test cases and documentation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Before contributing a new agent to the VOLTTRON source code repository, please consider adding two other essential
+elements.
+
+1. Integration and unit test cases
+2. README file that includes details of pre-requisite software, agent setup details (such as setting up databases,
+   permissions, etc.)and sample configuration
+
+VOLTTRON uses py.test as a framework for executing tests. All unit tests should be based on py.test framework.
+py.test is not installed with the distribution by default.  To install py.test and it's dependencies execute the
+following:
+
+.. code-block:: bash
+
+    python bootstrap.py --testing
+
+.. note::
+
+  There are other options for different agent requirements.  To see all of the options use:
+
+  .. code-block:: bash
+
+    python bootstrap.py --help
+
+  in the Extra Package Options section.
+
+To run a single test module, use the command
+
+.. code-block:: bash
+
+    pytest <testmodule.py>
+
+To run all of the tests in the volttron repository execute the following in the
+root directory using an activated command prompt:
+
+.. code-block:: bash
+
+    ./ci-integration/run-tests.sh

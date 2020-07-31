@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -39,6 +39,7 @@ import inspect
 import logging
 
 from volttron.platform.agent import utils
+from volttron.platform.dbutils.basedb import DbDriver
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -46,17 +47,14 @@ _log = logging.getLogger(__name__)
 
 def get_dbfuncts_class(database_type):
     mod_name = database_type + "functs"
-    mod_name_path = "volttron.platform.dbutils.{}".format(
-        mod_name)
+    mod_name_path = "volttron.platform.dbutils.{}".format(mod_name)
     loaded_mod = __import__(mod_name_path, fromlist=[mod_name])
-    # loaded_mod = importlib.import_module(name=mod_name_path)
-    for name, cls in inspect.getmembers(loaded_mod):
-        # assume class is not the root dbdriver
-        if inspect.isclass(cls) and name != 'DbDriver':
-            dbfuncts_class = cls
+    for _, cls in inspect.getmembers(loaded_mod):
+        # Ensure class is not the root dbdriver
+        if (inspect.isclass(cls) and issubclass(cls, DbDriver)
+                and cls is not DbDriver):
             break
-    try:
-        _log.debug('Historian using module: ' + dbfuncts_class.__name__)
-    except NameError:
-        raise Exception('Invalid module named ' + mod_name_path + ".")
-    return dbfuncts_class
+    else:
+        raise Exception('Invalid module named {}'.format(mod_name_path))
+    _log.debug('Historian using module: {}'.format(cls.__name__))
+    return cls

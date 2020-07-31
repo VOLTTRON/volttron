@@ -45,7 +45,7 @@ For a complete working example of these messages please see
 - :py:mod:`examples.ExampleSubscriber.subscriber.subscriber_agent`
 
 Format of header and message for device topics (i.e. messages published to
-topics with pattern "devices/*/all"):
+topics with pattern "devices/\*/all"):
 
 ::
 
@@ -54,10 +54,14 @@ topics with pattern "devices/*/all"):
         # python code to get this is
         # from datetime import datetime
         # from volttron.platform.messaging import headers as header_mod
+        # from volttron.platform.agent import utils
+        # now = utils.format_timestamp( datetime.utcnow())
         # {
-        #     headers_mod.DATE: datetime.utcnow().isoformat() + 'Z'
+        #     headers_mod.DATE: now,
+        #     headers_mod.TIMESTAMP: now
         # }
-        "Date": "2015-11-17T21:24:10.189393Z"
+        "Date": "2015-11-17 21:24:10.189393+00:00",
+        "TimeStamp": "2015-11-17 21:24:10.189393+00:00"
     }
 
     # Message Format:
@@ -85,7 +89,7 @@ analysis/\*
 
 Data sent to analysis/* topics is result of analysis done by applications.
 The format of data sent to analysis/* topics is similar to data sent to
-devices/*/all topics.
+devices/\*/all topics.
 
 datalogger/\*
 -------------

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -47,9 +47,9 @@ from math import ceil
 
 import os
 import re
-from basedb import DbDriver
+from .basedb import DbDriver
 from volttron.platform.agent import utils
-from volttron.platform.agent import json as jsonapi
+from volttron.platform import jsonapi
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -82,7 +82,11 @@ class SqlLiteFuncts(DbDriver):
             # before the historian.
             try:
                 if db_dir == '':
-                    db_dir = './data'
+                    if utils.is_secure_mode():
+                        data_dir = os.path.basename(os.getcwd()) + ".agent-data"
+                        db_dir = os.path.join(os.getcwd(), data_dir)
+                    else:
+                        db_dir = './data'
                     self.__database = os.path.join(db_dir, self.__database)
 
                 os.makedirs(db_dir)
@@ -92,7 +96,7 @@ class SqlLiteFuncts(DbDriver):
 
         connect_params['database'] = self.__database
 
-        if 'detect_types' not in connect_params.keys():
+        if 'detect_types' not in connect_params:
             connect_params['detect_types'] = \
                 sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
         if 'timeout' not in connect_params.keys():
@@ -399,7 +403,7 @@ class SqlLiteFuncts(DbDriver):
                 topics.append((row[0], row[1], row[2], meta))
             return topics
         except sqlite3.Error as e:
-            if e.message[0:13] == 'no such table':
+            if e.args[0][0:13] == 'no such table':
                 _log.warn("No such table : {}".format(self.agg_topics_table))
                 return []
             else:
@@ -419,7 +423,7 @@ class SqlLiteFuncts(DbDriver):
                 id_map[(row[1].lower(), row[2], row[3])] = row[0]
             return id_map
         except sqlite3.Error as e:
-            if e.message[0:13] == 'no such table':
+            if e.args[0][0:13] == 'no such table':
                 _log.warn("No such table : {}".format(self.agg_topics_table))
                 return {}
             else:
@@ -473,7 +477,7 @@ class SqlLiteFuncts(DbDriver):
 
     def query_topics_by_pattern(self, topic_pattern):
         id_map, name_map = self.get_topic_map()
-        _log.debug("Contents of topics table {}".format(id_map.keys()))
+        _log.debug("Contents of topics table {}".format(list(id_map.keys())))
         q = "SELECT topic_id, topic_name FROM " + self.topics_table + \
             " WHERE topic_name REGEXP '" + topic_pattern + "';"
 
@@ -610,10 +614,8 @@ class SqlLiteFuncts(DbDriver):
         :return: sqlite query
         :rtype str
         """
-
         query = SqlLiteFuncts._get_compound_query(topic_tags_table, tup,
                                                   tag_refs)
-
         # Verify for parent tag finally. if present convert to subquery
         # Process parent tag
         # Convert
@@ -694,7 +696,6 @@ class SqlLiteFuncts(DbDriver):
                           'like':'REGEXP'}
         prefix = 'SELECT topic_prefix FROM {} WHERE '.format(topic_tags_table)
         # _log.debug("In get sqlite query condition. tup: {}".format(tup))
-
         if tup is None:
             return tup
         if not isinstance(tup[1], tuple):
@@ -720,7 +721,7 @@ class SqlLiteFuncts(DbDriver):
 
         lower_tup0 = tup[0].lower()
         operator = lower_tup0
-        if reserved_words.has_key(lower_tup0):
+        if lower_tup0 in reserved_words:
             operator = reserved_words[lower_tup0]
 
         query = ""

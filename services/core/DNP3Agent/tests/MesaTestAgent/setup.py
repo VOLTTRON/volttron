@@ -46,7 +46,7 @@ if not agent_package:
 
 # Find the version number from the main module
 agent_module = agent_package + '.' + MAIN_MODULE
-_temp = __import__(agent_module, globals(), locals(), ['__version__'], -1)
+_temp = __import__(agent_module, globals(), locals(), ['__version__'], 0)
 __version__ = _temp.__version__
 
 # Setup

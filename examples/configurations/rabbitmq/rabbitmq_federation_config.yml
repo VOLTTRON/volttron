@@ -1,0 +1,10 @@
+# Mandatory parameters for federation setup
+federation-upstream:
+  rabbit-4:
+    port: '5671'
+    virtual-host: volttron4
+  rabbit-5:
+    port: '5671'
+    virtual-host: volttron5
+
+

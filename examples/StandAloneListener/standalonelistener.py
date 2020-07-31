@@ -1,17 +1,45 @@
 '''
-        This python script will listen to the defined vip address for specific
-    topics.  The user can modify the settings.py file to set the specific
-    topics to listen to.
 
-    With a volttron activated shell this script can be run like:
+    This python script will listen to the defined vip address for specific
+    topics. This script prints all output to standard  out rather than using the
+    logging facilities. This script will also publish a heart beat
+    (which will be returned if listening to the heartbeat topic).
 
-       python standalonelistener.py
+    Setup:
+    ~~~~~
 
-    This script prints all output to standard  out rather than using the
-    logging facilities.
+      1. Make sure volttron instance is running using tcp address. use vcfg
+         command to configure volttron instance address,.
 
-    This script will also publish a heart beat (which will be returned if
-    listening to the heartbeat topic).
+      2. Update settings.py
+
+      3. Add this standalone agent to volttron auth entry using vctl auth add
+         command. Provide ip of the volttron instance when prompted for
+         address[]: and  provide public key of standalone agent when prompted
+         for credentials[]:
+         For more details see
+         https://volttron.readthedocs.io/en/develop/devguides/walkthroughs/Agent-Authentication-Walkthrough.html
+
+         Example command:
+
+         .. code-block:: console
+
+         (volttron)[vdev@cs_cbox myvolttron]$ vctl auth add
+         domain []:
+         address []: 127.0.0.1
+         user_id []:
+         capabilities (delimit multiple entries with comma) []:
+         roles (delimit multiple entries with comma) []:
+         groups (delimit multiple entries with comma) []:
+         mechanism [CURVE]:
+         credentials []: GsEq7mIsU6mJ31TN44lQJeGwkJlb6_zbWgRxVo2gUUU
+         comments []:
+         enabled [True]:
+
+      4. With a volttron activated shell this script can be run like:
+
+         python standalonelistener.py
+
 
     Example output to standard out:
 
@@ -32,15 +60,15 @@ from datetime import datetime
 import os
 import sys
 
-import json
 import gevent
 import logging
-from gevent.core import callback
 
-from volttron.platform import get_home, set_home
 from volttron.platform.messaging import headers as headers_mod
 from volttron.platform.vip.agent import Agent, PubSub, Core
 from volttron.platform.agent import utils
+from volttron.platform.scheduling import periodic
+from volttron.platform import jsonapi
+
 
 # These are the options that can be set from the settings module.
 from settings import remote_url, topics_prefixes_to_watch, heartbeat_period
@@ -48,10 +76,6 @@ from settings import remote_url, topics_prefixes_to_watch, heartbeat_period
 # Setup logging so that we could use it if we needed to.
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-
-# Agents need access to VOLTTRON_HOME even if running in standalone mode
-# to keep track of keys. This sets a default home.
-set_home()
 
 logging.basicConfig(
                 level=logging.debug,
@@ -64,7 +88,7 @@ class StandAloneListener(Agent):
     def onmessage(self, peer, sender, bus, topic, headers, message):
         '''Handle incoming messages on the bus.'''
         d = {'topic': topic, 'headers': headers, 'message': message}
-        sys.stdout.write(json.dumps(d)+'\n')
+        sys.stdout.write(jsonapi.dumps(d)+'\n')
 
     @Core.receiver('onstart')
     def start(self, sender, **kwargs):
@@ -81,25 +105,26 @@ class StandAloneListener(Agent):
                        callback=self.onmessage).get(timeout=5)
 
     # Demonstrate periodic decorator and settings access
-    @Core.periodic(heartbeat_period)
+    @Core.schedule(periodic(heartbeat_period))
     def publish_heartbeat(self):
         '''Send heartbeat message every heartbeat_period seconds.
 
         heartbeat_period is set and can be adjusted in the settings module.
         '''
         sys.stdout.write('publishing heartbeat.\n')
-        now = datetime.utcnow().isoformat(' ') + 'Z'
+        now = utils.format_timestamp(datetime.utcnow())
         headers = {
             #'AgentID': self._agent_id,
             headers_mod.CONTENT_TYPE: headers_mod.CONTENT_TYPE.PLAIN_TEXT,
             headers_mod.DATE: now,
+            headers_mod.TIMESTAMP: now
         }
         self.vip.pubsub.publish(
-            'pubsub', 'heartbeat/standalonelistener', headers, 
+            'pubsub', 'heartbeat/standalonelistener', headers,
             now).get(timeout=5)
 
-    
-if  __name__ == '__main__':
+
+if __name__ == '__main__':
     try:
         # If stdout is a pipe, re-open it line buffered
         if utils.isapipe(sys.stdout):

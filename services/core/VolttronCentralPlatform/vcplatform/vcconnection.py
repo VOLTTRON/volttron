@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -37,7 +37,7 @@
 # }}}
 
 
-from __future__ import absolute_import, print_function
+
 
 import logging
 
@@ -240,6 +240,18 @@ class VCConnection(Agent):
         """
         return self._main_agent.get_agent_config(agent_identity, config_name,
                                                  raw)
+
+    @RPC.export
+    def delete_agent_config(self, agent_identity, config_name):
+        """
+        Deletes the configuration from the config store of the passed agent
+        identity.
+
+        :param agent_identity:
+        :param config_name:
+        :return: The stored configuration.
+        """
+        return self._main_agent.delete_agent_config(agent_identity, config_name)
 
     @RPC.export
     def subscribe_to_vcp(self, prefix, prefix_on_vc):

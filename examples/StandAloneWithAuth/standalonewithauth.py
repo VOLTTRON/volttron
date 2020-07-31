@@ -24,13 +24,13 @@ from datetime import datetime
 import os
 import sys
 
-import json
 import gevent
 import logging
 from gevent.core import callback
 
 from volttron.platform.vip.agent import Agent, Core, RPC
 from volttron.platform.agent import utils
+from volttron.platform.scheduling import periodic
 
 # These are the options that can be set from the settings module.
 from settings import remote_url, topics_prefixes_to_watch, heartbeat_period
@@ -49,7 +49,7 @@ class StandAloneWithAuth(Agent):
     ''' A standalone agent that demonstrates how to use agent authorization'''
 
     # Demonstrate calling methods via RPC
-    @Core.periodic(heartbeat_period)
+    @Core.schedule(periodic(heartbeat_period))
     def call_foo_and_bar(self):
         foo_result = self.vip.rpc.call(IDENTITY, 'foo').get(timeout=5)
         sys.stdout.write('foo returned: {}\n'.format(foo_result))

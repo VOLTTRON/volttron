@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -35,17 +35,18 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-from __future__ import absolute_import, print_function
+
 
 import contextlib
 import importlib
 import logging
 import threading
+from gevent.local import local
 
 import sys
 from abc import abstractmethod
 from volttron.platform.agent import utils
-from volttron.platform.agent import json as jsonapi
+from volttron.platform import jsonapi
 import sqlite3
 
 utils.setup_logging()
@@ -64,11 +65,12 @@ def closing(obj):
     finally:
         try:
             obj.close()
-        except Exception as exc:
-            if isinstance(exc, StandardError) and exc.__class__.__module__ == 'exceptions':
+        except BaseException as exc:
+            # if exc.__class__.__module__ == 'exceptions':
+            if exc.__class__.__module__ == 'builtins':
                 # Don't ignore built-in exceptions because they likely indicate
                 # a bug that should stop execution. psycopg2.Error subclasses
-                # StandardError, so the module must also be checked. :-(
+                # Exception, so the module must also be checked. :-(
                 raise
             _log.exception('An exception was raised while closing '
                            'the cursor and is being ignored.')
@@ -85,31 +87,55 @@ class DbDriver(object):
     """
     def __init__(self, dbapimodule, **kwargs):
         thread_name = threading.currentThread().getName()
-        _log.debug("Constructing Driver for %s in thread: %s",
-                   dbapimodule, thread_name)
-        _log.debug("kwargs for connect is %r", kwargs)
-        dbapimodule = importlib.import_module(dbapimodule)
-        self.__connect = lambda: dbapimodule.connect(**kwargs)
+        if callable(dbapimodule):
+            _log.debug("Constructing Driver for %s in thread: %s",
+                       dbapimodule.__name__, thread_name)
+            connect = dbapimodule
+        else:
+            _log.debug("Constructing Driver for %s in thread: %s",
+                       dbapimodule, thread_name)
+            _log.debug("kwargs for connect is %r", kwargs)
+            dbapimodule = importlib.import_module(dbapimodule)
+            connect = lambda: dbapimodule.connect(**kwargs)
+        self.__connect = connect
         self.__connection = None
+        self.stash = local()
+
+    @contextlib.contextmanager
+    def bulk_insert(self):
+        """
+        Function to meet bulk insert requirements. This function can be overridden by historian drivers to yield the
+        required method for data insertion during bulk inserts in the respective historians. In this generic case it
+        will yield the single insert method
+
+        :yields: insert method
+        """
+        yield self.insert_data
 
     def cursor(self):
+
+        self.stash.cursor = None
         if self.__connection is not None and not getattr(self.__connection, "closed", False):
             try:
-                return self.__connection.cursor()
+                self.stash.cursor = self.__connection.cursor()
+                return self.stash.cursor
             except Exception:
-                _log.exception("An exception occured while creating "
-                               "a cursor and is being ignored")
+                _log.warn("An exception occurred while creating "
+                          "a cursor. Will try establishing connection again")
         self.__connection = None
         try:
             self.__connection = self.__connect()
         except Exception as e:
             _log.error("Could not connect to database. Raise ConnectionError")
-            raise ConnectionError(e), None, sys.exc_info()[2]
+            raise ConnectionError(e).with_traceback(sys.exc_info()[2])
         if self.__connection is None:
             raise ConnectionError(
                 "Unknown error. Could not connect to database")
-        return self.__connection.cursor()
 
+        # if any exception happens here have it go to the caller.
+        self.stash.cursor = self.__connection.cursor()
+
+        return self.stash.cursor
 
     def read_tablenames_from_db(self, meta_table_name):
         """
@@ -282,7 +308,7 @@ class DbDriver(object):
 
         :param ts: timestamp
         :param topic_id: topic id for which data is inserted
-        :param metadata: data values
+        :param data: data value
         :return: True if execution completes. raises Exception if unable to
         connect to database
         """
@@ -353,7 +379,7 @@ class DbDriver(object):
         connect to database
         """
         self.execute_stmt(self.update_agg_topic_stmt(),
-                          (agg_id, agg_topic_name),commit=False)
+                          (agg_topic_name, agg_id),commit=False)
         return True
 
     def commit(self):
@@ -367,7 +393,7 @@ class DbDriver(object):
                 self.__connection.commit()
                 return True
             except sqlite3.OperationalError as e:
-                if "database is locked" in e.message:
+                if "database is locked" in str(e):
                     _log.error("EXCEPTION: SQLITE3 Database is locked. This "
                                "error could occur when there are multiple "
                                "simultaneous read and write requests, making "

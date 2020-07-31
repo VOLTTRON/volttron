@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -39,6 +39,7 @@
 import logging
 import gevent
 from volttron.platform.agent import utils
+from volttron.platform.scheduling import periodic
 
 _log = logging.getLogger(__name__)
 utils.setup_logging()
@@ -53,7 +54,7 @@ class Director(object):
     def start(self, sender):
         _log.debug("Starting Director for MarketServiceAgent")
         self.sender = sender
-        self.sender.core.periodic(self.market_period, self._trigger)
+        self.sender.core.schedule(periodic(self.market_period), self._trigger)
 
     def _trigger(self):
         _log.debug("Trigger market period in Director for MarketServiceAgent")

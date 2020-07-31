@@ -136,84 +136,16 @@ def daily_rollup(db_params, start_date, end_date):
     finally:
         if dest_db:
             dest_db.client.close()
-#
-# def monthly_rollup(db_params, start_date, end_date):
-#
-#     dest_db = None
-#     try:
-#         dest_db = connect_mongodb(db_params)
-#
-#         dest_db['monthly_data2'].create_index(
-#             [('topic_id', pymongo.DESCENDING), ('ts', pymongo.DESCENDING)],
-#             unique=True, background=False)
-#
-#
-#         pipeline = []
-#         pipeline.append({"$match":{'ts': {"$gte":start_date, "$lt":end_date}}})
-#         pipeline.append({'$group' : {
-#                        '_id' : {'topic_id':"$topic_id",
-#                                 'year':{"$year":"$ts"},
-#                                 'month':{"$month":"$ts"}},
-#                        'year':{"$first":{"$year":"$ts"}},
-#                        'month':{"$first":{"$month":"$ts"}},
-#                        'ts': {"$first":"$ts"},
-#                        'topic_id': {"$first":"$topic_id"},
-#                        'sum': { "$sum": "$sum" },
-#                        'count': { "$sum": "$count" },
-#                        'data': {"$push": "$data"}
-#                         }})
-#         pipeline.append({"$unwind":"$data"})
-#         pipeline.append({"$unwind": "$data"})
-#         pipeline.append({'$group' : {
-#                         '_id': "$_id",
-#                         'ts': {"$first":"$ts"},
-#                         'year': {"$first": "$year"},
-#                         'month': {"$first": "$month"},
-#                         'dayOfMonth': {"$first": "$dayOfMonth"},
-#                         'h': {"$first":{"$hour":"$ts"}},
-#                         'm': {"$first":{"$minute":"$ts"}},
-#                         's': {"$first":{"$second":"$ts"}},
-#                         'ml': {"$first":{"$millisecond":"$ts"}},
-#                         'topic_id': {"$first": "$topic_id"},
-#                         'sum': { "$first": "$sum" },
-#                         'count': { '$first': "$count" },
-#                         'data': {'$push': "$data"}
-#                         }})
-#         pipeline.append({'$project':{
-#             '_id': 0,
-#             'ts':{ "$subtract" : [ "$ts",
-#                                    {"$add" : [
-#                                        "$ml",
-#                                         {"$multiply" : [ "$s", 1000 ] },
-#                                         {"$multiply" : [ "$m", 60, 1000 ]},
-#                                         {"$multiply" : [ "$h",  60,  60,
-#                                                          1000]},
-#                                         {"$multiply": [{"$subtract":[
-#                                             "$dayOfMonth", 1]},
-#                                             24, 60, 60, 1000]}
-#                                         ]}
-#                                    ]},
-#             'topic_id':1,
-#             'sum': 1,
-#             'count': 1,
-#             'data': 1}})
-#         pipeline.append({"$out":"monthly_data"})
-#         print (pipeline)
-#         dest_db['daily_data'].aggregate(pipeline, allowDiskUse=True)
-#
-#     finally:
-#         if dest_db:
-#             dest_db.client.close()
+
 
 def rollup_data(source, dest, start, end):
      daily_rollup(local_dest_params, start, end)
-    # monthly_rollup(dest, start, end)
+
 
 if __name__ == '__main__':
     start = datetime.utcnow()
     rollup_data(local_source_params, local_dest_params,
          datetime.strptime('02May2016','%d%b%Y'),
          datetime.strptime('03May2016','%d%b%Y'))
-    print ("Total time for roll up of data: {}".format(datetime.utcnow() -
-                                                       start))
+    print("Total time for roll up of data: {}".format(datetime.utcnow() - start))
 

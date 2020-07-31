@@ -1,0 +1,12 @@
+{
+    "connection": {
+        "type": "redshift",
+        "params": {
+            "dbname": "historian",
+            "host": "hostname.redshift.amazonaws.com",
+            "port": 5432,
+            "user": "volttron",
+            "password": "secret"
+        }
+    }
+}

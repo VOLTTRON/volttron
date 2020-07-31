@@ -1,6 +1,6 @@
 <html>
 <head>
-    <script language="javascript" src="http://code.jquery.com/jquery-2.1.4.min.js"></script>
+    <script language="javascript" src="/js/jquery-3.5.0.min.js"></script>
     <style type="text/css">
         input {
             width: 400px;
@@ -85,7 +85,7 @@ Discovery Address: <input type="text" id="discovery_address"
          };
          $.ajax({
              type: 'POST',
-             url: '/jsonrpc',
+             url: '/vc/jsonrpc',
              data: JSON.stringify(pdata),
              dataType: 'json',
              success: function(data){
@@ -116,7 +116,7 @@ Discovery Address: <input type="text" id="discovery_address"
 
         $.ajax({
              type: 'POST',
-             url: '/jsonrpc',
+             url: '/vc/jsonrpc',
              data: JSON.stringify(pdata),
              dataType: 'json',
              success: function(data){
@@ -149,7 +149,7 @@ Discovery Address: <input type="text" id="discovery_address"
 
         $.ajax({
              type: 'POST',
-             url: '/jsonrpc',
+             url: '/vc/jsonrpc',
              data: JSON.stringify(pdata),
              dataType: 'json',
              success: function(data){
@@ -173,7 +173,7 @@ Discovery Address: <input type="text" id="discovery_address"
 
         $.ajax({
              type: 'POST',
-             url: '/jsonrpc',
+             url: '/vc/jsonrpc',
              data: JSON.stringify(pdata),
              dataType: 'json',
              success: function(data){

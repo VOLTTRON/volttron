@@ -1,4 +1,5 @@
 .. _ActuatorScheduleResponse:
+
 ActuatorAgent Response
 ----------------------
 
@@ -58,13 +59,13 @@ General Failures
 Task Schedule Failures
 ^^^^^^^^^^^^^^^^^^^^^^
 
-| ``TASK_ID_ALREADY_EXISTS:: The supplied taskID already belongs to an existing task. ``
-| ``MISSING_PRIORITY:: Failed to supply a priority for a Task schedule request.``
-| ``INVALID_PRIORITY:: Priority not one of "HIGH", "LOW", or "LOW_PREEMPT".``
-| ``MALFORMED_REQUEST_EMPTY:: Request list is missing or empty.``
-| ``REQUEST_CONFLICTS_WITH_SELF:: Requested time slots on the same device overlap.``
-| ``MALFORMED_REQUEST:: Reported when the request parser raises an unhandled exception. The exception name and info are appended to this info string.``
-| ``CONFLICTS_WITH_EXISTING_SCHEDULES:: This schedule conflict with an existing schedules that it cannot preempt. The data item for the results will contain info about the conflicts in this form (after parsing json):``
+| ``TASK_ID_ALREADY_EXISTS: The supplied taskID already belongs to an existing task.``
+| ``MISSING_PRIORITY: Failed to supply a priority for a Task schedule request.``
+| ``INVALID_PRIORITY: Priority not one of "HIGH", "LOW", or "LOW_PREEMPT".``
+| ``MALFORMED_REQUEST_EMPTY: Request list is missing or empty.``
+| ``REQUEST_CONFLICTS_WITH_SELF: Requested time slots on the same device overlap.``
+ ``MALFORMED_REQUEST: Reported when the request parser raises an unhandled exception. The exception name and info are appended to this info string.``
+ ``CONFLICTS_WITH_EXISTING_SCHEDULES: This schedule conflict with an existing schedules that it cannot preempt. The data item for the results will contain info about the conflicts in this form (after parsing json):``
 
 ::
 
@@ -89,5 +90,5 @@ Task Schedule Failures
 Task Cancel Failures
 ^^^^^^^^^^^^^^^^^^^^
 
-| ``TASK_ID_DOES_NOT_EXIST:: Trying to cancel a Task which does not exist. This error can also occur when trying to cancel a finished Task.``
-| ``AGENT_ID_TASK_ID_MISMATCH:: A different agent ID is being used when trying to cancel a Task.``
+``TASK_ID_DOES_NOT_EXIST:: Trying to cancel a Task which does not exist. This error can also occur when trying to cancel a finished Task.``
+``AGENT_ID_TASK_ID_MISMATCH:: A different agent ID is being used when trying to cancel a Task.``

@@ -26,25 +26,21 @@
 # does not necessarily constitute or imply its endorsement, recommendation, or
 # favoring by 8minutenergy or Kisensum.
 # }}}
-import json
 import logging
 import sys
 
-from pydnp3 import opendnp3
-
 from volttron.platform.agent import utils
-from volttron.platform.vip.agent import RPC, Core
+from volttron.platform.vip.agent import RPC
 
 from dnp3.base_dnp3_agent import BaseDNP3Agent
-from dnp3.outstation import DNP3Outstation
 
 from dnp3.points import DNP3Exception
-from dnp3.points import DEFAULT_LOCAL_IP, DEFAULT_PORT
-from dnp3.points import DEFAULT_POINT_TOPIC, DEFAULT_OUTSTATION_STATUS_TOPIC
+from dnp3 import DEFAULT_LOCAL_IP, DEFAULT_PORT
+from dnp3 import DEFAULT_POINT_TOPIC, DEFAULT_OUTSTATION_STATUS_TOPIC
+from dnp3 import PUBLISH, PUBLISH_AND_RESPOND
 
 from dnp3.mesa.functions import DEFAULT_FUNCTION_TOPIC, ACTION_PUBLISH_AND_RESPOND
-from dnp3.mesa.functions import FunctionDefinitions, Function
-from dnp3.mesa.functions import validate_definitions
+from dnp3.mesa.functions import FunctionDefinitions, Function, FunctionException
 
 __version__ = '1.1'
 
@@ -69,34 +65,36 @@ class MesaAgent(BaseDNP3Agent):
         That file specifies a default agent configuration, which can be overridden as needed.
     """
 
-    def __init__(self, points=None, functions=None,
-                 point_topic='', local_ip=None, port=None, outstation_config=None,
-                 function_topic='', outstation_status_topic='',
-                 all_functions_supported_by_default='',
-                 local_function_definitions_path=None, **kwargs):
+    def __init__(self, functions=None, function_topic='', outstation_status_topic='',
+                 all_functions_supported_by_default=False,
+                 local_function_definitions_path=None, function_validation=False, **kwargs):
         """Initialize the MESA agent."""
         super(MesaAgent, self).__init__(**kwargs)
         self.functions = functions
         self.function_topic = function_topic
         self.outstation_status_topic = outstation_status_topic
         self.all_functions_supported_by_default = all_functions_supported_by_default
-        self.default_config = {
-            'points': points,
+        self.function_validation = function_validation
+
+        # Update default config
+        self.default_config.update({
             'functions': functions,
-            'point_topic': point_topic,
-            'local_ip': local_ip,
-            'port': port,
-            'outstation_config': outstation_config,
             'function_topic': function_topic,
             'outstation_status_topic': outstation_status_topic,
-            'all_functions_supported_by_default': all_functions_supported_by_default
-        }
+            'all_functions_supported_by_default': all_functions_supported_by_default,
+            'function_validation': function_validation
+        })
+
+        # Update default config in config store.
         self.vip.config.set_default('config', self.default_config)
-        self.vip.config.subscribe(self._configure, actions=['NEW', 'UPDATE'], pattern='config')
 
         self.function_definitions = None
-        self._current_func = None
         self._local_function_definitions_path = local_function_definitions_path
+
+        self._current_functions = dict()  # {function_id: Function}
+        self._current_block = dict()      # {name: name, index: index}
+        self._selector_block = dict()     # {selector_block_point_name: {selector_index: [Step]}}
+        self._edit_selectors = list()     # [{name: name, index: index}]
 
     def _configure_parameters(self, contents):
         """
@@ -116,36 +114,24 @@ class MesaAgent(BaseDNP3Agent):
         config = super(MesaAgent, self)._configure_parameters(contents)
         self.functions = config.get('functions', {})
         self.function_topic = config.get('function_topic', DEFAULT_FUNCTION_TOPIC)
-        self.all_functions_supported_by_default = config.get('all_functions_supported_by_default', "False")
+        self.all_functions_supported_by_default = config.get('all_functions_supported_by_default', False)
+        self.function_validation = config.get('function_validation', False)
         _log.debug('MesaAgent configuration parameters:')
         _log.debug('\tfunctions type={}'.format(type(self.functions)))
         _log.debug('\tfunction_topic={}'.format(self.function_topic))
-        _log.debug('\tall_functions_supported_by_default={}'.format(self.all_functions_supported_by_default))
+        _log.debug('\tall_functions_supported_by_default={}'.format(bool(self.all_functions_supported_by_default)))
+        _log.debug('\tfuntion_validation={}'.format(bool(self.function_validation)))
         self.load_function_definitions()
         self.supported_functions = []
         # Un-comment the next line to do more detailed validation and print definition statistics.
         # validate_definitions(self.point_definitions, self.function_definitions)
 
-    @Core.receiver('onstart')
-    def onstart(self, sender, **kwargs):
-        """Start the DNP3Outstation instance, kicking off communication with the DNP3 Master."""
-        self._configure_parameters(self.default_config)
-        _log.info('Starting DNP3Outstation')
-        self.publish_outstation_status('starting')
-        self.application = DNP3Outstation(self.local_ip, self.port, self.outstation_config)
-        self.application.start()
-        self.publish_outstation_status('running')
-
     def load_function_definitions(self):
         """Populate the FunctionDefinitions repository from JSON in the config store."""
         _log.debug('Loading MESA function definitions')
         try:
-            if type(self.functions) == str:
-                function_defs = self.get_from_config_store(self.functions)
-            else:
-                function_defs = self.functions
             self.function_definitions = FunctionDefinitions(self.point_definitions)
-            self.function_definitions.load_functions(function_defs['functions'])
+            self.function_definitions.load_functions(self.functions['functions'])
         except (AttributeError, TypeError) as err:
             if self._local_function_definitions_path:
                 _log.warning("Attempting to load Function Definitions from local path.")
@@ -159,7 +145,18 @@ class MesaAgent(BaseDNP3Agent):
     def reset(self):
         """Reset the agent's internal state, emptying point value caches. Used during iterative testing."""
         super(MesaAgent, self).reset()
-        self.set_current_function(None)
+        self._current_functions = dict()
+        self._current_block = dict()
+        self._selector_block = dict()
+        self._edit_selectors = list()
+
+    @RPC.export
+    def get_selector_block(self, block_name, index):
+        try:
+            return {step.definition.name: step.as_json() for step in self._selector_block[block_name][index]}
+        except KeyError:
+            _log.debug('Have not received data for Selector Block {} at Edit Selector {}'.format(block_name, index))
+            return None
 
     def _process_point_value(self, point_value):
         """
@@ -169,47 +166,114 @@ class MesaAgent(BaseDNP3Agent):
         """
         try:
             point_val = super(MesaAgent, self)._process_point_value(point_value)
-            if point_val:
-                self.update_function_for_point_value(point_val)
-                # If we don't have a function, we don't care.
-                if self.current_function:
-                    if self.current_function.has_input_point():
-                        self.update_input_point(
-                            self.get_point_named(self.current_function.input_point_name()),
-                            point_val.unwrapped_value()
-                        )
-                    if self.current_function.publish_now():
-                        self.publish_function_step(self.current_function.last_step)
 
-        except Exception as err:
-            self.set_current_function(None)             # Discard the current function
-            raise DNP3Exception('Error processing point value: {}'.format(err))
+            if point_val:
+                if point_val.point_def.is_selector_block:
+                    self._current_block = {
+                        'name': point_val.point_def.name,
+                        'index': float(point_val.value)
+                    }
+                    _log.debug('Starting to receive Selector Block {name} at Edit Selector {index}'.format(
+                        **self._current_block
+                    ))
+
+                # Publish mesa/point if the point action is PUBLISH or PUBLISH_AND_RESPOND
+                if point_val.point_def.action in (PUBLISH, PUBLISH_AND_RESPOND):
+                    self.publish_point_value(point_value)
+
+                self.update_function_for_point_value(point_val)
+
+                if self._current_functions:
+                    for current_func_id, current_func in self._current_functions.items():
+                        # if step action is ACTION_ECHO or ACTION_ECHO_AND_PUBLISH
+                        if current_func.has_input_point():
+                            self.update_input_point(
+                                self.get_point_named(current_func.input_point_name()),
+                                point_val.unwrapped_value()
+                            )
+
+                        # if step is the last curve or schedule step
+                        if self._current_block and point_val.point_def == current_func.definition.last_step.point_def:
+                            current_block_name = self._current_block['name']
+                            self._selector_block.setdefault(current_block_name, dict())
+                            self._selector_block[current_block_name][self._current_block['index']] = current_func.steps
+
+                            _log.debug('Saved Selector Block {} at Edit Selector {}: {}'.format(
+                                self._current_block['name'],
+                                self._current_block['index'],
+                                self.get_selector_block(self._current_block['name'], self._current_block['index'])
+                            ))
+
+                            self._current_block = dict()
+
+                        # if step reference to a curve or schedule function
+                        func_ref = current_func.last_step.definition.func_ref
+                        if func_ref:
+                            block_name = self.function_definitions[func_ref].first_step.name
+                            block_index = float(point_val.value)
+                            if not self._selector_block.get(block_name, dict()).get(block_index, None):
+                                error_msg = 'Have not received data for Selector Block {} at Edit Selector {}'
+                                raise DNP3Exception(error_msg.format(block_name, block_index))
+                            current_edit_selector = {
+                                'name': block_name,
+                                'index': block_index
+                            }
+                            if current_edit_selector not in self._edit_selectors:
+                                self._edit_selectors.append(current_edit_selector)
+
+                        # if step action is ACTION_PUBLISH, ACTION_ECHO_AND_PUBLISH, or ACTION_PUBLISH_AND_RESPOND
+                        if current_func.publish_now():
+                            self.publish_function_step(current_func.last_step)
+
+                        # if current function is completed
+                        if current_func.complete:
+                            self._current_functions.pop(current_func_id)
+                            self._edit_selectors = list()
+
+        except (DNP3Exception, FunctionException) as err:
+            self._current_functions = dict()
+            self._edit_selectors = list()
+            if type(err) == DNP3Exception:
+                raise DNP3Exception('Error processing point value: {}'.format(err))
 
     def update_function_for_point_value(self, point_value):
         """Add point_value to the current Function if appropriate."""
-        try:
-            current_function = self.current_function_for(point_value.point_def)
-            if current_function is None:
-                return None
-            if point_value.point_def.is_array_point:
-                self.update_array_for_point(point_value)
-            current_function.add_point_value(point_value, current_array=self._current_array)
-        except DNP3Exception as err:
-            raise DNP3Exception('Error updating function: {}'.format(err))
+        error_msg = None
+        current_functions = self.current_function_for(point_value.point_def)
+        if not current_functions:
+            return None
+        for function_id, current_function in current_functions.items():
+            try:
+                if point_value.point_def.is_array_point:
+                    self.update_array_for_point(point_value)
+                current_function.add_point_value(point_value,
+                                                 current_array=self._current_array,
+                                                 function_validation=self.function_validation)
+            except (DNP3Exception, FunctionException) as err:
+                current_functions.pop(function_id)
+                if type(err) == DNP3Exception:
+                    error_msg = err
+        if error_msg and not current_functions:
+            raise DNP3Exception('Error updating function: {}'.format(error_msg))
 
     def current_function_for(self, new_point_def):
         """A point was received. Return the current Function, updating it if necessary."""
-        new_point_function_def = self.function_definitions.get(new_point_def, None)
+        new_point_function_def = self.function_definitions.get_fdef_for_pdef(new_point_def)
         if new_point_function_def is None:
             return None
-        if self.current_function and new_point_function_def != self.current_function.definition:
-            if not self.current_function.complete:
-                raise DNP3Exception('Mismatch: {} does not belong to {}'.format(new_point_def, self.current_function))
-            # The current Function is done, and a new Function is arriving. Discard the old one.
-            self.set_current_function(None)
-        if not self.current_function:
-            self.set_current_function(Function(new_point_function_def))
-        return self.current_function
+        if self._current_functions:
+            current_funcs = dict()
+            for func_def in new_point_function_def:
+                val = self._current_functions.pop(func_def.function_id, None)
+                if val:
+                    current_funcs.update({func_def.function_id: val})
+            self._current_functions = current_funcs
+        else:
+            for func_def in new_point_function_def:
+                if not self.all_functions_supported_by_default and not func_def.supported:
+                    raise DNP3Exception('Received a point for unsupported {}'.format(func_def))
+                self._current_functions[func_def.function_id] = Function(func_def)
+        return self._current_functions
 
     def update_input_point(self, point_def, value):
         """
@@ -226,27 +290,25 @@ class MesaAgent(BaseDNP3Agent):
                 _log.debug('Updating supported property to {} in {}'.format(value, func))
                 func.supported = value
 
-    @property
-    def current_function(self):
-        """Return the Function being accumulated by the Outstation."""
-        return self._current_func
-
-    def set_current_function(self, func):
-        """Set the Function being accumulated by the Outstation to the supplied value, which might be None."""
-        if func:
-            if self.all_functions_supported_by_default != "True":
-                if not func.definition.supported:
-                    raise DNP3Exception('Received a point for unsupported {}'.format(func))
-        self._current_func = func
-        return func
-
     def publish_function_step(self, step_to_send):
         """A Function Step was received from the DNP3 Master. Publish the Function."""
         function_to_send = step_to_send.function
+
+        points = {step.definition.name: step.as_json() for step in function_to_send.steps}
+        for edit_selector in self._edit_selectors:
+            block_name = edit_selector['name']
+            index = edit_selector['index']
+            try:
+                points[block_name][index] = self.get_selector_block(block_name, index)
+            except (KeyError, TypeError):
+                points[block_name] = {
+                    index: self.get_selector_block(block_name, index)
+                }
+
         msg = {
+            "function_id": function_to_send.definition.function_id,
             "function_name": function_to_send.definition.name,
-            "points": {step.definition.name: step.as_json(self.get_point_named(step.definition.name).type)
-                       for step in function_to_send.steps}
+            "points": points
         }
         if step_to_send.definition.action == ACTION_PUBLISH_AND_RESPOND:
             msg["expected_response"] = step_to_send.definition.response
@@ -263,7 +325,7 @@ def mesa_agent(config_path, **kwargs):
     """
     try:
         config = utils.load_config(config_path)
-    except StandardError:
+    except Exception:
         config = {}
     return MesaAgent(points=config.get('points', []),
                      functions=config.get('functions', []),
@@ -273,7 +335,8 @@ def mesa_agent(config_path, **kwargs):
                      local_ip=config.get('local_ip', DEFAULT_LOCAL_IP),
                      port=config.get('port', DEFAULT_PORT),
                      outstation_config=config.get('outstation_config', {}),
-                     all_functions_supported_by_default=config.get('all_functions_supported_by_default', "False"),
+                     all_functions_supported_by_default=config.get('all_functions_supported_by_default', False),
+                     function_validation=config.get('function_validation', False),
                      **kwargs)
 
 

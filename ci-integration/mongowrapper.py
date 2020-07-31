@@ -1,6 +1,7 @@
 import os
 import shutil
 import subprocess
+import urllib2
 
 
 def installmongo():
@@ -13,10 +14,10 @@ def installmongo():
         shutil.rmtree(mongodir)
 
     version_url = "https://fastdl.mongodb.org/linux/{}".format(mongofile)
-    local_filename = version_url.split('/')[-1]
-
-    cmd = ['wget', version_url]
-    ret = subprocess.check_call(cmd)
+    f = urllib2.urlopen(version_url)
+    data = f.read()
+    with open(mongofile, "wb") as img_file:
+        img_file.write(data)
     cmd = ['tar', '-zxvf', mongofile]
     ret = subprocess.check_call(cmd)
     cmd = ['mkdir', '-p', 'mongodb']

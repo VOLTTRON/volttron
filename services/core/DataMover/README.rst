@@ -42,12 +42,17 @@ by the DataMover agent.
         #   Address of the target platform.
         #   Examples:
         #       "destination-vip": "ipc://@/home/volttron/.volttron/run/vip.socket"
-        #       "destination-vip": "tcp://127.0.0.1:22916"
-        "destination-vip": "tcp://<ip address>:<port>"
+        #       "destination-vip": "tcp://127.0.0.1:23916"
+        "destination-vip": "tcp://<ip address>:<port>",
 
         # destination_historian_identity
         #   Identity of the historian to send data to. Only needed if data
         #   should be sent an agent other than "platform.historian"
-        "destination_historian_identity": "platform.historian"
+        "destination-historian-identity": "platform.historian",
 
+        # remote_identity - OPTIONAL
+        #    identity that will show up in peers list on the remote platform
+        #    By default this identity is randomly generated
+        "remote-identity": "22916.datamover"
     }
+

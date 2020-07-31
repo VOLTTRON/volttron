@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -40,6 +40,7 @@ import logging
 import os
 import weakref
 
+from volttron.platform.agent.utils import get_fq_identity
 from volttron.platform.messaging import topics
 from volttron.platform.messaging.headers import DATE
 from volttron.platform.messaging.health import *
@@ -64,6 +65,7 @@ class Health(SubsystemBase):
         self._statusobj = Status.build(
             STATUS_GOOD, status_changed_callback=self._status_changed)
         self._status_callbacks = set()
+
         def onsetup(sender, **kwargs):
             rpc.export(self.set_status, 'health.set_status')
             rpc.export(self.get_status, 'health.get_status')
@@ -82,20 +84,19 @@ class Health(SubsystemBase):
         :param context:
         :return:
         """
-        _log.debug("In send alert")
         if not isinstance(statusobj, Status):
             raise ValueError('statusobj must be a Status object.')
         agent_class = self._owner.__class__.__name__
-        agent_uuid = os.environ.get('AGENT_UUID', '')
-        _log.debug("agent class {}".format(agent_class))
-        _log.debug("agent uuid {}".format(agent_uuid))
-        topic = topics.ALERTS(agent_class=agent_class, agent_uuid=agent_uuid)
+        fq_identity = get_fq_identity(self._core().identity)
+        # RMQ and other message buses can't handle '.' because it's used as the separator.  This
+        # causes us to change the alert topic's agent_identity to have '_' rather than '.'.
+        topic = topics.ALERTS(agent_class=agent_class, agent_identity=fq_identity.replace('.', '_'))
         headers = dict(alert_key=alert_key)
-        _log.debug("Headers before sending alert  {}".format(headers))
+
         self._owner.vip.pubsub.publish("pubsub",
                                        topic=topic.format(),
                                        headers=headers,
-                                       message=statusobj.as_json())
+                                       message=statusobj.as_json()).get(timeout=10)
 
     def add_status_callback(self, fn):
         """

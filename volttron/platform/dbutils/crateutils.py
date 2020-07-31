@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -36,49 +36,71 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
+# without this we can get random batch process query failure with the error
+# 'Cannot switch to different thread'
+import socket
+from importlib import reload
+reload(socket)
 import logging
-from multiprocessing import cpu_count # used to default number of shards.
-from pkg_resources import parse_version
 
 
-def select_all_topics_query(schema):
-    return "SELECT topic FROM {schema}.topic".format(schema=schema)
+def select_all_topics_query(schema, table_name):
+    return "SELECT topic FROM {schema}.{table}".format(schema=schema, table=table_name)
 
 
-def insert_topic_query(schema):
-    return "INSERT INTO {schema}.topic (topic) VALUES(?)".format(schema=schema)
+def select_topics_metadata_query(schema, table_name):
+    return "SELECT topic, meta FROM {schema}.{table}".format(schema=schema, table=table_name)
 
 
-def insert_data_query(schema):
-    query = """INSERT INTO {schema}.data
+def insert_topic_query(schema, table_name):
+    return "INSERT INTO {schema}.{table} (topic, meta) VALUES(?, ?)".format(schema=schema, table=table_name)
+
+
+def update_topic_query(schema, table_name):
+    return "UPDATE {schema}.{table} SET meta = ? WHERE topic ~* ?".format(schema=schema, table=table_name)
+
+
+def insert_data_query(schema, table_name):
+    query = """INSERT INTO {schema}.{table}
               (ts, topic, source, string_value, meta)
               VALUES(?,?,?,?,?)
               on duplicate key update
                 source = source,
                 string_value = string_value,
                 meta = meta
-              """.format(schema=schema)
+              """.format(schema=schema, table=table_name)
     return query.replace("\n", " ")
 
 
-def drop_schema(connection, truncate=False, schema=None):
+def drop_schema(connection, truncate_tables, schema=None, truncate=True):
     _log = logging.getLogger(__name__)
+
     if not schema:
         _log.error("Invalid schema passed to drop schema function")
         return
-    tables = ["data", "topic"]
+
     cursor = connection.cursor()
-    for t in tables:
+    cursor.execute("SHOW tables in {}".format(schema))
+    result = cursor.fetchall()
+    tables = [t[0] for t in result]
+    cursor.close()
+    cursor = connection.cursor()
+
+    for t in truncate_tables:
+        if t not in tables:
+            continue
         if truncate:
             query = "DELETE FROM {schema}.{table}".format(schema=schema,
                                                           table=t)
         else:
             query = "DROP TABLE {schema}.{table}".format(schema=schema,
                                                          table=t)
+        _log.debug("Droping table:{schema}.{table}".format(schema=schema,
+                                                         table=t))
         cursor.execute(query)
 
 
-def create_schema(connection, schema="historian", num_replicas='0-1',
+def create_schema(connection, schema="historian", table_names={}, num_replicas='0-1',
                   num_shards=6, use_v2=True):
     _log = logging.getLogger(__name__)
     _log.debug("Creating crate tables if necessary.")
@@ -88,11 +110,13 @@ def create_schema(connection, schema="historian", num_replicas='0-1',
         num_replicas = int(num_replicas)
     except ValueError:
         num_replicas = "'{}'".format(num_replicas)
+    data_table = table_names.get("data_table", "data")
+    topic_table = table_names.get("topics_table", "topics")
 
     create_queries = []
 
     data_table_v1 = """
-        CREATE TABLE IF NOT EXISTS {schema}.data(
+        CREATE TABLE IF NOT EXISTS {schema}.{data_table}(
             source string,
             topic string primary key,
             ts timestamp NOT NULL primary key,
@@ -120,7 +144,7 @@ def create_schema(connection, schema="historian", num_replicas='0-1',
         )"""
 
     data_table_v2 = """
-        CREATE TABLE IF NOT EXISTS "{schema}"."data"(
+        CREATE TABLE IF NOT EXISTS "{schema}".{data_table}(
             source string,
             topic string primary key,
             ts timestamp NOT NULL primary key,
@@ -140,10 +164,11 @@ def create_schema(connection, schema="historian", num_replicas='0-1',
         with ("number_of_replicas" = {num_replicas})
     """
 
-    topic_table = """
+    topic_table_query = """
     
-        CREATE TABLE IF NOT EXISTS {schema}.topic(
-            topic string PRIMARY KEY
+        CREATE TABLE IF NOT EXISTS {schema}.{topic_table}(
+            topic string PRIMARY KEY,
+            meta object
         )
         CLUSTERED INTO 3 SHARDS
     """
@@ -154,13 +179,31 @@ def create_schema(connection, schema="historian", num_replicas='0-1',
     else:
         create_queries.append(data_table_v1)
 
-    create_queries.append(topic_table)
+    cursor = connection.cursor()
+    stmt = "SHOW columns in {} in {}".format(topic_table, schema)
+    cursor.execute(stmt)
+    result = cursor.fetchall()
+    columns = [t[0] for t in result]
+    _log.debug("result of {} is  {}".format(stmt, columns))
+    cursor.close()
+
+    if len(columns) == 0:
+        # no such table. create
+        _log.debug("Creating topic table")
+        create_queries.append(topic_table_query.format(schema=schema, topic_table=topic_table))
+    elif len(columns) == 1:
+        _log.info("topics table created by cratedb version < 3.0. Alter to add metadata column")
+        #topics table created by cratedb version < 3.0. Alter to add metadata column
+        create_queries.append("ALTER TABLE {schema}.{topic_table} ADD COLUMN meta object".format(
+            schema=schema, topic_table=topic_table))
+    else:
+        _log.debug("topics table {}.{} exists".format(schema, topic_table))
 
     try:
         cursor = connection.cursor()
         for t in create_queries:
-            cursor.execute(t.format(schema=schema, num_replicas=num_replicas,
-                                    num_shards=num_shards))
+            cursor.execute(t.format(schema=schema, data_table=data_table,
+                                    num_replicas=num_replicas, num_shards=num_shards))
     except Exception as ex:
         _log.error("Exception creating tables.")
         _log.error(ex.args)

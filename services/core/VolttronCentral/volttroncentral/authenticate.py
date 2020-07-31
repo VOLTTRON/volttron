@@ -1,15 +1,15 @@
-'''
+"""
     A simple authorization for authenticating users with known credentials.
 
     @author: Craig Allwardt
-'''
+"""
 import hashlib
 
 
 class Authenticate:
 
     def __init__(self, user_map):
-        '''
+        """
         Expected usermap of
             user: {
                 password: 'sha256password',
@@ -17,7 +17,7 @@ class Authenticate:
                     ['group1', 'group2']
                 }
             }
-        '''
+        """
         self.users = user_map
 
     def authenticate(self, username, password):

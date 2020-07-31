@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -35,8 +35,8 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-from __future__ import absolute_import, print_function
 
+import os
 import sys
 import logging
 
@@ -53,12 +53,10 @@ __version__ = '1.0.1'
 
 def historian(config_path, **kwargs):
     """
-    This method is called by the :py:func:`crate_historian.historian.main` to parse
+    This method is called by the main method to parse
     the passed config file or configuration dictionary object, validate the
-    configuration entries, and create an instance of CSVHistorian
-
-    :param config_path: could be a path to a configuration file or can be a
-                        dictionary object
+    configuration entries, and create an instance of the CSVHistorian class
+    :param config_path: could be a path to a configuration file or can be a dictionary object
     :param kwargs: additional keyword arguments if any
     :return: an instance of :py:class:`CSVHistorian`
     """
@@ -67,26 +65,29 @@ def historian(config_path, **kwargs):
     else:
         config_dict = utils.load_config(config_path)
 
-    output_path = config_dict.get("output", "~/historian_output.csv")
+    output_path = config_dict.get("output", "historian_output.csv")
 
-    return CSVHistorian(output_path = output_path, **kwargs)
+    return CSVHistorian(output_path=output_path, **kwargs)
 
 
 class CSVHistorian(BaseHistorian):
     """
     Historian that stores the data into crate tables.
-
     """
 
     def __init__(self, output_path="", **kwargs):
         self.output_path = output_path
         self.csv_dict = None
+        self.csv_file = None
+        self.default_dir = "./data"
         super(CSVHistorian, self).__init__(**kwargs)
 
+    def version(self):
+        return __version__
 
     def publish_to_historian(self, to_publish_list):
         for record in to_publish_list:
-            row = {}
+            row = dict()
             row["timestamp"] = record["timestamp"]
 
             row["source"] = record["source"]
@@ -96,13 +97,22 @@ class CSVHistorian(BaseHistorian):
             self.csv_dict.writerow(row)
 
         self.report_all_handled()
-        self.f.flush()
+        self.csv_file.flush()
 
     def historian_setup(self):
-        self.f = open(self.output_path, "wb")
-        self.csv_dict = csv.DictWriter(self.f, ["timestamp", "source", "topic", "value"])
+        # if the current file doesn't exist, or the path provided doesn't include a directory, use the default dir
+        # in <agent dir>/data
+        if not (os.path.isfile(self.output_path) or os.path.dirname(self.output_path)):
+            if not os.path.isdir(self.default_dir):
+                os.mkdir(self.default_dir)
+            self.output_path = os.path.join(self.default_dir, self.output_path)
+
+        self.csv_file = open(self.output_path, "w")
+
+
+        self.csv_dict = csv.DictWriter(self.csv_file, fieldnames=["timestamp", "source", "topic", "value"])
         self.csv_dict.writeheader()
-        self.f.flush()
+        self.csv_file.flush()
 
 
 def main(argv=sys.argv):

@@ -1,0 +1,6 @@
+Device Name,Volttron Point Name,Obix Name
+device1,Local Outside Dry Bulb,Local Outside Dry Bulb
+device2,CG-1 Gas Flow F-2,CG-1 Gas Flow F-2
+device2,Cog Plant Gas Flow F-1,Cog Plant Gas Flow F-1
+device2,Boiler Plant Hourly Gas Usage,Boiler Plant Hourly Gas Usage
+device3,CG-1 Water Flow H-1,CG-1 Water Flow H-1

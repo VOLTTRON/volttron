@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -50,11 +50,13 @@ from volttron.platform.vip.agent import Agent, PubSub
 from volttron.platform.messaging import topics
 from volttron.platform.agent.utils import parse_timestamp_string
 
+
 def get_normalized_time_offset(time_string):
     """Parses time_string and returns timeslot of the the value assuming 1 second publish interval
     and 0.1 second driver_scrape_interval."""
     ts = parse_timestamp_string(time_string)
     return ts.microsecond // 100000
+
 
 class _subscriber_agent(Agent):
     def __init__(self, **kwargs):
@@ -62,21 +64,21 @@ class _subscriber_agent(Agent):
         self.publish_results = {}
 
     def reset_results(self):
-        print "Resetting results"
+        print("Resetting results")
         self.publish_results.clear()
 
     def get_results(self):
         return self.publish_results.copy()
 
     def add_result(self, peer, sender, bus, topic, headers, message):
-        print "message published to", topic
+        print("message published to", topic)
         self.publish_results[topic] = get_normalized_time_offset(headers['TimeStamp'])
 
 
 @pytest.fixture(scope="module")
-def subscriber_agent(request, volttron_instance1):
+def subscriber_agent(request, volttron_instance):
 
-    agent = volttron_instance1.build_agent(identity='subscriber_agent',
+    agent = volttron_instance.build_agent(identity='subscriber_agent',
                                           agent_class=_subscriber_agent)
 
     agent.vip.pubsub.subscribe(peer='pubsub',
@@ -86,6 +88,7 @@ def subscriber_agent(request, volttron_instance1):
     yield agent
 
     agent.core.stop()
+
 
 fake_device_config = """
 {{
@@ -118,18 +121,16 @@ FloatNoDefault,FloatNoDefault,F,-100 to 300,TRUE,,float,CO2 Reading 0.00-2000.0 
 """
 
 
-
-
 @pytest.fixture(scope="module")
-def config_store_connection(request, volttron_instance1):
-
-    connection = volttron_instance1.build_connection(peer=CONFIGURATION_STORE)
+def config_store_connection(request, volttron_instance):
+    capabilities = [{'edit_config_store': {'identity': PLATFORM_DRIVER}}]
+    connection = volttron_instance.build_connection(peer=CONFIGURATION_STORE, capabilities=capabilities)
     # Reset master driver config store
     connection.call("manage_delete_store", PLATFORM_DRIVER)
 
     # Start the master driver agent which would in turn start the fake driver
     #  using the configs created above
-    master_uuid = volttron_instance1.install_agent(
+    master_uuid = volttron_instance.install_agent(
         agent_dir=get_services_core("MasterDriverAgent"),
         config_file={},
         start=True)
@@ -138,31 +139,32 @@ def config_store_connection(request, volttron_instance1):
 
     yield connection
 
-    volttron_instance1.stop_agent(master_uuid)
-    volttron_instance1.remove_agent(master_uuid)
+    volttron_instance.stop_agent(master_uuid)
+    volttron_instance.remove_agent(master_uuid)
     connection.kill()
 
 
 @pytest.fixture(scope="function")
 def config_store(request, config_store_connection):
-    #Always have fake.csv ready to go.
-    print "Adding fake.csv into store"
+    # Always have fake.csv ready to go.
+    print("Adding fake.csv into store")
     config_store_connection.call("manage_store", PLATFORM_DRIVER, "fake.csv", registry_config_string, config_type="csv")
 
     yield config_store_connection
     # Reset master driver config store
-    print "Wiping out store."
+    print("Wiping out store.")
     config_store_connection.call("manage_delete_store", PLATFORM_DRIVER)
     gevent.sleep(0.1)
 
 
 def setup_config(config_store, config_name, config_string, **kwargs):
     config = config_string.format(**kwargs)
-    print "Adding", config_name, "to store"
+    print("Adding", config_name, "to store")
     config_store.call("manage_store", PLATFORM_DRIVER, config_name, config, config_type="json")
 
+
 def remove_config(config_store, config_name):
-    print "Removing", config_name, "from store"
+    print("Removing", config_name, "from store")
     config_store.call("manage_delete_config", PLATFORM_DRIVER, config_name)
 
 
@@ -175,7 +177,7 @@ def test_no_groups(config_store, subscriber_agent):
 
     subscriber_agent.reset_results()
 
-    #Give it enough time to publish at least once.
+    # Give it enough time to publish at least once.
     gevent.sleep(2)
 
     results = subscriber_agent.get_results()
@@ -194,7 +196,7 @@ def test_groups_no_interval(config_store, subscriber_agent):
 
     subscriber_agent.reset_results()
 
-    #Give it enough time to publish at least once.
+    # Give it enough time to publish at least once.
     gevent.sleep(2)
 
     results = subscriber_agent.get_results()
@@ -202,6 +204,7 @@ def test_groups_no_interval(config_store, subscriber_agent):
     assert results["devices/fake0/all"] == 0
     assert results["devices/fake1/all"] == 0
     assert results["devices/fake2/all"] == 0
+
 
 @pytest.mark.driver
 def test_groups_interval(config_store, subscriber_agent):
@@ -212,7 +215,7 @@ def test_groups_interval(config_store, subscriber_agent):
 
     subscriber_agent.reset_results()
 
-    #Give it enough time to publish at least once.
+    # Give it enough time to publish at least once.
     gevent.sleep(2)
 
     results = subscriber_agent.get_results()
@@ -234,7 +237,7 @@ def test_add_remove_drivers(config_store, subscriber_agent):
 
     subscriber_agent.reset_results()
 
-    #Give it enough time to publish at least once.
+    # Give it enough time to publish at least once.
     gevent.sleep(2)
 
     results = subscriber_agent.get_results()

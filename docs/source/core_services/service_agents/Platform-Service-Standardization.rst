@@ -1,3 +1,9 @@
+.. _Platform-Service-Standardization:
+
+================================
+Platform Service Standardization
+================================
+
 Service will interact with the message bus through three topics.
 
 -  Request - The service agent will listen to incoming requests on this

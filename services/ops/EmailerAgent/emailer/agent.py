@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -36,7 +36,7 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-from __future__ import absolute_import, print_function
+
 
 from collections import defaultdict
 
@@ -51,7 +51,7 @@ import sys
 
 import gevent
 from volttron.platform.agent.utils import get_utc_seconds_from_epoch
-
+from volttron.platform.vip.agent import Agent, Core, PubSub, compat
 from volttron.platform.agent import utils
 from volttron.platform.messaging import topics
 from volttron.platform.messaging.health import ALERT_KEY, STATUS_BAD, Status, \
@@ -60,7 +60,7 @@ from volttron.platform.vip.agent import Agent
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-__version__ = '1.3.1'
+__version__ = '1.4.2'
 
 """
 The `pyclass:EmailAgent` is responsible for sending emails for an instance.  It
@@ -89,54 +89,53 @@ class EmailerAgent(Agent):
     def __init__(self, config_path, **kwargs):
         super(EmailerAgent, self).__init__(**kwargs)
 
-        config = utils.load_config(config_path)
-        smtp_address = config.get("smtp-address", None)
-        from_address = config.get("from-address", None)
-        to_address = config.get("to-addresses", None)
-
-        allow_frequency_minutes = config.get("allow-frequency-minutes", 60)
-        self._allow_frequency_seconds = allow_frequency_minutes * 60
-
-        self.default_config = dict(smtp_address=smtp_address,
-                                   from_address=from_address,
-                                   to_addresses=to_address,
-                                   allow_frequency_minutes=allow_frequency_minutes,
-                                   alert_from_address=from_address,
-                                   alert_to_addresses=to_address,
+        self.config = utils.load_config(config_path)
+        self.smtp_address = self.config.get("smtp-address", None)
+        self.from_address = self.config.get("from-address", None)
+        self.to_address = self.config.get("to-addresses", None)
+        self.smtp_port = self.config.get("smtp-port", None)
+        self.smtp_username = self.config.get("smtp-username", None)
+        self.smtp_password = self.config.get("smtp-password", None)
+        self.smtp_tls = self.config.get("smtp-tls",None)
+        self.allow_frequency_minutes = self.config.get("allow-frequency-minutes", 60)
+        self._allow_frequency_seconds = self.allow_frequency_minutes * 60
+        self.smtp_tls = self.config.get("smtp-tls",None)
+        self.default_config = dict(smtp_address=self.smtp_address,
+                                   from_address=self.from_address,
+                                   to_addresses=self.to_address,
+                                   smtp_port=self.smtp_port,
+                                   smtp_username=self.smtp_username,
+                                   smtp_password=self.smtp_password,
+                                   smtp_tls = self.smtp_tls,
+                                   allow_frequency_minutes=self.allow_frequency_minutes,
+                                   alert_from_address=self.from_address,
+                                   alert_to_addresses=self.to_address,
                                    send_alerts_enabled=True,
                                    record_sent_emails=True)
         self.current_config = None
         self.vip.config.set_default("config", self.default_config)
 
         self.vip.config.subscribe(self.configure_main,
-                                  actions=["NEW", "UPDATE"], pattern="config")
-
+                                  actions=["NEW", "UPDATE"], pattern="*")
+	
         # Keep track of keys that have been added to send with.
         self.tosend = {}
+        # Keep track of how often we send an email out based on key so we don't overload admins.
+        self.sent_alert_emails = {}
 
-        def onstart(sender, **kwargs):
-            self.vip.pubsub.subscribe('pubsub', topics.PLATFORM_SEND_EMAIL,
-                                      self.on_email_message)
-
-            self.vip.pubsub.subscribe('pubsub', topics.ALERTS_BASE,
-                                      self.on_alert_message)
-            self.vip.pubsub.subscribe('pubsub',
-                                      prefix=topics.ALERTS.format(agent_class='',
-                                                                  agent_uuid=''),
-                                      callback=self.on_alert_message)
-
-        self.core.onstart.connect(onstart, self)
-
-        self.sent_alert_emails = defaultdict(int)
-
-    def _test_smtp_address(self, smtp_address):
+    def _test_smtp_address(self, smtp_address,smtp_port,smtp_username,smtp_password):
         try:
-            s = smtplib.SMTP(self.current_config.get('smtp_address', None))
-            s.quit()
-        except socket.gaierror:
-            _log.error("INVALID smtp-address found during startup")
-            _log.error("EmailAgent EXITING")
-            sys.exit(1)
+            server = smtplib.SMTP(self.current_config.get('smtp_address', None),self.current_config.get('smtp_port', None))
+            #stmplib docs recommend calling ehlo() before & after starttls()
+            server.ehlo()
+            if self.current_config.get('smtp_username') is not None:
+                server.starttls()
+                server.ehlo()
+                server.login(self.current_config.get('smtp_username', None), self.current_config.get('smtp_password', None))
+            server.close()
+        except Exception as e:
+            _log.error(e.args)
+
 
     def configure_main(self, config_name, action, contents):
         """
@@ -146,15 +145,24 @@ class EmailerAgent(Agent):
         :param action:
         :param contents:
         """
+
+        self.vip.pubsub.subscribe('pubsub', topics.PLATFORM_SEND_EMAIL, self.on_email_message)
+
+        self.vip.pubsub.subscribe('pubsub', topics.ALERTS_BASE,self.on_alert_message)
+        self.vip.pubsub.subscribe('pubsub',prefix=topics.ALERTS.format(agent_class='',agent_identity=''),callback=self.on_alert_message)
         self.current_config = self.default_config.copy()
         self.current_config.update(contents)
+
         self.current_config['allow_frequency_seconds'] = self.current_config.get(
             'allow_frequency_minutes', 60) * 60
-        smtp_address = self.current_config.get('smtp_address', None)
 
-        if action == "NEW":
+        smtp_address = self.current_config.get('smtp_address', None)
+        smtp_port = self.current_config.get('smtp_port', None)
+        smtp_username = self.current_config.get('smtp_username', None)
+        smtp_password = self.current_config.get('smtp_password', None)
+        if action == "UPDATE":
             try:
-                with gevent.with_timeout(3, self._test_smtp_address, smtp_address):
+                with gevent.with_timeout(3, self._test_smtp_address, smtp_address,smtp_port,smtp_username,smtp_password):
                     pass
             except Exception as e:
                 self.vip.health.set_status(STATUS_BAD, "Invalid SMTP Address")
@@ -176,13 +184,17 @@ class EmailerAgent(Agent):
 
         ** In the above code to-addresses can be a singe email address as well**
 
-        The message must be a dictionary containing a subject and a message.
+        The message must be a dictionary containing a subject and a message.  In addition,
+        an optional to-addresses entry can be added for sending to a specific group of
+        users.
 
         .. code-block:: json
 
             {
                 "subject": "I am a happy camper",
                 "message": "This is a big long string message that I am sending"
+                -- OPTIONAL --
+                "to-addresses": ['yabba@daba.com']
             }
 
         :param peer:
@@ -192,17 +204,17 @@ class EmailerAgent(Agent):
         :param headers:
         :param message:
         """
-        from_address = self.current_config.get('from_address')
-        to_addresses = self.current_config.get('to_addresses')
-
-        from_address = headers.get('from-address', from_address)
-        to_addresses = headers.get('to-addresses', to_addresses)
-
+        from_address = self.from_address
+        to_addresses = self.to_address
+        to_addresses = message.get("to-addresses", to_addresses)
         subject = message.get('subject', 'No Subject')
         msg = message.get('message', None)
 
         if msg is None:
-            _log.errro('Email messsage body was null, not sending email')
+            _log.error('Email messsage body was null, not sending email')
+            return
+        if to_addresses is None:
+            _log.error('Email address not sent, to_addresses was None')
             return
 
         self.send_email(from_address, to_addresses, subject, msg)
@@ -238,11 +250,21 @@ class EmailerAgent(Agent):
                                  "recipients": to_addresses,
                                  "subject": mime_message['Subject'],
                                  "message_content": mime_message.as_string()}
-            cfg = self.vip.config.get("config")
+            cfg = self.current_config
             smtp_address = cfg['smtp_address']
-            s = smtplib.SMTP(smtp_address)
-            s.sendmail(from_address, to_addresses, mime_message.as_string())
-            s.quit()
+            smtp_port = cfg['smtp_port']
+            smtp_username = cfg['smtp_username']
+            smtp_password = cfg['smtp_password']
+            smtp_tls = cfg['smtp_tls']
+            server = smtplib.SMTP(smtp_address, smtp_port)
+            server.ehlo()
+
+            if smtp_username is not None:
+                server.starttls()
+                server.ehlo()
+                server.login(smtp_username, smtp_password)
+            server.sendmail(from_address, to_addresses, mime_message.as_string())
+            server.close()
             self.vip.health.set_status(STATUS_GOOD,
                                        "Successfully sent email.")
             send_successful = True
@@ -272,12 +294,12 @@ class EmailerAgent(Agent):
         _log.info('Sending email {}'.format(subject))
         _log.debug('Mail from: {}, to: {}'.format(from_address, to_addresses))
         recipients = to_addresses
-        if isinstance(recipients, basestring):
+        if isinstance(recipients, str):
             recipients = [recipients]
 
         # Use unicode to protect against encod error
         # http://stackoverflow.com/questions/25891541/attributeerror-encode
-        msg = MIMEText(unicode(message))
+        msg = MIMEText(str(message))
         msg['To'] = ', '.join(recipients)
         msg['FROM'] = from_address
         msg['Subject'] = subject
@@ -314,7 +336,7 @@ class EmailerAgent(Agent):
 
         self.tosend[last_sent_key] = 1
 
-        last_sent_time = self.sent_alert_emails[last_sent_key]
+        last_sent_time = self.sent_alert_emails.get(last_sent_key)
 
         should_send = False
         # python sets this to 0 if it hasn't ever been sent.
@@ -337,7 +359,7 @@ class EmailerAgent(Agent):
 
         from_address = self.current_config['alert_from_address']
         recipients = self.current_config['alert_to_addresses']
-        if isinstance(recipients, basestring):
+        if isinstance(recipients, str):
             recipients = [recipients]
 
         # After here we are going to attempt to send the email out
@@ -345,7 +367,7 @@ class EmailerAgent(Agent):
 
         # Use unicode to protect against encod error
         # http://stackoverflow.com/questions/25891541/attributeerror-encode
-        msg = MIMEText(unicode(message))
+        msg = MIMEText(str(message))
         msg['To'] = ', '.join(recipients)
         msg['FROM'] = from_address
         msg['Subject'] = subject
@@ -360,7 +382,6 @@ def main(argv=sys.argv):
         utils.vip_main(EmailerAgent, identity="platform.emailer",
                        version = __version__)
     except Exception as e:
-        print(e)
         _log.exception('unhandled exception')
 
 
@@ -370,4 +391,5 @@ if __name__ == '__main__':
         sys.exit(main())
     except KeyboardInterrupt:
         pass
+
 

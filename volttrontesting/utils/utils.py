@@ -1,18 +1,55 @@
-from datetime import datetime
+import os
 import socket
+import subprocess
 import time
+from datetime import datetime
 from random import randint
 from random import random
 
 import gevent
+import mock
 import pytest
 
+from volttron.platform.agent import utils
 from volttron.platform.messaging import headers as headers_mod
+
+
+def is_running_in_container():
+    # type: () -> bool
+    """ Determines if we're running in an lxc/docker container. """
+    out = subprocess.check_output('cat /proc/1/sched', shell=True)
+    out = out.decode('utf-8').lower()
+    checks = [
+        'docker' in out,
+        '/lxc/' in out,
+        out.split()[0] not in ('systemd', 'init',),
+        os.path.exists('/.dockerenv'),
+        os.path.exists('/.dockerinit'),
+        os.getenv('container', None) is not None
+    ]
+    return any(checks)
+
+
+def get_hostname_and_random_port(min_ip=5000, max_ip=6000):
+    with open('/etc/hostname') as fp:
+        hostname = fp.read().strip()
+
+    assert hostname
+    try:
+        # socket.getfqdn(hostname)
+        ip = socket.gethostbyname(hostname)
+        port = get_rand_port(ip, min_ip, max_ip)
+    except socket.gaierror:
+        err = "Lookup of hostname {} unssucessful, please verify your /etc/hosts " \
+              "doesn't have a local resolution to hostname".format(hostname)
+        raise AttributeError(err)
+    return hostname, port
 
 
 def poll_gevent_sleep(max_seconds, condition=lambda: True, sleep_time=0.2):
     """Sleep until condition is true or max_seconds has passed.
 
+    :param sleep_time:
     :param int max_seconds: max seconds to wait for condition
     :param function condition: function to run (must return bool)
     :return: True if condition returned true; False on timeout
@@ -44,8 +81,13 @@ def messages_contains_prefix(prefix, messages):
     return any(map(lambda x: x.startswith(prefix), messages.keys()))
 
 
-def get_rand_http_address():
-    return "http://{}".format(get_rand_ip_and_port())
+def get_rand_http_address(https=False):
+    if https:
+        host, port = get_hostname_and_random_port()
+        result = "https://{}:{}".format(host, port)
+    else:
+        result = "http://{}".format(get_rand_ip_and_port())
+    return result
 
 
 def get_rand_tcp_address():
@@ -62,11 +104,11 @@ def get_rand_ip_and_port():
     return ip + ":{}".format(port)
 
 
-def get_rand_port(ip=None):
-    port = randint(5000, 6000)
+def get_rand_port(ip=None, min_ip=5000, max_ip=6000):
+    port = randint(min_ip, max_ip)
     if ip:
         while is_port_open(ip, port):
-            port = randint(5000, 6000)
+            port = randint(min_ip, max_ip)
     return port
 
 
@@ -90,9 +132,10 @@ def build_devices_header_and_message(points=['abc', 'def']):
         data[point] = random() * 10
         meta_data[point] = meta_templates[randint(0,len(meta_templates)-1)]
 
-    time1 = datetime.utcnow().isoformat(' ')
+    time1 = utils.format_timestamp( datetime.utcnow())
     headers = {
-        headers_mod.DATE: time1
+        headers_mod.DATE: time1,
+        headers_mod.TIMESTAMP: time1
     }
 
     return headers, [data, meta_data]
@@ -132,4 +175,32 @@ def validate_published_device_data(expected_headers, expected_message,
 
     for k, v in expected_message[0].items():
         assert k in message[0]
-        assert message[0][k] == pytest.approx(v, abs=1e-6)
+        # pytest.approx gives 10^-6 (one millionth accuracy)
+        assert message[0][k] == pytest.approx(v)
+
+
+class AgentMock(object):
+    """
+    The purpose for this parent class is to be used for unit
+    testing of agents. It takes in the class methods of other
+    classes, turns them into it's own mock methods. For testing,
+    dynamically replace the agent's current base class with this
+    class, while passing in the agent's current classes as arguments.
+
+    For example:
+        Agent_to_test.__bases__ = (AgentMock.imitate(Agent, Agent()), )
+
+    As noted in the example, __bases__ takes in a tuple.
+    Also, the parent class Agent is passed as both Agent and the
+    instantiated Agent(), since it contains a class within it
+    that needs to be mocked as well
+    """
+    @classmethod
+    def imitate(cls, *others):
+        for other in others:
+            for name in other.__dict__:
+                try:
+                    setattr(cls, name, mock.create_autospec(other.__dict__[name]))
+                except (TypeError, AttributeError):
+                    pass
+        return cls

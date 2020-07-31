@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -39,8 +39,6 @@
 import pytest
 import gevent
 from gevent import pywsgi
-import os
-import json
 
 from volttron.platform import get_services_core
 from volttrontesting.utils.utils import get_rand_http_address
@@ -50,7 +48,7 @@ from volttron.platform.agent.known_identities import CONFIGURATION_STORE, PLATFO
 server_addr = get_rand_http_address()
 no_scheme = server_addr[7:]
 ip, port = no_scheme.split(':')
-point = 'forty two'
+point = b'forty two'
 
 driver_config_dict_string = """{
     "driver_config": {"device_address": "%s"},
@@ -70,17 +68,19 @@ def handle(env, start_response):
 
     if env['REQUEST_METHOD'] == 'POST':
         data = env['wsgi.input']
-        length = env['CONTENT_LENGTH']
+        length = int(env['CONTENT_LENGTH'])
         point = data.read(length)
 
     start_response('200 OK', [('Content-Type', 'text/html')])
-    return point
+    return [point]
 
 
 @pytest.fixture(scope='module')
-def agent(request, volttron_instance1):
-    agent = volttron_instance1.build_agent()
+def agent(request, volttron_instance):
+    agent = volttron_instance.build_agent()
     # Clean out master driver configurations.
+    capabilities = {'edit_config_store': {'identity': PLATFORM_DRIVER}}
+    volttron_instance.add_capabilities(agent.core.publickey, capabilities)
     agent.vip.rpc.call(CONFIGURATION_STORE,
                        'manage_delete_store',
                        PLATFORM_DRIVER).get(timeout=10)
@@ -100,7 +100,7 @@ def agent(request, volttron_instance1):
                        restful_csv_string,
                        "csv").get(timeout=10)
 
-    master_uuid = volttron_instance1.install_agent(
+    master_uuid = volttron_instance.install_agent(
         agent_dir=get_services_core("MasterDriverAgent"),
         config_file={},
         start=True)
@@ -111,7 +111,7 @@ def agent(request, volttron_instance1):
     server.start()
 
     def stop():
-        volttron_instance1.stop_agent(master_uuid)
+        volttron_instance.stop_agent(master_uuid)
         agent.core.stop()
         server.stop()
 

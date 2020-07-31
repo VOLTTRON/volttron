@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -36,7 +36,7 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-from __future__ import absolute_import
+
 
 import datetime
 import logging
@@ -49,6 +49,7 @@ from volttron.platform.keystore import KnownHostsStore
 from volttron.platform.messaging.health import Status, STATUS_BAD, STATUS_GOOD
 from volttron.platform.vip.agent import Agent, Core, PubSub, Unreachable
 from volttron.platform.vip.agent.connection import Connection
+from volttron.platform.scheduling import periodic
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -107,7 +108,7 @@ class FailoverAgent(Agent):
         connected = self.heartbeat.is_connected()
         _log.debug("is connected to remote instance: {}".format(connected))
 
-        def periodic():
+        def heartbeat():
             try:
                 self.heartbeat.publish('heartbeat/{}'.format(self.agent_id))
                 self.last_connected = self.timestamp()
@@ -118,8 +119,8 @@ class FailoverAgent(Agent):
                     self.heartbeat = self.build_connection()
                     self.last_connected = self.timestamp()
 
-        self.core.periodic(self.heartbeat_period, periodic)
-        self.core.periodic(1, self.check_pulse)
+        self.core.schedule(periodic(self.heartbeat_period), heartbeat)
+        self.core.schedule(periodic(1), self.check_pulse)
 
     def timestamp(self):
         return time.mktime(datetime.datetime.now().timetuple())

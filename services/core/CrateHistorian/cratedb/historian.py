@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -35,47 +35,41 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-from __future__ import absolute_import, print_function
-
-# ujson is significantly faster at dump/loading the data from/to the database
-# cache database, I use it in this agent to store/retrieve the string data that
-# can be put into json.
-import gevent
-from urllib3.exceptions import NewConnectionError
-
-from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM
-
-try:
-    import ujson
-
-    def dumps(data):
-        return ujson.dumps(data, double_precision=15)
-
-
-    def loads(data_string):
-        return ujson.loads(data_string, precise_float=True)
-except ImportError:
-    from zmq.utils.jsonapi import dumps, loads
 
 import logging
 import sys
 from collections import defaultdict
+from json import JSONDecodeError
 
-from crate.client.exceptions import ConnectionError, ProgrammingError
-from crate import client as crate_client
-from volttron.platform.agent import json as jsonapi
+import pytz
 
+from volttron.platform import jsonapi
+from volttron.platform.agent import utils
+from volttron.platform.agent.base_historian import BaseHistorian
+from volttron.platform.agent.utils import get_utc_seconds_from_epoch
 from volttron.platform.dbutils.crateutils import (create_schema,
                                                   select_all_topics_query,
                                                   insert_data_query,
-                                                  insert_topic_query)
-from volttron.platform.agent.utils import get_utc_seconds_from_epoch
+                                                  insert_topic_query,
+                                                  update_topic_query,
+                                                  select_topics_metadata_query)
+
+# modules that import ssl should be imported after import of base agent of the class to avoid MonkePatchWarning
+#     MonkeyPatchWarning: Monkey-patching ssl after ssl has already been imported may lead to errors,
+#     including RecursionError on Python 3.6. It may also silently lead to incorrect behaviour on Python 3.7.
+#     Please monkey-patch earlier. See https://github.com/gevent/gevent/issues/1016.
+#     Modules that had direct imports (NOT patched): ['urllib3.util.ssl_
+#     (/home/volttron/git/python3_volttron/env/lib/python3.6/site-packages/urllib3/util/ssl_.py)',
+#     'urllib3.util (/home/volttron/git/python3_volttron/env/lib/python3.6/site-packages/urllib3/util/__init__.py)'].
+#        curious_george.patch_all(thread=False, select=False)
+# In this case crate should be imported after BaseHistorian.
+from crate import client as crate_client
+from crate.client.exceptions import ConnectionError, ProgrammingError
+
+from volttron.platform.jsonapi import dumps
 from volttron.utils.docs import doc_inherit
-from volttron.platform.agent import utils
-from volttron.platform.agent.base_historian import BaseHistorian
 
-
-__version__ = '2.2.0'
+__version__ = '3.3'
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -103,7 +97,6 @@ def historian(config_path, **kwargs):
         config_dict = utils.load_config(config_path)
 
     cn_node = config_dict.pop('connection', {})
-
     CrateHistorian.__name__ = 'CrateHistorian'
     utils.update_kwargs_with_config(kwargs, config_dict)
     return CrateHistorian(cn_node, **kwargs)
@@ -115,8 +108,7 @@ class CrateHistorian(BaseHistorian):
 
     """
 
-    def __init__(self, config_connection, schema="historian", error_trace=False,
-                 **kwargs):
+    def __init__(self, config_connection, tables_def=None, **kwargs):
         """
         Initialize the historian.
 
@@ -124,36 +116,43 @@ class CrateHistorian(BaseHistorian):
         This connection is thread-safe and therefore we create it before
         starting the main loop of the agent.
 
-        In addition, the topic_map and topic_meta are used for caching meta
-        data and topics respectively.
+        In addition, the _topic_map is used for caching topics and its metadata.
+
         :param connection: dictionary that contains necessary information to
-        establish a connection to the crate database. The dictionary should
+        establish a: connection to the crate database. The dictionary should
         contain two entries -
          1. 'type' - describe the type of database and
          2. 'params' - parameters for connecting to the database.
-        It can also contain an optional entry 'schema' for choosing the
-        schema. Default is 'historian'
+        :param schema: name of schema. Default is 'historian'
+        :param tables_def: optional parameter. dictionary containing the
+        names to be used for historian tables. Should contain the following
+        keys
+
+          1. "table_prefix": - if specified tables names are prefixed with
+          this value followed by a underscore
+          2."data_table": name of the table that stores historian data,
+          3."topics_table": name of the table that stores the list of topics
+          for which historian contains data data
+          4. "meta_table": name of the table that stores the metadata data
+          for topics
         :param kwargs: additional keyword arguments. (optional identity and
                        topic_replace_list used by parent classes)
 
         """
 
         super(CrateHistorian, self).__init__(**kwargs)
-
-        # self.tables_def, table_names = self.parse_table_def(config)
-        # self._data_collection = table_names['data_table']
-        # self._meta_collection = table_names['meta_table']
-        # self._topic_collection = table_names['topics_table']
-        # self._agg_topic_collection = table_names['agg_topics_table']
-        # self._agg_meta_collection = table_names['agg_meta_table']
-
+        temp, table_names = self.parse_table_def(tables_def)
+        self._data_table = table_names['data_table']
+        self._topic_table = table_names['topics_table']
         self._params = config_connection.get("params", {})
         self._schema = config_connection.get("schema", "historian")
         self._error_trace = config_connection.get("error_trace", False)
-
         config = {
+            "schema": self._schema,
             "connection": config_connection
         }
+        if tables_def:
+            config["tables_def"] = tables_def
 
         self.update_default_config(config)
 
@@ -162,16 +161,7 @@ class CrateHistorian(BaseHistorian):
         self._client = None
         self._connection = None
 
-        self._topic_set = set()
-
-        # self._topic_id_map = {}
-        # self._topic_to_table_map = {}
-        # self._topic_to_datatype_map = {}
-        # self._topic_name_map = {}
-        # self._topic_meta = {}
-        # self._agg_topic_id_map = {}
-        # self._initialized = False
-        # self._wait_until = None
+        self._topic_meta = {}
 
     def configure(self, configuration):
         """
@@ -191,12 +181,17 @@ class CrateHistorian(BaseHistorian):
         :param configuration: 
         """
         connection = configuration.get("connection", {})
+        tables_def, table_names = self.parse_table_def(configuration.get("tables_def"))
+
+        self._data_table = table_names['data_table']
+        self._topic_table = table_names['topics_table']
+
         params = connection.get("params", {})
         if not isinstance(params, dict):
             _log.error("Invalid params...must be a dictionary.")
             raise ValueError("params must be a dictionary.")
 
-        schema = connection.get("schema", "historian")
+        schema = configuration.get("schema", "historian")
         host = params.get("host", None)
         error_trace = params.get("error_trace", False)
 
@@ -205,18 +200,15 @@ class CrateHistorian(BaseHistorian):
             raise ValueError("invalid params['host'] value")
         elif host != self._host:
             _log.info("Changing host to {}".format(host))
-        
+
         self._host = host
-        
-        client = self.get_client(host)
+
+        client = CrateHistorian.get_client(host)
         if client is None:
             _log.error("Couldn't reach host: {}".format(host))
             raise ValueError("Connection to host not made!")
 
-        # Store class variables to be used later.
-        if schema != self._schema:
-            _log.info("Changing schema to: {}".format(schema))
-            self._schema = schema
+        self._schema = schema
 
         if error_trace != self._error_trace:
             _log.info("Changing error trace to: {}".format(error_trace))
@@ -235,35 +227,13 @@ class CrateHistorian(BaseHistorian):
                                             error_trace=self._error_trace)
 
         # Attempt to create the schema
-        create_schema(self._client, self._schema)
+        create_schema(self._client, self._schema, table_names)
 
-        topics = self.get_topic_list()
-        peers = self.vip.peerlist().get(timeout=5)
-        if VOLTTRON_CENTRAL_PLATFORM in peers:
-            topic_replace_map_vcp = self.vip.rpc.call(VOLTTRON_CENTRAL_PLATFORM,
-                                                      method="get_replace_map").get(timeout=5)
-            # Always use VCP instead of local
-            self._topic_replace_map = topic_replace_map_vcp
+        # Cache topic and metadata
+        self.load_topic_meta()
 
-        for t in topics:
-            self._topic_set.add(self.get_renamed_topic(t))
-
-        self.vip.pubsub.subscribe(peer='pubsub',
-                                  prefix="platform/config_updated",
-                                  callback=self._peer_config_update)
-
-    def _peer_config_update(self, peer, sender, bus, topic, headers, message):
-        if sender == VOLTTRON_CENTRAL_PLATFORM:
-            try:
-                new_topic_map = self.vip.rpc.call(VOLTTRON_CENTRAL_PLATFORM,
-                                                  "get_replace_map").get(timeout=5)
-            except gevent.Timeout:
-                _log.error("Timeout getting replace map from vcp.")
-            else:
-                _log.debug("Updating replace map: {}".format(new_topic_map))
-
-    def get_client(self, host, error_trace=False):
-
+    @staticmethod
+    def get_client(host, error_trace=False):
         try:
             # Verify the new configuration is able to connect to the host.
             cn = crate_client.connect(servers=host, error_trace=error_trace)
@@ -273,7 +243,7 @@ class CrateHistorian(BaseHistorian):
             try:
                 cur = cn.cursor()
                 cur.execute("SELECT * FROM sys.node_checks")
-                row = cur.next()
+                row = next(cur)
             except ProgrammingError as ex:
                 _log.error(repr(ex))
                 raise
@@ -287,8 +257,8 @@ class CrateHistorian(BaseHistorian):
 
     @doc_inherit
     def publish_to_historian(self, to_publish_list):
-        # _log.debug("publish_to_historian number of items: {}".format(
-        #     len(to_publish_list)))
+        _log.debug("publish_to_historian number of items: {}".format(
+            len(to_publish_list)))
         start_time = get_utc_seconds_from_epoch()
         if self._client is None:
             success = self._establish_client_connection()
@@ -303,23 +273,24 @@ class CrateHistorian(BaseHistorian):
             for row in to_publish_list:
                 ts = utils.format_timestamp(row['timestamp'])
                 source = row['source']
-                topic = self.get_renamed_topic(row['topic'])
+                topic = row['topic']
                 value = row['value']
                 meta = row['meta']
+                topic_lower = topic.lower()
 
                 # Handle the serialization of data here because we can't pass
                 # an array as a string so we create a string from the value.
                 if isinstance(value, list) or isinstance(value, dict):
                     value = dumps(value)
 
-                if topic not in self._topic_set:
+                if topic_lower not in self._topic_meta:
                     try:
-                        cursor.execute(insert_topic_query(self._schema),
-                                       (topic,))
+                        cursor.execute(insert_topic_query(self._schema, self._topic_table),
+                                       (topic, meta))
                     except ProgrammingError as ex:
                         if ex.args[0].startswith(
                                 'SQLActionException[DuplicateKeyException'):
-                            self._topic_set.add(topic)
+                            self._topic_meta[topic_lower] = meta
                         else:
                             _log.error(repr(ex))
                             _log.error(
@@ -327,21 +298,33 @@ class CrateHistorian(BaseHistorian):
                                     type(ex), ex.args
                                 ))
                     else:
-                        self._topic_set.add(topic)
+                        self._topic_meta[topic_lower] = meta
+                else:
+                    # check if metadata matches
+                    old_meta = self._topic_meta.get(topic_lower)
+                    if not old_meta:
+                        old_meta = {}
+                    if set(old_meta.items()) != set(meta.items()):
+                        _log.debug(
+                            'Updating meta for topic: {} {}'.format(topic,
+                                                                    meta))
+                        self._topic_meta[topic_lower] = meta
+                        cursor.execute(update_topic_query(self._schema, self._topic_table),
+                                       (meta, topic))
 
                 batch_data.append(
                     (ts, topic, source, value, meta)
                 )
 
             try:
-                query = insert_data_query(self._schema)
+                query = insert_data_query(self._schema, self._data_table)
                 # _log.debug("Inserting batch data: {}".format(batch_data))
                 results = cursor.executemany(query, batch_data)
 
                 index = 0
                 failures = []
                 for r in results:
-                    if r['rowcount'] == -1:
+                    if r['rowcount'] != 1:
                         failures.append(index)
                     index += 1
 
@@ -356,16 +339,15 @@ class CrateHistorian(BaseHistorian):
                     "Invalid data detected during batch insert: {}".format(
                         ex.args))
                 _log.debug("Attempting singleton insert.")
-                insert = insert_data_query(self._schema)
+                insert = insert_data_query(self._schema, self._data_table)
                 for id in range(len(batch_data)):
                     try:
                         batch = batch_data[id]
                         cursor.execute(insert, batch)
                     except ProgrammingError:
                         _log.debug('Invalid data not saved {}'.format(
-                            to_publish_list[id]
+                            batch
                         ))
-                        self.report_handled(to_publish_list[id])
                     except Exception as ex:
                         _log.error(repr(ex))
                     else:
@@ -409,18 +391,26 @@ class CrateHistorian(BaseHistorian):
                         {limit}
                         {offset}""".replace("\n", " ")
 
-        where_clauses = ["WHERE topic =?"]
+        # topic name queries should be case insensitive
+        where_clauses = ["WHERE topic ~* ?"]
         args = [topic]
+        # Because the crate client requires naive dates so tzinfo should be made None.
+        # Crate historian store UTC datetime without tzinfo.
+        # If the start and end had explicit timezone info then they need to get
+        # converted to UTC before removing tzinfo
         if start and end and start == end:
             where_clauses.append("ts = ?")
-            args.append(start)
+            start = start.astimezone(pytz.UTC)
+            args.append(start.replace(tzinfo=None))
         else:
             if start:
                 where_clauses.append("ts >= ?")
-                args.append(start)
+                start = start.astimezone(pytz.UTC)
+                args.append(start.replace(tzinfo=None))
             if end:
                 where_clauses.append("ts < ?")
-                args.append(end)
+                end = end.astimezone(pytz.UTC)
+                args.append(end.replace(tzinfo=None))
 
         where_statement = ' AND '.join(where_clauses)
 
@@ -435,7 +425,7 @@ class CrateHistorian(BaseHistorian):
             count = 100
 
         if count > 1000:
-            _log.warn("Limiting count to <= 1000")
+            _log.warning("Limiting count to <= 1000")
             count = 1000
 
         limit_statement = 'LIMIT ?'
@@ -506,21 +496,24 @@ class CrateHistorian(BaseHistorian):
 
         values = defaultdict(list)
         metadata = {}
-        table_name = "{}.data".format(self._schema)
-        client = self.get_client(self._host, self._error_trace)
+        table_name = "{}.{}".format(self._schema, self._data_table)
+        client = CrateHistorian.get_client(self._host, self._error_trace)
         cursor = client.cursor()
-
         for topic in topics:
+            if topic.lower() in self._topic_meta:
+                values[topic] = []
             query, args = self._build_single_topic_select_query(
                 start, end, agg_type, agg_period, skip, count, order,
                 table_name, topic)
-
+            _log.debug("Query is {}".format(query))
+            _log.debug("args is {}".format(args))
             cursor.execute(query, args)
 
             for _id, ts, value, meta in cursor.fetchall():
+                _log.debug("id: {}, ts {},  value : {} meta:{}".format(_id, ts, value, meta))
                 try:
-                    value = float(value)
-                except ValueError:
+                    value = jsonapi.loads(value)
+                except JSONDecodeError:
                     pass
 
                 values[topic].append(
@@ -530,8 +523,7 @@ class CrateHistorian(BaseHistorian):
                         value
                     )
                 )
-                if len(topics) == 1:
-                    metadata = meta
+
         cursor.close()
         client.close()
 
@@ -540,8 +532,7 @@ class CrateHistorian(BaseHistorian):
             results['metadata'] = {}
         elif len(topics) == 1:  # return the list from the single topic
             results['values'] = values[topics[0]]
-            results['metadata'] = metadata
-
+            results['metadata'] = self._topic_meta[topics[0].lower()]
         return results
 
     @doc_inherit
@@ -549,11 +540,11 @@ class CrateHistorian(BaseHistorian):
         _log.debug("Querying topic list")
 
         cursor = self.get_connection().cursor()
-        sql = select_all_topics_query(self._schema)
+        sql = select_all_topics_query(self._schema, self._topic_table)
 
         cursor.execute(sql)
 
-        results = [self.get_renamed_topic(x[0]) for x in cursor.fetchall()]
+        results = [x[0] for x in cursor.fetchall()]
         return results
 
     @doc_inherit
@@ -570,8 +561,8 @@ class CrateHistorian(BaseHistorian):
                        "be for a topic_prefix.")
 
         cursor = self.get_connection().cursor()
-        sql = "SELECT topic FROM {schema}.topic " \
-              "WHERE topic ~* ? ;".format(schema=self._schema)
+        sql = "SELECT topic FROM {schema}.{table} " \
+              "WHERE topic ~* ? ;".format(schema=self._schema, table=self._topic_table)
 
         _log.debug("Query: {}".format(sql))
         _log.debug("args:{}".format([topic_pattern]))
@@ -592,24 +583,52 @@ class CrateHistorian(BaseHistorian):
                                                     error_trace=True)
         return self._connection
 
-    # @doc_inherit
-    # def historian_setup(self):
-    #     try:
-    #         self._connection = self.get_connection()
-    #
-    #         _log.debug("Using schema: {}".format(self._schema))
-    #         if not self._readonly:
-    #             create_schema(self._connection, self._schema)
-    #
-    #         cursor = self._connection.cursor()
-    #         cursor.execute(select_all_topics_query(self._schema))
-    #
-    #         topics = [x[0] for x in cursor.fetchall()]
-    #         self._topic_set = set(topics)
-    #         self._initialized = True
-    #     except Exception as e:
-    #         _log.error("Exception during historian setup!")
-    #         _log.error(e.args)
+    @doc_inherit
+    def version(self):
+        """
+
+        :return:
+        """
+        return __version__
+
+    @doc_inherit
+    def query_topics_metadata(self, topics):
+        """
+        :param topics: topics for which metadata should be returned
+        :return:
+        """
+        meta = {}
+        if isinstance(topics, str):
+            meta = {topics: self._topic_meta.get(topics.lower())}
+        elif isinstance(topics, list):
+            for topic in topics:
+                meta[topic] = self._topic_meta.get(topic.lower())
+        return meta
+
+    @doc_inherit
+    def query_aggregate_topics(self):
+        """
+        There is no crate aggregate historian so not implementing this method
+        :return:
+        """
+        pass
+
+    @doc_inherit
+    def record_table_definitions(self, meta_table_name):
+        """
+        There is no crate aggregate historian so not implementing this method
+        :param meta_table_name:
+        :return:
+        """
+        pass
+
+    def load_topic_meta(self):
+        _log.debug("Querying topic metadata map")
+        cursor = self.get_connection().cursor()
+        sql = select_topics_metadata_query(self._schema, self._topic_table)
+        cursor.execute(sql)
+        for topic, meta in cursor.fetchall():
+            self._topic_meta[topic.lower()] = meta
 
 
 def main(argv=sys.argv):

@@ -1,4 +1,5 @@
 .. _VIP-Authentication:
+
 ==================
 VIP Authentication
 ==================
@@ -25,7 +26,7 @@ Internet. Therefore, VOLTTRON automatically generates an encryption key
 and enables `CurveMQ <http://rfc.zeromq.org/spec:26>`__ by default on
 all TCP connections.
 
-To see VOLTTRON's public key run the ``volttron-ctl auth serverkey`` command.
+To see VOLTTRON's public key run the ``vctl auth serverkey`` command.
 For example::
 
     (volttron)[user@home]$ volttron-ctl auth serverkey
@@ -51,14 +52,14 @@ document. This JSON-formatted file is located at
 list for remote connections to be accepted.
 
 The auth file should not be modified directly. 
-To change the auth file, use ``volttron-ctl auth`` subcommands: ``add``,
-``list``, ``remove``, and ``update``. (Run ``volttron-ctl auth --help``
+To change the auth file, use ``vctl auth`` subcommands: ``add``,
+``list``, ``remove``, and ``update``. (Run ``vctl auth --help``
 for more details and see the 
 :ref:`authentication commands documentation<_AuthenticationCommands>`.)
 
 Here are some example entries::
 
-    (volttron)[user@home]$ volttron-ctl auth list
+    (volttron)[user@home]$ vctl auth list
 
     INDEX: 0
     {

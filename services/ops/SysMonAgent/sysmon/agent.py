@@ -4,7 +4,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -42,11 +42,11 @@
 
 import logging
 import sys
-
 import psutil
 
 from volttron.platform.vip.agent import Agent, RPC, Core
 from volttron.platform.agent import utils
+from volttron.platform.scheduling import periodic
 
 
 utils.setup_logging()
@@ -97,36 +97,32 @@ class SysMonAgent(Agent):
         self.disk_check_interval = config.pop('disk_check_interval', 5)
         self.disk_path = config.pop('disk_path', '/')
         for key in config:
-            _log.warn('Ignoring unrecognized cofiguration parameter %s', key)
+            _log.warning('Ignoring unrecognized configuration parameter %s', key)
 
-        self._pub_greenlets = []
+        self._scheduled = []
 
     def _configure(self, config):
         self.base_topic = config.pop('base_topic', self.base_topic)
-        self.cpu_check_interval = config.pop('cpu_check_interval',
-                                             self.cpu_check_interval)
-        self.memory_check_interval = config.pop('memory_check_interval',
-                                                self.memory_check_interval)
-        self.disk_check_interval = config.pop('disk_check_interval',
-                                              self.disk_check_interval)
+        self.cpu_check_interval = config.pop('cpu_check_interval', self.cpu_check_interval)
+        self.memory_check_interval = config.pop('memory_check_interval', self.memory_check_interval)
+        self.disk_check_interval = config.pop('disk_check_interval', self.disk_check_interval)
         self.disk_path = config.pop('disk_path', self.disk_path)
         for key in config:
-            _log.warn('Ignoring unrecognized cofiguration parameter %s', key)
+            _log.warning('Ignoring unrecognized configuration parameter %s', key)
 
     @Core.receiver('onstart')
     def start(self, sender, **kwargs):
         """Set up periodic publishing of system resource data"""
         self._start_pub()
 
-    def _periodic_pub(self, func, period, wait=0):
+    def _periodic_pub(self, func, period):
         """Periodically call func and publish its return value"""
         def pub_wrapper():
             data = func()
             topic = self.base_topic + '/' + func.__name__
-            self.vip.pubsub.publish(peer='pubsub', topic=topic,
-                                    message=data)
-        greenlet = self.core.periodic(period, pub_wrapper, wait=wait)
-        self._pub_greenlets.append(greenlet)
+            self.vip.pubsub.publish(peer='pubsub', topic=topic, message=data)
+        sched = self.core.schedule(periodic(period), pub_wrapper)
+        self._scheduled.append(sched)
 
     @RPC.export
     def cpu_percent(self):
@@ -159,15 +155,14 @@ class SysMonAgent(Agent):
         self._periodic_pub(self.disk_percent, self.disk_check_interval)
 
     def _stop_pub(self):
-        for greenlet in self._pub_greenlets:
-            greenlet.kill()
-        self._pub_greenlets = []
+        for sched in self._scheduled:
+            sched.cancel()
+        self._scheduled = []
 
 
 def main(argv=sys.argv):
     """Main method called by the platform."""
-    utils.vip_main(sysmon_agent, identity='platform.sysmon',
-                   version=__version__)
+    utils.vip_main(sysmon_agent, identity='platform.sysmon', version=__version__)
 
 
 if __name__ == '__main__':

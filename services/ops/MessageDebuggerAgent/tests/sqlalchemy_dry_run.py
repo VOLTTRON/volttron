@@ -18,7 +18,7 @@ def sqlite_helloworld():
     engine = create_engine('sqlite:///' + path).connect()
     ORMBase.metadata.create_all(engine)
     db_session = sessionmaker(bind=engine)()
-    print 'db_session = {}'.format(db_session)
+    print('db_session = {}'.format(db_session))
 
 
 class TestTable(ORMBase):

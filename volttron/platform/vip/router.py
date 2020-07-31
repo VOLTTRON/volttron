@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -37,14 +37,14 @@
 # }}}
 
 
-from __future__ import absolute_import
+
 
 import os
 import logging
 import zmq
 from zmq import Frame, NOBLOCK, ZMQError, EINVAL, EHOSTUNREACH
 
-from .pubsubservice import PubSubService
+from volttron.utils.frame_serialization import serialize_frames
 
 __all__ = ['BaseRouter', 'OUTGOING', 'INCOMING', 'UNROUTABLE', 'ERROR']
 
@@ -66,8 +66,6 @@ _INVALID_SUBSYSTEM = (
     zmq.Frame(os.strerror(zmq.EPROTONOSUPPORT).encode('ascii'))
 )
 
-_log = logging.getLogger(__name__)
-
 class BaseRouter(object):
     '''Abstract base class of VIP router implementation.
 
@@ -85,6 +83,7 @@ class BaseRouter(object):
 
     _context_class = zmq.Context
     _socket_class = zmq.Socket
+    _poller_class = zmq.Poller
 
     def __init__(self, context=None, default_user_id=None):
         '''Initialize the object instance.
@@ -96,7 +95,7 @@ class BaseRouter(object):
         self.default_user_id = default_user_id
         self.socket = None
         self._peers = set()
-        self._poller = zmq.Poller()
+        self._poller = self._poller_class()
         self._ext_sockets = []
         self._socket_id_mapping = {}
 
@@ -123,9 +122,6 @@ class BaseRouter(object):
         sock.tcp_keepalive_intvl = 20
         sock.tcp_keepalive_cnt = 6
         self.context.set(zmq.MAX_SOCKETS, 30690)
-        # sock.setsockopt(zmq.SNDBUF, 40000)
-        # sock.setsockopt(zmq.RCVBUF, 40000)
-        # sock.set_hwm(60000)
         sock.set_hwm(6000)
         _log.debug("ROUTER SENDBUF: {0}, {1}".format(sock.getsockopt(zmq.SNDBUF), sock.getsockopt(zmq.RCVBUF)))
         self.setup()
@@ -189,7 +185,9 @@ class BaseRouter(object):
             # pylint: disable=unused-argument
             # A user id might/should be set by the ZAP authenticator
             try:
-                return recipient.get('User-Id').encode('utf-8')
+                # _log.debug(f"THE TYPE IS:::::::: {type(recipient)}")
+                # recipient.get('User-Id').encode('utf-8') returns sender !!!
+                return sender
             except ZMQError as exc:
                 if exc.errno != EINVAL:
                     raise
@@ -206,9 +204,10 @@ class BaseRouter(object):
 
     def _distribute(self, *parts):
         drop = set()
-        empty = Frame(b'')
-        frames = [empty, empty, Frame(b'VIP1'), empty, empty]
-        frames.extend(Frame(f) for f in parts)
+        empty = ''
+        frames = [empty, empty, 'VIP1', empty, empty]
+        frames.extend(parts)
+        # _log.debug(f"_distribute {parts}")
         for peer in self._peers:
             frames[0] = peer
             drop.update(self._send(frames))
@@ -226,7 +225,7 @@ class BaseRouter(object):
     def _add_peer(self, peer):
         if peer in self._peers:
             return
-        self._distribute(b'peerlist', b'add', peer)
+        self._distribute('peerlist', 'add', peer)
         self._peers.add(peer)
         self._add_pubsub_peers(peer)
 
@@ -238,7 +237,7 @@ class BaseRouter(object):
         self._distribute(b'peerlist', b'drop', peer)
         self._drop_pubsub_peers(peer)
 
-    def route(self):
+    def route(self, frames):
         '''Route one message and return.
 
         One message is read from the socket and processed. If the
@@ -249,64 +248,61 @@ class BaseRouter(object):
         '''
         socket = self.socket
         issue = self.issue
-        # Expecting incoming frames:
-        #   [SENDER, RECIPIENT, PROTO, USER_ID, MSG_ID, SUBSYS, ...]
-        frames = socket.recv_multipart(copy=False)
+
         issue(INCOMING, frames)
-        # for f in frames:
-        #    _log.debug("ROUTER Receiving frames: {}".format(bytes(f)))
+        # _log.debug(f"ROUTER Receiving frames: {frames}")
         if len(frames) < 6:
             # Cannot route if there are insufficient frames, such as
             # might happen with a router probe.
             if len(frames) == 2 and frames[0] and not frames[1]:
                 issue(UNROUTABLE, frames, 'router probe')
-                self._add_peer(frames[0].bytes)
+                self._add_peer(frames[0])
             else:
                 issue(UNROUTABLE, frames, 'too few frames')
             return
         sender, recipient, proto, auth_token, msg_id = frames[:5]
-        if proto.bytes != b'VIP1':
+        # _log.debug(f"routing {sender}, {recipient}, {proto}, {auth_token}, {msg_id}")
+        if proto != 'VIP1':
             # Peer is not talking a protocol we understand
             issue(UNROUTABLE, frames, 'bad VIP signature')
             return
         user_id = self.lookup_user_id(sender, recipient, auth_token)
         if user_id is None:
-            user_id = b''
-
-        self._add_peer(sender.bytes)
+            user_id = ''
+        # _log.debug(f"user_id is {user_id}")
+        self._add_peer(sender)
         subsystem = frames[5]
-        if not recipient.bytes:
+        if not recipient:
             # Handle requests directed at the router
-            name = subsystem.bytes
-            if name == b'hello':
+            name = subsystem
+            if name == 'hello':
                 frames = [sender, recipient, proto, user_id, msg_id,
-                          b'hello', b'welcome', b'1.0', socket.identity, sender]
-            elif name == b'ping':
+                          'hello', 'welcome', '1.0', socket.identity, sender]
+            elif name == 'ping':
                 frames[:7] = [
-                    sender, recipient, proto, user_id, msg_id, b'ping', b'pong']
-            elif name == b'peerlist':
+                    sender, recipient, proto, user_id, msg_id, 'ping', 'pong']
+            elif name == 'peerlist':
                 try:
-                    op = frames[6].bytes
+                    op = frames[6]
                 except IndexError:
                     op = None
-                frames = [sender, recipient, proto, b'', msg_id, subsystem]
-                if op == b'list':
-                    frames.append(b'listing')
+                frames = [sender, recipient, proto, '', msg_id, subsystem]
+                if op == 'list':
+                    frames.append('listing')
                     frames.extend(self._peers)
                 else:
-                    error = (b'unknown' if op else b'missing') + b' operation'
-                    frames.extend([b'error', error])
-            elif name == b'error':
+                    error = ('unknown' if op else 'missing') + ' operation'
+                    frames.extend(['error', error])
+            elif name == 'error':
                 return
             else:
                 response = self.handle_subsystem(frames, user_id)
                 if response is None:
                     # Handler does not know of the subsystem
                     errnum, errmsg = error = _INVALID_SUBSYSTEM
-                    _log.debug("ROUTER proto unsupported")
                     issue(ERROR, frames, error)
-                    frames = [sender, recipient, proto, b'', msg_id,
-                              b'error', errnum, errmsg, b'', subsystem]
+                    frames = [sender, recipient, proto, '', msg_id,
+                              'error', errnum, errmsg, '', subsystem]
                 elif not response:
                     # Subsystem does not require a response
                     return
@@ -325,12 +321,12 @@ class BaseRouter(object):
         recipient, sender = frames[:2]
         # Expecting outgoing frames:
         #   [RECIPIENT, SENDER, PROTO, USER_ID, MSG_ID, SUBSYS, ...]
-        #for f in frames:
-        #    _log.debug("ROUTER sending frames: {}".format(bytes(f)))
         try:
             # Try sending the message to its recipient
-            socket.send_multipart(frames, flags=NOBLOCK, copy=False)
-            issue(OUTGOING, frames)
+            # This is a zmq socket so we need to serialize it before sending
+            serialized_frames = serialize_frames(frames)
+            socket.send_multipart(serialized_frames, flags=NOBLOCK, copy=False)
+            issue(OUTGOING, serialized_frames)
         except ZMQError as exc:
             try:
                 errnum, errmsg = error = _ROUTE_ERRORS[exc.errno]
@@ -340,15 +336,16 @@ class BaseRouter(object):
                 raise
             issue(ERROR, frames, error)
             if exc.errno == EHOSTUNREACH:
-                drop.append(bytes(recipient))
+                drop.append(recipient)
             if exc.errno != EHOSTUNREACH or sender is not frames[0]:
                 # Only send errors if the sender and recipient differ
                 proto, user_id, msg_id, subsystem = frames[2:6]
-                frames = [sender, b'', proto, user_id, msg_id,
-                          b'error', errnum, errmsg, recipient, subsystem]
+                frames = [sender, '', proto, user_id, msg_id,
+                          'error', errnum, errmsg, recipient, subsystem]
+                serialized_frames = serialize_frames(frames)
                 try:
-                    socket.send_multipart(frames, flags=NOBLOCK, copy=False)
-                    issue(OUTGOING, frames)
+                    socket.send_multipart(serialized_frames, flags=NOBLOCK, copy=False)
+                    issue(OUTGOING, serialized_frames)
                 except ZMQError as exc:
                     try:
                         errnum, errmsg = error = _ROUTE_ERRORS[exc.errno]
@@ -356,7 +353,7 @@ class BaseRouter(object):
                         error = None
                     if error is None:
                         raise
-                    issue(ERROR, frames, error)
+                    issue(ERROR, serialized_frames, error)
                     if exc.errno == EHOSTUNREACH:
-                        drop.append(bytes(sender))
+                        drop.append(sender)
         return drop

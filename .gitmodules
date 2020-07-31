@@ -1,3 +1,0 @@
-[submodule "restricted/pnnl/volttron-restricted"]
-	path = restricted/pnnl/volttron-restricted
-	url = https://git.pnnl.gov/volttron/volttron-restricted

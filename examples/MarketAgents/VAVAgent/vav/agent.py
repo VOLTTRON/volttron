@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -64,7 +64,7 @@ def vav_agent(config_path, **kwargs):
     """   
     try:
         config = utils.load_config(config_path)
-    except StandardError:
+    except Exception:
         config = {}
 
     if not config:
@@ -168,9 +168,7 @@ class VAVAgent(MarketAgent, FirstOrderZone):
 	    '''Subscribe to device data from message bus
 	    '''
 	    _log.debug('Received one new dataset')
-	    info = {}
-	    for key, value in message[0].items():
-                  info[key] = value
+	    info = message[0].copy()
 	    self.hvacAvail = info['SupplyFanStatus']
 	    self.tSupHvac = info['DischargeAirTemperature']
 	    self.tOut == info['OutdoorAirTemperature']

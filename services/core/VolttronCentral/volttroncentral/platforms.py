@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -36,7 +36,7 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-import datetime
+import base64
 import hashlib
 import logging
 from collections import defaultdict
@@ -54,7 +54,7 @@ from volttron.platform.messaging.health import Status, UNKNOWN_STATUS, \
     GOOD_STATUS, BAD_STATUS
 from volttron.platform.vip.agent import Unreachable
 from volttron.platform.vip.agent.utils import build_connection
-from volttron.platform.agent import json as jsonapi
+from volttron.platform import jsonapi
 
 
 class Platforms(object):
@@ -81,9 +81,10 @@ class Platforms(object):
         :param vip_identity:
         :return:
         """
-        self._platforms[vip_identity] = PlatformHandler(self._vc, vip_identity)
+        encoded = base64.b64encode(vip_identity.encode('utf-8')).decode('utf-8')
+        self._platforms[encoded] = PlatformHandler(self._vc, vip_identity)
         self._debug_platform_list()
-        return self._platforms[vip_identity]
+        return self._platforms[encoded]
 
     def disconnect_platform(self, vip_identity):
         """
@@ -93,17 +94,18 @@ class Platforms(object):
         :param vip_identity:
         :return:
         """
-        del self._platforms[vip_identity]
+        encoded = base64.b64encode(vip_identity.encode('utf-8')).decode("utf-8")
+        del self._platforms[encoded]
         self._debug_platform_list()
 
-    def get_platform_keys(self):
+    def get_platform_vip_identities(self):
         """
         Get the "known list" of connected vcp platforms.  This returns a set of
         keys that are available.
 
         :return:
         """
-        return set(self._platforms.keys())
+        return set([x.vip_identity for x in self._platforms.values()])
 
     def _debug_platform_list(self):
         """
@@ -119,7 +121,7 @@ class Platforms(object):
     def vc(self):
         return self._vc
 
-    def is_registered(self, platform_vip_identity):
+    def is_registered(self, platform_uuid):
         """
         Returns true if the platform is currently known.
 
@@ -127,8 +129,9 @@ class Platforms(object):
         :rtype: Boolean
         :return: Whether the platform is known or not.
         """
+
         # Make sure that the platform is known.
-        return platform_vip_identity in self._platforms
+        return platform_uuid in self._platforms
 
     def get_platform_list(self, session_user, params):
         """
@@ -157,7 +160,7 @@ class Platforms(object):
         results = []
         for x in self._platforms.values():
             results.append(
-                dict(uuid=x.vip_identity,
+                dict(uuid=base64.b64encode(x.vip_identity.encode('utf-8')).decode('utf-8'),
                      name=x.display_name,
                      health=x.health)
             )
@@ -200,7 +203,7 @@ class Platforms(object):
         for p in self._platforms.values():
             performances.append(
                 {
-                    "platform.uuid": p.vip_identity,
+                    "platform.uuid": base64.b64encode(p.vip_identity.encode('utf-8')).decode("utf-8"),
                     "performance": p.get_stats("status/cpu")
                 }
             )
@@ -213,9 +216,9 @@ class Platforms(object):
 
         :return: list of str
         """
-        return self._platforms.keys()
+        return list(self._platforms.keys())
 
-    def get_platform(self, vip_identity, default=None):
+    def get_platform(self, platform_uuid, default=None):
         """
         Get a specific :ref:`PlatformHandler` associated with the passed
         address_hash.  If the hash is not available then the default parameter
@@ -226,11 +229,12 @@ class Platforms(object):
         :return: a :ref:`PlatformHandler` or default
         """
         self._debug_platform_list()
-        return self._platforms.get(vip_identity, default)
+        return self._platforms.get(platform_uuid, default)
 
     def register_platform(self, address, address_type, serverkey=None,
                           display_name=None):
         """
+        DEPRECATED VOLTTRON 7.0
         Allows an volttron central platform (vcp) to register with vc.  Note
         that if the address has already been used then the same
         PlatformHandler object reference will be returned to the caller.
@@ -292,8 +296,8 @@ class PlatformHandler(object):
         # router.
         self._vc = vc
         # Add some logging information about the vcp platform
-        self._external_vip_addresses = self.call('get_vip_addresses')
         self._instance_name = self.call('get_instance_name')
+        self._external_vip_addresses = self.call('get_vip_addresses')
 
         message = "Building handler for platform: {} from address: {}".format(
             self._instance_name,
@@ -342,7 +346,7 @@ class PlatformHandler(object):
             # devices and status.
             # ('devices/', self._on_device_message),
             # statistics for showing performance in the ui.
-            ('datalogger/platform/status', self._on_platform_stats),
+            ('status', self._on_platform_stats),
             # iam and configure callbacks
             ('iam/', self._on_platform_message),
             # iam and configure callbacks
@@ -557,6 +561,19 @@ class PlatformHandler(object):
 
         return ""
 
+    def delete_agent_config(self, session_user, params):
+        agent_identity = params['agent_identity']
+        config_name = params['config_name']
+
+        try:
+            return self.call('delete_agent_config', agent_identity, config_name)
+        except KeyError:
+            self._log.error('Invalid configuration name: {}'.format(
+                config_name
+            ))
+
+        return ""
+
     def get_devices(self, session_user, params):
         self._log.debug('handling get_devices platform: {} ({})'.format(
             self.vip_identity, self.address))
@@ -683,14 +700,14 @@ class PlatformHandler(object):
                                                                     expected_prefix)))
 
         # Pull off the "real" topic from the prefix
-        topic = topic[len(expected_prefix):]
+        which_stats = topic[len(expected_prefix):]
+        self._log.debug("WHICH STATS: {}".format(which_stats))
 
         prefix = "datalogger/platform"
-        which_stats = topic[len(prefix)+1:]
-        self._log.debug("WHICH STATS: {}".format(which_stats))
+
         point_list = []
 
-        for point, item in message.iteritems():
+        for point, item in message.items():
             point_list.append(point)
 
         # Note adding the s to the end of the prefix.

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -66,7 +66,7 @@ condition for querying topics based on tags. Please see documentation of
 
 """
 
-from __future__ import absolute_import, print_function
+
 
 import logging
 import os
@@ -431,10 +431,8 @@ class BaseTaggingService(Agent):
                 raise ValueError("Invalid data type ({}) for "
                                  "param or_condition.  Expecting list or "
                                  "dict".format(type(or_condition)))
-
             condition = self._process_and_or_param(and_condition,
                                                    or_condition)
-
         ast = parse_query(condition, self.valid_tags, self.tag_refs)
         return self.query_topics_by_tags(ast=ast, skip=skip, count=count,
                                          order=order)
@@ -597,7 +595,7 @@ class BaseTaggingService(Agent):
                 self.historian_vip_identity,
                 "get_topics_by_pattern",
                 topic_pattern=topic_pattern).get(timeout=5)
-            point_topics = topic_map.keys()
+            point_topics = list(topic_map.keys())
             if len(point_topics) == 1 and point_topics[0] == topic_pattern:
                 # fixed string topic name
                 topic_prefixes.add(topic_pattern)
@@ -673,7 +671,7 @@ class BaseTaggingService(Agent):
 
         condition = None
         if and_str and or_str:
-            condition = and_str + ' AND ' + or_str
+            condition = and_str + ' AND (' + or_str + ')'
         elif and_str:
             condition = and_str
         elif or_str:
@@ -792,7 +790,7 @@ def t_ID(t):
             child_tag = tags[0]
         elif len(tags) == 2:
             child_tag = tags[1]
-            if not tag_refs.has_key(tags[0]):
+            if tags[0] not in tag_refs:
                 raise ValueError("{} is not a valid reference tag. Only "
                                  "reference tags (kind/type=Ref) can be "
                                  "parent tags. Also make sure "
@@ -806,7 +804,7 @@ def t_ID(t):
                              "parent_tag should be a valid tag with "
                              "type/kind as Ref")
 
-        if not valid_tags.has_key(child_tag):
+        if child_tag not in valid_tags:
             raise ValueError("Invalid tag {} at line number {} and column "
                              "number {}".format(child_tag,
                                                 t.lineno,
@@ -1053,13 +1051,7 @@ if __name__ == "__main__":
 
     print("USER QUERY:\n{}".format(query))
     print("pretty print:\n{}".format(pretty_print(ast)))
-    # print ("MONGO QUERY AND SUB QUERIES")
-    # sub = list()
-    # c = mongoutils.get_tagging_queries_from_ast(ast, tag_refs, sub)
-    # print("Main query: {}".format(c))
-    # print("Sub query:{}".format(sub))
-
-    print ("SQLITE QUERY:")
+    print("SQLITE QUERY:")
     print(SqlLiteFuncts.get_tagging_query_from_ast("topic_tags", ast,
                                                    tag_refs))
 

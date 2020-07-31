@@ -4,7 +4,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -111,7 +111,7 @@ class ThresholdDetectionAgent(Agent):
         Subscribes to configured topics with customized callbacks
         """
         self.config_topics[config_name] = set()
-        for topic, values in contents.iteritems():
+        for topic, values in contents.items():
             self.config_topics[config_name].add(topic)
             _log.info("Subscribing to {}".format(topic))
 
@@ -131,7 +131,7 @@ class ThresholdDetectionAgent(Agent):
         :param device_points: Dictionary of points to thresholds
         :type device_points: dict
         """
-        for point, values in device_points.iteritems():
+        for point, values in device_points.items():
             threshold_max = values.get('threshold_max')
             threshold_min = values.get('threshold_min')
 
@@ -214,6 +214,7 @@ class ThresholdDetectionAgent(Agent):
         :param point: Optional point name. Used in alert message.
         :type point: str
         """
+        _log.debug("Sending Alert")
         if point:
             point = '({})'.format(point)
 

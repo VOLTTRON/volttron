@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -44,22 +44,24 @@ from volttron.platform.vip.agent import Agent, Core, RPC
 from volttron.platform.agent import utils
 from volttron.platform.agent import math_utils
 from volttron.platform.agent.known_identities import PLATFORM_DRIVER
-from driver import DriverAgent
+from .driver import DriverAgent
 import resource
 from datetime import datetime, timedelta
 import bisect
 import fnmatch
-from volttron.platform.agent import json as jsonapi
-from interfaces import DriverInterfaceError
-from driver_locks import configure_socket_lock, configure_publish_lock
+from volttron.platform import jsonapi
+from .interfaces import DriverInterfaceError
+from .driver_locks import configure_socket_lock, configure_publish_lock
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-__version__ = '3.2'
+__version__ = '4.0'
+
 
 class OverrideError(DriverInterfaceError):
     """Error raised when the user tries to set/revert point when global override is set."""
     pass
+
 
 def master_driver_agent(config_path, **kwargs):
 
@@ -70,7 +72,6 @@ def master_driver_agent(config_path, **kwargs):
             return kwargs.pop(name)
         except KeyError:
             return config.get(name, default)
-        
 
     # Increase open files resource limit to max or 8192 if unlimited
     system_socket_limit = None
@@ -127,6 +128,7 @@ def master_driver_agent(config_path, **kwargs):
                              publish_depth_first,
                              publish_breadth_first,
                              heartbeat_autostart=True, **kwargs)
+
 
 class MasterDriverAgent(Agent):
     def __init__(self, driver_config_list, scalability_test = False,
@@ -192,7 +194,6 @@ class MasterDriverAgent(Agent):
         self.vip.config.subscribe(self.update_driver, actions=["NEW", "UPDATE"], pattern="devices/*")
         self.vip.config.subscribe(self.remove_driver, actions="DELETE", pattern="devices/*")
         
-
     def configure_main(self, config_name, action, contents):
         config = self.default_config.copy()
         config.update(contents)
@@ -258,7 +259,7 @@ class MasterDriverAgent(Agent):
             except ValueError:
                 pass
 
-        #update override patterns
+        # update override patterns
         if self._override_patterns is None:
             try:
                 values = self.vip.config.get("override_patterns")
@@ -267,9 +268,9 @@ class MasterDriverAgent(Agent):
                 if isinstance(values, dict):
                     self._override_patterns = set()
                     for pattern, end_time in values.items():
-                        #check the end_time
+                        # check the end_time
                         now = utils.get_aware_utc_now()
-                        #If end time is indefinite, set override with indefinite duration
+                        # If end time is indefinite, set override with indefinite duration
                         if end_time == "0.0":
                             self._set_override_on(pattern, 0.0, from_config_store=True)
                         else:
@@ -310,10 +311,10 @@ class MasterDriverAgent(Agent):
 
             _log.info("Setting time delta between driver device scrapes to  " + str(driver_scrape_interval))
 
-            #Reset all scrape schedules
+            # Reset all scrape schedules
             self.freed_time_slots.clear()
             self.group_counts.clear()
-            for driver in self.instances.itervalues():
+            for driver in self.instances.values():
                 time_slot = self.group_counts[driver.group]
                 driver.update_scrape_schedule(time_slot, self.driver_scrape_interval,
                                               driver.group, self.group_offset_interval)
@@ -324,8 +325,8 @@ class MasterDriverAgent(Agent):
         self.publish_depth_first = bool(config["publish_depth_first"])
         self.publish_breadth_first = bool(config["publish_breadth_first"])
 
-        #Update the publish settings on running devices.
-        for driver in self.instances.itervalues():
+        # Update the publish settings on running devices.
+        for driver in self.instances.values():
             driver.update_publish_types(self.publish_depth_first_all,
                                         self.publish_breadth_first_all,
                                         self.publish_depth_first,
@@ -347,14 +348,14 @@ class MasterDriverAgent(Agent):
 
         try:
             driver.core.stop(timeout=5.0)
-        except StandardError as e:
+        except Exception as e:
             _log.error("Failure during {} driver shutdown: {}".format(real_name, e))
 
         bisect.insort(self.freed_time_slots[driver.group], driver.time_slot)
         self.group_counts[driver.group] -= 1
 
-
     def update_driver(self, config_name, action, contents):
+        _log.info("In update_driver")
         topic = self.derive_device_topic(config_name)
         self.stop_driver(topic)
 
@@ -393,14 +394,13 @@ class MasterDriverAgent(Agent):
             return
         
         if not self.waiting_to_finish:
-            #Start a new measurement
+            # Start a new measurement
             self.current_test_start = datetime.now()
-            self.waiting_to_finish = set(self.instances.iterkeys())
+            self.waiting_to_finish = set(self.instances.keys())
             
         if topic not in self.waiting_to_finish:
             _log.warning(topic + " started twice before test finished, increase the length of scrape interval and rerun test")
-            
-    
+
     def scrape_ending(self, topic):
         if not self.scalability_test:
             return
@@ -421,7 +421,7 @@ class MasterDriverAgent(Agent):
             _log.info("publish {} took {} seconds".format(self.test_iterations, delta))
             
             if self.test_iterations >= self.scalability_test_iterations:
-                #Test is now over. Button it up and shutdown.
+                # Test is now over. Button it up and shutdown.
                 mean = math_utils.mean(self.test_results) 
                 stdev = math_utils.stdev(self.test_results) 
                 _log.info("Mean total publish time: "+str(mean))
@@ -577,16 +577,15 @@ class MasterDriverAgent(Agent):
         stagger_interval = 0.05 #sec
         pattern = pattern.lower()
 
-        #Add to override patterns set
+        # Add to override patterns set
         self._override_patterns.add(pattern)
-        device_topic_actual = self.instances.keys()
         i = 0
 
-        for name in device_topic_actual:
+        for name in self.instances.keys():
             name = name.lower()
             i += 1
             if fnmatch.fnmatch(name, pattern):
-                #If revert to default state is needed
+                # If revert to default state is needed
                 if failsafe_revert:
                     if staggered_revert:
                         self.core.spawn_later(i*stagger_interval, self.instances[name].revert_all())
@@ -598,7 +597,7 @@ class MasterDriverAgent(Agent):
         # Set timer for interval of override condition
         config_update = self._update_override_interval(duration, pattern)
         if config_update and not from_config_store:
-            #Update config store
+            # Update config store
             patterns = dict()
             for pat in self._override_patterns:
                 if self._override_interval_events[pat] is None:
@@ -698,13 +697,13 @@ class MasterDriverAgent(Agent):
         :type pattern: str
         :return Flag to indicate if update is done or not.
         """
-        if interval <= 0.0: #indicative of indefinite duration
+        if interval <= 0.0: # indicative of indefinite duration
             if pattern in self._override_interval_events:
-                #If override duration is indifinite, do nothing
-                if self._override_interval_events[pattern] == None:
+                # If override duration is indifinite, do nothing
+                if self._override_interval_events[pattern] is None:
                     return False
                 else:
-                    #Cancel the old event
+                    # Cancel the old event
                     evt = self._override_interval_events.pop(pattern)
                     evt[0].cancel()
             self._override_interval_events[pattern] = None
@@ -714,13 +713,13 @@ class MasterDriverAgent(Agent):
             override_end = override_start + timedelta(seconds=interval)
             if pattern in self._override_interval_events:
                 evt = self._override_interval_events[pattern]
-                #If event is indefinite or greater than new end time, do nothing
+                # If event is indefinite or greater than new end time, do nothing
                 if evt is None or override_end < evt[1]:
                     return False
                 else:
                     evt = self._override_interval_events.pop(pattern)
                     evt[0].cancel()
-            #Schedule new override event
+            # Schedule new override event
             event = self.core.schedule(override_end, self._cancel_override, pattern)
             self._override_interval_events[pattern] = (event, override_end)
             return True
@@ -758,21 +757,27 @@ class MasterDriverAgent(Agent):
         device = device.lower()
 
         if state == 'add':
-            #If device falls under the existing overriden patterns, then add it to list of overriden devices.
+            # If device falls under the existing overriden patterns, then add it to list of overriden devices.
             for pattern in self._override_patterns:
                 if fnmatch.fnmatch(device, pattern):
                     self._override_devices.add(device)
                     return
         else:
-            #If device is in list of overriden devices, remove it.
+            # If device is in list of overriden devices, remove it.
             if device in self._override_devices:
                 self._override_devices.remove(device)
 
     @RPC.export
     def forward_bacnet_cov_value(self, source_address, point_name, point_values):
-        """Called by the BACnet Proxy to pass the COV value to the driver agent for publishing"""
-        for driver in self.instances.itervalues():
-            if driver.interface.target_address == source_address:
+        """
+        Called by the BACnet Proxy to pass the COV value to the driver agent
+        for publishing
+        :param source_address: path of the device used for publish topic
+        :param point_name: name of the point in the COV notification
+        :param point_values: dictionary of updated values sent by the device
+        """
+        for driver in self.instances.values():
+            if driver.device_path == source_address:
                 driver.publish_cov_value(point_name, point_values)
 
 

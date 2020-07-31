@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -36,7 +36,7 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-from __future__ import absolute_import, print_function
+
 
 import logging
 import os
@@ -45,26 +45,46 @@ import gevent
 
 from volttron.platform import get_address
 from volttron.platform.agent import utils
-from volttron.platform.keystore import KeyStore
+from volttron.platform.keystore import KeyStore, KnownHostsStore
 from volttron.platform.vip.agent import Agent
 from volttron.platform.vip.agent.connection import Connection
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
-ks = KeyStore()
+host_store = KnownHostsStore()
+
+
+def get_known_host_serverkey(vip_address):
+    return host_store.serverkey(vip_address)
+
+
+def get_server_keys():
+    try:
+        # attempt to read server's keys. Should be used only by multiplatform connection and tests
+        # If agents such as forwarder attempt this in secure mode this will throw access violation exception
+        ks = KeyStore()
+    except IOError as e:
+        raise RuntimeError("Exception accessing server keystore. Agents must use agent's public and private key"
+                           "to build dynamic agents when running in secure mode. Exception:{}".format(e))
+
+    return ks.public, ks.secret
 
 
 def build_connection(identity, peer='', address=get_address(),
-                     publickey=ks.public, secretkey=ks.secret, **kwargs):
+                     publickey=None, secretkey=None, message_bus=None, **kwargs):
+    if publickey is None or secretkey is None:
+        publickey, secretkey = get_server_keys(publickey, secretkey)
+
     cn = Connection(address=address, identity=identity, peer=peer,
-                    publickey=publickey, secretkey=secretkey, **kwargs)
+                    publickey=publickey, secretkey=secretkey, message_bus=message_bus, **kwargs)
     return cn
 
 
-def build_agent(address=get_address(), identity=None, publickey=ks.public,
-                secretkey=ks.secret, timeout=10, serverkey=None,
-                agent_class=Agent, **kwargs):
+def build_agent(address=get_address(), identity=None, publickey=None,
+                secretkey=None, timeout=10, serverkey=None,
+                agent_class=Agent, volttron_central_address=None,
+                volttron_central_instance_name=None, **kwargs) -> Agent:
     """ Builds a dynamic agent connected to the specifiedd address.
 
     All key parameters should have been encoded with
@@ -81,8 +101,27 @@ def build_agent(address=get_address(), identity=None, publickey=ks.public,
     :return: an agent based upon agent_class that has been started
     :rtype: agent_class
     """
+    # if not serverkey:
+    #     serverkey = get_known_host_serverkey(address)
+
+    # This is a fix allows the connect to message bus to be different than
+    # the one that is currently running.
+    if publickey is None or secretkey is None:
+        publickey, secretkey = get_server_keys()
+    try:
+        message_bus = kwargs.pop('message_bus')
+    except KeyError:
+        message_bus = os.environ.get('MESSAGEBUS', 'zmq')
+
+    try:
+        enable_store = kwargs.pop('enable_store')
+    except KeyError:
+        enable_store = False
+
     agent = agent_class(address=address, identity=identity, publickey=publickey,
-                        secretkey=secretkey, serverkey=serverkey, **kwargs)
+                        secretkey=secretkey, serverkey=serverkey, volttron_central_address=volttron_central_address,
+                        volttron_central_instance_name=volttron_central_instance_name,
+                        message_bus=message_bus, enable_store=enable_store, **kwargs)
     event = gevent.event.Event()
     gevent.spawn(agent.core.run, event)
     with gevent.Timeout(timeout):

@@ -1,0 +1,16 @@
+Volttron Point Name,Obix Point Name,Obix Type,Units,Writable,Notes
+CostEL,CostEL,real,dollar,FALSE,Precision: 2
+CostELBB,CostELBB,real,dollar,FALSE,Precision: 2
+CDHEnergyHeartbeat,CDHEnergyHeartbeat,real,null,FALSE,
+ThermalFollowing,ThermalFollowing,bool,,FALSE,
+CDHTestThermFollow,CDHTestThermFollow,bool,,FALSE,
+CollegeModeFromCDH,CollegeModeFromCDH,real,null,FALSE,"Precision: 0, Min: 3.0, Max: 3.0"
+HospitalModeFromCDH,HospitalModeFromCDH,real,null,FALSE,"Precision: 0, Min: 3.0, Max: 3.0"
+HomeModeFromCDH,HomeModeFromCDH,real,null,FALSE,"Precision: 0, Min: 3.0, Max: 3.0"
+CostNG,CostNG,real,null,FALSE,Precision: 2
+CollegeBaseloadSPFromCDH,CollegeBaseloadSPFromCDH,real,kilowatt,FALSE,Precision: 0
+CollegeImportSPFromCDH,CollegeImportSPFromCDH,real,kilowatt,FALSE,Precision: 0
+HospitalImportSPFromCDH,HospitalImportSPFromCDH,real,kilowatt,FALSE,Precision: 0
+HospitalBaseloadSPFromCDH,HospitalBaseloadSPFromCDH,real,kilowatt,FALSE,Precision: 0
+HomeImportSPFromCDH,HomeImportSPFromCDH,real,kilowatt,FALSE,Precision: 0
+ThermalFollowingAlarm,ThermalFollowingAlarm,bool,,FALSE,

@@ -1,4 +1,5 @@
 .. _Rainforest-Driver:
+
 Rainforest Emu2 Driver Configuration
 ------------------------------------
 
@@ -11,6 +12,10 @@ Rainforest Automation library which can be found
 
    The Emu Serial Api library has its own dependencies which should be installed
    with pip while the VOLTTRON environment is activated.
+
+    ::
+
+        pip install -r requirements.txt
 
 The Emu2 device interface is configured as follows. Set `emu_library_path`
 to the location of the cloned library. `tty` should be set to the name of the

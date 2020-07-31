@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -56,21 +56,21 @@ class _subscriber_agent(Agent):
         self.publish_results = set()
 
     def reset_results(self):
-        print "Resetting results"
+        print("Resetting results")
         self.publish_results.clear()
 
     def get_results(self):
         return self.publish_results.copy()
 
     def add_result(self, peer, sender, bus, topic, headers, message):
-        print "message published to", topic
+        print("message published to", topic)
         self.publish_results.add(topic)
 
 
 @pytest.fixture(scope="module")
-def subscriber_agent(request, volttron_instance1):
+def subscriber_agent(request, volttron_instance):
 
-    agent = volttron_instance1.build_agent(identity='subscriber_agent',
+    agent = volttron_instance.build_agent(identity='subscriber_agent',
                                           agent_class=_subscriber_agent)
 
     agent.vip.pubsub.subscribe(peer='pubsub',
@@ -82,6 +82,7 @@ def subscriber_agent(request, volttron_instance1):
 
     request.addfinalizer(cleanup)
     return agent
+
 
 fake_device_config = """
 {{
@@ -150,41 +151,42 @@ breadth_all_set = set(['devices/all/fake'])
 depth_set = set(['devices/fake/Float', 'devices/fake/FloatNoDefault'])
 breadth_set = set(['devices/Float/fake', 'devices/FloatNoDefault/fake'])
 
-@pytest.fixture(scope="module")
-def config_store_connection(request, volttron_instance1):
 
-    connection = volttron_instance1.build_connection(peer=CONFIGURATION_STORE)
+@pytest.fixture(scope="module")
+def config_store_connection(request, volttron_instance):
+    capabilities = [{'edit_config_store': {'identity': PLATFORM_DRIVER}}]
+    connection = volttron_instance.build_connection(peer=CONFIGURATION_STORE, capabilities=capabilities)
     # Reset master driver config store
     connection.call("manage_delete_store", PLATFORM_DRIVER)
 
     # Start the master driver agent which would in turn start the fake driver
     #  using the configs created above
-    master_uuid = volttron_instance1.install_agent(
+    master_uuid = volttron_instance.install_agent(
         agent_dir=get_services_core("MasterDriverAgent"),
         config_file={},
         start=True)
     print("agent id: ", master_uuid)
     gevent.sleep(2)  # wait for the agent to start and start the devices
 
-
     def stop_agent():
-        volttron_instance1.stop_agent(master_uuid)
-        volttron_instance1.remove_agent(master_uuid)
+        volttron_instance.stop_agent(master_uuid)
+        volttron_instance.remove_agent(master_uuid)
         connection.kill()
 
     request.addfinalizer(stop_agent)
 
     return connection
 
+
 @pytest.fixture(scope="function")
 def config_store(request, config_store_connection):
-    #Always have fake.csv ready to go.
-    print "Adding fake.csv into store"
+    # Always have fake.csv ready to go.
+    print("Adding fake.csv into store")
     config_store_connection.call("manage_store", PLATFORM_DRIVER, "fake.csv", registry_config_string, config_type="csv")
 
     def cleanup():
         # Reset master driver config store
-        print "Wiping out store."
+        print("Wiping out store.")
         config_store_connection.call("manage_delete_store", PLATFORM_DRIVER)
         gevent.sleep(0.1)
 
@@ -192,9 +194,10 @@ def config_store(request, config_store_connection):
 
     return config_store_connection
 
+
 def setup_config(config_store, config_name, config_string, **kwargs):
     config = config_string.format(**kwargs)
-    print "Adding", config_name, "to store"
+    print("Adding", config_name, "to store")
     config_store.call("manage_store", PLATFORM_DRIVER, config_name, config, config_type="json")
 
 
@@ -205,12 +208,13 @@ def test_default_publish(config_store, subscriber_agent):
 
     subscriber_agent.reset_results()
 
-    #Give it enough time to publish at least once.
+    # Give it enough time to publish at least once.
     gevent.sleep(1.1)
 
     results = subscriber_agent.get_results()
 
     assert results == depth_all_set
+
 
 @pytest.mark.driver
 def test_default_global_off(config_store, subscriber_agent):
@@ -223,12 +227,13 @@ def test_default_global_off(config_store, subscriber_agent):
 
     subscriber_agent.reset_results()
 
-    #Give it enough time to publish at least once.
+    # Give it enough time to publish at least once.
     gevent.sleep(1.1)
 
     results = subscriber_agent.get_results()
 
     assert results == set()
+
 
 @pytest.mark.driver
 def test_default_global_breadth_all(config_store, subscriber_agent):
@@ -241,12 +246,13 @@ def test_default_global_breadth_all(config_store, subscriber_agent):
 
     subscriber_agent.reset_results()
 
-    #Give it enough time to publish at least once.
+    # Give it enough time to publish at least once.
     gevent.sleep(1.1)
 
     results = subscriber_agent.get_results()
 
     assert results == breadth_all_set
+
 
 @pytest.mark.driver
 def test_default_global_depth_all(config_store, subscriber_agent):
@@ -259,12 +265,13 @@ def test_default_global_depth_all(config_store, subscriber_agent):
 
     subscriber_agent.reset_results()
 
-    #Give it enough time to publish at least once.
+    # Give it enough time to publish at least once.
     gevent.sleep(1.1)
 
     results = subscriber_agent.get_results()
 
     assert results == depth_all_set
+
 
 @pytest.mark.driver
 def test_default_global_depth(config_store, subscriber_agent):
@@ -277,12 +284,13 @@ def test_default_global_depth(config_store, subscriber_agent):
 
     subscriber_agent.reset_results()
 
-    #Give it enough time to publish at least once.
+    # Give it enough time to publish at least once.
     gevent.sleep(1.1)
 
     results = subscriber_agent.get_results()
 
     assert results == depth_set
+
 
 @pytest.mark.driver
 def test_default_global_breadth(config_store, subscriber_agent):
@@ -295,7 +303,7 @@ def test_default_global_breadth(config_store, subscriber_agent):
 
     subscriber_agent.reset_results()
 
-    #Give it enough time to publish at least once.
+    # Give it enough time to publish at least once.
     gevent.sleep(1.1)
 
     results = subscriber_agent.get_results()
@@ -319,7 +327,7 @@ def test_default_override_all(config_store, subscriber_agent):
 
     subscriber_agent.reset_results()
 
-    #Give it enough time to publish at least once.
+    # Give it enough time to publish at least once.
     gevent.sleep(1.1)
 
     results = subscriber_agent.get_results()
@@ -397,6 +405,7 @@ def test_default_override_depth(config_store, subscriber_agent):
     results = subscriber_agent.get_results()
 
     assert results == depth_set
+
 
 @pytest.mark.driver
 def test_default_override_breadth(config_store, subscriber_agent):
@@ -483,6 +492,7 @@ def test_default_override_single_depth(config_store, subscriber_agent):
     results = subscriber_agent.get_results()
 
     assert results == depth_set
+
 
 @pytest.mark.driver
 def test_default_override_single_breadth(config_store, subscriber_agent):

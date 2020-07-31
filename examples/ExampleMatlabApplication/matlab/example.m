@@ -58,9 +58,5 @@ else
     
 end
 
-if not(config_socket.closed)
-    config_socket.close();
-end
-if not(data_socket.closed)
-    data_socket.close();
-end
+config_socket.close();
+data_socket.close();

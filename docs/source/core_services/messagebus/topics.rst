@@ -1,10 +1,12 @@
+.. _Topics:
+
 Messaging and Topics
 ====================
 
 Introduction
 ------------
 
-Agents in VOLTTRON(tm) communicate with each other using a
+Agents in |VOLTTRON| communicate with each other using a
 publish/subscribe mechanism built on the Zero MQ Python library. This
 allows for great flexibility as topics can be created dynamically and
 the messages sent can be any format as long as the sender and receiver
@@ -54,3 +56,5 @@ Controller Agent Topics
 ~~~~~~~~~~~~~~~~~~~~~~~
 
 See the documentation for the [[ActuatorAgent]].
+
+.. |VOLTTRON| unicode:: VOLTTRON U+2122

@@ -9,7 +9,7 @@
         min-width: 500px;
       }
     </style>
-    <script src="http://code.jquery.com/jquery.min.js"></script>
+    <script src="/js/jquery-3.5.0.min.js"></script>
     <script language="javascript" type="text/javascript">
       $(document).ready(function () {
 
@@ -23,22 +23,55 @@
             $("#responses").append(msg+"\n");
             $('#responses').scrollTop($('#responses')[0].scrollHeight);
         };
-
+        $('#get_auth').click(function(){
+            var username = $('#username').val();
+            var password = $('#password').val();
+            if (!username || !password){
+                alert('Enter username and password');
+                return;
+            }
+            var pdata = {
+                 jsonrpc: '2.0',
+                 method: "get_authorization",
+                 params: {
+                    username: username,
+                    password: password
+                 },
+                 id: '72581-4'
+            };
+            $('#request_sent').val(JSON.stringify(pdata));
+            $.ajax({
+                     type: 'POST',
+                     url: '/vc/jsonrpc',
+                     data: JSON.stringify(pdata),
+                     dataType: 'json',
+                     success: function(data){
+                        $('#token').val(data.result);
+                        $('#uri').val('/vc/ws/'+data.result)
+                 },
+                     failure: function(data){
+                         writeMessage("FAILURE "+ JSON.stringify(data));
+                         //$('#output_data').val("FAILURE "+ JSON.stringify(data));
+                 }
+            });
+        });
         $("#open").click(function(evt) {
 
           var host = $("#host").val();
           var port = $("#port").val();
           var uri = $("#uri").val();
-          var websocket = "ws://"
-          if (location.protocol == 'https:'){
-            websocket = "wss://";
+          var websocket_url = "ws://";
+          if (location.protocol === 'https:'){
+            websocket_url = "wss://";
           }
-          websocket.concat(host + ":" + port + uri); // 'ws://%(host)s:%(port)s/ws';
+
+          websocket_url = websocket_url.concat(host + ":" + port + uri); // 'ws://%(host)s:%(port)s/ws';
+          console.log(websocket_url);
           if (window.WebSocket) {
-            ws = new WebSocket(websocket);
+            ws = new WebSocket(websocket_url);
           }
           else if (window.MozWebSocket) {
-            ws = MozWebSocket(websocket);
+            ws = MozWebSocket(websocket_url);
           }
           else {
             console.log('WebSocket Not Supported');
@@ -97,6 +130,12 @@
 
   <body>
     <h1>WebSockets Hello World</h1>
+    <div>
+        Username: <input id="username" type="text" /><br />
+        Password: <input type="password" id="password" /><br />
+        <button id="get_auth">Get Auth Token</button><br />
+        Auth Token: <input type="text" id="token" placeholder="Enter auth token" /><br/>
+    </div>
     <div>
       <label for="host">host:</label>
       <input type="text" id="host" value="localhost" style="background:#ff0000;"/><br />

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -41,11 +41,11 @@ from collections import defaultdict
 
 import pytz
 import re
-from basedb import DbDriver
+from .basedb import DbDriver
 from mysql.connector import Error as MysqlError
 from mysql.connector import errorcode as mysql_errorcodes
 from volttron.platform.agent import utils
-from volttron.platform.agent import json as jsonapi
+from volttron.platform import jsonapi
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -78,7 +78,8 @@ class MySqlFuncts(DbDriver):
         # cached data even if we create a new cursor for each query and
         # close the cursor after fetching results
         connect_params['autocommit'] = True
-        super(MySqlFuncts, self).__init__('mysql.connector', **connect_params)
+        super(MySqlFuncts, self).__init__('mysql.connector', auth_plugin='mysql_native_password',
+                                          **connect_params)
 
     def init_microsecond_support(self):
         rows = self.select("SELECT version()", None)
@@ -284,6 +285,8 @@ class MySqlFuncts(DbDriver):
                     values[id_name_map[topic_id]].append(
                         (utils.format_timestamp(ts.replace(tzinfo=pytz.UTC)),
                          jsonapi.loads(value)))
+
+            if cursor is not None:
                 cursor.close()
         return values
 

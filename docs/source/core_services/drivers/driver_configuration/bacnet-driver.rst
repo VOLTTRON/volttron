@@ -1,12 +1,22 @@
 .. _BACnet-Driver:
+
 BACnet Driver Configuration
 ---------------------------
 Communicating with BACnet devices requires that the BACnet Proxy Agent is configured and running. All device communication happens through this agent.
 
+Requirements
+------------
+The BACnet driver requires the Pint package. This package can be installed in an
+activated environment with:
+
+::
+
+    pip install bacpypes
+
 driver_config
 *************
 
-There are eight arguments for the "driver_config" section of the device configuration file:
+There are nine arguments for the "driver_config" section of the device configuration file:
 
     - **device_address** - Address of the device. If the target device is behind an IP to MS/TP router then Remote Station addressing will probably be needed for the driver to find the device.
     - **device_id** - BACnet ID of the device. Used to establish a route to the device at startup.
@@ -38,6 +48,7 @@ A sample BACnet configuration file can be found `here <https://raw.githubusercon
 in the VOLTTRON repository in ``examples/configurations/drivers/bacnet1.config``
 
 .. _BACnet-Registry-Configuration-File:
+
 BACnet Registry Configuration File
 **********************************
 

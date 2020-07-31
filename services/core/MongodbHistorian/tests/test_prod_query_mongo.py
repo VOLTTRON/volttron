@@ -1,7 +1,10 @@
 import pytest
-from  datetime import datetime
-#building name replaced. replace before testing
+from datetime import datetime
+# building name replaced. replace before testing
 from volttron.platform import get_services_core
+from fixtures import (ALL_TOPIC, BASE_ANALYSIS_TOPIC, BASE_DEVICE_TOPIC,
+                      mongo_connection_params, mongo_agent_config,
+                      mongo_connection_string)
 
 AHU1_temp = "Economizer_RCx/PNNL/BUILDING1/AHU1/Temperature Sensor Dx/diagnostic message"
 AHU2_temp = "Economizer_RCx/PNNL/BUILDING1/AHU2/Temperature Sensor Dx/diagnostic message"
@@ -21,49 +24,48 @@ AHU1_VAV143 = "PNNL/BUILDING1/AHU1/VAV143/ZoneOutdoorAirFlow"
 AHU1_VAV150 = "PNNL/BUILDING1/AHU1/VAV150/ZoneOutdoorAirFlow"
 AHU1_VAV152 = "PNNL/BUILDING1/AHU1/VAV152/ZoneOutdoorAirFlow"
 
-
 AHU1_VAV127A_temp = "PNNL/BUILDING1/AHU1/VAV127A/ZoneTemperature (East)"
 AHU1_VAV127B_temp = "PNNL/BUILDING1/AHU1/VAV127B/ZoneTemperature (East)"
 
 multi_topic_list2 = \
     ["Economizer_RCx/PNNL/BUILDING1/AHU2/Temperature Sensor Dx/energy impact",
-    "Economizer_RCx/PNNL/BUILDING1/AHU2/Not Economizing When Unit Should Dx/"
-    "energy impact",
-    "Economizer_RCx/PNNL/BUILDING1/AHU2/Economizing When Unit Should Not Dx/"
-    "energy impact",
-    "Economizer_RCx/PNNL/BUILDING1/AHU2/Excess Outdoor-air Intake Dx/energy impact",
-    "Economizer_RCx/PNNL/BUILDING1/AHU2/Insufficient Outdoor-air Intake Dx/energy "
-    "impact",
-    "Economizer_RCx/PNNL/BUILDING1/AHU2/Economizing When Unit Should Not "
-    "Dx/diagnostic message",
-    "Economizer_RCx/PNNL/BUILDING1/AHU2/Not Economizing When Unit Should "
-    "Dx/diagnostic message",
-    "Economizer_RCx/PNNL/BUILDING1/AHU2/Temperature Sensor Dx/diagnostic message",
-    "Economizer_RCx/PNNL/BUILDING1/AHU2/Excess Outdoor-air Intake Dx/diagnostic "
-    "message",
-    "Economizer_RCx/PNNL/BUILDING1/AHU2/Insufficient Outdoor-air Intake "
-    "Dx/diagnostic message"]
+     "Economizer_RCx/PNNL/BUILDING1/AHU2/Not Economizing When Unit Should Dx/"
+     "energy impact",
+     "Economizer_RCx/PNNL/BUILDING1/AHU2/Economizing When Unit Should Not Dx/"
+     "energy impact",
+     "Economizer_RCx/PNNL/BUILDING1/AHU2/Excess Outdoor-air Intake Dx/energy impact",
+     "Economizer_RCx/PNNL/BUILDING1/AHU2/Insufficient Outdoor-air Intake Dx/energy "
+     "impact",
+     "Economizer_RCx/PNNL/BUILDING1/AHU2/Economizing When Unit Should Not "
+     "Dx/diagnostic message",
+     "Economizer_RCx/PNNL/BUILDING1/AHU2/Not Economizing When Unit Should "
+     "Dx/diagnostic message",
+     "Economizer_RCx/PNNL/BUILDING1/AHU2/Temperature Sensor Dx/diagnostic message",
+     "Economizer_RCx/PNNL/BUILDING1/AHU2/Excess Outdoor-air Intake Dx/diagnostic "
+     "message",
+     "Economizer_RCx/PNNL/BUILDING1/AHU2/Insufficient Outdoor-air Intake "
+     "Dx/diagnostic message"]
 
 multi_topic_list1 = \
     ["Economizer_RCx/PNNL/BUILDING1/AHU1/Temperature Sensor Dx/energy impact",
-    "Economizer_RCx/PNNL/BUILDING1/AHU1/Not Economizing When Unit Should Dx/"
-    "energy impact",
-    "Economizer_RCx/PNNL/BUILDING1/AHU1/Economizing When Unit Should Not Dx/"
-    "energy impact",
-    "Economizer_RCx/PNNL/BUILDING1/AHU1/Excess Outdoor-air Intake Dx/energy impact",
-    "Economizer_RCx/PNNL/BUILDING1/AHU1/Insufficient Outdoor-air Intake Dx/energy "
-    "impact",
-    "Economizer_RCx/PNNL/BUILDING1/AHU1/Economizing When Unit Should Not "
-    "Dx/diagnostic message",
-    "Economizer_RCx/PNNL/BUILDING1/AHU1/Not Economizing When Unit Should "
-    "Dx/diagnostic message",
-    "Economizer_RCx/PNNL/BUILDING1/AHU1/Temperature Sensor Dx/diagnostic message",
-    "Economizer_RCx/PNNL/BUILDING1/AHU1/Excess Outdoor-air Intake Dx/diagnostic "
-    "message",
-    "Economizer_RCx/PNNL/BUILDING1/AHU1/Insufficient Outdoor-air Intake "
-    "Dx/diagnostic message"]
+     "Economizer_RCx/PNNL/BUILDING1/AHU1/Not Economizing When Unit Should Dx/"
+     "energy impact",
+     "Economizer_RCx/PNNL/BUILDING1/AHU1/Economizing When Unit Should Not Dx/"
+     "energy impact",
+     "Economizer_RCx/PNNL/BUILDING1/AHU1/Excess Outdoor-air Intake Dx/energy impact",
+     "Economizer_RCx/PNNL/BUILDING1/AHU1/Insufficient Outdoor-air Intake Dx/energy "
+     "impact",
+     "Economizer_RCx/PNNL/BUILDING1/AHU1/Economizing When Unit Should Not "
+     "Dx/diagnostic message",
+     "Economizer_RCx/PNNL/BUILDING1/AHU1/Not Economizing When Unit Should "
+     "Dx/diagnostic message",
+     "Economizer_RCx/PNNL/BUILDING1/AHU1/Temperature Sensor Dx/diagnostic message",
+     "Economizer_RCx/PNNL/BUILDING1/AHU1/Excess Outdoor-air Intake Dx/diagnostic "
+     "message",
+     "Economizer_RCx/PNNL/BUILDING1/AHU1/Insufficient Outdoor-air Intake "
+     "Dx/diagnostic message"]
 
-#["Economizer_RCx/PNNL/BUILDING1/AHU1/Temperature Sensor Dx/diagnostic message","Economizer_RCx/PNNL/BUILDING1/AHU2/Temperature Sensor Dx/diagnostic message","Economizer_RCx/PNNL/BUILDING1/AHU3/Temperature Sensor Dx/diagnostic message","Economizer_RCx/PNNL/BUILDING1/AHU4/Temperature Sensor Dx/diagnostic message"]
+# ["Economizer_RCx/PNNL/BUILDING1/AHU1/Temperature Sensor Dx/diagnostic message","Economizer_RCx/PNNL/BUILDING1/AHU2/Temperature Sensor Dx/diagnostic message","Economizer_RCx/PNNL/BUILDING1/AHU3/Temperature Sensor Dx/diagnostic message","Economizer_RCx/PNNL/BUILDING1/AHU4/Temperature Sensor Dx/diagnostic message"]
 try:
     import pymongo
 
@@ -80,47 +82,29 @@ mongo_platform = {
             "database": "performance_test",
             "user": "test",
             "passwd": "test",
-            "authSource":"mongo_test"
+            "authSource": "mongo_test"
         }
     }
 }
 
-
-def mongo_connection_string(params):
-    mongo_conn_str = 'mongodb://{user}:{passwd}@{host}:{port}/{database}'
-
-    if params.get('authSource'):
-        mongo_conn_str = mongo_conn_str + '?authSource={authSource}'
-    mongo_conn_str = mongo_conn_str.format(**params)
-    return mongo_conn_str
+pytestmark = pytest.mark.skip(reason="Performance test. Not for CI")
 
 
 # Create a mark for use within params of a fixture.
-pymongo_mark = pytest.mark.skipif(not HAS_PYMONGO,
-                                  reason='No pymongo client available.')
+pytestmark = pytest.mark.skip(reason="Performance test. Not for CI")
+pymongo_mark = pytest.mark.skipif(not HAS_PYMONGO, reason='No pymongo client available.')
 
 
-@pytest.fixture(scope="function",
-                params=[
-                    pymongo_mark(mongo_platform)
-                ])
-def database_client(request, volttron_instance):
+@pytest.fixture(scope="function", params=[pymongo_mark(mongo_agent_config)])
+def database_client(request):
     print('connecting to mongo database')
-    client = pymongo.MongoClient(
-        mongo_connection_string(request.param['connection']['params']))
-    print (request.param)
-    agent_uuid = volttron_instance.install_agent(
-        agent_dir=get_services_core("MongodbHistorian"),
-        config_file=request.param,
-        start=True,
-        vip_identity="platform.historian")
+    client = pymongo.MongoClient(mongo_connection_string())
 
-    def cleanup():
+    def close_client():
         if client is not None:
             client.close()
-        volttron_instance.remove_agent(agent_uuid)
 
-    request.addfinalizer(cleanup)
+    request.addfinalizer(close_client)
     return client
 
 
@@ -139,7 +123,7 @@ def test_basic_function_week_data(volttron_instance, database_client):
     publish_agent = volttron_instance.build_agent()
 
     # Query the historian
-    before =datetime.now()
+    before = datetime.now()
     result = publish_agent.vip.rpc.call(
         'platform.historian',
         'query',
@@ -147,9 +131,9 @@ def test_basic_function_week_data(volttron_instance, database_client):
         start='2016-04-01 00:00:00.000000Z',
         end='2016-04-08 00:00:00.000000Z',
         count=35000
-        ).get(timeout=100)
-    print ("Time taken{}".format(datetime.now()-before))
-    print ("result count {}".format(len(result['values'])))
+    ).get(timeout=100)
+    print("Time taken{}".format(datetime.now() - before))
+    print("result count {}".format(len(result['values'])))
 
     before = datetime.now()
     result = publish_agent.vip.rpc.call(
@@ -161,8 +145,8 @@ def test_basic_function_week_data(volttron_instance, database_client):
         end='2016-04-08 00:00:00.000000Z',
         count=35000
     ).get(timeout=100)
-    print ("Time taken{}".format(datetime.now() - before))
-    print ("result count {}".format(len(result['values'])))
+    print("Time taken{}".format(datetime.now() - before))
+    print("result count {}".format(len(result['values'])))
 
     before = datetime.now()
     result = publish_agent.vip.rpc.call(
@@ -174,8 +158,8 @@ def test_basic_function_week_data(volttron_instance, database_client):
         end='2016-04-08 00:00:00.000000Z',
         count=35000
     ).get(timeout=100)
-    print ("Time taken{}".format(datetime.now() - before))
-    print ("result count {}".format(len(result['values'])))
+    print("Time taken{}".format(datetime.now() - before))
+    print("result count {}".format(len(result['values'])))
 
     before = datetime.now()
     result = publish_agent.vip.rpc.call(
@@ -187,8 +171,9 @@ def test_basic_function_week_data(volttron_instance, database_client):
         end='2016-04-08 00:00:00.000000Z',
         count=35000
     ).get(timeout=100)
-    print ("Time taken{}".format(datetime.now() - before))
-    print ("result count {}".format(len(result['values'])))
+    print("Time taken{}".format(datetime.now() - before))
+    print("result count {}".format(len(result['values'])))
+
 
 @pytest.mark.timeout(180)
 @pytest.mark.skipif(not HAS_PYMONGO, reason='No pymongo driver')
@@ -205,17 +190,17 @@ def test_basic_function_month_data(volttron_instance, database_client):
     publish_agent = volttron_instance.build_agent()
 
     # Query the historian
-    before =datetime.now()
+    before = datetime.now()
     result = publish_agent.vip.rpc.call(
         'platform.historian',
         'query',
         topic=AHU1_VAV129,
         start='2016-04-01 00:00:00.000000Z',
-            end='2016-05-01 00:00:00.000000Z',
+        end='2016-05-01 00:00:00.000000Z',
         count=35000
-        ).get(timeout=100)
-    print ("Time taken{}".format(datetime.now()-before))
-    print ("result count {}".format(len(result['values'])))
+    ).get(timeout=100)
+    print("Time taken{}".format(datetime.now() - before))
+    print("result count {}".format(len(result['values'])))
 
     before = datetime.now()
     result = publish_agent.vip.rpc.call(
@@ -226,8 +211,8 @@ def test_basic_function_month_data(volttron_instance, database_client):
         end='2016-05-01 00:00:00.000000Z',
         count=35000
     ).get(timeout=100)
-    print ("Time taken{}".format(datetime.now() - before))
-    print ("result count {}".format(len(result['values'])))
+    print("Time taken{}".format(datetime.now() - before))
+    print("result count {}".format(len(result['values'])))
 
     before = datetime.now()
     result = publish_agent.vip.rpc.call(
@@ -238,8 +223,8 @@ def test_basic_function_month_data(volttron_instance, database_client):
         end='2016-05-01 00:00:00.000000Z',
         count=35000
     ).get(timeout=100)
-    print ("Time taken{}".format(datetime.now() - before))
-    print ("result count {}".format(len(result['values'])))
+    print("Time taken{}".format(datetime.now() - before))
+    print("result count {}".format(len(result['values'])))
 
     before = datetime.now()
     result = publish_agent.vip.rpc.call(
@@ -250,8 +235,8 @@ def test_basic_function_month_data(volttron_instance, database_client):
         end='2016-05-01 00:00:00.000000Z',
         count=35000
     ).get(timeout=100)
-    print ("Time taken{}".format(datetime.now() - before))
-    print ("result count {}".format(len(result['values'])))
+    print("Time taken{}".format(datetime.now() - before))
+    print("result count {}".format(len(result['values'])))
 
     before = datetime.now()
     result = publish_agent.vip.rpc.call(
@@ -262,8 +247,8 @@ def test_basic_function_month_data(volttron_instance, database_client):
         end='2016-05-01 00:00:00.000000Z',
         count=35000
     ).get(timeout=100)
-    print ("Time taken{}".format(datetime.now() - before))
-    print ("result count {}".format(len(result['values'])))
+    print("Time taken{}".format(datetime.now() - before))
+    print("result count {}".format(len(result['values'])))
 
     before = datetime.now()
     result = publish_agent.vip.rpc.call(
@@ -274,8 +259,8 @@ def test_basic_function_month_data(volttron_instance, database_client):
         end='2016-05-01 00:00:00.000000Z',
         count=35000
     ).get(timeout=100)
-    print ("Time taken{}".format(datetime.now() - before))
-    print ("result count {}".format(len(result['values'])))
+    print("Time taken{}".format(datetime.now() - before))
+    print("result count {}".format(len(result['values'])))
 
     before = datetime.now()
     result = publish_agent.vip.rpc.call(
@@ -286,8 +271,9 @@ def test_basic_function_month_data(volttron_instance, database_client):
         end='2016-05-01 00:00:00.000000Z',
         count=35000
     ).get(timeout=100)
-    print ("Time taken{}".format(datetime.now() - before))
-    print ("result count {}".format(len(result['values'])))
+    print("Time taken{}".format(datetime.now() - before))
+    print("result count {}".format(len(result['values'])))
+
 
 @pytest.mark.timeout(180)
 @pytest.mark.skipif(not HAS_PYMONGO, reason='No pymongo driver')
@@ -304,7 +290,7 @@ def test_basic_function_week_multi_topic(volttron_instance, database_client):
     publish_agent = volttron_instance.build_agent()
 
     # Query the historian
-    before =datetime.now()
+    before = datetime.now()
     result = publish_agent.vip.rpc.call(
         'platform.historian',
         'query',
@@ -312,9 +298,9 @@ def test_basic_function_week_multi_topic(volttron_instance, database_client):
         start='2016-04-01 00:00:00.000000Z',
         end='2016-04-08 00:00:00.000000Z',
         count=35000
-        ).get(timeout=100)
-    print ("Time taken{}".format(datetime.now()-before))
-    print ("result count {}".format(len(result['values'])))
+    ).get(timeout=100)
+    print("Time taken{}".format(datetime.now() - before))
+    print("result count {}".format(len(result['values'])))
 
     before = datetime.now()
     result = publish_agent.vip.rpc.call(
@@ -325,8 +311,8 @@ def test_basic_function_week_multi_topic(volttron_instance, database_client):
         end='2016-04-08 00:00:00.000000Z',
         count=35000
     ).get(timeout=100)
-    print ("Time taken{}".format(datetime.now() - before))
-    print ("result count {}".format(len(result['values'])))
+    print("Time taken{}".format(datetime.now() - before))
+    print("result count {}".format(len(result['values'])))
 
 
 @pytest.mark.timeout(180)
@@ -344,7 +330,7 @@ def test_basic_function_2week_multi_topic(volttron_instance, database_client):
     publish_agent = volttron_instance.build_agent()
 
     # Query the historian
-    before =datetime.now()
+    before = datetime.now()
     result = publish_agent.vip.rpc.call(
         'platform.historian',
         'query',
@@ -352,9 +338,9 @@ def test_basic_function_2week_multi_topic(volttron_instance, database_client):
         start='2016-04-01 00:00:00.000000Z',
         end='2016-04-15 00:00:00.000000Z',
         count=35000
-        ).get(timeout=100)
-    print ("Time taken{}".format(datetime.now()-before))
-    print ("result count {}".format(len(result['values'])))
+    ).get(timeout=100)
+    print("Time taken{}".format(datetime.now() - before))
+    print("result count {}".format(len(result['values'])))
 
     before = datetime.now()
     result = publish_agent.vip.rpc.call(
@@ -365,5 +351,5 @@ def test_basic_function_2week_multi_topic(volttron_instance, database_client):
         end='2016-04-15 00:00:00.000000Z',
         count=35000
     ).get(timeout=100)
-    print ("Time taken{}".format(datetime.now() - before))
-    print ("result count {}".format(len(result['values'])))
+    print("Time taken{}".format(datetime.now() - before))
+    print("result count {}".format(len(result['values'])))

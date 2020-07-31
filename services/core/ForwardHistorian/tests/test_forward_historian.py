@@ -5,9 +5,11 @@ import tempfile
 
 import gevent
 import pytest
+from pytest import approx
 
 from volttron.platform import get_services_core
-from volttron.platform.agent import json as jsonapi
+from volttron.platform.agent import utils
+from volttron.platform import jsonapi
 
 from volttron.platform.messaging import headers as headers_mod
 
@@ -61,11 +63,12 @@ def do_publish(agent1):
                     }]
 
     # Create timestamp
-    now = datetime.utcnow().isoformat(' ')
+    now = utils.format_timestamp(datetime.utcnow())
 
     # now = '2015-12-02T00:00:00'
     headers = {
-        headers_mod.DATE: now
+        headers_mod.DATE: now,
+        headers_mod.TIMESTAMP: now
     }
     print("Published time in header: " + now)
 
@@ -74,7 +77,7 @@ def do_publish(agent1):
     agent1.vip.pubsub.publish(
         'pubsub', DEVICES_ALL_TOPIC, headers, all_message).get(timeout=10)
     publishedmessages.append(all_message)
-    gevent.sleep(1)
+    gevent.sleep(1.5)
 
 
 def onmessage(peer, sender, bus, topic, headers, message):
@@ -107,11 +110,11 @@ def test_reconnect_forwarder(get_volttron_instances):
     print('Before Subscribing')
     receiver.vip.pubsub.subscribe('pubsub', '', callback=onmessage)
     publisher.vip.pubsub.publish('pubsub', 'stuff', message='Fuzzy')
-    gevent.sleep(.2)
+    gevent.sleep(3)
 
     num_messages = 5
     for i in range(num_messages):
         do_publish(publisher)
 
-    for i in range(len(publishedmessages)):
-        assert allforwardedmessage[i] == publishedmessages[i]
+    for a,p in zip(allforwardedmessage, publishedmessages):
+        assert a[0] == approx(p[0])

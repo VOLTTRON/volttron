@@ -27,20 +27,21 @@
 # favoring by 8minutenergy or Kisensum.
 # }}}
 
-import json
+
 import os
 
 from dnp3.mesa.functions import FunctionDefinitions
 from dnp3.points import PointDefinitions
-from dnp3.points import POINT_TYPE_ANALOG_OUTPUT, POINT_TYPE_BINARY_OUTPUT, POINT_TYPES_BY_GROUP
+from dnp3 import DATA_TYPES_BY_GROUP
+from dnp3 import DATA_TYPE_ANALOG_OUTPUT, DATA_TYPE_BINARY_OUTPUT
 
-
+from volttron.platform import jsonapi
 POINT_DEF_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), 'tests', 'data', 'mesa_points.config'))
 FUNCTION_DEF_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), 'tests', 'data', 'mesa_functions.yaml'))
 
-POINT_TYPE_TO_PYTHON_TYPE = {
-    POINT_TYPE_BINARY_OUTPUT: {bool},
-    POINT_TYPE_ANALOG_OUTPUT: {int, float},
+DATA_TYPE_TO_PYTHON_TYPE = {
+    DATA_TYPE_BINARY_OUTPUT: {bool},
+    DATA_TYPE_ANALOG_OUTPUT: {int, float},
 }
 
 
@@ -53,7 +54,7 @@ class FunctionTest(object):
     def __init__(self, func_test_path='', func_test_json=None, func_def_path='', point_def_path=''):
         self.func_def_path = func_def_path or FUNCTION_DEF_PATH
         self.point_definitions = PointDefinitions(point_definitions_path=point_def_path or POINT_DEF_PATH)
-        self.ftest = func_test_json or json.load(open(func_test_path))
+        self.ftest = func_test_json or jsonapi.load(open(func_test_path))
         self.function_id = self.ftest.get('function_id', self.ftest.get('id', None))
         self.function_name = self.ftest.get('function_name', self.ftest.get('name', None))
         self.name = self.ftest.get('name', None)
@@ -74,7 +75,7 @@ class FunctionTest(object):
 
         :param func_def: function definition
         """
-        return [step.name for step in func_def.steps if step.optional == 'M']
+        return [step.name for step in func_def.steps if step.optional in ['M', 'I']]
 
     def has_mandatory_steps(self, fdef=None):
         """
@@ -86,8 +87,9 @@ class FunctionTest(object):
         if not fdef:
             raise FunctionTestException("Function definition not found: {}".format(self.function_id))
 
-        if not all(step in self.ftest.keys() for step in self.get_mandatory_steps(fdef)):
-            raise FunctionTestException("Function Test missing mandatory steps")
+        missing_steps = list(set(self.get_mandatory_steps(fdef)) - set(self.ftest.keys()))
+        if missing_steps:
+            raise FunctionTestException("Function Test missing mandatory steps: {}".format(missing_steps))
 
         return True
 
@@ -100,7 +102,8 @@ class FunctionTest(object):
         """
         # It would have been more informative to identify the mismatched step/point name,
         # but that would break a pytest assertion that matches on this specific exception description.
-        if not all(step_name in [step.point_def.name for step in func_def.steps] for step_name in self.points.keys()):
+        if not all(step_name in [step.point_def.name for step in func_def.steps if step.point_def] for step_name in
+                   self.points.keys()):
             raise FunctionTestException("Not all points resolve")
         return True
 
@@ -112,7 +115,7 @@ class FunctionTest(object):
             point_def = self.point_definitions.point_named(point_name)
             point_values = sum([list(v.values()) for v in point_value], []) if point_def.is_array else [point_value]
             for value in point_values:
-                if type(value) not in POINT_TYPE_TO_PYTHON_TYPE[POINT_TYPES_BY_GROUP[point_def.group]]:
+                if type(value) not in DATA_TYPE_TO_PYTHON_TYPE[DATA_TYPES_BY_GROUP[point_def.group]]:
                     # It would have been more informative to display the value and/or type in the error message,
                     # but that would break a pytest assertion that matches on this specific exception description.
                     raise FunctionTestException("Invalid point value: {}".format(point_name))
@@ -139,7 +142,7 @@ class FunctionTest(object):
 
 def main():
     function_test = FunctionTest(func_test_path=os.path.abspath(os.path.join(os.path.dirname(__file__),
-                                                                             'tests', 'data', 'curve.json')))
+                                                                             'tests', 'data', 'watt_var_curve.json')))
     function_test.is_valid()
 
 

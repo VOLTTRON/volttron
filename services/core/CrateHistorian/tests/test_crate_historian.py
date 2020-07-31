@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -50,9 +50,9 @@ except ImportError:
 
 
 crate_config = {
+    "schema": "testing",
     "connection": {
         "type": "crate",
-        "schema": "testing",
         "params": {
             "host": "localhost:4200"
         }
@@ -69,48 +69,36 @@ crate_config_no_schema = {
 }
 
 expected_table_list = [
-    u'analysis',
-    u'analysis_double',
-    u'datalogger',
-    u'datalogger_double',
-    u'device',
-    u'device_double',
-    u'meta',
-    u'record',
-    u'topic'
+    u'data',
+    u'topics'
 ]
 
-
-@pytest.fixture(scope="module")
-def volttron_instance(get_volttron_instances):
-
-    instance = get_volttron_instances(1)
-
-    yield instance
-
-    instance.shutdown_platform()
-
-
-@pytest.fixture(scope="module")
+# used only in one test function. And clean up should happen between
+# different volttron_instance types
+@pytest.fixture()
 def crate_connection1():
     host = crate_config_no_schema['connection']['params']['host']
     conn = client.connect(host, error_trace=True)
+    clean_schema_from_database(conn, "historian")
     yield conn
-    schemas = ("historian", "testing")
-    for x in schemas:
-        clean_schema_from_database(conn, x)
+
+    clean_schema_from_database(conn, "historian")
     conn.close()
 
 
-@pytest.fixture(scope="module")
+# used only in one test function. And clean up should happen between
+# different volttron_instance types
+@pytest.fixture()
 def crate_connection2():
     host = crate_config['connection']['params']['host']
     conn = client.connect(host, error_trace=True)
+    # clean up at the start of test and end
+    clean_schema_from_database(conn, "testing")
     yield conn
-    schemas = ("testing",)
-    for x in schemas:
-        clean_schema_from_database(conn, x)
+
+    clean_schema_from_database(conn, "testing")
     conn.close()
+
 
 
 def clean_schema_from_database(connection, schema):
@@ -129,7 +117,8 @@ def retrieve_tables_from_schema(connection, schema):
         query = "show tables in {schema}".format(schema=schema)
         cursor.execute(query)
         rows = [row[0] for row in cursor.fetchall()]
-    except:
+    except Exception as e:
+        print("Exception {}".format(e))
         rows = []
     finally:
         cursor.close()
@@ -139,7 +128,7 @@ def retrieve_tables_from_schema(connection, schema):
 @pytest.mark.historian
 @pytest.mark.skipif(not HAS_CRATE, reason="No crate database driver installed.")
 def test_creates_default_table_prefixes(volttron_instance, crate_connection1):
-
+    agent_uuid = None
     try:
         vi = volttron_instance
         assert not retrieve_tables_from_schema(crate_connection1, "historian")
@@ -147,32 +136,33 @@ def test_creates_default_table_prefixes(volttron_instance, crate_connection1):
         agent_uuid = vi.install_agent(agent_dir=get_services_core("CrateHistorian"),
                                       config_file=crate_config_no_schema)
 
-        gevent.sleep(0.5)
+        gevent.sleep(2)
         tables = retrieve_tables_from_schema(crate_connection1, "historian")
 
         assert len(expected_table_list) == len(tables)
         assert set(expected_table_list) == set(tables)
-
     finally:
-        vi.remove_agent(agent_uuid)
+        if agent_uuid:
+            vi.remove_agent(agent_uuid)
 
 
 @pytest.mark.historian
 @pytest.mark.skipif(not HAS_CRATE, reason="No crate database driver installed.")
 def test_creates_schema_prefix_tables(volttron_instance, crate_connection2):
-
+    agent_uuid = None
     try:
         vi = volttron_instance
         assert not retrieve_tables_from_schema(crate_connection2, "testing")
 
         agent_uuid = vi.install_agent(agent_dir=get_services_core("CrateHistorian"),
                                       config_file=crate_config)
-
+        gevent.sleep(2)
         tables = retrieve_tables_from_schema(crate_connection2, "testing")
 
         assert len(expected_table_list) == len(tables)
         assert set(expected_table_list) == set(tables)
 
     finally:
-        vi.remove_agent(agent_uuid)
+        if agent_uuid:
+            vi.remove_agent(agent_uuid)
 

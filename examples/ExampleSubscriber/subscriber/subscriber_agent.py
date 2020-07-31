@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -36,8 +36,6 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-from __future__ import absolute_import
-
 from datetime import datetime
 import logging
 import random
@@ -46,6 +44,7 @@ import sys
 from volttron.platform.vip.agent import Agent, Core, PubSub, compat
 from volttron.platform.agent import utils
 from volttron.platform.messaging import headers as headers_mod
+from volttron.platform.scheduling import periodic
 
 
 
@@ -77,7 +76,7 @@ def subscriber_agent(config_path, **kwargs):
         '''
         This agent demonstrates usage of the 3.0 pubsub service as well as 
         interfacting with the historian. This agent is mostly self-contained, 
-        but requires the histoiran be running to demonstrate the query feature.
+        but requires the historian to be running to demonstrate the query feature.
         '''
     
         def __init__(self, **kwargs):
@@ -139,7 +138,7 @@ def subscriber_agent(config_path, **kwargs):
             print(topic)
 #     
         # Demonstrate periodic decorator and settings access
-        @Core.periodic(10)
+        @Core.schedule(periodic(10))
         def lookup_data(self):
             '''
             This method demonstrates how to query the platform historian for data
@@ -168,7 +167,7 @@ def subscriber_agent(config_path, **kwargs):
                 print ("Could not contact historian. Is it running?")
                 print(e)
 
-        @Core.periodic(10)
+        @Core.schedule(periodic(10))
         def pub_fake_data(self):
             ''' This method publishes fake data for use by the rest of the agent.
             The format mimics the format used by VOLTTRON drivers.
@@ -195,9 +194,10 @@ def subscriber_agent(config_path, **kwargs):
             damper_message = [damper_reading,{'units': '%', 'tz': 'UTC', 'type': 'float'}]
             
             #Create timestamp
-            now = datetime.utcnow().isoformat(' ') + 'Z'
+            now = utils.format_timestamp(datetime.utcnow())
             headers = {
-                headers_mod.DATE: now
+                headers_mod.DATE: now,
+                headers_mod.TIMESTAMP: now
             }
             
             #Publish messages

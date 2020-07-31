@@ -13,11 +13,24 @@ Configuration for each device consists of 3 parts:
 
 For each device, you must create a driver configuration file, device register configuration file, and an entry in the Master Driver Agent configuration file.
 
-Once configured, the Master Driver Agent is :ref:`configured and deployed <test-agent-deployment>` in a manner similar to any other agent.
-
-The Master Driver Agent along with Historian Agents replace the functionality of sMap from VOLTTRON 2.0 and thus sMap is no longer a requirement for VOLTTRON.
+Once configured, the Master Driver Agent is :ref:`configured and deployed
+<test-agent-deployment>` in a manner similar to any other agent.
 
 .. _MasterDriverConfig:
+
+Requirements
+------------
+
+VOLTTRON drivers operated by the master driver may have additional requirements for installation.
+Required libraries:
+
+::
+
+    BACnet driver - bacpypes
+    Modbus driver - pymodbus
+    Modbus_TK driver - modbus-tk
+    DNP3 and IEEE 2030.5 drivers - pydnp3
+
 Master Driver Agent Configuration
 ---------------------------------
 The Master Driver Agent configuration consists of general settings for all devices. The default values of the master driver should be sufficient for most users.
@@ -50,6 +63,7 @@ All of the following setting are optional and default to `True`.
 An example master driver configuration file can be found in the VOLTTRON repository in ``examples/configurations/drivers/master-driver.agent``.
 
 .. _driver-configuration-file:
+
 Driver Configuration File
 -------------------------
 

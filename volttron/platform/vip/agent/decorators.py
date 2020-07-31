@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -36,7 +36,7 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-from __future__ import absolute_import, print_function
+
 
 import functools
 from types import MethodType
@@ -108,10 +108,10 @@ class dualmethod(object):
     >>> class Foo(object):
     ...     @dualmethod
     ...     def bar(self):
-    ...         print 'instance method for', self
+    ...         print('instance method for', self)
     ...     @bar.classmethod
     ...     def bar(cls):
-    ...         print 'class method for', cls
+    ...         print('class method for', cls)
     ...
     >>> Foo.bar()
     class method for <class '__main__.Foo'>
@@ -146,13 +146,13 @@ class dualmethod(object):
             if self.fclass is None:
                 if self.finstance is None:
                     raise AttributeError('no instance or class method is set')
-                return MethodType(self.finstance, instance, owner)
-            return MethodType(self.fclass, owner, owner)
+                return MethodType(self.finstance, instance)
+            return MethodType(self.fclass, owner)
         if self.finstance is None:
             if self.fclass is None:
                 raise AttributeError('no instance or class method is set')
-            return MethodType(self.fclass, owner, owner)
-        return MethodType(self.finstance, instance, owner)
+            return MethodType(self.fclass, owner)
+        return MethodType(self.finstance, instance)
 
     def instancemethod(self, finstance):
         '''Descriptor to set the instance method.'''

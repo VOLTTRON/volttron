@@ -1,6 +1,12 @@
 .. _Modbus-TK-config:
+
 Modbus-TK Driver Configuration
 ------------------------------
+
+.. warning:: Currently the modbus_tk library is not able to make connections from 2 masters on one host to 2 slaves
+    on one host - this will will prevent a single platform from being able to communicate to 2 slaves on IP as each
+    instance of a Modbus_Tk driver creates a new Modbus master.
+    `Issue on Modbus_Tk Github <https://github.com/ljean/modbus-tk/issues/124>`_.
 
 VOLTTRON's Modbus-TK driver, built on the Python Modbus-TK library, is an alternative to the
 original VOLTTRON modbus driver. Unlike the original modbus driver, the Modbus-TK driver
@@ -17,6 +23,15 @@ interpreted as a Modbus-TK "Address". Backward-compatibility exceptions are:
 
     - If the config file has no **port**, the default is 0, not 502.
     - If the config file has no **slave_id**, the default is 1, not 0.
+
+Requirements
+------------
+The Modbus-TK driver requires the modbus-tk package. This package can be installed in an
+activated environment with:
+
+::
+
+    pip install modbus-tk
 
 driver_config
 *************
@@ -46,7 +61,7 @@ but only **device_address** is required:
     - **endian** (Optional) - Byte order: big or little. Defaults to big.
     - **write_multiple_registers** (Optional) - Write multiple coils or registers at a time. Defaults to true.
         - : If write_multiple_registers is set to false, only register types unsigned short (uint16) and boolean (bool)
-        are supported. The exception raised during the configure process.
+          are supported. The exception raised during the configure process.
     - **register_map** (Optional) - Register map csv of unchanged register variables. Defaults to registry_config csv.
 
 Sample Modbus-TK configuration files are checked into the VOLTTRON repository
@@ -112,6 +127,7 @@ Here is a sample RTU Modbus-TK device configuration, with completely-specified s
     }
 
 .. _Modbus-TK-Driver:
+
 Modbus-TK Register Map CSV File
 *******************************
 
@@ -134,10 +150,12 @@ Each row configures a register definition on the device.
       mod10k64(reverse), mod10k48(reveres) or none. Default is an empty string.
     - **Table** (Optional) - Standard modbus table name defining how information is stored in slave device.
       There are 4 different tables:
+
             - discrete_output_coils: read/write coil numbers 1-9999
             - discrete_input_contacts: read only coil numbers 10001-19999
             - analog_input_registers: read only register numbers 30001-39999
             - analog_output_holding_registers: read/write register numbers 40001-49999
+
       If this field is empty, the modbus table will be defined by **type** and **writable** fields. By that, when user
       sets read only for read/write coils/registers or sets read/write for read only coils/registers, it will select
       wrong table, and therefore raise exception.
@@ -200,6 +218,7 @@ Here is a sample Modbus-TK registry configuration with defined **register_map**:
         sample str,sample_str
 
 .. _Modbus-TK-Maps:
+
 Modbus-TK Driver Maps
 *********************
 
@@ -247,6 +266,7 @@ Here is a sample ``maps.yaml`` file:
       file: ion8600_map.csv
 
 .. _Modbus-TK-Config-Cmd:
+
 Modbus-TK Config Command Tool
 *****************************
 
@@ -267,6 +287,7 @@ runs from the command line:
           in ``services/core/MasterDriverAgent/master_driver/interfaces/modbus_tk/maps``.
         + It is important to use the correct directories when adding/editing device types and driver configs,
           and when loading configurations into VOLTTRON.
+
             * map_dir: directory in which ``maps.yaml`` is stored.
             * config_dir: directory in which driver config files are stored.
             * csv_dir: directory in which registry config CSV files are stored.

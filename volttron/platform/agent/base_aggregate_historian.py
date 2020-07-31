@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -36,7 +36,7 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-from __future__ import absolute_import
+
 
 import copy
 import logging
@@ -120,6 +120,12 @@ class AggregateHistorian(Agent):
         self.agg_topic_id_map = self.get_agg_topic_map()
         _log.debug("In start of aggregate historian. "
                    "After loading topic and aggregate topic maps")
+
+        if not config.get("aggregations"):
+            _log.debug("End of onstart method - current time{}".format(
+                datetime.utcnow()))
+            return
+
         for agg_group in config['aggregations']:
             # 1. Validate and normalize aggregation period and
             # initialize use_calendar_periods flag
@@ -204,8 +210,8 @@ class AggregateHistorian(Agent):
                             topic_pattern))
 
                 _log.info("topic_names matching the given pattern {} "
-                          ":\n {}".format(topic_pattern, topic_map.keys()))
-                data['topic_ids'] = topic_map.values()
+                          ":\n {}".format(topic_pattern, list(topic_map.keys())))
+                data['topic_ids'] = list(topic_map.values())
 
             # Aggregating across multiple points. Check if unique topic
             # name was given for this.
@@ -315,11 +321,29 @@ class AggregateHistorian(Agent):
             _log.debug(
                 "After  compute agg_time_period = {} start_time {} end_time "
                 "{} ".format(agg_time_period, start_time, end_time))
+            schedule_next = True
             for data in points:
                 _log.debug("data in loop {}".format(data))
                 topic_ids = data.get('topic_ids', None)
                 _log.debug("topic ids configured {} ".format(topic_ids))
                 topic_pattern = data.get('topic_name_pattern', None)
+
+                aggregate_topic_id = \
+                    self.agg_topic_id_map.get(
+                        (data['aggregation_topic_name'].lower(),
+                         data['aggregation_type'].lower(),
+                         agg_time_period))
+                if not aggregate_topic_id:
+                    _log.warn("Name:{} Type: {} Aggregation Period: {}    --"
+                              "No such aggregate topic found. This could have happened if the "
+                              "configuration of the agent changed after the last schedule for data collection"
+                              " Stopping collection for the outdated configuration".format(
+                        data['aggregation_topic_name'].lower(),
+                        data['aggregation_type'].lower(),
+                        agg_time_period))
+                    schedule_next = False
+                    break  # break out of for loop and move to finally block
+
                 if topic_pattern:
                     # Find topic ids that match the pattern at runtime
                     topic_map = self.vip.rpc.call(
@@ -328,7 +352,7 @@ class AggregateHistorian(Agent):
                         topic_pattern=topic_pattern).get()
                     _log.debug("Found topics for pattern {}".format(topic_map))
                     if topic_map:
-                        topic_ids = topic_map.values()
+                        topic_ids = list(topic_map.values())
                         _log.debug("topic ids loaded {} ".format(topic_ids))
                     else:
                         _log.warn(
@@ -364,32 +388,28 @@ class AggregateHistorian(Agent):
                             end_time=end_time,
                             count=data.get('min_count', 0)))
                 else:
-                    aggregate_topic_id = \
-                        self.agg_topic_id_map[
-                            data['aggregation_topic_name'].lower(),
-                            data['aggregation_type'].lower(),
-                            agg_time_period]
-                    _log.debug(
-                        "agg_topic_id {} and topic ids sent to insert {} "
-                        "".format(aggregate_topic_id, topic_ids))
+                    _log.debug("data is {} aggg_time_period is {}".format(data, agg_time_period))
+                    _log.debug(" topic id map {}".format(self.agg_topic_id_map))
                     self.insert_aggregate(aggregate_topic_id,
                                           data['aggregation_type'],
                                           agg_time_period,
                                           end_time,
                                           agg_value,
                                           topic_ids)
+
         finally:
-            collection_time = AggregateHistorian.compute_next_collection_time(
-                collection_time, agg_time_period, use_calendar_periods)
-            _log.debug(
-                "Scheduling next collection at {}".format(collection_time))
-            event = self.core.schedule(collection_time,
-                                       self.collect_aggregate_data,
-                                       collection_time,
-                                       agg_time_period,
-                                       use_calendar_periods,
-                                       points)
-            _log.debug("After Scheduling next collection.{}".format(event))
+            if schedule_next:
+                collection_time = AggregateHistorian.compute_next_collection_time(
+                    collection_time, agg_time_period, use_calendar_periods)
+                _log.debug(
+                    "Scheduling next collection at {}".format(collection_time))
+                event = self.core.schedule(collection_time,
+                                           self.collect_aggregate_data,
+                                           collection_time,
+                                           agg_time_period,
+                                           use_calendar_periods,
+                                           points)
+                _log.debug("After Scheduling next collection.{}".format(event))
 
     @abstractmethod
     def get_topic_map(self):
@@ -544,15 +564,15 @@ class AggregateHistorian(Agent):
                     unit, time_period))
         if unit == 'm':
             if period >= 60 and period % 60 == 0:
-                period /= 60
+                period //= 60
                 unit = 'h'
         if unit == 'h':
             if period >= 24 and period % 24 == 0:
-                period /= 24
+                period //= 24
                 unit = 'd'
         if unit == 'd':
             if period >= 7 and period % 7 == 0:
-                period /= 7
+                period //= 7
                 unit = 'w'
 
         return str(period) + unit

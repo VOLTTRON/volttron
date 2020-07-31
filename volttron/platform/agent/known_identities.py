@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -43,10 +43,11 @@ AUTH = 'platform.auth'
 VOLTTRON_CENTRAL = 'volttron.central'
 VOLTTRON_CENTRAL_PLATFORM = 'platform.agent'
 
+PLATFORM_DRIVER = 'platform.driver'
 PLATFORM_TOPIC_WATCHER = 'platform.topic_watcher'
-
+PLATFORM_SYSMON = 'platform.sysmon'
+PLATFORM_EMAILER = 'platform.emailer'
 # The PLATFORM_ALERTER known name is now deprecated
-# warnings.warn("the name PLATFORM_ALERTER has been deprecated in favor of PLATFORM_TOPIC_WATCHER")
 PLATFORM_ALERTER = PLATFORM_TOPIC_WATCHER
 PLATFORM_HISTORIAN = 'platform.historian'
 
@@ -54,10 +55,9 @@ PLATFORM_MARKET_SERVICE = 'platform.market'
 
 CONTROL = 'control'
 CONTROL_CONNECTION = 'control.connection'
-MASTER_WEB = 'master.web'
+MASTER_WEB = 'master_web'
 CONFIGURATION_STORE = 'config.store'
-PLATFORM_DRIVER = 'platform.driver'
 
-all_known = (VOLTTRON_CENTRAL, VOLTTRON_CENTRAL_PLATFORM, PLATFORM_HISTORIAN,
-             CONTROL, CONTROL_CONNECTION, MASTER_WEB, AUTH, PLATFORM_TOPIC_WATCHER,
-             CONFIGURATION_STORE, PLATFORM_MARKET_SERVICE)
+all_known = (VOLTTRON_CENTRAL, VOLTTRON_CENTRAL_PLATFORM, PLATFORM_HISTORIAN, CONTROL, CONTROL_CONNECTION, MASTER_WEB,
+             AUTH, PLATFORM_TOPIC_WATCHER, CONFIGURATION_STORE, PLATFORM_MARKET_SERVICE, PLATFORM_EMAILER,
+             PLATFORM_SYSMON)

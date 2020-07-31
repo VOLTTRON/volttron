@@ -20,5 +20,11 @@ applications
 /configs/
 /config/
 /docs/build/*
-/docs/source/apidocs
+/docs/source/volttron_api
 volttron.log
+__pycache__
+.python-version
+.pytest_cache
+start-rabbitmq
+stop-rabbitmq
+rabbitmq.log

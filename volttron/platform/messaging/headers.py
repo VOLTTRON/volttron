@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -41,7 +41,7 @@
 
 __author__ = 'Brandon Carpenter <brandon.carpenter@pnnl.gov>'
 __copyright__ = 'Copyright (c) 2016, Battelle Memorial Institute'
-__license__ = 'FreeBSD'
+__license__ = 'Apache 2.0'
 
 
 CONTENT_TYPE = type('ContentTypeStr', (str,),
@@ -51,6 +51,8 @@ CONTENT_TYPE = type('ContentTypeStr', (str,),
 DATE = 'Date'
 
 TIMESTAMP = 'TimeStamp'
+
+SYNC_TIMESTAMP = 'SynchronizedTimeStamp'
 
 FROM = 'From'
 TO = 'To'
@@ -76,7 +78,7 @@ class Headers(dict):
     def __init__(self, *args, **kwargs):
         Key = self.__class__.Key
         obj = super(Headers, self).__init__(((Key(key), value)
-               for key, value in dict(*args, **kwargs).iteritems()))
+               for key, value in dict(*args, **kwargs).items()))
     def __contains__(self, key):
         return super(Headers, self).__contains__(str(key).lower())
     def get(self, key, default=None):
@@ -92,13 +94,13 @@ class Headers(dict):
     @property
     def dict(self):
         '''Return a dictionary with originally-cased keys.'''
-        return {str(k): v for k, v in self.iteritems()}
+        return {str(k): v for k, v in self.items()}
     def setdefault(self, key, value):
         return super(Headers, self).setdefault(self.__class__.Key(key), value)
     def update(self, *args, **kwargs):
         Key = self.__class__.Key
         obj = super(Headers, self).update(((Key(key), value)
-               for key, value in dict(*args, **kwargs).iteritems()))
+               for key, value in dict(*args, **kwargs).items()))
     def __repr__(self):
         return '%s(%s)' % (self.__class__.__name__,
                            super(Headers, self).__repr__())

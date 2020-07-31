@@ -1,3 +1,5 @@
+.. _Failover-Agent:
+
 Failover Agent
 ==============
 

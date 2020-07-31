@@ -22,9 +22,9 @@ To perform the bootstrap stage, ``bootstrap.py`` must be executed using the syst
 
 .. code::
 
-  $ python2.7 bootstrap.py
+  $ python3 bootstrap.py
 
-The above command assumes ``python2.7`` is in the ``PATH`` and creates the virtual environment in the default ``env`` directory. After the virtual environment is created, the update stage is automatically started by executing ``bootstrap.py`` using the python interpreter in the newly created virtual environment. Subsequent updates must also use the interpreter in the virtual environment.
+The above command assumes ``python3`` is in the ``PATH`` and creates the virtual environment in the default ``env`` directory. After the virtual environment is created, the update stage is automatically started by executing ``bootstrap.py`` using the python interpreter in the newly created virtual environment. Subsequent updates must also use the interpreter in the virtual environment.
 
 .. code::
 
@@ -36,7 +36,7 @@ Multiple options are available to alter the behavior of *bootstrap.py*. Use the 
 
   $ env/bin/python bootstrap.py --help
   usage: 
-    bootstrap: python2.7 bootstrap.py [options]
+    bootstrap: python3 bootstrap.py [options]
     update:    $VIRTUAL_ENV/bin/python bootstrap.py [options]
 
   Bootstrap and update a virtual Python environment for VOLTTRON development.
@@ -161,7 +161,7 @@ The output is truncated because it was long and boring. The important thing is t
 .. code::
 
   [volttron@inamatus volttron]$ rm -rf env
-  [volttron@inamatus volttron]$ time python2.7 bootstrap.py
+  [volttron@inamatus volttron]$ time python3 bootstrap.py
     ...
 
   real  8m35.387s
@@ -212,7 +212,7 @@ Nothing up my sleeve... Presto!
 .. code::
 
   [volttron@inamatus volttron]$ rm -rf env
-  [volttron@inamatus volttron]$ time python2.7 bootstrap.py
+  [volttron@inamatus volttron]$ time python3 bootstrap.py
     ...
 
   real  6m3.496s
@@ -246,7 +246,7 @@ Ah ha. There were a total of 227 cache hits, meaning that some of the files were
 .. code::
 
   [volttron@inamatus volttron]$ rm -rf env
-  [volttron@inamatus volttron]$ time python2.7 bootstrap.py
+  [volttron@inamatus volttron]$ time python3 bootstrap.py
     ...
 
   real  3m15.811s
@@ -306,7 +306,7 @@ So to get this all working, bootstrapping now has to occur in three steps: insta
 .. code::
 
   [volttron@inamatus volttron]$ rm -rf env
-  [volttron@inamatus volttron]$ time python2.7 bootstrap.py --only-virtenv
+  [volttron@inamatus volttron]$ time python3 bootstrap.py --only-virtenv
   Creating virtual Python environment
   Downloading virtualenv DOAP record
   Downloading virtualenv 12.0.7
@@ -430,7 +430,7 @@ Installing from wheels completes in only 11 seconds. And if we blow away the env
 .. code::
 
   [volttron@inamatus volttron]$ rm -rf env
-  [volttron@inamatus volttron]$ time python2.7 bootstrap.py
+  [volttron@inamatus volttron]$ time python3 bootstrap.py
     ...
 
   real  0m14.644s

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -116,7 +116,7 @@ def market_service_agent(config_path, **kwargs):
     _log.debug("Starting MarketServiceAgent")
     try:
         config = utils.load_config(config_path)
-    except StandardError:
+    except Exception:
         config = {}
 
     if not config:
@@ -186,7 +186,7 @@ class MarketServiceAgent(Agent):
 
     @RPC.export
     def make_reservation(self, market_name, buyer_seller):
-        identity = bytes(self.vip.rpc.context.vip_message.peer)
+        identity = bytes(self.vip.rpc.context.vip_message.peer).decode("utf-8")
         log_message = "Received {} reservation for market {} from agent {}".format(buyer_seller, market_name, identity)
         _log.debug(log_message)
         if (self.state == COLLECT_RESERVATIONS):
@@ -205,7 +205,7 @@ class MarketServiceAgent(Agent):
 
     @RPC.export
     def make_offer(self, market_name, buyer_seller, offer):
-        identity = bytes(self.vip.rpc.context.vip_message.peer)
+        identity = bytes(self.vip.rpc.context.vip_message.peer).decode("utf-8")
         log_message = "Received {} offer for market {} from agent {}".format(buyer_seller, market_name, identity)
         _log.debug(log_message)
         if (self.state == COLLECT_OFFERS):

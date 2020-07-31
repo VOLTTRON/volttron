@@ -1,4 +1,5 @@
 .. _DNP3-Driver-Config:
+
 DNP3 Driver Configuration
 -------------------------
 
@@ -10,6 +11,15 @@ In order to use a DNP3 driver to read and write point data, VOLTTRON's DNP3Agent
 be configured and running. All communication between the VOLTTRON Outstation and a
 DNP3 Master happens through this DNP3Agent.
 For information about the DNP3Agent, please see the :ref:`DNP3 Platform Specification <DNP3>`.
+
+Requirements
+------------
+The DNP3 driver requires the PyDNP3 package. This package can be installed in an
+activated environment with:
+
+::
+
+    pip install pydnp3
 
 driver_config
 *************
@@ -40,6 +50,7 @@ A sample DNP3 driver configuration file can be found in the VOLTTRON repository
 in ``services/core/MasterDriverAgent/example_configurations/test_dnp3.config``.
 
 .. _DNP3-Driver:
+
 DNP3 Registry Configuration File
 ********************************
 

@@ -117,17 +117,17 @@ class DNP3Outstation(opendnp3.IOutstationApplication):
         _log.debug('Configuring the DNP3 Outstation database.')
         db_config = self.stack_config.dbConfig
         for point in self.get_agent().point_definitions.all_points():
-            if point.point_type == 'Analog Input':
+            if point.data_type == 'Analog Input':
                 cfg = db_config.analog[int(point.index)]
-            elif point.point_type == 'Binary Input':
+            elif point.data_type == 'Binary Input':
                 cfg = db_config.binary[int(point.index)]
             else:
                 # This database's point configuration is limited to Binary and Analog data types.
                 cfg = None
             if cfg:
+                # cfg.vIndex = virtual index of the point
                 cfg.clazz = point.eclass
-                cfg.svariation = point.svariation
-                cfg.evariation = point.evariation
+                # cfg.svariation and cfg.evariation are static const: cannot modify
 
         _log.debug('Creating a DNP3Manager.')
         threads_to_allocate = self.outstation_config.get('threads_to_allocate', 1)
@@ -313,6 +313,7 @@ class DNP3Outstation(opendnp3.IOutstationApplication):
             The debug messages may be helpful if errors occur during shutdown.
         """
         _log.debug('Exiting DNP3 Outstation module...')
+        self.manager.Shutdown()
         _log.debug('Garbage collecting DNP3 Outstation...')
         self.set_outstation(None)
         _log.debug('Garbage collecting DNP3 stack config...')
@@ -388,12 +389,17 @@ class MyLogger(openpal.ILogHandler):
 
     def __init__(self):
         super(MyLogger, self).__init__()
+        self.tcp_client = None
 
     def Log(self, entry):
         """Write a DNP3 log entry to the logger (debug level)."""
         location = entry.location.rsplit('/')[-1] if entry.location else ''
         filters = entry.filters.GetBitfield()
         message = entry.message
+
+        if "Accepted connection from" in message:
+            self.tcp_client = message.split(": ")[1]
+
         _log.debug('DNP3Log {0}\t(filters={1}) {2}'.format(location, filters, message))
         # This is here as an example of how to send a specific log entry to the message bus as outstation status.
         # if 'Accepted connection' in message or 'Listening on' in message:

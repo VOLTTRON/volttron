@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -35,7 +35,7 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-from __future__ import absolute_import, print_function
+
 
 import datetime
 import errno
@@ -102,7 +102,7 @@ class SimpleWebAgent(Agent):
         # this is not required.
         
         # Endpoint will be available at http://localhost:8080/simple/text
-        self.vip.web.register_endpoint("/simple/text", self.text)
+        self.vip.web.register_endpoint("/simple/text", callback=self.text)
         
         # Endpoint will be available at http://localhost:8080/simple/jsonrpc
         self.vip.web.register_endpoint("/simpleweb/jsonrpc", self.rpcendpoint)
@@ -111,7 +111,9 @@ class SimpleWebAgent(Agent):
         """
         Text/html content type specified so the browser can act appropriately.
         """
-        return "This is some text", [("Content-Type", "text/html")]
+        # Response Type 200 OK is normal operation
+        # 404 is not found
+        return "200 OK", "This is some text", [("Content-Type", "text/html")]
 
     def rpcendpoint(self, env, data):
         """

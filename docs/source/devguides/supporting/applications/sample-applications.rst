@@ -53,6 +53,7 @@ The parameters boxed in black (in Figure 1) are the pre-configured fault detecti
 - **OAE6** – This section contains the schedule information for the AHU or RTU. The default is to indicate a 24-hour schedule for each day of the week. To modify this, change the numbers in the bracketed list next to the corresponding day with which you are making operation schedule modifications. For example: “Saturday”:  [0,0] (This indicates the system is off on Saturdays).
 
 .. image:: files/1_Example_Passive_AFDD_Agent_Configuration_file.jpg
+
 **Figure 1. Example Passive AFDD Agent Configuration File**
 
 
@@ -81,14 +82,14 @@ Upon successful completion of this command, the terminal output will show the in
 
 ::
 
-	$ volttron-ctl start --tag passive-afdd
+	$ vctl start --tag passive-afdd
 
 
 3. Verify that the agent is running:
 
 ::
 
-	$ volttron-ctl status
+	$ vctl status
 	$ tail -f volttron.log
 
 
@@ -96,8 +97,8 @@ If changes are made to the Passive AFDD agent’s configuration file after the a
 
 ::
 
-	$ volttron-ctl stop --tag passive-afdd
-	$ volttron-ctl remove --tag passive-afdd
+	$ vctl stop --tag passive-afdd
+	$ vctl remove --tag passive-afdd
 
 
 Then re-build and start the updated agent.
@@ -214,6 +215,7 @@ When utilizing the AFDD agent and inputting data via a csv text file, set the **
 Figure 2 shows the dialog box that is used to input the csv data file.
 
 .. image:: files/2_File_Selection_Dialog_Box.jpg
+
 **Figure 2 File Selection Dialog Box when Inputting Data in a csv File**
 
 If “Cancel” is pushed on the file input dialog box, the AFDD will acknowledge that no file was selected. The Passive AFDD must be restarted to run the diagnostics. If a non-csv file is selected, the AFDD will acknowledge the file selected was not a csv file. The AFDD must be restarted to run the diagnostics.
@@ -221,6 +223,7 @@ If “Cancel” is pushed on the file input dialog box, the AFDD will acknowledg
 Figure 3 shows a sample input data in a csv format. The header, or name for each column from the data input csv file used for analysis, should match the name given in the configuration file, as shown in Figure 1, boxed in red.
 
 .. image:: files/3_Sample_of_CSV_Data.jpg
+
 **Figure 3 Sample of CSV Data for Passive AFDD Agent**
 
 
@@ -246,6 +249,7 @@ Before launching the DR agent, several parameters require configuration. The DR 
 .. image:: files/4-1_Example_DR_Agent_Configuration_File.jpg
 
 .. image:: files/4-2_Example_DR_Agent_Configuration_File.jpg
+
 **Figure 4 Example Configuration File for the DR Agent**
 
 The parameters boxed in black (Figure 4) are the demand response parameters; these may require modification to ensure the DR agent and corresponding CPP event are executed as one desires. The parameters in the example configuration that are boxed in red are the controller or thermostat points, as specified in the Modbus or BACnet (depending on what communication protocol your device uses) registry file, that the DR agent will set via the Actuator agent. These device points must be writeable, and configured as such, in the registry (Modbus or BACnet) file. The following list describes each user configurable parameter:
@@ -375,14 +379,14 @@ Upon successful completion of this command, the terminal output will show the in
 
 ::
 
-	$ volttron-ctl start --tag dr-agent
+	$ vctl start --tag dr-agent
 
 
 3. Verify that agent is running:
 
 ::
 
-	$ volttron-ctl status
+	$ vctl status
 	$ tail -f volttron.log
 
 
@@ -390,8 +394,8 @@ If changes are made to the DR agent’s configuration file after the agent is la
 
 ::
 
-	$ volttron-ctl stop --tag dr-agent
-	$ volttron-ctl remove --tag dr-agent
+	$ vctl stop --tag dr-agent
+	$ vctl remove --tag dr-agent
 
 
 Then re-build and start the updated agent.

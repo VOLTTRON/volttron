@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -44,6 +44,8 @@ from .base import SubsystemBase
 from volttron.platform.messaging.headers import TIMESTAMP
 from volttron.platform.agent.utils import (get_aware_utc_now,
                                            format_timestamp)
+from volttron.platform.scheduling import periodic
+from ..errors import Unreachable, VIPError
 
 """The heartbeat subsystem adds an optional periodic publish to all agents.
 Heartbeats can be started with agents and toggled on and off at runtime.
@@ -63,6 +65,7 @@ class Heartbeat(SubsystemBase):
         self.autostart = heartbeat_autostart
         self.period = heartbeat_period
         self.enabled = False
+        self.connect_error = False
 
         def onsetup(sender, **kwargs):
             rpc.export(self.start, 'heartbeat.start')
@@ -77,6 +80,7 @@ class Heartbeat(SubsystemBase):
 
         core.onsetup.connect(onsetup, self)
         core.onstart.connect(onstart, self)
+        core.onconnected.connect(self.reconnect)
 
     def start(self):
         """RPC method
@@ -84,7 +88,7 @@ class Heartbeat(SubsystemBase):
         Starts an agent's heartbeat.
         """
         if not self.enabled:
-            self.greenlet = self.core().periodic(self.period, self.publish)
+            self.scheduled = self.core().schedule(periodic(self.period), self.publish)
             self.enabled = True
 
     def start_with_period(self, period):
@@ -97,13 +101,23 @@ class Heartbeat(SubsystemBase):
         self.set_period(period)
         self.start()
 
+    def reconnect(self, sender, **kwargs):
+        if self.connect_error:
+            self.restart()
+            self.connect_error = False
+
     def stop(self):
         """RPC method
 
         Stop an agent's heartbeat.
         """
         if self.enabled:
-            self.greenlet.kill()
+            # Trap the fact that scheduled may not have been
+            # set yet if the start hasn't been called.
+            try:
+                self.scheduled.cancel()
+            except AttributeError:
+                pass
             self.enabled = False
 
     def restart(self):
@@ -133,5 +147,9 @@ class Heartbeat(SubsystemBase):
         topic = 'heartbeat/' + self.core().identity
         headers = {TIMESTAMP: format_timestamp(get_aware_utc_now())}
         message = self.owner.vip.health.get_status_value()
+        try:
+            self.pubsub().publish('pubsub', topic, headers, message)
+        except Unreachable as exc:
+            self.connect_error = True
+            self.stop()
 
-        self.pubsub().publish('pubsub', topic, headers, message)

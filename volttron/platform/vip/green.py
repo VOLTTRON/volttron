@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -38,8 +38,8 @@
 
 '''VIP - VOLTTRON™ Interconnect Protocol implementation
 
-See https://github.com/VOLTTRON/volttron/wiki/VIP for protocol
-specification.
+See https://volttron.readthedocs.io/en/develop/core_services/messagebus/VIP/VIP-Overview.html
+for protocol specification.
 
 This module is for use within gevent. It provides some locking around
 send operations to protect the VIP state. It should be safe to use a
@@ -47,7 +47,7 @@ single socket in multiple greenlets without any kind of locking.
 '''
 
 
-from __future__ import absolute_import
+
 
 from contextlib import contextmanager as _contextmanager
 

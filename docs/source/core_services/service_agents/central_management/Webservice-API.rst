@@ -4,7 +4,7 @@
 VOLTTRON Central Web Services Api Documentation
 ===============================================
 
-VOLTTRON Central (VC) is meant to be the hub of communcation within a cluster of
+VOLTTRON Central (VC) is meant to be the hub of communication within a cluster of
 VOLTTRON instances. VC exposes a
 `JSON-RPC 2.0 <http://www.jsonrpc.org/specification>`_ based api that allows
 a user to control multple instances of VOLTTRON.
@@ -22,7 +22,7 @@ friendly mechanism.
 How the API is Implemented
 ==========================
 
-* All calls are made through a POST to `/jsonrpc`
+* All calls are made through a POST to `/vc/jsonrpc`
 * All calls (not including the call to authenticate) will
   include an authorization token (a json-rpc extension).
 
@@ -126,12 +126,12 @@ JSON-RPC Data Objects
                 "status", "string", "A status string made by the status rpc call, on an agent."
 
 
-.. csv-table:: DiscoveryRegistratyEntry
+.. csv-table:: DiscoveryRegistryEntry
     :header: "Key", "Type", "Value"
     :widths: 10, 10, 40
 
                 "name",
-                "discovery_address":
+                "discovery_address"
 
 .. csv-table:: AdvancedRegistratyEntry_TODO
     :header: "Key", "Type", "Value"
@@ -176,7 +176,7 @@ JSON-RPC API Methods
 ====================
 
 .. csv-table:: Methods
-:header: "method", "parameters", "returns"
+    :header: "method", "parameters", "returns"
     :widths: 10, 10, 40
 
                 "get_authentication", "(username, password)", "authentication token"
@@ -188,7 +188,7 @@ Messages
 Retrieve Authorization Token
     .. code-block:: Python
 
-        # POST /jsonrpc
+        # POST /vc/jsonrpc
         {
             "jsonrpc": "2.0",
             "method": "get_authorization",
@@ -216,7 +216,7 @@ Retrieve Authorization Token
 Register A Volttron Platform Instance (Using Discovery)
     .. code-block:: Python
 
-        # POST /jsonrpc
+        # POST /vc/jsonrpc
         {
             "jsonrpc": "2.0",
             "method": "register_instance",
@@ -247,7 +247,7 @@ Register A Volttron Platform Instance (Using Discovery)
 TODO: Request Registration of an External Platform
     .. code-block:: Python
 
-        # POST /jsonrpc
+        # POST /vc/jsonrpc
         {
             "jsonrpc": "2.0",
             "method": "register_platform",
@@ -262,7 +262,7 @@ TODO: Request Registration of an External Platform
 Unregister a Volttron Platform Instance
     .. code-block:: Python
 
-        # POST /jsonrpc
+        # POST /vc/jsonrpc
         {
             "jsonrpc": "2.0",
             "method": "unregister_platform",
@@ -277,7 +277,7 @@ Unregister a Volttron Platform Instance
 Retrieve Managed Instances
     .. code-block:: Python
 
-        #POST /jsonrpc
+        #POST /vc/jsonrpc
         {
             "jsonrpc": "2.0",
             "method": "list_platforms",
@@ -327,7 +327,7 @@ Retrieve Managed Instances
 TODO: change repsonse Retrieve Installed Agents From platform1
    .. code-block:: Python
 
-      # POST /jsonrpc
+      # POST /vc/jsonrpc
       {
           "jsonrpc": "2.0",
           "method": "platforms.uuid.abcd1234-ef56-ab78-cd90-efabcd123456.list_agents",
@@ -423,7 +423,7 @@ TODO: change repsonse Retrieve Installed Agents From platform1
 TODO: Start An Agent
    .. code-block:: Python
 
-      # POST /jsonrpc
+      # POST /vc/jsonrpc
       {
           "jsonrpc": "2.0",
           "method": "platforms.uuid.0987fedc-65ba-43fe-21dc-098765bafedc.start_agent",
@@ -448,7 +448,7 @@ TODO: Start An Agent
 TODO: Stop An Agent
    .. code-block:: Python
 
-      # POST /jsonrpc
+      # POST /vc/jsonrpc
       {
           "jsonrpc": "2.0",
           "method": "platforms.uuid.0987fedc-65ba-43fe-21dc-098765bafedc.stop_agent",
@@ -473,7 +473,7 @@ TODO: Stop An Agent
 TODO: Remove An Agent
    .. code-block:: Python
 
-      # POST /jsonrpc
+      # POST /vc/jsonrpc
       {
           "jsonrpc": "2.0",
           "method": "platforms.uuid.0987fedc-65ba-43fe-21dc-098765bafedc.remove_agent",
@@ -498,7 +498,7 @@ TODO: Remove An Agent
 TODO: Retrieve Running Agents
    .. code-block:: Python
 
-      # POST /jsonrpc
+      # POST /vc/jsonrpc
       {
           "jsonrpc": "2.0",
           "method": "platforms.uuid.0987fedc-65ba-43fe-21dc-098765bafedc.status_agents",
@@ -532,7 +532,7 @@ TODO: Retrieve Running Agents
 TODO: currently getting 500 error Retrieve An Agent's RPC Methods
    .. code-block:: Python
 
-      # POST /jsonrpc
+      # POST /vc/jsonrpc
       {
           "jsonrpc": "2.0",
           "method": "platforms.uuid.0987fedc-65ba-43fe-21dc-098765bafedc.agents.uuid.a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6.inspect",
@@ -560,7 +560,7 @@ TODO: currently getting 500 error Retrieve An Agent's RPC Methods
 TODO: Perform Agent Action
    .. code-block:: Python
 
-      # POST /jsonrpc
+      # POST /vc/jsonrpc
       {
           "jsonrpc": "2.0",
           "method": "platforms.uuid.0987fedc-65ba-43fe-21dc-098765bafedc.agents.uuid.a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6.methods.say_hello",
@@ -584,7 +584,7 @@ TODO: Perform Agent Action
 TODO: Install Agent
    .. code-block:: Python
 
-      # POST /jsonrpc
+      # POST /vc/jsonrpc
       {
           "jsonrpc": "2.0",
           "method": "platforms.uuid.0987fedc-65ba-43fe-21dc-098765bafedc.install",

@@ -27,13 +27,14 @@
 # favoring by 8minutenergy or Kisensum.
 # }}}
 
-from __future__ import print_function
+
 
 import logging
 import sys
 
 from volttron.platform.agent import utils
 from volttron.platform.vip.agent import Agent, Core, RPC
+from volttron.platform.scheduling import periodic
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -83,7 +84,7 @@ def mesa_test_agent(config_path, **kwargs):
     """
     try:
         config = utils.load_config(config_path)
-    except (StandardError, err):
+    except (Exception, err):
         _log.error("Error loading MesaTestAgent configuration: {}".format(err))
         config = {}
     mesaagent_id = config.get('mesaagent_id', 'mesaagent')
@@ -147,7 +148,7 @@ class MesaTestAgent(Agent):
         self.vip.pubsub.subscribe(peer='pubsub', prefix=self.point_topic, callback=self.receive_point_value)
         self.vip.pubsub.subscribe(peer='pubsub', prefix=self.function_topic, callback=self.receive_function)
         self.vip.pubsub.subscribe(peer='pubsub', prefix=self.outstation_status_topic, callback=self.receive_status)
-        self.core.periodic(RPC_INTERVAL_SECS, self.issue_rpcs)
+        self.core.schedule(periodic(RPC_INTERVAL_SECS), self.issue_rpcs)
 
     @staticmethod
     def receive_point_value(peer, sender, bus, topic, headers, point_value):

@@ -2,9 +2,9 @@ import tempfile
 
 import pytest
 import gevent
-import json
 
-from volttron.platform import get_services_core, get_examples
+from volttron.platform import get_examples, get_ops, jsonapi
+from volttrontesting.utils.agent_additions import add_listener
 
 simple_primary_config = {
     "agent_id": "primary",
@@ -32,12 +32,14 @@ uuid_primary = None
 uuid_secondary = None
 listener_primary = None
 
+
 def all_agents_running(instance):
     agents = instance.list_agents()
     uuids = [a['uuid'] for a in agents]
     return all([instance.is_agent_running(uuid) for uuid in uuids])
 
-@pytest.fixture
+
+@pytest.fixture(scope="module")
 def simple_failover(request, get_volttron_instances):
     global simple_primary_config
     global simple_secondary_config
@@ -47,27 +49,33 @@ def simple_failover(request, get_volttron_instances):
 
     primary, secondary = get_volttron_instances(2)
 
+    if primary.messagebus != 'zmq':
+        pytest.skip("Failover only valid for zmq instances.")
+        return
+
     primary.allow_all_connections()
     secondary.allow_all_connections()
 
     # configure primary
-    listener_primary = primary.install_agent(agent_dir=get_examples("ListenerAgent"),
-                                             vip_identity="listener",
-                                             start=False)
+    listener_primary = add_listener(primary, start=True, vip_identity="listener")
+    # primary.install_agent(agent_dir=get_examples("ListenerAgent"),
+    #                                          vip_identity="listener",
+    #                                          start=False)
 
     simple_primary_config["remote_vip"] = secondary.vip_address
     simple_primary_config["remote_serverkey"] = secondary.serverkey
-    uuid_primary = primary.install_agent(agent_dir=get_services_core("FailoverAgent"),
+    uuid_primary = primary.install_agent(agent_dir=get_ops("FailoverAgent"),
                                          config_file=simple_primary_config)
 
     # configure secondary
-    listener_secondary = secondary.install_agent(agent_dir=get_examples("ListenerAgent"),
-                                                 vip_identity="listener",
-                                                 start=False)
+    listener_secondary = add_listener(secondary, start=False, vip_identity="listener")
+    # listener_secondary = secondary.install_agent(agent_dir=get_examples("ListenerAgent"),
+    #                                              vip_identity="listener",
+    #                                              start=False)
 
     simple_secondary_config["remote_vip"] = primary.vip_address
     simple_secondary_config["remote_serverkey"] = primary.serverkey
-    uuid_secondary = secondary.install_agent(agent_dir=get_services_core("FailoverAgent"),
+    uuid_secondary = secondary.install_agent(agent_dir=get_ops("FailoverAgent"),
                                              config_file=simple_secondary_config)
 
     gevent.sleep(SLEEP_TIME)
@@ -95,7 +103,7 @@ def test_simple_failover(simple_failover):
 
     # Listen for alerts from state changes
     def onmessage(peer, sender, bus, topic, headers, message):
-        alert = json.loads(message)["context"]
+        alert = jsonapi.loads(message)["context"]
 
         try:
             alert_messages[alert] += 1
@@ -104,13 +112,13 @@ def test_simple_failover(simple_failover):
 
     listen1 = primary.build_agent()
     listen1.vip.pubsub.subscribe(peer='pubsub',
-                               prefix='alert',
-                               callback=onmessage).get()
+                                 prefix='alert',
+                                 callback=onmessage).get()
 
     listen2 = secondary.build_agent()
     listen2.vip.pubsub.subscribe(peer='pubsub',
-                               prefix='alert',
-                               callback=onmessage).get()
+                                 prefix='alert',
+                                 callback=onmessage).get()
 
     # make sure the secondary will take over
     primary.stop_agent(uuid_primary)

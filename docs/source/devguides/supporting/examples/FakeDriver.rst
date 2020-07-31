@@ -1,6 +1,7 @@
 .. _FakeDriver:
+
 Fake Driver
-==============
+===========
 
 The FakeDriver is included as a way to quickly see data published to the message bus in a format 
 that mimics what a true Driver would produce. This is an extremely simple implementation of the 
@@ -37,17 +38,10 @@ fake-master-driver.config::
         "driver_scrape_interval": 0.05
     }
 
-- Create a script to simplify installation. The following will stop and remove any existing
-  instances of agents create with the script, then package, install, and start the new instance.
-  You will need to make the file executable: chmod +x make-fakedriver
+- Use the scripts/install-agent.py script to install the Master Driver agent:
 
-make-fakedriver::
+::
 
-	export SOURCE=services/core/MasterDriverAgent
-	export CONFIG=config/fake-master-driver.agent
-	export TAG=fake-driver
-	./scripts/core/make-agent.sh
-	
+    python scripts/install-agent.py -s services/core/MasterDriverAgent -c config/fake-master-driver.config
 
 - If you have a :ref:`Listener Agent<Listener-Agent>` already installed, you should start seeing data being published to the bus.
-	

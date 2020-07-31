@@ -1,9 +1,10 @@
 
-from __future__ import absolute_import, print_function
+
 
 import gevent
 
 from volttron.platform.vip.agent import *
+from volttron.platform.scheduling import periodic
 
 
 def meh():
@@ -18,7 +19,7 @@ class ExampleAgent(Agent):
         self.vip.rpc.export(meh)
         self.vip.pubsub.add_bus('')
         self.core.onfinish.connect(self.finish)
-        self.core.periodic(5, self.saybye, wait=None)
+        self.core.schedule(periodic(5), self.saybye)
 
     @Core.receiver('onstart')
     def starting(self, sender, **kwargs):
@@ -38,7 +39,7 @@ class ExampleAgent(Agent):
     def finish(self, sender, **kwargs):
         print('agent finished')
 
-    @Core.periodic(3)
+    @Core.schedule(periodic(3))
     def sayhi(self):
         print('hello')
 

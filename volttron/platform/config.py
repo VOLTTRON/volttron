@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -53,7 +53,8 @@ import os as _os
 import re as _re
 import shlex as _shlex
 import sys as _sys
-from . instance_setup import main
+from volttron.platform.instance_setup import main
+from volttron.platform.agent import utils
 
 
 def expandall(string):
@@ -433,7 +434,7 @@ class ArgumentParser(_argparse.ArgumentParser):
                 continue
             try:
                 value = _os.environ[action.env_var]
-            except (AttributeError, KeyError):
+            except (AttributeError, KeyError, TypeError):
                 continue
             for opt in action.option_strings:
                 if opt.startswith('--'):
@@ -585,6 +586,10 @@ _patch_argparse()
 
 def _main():
     try:
+        # Protect against configuration of base logger when not the "main entry point"
+        utils.setup_logging()
+        import logging
+        logging.getLogger('urllib3.connectionpool').setLevel(logging.WARNING)
         main()
     except KeyboardInterrupt:
         print('\n')

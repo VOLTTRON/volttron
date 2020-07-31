@@ -1,4 +1,5 @@
 .. _Historian Index:
+
 ============================
 VOLTTRON Historian Framework
 ============================
@@ -6,7 +7,7 @@ VOLTTRON Historian Framework
 Historian Agents are the way by which device, actuator, datalogger, and
 analysis are captured and stored in some sort of data store. Historians exist for the following storage options:
 
-- A general :ref:`SQL Historian <SQL-Historian>` implemented for MySQL and SQLite
+- A general :ref:`SQL Historian <SQL-Historian>` implemented for MySQL, SQLite, PostgreSQL, and Amazon Redshift
 - :ref:`MongoDB Historian <Mongo-Historian>`
 - :ref:`Crate Historian <Crate-Historian>`
 - :ref:`Forward Historian <Forward-Historian>` for sending data to another VOLTTRON instance
@@ -84,15 +85,44 @@ All historians support the following settings:
 
         # For historian developers. Adds benchmarking information to gathered data.
         # Defaults to false and should be left that way.
-        "gather_timing_data": false,
+        "gather_timing_data": false
 
+        # Allow for the custom topics or for limiting topics picked up by a historian instance.
+        # the key for each entry in custom topics is the data handler.  The topic and data must
+        # conform to the syntax the handler expects (e.g., the capture_device_data handler expects
+        # data the driver framework). Handlers that expect specific data format are
+        # capture_device_data, capture_log_data, and capture_analysis_data. All other handlers will be  
+        # treated as record data. The list associated with the handler is a list of custom
+        # topics to be associated with that handler.
+        #
+        # To restrict collection to only the custom topics, set the following config variables to False
+        # capture_device_data
+        # capture_analysis_data
+        # capture_log_data
+        # capture_record_data
+        "custom_topics": {
+            "capture_device_data": ["devices/campus/building/device/all"],
+            "capture_analysis_data": ["analysis/application_data/example"],
+            "capture_record_data": ["example"]
+        },
+        # To restrict the points processed by a historian for a device or set of devices (i.e., this configuration
+        # parameter only filters data on topics with base 'devices).  If the 'device' is in the
+        # topic (e.g.,'devices/campus/building/device/all') then only points in the list will be passed to the
+        # historians capture_data method, and processed by the historian for storage in its database (or forwarded to a
+        # remote platform (in the case of the ForwardHistorian).  The key in the device_data_filter dictionary can
+        # be made more restrictive (e.g., "device/subdevice") to limit unnecessary searches through topics that may not
+        # contain the point(s) of interest.
+        "device_data_filter":
+            {
+                "device": ["point_name1", "point_name2"]
+            }
     }
 
 By default the base historian will listen to 4 separate root topics
-`datalogger/*`, `record/*`, `analysis/*`, and `device/*`.
+`datalogger/*`, `record/*`, `analysis/*`, and `devices/*`.
 
-Each of root
-topics has a :ref:`specific message syntax <Historian-Topic-Syntax>` that
+Each root
+topic has a :ref:`specific message syntax <Historian-Topic-Syntax>` that
 it is expecting for incoming data.
 
 Messages published to `datalogger`
@@ -103,10 +133,10 @@ graphed easily.
 Messages published to `devices` are data that comes
 directly from drivers.
 
-Messages published to `analysis` are analysis data published by agnets
+Messages published to `analysis` are analysis data published by agents
 in the form of key value pairs.
 
-Finally Messages that are published to `record`
+Finally, messages that are published to `record`
 will be handled as string data and can be customized to the user
 specific situation.
 

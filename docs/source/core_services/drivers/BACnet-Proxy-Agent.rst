@@ -8,12 +8,18 @@ Introduction
 ------------
 
 Communication with BACnet device on a network happens via a single
-virtual BACnet device. Previous versions of Volttron used one virtual
-device per device on the network. This only worked in a limited number
-of circumstances. (This problem is fixed in the legacy sMap drivers in
-Volttron 3.0 only) In the new driver architecture, we have a separate
+virtual BACnet device. In VOLTTRON driver framework, we use a separate
 agent specifically for communicating with BACnet devices and managing
 the virtual BACnet device.
+
+Requirements
+------------
+The BACnet Proxy agent requires the BACPypes package. This package can
+be installed in an activated environment with:
+
+::
+
+    pip install bacpypes
 
 Configuration
 -------------
@@ -188,22 +194,26 @@ BACnet Change of Value Services
 Change of Value Services added in version 0.5 of the BACnet Proxy and version
 3.2 of the Master Driver.
 
-There are a variety of scenarios in which a BACnet device may want to publish
-values independently of the regular scrape interval. Bacpypes provides a
-"ChangeOfValueServices" (further referred to as 'COV') module, which will
-enable a device to push values up the Volttron stack.
+There are a variety of scenarios in which a user may desire data from some
+BACnet device point values to be published independently of the regular
+scrape interval. Bacpypes provides a "ChangeOfValueServices" (hereby
+referred to as 'COV') module, which enables a device to push updates to the
+platform.
 
-The BACnet COV requires that the device include the ChangeOfValueServices module
-from Bacpypes. A BACnet object on the device can be instantiated with the
-'covIncrement' value set, which determines the threshold for a COV notification.
+The BACnet COV requires that points on the device be properly configured for
+COV. A point on the BACnet device can be configured with the 'covIncrement'
+property, which determines the threshold for a COV notification (note: this
+property must be configured by the device operator - VOLTTRON does not
+provide the ability to set or modify this property).
+
 Based on configuration options for BACnet drivers, the driver will instruct the
 BACnet Proxy to establish a COV subscription with the device. The subscription
 will last for an amount of time specified in the driver configuration, and will
 auto-renew the subscription. If the proxy loses communication with the device or
 the device driver is stopped the subscription will be removed when the lifetime
-expires. While the subscription exists, the device will send notifications to the
-BACnet proxy, which will forward them through the Master Driver to the
-appropriate Driver Agent.
+expires. While the subscription exists, the device will send (confirmed)
+notifications to which will be published, with the topic based on the
+driver's configured publish topics.
 
 https://bacpypes.readthedocs.io/en/latest/modules/service/cov.html
 
