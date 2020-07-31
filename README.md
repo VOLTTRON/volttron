@@ -1,11 +1,11 @@
 ![image](docs/source/images/VOLLTRON_Logo_Black_Horizontal_with_Tagline.png)
 
-Distributed Control System Platform.
-
 VOLTTRON™ is an open source platform for distributed sensing and control. The
 platform provides services for collecting and storing data from buildings and
 devices and provides an environment for developing applications which interact
 with that data.
+
+[![Build Status](https://travis-ci.org/VOLTTRON/volttron.svg?branch=develop)](https://travis-ci.org/VOLTTRON/volttron)
 
 ## Features
 
@@ -15,16 +15,13 @@ with that data.
 -   [Agent lifecycle managment](https://volttron.readthedocs.io/en/latest/core_services/control/AgentManagement.html#agentmanagement) in the platform
 -   [Web UI](https://volttron.readthedocs.io/en/latest/core_services/service_agents/central_management/VOLTTRON-Central.html#volttron-central) for managing deployed instances from a single central instance.
 
-## Background
+## Installation
 
 VOLTTRON is written in Python 3.6+ and runs on Linux Operating Systems. For
 users unfamiliar with those technologies, the following resources are recommended:
 
 -   <https://docs.python.org/3.6/tutorial/>
 -   <http://ryanstutorials.net/linuxtutorial>
-
-
-## Installation
 
 ### 1. Install prerequisites
 
@@ -75,7 +72,7 @@ You can deactivate the environment at any time by running `deactivate`.
 
 For RabbitMQ based VOLTTRON, some of the RabbitMQ specific software packages have to be installed.
 
-###### On Debian based systems (other than Raspbian) and CentOS 6/7
+###### On Debian based systems and CentOS 6/7
 
 If you are running an Debian or CentOS system, you can install the RabbitMQ dependencies by running the rabbit 
   dependencies script, passing in the OS name and appropriate distribution as parameters. The following are supported:
@@ -88,20 +85,14 @@ If you are running an Debian or CentOS system, you can install the RabbitMQ depe
 
 -   `debian stretch` (for Debian Stretch)
 
+-   `debian buster` (for Debian Buster)
+
+-   `raspbian buster` (for Raspbian/Raspberry Pi OS buster)
+
 Example command:
 
 ```sh
 ./scripts/rabbit_dependencies.sh debian xenial
-```
-
-###### On Raspbian buster
-
-To get the rabbmq dependencies, install the system rabbitmq-server package, and disable the system daemon with the following commands:
-
-```sh
-sudo apt-get install rabbitmq-server
-sudo systemctl stop rabbitmq-server
-sudo systemctl disable rabbitmq-server
 ```
 
 ###### Alternatively
@@ -138,7 +129,7 @@ The rest of the documentation refers to the directory `<install dir>/rabbitmq_se
 You can check if the RabbitMQ server is installed by checking its status. Please
 note, the `RABBITMQ_HOME` environment variable can be set in ~/.bashrc. If doing so,
 it needs to be set to the RabbitMQ installation directory (default path is
-`<user_home>/rabbitmq_server/rabbitmq_server/rabbitmq_server-3.7.7`)
+`<user_home>/rabbitmq_server/rabbitmq_server-3.7.7`)
 
 ```sh
 echo 'export RABBITMQ_HOME=$HOME/rabbitmq_server/rabbitmq_server-3.7.7'|sudo tee --append ~/.bashrc

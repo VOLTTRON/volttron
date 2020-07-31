@@ -44,7 +44,6 @@ reload(socket)
 import logging
 
 
-
 def select_all_topics_query(schema, table_name):
     return "SELECT topic FROM {schema}.{table}".format(schema=schema, table=table_name)
 

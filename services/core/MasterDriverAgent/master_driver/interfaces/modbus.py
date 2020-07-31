@@ -36,6 +36,10 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
+import struct
+import logging
+import os.path
+
 from gevent import monkey
 monkey.patch_socket()
 
@@ -44,16 +48,11 @@ from pymodbus.exceptions import ConnectionException, ModbusIOException, ModbusEx
 from pymodbus.pdu import ExceptionResponse
 from pymodbus.constants import Defaults
 
-from volttron.platform.agent.utils import get_home
-from volttron.platform.agent import utils
-from master_driver.interfaces import BaseInterface, BaseRegister, BasicRevert, DriverInterfaceError
-
-import struct
-import logging
-import os.path
-
 from contextlib import contextmanager, closing
+
 from master_driver.driver_locks import socket_lock
+from master_driver.interfaces import BaseInterface, BaseRegister, BasicRevert, DriverInterfaceError
+from volttron.platform.agent import utils
 
 @contextmanager
 def modbus_client(address, port):
@@ -72,18 +71,20 @@ MODBUS_REGISTER_SIZE = 2
 MODBUS_READ_MAX = 100
 PYMODBUS_REGISTER_STRUCT = struct.Struct('>H')
 
-path = os.path.join(get_home(), "examples", "configurations", "drivers")
+path = os.path.join(utils.get_home(), "examples", "configurations", "drivers")
 configFile = os.path.join(path, "example.csv")
 
 
 class ModbusInterfaceException(ModbusException):
     pass
 
+
 class ModbusRegisterBase(BaseRegister):
     def __init__(self, address, register_type, read_only, pointName, units, description='', slave_id=0):
         super(ModbusRegisterBase, self).__init__(register_type, read_only, pointName, units, description=description)
         self.address = address
         self.slave_id = slave_id
+
 
 class ModbusBitRegister(ModbusRegisterBase):
     def __init__(self, address, type_string, pointName, units, read_only, mixed_endian=False, description='',
@@ -219,8 +220,7 @@ class Interface(BasicRevert, BaseInterface):
 
         # Store the range of registers for each point.
         start, end = register.address, register.address + register_count - 1
-        register_range.append([start,end,[register]])
-
+        register_range.append([start, end, [register]])
 
     def merge_register_ranges(self):
         """
@@ -244,7 +244,7 @@ class Interface(BasicRevert, BaseInterface):
             result.append(current)
 
             self.register_ranges[key] = result
-        
+
     def get_point(self, point_name):
         register = self.get_register_by_name(point_name)
         with modbus_client(self.ip_address, self.port) as client:
@@ -323,7 +323,7 @@ class Interface(BasicRevert, BaseInterface):
         return result_dict
         
     def _scrape_all(self):
-        result_dict={}
+        result_dict = {}
         with modbus_client(self.ip_address, self.port) as client:
             try:
                 
@@ -366,7 +366,7 @@ class Interface(BasicRevert, BaseInterface):
             self.insert_register(register)
             
             if not read_only:
-                if default_value is not None:
+                if default_value:
                     if isinstance(register, ModbusBitRegister):
                         try:
                             value = bool(int(default_value))

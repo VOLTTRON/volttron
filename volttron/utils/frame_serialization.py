@@ -82,7 +82,7 @@ def deserialize_frames(frames: List[Frame]) -> List:
 def serialize_frames(data: List[Any]) -> List[Frame]:
     frames = []
 
-    # _log.debug("Serializing: {}".format(data))
+    #_log.info("Serializing: {}".format(data))
     for x in data:
         try:
             if isinstance(x, list) or isinstance(x, dict):
@@ -91,6 +91,8 @@ def serialize_frames(data: List[Any]) -> List[Frame]:
                 frames.append(x)
             elif isinstance(x, bytes):
                 frames.append(Frame(x))
+            elif isinstance(x, bool):
+                frames.append(struct.pack("?", x))
             elif isinstance(x, int):
                 frames.append(struct.pack("I", x))
             elif isinstance(x, float):
@@ -98,13 +100,13 @@ def serialize_frames(data: List[Any]) -> List[Frame]:
             elif x is None:
                 frames.append(Frame(x))
             else:
+                #_log.info("serialize_frames:{}".format(x))
                 frames.append(Frame(x.encode('utf-8')))
         except TypeError as e:
             import sys
             sys.exit(0)
         except AttributeError as e:
             import sys
-            # _log.debug("Serializing: {}".format(data))
             sys.exit(0)
     return frames
 

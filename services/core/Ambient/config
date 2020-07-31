@@ -1,0 +1,12 @@
+{
+    "application_key" : "<application_key>",
+    "api_key": "<api_key>",
+    "poll_locations": [
+      {"location": "Lab Home A"},
+      {"location": "Lab Home B"}
+    ],
+    "max_size_gb": 1,
+    "database_file": "weather.sqlite",
+    "poll_interval": 60,
+    "identity": "platform.ambient"
+}

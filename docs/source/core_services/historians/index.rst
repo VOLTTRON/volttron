@@ -104,11 +104,22 @@ All historians support the following settings:
             "capture_device_data": ["devices/campus/building/device/all"],
             "capture_analysis_data": ["analysis/application_data/example"],
             "capture_record_data": ["example"]
-        }
+        },
+        # To restrict the points processed by a historian for a device or set of devices (i.e., this configuration
+        # parameter only filters data on topics with base 'devices).  If the 'device' is in the
+        # topic (e.g.,'devices/campus/building/device/all') then only points in the list will be passed to the
+        # historians capture_data method, and processed by the historian for storage in its database (or forwarded to a
+        # remote platform (in the case of the ForwardHistorian).  The key in the device_data_filter dictionary can
+        # be made more restrictive (e.g., "device/subdevice") to limit unnecessary searches through topics that may not
+        # contain the point(s) of interest.
+        "device_data_filter":
+            {
+                "device": ["point_name1", "point_name2"]
+            }
     }
 
 By default the base historian will listen to 4 separate root topics
-`datalogger/*`, `record/*`, `analysis/*`, and `device/*`.
+`datalogger/*`, `record/*`, `analysis/*`, and `devices/*`.
 
 Each root
 topic has a :ref:`specific message syntax <Historian-Topic-Syntax>` that
