@@ -11,9 +11,9 @@ platform agent.
 Explanation of ListenerAgent
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Use utils to setup logging which we’ll use later.
+Use :code:`utils` to setup logging, which we’ll use later.
 
-::
+.. code-block:: python
 
     utils.setup_logging()
     _log = logging.getLogger(__name__)
@@ -22,7 +22,7 @@ Use utils to setup logging which we’ll use later.
 The Listener agent extends (inherits from) the Agent class for its
 default functionality such as responding to platform commands:
 
-::
+.. code-block:: python
 
     class ListenerAgent(Agent):
         '''Listens to everything and publishes a heartbeat according to the
@@ -31,10 +31,10 @@ default functionality such as responding to platform commands:
 
 After the class definition, the Listener agent reads the configuration
 file, extracts the configuration parameters, and initializes any
-Listener agent instance variable. This is done the agents **init**
+Listener agent instance variable. This is done through the agent's :code:`__init__`
 method:
 
-::
+.. code-block:: python
 
     def __init__(self, config_path, **kwargs):
         super(ListenerAgent, self).__init__(**kwargs)
@@ -55,7 +55,7 @@ tagged to run after the agent is initialized by the decorator
 ``@Core.receiver('onsetup')``. This method accesses the configuration
 parameters, logs a message to the platform log, and sets the agent ID.
 
-::
+.. code-block:: python
 
     @Core.receiver('onsetup')
     def onsetup(self, sender, **kwargs):
@@ -64,7 +64,7 @@ parameters, logs a message to the platform log, and sets the agent ID.
         self._agent_id = self.config.get('agentid')
 
 The Listener agent subscribes to all topics published on the message
-bus. Subscribe/publish interactions with the message bus are handled by
+bus. Publish and subscribe interactions with the message bus are handled by
 the PubSub module located at:
 
     ``~/volttron/volttron/platform/vip/agent/subsystems/pubsub.py``
@@ -77,7 +77,7 @@ for simplifying subscriptions.
 It also checks for the sender being ``pubsub.compat`` in case there are
 any VOLTTRON 2.0 agents running on the platform.
 
-::
+.. code-block:: python
 
     @PubSub.subscribe('pubsub', '')
     def on_match(self, peer, sender, bus,  topic, headers, message):

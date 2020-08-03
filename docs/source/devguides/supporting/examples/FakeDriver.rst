@@ -37,7 +37,6 @@ fake.config::
         "publish_breadth_first": false
    	}
 
-
 - Create a copy of the Master Driver config:
 
 .. code-block:: bash
