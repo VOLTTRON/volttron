@@ -652,7 +652,7 @@ class MasterWebService(Agent):
                 self._admin_endpoints = AdminEndpoints(ssl_public_key=CertWrapper.get_cert_public_key(ssl_cert),
                                                        rpc_caller=rpc_caller)
         else:
-            self._admin_endpoints = AdminEndpoints()
+            self._admin_endpoints = AdminEndpoints(rpc_caller=rpc_caller)
 
         hostname = parsed.hostname
         port = parsed.port

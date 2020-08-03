@@ -73,16 +73,26 @@ from time import sleep
 #     p.join()
 
 
-@pytest.mark.parametrize("messagebus, ssl_auth", [('rmq', True)])  # , ('rmq', False), ('zmq', False)] )
+@pytest.mark.parametrize("messagebus, ssl_auth", [
+    ('zmq', False)
+    # , ('zmq', False)
+    # , ('rmq', True)
+])
 def test_can_create(messagebus, ssl_auth):
-    p = PlatformWrapper(messagebus=messagebus, ssl_auth=ssl_auth)
-    assert not p.is_running()
-    assert p.volttron_home.startswith("/tmp/tmp")
 
-    p.startup_platform(vip_address=get_rand_tcp_address())
-    assert p.is_running()
-    p.shutdown_platform()
+    p = PlatformWrapper(messagebus=messagebus, ssl_auth=ssl_auth)
+    try:
+        assert not p.is_running()
+        assert p.volttron_home.startswith("/tmp/tmp")
+
+        p.startup_platform(vip_address=get_rand_tcp_address())
+        assert p.is_running()
+    finally:
+        if p:
+            p.shutdown_platform()
+
     assert not p.is_running()
+
 
 
 
@@ -108,6 +118,7 @@ def test_can_restart_platform_without_addresses_changing(get_volttron_instances)
     assert inst_forward.is_running()
     inst_forward.stop_platform()
     assert not inst_forward.is_running()
+    gevent.sleep(5)
     inst_forward.restart_platform()
     assert inst_forward.is_running()
     assert original_vip == inst_forward.vip_address
@@ -124,6 +135,7 @@ def test_can_restart_platform(volttron_instance):
 
     assert volttron_instance.is_running()
     volttron_instance.stop_platform()
+
     assert not volttron_instance.is_running()
     volttron_instance.restart_platform()
     assert volttron_instance.is_running()

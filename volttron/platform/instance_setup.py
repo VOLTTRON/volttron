@@ -101,15 +101,16 @@ def _update_config_file(instance_name=None, web_secret_key=None):
     for k, v in config_opts.items():
         config.set('volttron', k, v)
 
-    if instance_name is not None:
-        if 'instance-name' in config_opts:
-            # Overwrite existing if instance name was passed
-            if instance_name is not None:
-                config.set('volttron', 'instance-name', instance_name)
-        else:
-            if instance_name is None:
-                instance_name = 'volttron1'
+    # if instance_name is not None:
+
+    if 'instance-name' in config_opts:
+        # Overwrite existing if instance name was passed
+        if instance_name is not None:
             config.set('volttron', 'instance-name', instance_name)
+    else:
+        if instance_name is None:
+            instance_name = 'volttron1'
+        config.set('volttron', 'instance-name', instance_name)
 
     if web_secret_key is not None:
         config.set('volttron', 'web-secret-key', web_secret_key)
@@ -151,7 +152,6 @@ def _is_bound_already(address):
 def fail_if_instance_running():
 
     home = get_home()
-    ipc_address = 'ipc://{}/run/vip.socket'.format(home)
 
     if os.path.exists(home) and\
        is_volttron_running(home):
@@ -410,16 +410,16 @@ def do_message_bus():
         else:
             print("Message type is not valid. Valid entries are zmq or rmq.")
 
-    try:
-        rmq_config = RMQConfig()
-
-    except AssertionError:
-        print("RabbitMQ has not been set up!")
-        print("Setting up now...")
-        set_dependencies_rmq()
-        print("Done!")
-
     if bus_type == 'rmq':
+        try:
+            rmq_config = RMQConfig()
+
+        except AssertionError:
+            print("RabbitMQ has not been set up!")
+            print("Setting up now...")
+            set_dependencies_rmq()
+            print("Done!")
+
         if not _check_dependencies_met('rabbitmq'):
             print("Rabbitmq dependencies not installed. Installing now...")
             set_dependencies("rabbitmq")
@@ -596,16 +596,13 @@ def do_web_agent():
     _update_config_file()
 
 
-# TODO: Commented out so we don't prompt for installing vc or vcp until they
-# have been figured out totally for python3
-#
 @installs(get_services_core("VolttronCentral"), 'vc')
 def do_vc():
     do_web_agent()
-    resp = vc_config()
+    # resp = vc_config()
 
     print('Installing volttron central.')
-    return resp
+    return {}
 
 
 def vc_config():
@@ -708,8 +705,8 @@ def get_cert_and_key(vhome):
                       "should use RSA encryption")
         else:
             cert_error = _create_web_certs()
-            if not cert_error: 
-                master_web_cert = os.path.join(vhome, 'certificates/certs/', 
+            if not cert_error:
+                master_web_cert = os.path.join(vhome, 'certificates/certs/',
                         MASTER_WEB+"-server.crt")
                 master_web_key = os.path.join(vhome, 'certificates/private/', 
                         MASTER_WEB + "-server.pem")
@@ -727,9 +724,6 @@ def is_file_readable(file_path, log=True):
         return False
 
 
-# Todo: Commented out so we don't prompt for installing vc or vcp until they
-# have been figured out totally for python3
-#
 @installs(get_services_core("VolttronCentralPlatform"), 'vcp')
 def do_vcp():
     global config_opts
@@ -808,9 +802,8 @@ def do_vcp():
 @installs(get_services_core("SQLHistorian"), 'platform_historian',
           identity='platform.historian')
 def do_platform_historian():
-    datafile = os.path.join(get_home(), 'data', 'platform.historian.sqlite')
+    datafile = 'platform.historian.sqlite'
     config = {
-        'agentid': 'sqlhistorian-sqlite',
         'connection': {
             'type': 'sqlite',
             'params': {
@@ -872,6 +865,7 @@ def wizard():
     do_message_bus()
     do_vip()
     _update_config_file()
+
     prompt = 'Is this instance web enabled?'
     response = prompt_response(prompt, valid_answers=y_or_n, default='N')
     if response in y:
@@ -891,6 +885,11 @@ def wizard():
         response = prompt_response(prompt, valid_answers=y_or_n, default='N')
         if response in y:
             do_vc()
+            if _is_agent_installed('vc'):
+                print("VC admin and password are set up using the admin web interface.\n"
+                      "After starting VOLTTRON, please go to {} to complete the setup.".format(
+                        os.path.join(config_opts['bind-web-address'], "admin", "login.html")
+                        ))
     # TODO: Commented out so we don't prompt for installing vc or vcp until they
     # have been figured out totally for python3
 
@@ -977,6 +976,9 @@ def main():
                             'details when prompted. \nUsage: vcfg --rabbitmq '
                             'single|federation|shovel [rabbitmq config '
                             'file]')
+    group.add_argument('--secure-agent-users', action='store_true', dest='secure_agent_users',
+                       help='Require that agents run with their own users (this requires running '
+                            'scripts/secure_user_permissions.sh as sudo)')
 
     args = parser.parse_args()
     verbose = args.verbose
@@ -1009,16 +1011,22 @@ def main():
             exit(1)
         else:
             process_rmq_inputs(args.rabbitmq, args.instance_name)
+    elif args.secure_agent_users:
+        config_opts['secure-agent-users'] = args.secure_agent_users
+        _update_config_file()
     elif not args.agent:
         wizard()
 
     else:
         # Warn about unknown agents
+        valid_agents = False
         for agent in args.agent:
             if agent not in available_agents:
                 print('"{}" not configurable with this tool'.format(agent))
-
-        confirm_volttron_home()
+            else:
+                valid_agents = True
+        if valid_agents:
+            confirm_volttron_home()
 
         # Configure agents
         for agent in args.agent:

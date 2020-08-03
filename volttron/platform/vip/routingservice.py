@@ -157,8 +157,8 @@ class RoutingService(object):
         if result:
             #Form response frame
             response = [sender, recipient, proto, usr_id, msg_id, subsystem]
-            response.append(zmq.Frame(b'request_response'))
-            response.append(zmq.Frame(bytes(result)))
+            response.append('request_response')
+            response.append(result)
         else:
             response = False
 

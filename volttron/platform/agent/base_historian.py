@@ -276,6 +276,10 @@ from volttron.platform.agent import utils
 
 _log = logging.getLogger(__name__)
 
+
+# Build the parser
+time_parser = None
+
 ACTUATOR_TOPIC_PREFIX_PARTS = len(topics.ACTUATOR_VALUE.split('/'))
 ALL_REX = re.compile('.*/all$')
 
@@ -362,6 +366,7 @@ class BaseHistorianAgent(Agent):
                  storage_limit_gb=None,
                  sync_timestamp=False,
                  custom_topics={},
+                 device_data_filter={},
                  all_platforms=False,
                  **kwargs):
 
@@ -429,6 +434,7 @@ class BaseHistorianAgent(Agent):
                                 "storage_limit_gb": storage_limit_gb,
                                 "history_limit_days": history_limit_days,
                                 "custom_topics": custom_topics,
+                                "device_data_filter": device_data_filter,
                                 "all_platforms": self._all_platforms
                                }
 
@@ -577,7 +583,7 @@ class BaseHistorianAgent(Agent):
                                    custom_topics_list)
 
         self.stop_process_thread()
-
+        self._device_data_filter = config.get("device_data_filter")
         try:
             self.configure(config)
         except Exception as e:
@@ -836,7 +842,29 @@ class BaseHistorianAgent(Agent):
         # we strip it off to get the base device
         parts = topic.split('/')
         device = '/'.join(parts[1:-1])
-        self._capture_data(peer, sender, bus, topic, headers, message, device)
+        # msg = [{data},{meta}] format
+        msg = [{}, {}]
+        try:
+            # If the filter is empty pass all data.
+            if self._device_data_filter:
+                for _filter, point_list in self._device_data_filter.items():
+                    # If filter is not empty only topics that contain the key
+                    # will be kept.
+                    if _filter in device:
+                        for point in point_list:
+                            # Only points in the point list will be added to the message payload
+                            if point in message[0]:
+                                msg[0][point] = message[0][point]
+                                msg[1][point] = message[1][point]
+            else:
+                msg = message
+        except Exception as e:
+            _log.debug("Error handling device_data_filter. {}".format(e))
+            msg = message
+        if not msg[0]:
+            _log.debug("Topic: {} - is not in configured to be stored in db".format(topic))
+        else:
+            self._capture_data(peer, sender, bus, topic, headers, msg, device)
 
     def _capture_analysis_data(self, peer, sender, bus, topic, headers,
                                message):
@@ -1413,33 +1441,63 @@ class BackupDatabase:
                     # In the case where we are upgrading an existing installed historian the
                     # unique constraint may still exist on the outstanding database.
                     # Ignore this case.
+                    _log.warning(f"sqlite3.Integrity error -- {e}")
                     pass
 
         cache_full = False
         if self._backup_storage_limit_gb is not None:
+            try:
+                def page_count():
+                    c.execute("PRAGMA page_count")
+                    return c.fetchone()[0]
 
-            def page_count():
-                c.execute("PRAGMA page_count")
-                return c.fetchone()[0]
+                def free_count():
+                    c.execute("PRAGMA freelist_count")
+                    return c.fetchone()[0]
 
-            while page_count() > self.max_pages:
-                c.execute(
-                    '''DELETE FROM outstanding
-                    WHERE ROWID IN
-                    (SELECT ROWID FROM outstanding
-                    ORDER BY ROWID ASC LIMIT 100)''')
-                if self._record_count < c.rowcount:
-                    self._record_count = 0
-                else:
-                    self._record_count -= c.rowcount
-                cache_full = True
+                p = page_count()
+                f = free_count()
 
-            # Catch case where we are not adding fast enough to trigger the above
-            # every time we add more data.
-            if page_count() >= self.max_pages - int(self.max_pages*(1.0-self._backup_storage_report)):
-                cache_full = True
+                # check if we are over the alert threshold.
+                if page_count() >= self.max_pages - int(self.max_pages * (1.0 - self._backup_storage_report)):
+                    cache_full = True
 
-        self._connection.commit()
+                # Now check if we are above the limit, if so start deleting in batches of 100
+                # page count doesnt update even after deleting all records
+                # and record count becomes zero. If we have deleted all record
+                # exit.
+                _log.debug(f"record count before check is {self._record_count} page count is {p}"
+                           f" free count is {f}")
+                # max_pages  gets updated based on inserts but freelist_count doesn't
+                # enter delete loop based on page_count
+                min_free_pages = p - self.max_pages
+                while p > self.max_pages:
+                    cache_full = True
+                    c.execute(
+                        '''DELETE FROM outstanding
+                        WHERE ROWID IN
+                        (SELECT ROWID FROM outstanding
+                        ORDER BY ROWID ASC LIMIT 100)''')
+                    #self._connection.commit()
+                    if self._record_count < c.rowcount:
+                        self._record_count = 0
+                    else:
+                        self._record_count -= c.rowcount
+                    p = page_count()  #page count doesn't reflect delete without commit
+                    f = free_count() # freelist count does. So using that to break from loop
+                    if f >= min_free_pages:
+                        break
+                    _log.debug(f" Cleaning cache since we are over the limit. "
+                               f"After delete of 100 records from cache"
+                               f" record count is {self._record_count} page count is {p} freelist count is{f}")
+
+            except Exception as e:
+                _log.warning(f"Exception when check page count and deleting{e}")
+
+        try:
+            self._connection.commit()
+        except Exception as e:
+            _log.warning(f"Exception in committing after back db storage {e}")
 
         return cache_full
 
@@ -1536,8 +1594,15 @@ class BackupDatabase:
         """ Creates a backup database for the historian if doesn't exist."""
 
         _log.debug("Setting up backup DB.")
+        if utils.is_secure_mode():
+            # we want to create it in the agent-data directory since agent will not have write access to any other
+            # directory in secure mode
+            backup_db = os.path.join(os.getcwd(), os.path.basename(os.getcwd()) + ".agent-data", 'backup.sqlite')
+        else:
+            backup_db = 'backup.sqlite'
+        _log.info(f"Creating  backup db at {backup_db}")
         self._connection = sqlite3.connect(
-            'backup.sqlite',
+            backup_db,
             detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES,
             check_same_thread=check_same_thread)
 
@@ -1548,6 +1613,7 @@ class BackupDatabase:
             page_size = c.fetchone()[0]
             max_storage_bytes = self._backup_storage_limit_gb * 1024 ** 3
             self.max_pages = max_storage_bytes / page_size
+            _log.debug(f"Max pages is {self.max_pages}")
 
         c.execute("SELECT name FROM sqlite_master WHERE type='table' "
                   "AND name='outstanding';")
@@ -1666,6 +1732,22 @@ class BaseQueryHistorianAgent(Agent):
     their data stores.
     """
 
+    def __init__(self, **kwargs):
+        _log.debug('Constructor of BaseQueryHistorianAgent thread: {}'.format(
+            threading.currentThread().getName()
+        ))
+        global time_parser
+        if time_parser is None:
+            if utils.is_secure_mode():
+                # find agent's data dir. we have write access only to that dir
+                for d in os.listdir(os.getcwd()):
+                    if d.endswith(".agent-data"):
+                        agent_data_dir = os.path.join(os.getcwd(), d)
+                time_parser = yacc.yacc(write_tables=0,
+                                        outputdir=agent_data_dir)
+            else:
+                time_parser = yacc.yacc(write_tables=0)
+        super(BaseQueryHistorianAgent, self).__init__(**kwargs)
     @RPC.export
     def get_version(self):
         """RPC call to get the version of the historian
@@ -2134,7 +2216,3 @@ def p_reltime(t):
 # Error rule for syntax errors
 def p_error(p):
     raise ValueError("Syntax Error in Query")
-
-
-# Build the parser
-time_parser = yacc.yacc(write_tables=0)

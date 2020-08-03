@@ -38,11 +38,7 @@
 
 from http.cookies import SimpleCookie
 import logging
-from urllib.parse import urlparse
 
-from volttron.platform.certs import Certs, CertWrapper
-from volttron.platform.agent.known_identities import MASTER_WEB
-from volttron.platform.agent.utils import get_fq_identity
 from volttron.platform import get_platform_config
 
 try:
@@ -128,28 +124,4 @@ def get_user_claim_from_bearer(bearer, web_secret_key=None, tls_public_key=None)
     return jwt.decode(bearer, pubkey, algorithms=algorithm)
 
 
-def build_vip_address_string(vip_root, serverkey, publickey, secretkey):
-    """ Build a full vip address string based upon the passed arguments
-
-    All arguments are required to be non-None in order for the string to be
-    created successfully.
-
-    :raises ValueError if one of the parameters is None.
-    """
-    _log.debug("root: {}, serverkey: {}, publickey: {}, secretkey: {}".format(
-        vip_root, serverkey, publickey, secretkey))
-    parsed = urlparse(vip_root)
-    if parsed.scheme == 'tcp':
-        if not (serverkey and publickey and secretkey and vip_root):
-            raise ValueError("All parameters must be entered.")
-
-        root = "{}?serverkey={}&publickey={}&secretkey={}".format(
-            vip_root, serverkey, publickey, secretkey)
-
-    elif parsed.scheme == 'ipc':
-        root = vip_root
-    else:
-        raise ValueError('Invalid vip root specified!')
-
-    return root
 

@@ -946,7 +946,7 @@ def _read_config_file(filename):
     data = {}
     try:
         with open(filename, 'r') as yaml_file:
-            data = yaml.load(yaml_file)
+            data = yaml.safe_load(yaml_file)
     except IOError as exc:
         _log.error("Error reading from file: {}".format(filename))
     except yaml.YAMLError as exc:

@@ -4,16 +4,13 @@
 DataPublisher
 =============
 
-This is a simple agent that plays back data either from the config
-store or a CSV to the configured topic. It can also provide basic
-emulation of the actuator agent for testing agents that expect to
-be able to set points on a device in response to device publishes.
+This is a simple agent that plays back data either from the config store or a CSV to the configured topic. It can also provide basic
+emulation of the actuator agent for testing agents that expect to be able to set points on a device in response to device publishes.
 
 Installation notes
 ------------------
 
-In order to simulate the actuator you must install the agent
-with the VIP identity of `platform.actuator`.
+In order to simulate the actuator you must install the agent with the VIP identity of `platform.actuator`.
 
 Configuration
 -------------
@@ -51,9 +48,11 @@ Configuration
         },
         # Path to input CSV file.
         # May also be a list of records or reference to a CSV file in the config store.
-        # Large CSV files should be referenced by file name and not
-        # stored in the config store.
-        "input_data": "econ_test2.csv",
+        # Large CSV files should be referenced by file name and not stored in the config store.
+        # If the filename is used, the full file path is required. This can be found using
+        # the `pwd` command.
+        "input_data": "test.csv",
+
         # Publish interval in seconds
         "publish_interval": 1,
 
@@ -71,7 +70,11 @@ Configuration
 
         # Repeat data from the start if this flag is true.
         # Useful for data that does not include a timestamp and is played back in real time.
-        "replay_data": false
+        "replay_data": false,
+
+        # Allows the overriding of the default separator in the header of the csv file.
+        # default is "/" if not specified.
+        "topic_separator": "/"
     }
 
 CSV File Format
@@ -80,7 +83,8 @@ CSV File Format
 The CSV file must have a single header line. The column names are appended to the
 `basepath` setting in the configuration file and the resulting topic is normalized
 to remove extra `/`s. The values are all treated as floating
-point values and converted accordingly.
+point values and converted accordingly.  If the conversion to a float fails then that column will not be included in
+all publish.
 
 The corresponding device for each point is determined and the values are combined
 together to create an `all` topic publish for each device.

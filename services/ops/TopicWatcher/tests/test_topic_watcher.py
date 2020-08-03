@@ -75,12 +75,17 @@ def agent(request, volttron_instance):
         config_file=WATCHER_CONFIG,
         vip_identity=PLATFORM_TOPIC_WATCHER
     )
-
     gevent.sleep(2)
-    db_path = os.path.join(volttron_instance.volttron_home, 'agents',
-                           alert_uuid, 'topic_watcheragent-' + agent_version,
-                           'topic-watcheragent-' + agent_version + '.agent-data',
-                           'alert_log.sqlite')
+    if volttron_instance.secure_agent_users:
+        db_path = os.path.join(volttron_instance.volttron_home, 'agents',
+                               alert_uuid, 'topic_watcheragent-' + agent_version,
+                               'topic-watcheragent-' + agent_version + '.agent-data',
+                               'alert_log.sqlite')
+    else:
+        # agent keeps the same path in insecure mode for backward compatibility
+        db_path = os.path.join(volttron_instance.volttron_home, 'agents',
+                               alert_uuid, 'topic_watcheragent-' + agent_version,
+                               'alert_log.sqlite')
 
     print ("DB PATH: {}".format(db_path))
     db_connection = sqlite3.connect(
@@ -131,7 +136,8 @@ def test_basic(agent):
     """
     global alert_messages, db_connection
     publish_time = get_aware_utc_now()
-    for _ in range(10):
+    print (f"publish time is {publish_time}")
+    for _ in range(5):
         alert_messages.clear()
         agent.vip.pubsub.publish(peer='pubsub',
                                  topic='fakedevice')
@@ -144,8 +150,8 @@ def test_basic(agent):
     c = db_connection.cursor()
     c.execute('SELECT * FROM topic_log '
               'WHERE last_seen_before_timeout > "{}"'.format(publish_time))
-    result = c.fetchone()
-    assert result is None
+    result = c.fetchall()
+    assert not result
 
     gevent.sleep(6)
     print("DB Path {}".format(db_path))
@@ -164,13 +170,13 @@ def test_basic(agent):
                                      'fakedevice2/point'])
     assert len(alert_messages) == 1
 
-    # c.execute('SELECT * FROM topic_log '
-    #           'WHERE first_seen_after_timeout is NULL '
-    #           'AND last_seen_before_timeout > ?', (publish_time,))
-    # results = c.fetchall()
-    # topics = []
-    # assert results is not None
-    # assert len(results) == 3
+    c.execute('SELECT * FROM topic_log '
+              'WHERE first_seen_after_timeout is NULL '
+              'AND last_seen_before_timeout > ?', (publish_time,))
+    results = c.fetchall()
+    topics = []
+    assert results is not None
+    assert len(results) == 3
 
 
 @pytest.mark.alert
@@ -201,6 +207,7 @@ def test_ignore_topic(agent):
               'WHERE first_seen_after_timeout is NULL '
               'AND last_seen_before_timeout > "{}"'.format(publish_time))
     results = c.fetchall()
+    c.close()
     topics = []
     assert results is not None
     assert len(results) == 1
@@ -235,9 +242,13 @@ def test_watch_topic_same_group(volttron_instance, agent, cleanup_db):
                        5).get()
     gevent.sleep(6)
 
-    assert "Topic(s) not published within time limit: ['fakedevice', " \
-           "'fakedevice2/all', 'newtopic', ('fakedevice2/all', 'point')]" in \
-           alert_messages
+    assert \
+        "Topic(s) not published within time limit: ['fakedevice', "\
+            "('fakedevice2/all', 'point'), 'fakedevice2/all', 'newtopic']" \
+        in alert_messages or \
+        "Topic(s) not published within time limit: ['fakedevice', " \
+        "'fakedevice2/all', ('fakedevice2/all', 'point'), 'newtopic']" \
+        in alert_messages
 
     c = db_connection.cursor()
     c.execute('SELECT * FROM topic_log '
@@ -288,8 +299,9 @@ def test_watch_topic_new_group(volttron_instance, agent, cleanup_db):
 
     assert len(alert_messages) == 2
     assert "Topic(s) not published within time limit: ['fakedevice', " \
-           "'fakedevice2/all', ('fakedevice2/all', 'point')]" in \
-           alert_messages
+           "'fakedevice2/all', ('fakedevice2/all', 'point')]" in alert_messages or \
+           "Topic(s) not published within time limit: ['fakedevice', " \
+           "('fakedevice2/all', 'point')], 'fakedevice2/all'" in alert_messages
     assert "Topic(s) not published within time limit: ['newtopic']" in \
            alert_messages
 
@@ -341,9 +353,17 @@ def test_watch_device_same_group(volttron_instance, agent, cleanup_db):
     gevent.sleep(6)
 
     assert "Topic(s) not published within time limit: ['fakedevice', " \
-           "'fakedevice2/all', 'newtopic/all', ('fakedevice2/all', " \
-           "'point'), ('newtopic/all', 'point')]" in \
-           alert_messages
+           "'fakedevice2/all', ('fakedevice2/all', 'point'), "\
+           "'newtopic/all', ('newtopic/all', 'point')]" in alert_messages or \
+           "Topic(s) not published within time limit: ['fakedevice', " \
+           "('fakedevice2/all', 'point'), 'fakedevice2/all', " \
+           "'newtopic/all', ('newtopic/all', 'point')]" in  alert_messages or \
+           "Topic(s) not published within time limit: ['fakedevice', " \
+           "'fakedevice2/all', ('fakedevice2/all', 'point'), "\
+           "('newtopic/all', 'point'), 'newtopic/all']" in alert_messages or \
+           "Topic(s) not published within time limit: ['fakedevice', " \
+           "('fakedevice2/all', 'point'), 'fakedevice2/all', " \
+           "('newtopic/all', 'point'), 'newtopic/all']" in alert_messages
 
     c = db_connection.cursor()
     c.execute('SELECT * FROM topic_log '
@@ -394,11 +414,18 @@ def test_watch_device_new_group(volttron_instance, agent, cleanup_db):
     gevent.sleep(6)
 
     assert len(alert_messages) == 2
+    # topics are ordered within a group based on the the first element in the tuple
     assert "Topic(s) not published within time limit: ['fakedevice', " \
            "'fakedevice2/all', ('fakedevice2/all', 'point')]" in \
-           alert_messages
-    assert "Topic(s) not published within time limit: ['newtopic/all', " \
-           "('newtopic/all', 'point')]" in \
+           alert_messages  or \
+           "Topic(s) not published within time limit: ['fakedevice', " \
+           "('fakedevice2/all', 'point'), 'fakedevice2/all']" in alert_messages
+
+    assert "Topic(s) not published within time limit: [" \
+           "('newtopic/all', 'point'), 'newtopic/all']" in \
+           alert_messages  or \
+           "Topic(s) not published within time limit: [" \
+           "'newtopic/all', ('newtopic/all', 'point')]" in \
            alert_messages
 
     c = db_connection.cursor()
@@ -503,7 +530,7 @@ def test_for_duplicate_logs(volttron_instance, agent, cleanup_db):
     assert len(results) == 3
     for r in results:
         assert r[1] is None
-        #non_utc = publish_time.replace(tzinfo=None)
-        assert r[2] >= publish_time
+        naive_timestamp = publish_time.replace(tzinfo=None)
+        assert r[2] >= naive_timestamp
 
 

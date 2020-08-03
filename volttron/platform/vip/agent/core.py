@@ -545,8 +545,10 @@ class Core(BasicCore):
     def _get_keys_from_keystore(self):
         '''Returns agent's public and secret key from keystore'''
         if self.agent_uuid:
-            # this is an installed agent, put keystore in its install dir
-            keystore_dir = os.curdir
+            # this is an installed agent, put keystore in its dist-info
+            current_directory = os.path.abspath(os.curdir)
+            keystore_dir = os.path.join(current_directory,
+                                        "{}.dist-info".format(os.path.basename(current_directory)))
         elif self.identity is None:
             raise ValueError("Agent's VIP identity is not set")
         else:
@@ -555,8 +557,6 @@ class Core(BasicCore):
             keystore_dir = os.path.join(
                 self.volttron_home, 'keystores',
                 self.identity)
-            if not os.path.exists(keystore_dir):
-                os.makedirs(keystore_dir)
 
         keystore_path = os.path.join(keystore_dir, 'keystore.json')
         keystore = KeyStore(keystore_path)
@@ -930,6 +930,10 @@ class RMQCore(Core):
         self.messagebus = messagebus
         self.rmq_mgmt = RabbitMQMgmt()
         self.rmq_address = address
+        # added so that it is available to auth subsytem when connecting
+        # to remote instance
+        if self.publickey is None or self.secretkey is None:
+            self.publickey, self.secretkey = self._get_keys_from_keystore()
 
     def _get_keys_from_addr(self):
         return None, None, None

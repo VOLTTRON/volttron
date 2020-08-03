@@ -60,6 +60,8 @@ from datetime import datetime
 import gevent
 import psutil
 import pytz
+import re
+import stat
 import yaml
 from dateutil.parser import parse
 from dateutil.tz import tzutc, tzoffset
@@ -74,7 +76,7 @@ from volttron.utils.prompt import prompt_response
 
 __all__ = ['load_config', 'run_agent', 'start_agent_thread',
            'is_valid_identity', 'load_platform_config', 'get_messagebus',
-           'get_fq_identity', 'execute_command', 'get_aware_utc_now']
+           'get_fq_identity', 'execute_command', 'get_aware_utc_now', 'is_secure_mode']
 
 __author__ = 'Brandon Carpenter <brandon.carpenter@pnnl.gov>'
 __copyright__ = 'Copyright (c) 2016, Battelle Memorial Institute'
@@ -232,6 +234,22 @@ def get_messagebus():
     return message_bus
 
 
+def is_secure_mode():
+    """Get type of message bus - zeromq or rabbbitmq."""
+    string_value = os.environ.get('SECURE_AGENT_USERS')
+    _log.debug("value from env {}".format(string_value))
+    if not string_value:
+        config = load_platform_config()
+        string_value = config.get('secure-agent-users', 'False')
+        _log.debug("value from config {}".format(string_value))
+
+    if string_value == "True":
+        _log.debug("returning True")
+        return True
+
+    return False
+
+
 def store_message_bus_config(message_bus, instance_name):
     # If there is no config file or home directory yet, create volttron_home
     # and config file
@@ -263,6 +281,8 @@ def store_message_bus_config(message_bus, instance_name):
 
         with open(config_path, 'w') as configfile:
             config.write(configfile)
+        # all agents need read access to config file
+        os.chmod(config_path, 0o744)
 
 
 def update_kwargs_with_config(kwargs, config):
@@ -300,7 +320,7 @@ def update_kwargs_with_config(kwargs, config):
         config.pop('agentid')
 
     for k, v in config.items():
-        kwargs[k.replace("-","_")] = v
+        kwargs[k.replace("-", "_")] = v
 
 
 def parse_json_config(config_str):
@@ -417,9 +437,6 @@ def vip_main(agent_class, identity=None, version='0.1', **kwargs):
 
         from volttron.platform.certs import Certs
         certs = Certs()
-        if os.path.isfile(certs.remote_cert_bundle_file()):
-            os.environ['REQUESTS_CA_BUNDLE'] = certs.remote_cert_bundle_file()
-
         agent = agent_class(config_path=config, identity=identity,
                             address=address, agent_uuid=agent_uuid,
                             volttron_home=volttron_home,
@@ -696,11 +713,17 @@ def create_file_if_missing(path, permission=0o660, contents=None):
         _log.debug('missing file %s', path)
         _log.info('creating file %s', path)
         fd = os.open(path, os.O_CREAT | os.O_WRONLY, permission)
+        success = False
         try:
             if contents:
-                os.write(fd, contents if isinstance(contents, bytes) else contents.encode("utf-8"))
+                contents = contents if isinstance(contents, bytes) else contents.encode("utf-8")
+                os.write(fd, contents)
+                success = True
+        except Exception as e:
+            raise e
         finally:
             os.close(fd)
+        return success
 
 
 def fix_sqlite3_datetime(sql=None):
@@ -825,7 +848,7 @@ def wait_for_volttron_shutdown(vhome, timeout):
     # Check for VOLTTRON_PID
     sleep_time = 0
     while (is_volttron_running(vhome)) and sleep_time < timeout:
-        gevent.sleep(3)
-        sleep_time += 3
+        gevent.sleep(1)
+        sleep_time += 1
     if sleep_time >= timeout:
         raise Exception("Platform shutdown failed. Please check volttron.cfg.log in {}".format(vhome))

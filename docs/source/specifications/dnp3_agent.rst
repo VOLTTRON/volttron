@@ -14,7 +14,7 @@ VOLTTRON's DNP3Agent is an implementation of a DNP3 Outstation as specified in
 IEEE Std 1815-2012. It engages in bidirectional network communications with a DNP3 Master,
 which might be located at a power utility.
 
-Like some other VOLTTRON protocol agents (e.g. SEP2Agent), DNP3Agent can optionally be
+Like some other VOLTTRON protocol agents (e.g. IEEE2030_5Agent), DNP3Agent can optionally be
 front-ended by a DNP3 device driver running under VOLTTRON's MasterDriverAgent. This
 allows a DNP3 Master to be treated like any other device in VOLTTRON's ecosystem.
 

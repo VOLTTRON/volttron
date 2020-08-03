@@ -29,11 +29,12 @@ def print_log(volttron_home):
 
 
 def build_wrapper(vip_address, should_start=True, messagebus='zmq', remote_platform_ca=None,
-                  instance_name=None, **kwargs):
+                  instance_name=None, secure_agent_users=False, **kwargs):
 
     wrapper = PlatformWrapper(ssl_auth=kwargs.pop('ssl_auth', False),
                               messagebus=messagebus,
                               instance_name=instance_name,
+                              secure_agent_users=secure_agent_users,
                               remote_platform_ca=remote_platform_ca)
     if should_start:
         wrapper.startup_platform(vip_address=vip_address, **kwargs)
@@ -253,57 +254,62 @@ def volttron_multi_messagebus(request):
     :param request:
     :return:
     """
-    print("volttron_multi_messagebus source: {} sink: {}".format(request.param['source'],
-                                                                 request.param['sink']))
-    sink_address = get_rand_vip()
+    def get_volttron_multi_msgbus_instances(instance_name1=None, instance_name2=None):
+        print("volttron_multi_messagebus source: {} sink: {}".format(request.param['source'],
+                                                                     request.param['sink']))
+        sink_address = get_rand_vip()
 
-    if request.param['sink'] == 'rmq_web':
-        hostname, port = get_hostname_and_random_port()
-        web_address = 'https://{hostname}:{port}'.format(hostname=hostname, port=port)
-        messagebus = 'rmq'
-        ssl_auth = True
-    else:
-        web_address = "http://{}".format(get_rand_ip_and_port())
+        if request.param['sink'] == 'rmq_web':
+            hostname, port = get_hostname_and_random_port()
+            web_address = 'https://{hostname}:{port}'.format(hostname=hostname, port=port)
+            messagebus = 'rmq'
+            ssl_auth = True
+        else:
+            web_address = "http://{}".format(get_rand_ip_and_port())
+            messagebus = 'zmq'
+            ssl_auth = False
+
+        sink = build_wrapper(sink_address,
+                             ssl_auth=ssl_auth,
+                             messagebus=messagebus,
+                             bind_web_address=web_address,
+                             volttron_central_address=web_address,
+                             instance_name="volttron1")
+
+        source_address = get_rand_vip()
         messagebus = 'zmq'
         ssl_auth = False
 
-    sink = build_wrapper(sink_address,
-                         ssl_auth=ssl_auth,
-                         messagebus=messagebus,
-                         bind_web_address=web_address,
-                         volttron_central_address=web_address)
+        if request.param['source'] == 'rmq':
+            messagebus = 'rmq'
+            ssl_auth = True
 
-    source_address = get_rand_vip()
-    messagebus = 'zmq'
-    ssl_auth = False
+        if sink.messagebus == 'rmq':
+            # sink_ca_file = sink.certsobj.cert_file(sink.certsobj.root_ca_name)
 
-    if request.param['source'] == 'rmq':
-        messagebus = 'rmq'
-        ssl_auth = True
+            source = build_wrapper(source_address,
+                                   ssl_auth=ssl_auth,
+                                   messagebus=messagebus,
+                                   volttron_central_address=sink.bind_web_address,
+                                   remote_platform_ca=sink.certsobj.cert_file(sink.certsobj.root_ca_name),
+                                   instance_name='volttron2')
+        else:
+            source = build_wrapper(source_address,
+                                   ssl_auth=ssl_auth,
+                                   messagebus=messagebus,
+                                   volttron_central_address=sink.bind_web_address,
+                                   instance_name='volttron2')
+        get_volttron_multi_msgbus_instances.source = source
+        get_volttron_multi_msgbus_instances.sink = sink
+        return source, sink
 
-    if sink.messagebus == 'rmq':
-        # sink_ca_file = sink.certsobj.cert_file(sink.certsobj.root_ca_name)
+    def cleanup():
+        cleanup_wrapper(get_volttron_multi_msgbus_instances.source)
+        cleanup_wrapper(get_volttron_multi_msgbus_instances.sink)
 
-        source = build_wrapper(source_address,
-                               ssl_auth=ssl_auth,
-                               messagebus=messagebus,
-                               volttron_central_address=sink.bind_web_address,
-                               remote_platform_ca=sink.certsobj.cert_file(sink.certsobj.root_ca_name))
-        if source.messagebus == 'rmq':
-            # The _ca is how the auth subsystem saves the remote cert from discovery.  We
-            # are effectively doing that here instead of making the discovery call.
-            source.certsobj.save_remote_cert(sink.certsobj.root_ca_name + "_ca", sink.certsobj.ca_cert(
-                public_bytes=True))
-    else:
-        source = build_wrapper(source_address,
-                               ssl_auth=ssl_auth,
-                               messagebus=messagebus,
-                               volttron_central_address=sink.bind_web_address)
+    request.addfinalizer(cleanup)
 
-    yield source, sink
-
-    cleanup_wrapper(source)
-    cleanup_wrapper(sink)
+    return get_volttron_multi_msgbus_instances
 
 
 
@@ -426,5 +432,5 @@ def get_test_volttron_home(messagebus: str, web_https=False, web_http=False, has
     finally:
         os.environ.clear()
         os.environ.update(env_cpy)
-        if not os.environ["DEBUG"] != 1 and not os.environ["DEBUG_MODE"]:
+        if not os.environ.get("DEBUG", 0) != 1 and not os.environ.get("DEBUG_MODE",0):
             shutil.rmtree(volttron_home, ignore_errors=True)

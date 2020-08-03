@@ -55,7 +55,7 @@ without worrying about where to find the monitor instance.
 from ast import literal_eval
 import os
 import re
-import subprocess
+from volttron.platform.aip import ExecutionEnvironment
 
 
 __all__ = ['ResourceError', 'ExecutionEnvironment', 'ResourceMonitor']
@@ -118,26 +118,26 @@ class ResourceError(Exception):
     '''Exception raised for errors relating to this module.'''
     pass
 
-
-class ExecutionEnvironment(object):
-    '''Environment reserved for agent execution.
-
-    Deleting ExecutionEnvironment objects should cause the process to
-    end and all resources to be returned to the system.
-    '''
-    def __init__(self):
-        self.process = None
-
-    def execute(self, *args, **kwargs):
-        try:
-            self.process = subprocess.Popen(*args, **kwargs, universal_newlines=True)
-        except OSError as e:
-            if e.filename:
-                raise
-            raise OSError(*(e.args + (args[0],)))
-
-    def __call__(self, *args, **kwargs):
-        self.execute(*args, **kwargs)
+# TODO is a simple import adequate
+# class ExecutionEnvironment(object):
+#     '''Environment reserved for agent execution.
+#
+#     Deleting ExecutionEnvironment objects should cause the process to
+#     end and all resources to be returned to the system.
+#     '''
+#     def __init__(self):
+#         self.process = None
+#
+#     def execute(self, *args, **kwargs):
+#         try:
+#             self.process = subprocess.Popen(*args, **kwargs)
+#         except OSError as e:
+#             if e.filename:
+#                 raise
+#             raise OSError(*(e.args + (args[0],)))
+#
+#     def __call__(self, *args, **kwargs):
+#         self.execute(*args, **kwargs)
 
 
 class ResourceMonitor(object):
@@ -195,19 +195,20 @@ class ResourceMonitor(object):
                 failed[name] = local_value
         return failed or None
 
-    def reserve_soft_resources(self, contract):
-        '''Test contract against soft resources and reserve resources.
-
-        contract should be a dictionary of terms and conditions to test
-        against the platform's soft capabilities and dynamic resources.
-
-        A 2-tuple is returned: (reservation, failed_terms).  If
-        reservation is None, no resources were reserved and failed_terms
-        is a dictionary that can be consulted for the terms that must be
-        modified for a reservation to succeed.  Otherwise, reservation
-        will be a ExecutionEnvironment object that can later be used to
-        execute an agent and failed_terms will be None.
-        '''
-        execenv = ExecutionEnvironment()
-        return execenv, None
+    # TODO this code not necessary
+    # def reserve_soft_resources(self, contract):
+    #     '''Test contract against soft resources and reserve resources.
+    #
+    #     contract should be a dictionary of terms and conditions to test
+    #     against the platform's soft capabilities and dynamic resources.
+    #
+    #     A 2-tuple is returned: (reservation, failed_terms).  If
+    #     reservation is None, no resources were reserved and failed_terms
+    #     is a dictionary that can be consulted for the terms that must be
+    #     modified for a reservation to succeed.  Otherwise, reservation
+    #     will be a ExecutionEnvironment object that can later be used to
+    #     execute an agent and failed_terms will be None.
+    #     '''
+    #     execenv = ExecutionEnvironment()
+    #     return execenv, None
 

@@ -241,9 +241,10 @@ def test_update_config(threshold_tester_agent):
 
 
 def test_device_publish(threshold_tester_agent):
+    gevent.sleep(2)
     threshold_tester_agent.vip.pubsub.publish('pubsub', 'devices/all',
                                               headers={}, message=[{'point': 11}]).get()
-    gevent.sleep(0.5)
+    gevent.sleep(0.2)
     check = lambda: threshold_tester_agent.seen_alert_keys == set(['devices/all'])
     try:
         assert poll_gevent_sleep(5, check)

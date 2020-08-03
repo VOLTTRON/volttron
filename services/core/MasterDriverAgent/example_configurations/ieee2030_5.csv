@@ -1,0 +1,27 @@
+Volttron Point Name,IEEE2030_5 Resource Name,IEEE2030_5 Field Name,Units,Writable,Default
+b1_Md,DeviceInformation,mfModel,NA,FALSE,NA
+b1_Opt,DeviceInformation,lFDI,NA,FALSE,NA
+b1_SN,DeviceInformation,sFDI,NA,FALSE,NA
+b1_Vr,DeviceInformation,mfHwVer,NA,FALSE,NA
+b113_A,MirrorMeterReading,PhaseCurrentAvg,NA,FALSE,NA
+b113_DCA,MirrorMeterReading,InstantPackCurrent,A,FALSE,NA
+b113_DCV,MirrorMeterReading,LineVoltageAvg,V,FALSE,NA
+b113_DCW,MirrorMeterReading,PhasePowerAvg,W,FALSE,NA
+b113_PF,MirrorMeterReading,PhasePFA,%,FALSE,NA
+b113_WH,MirrorMeterReading,EnergyIMP,Wh,FALSE,NA
+b120_AhrRtg,DERCapability,rtgAh,Ah,FALSE,NA
+b120_ARtg,DERCapability,rtgA,A,FALSE,NA
+b120_MaxChaRte,DERCapability,rtgMaxChargeRate,W,FALSE,NA
+b120_MaxDisChaRte,DERCapability,rtgMaxDischargeRate,W,FALSE,NA
+b120_WHRtg,DERCapability,rtgWh,Wh,FALSE,NA
+b120_WRtg,DERCapability,rtgW,W,FALSE,NA
+b121_WMax,DERSettings,setMaxChargeRate,W,FALSE,NA
+b122_ActWh,MirrorMeterReading,EnergyEXP,Wh,FALSE,NA
+b122_StorConn,DERStatus,storConnectStatus,NA,FALSE,NA
+b124_WChaMax,DERControl,DERControlBase.opModFixedFlow,W,TRUE,NA
+b403_Tmp,MirrorMeterReading,InstantPackTemp,C,FALSE,NA
+b404_DCW,PowerStatus,PEVInfo.chargingPowerNow,W,FALSE,NA
+b404_DCWh,DERAvailability,SOC,Wh,FALSE,NA
+b802_LocRemCtl,DERStatus,localControlModeStatus,NA,FALSE,NA
+b802_SoC,DERStatus,inverterStatus,%,FALSE,NA
+b802_State,DERStatus,stateOfChargeStatus,NA,FALSE,NA

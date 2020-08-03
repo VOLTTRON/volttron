@@ -354,6 +354,7 @@ def _create_initial_package(agent_dir_to_package, wheelhouse, identity=None):
         response = subprocess.run(cmd, cwd=builddir, stderr=subprocess.PIPE,
                                   stdout=subprocess.PIPE)
         if response.returncode != 0:
+            _log.error(response.stderr)
             print(response.stderr)
             return None
 
@@ -376,6 +377,9 @@ def _create_initial_package(agent_dir_to_package, wheelhouse, identity=None):
         wheel_dest = os.path.join(wheelhouse, wheel_name)
         shutil.move(wheel_path, wheel_dest)
         return wheel_dest
+    except subprocess.CalledProcessError as ex:
+        traceback.print_last()
+        raise ex
     finally:
         shutil.rmtree(tmpdir, True)
 

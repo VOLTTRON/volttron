@@ -54,6 +54,7 @@ from volttron.platform.jsonrpc import RemoteError
 from volttron.utils.rmq_config_params import RMQConfig
 from volttron.platform.keystore import KeyStore
 from volttron.platform.vip.agent.subsystems.health import BAD_STATUS, Status
+from volttron.platform import get_home
 
 """
 The auth subsystem allows an agent to quickly query authorization state
@@ -74,6 +75,7 @@ class Auth(SubsystemBase):
         self._user_to_capabilities = {}
         self._dirty = True
         self._csr_certs = dict()
+        self.remote_certs_dir = None
 
         def onsetup(sender, **kwargs):
             rpc.export(self._update_capabilities, 'auth.update')
@@ -82,7 +84,7 @@ class Auth(SubsystemBase):
 
     def connect_remote_platform(self, address, serverkey=None, agent_class=None):
         """
-        Atempts to connect to a remote platform to exchange data.
+        Agent atempts to connect to a remote platform to exchange data.
 
         address must start with http, https, tcp, ampq, or ampqs or a ValueError will be
         raised
@@ -101,9 +103,7 @@ class Auth(SubsystemBase):
 
         """
         from volttron.platform.vip.agent.utils import build_agent
-        from volttron.platform.web import DiscoveryInfo
         from volttron.platform.vip.agent import Agent
-        from volttron.platform.web import DiscoveryError
 
         if agent_class is None:
             agent_class = Agent
@@ -137,6 +137,8 @@ class Auth(SubsystemBase):
                                 message_bus='zmq',
                                 address=address)
         elif parsed_address.scheme in ('https', 'http'):
+            from volttron.platform.web import DiscoveryInfo
+            from volttron.platform.web import DiscoveryError
             try:
                 # TODO: Use known host instead of looking up for discovery info if possible.
 
@@ -171,8 +173,15 @@ class Auth(SubsystemBase):
                     if info.messagebus_type == 'rmq':
                         _log.debug("Both remote and local are rmq messagebus.")
                         fqid_local = get_fq_identity(self._core().identity)
-                        # Discovery info for external platform
-                        response = self.request_cert(address, fqid_local, info)
+
+                        #Check if we already have the cert, if so use it instead of requesting cert again
+                        remote_certs_dir = self.get_remote_certs_dir()
+                        remote_cert_name = "{}.{}".format(info.instance_name, fqid_local)
+                        certfile = os.path.join(remote_certs_dir, remote_cert_name + ".crt")
+                        if os.path.exists(certfile):
+                            response = certfile
+                        else:
+                            response = self.request_cert(address, fqid_local, info)
 
                         if response is None:
                             _log.error("there was no response from the server")
@@ -193,13 +202,15 @@ class Auth(SubsystemBase):
                             _log.debug("REMOTE RMQ USER IS: {}".format(remote_rmq_user))
                             remote_rmq_address = self._core().rmq_mgmt.build_remote_connection_param(
                                 remote_rmq_user,
-                                info.rmq_address)
-                            _log.debug("Building dynamic agent using remote_rmq_address: {}".format(
-                                remote_rmq_address))
+                                info.rmq_address,
+                                ssl_auth=True,
+                                cert_dir=self.get_remote_certs_dir())
 
                             value = build_agent(identity=fqid_local,
                                                 address=remote_rmq_address,
                                                 instance_name=info.instance_name,
+                                                publickey=self._core().publickey,
+                                                secretkey=self._core().secretkey,
                                                 message_bus='rmq',
                                                 enable_store=False,
                                                 agent_class=agent_class)
@@ -295,13 +306,15 @@ class Auth(SubsystemBase):
         status = j.get('status')
         cert = j.get('cert')
         message = j.get('message', '')
-
+        remote_certs_dir = self.get_remote_certs_dir()
         if status == 'SUCCESSFUL' or status == 'APPROVED':
-            certs.save_remote_info(fully_qualified_local_identity,
-                                   remote_cert_name, cert.encode("utf-8"),
-                                   remote_ca_name,
-                                   discovery_info.rmq_ca_cert.encode("utf-8"))
-
+            certs.save_agent_remote_info(remote_certs_dir,
+                                         fully_qualified_local_identity,
+                                         remote_cert_name, cert.encode("utf-8"),
+                                         remote_ca_name,
+                                         discovery_info.rmq_ca_cert.encode("utf-8"))
+            os.environ['REQUESTS_CA_BUNDLE'] = os.path.join(remote_certs_dir, "requests_ca_bundle")
+            _log.debug("Set os.environ requests ca bundle to {}".format(os.environ['REQUESTS_CA_BUNDLE']))
         elif status == 'PENDING':
             _log.debug("Pending CSR request for {}".format(remote_cert_name))
         elif status == 'DENIED':
@@ -320,12 +333,26 @@ class Auth(SubsystemBase):
         else:  # No resposne
             return None
 
-        certfile = certs.cert_file(remote_cert_name, remote=True)
-
-        if certs.cert_exists(remote_cert_name, remote=True):
+        certfile = os.path.join(remote_certs_dir, remote_cert_name + ".crt")
+        if os.path.exists(certfile):
             return certfile
         else:
             return status, message
+
+    def get_remote_certs_dir(self):
+        if not self.remote_certs_dir:
+            install_dir = os.path.join(get_home(), "agents", self._core().agent_uuid)
+            files = os.listdir(install_dir)
+            for f in files:
+                agent_dir = os.path.join(install_dir, f)
+                if os.path.isdir(agent_dir):
+                    break  # found
+            sub_dirs = os.listdir(agent_dir)
+            for d in sub_dirs:
+                d_path = os.path.join(agent_dir, d)
+                if os.path.isdir(d_path) and d.endswith("agent-data"):
+                    self.remote_certs_dir = d_path
+        return self.remote_certs_dir
 
     def _fetch_capabilities(self):
         while self._dirty:

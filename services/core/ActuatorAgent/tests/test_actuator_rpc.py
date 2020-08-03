@@ -747,8 +747,9 @@ def test_schedule_premept_active_task_gracetime(publish_agent, cancel_schedules)
         ).get(timeout=10)
         pytest.fail('Expecting LockError. Code returned: {}'.format(result))
     except RemoteError as e:
-        assert e.exc_info['exc_type'] == 'actuator.agent.LockError'
-        assert e.message == 'caller ({}) does not have this lock'.format(agentid)
+        assert e.exc_info['exc_type'].endswith('LockError')
+        assert e.message == 'caller ({}) does not have this lock'.format(
+            agentid)
 
 
 @pytest.mark.actuator
@@ -1511,8 +1512,9 @@ def test_set_lock_error(publish_agent):
         ).get(timeout=10)
         pytest.fail('Expecting LockError. Code returned: {}'.format(result))
     except RemoteError as e:
-        assert e.exc_info['exc_type'] == 'actuator.agent.LockError'
-        assert e.message == 'caller ({}) does not have this lock'.format(TEST_AGENT)
+        assert e.exc_info['exc_type'].endswith('LockError')
+        assert e.message == 'caller ({}) does not have this lock'.format(
+            TEST_AGENT)
 
 
 @pytest.mark.actuator
@@ -1754,8 +1756,9 @@ def test_set_multiple_raises_lock_error(publish_agent, cancel_schedules):
         pytest.fail('Expecting LockError. Code returned: {}'.format(result))
     except Exception as e:
         # TODO - check exc_info
-        assert e.exc_info['exc_type'] == 'actuator.agent.LockError'
-        assert e.message == "caller ({}) does not lock for device {}".format(TEST_AGENT, 'fakedriver0')
+        assert e.exc_info['exc_type'].endswith("LockError")
+        assert e.message == \
+            "caller ({}) does not lock for device {}".format(TEST_AGENT, 'fakedriver0')
 
 
 @pytest.mark.actuator

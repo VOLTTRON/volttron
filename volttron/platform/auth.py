@@ -107,6 +107,7 @@ class AuthService(Agent):
         self._setup_mode = setup_mode
         self._auth_failures = []
         self._auth_denied = []
+        self._auth_approved = []
 
         def topics():
             return defaultdict(set)
@@ -136,6 +137,9 @@ class AuthService(Agent):
         if self._is_connected:
             try:
                 _log.debug("Sending auth updates to peers")
+                # Give it few seconds for platform to startup or for the
+                # router to detect agent install/remove action
+                gevent.sleep(2)
                 self._send_update()
             except BaseException as e:
                 _log.error("Exception sending auth updates to peer. {}".format(e))
@@ -175,6 +179,8 @@ class AuthService(Agent):
                 peers = self.vip.peerlist().get(timeout=0.5)
             except BaseException as e:
                 _log.warning("Attempt {} to get peerlist failed with exception {}".format(i, e))
+                peers = list(self.vip.peerlist.peers_list)
+                _log.warning("Get list of peers from subsystem directly".format(peers))
                 exception = e
 
         if not peers:
@@ -266,7 +272,7 @@ class AuthService(Agent):
                 address = address.decode("utf-8")
                 kind = kind.decode("utf-8")
                 user = self.authenticate(domain, address, kind, credentials)
-                _log.debug("AUTH: After authenticate user id: {0}, {1}".format(user, userid))
+                _log.info("AUTH: After authenticate user id: {0}, {1}".format(user, userid))
                 if user:
                     _log.info(
                         'authentication success: userid=%r domain=%r, address=%r, '
@@ -275,6 +281,7 @@ class AuthService(Agent):
                     response.extend([b'200', b'SUCCESS', user.encode("utf-8"), b''])
                     sock.send_multipart(response)
                 else:
+                    userid = str(uuid.uuid4())
                     _log.info(
                         'authentication failure: userid=%r, domain=%r, address=%r, '
                         'mechanism=%r, credentials=%r',
@@ -286,7 +293,7 @@ class AuthService(Agent):
                             'new authentication entry added in setup mode: domain=%r, address=%r, '
                             'mechanism=%r, credentials=%r, user_id=%r',
                             domain, address, kind, credentials[:1], userid)
-                        response.extend([b'200', b'SUCCESS', '', b''])
+                        response.extend([b'200', b'SUCCESS', b'', b''])
                         _log.debug("AUTH response: {}".format(response))
                         sock.send_multipart(response)
                     else:
@@ -387,29 +394,29 @@ class AuthService(Agent):
         :param user_id: user id field from VOLTTRON Interconnect Protocol
         :type user_id: str
         """
-        if len(self._auth_failures) > 0:
-            for pending in self._auth_failures:
-                if user_id == pending['user_id']:
-                    self._update_auth_entry(
-                        pending['domain'],
-                        pending['address'],
-                        pending['mechanism'],
-                        pending['credentials'],
-                        pending['user_id']
-                        )
-                    del self._auth_failures[self._auth_failures.index(pending)]
+        for pending in self._auth_failures:
+            if user_id == pending['user_id']:
+                self._update_auth_entry(
+                    pending['domain'],
+                    pending['address'],
+                    pending['mechanism'],
+                    pending['credentials'],
+                    pending['user_id']
+                    )
+                self._auth_approved.append(pending)
+                del self._auth_failures[self._auth_failures.index(pending)]
 
-        if len(self._auth_denied) > 0:
-            for pending in self._auth_denied:
-                if user_id == pending['user_id']:
-                    self._update_auth_entry(
-                        pending['domain'],
-                        pending['address'],
-                        pending['mechanism'],
-                        pending['credentials'],
-                        pending['user_id']
-                        )
-                    del self._auth_denied[self._auth_denied.index(pending)]
+        for pending in self._auth_denied:
+            if user_id == pending['user_id']:
+                self._update_auth_entry(
+                    pending['domain'],
+                    pending['address'],
+                    pending['mechanism'],
+                    pending['credentials'],
+                    pending['user_id']
+                    )
+                self._auth_approved.append(pending)
+                del self._auth_denied[self._auth_denied.index(pending)]
 
     @RPC.export
     @RPC.allow(capabilities="allow_auth_modifications")
@@ -421,11 +428,17 @@ class AuthService(Agent):
         :param user_id: user id field from VOLTTRON Interconnect Protocol
         :type user_id: str
         """
-        if len(self._auth_failures) > 0:
-            for pending in self._auth_failures:
-                if user_id == pending['user_id']:
-                    self._auth_denied.append(pending)
-                    del self._auth_failures[self._auth_failures.index(pending)]
+        for pending in self._auth_failures:
+            if user_id == pending['user_id']:
+                self._auth_denied.append(pending)
+                del self._auth_failures[self._auth_failures.index(pending)]
+
+        for pending in self._auth_approved:
+            if user_id == pending['user_id']:
+                self._remove_auth_entry(pending['credentials'])
+                self._auth_denied.append(pending)
+                del self._auth_approved[self._auth_approved.index(pending)]
+
 
     @RPC.export
     @RPC.allow(capabilities="allow_auth_modifications")
@@ -437,18 +450,26 @@ class AuthService(Agent):
         :param user_id: user id field from VOLTTRON Interconnect Protocol
         :type user_id: str
         """
-        if len(self._auth_failures) > 0:
-            for pending in self._auth_failures:
-                if user_id == pending['user_id']:
-                    del self._auth_failures[self._auth_failures.index(pending)]
-        if len(self._auth_denied) > 0:
-            for pending in self._auth_denied:
-                if user_id == pending['user_id']:
-                    del self._auth_denied[self._auth_denied.index(pending)]
+        for pending in self._auth_failures:
+            if user_id == pending['user_id']:
+                del self._auth_failures[self._auth_failures.index(pending)]
+
+        for pending in self._auth_approved:
+            if user_id == pending['user_id']:
+                self._remove_auth_entry(pending['credentials'])
+                del self._auth_approved[self._auth_approved.index(pending)]
+
+        for pending in self._auth_denied:
+            if user_id == pending['user_id']:
+                del self._auth_denied[self._auth_denied.index(pending)]
 
     @RPC.export
     def get_authorization_failures(self):
         return list(self._auth_failures)
+
+    @RPC.export
+    def get_authorization_approved(self):
+        return list(self._auth_approved)
 
     @RPC.export
     def get_authorization_denied(self):
@@ -507,6 +528,7 @@ class AuthService(Agent):
             "address": address,
             "mechanism": mechanism,
             "credentials": credential,
+            "user_id": user_id,
             "groups": "",
             "roles": "",
             "capabilities": "",
@@ -516,6 +538,12 @@ class AuthService(Agent):
 
         try:
             self.auth_file.add(new_entry, overwrite=False)
+        except AuthException as err:
+            _log.error('ERROR: %s\n' % str(err))
+
+    def _remove_auth_entry(self, credential):
+        try:
+            self.auth_file.remove_by_credentials(credential)
         except AuthException as err:
             _log.error('ERROR: %s\n' % str(err))
 
@@ -869,7 +897,9 @@ class AuthFile(object):
             with open(self.auth_file) as fil:
                 # Use gevent FileObject to avoid blocking the thread
                 before_strip_comments = FileObject(fil, close=False).read()
-                data = strip_comments(before_strip_comments.decode("utf-8"))
+                if isinstance(before_strip_comments, bytes):
+                    before_strip_comments = before_strip_comments.decode("utf-8")
+                data = strip_comments(before_strip_comments)
                 if data:
                     auth_data = jsonapi.loads(data)
         except Exception:

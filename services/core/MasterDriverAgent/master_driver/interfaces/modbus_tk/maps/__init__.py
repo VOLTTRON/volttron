@@ -66,7 +66,10 @@ data_type_map = dict(
 transform_map = dict(
     scale=helpers.scale,
     scale_int=helpers.scale_int,
+    scale_decimal_int_signed=helpers.scale_decimal_int_signed,
     mod10k=helpers.mod10k,
+    mod10k64=helpers.mod10k64,
+    mod10k48=helpers.mod10k48,
     scale_reg=helpers.scale_reg,
     scale_reg_pow_10=helpers.scale_reg_pow_10
 )
@@ -258,7 +261,7 @@ class Map(object):
         self._endian = helpers.LITTLE_ENDIAN if endian.lower() == 'little' else helpers.BIG_ENDIAN
         self._name = name
         self._description = description
-        self._registry_config_lst = [dict((k.lower(), v) for k, v in i.items()()) for i in registry_config_lst]
+        self._registry_config_lst = [dict((k.lower(), v) for k, v in i.items()) for i in registry_config_lst]
         self._registers = dict()
 
     def _convert_csv_registers(self):

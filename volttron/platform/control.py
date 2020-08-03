@@ -79,6 +79,7 @@ from volttron.platform.vip.agent.subsystems.query import Query
 from volttron.utils.rmq_config_params import RMQConfig
 from volttron.utils.rmq_mgmt import RabbitMQMgmt
 from volttron.utils.rmq_setup import check_rabbit_status
+from volttron.platform.agent.utils import is_secure_mode, wait_for_volttron_shutdown
 
 try:
     import volttron.restricted
@@ -242,8 +243,8 @@ class ControlService(BaseAgent):
         return self._aip.agent_versions()
 
     @RPC.export
-    def status_agents(self):
-        return self._aip.status_agents()
+    def status_agents(self, get_agent_user=False):
+        return self._aip.status_agents(get_agent_user)
 
     @RPC.export
     def start_agent(self, uuid):
@@ -500,11 +501,11 @@ def log_to_file(file, level=logging.WARNING,
     root.addHandler(handler)
 
 
-Agent = collections.namedtuple('Agent', 'name tag uuid vip_identity')
+Agent = collections.namedtuple('Agent', 'name tag uuid vip_identity agent_user')
 
 
 def _list_agents(aip):
-    return [Agent(name, aip.agent_tag(uuid), uuid, aip.agent_identity(uuid))
+    return [Agent(name, aip.agent_tag(uuid), uuid, aip.agent_identity(uuid), '')
             for uuid, name in aip.list_agents().items()]
 
 
@@ -557,11 +558,8 @@ def restore_agent_data_from_tgz(source_file, output_dir):
 
 
 def find_agent_data_dir(opts, agent_uuid):
-    agent_data_dir = None
-    for x in os.listdir(opts.aip.agent_dir(agent_uuid)):
-        if x.endswith("agent-data"):
-            agent_data_dir = os.path.join(opts.aip.agent_dir(agent_uuid), x)
-            break
+    # Find agent-data directory path, create if missing
+    agent_data_dir = opts.aip.create_agent_data_dir_if_missing(agent_uuid)
     return agent_data_dir
 
 
@@ -759,11 +757,17 @@ def list_peers(opts):
 def status_agents(opts):
     agents = {agent.uuid: agent for agent in _list_agents(opts.aip)}
     status = {}
-    for uuid, name, stat in opts.connection.call('status_agents'):
+    for details in opts.connection.call('status_agents', get_agent_user=True):
+        if is_secure_mode():
+            (uuid, name, agent_user, stat) = details
+        else:
+            (uuid, name, stat) = details
+            agent_user = ''
         try:
             agent = agents[uuid]
+            agents[uuid] = agent._replace(agent_user=agent_user)
         except KeyError:
-            agents[uuid] = agent = Agent(name, None, uuid)
+            agents[uuid] = agent = Agent(name, None, uuid, vip_identity=None, agent_user=agent_user)
         status[uuid] = stat
     agents = list(agents.values())
 
@@ -902,6 +906,7 @@ def shutdown_agents(opts):
     _log.debug("Calling stop_platform")
     if opts.platform:
         opts.connection.notify('stop_platform')
+        wait_for_volttron_shutdown(get_home(), 60)
 
 
 def create_cgroups(opts):
@@ -1443,16 +1448,31 @@ def _show_filtered_agents_status(opts, status_callback, health_callback, agents=
     name_width = max(5, max(len(agent.name) for agent in agents))
     tag_width = max(3, max(len(agent.tag or '') for agent in agents))
     identity_width = max(3, max(len(agent.vip_identity or '') for agent in agents))
-    fmt = '{} {:{}} {:{}} {:{}} {:>6} {:>15}\n'
-    _stderr.write(
-        fmt.format(' ' * n, 'AGENT', name_width, 'IDENTITY', identity_width,
-                   'TAG', tag_width, 'STATUS', 'HEALTH'))
-    fmt = '{} {:{}} {:{}} {:{}} {:<15} {:<}\n'
-    for agent in agents:
-        _stdout.write(fmt.format(agent.uuid[:n], agent.name, name_width,
-                                 agent.vip_identity, identity_width,
-                                 agent.tag or '', tag_width,
-                                 status_callback(agent), health_callback(agent)))
+    if is_secure_mode():
+        user_width = max(3, max(len(agent.agent_user or '') for agent in agents))
+        fmt = '{} {:{}} {:{}} {:{}} {:{}} {:>6} {:>15}\n'
+        _stderr.write(
+            fmt.format(' ' * n, 'AGENT', name_width, 'IDENTITY', identity_width,
+                       'TAG', tag_width, 'AGENT_USER', user_width, 'STATUS', 'HEALTH'))
+        fmt = '{} {:{}} {:{}} {:{}} {:{}} {:<15} {:<}\n'
+        for agent in agents:
+            status_str = status_callback(agent)
+            _stdout.write(fmt.format(agent.uuid[:n], agent.name, name_width,
+                                     agent.vip_identity, identity_width,
+                                     agent.tag or '', tag_width,
+                                     agent.agent_user if status_str.startswith("running") else "", user_width,
+                                     status_str, health_callback(agent)))
+    else:
+        fmt = '{} {:{}} {:{}} {:{}} {:>6} {:>15}\n'
+        _stderr.write(
+            fmt.format(' ' * n, 'AGENT', name_width, 'IDENTITY', identity_width,
+                       'TAG', tag_width, 'STATUS', 'HEALTH'))
+        fmt = '{} {:{}} {:{}} {:{}} {:<15} {:<}\n'
+        for agent in agents:
+            _stdout.write(fmt.format(agent.uuid[:n], agent.name, name_width,
+                                     agent.vip_identity, identity_width,
+                                     agent.tag or '', tag_width,
+                                     status_callback(agent), health_callback(agent)))
 
 
 def get_agent_publickey(opts):

@@ -522,21 +522,22 @@ class Router(BaseRouter):
         # Expecting incoming frames to follow this VIP format:
         #   [SENDER, PROTO, USER_ID, MSG_ID, SUBSYS, ...]
         frames = socket.recv_multipart(copy=False)
+        self.route(deserialize_frames(frames))
         # for f in frames:
         #     _log.debug("PUBSUBSERVICE Frames: {}".format(bytes(f)))
         if len(frames) < 6:
             return
 
         sender, proto, user_id, msg_id, subsystem = frames[:5]
-        if proto.bytes != b'VIP1':
+        if proto != 'VIP1':
             return
 
         # Handle 'EXT_RPC' subsystem messages
-        name = subsystem.bytes
+        name = subsystem
         if name == 'external_rpc':
             # Reframe the frames
             sender, proto, usr_id, msg_id, subsystem, msg = frames[:6]
-            msg_data = jsonapi.loadb(msg.bytes)
+            msg_data = jsonapi.loads(msg)
             peer = msg_data['to_peer']
             # Send to destionation agent/peer
             # Form new frame for local
@@ -548,9 +549,9 @@ class Router(BaseRouter):
                 pass
         # Handle 'pubsub' subsystem messages
         elif name == 'pubsub':
-            if bytes(frames[1]) == b'VIP1':
-                recipient = b''
-                frames[:1] = [zmq.Frame(b''), zmq.Frame(b'')]
+            if frames[1] == 'VIP1':
+                recipient = ''
+                frames[:1] = ['', '']
                 # for f in frames:
                 #     _log.debug("frames: {}".format(bytes(f)))
             result = self.pubsub.handle_subsystem(frames, user_id)
@@ -559,8 +560,8 @@ class Router(BaseRouter):
         elif name == 'routing_table':
             # for f in frames:
             #     _log.debug("frames: {}".format(bytes(f)))
-            if bytes(frames[1]) == b'VIP1':
-                frames[:1] = [zmq.Frame(b''), zmq.Frame(b'')]
+            if frames[1] == 'VIP1':
+                frames[:1] = ['', '']
             result = self._ext_routing.handle_subsystem(frames)
             return result
 
@@ -648,6 +649,12 @@ def start_volttron_process(opts):
             _log.error('{}: {}'.format(*error))
             sys.exit(1)
 
+    if opts.secure_agent_users == "True":
+        _log.info("VOLTTRON starting in secure mode")
+        os.umask(0o007)
+    else:
+        opts.secure_agent_users = 'False'
+
     opts.publish_address = config.expandall(opts.publish_address)
     opts.subscribe_address = config.expandall(opts.subscribe_address)
     opts.vip_address = [config.expandall(addr) for addr in opts.vip_address]
@@ -671,6 +678,7 @@ def start_volttron_process(opts):
     # and opts.web_ssl_cert
 
     os.environ['MESSAGEBUS'] = opts.message_bus
+    os.environ['SECURE_AGENT_USER'] = opts.secure_agent_users
     if opts.instance_name is None:
         if len(opts.vip_address) > 0:
             opts.instance_name = opts.vip_address[0]
@@ -758,7 +766,6 @@ def start_volttron_process(opts):
         _log.warning('insecure mode on key file')
     publickey = decode_key(keystore.public)
     if publickey:
-        #_log.info('public key: %s', encode_key(publickey))
         # Authorize the platform key:
         entry = AuthEntry(credentials=encode_key(publickey),
                           user_id='platform',
@@ -1104,6 +1111,10 @@ def start_volttron_process(opts):
             for task in tasks:
                 task.kill(block=False)
             gevent.wait(tasks)
+    except Exception as e:
+        _log.error(e)
+        import traceback
+        _log.error(traceback.print_exc())
     finally:
         _log.debug("AIP finally")
         opts.aip.finish()
@@ -1240,6 +1251,10 @@ def main(argv=sys.argv):
         '--agent-monitor-frequency', default=600,
         help='How often should the platform check for crashed agents and '
              'attempt to restart. Units=seconds. Default=600')
+    agents.add_argument(
+        '--secure-agent-users', default=False,
+        help='Require that agents run with their own users (this requires '
+             'running scripts/secure_user_permissions.sh as sudo)')
 
     # XXX: re-implement control options
     # on

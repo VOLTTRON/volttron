@@ -179,11 +179,15 @@ def create_volttron_home() -> str:
     :return: str: the temp directory
     """
     volttron_home = tempfile.mkdtemp()
+    # This is needed to run tests with volttron's secure mode. Without this
+    # default permissions for folders under /tmp directory doesn't not have read or execute for group or others
+    os.chmod(volttron_home, 0o755)
     return volttron_home
 
 
 class PlatformWrapper:
-    def __init__(self, messagebus=None, ssl_auth=False, instance_name=None, remote_platform_ca=None):
+    def __init__(self, messagebus=None, ssl_auth=False, instance_name=None,
+                 secure_agent_users=False, remote_platform_ca=None):
         """ Initializes a new VOLTTRON instance
 
         Creates a temporary VOLTTRON_HOME directory with a packaged directory
@@ -199,6 +203,7 @@ class PlatformWrapper:
         self._instance_shutdown = False
 
         self.volttron_home = create_volttron_home()
+
         self.packaged_dir = os.path.join(self.volttron_home, "packaged")
         os.makedirs(self.packaged_dir)
 
@@ -259,6 +264,7 @@ class PlatformWrapper:
         self.keystore = KeyStore(keystorefile)
         self.keystore.generate()
         self.messagebus = messagebus if messagebus else 'zmq'
+        self.secure_agent_users = secure_agent_users
         self.ssl_auth = ssl_auth
         self.instance_name = instance_name
         if not self.instance_name:
@@ -279,7 +285,9 @@ class PlatformWrapper:
         if self.messagebus == 'rmq':
             self.rabbitmq_config_obj = create_rmq_volttron_setup(vhome=self.volttron_home,
                                                                  ssl_auth=self.ssl_auth,
-                                                                 env=self.env)
+                                                                 env=self.env,
+                                                                 instance_name=self.instance_name,
+                                                                 secure_agent_users=secure_agent_users)
 
             self.certsobj = Certs(os.path.join(self.volttron_home, "certificates"))
 
@@ -414,6 +422,9 @@ class PlatformWrapper:
         self.logit("BUILD agent VOLTTRON HOME: {}".format(self.volttron_home))
         if self.bind_web_address:
             kwargs['enable_web'] = True
+
+        if 'enable_store' not in kwargs:
+            kwargs['enable_store'] = False
         agent = agent_class(address=address, identity=identity,
                             publickey=publickey, secretkey=secretkey,
                             serverkey=serverkey,
@@ -426,7 +437,7 @@ class PlatformWrapper:
         # Automatically add agent's credentials to auth.json file
         if publickey:
             self.logit(f'Adding publickey to auth.json {publickey} {identity}')
-            self._append_allow_curve_key(publickey, identity=identity)
+            self._append_allow_curve_key(publickey, agent.core.identity)
 
         if should_spawn:
             self.logit('platformwrapper.build_agent spawning')
@@ -550,7 +561,6 @@ class PlatformWrapper:
         self.mode = mode
         self.volttron_central_address = volttron_central_address
         self.volttron_central_serverkey =volttron_central_serverkey
-
         self.bind_web_address = bind_web_address
         if self.bind_web_address:
             self.discovery_address = "{}/discovery/".format(
@@ -590,7 +600,7 @@ class PlatformWrapper:
                         cf.write(f.read())
                 with open(self.remote_platform_ca) as f:
                     cf.write(f.read())
-
+            os.chmod(ca_bundle_file, 0o744)
             self.env['REQUESTS_CA_BUNDLE'] = ca_bundle_file
             os.environ['REQUESTS_CA_BUNDLE'] = self.env['REQUESTS_CA_BUNDLE']
         # This file will be passed off to the main.py and available when
@@ -606,6 +616,7 @@ class PlatformWrapper:
                      'bind_web_address': bind_web_address,
                      'volttron_central_address': volttron_central_address,
                      'volttron_central_serverkey': volttron_central_serverkey,
+                     'secure_agent_users': self.secure_agent_users,
                      'platform_name': None,
                      'log': os.path.join(self.volttron_home, 'volttron.log'),
                      'log_config': None,
@@ -643,6 +654,9 @@ class PlatformWrapper:
         if self.messagebus:
             parser.set('volttron', 'message-bus',
                        self.messagebus)
+        if self.secure_agent_users:
+            parser.set('volttron', 'secure-agent-users',
+                       str(self.secure_agent_users))
         # In python3 option values must be strings.
         parser.set('volttron', 'agent-monitor-frequency',
                    str(agent_monitor_frequency))
@@ -705,6 +719,7 @@ class PlatformWrapper:
 
         # Use dynamic_agent so we can look and see the agent with peerlist.
         if not setupmode:
+            gevent.sleep(2)
             self.dynamic_agent = self.build_agent(identity="dynamic_agent")
             assert self.dynamic_agent is not None
             assert isinstance(self.dynamic_agent, Agent)
@@ -823,6 +838,7 @@ class PlatformWrapper:
             self.start_agent(agent_uuid)
         return agent_uuid
 
+
     def install_multiple_agents(self, agent_configs):
         """
         Installs mutltiple agents on the platform.
@@ -891,8 +907,11 @@ class PlatformWrapper:
             agent_uuid = self._install_agent(wheel_file, start, vip_identity)
 
         # Now if the agent_dir is specified.
+        temp_config = None
         if agent_dir:
             assert not agent_wheel
+            temp_config = os.path.join(self.volttron_home,
+                                       os.path.basename(agent_dir) + "_config_file")
             if isinstance(config_file, dict):
                 from os.path import join, basename
                 temp_config = join(self.volttron_home,
@@ -970,6 +989,10 @@ class PlatformWrapper:
 
         if start:
             assert self.is_agent_running(agent_uuid)
+
+        # remove temp config_file
+        if temp_config and os.path.isfile(temp_config):
+            os.remove(temp_config)
 
         return agent_uuid
 
@@ -1071,7 +1094,6 @@ class PlatformWrapper:
         # ValueError: I/O operation on closed file
         except ValueError:
             pass
-        # _log.debug("AGENT_PID: {}".format(pid))
         return pid
 
     def build_agentpackage(self, agent_dir, config_file={}):
@@ -1314,7 +1336,11 @@ class WebAdminApi(object):
         """
         data = dict(username=username, password1=password, password2=password)
         url = self.bind_web_address +"/admin/setpassword"
-        resp = requests.post(url, data=data, verify=self.certsobj.remote_cert_bundle_file())
+        #resp = requests.post(url, data=data,
+        # verify=self.certsobj.remote_cert_bundle_file())
+        resp = requests.post(url, data=data,
+                             verify=self.certsobj.cert_file(
+                                 name=self.certsobj.root_ca_name))
         return resp
 
     def authenticate(self, username, password):
@@ -1322,5 +1348,8 @@ class WebAdminApi(object):
         url = self.bind_web_address+"/authenticate"
         # Passing dictionary to the data argument will automatically pass as
         # application/x-www-form-urlencoded to the request
-        resp = requests.post(url, data=data, verify=self.certsobj.remote_cert_bundle_file())
+        #resp = requests.post(url, data=data,
+        # verify=self.certsobj.remote_cert_bundle_file())
+        resp = requests.post(url, data=data, verify=self.certsobj.cert_file(
+            self.certsobj.root_ca_name))
         return resp
