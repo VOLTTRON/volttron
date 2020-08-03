@@ -13,20 +13,23 @@ from volttrontesting.utils.utils import get_rand_port
 
 # Current documentation claims that we have tested Historian on Postgres 10
 # See https://volttron.readthedocs.io/en/develop/core_services/historians/SQL-Historian.html#postgresql-and-redshift
+# Since we are using TravisCI, running these tests on more than three images will stop the build because it takes more than 10 minutes to produce any log output.
+# See https://docs.travis-ci.com/user/customizing-the-build/#build-timeouts
+# Therefore, a maximum of two images are used for testing on TravisCI.
+# However, there are no limits to run this test locally with all images.
+# To run tests on all images, uncomment the commented images and run `./ci-integration/virtualization/core/entrypoint.sh'
 IMAGES = [
-    "postgres:9",
-    "postgres:9.5",
-    "postgres:9.5.22",
-    "postgres:9.6",
     "postgres:9.6.18",
-    "postgres:10",
     "postgres:10.13",
-    "postgres:11",
-    "postgres:11.8",
-    "postgres:12",
-    "postgres:12.3",
-    "postgres:13",
-    "postgres:13-beta2",
+    # "postgres:11.8",
+    # "postgres:9",
+    # "postgres:9.5",
+    # "postgres:10",
+    # "postgres:11",
+    # "postgres:12",
+    # "postgres:12.3",
+    # "postgres:13",
+    # "postgres:13-beta2",
 ]
 ALLOW_CONNECTION_TIME = 5
 TEST_DATABASE = "test_historian"
