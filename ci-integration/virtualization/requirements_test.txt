@@ -5,4 +5,8 @@ mock
 websocket-client
 numpy>1.13<2
 pandas
+watchdog==0.10.2
+watchdog-gevent==0.1.1
+cryptography==2.3
+docker
 mysql-connector-python-rf
