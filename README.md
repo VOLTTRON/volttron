@@ -1,4 +1,5 @@
 ![image](docs/source/images/VOLLTRON_Logo_Black_Horizontal_with_Tagline.png)
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/fcf58045b4804edf8f4d3ecde3016f76)](https://app.codacy.com/gh/VOLTTRON/volttron?utm_source=github.com&utm_medium=referral&utm_content=VOLTTRON/volttron&utm_campaign=Badge_Grade_Settings)
 
 VOLTTRON™ is an open source platform for distributed sensing and control. The
 platform provides services for collecting and storing data from buildings and
@@ -273,10 +274,10 @@ tail volttron.log
 Listener agent heartbeat publishes appear in the logs as:
 
 ```sh
-2016-10-17 18:17:52,245 (listeneragent-3.2 11367) listener.agent INFO: Peer: 'pubsub', Sender: 'listeneragent-3.2_1'
-:, Bus: u'', Topic: 'heartbeat/listeneragent-3.2_1', Headers:
-{'Date': '2016-10-18T01:17:52.239724+00:00', 'max_compatible_version': u'', 'min_compatible_version': '3.0'},
-Message: {'status': 'GOOD', 'last_updated': '2016-10-18T01:17:47.232972+00:00', 'context': 'hello'}
+2020-04-20 18:49:31,395 (listeneragent-3.3 13458) __main__ INFO: Peer: pubsub, Sender: listeneragent-3.2_1:, Bus: , Topic: heartbeat/listeneragent-3.2_1, Headers: {'TimeStamp': '2020-04-20T18:49:31.393651+00:00', 'min_compatible_version': '3.0', 'max_compatible_version': ''}, Message:
+'GOOD'
+2020-04-20 18:49:36,394 (listeneragent-3.3 13458) __main__ INFO: Peer: pubsub, Sender: listeneragent-3.2_1:, Bus: , Topic: heartbeat/listeneragent-3.2_1, Headers: {'TimeStamp': '2020-04-20T18:49:36.392294+00:00', 'min_compatible_version': '3.0', 'max_compatible_version': ''}, Message:
+'GOOD'
 ```
 
 To top the platform run the following command:
