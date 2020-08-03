@@ -38,7 +38,6 @@
 
 import struct
 import logging
-import os.path
 
 from gevent import monkey
 monkey.patch_socket()
@@ -53,7 +52,6 @@ from contextlib import contextmanager, closing
 from master_driver.driver_locks import socket_lock
 from master_driver.interfaces import BaseInterface, BaseRegister, BasicRevert, DriverInterfaceError
 from volttron.platform.agent import utils
-from volttron.platform import get_examples
 
 @contextmanager
 def modbus_client(address, port):
@@ -71,9 +69,6 @@ _log = logging.getLogger(__name__)
 MODBUS_REGISTER_SIZE = 2
 MODBUS_READ_MAX = 100
 PYMODBUS_REGISTER_STRUCT = struct.Struct('>H')
-
-path = get_examples("configurations/drivers")
-configFile = os.path.join(path, "example.csv")
 
 
 class ModbusInterfaceException(ModbusException):
