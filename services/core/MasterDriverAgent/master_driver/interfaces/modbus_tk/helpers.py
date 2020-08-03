@@ -135,8 +135,8 @@ def parse_transform_arg(func, arg):
     :return: the correct argument or raise exception if not matched
     """
     parse_arg = arg
-    if func in (scale, scale_int):
-        if type(arg) not in (int, float):
+    if func in (scale, scale_int, scale_decimal_int_signed):
+        if type(arg) not in (int, long, float):
             try:
                 parse_arg = int(arg, 10)
             except ValueError:

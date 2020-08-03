@@ -42,7 +42,8 @@ import random
 from weakref import WeakValueDictionary
 
 from gevent.event import AsyncResult
-
+import sys
+from datetime import datetime
 
 __all__ = ['counter', 'ResultsDictionary']
 
@@ -51,13 +52,14 @@ class AsyncResult(AsyncResult):
     __slots__ = AsyncResult.__slots__ + ('ident',)
 
 
-def counter(start=None, minimum=0, maximum=2**64-1):
-    count = random.randint(minimum, maximum) if start is None else start
+def counter(start=None, minimum=0, maximum=sys.maxsize-1):
+    #count = random.randint(minimum, maximum) if start is None else start
+    count = int(datetime.now().timestamp()) if start is None else start
     while True:
         yield count
         count += 1
         if count >= maximum:
-            count = minimum
+            count = int(datetime.now().timestamp())
 
 
 class ResultsDictionary(WeakValueDictionary):
