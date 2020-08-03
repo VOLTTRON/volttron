@@ -175,7 +175,7 @@ def test_insert_topic_query_should_succeed(get_container_func, ports_config):
             actual_id = mysqlfuncts.insert_topic(topic)
 
             assert isinstance(actual_id, int)
-            assert (actual_id, 'football' ) == get_data_in_table(port_on_host, 'topics')[0]
+            assert (actual_id, 'football') == get_data_in_table(port_on_host, 'topics')[0]
 
 
 @pytest.mark.mysqlfuncts
@@ -303,7 +303,6 @@ def test_get_agg_topic_map_should_return_dict(get_container_func, ports_config):
                         INSERT INTO {AGG_TOPICS_TABLE}
                         (agg_topic_name, agg_type, agg_time_period)
                         VALUES ('topic_name', 'AVG', '2001');
-                        INSERT INTO {AGG_META_TABLE}
                      """
             seed_database(container, query)
             expected = {('topic_name', 'AVG', '2001'): 1}
@@ -392,7 +391,7 @@ def test_insert_aggregate_stmt_should_succeed(get_container_func, ports_config):
 
 
 @pytest.mark.mysqlfuncts
-def test_collect_aggregate_should_raise_value_error(get_container_func, ports_config):
+def test_collect_aggregate_should_return_aggregate_result(get_container_func, ports_config):
     get_container, image = get_container_func
     with get_container(image, ports=ports_config["ports"], env=ENV_MYSQL) as container:
         wait_for_connection(container)
@@ -461,13 +460,21 @@ def ports_config():
 
 def wait_for_connection(container):
     start_time = time()
+    response = None
     while time() - start_time < ALLOW_CONNECTION_TIME:
-        command = f"mysqlshow --user=\"root\" --password=\"{ROOT_PASSWORD}\" {TEST_DATABASE}"
-        r = container.exec_run(command, tty=True)
-        if r[0] == 1:
+        command = (
+            f"mysqlshow --user=\"root\" --password=\"{ROOT_PASSWORD}\" {TEST_DATABASE}"
+        )
+        response = container.exec_run(command, tty=True)
+        exit_code, output = response
+
+        if exit_code == 1 and "Can't connect to local MySQL server" in output.decode():
             continue
-        else:
+        elif exit_code == 0:
             return
+
+    raise RuntimeError(f"Failed to make connection within allowed time {response}")
+
 
 
 def create_historian_tables(container):

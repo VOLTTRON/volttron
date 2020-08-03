@@ -247,7 +247,7 @@ class Publisher(Agent):
         for k, v in unittype_map.items():
             if re.match(k, point):
                 return v
-        return 'percent'
+        return {'type': 'float'}
 
     def _publish_point_all(self, topic, data, meta_data, headers):
         # makesure topic+point gives a true value.
