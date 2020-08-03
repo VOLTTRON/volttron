@@ -53,6 +53,7 @@ from contextlib import contextmanager, closing
 from master_driver.driver_locks import socket_lock
 from master_driver.interfaces import BaseInterface, BaseRegister, BasicRevert, DriverInterfaceError
 from volttron.platform.agent import utils
+from volttron.platform import get_examples
 
 @contextmanager
 def modbus_client(address, port):
@@ -71,7 +72,7 @@ MODBUS_REGISTER_SIZE = 2
 MODBUS_READ_MAX = 100
 PYMODBUS_REGISTER_STRUCT = struct.Struct('>H')
 
-path = os.path.join(utils.get_home(), "examples", "configurations", "drivers")
+path = get_examples("configurations/drivers")
 configFile = os.path.join(path, "example.csv")
 
 
