@@ -1,5 +1,6 @@
 import contextlib
 import datetime
+import os
 
 from time import time
 
@@ -11,7 +12,13 @@ from volttron.platform.dbutils.postgresqlfuncts import PostgreSqlFuncts
 from volttrontesting.fixtures.docker_wrapper import create_container
 from volttrontesting.utils.utils import get_rand_port
 
-IMAGES = ["timescale/timescaledb:latest-pg10"]
+IMAGES = ["timescale/timescaledb:latest-pg10", "timescale/timescaledb:latest-pg11"]
+
+if "CI" not in os.environ:
+    IMAGES.extend(
+        ["timescale/timescaledb:latest-pg12", "timescale/timescaledb:latest-pg9.6"]
+    )
+
 ALLOW_CONNECTION_TIME = 3
 TEST_DATABASE = "test_historian"
 ROOT_USER = "postgres"
