@@ -1,5 +1,6 @@
 import contextlib
 import datetime
+import os
 from time import time
 
 import pytest
@@ -13,17 +14,11 @@ from volttrontesting.utils.utils import get_rand_port
 # mysqlfuncts was written for MYSQL 5.7; however, the latest version is 8.0
 # these tests cannot use latest or anything 8.0 and above and will fail if the latest image/8.0 is used
 # for example, latest/8.0 will throw a "specified key was too long; max key length is 3072 bytes" error
-# Since we are using TravisCI, running these tests on more than three images will stop the build because it takes more than 10 minutes to produce any log output.
-# See https://docs.travis-ci.com/user/customizing-the-build/#build-timeouts
-# Therefore, a maximum of two images are used for testing on TravisCI.
-# However, there are no limits to run this test locally with all images.
-# To run tests on all images, uncomment the commented images and run `./ci-integration/virtualization/core/entrypoint.sh'
-IMAGES = ["mysql:5.6.49",
-          "mysql:5.7.31",
-          # "mysql:5",
-          # "mysql:5.6",
-          # "mysql:5.7",
-]  # To test more images, add them here
+IMAGES = ["mysql:5.6.49", "mysql:5.7.31"]
+
+if "CI" not in os.environ:
+    IMAGES.extend(["mysql:5", "mysql:5.6", "mysql:5.7"])
+
 TEST_DATABASE = "test_historian"
 ROOT_PASSWORD = "12345"
 ENV_MYSQL = {"MYSQL_ROOT_PASSWORD": ROOT_PASSWORD, "MYSQL_DATABASE": TEST_DATABASE}
