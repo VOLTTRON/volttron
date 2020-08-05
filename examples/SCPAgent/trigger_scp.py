@@ -77,7 +77,8 @@ print("Complete")
 # #which_way = WhichWayEnum.SENDING
 # which_way = WhichWayEnum.RECEIVING
 #
-# cmd = ["scp", "-o", "LogLevel=VERBOSE", "-o", "PasswordAuthentication=no", "-o", "IdentitiesOnly=yes"] # , "-o", "LogLevel", "VERBOSE"]
+# cmd = ["scp", "-o", "LogLevel=VERBOSE", "-o", "PasswordAuthentication=no", "-o", "IdentitiesOnly=yes"]
+# , "-o", "LogLevel", "VERBOSE"]
 # if which_way == WhichWayEnum.SENDING:
 #     cmd.extend([from_file, f"{user}:{to_file}"])
 # else:
