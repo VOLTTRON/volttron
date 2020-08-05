@@ -21,9 +21,8 @@ platform along with their uuid, associated `tag <AgentTag>`__, and
    which was installed. Agents can be controlled with this using "--name
    ". Note, if multiple instances of a wheel are installed they will all
    have the same name and can be controlled as a group.
--  `TAG <AgentTag>`__ is a user provided tag which makes it simpler to
-   track and refer to agents. Using "--tag " agents can be controlled
-   using this
+-  `TAG <AgentTag>`__ is a user-provided tag which makes it simpler to
+   track and refer to agents. Agents can be controlled by using "--tag".
 -  PRI is the priority for agents which have been "enabled" using the
    ``vctl enable`` command. When enabled, agents will be
    automatically started in priority order along with the platform.
