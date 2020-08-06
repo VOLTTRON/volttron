@@ -55,3 +55,15 @@ the scp transfer.
                                                                            local_path=local_path,
                                                                            direction="RECEIVING")).get(timeout=5)
 
+
+Testing
+-------
+
+Within the agent directory there is a trigger_scp.py script.  By default the trigger will run through 4 different
+tests.  The tests will exercise the sending and receiving for both the rpc and pubsub interfaces.  The trigger will
+require user interaction so run it with a shell that can receive input.
+
+.. code-block::shell
+
+    (volttron) (base) osboxes@osboxes:~/repos/volttron$ python examples/SCPAgent/trigger_scp.py
+
