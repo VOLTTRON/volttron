@@ -134,7 +134,7 @@ class ScpAgent(Agent):
         if not enabled:
             return
 
-        if direction == WhichWayEnum.SENDING:
+        if direction == WhichWayEnum.SENDING.name:
             success = self.__handle_scp__(WhichWayEnum.SENDING, local_path, remote_path)
         else:
             success = self.__handle_scp__(WhichWayEnum.RECEIVING, remote_path, local_path)
