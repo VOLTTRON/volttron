@@ -4,9 +4,15 @@ import os
 
 from time import time
 
-from psycopg2.sql import SQL, Identifier
 import pytest
-import psycopg2
+try:
+    import psycopg2
+    from psycopg2.sql import SQL, Identifier
+except ImportError:
+    pytest.skip(
+        "Required imports for testing are not installed; thus, not running tests.",
+        allow_module_level=True,
+    )
 
 from volttron.platform.dbutils.postgresqlfuncts import PostgreSqlFuncts
 from volttrontesting.fixtures.docker_wrapper import create_container
