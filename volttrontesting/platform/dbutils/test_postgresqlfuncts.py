@@ -1,10 +1,14 @@
 import contextlib
 import datetime
 import os
+import logging
+
+logging.getLogger("urllib3.connectionpool").setLevel(logging.INFO)
 
 from time import time
 
 import pytest
+
 try:
     import psycopg2
     from psycopg2.sql import SQL, Identifier
@@ -20,10 +24,7 @@ from volttrontesting.utils.utils import get_rand_port
 
 # Current documentation claims that we have tested Historian on Postgres 10
 # See https://volttron.readthedocs.io/en/develop/core_services/historians/SQL-Historian.html#postgresql-and-redshift
-IMAGES = [
-    "postgres:9.6.18",
-    "postgres:10.13",
-]
+IMAGES = ["postgres:9.6.18", "postgres:10.13"]
 
 if "CI" not in os.environ:
     IMAGES.extend(
