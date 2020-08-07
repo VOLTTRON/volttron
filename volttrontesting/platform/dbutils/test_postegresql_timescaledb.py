@@ -1,16 +1,21 @@
 import contextlib
 import datetime
 import os
+import logging
+
+logging.getLogger("urllib3.connectionpool").setLevel(logging.INFO)
+
 
 from time import time
 
 import pytest
+
 try:
     import psycopg2
     from psycopg2.sql import SQL, Identifier
 except ImportError:
     pytest.skip(
-        "Required imports for testing are not installed; thus, not running tests.",
+        "Required imports for testing are not installed; thus, not running tests. Install imports with: python bootstrap.py --postgres",
         allow_module_level=True,
     )
 
