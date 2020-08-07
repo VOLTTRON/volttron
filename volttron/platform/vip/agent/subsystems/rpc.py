@@ -174,7 +174,7 @@ class Dispatcher(jsonrpc.Dispatcher):
         signature = inspect.signature(method)
         for p in signature.parameters.values():
             response['params'][p.name] = {
-                    'kind': p.kind.description
+                    'kind': p.kind.name
             }
             if p.default is not inspect.Parameter.empty:
                 response['params'][p.name]['default'] = p.default

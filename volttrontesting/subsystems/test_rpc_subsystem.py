@@ -28,16 +28,16 @@ def test_method_inspection(volttron_instance):
     test_output = {
         'doc': 'Doc String',
         'params': {'param1': {'annotation': 'int',
-                              'kind': 'positional or keyword'},
+                              'kind': 'POSITIONAL_OR_KEYWORD'},
                    'param2': {'annotation': 'typing.Union[str, typing.List[str]]',
-                              'kind': 'positional or keyword'},
+                              'kind': 'POSITIONAL_OR_KEYWORD'},
                    'param3': {'annotation': 'bool',
                               'default': True,
-                              'kind': 'keyword-only'},
+                              'kind': 'KEYWORD_ONLY'},
                    'param4': {'annotation': 'typing.Union[float, typing.List[float], '
                                             'NoneType]',
                               'default': None,
-                              'kind': 'keyword-only'}},
+                              'kind': 'KEYWORD_ONLY'}},
         'return': 'dict',
         'source': {'file': 'volttrontesting/subsystems/test_rpc_subsystem.py',  # Must change if this file moves!
                    'line_number': lineno},
