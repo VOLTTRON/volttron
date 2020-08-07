@@ -12,7 +12,7 @@ try:
     import mysql.connector
 except ImportError:
     pytest.skip(
-        "Required imports for testing are not installed; thus, not running tests.",
+        "Required imports for testing are not installed; thus, not running tests. Install imports with: python bootstrap.py --mysql",
         allow_module_level=True,
     )
 
