@@ -44,6 +44,7 @@ fi
 # #   echo "mount or copy file into child container."
 # #   exit 1;
 # # fi
+chmod 777 /var/run/docker.sock
 
 if [[ $# -lt 1 ]]; then
   echo "Please provide a command to run (e.g. /bin/bash, volttron -vv)";
