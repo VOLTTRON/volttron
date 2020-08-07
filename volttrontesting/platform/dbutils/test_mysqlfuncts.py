@@ -4,7 +4,14 @@ import os
 from time import time
 
 import pytest
-import mysql.connector
+try:
+    import mysql.connector
+except ImportError:
+    pytest.skip(
+        "Required imports for testing are not installed; thus, not running tests.",
+        allow_module_level=True,
+    )
+
 
 from volttron.platform.dbutils.mysqlfuncts import MySqlFuncts
 from volttrontesting.fixtures.docker_wrapper import create_container
