@@ -1,6 +1,10 @@
 import contextlib
 import datetime
 import os
+import logging
+
+logging.getLogger("urllib3.connectionpool").setLevel(logging.INFO)
+
 from time import time
 
 import pytest
