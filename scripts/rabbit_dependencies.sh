@@ -73,10 +73,10 @@ function install_on_debian {
     ${prefix} apt-get install apt-transport-https libwxbase3.0-0v5 libwxgtk3.0-0v5 libsctp1  build-essential python-dev openssl libssl-dev libevent-dev git
     ${prefix} apt-get purge -yf erlang*
     # Add the signing key
-    wget -O- https://packages.erlang-solutions.com/ubuntu/erlang_solutions.asc | sudo apt-key add -
+    wget -O- https://packages.erlang-solutions.com/ubuntu/erlang_solutions.asc | ${prefix} apt-key add -
 
     if [[ ! -f "/etc/apt/sources.list.d/erlang.solutions.list" ]]; then
-        echo "deb https://packages.erlang-solutions.com/ubuntu $DIST contrib" | sudo tee /etc/apt/sources.list.d/erlang.solutions.list
+        echo "deb https://packages.erlang-solutions.com/ubuntu $DIST contrib" | ${prefix} tee /etc/apt/sources.list.d/erlang.solutions.list
     fi
 
     version=${erlang_package_version}

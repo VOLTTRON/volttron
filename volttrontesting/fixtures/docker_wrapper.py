@@ -1,6 +1,6 @@
 try:
     import docker
-
+    from docker.errors import APIError, ImageNotFound
     HAS_DOCKER = True
 except ImportError:
     HAS_DOCKER = False
@@ -31,12 +31,12 @@ if HAS_DOCKER:
 
         :param image_name: The image name (from dockerhub) that is to be instantiated
         :param ports:
-            a dictionary following the convention {'portincontainre/protocol': portonhost}
+            a dictionary following the convention {'portincontainer/protocol': portonhost}
 
             ::
                 # example port exposing mysql's known port.
                 {'3306/tcp': 3306}
-        :param env:
+        :param env: environment variables to set inside the container.
         :param command: string or list of commands to run during the startup of the container.
         :param startup_time_seconds: Allow this many seconds for the startup of the container before raising a
             runtime exception (Download of image and instantiation could take a while)
@@ -47,18 +47,33 @@ if HAS_DOCKER:
 
         # Create docker client (Uses localhost as agent connection.
         client = docker.from_env()
-        if ":" in image_name:
-            client.images.pull(image_name)
-        else:
-            # So all tags aren't pulled. According to docs https://docker-py.readthedocs.io/en/stable/images.html.
-            client.images.pull(image_name + ":latest")
-        container = client.containers.run(image_name, ports=ports, environment=env, auto_remove=True, detach=True)
+
+        try:
+            full_docker_image = image_name
+            if ":" not in full_docker_image:
+                # So all tags aren't pulled. According to docs https://docker-py.readthedocs.io/en/stable/images.html.
+                full_docker_image = full_docker_image + ":latest"
+            client.images.pull(full_docker_image)
+            container = client.containers.run(image_name, ports=ports, environment=env, auto_remove=True, detach=True)
+        except (ImageNotFound, APIError, RuntimeError) as e:
+            raise RuntimeError(e)
 
         if container is None:
             raise RuntimeError(f"Unable to run image {image_name}")
 
+        # wait for a certain amount of time to let container complete its build
+        try:
+            if _is_not_valid_container(container, startup_time_seconds):
+                yield None
+            else:
+                yield container
+        finally:
+            container.kill()
+
+    def _is_not_valid_container(container, startup_time_seconds):
         error_time = time.time() + startup_time_seconds
         invalid = False
+
         while container.status != 'running':
             if time.time() > error_time:
                 invalid = True
@@ -66,10 +81,4 @@ if HAS_DOCKER:
             time.sleep(0.1)
             container.reload()
 
-        if invalid:
-            yield None
-        else:
-            yield container
-
-        container.kill()
-
+        return invalid

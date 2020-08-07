@@ -215,7 +215,7 @@ class Publisher(Agent):
         results = defaultdict(dict)
         for topic, point in name_map.values():
             unit_type = Publisher._get_unit(point, unittype_map)
-            results[topic][point] = unit_type
+            results[topic][point] = {"unit": unit_type}
         return results
 
     def build_maps(self, fieldnames, base_path):
@@ -247,7 +247,7 @@ class Publisher(Agent):
         for k, v in unittype_map.items():
             if re.match(k, point):
                 return v
-        return 'percent'
+        return {'type': 'float'}
 
     def _publish_point_all(self, topic, data, meta_data, headers):
         # makesure topic+point gives a true value.
@@ -350,7 +350,7 @@ class Publisher(Agent):
             # Reset data frequency counter.
             self._next_allowed_publish = None
             if not isinstance(self._input_data, list):
-                handle = open(self._input_data, 'rb')
+                handle = open(self._input_data, 'r')
                 self._data = csv.DictReader(handle)
 
     @RPC.export
