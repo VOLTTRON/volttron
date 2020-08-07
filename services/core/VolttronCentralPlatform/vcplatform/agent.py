@@ -1159,8 +1159,9 @@ class VolttronCentralPlatform(Agent):
                 with open(path, 'wb') as fout:
                     fout.write(
                         base64.decodestring(
-                            fileargs['file'].split(base64_sep)[1]))
-
+                            fileargs['file'].split(base64_sep)[1].encode('utf-8')
+                        )
+                    )
             uuid = self.vip.rpc.call(CONTROL, 'install_agent_local',
                                      path, vip_identity=vip_identity
                                      ).get(timeout=30)

@@ -1,10 +1,10 @@
 {
   # VOLTTRON config files are JSON with support for python style comments.
   "setting1": 2, #Integers
-  "setting2": "some/random/topic2", #strings
+  "setting2": "some/random/topic2", #Strings
   "setting3": true, #Booleans: remember that in JSON true and false are not capitalized.
   "setting4": false,
   "setting5": 5.1, #Floating point numbers.
-  "setting6": [1,2,3,4], # Lists
+  "setting6": [1,2,3,4], #Lists
   "setting7": {"setting7a": "a", "setting7b": "b"} #Objects
 }
