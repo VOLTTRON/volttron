@@ -1,6 +1,7 @@
 import os
 from time import time
 
+from gevent import sleep
 import pytest
 
 
@@ -195,4 +196,11 @@ def seed_database(container, query):
         f'mongo --username "{ROOT_USERNAME}" --password "{ROOT_PASSWORD}" '
         f"--authenticationDatabase admin {TEST_DATABASE} --eval={query}"
     )
-    container.exec_run(cmd=command, tty=True)
+    start_time = time()
+    while time() - start_time < ALLOW_CONNECTION_TIME:
+        r = container.exec_run(cmd=command, tty=True)
+        if r[0] != 0:
+            continue
+        else:
+            sleep(0.5)
+            return
