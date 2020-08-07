@@ -6,3 +6,8 @@ websocket-client
 numpy>1.13<2
 pandas
 mysql-connector-python-rf
+watchdog
+watchdog-gevent
+docker
+cryptography
+pymongo
