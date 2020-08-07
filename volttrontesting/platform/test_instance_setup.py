@@ -4,11 +4,15 @@ import shutil
 import subprocess
 import pytest
 from configparser import ConfigParser
+from volttron.platform import is_rabbitmq_available
 from volttron.platform.instance_setup import _is_agent_installed
 from volttron.utils import get_hostname
 from volttron.platform.agent.utils import is_volttron_running
 from volttrontesting.fixtures.rmq_test_setup import create_rmq_volttron_setup
 from volttrontesting.utils.platformwrapper import create_volttron_home
+
+HAS_RMQ = is_rabbitmq_available()
+
 '''
 Example variables to be used during each of the tests, depending on the prompts that will be asked
 
@@ -45,24 +49,27 @@ agent_autostart = "N"
 
 
 @contextlib.contextmanager
-def create_vcfg_vhome(cleanup=True):
+def create_vcfg_vhome():
+    debug_flag = os.environ.get('DEBUG', False)
     vhome = create_volttron_home()
     yield vhome
-    if cleanup:
+    if not debug_flag:
         shutil.rmtree(vhome, ignore_errors=True)
 
 
-def test_should_remove_config_vhome():
+def test_should_remove_config_vhome(monkeypatch):
+    monkeypatch.setenv("DEBUG", '')
     with create_vcfg_vhome() as vhome:
         assert os.path.isdir(vhome)
     assert not os.path.isdir(vhome)
 
 
-def test_should_not_remove_config_vhome_when_debugging():
-    with create_vcfg_vhome(cleanup=False) as vhome:
+def test_should_not_remove_config_vhome_when_debugging(monkeypatch):
+    monkeypatch.setenv("DEBUG", 1)
+    with create_vcfg_vhome() as vhome:
         assert os.path.isdir(vhome)
     assert os.path.isdir(vhome)
-
+    shutil.rmtree(vhome, ignore_errors=True)
 
 def test_zmq_case_no_agents(monkeypatch):
     with create_vcfg_vhome() as vhome:
@@ -400,6 +407,7 @@ def test_zmq_case_web_vc(monkeypatch):
         assert _is_agent_installed("vcp")
         assert not is_volttron_running(vhome)
 
+
 def test_zmq_case_web_vc_with_agents(monkeypatch):
     with create_vcfg_vhome() as vhome:
         monkeypatch.setenv("VOLTTRON_HOME", vhome)
@@ -480,6 +488,7 @@ def test_zmq_case_web_vc_with_agents(monkeypatch):
         assert not is_volttron_running(vhome)
 
 
+@pytest.mark.skipif(not HAS_RMQ, reason='RabbitMQ is not setup')
 @pytest.mark.timeout(360)
 def test_rmq_case_no_agents(monkeypatch):
     with create_vcfg_vhome() as vhome:
@@ -532,6 +541,7 @@ def test_rmq_case_no_agents(monkeypatch):
         assert not is_volttron_running(vhome)
 
 
+@pytest.mark.skipif(not HAS_RMQ, reason='RabbitMQ is not setup')
 @pytest.mark.timeout(360)
 def test_rmq_case_with_agents(monkeypatch):
     with create_vcfg_vhome() as vhome:
@@ -597,6 +607,7 @@ def test_rmq_case_with_agents(monkeypatch):
         assert not is_volttron_running(vhome)
 
 
+@pytest.mark.skipif(not HAS_RMQ, reason='RabbitMQ is not setup')
 @pytest.mark.timeout(360)
 def test_rmq_case_web_no_agents(monkeypatch):
     with create_vcfg_vhome() as vhome:
@@ -654,6 +665,7 @@ def test_rmq_case_web_no_agents(monkeypatch):
         assert not is_volttron_running(vhome)
 
 
+@pytest.mark.skipif(not HAS_RMQ, reason='RabbitMQ is not setup')
 @pytest.mark.timeout(360)
 def test_rmq_case_web_with_agents(monkeypatch):
     with create_vcfg_vhome() as vhome:
@@ -722,6 +734,7 @@ def test_rmq_case_web_with_agents(monkeypatch):
         assert not is_volttron_running(vhome)
 
 
+@pytest.mark.skipif(not HAS_RMQ, reason='RabbitMQ is not setup')
 @pytest.mark.timeout(360)
 def test_rmq_case_web_vc(monkeypatch):
     with create_vcfg_vhome() as vhome:
@@ -786,6 +799,7 @@ def test_rmq_case_web_vc(monkeypatch):
         assert not is_volttron_running(vhome)
 
 
+@pytest.mark.skipif(not HAS_RMQ, reason='RabbitMQ is not setup')
 @pytest.mark.timeout(360)
 def test_rmq_case_web_vc_with_agents(monkeypatch):
     with create_vcfg_vhome() as vhome:
