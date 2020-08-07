@@ -135,8 +135,8 @@ def parse_transform_arg(func, arg):
     :return: the correct argument or raise exception if not matched
     """
     parse_arg = arg
-    if func in (scale, scale_int):
-        if type(arg) not in (int, float):
+    if func in (scale, scale_int, scale_decimal_int_signed):
+        if type(arg) not in (int, long, float):
             try:
                 parse_arg = int(arg, 10)
             except ValueError:
@@ -169,6 +169,37 @@ def transform_func_helper(multiple_lst):
     except TypeError: #string
         return value
 
+def scale_decimal_int_signed(multiplier):
+    """
+        Scales modbus float value that is stored as a decimal number, not using
+        standard signing rollover, as the PM800 Power Factor Registers.
+        Inverse_func is applied just before writing the value over modbus.
+
+    :param multiplier: Scale multiplier, eg 0.001
+    :return: Returns a function used by the modbus client.
+    """
+    multiplier = parse_transform_arg(scale_decimal_int_signed, multiplier)
+
+    def func(value):
+        if value < 0:
+            return multiplier * (0 - (value + (32768)))
+        else:
+            return multiplier * value
+
+    def inverse_func(value):
+        try:
+            try:
+                if value < 0:
+                    return  (0 - (value / float(multiplier))) - 0xFFFF
+                else:
+                    return (value / float(multipliers))
+            except TypeError: #string
+                return value
+        except ZeroDivisionError:
+            return None
+
+    func.inverse = inverse_func
+    return func
 
 def scale(multiplier):
     """
@@ -286,5 +317,52 @@ def mod10k(reverse=False):
             return high * 10000 + low
         else:
             return low * 10000 + high
+
+    return mod10k_value
+
+
+def mod10k64(reverse=False):
+    """
+    Converts the PM800 64 bit 10K
+
+
+    @todo This works for postive values but not negative.
+    The reason is that each of the 2 16-bit modbus registers come over
+    signed so they need to be split out in the modbus conversion.
+    """
+    reverse = parse_transform_arg(mod10k64, reverse)
+
+    def mod10k_value(value):
+        r4 = (value >> 48) & 0xFFFF
+        r3 = (value >> 32) & 0xFFFF
+        r2 = (value >> 16) & 0xFFFF
+        r1 = value & 0xFFFF
+        if not reverse:
+            return (r1 * 10000**3) + (r2 * 10000**2) + (r3 * 10000) + r4
+        else:
+            return (r4 * 10000**3) + (r3 * 10000**2) + (r2 * 10000) + r1
+
+    return mod10k_value
+
+
+def mod10k48(reverse=False):
+    """
+    Converts the PM800 INT48-M10K register format.
+
+    @todo This works for postive values but not negative.
+    The reason is that each of the 2 16-bit modbus registers come over
+    signed so they need to be split out in the modbus conversion.
+    """
+    reverse = parse_transform_arg(mod10k48, reverse)
+
+    def mod10k_value(value):
+        r4 = (value >> 48) & 0xFFFF
+        r3 = (value >> 32) & 0xFFFF
+        r2 = (value >> 16) & 0xFFFF
+        r1 = value & 0xFFFF
+        if not reverse:
+            return (r2 * 10000**2) + (r3 * 10000) + r4
+        else:
+            return (r1 * 10000**2) + (r2 * 10000) + r3
 
     return mod10k_value
