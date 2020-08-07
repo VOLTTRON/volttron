@@ -66,7 +66,7 @@ def test_get_topic_map(
         image, ports=ports_config["ports"], env=ENV_MONGODB
     ) as container:
         wait_for_connection(container)
-        seed_database(container, query)
+        query_database(container, query)
 
         actual_topic_id_map, actual_topic_name_map = mongoutils.get_topic_map(
             mongo_client(ports_config["port_on_host"]), "topics"
@@ -104,7 +104,7 @@ def test_get_agg_topic_map(
         image, ports=ports_config["ports"], env=ENV_MONGODB
     ) as container:
         wait_for_connection(container)
-        seed_database(container, query)
+        query_database(container, query)
 
         actual_agg_topic_map = mongoutils.get_agg_topic_map(
             mongo_client(ports_config["port_on_host"]), agg_topics_collection
@@ -141,8 +141,8 @@ def test_get_agg_topics(
         image, ports=ports_config["ports"], env=ENV_MONGODB
     ) as container:
         wait_for_connection(container)
-        seed_database(container, query_agg_topics)
-        seed_database(container, query_agg_meta)
+        query_database(container, query_agg_topics)
+        query_database(container, query_agg_meta)
 
         actual_agg_topics = mongoutils.get_agg_topics(
             mongo_client(ports_config["port_on_host"]),
@@ -178,29 +178,26 @@ def ports_config():
 
 
 def wait_for_connection(container):
-    start_time = time()
-    # exit codes for MongoDb can be referenced at https://docs.mongodb.com/manual/reference/exit-codes/
-    while time() - start_time < ALLOW_CONNECTION_TIME:
-        command = f'mongo --username="{ROOT_USERNAME}" --password="{ROOT_PASSWORD}" --authenticationDatabase admin {TEST_DATABASE} --eval "db.getName()"'
-        r = container.exec_run(command, tty=True)
-        if r[0] == 0:
-            return
-        else:
-            continue
-
-    return RuntimeError(r)
+    command = f'mongo --username="{ROOT_USERNAME}" --password="{ROOT_PASSWORD}" --authenticationDatabase admin {TEST_DATABASE} --eval "db.getName()"'
+    query_database(container, None, command=command)
 
 
-def seed_database(container, query):
-    command = (
-        f'mongo --username "{ROOT_USERNAME}" --password "{ROOT_PASSWORD}" '
-        f"--authenticationDatabase admin {TEST_DATABASE} --eval={query}"
-    )
+def query_database(container, query, command=None):
+    if command is None:
+        cmd = (
+            f'mongo --username "{ROOT_USERNAME}" --password "{ROOT_PASSWORD}" '
+            f"--authenticationDatabase admin {TEST_DATABASE} --eval={query}"
+        )
+    else:
+        cmd = command
+
     start_time = time()
     while time() - start_time < ALLOW_CONNECTION_TIME:
-        r = container.exec_run(cmd=command, tty=True)
+        r = container.exec_run(cmd=cmd, tty=True)
         if r[0] != 0:
             continue
         else:
             sleep(0.5)
             return
+
+    return RuntimeError(r)
