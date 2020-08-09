@@ -31,3 +31,5 @@ rabbitmq.log
 *.result.txt
 .coverage
 htmlcov/
+MnesiaCore.*
+rabbitmq-server.download.tar.xz
