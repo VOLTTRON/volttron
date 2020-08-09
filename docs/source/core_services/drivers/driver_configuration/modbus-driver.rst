@@ -38,7 +38,7 @@ Here is an example device configuration file:
         "heart_beat_point": "heartbeat"
     }
 
-A sample MODBUS configuration file can be found in the VOLTTRON repository in ``examples/configurations/drivers/modbus1.config``
+A sample MODBUS configuration file can be found in the VOLTTRON repository in ``examples/configurations/drivers/modbus.config``
 
 
 .. _MODBUS-Driver:

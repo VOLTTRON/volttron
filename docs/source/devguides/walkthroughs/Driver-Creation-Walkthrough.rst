@@ -329,7 +329,7 @@ environment start the platform, tail the platform's log file, then try the follo
 
     | python scripts/install-agent.py -s examples/ListenerAgent
     | python scripts/install-agent.py -s services/core/MasterDriverAgent -c
-        examples/configurations/drivers/master-driver.agent
+        services/core/MasterDriverAgent/master-driver.agent
     | vctl config store platform.driver devices/<campus>/<building>/csv_driver <path to driver configuration>
     | vctl config store platform.driver <registry config path from driver configuration> <path to registry configuration>
 

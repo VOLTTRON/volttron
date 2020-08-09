@@ -1,8 +1,6 @@
 {
-    "agentid": "master_driver",
-    "driver_config_list": [
-    					   #"/home/kyle/workspaces/volttron/services/core/MasterDriverAgent/master_driver/test_bacnet1.config"
-    					   #"/home/kyle/workspaces/volttron/services/core/MasterDriverAgent/master_driver/test_bacnet2.config",
-    					   "/home/kyle/workspaces/volttron/services/core/MasterDriverAgent/master_driver/test_modbus1.config"
-    					  ]
+    "driver_scrape_interval": 0.05,
+    "publish_breadth_first_all": false,
+    "publish_depth_first": false,
+    "publish_breadth_first": false
 }
