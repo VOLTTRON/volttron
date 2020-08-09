@@ -38,7 +38,6 @@
 
 import struct
 import logging
-import os.path
 
 from gevent import monkey
 monkey.patch_socket()
@@ -47,6 +46,7 @@ from pymodbus.client.sync import ModbusTcpClient as SyncModbusClient
 from pymodbus.exceptions import ConnectionException, ModbusIOException, ModbusException
 from pymodbus.pdu import ExceptionResponse
 from pymodbus.constants import Defaults
+
 from contextlib import contextmanager, closing
 
 from master_driver.driver_locks import socket_lock
@@ -70,9 +70,6 @@ MODBUS_REGISTER_SIZE = 2
 MODBUS_READ_MAX = 100
 PYMODBUS_REGISTER_STRUCT = struct.Struct('>H')
 
-path = os.path.dirname(os.path.abspath(__file__))
-configFile = os.path.join(path, "example.csv")
-
 
 class ModbusInterfaceException(ModbusException):
     pass
@@ -86,9 +83,10 @@ class ModbusRegisterBase(BaseRegister):
 
 
 class ModbusBitRegister(ModbusRegisterBase):
-    def __init__(self, address, type_string, pointName, units, read_only, mixed_endian=False, description = '', slave_id=0):
-        super(ModbusBitRegister, self).__init__(address, "bit", read_only, pointName, units, 
-                                                description = description, slave_id=slave_id)        
+    def __init__(self, address, type_string, pointName, units, read_only, mixed_endian=False, description='',
+                 slave_id=0):
+        super(ModbusBitRegister, self).__init__(address, "bit", read_only, pointName, units, description=description,
+                                                slave_id=slave_id)
         
         self.python_type = bool
     
@@ -101,7 +99,8 @@ class ModbusBitRegister(ModbusRegisterBase):
         return 1
     
     def get_state(self, client):
-        response_bits = client.read_discrete_inputs(self.address, unit=self.slave_id) if self.read_only else client.read_coils(self.address, unit=self.slave_id)
+        response_bits = client.read_discrete_inputs(self.address, unit=self.slave_id) if self.read_only else \
+            client.read_coils(self.address, unit=self.slave_id)
         if response_bits is None:
             raise ModbusInterfaceException("pymodbus returned None")
         return response_bits.bits[0]
@@ -117,9 +116,10 @@ class ModbusBitRegister(ModbusRegisterBase):
         return None
 
 class ModbusByteRegister(ModbusRegisterBase):
-    def __init__(self, address, type_string, pointName, units, read_only, mixed_endian=False, description = '', slave_id=0):
-        super(ModbusByteRegister, self).__init__(address, "byte", read_only, 
-                                                 pointName, units, description = description, slave_id=slave_id)
+    def __init__(self, address, type_string, pointName, units, read_only, mixed_endian=False, description='',
+                 slave_id=0):
+        super(ModbusByteRegister, self).__init__(address, "byte", read_only, pointName, units, description=description,
+                                                 slave_id=slave_id)
         
         try:
             self.parse_struct = struct.Struct(type_string)
@@ -201,10 +201,10 @@ class Interface(BasicRevert, BaseInterface):
         self.parse_config(registry_config_str) 
         
     def build_ranges_map(self):
-        self.register_ranges = {('byte',True):[],
-                                ('byte',False):[],
-                                ('bit',True):[],
-                                ('bit',False):[]}
+        self.register_ranges = {('byte', True): [],
+                                ('byte', False): [],
+                                ('bit', True): [],
+                                ('bit', False): []}
         
     def insert_register(self, register):
         super(Interface, self).insert_register(register)
@@ -219,8 +219,9 @@ class Interface(BasicRevert, BaseInterface):
         register_range.append([start, end, [register]])
 
     def merge_register_ranges(self):
-        """Merges any adjacent registers for more efficient scraping.
-           May only be called after all registers have been inserted."""
+        """
+        Merges any adjacent registers for more efficient scraping. May only be called after all registers have been
+        inserted."""
         for key, register_ranges in self.register_ranges.items():
             if not register_ranges:
                 continue
@@ -328,9 +329,8 @@ class Interface(BasicRevert, BaseInterface):
                 result_dict.update(self.scrape_bit_registers(client, True))
                 result_dict.update(self.scrape_bit_registers(client, False))
             except (ConnectionException, ModbusIOException, ModbusInterfaceException) as e:
-                raise DriverInterfaceError("Failed to scrape device at " +
-                                           self.ip_address + ":" + str(self.port) + " " +
-                                           "ID: " + str(self.slave_id) + str(e))
+                raise DriverInterfaceError("Failed to scrape device at " + self.ip_address + ":" + str(self.port) +
+                                           " ID: " + str(self.slave_id) + str(e))
                 
         return result_dict
     
@@ -373,15 +373,12 @@ class Interface(BasicRevert, BaseInterface):
                         try:
                             value = register.python_type(default_value)
                             self.set_default(point_path, value)
-                        except ValueError as ve:
-                            _log.warning("Unable to set default value for {}: {}. "
-                                         "Bad default value in configuration. Using default revert method.".format(
-                                point_path, ve))
+                        except ValueError:
+                            _log.warning("Unable to set default value for {}, bad default value in configuration. "
+                                         "Using default revert method.".format(point_path))
                             
                 else:
                     _log.info("No default value supplied for point {}. Using default revert method.".format(point_path))
 
-        #Merge adjacent ranges for efficiency.
+        # Merge adjacent ranges for efficiency.
         self.merge_register_ranges()
-                
-            

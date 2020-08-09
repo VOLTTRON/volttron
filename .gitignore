@@ -28,5 +28,6 @@ __pycache__
 start-rabbitmq
 stop-rabbitmq
 rabbitmq.log
+*.result.txt
 .coverage
 htmlcov/
