@@ -38,6 +38,8 @@
 
 try:
     from gridappsd import GridAPPSD
+    from gridappsd.simulation import Simulation
+    from gridappsd import topics as t
     HAS_GAPPSD = True
 except ImportError:
     HAS_GAPPSD = False
@@ -48,11 +50,6 @@ import logging
 import gevent
 import weakref
 from volttron.platform.agent.base_simulation_integration.base_sim_integration import BaseSimIntegration
-
-# tm: added for run_simulation workaround
-from gridappsd.simulation import Simulation
-from .gridappsd_docker import docker_up, docker_down
-from gridappsd import topics as t
 
 _log = logging.getLogger(__name__)
 __version__ = '1.0'
