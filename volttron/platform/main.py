@@ -412,7 +412,7 @@ class Router(BaseRouter):
     #    return result
 
     def handle_subsystem(self, frames, user_id):
-        #_log.debug("Handling subsystem with frames: {frames} user_id: {user_id}")
+        _log.debug(f"Handling subsystem with frames: {frames} user_id: {user_id}")
 
         subsystem = frames[5]
         if subsystem == 'quit':

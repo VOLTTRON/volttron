@@ -49,6 +49,7 @@ import os
 import logging
 import gevent
 import weakref
+import stomp
 from volttron.platform.agent.base_simulation_integration.base_sim_integration import BaseSimIntegration
 
 _log = logging.getLogger(__name__)
@@ -57,17 +58,14 @@ __version__ = '1.0'
 
 class GridAPPSDSimIntegration(BaseSimIntegration):
     """
-    The class is responsible for integration with GridAPPSD co-simulation platform
+    The class is responsible for integration with GridAPPSD co-simulation platform.
+    It provides integration support to register configuration, start, stop, publish,
+    receive messages, pause and resume simulation
     """
     def __init__(self, config, pubsub):
         super(GridAPPSDSimIntegration, self).__init__(config)
         self._work_callback = None
-        self._simulation_started = False
-        self._simulation_complete = False
-        self._simulation_delta = None
-        self._simulation_length = None
-        self.current_time = 0
-        self.current_values = {}
+        self.config = config
         self.gridappsd = None
         self.sim = None
         self.event_callbacks = {}
@@ -76,66 +74,91 @@ class GridAPPSDSimIntegration(BaseSimIntegration):
 
     def register_inputs(self, config=None, callback=None):
         """
-        Register configuration parameters with HELICS. The config parameters may include
-        but not limited to:
-        1. Name of the federate
-        2. simulation length
-        2. Type of core to use (zmq/tcp/udp etc)
-        3. list (and type) of subscriptions
-        4. list (and type) of publications
-        5. broker address (if not default)
-        :param config: config parameters
-        :param callback: Register agent callback method
+        Register configuration parameters with GridAppsD.
+        The config parameters may include but not limited to:
+        - power_system_config
+        - application_config
+        - simulation_config
+        - test_config
+        - service_configs
+        : Register agent callback method
         :return:
         """
         self.config = config
         self._work_callback = callback
 
     def register_event_callbacks(self, callbacks={}):
+        """
+        Register for event callbacks for event notifications such as
+        - on measurement change
+        - on timestep change
+        - on finish
+        """
         _log.debug("Registering for event callbacks")
         self.event_callbacks = callbacks
 
     def register_topic_callbacks(self, callbacks={}):
-        topic_callbacks = callbacks
+        """
+        Register for any simulation topic callbacks
+        """
+        _log.debug("Registering for topic callbacks")
+        self.topic_callbacks = callbacks
 
     def start_simulation(self):
         """
-        This is a blocking call until the all the federates get connected to HELICS broker
+        Simulation start activities involve:
+        - Creating GridAppsD connection gevent thread
+        - Registering for event callbacks (if specified)
+        - Registering for topic callbacks if specified
+        - Starting simulation based on the input config
         :return:
         """
-        _log.debug("Docker up!")
-        #docker_up(None)
-        _log.debug('Containers started')
-        self.gridappsd = GridAPPSD(override_threading=self.receiver_thread)
+        try:
+            self.gridappsd = GridAPPSD(override_threading=self.receiver_thread)
 
-        _log.debug('Gridappsd connected')
-        # Register event callbacks - on measurement, on timestep, on finish
-        _log.debug(f"connection config is: {self.config}")
-        self.sim = Simulation(self.gridappsd, self.config)
-        _log.debug('Gridappsd adding onstart callback')
+            _log.debug('Gridappsd connected')
 
-        self.sim.add_onstart_callback(self.sim_on_start)
-        for name, cb in self.event_callbacks.items():
-            if name == 'MEASUREMENT':
-                _log.debug('Gridappsd adding measurement callback')
-                self.sim.add_onmesurement_callback(cb)
-            elif name == 'TIMESTEP':
-                _log.debug('Gridappsd adding timestep callback')
-                self.sim.add_ontimestep_callback(cb)
-            elif name == 'FINISH':
-                _log.debug('Gridappsd adding finish callback')
-                self.sim.add_oncomplete_callback(cb)
+            _log.debug(f"connection config is: {self.config}")
+            self.sim = Simulation(self.gridappsd, self.config)
 
-        # Register/Subscribe for simulation topics
-        for topic, cb in self.topic_callbacks:
-            _log.debug('Gridappsd subscribing to topics callback')
-            self.gridappsd.subscribe(topic, cb)
+            _log.debug('Gridappsd adding onstart callback')
+            # Register for onstart callback to know if simulation has started
+            self.sim.add_onstart_callback(self.sim_on_start)
+            # Register event callbacks - on measurement, on timestep, on finish
+            for name, cb in self.event_callbacks.items():
+                if name == 'MEASUREMENT':
+                    _log.debug('Gridappsd adding measurement callback')
+                    self.sim.add_onmesurement_callback(cb)
+                elif name == 'TIMESTEP':
+                    _log.debug('Gridappsd adding timestep callback')
+                    self.sim.add_ontimestep_callback(cb)
+                elif name == 'FINISH':
+                    _log.debug('Gridappsd adding finish callback')
+                    self.sim.add_oncomplete_callback(cb)
+
+            # Register/Subscribe for simulation topics
+            for topic, cb in self.topic_callbacks:
+                _log.debug('Gridappsd subscribing to topics callback')
+                self.gridappsd.subscribe(topic, cb)
+
+            # Starting GridAppsD simulation
+            self.sim.start_simulation()
+            _log.debug(f"Gridappsd simulation id: {self.sim.simulation_id}")
+        except stomp.exception.NotConnectedException as ex:
+            _log.error("Unable to connect to GridAPPSD: {}".format(ex))
+            raise ex
 
     def sim_on_start(self, sim):
-        _log.debug(f"GridAppsD simulation id: {sim.simulation_id}")
+        """
+        Simulation on start callback to get notified when simulation starts
+        """
+        _log.debug(f"GridAppsD simulation id inside sim_on_start(): {sim.simulation_id}")
         self.sim_id = sim.simulation_id
 
     def receiver_thread(self, arg):
+        """
+        GridAPPSD connection thread
+        """
         self._receiver_thread = gevent.threading.Thread(group=None, target=arg)
         self._receiver_thread.daemon = True  # Don't let thread prevent termination
         self._receiver_thread.start()
@@ -144,29 +167,47 @@ class GridAPPSDSimIntegration(BaseSimIntegration):
 
     def publish_to_simulation(self, topic, message):
         """
-        Publish message on HELICS bus
-        :param topic: HELICS publication key
+        Publish message to GridAppsD
+        :param topic: GridAppsD publication topic
         :param message: message
         :return:
         """
-        self.gridappsd.send(self._test_topic, "foo bar")
+        self.gridappsd.send(topic, message)
 
-    def pause_simulation(self, timeout):
-        self.sim.pause()
+    def pause_simulation(self, timeout=None):
+        """
+        Pause the GridAppsD simulation
+        """
+        if timeout is None:
+            self.sim.pause()
+        else:
+            self.sim.pause(timeout)
 
     def resume_simulation(self):
+        """
+        Resume the GridAppsD simulation
+        """
         self.sim.resume()
 
     def is_sim_installed(self):
+        """
+        Flag to indicate if GridAppsD is installed
+        """
         return HAS_GAPPSD
 
     def stop_simulation(self):
         """
-        Disconnect the federate from helics core and close the library
+        Stop the simulation if running and disconnect from GridAppsD server
         :return:
         """
-        _log.debug('Disconnect GridAppsd')
-        self.gridappsd.disconnect()
-        #docker_down()
-        _log.debug('Containers stopped')
+        _log.debug('Stopping the simulation')
+        try:
+            if self.sim_id is not None:
+                self.sim.stop()
+            _log.debug('Disconnect GridAppsd')
+            if self.gridappsd is not None:
+                self.gridappsd.disconnect()
+        except Exception:
+            _log.error("Error stop GridAPPSD simulation")
+
 
