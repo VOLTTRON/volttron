@@ -541,7 +541,20 @@ def test_get_agg_topic_map_should_return_dict(get_container_func, ports_config):
 @pytest.mark.dbutils
 @pytest.mark.parametrize(
     "topic_1, topic_2, topic_3, topic_pattern, expected_result",
-    [("'football'", "'foobar'", "'xzxzxccx'", "foo", {"football": 1, "foobar": 2})],
+    [
+        ("'football'", "'foobar'", "'xzxzxccx'", "foo", {"football": 1, "foobar": 2}),
+        ("'football'", "'foobar'", "'xzxzxccx'", "ba", {"football": 1, "foobar": 2}),
+        ("'football'", "'foobar'", "'xzxzxccx'", "ccx", {"xzxzxccx": 3}),
+        ("'fotball'", "'foobar'", "'xzxzxccx'", "foo", {"foobar": 2}),
+        ("'football'", "'foooobar'", "'xzxzxccx'", "foooo", {"foooobar": 2}),
+        (
+            "'FOOtball'",
+            "'ABCFOOoXYZ'",
+            "'XXXfOoOo'",
+            "foo",
+            {"FOOtball": 1, "ABCFOOoXYZ": 2, "XXXfOoOo": 3},
+        ),
+    ],
 )
 def test_query_topics_by_pattern_should_return_matching_results(
     get_container_func,
