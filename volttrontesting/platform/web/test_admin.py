@@ -6,7 +6,7 @@ import pytest
 from volttrontesting.fixtures.volttron_platform_fixtures import volttron_instance_web
 
 
-@pytest.fixture("module")
+@pytest.fixture(scope="module")
 def user_pass():
     yield 'admin', 'admin'
 
