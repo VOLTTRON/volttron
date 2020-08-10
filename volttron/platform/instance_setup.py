@@ -411,7 +411,7 @@ def do_message_bus():
             print("Message type is not valid. Valid entries are zmq or rmq.")
 
     if bus_type == 'rmq':
-        if is_rabbitmq_available():
+        if not is_rabbitmq_available():
             print("RabbitMQ has not been set up!")
             print("Please run ./rabbit_dependencies.sh and bootstrap --rabbitmq before running vcfg.")
             sys.exit()
