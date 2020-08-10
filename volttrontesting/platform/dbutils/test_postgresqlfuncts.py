@@ -539,8 +539,18 @@ def test_get_agg_topic_map_should_return_dict(get_container_func, ports_config):
 
 @pytest.mark.postgresqlfuncts
 @pytest.mark.dbutils
+@pytest.mark.parametrize(
+    "topic_1, topic_2, topic_3, topic_pattern, expected_result",
+    [("'football'", "'foobar'", "'xzxzxccx'", "foo", {"football": 1, "foobar": 2})],
+)
 def test_query_topics_by_pattern_should_return_matching_results(
-    get_container_func, ports_config
+    get_container_func,
+    ports_config,
+    topic_1,
+    topic_2,
+    topic_3,
+    topic_pattern,
+    expected_result,
 ):
     get_container, image = get_container_func
 
@@ -550,23 +560,20 @@ def test_query_topics_by_pattern_should_return_matching_results(
         port_on_host = ports_config["port_on_host"]
         wait_for_connection(container, port_on_host)
         create_all_tables(container)
-
         with get_postgresqlfuncts(port_on_host) as postgresqlfuncts:
             query = f"""
                        INSERT INTO {TOPICS_TABLE}  (topic_name)
-                       VALUES ('football');
+                       VALUES ({topic_1});
                        INSERT INTO {TOPICS_TABLE} (topic_name)
-                       VALUES ('foobar');
+                       VALUES ({topic_2});
                        INSERT INTO {TOPICS_TABLE} (topic_name)
-                       VALUES ('xyzzzzzzzz');
+                       VALUES ({topic_3});
                     """
             seed_database(container, query)
-            expected = {"football": 1, "foobar": 2}
-            topic_pattern = "foo"
 
-            actual = postgresqlfuncts.query_topics_by_pattern(topic_pattern)
+            actual_result = postgresqlfuncts.query_topics_by_pattern(topic_pattern)
 
-            assert actual == expected
+            assert actual_result == expected_result
 
 
 @pytest.mark.postgresqlfuncts
