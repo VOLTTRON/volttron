@@ -40,7 +40,7 @@ import logging
 import sys
 import gevent
 from collections import defaultdict
-from volttron.platform.vip.agent import Agent, Core, RPC
+from volttron.platform.vip.agent import Agent, RPC
 from volttron.platform.agent import utils
 from volttron.platform.agent import math_utils
 from volttron.platform.agent.known_identities import PLATFORM_DRIVER
@@ -95,7 +95,7 @@ def master_driver_agent(config_path, **kwargs):
 
     max_open_sockets = get_config('max_open_sockets', None)
 
-    #TODO: update the default after scalability testing.
+    # TODO: update the default after scalability testing.
     max_concurrent_publishes = get_config('max_concurrent_publishes', 10000)
 
     driver_config_list = get_config('driver_config_list')
@@ -132,12 +132,12 @@ def master_driver_agent(config_path, **kwargs):
 
 class MasterDriverAgent(Agent):
     def __init__(self, driver_config_list, scalability_test = False,
-                 scalability_test_iterations = 3,
-                 driver_scrape_interval = 0.02,
-                 group_offset_interval = 0.0,
-                 max_open_sockets = None,
-                 max_concurrent_publishes = 10000,
-                 system_socket_limit = None,
+                 scalability_test_iterations=3,
+                 driver_scrape_interval=0.02,
+                 group_offset_interval=0.0,
+                 max_open_sockets=None,
+                 max_concurrent_publishes=10000,
+                 system_socket_limit=None,
                  publish_depth_first_all=True,
                  publish_breadth_first_all=False,
                  publish_depth_first=False,
@@ -212,14 +212,14 @@ class MasterDriverAgent(Agent):
                     configure_socket_lock(max_open_sockets)
                 else:
                     configure_socket_lock()
-                    _log.warn("No limit set on the maximum number of concurrently open sockets. "
-                              "Consider setting max_open_sockets if you plan to work with 800+ modbus devices.")
+                    _log.warning("No limit set on the maximum number of concurrently open sockets. "
+                                 "Consider setting max_open_sockets if you plan to work with 800+ modbus devices.")
 
                 self.max_concurrent_publishes = config['max_concurrent_publishes']
                 max_concurrent_publishes = int(self.max_concurrent_publishes)
                 if max_concurrent_publishes < 1:
-                    _log.warn("No limit set on the maximum number of concurrent driver publishes. "
-                              "Consider setting max_concurrent_publishes if you plan to work with many devices.")
+                    _log.warning("No limit set on the maximum number of concurrent driver publishes. "
+                                 "Consider setting max_concurrent_publishes if you plan to work with many devices.")
                 else:
                     _log.info("maximum concurrent driver publishes limited to " + str(max_concurrent_publishes))
                 configure_publish_lock(max_concurrent_publishes)
@@ -240,22 +240,25 @@ class MasterDriverAgent(Agent):
 
         else:
             if self.max_open_sockets != config["max_open_sockets"]:
-                _log.info("The master driver must be restarted for changes to the max_open_sockets setting to take effect")
+                _log.info("The master driver must be restarted for changes to the max_open_sockets setting to take "
+                          "effect")
 
             if self.max_concurrent_publishes != config["max_concurrent_publishes"]:
-                _log.info("The master driver must be restarted for changes to the max_concurrent_publishes setting to take effect")
+                _log.info("The master driver must be restarted for changes to the max_concurrent_publishes setting to "
+                          "take effect")
 
             if self.scalability_test != bool(config["scalability_test"]):
                 if not self.scalability_test:
                     _log.info(
                         "The master driver must be restarted with scalability_test set to true in order to run a test.")
                 if self.scalability_test:
-                    _log.info(
-                        "A scalability test may not be interrupted. Restarting the driver is required to stop the test.")
+                    _log.info("A scalability test may not be interrupted. Restarting the driver is required to stop "
+                              "the test.")
             try:
-                if self.scalability_test_iterations != int(config["scalability_test_iterations"]) and self.scalability_test:
-                    _log.info(
-                "A scalability test must be restarted for the scalability_test_iterations setting to take effect.")
+                if self.scalability_test_iterations != int(config["scalability_test_iterations"]) and \
+                        self.scalability_test:
+                    _log.info("A scalability test must be restarted for the scalability_test_iterations setting to "
+                              "take effect.")
             except ValueError:
                 pass
 
@@ -305,7 +308,7 @@ class MasterDriverAgent(Agent):
             return
 
         if (self.driver_scrape_interval != driver_scrape_interval or
-                    self.group_offset_interval != group_offset_interval):
+                self.group_offset_interval != group_offset_interval):
             self.driver_scrape_interval = driver_scrape_interval
             self.group_offset_interval = group_offset_interval
 
@@ -399,7 +402,8 @@ class MasterDriverAgent(Agent):
             self.waiting_to_finish = set(self.instances.keys())
             
         if topic not in self.waiting_to_finish:
-            _log.warning(topic + " started twice before test finished, increase the length of scrape interval and rerun test")
+            _log.warning(
+                f"{topic} started twice before test finished, increase the length of scrape interval and rerun test")
 
     def scrape_ending(self, topic):
         if not self.scalability_test:
@@ -408,7 +412,8 @@ class MasterDriverAgent(Agent):
         try:
             self.waiting_to_finish.remove(topic)
         except KeyError:
-            _log.warning(topic + " published twice before test finished, increase the length of scrape interval and rerun test")
+            _log.warning(
+                f"{topic} published twice before test finished, increase the length of scrape interval and rerun test")
 
         if not self.waiting_to_finish:
             end = datetime.now()
@@ -438,7 +443,7 @@ class MasterDriverAgent(Agent):
         :param point_name: set point
         :type point_name: str
         :param kwargs: additional arguments for the device
-        :type arguments pointer
+        :type kwargs: arguments pointer
         """
         return self.instances[path].get_point(point_name, **kwargs)
 
@@ -452,9 +457,9 @@ class MasterDriverAgent(Agent):
         :param point_name: set point
         :type point_name: str
         :param value: value to set
-        :type int/float/bool
+        :type value: int/float/bool
         :param kwargs: additional arguments for the device
-        :type arguments pointer
+        :type kwargs: arguments pointer
         """
         if path in self._override_devices:
             raise OverrideError(
@@ -479,9 +484,8 @@ class MasterDriverAgent(Agent):
         :type path: str
         :param point_names_values: list of points and corresponding values
         :type point_names_values: list of tuples
-        :param value: value to set
         :param kwargs: additional arguments for the device
-        :type arguments pointer
+        :type kwargs: arguments pointer
         """
         if path in self._override_devices:
             raise OverrideError(
@@ -510,7 +514,7 @@ class MasterDriverAgent(Agent):
         :param point_name: set point to revert
         :type point_name: str
         :param kwargs: additional arguments for the device
-        :type arguments pointer
+        :type kwargs: arguments pointer
         """
         if path in self._override_devices:
             raise OverrideError(
@@ -527,7 +531,7 @@ class MasterDriverAgent(Agent):
         :param path: device path
         :type path: str
         :param kwargs: additional arguments for the device
-        :type arguments pointer
+        :type kwargs: arguments pointer
         """
         if path in self._override_devices:
             raise OverrideError(
@@ -560,7 +564,7 @@ class MasterDriverAgent(Agent):
     def _set_override_on(self, pattern, duration=0.0, failsafe_revert=True, staggered_revert=False,
                          from_config_store=False):
         """Turn on override condition on all devices matching the pattern. It schedules an event to keep track of
-        the duration over which override has to be applied. New override patterns and corresponnding end times are
+        the duration over which override has to be applied. New override patterns and corresponding end times are
         stored in config store.
         :param pattern: Override pattern to be applied. For example,
         :type pattern: str
@@ -574,15 +578,11 @@ class MasterDriverAgent(Agent):
         :param from_config_store: Flag to indicate if this function is called from config store callback
         :type from_config_store: boolean
         """
-        stagger_interval = 0.05 #sec
-        pattern = pattern.lower()
-
+        stagger_interval = 0.05  # sec
         # Add to override patterns set
         self._override_patterns.add(pattern)
         i = 0
-
         for name in self.instances.keys():
-            name = name.lower()
             i += 1
             if fnmatch.fnmatch(name, pattern):
                 # If revert to default state is needed
@@ -593,7 +593,6 @@ class MasterDriverAgent(Agent):
                         self.core.spawn(self.instances[name].revert_all())
                 # Set override
                 self._override_devices.add(name)
-        config_update = False
         # Set timer for interval of override condition
         config_update = self._update_override_interval(duration, pattern)
         if config_update and not from_config_store:
@@ -653,14 +652,11 @@ class MasterDriverAgent(Agent):
 
     def _set_override_off(self, pattern):
         """Turn off override condition on all devices matching the pattern. It removes the pattern from the override
-        patterns set, clears the list of overriden devices  and reevaluates the state of devices. It then cancels the
+        patterns set, clears the list of overridden devices  and reevaluates the state of devices. It then cancels the
         pending override event and removes pattern from the config store.
         :param pattern: Override pattern to be removed.
         :type pattern: str
         """
-
-        pattern = pattern.lower()
-
         # If pattern exactly matches
         if pattern in self._override_patterns:
             self._override_patterns.discard(pattern)
@@ -671,7 +667,6 @@ class MasterDriverAgent(Agent):
             # Build override devices list again
             for pat in self._override_patterns:
                 for device in self.instances:
-                    device = device.lower()
                     if fnmatch.fnmatch(device, pat):
                         self._override_devices.add(device)
 
@@ -692,14 +687,14 @@ class MasterDriverAgent(Agent):
         end time is greater than old one, the event is cancelled and new event is scheduled.
 
         :param interval override duration. If interval is <= 0.0, implies indefinite duration
-        :type float
+        :type pattern: float
         :param pattern: Override pattern.
         :type pattern: str
         :return Flag to indicate if update is done or not.
         """
-        if interval <= 0.0: # indicative of indefinite duration
+        if interval <= 0.0:  # indicative of indefinite duration
             if pattern in self._override_interval_events:
-                # If override duration is indifinite, do nothing
+                # If override duration is indefinite, do nothing
                 if self._override_interval_events[pattern] is None:
                     return False
                 else:
@@ -746,9 +741,9 @@ class MasterDriverAgent(Agent):
 
     def _update_override_state(self, device, state):
         """
-        If a new device is added, it is checked to see if the device is part of the list of overriden patterns. If so,
-        it is added to the list of overriden devices. Similarly, if a device is being removed, it is also removed
-        from list of overriden devices (if exists).
+        If a new device is added, it is checked to see if the device is part of the list of overridden patterns. If so,
+        it is added to the list of overridden devices. Similarly, if a device is being removed, it is also removed
+        from list of overridden devices (if exists).
         :param device: device to be removed
         :type device: str
         :param state: 'add' or 'remove'
@@ -757,13 +752,13 @@ class MasterDriverAgent(Agent):
         device = device.lower()
 
         if state == 'add':
-            # If device falls under the existing overriden patterns, then add it to list of overriden devices.
+            # If device falls under the existing overridden patterns, then add it to list of overridden devices.
             for pattern in self._override_patterns:
                 if fnmatch.fnmatch(device, pattern):
                     self._override_devices.add(device)
                     return
         else:
-            # If device is in list of overriden devices, remove it.
+            # If device is in list of overridden devices, remove it.
             if device in self._override_devices:
                 self._override_devices.remove(device)
 

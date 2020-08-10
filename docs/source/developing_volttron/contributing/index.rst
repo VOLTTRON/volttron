@@ -14,21 +14,21 @@ Slack Channel
 =============
 
 volttron-community.slack.com is where the |VOLTTRON| community at large can ask questions and meet with others
-using |VOLTTRON| Signup via https://volttron-community.signup.team/
+using |VOLTTRON|.  To be added to Slack please email the VOLTTRON team at
+`volttron@pnnl.gov <mailto:volttron@pnnl.gov?subject=Subscribe%20To%20List>`__.
 
 
 Mailing List
 ============
 
-Join the mailing list by emailing
-`volttron@pnnl.gov <mailto:volttron@pnnl.gov?subject=Subscribe%20To%20List>`__.
+Join the mailing list by emailing `volttron@pnnl.gov <mailto:volttron@pnnl.gov?subject=Subscribe%20To%20List>`__.
 
 
 Stack Overflow
 ==============
 
 The VOLTTRON community supports questions being asked and answered through Stack Overflow.  The questions tagged with
-the volttron tag can be found at http://stackoverflow.com/questions/tagged/volttron.
+the `volttron` tag can be found at http://stackoverflow.com/questions/tagged/volttron.
 
 
 Office Hours
