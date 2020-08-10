@@ -413,7 +413,7 @@ def do_message_bus():
     if bus_type == 'rmq':
         if not is_rabbitmq_available():
             print("RabbitMQ has not been set up!")
-            print("Please run ./rabbit_dependencies.sh and bootstrap --rabbitmq before running vcfg.")
+            print("Please run scripts/rabbit_dependencies.sh and bootstrap --rabbitmq before running vcfg.")
             sys.exit()
             # print("Setting up now...")
             # set_dependencies_rmq()
