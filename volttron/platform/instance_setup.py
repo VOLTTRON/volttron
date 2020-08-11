@@ -423,7 +423,7 @@ def do_message_bus():
         #     print("Rabbitmq dependencies not installed. Installing now...")
         #     set_dependencies("rabbitmq")
         #     print("Done!")
-        # check_rmq_setup()
+        check_rmq_setup()
 
     config_opts['message-bus'] = bus_type
 
