@@ -1,7 +1,8 @@
 .. _Multi-Platform-RPC:
-===============================
+
+================================
 Multi-Platform RPC Communication
-===============================
+================================
 
 
 Multi-Platform RPC communication allows an agent on one platform to make RPC call on an agent in another platform

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -36,72 +36,32 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-from os import path
-import sys
-import json
+import contextlib
 
 from setuptools import setup, find_packages
+from requirements import extras_require, install_requires
 
-import re
-VERSIONFILE="volttron/platform/__init__.py"
-verstrline = open(VERSIONFILE, "rt").read()
-VSRE = r"^__version__ = ['\"]([^'\"]*)['\"]"
-mo = re.search(VSRE, verstrline, re.M)
-if mo:
-    verstr = mo.group(1)
-else:
-    raise RuntimeError("Unable to find version string in %s." % (VERSIONFILE,))
-
-# Requirements which must be built separately with the provided options.
-option_requirements = [
-    ('pyzmq>=15,<16', ['--zmq=bundled']),
-]
-
-optional_requirements = set()
-
-# For the different keyed in options allow the command paramenter to
-# install the given requirements.
-if path.exists('optional_requirements.json'):
-    with open('optional_requirements.json') as optional:
-        data = json.load(optional)
-
-        for arg, val in data.items():
-            if arg in sys.argv:
-                for req in val['packages']:
-                    optional_requirements.add(req)
-
-# Requirements in the repository which should be installed as editable.
-local_requirements = [
-]
-
-# Standard requirements
-requirements = [
-    'gevent>=0.13,<2',
-    'monotonic',
-    'pymodbus>=1.2,<2',
-    'setuptools',
-    'simplejson>=3.3,<4',
-    'wheel==0.30',
-]
-
-install_requires = (
-    [req for req, _ in option_requirements] +
-    [req for req, _ in local_requirements] +
-    requirements +
-    [req for req in optional_requirements]
-)
+with open('volttron/platform/__init__.py') as file:
+    for line in file:
+        if line.startswith('__version__'):
+            with contextlib.suppress(IndexError):
+                exec(line)
+                break
+    else:
+        raise RuntimeError('Unable to find version string in {}.'.format(file.name))
 
 if __name__ == '__main__':
     setup(
-        name='volttron',
-        version=verstr,
-        description='Agent Execution Platform',
-        author='Volttron Team',
-        author_email='volttron@pnnl.gov',
-        url='https://github.com/VOLTTRON/volttron',
-        packages=find_packages('.'),
-        install_requires=install_requires,
-        entry_points={
+        name = 'volttron',
+        version = __version__,
+        description = 'Agent Execution Platform',
+        author = 'Volttron Team',
+        author_email = 'volttron@pnnl.gov',
+        url = 'https://github.com/VOLTTRON/volttron',
+        packages = find_packages('.'),
+        install_requires = install_requires,
+        extras_require = extras_require,
+        entry_points = {
             'console_scripts': [
                 'volttron = volttron.platform.main:_main',
                 'volttron-ctl = volttron.platform.control:_main',
@@ -112,5 +72,5 @@ if __name__ == '__main__':
                 'vcfg = volttron.platform.config:_main',
             ]
         },
-        zip_safe=False,
+        zip_safe = False,
     )

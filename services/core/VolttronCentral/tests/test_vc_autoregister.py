@@ -3,7 +3,7 @@ import os
 import gevent
 import pytest
 
-import volttron.platform.agent.json as jsonapi
+import volttron.platform.jsonapi as jsonapi
 from volttron.platform.agent.known_identities import (CONFIGURATION_STORE,
                                                       VOLTTRON_CENTRAL_PLATFORM)
 from volttrontesting.utils.agent_additions import (add_volttron_central,
@@ -14,16 +14,11 @@ from vctestutils import APITester
 
 @pytest.fixture(scope="module")
 def multi_messagebus_vc_vcp(volttron_multi_messagebus):
-    vcp_instance, vc_instance = volttron_multi_messagebus
+    vcp_instance, vc_instance = volttron_multi_messagebus()
     assert vcp_instance.instance_name != vc_instance.instance_name
     # Handles both connections to zmq as well as connections to rmq bus.
     vc_instance.allow_all_connections()
 
-    if vc_instance.messagebus == 'rmq':
-        if vcp_instance.messagebus == 'rmq':
-            os.environ['REQUESTS_CA_BUNDLE'] = vcp_instance.certsobj.remote_cert_bundle_file()
-        else:
-            os.environ['REQUESTS_CA_BUNDLE'] = vc_instance.certsobj.remote_cert_bundle_file()
     vcp_uuid = add_volttron_central_platform(vcp_instance)
     vc_uuid = add_volttron_central(vc_instance)
 
@@ -36,7 +31,8 @@ def multi_messagebus_vc_vcp(volttron_multi_messagebus):
     # Update vcp_config store to add the volttron-central-address from vc to the
     # config store
     config = jsonapi.dumps({'volttron-central-address': vc_instance.bind_web_address})
-
+    capabilities = {'edit_config_store': {'identity': VOLTTRON_CENTRAL_PLATFORM}}
+    vcp_instance.add_capabilities(vcp_instance.dynamic_agent.core.publickey, capabilities)
     vcp_instance.dynamic_agent.vip.rpc.call(CONFIGURATION_STORE,
                                             "manage_store",
                                             VOLTTRON_CENTRAL_PLATFORM,

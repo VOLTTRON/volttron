@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -36,7 +36,7 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-from __future__ import absolute_import
+
 
 import copy
 import logging
@@ -210,8 +210,8 @@ class AggregateHistorian(Agent):
                             topic_pattern))
 
                 _log.info("topic_names matching the given pattern {} "
-                          ":\n {}".format(topic_pattern, topic_map.keys()))
-                data['topic_ids'] = topic_map.values()
+                          ":\n {}".format(topic_pattern, list(topic_map.keys())))
+                data['topic_ids'] = list(topic_map.values())
 
             # Aggregating across multiple points. Check if unique topic
             # name was given for this.
@@ -352,7 +352,7 @@ class AggregateHistorian(Agent):
                         topic_pattern=topic_pattern).get()
                     _log.debug("Found topics for pattern {}".format(topic_map))
                     if topic_map:
-                        topic_ids = topic_map.values()
+                        topic_ids = list(topic_map.values())
                         _log.debug("topic ids loaded {} ".format(topic_ids))
                     else:
                         _log.warn(
@@ -564,15 +564,15 @@ class AggregateHistorian(Agent):
                     unit, time_period))
         if unit == 'm':
             if period >= 60 and period % 60 == 0:
-                period /= 60
+                period //= 60
                 unit = 'h'
         if unit == 'h':
             if period >= 24 and period % 24 == 0:
-                period /= 24
+                period //= 24
                 unit = 'd'
         if unit == 'd':
             if period >= 7 and period % 7 == 0:
-                period /= 7
+                period //= 7
                 unit = 'w'
 
         return str(period) + unit

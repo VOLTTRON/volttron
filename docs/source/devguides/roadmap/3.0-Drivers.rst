@@ -27,10 +27,9 @@ Master Driver Config
    | {
    |  "agentid": "master\_driver",
    |  "driver\_config\_list": [
-   | 
-   "/home/user/git/volttron/services/core/MasterDriverAgent/master\_driver/test\_modbus1.config"
+   |    "/home/user/git/volttron/services/core/MasterDriverAgent/master\_driver/test\_modbus1.config"
    |  ]
-   |  }
+   | }
 
 Device Driver Config
 --------------------
@@ -52,8 +51,7 @@ Device Driver Config
    |  "building": "building",
    |  "unit": "bacnet1",
    |  "driver\_type": "bacnet",
-   | 
-   "registry\_config":"/home/user/git/volttron/volttron/drivers/bacnet\_lab.csv",
+   |  "registry\_config":"/home/user/git/volttron/volttron/drivers/bacnet\_lab.csv",
    |  "interval": 5,
    |  "timezone": "UTC"
    | }

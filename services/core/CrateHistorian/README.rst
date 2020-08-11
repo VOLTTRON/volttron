@@ -10,8 +10,34 @@ availability, automatic sharding, and fast joins, aggregations and sub-selects.
 
 Find out more about crate from `<https://crate.io/>`_.
 
+Upgrading
+~~~~~~~~~
+
+As of version 3 of the CrateHistorian the default topics table is topics instead of topic.  To continue
+using the same table name for topics please add a tabledef section to your configuration file
+
+.. code-block:: python
+
+    {
+        "connection": {
+            "type": "crate",
+            # Optional table prefix defaults to historian
+            "schema": "testing",
+            "params": {
+                "host": "localhost:4200"
+            }
+        },
+        "tables_def": {
+            "table_prefix": "",
+            "data_table": "data",
+            "topics_table": "topics",
+            "meta_table": "meta"
+        }
+    }
+
 Note
 ~~~~
+
 CrateHistorian is still alpha, schemas could change in the future, do not use
 this for production data until schema is confirmed as final
 Currently the historian supports two schemas for numerical data, the primary
@@ -26,15 +52,8 @@ Prerequisites
 1. Crate Database
 -----------------
 
-For Arch Linux, Debian, RedHat Enterprise Linux and Ubuntu distributions there
-is a simple installer to get crate up and running on your system.
-
-    ::
-
-        sudo bash -c "$(curl -L install.crate.io)"
-
-This command will download and install all of the requirements for running
-crate, create a crate user and install a crate service.  After the installation
+Install crate version 3.3.3 from https://cdn.crate.io/downloads/releases/crate-3.3.3.tar.gz.
+Untar the file and run crate-3.3.3/bin/crate to start crate. After the installation
 the service will be available for viewing at http://localhost:4200 by default.
 
 .. note::  Authentication for crate is an enterprise subscription only feature.

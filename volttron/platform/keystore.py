@@ -4,7 +4,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -44,10 +44,10 @@
 """Module for storing local public and secret keys and remote public keys"""
 
 
-import json
+from volttron.platform import jsonapi
 import logging
 import os
-import urlparse
+import urllib.parse
 
 from zmq import curve_keypair
 
@@ -64,23 +64,30 @@ class BaseJSONStore(object):
     def __init__(self, filename, permissions=0o600):
         self.filename = filename
         self.permissions = permissions
-        create_file_if_missing(filename, contents='{}')
-        os.chmod(filename, permissions)
+        try:
+            created = create_file_if_missing(filename, contents='{}')
+            if created:
+                # remove access to group
+                os.chmod(filename, permissions)
+        except Exception as e:
+            import traceback
+            _log.error(traceback.print_exc())
+            raise RuntimeError("Failed to access KeyStore: {}".format(filename))
 
     def store(self, data):
         fd = os.open(self.filename, os.O_CREAT | os.O_WRONLY | os.O_TRUNC,
                      self.permissions)
         try:
-            os.write(fd, json.dumps(data, indent=4))
+            os.write(fd, jsonapi.dumpb(data, indent=4))
         finally:
             os.close(fd)
 
     def load(self):
         try:
             with open(self.filename, 'r') as json_file:
-                return json.load(json_file)
+                return jsonapi.load(json_file)
         except ValueError:
-            # If the file is empty json.load will raise ValueError
+            # If the file is empty jsonapi.load will raise ValueError
             return {}
 
     def remove(self, key):
@@ -102,23 +109,50 @@ class BaseJSONStore(object):
 class KeyStore(BaseJSONStore):
     """Handle generation, storage, and retrival of CURVE key pairs"""
 
-    def __init__(self, filename=None):
+    def __init__(self, filename=None, encoded_public=None, encoded_secret=None):
         if filename is None:
             filename = self.get_default_path()
         super(KeyStore, self).__init__(filename)
         if not self.isvalid():
-            self.generate()
+            if encoded_public and encoded_secret:
+                self.store({'public': encoded_public,
+                            'secret': encode_key(encoded_secret)})
+            else:
+                _log.debug("calling generate from keystore")
+                self.generate()
 
     @staticmethod
     def get_default_path():
         return os.path.join(get_home(), 'keystore')
 
     @staticmethod
+    def get_agent_keystore_path(identity=None):
+        if identity is None:
+            raise AttributeError("invalid identity")
+        return os.path.join(get_home(), f"keystores/{identity}/keystore.json")
+
+    @staticmethod
     def generate_keypair_dict():
         """Generate and return new keypair as dictionary"""
         public, secret = curve_keypair()
-        return {'public': encode_key(public),
-                'secret': encode_key(secret)}
+        encoded_public = encode_key(public)
+        encoded_secret = encode_key(secret)
+        attempts = 0
+        max_attempts = 3
+
+        done = False
+        while not done and attempts < max_attempts:
+            # Keys that start with '-' are hard to use and cause issues with the platform
+            if encoded_secret.startswith('-') or encoded_public.startswith('-'):
+                # try generating public and secret key again
+                public, secret = curve_keypair()
+                encoded_public = encode_key(public)
+                encoded_secret = encode_key(secret)
+            else:
+                done = True
+
+        return {'public': encoded_public,
+                'secret': encoded_secret}
 
     def generate(self):
         """Generate and store new key pair"""
@@ -128,14 +162,14 @@ class KeyStore(BaseJSONStore):
         """Get key and make sure it's type is str (not unicode)
 
         The json module returns all strings as unicode type, but base64
-        decode expects str type as input. The conversion from unicode
+        decode expects byte type as input. The conversion from unicode
         type to str type is safe in this case, because encode_key
         returns str type (ASCII characters only).
         """
         key = self.load().get(keyname, None)
         if key:
             try:
-                key = str(key)
+                key.encode('ascii')
             except UnicodeEncodeError:
                 _log.warning(
                     'Non-ASCII character found for key {} in {}'
@@ -148,18 +182,10 @@ class KeyStore(BaseJSONStore):
         """Return encoded public key"""
         return self._get_key('public')
 
-    @public.setter
-    def public(self, encoded_public_key):
-        self.update({'public': encoded_public_key, 'secret': self.secret})
-
     @property
     def secret(self):
         """Return encoded secret key"""
         return self._get_key('secret')
-
-    @secret.setter
-    def secret(self, encoded_secret_key):
-        self.update({'public': self.public, 'secret': encoded_secret_key})
 
     def isvalid(self):
         """Check if key pair is valid"""
@@ -172,7 +198,9 @@ class KnownHostsStore(BaseJSONStore):
     def __init__(self, filename=None):
         if filename is None:
             filename = os.path.join(get_home(), 'known_hosts')
-        super(KnownHostsStore, self).__init__(filename)
+        # all agents need read access to known_hosts file
+        super(KnownHostsStore, self).__init__(filename, permissions=0o644)
+
 
     def add(self, addr, server_key):
         self.update({self._parse_addr(addr): server_key})
@@ -182,7 +210,7 @@ class KnownHostsStore(BaseJSONStore):
 
     @staticmethod
     def _parse_addr(addr):
-        url = urlparse.urlparse(addr)
+        url = urllib.parse.urlparse(addr)
         if url.netloc:
             return url.netloc
         return url.path

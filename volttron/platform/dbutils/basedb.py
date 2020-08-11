@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -35,7 +35,7 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-from __future__ import absolute_import, print_function
+
 
 import contextlib
 import importlib
@@ -46,7 +46,7 @@ from gevent.local import local
 import sys
 from abc import abstractmethod
 from volttron.platform.agent import utils
-from volttron.platform.agent import json as jsonapi
+from volttron.platform import jsonapi
 import sqlite3
 
 utils.setup_logging()
@@ -65,11 +65,12 @@ def closing(obj):
     finally:
         try:
             obj.close()
-        except Exception as exc:
-            if isinstance(exc, StandardError) and exc.__class__.__module__ == 'exceptions':
+        except BaseException as exc:
+            # if exc.__class__.__module__ == 'exceptions':
+            if exc.__class__.__module__ == 'builtins':
                 # Don't ignore built-in exceptions because they likely indicate
                 # a bug that should stop execution. psycopg2.Error subclasses
-                # StandardError, so the module must also be checked. :-(
+                # Exception, so the module must also be checked. :-(
                 raise
             _log.exception('An exception was raised while closing '
                            'the cursor and is being ignored.')
@@ -126,14 +127,14 @@ class DbDriver(object):
             self.__connection = self.__connect()
         except Exception as e:
             _log.error("Could not connect to database. Raise ConnectionError")
-            raise ConnectionError(e), None, sys.exc_info()[2]
+            raise ConnectionError(e).with_traceback(sys.exc_info()[2])
         if self.__connection is None:
             raise ConnectionError(
                 "Unknown error. Could not connect to database")
-        try:
-            self.stash.cursor = self.__connection.cursor()
-        except Exception as e:
-            raise ConnectionError(e), None, sys.exc_info()[2]
+
+        # if any exception happens here have it go to the caller.
+        self.stash.cursor = self.__connection.cursor()
+
         return self.stash.cursor
 
     def read_tablenames_from_db(self, meta_table_name):
@@ -392,7 +393,7 @@ class DbDriver(object):
                 self.__connection.commit()
                 return True
             except sqlite3.OperationalError as e:
-                if "database is locked" in e.message:
+                if "database is locked" in str(e):
                     _log.error("EXCEPTION: SQLITE3 Database is locked. This "
                                "error could occur when there are multiple "
                                "simultaneous read and write requests, making "

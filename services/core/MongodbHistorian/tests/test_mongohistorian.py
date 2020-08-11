@@ -120,9 +120,9 @@ def test_can_connect(database_client):
     """
     db = database_client[mongo_connection_params()['database']]
     result = db.test.insert_one({'x': 1})
-    assert result > 0
+    assert result.inserted_id
     result = db.test.insert_one({'here': 'Data to search on'})
-    assert result > 0
+    assert result.inserted_id
 
     result = db.test.find_one({'x': 1})
     assert result['x'] == 1
@@ -227,10 +227,10 @@ def publish_minute_data_for_two_hours(agent):
     # expection[datetime]={oat:b,mixed:c,damper:d}
     expectation = {}
 
-    for h in xrange(2):
+    for h in range(2):
         data_by_time = {}
 
-        for m in xrange(60):
+        for m in range(60):
             # Because timestamps in mongo are only concerned with the first
             #  three digits after the decimal we do this to give some
             # randomness here.
@@ -240,9 +240,9 @@ def publish_minute_data_for_two_hours(agent):
                            random.randint(0, 59), int(micro))
             # Make some random readings. round to 14 digit precision
             # as mongo only store 14 digit precision
-            oat_reading = round(random.uniform(30, 100),14)
-            mixed_reading = round(oat_reading + random.uniform(-5, 5),14)
-            damper_reading = round(random.uniform(0, 100),14)
+            oat_reading = round(random.uniform(30, 100), 14)
+            mixed_reading = round(oat_reading + random.uniform(-5, 5), 14)
+            damper_reading = round(random.uniform(0, 100), 14)
 
             # Create a message for all points.
             all_message = [{
@@ -250,11 +250,11 @@ def publish_minute_data_for_two_hours(agent):
                 'MixedAirTemperature': mixed_reading,
                 'DamperSignal': damper_reading},
                 {
-                'OutsideAirTemperature': {'units': 'F', 'tz': 'UTC',
-                                          'type': 'float'},
-                'MixedAirTemperature': {'units': 'F', 'tz': 'UTC',
-                                        'type': 'float'},
-                'DamperSignal': {'units': '%', 'tz': 'UTC', 'type': 'float'}
+                    'OutsideAirTemperature': {'units': 'F', 'tz': 'UTC',
+                                              'type': 'float'},
+                    'MixedAirTemperature': {'units': 'F', 'tz': 'UTC',
+                                            'type': 'float'},
+                    'DamperSignal': {'units': '%', 'tz': 'UTC', 'type': 'float'}
                 }]
 
             now_iso_string = format_timestamp(now)
@@ -368,7 +368,7 @@ def test_insert_duplicate(volttron_instance, database_client):
 
     try:
 
-        oat_reading = round(random.uniform(30, 100),14)
+        oat_reading = round(random.uniform(30, 100), 14)
         all_message = [{'OutsideAirTemperature': oat_reading}, {
             'OutsideAirTemperature': {'units': 'F', 'tz': 'UTC',
                                       'type': 'float'}}]
@@ -420,6 +420,7 @@ def publish_data(publisher, topic, message, now=None):
     gevent.sleep(0.5)
     return now
 
+
 @pytest.mark.historian
 @pytest.mark.mongodb
 @pytest.mark.skipif(not HAS_PYMONGO, reason='No pymongo driver')
@@ -444,9 +445,8 @@ def test_analysis_topic(volttron_instance, database_client):
         assert 'FluffyWidgets' in topic_list[0]
 
         result = lister.vip.rpc.call('platform.historian', 'query',
-                                     topic=BASE_ANALYSIS_TOPIC[
-                                           9:] + '/FluffyWidgets').get(
-            timeout=5)
+                                     topic=BASE_ANALYSIS_TOPIC[9:]
+                                           + '/FluffyWidgets').get(timeout=5)
         assert result is not None
         assert len(result['values']) == 1
         assert isinstance(result['values'], list)
@@ -543,8 +543,7 @@ def test_basic_function(volttron_instance, database_client):
                                             count=20,
                                             order="LAST_TO_FIRST").get(
             timeout=100)
-        assert expected['datetime'].isoformat()[:-3] + '000+00:00' == \
-            result['values'][0][0]
+        assert expected['datetime'].isoformat()[:-3] + '000+00:00' == result['values'][0][0]
         assert result['values'][0][1] == expected['oat_point']
 
         result = publish_agent.vip.rpc.call('platform.historian', 'query',
@@ -554,7 +553,7 @@ def test_basic_function(volttron_instance, database_client):
             timeout=100)
 
         assert expected['datetime'].isoformat()[:-3] + '000+00:00' == \
-            result['values'][0][0]
+               result['values'][0][0]
         assert result['values'][0][1] == expected['mixed_point']
 
         result = publish_agent.vip.rpc.call('platform.historian', 'query',
@@ -564,7 +563,7 @@ def test_basic_function(volttron_instance, database_client):
             timeout=100)
 
         assert expected['datetime'].isoformat()[:-3] + '000+00:00' == \
-            result['values'][0][0]
+               result['values'][0][0]
         assert result['values'][0][1] == expected['damper_point']
     finally:
         volttron_instance.stop_agent(agent_uuid)
@@ -651,7 +650,7 @@ def test_empty_result(volttron_instance, database_client):
         result = lister.vip.rpc.call(
             'platform.historian', 'query',
             topic=BASE_ANALYSIS_TOPIC[9:] + '/FluffyWidgets').get(timeout=5)
-        print ("query result:", result)
+        print("query result:", result)
         assert result == {}
     finally:
         volttron_instance.stop_agent(agent_uuid)
@@ -707,12 +706,13 @@ def test_multi_topic(volttron_instance, database_client):
         # print("result {}".format(result))
         assert result["metadata"] == expected_result["metadata"]
         assert result["values"][query_points['mixed_point']] == \
-            expected_result["values"][query_points['mixed_point']]
+               expected_result["values"][query_points['mixed_point']]
         assert result["values"][query_points['oat_point']] == \
-            expected_result["values"][query_points['oat_point']]
+               expected_result["values"][query_points['oat_point']]
     finally:
         volttron_instance.stop_agent(agent_uuid)
         volttron_instance.remove_agent(agent_uuid)
+
 
 @pytest.mark.historian
 @pytest.mark.mongodb
@@ -748,13 +748,11 @@ def test_data_rollup_insert(volttron_instance, database_client):
         publish_agent = volttron_instance.build_agent()
 
         version = publish_agent.vip.rpc.call('platform.historian',
-                                   'get_version').get(timeout=5)
+                                             'get_version').get(timeout=5)
 
         version_nums = version.split(".")
         if int(version_nums[0]) < 2:
             pytest.skip("Only version >= 2.0 support rolled up data.")
-
-
 
         # ###################
         # Initialization test
@@ -762,8 +760,8 @@ def test_data_rollup_insert(volttron_instance, database_client):
         # Publish data to message bus that should be
         # recorded in the mongo
         # database. All topics are new
-        now = datetime(year=2016, month=03, day=01, hour= 01, minute=01,
-                       second=01, microsecond=123, tzinfo=tzutc())
+        now = datetime(year=2016, month=3, day=1, hour=1, minute=1,
+                       second=1, microsecond=123, tzinfo=tzutc())
         expected1 = publish_fake_data(publish_agent, now)
         expected2 = publish_fake_data(publish_agent, now + timedelta(
             minutes=1))
@@ -774,10 +772,10 @@ def test_data_rollup_insert(volttron_instance, database_client):
                                       now + timedelta(minutes=4))
         gevent.sleep(0.5)
         result = publish_agent.vip.rpc.call('platform.historian', 'query',
-            topic=query_points['oat_point'], count=20,
-            order="FIRST_TO_LAST").get(timeout=10)
-        print result
-        gevent.sleep(6) #allow for periodic rollup function to catchup
+                                            topic=query_points['oat_point'], count=20,
+                                            order="FIRST_TO_LAST").get(timeout=10)
+        print(result)
+        gevent.sleep(6)  # allow for periodic rollup function to catchup
         compare_query_results(db, expected1, expected2, expected3,
                               'oat_point', result)
 
@@ -785,6 +783,7 @@ def test_data_rollup_insert(volttron_instance, database_client):
         if agent_uuid:
             volttron_instance.stop_agent(agent_uuid)
             volttron_instance.remove_agent(agent_uuid)
+
 
 @pytest.mark.historian
 @pytest.mark.mongodb
@@ -808,11 +807,11 @@ def test_rollup_query_with_topic_pattern(volttron_instance, database_client):
         db['daily_data'].drop()
 
         publish_t1 = datetime(year=2016, month=3, day=1, hour=1, minute=10,
-                       second=1, microsecond=0, tzinfo=tzutc())
+                              second=1, microsecond=0, tzinfo=tzutc())
         publish_t2 = publish_t1 + timedelta(minutes=1)
         publish_t3 = publish_t2 + timedelta(minutes=3)
         query_end = publish_t3 + timedelta(seconds=2)
-        #query time period should be greater than 3 hours for historian to use
+        # query time period should be greater than 3 hours for historian to use
         # hourly_data collection and  >= 1 day to use daily_data table
         query_start = query_end - timedelta(hours=4)
         query_start_day = query_end - timedelta(days=2)
@@ -846,13 +845,13 @@ def test_rollup_query_with_topic_pattern(volttron_instance, database_client):
         expected3 = publish_fake_data(publish_agent, publish_t3)
         gevent.sleep(6)
 
-        #test query from data table for damper_point - point not in
+        # test query from data table for damper_point - point not in
         # rollup_topic_pattern configured
         result = publish_agent.vip.rpc.call('platform.historian', 'query',
-            topic=query_points['damper_point'], count=20,
-            start=query_start.isoformat(), end=query_end.isoformat(),
-            order="FIRST_TO_LAST").get(timeout=10)
-        print result
+                                            topic=query_points['damper_point'], count=20,
+                                            start=query_start.isoformat(), end=query_end.isoformat(),
+                                            order="FIRST_TO_LAST").get(timeout=10)
+        print(result)
         compare_query_results(db, expected1, expected2, expected3,
                               'damper_point', result)
 
@@ -866,7 +865,7 @@ def test_rollup_query_with_topic_pattern(volttron_instance, database_client):
         #     start = query_start.isoformat(),
         #     end = query_end.isoformat(),
         #     order="FIRST_TO_LAST").get(timeout=10)
-        # print result
+        # print(result)
         # compare_query_results(db, expected1, expected2, expected3,
         #                       'oat_point', result)
         # verify_hourly_collection(db, expected1, expected2, expected3)
@@ -886,7 +885,7 @@ def test_rollup_query_with_topic_pattern(volttron_instance, database_client):
         #     start=query_start_day.isoformat(),
         #     end= query_end.isoformat(),
         #     order="FIRST_TO_LAST").get(timeout=10)
-        # print result
+        # print(result)
         #
         # compare_query_results(db, expected1, expected2, expected3,
         #                       'oat_point', result)
@@ -931,11 +930,11 @@ def test_rollup_query(volttron_instance, database_client):
         db['daily_data'].drop()
 
         publish_t1 = datetime(year=2016, month=3, day=1, hour=1, minute=10,
-                       second=1, microsecond=0, tzinfo=tzutc())
+                              second=1, microsecond=0, tzinfo=tzutc())
         publish_t2 = publish_t1 + timedelta(minutes=1)
         publish_t3 = publish_t2 + timedelta(minutes=3)
         query_end = publish_t3 + timedelta(seconds=2)
-        #query time period should be greater than 3 hours for historian to use
+        # query time period should be greater than 3 hours for historian to use
         # hourly_data collection and  >= 1 day to use daily_data table
         query_start = query_end - timedelta(hours=4)
         query_start_day = query_end - timedelta(days=2)
@@ -974,10 +973,10 @@ def test_rollup_query(volttron_instance, database_client):
             'query',
             topic=query_points['oat_point'],
             count=20,
-            start = query_start.isoformat(),
-            end = query_end.isoformat(),
+            start=query_start.isoformat(),
+            end=query_end.isoformat(),
             order="FIRST_TO_LAST").get(timeout=10)
-        print result
+        print(result)
         compare_query_results(db, expected1, expected2, expected3,
                               'oat_point', result)
         verify_hourly_collection(db, expected1, expected2, expected3)
@@ -985,11 +984,11 @@ def test_rollup_query(volttron_instance, database_client):
         # Check query from daily_data
         db['hourly_data'].drop()
         result = publish_agent.vip.rpc.call('platform.historian', 'query',
-            topic=query_points['oat_point'], count=20,
-            start=query_start_day.isoformat(),
-            end= query_end.isoformat(),
-            order="LAST_TO_FIRST").get(timeout=10)
-        print result
+                                            topic=query_points['oat_point'], count=20,
+                                            start=query_start_day.isoformat(),
+                                            end=query_end.isoformat(),
+                                            order="LAST_TO_FIRST").get(timeout=10)
+        print(result)
 
         compare_query_results(db, expected3, expected2, expected1,
                               'oat_point', result)
@@ -1000,11 +999,12 @@ def test_rollup_query(volttron_instance, database_client):
             volttron_instance.stop_agent(agent_uuid)
             volttron_instance.remove_agent(agent_uuid)
 
+
 @pytest.mark.historian
 @pytest.mark.mongodb
 @pytest.mark.skipif(not HAS_PYMONGO, reason='No pymongo driver')
 def test_combined_results_from_rollup_and_raw_data(volttron_instance,
-                                            database_client):
+                                                   database_client):
     """
     Test querying data with start date earlier than available rollup data
     and query end date greater than available rollup data. Historian should
@@ -1025,10 +1025,10 @@ def test_combined_results_from_rollup_and_raw_data(volttron_instance,
         db['daily_data'].drop()
 
         publish_t1 = datetime(year=2016, month=3, day=1, hour=1, minute=10,
-                       second=1, microsecond=0, tzinfo=tzutc())
+                              second=1, microsecond=0, tzinfo=tzutc())
         publish_t2 = publish_t1 + timedelta(minutes=1)
         publish_t3 = utils.get_aware_utc_now()
-        #query time period should be greater than 3 hours for historian to use
+        # query time period should be greater than 3 hours for historian to use
         # hourly_data collection and  >= 1 day to use daily_data table
         query_start_day = publish_t1 - timedelta(days=35)
         query_end = publish_t3 + timedelta(seconds=2)
@@ -1060,21 +1060,21 @@ def test_combined_results_from_rollup_and_raw_data(volttron_instance,
         expected3 = publish_fake_data(publish_agent, publish_t3)
         gevent.sleep(6)
 
-        #Only publish_t2 should have gone into rollup collection.
+        # Only publish_t2 should have gone into rollup collection.
         # Remove publish_t2 entry from data collection
         print("removing {}".format(publish_t2))
-        db['data'].remove({'ts':publish_t2})
-        db['daily_data'].remove({'ts':publish_t3.replace(hour=0,
-                                                         minute=0,
-                                                         second=0,
-                                                         microsecond=0)})
+        db['data'].remove({'ts': publish_t2})
+        db['daily_data'].remove({'ts': publish_t3.replace(hour=0,
+                                                          minute=0,
+                                                          second=0,
+                                                          microsecond=0)})
 
         # Check query
         result = publish_agent.vip.rpc.call('platform.historian', 'query',
-            topic=query_points['oat_point'], count=20,
-            start=query_start_day.isoformat(),
-            end= query_end.isoformat(),
-            order="LAST_TO_FIRST").get(timeout=10)
+                                            topic=query_points['oat_point'], count=20,
+                                            start=query_start_day.isoformat(),
+                                            end=query_end.isoformat(),
+                                            order="LAST_TO_FIRST").get(timeout=10)
         print(result)
         compare_query_results(db, expected3, expected2, expected1,
                               'oat_point', result)
@@ -1089,7 +1089,7 @@ def test_combined_results_from_rollup_and_raw_data(volttron_instance,
 @pytest.mark.mongodb
 @pytest.mark.skipif(not HAS_PYMONGO, reason='No pymongo driver')
 def test_combined_results_from_rollup_and_raw_data(volttron_instance,
-                                            database_client):
+                                                   database_client):
     """
     Test querying data with start date earlier than available rollup data
     and query end date greater than available rollup data. Historian should
@@ -1110,10 +1110,10 @@ def test_combined_results_from_rollup_and_raw_data(volttron_instance,
         db['daily_data'].drop()
 
         publish_t1 = datetime(year=2016, month=3, day=1, hour=1, minute=10,
-                       second=1, microsecond=0, tzinfo=tzutc())
+                              second=1, microsecond=0, tzinfo=tzutc())
         publish_t2 = publish_t1 + timedelta(minutes=1)
         publish_t3 = utils.get_aware_utc_now()
-        #query time period should be greater than 3 hours for historian to use
+        # query time period should be greater than 3 hours for historian to use
         # hourly_data collection and  >= 1 day to use daily_data table
         query_start_day = publish_t1 - timedelta(days=35)
         query_end = publish_t3 + timedelta(seconds=2)
@@ -1145,21 +1145,21 @@ def test_combined_results_from_rollup_and_raw_data(volttron_instance,
         expected3 = publish_fake_data(publish_agent, publish_t3)
         gevent.sleep(10)
 
-        #Only publish_t2 should have gone into rollup collection.
+        # Only publish_t2 should have gone into rollup collection.
         # Remove publish_t2 entry from data collection
         print("removing {}".format(publish_t2))
-        db['data'].remove({'ts':publish_t2})
-        db['daily_data'].remove({'ts':publish_t3.replace(hour=0,
-                                                         minute=0,
-                                                         second=0,
-                                                         microsecond=0)})
+        db['data'].remove({'ts': publish_t2})
+        db['daily_data'].remove({'ts': publish_t3.replace(hour=0,
+                                                          minute=0,
+                                                          second=0,
+                                                          microsecond=0)})
 
         # Check query
         result = publish_agent.vip.rpc.call('platform.historian', 'query',
-            topic=query_points['oat_point'], count=20,
-            start=query_start_day.isoformat(),
-            end= query_end.isoformat(),
-            order="LAST_TO_FIRST").get(timeout=10)
+                                            topic=query_points['oat_point'], count=20,
+                                            start=query_start_day.isoformat(),
+                                            end=query_end.isoformat(),
+                                            order="LAST_TO_FIRST").get(timeout=10)
         print(result)
         compare_query_results(db, expected3, expected2, expected1,
                               'oat_point', result)
@@ -1169,12 +1169,11 @@ def test_combined_results_from_rollup_and_raw_data(volttron_instance,
             volttron_instance.stop_agent(agent_uuid)
             volttron_instance.remove_agent(agent_uuid)
 
-
 @pytest.mark.historian
 @pytest.mark.mongodb
 @pytest.mark.skipif(not HAS_PYMONGO, reason='No pymongo driver')
 def test_combined_results_rollup_and_raw_data_with_count(volttron_instance,
-                                            database_client):
+                                                         database_client):
     """
     Test querying data with start date earlier than available rollup data
     and query end date greater than available rollup data. Historian should
@@ -1195,11 +1194,11 @@ def test_combined_results_rollup_and_raw_data_with_count(volttron_instance,
         db['daily_data'].drop()
 
         publish_t1 = datetime(year=2016, month=3, day=1, hour=1, minute=10,
-                       second=1, microsecond=0, tzinfo=tzutc())
+                              second=1, microsecond=0, tzinfo=tzutc())
         publish_t2 = publish_t1 + timedelta(minutes=1)
         publish_t3 = utils.get_aware_utc_now() - timedelta(minutes=1)
         publish_t4 = utils.get_aware_utc_now()
-        #query time period should be greater than 3 hours for historian to use
+        # query time period should be greater than 3 hours for historian to use
         # hourly_data collection and  >= 1 day to use daily_data table
         query_start_day = publish_t1 - timedelta(days=35)
         query_end = publish_t4 + timedelta(seconds=2)
@@ -1232,15 +1231,15 @@ def test_combined_results_rollup_and_raw_data_with_count(volttron_instance,
         expected4 = publish_fake_data(publish_agent, publish_t4)
         gevent.sleep(10)
 
-        #Only publish_t2 should have gone into rollup collection.
+        # Only publish_t2 should have gone into rollup collection.
         # Remove publish_t2 entry from data collection so that is is only
         # available in hourly and daily  collections
         print("removing {}".format(publish_t2))
-        db['data'].remove({'ts':publish_t2})
-        db['daily_data'].remove({'ts':publish_t3.replace(hour=0,
-                                                         minute=0,
-                                                         second=0,
-                                                         microsecond=0)})
+        db['data'].remove({'ts': publish_t2})
+        db['daily_data'].remove({'ts': publish_t3.replace(hour=0,
+                                                          minute=0,
+                                                          second=0,
+                                                          microsecond=0)})
 
         # result from data table alone
         result = publish_agent.vip.rpc.call(
@@ -1249,7 +1248,7 @@ def test_combined_results_rollup_and_raw_data_with_count(volttron_instance,
             topic=query_points['oat_point'],
             count=1,
             start=query_start_day.isoformat(),
-            end= query_end.isoformat(),
+            end=query_end.isoformat(),
             order="LAST_TO_FIRST").get(timeout=10)
         print("Case 1: {}".format(result))
         compare_query_results(db, expected4, None, None,
@@ -1338,11 +1337,11 @@ def test_dict_insert_special_character(volttron_instance, database_client):
         db['daily_data'].drop()
 
         publish_t1 = datetime(year=2016, month=3, day=1, hour=1, minute=10,
-                       second=1, microsecond=0, tzinfo=tzutc())
+                              second=1, microsecond=0, tzinfo=tzutc())
         publish_t2 = publish_t1 + timedelta(minutes=1)
 
         query_end = publish_t2 + timedelta(seconds=2)
-        #query time period should be greater than 3 hours for historian to use
+        # query time period should be greater than 3 hours for historian to use
         # hourly_data collection and  >= 1 day to use daily_data table
         query_start = query_end - timedelta(hours=4)
         query_start_day = query_end - timedelta(days=2)
@@ -1369,7 +1368,7 @@ def test_dict_insert_special_character(volttron_instance, database_client):
         if int(version_nums[0]) < 2:
             pytest.skip("Only version >= 2.0 support rolled up data.")
 
-        dict1 = {"key.1":"value1", "$":1}
+        dict1 = {"key.1": "value1", "$": 1}
         expected1 = publish_fake_data(publish_agent, publish_t1, dict1)
         expected2 = publish_fake_data(publish_agent, publish_t2, dict1)
         gevent.sleep(15)
@@ -1381,8 +1380,8 @@ def test_dict_insert_special_character(volttron_instance, database_client):
             'query',
             topic=query_points['oat_point'],
             count=20,
-            start = query_start.isoformat(),
-            end = query_end.isoformat(),
+            start=query_start.isoformat(),
+            end=query_end.isoformat(),
             order="FIRST_TO_LAST").get(timeout=10)
         print(result)
         compare_query_results(db, expected1, expected2, None,
@@ -1391,10 +1390,10 @@ def test_dict_insert_special_character(volttron_instance, database_client):
         # Check query from daily_data
         db['hourly_data'].drop()
         result = publish_agent.vip.rpc.call('platform.historian', 'query',
-            topic=query_points['oat_point'], count=20,
-            start=query_start_day.isoformat(),
-            end= query_end.isoformat(),
-            order="LAST_TO_FIRST").get(timeout=10)
+                                            topic=query_points['oat_point'], count=20,
+                                            start=query_start_day.isoformat(),
+                                            end=query_end.isoformat(),
+                                            order="LAST_TO_FIRST").get(timeout=10)
         print(result)
 
         compare_query_results(db, expected2, expected1, None,
@@ -1404,10 +1403,11 @@ def test_dict_insert_special_character(volttron_instance, database_client):
             volttron_instance.stop_agent(agent_uuid)
             volttron_instance.remove_agent(agent_uuid)
 
+
 @pytest.mark.mongodb
 @pytest.mark.skipif(not HAS_PYMONGO, reason='No pymongo driver')
 def test_insert_multiple_data_per_minute(volttron_instance,
-                                            database_client):
+                                         database_client):
     """
     Test the query of rolled up data from hourly, daily and monthly data
     tables
@@ -1426,12 +1426,12 @@ def test_insert_multiple_data_per_minute(volttron_instance,
         db['daily_data'].drop()
 
         publish_t1 = datetime(year=2016, month=3, day=1, hour=1, minute=10,
-                       second=1, microsecond=0, tzinfo=tzutc())
+                              second=1, microsecond=0, tzinfo=tzutc())
         # test insert and query when there is more than 1 record in the
         # same minute
         publish_t2 = publish_t1 + timedelta(seconds=5)
         query_end = publish_t2 + timedelta(seconds=2)
-        #query time period should be greater than 3 hours for historian to use
+        # query time period should be greater than 3 hours for historian to use
         # hourly_data collection and  >= 1 day to use daily_data table
         query_start = query_end - timedelta(hours=4)
         query_start_day = query_end - timedelta(days=2)
@@ -1469,10 +1469,10 @@ def test_insert_multiple_data_per_minute(volttron_instance,
             'query',
             topic=query_points['oat_point'],
             count=20,
-            start = query_start.isoformat(),
-            end = query_end.isoformat(),
+            start=query_start.isoformat(),
+            end=query_end.isoformat(),
             order="FIRST_TO_LAST").get(timeout=10)
-        print result
+        print(result)
         compare_query_results(db, expected1, expected2, None,
                               'oat_point', result)
         verify_hourly_collection(db, expected1, expected2)
@@ -1480,11 +1480,11 @@ def test_insert_multiple_data_per_minute(volttron_instance,
         # Check query from daily_data
         db['hourly_data'].drop()
         result = publish_agent.vip.rpc.call('platform.historian', 'query',
-            topic=query_points['oat_point'], count=20,
-            start=query_start_day.isoformat(),
-            end= query_end.isoformat(),
-            order="FIRST_TO_LAST").get(timeout=10)
-        print result
+                                            topic=query_points['oat_point'], count=20,
+                                            start=query_start_day.isoformat(),
+                                            end=query_end.isoformat(),
+                                            order="FIRST_TO_LAST").get(timeout=10)
+        print(result)
 
         compare_query_results(db, expected1, expected2, None,
                               'oat_point', result)
@@ -1527,7 +1527,7 @@ def verify_daily_collection(db, expected1, expected2, expected3=None):
     cursor = db['daily_data'].find({'topic_id': id})
     rows = list(cursor)
     assert len(rows[0]['data']) == 24 * 60
-    # print rows[0]['data']
+    # print(rows[0]['data'])
     # if it is same day and same minute
     if t1_hour_min == t2_hour_min:
         rolled_up_data1 = rows[0]['data'][
@@ -1564,7 +1564,7 @@ def verify_hourly_collection(db, expected1, expected2, expected3=None):
     cursor = db['hourly_data'].find({'topic_id': id})
     rows = list(cursor)
     assert len(rows[0]['data']) == 60
-    print rows[0]['data']
+    print(rows[0]['data'])
     if t1_hour == t2_hour:
         rolled_up_data1 = rows[0]['data'][expected1['datetime'].minute][0]
         rolled_up_data2 = rows[0]['data'][expected1['datetime'].minute][1]
@@ -1589,9 +1589,10 @@ def format_expected_time(expected1):
 
 
 def compare_rolled_up_data(data_from_db_query, expected_time, expected_value):
-    assert utils.format_timestamp(data_from_db_query[0])+'+00:00' == \
+    assert utils.format_timestamp(data_from_db_query[0]) + '+00:00' == \
            expected_time
     assert data_from_db_query[1] == expected_value
+
 
 @pytest.mark.historian
 @pytest.mark.mongodb

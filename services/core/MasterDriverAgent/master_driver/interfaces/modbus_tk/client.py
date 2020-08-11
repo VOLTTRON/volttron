@@ -1,56 +1,41 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
-
-# Copyright (c) 2017, SLAC National Laboratory / Kisensum Inc.
-# All rights reserved.
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
+# Copyright 2019, Battelle Memorial Institute.
 #
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in
-#    the documentation and/or other materials provided with the
-#    distribution.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# http://www.apache.org/licenses/LICENSE-2.0
 #
-# The views and conclusions contained in the software and documentation
-# are those of the authors and should not be interpreted as representing
-# official policies, either expressed or implied, of the FreeBSD
-# Project.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
-# This material was prepared as an account of work sponsored by an
-# agency of the United States Government.  Neither the United States
-# Government nor the United States Department of Energy, nor SLAC / Kisensum,
-# nor any of their employees, nor any jurisdiction or organization that
-# has cooperated in the development of these materials, makes any
-# warranty, express or implied, or assumes any legal liability or
-# responsibility for the accuracy, completeness, or usefulness or any
-# information, apparatus, product, software, or process disclosed, or
-# represents that its use would not infringe privately owned rights.
-#
-# Reference herein to any specific commercial product, process, or
-# service by trade name, trademark, manufacturer, or otherwise does not
-# necessarily constitute or imply its endorsement, recommendation, or
+# This material was prepared as an account of work sponsored by an agency of
+# the United States Government. Neither the United States Government nor the
+# United States Department of Energy, nor Battelle, nor any of their
+# employees, nor any jurisdiction or organization that has cooperated in the
+# development of these materials, makes any warranty, express or
+# implied, or assumes any legal liability or responsibility for the accuracy,
+# completeness, or usefulness or any information, apparatus, product,
+# software, or process disclosed, or represents that its use would not infringe
+# privately owned rights. Reference herein to any specific commercial product,
+# process, or service by trade name, trademark, manufacturer, or otherwise
+# does not necessarily constitute or imply its endorsement, recommendation, or
 # favoring by the United States Government or any agency thereof, or
-# SLAC / Kisensum. The views and opinions of authors
-# expressed herein do not necessarily state or reflect those of the
+# Battelle Memorial Institute. The views and opinions of authors expressed
+# herein do not necessarily state or reflect those of the
 # United States Government or any agency thereof.
 #
+# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
+# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# under Contract DE-AC05-76RL01830
 # }}}
+
 """
     Modbus client wrapper.
 
@@ -87,7 +72,7 @@ import modbus_tk.modbus_tcp as modbus_tcp
 import modbus_tk.modbus_rtu as modbus_rtu
 from modbus_tk.exceptions import ModbusError
 
-import helpers
+from . import helpers
 
 logger = logging.getLogger(__name__)
 
@@ -104,7 +89,7 @@ class Field(object):
 
         A logical field may be mapped to one or more modbus registers or coils.
 
-        Field implemements the 'descriptor' pattern with __get__ and __set__ methods.
+        Field implements the 'descriptor' pattern with __get__ and __set__ methods.
 
         A field defines the modbus table, address offset, length and datatype of the
         logical field.  Getting and setting of field values is as simple as
@@ -232,6 +217,10 @@ class Field(object):
                         transform_args.append(getattr(modbus_client, reg_name))
 
                 transformed_value = self._transform.inverse(*transform_args)
+                if not isinstance(transformed_value, type(value)):
+                    # Inverse causes integer values to be converted to float,
+                    # convert value to original datatype and pass it back
+                    transformed_value = type(value)(transformed_value)
             except ZeroDivisionError:
                 transformed_value = 0
         return transformed_value
@@ -297,8 +286,8 @@ class Field(object):
     def __set__(self, instance, value):
         # If value is None, its a No Op, the field is not updated
         if value is not None:
-            if value < 0 and self._type in (helpers.USHORT, helpers.UINT, helpers.UINT64):
-                raise ValueError("Attempting to assign negative value to unisgned type.")
+            if not isinstance(value, str) and value < 0 and self._type in (helpers.USHORT, helpers.UINT, helpers.UINT64):
+                raise ValueError("Attempting to assign negative value to unsigned type.")
             if not instance._ignore_op_mode and self._op_mode == helpers.OP_MODE_READ_ONLY:
                 raise ValueError("Attempting to write read-only field.")
             value = self.value_for_transport(value, instance)
@@ -321,11 +310,10 @@ class Field(object):
 
         value_bytes = parse_struct.pack(value)
         register_values = []
-        for i in xrange(0, len(value_bytes), 2):
+        for i in range(0, len(value_bytes), 2):
             register_values.extend(struct.unpack(">H", value_bytes[i:i + 2]))
         register_values.reverse()
-        convert_bytes = ''.join([struct.pack(">H", i) for i in register_values])
-
+        convert_bytes = bytes.join(b'', [struct.pack(">H", i) for i in register_values])
         return parse_struct.unpack(convert_bytes)[0]
 
     def fix_address(self, address_style):
@@ -376,7 +364,7 @@ class Request (object):
             return "UNKNOWN"
 
     def __str__(self):
-        return u"<Request: {0} - {1}[{2}] x {3} | {4}".format(
+        return "<Request: {0} - {1}[{2}] x {3} | {4}".format(
             self._name,
             self.table_name(),
             self._address,
@@ -466,9 +454,9 @@ class Request (object):
             struct_size += 1
         self._data_format += struct_format
         # current_request.count += f.type[SIZE] * f.type[LENGTH]
-        self._count += struct_size / 2
+        self._count += struct_size // 2 # We need count to remain a int
         self._fields.append(field)
-        self._next_address += struct_size / 2
+        self._next_address += struct_size // 2 # We need count to remain a int
 
     def block_info(self):
         return self._name, self._table, self._address, self._count
@@ -537,6 +525,10 @@ class Request (object):
         return requests
 
 
+# WARNING: Currently the modbus_tk library is not able to make connections from 2 masters on one host to 2 slaves on
+# one host - this will will prevent a single platform from being able to communicate to 2 slaves on one IP as each
+# instance of a Modbus_Tk driver creates a new Modbus master.
+# Issue on Modbus_Tk Github: https://github.com/ljean/modbus-tk/issues/124
 class Client (object):
 
     """
@@ -643,7 +635,7 @@ class Client (object):
         return self
 
     def __str__(self):
-        return u'data: {0}\npending_writes: {1}'.format(self._data, self._pending_writes)
+        return 'data: {0}\npending_writes: {1}'.format(self._data, self._pending_writes)
 
     def pprint(self):
         response = "pending writes: \n"
@@ -741,6 +733,7 @@ class Client (object):
                     else:
                         values.append(value)
                 # Temp workaround for COIL write problem.
+                values = [value.encode('utf-8') if isinstance(value, str) else value for value in values]
                 if r.write_function_code == modbus_constants.WRITE_SINGLE_COIL:
                     values = values[0]
                 self.client.execute(
@@ -752,7 +745,6 @@ class Client (object):
                     data_format=r.formatting,
                     threadsafe=False
                 )
-
         if self._pending_writes:
             logger.warning("Did not write ALL values!")
         self._pending_writes.clear()

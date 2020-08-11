@@ -1,61 +1,44 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
-
-# Copyright (c) 2017, SLAC National Laboratory / Kisensum Inc.
-# All rights reserved.
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
+# Copyright 2019, Battelle Memorial Institute.
 #
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in
-#    the documentation and/or other materials provided with the
-#    distribution.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# http://www.apache.org/licenses/LICENSE-2.0
 #
-# The views and conclusions contained in the software and documentation
-# are those of the authors and should not be interpreted as representing
-# official policies, either expressed or implied, of the FreeBSD
-# Project.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
-# This material was prepared as an account of work sponsored by an
-# agency of the United States Government.  Neither the United States
-# Government nor the United States Department of Energy, nor SLAC / Kisensum,
-# nor any of their employees, nor any jurisdiction or organization that
-# has cooperated in the development of these materials, makes any
-# warranty, express or implied, or assumes any legal liability or
-# responsibility for the accuracy, completeness, or usefulness or any
-# information, apparatus, product, software, or process disclosed, or
-# represents that its use would not infringe privately owned rights.
-#
-# Reference herein to any specific commercial product, process, or
-# service by trade name, trademark, manufacturer, or otherwise does not
-# necessarily constitute or imply its endorsement, recommendation, or
+# This material was prepared as an account of work sponsored by an agency of
+# the United States Government. Neither the United States Government nor the
+# United States Department of Energy, nor Battelle, nor any of their
+# employees, nor any jurisdiction or organization that has cooperated in the
+# development of these materials, makes any warranty, express or
+# implied, or assumes any legal liability or responsibility for the accuracy,
+# completeness, or usefulness or any information, apparatus, product,
+# software, or process disclosed, or represents that its use would not infringe
+# privately owned rights. Reference herein to any specific commercial product,
+# process, or service by trade name, trademark, manufacturer, or otherwise
+# does not necessarily constitute or imply its endorsement, recommendation, or
 # favoring by the United States Government or any agency thereof, or
-# SLAC / Kisensum. The views and opinions of authors
-# expressed herein do not necessarily state or reflect those of the
+# Battelle Memorial Institute. The views and opinions of authors expressed
+# herein do not necessarily state or reflect those of the
 # United States Government or any agency thereof.
 #
+# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
+# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# under Contract DE-AC05-76RL01830
 # }}}
 
 from cmd import Cmd
 import gevent
-import json
-import logging
+
 import logging.handlers
 import os
 import shlex
@@ -130,46 +113,46 @@ class MessageViewerCmd(Cmd):
         self._streaming = False
 
     def startup(self):
-        print 'Welcome to the MessageViewer command line. Supported commands include:'
-        print '\t display_message_stream'
-        print '\t display_messages'
-        print '\t display_exchanges'
-        print '\t display_exchange_details'
-        print '\t display_session_details_by_agent <session_id>'
-        print '\t display_session_details_by_topic <session_id>'
-        print
-        print '\t list_sessions'
-        print '\t set_verbosity <level>'
-        print '\t list_filters'
-        print '\t set_filter <filter_name> <value>'
-        print '\t clear_filters'
-        print '\t clear_filter <filter_name>'
-        print
-        print '\t start_streaming'
-        print '\t stop_streaming'
-        print '\t start_session'
-        print '\t stop_session'
-        print '\t delete_session <session_id>'
-        print '\t delete_database'
-        print
-        print '\t help'
-        print '\t quit'
+        print('Welcome to the MessageViewer command line. Supported commands include:')
+        print('\t display_message_stream')
+        print('\t display_messages')
+        print('\t display_exchanges')
+        print('\t display_exchange_details')
+        print('\t display_session_details_by_agent <session_id>')
+        print('\t display_session_details_by_topic <session_id>')
+        print()
+        print('\t list_sessions')
+        print('\t set_verbosity <level>')
+        print('\t list_filters')
+        print('\t set_filter <filter_name> <value>')
+        print('\t clear_filters')
+        print('\t clear_filter <filter_name>')
+        print()
+        print('\t start_streaming')
+        print('\t stop_streaming')
+        print('\t start_session')
+        print('\t stop_session')
+        print('\t delete_session <session_id>')
+        print('\t delete_database')
+        print()
+        print('\t help')
+        print('\t quit')
         self.cmdloop('Please enter a command.')
         exit()
 
     def do_clear_filters(self, line):
         """Clear all database query filters."""
         self._filters = {}
-        print MessageViewer.set_filters(self._filters)
+        print(MessageViewer.set_filters(self._filters))
 
     def do_set_verbosity(self, line):
         """Set the verbosity level for MessageDebuggerAgent responses; syntax is: set_verbosity <level>"""
         level = self.first_parameter(line)
         if level:
             self._verbosity = level
-            print MessageViewer.set_verbosity(level)
+            print(MessageViewer.set_verbosity(level))
         else:
-            print 'Please enter a verbosity level'
+            print('Please enter a verbosity level')
 
     def do_display_message_stream(self, line):
         """Display the DebugMessage stream in realtime (subject to filters) as messages are routed."""
@@ -188,7 +171,7 @@ class MessageViewerCmd(Cmd):
                     received_messages.append(msg)
                 except zmq.Again:
                     if len(received_messages) > 0:
-                        obj_list = [json.loads(obj_str) for obj_str in received_messages]
+                        obj_list = [jsonapi.loads(obj_str) for obj_str in received_messages]
                         data_rows, col_widths = self.data_rows_for_obj_list(obj_list,
                                                                             column_labels,
                                                                             formatter=formatter)
@@ -226,12 +209,12 @@ class MessageViewerCmd(Cmd):
             try:
                 session_id = int(session_id_str)
             except ValueError:
-                print 'Please enter a session ID'
+                print('Please enter a session ID')
                 session_id = None
             if session_id:
                 self.print_stats('Receiving Agent', MessageViewer.session_details_by_agent(session_id))
         else:
-            print 'Please enter a session ID'
+            print('Please enter a session ID')
 
     def do_display_session_details_by_topic(self, line):
         """Display message counts by topic; syntax is: display_session_details_by_topic <session_id>"""
@@ -240,12 +223,12 @@ class MessageViewerCmd(Cmd):
             try:
                 session_id = int(session_id_str)
             except ValueError:
-                print 'Please enter a session ID'
+                print('Please enter a session ID')
                 session_id = None
             if session_id:
                 self.print_stats('Topic', MessageViewer.session_details_by_topic(session_id))
         else:
-            print 'Please enter a session ID'
+            print('Please enter a session ID')
 
     def do_display_exchange_details(self, line):
         """Display details for a single DebugMessageExchange; syntax is: display_exchange_details <message_id>"""
@@ -254,25 +237,25 @@ class MessageViewerCmd(Cmd):
             response = MessageViewer.message_exchange_details(message_id)
             if type(response) == str:
                 # Got back an error/status message, so just print it
-                print response
+                print(response)
             else:
                 if self._verbosity == 'high':
                     # At high verbosity, print the details in spread-out fashion.
                     if len(response['results']) > 0:
                         for msg in response['results']:
-                            print
-                            print json.dumps(msg, indent=4, sort_keys=2)
+                            print()
+                            print(jsonapi.dumps(msg, indent=4, sort_keys=2))
                     else:
-                        print 'No data in filtered output, consider relaxing filters'
+                        print('No data in filtered output, consider relaxing filters')
                 else:
                     # At lower verbosity, print the details as a table.
                     self.print_response_dict('DebugMessage', response)
         else:
-            print 'Please enter a message ID'
+            print('Please enter a message ID')
 
     def do_list_filters(self, line):
         """Display the database query filters that are currently in effect"""
-        print self._filters
+        print(self._filters)
 
     def do_list_sessions(self, line):
         """Display a list of DebugSessions"""
@@ -304,26 +287,26 @@ class MessageViewerCmd(Cmd):
         filter_value = self.second_parameter(line)
         if filter_name and filter_value:
             self._filters[filter_name] = filter_value
-            print MessageViewer.set_filters(self._filters)
+            print(MessageViewer.set_filters(self._filters))
         else:
-            print 'Please enter a filter name and a filter value'
+            print('Please enter a filter name and a filter value')
 
     def do_clear_filter(self, line):
         """Clear a single filter value; syntax is: clear_filter <filter_name>"""
         filter_name = self.first_parameter(line)
         if filter_name:
             self._filters.pop(filter_name, None)
-            print MessageViewer.set_filters(self._filters)
+            print(MessageViewer.set_filters(self._filters))
         else:
-            print 'Please enter a filter name'
+            print('Please enter a filter name')
 
     def do_start_session(self, line):
         """Start a DebugSession"""
-        print MessageViewer.enable_message_debugging()
+        print(MessageViewer.enable_message_debugging())
 
     def do_stop_session(self, line):
         """Stop the current DebugSession"""
-        print MessageViewer.disable_message_debugging()
+        print(MessageViewer.disable_message_debugging())
 
     def do_start_streaming(self, line):
         """Start publishing DebugMessage strings to the monitor socket"""
@@ -331,11 +314,11 @@ class MessageViewerCmd(Cmd):
 
     def start_streaming(self):
         self._streaming = True
-        print MessageViewer.start_streaming(filters=self._filters)
+        print(MessageViewer.start_streaming(filters=self._filters))
 
     def do_stop_streaming(self, line):
         """Stop publishing DebugMessage strings to the monitor socket"""
-        print MessageViewer.stop_streaming()
+        print(MessageViewer.stop_streaming())
         self._streaming = False
 
     def do_delete_session(self, line):
@@ -343,15 +326,15 @@ class MessageViewerCmd(Cmd):
         session_id_str = self.first_parameter(line)
         if session_id_str:
             try:
-                print MessageViewer.delete_debugging_session(int(session_id_str))
+                print(MessageViewer.delete_debugging_session(int(session_id_str)))
             except ValueError:
-                print 'Please enter an integer session ID'
+                print('Please enter an integer session ID')
         else:
-            print 'Please enter a session ID'
+            print('Please enter a session ID')
 
     def do_delete_database(self, line):
         """Delete the message debugger SQLite database (it will be re-created during the next DebugSession)"""
-        print MessageViewer.delete_debugging_db()
+        print(MessageViewer.delete_debugging_db())
 
     def first_parameter(self, line):
         split_line = self.split_line(line)
@@ -396,7 +379,7 @@ class MessageViewerCmd(Cmd):
                 elif type(response) == str:
                     sys.stdout.write(str)
         except KeyboardInterrupt:
-            print 'Execution interrupted'
+            print('Execution interrupted')
 
     def print_stats(self, stat_type, response):
         """
@@ -410,16 +393,16 @@ class MessageViewerCmd(Cmd):
         """
         if type(response) == str:
             # Got back an error/status message, so just print it
-            print response
+            print(response)
         elif response['message_count'] == 0:
-            print 'No messages found for session'
+            print('No messages found for session')
         else:
             response_items = response['stats']
             if len(response_items) > 0:
                 # Gather the data into rows and columns.
                 # Collect a set of all column titles (the original data may have been sparse).
                 all_columns_set = set()
-                for row, inner_dict in response_items.iteritems():
+                for row, inner_dict in response_items.items():
                     for column in inner_dict.keys():
                         all_columns_set.add(column)
                 # Alpha-sort row and column labels.
@@ -451,7 +434,7 @@ class MessageViewerCmd(Cmd):
                 for row in data_rows:
                     sys.stdout.write(formatter.compose(row))
             else:
-                print 'No stats in filtered output, consider relaxing filters'
+                print('No stats in filtered output, consider relaxing filters')
 
     def print_response_dict(self, object_type, response):
         """
@@ -462,7 +445,7 @@ class MessageViewerCmd(Cmd):
         """
         if type(response) == str:
             # Got back an error/status message, so just print it
-            print response
+            print(response)
         else:
             response_list = response['results']
             if len(response_list) > 0:
@@ -472,7 +455,7 @@ class MessageViewerCmd(Cmd):
                 for row in data_rows:
                     sys.stdout.write(formatter.compose(row))
             else:
-                print 'No data in filtered output, consider relaxing filters'
+                print('No data in filtered output, consider relaxing filters')
 
     def data_rows_for_obj_list(self, obj_list, column_labels, formatter=None):
         """
@@ -551,7 +534,7 @@ class MessageViewerCmd(Cmd):
         monitor_socket = zmq.Context().socket(zmq.SUB)
         monitor_socket_address = 'ipc://{}'.format('@' if sys.platform.startswith('linux') else '') + monitor_path
         monitor_socket.bind(monitor_socket_address)
-        monitor_socket.setsockopt_string(zmq.SUBSCRIBE, u"")
+        monitor_socket.setsockopt_string(zmq.SUBSCRIBE, "")
         _log.debug('Subscribing to monitor socket {}'.format(monitor_socket_address))
         return monitor_socket
 
@@ -610,12 +593,12 @@ class MessageViewer(object):
         monitor_socket = zmq.Context().socket(zmq.SUB)
         monitor_socket_address = 'ipc://{}'.format('@' if sys.platform.startswith('linux') else '') + monitor_path
         monitor_socket.bind(monitor_socket_address)
-        monitor_socket.setsockopt_string(zmq.SUBSCRIBE, u"")
+        monitor_socket.setsockopt_string(zmq.SUBSCRIBE, "")
         _log.debug('Subscribing to monitor socket {}'.format(monitor_socket_address))
         try:
             while True:
                 json_string = monitor_socket.recv()
-                print json.loads(json_string)
+                print(jsonapi.loads(json_string))
         except KeyboardInterrupt:
             _log.debug('Execution interrupted')
 
@@ -724,7 +707,7 @@ class ViewerConnection(object):
             self._greenlet.kill(*args, **kwargs)
 
 
-LEFT, CENTER, RIGHT = range(3)
+LEFT, CENTER, RIGHT = list(range(3))
 
 
 class TextFormatter(object):
@@ -836,13 +819,13 @@ class TextFormatter(object):
             return len(self.lines)
 
     def __init__(self, colspeclist):
-        self.columns = [apply(TextFormatter.Column, (), colspec) for colspec in colspeclist]
+        self.columns = [TextFormatter.Column(*(), **colspec) for colspec in colspeclist]
 
     def compose(self, textlist, include_newline=True, wrap_text=True):
         numlines = 0
         textlist = list(textlist)
         if len(textlist) != len(self.columns):
-            raise IndexError, "Number of text items {} does not match columns {}".format(len(textlist), len(self.columns))
+            raise IndexError("Number of text items {} does not match columns {}".format(len(textlist), len(self.columns)))
         for text, column in map(None, textlist, self.columns):
             column.wrap(text) if wrap_text else column.truncate(text)
             numlines = max(numlines, column.numlines())

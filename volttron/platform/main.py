@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -36,14 +36,13 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-from __future__ import print_function, absolute_import
-import yaml
+
 import argparse
 import errno
 import logging
 from logging import handlers
 import logging.config
-from urlparse import urlparse
+from urllib.parse import urlparse
 
 import os
 import resource
@@ -54,6 +53,13 @@ import threading
 import uuid
 
 import gevent
+import gevent.monkey
+
+from volttron.utils import get_random_key
+from volttron.utils.frame_serialization import deserialize_frames, serialize_frames
+
+gevent.monkey.patch_socket()
+gevent.monkey.patch_ssl()
 from gevent.fileobject import FileObject
 import zmq
 from zmq import ZMQError
@@ -62,9 +68,9 @@ import subprocess
 
 # Create a context common to the green and non-green zmq modules.
 from volttron.platform.instance_setup import _update_config_file
-
+from volttron.platform.agent.utils import get_platform_instance_name
 green.Context._instance = green.Context.shadow(zmq.Context.instance().underlying)
-from volttron.platform.agent import json as jsonapi
+from volttron.platform import jsonapi
 
 from . import aip
 from . import __version__
@@ -76,10 +82,14 @@ from .vip.socket import decode_key, encode_key, Address
 from .vip.tracking import Tracker
 from .auth import AuthService, AuthFile, AuthEntry
 from .control import ControlService
-from .web import MasterWebService
+try:
+    from .web import MasterWebService
+    HAS_WEB = True
+except ImportError:
+    HAS_WEB = False
 from .store import ConfigStoreService
 from .agent import utils
-from .agent.known_identities import MASTER_WEB, CONFIGURATION_STORE, AUTH
+from .agent.known_identities import MASTER_WEB, CONFIGURATION_STORE, AUTH, CONTROL, CONTROL_CONNECTION
 from .vip.agent.subsystems.pubsub import ProtectedPubSubTopics
 from .keystore import KeyStore, KnownHostsStore
 from .vip.pubsubservice import PubSubService
@@ -107,8 +117,24 @@ else:
 _log = logging.getLogger(os.path.basename(sys.argv[0])
                          if __name__ == '__main__' else __name__)
 
-logging.getLogger("watchdog.observers.inotify_buffer").setLevel(logging.INFO)
-logging.getLogger("urllib3.connectionpool").setLevel(logging.INFO)
+# Only show debug on the platform when really necessary!
+log_level_info = (
+    'volttron.platform.main',
+    'volttron.platform.vip.zmq_connection',
+    'urllib3.connectionpool',
+    'watchdog.observers.inotify_buffer',
+    'volttron.platform.auth',
+    'volttron.platform.store',
+    'volttron.platform.control',
+    'volttron.platform.vip.agent.core',
+    'volttron.utils',
+    'volttron.platform.vip.router'
+)
+
+for log_name in log_level_info:
+    logging.getLogger(log_name).setLevel(logging.INFO)
+
+
 VOLTTRON_INSTANCES = '~/.volttron_instances'
 
 
@@ -173,9 +199,9 @@ def configure_logging(conf_path):
 
     with open(conf_path) as conf_file:
         if conf_format == 'json':
-            import json
+            from volttron.platform import jsonapi
             try:
-                conf_dict = json.load(conf_file)
+                conf_dict = jsonapi.load(conf_file)
             except ValueError as exc:
                 return conf_path, exc
         elif conf_format == 'py':
@@ -233,7 +259,7 @@ class Monitor(threading.Thread):
         self.sock = sock
 
     def run(self):
-        events = {value: name[6:] for name, value in vars(zmq).iteritems()
+        events = {value: name[6:] for name, value in vars(zmq).items()
                   if name.startswith('EVENT_') and name != 'EVENT_ALL'}
         log = logging.getLogger('vip.monitor')
         if log.level == logging.NOTSET:
@@ -302,13 +328,14 @@ class Router(BaseRouter):
 
     def setup(self):
         sock = self.socket
-        sock.identity = identity = str(uuid.uuid4())
+        identity = str(uuid.uuid4())
+        sock.identity = identity.encode("utf-8")
         _log.debug("ROUTER SOCK identity: {}".format(sock.identity))
         if self._monitor:
             Monitor(sock.get_monitor_socket()).start()
         sock.bind('inproc://vip')
         _log.debug('In-process VIP router bound to inproc://vip')
-        sock.zap_domain = 'vip'
+        sock.zap_domain = b'vip'
         addr = self.local_address
         if not addr.identity:
             addr.identity = identity
@@ -369,70 +396,90 @@ class Router(BaseRouter):
                 self._message_debugger_socket.connect(socket_path)
             # Publish the routed message, including the "topic" (status/direction), for use by MessageDebuggerAgent.
             frame_bytes = [topic]
-            frame_bytes.extend([frame if type(frame) is str else frame.bytes for frame in frames])
-            self._message_debugger_socket.send_pyobj(frame_bytes)
+            frame_bytes.extend(frames)  # [frame if type(frame) is bytes else frame.bytes for frame in frames])
+            frame_bytes = serialize_frames(frames)
+            # TODO we need to fix the msgdebugger socket if we need it to be connected
+            #frame_bytes = [f.bytes for f in frame_bytes]
+            #self._message_debugger_socket.send_pyobj(frame_bytes)
+    # This is currently not being used e.g once fixed we won't use it.
+    #def extract_bytes(self, frame_bytes):
+    #    result = []
+    #    for f in frame_bytes:
+    #        if isinstance(f, list):
+    #            result.extend(self.extract_bytes(f))
+    #        else:
+    #            result.append(f.bytes)
+    #    return result
 
     def handle_subsystem(self, frames, user_id):
-        subsystem = bytes(frames[5])
-        if subsystem == b'quit':
-            sender = bytes(frames[0])
-            if sender == b'control' and user_id == self.default_user_id:
+        _log.debug(f"Handling subsystem with frames: {frames} user_id: {user_id}")
+
+        subsystem = frames[5]
+        if subsystem == 'quit':
+            sender = frames[0]
+            # was if sender == 'control' and user_id == self.default_user_id:
+            # now we serialize frames and if user_id is always the sender and not
+            # recipents.get('User-Id') or default user name
+            if sender == 'control':
                 if self._ext_routing:
                     self._ext_routing.close_external_connections()
                 self.stop()
                 raise KeyboardInterrupt()
-        elif subsystem == b'agentstop':
+            else:
+                _log.error(f"Sender {sender} not authorized to shutdown platform")
+        elif subsystem =='agentstop':
             try:
-                drop = frames[6].bytes
+                drop = frames[6]
                 self._drop_peer(drop)
                 self._drop_pubsub_peers(drop)
                 _log.debug("ROUTER received agent stop message. dropping peer: {}".format(drop))
             except IndexError:
-                pass
+                _log.error(f"agentstop called but unable to determine agent from frames sent {frames}")
             return False
-        elif subsystem == b'query':
+        elif subsystem == 'query':
             try:
-                name = bytes(frames[6])
+                name = frames[6]
             except IndexError:
                 value = None
             else:
-                if name == b'addresses':
+                if name == 'addresses':
                     if self.addresses:
                         value = [addr.base for addr in self.addresses]
                     else:
                         value = [self.local_address.base]
-                elif name == b'local_address':
+                elif name == 'local_address':
                     value = self.local_address.base
                 # Allow the agents to know the serverkey.
-                elif name == b'serverkey':
+                elif name == 'serverkey':
                     keystore = KeyStore()
                     value = keystore.public
-                elif name == b'volttron-central-address':
+                elif name == 'volttron-central-address':
                     value = self._volttron_central_address
-                elif name == b'volttron-central-serverkey':
+                elif name == 'volttron-central-serverkey':
                     value = self._volttron_central_serverkey
-                elif name == b'instance-name':
+                elif name == 'instance-name':
                     value = self._instance_name
-                elif name == b'bind-web-address':
+                elif name == 'bind-web-address':
                     value = self._bind_web_address
-                elif name == b'platform-version':
+                elif name == 'platform-version':
                     value = __version__
-                elif name == b'message-bus':
+                elif name == 'message-bus':
                     value = os.environ.get('MESSAGEBUS', 'zmq')
-                elif name == b'agent-monitor-frequency':
+                elif name == 'agent-monitor-frequency':
                     value = self._agent_monitor_frequency
                 else:
                     value = None
-            frames[6:] = [b'', jsonapi.dumps(value)]
-            frames[3] = b''
+            frames[6:] = ['', value]
+            frames[3] = ''
+            
             return frames
-        elif subsystem == b'pubsub':
+        elif subsystem == 'pubsub':
             result = self.pubsub.handle_subsystem(frames, user_id)
             return result
-        elif subsystem == b'routing_table':
+        elif subsystem == 'routing_table':
             result = self._ext_routing.handle_subsystem(frames)
             return result
-        elif subsystem == b'external_rpc':
+        elif subsystem == 'external_rpc':
             result = self.ext_rpc.handle_subsystem(frames)
             return result
 
@@ -455,7 +502,7 @@ class Router(BaseRouter):
             if sock == self.socket:
                 if sockets[sock] == zmq.POLLIN:
                     frames = sock.recv_multipart(copy=False)
-                    self.route(frames)
+                    self.route(deserialize_frames(frames))
             elif sock in self._ext_routing._vip_sockets:
                 if sockets[sock] == zmq.POLLIN:
                     # _log.debug("From Ext Socket: ")
@@ -469,27 +516,28 @@ class Router(BaseRouter):
     def ext_route(self, socket):
         """
         Handler function for message received through external socket connection
-        :param socket: socket
+        :param socket: socket affected files: {}
         :return:
         """
         # Expecting incoming frames to follow this VIP format:
         #   [SENDER, PROTO, USER_ID, MSG_ID, SUBSYS, ...]
         frames = socket.recv_multipart(copy=False)
+        self.route(deserialize_frames(frames))
         # for f in frames:
         #     _log.debug("PUBSUBSERVICE Frames: {}".format(bytes(f)))
         if len(frames) < 6:
             return
 
         sender, proto, user_id, msg_id, subsystem = frames[:5]
-        if proto.bytes != b'VIP1':
+        if proto != 'VIP1':
             return
 
         # Handle 'EXT_RPC' subsystem messages
-        name = subsystem.bytes
+        name = subsystem
         if name == 'external_rpc':
             # Reframe the frames
             sender, proto, usr_id, msg_id, subsystem, msg = frames[:6]
-            msg_data = jsonapi.loads(msg.bytes)
+            msg_data = jsonapi.loads(msg)
             peer = msg_data['to_peer']
             # Send to destionation agent/peer
             # Form new frame for local
@@ -501,9 +549,9 @@ class Router(BaseRouter):
                 pass
         # Handle 'pubsub' subsystem messages
         elif name == 'pubsub':
-            if bytes(frames[1]) == b'VIP1':
-                recipient = b''
-                frames[:1] = [zmq.Frame(b''), zmq.Frame(b'')]
+            if frames[1] == 'VIP1':
+                recipient = ''
+                frames[:1] = ['', '']
                 # for f in frames:
                 #     _log.debug("frames: {}".format(bytes(f)))
             result = self.pubsub.handle_subsystem(frames, user_id)
@@ -512,8 +560,8 @@ class Router(BaseRouter):
         elif name == 'routing_table':
             # for f in frames:
             #     _log.debug("frames: {}".format(bytes(f)))
-            if bytes(frames[1]) == b'VIP1':
-                frames[:1] = [zmq.Frame(b''), zmq.Frame(b'')]
+            if frames[1] == 'VIP1':
+                frames[:1] = ['', '']
             result = self._ext_routing.handle_subsystem(frames)
             return result
 
@@ -601,6 +649,12 @@ def start_volttron_process(opts):
             _log.error('{}: {}'.format(*error))
             sys.exit(1)
 
+    if opts.secure_agent_users == "True":
+        _log.info("VOLTTRON starting in secure mode")
+        os.umask(0o007)
+    else:
+        opts.secure_agent_users = 'False'
+
     opts.publish_address = config.expandall(opts.publish_address)
     opts.subscribe_address = config.expandall(opts.subscribe_address)
     opts.vip_address = [config.expandall(addr) for addr in opts.vip_address]
@@ -612,9 +666,9 @@ def start_volttron_process(opts):
         opts.web_ssl_cert = config.expandall(opts.web_ssl_cert)
 
     if opts.web_ssl_key and not opts.web_ssl_cert:
-        raise StandardError("If web-ssl-key is specified web-ssl-cert MUST be specified.")
+        raise Exception("If web-ssl-key is specified web-ssl-cert MUST be specified.")
     if opts.web_ssl_cert and not opts.web_ssl_key:
-        raise StandardError("If web-ssl-cert is specified web-ssl-key MUST be specified.")
+        raise Exception("If web-ssl-cert is specified web-ssl-key MUST be specified.")
 
     if opts.web_ca_cert:
         assert os.path.isfile(opts.web_ca_cert), "web_ca_cert does not exist!"
@@ -624,28 +678,41 @@ def start_volttron_process(opts):
     # and opts.web_ssl_cert
 
     os.environ['MESSAGEBUS'] = opts.message_bus
+    os.environ['SECURE_AGENT_USER'] = opts.secure_agent_users
     if opts.instance_name is None:
         if len(opts.vip_address) > 0:
             opts.instance_name = opts.vip_address[0]
-    if opts.message_bus == 'rmq':
+
+    _log.debug("opts.instancename {}".format(opts.instance_name))
+    if opts.instance_name:
         store_message_bus_config(opts.message_bus, opts.instance_name)
-    import urlparse
+    else:
+        # if there is no instance_name given get_platform_instance_name will
+        # try to retrieve from config or default a value and store it in the config
+        get_platform_instance_name(vhome=opts.volttron_home, prompt=False)
 
     if opts.bind_web_address:
-        parsed = urlparse.urlparse(opts.bind_web_address)
+        parsed = urlparse(opts.bind_web_address)
         if parsed.scheme not in ('http', 'https'):
-            raise StandardError(
+            raise Exception(
                 'bind-web-address must begin with http or https.')
         opts.bind_web_address = config.expandall(opts.bind_web_address)
+        # zmq with tls is supported
         if opts.message_bus == 'zmq' and parsed.scheme == 'https':
             if not opts.web_ssl_key or not opts.web_ssl_cert:
-                raise StandardError("zmq https requires a web-ssl-key and a web-ssl-cert file.")
+                raise Exception("zmq https requires a web-ssl-key and a web-ssl-cert file.")
             if not os.path.isfile(opts.web_ssl_key) or not os.path.isfile(opts.web_ssl_cert):
-                raise StandardError("zmq https requires a web-ssl-key and a web-ssl-cert file.")
+                raise Exception("zmq https requires a web-ssl-key and a web-ssl-cert file.")
+        # zmq without tls is supported through the use of a secret key, if it's None then
+        # we want to generate a secret key and set it in the config file.
+        elif opts.message_bus == 'zmq' and opts.web_secret_key is None:
+            opts.web_secret_key = get_random_key()
+            _update_config_file(web_secret_key = opts.web_secret_key)
+
     if opts.volttron_central_address:
-        parsed = urlparse.urlparse(opts.volttron_central_address)
+        parsed = urlparse(opts.volttron_central_address)
         if parsed.scheme not in ('http', 'https', 'tcp', 'amqp', 'amqps'):
-            raise StandardError(
+            raise Exception(
                 'volttron-central-address must begin with tcp, amqp, amqps, http or https.')
         opts.volttron_central_address = config.expandall(
             opts.volttron_central_address)
@@ -654,7 +721,7 @@ def start_volttron_process(opts):
     # Log configuration options
     if getattr(opts, 'show_config', False):
         _log.info('volttron version: {}'.format(__version__))
-        for name, value in sorted(vars(opts).iteritems()):
+        for name, value in sorted(vars(opts).items()):
             _log.info("%s: %s" % (name, str(repr(value))))
 
     # Increase open files resource limit to max or 8192 if unlimited
@@ -699,10 +766,10 @@ def start_volttron_process(opts):
         _log.warning('insecure mode on key file')
     publickey = decode_key(keystore.public)
     if publickey:
-        #_log.info('public key: %s', encode_key(publickey))
         # Authorize the platform key:
         entry = AuthEntry(credentials=encode_key(publickey),
                           user_id='platform',
+                          capabilities=[{'edit_config_store': {'identity': '/.*/'}}],
                           comments='Automatically added by platform on start')
         AuthFile().add(entry, overwrite=True)
         # Add platform key to known-hosts file:
@@ -711,6 +778,16 @@ def start_volttron_process(opts):
         for addr in opts.vip_address:
             known_hosts.add(addr, encode_key(publickey))
     secretkey = decode_key(keystore.secret)
+
+    # Add the control.connection so that volttron-ctl can access the bus
+    control_conn_path = KeyStore.get_agent_keystore_path(CONTROL_CONNECTION)
+    os.makedirs(os.path.dirname(control_conn_path), exist_ok=True)
+    ks_control_conn = KeyStore(KeyStore.get_agent_keystore_path(CONTROL_CONNECTION))
+    entry = AuthEntry(credentials=encode_key(decode_key(ks_control_conn.public)),
+                      user_id=CONTROL_CONNECTION,
+                      capabilities=[{'edit_config_store': {'identity': '/.*/'}}],
+                      comments='Automatically added by platform on start')
+    AuthFile().add(entry, overwrite=True)
 
     # The following line doesn't appear to do anything, but it creates
     # a context common to the green and non-green zmq modules.
@@ -735,9 +812,10 @@ def start_volttron_process(opts):
     # Main loops
     def zmq_router(stop):
         try:
+            _log.debug("Running zmq router")
             Router(opts.vip_local_address, opts.vip_address,
                    secretkey=secretkey, publickey=publickey,
-                   default_user_id=b'vip.service', monitor=opts.monitor,
+                   default_user_id='vip.service', monitor=opts.monitor,
                    tracker=tracker,
                    volttron_central_address=opts.volttron_central_address,
                    volttron_central_serverkey=opts.volttron_central_serverkey,
@@ -873,7 +951,7 @@ def start_volttron_process(opts):
             # Necessary for backward compatibility with ZMQ message bus
             green_router = GreenRouter(opts.vip_local_address, opts.vip_address,
                                        secretkey=secretkey, publickey=publickey,
-                                       default_user_id=b'vip.service', monitor=opts.monitor,
+                                       default_user_id='vip.service', monitor=opts.monitor,
                                        tracker=tracker,
                                        volttron_central_address=opts.volttron_central_address,
                                        volttron_central_serverkey=opts.volttron_central_serverkey,
@@ -919,7 +997,7 @@ def start_volttron_process(opts):
         # Launch additional services and wait for them to start before
         # auto-starting agents
         services = [
-            ControlService(opts.aip, address=address, identity='control',
+            ControlService(opts.aip, address=address, identity=CONTROL,
                            tracker=tracker, heartbeat_autostart=True,
                            enable_store=False, enable_channel=True,
                            message_bus=opts.message_bus,
@@ -938,22 +1016,33 @@ def start_volttron_process(opts):
                           enable_store=False,
                           message_bus='zmq')
         ]
-        
+
+        entry = AuthEntry(credentials=services[0].core.publickey,
+                          user_id=CONTROL,
+                          capabilities=[{'edit_config_store': {'identity': '/.*/'}}],
+                          comments='Automatically added by platform on start')
+        AuthFile().add(entry, overwrite=True)
+
         # Begin the webserver based options here.
         if opts.bind_web_address is not None:
+            if not HAS_WEB:
+                sys.stderr.write("Web libraries not installed, but bind web address specified\n")
+                sys.stderr.write("Please install web libraries using python3 bootstrap.py --web\n")
+                sys.exit(-1)
+
             if opts.instance_name is None:
                 _update_config_file()
 
             if opts.message_bus == 'rmq':
                 if opts.web_ssl_key is None or opts.web_ssl_cert is None or \
                         (not os.path.isfile(opts.web_ssl_key) and not os.path.isfile(opts.web_ssl_cert)):
-                    # This is different than the master.web cert which is used for the agent to connect 
+                    # This is different than the master.web cert which is used for the agent to connect
                     # to rmq server.  The master.web-server certificate will be used for the master web
                     # services.
                     base_webserver_name = MASTER_WEB + "-server"
                     from volttron.platform.certs import Certs
                     certs = Certs()
-                    certs.create_ca_signed_cert(base_webserver_name, type='server')
+                    certs.create_signed_cert_files(base_webserver_name, cert_type='server')
                     opts.web_ssl_key = certs.private_key_file(base_webserver_name)
                     opts.web_ssl_cert = certs.cert_file(base_webserver_name)
 
@@ -963,12 +1052,31 @@ def start_volttron_process(opts):
                 address=address,
                 bind_web_address=opts.bind_web_address,
                 volttron_central_address=opts.volttron_central_address,
-                aip=opts.aip, enable_store=False,
+                enable_store=False,
                 message_bus=opts.message_bus,
                 volttron_central_rmq_address=opts.volttron_central_rmq_address,
                 web_ssl_key=opts.web_ssl_key,
-                web_ssl_cert=opts.web_ssl_cert
+                web_ssl_cert=opts.web_ssl_cert,
+                web_secret_key=opts.web_secret_key
             ))
+
+        ks_masterweb = KeyStore(KeyStore.get_agent_keystore_path(MASTER_WEB))
+        entry = AuthEntry(credentials=encode_key(decode_key(ks_masterweb.public)),
+                          user_id=MASTER_WEB,
+                          capabilities=['allow_auth_modifications'],
+                          comments='Automatically added by platform on start')
+        AuthFile().add(entry, overwrite=True)
+
+        # # MASTER_WEB did not work on RMQ. Referred to agent as master
+        # # Added this auth to allow RPC calls for credential authentication
+        # # when using the RMQ messagebus.
+        # ks_masterweb = KeyStore(KeyStore.get_agent_keystore_path('master'))
+        # entry = AuthEntry(credentials=encode_key(decode_key(ks_masterweb.public)),
+        #                   user_id='master',
+        #                   capabilities=['allow_auth_modifications'],
+        #                   comments='Automatically added by platform on start')
+        # AuthFile().add(entry, overwrite=True)
+
 
         events = [gevent.event.Event() for service in services]
         tasks = [gevent.spawn(service.core.run, event)
@@ -1003,6 +1111,10 @@ def start_volttron_process(opts):
             for task in tasks:
                 task.kill(block=False)
             gevent.wait(tasks)
+    except Exception as e:
+        _log.error(e)
+        import traceback
+        _log.error(traceback.print_exc())
     finally:
         _log.debug("AIP finally")
         opts.aip.finish()
@@ -1102,6 +1214,10 @@ def main(argv=sys.argv):
              'to be able to correctly reach the webserver without having to specify verify in all calls.'
     )
     agents.add_argument(
+        "--web-secret-key", default=None,
+        help="Secret key to be used instead of https based authentication."
+    )
+    agents.add_argument(
         '--web-ssl-key', metavar='KEYFILE', default=None,
         help='ssl key file for using https with the volttron server'
     )
@@ -1135,6 +1251,10 @@ def main(argv=sys.argv):
         '--agent-monitor-frequency', default=600,
         help='How often should the platform check for crashed agents and '
              'attempt to restart. Units=seconds. Default=600')
+    agents.add_argument(
+        '--secure-agent-users', default=False,
+        help='Require that agents run with their own users (this requires '
+             'running scripts/secure_user_permissions.sh as sudo)')
 
     # XXX: re-implement control options
     # on
@@ -1225,14 +1345,16 @@ def main(argv=sys.argv):
         volttron_central_rmq_address=None,
         web_ssl_key=None,
         web_ssl_cert=None,
-        web_ca_cert=None
+        web_ca_cert=None,
+        # If we aren't using ssl then we need a secret key available for us to use.
+        web_secret_key=None
     )
 
     # Parse and expand options
     args = argv[1:]
     conf = os.path.join(volttron_home, 'config')
     if os.path.exists(conf) and 'SKIP_VOLTTRON_CONFIG' not in os.environ:
-        ## command line args get preference over same args in config file
+        # command line args get preference over same args in config file
         args = args + ['--config', conf]
     logging.getLogger().setLevel(logging.NOTSET)
     opts = parser.parse_args(args)

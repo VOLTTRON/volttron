@@ -1,8 +1,8 @@
 .. _Device-Conifiguration-in-VOLTTRON-Central:
 
-=========================================
+========================================
 Device Configuration in VOLTTRON Central
-=========================================
+========================================
 
 Devices in your network can be detected and configured through the VOLTTRON Central UI. The current version of VOLTTRON enables device detection and configuration for BACnet devices. The following sections describe the processes involved with performing scans to detect physical devices and get their points, and configuring them as virtual devices installed on VOLTTRON instances.
 

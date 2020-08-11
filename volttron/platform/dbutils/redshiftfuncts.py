@@ -26,7 +26,7 @@ from psycopg2 import InterfaceError, ProgrammingError, errorcodes
 from psycopg2.sql import Identifier, Literal, SQL
 
 from volttron.platform.agent import utils
-from volttron.platform.agent import json as jsonapi
+from volttron.platform import jsonapi
 
 from .basedb import DbDriver
 
@@ -222,7 +222,7 @@ class RedshiftFuncts(DbDriver):
     def insert_topic(self, topic):
         with self.cursor() as cursor:
             cursor.execute(self.insert_topic_query(), {'topic': topic})
-            return cursor.next()[0]
+            return cursor.fetchone()[0]
 
     def insert_agg_topic(self, topic, agg_type, agg_time_period):
         with self.cursor() as cursor:
@@ -230,7 +230,7 @@ class RedshiftFuncts(DbDriver):
                            {'topic': topic,
                             'type': agg_type,
                             'period': agg_time_period})
-            return cursor.next()[0]
+            return cursor.fetchone()[0]
 
     def insert_meta_query(self):
         return SQL('INSERT INTO {} VALUES (%s, %s)').format(

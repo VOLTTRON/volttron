@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -36,7 +36,7 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-from __future__ import absolute_import
+
 
 import logging
 import weakref
@@ -44,8 +44,7 @@ import weakref
 from .base import SubsystemBase
 from ..dispatch import Signal
 from ..results import ResultsDictionary
-from volttron.platform.vip.socket import Message
-from volttron.platform.agent import json as jsonapi
+from volttron.platform import jsonapi
 from zmq import ZMQError
 from zmq.green import ENOTSOCK
 
@@ -62,15 +61,16 @@ class PeerList(SubsystemBase):
         core.register('peerlist', self._handle_subsystem, self._handle_error)
         self.onadd = Signal()
         self.ondrop = Signal()
+        self.peers_list = set()
 
     def list(self):
         connection = self.core().connection
         result = next(self._results)
 
         try:
-            connection.send_vip(b'',
-                                b'peerlist',
-                                args=[b'list'],
+            connection.send_vip('',
+                                'peerlist',
+                                args=['list'],
                                 msg_id=result.ident)
         except ZMQError as exc:
             if exc.errno == ENOTSOCK:
@@ -83,9 +83,9 @@ class PeerList(SubsystemBase):
         if not message_bus:
             message_bus = self.core().messagebus
         try:
-            connection.send_vip(b'',
-                                b'peerlist',
-                                args=[b'add', bytes(peer), bytes(message_bus)],
+            connection.send_vip('',
+                                'peerlist',
+                                args=['add', peer, message_bus],
                                 msg_id=result.ident)
         except ZMQError as exc:
             if exc.errno == ENOTSOCK:
@@ -98,9 +98,9 @@ class PeerList(SubsystemBase):
         if not message_bus:
             message_bus = self.core().messagebus
         try:
-            connection.send_vip(b'',
-                                b'peerlist',
-                                args=[b'drop', bytes(peer), bytes(message_bus)],
+            connection.send_vip('',
+                                'peerlist',
+                                args=['drop', peer, message_bus],
                                 msg_id=result.ident)
         except ZMQError as exc:
             if exc.errno == ENOTSOCK:
@@ -112,9 +112,9 @@ class PeerList(SubsystemBase):
         result = next(self._results)
 
         try:
-            connection.send_vip(b'',
-                                b'peerlist',
-                                args=[b'list_with_messagebus'],
+            connection.send_vip('',
+                                'peerlist',
+                                args=['list_with_messagebus'],
                                 msg_id=result.ident)
         except ZMQError as exc:
             if exc.errno == ENOTSOCK:
@@ -125,34 +125,45 @@ class PeerList(SubsystemBase):
 
     def _handle_subsystem(self, message):
         try:
-            op = bytes(message.args[0])
+            op = message.args[0]
         except IndexError:
             _log.error('missing peerlist subsystem operation')
             return
-        if op in [b'add', b'drop']:
+
+        if op in ['add', 'drop']:
             try:
-                peer = bytes(message.args[1])
+                peer = message.args[1]
             except IndexError:
                 _log.error('missing peerlist identity in %s operation', op)
                 return
             message_bus = None
             try:
-                message_bus = bytes(message.args[2])
+                message_bus = message.args[2]
             except IndexError:
                 pass
+            # getattr requires a string
+            onop = 'on' + op
             if message_bus:
-                getattr(self, 'on' + op).send(self, peer=peer, message_bus=message_bus)
+                getattr(self, onop).send(self, peer=peer, message_bus=message_bus)
             else:
-                getattr(self, 'on' + op).send(self, peer=peer)
-        elif op == b'listing':
+                getattr(self, onop).send(self, peer=peer)
+            if op == 'add':
+                self.peers_list.add(peer)
+            else:
+                if peer in self.peers_list:
+                    self.peers_list.remove(peer)
+        elif op == 'listing':
             try:
-                result = self._results.pop(bytes(message.id))
+                result = self._results.pop(message.id)
             except KeyError:
                 return
-            result.set([bytes(arg) for arg in message.args[1:]])
-        elif op == b'listing_with_messagebus':
+
+            peers = [arg for arg in message.args[1:]]
+            result.set(peers)
+            self.peers_list = set(peers)
+        elif op == 'listing_with_messagebus':
             try:
-                result = self._results.pop(bytes(message.id))
+                result = self._results.pop(message.id)
             except KeyError:
                 return
             result.set(jsonapi.loads(message.args[1]))
@@ -161,7 +172,7 @@ class PeerList(SubsystemBase):
 
     def _handle_error(self, sender, message, error, **kwargs):
         try:
-            result = self._results.pop(bytes(message.id))
+            result = self._results.pop(message.id)
         except KeyError:
             return
         result.set_exception(error)

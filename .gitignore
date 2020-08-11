@@ -20,7 +20,7 @@ applications
 /configs/
 /config/
 /docs/build/*
-/docs/source/apidocs
+/docs/source/volttron_api
 volttron.log
 __pycache__
 .python-version
@@ -28,3 +28,8 @@ __pycache__
 start-rabbitmq
 stop-rabbitmq
 rabbitmq.log
+*.result.txt
+.coverage
+htmlcov/
+MnesiaCore.*
+rabbitmq-server.download.tar.xz

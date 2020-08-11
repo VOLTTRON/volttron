@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -51,9 +51,10 @@ import gevent
 import requests
 from requests.packages.urllib3.connection import (ConnectionError,
                                                   NewConnectionError)
+import os
 from volttron.platform import certs
-from volttron.platform.agent import json as jsonapi
-from rmq_config_params import RMQConfig
+from volttron.platform import jsonapi
+from . rmq_config_params import RMQConfig
 
 try:
     import yaml
@@ -122,6 +123,7 @@ class RabbitMQMgmt(object):
                        "args {} : {}".format(url, kwargs, e))
             raise e
         return response
+
 
     def _get_authentication_args(self, ssl_auth):
         """
@@ -237,7 +239,6 @@ class RabbitMQMgmt(object):
         if not password:
             password = self.rmq_config.default_pass
         ssl_auth = ssl_auth if ssl_auth is not None else self.is_ssl
-        # print "Creating new USER: {}, ssl {}".format(user, ssl)
 
         body = dict(password=password, tags=tags)
 
@@ -709,7 +710,7 @@ class RabbitMQMgmt(object):
             # Wait for few more seconds and retry again
             gevent.sleep(5)
             response = self.create_vhost(vhost, ssl_auth=False)
-            print "Cannot create vhost {}".format(vhost)
+            print(f"Cannot create vhost {vhost}")
             return response
 
         # Create admin user for the instance
@@ -806,7 +807,8 @@ class RabbitMQMgmt(object):
             return None
         return conn_params
 
-    def build_remote_connection_param(self, rmq_user, rmq_address, ssl_auth=None, retry_attempt=30, retry_delay=2):
+    def build_remote_connection_param(self, rmq_user, rmq_address, ssl_auth=None, cert_dir=None,
+                                      retry_attempt=30, retry_delay=2):
         """
         Build Pika Connection parameters
         :param rmq_user: RabbitMQ user
@@ -814,9 +816,9 @@ class RabbitMQMgmt(object):
         :return:
         """
 
-        from urlparse import urlparse
+        from  urllib import parse
 
-        parsed_addr = urlparse(rmq_address)
+        parsed_addr = parse.urlparse(rmq_address)
         ssl_auth = ssl_auth if ssl_auth is not None else self.is_ssl
 
         _, virtual_host = parsed_addr.path.split('/')
@@ -824,19 +826,26 @@ class RabbitMQMgmt(object):
         try:
             if ssl_auth:
                 certfile = self.certs.cert_file(rmq_user, True)
+                if cert_dir:
+                    # remote cert file for agents will be in agent-data/remote-certs dir
+                    certfile = os.path.join(cert_dir, os.path.basename(certfile))
+
                 metafile = certfile[:-4] + ".json"
                 metadata = jsonapi.loads(open(metafile).read())
                 local_keyfile = metadata['local_keyname']
                 ca_file = self.certs.cert_file(metadata['remote_ca_name'], True)
+                if cert_dir:
+                    ca_file = os.path.join(cert_dir, os.path.basename(ca_file))
+
                 ssl_options = dict(
                     ssl_version=ssl.PROTOCOL_TLSv1,
                     ca_certs=ca_file,
                     keyfile=self.certs.private_key_file(local_keyfile),
-                    certfile=self.certs.cert_file(rmq_user, True),
+                    certfile=certfile,
                     cert_reqs=ssl.CERT_REQUIRED)
                 conn_params = pika.ConnectionParameters(
-                    host= parsed_addr.hostname,
-                    port= parsed_addr.port,
+                    host=parsed_addr.hostname,
+                    port=parsed_addr.port,
                     virtual_host=virtual_host,
                     ssl=True,
                     connection_attempts=retry_attempt,
@@ -936,11 +945,26 @@ class RabbitMQMgmt(object):
         permissions = self.get_default_permissions(rmq_user)
 
         if self.is_ssl:
-            self.rmq_config.crts.create_ca_signed_cert(rmq_user, overwrite=False)
+            # This could fail with permission error when running in secure mode
+            # and agent was installed when volttron was running on ZMQ instance
+            # and then switched to RMQ instance. In that case
+            # vctl certs create-ssl-keypair should be used to create a cert/key pair
+            # and then agents should be started.
+            try:
+                _log.info("Creating ca signed certs for {}".format(rmq_user))
+                self.rmq_config.crts.create_signed_cert_files(rmq_user, overwrite=False)
+            except Exception as e:
+                _log.error("Exception creating certs. {}".format(e))
+                raise RuntimeError(e)
         param = None
 
         try:
-            self.create_user_with_permissions(rmq_user, permissions, ssl_auth=self.is_ssl)
+            root_ca_name, server_cert, admin_user = \
+                certs.Certs.get_admin_cert_names(self.rmq_config.instance_name)
+            if os.access(self.rmq_config.crts.private_key_file(admin_user), os.R_OK):
+                # this must be called from service agents. Create rmq user with permissions
+                # for installed agent this would be done by aip at start of agent
+                self.create_user_with_permissions(rmq_user, permissions, ssl_auth=self.is_ssl)
             param = self.build_connection_param(rmq_user, ssl_auth=self.is_ssl)
         except AttributeError:
             _log.error("Unable to create RabbitMQ user for the agent. Check if RabbitMQ broker is running")
@@ -971,8 +995,8 @@ class RabbitMQMgmt(object):
         self.create_user_with_permissions(rmq_user, permissions)
         ssl_params = None
         if is_ssl:
-            self.rmq_config.crts.create_ca_signed_cert(rmq_user,
-                                                       overwrite=False)
+            self.rmq_config.crts.create_signed_cert_files(rmq_user,
+                                                          overwrite=False)
             ssl_params = self.get_ssl_url_params(user=rmq_user)
         return self.build_rmq_address(rmq_user, self.rmq_config.admin_pwd,
                                       host, port, vhost, is_ssl, ssl_params)
@@ -991,7 +1015,7 @@ class RabbitMQMgmt(object):
         permissions = dict(configure=".*", read=".*", write=".*")
 
         if self.is_ssl:
-            self.rmq_config.crts.create_ca_signed_cert(rmq_user, overwrite=False)
+            self.rmq_config.crts.create_signed_cert_files(rmq_user, overwrite=False)
 
         self.create_user_with_permissions(rmq_user, permissions, ssl_auth=self.is_ssl)
 

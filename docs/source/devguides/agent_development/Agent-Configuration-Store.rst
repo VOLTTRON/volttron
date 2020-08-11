@@ -1,3 +1,5 @@
+.. _Agent-Configuration-Store-Interface:
+
 ===================================
 Agent Configuration Store Interface
 ===================================

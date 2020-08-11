@@ -33,12 +33,12 @@
 # }}}
 
 from datetime import datetime
-import json
 import logging
 import os
 import pytz
 import re
 
+from volttron.platform import jsonapi
 from pydnp3 import opendnp3
 from dnp3 import POINT_TYPES, POINT_TYPE_SELECTOR_BLOCK, POINT_TYPE_ENUMERATED, POINT_TYPE_ARRAY
 from dnp3 import DATA_TYPE_ANALOG_INPUT, DATA_TYPE_ANALOG_OUTPUT, DATA_TYPE_BINARY_INPUT, DATA_TYPE_BINARY_OUTPUT
@@ -77,8 +77,8 @@ class PointDefinitions(object):
                 file_path = os.path.expandvars(os.path.expanduser(point_definitions_path))
                 _log.debug('Loading DNP3 point definitions from {}.'.format(file_path))
                 with open(file_path, 'r') as f:
-                    # Filter comments out of the file's contents before loading it as JSON.
-                    self.load_points(json.loads(self.strip_comments(f.read())))
+                    # Filter comments out of the file's contents before loading it as jsonapi.
+                    self.load_points(jsonapi.loads(self.strip_comments(f.read())))
             except Exception as err:
                 raise ValueError('Problem parsing {}. Error={}'.format(point_definitions_path, err))
         else:

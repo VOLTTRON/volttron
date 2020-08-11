@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -53,7 +53,6 @@ import re
 import pytz
 
 from volttron.platform import get_volttron_root, get_services_core
-from volttron.platform.agent import PublishMixin
 from volttron.platform.agent import utils
 from volttron.platform.jsonrpc import RemoteError
 from volttron.platform.messaging import headers as headers_mod
@@ -156,19 +155,13 @@ def get_table_names(config):
 
 
 @pytest.fixture(scope="module",
-                params=['volttron_2', 'volttron_3'])
+                params=['volttron_3'])
 def publish_agent(request, volttron_instance):
     # 1: Start a fake agent to publish to message bus
     print("**In setup of publish_agent volttron is_running {}".format(
         volttron_instance.is_running))
-    agent = None
-    if sqlite_platform == 'volttron_2':
-        if agent is None or not isinstance(agent, PublishMixin):
-            agent = PublishMixin(
-                volttron_instance.opts['publish_address'])
-    else:
-        if agent is None or isinstance(agent, PublishMixin):
-            agent = volttron_instance.build_agent()
+
+    agent = volttron_instance.build_agent()
 
     # 2: add a tear down method to stop the fake
     # agent that published to message bus

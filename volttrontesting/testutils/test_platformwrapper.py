@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -35,9 +35,11 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
+import faulthandler
+faulthandler.enable()
 
 
-from ConfigParser import ConfigParser
+from configparser import ConfigParser
 import gevent
 import pytest
 import time
@@ -45,10 +47,54 @@ import os
 
 from mock import MagicMock
 
-from volttron.platform import get_services_core, get_examples
-from volttron.platform.agent import json as jsonapi
-
+from volttron.platform import get_services_core, get_examples, jsonapi
 from volttrontesting.utils.platformwrapper import PlatformWrapper
+from volttrontesting.utils.utils import get_rand_tcp_address
+from volttrontesting.utils.platform_process import VolttronProcess, VolttronRuntimeOptions, AgentProcess
+from time import sleep
+
+#
+# def test_volttron_process():
+#     rto = VolttronRuntimeOptions()
+#     p2 = VolttronProcess(runtime_options=rto)
+#     p = VolttronProcess(runtime_options=rto)
+#     p.start()
+#     p2.start()
+#     # a = AgentProcess("/home/osboxes/repos/volttron-develop/examples/ListenerAgent/listener/agent.py",
+#     #                  p.volttron_home, "/home/osboxes/repos/volttron-develop/examples/ListenerAgent/config")
+#     # a.start()
+#
+#     sleep(5)
+#     # a.terminate()
+#     # a.join()
+#     p2.shutdown()
+#     p2.join()
+#     p.shutdown()
+#     p.join()
+
+
+@pytest.mark.parametrize("messagebus, ssl_auth", [
+    ('zmq', False)
+    # , ('zmq', False)
+    # , ('rmq', True)
+])
+def test_can_create(messagebus, ssl_auth):
+
+    p = PlatformWrapper(messagebus=messagebus, ssl_auth=ssl_auth)
+    try:
+        assert not p.is_running()
+        assert p.volttron_home.startswith("/tmp/tmp")
+
+        p.startup_platform(vip_address=get_rand_tcp_address())
+        assert p.is_running()
+    finally:
+        if p:
+            p.shutdown_platform()
+
+    assert not p.is_running()
+
+
+
 
 
 @pytest.mark.wrapper
@@ -72,6 +118,7 @@ def test_can_restart_platform_without_addresses_changing(get_volttron_instances)
     assert inst_forward.is_running()
     inst_forward.stop_platform()
     assert not inst_forward.is_running()
+    gevent.sleep(5)
     inst_forward.restart_platform()
     assert inst_forward.is_running()
     assert original_vip == inst_forward.vip_address
@@ -88,6 +135,7 @@ def test_can_restart_platform(volttron_instance):
 
     assert volttron_instance.is_running()
     volttron_instance.stop_platform()
+
     assert not volttron_instance.is_running()
     volttron_instance.restart_platform()
     assert volttron_instance.is_running()
@@ -274,7 +322,7 @@ def clear_messages():
 
 def messages_contains_prefix(prefix):
     global messages
-    return any(map(lambda x: x.startswith(prefix), messages.keys()))
+    return any([x.startswith(prefix) for x in list(messages.keys())])
 
 
 @pytest.mark.wrapper

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -38,14 +38,14 @@
 
 from volttron.platform.agent.utils import parse_json_config
 from argparse import ArgumentParser
-from volttron.platform.agent import json as jsonapi
+from volttron.platform import jsonapi
 import os
 import shutil
 
 from pprint import pprint
 
 def process_driver_config(config_path, csv_name_map, csv_contents):
-    print "Processing config:", config_path
+    print("Processing config:", config_path)
     with open(config_path) as f:
         device_config = parse_json_config(f.read())
 
@@ -53,7 +53,7 @@ def process_driver_config(config_path, csv_name_map, csv_contents):
 
     #Sort out name collisions and add to map if needed
     if registry_config_file_name not in csv_name_map:
-        print "Processing CSV:", registry_config_file_name
+        print("Processing CSV:", registry_config_file_name)
         base_name = registry_config_file_name.split('/')[-1]
         base_name = "registry_configs/" + base_name
 
@@ -100,7 +100,7 @@ def process_main_config(main_file, output_directory, keep=False):
         new_config_name, device_config = process_driver_config(config_path, csv_name_map, csv_contents)
 
         if new_config_name in driver_configs:
-            print "WARNING DUPLICATE DEVICES:", new_config_name, "FOUND IN", config_path
+            print("WARNING DUPLICATE DEVICES:", new_config_name, "FOUND IN", config_path)
 
         driver_configs[new_config_name] = device_config
 
@@ -109,9 +109,9 @@ def process_main_config(main_file, output_directory, keep=False):
     if staggered_start is not None:
         main_config["driver_scrape_interval"] = staggered_start / float(driver_count)
 
-    print "New Main config:"
+    print("New Main config:")
     pprint(main_config)
-    print
+    print()
 
     if not os.path.exists(output_directory):
         os.makedirs(output_directory)
@@ -134,19 +134,19 @@ def process_main_config(main_file, output_directory, keep=False):
     if not os.path.exists(registries_path):
         os.makedirs(registries_path)
 
-    print "Writing 'config'"
+    print("Writing 'config'")
     with open("config", "w") as f:
         f.write(jsonapi.dumps(main_config, indent=2))
 
-    for name, contents in csv_contents.iteritems():
-        print "Writing", name
+    for name, contents in csv_contents.items():
+        print("Writing", name)
         with open(name, "w") as f:
             f.write(contents)
 
     unique_paths = set()
 
-    for name, config in driver_configs.iteritems():
-        print "Writing", name
+    for name, config in driver_configs.items():
+        print("Writing", name)
         dir_name = os.path.dirname(name)
 
         if dir_name not in unique_paths and not os.path.exists(dir_name):

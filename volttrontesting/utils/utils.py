@@ -1,18 +1,17 @@
-from datetime import datetime
+import os
 import socket
+import subprocess
 import time
+from datetime import datetime
 from random import randint
 from random import random
 
 import gevent
+import mock
 import pytest
 
-from volttron.platform.messaging import headers as headers_mod
 from volttron.platform.agent import utils
-
-
-import os
-import subprocess
+from volttron.platform.messaging import headers as headers_mod
 
 
 def is_running_in_container():
@@ -43,13 +42,14 @@ def get_hostname_and_random_port(min_ip=5000, max_ip=6000):
     except socket.gaierror:
         err = "Lookup of hostname {} unssucessful, please verify your /etc/hosts " \
               "doesn't have a local resolution to hostname".format(hostname)
-        raise StandardError(err)
+        raise AttributeError(err)
     return hostname, port
 
 
 def poll_gevent_sleep(max_seconds, condition=lambda: True, sleep_time=0.2):
     """Sleep until condition is true or max_seconds has passed.
 
+    :param sleep_time:
     :param int max_seconds: max seconds to wait for condition
     :param function condition: function to run (must return bool)
     :return: True if condition returned true; False on timeout
@@ -177,3 +177,30 @@ def validate_published_device_data(expected_headers, expected_message,
         assert k in message[0]
         # pytest.approx gives 10^-6 (one millionth accuracy)
         assert message[0][k] == pytest.approx(v)
+
+
+class AgentMock(object):
+    """
+    The purpose for this parent class is to be used for unit
+    testing of agents. It takes in the class methods of other
+    classes, turns them into it's own mock methods. For testing,
+    dynamically replace the agent's current base class with this
+    class, while passing in the agent's current classes as arguments.
+
+    For example:
+        Agent_to_test.__bases__ = (AgentMock.imitate(Agent, Agent()), )
+
+    As noted in the example, __bases__ takes in a tuple.
+    Also, the parent class Agent is passed as both Agent and the
+    instantiated Agent(), since it contains a class within it
+    that needs to be mocked as well
+    """
+    @classmethod
+    def imitate(cls, *others):
+        for other in others:
+            for name in other.__dict__:
+                try:
+                    setattr(cls, name, mock.create_autospec(other.__dict__[name]))
+                except (TypeError, AttributeError):
+                    pass
+        return cls

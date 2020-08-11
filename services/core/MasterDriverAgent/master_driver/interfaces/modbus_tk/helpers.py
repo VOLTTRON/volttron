@@ -1,55 +1,39 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
-
-# Copyright (c) 2017, SLAC National Laboratory / Kisensum Inc.
-# All rights reserved.
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
+# Copyright 2019, Battelle Memorial Institute.
 #
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in
-#    the documentation and/or other materials provided with the
-#    distribution.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# http://www.apache.org/licenses/LICENSE-2.0
 #
-# The views and conclusions contained in the software and documentation
-# are those of the authors and should not be interpreted as representing
-# official policies, either expressed or implied, of the FreeBSD
-# Project.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 #
-# This material was prepared as an account of work sponsored by an
-# agency of the United States Government.  Neither the United States
-# Government nor the United States Department of Energy, nor SLAC / Kisensum,
-# nor any of their employees, nor any jurisdiction or organization that
-# has cooperated in the development of these materials, makes any
-# warranty, express or implied, or assumes any legal liability or
-# responsibility for the accuracy, completeness, or usefulness or any
-# information, apparatus, product, software, or process disclosed, or
-# represents that its use would not infringe privately owned rights.
-#
-# Reference herein to any specific commercial product, process, or
-# service by trade name, trademark, manufacturer, or otherwise does not
-# necessarily constitute or imply its endorsement, recommendation, or
+# This material was prepared as an account of work sponsored by an agency of
+# the United States Government. Neither the United States Government nor the
+# United States Department of Energy, nor Battelle, nor any of their
+# employees, nor any jurisdiction or organization that has cooperated in the
+# development of these materials, makes any warranty, express or
+# implied, or assumes any legal liability or responsibility for the accuracy,
+# completeness, or usefulness or any information, apparatus, product,
+# software, or process disclosed, or represents that its use would not infringe
+# privately owned rights. Reference herein to any specific commercial product,
+# process, or service by trade name, trademark, manufacturer, or otherwise
+# does not necessarily constitute or imply its endorsement, recommendation, or
 # favoring by the United States Government or any agency thereof, or
-# SLAC / Kisensum. The views and opinions of authors
-# expressed herein do not necessarily state or reflect those of the
+# Battelle Memorial Institute. The views and opinions of authors expressed
+# herein do not necessarily state or reflect those of the
 # United States Government or any agency thereof.
 #
+# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
+# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# under Contract DE-AC05-76RL01830
 # }}}
 
 import modbus_tk.defines as modbus_constants
@@ -151,7 +135,7 @@ def parse_transform_arg(func, arg):
     :return: the correct argument or raise exception if not matched
     """
     parse_arg = arg
-    if func in (scale, scale_int):
+    if func in (scale, scale_int, scale_decimal_int_signed):
         if type(arg) not in (int, long, float):
             try:
                 parse_arg = int(arg, 10)
@@ -185,6 +169,37 @@ def transform_func_helper(multiple_lst):
     except TypeError: #string
         return value
 
+def scale_decimal_int_signed(multiplier):
+    """
+        Scales modbus float value that is stored as a decimal number, not using
+        standard signing rollover, as the PM800 Power Factor Registers.
+        Inverse_func is applied just before writing the value over modbus.
+
+    :param multiplier: Scale multiplier, eg 0.001
+    :return: Returns a function used by the modbus client.
+    """
+    multiplier = parse_transform_arg(scale_decimal_int_signed, multiplier)
+
+    def func(value):
+        if value < 0:
+            return multiplier * (0 - (value + (32768)))
+        else:
+            return multiplier * value
+
+    def inverse_func(value):
+        try:
+            try:
+                if value < 0:
+                    return  (0 - (value / float(multiplier))) - 0xFFFF
+                else:
+                    return (value / float(multipliers))
+            except TypeError: #string
+                return value
+        except ZeroDivisionError:
+            return None
+
+    func.inverse = inverse_func
+    return func
 
 def scale(multiplier):
     """
@@ -302,5 +317,52 @@ def mod10k(reverse=False):
             return high * 10000 + low
         else:
             return low * 10000 + high
+
+    return mod10k_value
+
+
+def mod10k64(reverse=False):
+    """
+    Converts the PM800 64 bit 10K
+
+
+    @todo This works for postive values but not negative.
+    The reason is that each of the 2 16-bit modbus registers come over
+    signed so they need to be split out in the modbus conversion.
+    """
+    reverse = parse_transform_arg(mod10k64, reverse)
+
+    def mod10k_value(value):
+        r4 = (value >> 48) & 0xFFFF
+        r3 = (value >> 32) & 0xFFFF
+        r2 = (value >> 16) & 0xFFFF
+        r1 = value & 0xFFFF
+        if not reverse:
+            return (r1 * 10000**3) + (r2 * 10000**2) + (r3 * 10000) + r4
+        else:
+            return (r4 * 10000**3) + (r3 * 10000**2) + (r2 * 10000) + r1
+
+    return mod10k_value
+
+
+def mod10k48(reverse=False):
+    """
+    Converts the PM800 INT48-M10K register format.
+
+    @todo This works for postive values but not negative.
+    The reason is that each of the 2 16-bit modbus registers come over
+    signed so they need to be split out in the modbus conversion.
+    """
+    reverse = parse_transform_arg(mod10k48, reverse)
+
+    def mod10k_value(value):
+        r4 = (value >> 48) & 0xFFFF
+        r3 = (value >> 32) & 0xFFFF
+        r2 = (value >> 16) & 0xFFFF
+        r1 = value & 0xFFFF
+        if not reverse:
+            return (r2 * 10000**2) + (r3 * 10000) + r4
+        else:
+            return (r1 * 10000**2) + (r2 * 10000) + r3
 
     return mod10k_value

@@ -2,9 +2,8 @@ import tempfile
 
 import pytest
 import gevent
-import json
 
-from volttron.platform import get_examples, get_ops
+from volttron.platform import get_examples, get_ops, jsonapi
 from volttrontesting.utils.agent_additions import add_listener
 
 simple_primary_config = {
@@ -104,7 +103,7 @@ def test_simple_failover(simple_failover):
 
     # Listen for alerts from state changes
     def onmessage(peer, sender, bus, topic, headers, message):
-        alert = json.loads(message)["context"]
+        alert = jsonapi.loads(message)["context"]
 
         try:
             alert_messages[alert] += 1

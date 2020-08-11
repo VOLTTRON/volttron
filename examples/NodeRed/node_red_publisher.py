@@ -2,7 +2,7 @@ from datetime import datetime
 import os
 import sys
 
-import json
+
 import gevent
 import logging
 from gevent.core import callback

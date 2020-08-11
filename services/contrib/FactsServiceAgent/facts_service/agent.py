@@ -208,7 +208,7 @@ class FactsService(BaseHistorian):
                         if building_id in to_report_as_handled else [x]
 
         _log.debug('Sending data to Facts Service')
-        for building_id, data in to_send.iteritems():
+        for building_id, data in to_send.items():
             try:
                 requests.put(
                     '{}/building/{}/facts'

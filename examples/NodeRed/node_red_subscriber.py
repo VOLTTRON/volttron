@@ -2,13 +2,14 @@ from datetime import datetime
 import os
 import sys
 
-import json
+
 import gevent
 
 from volttron.platform.messaging import headers as headers_mod
 from volttron.platform.vip.agent import Agent, PubSub, Core
 from volttron.platform.agent import utils
 from volttron.platform.scheduling import periodic
+from volttron.platform import jsonapi
 
 from settings import topic_prefixes_to_watch, heartbeat_period, agent_kwargs
 
@@ -19,7 +20,7 @@ class NodeRedSubscriber(Agent):
         d = {'topic': topic,
              'headers': headers,
              'message': message}
-        sys.stdout.write(json.dumps(d)+'\n')
+        sys.stdout.write(jsonapi.dumps(d)+'\n')
         sys.stdout.flush()
 
     @Core.receiver('onstart')

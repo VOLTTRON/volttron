@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -78,7 +78,7 @@ def get_configs(config_id, output_directory):
                            config_id).get(timeout=10)
 
     if not config_list:
-        print "Config store", config_id, "does not exist."
+        print("Config store", config_id, "does not exist.")
         return
 
     ensure_dir(output_directory)
@@ -86,7 +86,7 @@ def get_configs(config_id, output_directory):
     os.chdir(output_directory)
 
     for config in config_list:
-        print "Retrieving configuration", config
+        print("Retrieving configuration", config)
         raw_config = agent.vip.rpc.call(CONFIGURATION_STORE,
                            'manage_get',
                            config_id,

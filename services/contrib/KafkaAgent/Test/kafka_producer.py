@@ -1,8 +1,10 @@
 import time
-import json
+
 
 from kafka import KafkaProducer
 from kafka.errors import KafkaError
+
+from volttron.platform import jsonapi
 
 '''
 example
@@ -13,12 +15,12 @@ new_value: 1
 
 # produce json messages
 producer = KafkaProducer(bootstrap_servers=['127.0.0.1:9092'],
-                         value_serializer=lambda m: json.dumps(m).encode('utf-8')
+                         value_serializer=lambda m: jsonapi.dumps(m).encode('utf-8')
                          )
 new_new_value = 0
 while True:
     try:
-        menu = int(raw_input('1: Command by user input, 2: Command by json file - '))
+        menu = int(input('1: Command by user input, 2: Command by json file - '))
 
         if menu == 1:
             pass
@@ -35,7 +37,7 @@ while True:
 
         elif menu == 2:
             with open('message.json') as f:
-                data = json.load(f)
+                data = jsonapi.load(f)
                 kafka_topic = data["kafka_topic"]
                 message_list = data["message_list"]
 

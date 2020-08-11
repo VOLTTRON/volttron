@@ -1,58 +1,50 @@
 import logging
 import os
 import re
-import urlparse
+from urllib.parse import parse_qs
 
-try:
-    import jwt
-except ImportError:
-    logging.getLogger().warning("Missing jinja2 libaray in authenticate_endpoint.py")
-try:
-    from jinja2 import Environment, FileSystemLoader, select_autoescape, TemplateNotFound
-    HAS_JINJA2 = True
-except ImportError:
-    HAS_JINJA2 = False
-    logging.getLogger().warning("Missing jinja2 libaray in admin_endpoints.py")
-
-try:
-    from passlib.hash import argon2
-except ImportError:
-    logging.getLogger(__name__).warning("Missing passlib libaray in admin_endpoints.py")
-
+import jwt
+from jinja2 import Environment, FileSystemLoader, select_autoescape, TemplateNotFound
+from passlib.hash import argon2
 from watchdog_gevent import Observer
 
 from volttron.platform import get_home
 from volttron.platform.agent.web import Response
-from volttron.utils import FileReloader
+from volttron.utils import VolttronHomeFileReloader
 from volttron.utils.persistance import PersistentDict
 
 _log = logging.getLogger(__name__)
+
 
 __PACKAGE_DIR__ = os.path.dirname(os.path.abspath(__file__))
 __TEMPLATE_DIR__ = os.path.join(__PACKAGE_DIR__, "templates")
 __STATIC_DIR__ = os.path.join(__PACKAGE_DIR__, "static")
 
 
-if HAS_JINJA2:
-    # Our admin interface will use Jinja2 templates based upon the above paths
-    # reference api for using Jinja2 http://jinja.pocoo.org/docs/2.10/api/
-    # Using the FileSystemLoader instead of the package loader in this case however.
-    tplenv = Environment(
-        loader=FileSystemLoader(__TEMPLATE_DIR__),
-        autoescape=select_autoescape(['html', 'xml'])
-    )
+# Our admin interface will use Jinja2 templates based upon the above paths
+# reference api for using Jinja2 http://jinja.pocoo.org/docs/2.10/api/
+# Using the FileSystemLoader instead of the package loader in this case however.
+tplenv = Environment(
+    loader=FileSystemLoader(__TEMPLATE_DIR__),
+    autoescape=select_autoescape(['html', 'xml'])
+)
 
 
 class AuthenticateEndpoints(object):
 
-    def __init__(self, ssl_private_key):
+    def __init__(self, tls_private_key=None, web_secret_key=None):
 
-        self._ssl_private_key = ssl_private_key
+        self._tls_private_key = tls_private_key
+        self._web_secret_key = web_secret_key
+        if self._tls_private_key is None and self._web_secret_key is None:
+            raise ValueError("Must have either ssl_private_key or web_secret_key specified!")
+        if self._tls_private_key is not None and self._web_secret_key is not None:
+            raise ValueError("Must use either ssl_private_key or web_secret_key not both!")
         self._userdict = None
         self.reload_userdict()
         self._observer = Observer()
         self._observer.schedule(
-            FileReloader("web-users.json", self.reload_userdict),
+            VolttronHomeFileReloader("web-users.json", self.reload_userdict),
             get_home()
         )
         self._observer.start()
@@ -94,14 +86,14 @@ class AuthenticateEndpoints(object):
         """
         if env.get('REQUEST_METHOD') != 'POST':
             _log.warning("Authentication must use POST request.")
-            return Response('', status='401 Unauthorized')
+            return Response('401 Unauthorized', status='401 Unauthorized', content_type='text/html')
 
         assert len(self._userdict) > 0, "No users in user dictionary, set the master password first!"
 
         if not isinstance(data, dict):
             _log.debug("data is not a dict, decoding")
             decoded = dict((k, v if len(v) > 1 else v[0])
-                           for k, v in urlparse.parse_qs(data).iteritems())
+                           for k, v in parse_qs(data).items())
 
             username = decoded.get('username')
             password = decoded.get('password')
@@ -127,9 +119,11 @@ class AuthenticateEndpoints(object):
             _log.error("No matching user for passed username: {}".format(username))
             return Response('', status='401')
 
-        encoded = jwt.encode(user, self._ssl_private_key, algorithm='RS256').encode('utf-8')
+        algorithm = 'RS256' if self._tls_private_key is not None else 'HS256'
+        encode_key = self._tls_private_key if algorithm == 'RS256' else self._web_secret_key
+        encoded = jwt.encode(user, encode_key, algorithm=algorithm)
 
-        return Response(encoded, '200 OK', content_type='text/plain')
+        return Response(encoded, content_type="text/plain")
 
     def __get_user(self, username, password):
         """

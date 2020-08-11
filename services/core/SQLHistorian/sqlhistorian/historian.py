@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -35,7 +35,7 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-from __future__ import absolute_import, print_function
+
 
 import logging
 import sys
@@ -251,7 +251,7 @@ class SQLHistorian(BaseHistorian):
         _log.debug("query_topic_list Thread is: {}".format(
             threading.currentThread().getName()))
         if len(self.topic_name_map) > 0:
-            return self.topic_name_map.values()
+            return list(self.topic_name_map.values())
         else:
             # No topics present.
             return []
@@ -333,7 +333,7 @@ class SQLHistorian(BaseHistorian):
             # If there are results add metadata if it is a query on a
             # single topic
             if not multi_topic_query:
-                values = values.values()[0]
+                values = list(values.values())[0]
                 if agg_type:
                     # if aggregation is on single topic find the topic id
                     # in the topics table that corresponds to agg_topic_id

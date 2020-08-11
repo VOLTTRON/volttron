@@ -1,14 +1,14 @@
 .. _AgentAuthentication:
 
 How to authenticate an agent to communicate with VOLTTRON platform:
-======================================================================
+===================================================================
 
 An administrator can allow an agent to communicate with VOLTTRON platform by creating an authentication record for that agent.
-An authentication record is created by using :code:`volttron-ctl auth add` command and entering values to asked arguments.
+An authentication record is created by using :code:`vctl auth add` command and entering values to asked arguments.
 
 .. code-block:: console
 
-    volttron-ctl auth add
+    vctl auth add
 
         domain []:
         address []:
@@ -25,7 +25,7 @@ The listed fields can also be specified on the command line:
 
 .. code-block:: console
 
-    volttron-ctl auth add --user_id bob --credentials ABCD...
+    vctl auth add --user_id bob --credentials ABCD...
 
 If any field is specified on the command line, then the interactive menu
 will not be used.
@@ -36,7 +36,7 @@ for the agent. Create a public/private key pair for the agent and enter encoded 
 
 .. code-block:: console
 
-    volttron-ctl auth add
+    vctl auth add
 
         domain []:
         address []:
@@ -80,9 +80,9 @@ to that RPC method to only those agents who have that capailbity listed in their
 
 
 If administrator wants to authorize an agent to access an exported RPC method with capability of another agent,
-he/she can list that capability string in this parameter. Capability parameter takes an string or an array of strings
-listing all the capabilities this agent is authorized to access. Listing capabilities here will allow this agent to
-access corresponding exported RPC methods of other agents.
+the administrator can list that capability string in this parameter. Capability parameter takes an string or an array of strings or
+a string representation of dictionary listing all the capabilities this agent is authorized to access.
+Listing capabilities here will allow this agent to access corresponding exported RPC methods of other agents.
 
 For example, if there is an AgentA with capability enables exported RPC method and AgentB needs to access that method then
 AgentA's code and AgentB's authentication record would be as follow:
@@ -123,6 +123,89 @@ Similarly, capability parameter can take an array of string:
     capabilities (delimit multiple entries with comma) []: can_call_bar
     capabilities (delimit multiple entries with comma) []: can_call_method1, can_call_method2
 
+Capabilities can also be used to restrict access to a rpc method only with certain parameter values. For example, if AgentA
+exposes a method bar which accepts parameter x
+
+
+AgentA's capability enabled exported RPC method:
+
+::
+
+   @RPC.export
+   @RPC.allow('can_call_bar')
+   def bar(self, x):
+      return 'If you can see this, then you have the required capabilities'
+
+You can restrict access to AgentA's bar method to AgentB with x=1. To add this auth entry use the vctl auth add command
+as show below
+
+::
+
+   vctl auth add --capabilities '{"test1_cap2":{"x":1}}' --user_id AgentB --credential vELQORgWOUcXo69DsSmHiCCLesJPa4-CtVfvoNHwIR0
+
+auth.json file entry for the above command would be
+
+::
+
+    {
+      "domain": null,
+      "user_id": "AgentB",
+      "roles": [],
+      "enabled": true,
+      "mechanism": "CURVE",
+      "capabilities": {
+        "test1_cap2": {
+          "x": 1
+        }
+      },
+      "groups": [],
+      "address": null,
+      "credentials": "vELQORgWOUcXo69DsSmHiCCLesJPa4-CtVfvoNHwIR0",
+      "comments": null
+    }
+
+
+
+Parameter values can also be regular expressions
+
+::
+
+    (volttron)volttron@volttron1:~/git/myvolttron$ vctl auth add
+    domain []:
+    address []:
+    user_id []:
+    capabilities (delimit multiple entries with comma) []: {'test1_cap2':{'x':'/.*'}}
+    roles (delimit multiple entries with comma) []:
+    groups (delimit multiple entries with comma) []:
+    mechanism [CURVE]:
+    credentials []: vELQORgWOUcXo69DsSmHiCCLesJPa4-CtVfvoNHwIR0
+    comments []:
+    enabled [True]:
+    added entry domain=None, address=None, mechanism='CURVE', credentials=u'vELQORgWOUcXo69DsSmHiCCLesJPa4-CtVfvoNHwIR0', user_id='b22e041d-ec21-4f78-b32e-ab7138c22373'
+
+
+auth.json file entry for the above command would be:
+
+::
+
+    {
+      "domain": null,
+      "user_id": "90f8ef35-4407-49d8-8863-4220e95974c7",
+      "roles": [],
+      "enabled": true,
+      "mechanism": "CURVE",
+      "capabilities": {
+        "test1_cap2": {
+          "x": "/.*"
+        }
+      },
+      "groups": [],
+      "address": null,
+      "credentials": "vELQORgWOUcXo69DsSmHiCCLesJPa4-CtVfvoNHwIR0",
+      "comments": null
+    }
+
+
 
 Roles:
 -------
@@ -133,10 +216,10 @@ are purely for organizing sets of capabilities.
 
 Roles can be viewed and edited with the following commands:
 
-- ``volttron-ctl auth add-role``
-- ``volttron-ctl auth list-roles``
-- ``volttron-ctl auth remove-role``
-- ``volttron-ctl auth updated-role``
+- ``vctl auth add-role``
+- ``vctl auth list-roles``
+- ``vctl auth remove-role``
+- ``vctl auth updated-role``
 
 For example, suppose agents protect certain methods with the following capabilites:
 ``READ_BUILDING_A_TEMP``, ``SET_BUILDING_A_TEMP``, ``READ_BUILDLING_B_TEMP``,
@@ -146,11 +229,11 @@ These capabilities can be organized into various roles:
 
 .. code-block:: console
 
-    volttron-ctl auth add-role TEMP_READER READ_BUILDING_A_TEMP READ_BUILDLING_B_TEMP
-    volttron-ctl auth add-role BUILDING_A_ADMIN READ_BUILDING_A_TEMP SET_BUILDING_A_TEMP
-    volttron-ctl auth add-role BUILDING_B_ADMIN READ_BUILDING_B_TEMP SET_BUILDING_B_TEMP
+    vctl auth add-role TEMP_READER READ_BUILDING_A_TEMP READ_BUILDLING_B_TEMP
+    vctl auth add-role BUILDING_A_ADMIN READ_BUILDING_A_TEMP SET_BUILDING_A_TEMP
+    vctl auth add-role BUILDING_B_ADMIN READ_BUILDING_B_TEMP SET_BUILDING_B_TEMP
 
-To view these roles run ``volttron-ctl auth list-roles``:
+To view these roles run ``vctl auth list-roles``:
 
 .. code-block:: console
 
@@ -168,13 +251,13 @@ To add a new capabilities to an existing role:
 
 .. code-block:: console
 
-   volttron-ctl auth update-role BUILDING_A_ADMIN CLEAR_ALARM TRIGGER_ALARM
+   vctl auth update-role BUILDING_A_ADMIN CLEAR_ALARM TRIGGER_ALARM
 
 To remove a capability from a role:
 
 .. code-block:: console
 
-   volttron-ctl auth update-role BUILDING_A_ADMIN TRIGGER_ALARM --remove
+   vctl auth update-role BUILDING_A_ADMIN TRIGGER_ALARM --remove
 
 Groups:
 -------
@@ -183,10 +266,10 @@ Like roles, groups are optional and are meant to help with organization.
 
 Groups can be viewed and edited with the following commands:
 
-- ``volttron-ctl auth add-group``
-- ``volttron-ctl auth list-groups``
-- ``volttron-ctl auth remove-group``
-- ``volttron-ctl auth updated-group``
+- ``vctl auth add-group``
+- ``vctl auth list-groups``
+- ``vctl auth remove-group``
+- ``vctl auth updated-group``
 
 These commands behave the same as the *role* commands. For example, to
 further organize the capabilities in the previous section, one could create
@@ -194,7 +277,7 @@ create an ``ALL_BUILDING_ADMIN`` group:
 
 .. code-block:: console
 
-    volttron-ctl auth add-group ALL_BUILDING_ADMIN BUILDING_A_ADMIN BUILDING_B_ADMIN
+    vctl auth add-group ALL_BUILDING_ADMIN BUILDING_A_ADMIN BUILDING_B_ADMIN
 
 With this configuration, agents in the ``ALL_BUILDING_ADMIN`` group would
 implicity have the ``BUILDING_A_ADMIN`` and ``BUILDING_B_ADMIN`` roles. This means

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -38,13 +38,13 @@
 
 from __future__ import print_function, absolute_import
 
-import json
 import logging
 
 from zmq import green as zmq
 from zmq.green import ZMQError, ENOTSOCK
 
-from volttron.platform.agent import json as jsonapi
+from volttron.platform import jsonapi
+from volttron.utils.frame_serialization import deserialize_frames, serialize_frames
 from .agent import Agent, Core
 from volttron.platform import is_rabbitmq_available
 
@@ -167,7 +167,7 @@ class ZMQProxyRouter(Agent):
         Message received from internal agent to send to remote agent in ZMQ VIP message format.
         :param ch: channel
         :param method: contains routing key
-        :param properties: message properties like VIP header information
+        :param props: message properties like VIP header information
         :param body: message
         :return:
         """
@@ -175,23 +175,23 @@ class ZMQProxyRouter(Agent):
         routing_key = str(method.routing_key)
         platform, to_identity = routing_key.split(".", 1)
         platform, from_identity = props.app_id.split(".", 1)
-        userid = props.headers.get('user', b'')
+        userid = props.headers.get('user', '')
         # Reformat message into ZMQ VIP format
-        frames = [bytes(to_identity), bytes(from_identity), b'VIP1', bytes(userid),
-                  bytes(props.message_id), bytes(props.type)]
+        frames = [to_identity, from_identity, 'VIP1', userid,
+                  props.message_id, props.type]
         try:
-            args = json.loads(body)
+            args = jsonapi.loads(body)
             try:
                 # This is necessary because jsonrpc request/response is inside a list which the
                 # ZMQ agent subsystem does not like
-                args = json.loads(args[0])
-                frames.append(json.dumps(args))
+                args = jsonapi.loads(args[0])
+                frames.append(jsonapi.dumps(args))
             except ValueError as e:
                 if isinstance(args, list):
                     for m in args:
-                        frames.append(bytes(m))
+                        frames.append(m)
                 else:
-                    frames.append(json.dumps(args))
+                    frames.append(jsonapi.dumps(args))
         except TypeError as e:
             _log.error("Invalid json format {}".format(e))
             return
@@ -213,12 +213,10 @@ class ZMQProxyRouter(Agent):
         :return:
         """
         zmq_frames = []
-        frames = jsonapi.loads(body)
+        frames = serialize_frames(jsonapi.loads(body))
 
-        for frame in frames:
-            zmq_frames.append(bytes(frame))
         try:
-            self.zmq_router.socket.send_multipart(zmq_frames, copy=False)
+            self.zmq_router.socket.send_multipart(frames, copy=False)
         except ZMQError as ex:
             _log.error("ZMQ Error {}".format(ex))
 
@@ -233,7 +231,7 @@ class ZMQProxyRouter(Agent):
         :return:
         """
         _log.debug("Proxy ZMQ Router {}".format(body))
-        frames = jsonapi.loads(body)
+        frames = jsonapi.loads(body.decode('utf-8'))
         if len(frames) > 6:
             if frames[5] == 'pubsub':
                 # Forward the message to pubsub component of the router to take action
@@ -251,8 +249,8 @@ class ZMQProxyRouter(Agent):
         """
         json_msg = jsonapi.dumps(dict(bus=bus, headers=headers, message=message))
         # Reformat the message into ZMQ VIP message frames
-        frames = [sender, b'', b'VIP', '', '', 'pubsub',
-                  zmq.Frame(b'publish'), zmq.Frame(str(topic)), zmq.Frame(str(json_msg))]
+        frames = [sender, '', 'VIP', '', '', 'pubsub',
+                  zmq.Frame('publish'), zmq.Frame(str(topic)), zmq.Frame(str(json_msg))]
 
         self.zmq_router.pubsub.handle_subsystem(frames, '')
 
@@ -271,15 +269,16 @@ class ZMQProxyRouter(Agent):
         while True:
             try:
                 frames = self.zmq_router.socket.recv_multipart(copy=False)
+                frames = deserialize_frames(frames)
                 sender, recipient, proto, auth_token, msg_id, subsystem = frames[:6]
-                sender = bytes(sender)
-                recipient = bytes(recipient)
-                subsystem = bytes(subsystem)
+                sender = sender
+                recipient = recipient
+                subsystem = subsystem
 
-                if subsystem == b'hello':
+                if subsystem == 'hello':
                     self.vip.peerlist.add_peer(sender, 'zmq')
                     self._zmq_peers.add(sender)
-                elif subsystem == b'agentstop':
+                elif subsystem == 'agentstop':
                     self.vip.peerlist.drop_peer(sender, 'zmq')
                     self._zmq_peers.remove(sender)
                 if not recipient or recipient in self._zmq_peers:
@@ -301,13 +300,13 @@ class ZMQProxyRouter(Agent):
         :return:
         """
         sender, recipient, proto, auth_token, msg_id, subsystem = frames[:6]
-        args = [bytes(arg) for arg in frames[6:]]
+        args = [arg for arg in frames[6:]]
         # for f in frames:
-        #     _log.debug("Frames:; {}".format(bytes(f)))
+        #     _log.debug("Frames:; {}".format(f))
         connection = self.core.connection
 
         app_id = "{instance}.{identity}".format(instance=self.core.instance_name,
-                                                identity=bytes(sender))
+                                                identity=sender)
         # Change queue binding for the Response message
         # After sending the message (request) on behalf of ZMQ client, the response has to
         # routed back to the caller. Queue binding is modified for that purpose.
@@ -319,20 +318,20 @@ class ZMQProxyRouter(Agent):
                                       callback=None)
 
         # Set the destination routing key to destination agent
-        destination_routing_key = "{0}.{1}".format(self.core.instance_name, bytes(recipient))
+        destination_routing_key = "{0}.{1}".format(self.core.instance_name, recipient)
 
         # Fit VIP frames into the PIKA properties dictionary
         # VIP format - [SENDER, RECIPIENT, PROTO, USER_ID, MSG_ID, SUBSYS, ARGS...]
         dct = {
             'user_id': self.core.instance_name + '.' + self.core.identity,
             'app_id': app_id,  # Routing key of SOURCE AGENT
-            'headers': dict(sender=bytes(sender),  # SENDER
+            'headers': dict(sender=sender,  # SENDER
                             recipient=destination_routing_key,  # RECEIVER
-                            proto=b'VIP',  # PROTO
-                            user=bytes(auth_token),  # USER_ID
+                            proto='VIP',  # PROTO
+                            user=auth_token,  # USER_ID
                             ),
-            'message_id': bytes(msg_id),  # MSG_ID
-            'type': bytes(subsystem),  # SUBSYS
+            'message_id': msg_id,  # MSG_ID
+            'type': subsystem,  # SUBSYS
             'content_type': 'application/json'
         }
         properties = pika.BasicProperties(**dct)

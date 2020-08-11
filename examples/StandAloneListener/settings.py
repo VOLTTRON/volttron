@@ -24,13 +24,13 @@ _params = {
 	# command 'vctl auth add' Provide this agent's public key when prompted
 	# for credential.
 
-	'agent_public': 'dpu13XKPvGB3XJNVUusCNn2U0kIWcuyDIP5J8mAgBQ0',
-	'agent_secret': 'Hlya-6BvfUot5USdeDHZ8eksDkWgEEHABs1SELmQhMs',
+	'agent_public': 'rn_V3vxTLMwaIRUEIAIHee4-qM8X70irDThcn_TX6FA',
+	'agent_secret': 'DY4FhighTlv9UjKlCNIh-1WKp-M5nIHJacWsPZ0ixEs',
 	
 	# Public server key from the remote platform.  This can be
 	# obtained using the command:
 	# volttron-ctl auth serverkey
-	'server_key': 'IyeU43nMmB2SfKTtSArCMfR6YWTMKLPjD1G6j93DVHA'
+	'server_key': 'R2aY0t4gAMnpl0dL44bmrTdMmgXN16hvconvIiHFows'
 }
 
 def remote_url():

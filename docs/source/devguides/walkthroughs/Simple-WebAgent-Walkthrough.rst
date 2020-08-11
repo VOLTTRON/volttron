@@ -18,7 +18,7 @@ to the a web server.  We need to specify the address and the port for the
 web server. For example, if we want to bind the localhost:8080 as the web server
 we start the VOLTTRON platform as follows:
 
-``volttron -vv -l volttron.log --bind-web-address http://127.0.0.1:8080 &``
+``./start-volttron --bind-web-address http://127.0.0.1:8080``
 
 Once the platform is started, we are ready to run the Simple Web Agent.
 
@@ -48,10 +48,10 @@ Path based registration examples
 --------------------------------
 
 - Files will need to be in webroot/simpleweb in order for them to be browsed
-from http://localhost:8080/simpleweb/index.html
+  from http://localhost:8080/simpleweb/index.html
 
 - Filename is required as we don't currently autoredirect to any default pages
-as shown in ``self.vip.web.register_path("/simpleweb", os.path.join(WEBROOT))``
+  as shown in ``self.vip.web.register_path("/simpleweb", os.path.join(WEBROOT))``
 
 The following two examples show the way to call either a jsonrpc (default)
 endpoint and one that returns a different content-type. With the JSON-RPC

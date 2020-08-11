@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2018, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -139,7 +139,7 @@ class Interface(BasicRevert, BaseInterface):
             try:
                 result.raise_for_status()
                 results[register.point_name] = register.parse_result(result.text)
-            except StandardError as e:
+            except Exception as e:
                 _log.error("Error reading point: {}".format(repr(e)))
 
         return results

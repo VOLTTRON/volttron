@@ -1,4 +1,4 @@
-.. _DNP3:
+.. _DNP3-Agent:
 
 DNP3
 ====
@@ -14,11 +14,11 @@ VOLTTRON's DNP3Agent is an implementation of a DNP3 Outstation as specified in
 IEEE Std 1815-2012. It engages in bidirectional network communications with a DNP3 Master,
 which might be located at a power utility.
 
-Like some other VOLTTRON protocol agents (e.g. SEP2Agent), DNP3Agent can optionally be
+Like some other VOLTTRON protocol agents (e.g. IEEE2030_5Agent), DNP3Agent can optionally be
 front-ended by a DNP3 device driver running under VOLTTRON's MasterDriverAgent. This
 allows a DNP3 Master to be treated like any other device in VOLTTRON's ecosystem.
 
-The VOLTTRON DNP3Agent implementation of an Outstation is built on pydnp3,
+The VOLTTRON DNP3Agent implementation of an Outstation is built on PyDNP3,
 an open-source library from Kisensum containing Python language
 bindings for Automatak's C++ `opendnp3 <https://www.automatak.com/opendnp3/>`_
 library, the de facto reference implementation of DNP3.
@@ -28,6 +28,15 @@ base from which specific custom behavior can be designed and supported. By defau
 acts as a simple transfer agent, publishing data received from the Master on
 the VOLTTRON Message Bus, and responding to RPCs from other VOLTTRON agents
 by sending data to the Master.
+
+Requirements
+------------
+
+PyDNP3 can be installed in an activated environment with:
+
+::
+
+    pip install pydnp3
 
 RPC Calls
 ~~~~~~~~~

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -37,25 +37,17 @@
 # }}}
 import os
 import random
-import tempfile
-from datetime import datetime, timedelta
-
+from datetime import datetime
 import gevent
 import pytest
 from pytest import approx
 
 from volttron.platform import get_services_core
-from volttron.platform.agent import PublishMixin, utils
+from volttron.platform.agent import utils
 from volttron.platform.messaging import headers as headers_mod
 from volttron.platform.messaging import topics
 from volttron.platform.vip.agent import Agent
-from volttron.platform.auth import AuthEntry, AuthFile
-from volttron.platform.keystore import KeyStore, KnownHostsStore
-from gevent.subprocess import Popen
-import gevent.subprocess as subprocess
-from mock import MagicMock
-
-# import types
+from volttron.platform.keystore import KnownHostsStore
 
 datamover_uuid = None
 datamover_config = {
@@ -76,11 +68,10 @@ sqlite_config = {
 volttron_instance1 = None
 volttron_instance2 = None
 
+
 @pytest.fixture(scope="module")
 def volttron_instances(request, get_volttron_instances):
     global volttron_instance1, volttron_instance2
-    # print "Fixture volttron_instance"
-    # if volttron_instance1 is None:
     volttron_instance1, volttron_instance2 = get_volttron_instances(2)
 
 
@@ -88,7 +79,6 @@ def volttron_instances(request, get_volttron_instances):
 @pytest.fixture(scope="module")
 def publish_agent(request, volttron_instances, forwarder):
     global volttron_instance1, volttron_instance2
-    #print "Fixture publish_agent"
     # 1: Start a fake agent to publish to message bus
     agent = volttron_instance1.build_agent(identity='test-agent')
 
@@ -105,12 +95,10 @@ def publish_agent(request, volttron_instances, forwarder):
 
 @pytest.fixture(scope="module")
 def query_agent(request, volttron_instances, sqlhistorian):
-    # print "Fixture query_agent"
     # 1: Start a fake agent to query the sqlhistorian in volttron_instance2
     agent = volttron_instance2.build_agent()
 
-    # 2: add a tear down method to stop sqlhistorian agent and the fake
-    # agent that published to message bus
+    # 2: add a tear down method to stop sqlhistorian agent and the fake agent that published to message bus
     def stop_agent():
         print("In teardown method of module")
         agent.core.stop()
@@ -121,7 +109,6 @@ def query_agent(request, volttron_instances, sqlhistorian):
 
 @pytest.fixture(scope="module")
 def sqlhistorian(request, volttron_instances):
-    # print "Fixture sqlhistorian"
     global volttron_instance1, volttron_instance2
     global sqlite_config
     # 1: Install historian agent
@@ -134,10 +121,8 @@ def sqlhistorian(request, volttron_instances):
     print("sqlite historian agent id: ", agent_uuid)
 
 
-
 @pytest.fixture(scope="module")
 def forwarder(request, volttron_instances):
-    #print "Fixture forwarder"
     global volttron_instance1, volttron_instance2
 
     global datamover_uuid, datamover_config
@@ -172,6 +157,7 @@ def publish(publish_agent, topic, header, message):
                                          message=message).get(timeout=10)
     else:
         publish_agent.publish_json(topic, header, message)
+
 
 @pytest.mark.historian
 @pytest.mark.forwarder
@@ -326,6 +312,7 @@ def test_record_topic_no_header(publish_agent, query_agent):
     assert (result['values'][1][1] == 'value0')
     assert (result['values'][2][1] == {'key': 'value'})
 
+
 @pytest.mark.historian
 @pytest.mark.forwarder
 def test_analysis_topic(publish_agent, query_agent):
@@ -374,8 +361,7 @@ def test_analysis_topic(publish_agent, query_agent):
         headers_mod.TIMESTAMP: now
     }
     # Publish messages
-    publish(publish_agent, 'analysis/PNNL/BUILDING_1/Device',
-            headers, all_message)
+    publish(publish_agent, 'analysis/PNNL/BUILDING_1/Device', headers, all_message)
     gevent.sleep(0.5)
 
     # pytest.set_trace()
@@ -440,8 +426,7 @@ def test_analysis_topic_no_header(publish_agent, query_agent):
     print("now is ", now)
 
     # Publish messages
-    publish(publish_agent, 'analysis/PNNL/BUILDING_1/Device',
-            None, all_message)
+    publish(publish_agent, 'analysis/PNNL/BUILDING_1/Device', None, all_message)
     gevent.sleep(0.5)
 
     # pytest.set_trace()
@@ -484,7 +469,6 @@ def test_log_topic(publish_agent, query_agent):
     fixtures are called to setup and start volttron_instance2 and sqlhistorian
     agent and returns the instance of a fake agent to query the historian
     """
-
     print("\n** test_log_topic **")
     # Publish fake data. The format mimics the format used by VOLTTRON drivers.
     # Make some random readings
@@ -496,7 +480,6 @@ def test_log_topic(publish_agent, query_agent):
                                        'Units': 'F',
                                        'tz': 'UTC',
                                        'type': 'float'}}
-    # pytest.set_trace()
     # Create timestamp
     current_time = utils.format_timestamp(datetime.utcnow())
     print("current_time is ", current_time)
@@ -545,7 +528,6 @@ def test_log_topic_no_header(publish_agent, query_agent):
     fixtures are called to setup and start volttron_instance2 and sqlhistorian
     agent and returns the instance of a fake agent to query the historian
     """
-
     print("\n** test_log_topic **")
     # Publish fake data. The format mimics the format used by VOLTTRON drivers.
     # Make some random readings
@@ -582,7 +564,6 @@ def test_old_config(volttron_instances, forwarder):
     supported with "deprecated warning" and "agentid" should get ignored with a
     warning message
     """
-
     print("\n** test_old_config **")
 
     global datamover_config
@@ -594,7 +575,8 @@ def test_old_config(volttron_instances, forwarder):
     # Install and start sqlhistorian agent in instance2
     uuid = volttron_instance1.install_agent(
         agent_dir=get_services_core("DataMover"),
-        config_file=datamover_config, start=True)
+        config_file=datamover_config,
+        start=True)
 
     print("data_mover agent id: ", uuid)
 

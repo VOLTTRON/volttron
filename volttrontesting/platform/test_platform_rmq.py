@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -89,7 +89,7 @@ def test_vstart_without_rmq_init(request, instance):
             instance.startup_platform(vip_address=get_rand_vip())
             pytest.fail("Instance should not start without certs, but it does!")
         except Exception as e:
-            assert e.message.startswith("Platform startup failed. Please check volttron.log")
+            assert str(e).startswith("Platform startup failed. Please check volttron.log")
         assert not (instance.is_running())
     except Exception as e:
         pytest.fail("Test failed with exception: {}".format(e))
@@ -121,10 +121,10 @@ def test_vstart_expired_ca_cert(request, instance):
         copy(crts.cert_file(crts.root_ca_name),
              crts.cert_file(crts.trusted_ca_name))
 
-        crts.create_ca_signed_cert(server_cert_name, type='server',
-                                   fqdn=fqdn)
+        crts.create_signed_cert_files(server_cert_name, cert_type='server',
+                                      fqdn=fqdn)
 
-        crts.create_ca_signed_cert(admin_cert_name, type='client')
+        crts.create_signed_cert_files(admin_cert_name, cert_type='client')
         gevent.sleep(9)
         print("Attempting to start volttron after cert expiry")
         try:
@@ -132,7 +132,7 @@ def test_vstart_expired_ca_cert(request, instance):
             instance.startup_platform(vip_address=get_rand_vip(), timeout=10)
             pytest.fail("platform should not start")
         except Exception as e:
-            assert e.message.startswith("Platform startup failed. Please check volttron.log")
+            assert str(e).startswith("Platform startup failed. Please check volttron.log")
         assert not (instance.is_running())
         # Rabbitmq log would show Fatal certificate expired
     except Exception as e:
@@ -154,13 +154,13 @@ def test_vstart_expired_server_cert(request, instance):
         (root_ca, server_cert_name, admin_cert_name) = \
             Certs.get_admin_cert_names(instance.instance_name)
 
-        crts.create_ca_signed_cert(server_cert_name, type='server',
-                                   fqdn=fqdn, valid_days=0.0001)
+        crts.create_signed_cert_files(server_cert_name, cert_type='server',
+                                      fqdn=fqdn, valid_days=0.0001)
         gevent.sleep(9)
         try:
             instance.startup_platform(vip_address=get_rand_vip(), timeout=10)
         except Exception as e:
-            assert e.message.startswith("Platform startup failed. Please check volttron.log")
+            assert str(e).startswith("Platform startup failed. Please check volttron.log")
         assert not (instance.is_running())
         # Rabbitmq log would show
         # "TLS server: In state certify received CLIENT ALERT: Fatal -
@@ -183,8 +183,8 @@ def test_vstart_expired_admin_cert(request, instance):
         # overwrite certificates with quick expiry certs
         (root_ca, server_cert_name, admin_cert_name) = Certs.get_admin_cert_names(instance.instance_name)
 
-        crts.create_ca_signed_cert(admin_cert_name, type='client',
-                                   fqdn=fqdn, valid_days=0.0001)
+        crts.create_signed_cert_files(admin_cert_name, cert_type='client',
+                                      fqdn=fqdn, valid_days=0.0001)
         gevent.sleep(20)
         instance.startup_platform(vip_address=get_rand_vip())
         gevent.sleep(5)
@@ -222,18 +222,21 @@ def test_expired_ca_cert_after_vstart(request, instance):
         print("current time after root ca:{}".format(datetime.datetime.utcnow()))
         copy(crts.cert_file(crts.root_ca_name),
              crts.cert_file(crts.trusted_ca_name))
-        crts.create_ca_signed_cert(server_cert_name, type='server', fqdn=fqdn)
-        crts.create_ca_signed_cert(admin_cert_name, type='client')
+        crts.create_signed_cert_files(server_cert_name, cert_type='server', fqdn=fqdn)
+        crts.create_signed_cert_files(admin_cert_name, cert_type='client')
 
         instance.startup_platform(vip_address=get_rand_vip())
         print("current time after platform start:{}".format(datetime.datetime.utcnow()))
         gevent.sleep(30)  # wait for CA to expire
 
         # Can't install new agent
-        with pytest.raises(RuntimeError, message="Agents install should fail when CA certificate has expired"):
+        with pytest.raises(RuntimeError) as exec_info:
             agent = instance.install_agent(
                 agent_dir=get_examples("ListenerAgent"),
                 vip_identity="listener2", start=True)
+        assert exec_info.type is RuntimeError
+
+
 
     except Exception as e:
         pytest.fail("Test failed with exception: {}".format(e))
@@ -258,8 +261,8 @@ def test_expired_server_cert_after_vstart(request, instance):
         (root_ca, server_cert_name, admin_cert_name) = \
             Certs.get_admin_cert_names(instance.instance_name)
 
-        crts.create_ca_signed_cert(server_cert_name, type='server',
-                                   fqdn=fqdn, valid_days=0.0004)  # 34.5 seconds
+        crts.create_signed_cert_files(server_cert_name, cert_type='server',
+                                      fqdn=fqdn, valid_days=0.0004)  # 34.5 seconds
         print("current time:{}".format(datetime.datetime.utcnow()))
 
         instance.startup_platform(vip_address=get_rand_vip())
@@ -271,14 +274,16 @@ def test_expired_server_cert_after_vstart(request, instance):
             vip_identity="listener1", start=True)
         gevent.sleep(20)
         print("Attempting agent install after server certificate expiry")
-        with pytest.raises(RuntimeError, message="Agents install should fail after server certificate expires"):
+        with pytest.raises(RuntimeError) as exec_info:
             agent = instance.install_agent(
                 agent_dir=get_examples("ListenerAgent"),
                 vip_identity="listener2", start=True)
             pytest.fail("Agent install should fail")
+        assert exec_info.type is RuntimeError
+
 
         # Restore server cert and restart rmq ssl, wait for 30 seconds for volttron to reconnect
-        crts.create_ca_signed_cert(server_cert_name, type='server', fqdn=fqdn)
+        crts.create_signed_cert_files(server_cert_name, cert_type='server', fqdn=fqdn)
         restart_ssl(rmq_home=instance.rabbitmq_config_obj.rmq_home, env=instance.env)
 
         gevent.sleep(15)  # test setup sets the volttron reconnect wait to 5 seconds

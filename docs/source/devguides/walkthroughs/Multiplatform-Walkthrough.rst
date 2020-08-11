@@ -55,7 +55,7 @@ variable needs to be different for each instance.
     $ source env/bin/activate
     $ export VOLTTRON_HOME=~/.volttron1
 
-Run `volttron-cfg` in all the three shells. This command will ask how the instance
+Run `vcfg` in all the three shells. This command will ask how the instance
 should be set up. Many of the options have defaults and that will be sufficient. Enter a different VIP address for each
 platform. Configure fake master driver in the first shell and listener agent in second and third shell.
 
@@ -101,16 +101,14 @@ VOLTTRON to log to a file. The file name should be different for each instance.
 
 .. code-block:: console
 
-    $ volttron -v -l l1.log --setup-mode&
-
-.. note:: Don't for get the '&' on the end to put the process in the background.
+    $ ./start-volttron --setup-mode
 
 A new auth entry is added for each new platform connection. This can be checked with below command in each terminal
 window.
 
 .. code-block:: console
 
-    $ volttron-ctl auth list
+    $ vctl auth list
 
 |Auth Entry|
 
@@ -118,8 +116,8 @@ After all the connections are authenticated, we can start the instances in norma
 
 .. code-block:: console
 
-    $ volttron-ctl shutdown --platform
-    $ volttron -v -l l1.log&
+    $ ./stop-volttron
+    $ ./start-volttron
 
 
 Setup Configuration and Authentication Manually
@@ -151,7 +149,7 @@ We can obtain the serverkey of each platform using below command in each termina
 
 .. code-block:: console
 
-    $ volttron-ctl auth serverkey
+    $ vctl auth serverkey
 
 Contents of ``external_platform_discovery.json`` of VOLTTRON instance 1, 2, 3 is shown below.
 
@@ -159,8 +157,8 @@ Contents of ``external_platform_discovery.json`` of VOLTTRON instance 1, 2, 3 is
 |Multi-Platform Discovery Config|
 
 
-After this, you will need to add the server keys of the connecting platforms using the ``volttron-ctl`` utility. Type
-**volttron-ctl auth add** command on the command prompt and simply hit Enter to select defaults on all fields
+After this, you will need to add the server keys of the connecting platforms using the ``vctl`` utility. Type
+**vctl auth add** command on the command prompt and simply hit Enter to select defaults on all fields
 except **credentials**. Here, we can either add serverkey of connecting platform or type `/.*/` to allow ALL
 connections.
 
@@ -168,7 +166,7 @@ connections.
 
 .. code-block:: console
 
-   $ volttron-ctl auth add
+   $ vctl auth add
    domain []:
    address []:
    user_id []:
@@ -188,7 +186,7 @@ Once the initial configuration are setup, you can start all the VOLTTRON instanc
 
 .. code-block:: console
 
-    $ volttron -v -l l1.log&
+    $ ./start-volttron
 
 Next step is to start agents in each platform to observe the multi-platform PubSub communication behavior.
 
@@ -199,7 +197,7 @@ command.
 
 .. code-block:: console
 
-    $ volttron-ctl start --tag master_driver
+    $ vctl start --tag master_driver
 
 
 Start Listener agents on VOLTTRON instance 2 and 3
@@ -209,7 +207,7 @@ command.
 
 .. code-block:: console
 
-    $ volttron-ctl start --tag listener
+    $ vctl start --tag listener
 
 We should start seeing messages with prefix="devices" in the logs of VOLTTRON instances 2 and 3.
 
@@ -223,7 +221,7 @@ We can stop all the VOLTTRON instances by executing below command in each termin
 
 .. code-block:: console
 
-    $ volttron-ctl shutdown --platform
+    $ vctl shutdown --platform
 
 
 .. |Terminator Setup| image:: files/multiplatform-terminator-setup.png

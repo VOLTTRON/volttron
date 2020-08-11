@@ -1,6 +1,7 @@
 .. _Obix-config:
+
 Obix Driver Configuration
----------------------------
+-------------------------
 VOLTTRON's uses Obix's restful interface to facilitate communication.
 
 This driver does *not* handle reading data from the history section of the interface.
@@ -34,8 +35,9 @@ A sample Obix configuration file can be found in the VOLTTRON repository in ``ex
 
 
 .. _Obix-Driver:
+
 Obix Registry Configuration File
-**********************************
+********************************
 
 The registry configuration file is a `CSV <https://en.wikipedia.org/wiki/Comma-separated_values>`_ file. Each row configures a point on the device.
 
@@ -77,6 +79,7 @@ The following is an example of a Obix registry confugration file:
 A sample Obix configuration can be found in the VOLTTRON repository in ``examples/configurations/drivers/obix.csv``
 
 .. _Obix-AutoConfiguration:
+
 Automatic Obix Configuration File Creation
 ******************************************
 A script that will automatically create both a device and register
@@ -84,7 +87,7 @@ configuration file for a site is located in the repository at ``scripts/obix/get
 
 The utility is invoked with the command:
 
-    ``python get_obix_driver_config.py <url> <registry_file> <driver_file> -u <username> -p <password> ``
+    ``python get_obix_driver_config.py <url> <registry_file> <driver_file> -u <username> -p <password>``
 
 If either the registry_file or driver_file is omitted the script will output those files to stdout.
 

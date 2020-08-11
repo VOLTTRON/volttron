@@ -1,4 +1,5 @@
 .. _VOLTTRON-Configuration-Store:
+
 ============================
 VOLTTRON Configuration Store
 ============================

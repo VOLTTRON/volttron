@@ -54,7 +54,7 @@ def test_publish_from_message_handler(volttron_instance):
     # new_agent1.setup_callback("")
 
     new_agent2.vip.pubsub.publish("pubsub", test_topic, headers={},
-                                  message="Test message")
+                                  message="Test message").get()
 
     poll_gevent_sleep(2, lambda: messages_contains_prefix(test_topic,
                                                           new_agent1.subscription_results))

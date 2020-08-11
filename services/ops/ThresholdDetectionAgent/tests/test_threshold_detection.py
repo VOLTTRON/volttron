@@ -4,7 +4,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -43,8 +43,6 @@
 Pytest test cases for ThresholdDetectionAgent
 """
 
-import json
-
 import pytest
 import gevent
 
@@ -54,6 +52,8 @@ from volttron.platform.vip.agent import Agent, PubSub
 from volttrontesting.utils.utils import poll_gevent_sleep
 
 from volttrontesting.utils import is_running_in_container
+from volttron.platform import jsonapi
+
 
 if is_running_in_container():
     pytest.skip("Test module is flaky in containers", allow_module_level=True)
@@ -112,7 +112,7 @@ class AlertWatcher(Agent):
                           'manage_store',
                           'platform.thresholddetection',
                           'config',
-                          json.dumps(_test_config),
+                          jsonapi.dumps(_test_config),
                           'json').get()
 
 
@@ -132,13 +132,15 @@ def threshold_tester_agent(volttron_instance):
     agent = volttron_instance.build_agent(agent_class=AlertWatcher,
                                           identity="alert_watcher",
                                           enable_store=True)
+    capabilities = {'edit_config_store': {'identity': "platform.thresholddetection"}}
+    volttron_instance.add_capabilities(agent.core.publickey, capabilities)
 
     agent.reset_store()
     # agent.vip.rpc.call(CONFIGURATION_STORE,
     #                    'manage_store',
     #                    'platform.thresholddetection',
     #                    'config',
-    #                    json.dumps(_test_config),
+    #                    jsonapi.dumps(_test_config),
     #                    'json').get()
 
     yield agent
@@ -150,7 +152,7 @@ def threshold_tester_agent(volttron_instance):
 
 
 def publish(agent, config, operation, to_max=True):
-    for topic, value in config.iteritems():
+    for topic, value in config.items():
 
         if to_max is True and value.get('threshold_max') is not None:
             threshold = value['threshold_max']
@@ -212,7 +214,7 @@ def test_update_config(threshold_tester_agent):
                                         'manage_store',
                                         'platform.thresholddetection',
                                         'config',
-                                        json.dumps(updated_config),
+                                        jsonapi.dumps(updated_config),
                                         'json').get()
     gevent.sleep(0.1)
     # gevent.sleep(1)
@@ -239,9 +241,10 @@ def test_update_config(threshold_tester_agent):
 
 
 def test_device_publish(threshold_tester_agent):
+    gevent.sleep(2)
     threshold_tester_agent.vip.pubsub.publish('pubsub', 'devices/all',
                                               headers={}, message=[{'point': 11}]).get()
-    gevent.sleep(0.5)
+    gevent.sleep(0.2)
     check = lambda: threshold_tester_agent.seen_alert_keys == set(['devices/all'])
     try:
         assert poll_gevent_sleep(5, check)

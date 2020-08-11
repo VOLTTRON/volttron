@@ -19,15 +19,15 @@ def test_agent_versions(volttron_instance):
     agent = volttron_instance.build_agent()
     version = agent.vip.rpc.call('control', 'agent_version',
                                   auuid).get(timeout=2)
-    assert version == "3.2"
+    assert version == "3.3"
 
     versions = agent.vip.rpc.call('control', 'agent_versions').get(timeout=2)
     assert isinstance(versions, dict)
     assert len(versions) == 1
-    k = versions.keys()[0]
+    k = list(versions.keys())[0]
     versions = versions[k]
-    assert versions[0] == 'listeneragent-3.2'
-    assert versions[1] == '3.2'
+    assert versions[0] == 'listeneragent-3.3'
+    assert versions[1] == '3.3'
 
 
 @pytest.mark.control
@@ -45,7 +45,7 @@ def test_identity_is_uuid(volttron_instance):
     agent = volttron_instance.build_agent()
     identity = agent.vip.rpc.call('control', 'agent_vip_identity',
                                   auuid).get(timeout=2)
-    assert identity == "listeneragent-3.2_2"
+    assert identity == "listeneragent-3.3_2"
 
 
 @pytest.mark.control
@@ -114,17 +114,6 @@ from volttron.platform.agent import utils
 from volttron.platform.vip.agent import Agent, Core
 import gevent
 
-def main(argv=sys.argv):
-    try:
-        utils.vip_main(CrashTestAgent, version='0.1')
-    except Exception as e:
-        print('unhandled exception: {}'.format(e))
-
-
-if __name__ == '__main__':
-    # Entry point for script
-    sys.exit(main())
-
 class CrashTestAgent(Agent):
     def __init__(self, config_path, **kwargs):
         super(CrashTestAgent, self).__init__(**kwargs)
@@ -135,6 +124,17 @@ class CrashTestAgent(Agent):
         gevent.sleep(5)
         print("crash test agent quitting")
         sys.exit(5)
+
+def main(argv=sys.argv):
+    try:
+        utils.vip_main(CrashTestAgent, version='0.1')
+    except Exception as e:
+        print('unhandled exception: {}'.format(e))
+
+if __name__ == '__main__':
+    # Entry point for script
+    sys.exit(main())
+
         ''')
         with open(os.path.join('setup.py'), 'w') as file:
             file.write('''
@@ -157,7 +157,7 @@ setup(
     # print("out {}".format(stdout))
     # print("err {}".format(stderr))
 
-    wheel = os.path.join(tmpdir, 'dist', 'crashtest-0.1-py2-none-any.whl')
+    wheel = os.path.join(tmpdir, 'dist', 'crashtest-0.1-py3-none-any.whl')
     agent_uuid = volttron_instance.install_agent(agent_wheel=wheel,
                                                  start=True)
     print("agent_uuid {}".format(agent_uuid))

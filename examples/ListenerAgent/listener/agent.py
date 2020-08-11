@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -36,22 +36,20 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-from __future__ import absolute_import
 
-from datetime import datetime
 import logging
 import sys
-
 from pprint import pformat
+import datetime
 
-from volttron.platform.messaging.health import STATUS_GOOD
-from volttron.platform.vip.agent import Agent, Core, PubSub, compat
 from volttron.platform.agent import utils
-from volttron.platform.messaging import headers as headers_mod
+from volttron.platform.messaging.health import STATUS_GOOD
+from volttron.platform.vip.agent import Agent, Core, PubSub
+from volttron.platform.vip.agent.subsystems.query import Query
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-__version__ = '3.2'
+__version__ = '3.3'
 DEFAULT_MESSAGE = 'Listener Message'
 DEFAULT_AGENTID = "listener"
 DEFAULT_HEARTBEAT_PERIOD = 5
@@ -63,16 +61,25 @@ class ListenerAgent(Agent):
     """
 
     def __init__(self, config_path, **kwargs):
-        super(ListenerAgent, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self.config = utils.load_config(config_path)
         self._agent_id = self.config.get('agentid', DEFAULT_AGENTID)
         self._message = self.config.get('message', DEFAULT_MESSAGE)
         self._heartbeat_period = self.config.get('heartbeat_period',
                                                  DEFAULT_HEARTBEAT_PERIOD)
+
+        runtime_limit = int(self.config.get('runtime_limit', 0))
+        if runtime_limit and runtime_limit > 0:
+            stop_time = datetime.datetime.now() + datetime.timedelta(seconds=runtime_limit)
+            _log.info('Listener agent will stop at {}'.format(stop_time))
+            self.core.schedule(stop_time, self.core.stop)
+        else:
+            _log.info('No valid runtime_limit configured; listener agent will run until manually stopped')
+
         try:
             self._heartbeat_period = int(self._heartbeat_period)
         except:
-            _log.warn('Invalid heartbeat period specified setting to default')
+            _log.warning('Invalid heartbeat period specified setting to default')
             self._heartbeat_period = DEFAULT_HEARTBEAT_PERIOD
         log_level = self.config.get('log-level', 'INFO')
         if log_level == 'ERROR':
@@ -94,14 +101,15 @@ class ListenerAgent(Agent):
     def onstart(self, sender, **kwargs):
         _log.debug("VERSION IS: {}".format(self.core.version()))
         if self._heartbeat_period != 0:
+            _log.debug(f"Heartbeat starting for {self.core.identity}, published every {self._heartbeat_period}s")
             self.vip.heartbeat.start_with_period(self._heartbeat_period)
             self.vip.health.set_status(STATUS_GOOD, self._message)
+        query = Query(self.core)
+        _log.info('query: %r', query.query('serverkey').get())
 
     @PubSub.subscribe('pubsub', '')
-    def on_match(self, peer, sender, bus,  topic, headers, message):
+    def on_match(self, peer, sender, bus, topic, headers, message):
         """Use match_all to receive all messages and print them out."""
-        if sender == 'pubsub.compat':
-            message = compat.unpack_legacy_message(headers, message)
         self._logfn(
             "Peer: {0}, Sender: {1}:, Bus: {2}, Topic: {3}, Headers: {4}, "
             "Message: \n{5}".format(peer, sender, bus, topic, headers, pformat(message)))

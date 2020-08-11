@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -57,7 +57,7 @@ _tlog.setLevel(logging.WARNING)
 _log = logging.getLogger(__name__)
 utils.setup_logging()
 
-class MarketFailureError(StandardError):
+class MarketFailureError(Exception):
     """Base class for exceptions in this module."""
     def __init__(self, market_name, market_state, object_type):
         super(MarketFailureError, self).__init__('The market {} is not accepting {} '

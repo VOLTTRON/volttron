@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -37,7 +37,7 @@
 # }}}
 
 import logging
-import urlparse
+import urllib.parse
 import uuid
 import os
 
@@ -47,7 +47,7 @@ from volttron import platform
 from volttron.platform import get_home
 from volttron.platform.agent.utils import get_aware_utc_now
 from volttron.platform.vip.agent import Agent
-from volttron.platform.web import build_vip_address_string
+from volttron.platform import build_vip_address_string
 
 __version__ = '1.0.3'
 __author__ = 'Craig Allwardt <craig.allwardt@pnnl.gov>'
@@ -80,9 +80,9 @@ class Connection(object):
         if address.startswith('ipc'):
             full_address = address
         else:
-            parsed = urlparse.urlparse(address)
+            parsed = urllib.parse.urlparse(address)
             if parsed.scheme == 'tcp':
-                qs = urlparse.parse_qs(parsed.query)
+                qs = urllib.parse.parse_qs(parsed.query)
                 self._log.debug('QS IS: {}'.format(qs))
                 if 'serverkey' in qs:
                     self._serverkey = qs.get('serverkey')
@@ -90,8 +90,8 @@ class Connection(object):
                     self._serverkey = serverkey
 
                 # Handle case when the address has all the information in it.
-                if 'serverkey' in qs.keys() and 'publickey' in qs.keys() and \
-                                'secretkey' in qs.keys():
+                if 'serverkey' in qs and 'publickey' in qs and \
+                                'secretkey' in qs:
                     full_address = address
                 else:
                     full_address = build_vip_address_string(

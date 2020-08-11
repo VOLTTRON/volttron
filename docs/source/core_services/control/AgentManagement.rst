@@ -1,4 +1,4 @@
-.. _AgentManagement:
+.. _Agent-Lifecycle-Management:
 
 Agent Lifecyle Management
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -13,15 +13,15 @@ env/bin/activate). If not, add "bin/" to all commands.**
 Agent Packaging
 ===============
 
-The "volttron-pkg" command is used for packaging and configuring agents.
+The "vpkg" command is used for packaging and configuring agents.
 It is not necessary to have the platform running to use this command.
 The platform uses `Python Wheel <https://pypi.python.org/pypi/wheel>`__
 for its packaging and follows the Wheel naming
 `convention <http://legacy.python.org/dev/peps/pep-0427/#file-name-convention>`__.
 
-To create an agent package, call ``volttron-pkg <Agent Dir>``.
+To create an agent package, call ``vpkg <Agent Dir>``.
 
-For instance: ``volttron-pkg package examples/ListenerAgent``
+For instance: ``vpkg package examples/ListenerAgent``
 
 The ``package`` command uses the setup.py in the agent directory to
 create the package. The name and version number portion of the Wheel
@@ -35,7 +35,7 @@ Agent Configuration
 ===================
 
 Agent packages are configured with the
-``volttron-pkg configure <AgentPackage> <ConfigFile>`` command. It is
+``vpkg configure <AgentPackage> <ConfigFile>`` command. It is
 suggested that this file use json formatting but the agent can be
 written to interpret any format it requires. The configuration of a
 particular agent is opaque to the VOLTTRON platform. The location of the
@@ -56,14 +56,15 @@ Agent Installation and Removal
 ==============================
 
 | Agents are installed into the platform using:
-``volttron-ctl install <package>``.
+
+``vctl install <package>``.
 | When agents are installed onto a platform, it creates a uuid for that
 instance of an agent. This allows multiple instances of the same agent
 package to be installed on the platform.
 
 Agents can also be installed with a :ref:`tag <AgentTag>` by using:
 
-``volttron-ctl install <TAG>=<PACKAGE>``
+``vctl install <TAG>=<PACKAGE>``
 
 This allows the user to refer to the agent with "--tag " instead of the
 uuid when issuing commands. This tag can also distinguish instances of
@@ -71,9 +72,9 @@ an agent from each other.
 
 A stopped agent can be removed with:
 
--  ``volttron-ctl remove <AGENT_UUID>``
--  ``volttron-ctl remove --tag <AGENT_TAG>``
--  ``volttron-ctl remove --name <AGENT_NAME>``
+-  ``vctl remove <AGENT_UUID>``
+-  ``vctl remove --tag <AGENT_TAG>``
+-  ``vctl remove --name <AGENT_NAME>``
 
 Removal by tag and name potentially allows multiple agents to be removed
 at once and should be used with caution. A "-f" option is required to
@@ -89,7 +90,7 @@ Agent that are installed in the platform can be launched with the
 "start" command. By default this operates off the agent's UUID but can
 be used with "--tag" or "--name" to launch agents by those attributes.
 This can allow multiple agents to be started at once. For instance:
-``volttron-ctl start --name myagent-0.1`` would start all instances of
+``vctl start --name myagent-0.1`` would start all instances of
 that agent regardless of their uuid, tag, or configuration information.
 After an agent is started, it will show up in
 :ref:`AgentStatus <AgentStatus>` as "running" with a process id.
@@ -102,13 +103,11 @@ Running an agent
 ----------------
 
 For testing purposes, an agent package not installed in the platform can
-be run by using: ``volttron-ctl run <PACKAGE>``.
+be run by using: ``vctl run <PACKAGE>``.
 
 Agent Status
 ============
-
-| ``volttron-ctl list`` lists the agents installed on the platform and
-their priority
-| The ``volttron-ctl status`` shows the list of installed agents and
-whether they are running or have exited.
+olttron-
+| ``vctl list`` lists the agents installed on the platform and their priority
+| The ``vctl status`` shows the list of installed agents and whether they are running or have exited.
 | See :ref:`AgentStatus <AgentStatus>` for more details.

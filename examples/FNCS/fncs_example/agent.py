@@ -29,7 +29,7 @@ def fncs_example(config_path, **kwargs):
     """
     try:
         config = utils.load_config(config_path)
-    except StandardError:
+    except Exception:
         config = {}
 
     if not config:
@@ -100,14 +100,14 @@ class FncsExample(Agent):
 
         try:
 
-            self.vip.fncs.initialize(topic_maping=self._topic_mapping, federate_name=self._federate_name,
+            self.vip.fncs.initialize(topic_mapping=self._topic_mapping, federate_name=self._federate_name,
                                      time_delta=self._time_delta, sim_start_time=self._sim_start_time,
                                      sim_length=self._sim_length, work_callback=self.do_work,
                                      stop_agent_when_sim_complete=self._stop_agent_when_complete)
             self.vip.fncs.start_simulation()
 
         except ValueError as ex:
-            _log.error(ex.message)
+            _log.error(ex)
             self.core.stop()
             return
 

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -55,7 +55,7 @@ def broker():
     pull.bind('ipc:///tmp/volttron-platform-agent-publish')
     while True:
         message = pull.recv_multipart()
-        print message
+        print(message)
         pub.send_multipart(message)
 
 
@@ -77,7 +77,7 @@ def subscriber():
     sub.connect('ipc:///tmp/volttron-platform-agent-subscribe')
     sub.subscribe = ''
     while True:
-        print sub.recv_multipart()
+        print(sub.recv_multipart())
 
 @pytest.mark.slow        
 @pytest.mark.zmq
@@ -87,15 +87,15 @@ def test_broker():
     pub.bind('ipc:///tmp/volttron-platform-agent-subscribe')
     pull.bind('ipc:///tmp/volttron-platform-agent-publish')
     
-    pub.send_multipart(['topic1', 'Hello world1'])
+    pub.send_multipart([b'topic1', b'Hello world1'])
     time.sleep(2)
-    pub.send_multipart(['foo', 'bar'])
+    pub.send_multipart([b'foo', b'bar'])
     time.sleep(2)
-    pub.send_multipart(['topic2', 'Goodbye'])
+    pub.send_multipart([b'topic2', b'Goodbye'])
     time.sleep(2)
-    pub.send_multipart(['platform', 'Hello from platform'])
+    pub.send_multipart([b'platform', b'Hello from platform'])
     time.sleep(2)
-    pub.send_multipart(['platform.shutdown', 'Goodbye'])
+    pub.send_multipart([b'platform.shutdown', b'Goodbye'])
 
 if __name__ == '__main__':
     subscriber()

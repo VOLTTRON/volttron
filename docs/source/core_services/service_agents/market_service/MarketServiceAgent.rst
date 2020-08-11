@@ -19,6 +19,16 @@ iteration required to find the clearing price or quantity at any level of the ma
 Once the market has cleared, the process begins again for the next market interval, and
 new bids are submitted based on the updated states of the agents.
 
+Requirements
+------------
+The Market Service Agent requires the Transitions (version 0.6.9) and NumPy (version 1.15.4) packages. These
+packages can be installed in an activated environment with:
+
+::
+
+    pip install transitions==0.6.9
+    pip install numpy==1.15.4
+
 Market Timing
 -------------
 

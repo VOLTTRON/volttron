@@ -192,7 +192,7 @@ class TestStepDefinition:
         exception = self.validate_step_definition(step_json)
         assert exception == {
             'key': 'AttributeError',
-            'error': "Invalid fcodes in function {} step {}, type=<type 'str'>".format(self.function_id,
+            'error': "Invalid fcodes in function {} step {}, type=<class 'str'>".format(self.function_id,
                                                                                        self.step_number)
         }
 

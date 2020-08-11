@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2017, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -36,21 +36,22 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-from __future__ import absolute_import, print_function
 
 import heapq
 import inspect
 import logging
 import os
+import platform as python_platform
 import signal
 import threading
 import time
-import urlparse
+import urllib.parse
 import uuid
 import warnings
 import weakref
 from contextlib import contextmanager
 from errno import ENOENT
+from urllib.parse import urlsplit, parse_qs, urlunsplit
 
 import gevent.event
 from gevent.queue import Queue
@@ -103,7 +104,7 @@ class Periodic(object):  # pylint: disable=invalid-name
 
     def _loop(self, method):
         # pylint: disable=missing-docstring
-        # Use monotonic clock provided on hub's loop instance.
+        # Use monotonic clock provided on hu's loop instance.
         now = gevent.get_hub().loop.now
         period = self.period
         deadline = now()
@@ -178,11 +179,17 @@ class BasicCore(object):
         self.onstop = Signal()
         self.onfinish = Signal()
         self.oninterrupt = None
-        prev_int_signal = gevent.signal.getsignal(signal.SIGINT)
-        # To avoid a child agent handler overwriting the parent agent handler
-        if prev_int_signal in [None, signal.SIG_IGN, signal.SIG_DFL]:
-            self.oninterrupt = gevent.signal.signal(signal.SIGINT,
-                                                    self._on_sigint_handler)
+        self.tie_breaker = 0
+
+        # SIGINT does not work in Windows.
+        # If using the standalone agent on a windows machine,
+        # this section will be skipped
+        if python_platform.system() != 'Windows':
+            prev_int_signal = gevent.signal.getsignal(signal.SIGINT)
+            # To avoid a child agent handler overwriting the parent agent handler
+            if prev_int_signal in [None, signal.SIG_IGN, signal.SIG_DFL]:
+                self.oninterrupt = gevent.signal.signal(signal.SIGINT,
+                                                        self._on_sigint_handler)
         self._owner = owner
 
     def setup(self):
@@ -242,7 +249,7 @@ class BasicCore(object):
 
         self.greenlet.link(lambda _: kill_leftover_greenlets())
 
-        def handle_async():
+        def handle_async_():
             '''Execute pending calls.'''
             calls = self._async_calls
             while calls:
@@ -265,20 +272,20 @@ class BasicCore(object):
                     event.clear()
                 now = time.time()
                 while heap and now >= heap[0][0]:
-                    _, callback = heapq.heappop(heap)
+                    _, _, callback = heapq.heappop(heap)
                     greenlet = gevent.spawn(callback)
                     cur.link(lambda glt: greenlet.kill())
 
         self._stop_event = stop = gevent.event.Event()
-        self._async = gevent.get_hub().loop.async()
-        self._async.start(handle_async)
+        self._async = gevent.get_hub().loop.async_()
+        self._async.start(handle_async_)
         current.link(lambda glt: self._async.stop())
 
         looper = self.loop(running_event)
-        looper.next()
+        next(looper)
         self.onsetup.send(self)
 
-        loop = looper.next()
+        loop = next(looper)
         if loop:
             self.spawned_greenlets.add(loop)
         scheduler = gevent.Greenlet(schedule_loop)
@@ -298,10 +305,10 @@ class BasicCore(object):
             pass
 
         scheduler.kill()
-        looper.next()
+        next(looper)
         receivers = self.onstop.sendby(self.link_receiver, self)
         gevent.wait(receivers)
-        looper.next()
+        next(looper)
         self.onfinish.send(self)
 
     def stop(self, timeout=None):
@@ -313,6 +320,7 @@ class BasicCore(object):
 
         if gevent.get_hub() is self._stop_event.hub:
             return halt()
+
         return self.send_async(halt).get()
 
     def _on_sigint_handler(self, signo, *_):
@@ -333,25 +341,25 @@ class BasicCore(object):
 
     def send_async(self, func, *args, **kwargs):
         result = gevent.event.AsyncResult()
-        async = result.hub.loop.async()
+        async_ = gevent.hub.get_hub().loop.async_()
         results = [None, None]
 
         def receiver():
-            async.stop()
+            async_.stop()
             exc, value = results
             if exc is None:
                 result.set(value)
             else:
                 result.set_exception(exc)
 
-        async.start(receiver)
+        async_.start(receiver)
 
         def worker():
             try:
                 results[:] = [None, func(*args, **kwargs)]
             except Exception as exc:  # pylint: disable=broad-except
                 results[:] = [exc, None]
-            async.send()
+            async_.send()
 
         self.send(worker)
         return result
@@ -422,9 +430,13 @@ class BasicCore(object):
             self._schedule_iter(it, event)
         return event
 
+    def get_tie_breaker(self):
+        self.tie_breaker += 1
+        return self.tie_breaker
+
     def _schedule_callback(self, deadline, callback):
         deadline = utils.get_utc_seconds_from_epoch(deadline)
-        heapq.heappush(self._schedule, (deadline, callback))
+        heapq.heappush(self._schedule, (deadline, self.get_tie_breaker(), callback))
         if self._schedule_event:
             self._schedule_event.set()
 
@@ -522,8 +534,8 @@ class Core(BasicCore):
     def stop(self, timeout=None, platform_shutdown=False):
         # Send message to router that this agent is stopping
         if self.__connected and not platform_shutdown:
-            frames = [bytes(self.identity)]
-            self.connection.send_vip(b'', 'agentstop', args=frames, copy=False)
+            frames = [self.identity]
+            self.connection.send_vip('', 'agentstop', args=frames, copy=False)
         super(Core, self).stop(timeout=timeout)
 
     # This function moved directly from the zmqcore agent.  it is included here because
@@ -533,8 +545,10 @@ class Core(BasicCore):
     def _get_keys_from_keystore(self):
         '''Returns agent's public and secret key from keystore'''
         if self.agent_uuid:
-            # this is an installed agent, put keystore in its install dir
-            keystore_dir = os.curdir
+            # this is an installed agent, put keystore in its dist-info
+            current_directory = os.path.abspath(os.curdir)
+            keystore_dir = os.path.join(current_directory,
+                                        "{}.dist-info".format(os.path.basename(current_directory)))
         elif self.identity is None:
             raise ValueError("Agent's VIP identity is not set")
         else:
@@ -543,8 +557,6 @@ class Core(BasicCore):
             keystore_dir = os.path.join(
                 self.volttron_home, 'keystores',
                 self.identity)
-            if not os.path.exists(keystore_dir):
-                os.makedirs(keystore_dir)
 
         keystore_path = os.path.join(keystore_dir, 'keystore.json')
         keystore = KeyStore(keystore_path)
@@ -553,8 +565,10 @@ class Core(BasicCore):
     def register(self, name, handler, error_handler=None):
         self.subsystems[name] = handler
         if error_handler:
+            name_bytes = name
+
             def onerror(sender, error, **kwargs):
-                if error.subsystem == name:
+                if error.subsystem == name_bytes:
                     error_handler(sender, error=error, **kwargs)
 
             self.onviperror.connect(onerror)
@@ -563,7 +577,7 @@ class Core(BasicCore):
         if len(message.args) < 4:
             _log.debug('unhandled VIP error %s', message)
         elif self.onviperror:
-            args = [bytes(arg) for arg in message.args]
+            args = message.args
             error = VIPError.from_errno(*args)
             self.onviperror.send(self, error=error, message=message)
 
@@ -583,16 +597,16 @@ class Core(BasicCore):
                 self.identity
             ))
 
-            self.stop(timeout=5.0)
+            self.stop(timeout=10.0)
 
         def hello():
             # Send hello message to VIP router to confirm connection with
             # platform
-            state.ident = ident = b'connect.hello.%d' % state.count
+            state.ident = ident = 'connect.hello.%d' % state.count
             state.count += 1
             self.spawn(connection_failed_check)
-            message = Message(peer=b'', subsystem=b'hello',
-                              id=ident, args=[b'hello'])
+            message = Message(peer='', subsystem='hello',
+                              id=ident, args=['hello'])
             self.connection.send_vip_object(message)
 
         def hello_response(sender, version='',
@@ -659,18 +673,18 @@ class ZMQCore(Core):
         they are not already present'''
 
         def add_param(query_str, key, value):
-            query_dict = urlparse.parse_qs(query_str)
+            query_dict = parse_qs(query_str)
             if not value or key in query_dict:
                 return ''
             # urlparse automatically adds '?', but we need to add the '&'s
             return '{}{}={}'.format('&' if query_str else '', key, value)
 
-        url = list(urlparse.urlsplit(self.address))
+        url = list(urlsplit(self.address))
         if url[0] in ['tcp', 'ipc']:
             url[3] += add_param(url[3], 'publickey', self.publickey)
             url[3] += add_param(url[3], 'secretkey', self.secretkey)
             url[3] += add_param(url[3], 'serverkey', self.serverkey)
-            self.address = str(urlparse.urlunsplit(url))
+            self.address = str(urlunsplit(url))
 
     def _set_public_and_secret_keys(self):
         if self.publickey is None or self.secretkey is None:
@@ -701,8 +715,8 @@ class ZMQCore(Core):
         return known_hosts.serverkey(self.address)
 
     def _get_keys_from_addr(self):
-        url = list(urlparse.urlsplit(self.address))
-        query = urlparse.parse_qs(url[3])
+        url = list(urlsplit(self.address))
+        query = parse_qs(url[3])
         publickey = query.get('publickey', [None])[0]
         secretkey = query.get('secretkey', [None])[0]
         serverkey = query.get('serverkey', [None])[0]
@@ -778,14 +792,13 @@ class ZMQCore(Core):
                     #     pass
                 finally:
                     try:
-                        url = list(urlparse.urlsplit(self.address))
+                        url = list(urllib.parse.urlsplit(self.address))
                         if url[0] in ['tcp'] and sock is not None:
                             sock.close()
                         if self.socket is not None:
                             self.socket.monitor(None, 0)
                     except Exception as exc:
-                        _log.debug("Error in closing the socket: {}".format(exc.message))
-
+                        _log.debug("Error in closing the socket: {}".format(exc))
 
         self.onconnected.connect(hello_response)
         self.ondisconnected.connect(close_socket)
@@ -800,6 +813,10 @@ class ZMQCore(Core):
             sock = self.socket
             while True:
                 try:
+                    # Message at this point in time will be a
+                    # volttron.platform.vip.socket.Message object that has attributes
+                    # for all of the vip elements.  Note these are no longer bytes.
+                    # see https://github.com/volttron/volttron/issues/2123
                     message = sock.recv_vip_object(copy=False)
                 except ZMQError as exc:
 
@@ -810,18 +827,16 @@ class ZMQCore(Core):
                         break
                     else:
                         raise
-
-                subsystem = bytes(message.subsystem)
+                subsystem = message.subsystem
                 # _log.debug("Received new message {0}, {1}, {2}, {3}".format(
-                # subsystem, message.id, len(message.args), message.args[0]))
+                #     subsystem, message.id, len(message.args), message.args[0]))
 
                 # Handle hellos sent by CONNECTED event
-                if (subsystem == b'hello' and
-                        bytes(message.id) == state.ident and
+                if (str(subsystem) == 'hello' and
+                        message.id == state.ident and
                         len(message.args) > 3 and
-                        bytes(message.args[0]) == b'welcome'):
-                    version, server, identity = [
-                        bytes(x) for x in message.args[1:4]]
+                        message.args[0] == 'welcome'):
+                    version, server, identity = message.args[1:4]
                     self.connected = True
                     self.onconnected.send(self, version=version,
                                           router=server, identity=identity)
@@ -831,11 +846,11 @@ class ZMQCore(Core):
                     handle = self.subsystems[subsystem]
                 except KeyError:
                     _log.error('peer %r requested unknown subsystem %r',
-                               bytes(message.peer), subsystem)
-                    message.user = b''
+                               message.peer, subsystem)
+                    message.user = ''
                     message.args = list(router._INVALID_SUBSYSTEM)
                     message.args.append(message.subsystem)
-                    message.subsystem = b'error'
+                    message.subsystem = 'error'
                     sock.send_vip_object(message, copy=False)
                 else:
                     handle(message)
@@ -893,6 +908,7 @@ class RMQCore(Core):
                                       version=version, instance_name=instance_name, messagebus=messagebus)
         self.volttron_central_address = volttron_central_address
 
+        # TODO Look at this and see if we really need this here.
         # if instance_name is specified as a parameter in this calls it will be because it is
         # a remote connection. So we load it from the platform configuration file
         if not instance_name:
@@ -914,6 +930,13 @@ class RMQCore(Core):
         self.messagebus = messagebus
         self.rmq_mgmt = RabbitMQMgmt()
         self.rmq_address = address
+        # added so that it is available to auth subsytem when connecting
+        # to remote instance
+        if self.publickey is None or self.secretkey is None:
+            self.publickey, self.secretkey = self._get_keys_from_keystore()
+
+    def _get_keys_from_addr(self):
+        return None, None, None
 
     def get_connected(self):
         return super(RMQCore, self).get_connected()
@@ -1016,15 +1039,14 @@ class RMQCore(Core):
                         _log.error(exc.args)
                         raise
                     if message:
-                        subsystem = bytes(message.subsystem)
+                        subsystem = message.subsystem
 
-                        if subsystem == b'hello':
-                            if (subsystem == b'hello' and
-                                    bytes(message.id) == state.ident and
+                        if subsystem == 'hello':
+                            if (subsystem == 'hello' and
+                                    message.id == state.ident and
                                     len(message.args) > 3 and
-                                    bytes(message.args[0]) == b'welcome'):
-                                version, server, identity = [
-                                    bytes(x) for x in message.args[1:4]]
+                                    message.args[0] == 'welcome'):
+                                version, server, identity = message.args[1:4]
                                 self.connected = True
                                 self.onconnected.send(self, version=version,
                                                       router=server,
@@ -1034,11 +1056,11 @@ class RMQCore(Core):
                             handle = self.subsystems[subsystem]
                         except KeyError:
                             _log.error('peer %r requested unknown subsystem %r',
-                                       bytes(message.peer), subsystem)
-                            message.user = b''
+                                       message.peer, subsystem)
+                            message.user = ''
                             message.args = list(router._INVALID_SUBSYSTEM)
                             message.args.append(message.subsystem)
-                            message.subsystem = b'error'
+                            message.subsystem = 'error'
                             self.connection.send_vip_object(message)
                         else:
                             handle(message)

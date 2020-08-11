@@ -1,4 +1,5 @@
 .. _Key-Stores:
+
 ==========
 Key Stores
 ==========
@@ -37,4 +38,4 @@ when the agent is initialized. If an agent's key store does not exist
 it will automatically be generated upon access.
 
 Users can generate a key pair by running the
-``volttron-ctl auth keypair`` command.
+``vctl auth keypair`` command.
