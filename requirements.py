@@ -45,9 +45,9 @@ option_requirements = [
 ]
 
 install_requires = [
-    'gevent',
+    'gevent==20.6.1',
     'grequests',
-    'requests',
+    'requests==2.23.0',
     'ply',
     'psutil',
     'python-dateutil',
@@ -120,9 +120,6 @@ extras_require = {
         'websocket-client',
         # Allows us to compare nested dictionaries easily.
         'deepdiff'
-    ],
-    'rabbitmq': [
-        'gevent-pika'
     ],
     'web': [    # Web support for launching web based agents including ssl and json web tokens.
         'ws4py',

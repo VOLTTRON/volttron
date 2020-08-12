@@ -1,7 +1,13 @@
 more-itertools>=4.0.0
-pytest==3.6.4
+pytest==5.4.3
 pytest-timeout
 mock
 websocket-client
 numpy>1.13<2
 pandas
+watchdog==0.10.2
+watchdog-gevent==0.1.1
+cryptography==2.3
+docker
+psycopg2
+mysql-connector-python-rf

@@ -135,8 +135,24 @@ class KeyStore(BaseJSONStore):
     def generate_keypair_dict():
         """Generate and return new keypair as dictionary"""
         public, secret = curve_keypair()
-        return {'public': encode_key(public),
-                'secret': encode_key(secret)}
+        encoded_public = encode_key(public)
+        encoded_secret = encode_key(secret)
+        attempts = 0
+        max_attempts = 3
+
+        done = False
+        while not done and attempts < max_attempts:
+            # Keys that start with '-' are hard to use and cause issues with the platform
+            if encoded_secret.startswith('-') or encoded_public.startswith('-'):
+                # try generating public and secret key again
+                public, secret = curve_keypair()
+                encoded_public = encode_key(public)
+                encoded_secret = encode_key(secret)
+            else:
+                done = True
+
+        return {'public': encoded_public,
+                'secret': encoded_secret}
 
     def generate(self):
         """Generate and store new key pair"""

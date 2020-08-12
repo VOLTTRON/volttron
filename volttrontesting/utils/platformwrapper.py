@@ -422,6 +422,9 @@ class PlatformWrapper:
         self.logit("BUILD agent VOLTTRON HOME: {}".format(self.volttron_home))
         if self.bind_web_address:
             kwargs['enable_web'] = True
+
+        if 'enable_store' not in kwargs:
+            kwargs['enable_store'] = False
         agent = agent_class(address=address, identity=identity,
                             publickey=publickey, secretkey=secretkey,
                             serverkey=serverkey,
@@ -716,6 +719,7 @@ class PlatformWrapper:
 
         # Use dynamic_agent so we can look and see the agent with peerlist.
         if not setupmode:
+            gevent.sleep(2)
             self.dynamic_agent = self.build_agent(identity="dynamic_agent")
             assert self.dynamic_agent is not None
             assert isinstance(self.dynamic_agent, Agent)
@@ -780,7 +784,8 @@ class PlatformWrapper:
             # can enable the WebAdminApi.
             if self.ssl_auth:
                 self._web_admin_api = WebAdminApi(self)
-
+        
+        gevent.sleep(10)
 
 
     def is_running(self):

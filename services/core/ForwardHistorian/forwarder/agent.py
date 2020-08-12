@@ -206,7 +206,41 @@ class ForwardHistorian(BaseHistorian):
 
     # Redirect the normal capture functions to capture_data.
     def _capture_device_data(self, peer, sender, bus, topic, headers, message):
-        self.capture_data(peer, sender, bus, topic, headers, message)
+        parts = topic.split('/')
+        device = '/'.join(parts[1:-1])
+        # msg = [{data},{meta}] format
+        msg = [{}, {}]
+        try:
+            # If the filter is empty pass all data.
+            if self._device_data_filter:
+                for _filter, point_list in self._device_data_filter.items():
+                    # If filter is not empty only topics that contain the key
+                    # will be kept.
+                    if _filter in device:
+                        for point in point_list:
+                            # devices all publish
+                            if isinstance(message, list):
+                                # Only points in the point list will be added to the message payload
+                                if point in message[0]:
+                                    msg[0][point] = message[0][point]
+                                    msg[1][point] = message[1][point]
+                            else:
+                                # other devices publish (devices/campus/building/device/point)
+                                msg = None
+                                if point in device:
+                                    msg = message
+                                    # if the point in in the parsed topic then exit for loop
+                                    break
+                if (isinstance(msg, list) and not msg[0]) or \
+                        (isinstance(msg, (float, int, str)) and msg is None):
+                    _log.debug("Topic: {} - is not in configured to be forwarded".format(topic))
+                    return
+            else:
+                msg = message
+        except Exception as e:
+            _log.debug("Error handling device_data_filter. {}".format(e))
+            msg = message
+        self.capture_data(peer, sender, bus, topic, headers, msg)
 
     def _capture_log_data(self, peer, sender, bus, topic, headers, message):
         self.capture_data(peer, sender, bus, topic, headers, message)

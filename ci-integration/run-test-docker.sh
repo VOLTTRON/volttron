@@ -1,4 +1,6 @@
 #!/bin/bash
+# set -x # log all shell commands for debugging.
+set -e # fail if any command errors without being caught with an || or an 'if'.
 
 # The following script builds a volttron test image and then
 # runs each of the test modules inside a docker container based
@@ -17,6 +19,7 @@ fi
 
 export FAST_FAIL=${FAST_FAIL:-true}
 
+pip list
 echo "RUNNING $NUM_PROCESSES PARALLEL PROCESSESS AT A TIME"
 echo "FAST_FAIL IS $FAST_FAIL"
 
@@ -42,10 +45,12 @@ ignoredirs=(services/core/DNP3Agent services/core/IEEE2030_5Agent services/core/
 # failed.
 HAS_FAILED=0
 
+set +e # allow this script to handle errors.
+
 # method to push a test module into the queue
 push_test(){
     testpath="$1"
-    testqueue+=($testpath)
+    testqueue+=("$testpath")
 }
 
 # method to get a test module out of the queue
@@ -60,15 +65,17 @@ pop_test(){
 # global state arrays.
 run_test(){
 #    bash /home/osboxes/repos/volttron-rabbitmq/ci-integration/sleep_ten.sh &
-    local filename=$1;
+    local filename="$1"
     echo "Running test module $filename"
-    base_filename=`basename $filename`
+    base_filename="$(basename "$filename")"
     # Start the docker run module.
-    docker run -e "IGNORE_ENV_CHECK=1" --name $base_filename \
-        -t volttron_test_image pytest $filename > "$base_filename.result.txt" 2>&1 &
+    docker run -e "IGNORE_ENV_CHECK=1" -e "CI=$CI" --name "$base_filename" \
+            -t --network="host" -v /var/run/docker.sock:/var/run/docker.sock volttron_test_image \
+            pytest "$filename" > "$base_filename.result.txt" 2>&1 &
+
     runningprocs+=($!)
     outputfiles+=("$base_filename.result.txt")
-    containernames+=($base_filename)
+    containernames+=("$base_filename")
     sleep 0.5
 }
 
@@ -77,9 +84,9 @@ run_test(){
 # and failed tests are found.
 exit_cleanly(){
     echo "Cleaning up test containers before exiting!"
-    for container in ${containernames[@]}; do
-        docker stop $container
-        docker container rm $container
+    for container in "${containernames[@]}"; do
+        docker stop "$container"
+        docker container rm "$container"
     done
     docker system prune --force
     exit 1
@@ -94,7 +101,7 @@ process_pid(){
     # is still executing.  If it is not then we need to see what the
     # exit code was of the container.
     if [[ ! -e "/proc/${pid}" ]]; then
-        exitcode=$(docker inspect ${containernames[$index]} --format='{{.State.ExitCode}}')
+        exitcode=$(docker inspect "${containernames[$index]}" --format='{{.State.ExitCode}}')
 
         #echo "Exit code is ${exitcode}"
         # Exit code 5 is if there are no tests within the file so we filter that out
@@ -106,46 +113,48 @@ process_pid(){
                 HAS_FAILED=1
                 #echo "FAST_FAIL is ${FAST_FAIL} if its 0 should start clean exit procedure."
                 if [[ ${FAST_FAIL} -eq 0 && -n ${CI} ]]; then
-                    docker logs ${containernames[$index]}
+                    docker logs "${containernames[$index]}"
                 fi
-                if [[ ${FAST_FAIL} -eq 0 ]]; then
+                if [ ${FAST_FAIL} ]; then
                     echo "Exiting cleanly now!"
                     exit_cleanly
+                else
+                    echo "Test failed. Keep running rest of tests."
                 fi
             fi
         else
             # process passed so cleanup the result file.
             echo "module ${containernames[$index]} PASSED removing: ${outputfiles[$index]}"
-            rm ${outputfiles[$index]}
+            rm "${outputfiles[$index]}"
         fi
 
         # Clean up the test container now that this process is done.
-        docker container rm ${containernames[$index]} &>/dev/null
+        docker container rm "${containernames[$index]}" &>/dev/null
 
         # Remove pid from the array of running procs.
-        runningprocs=( ${runningprocs[@]:0:$index} ${runningprocs[@]:$((index + 1))} )
-        outputfiles=( ${outputfiles[@]:0:$index} ${outputfiles[@]:$((index + 1))} )
-        containernames=( ${containernames[@]:0:$index} ${containernames[@]:$((index + 1))} )
+        runningprocs=( "${runningprocs[@]:0:$index}" "${runningprocs[@]:$((index + 1))}" )
+        outputfiles=( "${outputfiles[@]:0:$index}" "${outputfiles[@]:$((index + 1))}" )
+        containernames=( "${containernames[@]:0:$index}" "${containernames[@]:$((index + 1))}" )
     fi
     i=$(( i+1 ))
 }
 
 #LOOP through set of directories and run bunch of test files in parallel
-for dir in ${testdirs[@]}
+for dir in "${testdirs[@]}"
 do
     for file in $( find $dir -type f -name "test*.py" -o -name "*test.py" ! -name "*conftest.py" )
     do
-        echo $file;
+        echo "$file";
         ignore=0
-        for pattern in ${ignoredirs[@]}; do
+        for pattern in "${ignoredirs[@]}"; do
             if [[ $file == *"$pattern"* ]]; then
-                echo $file "IGNORED"
+                echo "$file IGNORED"
                 ignore=1
                 break
             fi
         done
         if [[ $ignore == 0 ]]; then
-            push_test $file;
+            push_test "$file";
         fi
     done
 done
@@ -159,7 +168,7 @@ while [[ ${#testqueue[@]} -gt 0 ]]; do
     while [[ ${#runningprocs[@]} -lt ${NUM_PROCESSES} && ${#testqueue[@]} -gt 0 ]]; do
         # pop the front of the queue into the next_test variable
         pop_test
-        run_test ${next_test}
+        run_test "${next_test}"
     done
 
     i=0
