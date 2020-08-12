@@ -11,3 +11,4 @@ cryptography==2.3
 docker
 psycopg2
 mysql-connector-python-rf
+influxdb
