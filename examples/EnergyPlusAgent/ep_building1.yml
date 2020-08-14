@@ -17,8 +17,13 @@ properties:
     real_time_flag: false
 
 # configuration for subscribing to EnergyPlus simulation
-
 outputs:
+    # List of subscription information, typically contains
+    # - energyplus point name
+    # - type
+    # - publication topic for VOLTTRON (optional) to republish on VOLTTRON message bus
+    # - energyplus 'field' name
+    # - metadata information about the output
     - sim_topic: ENVIRONMENT Site Outdoor Air Drybulb Temperature1
       name: ENVIRONMENT
       type: Site Outdoor Air Drybulb Temperature
@@ -2633,14 +2638,15 @@ outputs:
             tz: US/Pacific
             type: float
 
+# configuration for sending to EnergyPlus simulation
 inputs:
     # List of subscription information typically contains
-    # - EnergyPlus input topic
-    # - datatype
-    # - publication topic for VOLTTRON (optional) to republish the
+    # - EnergyPlus input name
+    # - type
+    # - subscription topic for VOLTTRON to receive message from VOLTTRON (agents)
     # - EnergyPlus field
     # - default value (if any)
-    # - dynamic default
+    # - dynamic default (receive dynamic default from
     - sim_topic: CLGTEMPSETPOINT Zone-VAV-102
       name: CLGTEMPSETPOINT Zone-VAV-102
       type: schedule

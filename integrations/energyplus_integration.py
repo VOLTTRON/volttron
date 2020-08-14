@@ -124,8 +124,8 @@ class EnergyPlusSimIntegration(BaseSimIntegration):
 
     def start_socket_server(self):
         """
-        Connect to EnergyPlus socket server and register a
-        receiver callback
+        Connect to EnergyPlus socket server and
+        register a receiver callback
         """
         self.socket_server = SocketServer()
         self.socket_server.size = self.size
