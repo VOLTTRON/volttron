@@ -40,6 +40,7 @@ try:
     from gridappsd import GridAPPSD
     from gridappsd.simulation import Simulation
     from gridappsd import topics as t
+    import stomp
     HAS_GAPPSD = True
 except ImportError:
     HAS_GAPPSD = False
@@ -49,7 +50,7 @@ import os
 import logging
 import gevent
 import weakref
-import stomp
+
 from volttron.platform.agent.base_simulation_integration.base_sim_integration import BaseSimIntegration
 
 _log = logging.getLogger(__name__)

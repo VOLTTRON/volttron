@@ -226,6 +226,7 @@ class EnergyPlusSimIntegration(BaseSimIntegration):
         """
         Send inputs to EnergyPlus
         """
+        _log.debug("send_eplus_msg ")
         if self.socket_server:
             args = self.input()
             msg = '%r %r %r 0 0 %r' % (self.vers, self.flag, self.eplus_inputs, self.time)

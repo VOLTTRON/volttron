@@ -139,6 +139,7 @@ class EnergyPlusAgent(Agent):
         :return:
         """
         for obj in self.EnergyPlus_sim.inputs:
+
             topic = obj.get('topic', None)
             if topic is not None:
                 callback = self.on_match_topic
@@ -146,14 +147,6 @@ class EnergyPlusAgent(Agent):
                 self.vip.pubsub.subscribe(peer='pubsub', prefix=topic, callback=callback)
 
     def publish_all_outputs(self):
-        """
-        Publish output messages from EnergyPlus on VOLTTRON message bus
-        :return:
-        """
-        # Publish messages
-        self.publish(self.outputs)
-
-    def publish(self, args):
         """
         Pull out relevant fields from EnergyPlus output message
         and publish on VOLTTRON message bus using corresponding topic
@@ -166,7 +159,7 @@ class EnergyPlusAgent(Agent):
         headers = {headers_mod.DATE: _now, headers_mod.TIMESTAMP: _now}
         topics = collections.OrderedDict()
 
-        for obj in args:
+        for obj in self.outputs:
             if 'topic' in obj and 'value' in obj:
                 topic = obj.get('topic', None)
                 value = obj.get('value', None)
@@ -272,19 +265,16 @@ class EnergyPlusAgent(Agent):
             obj['message'] = message[0]
             obj['message_meta'] = message[1]
             obj['last_update'] = headers.get(headers_mod.DATE, datetime.utcnow().isoformat(' ') + 'Z')
-            self.on_update_topic()
+            self.send_on_all_inputs_updated()
 
-    def on_update_topic(self):
-        self.update_complete()
-
-    def update_complete(self):
+    def send_on_all_inputs_updated(self):
         """
         Check if all input messages have been updated and then send to EnergyPlus
         :return:
         """
         if self.all_topics_updated():
             self.clear_last_update()
-            self.on_update_complete()
+            self.EnergyPlus_sim.send_eplus_msg()
 
     def all_topics_updated(self):
         """
@@ -307,13 +297,6 @@ class EnergyPlusAgent(Agent):
             if 'topic' in obj:
                 obj['last_update'] = None
 
-    def on_update_complete(self):
-        """
-        Send to EnergyPlus
-        :return:
-        """
-        self.EnergyPlus_sim.send_eplus_msg()
-
     def get_inputs_from_topic(self, topic):
         """
         Find all input objects that best match the topic
@@ -322,6 +305,7 @@ class EnergyPlusAgent(Agent):
         """
         objs = []
         for obj in self.EnergyPlus_sim.inputs:
+            _log.debug("EPLUS: get_inputs_from_topic: {}".format(obj))
             if obj.get('topic') == topic:
                 objs.append(obj)
         topic = "/".join(["devices", topic, "all"])
@@ -360,13 +344,18 @@ class EnergyPlusAgent(Agent):
         - Periodically advance simulation by sending and receiving messages to EnergyPlus
         :return:
         """
+        _log.debug("do_work:")
         self.outputs = self.EnergyPlus_sim.outputs
         if self.EnergyPlus_sim.sim_flag != '1':
+            _log.debug("do_work: self.EnergyPlus_sim.sim_flag != '1'")
             self.publish_all_outputs()
         if self.EnergyPlus_sim.cosimulation_sync:
+            _log.debug("do_work: cosimulation_sync == True")
             self.check_advance()
         if self.EnergyPlus_sim.real_time_periodic and self.rt_periodic is None:
-            self.EnergyPlus_sim.timestep = 60. / (self.EnergyPlus_sim.timestep*self.EnergyPlus_sim.time_scale)*60.
+            _log.debug("do_work: self.EnergyPlus_sim.timestep: {}".format(self.EnergyPlus_sim.timestep))
+            self.EnergyPlus_sim.timestep = 60. / (self.EnergyPlus_sim.timestep * self.EnergyPlus_sim.time_scale) * 60.
+            _log.debug("do_work: self.EnergyPlus_sim.timestep: {}".format(self.EnergyPlus_sim.timestep))
             self.rt_periodic = self.core.periodic(self.EnergyPlus_sim.timestep,
                                                   self.run_periodic,
                                                   wait=self.EnergyPlus_sim.timestep)
@@ -374,32 +363,32 @@ class EnergyPlusAgent(Agent):
     def check_advance(self):
         if self.EnergyPlus_sim.real_time_periodic:
             return
-        timestep = int(60/self.EnergyPlus_sim.timestep)
+        timestep = int(60 / self.EnergyPlus_sim.timestep)
 
         if not self.EnergyPlus_sim.real_time_flag:
-           self.cosim_sync_counter += timestep
-           if self.cosim_sync_counter < self.EnergyPlus_sim.co_sim_timestep:
-               self.advance_simulation(None, None, None, None, None, None)
-           else:
-                  self.cosim_sync_counter = 0
-                  self.vip.pubsub.publish('pubsub',
-                                          self.tns_actuate,
-                                          headers={},
-                                          message={}).get(timeout=10)
+            self.cosim_sync_counter += timestep
+            if self.cosim_sync_counter < self.EnergyPlus_sim.co_sim_timestep:
+                self.advance_simulation(None, None, None, None, None, None)
+            else:
+                self.cosim_sync_counter = 0
+                self.vip.pubsub.publish('pubsub',
+                                        self.tns_actuate,
+                                        headers={},
+                                        message={}).get(timeout=10)
         else:
-           if self.EnergyPlus_sim.hour > self.EnergyPlus_sim.currenthour or self.EnergyPlus_sim.passtime:
-              self.EnergyPlus_sim.passtime=True
-              self.cosim_sync_counter += timestep
-              if self.cosim_sync_counter < self.EnergyPlus_sim.co_sim_timestep:
-                  self.advance_simulation(None, None, None, None, None, None)
-              else:
-                  self.cosim_sync_counter = 0
-                  self.vip.pubsub.publish('pubsub',
-                                          self.tns_actuate,
-                                          headers={},
-                                          message={}).get(timeout=10)
-           else:
-               self.advance_simulation(None, None, None, None, None, None)
+            if self.EnergyPlus_sim.hour > self.EnergyPlus_sim.currenthour or self.EnergyPlus_sim.passtime:
+                self.EnergyPlus_sim.passtime = True
+                self.cosim_sync_counter += timestep
+                if self.cosim_sync_counter < self.EnergyPlus_sim.co_sim_timestep:
+                    self.advance_simulation(None, None, None, None, None, None)
+                else:
+                    self.cosim_sync_counter = 0
+                    self.vip.pubsub.publish('pubsub',
+                                            self.tns_actuate,
+                                            headers={},
+                                            message={}).get(timeout=10)
+            else:
+                self.advance_simulation(None, None, None, None, None, None)
 
         return
 
@@ -409,7 +398,7 @@ class EnergyPlusAgent(Agent):
         :return:
         """
         self.advance_simulation(None, None, None, None, None, None)
-        self.publish_all_outputs()
+        self.EnergyPlus_sim.send_eplus_msg()
 
     def advance_simulation(self, peer, sender, bus, topic, headers, message):
         _log.info('Advancing simulation.')
@@ -617,7 +606,7 @@ class EnergyPlusAgent(Agent):
         :param value:
         :return:
         """
-        self.update_complete()
+        self.send_on_all_inputs_updated()
 
 
 def main():
