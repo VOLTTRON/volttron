@@ -344,13 +344,10 @@ class EnergyPlusAgent(Agent):
         - Periodically advance simulation by sending and receiving messages to EnergyPlus
         :return:
         """
-        _log.debug("do_work:")
         self.outputs = self.EnergyPlus_sim.outputs
         if self.EnergyPlus_sim.sim_flag != '1':
-            _log.debug("do_work: self.EnergyPlus_sim.sim_flag != '1'")
             self.publish_all_outputs()
         if self.EnergyPlus_sim.cosimulation_sync:
-            _log.debug("do_work: cosimulation_sync == True")
             self.check_advance()
         if self.EnergyPlus_sim.real_time_periodic and self.rt_periodic is None:
             _log.debug("do_work: self.EnergyPlus_sim.timestep: {}".format(self.EnergyPlus_sim.timestep))
