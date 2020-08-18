@@ -1,8 +1,8 @@
 {
-	
-
     "agentid": "listener1",
     "message": "hello",
+    # stop time in seconds
+    "runtime_limit":30,
     # log-level can be DEBUG, INFO, WARN or ERROR
     # verbosity is decreased from left to right above
     # default: INFO

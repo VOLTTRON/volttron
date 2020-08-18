@@ -60,7 +60,7 @@ All of the following setting are optional and default to `True`.
 * **publish_depth_first** - Enable "depth first" device state publishes for each register on the device for all devices.
 * **publish_breadth_first** - Enable "breadth first" device state publishes for each register on the device for all devices.
 
-An example master driver configuration file can be found in the VOLTTRON repository in ``examples/configurations/drivers/master-driver.agent``.
+An example master driver configuration file can be found in the VOLTTRON repository in ``services/core/MasterDriverAgent/master-driver.agent``.
 
 .. _driver-configuration-file:
 

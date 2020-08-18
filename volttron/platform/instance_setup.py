@@ -132,7 +132,7 @@ def _cmd(cmdargs):
     out, error = process.communicate()
     if process.returncode != 0:
         print("Error executing command: {} \nSTDOUT: {}\nSTDERR: {}".format(cmdargs, out, error))
-        exit(10)
+        sys.exit(10)
 
 
 def _is_bound_already(address):
@@ -309,7 +309,7 @@ def _check_dependencies_met(requirement):
     try:
         dependencies_needed = extras_require[requirement]
     except KeyError:
-        print("ERROR: Incorrect requirement chosen")
+        print(f"ERROR: Requirement {requirement} was not found in requirements.py")
         return False
     current_dependencies = _get_dependencies()
     for dependency in dependencies_needed:
@@ -411,19 +411,18 @@ def do_message_bus():
             print("Message type is not valid. Valid entries are zmq or rmq.")
 
     if bus_type == 'rmq':
-        try:
-            rmq_config = RMQConfig()
-
-        except AssertionError:
+        if not is_rabbitmq_available():
             print("RabbitMQ has not been set up!")
-            print("Setting up now...")
-            set_dependencies_rmq()
-            print("Done!")
+            print("Please run scripts/rabbit_dependencies.sh and bootstrap --rabbitmq before running vcfg.")
+            sys.exit()
+            # print("Setting up now...")
+            # set_dependencies_rmq()
+            # print("Done!")
 
-        if not _check_dependencies_met('rabbitmq'):
-            print("Rabbitmq dependencies not installed. Installing now...")
-            set_dependencies("rabbitmq")
-            print("Done!")
+        # if not _check_dependencies_met('rabbitmq'):
+        #     print("Rabbitmq dependencies not installed. Installing now...")
+        #     set_dependencies("rabbitmq")
+        #     print("Done!")
         check_rmq_setup()
 
     config_opts['message-bus'] = bus_type
@@ -846,7 +845,7 @@ def confirm_volttron_home():
             print(
                 '\nPlease execute with VOLTRON_HOME=/your/path volttron-cfg to '
                 'modify VOLTTRON_HOME.\n')
-            exit(1)
+            sys.exit(1)
 
 
 def wizard():
@@ -944,7 +943,7 @@ def process_rmq_inputs(args, instance_name=None):
         else:
             print("Invalid argument. \nUsage: vcf --rabbitmq single|federation|shovel "
                   "[optional path to rabbitmq config yml]")
-            exit(1)
+            sys.exit(1)
         if args[1] != vhome_config:
             if not os.path.exists(vhome):
                 os.makedirs(vhome, 0o755)
@@ -999,16 +998,16 @@ def main():
         if len(args.rabbitmq) > 2:
             print("vcfg --rabbitmq can at most accept 2 arguments")
             parser.print_help()
-            exit(1)
+            sys.exit(1)
         elif args.rabbitmq[0] not in ['single', 'federation', 'shovel']:
             print("Usage: vcf --rabbitmq single|federation|shovel "
                   "[optional path to rabbitmq config yml]")
             parser.print_help()
-            exit(1)
+            sys.exit(1)
         elif len(args.rabbitmq) == 2 and not os.path.exists(args.rabbitmq[1]):
             print("Invalid rabbitmq configuration file path.")
             parser.print_help()
-            exit(1)
+            sys.exit(1)
         else:
             process_rmq_inputs(args.rabbitmq, args.instance_name)
     elif args.secure_agent_users:

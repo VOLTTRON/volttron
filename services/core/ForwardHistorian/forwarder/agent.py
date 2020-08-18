@@ -218,19 +218,29 @@ class ForwardHistorian(BaseHistorian):
                     # will be kept.
                     if _filter in device:
                         for point in point_list:
-                            # Only points in the point list will be added to the message payload
-                            if point in message[0]:
-                                msg[0][point] = message[0][point]
-                                msg[1][point] = message[1][point]
+                            # devices all publish
+                            if isinstance(message, list):
+                                # Only points in the point list will be added to the message payload
+                                if point in message[0]:
+                                    msg[0][point] = message[0][point]
+                                    msg[1][point] = message[1][point]
+                            else:
+                                # other devices publish (devices/campus/building/device/point)
+                                msg = None
+                                if point in device:
+                                    msg = message
+                                    # if the point in in the parsed topic then exit for loop
+                                    break
+                if (isinstance(msg, list) and not msg[0]) or \
+                        (isinstance(msg, (float, int, str)) and msg is None):
+                    _log.debug("Topic: {} - is not in configured to be forwarded".format(topic))
+                    return
             else:
                 msg = message
         except Exception as e:
             _log.debug("Error handling device_data_filter. {}".format(e))
             msg = message
-        if not msg[0]:
-            _log.debug("Topic: {} - is not in configured to be forwarded".format(topic))
-        else:
-            self.capture_data(peer, sender, bus, topic, headers, msg)
+        self.capture_data(peer, sender, bus, topic, headers, msg)
 
     def _capture_log_data(self, peer, sender, bus, topic, headers, message):
         self.capture_data(peer, sender, bus, topic, headers, message)

@@ -145,8 +145,9 @@ Each row configures a register definition on the device.
       Default is FALSE.
     - **Default Value** (Optional) - The point's default value. If it is reverted by an agent, it changes back
       to this value. If this value is missing, it will revert to the last known value not set by an agent.
-    - **Transform** (Optional) - Scaling algorithm: scale(multiplier), scale_int(multiplier), mod10k(reverse),
-      or none. Default is an empty string.
+    - **Transform** (Optional) - Scaling algorithm: scale(multiplier), scale_int(multiplier), scale_reg(register_name),
+      scale_reg_power10(register_name), scale_decimal_int_signed(multiplier), mod10k(reverse),
+      mod10k64(reverse), mod10k48(reveres) or none. Default is an empty string.
     - **Table** (Optional) - Standard modbus table name defining how information is stored in slave device.
       There are 4 different tables:
 

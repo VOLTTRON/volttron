@@ -122,8 +122,9 @@ def pip(operation, args, verbose=None, upgrade=False, offline=False):
     subprocess.check_call(cmd)
 
 
-def update(operation, verbose=None, upgrade=False, offline=False, optional_requirements=[]):
+def update(operation, verbose=None, upgrade=False, offline=False, optional_requirements=[], rabbitmq_path=None):
     """Install dependencies in setup.py and requirements.txt."""
+    print("UPDATE: {}".format(optional_requirements))
     assert operation in ['install', 'wheel']
     wheeling = operation == 'wheel'
     path = os.path.dirname(__file__) or '.'
@@ -153,14 +154,15 @@ def update(operation, verbose=None, upgrade=False, offline=False, optional_requi
 
     try:
         # Install rmq server if needed
-        if 'rabbitmq' in optional_requirements:
-            install_rabbit(default_rmq_dir)
+        if rabbitmq_path:
+            install_rabbit(rabbitmq_path)
     except Exception as exc:
         _log.error("Error installing RabbitMQ package {}".format(traceback.format_exc()))
 
 
 def install_rabbit(rmq_install_dir):
-
+    # Install gevent friendly pika
+    pip('install', ['gevent-pika==0.3'], False, True, offline=False)
     # try:
     process = subprocess.Popen(["which", "erl"], stderr=subprocess.PIPE,  stdout=subprocess.PIPE)
     (output, error) = process.communicate()
@@ -281,7 +283,18 @@ def main(argv=sys.argv):
     po = parser.add_argument_group('Extra packaging options')
     for arg in extras_require:
         po.add_argument('--'+arg, action='append_const', const=arg, dest="optional_args")
+
     # Add rmq download actions.
+    rabbitmq = parser.add_argument_group('rabbitmq options')
+    rabbitmq.add_argument(
+        '--rabbitmq', action='store', const=default_rmq_dir,
+        nargs='?',
+        help='install rabbitmq server and its dependencies. '
+             'optional argument: Install directory '
+             'that exists and is writeable. RabbitMQ server '
+             'will be installed in a subdirectory.'
+             'Defaults to ' + default_rmq_dir)
+
     #optional_args = []
     # if os.path.exists('optional_requirements.json'):
     #     po = parser.add_argument_group('Extra packaging options')
@@ -337,7 +350,7 @@ def main(argv=sys.argv):
     if sys.base_prefix != sys.prefix:
         # The script was called from a virtual environment Python, so update
         update(options.operation, options.verbose,
-               options.upgrade, options.offline, options.optional_args)
+               options.upgrade, options.offline, options.optional_args, options.rabbitmq)
     else:
         # The script was called from the system Python, so bootstrap
         try:
@@ -363,6 +376,9 @@ def main(argv=sys.argv):
         args = [env_exe, __file__]
         if options.verbose is not None:
             args.append('--verbose' if options.verbose else '--quiet')
+
+        if options.rabbitmq is not None:
+            args.append('--rabbitmq={}'.format(options.rabbitmq))
 
         # Transfer dynamic properties to the subprocess call 'update'.
         # Clip off the first two characters expecting long parameter form.
