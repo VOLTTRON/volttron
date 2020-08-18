@@ -75,7 +75,7 @@ def energyplus_example(config_path, **kwargs):
         config = utils.load_config(config_path)
     except Exception:
         config = {}
-    _log.debug("CONFIG: {}".format(config))
+    #_log.debug("CONFIG: {}".format(config))
     if not config:
         _log.info("Using Agent defaults for starting configuration.")
 
@@ -124,7 +124,6 @@ class EnergyPlusAgent(Agent):
         # Pick out VOLTTRON topics and subscribe to VOLTTRON message bus
         self.subscribe()
         self.clear_last_update()
-        self.cosimulation_advance = self.config.get('cosimulation_advance', None)
 
         if self.cosimulation_advance is not None:
             self.vip.pubsub.subscribe(peer='pubsub',

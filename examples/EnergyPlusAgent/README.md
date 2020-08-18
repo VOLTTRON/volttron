@@ -24,10 +24,7 @@ sudo ./EnergyPlus-8.5.0-c87e61b44b-Linux-x86_64.sh
 
 ## EnergyPlus Agent Configuration
 
-1. Copy 'bcvtb' and 'eplus' folders into root of VOLTTRON source directories.
-
-'eplus' should contain EnergyPlus Input Data File (IDF). IDF file is an ASCII file containing the 
-data describing the building and HVAC system to be simulated.
+1. Copy 'bcvtb' and 'eplus' folders into root of VOLTTRON source directories. 'eplus' should contain EnergyPlus Input Data File (IDF). IDF file is an ASCII file containing the data describing the building and HVAC system to be simulated.
 
 2. You can specify the configuration in either json or yaml format.  The json format is specified
 below. 
