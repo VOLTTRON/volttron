@@ -47,8 +47,13 @@ from volttron.platform import jsonapi
 _log = logging.getLogger(__name__)
 
 
+# python 3.8 formatting errors with utf-8 encoding.  The ISO-8859-1 is equivilent to latin-1
+ENCODE_FORMAT = 'ISO-8859-1'
+
+
 def deserialize_frames(frames: List[Frame]) -> List:
     decoded = []
+
     for x in frames:
         if isinstance(x, list):
             decoded.append(deserialize_frames(x))
@@ -57,7 +62,7 @@ def deserialize_frames(frames: List[Frame]) -> List:
         elif isinstance(x, float):
             decoded.append(x)
         elif isinstance(x, bytes):
-            decoded.append(x.decode('utf-8'))
+            decoded.append(x.decode(ENCODE_FORMAT))
         elif isinstance(x, str):
             decoded.append(x)
         elif x is not None:
@@ -66,27 +71,25 @@ def deserialize_frames(frames: List[Frame]) -> List:
                 decoded.append(x)
                 continue
             try:
-                d = x.bytes.decode('utf-8')
+                d = x.bytes.decode(ENCODE_FORMAT)
             except UnicodeDecodeError as e:
-                _log.debug(e)
+                _log.error(f"Unicode decode error: {e}")
                 decoded.append(x)
                 continue
             try:
                 decoded.append(jsonapi.loads(d))
             except JSONDecodeError:
                 decoded.append(d)
-    # _log.debug("deserialized: {}".format(decoded))
     return decoded
 
 
 def serialize_frames(data: List[Any]) -> List[Frame]:
     frames = []
 
-    #_log.info("Serializing: {}".format(data))
     for x in data:
         try:
             if isinstance(x, list) or isinstance(x, dict):
-                frames.append(Frame(jsonapi.dumps(x).encode('utf-8')))
+                frames.append(Frame(jsonapi.dumps(x).encode(ENCODE_FORMAT)))
             elif isinstance(x, Frame):
                 frames.append(x)
             elif isinstance(x, bytes):
@@ -100,8 +103,7 @@ def serialize_frames(data: List[Any]) -> List[Frame]:
             elif x is None:
                 frames.append(Frame(x))
             else:
-                #_log.info("serialize_frames:{}".format(x))
-                frames.append(Frame(x.encode('utf-8')))
+                frames.append(Frame(x.encode(ENCODE_FORMAT)))
         except TypeError as e:
             import sys
             sys.exit(0)
