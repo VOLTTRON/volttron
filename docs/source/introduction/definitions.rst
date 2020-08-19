@@ -9,26 +9,27 @@ The first section discusses capabilities and industry standards that VOLTTRON co
 to the VOLTTRON domain.
 
 Industry Terms
-~~~~~~~~~~~~~~
+==============
 
 -  **BACNet**: Building Automation and Control network, that leverages ASHRAE, ANSI, and IOS 16484-5 standard protocols
 -  **JSON-RPC**: JSON-encoded Remote Procedure Call
 -  **JSON**: JavaScript object notation is a text-based, human-readable, open data interchange format, similar to XML,
    but less verbose
+-  **Modbus**: Communications protocol for talking with industrial electronic devices
 -  **Publish/subscribe**: A message delivery pattern where senders (publishers) and receivers (subscribers) do not
    communicate directly nor necessarily have knowledge of each other, but instead exchange messages through an
    intermediary based on a mutual class or topic
--  **ZeroMQ or ØMQ**: A library used for inter-process and inter-computer communication
--  **Modbus**: Communications protocol for talking with industrial electronic devices
+-  **RabbitMQ**:
 -  **SSH**: Secure shell is a network protocol providing encryption and authentication of data using public-key
    cryptography
 -  **SSL**: Secure sockets layer is a technology for encryption and authentication of network traffic based on a chain
    of trust
 -  **TLS**: Transport layer security is the successor to SSL
+-  **ZeroMQ or ØMQ**: A library used for inter-process and inter-computer communication
 
 
 VOLTTRON Terms
-~~~~~~~~~~~~~~
+==============
 
     .. _activated-environment:
 
@@ -43,17 +44,20 @@ VOLTTRON Terms
             # Note once the above command has been run the prompt will have changed
             (volttron)user@computer>
 
+    AIP
+
     .. _bootstrap-environment:
 
     Bootstrap Environment
         The process by which an operating environment (activated environment) is produced.  From the
-        :ref:`VOLTTRON_ROOT` directory executing ``python bootstrap.py`` will start the bootstrap process.
+        :ref:`VOLTTRON_ROOT` directory executing `python bootstrap.py` will start the bootstrap process.
 
     .. _VOLTTRON_HOME:
 
     VOLTTRON_HOME
         The location for a specific :ref:`VOLTTRON_INSTANCE` to store its specific information.  There can be many
-        VOLTTRON_HOMEs on a single computing resource(VM, machine, etc.)
+        VOLTTRON_HOMEs on a single computing resource(VM, machine, etc.), and each VOLTTRON_HOME will correspond to a
+        single instance of VOLTTRON.
 
     .. _VOLTTRON_INSTANCE:
 
@@ -71,7 +75,7 @@ VOLTTRON Terms
 
             git clone http://github.com/VOLTTRON/volttron
 
-        the top volttron folder is the VOLTTRON_ROOT
+        the top level volttron folder is the VOLTTRON_ROOT
 
     .. _VIP:
 

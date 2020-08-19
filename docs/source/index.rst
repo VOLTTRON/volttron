@@ -13,12 +13,12 @@ performing simulations, improving building system performance, and creating a mo
 Features
 ========
 
-- a secure :ref:`message bus <messagebus index>` allowing connectivity between modules on individual platforms and
+- a secure :ref:`message bus <Message-Bus>` allowing connectivity between modules on individual platforms and
   between platform instances in large scale deployments
 - a flexible :ref:`agent framework <Agent-Framework>` allowing users to adapt the platform to their unique use-cases
-- a configurable :ref:`driver framework <VOLTTRON-Driver-Framework>` for collecting data from and sending control
+- a configurable :ref:`driver framework <Driver-Framework>` for collecting data from and sending control
   signals to buildings and devices
-- automatic data capture and retrieval through our :ref:`historian framework <Historian Index>`
+- automatic data capture and retrieval through our :ref:`historian framework <Historian-Framework>`
 - an extensible :ref:`web framework <Web-Framework>` allowing users and services to securely connect to the platform
   from anywhere
 
@@ -30,14 +30,15 @@ at our bi-weekly office-hours and on Slack. To be invited to office-hours or sla
 
 
 .. toctree::
-   :caption: Getting Started with VOLTTRON
+   :caption: Introduction
    :hidden:
    :maxdepth: 1
 
-   introduction/getting-started
-   introduction/platform_install
+   introduction/what-is-volttron
+   introduction/how-does-it-work
+   introduction/platform-install
    introduction/definitions
-   getting_started/license
+   introduction/license
 
 
 .. toctree::
@@ -45,10 +46,12 @@ at our bi-weekly office-hours and on Slack. To be invited to office-hours or sla
    :hidden:
    :maxdepth: 1
 
-   developing_volttron/contributing/index
-   developing_volttron/developing_agents/agent-development-walkthrough
-   developing_volttron/developing_drivers/driver-development-walkthrough
-   developing_volttron/development_environment/index
+   developing-volttron/contributing/index
+   developing-volttron/development-environment/index
+   developing-volttron/developing-agents/agent-development-walk-through
+   developing-volttron/developing-drivers/driver-development-walk-through
+   developing-volttron/jupyter-notebooks
+   developing-volttron/python-for-matlab-users
 
 
 .. toctree::
@@ -56,23 +59,40 @@ at our bi-weekly office-hours and on Slack. To be invited to office-hours or sla
    :hidden:
    :maxdepth: 1
 
-   deploying_volttron/Deployment-Walkthrough
-   deploying_volttron/Deployment-Options
-   deploying_volttron/SingleMachine-Walkthrough
-   deploying_volttron/Multiplatform-Walkthrough
-   deploying_volttron/Forward-Historian-Walkthrough
-   deploying_volttron/Forward-Historian-Deployment
-   deploying_volttron/Multiple-Address-Configuration
-   deploying_volttron/VOLTTRON-Central-Demo
-   deploying_volttron/Linux-Platform-Hardening-Recommendations-for-VOLTTRON-users
+   deploying-volttron/single-machine-walk-through
+   deploying-volttron/multi-platform-walk-through
+   deploying-volttron/volttron-central
+   deploying-volttron/platform-Hardening
 
 
 .. toctree::
-   :caption: Frameworks and Integrations
+   :caption: Agent Framework
    :hidden:
    :maxdepth: 1
 
-   frameworks_and_integrations/driver_framework/index
+   agent-framework/agents-overview
+   agent-framework/core-service-agents/index
+   agent-framework/historian-agents/historian-framework
+   agent-framework/operations-agents/index
+   agent-framework/example-agents/index
+   agent-framework/platform-service-standardization
+   agent-framework/third-party-agents
+
+
+.. toctree::
+   :caption: Driver Framework
+   :hidden:
+   :maxdepth: 1
+
+   driver-framework/drivers-overview
+   driver-framework/fake-driver/fake-driver
+   driver-framework/actuator/actuator-agent
+   driver-framework/bacnet/bacnet-driver
+   driver-framework/chargepoint/chargepoint-driver
+   driver-framework/modbus/modbus-driver
+   driver-framework/modbus/modbus-tk-driver
+   driver-framework/obix/obix
+   driver-framework/ted-driver/the-energy-detective-driver
 
 
 .. toctree::
@@ -80,10 +100,10 @@ at our bi-weekly office-hours and on Slack. To be invited to office-hours or sla
    :hidden:
    :maxdepth: 1
 
-   platform_features/messagebus/index
-   platform_features/security/index
-   platform_features/multiplatform/index
-   platform_features/config_store/index
+   platform-features/message-bus/index
+   platform-features/control/index
+   platform-features/config-store/configuration-store
+   platform-features/security/volttron-security
 
 
 .. toctree::
@@ -91,7 +111,9 @@ at our bi-weekly office-hours and on Slack. To be invited to office-hours or sla
    :hidden:
    :maxdepth: 1
 
-   volttron_topics/volttron_applications/index
+   volttron-topics/troubleshooting/index
+   volttron-topics/volttron-applications/index
+   volttron-topics/change-log/index
 
 
 Indices and tables
