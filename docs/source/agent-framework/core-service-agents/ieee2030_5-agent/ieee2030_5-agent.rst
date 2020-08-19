@@ -117,11 +117,12 @@ persisted to a database.  Each `EndDevice` retains only the most recently receiv
 
 The IEEE2030_5 Agent exposes RPC calls for getting and setting EndDevice data.
 
+
 VOLTTRON IEEE 2030.5 Device Driver
 ----------------------------------
 
-The :ref:`IEEE 2030.5 device driver <>` is a new addition to VOLTTRON Master Driver Agent's family of
-standard device drivers. It exposes ``get_point``/``set_point calls`` for IEEE 2030.5 EndDevice fields.
+The :ref:`IEEE 2030.5 device driver <IEEE2030_5-Driver-Config>` is a new addition to VOLTTRON Master Driver Agent's
+family of standard device drivers.  It exposes ``get_point``/``set_point calls`` for IEEE 2030.5 EndDevice fields.
 
 The IEEE 2030.5 device driver periodically issues IEEE2030_5 Agent RPC calls to refresh its cached representation of
 EndDevice data.  It issues RPC calls to IEEE2030_5Agent as needed when responding to ``get_point``, ``set_point`` and

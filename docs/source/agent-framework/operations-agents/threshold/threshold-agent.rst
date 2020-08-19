@@ -1,5 +1,6 @@
-.. _ThresholdAgent:
+.. _Threshold-Agent:
 
+=========================
 Threshold Detection Agent
 =========================
 
@@ -8,9 +9,9 @@ topic exceeds or falls below a configured value. The agent can be configured to
 watch topics are associated with a single value or to watch devices' all topics.
 
 Configuration
--------------
+=============
 
-The ThresholdDetectionAgent supports the :ref:`configstore <VOLTTRON-Configuration-Store>`
+The Threshold Detection Agent supports the :ref:`config store <Configuration-Store>`
 and can be configured with a file named "config".
 
 The file must be in the following format:

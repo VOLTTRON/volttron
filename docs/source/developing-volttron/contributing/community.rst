@@ -7,7 +7,7 @@ Join the Community
 The VOLTTRON team aims to work with users and contributors to continuously improve the platform with features requested
 by the community as well as architectural features that improve robustness, security, and scalability. Contributing
 back to the project, which is encouraged but not required, enhances its capabilities for the whole community. To
-learn more, check out :ref:`Contributing <Contributing>` and :ref:`Documentation <documentation>`.
+learn more, check out :ref:`Contributing <Contributing-Code>` and :ref:`Documentation <Contributing-Documentation>`.
 
 
 Slack Channel
@@ -50,7 +50,7 @@ Contributing Back
     :glob:
     :maxdepth: 1
 
-   contributing
+   contributing-code
    contributing-documentation
 
 .. |VOLTTRON| unicode:: VOLTTRON U+2122

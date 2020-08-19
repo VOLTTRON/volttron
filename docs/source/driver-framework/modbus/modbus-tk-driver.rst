@@ -7,7 +7,7 @@ Modbus TK Driver
 VOLTTRON's Modbus-TK driver, built on the Python Modbus-TK library, is an alternative to the original VOLTTRON modbus
 driver.  Unlike the original modbus driver, the Modbus-TK driver supports Modbus RTU as well as Modbus over TCP/IP.
 
-`About Modbus protocol <>`_
+`About Modbus protocol <https://en.wikipedia.org/wiki/Modbus>`_
 
 The Modbus-TK driver introduces a map library and configuration builder, intended as a way to streamline configuration
 file creation and maintenance.
@@ -155,7 +155,8 @@ Modbus-TK Register Map CSV File
 
 Modbus TK requires an additional registry configuration file compared to the paradigm of most other drivers.  The
 registry map file is an analogue to the typical registry configuration file.  The
-:ref:`registry configuration file <>` is a simple file which maps device point names to user specified point names.
+:ref:`registry configuration file <Modbus-TK-Registry-Config>` is a simple file which maps device point names to user
+specified point names.
 
 The registry map file is a `CSV <https://en.wikipedia.org/wiki/Comma-separated_values>`_ file.
 Each row configures a register definition on the device.
@@ -211,6 +212,8 @@ Here is a sample Modbus-TK registry map:
         sample_bool,16,bool,None,TRUE,False,,analog_output_holding_registers
         sample_str,17,string[12],None,TRUE,hello world!,,analog_output_holding_registers
 
+
+.. _Modbus-TK-Registry-Config:
 
 Modbus-TK Registry Configuration
 ================================

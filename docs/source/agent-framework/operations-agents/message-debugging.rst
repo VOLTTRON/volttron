@@ -1,5 +1,6 @@
 .. _Message-Debugging:
 
+=================
 Message Debugging
 =================
 
@@ -66,7 +67,7 @@ fashion as other agents, for example:
     e1 vcplatformagent-3.5.4      platform.agent           vcp
     47 volttroncentralagent-3.5.5 volttron.central         vc
 
-See :ref:`Agent Creation Walkthrough <Agent-Development>` for further details on
+See :ref:`Agent Creation Walk-through <Agent-Development-Walk-through>` for further details on
 installing and starting agents from vctl.
 
 Once the Message Debugger Agent is running, it begins capturing message data and

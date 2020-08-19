@@ -42,8 +42,8 @@ Virtual Machine Setup
 The first step in creating a VOLTTRON instance is to make sure the machine is ready for VOLTTRON.  Each machine
 should have its hostname setup.  For this walk-through, the hostnames "central", "node-zmq" and "node-rmq" will be used.
 
-For Central and Node-RMQ follow the instructions :ref:`Platform-Installation#steps-for-rabbitmq`.  For Node-ZMQ use
-:ref:`Platform-Installation#steps-for-zmq`.
+For Central and Node-RMQ follow the instructions :ref:`platform installation steps for RMQ <RabbitMQ-Install>`.  For
+Node-ZMQ use :ref:`Platform Installation steps for ZeroMQ <ZeroMQ-Install>`.
 
 
 Instance Setup
@@ -66,7 +66,8 @@ Central Instance Setup
 
 .. note::
 
-  This instance must have been bootstrapped using --rabbitmq see :ref:`Platform-Installation#steps-for-rabbitmq`.
+  This instance must have been bootstrapped using ``--rabbitmq`` see
+  :ref:`RabbitMq installation instructions <RabbitMQ Install>`.
 
 Next step would be to configure the instance to have a web interface to accept/deny incoming certificate signing
 requests from other instances. Additionally, we will need to install a Volttron Central agent, Volttron Central
@@ -351,7 +352,8 @@ Node-RMQ Instance Setup
 
 .. note::
 
-  This instance must have been bootstrapped using --rabbitmq see :ref:`Platform-Installation#steps-for-rabbitmq`.
+  This instance must have been bootstrapped using --rabbitmq see
+  :ref:`RabbitMq installation instructions <RabbitMQ Install>`.
 
 
 Using "vcfg" command, install Volttron Central Platform agent, a master driver agent with fake driver. The instance
@@ -368,7 +370,7 @@ name is set to "collector2".
     Name of this volttron instance: [volttron1]: collector2
     RabbitMQ server home: [/home/user/rabbitmq_server/rabbitmq_server-3.7.7]:
     Fully qualified domain name of the system: [node-rmq]:
-    Would you like to create a new self signed root CAcertificate for this instance: [Y]:
+    Would you like to create a new self signed root CA certificate for this instance: [Y]:
 
     Please enter the following details for root CA certificate
         Country: [US]:

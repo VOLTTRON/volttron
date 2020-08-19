@@ -18,6 +18,8 @@ working knowledge of Linux will be helpful for troubleshooting and may improve y
 deployment.
 
 
+.. _Platform-Prerequisites:
+
 Step 1 - Install prerequisites
 ==============================
 
@@ -125,7 +127,7 @@ code or want the latest updates as they happen. In order of decreasing stability
 Step 3 - Setup virtual environment
 ==================================
 
-The `bootstrap.py` script in the VOLTTRON root directory will create a
+The :ref:`bootstrap.py <Bootstrap-Options>` script in the VOLTTRON root directory will create a
 `virtual environment <https://docs.python-guide.org/dev/virtualenvs/>`_ and install the package's Python dependencies.
 Options exist for upgrading or rebuilding existing environments, and for adding additional dependencies for optional
 drivers and agents included in the repository.
@@ -134,6 +136,8 @@ drivers and agents included in the repository.
 
     The :bash:`--help` option for `bootstrap.py` can specified to display all available optional parameters.
 
+
+.. _ZeroMQ-Install:
 
 Steps for ZeroMQ
 ----------------
@@ -157,6 +161,8 @@ Proceed to step 4.
 
     You can deactivate the environment at any time by running `deactivate`.
 
+
+.. _RabbitMQ-Install:
 
 Steps for RabbitMQ
 ------------------
@@ -219,6 +225,7 @@ boot. Without this (for example, when running on a VM in NAT mode) RabbitMQ  sta
 to connect to empd (port 4369) on <hostname>."
 
 .. note::
+
     RabbitMQ startup error would show up in the VM's syslog (/var/log/messages) file and not in RabbitMQ logs
     (/var/log/rabbitmq/rabbitmq@hostname.log)
 
@@ -236,6 +243,11 @@ RabbitMQ server as the current user.  If an install path is provided, that path 
 write permissions.  RabbitMQ will be installed under `<install dir>/rabbitmq_server-3.7.7`. The rest of the
 documentation refers to the directory `<install dir>/rabbitmq_server-3.7.7` as `$RABBITMQ_HOME`.
 
+.. note::
+
+   There are many additional :ref:`options for bootstrap.py <Bootstrap-Options>` for including dependencies, altering
+   the environment, etc.
+
 You can check if the RabbitMQ server is installed by checking its status:
 
 .. code-block:: bash
@@ -243,6 +255,7 @@ You can check if the RabbitMQ server is installed by checking its status:
     service rabbitmq status
 
 .. note::
+
     The `RABBITMQ_HOME` environment variable can be set in ~/.bashrc. If doing so, it needs to be set to the RabbitMQ
     installation directory (default path is `<user_home>/rabbitmq_server/rabbitmq_server-3.7.7`)
 

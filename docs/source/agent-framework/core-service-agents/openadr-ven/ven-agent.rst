@@ -260,7 +260,7 @@ These parameters include state information about the current report.
 
 Telemetry parameters structure:
 
-.. code-block:: json
+::
 
     {
         'telemetry': '{

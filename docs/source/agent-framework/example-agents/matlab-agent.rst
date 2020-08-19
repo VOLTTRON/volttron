@@ -353,7 +353,7 @@ Setup on Linux
         The MatLab agent uses the configuration store to dynamically change inputs.  More information on the config
         store and how it used can be found here.
 
-         * :ref:`VOLTTRON Configuration Store <VOLTTRON-Configuration-Store>`
+         * :ref:`VOLTTRON Configuration Store <Configuration-Store>`
 
          * :ref:`Agent Configuration Store <Agent-Configuration-Store>`
 

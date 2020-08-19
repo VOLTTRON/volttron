@@ -34,9 +34,9 @@ interface.
 Getting Started
 ---------------
 
-After :ref:`building VOLTTRON <Building-VOLTTRON>`, open three shells
+After :ref:`installing VOLTTRON <Platform-Installation>`, open three shells
 with the current directory the root of the VOLTTRON repository. Then activate
-the VOLTTRON environment and export the VOLTTRON\_HOME variable. The home
+the VOLTTRON environment and export the `VOLTTRON_HOME` variable. The home
 variable needs to be different for each instance.
 
 If you are using Terminator you can right click and select "Split Vertically".

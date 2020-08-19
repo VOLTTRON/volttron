@@ -30,12 +30,13 @@ VOLTTRON instance 1
       - Then install agents like Master Driver Agent with a fake driver for the instance.
       - Install a listener agent so see the topics that are coming from the diver agent
       - Then run the volttron instance by using the following command: ``./start-volttron``
-- Volttron authentication: We need to add the IP of the instance 2 in the auth.config file of the VOLTTRON agent.
+
+- Volttron authentication: We need to add the IP of the instance 2 in the `auth.config` file of the VOLTTRON agent.
   This is done as follows:
 
    -  ``vctl auth-add``
    -  We specify the IP of the instance 2 and the credentials of the agent (read
-      :ref:`Agent Authentication <Agent-Authenication-Walk-through>`
+      :ref:`Agent Authentication <Agent-Authentication-Walk-through>`
    -  For specifying authentication for all the agents , we specify ``/.*/``
    -  This should enable authentication for all the volttron-instance based on the IP you specify here
 
@@ -45,9 +46,9 @@ For this documentation, the topics from the driver agent will be send to the ins
 
 -  We use the existing agent called the Forward Historian for this purpose which is available in service/core in the
    VOLTTRON directory.
--  In the config file under the ForwardHistorian directory, we modify the following fields:
+-  In the config file under the Forward Historian directory, we modify the following fields:
 
-   - Destination-vip : the IP of the volttron instance to which we have to forward the data to along with the port
+   - Destination-vip: the IP of the volttron instance to which we have to forward the data to along with the port
      number.  Example : ``tcp://130.20.*.*:22916``
    - Destination-serverkey: The server key of the VOLTTRON instance to which we need to forward the data to.
      This can be obtained at the VOLTTRON instance by typing ``vctl auth serverkey``
@@ -60,8 +61,8 @@ For this documentation, the topics from the driver agent will be send to the ins
 VOLTTRON instance 2
 ^^^^^^^^^^^^^^^^^^^
 
--  ``vctl shutdown –platform`` (if the platform is already working )
--  ``volttron-cfg`` (this helps in configuring the volttron instance )
+-  ``vctl shutdown –platform`` (if the platform is already working)
+-  ``volttron-cfg`` (this helps in configuring the volttron instance)
    http://volttron.readthedocs.io/en/releases-4.1/core_services/control/VOLTTRON-Config.html
 
    -  Specify the IP of the machine : ``tcp://130.20.*.*:22916``

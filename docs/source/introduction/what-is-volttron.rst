@@ -44,4 +44,4 @@ Basic Components
 * :ref:`Historians <Historian-Framework>` - Historians are special purpose agents which are used to subscribe to sources broadcasting on
 the message bus and store their messages for later use.
 
-* :ref:`Web Framework <>` - The VOLTTRON web framework
+* :ref:`Web Framework <Web-Framework>` - The VOLTTRON web framework

@@ -1,13 +1,12 @@
-.. _Eclipse-VM:
+.. _Eclipse-IDE-Setup:
 
 =================
 Eclipse IDE Setup
 =================
 
-The only thing that is necessary to create a VOLTTRON agent is a text editor and the shell. However, we have found the
-Eclipse Development Environment (IDE) to be a valuable tool for helping to develop VOLTTRON agents. You can obtain the
-latest from http://www.eclipse.org/. Once downloaded, the :ref:`PyDev Plugin <pydev-plugin>` is a valuable tool for
-executing the platform as well as debugging agent code.
+The only thing that is necessary to create a VOLTTRON agent is a text editor and the shell.  However, we have found the
+Eclipse Development Environment (IDE) to be a valuable tool for helping to develop VOLTTRON agents.  You can obtain the
+latest from http://www.eclipse.org/.
 
 
 PyDev Plugin
@@ -30,8 +29,8 @@ older versions a Git plugin is available which can be convenient for developing 
 
 .. note::
 
-    Installing Git and the :ref:`VOLTTRON prerequisites <VOLTTRON-Prerequisites>` will be required to clone the VOLTTRON
-    repository and :ref:`build VOLTTRON <Building-VOLTTRON>`
+    Installing Git and the :ref:`VOLTTRON prerequisites <Platform-Prerequisites>` will be required to clone the VOLTTRON
+    repository and :ref:`install the platform <Platform-Installation>`
 
 If your Eclipse installation does not have the marketplace follow these :ref:`instructions <Manual-Plugin-Install>`.
 
@@ -68,8 +67,7 @@ Build VOLTTRON
 --------------
 
 Continue the setup process by opening a command shell and navigating to the root of your cloned VOLTTRON directory.
-Follow the instructions in our :ref:`Building VOLTTRON <Building-VOLTTRON>`__ section of the docs and then continue
-below.
+Follow the instructions in our :ref:`platform installation <Platform-Installation>` docs and then continue below.
 
 
 Linking Eclipse and the VOLTTRON Python Environment
@@ -118,8 +116,8 @@ In order to test the installation the VOLTTRON platform must be running.
 You can do this either through `the shell <#execute-volttron-through-shell>`__ or
 `through Eclipse <#execute-volttron-through-eclipse>`__.
 
-.. _Execute-Volttron-From-Shell:
 
+.. _Execute-Volttron-From-Shell:
 
 Execute VOLTTRON Through Shell
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -161,7 +159,9 @@ Start a ListenerAgent
 ~~~~~~~~~~~~~~~~~~~~~
 
 .. warning::
-    Before attempting to run an agent in Eclipse, please see the note in: :ref:`AgentDevelopment <Agent_Development>`
+
+   Before attempting to run an agent in Eclipse, please see the note in:
+   :ref:`Agent Development <Eclipse-Agent-Development>`
 
 
 
@@ -173,7 +173,7 @@ Create a new run configuration entry for the listener agent.
 
 #. In the Package Explorer view, open examples -> ListenerAgent -->
    listener
-#. Righ-click on agent.py and select Run As -> Python Run (this will
+#. Right-click on agent.py and select Run As -> Python Run (this will
    create a run configuration but fail)
 #. On the menu bar, pick Run -> Run Configurations...
 #. Under Python Run pick "volttron agent.py"
@@ -206,3 +206,9 @@ message in the console.
 .. |Arguments| image:: files/volttron-main-args.png
 .. |Successful Start| image:: files/run-results.png
 .. |Listener Vars| image:: files/listener-all-vars.png
+
+
+.. toctree::
+
+   eclipse
+   manual-plugin-install

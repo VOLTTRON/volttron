@@ -20,7 +20,7 @@ Static documentation can be found in the `docs/source` directory.  Edit or creat
 using the `Restructured Text <http://docutils.sourceforge.net/docs/user/rst/quickref.html>`_ format.  To see the results
 of your changes the documentation can be built locally through the command line using the following instructions:
 
-If you've already :ref:`bootstrapped <setup>` |VOLTTRON|, do the following while activated. If not,
+If you've already :ref:`bootstrapped <Platform-Installation>` |VOLTTRON|, do the following while activated. If not,
 this will also pull down the necessary |VOLTTRON| libraries.
 
 .. code-block:: bash
@@ -36,8 +36,8 @@ Then, open your browser to the created local files:
    file:///home/<USER>/git/volttron/docs/build/html/overview/index.html
 
 
-When complete, changes can be contributed back using the same process as code :ref:`contributions <contributing>` by
-creating a pull request.  When the changes are accepted and merged, they will be reflected in the ReadTheDocs site.
+When complete, changes can be contributed back using the same process as code :ref:`contributions <Contributing-Code>`
+by creating a pull request.  When the changes are accepted and merged, they will be reflected in the ReadTheDocs site.
 
 .. |VOLTTRON| unicode:: VOLTTRON U+2122
 
@@ -99,7 +99,7 @@ documentation.  Include reference labels above titles and important headings:
 
 
 Heading Levels
-~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^
 
 * Page titles and documentation parts should use over-line and underline hashes:
 
@@ -183,11 +183,29 @@ Directives
 
 
 Some other directives
-~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^
 
 "attention", "caution", "danger", "error", "hint", "important", "note", "tip", "warning", "admonition"
 
-You can use anchors for internal :ref:`references <code blocks>` too
+
+Links
+-----
+
+Linking to external sites is simple:
+
+::
+
+    Link to `Google <www.google.com>`_
+
+
+References
+----------
+
+You can reference other sections of documentation using the `ref` directive:
+
+::
+
+    This will reference the :ref:`platform installation <Platform-Installation>`
 
 
 Other resources

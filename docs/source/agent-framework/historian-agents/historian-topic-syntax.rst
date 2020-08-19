@@ -104,10 +104,10 @@ datalogger/\*
 Messages published to `datalogger/\*` will be assumed to be time point data that is composed of units and specific types
 with the assumption that they have the ability to be graphed easily.
 
-.. code-block:: json
+::
 
     {"MixedAirTemperature": {"Readings": ["2015-12-02T00:00:00",
-                                          mixed_reading],
+                                          <mixed_reading],
                              "Units": "F",
                              "tz": "UTC",
                              "data_type": "float"}}

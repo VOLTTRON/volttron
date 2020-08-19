@@ -5,7 +5,7 @@ Config Actuation Example
 ========================
 
 The Config Actuation example attempts to set points on a device when files are added or updated in its
-:ref:`configuration store <VOLTTRON-Configuration-Store>`.
+:ref:`configuration store <Agent-Configuration-Store>`.
 
 
 Configuration

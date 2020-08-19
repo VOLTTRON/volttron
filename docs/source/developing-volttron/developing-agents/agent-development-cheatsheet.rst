@@ -154,7 +154,7 @@ Support for the configuration store is done by subscribing to configuration chan
 
     self.vip.config.subscribe(self.configure_main, actions=["NEW", "UPDATE"], pattern="config")
 
-See :doc:`Agent Configuration Store <Agent-Configuration-Store>` 
+See :ref:`Agent Configuration Store <Agent-Configuration-Store>`
 
 
 Heartbeat

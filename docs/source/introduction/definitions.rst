@@ -8,6 +8,7 @@ This page lays out a common terminology for discussing the components and underl
 The first section discusses capabilities and industry standards that VOLTTRON conforms to while the latter is specific
 to the VOLTTRON domain.
 
+
 Industry Terms
 ==============
 
@@ -31,54 +32,78 @@ Industry Terms
 VOLTTRON Terms
 ==============
 
-    .. _activated-environment:
 
-    Activated Environment
-        An activated environment is the environment a VOLTTRON instance is run in. The bootstrap process creates the
-        environment from the shell and to activate it the following command is executed.
+.. _Activated-Environment:
 
-        .. code-block:: bash
+Activated Environment
+---------------------
 
-            user@computer> source env/bin/activate
+    An activated environment is the environment a VOLTTRON instance is run in. The bootstrap process creates the
+    environment from the shell and to activate it the following command is executed.
 
-            # Note once the above command has been run the prompt will have changed
-            (volttron)user@computer>
+    .. code-block:: bash
 
-    AIP
+        user@computer> source env/bin/activate
 
-    .. _bootstrap-environment:
+        # Note once the above command has been run the prompt will have changed
+        (volttron)user@computer>
 
-    Bootstrap Environment
-        The process by which an operating environment (activated environment) is produced.  From the
-        :ref:`VOLTTRON_ROOT` directory executing `python bootstrap.py` will start the bootstrap process.
 
-    .. _VOLTTRON_HOME:
+.. _AIP:
 
-    VOLTTRON_HOME
-        The location for a specific :ref:`VOLTTRON_INSTANCE` to store its specific information.  There can be many
-        VOLTTRON_HOMEs on a single computing resource(VM, machine, etc.), and each VOLTTRON_HOME will correspond to a
-        single instance of VOLTTRON.
+AIP
+---
 
-    .. _VOLTTRON_INSTANCE:
+    Agent Instantiation and Packaging -  this is the module responsible for creating agent wheels, the agent execution
+    environment and running agents. Found in the VOLTTRON repository in the `volttron/platform` directory.
 
-    VOLTTRON_INSTANCE
-        A single volttron process executing instructions on a computing resource. For each VOLTTRON_INSTANCE there WILL
-        BE only one :ref:`VOLTTRON_HOME` associated with it.  In order for a VOLTTRON_INSTANCE to be able to
-        participate outside its computing resource it must be bound to an external ip address.
 
-    .. _VOLTTRON_ROOT:
+.. _Bootstrap-Environment:
 
-    VOLTTRON_ROOT
-        The cloned directory from github.  When executing the command
+Bootstrap Environment
+---------------------
 
-        .. code-block:: bash
+    The process by which an operating environment (activated environment) is produced.  From the
+    :ref:`VOLTTRON_ROOT` directory executing `python bootstrap.py` will start the bootstrap process.
 
-            git clone http://github.com/VOLTTRON/volttron
 
-        the top level volttron folder is the VOLTTRON_ROOT
+.. _VOLTTRON_HOME:
 
-    .. _VIP:
+VOLTTRON_HOME
+-------------
 
-    VIP
-        VOLTTRON Interconnect Protocol is a secure routing protocol that facilitates communications between agents,
-        controllers, services and the supervisory :ref:`VOLTTRON_INSTANCE`.
+    The location for a specific :ref:`VOLTTRON_INSTANCE` to store its specific information.  There can be many
+    VOLTTRON_HOMEs on a single computing resource(VM, machine, etc.), and each `VOLTTRON_HOME` will correspond to a
+    single instance of VOLTTRON.
+
+
+.. _VOLTTRON_INSTANCE:
+
+VOLTTRON_INSTANCE
+-----------------
+    A single volttron process executing instructions on a computing resource. For each VOLTTRON_INSTANCE there WILL
+    BE only one :ref:`VOLTTRON_HOME` associated with it.  In order for a VOLTTRON_INSTANCE to be able to
+    participate outside its computing resource it must be bound to an external ip address.
+
+
+.. _VOLTTRON_ROOT:
+
+VOLTTRON_ROOT
+-------------
+
+    The cloned directory from Github.  When executing the command
+
+    .. code-block:: bash
+
+        git clone http://github.com/VOLTTRON/volttron
+
+    the top level volttron folder is the VOLTTRON_ROOT
+
+
+.. _VIP:
+
+VIP
+---
+
+    VOLTTRON Interconnect Protocol is a secure routing protocol that facilitates communications between agents,
+    controllers, services and the supervisory :ref:`VOLTTRON_INSTANCE`.

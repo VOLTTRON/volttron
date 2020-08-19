@@ -15,13 +15,13 @@ that developers new to VOLTTRON understand the example agents first before divin
 .. toctree::
    :maxdepth: 1
 
-    c-agent
-    config-actuation
-    csv-historian
-    data-publisher
-    dds-agent
-    listener-agent
-    matlab-agent
-    node-red
-    scheduler-example-agent
-    simple-web-agent-walk-through
+   c-agent
+   config-actuation
+   csv-historian
+   data-publisher
+   dds-agent
+   listener-agent
+   matlab-agent
+   node-red
+   scheduler-example-agent
+   simple-web-agent-walk-through

@@ -20,6 +20,16 @@ exchange.
 .. _ZAP: http://rfc.zeromq.org/spec:27/ZAP.
 
 
+.. toctree::
+   :caption: VIP Topics
+
+   vip-json-rpc
+   vip-known-identities
+   vip-authentication
+   vip-authorization
+   vip-enhancements
+
+
 Design Overview
 ===============
 

@@ -1,5 +1,6 @@
-.. _Eclipse:
+.. _Eclipse-Agent-Development:
 
+============================
 Agent Development in Eclipse
 ============================
 
@@ -335,9 +336,10 @@ Figure 35. Listener Agent Output on Eclipse Console
 
 The process for running other agents in Eclipse is identical to that of the Listener agent. Several useful development tools are available within Eclipse and PyDev that make development, debugging, and testing of agents much simpler.
 
-Agent Creation Walkthrough
---------------------------
-Developers should look at the Listener agent before developing their own agent. The Listener agent illustrates the basic functionality of an agent. The following example demonstrates the steps for creating an agent. 
+Agent Creation Walk-through
+---------------------------
+Developers should look at the Listener agent before developing their own agent.  The Listener agent illustrates the
+basic functionality of an agent. The following example demonstrates the steps for creating an agent.
 
 Agent Folder Setup
 ^^^^^^^^^^^^^^^^^^
@@ -523,7 +525,8 @@ Running the TestAgent in Eclipse
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. warning::
-    Before attempting to run an agent in Eclipse, please see the note in: :ref:`AgentDevelopment <Agent_Development>`
+    Before attempting to run an agent in Eclipse, please see the note in:
+    :ref:`AgentDevelopment <Agent-Development-Walk-through>`
 
 If you are working in Eclipse, create a run configuration for the TestAgent based on the Listener agent configuration in the Eclipse development environment ##(Section 5.5.5 Running the VOLTTRON Platform and Agents)##.
 

@@ -13,7 +13,7 @@ Obix Driver Configuration
 VOLTTRON's uses Obix's restful interface to facilitate communication.
 
 This driver does *not* handle reading data from the history section of the interface.  If the user wants data published
-from the management systems historical data use the :ref:`Obix-Historian` agent.
+from the management systems historical data use the :ref:`Obix History <Obix-History>` agent.
 
 
 Driver Configuration

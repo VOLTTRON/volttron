@@ -67,7 +67,7 @@ Points on Task Scheduling
    not be considered a conflict. For example, ``time_slot1(device0, time1, **time2**)`` and
    ``time_slot2(device0, **time2**, time3)`` are not considered a conflict
 -  A request must not conflict with itself
--  If something goes wrong see :ref:`this failure string list <Actuator-Failure_Reasons>` for an
+-  If something goes wrong see :ref:`this failure string list <Actuator-Failure-Reasons>` for an
    explanation of the error.
 
 

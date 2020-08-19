@@ -69,8 +69,8 @@ Examine the Agent Code
 ----------------------
 
 The resulting code is well documented with comments and documentation strings. It gives examples of how to do common
-tasks in VOLTTRON Agents (refer to the :doc:`Agent-Development-Cheatsheet` for more information).  The main agent code
-is found in `tester/agent.py`.
+tasks in VOLTTRON Agents (refer to the :ref:`Agent Development Cheatsheet <Agent-Development-Cheatsheet>` for more
+information).  The main agent code is found in `tester/agent.py`.
 
 
 Parse Packaged Configuration and Create Agent Instance
@@ -112,8 +112,8 @@ An instance of the Agent is created from the parsed values and is returned.
 Initialization and Configuration Store Support
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The :ref:`configuration store <Agent-Configuration-Store>` is a powerful feature.  The agent template provides a simple
-example of setting up default configuration store values and setting up a configuration handler.
+The :ref:`configuration store <Agent-Configuration-Store-Interface>` is a powerful feature.  The agent template provides
+a simple example of setting up default configuration store values and setting up a configuration handler.
 
 .. code-block:: python
 
@@ -166,7 +166,7 @@ example of setting up default configuration store values and setting up a config
 
 Values in the default config can be built into the agent or come from the packaged configuration file. The subscribe
 method tells our agent which function to call whenever there is a new or updated config file. For more information
-on using the configuration store see :ref:`Agent Configuration Store <Agent-Configuration-Store>`.
+on using the configuration store see :ref:`Agent Configuration Store <Agent-Configuration-Store-Interface>`.
 
 `_create_subscriptions` (covered in the next section) will use the value in `self.setting2` to create a new subscription.
 
@@ -302,6 +302,8 @@ for the agent.  This file contains examples of every data type supported by the 
     }
 
 
+.. _Agent-Packaging-and-Install:
+
 Packaging and Installing the Agent
 ----------------------------------
 
@@ -390,10 +392,10 @@ Check that it is :ref:`running <Agent-Status>`:
 
     vctl status
 
-* Start the ListenerAgent as in :ref:`Building VOLTTRON <Building-VOLTTRON>`.
+* Start the ListenerAgent as in the :ref:`platform installation guide <Platform-Installation>`.
 * Check the log file for messages indicating the TestAgent is receiving the ListenerAgents messages:
 
-.. code-block:: bash:
+.. code-block:: bash
 
     TODO
 
@@ -409,8 +411,8 @@ elements.
    permissions, etc.) and sample configuration
 
 VOLTTRON uses *pytest* as a framework for executing tests.  All unit tests should be based on the *pytest* framework.
-For instructions on writing unit and integration tests with *pytest*, refer to the :doc:`Writing-Agent-Tests`
-documentation.
+For instructions on writing unit and integration tests with *pytest*, refer to the
+:ref:`Writing Agent Tests <Writing-Agent-Tests>` documentation.
 
 *pytest* is not installed with the distribution by default. To install py.test and it's dependencies execute the
 following:
@@ -443,12 +445,49 @@ command prompt:
     ./ci-integration/run-tests.sh
 
 
+.. _Utility-Scripts:
+
+Scripts
+=======
+
+In order to make repetitive tasks less repetitive the VOLTTRON team has create several scripts in order to help.  These
+tasks are available in the `scripts` directory.
+
+.. note::
+
+    In addition to the `scripts` directory, the VOLTTRON team has added the config directory to the .gitignore file.  By
+    convention this is where we store customized scripts and configuration that will not be made public.  Please feel
+    free to use this convention in your own processes.
+
+The `scripts/core` directory is laid out in such a way that we can build scripts on top of a base core.  For example the
+scripts in sub-folders such as the `historian-scripts` and `demo-comms` use the scripts that are present in the core
+directory.
+
+The most widely used script is `scripts/install-agent.py`.  The `install_agent.py` script will remove an agent if the
+tag is already present, create a new agent package, and install the agent to `VOLTTRON_HOME`.  This script has three
+required arguments and has the following signature:
+
+::
+
+    # Agent to Package must have a setup.py in the root of the directory.
+    scripts/install_agent.py <Agent to Package> <Config file> <Tag>
+
+The `install_agent.py` script will respect the `VOLTTRON_HOME` specified on the command line or set in the global
+environment.  An example of setting `VOLTTRON_HOME` is as follows.
+
+::
+
+    # Sets VOLTTRON_HOME to /tmp/v1home
+    VOLTTRON_HOME=/tmp/v1home scripts/core/pack_install.sh <Agent to Package> <Config file> <Tag>
+
+
 .. toctree::
    :hidden:
    :maxdepth: 1
 
-   agent_development_cheetsheet
-   agent_configuration_store
-   testing_agents
-   developing_historian_agents
-   developing_market_agents
+   agent-development-cheatsheet
+   agent-configuration-store
+   writing-agent-tests
+   developing-historian-agents
+   developing-market-agents
+   specifications/index

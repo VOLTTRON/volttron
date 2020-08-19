@@ -117,7 +117,7 @@ for ``use_calendar_time_periods``, indicating whether the aggregation period sho
 this value is omitted from the configuration file, aggregations cannot be used.
 
 For more information on historian aggregations, see:
-:ref:`Aggregate Historian Agent Specification <AggregateHistorianSpec>`.
+:ref:`Aggregate Historian Agent Specification <Aggregate-Historian-Spec>`.
 
 Supported Influxdb aggregation functions:
 
@@ -136,7 +136,7 @@ More information how to use those functions: `<https://docs.influxdata.com/influ
     InfluxDB doesn't have a separate agent for aggregations.  Instead, aggregation is supported through the
     ``query_historian`` function.  Other agents can execute an aggregation query directly in InfluxDB by calling the
     `RPC.export` method ``query``.  For an example, see
-    :ref:`Aggregate Historian Agent Specification <AggregateHistorianSpec>`
+    :ref:`Aggregate Historian Agent Specification <Aggregate-Historian-Spec>`
 
 
 Database Schema

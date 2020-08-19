@@ -8,10 +8,11 @@ VOLTTRON's DNP3 driver enables the use
 of `DNP3 <https://en.wikipedia.org/wiki/DNP3>`_ (Distributed Network Protocol)
 communications, reading and writing points via a DNP3 Outstation.
 
-In order to use a DNP3 driver to read and write point data, VOLTTRON's DNP3Agent must also
+In order to use a DNP3 driver to read and write point data, VOLTTRON's DNP3 Agent must also
 be configured and running. All communication between the VOLTTRON Outstation and a
-DNP3 Master happens through this DNP3Agent.
-For information about the DNP3Agent, please see the :ref:`DNP3 Platform Specification <DNP3>`.
+DNP3 Master happens through the DNP3 Agent.
+
+For information about the DNP3 Agent, please see the :ref:`DNP3 Platform Specification <DNP3-Agent>`.
 
 
 Requirements
@@ -79,9 +80,9 @@ A sample data dictionary is available in ``services/core/DNP3Agent/dnp3/mesa_poi
 
 Point definitions in the DNP3 driver's registry should look something like this:
 
-.. code-block:: csv
+.. csv-table:: DNP3
+    :header: Volttron Point Name,Group,Index,Scaling,Units,Writable
 
-    Volttron Point Name,Group,Index,Scaling,Units,Writable
     DCHD.WTgt,41,65,1.0,NA,FALSE
     DCHD.WTgt-In,30,90,1.0,NA,TRUE
     DCHD.WinTms,41,66,1.0,NA,FALSE

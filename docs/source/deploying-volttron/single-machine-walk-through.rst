@@ -1,14 +1,15 @@
-.. _SingleMachine-Walkthrough:
+.. _Single-Machine-Walk-through:
 
 Single Machine Deployment
 =========================
 
-The purpose of this demonstration is to show the process of setting up a simple VOLTTRON instance for use on a single machine.
+The purpose of this demonstration is to show the process of setting up a simple VOLTTRON instance for use on a single
+machine.
 
 Install and Build VOLTTRON
 --------------------------
 
-First, :ref:`install <VOLTTRON-Prerequisites>` and :ref:`build <Building-VOLTTRON>` VOLTTRON:
+First, :ref:`install <Platform-Installation>` VOLTTRON:
 
 For a quick reference: 
 
@@ -214,4 +215,4 @@ You will now see a list of agents. They should all be running.
 For more information on VOLTTRON Central, please see:
 
 * :ref:`VOLTTRON Central Management <VOLTTRON-Central>`
-* :ref:`VOLTTRON Central Demo <volttron-central-demo>`
+* :ref:`VOLTTRON Central Demo <Device-Configuration-in-VOLTTRON-Central>`

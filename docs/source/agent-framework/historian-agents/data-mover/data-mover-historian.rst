@@ -20,7 +20,7 @@ point towards the foreign Volttron instance.
 
 The following is an example configuration:
 
-.. code-block:: json
+::
 
     {
         "destination-vip": "ipc://@/home/volttron/.volttron/run/vip.socket",

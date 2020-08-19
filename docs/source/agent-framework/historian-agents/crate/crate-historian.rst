@@ -76,4 +76,4 @@ Because there is no authorization to access a crate database the configuration f
 
 Finally package, install and start the Crate Historian agent.
 
-.. seealso::  :ref:`Agent Development Walk-through <Agent-Development#packaging-agent>`
+.. seealso::  :ref:`Agent Development Walk-through <Agent-Packaging-and-Install>`

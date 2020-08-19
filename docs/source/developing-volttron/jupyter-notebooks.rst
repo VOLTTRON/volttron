@@ -54,7 +54,7 @@ Set Up the Server and Install VOLTTRON
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The following is a complete, but terse, description of the steps for installing and running VOLTTRON on a server. For
-more detailed, general instructions, see :ref:`Installing Volttron <install>`.
+more detailed, general instructions, see :ref:`Installing Volttron <Platform-Installation>`.
 
 The VOLTTRON server should run on the same host as the Jupyter server.
 

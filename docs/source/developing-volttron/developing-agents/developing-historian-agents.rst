@@ -16,7 +16,7 @@ a number of important functions:
 * sets up a separate thread for publication.  If publication code needs to block for a long period of time (up to 10s of
   seconds) this will no disrupt the collection of data from the bus or the functioning of the agent itself
 
-The VOLTTRON repository provides several :ref:`historians <VOLTTRON-Historians>` which can be deployed without
+The VOLTTRON repository provides several :ref:`historians <Historian-Framework>` which can be deployed without
 modification.
 
 
@@ -33,7 +33,7 @@ publish_to_historian(self, to_publish_list)
 This method is called by the BaseHistorian class when it has received data from the message bus to be published.
 `to_publish_list` is a list of records to publish in the form:
 
-.. code-block:: json
+::
 
     [
         {
@@ -78,7 +78,7 @@ query_historian(self, topic, start=None, end=None, skip=0, count=None, order=Non
 
 This function must return the results of a query in the form:
 
-.. code-block:: json
+::
 
     {"values": [(timestamp1: value1), (timestamp2: value2), ...],
      "metadata": {"key1": value1, "key2": value2, ...}}

@@ -1,4 +1,4 @@
-.. _Platform-Hardening-for-VOLTTRON:
+.. _Platform-Hardening:
 
 Platform Hardening for VOLTTRON
 ===============================

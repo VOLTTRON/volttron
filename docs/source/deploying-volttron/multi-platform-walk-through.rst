@@ -47,7 +47,7 @@ or add below line in the `onstart` method
 .. note:: If using the onstart method remove the @PubSub.subscribe('pubsub', '') from the top of the method.
 
 
-After :ref:`building VOLTTRON <Building-VOLTTRON>`, open three shells with the current directory the root of the
+After :ref:`installing VOLTTRON <Platform-Installation>`, open three shells with the current directory the root of the
 VOLTTRON repository.  Then activate the VOLTTRON environment and export the `VOLTTRON_HOME` variable. The home
 variable needs to be different for each instance.
 
@@ -265,3 +265,7 @@ to listen on:
     The config file is generated after running the `vcfg` command.  The VIP-address is for the local platform, NOT the
     remote platform.
 
+
+.. toctree::
+
+   forward-historian-deployment

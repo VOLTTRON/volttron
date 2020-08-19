@@ -139,7 +139,7 @@ know it is safe to talk to VOLTTRON2.
 Agents trying to connect to remote instance directly, need to have a public certificate signed by the remote
 instance for authenticated SSL based connection. To facilitate this process, the VOLTTRON platform exposes a web based server
 api for requesting, listing, approving and denying certificate requests. For more detailed description, refer to
-:ref:`Agent communication to Remote RabbitMQ instance<_Connecting_to_remote_RMQ>`
+:ref:`Agent communication to Remote RabbitMQ instance <Agent-Communication-to-Remote-RabbitMQ>`
 
 
 Authorization in RabbitMQ VOLTTRON
