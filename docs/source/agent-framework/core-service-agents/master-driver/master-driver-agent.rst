@@ -23,8 +23,11 @@ Configuration for each device consists of 3 parts:
 For each device, you must create a driver configuration file, device register configuration file, and an entry in the
 Master Driver Agent configuration file.
 
-Once configured, the Master Driver Agent is :ref:`configured and deployed <test-agent-deployment>` in a manner similar
-to any other agent.
+Once configured, the Master Driver Agent is configured and deployed in a manner similar to any other agent:
+
+.. code-block:: bash
+
+    python scripts/install-agent.py -s services/core/MasterDriverAgent -c <master driver config file>
 
 
 Requirements

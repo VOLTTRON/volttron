@@ -91,6 +91,7 @@ at our bi-weekly office-hours and on Slack. To be invited to office-hours or sla
    driver-framework/actuator/actuator-agent
    driver-framework/bacnet/bacnet-driver
    driver-framework/chargepoint/chargepoint-driver
+   driver-framework/dnp3-driver/dnp3-driver
    driver-framework/ecobee/ecobee-web-driver
    driver-framework/ieee-2030_5/ieee-2030-driver
    driver-framework/modbus/modbus-driver
@@ -108,6 +109,7 @@ at our bi-weekly office-hours and on Slack. To be invited to office-hours or sla
    platform-features/control/index
    platform-features/config-store/configuration-store
    platform-features/security/volttron-security
+   platform-features/web-framework/web-framework-overview
 
 
 .. toctree::

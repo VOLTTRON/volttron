@@ -6,7 +6,7 @@ VIP Authorization
 
 VIP :ref:`authentication <VIP-Authentication>` and authorization go hand in hand.  When an agent authenticates to a
 VOLTTRON platform that agent proves its identity to the platform.  Once authenticated, an agent is allowed to connect to
-the :ref:`message bus<VOLTTRON-Message-Bus>`.  VIP authorization is about giving a platform owner the ability to limit
+the :ref:`message bus <Message-Bus>`.  VIP authorization is about giving a platform owner the ability to limit
 the capabilities of authenticated agents.
 
 There are two parts to authorization:
@@ -44,7 +44,7 @@ capability can call ``set_temperature``.
     Capabilities are arbitrary strings.  This example follows the general style used for Linux capabilities, but it is
     up to the agent author.
 
-Now that a required capability has been specified, suppose a VOLLTRON platform owner wants to allow a specific agent,
+Now that a required capability has been specified, suppose a VOLTTRON platform owner wants to allow a specific agent,
 say `Alice Agent`, to set the temperature.
 
 The platform owner runs ``vctl auth add`` to add new authorization entries or ``vctl auth update`` to update an existing

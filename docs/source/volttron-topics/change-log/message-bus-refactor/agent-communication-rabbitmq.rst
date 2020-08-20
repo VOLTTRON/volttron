@@ -25,7 +25,7 @@ Configuration
 -------------
 
 Both volttron-server and volttron-client must be configured for RabbitMQ message bus with SSL using the step described
-at :ref:`Installing Volttron<setup>`.
+at :ref:`Installing Volttron <Platform-Installation>`.
 
 In addition the remote-volttron-instance configuration file must have a https bind-web-address specified in the
 instance config file. Below is an example config file with bind-web-address. Restart volttron after editing the config
@@ -73,8 +73,9 @@ The following is a code snippet from the remote-agent to connect to the remote v
     value = self.vip.auth.connect_remote_platform(address)
 
 The above function call will return an agent that connects to the remote instance only after the request is approved
-by an adminstrator of the remote instance. It is up to the agent to repeat calling `connect_remote_platform`
+by an administrator of the remote instance. It is up to the agent to repeat calling `connect_remote_platform`
 periodically until an agent object is obtained.
+
 
 Approving a CSR Request
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -86,8 +87,9 @@ is not None.
 
 |CSR Approval|
 
+
 Denying a CSR Request
-~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~
 The following diagram shows the sequence of events when an access request is denied by the administrator. The client
 agent repeats the call to connect_remote_platform until the return value is not None. When the remote instance's
 administrator denies a access request, the auth subsystem will raise an alert and shutdown the agent.
@@ -99,5 +101,5 @@ administrator denies a access request, the auth subsystem will raise an alert an
 .. |CSR Denied| image:: images/csr-sequence-deny.png
 
 
-Follow walk-through in :ref:`Multi-Platform Multi-Bus Walk-through <_Multi_Platform_Walkthrough>` for setting up different
-combinations of multi-bus multi-platform setup using CSR.
+Follow walk-through in :ref:`Multi-Platform Multi-Bus Walk-through <Multi-Platform-Walk-through>` for setting up
+different combinations of multi-bus multi-platform setup using CSR.

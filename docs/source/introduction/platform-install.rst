@@ -17,6 +17,11 @@ This guide will specify commands to use to successfully install the platform on 
 working knowledge of Linux will be helpful for troubleshooting and may improve your ability to get more out of your
 deployment.
 
+.. note::
+
+    Volttron version 7.0rc1 is currently tested for Ubuntu versions 18.04 and 18.10 as well as Linux Mint version 19.3.
+    Version 6.x is tested for Ubuntu versions 16.04 and 18.04 as well as Linux Mint version 19.1.
+
 
 .. _Platform-Prerequisites:
 
@@ -380,48 +385,100 @@ prompts for necessary details.
 Test the VOLTTRON Deployment
 ============================
 
-We are now ready to start the VOLTTRON instance. If configured with a RabbitMQ message bus a config file would have been
-generated in `$VOLTTRON\_HOME/config` with the entry `message-bus=rmq`.  If you need to revert back to ZeroMQ based
-VOLTTRON, you will have to either remove the "message-bus" parameter or set it to the default value "zmq" in
-`$VOLTTRON\_HOME/config` and restart the volttron process. The following command starts the VOLTTORN process in the
-background:
+We are now ready to start VOLTTRON instance. If configured with RabbitMQ message bus a config file would have been
+generated in `$VOLTTRON_HOME/config` with the entry ``message-bus=rmq``. If you need to revert back to ZeroMQ based
+VOLTTRON, you will have to either remove the ``message-bus`` parameter or set it to the default "zmq" in
+`$VOLTTRON_HOME/config`.
+
+The following command starts volttron process in the background:
 
 .. code-block:: bash
 
-    ./start-volttron
+  volttron -vv -l volttron.log&
 
-
-This command will start the platform in debug mode (logging to a file named volttron.log) using the virtual environment
-and will run he process in the background.
-
-Next, start an example listener to see it publish and subscribe to the message bus:
+This enters the virtual Python environment and then starts the platform in debug (vv) mode with a log file
+named volttron.log. Alternatively you can use the utility script start-volttron script that does the same.
 
 .. code-block:: bash
 
-    scripts/core/upgrade-listener
+  ./start-volttron
 
-This script handles several different commands for installing and starting a "Listener" agent after removing an old
-copy. This simple agent publishes a heartbeat message and listens to all topics on the message bus.  Look at the
-VOLTTRON log to see the activity:
+To stop the platform, use the `vct` command:
 
 .. code-block:: bash
 
-    tail volttron.log
+  volttron-ctl shutdown --platform
 
-Listener agent heartbeat publishes appear in the logs as:
+or use the included `stop-volttron` script:
+
+.. code-block:: bash
+
+  ./stop-volttron
+
+
+.. warning::
+    If you plan on running VOLTTRON in the background and detaching it from the
+    terminal with the ``disown`` command be sure to redirect stderr and stdout to ``/dev/null``.
+    Some libraries which VOLTTRON relies on output directly to stdout and stderr.
+    This will cause problems if those file descriptors are not redirected to ``/dev/null``
+
+    ::
+
+        #To start the platform in the background and redirect stderr and stdout
+        #to /dev/null
+        volttron -vv -l volttron.log > /dev/null 2>&1&
+
+
+
+Installing and Running Agents
+-----------------------------
+
+VOLTTRON platform comes with several built in services and example agents out of the box. To install a agent
+use the script `install-agent.py`
+
+.. code-block:: bash
+
+  python scripts/install-agent.py -s <top most folder of the agent> [-c <config file. Might be optional for some agents>]
+
+
+For example, we can use the command to install and start the Listener Agent - a simple agent that periodically publishes
+heartbeat message and listens to everything on the message bus.  Install and start the Listener agent using the
+following command:
+
+.. code-block:: bash
+
+  python scripts/install-agent.py -s examples/ListenerAgent --start
+
+
+Check volttron.log to ensure that the listener agent is publishing heartbeat messages.
+
+.. code-block:: bash
+
+  tail volttron.log
 
 .. code-block:: console
 
-    2016-10-17 18:17:52,245 (listeneragent-3.2 11367) listener.agent INFO: Peer: 'pubsub', Sender: 'listeneragent-3.2_1'
-    :, Bus: u'', Topic: 'heartbeat/listeneragent-3.2_1', Headers:
-    {'Date': '2016-10-18T01:17:52.239724+00:00', 'max_compatible_version': u'', 'min_compatible_version': '3.0'},
-    Message: {'status': 'GOOD', 'last_updated': '2016-10-18T01:17:47.232972+00:00', 'context': 'hello'}
+  2016-10-17 18:17:52,245 (listeneragent-3.2 11367) listener.agent INFO: Peer: 'pubsub', Sender: 'listeneragent-3.2_1':, Bus: u'', Topic: 'heartbeat/listeneragent-3.2_1', Headers: {'Date': '2016-10-18T01:17:52.239724+00:00', 'max_compatible_version': u'', 'min_compatible_version': '3.0'}, Message: {'status': 'GOOD', 'last_updated': '2016-10-18T01:17:47.232972+00:00', 'context': 'hello'}
 
-To stop the platform run the following command:
+
+You can also use the `volttron-ctl` (or `vctl`) command to start, stop or check the status of an agent
+
+.. code-block:: console
+
+    (volttron)volttron@volttron1:~/git/rmq_volttron$ vctl status
+      AGENT                  IDENTITY            TAG           STATUS          HEALTH
+    6 listeneragent-3.2      listeneragent-3.2_1               running [13125] GOOD
+    f master_driveragent-3.2 platform.driver     master_driver
 
 .. code-block:: bash
 
-    ./stop-volttron
+    vctl stop <agent id>
+
+
+.. note::
+
+    The default working directory is ~/.volttron. The default directory for creation of agent packages is
+    `~/.volttron/packaged`
 
 
 Next Steps
@@ -432,5 +489,5 @@ platform:
 
 *   :ref:`Agent Framework <Agent-Framework>`
 *   :ref:`Driver Framework <Driver-Framework>`
-*   Demonstration of the :ref:`management UI <>`
+*   Demonstration of the :ref:`management UI <VOLTTRON-Central-Demo>`
 *   :ref:`RabbitMQ setup <RabbitMQ-Overview>` with Federation and Shovel plugins

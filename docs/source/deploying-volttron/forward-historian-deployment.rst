@@ -36,7 +36,7 @@ VOLTTRON instance 1
 
    -  ``vctl auth-add``
    -  We specify the IP of the instance 2 and the credentials of the agent (read
-      :ref:`Agent Authentication <Agent-Authentication-Walk-through>`
+      :ref:`Agent Authentication <Agent-Authentication>`
    -  For specifying authentication for all the agents , we specify ``/.*/``
    -  This should enable authentication for all the volttron-instance based on the IP you specify here
 

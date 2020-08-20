@@ -83,7 +83,7 @@ Driver Setup
 For a simple case, follow instructions to install a :ref:`Fake Driver <Fake-Driver>`
 for testing purposes. For an actual deployment against real devices see the following:
 
--  Create a :ref:`Master Driver Agent <Master-Driver-Agent>` to coordinate
+-  Create a :ref:`Master Driver Agent <Master-Driver-Configuration>` to coordinate
    drivers for the devices controlled by this platform.
 -  For :ref:`MODBUS <Modbus-Driver>` devices, create config files and point
    configuration files.
@@ -93,6 +93,7 @@ for testing purposes. For an actual deployment against real devices see the foll
  
 Setup the Forwarder
 -------------------
+
  Now that data is being published to the bus, a :ref:`Forward Historian<Forward-Historian>` can be
  configured to send this data to the VC instance for storage.
  

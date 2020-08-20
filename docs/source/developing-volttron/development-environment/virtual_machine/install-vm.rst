@@ -12,7 +12,7 @@ https://www.virtualbox.org/wiki/Downloads.
 
 |VirtualBox Download|
 
-.. |VirtualBox Download| image:: images/vbox-download.png
+.. |VirtualBox Download| image:: files/vbox-download.png
 
 After installing VirtualBox download a virtual box appliance from https://www.osboxes.org/linux-mint/ extract the
 VDI from the downlaoded archive, **or** download a system installation disk. VOLTTRON version 7.0.x has been tested
@@ -31,33 +31,33 @@ Adding a VDI Image to VirtualBox Environment
 
 |Linux Mint|
 
-.. |Linux Mint| image:: images/linux-mint.png
+.. |Linux Mint| image:: files/linux-mint.png
 
 
 The below info holds the VM's preset username and password.
 
 |Linux Mint Credentials|
 
-.. |Linux Mint Credentials| image:: images/vbox-credentials.png
+.. |Linux Mint Credentials| image:: files/vbox-credentials.png
 
 Create a new VirtualBox Image.
 
 |VirtualBox VM Naming|
 
-.. |VirtualBox VM Naming| image:: images/vbox-naming.png
+.. |VirtualBox VM Naming| image:: files/vbox-naming.png
 
 
 Select the amount of RAM for the VM. The recommended minimum is shown in the image below:
 
 |VirtualBox Memory Size Selection|
 
-.. |VirtualBox Memory Size Selection| image:: images/vbox-memory-size.png
+.. |VirtualBox Memory Size Selection| image:: files/vbox-memory-size.png
 
 Specify the hard drive image using the extracted VDI file.
 
 |VirtualBox Hard Disk|
 
-.. |VirtualBox Hard Disk| image:: images/vbox-hard-disk-xfce.png
+.. |VirtualBox Hard Disk| image:: files/vbox-hard-disk-xfce.png
 
 With the newly created VM selected, choose Machine from the VirtualBox menu in the top left corner of the VirtualBox
 window; from the drop down menu, choose Settings.
@@ -67,7 +67,7 @@ Drag’n’Drop as Bidirectional.
 
 |VirtualBox Bidirectional|
 
-.. |VirtualBox Bidirectional| image:: images/vbox-bidirectional.png
+.. |VirtualBox Bidirectional| image:: files/vbox-bidirectional.png
 
 .. note::
     Currently, this feature only works under certain circumstances (e.g. copying / pasting text).
@@ -76,7 +76,7 @@ Go to System Settings. In the processor tab, set the number of processors to two
 
 |VirtualBox Processors|
 
-.. |VirtualBox Processors| image:: images/vbox-proc-settings.png
+.. |VirtualBox Processors| image:: files/vbox-proc-settings.png
 
 
 Go to Storage Settings. Confirm that the Linux Mint VDI is attached to Controller: SATA.
@@ -87,9 +87,7 @@ Go to Storage Settings. Confirm that the Linux Mint VDI is attached to Controlle
 
 |VirtualBox Controller|
 
-.. |VirtualBox Controller| image:: images/vbox-controller.png
+.. |VirtualBox Controller| image:: files/vbox-controller.png
 
 Start the machine by saving these changes and clicking the “Start” arrow located on the upper left hand corner of the
 main VirtualBox window.
-
-

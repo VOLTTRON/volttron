@@ -151,7 +151,6 @@ in the VOLTTRON repository in `examples/configurations/drivers/bacnet.csv`
 
 
 .. toctree::
-   :max-depth: 2
 
    bacnet-proxy-agent
    bacnet-auto-configuration

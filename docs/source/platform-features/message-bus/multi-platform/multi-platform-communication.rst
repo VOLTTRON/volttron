@@ -131,12 +131,14 @@ For external platform connections to be authenticated, we would need to add the 
 in each platform using the `volttron-ctl auth` utility. For more details
 :ref:`Agent authentication walk-through <Agent-Authentication>`.
 
-.. seealso::  :ref:`Multi-Platform Walk-through <Multi-Platform-Walk-through>`
+.. seealso::
+
+    :ref:`Multi-Platform Walk-through <Multi-Platform-Walk-through>`
 
 
 .. toctree::
-   :caption:
+    :caption: Multi-platform Message Bus Topics
 
-   multi-platform-pubsub
-   multi-platform-rpc
-   multi-platform-rmq-csr-walk-through
+    multi-platform-pubsub
+    multi-platform-rpc
+    multi-platform-rmq-csr-walk-through

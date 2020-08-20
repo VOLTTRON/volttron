@@ -67,7 +67,7 @@ Central Instance Setup
 .. note::
 
   This instance must have been bootstrapped using ``--rabbitmq`` see
-  :ref:`RabbitMq installation instructions <RabbitMQ Install>`.
+  :ref:`RabbitMq installation instructions <RabbitMQ-Install>`.
 
 Next step would be to configure the instance to have a web interface to accept/deny incoming certificate signing
 requests from other instances. Additionally, we will need to install a Volttron Central agent, Volttron Central
@@ -353,7 +353,7 @@ Node-RMQ Instance Setup
 .. note::
 
   This instance must have been bootstrapped using --rabbitmq see
-  :ref:`RabbitMq installation instructions <RabbitMQ Install>`.
+  :ref:`RabbitMq installation instructions <RabbitMQ-Install>`.
 
 
 Using "vcfg" command, install Volttron Central Platform agent, a master driver agent with fake driver. The instance

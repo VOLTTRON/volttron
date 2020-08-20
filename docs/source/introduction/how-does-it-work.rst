@@ -42,14 +42,14 @@ Usability Components
 
 Usability components exist to enhance the base capabilities of the platform for deployments.
 
-* :ref:`VOLTTRON Control <VOLTTRON-Control>` is the command line interface to controlling a platform instance.  VOLTTRON
+* :ref:`VOLTTRON Control <Control>` is the command line interface to controlling a platform instance.  VOLTTRON
   Control can be used to operate agents, configure drivers, get status and health details, etc.
 
 * Data collection, command and control can be achieved in large deployments by
   :ref:`connecting multiple platform instances <Multi-Platform-Communication>`.
 
-* :ref:`VOLTTRON Central <VOLTTRON-Central>` is an agent which can be installed on a platform to provide a single management interface
-  to multiple VOLTTRON platform instances.
+* :ref:`VOLTTRON Central <VOLTTRON-Central>` is an agent which can be installed on a platform to provide a single
+  management interface to multiple VOLTTRON platform instances.
 
 * JSON, static and websocket endpoints can be registered to agents via the :ref:`Web Framework <Web-Framework-Overview>`
   and platform web server.  This allows remote agent communication as well as for agents to serve web pages.
