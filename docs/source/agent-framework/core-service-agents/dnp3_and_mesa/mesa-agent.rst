@@ -15,7 +15,7 @@ engage in bidirectional network communications with a DNP3 Master, which might b
 
 MESA-ESS is an extension and enhancement to DNP3. It builds on the basic DNP3 communications protocol, adding support
 for more complex structures, including functions, arrays, curves and schedules.  The draft specification for MESA-ESS,
-as well as a spreadsheet of point definitions, can be found at `http://mesastandards.org/mesa-ess-2016/`_.
+as well as a spreadsheet of point definitions, can be found at http://mesastandards.org/mesa-standards/.
 
 VOLTTRON's DNP3 Agent and Mesa Agent implementations of an Outstation are built on pydnp3, an open-source library from
 Kisensum containing Python language bindings for Automatak's C++ `opendnp3 <https://www.automatak.com/opendnp3/>`_
@@ -184,14 +184,14 @@ The MesaAgent configuration specifies the following fields:
    raising the exception.  Default: ``False``.
  - **outstation_config**: (dictionary) Outstation configuration parameters.  All are optional.  Parameters include:
 
-   -- **database_sizes**: (integer) Size of each outstation database buffer.  Default: 10.
-   -- **event_buffers**: (integer) Size of the database event buffers.  Default: 10.
-   -- **allow_unsolicited**: (boolean) Whether to allow unsolicited requests.  Default: ``True``.
-   -- **link_local_addr**: (integer) Link layer local address.  Default: 10.
-   -- **link_remote_addr**: (integer) Link layer remote address.  Default: 1.
-   -- **log_levels**: (list) List of bit field names (OR'd together) that filter what gets logged by DNP3.
-      Default: [NORMAL]. Possible values: ``ALL``, ``ALL_APP_COMMS``, ``ALL_COMMS``, ``NORMAL``, ``NOTHING``.
-   -- **threads_to_allocate**: (integer) Threads to allocate in the manager's thread pool.  Default: 1.
+   - **database_sizes**: (integer) Size of each outstation database buffer.  Default: 10.
+   - **event_buffers**: (integer) Size of the database event buffers.  Default: 10.
+   - **allow_unsolicited**: (boolean) Whether to allow unsolicited requests.  Default: ``True``.
+   - **link_local_addr**: (integer) Link layer local address.  Default: 10.
+   - **link_remote_addr**: (integer) Link layer remote address.  Default: 1.
+   - **log_levels**: (list) List of bit field names (OR'd together) that filter what gets logged by DNP3.
+     Default: [NORMAL]. Possible values: ``ALL``, ``ALL_APP_COMMS``, ``ALL_COMMS``, ``NORMAL``, ``NOTHING``.
+   - **threads_to_allocate**: (integer) Threads to allocate in the manager's thread pool.  Default: 1.
 
 A sample Mesa Agent configuration file is available in ``services/core/DNP3Agent/mesaagent.config``.
 

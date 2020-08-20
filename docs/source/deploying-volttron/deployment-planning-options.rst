@@ -99,7 +99,6 @@ the collector machine and device can be invaluable in debugging and analysis.
 
 .. _Deployment-Options:
 
-==================
 Deployment Options
 ==================
 
@@ -108,7 +107,7 @@ is right for them. The following assumes that the platform has already been boot
 
 
 Simple Command Line
-*******************
+-------------------
 
 With the VOLTTRON environment activated the platform can be started simply by running VOLTTRON on the command
 line.
@@ -126,7 +125,7 @@ the processes attached to that session will be killed. This also will not captur
 
 
 Running VOLTTRON as a Background Process
-****************************************
+----------------------------------------
 
 A simple, more long term solution, is to run volttron in the background and disown it from the current terminal.
 
@@ -180,11 +179,11 @@ resume if the system is restarted. It will need to be restarted manually after r
 
 
 Setting up VOLTTRON as a System Service
-***************************************
+---------------------------------------
 
 
 Systemd
--------
+^^^^^^^
 
 An example service file ``scripts/admin/volttron.service`` for systemd cas be used as a starting point
 for setting up VOLTTRON as a service. Note that as this will redirect all the output that would
@@ -236,7 +235,7 @@ following commands. These need to be run as root or with sudo as appropriate.
 
 
 Init.d
-------
+^^^^^^
 
 An example init script ``scripts/admin/volttron`` can be used as a starting point for
 setting up VOLTTRON as a service on init.d based systems.

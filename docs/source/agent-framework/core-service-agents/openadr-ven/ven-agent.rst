@@ -302,13 +302,6 @@ Telemetry parameters structure:
 Telemetry value definitions such as `baseline_power_kw` and `current_power_kw` come from the VEN agent config.
 
 
-.. toctree::
-   :hidden:
-
-   ven-agent-guide
-   ven-agent-config
-
-
 .. _OpenADR-VEN-Agent-Config:
 
 OpenADR VEN Agent: Installation and Configuration

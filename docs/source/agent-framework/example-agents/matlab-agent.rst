@@ -485,6 +485,7 @@ The standalone MatLab agent is designed to be usable in a Windows environment.
         example:
 
         .. code-block:: bash
+
             del C:\\Python27\\lib\\site-packages\\volttron-egg.link
 
         and re-run the second command

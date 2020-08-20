@@ -34,8 +34,6 @@ The platform comprises several components that allow agents to operate and conne
 * The :ref:`Historian <Historian-Framework>` framework subscribes to data published on the messages bus and stores it to
   a database or file, or sends it to another location.
 
-.. image::
-
 
 Usability Components
 ====================

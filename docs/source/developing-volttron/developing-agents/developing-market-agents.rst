@@ -67,9 +67,6 @@ If the agent wishes to make an offer at this time the market agent computes eith
 a demand curve as appropriate and offers the curve to the market service by calling the
 :py:meth:`make_offer <volttron.platform.agent.base_market_agent.MarketAgent.make_offer>` method.
 
-.. code-block:: python
-    `make_offer <volttron.platform.agent.base_market_agent.MarketAgent.make_offer>`
-
 The name of the market and the roll being played are provided so that a single callback can handle several markets.
 
 For each market joined either an offer callback, an aggregate callback, or a cleared price callback is required.

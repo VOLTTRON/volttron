@@ -19,7 +19,7 @@ The ``export()`` method, defined on the RPC subsystem class, is used to mark a m
 
 * The class method can be used as a decorator to statically mark methods when the agent class is defined.
 * The instance method dynamically exports methods, and can be used with methods not defined on the agent
-class.
+  class.
 
 Each take an optional export name argument, which defaults to the method name.  Here are the two export method
 signatures:

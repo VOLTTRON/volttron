@@ -9,7 +9,7 @@ Modbus Driver
 VOLTTRON's modbus driver supports the Modbus over TCP/IP protocol only. For Modbus RTU support, see VOLTTRON's
 `Modbus-TK driver <Modbus-TK-Driver>`.
 
-`About Modbus protocol <>`_
+`About Modbus protocol <https://en.wikipedia.org/wiki/Modbus>`_
 
 
 .. _Modbus-Config:

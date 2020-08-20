@@ -37,7 +37,7 @@ Parameters
     - **password** - Password if the TED Pro is configured with Basic Authentication
     - **device_address** - Hostname or IP address of the TED Pro ECC, a non-standard port can be included if needed
     - **scrape_spyder** - Default true, enables or disables collection of the sub-metering data from spyder devices
-    connected to the TED Pro
+      connected to the TED Pro
     - **track_totalizers** - Default true, enables or disables tracking of lifetime totals in the VOLTTRON Driver
 
 .. note::
@@ -133,4 +133,4 @@ The above configuration in the TED will result in the following scrape from the 
         }
     ]
 
-.. |TED Pro showing spyder outputs| image:: ../files/ted-spyders.png
+.. |TED Pro showing spyder outputs| image:: files/ted-spyders.png

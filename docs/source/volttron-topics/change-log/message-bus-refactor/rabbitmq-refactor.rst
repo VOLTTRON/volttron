@@ -182,7 +182,7 @@ It is internally set to ``__pubsub__.*.<remainder of topic>``
 
 
 Further Work
-^^^^^^^^^^^^
+------------
 
 The Pubsub subsystem for the ZeroMQ message bus performs O(N) comparisons where N is the number of unique subscriptions.
 The RabbitMQ Topic Exchange was enhanced in version 2.6.0 to reduce the overhead of additional unique subscriptions to
@@ -411,9 +411,9 @@ on VOLTTRON instance "volttron2" on host "host_B".
 RabbitMQ Management Tool Integrated Into VOLTTRON
 =================================================
 
-Some of the important native RabbitMQ control and management commands are now integrated with the :ref`volttron-ctl <>`
-(vctl) utility.  Using `volttron-ctl`'s RabbitMQ management utility, we can control and monitor the status of RabbitMQ
-message bus:
+Some of the important native RabbitMQ control and management commands are now integrated with the
+:ref`volttron-ctl <Platform-Commands>` (vctl) utility.  Using `volttron-ctl`'s RabbitMQ management utility, we can
+control and monitor the status of RabbitMQ message bus:
 
 .. code-block:: console
 

@@ -21,8 +21,6 @@ your favorite web browser to http://github.com/VOLTTRON/volttron and then clicki
 screen.  (Note: You must have a GitHub account to fork the repository. If you don't have one, we encourage you to
 `sign up https://github.com/join?source_repo=VOLTTRON%2Fvolttron`.)
 
-.. image::
-
 
 Cloning 'YOUR' VOLTTRON forked repository
 =========================================

@@ -78,8 +78,8 @@ Here is an example device configuration file:
         "heart_beat_point": "heartbeat"
     }
 
-A sample BACnet configuration file can be found `here <https://raw.githubusercontent.com/VOLTTRON/volttron/c57569bd9e71eb32afefe8687201d674651913ed/examples/configurations/drivers/bacnet1.config>`_ or
-in the VOLTTRON repository in `examples/configurations/drivers/bacnet1.config`
+A `sample BACnet configuration file <https://raw.githubusercontent.com/VOLTTRON/volttron/c57569bd9e71eb32afefe8687201d674651913ed/examples/configurations/drivers/bacnet1.config>`_
+can be found in the VOLTTRON repository at `examples/configurations/drivers/bacnet1.config`
 
 
 .. _BACnet-Registry-Configuration-File:

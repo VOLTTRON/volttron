@@ -207,7 +207,7 @@ arguments as their independent counterparts.
 Problems and Debugging
 ----------------------
 
-* Both `grab_bacnet_config.py`` and ``bacnet_scan.py` creates a virtual device that open up a port for communication
+* Both `grab_bacnet_config.py` and `bacnet_scan.py` creates a virtual device that open up a port for communication
   with devices.  If the BACnet Proxy is running on the VOLTTRON platform it will cause both of these scripts to fail at
   startup.  Stopping the BACnet Proxy will resolve the problem.
 

@@ -39,8 +39,8 @@ Notes/Tips
    deployment to ensure that platforms can communicate
 
 
-On all machines:
-================
+On all machines
+===============
 
 On all machines in the deployment, setup the platform, setup encryption,
 authentication, and authorization. Also, build the basic agents for the
@@ -48,11 +48,13 @@ deployment. All platforms will need a PlatformAgent and a Historian.
 Using :ref:`scripts <Utility-Scripts>` will help simplify this project.
 
 :ref:`Install required packages <Platform-Prerequisites>`
+
 ----------------------------------------------------------
 
 -  ``sudo apt-get install build-essential python-dev openssl libssl-dev libevent-dev git``
 
 :ref:`Build the project <Platform-Installation>`
+
 ----------------------------------------------
 
 -  Clone the repository and build using ``python bootstrap.py``
@@ -62,8 +64,8 @@ Configuring Platform
 ---------------------
 
 
-On VC:
-======
+On VC
+=====
 
 - Run :ref:`vcfg <VOLTTRON-Config>`
 - Setup as VOLTTRON Central.
@@ -73,8 +75,8 @@ On VC:
   2016-05-19 08:42:58,062 () volttron.platform.main INFO: public key: <KEY>
  
  
-On the data collector:
-======================
+On the data collector
+=====================
 
 
 Driver Setup

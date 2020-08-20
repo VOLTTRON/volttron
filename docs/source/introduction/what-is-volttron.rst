@@ -42,6 +42,6 @@ Basic Components
   device communication methods to read or set values on the device.
 
 * :ref:`Historians <Historian-Framework>` - Historians are special purpose agents which are used to subscribe to sources broadcasting on
-the message bus and store their messages for later use.
+  the message bus and store their messages for later use.
 
 * :ref:`Web Framework <Web-Framework>` - The VOLTTRON web framework

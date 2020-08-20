@@ -97,8 +97,8 @@ administrator denies a access request, the auth subsystem will raise an alert an
 |CSR Denied|
 
 
-.. |CSR Approval| image:: images/csr-sequence-approval.png
-.. |CSR Denied| image:: images/csr-sequence-deny.png
+.. |CSR Approval| image:: files/csr-sequence-approval.png
+.. |CSR Denied| image:: files/csr-sequence-deny.png
 
 
 Follow walk-through in :ref:`Multi-Platform Multi-Bus Walk-through <Multi-Platform-Walk-through>` for setting up

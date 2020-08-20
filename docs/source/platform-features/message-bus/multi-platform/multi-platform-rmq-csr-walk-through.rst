@@ -1,4 +1,4 @@
-.. _Multi-Platform-Walk-through:
+.. _Multi-Platform-Multi-Bus-Walk-through:
 
 =====================================
 Multi-Platform Multi-Bus Walk-through

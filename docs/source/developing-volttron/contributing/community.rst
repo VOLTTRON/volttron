@@ -47,8 +47,6 @@ Contributing Back
 =================
 
 .. toctree::
-    :glob:
-    :maxdepth: 1
 
    contributing-code
    contributing-documentation

@@ -77,7 +77,7 @@ Task Priorities
 * `HIGH`:  This Task cannot be preempted under any circumstance.  This task may preempt other conflicting preemptable
   Tasks.
 
-* ``LOW`:  This Task cannot be preempted **once it has started**.  A Task is considered started once the earliest time slot
+* `LOW`:  This Task cannot be preempted **once it has started**.  A Task is considered started once the earliest time slot
   on any device has been reached.  This Task may **not** preempt other Tasks.
 
 * `LOW_PREEMPT`:  This Task may be preempted at any time.  If the Task is preempted once it has begun running any

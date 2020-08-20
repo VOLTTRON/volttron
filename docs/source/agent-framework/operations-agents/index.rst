@@ -13,7 +13,7 @@ environmental conditions.  For details on each, please refer to the correspondin
    emailer/emailer-agent
    failover/failover
    file-watch-publisher/file-watch-publisher-agent
-   message-debugging
+   message-debugger/message-debugging
    sysmon/sysmon
    threshold/threshold-agent
    topic-watcher/topic-watcher-agent

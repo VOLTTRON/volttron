@@ -50,7 +50,7 @@ at our bi-weekly office-hours and on Slack. To be invited to office-hours or sla
    developing-volttron/development-environment/index
    developing-volttron/developing-agents/agent-development-walk-through
    developing-volttron/developing-drivers/driver-development-walk-through
-   developing-volttron/jupyter-notebooks
+   developing-volttron/jupyter/jupyter-notebooks
    developing-volttron/python-for-matlab-users
 
 
@@ -131,4 +131,4 @@ Indices and tables
 
 .. |VOLTTRON Logo| image:: images/volttron-webimage.jpg
 .. |VOLTTRON| unicode:: VOLTTRON U+2122
-.. |VOLTTRON Tagline| image:: images/VOLLTRON_Logo_Black_Horizontal_with_Tagline.png
+.. |VOLTTRON Tagline| image:: files/VOLLTRON_Logo_Black_Horizontal_with_Tagline.png

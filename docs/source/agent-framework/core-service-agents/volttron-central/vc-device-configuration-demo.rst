@@ -303,9 +303,9 @@ After a device has been configured, sub-devices can be configured by pointing to
 attribute of the device configuration form.  But a sub-device can't be configured until its parent device has been
 configured first.
 
-|Subdevice Path|
+|Sub-device Path|
 
-|Subdevice 2|
+|Sub-device 2|
 
 As devices are configured, they're inserted into position in the side panel tree, along with their configured points.
 
