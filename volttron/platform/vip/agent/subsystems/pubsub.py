@@ -681,12 +681,13 @@ class PubSub(SubsystemBase):
                 del self._pubsubwithrpc
             response = message.args[1]
             import struct
-            if len(response) == 4: #integer
-                response = struct.unpack('I', response.encode('utf-8'))
-                response = response[0]
-            elif len(response) == 1: #bool
-                response = struct.unpack('?', response.encode('utf-8'))
-                response = response[0]
+            if not isinstance(response, int):
+                if len(response) == 4: #integer
+                    response = struct.unpack('I', response.encode('utf-8'))
+                    response = response[0]
+                elif len(response) == 1: #bool
+                    response = struct.unpack('?', response.encode('utf-8'))
+                    response = response[0]
             if result:
                 result.set(response)
 
