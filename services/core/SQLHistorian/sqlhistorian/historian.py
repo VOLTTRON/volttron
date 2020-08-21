@@ -178,11 +178,15 @@ class SQLHistorian(BaseHistorian):
         try:
             published = 0
             with self.bg_thread_dbutils.bulk_insert() as insert_data:
+                dedup_dict = {}
                 for x in to_publish_list:
                     ts = x['timestamp']
                     topic = x['topic']
                     value = x['value']
                     meta = x['meta']
+                    if (topic, ts) in dedup_dict:
+                        continue
+                    dedup_dict[(topic, ts)] = None
 
                     # look at the topics that are stored in the database
                     # already to see if this topic has a value
