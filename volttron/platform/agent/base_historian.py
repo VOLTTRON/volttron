@@ -1231,9 +1231,9 @@ class BaseHistorianAgent(Agent):
         """
         if isinstance(record, list):
             for x in record:
-                self._successful_published.add((x['timestamp'], x['topic']))
+                self._successful_published.add(x['_id'])
         else:
-            self._successful_published.add((record['timestamp'], record['topic']))
+            self._successful_published.add(record['_id'])
 
     def report_all_handled(self):
         """
@@ -1518,18 +1518,18 @@ class BackupDatabase:
         If None is found in `successful_publishes` we assume that everything
         was published.
 
-        :param successful_publishes: Set of records that was published.
+        :param successful_publishes: List of records that was published.
         :param submit_size: Number of things requested from previous call to
                             :py:meth:`get_outstanding_to_publish`
 
-        :type successful_publishes: set
+        :type successful_publishes: list
         :type submit_size: int
 
         """
 
         #_log.debug("Cleaning up successfully published values.")
-        _log.debug(f"Count of rows in cache: {self._record_count}")
         c = self._connection.cursor()
+
         if None in successful_publishes:
             c.execute('''DELETE FROM outstanding
                         WHERE ROWID IN
@@ -1540,25 +1540,19 @@ class BackupDatabase:
             else:
                 self._record_count -= c.rowcount
         else:
-            # translate topics to topic_ids
-            updated_succsessful_publishes = [{'timestamp': x[0], 'topic_id': self._backup_cache[x[1]]}
-                                             for x in successful_publishes]
+            temp = list(successful_publishes)
+            temp.sort()
             c.executemany('''DELETE FROM outstanding
-                            WHERE ts = ? AND topic_id = ?''',
-                          ((d['timestamp'], d['topic_id']) for d in
-                           updated_succsessful_publishes))
+                            WHERE id = ?''',
+                          ((_id,) for _id in
+                           successful_publishes))
+            self._record_count -= len(temp)
 
-            # rowcount gives the number of rows that were actually deleted in the cache
-            # see https://docs.python.org/3/library/sqlite3.html#sqlite3.Cursor.rowcount
-            self._record_count -= c.rowcount
-
-        _log.debug(f"Count of rows in cache after deletion: {self._record_count}")
         self._connection.commit()
 
     def get_outstanding_to_publish(self, size_limit):
         """
-        Retrieve up to `size_limit` records from the cache. Guarantees a unique list of records,
-        where unique is defined as topic + timestamp.
+        Retrieve up to `size_limit` records from the cache.
 
         :param size_limit: Max number of records to retrieve.
         :type size_limit: int
