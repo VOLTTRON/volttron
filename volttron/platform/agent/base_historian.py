@@ -1552,7 +1552,8 @@ class BackupDatabase:
 
     def get_outstanding_to_publish(self, size_limit):
         """
-        Retrieve up to `size_limit` records from the cache.
+        Retrieve up to `size_limit` records from the cache. Guarantees a unique list of records,
+        where unique is defined as (topic, timestamp).
 
         :param size_limit: Max number of records to retrieve.
         :type size_limit: int
@@ -1574,7 +1575,14 @@ class BackupDatabase:
             headers = {} if row[5] is None else loads(row[5])
             meta = self._meta_data[(source, topic_id)].copy()
             topic = self._backup_cache[topic_id]
+
             if (topic, timestamp) in dedup:
+                _log.debug(f"Found duplicate; removing record from cache: {row}")
+                c.execute('delete from outstanding where id=?', (_id,))
+                self._connection.commit()
+                _log.debug(f"record_count before removal: {self._record_count}")
+                self._record_count -= c.rowcount
+                _log.debug(f"Updated record_count: {self._record_count}")
                 continue
             dedup.add((topic, timestamp))
             results.append({'_id': _id,
