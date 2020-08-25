@@ -1447,7 +1447,7 @@ class BackupDatabase:
                         values(NULL, ?, ?, ?, ?, ?)''',
                         (timestamp, source, topic_id, dumps(value), dumps(headers)))
                     self._record_count += 1
-                except sqlite3.IntegrityError:
+                except sqlite3.IntegrityError as e:
                     # In the case where we are upgrading an existing installed historian the
                     # unique constraint may still exist on the outstanding database.
                     # Ignore this case.
@@ -1564,6 +1564,7 @@ class BackupDatabase:
         c.execute('select * from outstanding order by ts limit ?',
                   (size_limit,))
         results = []
+        dedup = set()
         for row in c:
             _id = row[0]
             timestamp = row[1]
@@ -1572,10 +1573,14 @@ class BackupDatabase:
             value = loads(row[4])
             headers = {} if row[5] is None else loads(row[5])
             meta = self._meta_data[(source, topic_id)].copy()
+            topic = self._backup_cache[topic_id]
+            if (topic, timestamp) in dedup:
+                continue
+            dedup.add((topic, timestamp))
             results.append({'_id': _id,
                             'timestamp': timestamp.replace(tzinfo=pytz.UTC),
                             'source': source,
-                            'topic': self._backup_cache[topic_id],
+                            'topic': topic,
                             'value': value,
                             'headers': headers,
                             'meta': meta})
