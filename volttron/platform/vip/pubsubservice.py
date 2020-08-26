@@ -193,7 +193,7 @@ class PubSubService(object):
         if len(frames) < 8:
             return False
         else:
-            self._logger.debug("Subscribe before: {}".format(self._peer_subscriptions))
+            #self._logger.debug("Subscribe before: {}".format(self._peer_subscriptions))
             if isinstance(frames[7], str):
                 data = bytes(frames[7])
             else:
@@ -228,7 +228,7 @@ class PubSubService(object):
             for prefix in prefix if isinstance(prefix, list) else [prefix]:
                 self._add_peer_subscription(peer, bus, prefix, platform)
 
-            self._logger.debug("Subscribe after: {}".format(self._peer_subscriptions))
+            #self._logger.debug("Subscribe after: {}".format(self._peer_subscriptions))
             if is_all and self._ext_router is not None:
                 # Send subscription message to all connected platforms
                 external_platforms = self._ext_router.get_connected_platforms()
