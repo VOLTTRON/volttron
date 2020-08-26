@@ -42,18 +42,20 @@ import random
 import weakref
 
 from gevent.event import AsyncResult
-
+import sys
+import time
+from datetime import datetime
 
 __all__ = ['counter', 'ResultsDictionary']
 
 
 def counter(start=None, minimum=0, maximum=2**64-1):
-    count = random.randint(minimum, maximum) if start is None else start
+    count = time.time() if start is None else start
     while True:
         yield count
         count += 1
         if count >= maximum:
-            count = minimum
+            count = time.time() #int(datetime.now().timestamp())
 
 
 class ResultsDictionary(weakref.WeakValueDictionary):

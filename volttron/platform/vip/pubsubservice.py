@@ -193,7 +193,7 @@ class PubSubService(object):
         if len(frames) < 8:
             return False
         else:
-            # self._logger.debug("Subscribe before: {}".format(self._peer_subscriptions))
+            #self._logger.debug("Subscribe before: {}".format(self._peer_subscriptions))
             if isinstance(frames[7], str):
                 data = bytes(frames[7])
             else:
@@ -228,7 +228,7 @@ class PubSubService(object):
             for prefix in prefix if isinstance(prefix, list) else [prefix]:
                 self._add_peer_subscription(peer, bus, prefix, platform)
 
-            # self._logger.debug("Subscribe after: {}".format(self._peer_subscriptions))
+            #self._logger.debug("Subscribe after: {}".format(self._peer_subscriptions))
             if is_all and self._ext_router is not None:
                 # Send subscription message to all connected platforms
                 external_platforms = self._ext_router.get_connected_platforms()
@@ -448,8 +448,14 @@ class PubSubService(object):
         except KeyError:
             pass
 
-        subs.update(all_subscriptions)
         subs.update(subscriptions)
+        subs.update(all_subscriptions)
+        for prefix, subscribers in all_subscriptions.items():
+            if prefix in subs.keys():
+                subs[prefix] = subs[prefix]|subscribers
+            else:
+                subs[prefix] = subscribers
+
         subscribers = set()
         # Check for local subscribers
         for prefix, subscription in subs.iteritems():
@@ -457,7 +463,7 @@ class PubSubService(object):
                 subscribers |= subscription
 
         if subscribers:
-            # self._logger.debug("PUBSUBSERVICE: found subscribers: {}".format(subscribers))
+            #self._logger.debug("PUBSUBSERVICE: found subscribers: {}".format(subscribers))
             for subscriber in subscribers:
                 frames[0] = zmq.Frame(subscriber)
                 try:
