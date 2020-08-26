@@ -463,7 +463,7 @@ class PubSubService(object):
                 subscribers |= subscription
 
         if subscribers:
-            self._logger.debug("PUBSUBSERVICE: found subscribers: {}".format(subscribers))
+            #self._logger.debug("PUBSUBSERVICE: found subscribers: {}".format(subscribers))
             for subscriber in subscribers:
                 frames[0] = zmq.Frame(subscriber)
                 try:
