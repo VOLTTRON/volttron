@@ -449,21 +449,16 @@ class PubSubService(object):
             pass
 
         subs.update(subscriptions)
-        self._logger.debug("PUBSUBSERVICE: all_subscriptions: {}".format(all_subscriptions))
         subs.update(all_subscriptions)
-        self._logger.debug("PUBSUBSERVICE: subs1: {}".format(subs))
         for prefix, subscribers in all_subscriptions.items():
             if prefix in subs.keys():
                 subs[prefix] = subs[prefix]|subscribers
-                self._logger.debug("PUBSUBSERVICE: subs: {}".format(subs[prefix]))
             else:
                 subs[prefix] = subscribers
 
-        self._logger.debug("PUBSUBSERVICE: subs2: {}".format(subs))
         subscribers = set()
         # Check for local subscribers
         for prefix, subscription in subs.iteritems():
-            self._logger.debug("PUBSUBSERVICE: prefix: {}, subscription: {}".format(prefix, subscription))
             if subscription and topic.startswith(prefix):
                 subscribers |= subscription
 
