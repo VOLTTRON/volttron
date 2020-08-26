@@ -25,6 +25,13 @@ def test_backup_new_data_should_filter_duplicates(backup_database):
             "headers": {},
         },
         {
+            "source": "dupesource",
+            "topic": "dupetopic",
+            "meta": {},
+            "readings": [("2020-06-01 12:30:59", 123)],
+            "headers": {},
+        },
+        {
             "source": "foobar_source",
             "topic": "foobar_topic",
             "meta": {},
@@ -37,7 +44,7 @@ def test_backup_new_data_should_filter_duplicates(backup_database):
 
     expected_results = [
         {
-            "_id": 3,
+            "_id": 4,
             "timestamp": datetime(2020, 5, 25, 8, 46, tzinfo=UTC),
             "source": "foobar_source",
             "topic": "foobar_topic",
@@ -57,8 +64,9 @@ def test_backup_new_data_should_filter_duplicates(backup_database):
     ]
     expected_cache = [
         "1|2020-06-01 12:30:59|dupesource|1|123|{}",
-        "3|2020-05-25 08:46:00|foobar_source|2|846|{}",
+        "4|2020-05-25 08:46:00|foobar_source|2|846|{}",
     ]
+
     expected_record_count = 2
 
     actual_results = backup_database.get_outstanding_to_publish(10)

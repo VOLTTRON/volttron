@@ -1566,6 +1566,7 @@ class BackupDatabase:
                   (size_limit,))
         results = []
         dedup = set()
+        dupe_ids = []
         for row in c:
             _id = row[0]
             timestamp = row[1]
@@ -1577,12 +1578,8 @@ class BackupDatabase:
             topic = self._backup_cache[topic_id]
 
             if (topic, timestamp) in dedup:
-                _log.debug(f"Found duplicate; removing record from cache: {row}")
-                c.execute('delete from outstanding where id=?', (_id,))
-                self._connection.commit()
-                _log.debug(f"record_count before removal: {self._record_count}")
-                self._record_count -= c.rowcount
-                _log.debug(f"Updated record_count: {self._record_count}")
+                _log.debug(f"Found duplicate from cache: {row}")
+                dupe_ids.append(_id)
                 continue
             dedup.add((topic, timestamp))
             results.append({'_id': _id,
@@ -1592,6 +1589,18 @@ class BackupDatabase:
                             'value': value,
                             'headers': headers,
                             'meta': meta})
+
+        # if we find duplicates in the cache where a duplicate is defined as having the same timestamp and topic,
+        # we remove it from the 'outstanding' table in the backup database
+        if dupe_ids:
+            _log.debug(f"Removing duplicate id's from outstanding: {dupe_ids}")
+            _log.debug(f"record_count before removal: {self._record_count}")
+            c.executemany(
+                """DELETE FROM outstanding WHERE id = ?""", ((_id,) for _id in dupe_ids)
+            )
+            self._connection.commit()
+            self._record_count -= c.rowcount
+            _log.debug(f"record_count after removal: {self._record_count}")
 
         c.close()
 
