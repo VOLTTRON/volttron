@@ -193,7 +193,7 @@ class PubSubService(object):
         if len(frames) < 8:
             return False
         else:
-            # self._logger.debug("Subscribe before: {}".format(self._peer_subscriptions))
+            self._logger.debug("Subscribe before: {}".format(self._peer_subscriptions))
             if isinstance(frames[7], str):
                 data = bytes(frames[7])
             else:
@@ -228,7 +228,7 @@ class PubSubService(object):
             for prefix in prefix if isinstance(prefix, list) else [prefix]:
                 self._add_peer_subscription(peer, bus, prefix, platform)
 
-            # self._logger.debug("Subscribe after: {}".format(self._peer_subscriptions))
+            self._logger.debug("Subscribe after: {}".format(self._peer_subscriptions))
             if is_all and self._ext_router is not None:
                 # Send subscription message to all connected platforms
                 external_platforms = self._ext_router.get_connected_platforms()
@@ -448,16 +448,27 @@ class PubSubService(object):
         except KeyError:
             pass
 
-        subs.update(all_subscriptions)
         subs.update(subscriptions)
+        self._logger.debug("PUBSUBSERVICE: all_subscriptions: {}".format(all_subscriptions))
+        subs.update(all_subscriptions)
+        self._logger.debug("PUBSUBSERVICE: subs1: {}".format(subs))
+        for prefix, subscribers in all_subscriptions.items():
+            if prefix in subs.keys():
+                subs[prefix] = subs[prefix]|subscribers
+                self._logger.debug("PUBSUBSERVICE: subs: {}".format(subs[prefix]))
+            else:
+                subs[prefix] = subscribers
+
+        self._logger.debug("PUBSUBSERVICE: subs2: {}".format(subs))
         subscribers = set()
         # Check for local subscribers
         for prefix, subscription in subs.iteritems():
+            self._logger.debug("PUBSUBSERVICE: prefix: {}, subscription: {}".format(prefix, subscription))
             if subscription and topic.startswith(prefix):
                 subscribers |= subscription
 
         if subscribers:
-            # self._logger.debug("PUBSUBSERVICE: found subscribers: {}".format(subscribers))
+            self._logger.debug("PUBSUBSERVICE: found subscribers: {}".format(subscribers))
             for subscriber in subscribers:
                 frames[0] = zmq.Frame(subscriber)
                 try:
