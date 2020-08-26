@@ -78,7 +78,7 @@ def test_setup_aggregate_historian_tables(sqlitefuncts):
 )
 def test_query(sqlitefuncts, topic_ids, id_name_map, expected_values):
     init_database(sqlitefuncts)
-    query = '''"INSERT OR REPLACE INTO data VALUES('2020-06-01 12:30:59',43,'[2,3]')"'''
+    query = """INSERT OR REPLACE INTO data VALUES('2020-06-01 12:30:59',43,'[2,3]')"""
     query_db(query)
 
     actual_results = sqlitefuncts.query(topic_ids, id_name_map)
@@ -104,7 +104,7 @@ def test_manage_db_size(
         "INSERT OR REPLACE INTO data VALUES('2000-06-01 12:30:58',42,'[2,3]')"
     )
 
-    query_db(create_query(query))
+    query_db(query)
     data_before_resize = [
         "2000-06-01 12:30:59|43|[2,3]",
         "2000-06-01 12:30:58|42|[2,3]",
@@ -168,7 +168,7 @@ def test_insert_topic(sqlitefuncts):
 @pytest.mark.dbutils
 def test_update_topic(sqlitefuncts):
     query = "INSERT INTO topics (topic_name) values ('football')"
-    query_db(create_query(query))
+    query_db(query)
 
     assert get_all_data(TOPICS_TABLE) == ["1|football"]
 
@@ -213,7 +213,7 @@ def test_insert_agg_topic(sqlitefuncts):
 @pytest.mark.dbutils
 def test_update_agg_topic(sqlitefuncts):
     query = "INSERT INTO aggregate_topics (agg_topic_name, agg_type, agg_time_period) values ('cars', 'SUM', '2100ZULU')"
-    query_db(create_query(query))
+    query_db(query)
 
     assert get_all_data(AGG_TOPICS_TABLE) == ["1|cars|SUM|2100ZULU"]
 
@@ -245,7 +245,7 @@ def test_insert_agg_meta(sqlitefuncts):
 @pytest.mark.dbutils
 def test_get_topic_map(sqlitefuncts):
     query = "INSERT INTO topics (topic_name) values ('football');INSERT INTO topics (topic_name) values ('netball');"
-    query_db(create_query(query))
+    query_db(query)
     expected_topic_map = (
         {"football": 1, "netball": 2},
         {"football": "football", "netball": "netball"},
@@ -265,7 +265,7 @@ def test_get_agg_topics(sqlitefuncts):
         "INSERT INTO aggregate_topics (agg_topic_name, agg_type, agg_time_period ) "
         "values('topic_name', 'AVG', '2001');"
     )
-    query_db(create_query(query))
+    query_db(query)
     sqlitefuncts.insert_agg_meta(1, {"configured_topics": "great books"})
     sqlitefuncts.commit()
     expected_topics = [("topic_name", "AVG", "2001", "great books")]
@@ -294,7 +294,7 @@ def test_get_agg_topic_map(sqlitefuncts):
         "INSERT INTO aggregate_topics (agg_topic_name, agg_type, agg_time_period ) "
         "values('topic_name', 'AVG', '2001');"
     )
-    query_db(create_query(query))
+    query_db(query)
     expected_acutal_topic_map = {("topic_name", "AVG", "2001"): 1}
 
     actual_topic_map = sqlitefuncts.get_agg_topic_map()
@@ -341,7 +341,7 @@ def test_query_topics_by_pattern(
         f"INSERT INTO topics (topic_name) values ({topic_2});"
         f"INSERT INTO topics (topic_name) values ({topic_3});"
     )
-    query_db(create_query(query))
+    query_db(query)
 
     actual_topics = sqlitefuncts.query_topics_by_pattern(topic_pattern)
 
@@ -372,7 +372,7 @@ def test_collect_aggregate(sqlitefuncts):
         "INSERT OR REPLACE INTO data values('2020-06-01 12:30:59', 42, '2');"
         "INSERT OR REPLACE INTO data values('2020-06-01 12:31:59', 43, '8');"
     )
-    query_db(create_query(query))
+    query_db(query)
 
     topic_ids = [42, 43]
     agg_type = "avg"
@@ -384,38 +384,31 @@ def test_collect_aggregate(sqlitefuncts):
 
 
 def get_indexes(table):
-    res = query_db(create_query(f"PRAGMA index_list({table})"))
+    res = query_db(f"""PRAGMA index_list({table})""")
     return res.splitlines()
 
 
 def get_tables():
-    result = query_db("'.tables'")
+    result = query_db(""".tables""")
     res = set(result.replace("\n", "").split())
     return res
 
 
 def get_all_data(table):
-    q = f'''"SELECT * FROM {table}"'''
+    q = f"""SELECT * FROM {table}"""
     res = query_db(q)
     return res.splitlines()
 
 
 def query_db(query):
     output = subprocess.run(
-        f"sqlite3 data/historian.sqlite {query}",
-        text=True,
-        shell=True,
-        capture_output=True,
+        ["sqlite3", "data/historian.sqlite", query], text=True, capture_output=True
     )
     # check_returncode() will raise a CalledProcessError if the query fails
     # see https://docs.python.org/3/library/subprocess.html#subprocess.CompletedProcess.returncode
     output.check_returncode()
 
     return output.stdout
-
-
-def create_query(query):
-    return f'''"{query}"'''
 
 
 @pytest.fixture()
