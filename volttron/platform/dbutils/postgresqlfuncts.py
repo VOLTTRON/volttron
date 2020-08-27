@@ -164,17 +164,17 @@ class PostgreSqlFuncts(DbDriver):
             SQL('SELECT table_id, table_name FROM {}').format(
                 Identifier(meta_table_name))))
         prefix = tables.pop('', '')
-        tables['agg_topics_table'] = 'aggregate_' + tables['topics_table']
-        tables['agg_meta_table'] = 'aggregate_' + tables['meta_table']
+        tables['agg_topics_table'] = 'aggregate_' + tables.get('topics_table', 'topics')
+        tables['agg_meta_table'] = 'aggregate_' + tables.get('meta_table', 'meta')
         if prefix:
             tables = {key: prefix + '_' + name for key, name in tables.items()}
         return tables
 
     def setup_aggregate_historian_tables(self, meta_table_name):
         table_names = self.read_tablenames_from_db(meta_table_name)
-        self.data_table = table_names['data_table']
-        self.topics_table = table_names['topics_table']
-        self.meta_table = table_names['meta_table']
+        self.data_table = table_names.get('data_table', 'data')
+        self.topics_table = table_names.get('topics_table', 'topics')
+        self.meta_table = table_names.get('meta_table', 'meta')
         self.agg_topics_table = table_names['agg_topics_table']
         self.agg_meta_table = table_names['agg_meta_table']
         self.execute_stmt(SQL(

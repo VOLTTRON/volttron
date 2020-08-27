@@ -108,10 +108,81 @@ def test_record_table_definitions_should_create_meta_table(
             assert describe_table(port_on_host, METADATA_TABLE) == expected_table_defs
 
 
+def create_meta_data_table(container):
+    query = f"""
+                CREATE TABLE {METADATA_TABLE}
+                (table_id VARCHAR(512) PRIMARY KEY NOT NULL,
+                table_name VARCHAR(512) NOT NULL);
+                INSERT INTO {METADATA_TABLE} VALUES ('data_table', '{DATA_TABLE}');
+                INSERT INTO {METADATA_TABLE} VALUES ('topics_table', '{TOPICS_TABLE}');
+                INSERT INTO {METADATA_TABLE} VALUES ('meta_table', '{META_TABLE}');
+            """
+    seed_database(container, query)
+
+    return
+
+
+def create_empty_meta_data_table(container):
+    query = f"""
+                CREATE TABLE {METADATA_TABLE}
+                (table_id VARCHAR(512) PRIMARY KEY NOT NULL,
+                table_name VARCHAR(512) NOT NULL);
+            """
+    seed_database(container, query)
+
+    return
+
+
+def create_incorrect_meta_data_table(container):
+    query = f"""
+                CREATE TABLE {METADATA_TABLE}
+                (table_id VARCHAR(512) PRIMARY KEY NOT NULL,
+                table_name VARCHAR(512) NOT NULL);
+                INSERT INTO {METADATA_TABLE} VALUES ('data_tableFOOOBAR', '{DATA_TABLE}');
+                INSERT INTO {METADATA_TABLE} VALUES ('topifdkjadslkfcs_table', '{TOPICS_TABLE}');
+                INSERT INTO {METADATA_TABLE} VALUES ('3333gjhmeta_table', '{META_TABLE}');
+            """
+    seed_database(container, query)
+
+    return
+
+
+@pytest.mark.parametrize(
+    "seed_meta_data_table, expected_tables",
+    [
+        (
+            create_meta_data_table,
+            {
+                "data_table": "data",
+                "topics_table": "topics",
+                "meta_table": "meta",
+                "agg_topics_table": "aggregate_topics",
+                "agg_meta_table": "aggregate_meta",
+            },
+        ),
+        (
+            create_empty_meta_data_table,
+            {
+                "agg_topics_table": "aggregate_topics",
+                "agg_meta_table": "aggregate_meta",
+            },
+        ),
+        (
+            create_incorrect_meta_data_table,
+            {
+                "3333gjhmeta_table": "meta",
+                "agg_meta_table": "aggregate_meta",
+                "agg_topics_table": "aggregate_topics",
+                "data_tableFOOOBAR": "data",
+                "topifdkjadslkfcs_table": "topics",
+            },
+        ),
+    ],
+)
 @pytest.mark.postgresqlfuncts
 @pytest.mark.dbutils
 def test_read_tablenames_from_db_should_return_table_names(
-    get_container_func, ports_config
+    get_container_func, ports_config, seed_meta_data_table, expected_tables
 ):
     get_container, image = get_container_func
     with get_container(
@@ -119,26 +190,26 @@ def test_read_tablenames_from_db_should_return_table_names(
     ) as container:
         port_on_host = ports_config["port_on_host"]
         wait_for_connection(container, port_on_host)
-        create_meta_data_table(container)
+        seed_meta_data_table(container)
 
         with get_postgresqlfuncts(port_on_host) as postgresqlfuncts:
-            expected_tables = {
-                "data_table": "data",
-                "topics_table": "topics",
-                "meta_table": "meta",
-                "agg_topics_table": "aggregate_topics",
-                "agg_meta_table": "aggregate_meta",
-            }
-
             actual_tables = postgresqlfuncts.read_tablenames_from_db(METADATA_TABLE)
 
             assert actual_tables == expected_tables
 
 
+@pytest.mark.parametrize(
+    "seed_meta_data_table",
+    [
+        (create_meta_data_table),
+        (create_empty_meta_data_table),
+        (create_incorrect_meta_data_table),
+    ],
+)
 @pytest.mark.postgresqlfuncts
 @pytest.mark.dbutils
 def test_setup_aggregate_historian_tables_should_create_aggregate_tables(
-    get_container_func, ports_config
+    get_container_func, ports_config, seed_meta_data_table
 ):
     get_container, image = get_container_func
 
@@ -156,7 +227,7 @@ def test_setup_aggregate_historian_tables_should_create_aggregate_tables(
             assert agg_topic_table not in original_tables
             assert agg_meta_table not in original_tables
 
-            create_meta_data_table(container)
+            seed_meta_data_table(container)
             expected_agg_topic_fields = {
                 "agg_topic_id",
                 "agg_topic_name",
@@ -177,6 +248,11 @@ def test_setup_aggregate_historian_tables_should_create_aggregate_tables(
             assert (
                 describe_table(port_on_host, agg_meta_table) == expected_agg_meta_fields
             )
+            assert postgresqlfuncts.agg_topics_table == agg_topic_table
+            assert postgresqlfuncts.agg_meta_table == agg_meta_table
+            assert postgresqlfuncts.data_table == DATA_TABLE
+            assert postgresqlfuncts.topics_table == TOPICS_TABLE
+            assert postgresqlfuncts.meta_table == META_TABLE
 
 
 @pytest.mark.parametrize(
@@ -753,20 +829,6 @@ def create_historian_tables(container):
                 metadata TEXT NOT NULL);
             """
 
-    seed_database(container, query)
-
-    return
-
-
-def create_meta_data_table(container):
-    query = f"""
-                CREATE TABLE {METADATA_TABLE}
-                (table_id VARCHAR(512) PRIMARY KEY NOT NULL,
-                table_name VARCHAR(512) NOT NULL);
-                INSERT INTO {METADATA_TABLE} VALUES ('data_table', '{DATA_TABLE}');
-                INSERT INTO {METADATA_TABLE} VALUES ('topics_table', '{TOPICS_TABLE}');
-                INSERT INTO {METADATA_TABLE} VALUES ('meta_table', '{META_TABLE}');
-            """
     seed_database(container, query)
 
     return
