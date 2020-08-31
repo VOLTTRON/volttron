@@ -1,8 +1,8 @@
 .. _VIP-Overview:
 
-=====================================
-VIP - VOLTTRON™ Interconnect Protocol
-=====================================
+===============================
+VOLTTRON™ Interconnect Protocol
+===============================
 
 This document specifies VIP, the VOLTTRON™ Interconnect Protocol. The use case for VIP is to provide communications
 between *agents*, *controllers*, *services*, and the supervisory *platform* in an abstract fashion so that additional

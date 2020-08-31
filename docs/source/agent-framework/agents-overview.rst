@@ -1,8 +1,8 @@
 .. _Agent-Framework:
 
-===============
-Agent Framework
-===============
+========================
+Agent Framework Overview
+========================
 
 Agents in VOLTTRON can be loosely defined as software modules communicating on the platform which perform some function
 on behalf of the user.  Agents may perform a huge variety of tasks, but common use cases involve data collection,

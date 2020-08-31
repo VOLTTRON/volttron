@@ -1,8 +1,8 @@
 .. _Commandline-Interface:
 
-======================================
-Configuration Store Command Line Tools
-======================================
+===============================
+Config Store Command Line Tools
+===============================
 
 Command line management of the Configuration Store is done with the `vctl config` sub-commands.
 
