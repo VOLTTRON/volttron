@@ -1,8 +1,8 @@
 .. _Install-VM:
 
-================================
-Installing Linux Virtual Machine
-================================
+==================================
+Installing a Linux Virtual Machine
+==================================
 
 VOLTTRON requires a Linux system to run. For Windows users this will require a virtual machine (VM).
 

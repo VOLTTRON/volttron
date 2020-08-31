@@ -32,6 +32,7 @@ at our bi-weekly office-hours and on Slack. To be invited to office-hours or sla
 .. toctree::
    :caption: Introduction
    :hidden:
+   :titlesonly:
    :maxdepth: 1
 
    introduction/what-is-volttron
@@ -44,6 +45,7 @@ at our bi-weekly office-hours and on Slack. To be invited to office-hours or sla
 .. toctree::
    :caption: Developing in VOLTTRON
    :hidden:
+   :titlesonly:
    :maxdepth: 1
 
    developing-volttron/contributing/community
@@ -57,6 +59,7 @@ at our bi-weekly office-hours and on Slack. To be invited to office-hours or sla
 .. toctree::
    :caption: Deploying VOLTTRON
    :hidden:
+   :titlesonly:
    :maxdepth: 1
 
    deploying-volttron/deployment-walk-through
@@ -69,6 +72,7 @@ at our bi-weekly office-hours and on Slack. To be invited to office-hours or sla
 .. toctree::
    :caption: Agent Framework
    :hidden:
+   :titlesonly:
    :maxdepth: 1
 
    agent-framework/agents-overview
@@ -84,6 +88,7 @@ at our bi-weekly office-hours and on Slack. To be invited to office-hours or sla
 .. toctree::
    :caption: Driver Framework
    :hidden:
+   :titlesonly:
    :maxdepth: 1
 
    driver-framework/drivers-overview
@@ -103,6 +108,7 @@ at our bi-weekly office-hours and on Slack. To be invited to office-hours or sla
 .. toctree::
    :caption: Platform Features
    :hidden:
+   :titlesonly:
    :maxdepth: 1
 
    platform-features/message-bus/index
@@ -115,6 +121,7 @@ at our bi-weekly office-hours and on Slack. To be invited to office-hours or sla
 .. toctree::
    :caption: VOLTTRON Topics
    :hidden:
+   :titlesonly:
    :maxdepth: 1
 
    volttron-topics/troubleshooting/index
