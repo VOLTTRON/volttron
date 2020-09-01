@@ -1,8 +1,8 @@
 .. _Example-Agents:
 
-=======================
-Example Agents Overview
-=======================
+==============
+Example Agents
+==============
 
 Some example agents are included with the platform to help explore its features.  These agents represent concrete
 implementations of important agent sub-types such as Historians or Weather Agents, or demonstrate a development pattern

@@ -1,8 +1,8 @@
 .. _Configuration-Store:
 
-============================
-VOLTTRON Configuration Store
-============================
+===================
+Configuration Store
+===================
 
 The Platform Configuration Store is a mechanism provided by the platform to facilitate the dynamic configuration
 of agents.  The Platform Configuration Store works by informing agents of changes to their configuration store and

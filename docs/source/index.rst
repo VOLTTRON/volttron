@@ -115,7 +115,6 @@ at our bi-weekly office-hours and on Slack. To be invited to office-hours or sla
    platform-features/control/index
    platform-features/config-store/configuration-store
    platform-features/security/volttron-security
-   platform-features/web-framework/web-framework-overview
 
 
 .. toctree::

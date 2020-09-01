@@ -1,8 +1,8 @@
 .. _Message-Bus:
 
-====================
-VOLTTRON Message Bus
-====================
+===========
+Message Bus
+===========
 
 The VOLTTRON message bus is the mechanism responsible for enabling communication between agents, drivers, and platform
 instances.  The message bus supports communication using the :ref:`Publish/Subscribe Paradigm <VIP-Overview>` and
