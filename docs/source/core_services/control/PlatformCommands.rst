@@ -175,7 +175,22 @@ vctl config subcommands
         list                list stores or configurations in a store
         get                 get the contents of a configuration
 
+rpc subcommands
+~~~~~~~~~~~~
 
+.. code-block:: console
+
+    subcommands:
+
+        code                shows how to use rpc call in other agents
+          -v, --verbose         list all subsystem rpc methods in addition to the
+                                agent's rpc methods
+        list                lists all agents and their rpc methods
+          -i, --vip             filter by vip identity
+          -v, --verbose         list all subsystem rpc methods in addition to the
+                                agent's rpc methods. If a method is specified, display
+                                the doc-string associated with the method.
+          -n N                  show at least N characters of UUID (0 to show all)
 
 vpkg Commands
 ---------------------
