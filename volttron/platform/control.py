@@ -64,6 +64,7 @@ from volttron.platform import aip as aipmod
 from volttron.platform import config
 from volttron.platform import get_home, get_address
 from volttron.platform import jsonapi
+from volttron.platform.jsonrpc import MethodNotFound
 from volttron.platform.agent import utils
 from volttron.platform.agent.known_identities import CONTROL_CONNECTION, \
     CONFIGURATION_STORE
@@ -296,8 +297,9 @@ class ControlService(BaseAgent):
 
     @RPC.export
     def list_agents_rpc(self):
-        agents = self.list_agents()
-        return [jsonapi.dumps(self.vip.rpc.call(agent.vip_identity, 'inspect').get(timeout=4)) for agent in agents]
+        pass
+        # agents = self.list_agents()
+        # return [jsonapi.dumps(self.vip.rpc.call(agent.vip_identity, 'inspect').get(timeout=4)) for agent in agents]
 
     @RPC.export
     def tag_agent(self, uuid, tag):
@@ -759,12 +761,138 @@ def list_peers(opts):
         sys.stdout.write("{}\n".format(peer))
 
 
-def list_agents_rpc(opts):
-    agents = _list_agents(opts.aip)
-    for agent in agents:
-        _stdout.write(jsonapi.dumps(opts.connection.server.vip.rpc.call
-                                    (agent.vip_identity, 'inspect').get(timeout=4)))
+def print_rpc_list(peers, code=False):
+    for peer in peers:
+        print(f'{peer}')
+        for method in peers[peer]:
+            if code:
+                print(f"\tself.vip.rpc.call({peer}, {method}).get()")
+            else:
+                print(f'\t{method}')
 
+
+def print_rpc_methods(opts, peer_method_metadata, code=False):
+    for peer in peer_method_metadata:
+        if code is True:
+            pass
+        else:
+            print(f'{peer}')
+        for method in peer_method_metadata[peer]:
+            params = peer_method_metadata[peer][method].get('params', "No parameters for this method.")
+            if code is True:
+                if len(params) == 0:
+                    print(f"self.vip.rpc.call({peer}, {method}).get()")
+                else:
+                    print(f"self.vip.rpc.call({peer}, {method}, {[param for param in params]}).get()")
+                continue
+            else:
+                print(f'\t{method}')
+                if opts.verbose == True:
+                    print("\tDocumentation:")
+                    doc = peer_method_metadata[peer][method]\
+                        .get('doc', "No documentation for this method.")\
+                        .replace("\n", "\n\t\t")
+                    print(f'\t\t{doc}\n')
+            print("\tParameters:")
+            if type(params) is str:
+                print(f'\t\t{params}')
+            else:
+                for param in params:
+                    print(f'\t\t{param}:\n\t\t\t{params[param]}')
+
+
+def list_agents_rpc(opts):
+    conn = opts.connection
+    peers = sorted(conn.call('peerlist'))
+    if opts.by_vip == True or len(opts.pattern) == 1:
+        peers = [peer for peer in peers if peer in opts.pattern]
+    elif len(opts.pattern) > 1:
+        peer = opts.pattern[0]
+        methods = opts.pattern[1:]
+        peer_method_metadata = {peer: {}}
+        for method in methods:
+            try:
+                peer_method_metadata[peer][method] = conn.server.vip.rpc.call(
+                    peer, f'{method}.inspect').get(timeout=4)
+            except gevent.Timeout:
+                print(f'{peer} has timed out.')
+            except MethodNotFound as e:
+                print(e)
+
+        # _stdout.write(f"{peer_method_metadata}\n")
+        print_rpc_methods(opts, peer_method_metadata)
+        return
+    peer_methods = {}
+    for peer in peers:
+        try:
+            peer_methods[peer] = conn.server.vip.rpc.call(
+                peer, 'inspect').get(timeout=4)["methods"]
+        except gevent.Timeout:
+            print(f'{peer} has timed out.')
+        except MethodNotFound as e:
+            print(e)
+
+    if opts.verbose is True:
+        print_rpc_list(peer_methods)
+        # for peer in peer_methods:
+        #     _stdout.write(f"{peer}:{peer_methods[peer]}\n")
+    else:
+        for peer in peer_methods:
+            peer_methods[peer] = [method for method in peer_methods[peer] if "." not in method]
+            # _stdout.write(f"{peer}:{peer_methods[peer]}\n")
+        print_rpc_list(peer_methods)
+
+
+def list_agent_rpc_code(opts):
+    conn = opts.connection
+    peers = sorted(conn.call('peerlist'))
+    if len(opts.pattern) == 1:
+        peers = [peer for peer in peers if peer in opts.pattern]
+    elif len(opts.pattern) > 1:
+        peer = opts.pattern[0]
+        methods = opts.pattern[1:]
+        peer_method_metadata = {peer: {}}
+        for method in methods:
+            try:
+                peer_method_metadata[peer][method] = conn.server.vip.rpc.call(
+                    peer, f'{method}.inspect').get(timeout=4)
+            except gevent.Timeout:
+                print(f'{peer} has timed out.')
+            except MethodNotFound as e:
+                print(e)
+
+        # _stdout.write(f"{peer_method_metadata}\n")
+        print_rpc_methods(opts, peer_method_metadata, code=True)
+        return
+
+    peer_methods = {}
+    for peer in peers:
+        try:
+            peer_methods[peer] = conn.server.vip.rpc.call(
+                peer, 'inspect').get(timeout=4)["methods"]
+        except gevent.Timeout:
+            print(f'{peer} has timed out.')
+        except MethodNotFound as e:
+            print(e)
+
+    if opts.verbose is True:
+        pass
+    else:
+        for peer in peer_methods:
+            peer_methods[peer] = [method for method in peer_methods[peer] if "." not in method]
+
+    peer_method_metadata = {}
+    for peer in peer_methods:
+        peer_method_metadata[peer] = {}
+        for method in peer_methods[peer]:
+            try:
+                peer_method_metadata[peer][method] = conn.server.vip.rpc.call(
+                    peer, f'{method}.inspect').get(timeout=4)
+            except gevent.Timeout:
+                print(f'{peer} has timed out.')
+            except MethodNotFound as e:
+                print(e)
+    print_rpc_methods(opts, peer_method_metadata, code=True)
 
 def status_agents(opts):
     agents = {agent.uuid: agent for agent in _list_agents(opts.aip)}
@@ -2212,12 +2340,6 @@ def main(argv=sys.argv):
                        help='show at least N characters of UUID (0 to show all)')
     list_.set_defaults(func=list_agents, min_uuid_len=1)
 
-    list_rpc = add_parser('rpc',
-                       help='list the rpc methods of installed agents')
-    list_rpc.add_argument('pattern', nargs='*',
-                       help='UUID or name of agent')
-    list_rpc.set_defaults(func=list_agents_rpc)
-
     status = add_parser('status', parents=[filterable],
                         help='show status of agents')
     status.add_argument('pattern', nargs='*',
@@ -2298,6 +2420,41 @@ def main(argv=sys.argv):
                              dest='verify_agents',
                              help=argparse.SUPPRESS)
     upgrade.set_defaults(func=upgrade_agent, verify_agents=True)
+
+    # ====================================================
+    # rpc commands
+    # ====================================================
+    rpc_ctl = add_parser('rpc',
+                       help='rpc controls')
+
+    rpc_subparsers = rpc_ctl.add_subparsers(title='subcommands', metavar='', dest='store_commands')
+
+    rpc_code = add_parser("code", subparser=rpc_subparsers, help="shows how to use rpc call in other agents")
+
+    rpc_code.add_argument('pattern', nargs='*',
+                       help='Identity of agent, followed by method(s)'
+                            '')
+    rpc_code.add_argument('-v', '--verbose', action='store_true',
+                          help="list all subsystem rpc methods in addition to the agent's rpc methods")
+
+    rpc_code.set_defaults(func=list_agent_rpc_code, min_uuid_len=1)
+
+    rpc_list = add_parser("list", subparser=rpc_subparsers, help="lists all agents and their rpc methods")
+
+    rpc_list.add_argument('-i', '--vip', dest='by_vip', action='store_true',
+                            help='filter by vip identity')
+
+    rpc_list.add_argument('pattern', nargs='*',
+                       help='UUID or name of agent')
+
+    rpc_list.add_argument('-v', '--verbose', action='store_true',
+                          help="list all subsystem rpc methods in addition to the agent's rpc methods. If a method "
+                               "is specified, display the doc-string associated with the method.")
+
+    rpc_list.add_argument('-n', dest='min_uuid_len', type=int, metavar='N',
+                       help='show at least N characters of UUID (0 to show all)')
+
+    rpc_list.set_defaults(func=list_agents_rpc, min_uuid_len=1)
 
     # ====================================================
     # certs commands
