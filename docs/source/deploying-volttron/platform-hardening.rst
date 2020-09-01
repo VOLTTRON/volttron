@@ -1,6 +1,6 @@
 .. _Platform-Hardening:
 
-==================sssss
+==================
 Platform Hardening
 ==================
 
