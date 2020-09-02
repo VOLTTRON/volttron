@@ -136,12 +136,12 @@ Remote Platform Configuration
 
 The next step is to configure the instances that will connect to VOLTTRON
 Central. In the second and third terminal windows run `vcfg`. Like
-the VOLTTRON\_HOME variable, these instances need to have unique addresses.
+the VOLTTRON\_HOME variable, these instances need to have unique vip addresses and unique instance names.
 
 Install a platform agent and a historian as before. Since we used the default
 options when configuring VOLTTRON Central, we can use the default options when
 configuring these platform agents as well. The configuration will be a little
-different.
+different. The example below is for the second volttron instance. Note the unique vip address and instance name.
 
 
  .. code-block:: console
@@ -157,7 +157,7 @@ different.
          Is this instance web enabled? [N]:
          Will this instance be controlled by volttron central? [Y]:
          Configuring /home/user/volttron/services/core/VolttronCentralPlatform.
-         What is the name of this instance? [volttron1]:
+         What is the name of this instance? [volttron1]: volttron2
          What is the hostname for volttron central? [https://volttron-pc]: 
          What is the port for volttron central? [8443]: 
          Should the agent autostart? [N]: y
