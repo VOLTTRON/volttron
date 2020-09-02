@@ -75,7 +75,7 @@ from volttron.platform.keystore import KeyStore, KnownHostsStore
 from volttron.platform.messaging.health import Status, STATUS_BAD
 from volttron.platform.scheduling import periodic
 from volttron.platform.vip.agent import Agent as BaseAgent, Core, RPC
-from volttron.platform.vip.agent.errors import VIPError
+from volttron.platform.vip.agent.errors import VIPError, Unreachable
 from volttron.platform.vip.agent.subsystems.query import Query
 from volttron.utils.rmq_config_params import RMQConfig
 from volttron.utils.rmq_mgmt import RabbitMQMgmt
@@ -803,7 +803,10 @@ def print_rpc_methods(opts, peer_method_metadata, code=False):
 
 def list_agents_rpc(opts):
     conn = opts.connection
-    peers = sorted(conn.call('peerlist'))
+    try:
+        peers = sorted(conn.call('peerlist'))
+    except Exception as e:
+        print(e)
     if opts.by_vip == True or len(opts.pattern) == 1:
         peers = [peer for peer in peers if peer in opts.pattern]
     elif len(opts.pattern) > 1:
@@ -816,6 +819,8 @@ def list_agents_rpc(opts):
                     peer, f'{method}.inspect').get(timeout=4)
             except gevent.Timeout:
                 print(f'{peer} has timed out.')
+            except Unreachable:
+                print(f'{peer} is unreachable')
             except MethodNotFound as e:
                 print(e)
 
@@ -828,7 +833,9 @@ def list_agents_rpc(opts):
             peer_methods[peer] = conn.server.vip.rpc.call(
                 peer, 'inspect').get(timeout=4)["methods"]
         except gevent.Timeout:
-            print(f'{peer} has timed out.')
+            print(f'{peer} has timed out')
+        except Unreachable:
+                print(f'{peer} is unreachable')
         except MethodNotFound as e:
             print(e)
 
@@ -845,7 +852,10 @@ def list_agents_rpc(opts):
 
 def list_agent_rpc_code(opts):
     conn = opts.connection
-    peers = sorted(conn.call('peerlist'))
+    try:
+        peers = sorted(conn.call('peerlist'))
+    except Exception as e:
+        print(e)
     if len(opts.pattern) == 1:
         peers = [peer for peer in peers if peer in opts.pattern]
     elif len(opts.pattern) > 1:
@@ -858,6 +868,8 @@ def list_agent_rpc_code(opts):
                     peer, f'{method}.inspect').get(timeout=4)
             except gevent.Timeout:
                 print(f'{peer} has timed out.')
+            except Unreachable:
+                print(f'{peer} is unreachable')
             except MethodNotFound as e:
                 print(e)
 
@@ -872,6 +884,8 @@ def list_agent_rpc_code(opts):
                 peer, 'inspect').get(timeout=4)["methods"]
         except gevent.Timeout:
             print(f'{peer} has timed out.')
+        except Unreachable:
+                print(f'{peer} is unreachable')
         except MethodNotFound as e:
             print(e)
 
@@ -889,7 +903,9 @@ def list_agent_rpc_code(opts):
                 peer_method_metadata[peer][method] = conn.server.vip.rpc.call(
                     peer, f'{method}.inspect').get(timeout=4)
             except gevent.Timeout:
-                print(f'{peer} has timed out.')
+                print(f'{peer} has timed out')
+            except Unreachable:
+                print(f'{peer} is unreachable')
             except MethodNotFound as e:
                 print(e)
     print_rpc_methods(opts, peer_method_metadata, code=True)
@@ -2450,9 +2466,6 @@ def main(argv=sys.argv):
     rpc_list.add_argument('-v', '--verbose', action='store_true',
                           help="list all subsystem rpc methods in addition to the agent's rpc methods. If a method "
                                "is specified, display the doc-string associated with the method.")
-
-    rpc_list.add_argument('-n', dest='min_uuid_len', type=int, metavar='N',
-                       help='show at least N characters of UUID (0 to show all)')
 
     rpc_list.set_defaults(func=list_agents_rpc, min_uuid_len=1)
 

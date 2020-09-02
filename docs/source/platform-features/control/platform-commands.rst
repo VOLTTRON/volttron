@@ -185,7 +185,6 @@ rpc subcommands
           -v, --verbose         list all subsystem rpc methods in addition to the
                                 agent's rpc methods. If a method is specified, display
                                 the doc-string associated with the method.
-          -n N                  show at least N characters of UUID (0 to show all)
 
 vpkg Commands
 -------------
