@@ -12,9 +12,9 @@ to run the agent process.
 
     The Unix user starting the VOLTTRON platform will be given limited sudo access to create and delete agent users.
 
-Since this feature require system level changes (sudo access, user creation, file permission changes) the initial step
-needs to be run as root or user with `sudo` access.  This can be a user other than Unix user used to run the VOLTTRON
-platform.
+Since this feature requires system level changes (e.g. sudo access, user creation, file permission changes), the initial
+step needs to be run as root or user with `sudo` access.  This can be a user other than Unix user used to run the
+VOLTTRON platform.
 
 All files and folder created by the VOLTTRON process in this mode would not have any access to others by default.
 Permission for Unix group others would be provided to specific files and folder based on VOLTTRON process requirement.
