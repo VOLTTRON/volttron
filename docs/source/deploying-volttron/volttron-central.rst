@@ -91,6 +91,7 @@ and localhost is volttron-pc.
         Installing volttron central.
         Should the agent autostart? [N]: y
         VC admin and password are set up using the admin web interface.
+        After starting VOLTTRON, please go to https://volttron-pc:8443/admin/login.html to complete the setup.
         Will this instance be controlled by volttron central? [Y]: y
         Configuring /home/user/volttron/services/core/VolttronCentralPlatform.
         What is the name of this instance? [volttron1]: 
