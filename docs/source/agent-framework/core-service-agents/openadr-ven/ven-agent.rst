@@ -1,8 +1,8 @@
 .. _OpenADR-VEN-Agent:
 
-===============================================
-VEN Agent: OpenADR 2.0b Interface Specification
-===============================================
+======================
+OpenADR 2.0b VEN Agent
+======================
 
 OpenADR (Automated Demand Response) is a standard for alerting and responding to the need to adjust electric power
 consumption in response to fluctuations in grid demand.

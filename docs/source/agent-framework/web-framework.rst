@@ -1,14 +1,15 @@
 .. _Web-Framework:
 
-VOLTTRON Web Framework
-======================
+=============
+Web Framework
+=============
 
 This document describes the interaction between web enabled agents and the Master Web Service agent.
 
 The web framework enables agent developers to expose JSON, static, and websocket endpoints.
 
 Web SubSystem
-+++++++++++++
+=============
 
 Enabling
 --------
@@ -78,5 +79,3 @@ Websocket endpoints allow bi-directional communication between the client and th
     @Core.receiver('onstart')
     def onstart(self, sender, **kwargs):
         self.vip.web.register_websocket(r'/vc/ws', self.open_authenticate_ws_endpoint, self._ws_closed, self._ws_received)
-
-

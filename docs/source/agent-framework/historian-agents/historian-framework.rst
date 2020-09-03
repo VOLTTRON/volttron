@@ -1,8 +1,8 @@
 .. _Historian-Framework:
 
-============================
-VOLTTRON Historian Framework
-============================
+===================
+Historian Framework
+===================
 
 Historian Agents are the way by which `device`, `actuator`, `datalogger`, and `analysis` topics are automatically
 captured and stored in some sort of data store.  Historians exist for the following storage options:

@@ -70,7 +70,6 @@ For more details on how to create authentication record, please see section
 
 .. _Agent-Authentication:
 
-==================================================================
 How to authenticate an agent to communicate with VOLTTRON platform
 ==================================================================
 

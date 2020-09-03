@@ -1,8 +1,8 @@
 .. _BACnet-Auto-Configuration:
 
-===================================================
-Automatically Generating BACnet Configuration Files
-===================================================
+=========================
+BACnet Auto-Configuration
+=========================
 
 Included with the platform are two scripts for finding and configuring BACnet devices.  These scripts are located in
 `scripts/bacnet`.  `bacnet_scan.py` will scan the network for devices.  `grab_bacnet_config.py` creates a CSV file

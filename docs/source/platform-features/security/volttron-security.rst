@@ -1,7 +1,7 @@
 .. _VOLTTRON-Security:
 
 =================
-VOLTTRON Security
+Platform Security
 =================
 
 There are various security-related topics throughout VOLTTRON's documentation.  This is a quick roadmap for finding
