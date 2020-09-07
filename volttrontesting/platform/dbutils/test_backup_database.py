@@ -8,7 +8,9 @@ from pytz import UTC
 from volttron.platform.agent.base_historian import BackupDatabase, BaseHistorian
 
 
-def test_backup_new_data_should_filter_duplicates(backup_database):
+def test_backup_new_data_remove_successfully_published_should_keep_duplicates_in_cache(backup_database):
+    submit_size = 1000
+    # initialize the database with records
     new_publish_list = [
         {
             "source": "dupesource",
@@ -40,8 +42,6 @@ def test_backup_new_data_should_filter_duplicates(backup_database):
         },
     ]
     backup_database.backup_new_data(new_publish_list)
-    orig_record_count = backup_database._record_count
-
     expected_results = [
         {
             "_id": 4,
@@ -62,20 +62,36 @@ def test_backup_new_data_should_filter_duplicates(backup_database):
             "meta": {},
         },
     ]
-    expected_cache = [
-        "1|2020-06-01 12:30:59|dupesource|1|123|{}",
-        "4|2020-05-25 08:46:00|foobar_source|2|846|{}",
-    ]
 
-    expected_record_count = 2
-
-    actual_results = backup_database.get_outstanding_to_publish(10)
-    current_record_count = backup_database._record_count
+    actual_results = backup_database.get_outstanding_to_publish(submit_size)
 
     assert actual_results == expected_results
+
+    # after the historian successfully publishes the data, it tells the cache that transaction was successful
+    # the cache then deletes the published data
+    # if some data were duplicates, then those dupes are kept in the cache for the next transaction
+
+    cache_before_update = ['1|2020-06-01 12:30:59|dupesource|1|123|{}',
+                            '2|2020-06-01 12:30:59|dupesource|1|123|{}',
+                            '3|2020-06-01 12:30:59|dupesource|1|123|{}',
+                            '4|2020-05-25 08:46:00|foobar_source|2|846|{}']
+    assert get_all_data("outstanding") == cache_before_update
+
+    orig_record_count = backup_database._record_count
+    successful_publishes = set()
+    successful_publishes.add(None)
+    expected_cache = [
+        "2|2020-06-01 12:30:59|dupesource|1|123|{}",
+        "3|2020-06-01 12:30:59|dupesource|1|123|{}",
+    ]
+
+    backup_database.remove_successfully_published(successful_publishes, submit_size)
+
     assert get_all_data("outstanding") == expected_cache
+    current_record_count = backup_database._record_count
     assert current_record_count < orig_record_count
-    assert current_record_count == expected_record_count
+    assert current_record_count == 2
+
 
 
 @pytest.fixture()

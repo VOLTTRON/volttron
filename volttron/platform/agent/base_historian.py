@@ -1400,6 +1400,9 @@ class BackupDatabase:
         self._backup_storage_report = backup_storage_report
         self._connection = None
         self._setupdb(check_same_thread)
+        self._dupe_ids = []
+        self._dedupe_ids = []
+        self._dedupes = set()
 
     def backup_new_data(self, new_publish_list):
         """
@@ -1518,11 +1521,11 @@ class BackupDatabase:
         If None is found in `successful_publishes` we assume that everything
         was published.
 
-        :param successful_publishes: List of records that was published.
+        :param successful_publishes: Set of records that was published.
         :param submit_size: Number of things requested from previous call to
                             :py:meth:`get_outstanding_to_publish`
 
-        :type successful_publishes: list
+        :type successful_publishes: set
         :type submit_size: int
 
         """
@@ -1531,14 +1534,25 @@ class BackupDatabase:
         c = self._connection.cursor()
 
         if None in successful_publishes:
-            c.execute('''DELETE FROM outstanding
-                        WHERE ROWID IN
-                        (SELECT ROWID FROM outstanding
-                          ORDER BY ts LIMIT ?)''', (submit_size,))
-            if self._record_count < c.rowcount:
-                self._record_count = 0
+            if not self._dupe_ids:
+                c.execute('''DELETE FROM outstanding
+                            WHERE ROWID IN
+                            (SELECT ROWID FROM outstanding
+                              ORDER BY ts LIMIT ?)''', (submit_size,))
+                if self._record_count < c.rowcount:
+                    self._record_count = 0
+                else:
+                    self._record_count -= c.rowcount
             else:
-                self._record_count -= c.rowcount
+                _log.debug(f"Duplicates detected during successful publishes.")
+                _log.debug(f"Duplicates that will remain in cache: {self._dupe_ids}")
+                c.executemany('''DELETE FROM outstanding 
+                                WHERE id = ?''',
+                              ((_id,) for _id in self._dedupe_ids))
+                self._record_count -= len(self._dupe_ids)
+                self._dedupe_ids.clear()
+                self._dedupes.clear()
+                self._dupe_ids.clear()
         else:
             temp = list(successful_publishes)
             temp.sort()
@@ -1565,8 +1579,6 @@ class BackupDatabase:
         c.execute('select * from outstanding order by ts limit ?',
                   (size_limit,))
         results = []
-        dedup = set()
-        dupe_ids = []
         for row in c:
             _id = row[0]
             timestamp = row[1]
@@ -1577,11 +1589,12 @@ class BackupDatabase:
             meta = self._meta_data[(source, topic_id)].copy()
             topic = self._backup_cache[topic_id]
 
-            if (topic, timestamp) in dedup:
+            if (topic, timestamp) in self._dedupes:
                 _log.debug(f"Found duplicate from cache: {row}")
-                dupe_ids.append(_id)
+                self._dupe_ids.append(_id)
                 continue
-            dedup.add((topic, timestamp))
+            self._dedupes.add((topic, timestamp))
+            self._dedupe_ids.append(_id)
             results.append({'_id': _id,
                             'timestamp': timestamp.replace(tzinfo=pytz.UTC),
                             'source': source,
@@ -1590,18 +1603,6 @@ class BackupDatabase:
                             'headers': headers,
                             'meta': meta})
 
-        # if we find duplicates in the cache where a duplicate is defined as having the same timestamp and topic,
-        # we remove it from the 'outstanding' table in the backup database
-        if dupe_ids:
-            _log.debug(f"Removing duplicate id's from outstanding: {dupe_ids}")
-            _log.debug(f"record_count before removal: {self._record_count}")
-            c.executemany(
-                """DELETE FROM outstanding WHERE id = ?""", ((_id,) for _id in dupe_ids)
-            )
-            self._connection.commit()
-            self._record_count -= c.rowcount
-            _log.debug(f"record_count after removal: {self._record_count}")
-
         c.close()
 
         # If we were backlogged at startup and our initial estimate was
@@ -1609,11 +1610,15 @@ class BackupDatabase:
         if len(results) < size_limit:
             self._record_count = len(results)
 
+        # if we have duplicates, we must count them as part of the "real" total of _record_count
+        if self._dupe_ids:
+            self._record_count += len(self._dupe_ids)
+
         return results
 
     def get_backlog_count(self):
         """
-        Retrieve the current number of records in the cashe.
+        Retrieve the current number of records in the cache.
         """
         return self._record_count
 
