@@ -49,5 +49,5 @@ Usability components exist to enhance the base capabilities of the platform for 
 * :ref:`VOLTTRON Central <VOLTTRON-Central>` is an agent which can be installed on a platform to provide a single
   management interface to multiple VOLTTRON platform instances.
 
-* JSON, static and websocket endpoints can be registered to agents via the :ref:`Web Framework <Web-Framework-Overview>`
+* JSON, static and websocket endpoints can be registered to agents via the :ref:`Web Framework <Web-Framework>`
   and platform web server.  This allows remote agent communication as well as for agents to serve web pages.

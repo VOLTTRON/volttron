@@ -3,9 +3,9 @@
 .. role:: bash(code)
    :language: bash
 
-================================
-Installing the VOLTTRON Platform
-================================
+=======================
+Installing the Platform
+=======================
 
 VOLTTRON is written in Python 3.6+ and runs on Linux Operating Systems.  For users unfamiliar with those technologies,
 the following resources are recommended:
