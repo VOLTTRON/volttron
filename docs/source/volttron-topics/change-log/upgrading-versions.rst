@@ -60,6 +60,13 @@ the following steps to upgrade:
 
 #.  Make necessary VOLTTRON_HOME changes
 
+
+    .. warning::
+
+        It is possible that some existing agents may continue to operate after the platform upgrade, however this is not
+        true for most agents, and it is recommended to reinstall the agent to ensure the agent wheel is compatible and
+        that there are no side-effects.
+
     A.  Reinstall Agents
 
     It is recommended to reinstall all agents that exist on the platform to ensure the agent wheel is compatible with
@@ -68,6 +75,10 @@ the following steps to upgrade:
     documentation.
 
     B.  Modify Agent Directories
+
+    .. note::
+
+        Modifying the agent directories is only necessary if not reinstalling agents.
 
     To satisfy the security requirements of the secure agents feature included with VOLTTRON 7, changes have been made
     to the agent directory structure.
@@ -92,6 +103,13 @@ the following steps to upgrade:
         .. code-block:: bash
 
             mv $VOLTTRON_HOME/data/historian.sqlite $VOLTTRON_HOME/agents/<agent uuid>/<agent>/data
+
+        .. warning::
+
+            If not specifying a path to the database, the database will be created in the agent's data directory.  This
+            is important if removing or uninstalling the historian as the database file will be removed when the agent
+            dir is cleaned up.  Copy the database file to a temporary directory, reinstall the agent, and move the
+            database file back to the agent's data directory
 
 #.  Forward Historian
 
