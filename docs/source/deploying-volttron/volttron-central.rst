@@ -88,11 +88,10 @@ and localhost is volttron-pc.
         Creating new web server certificate.
         Is this an instance of volttron central? [N]: y
         Configuring /home/user/volttron/services/core/VolttronCentral.
-        Enter volttron central admin user name: <your volttron central admin username here>
-        Enter volttron central admin password: <your volttron central admin password here>
-        Retype password: <retype your volttron central admin password here>
         Installing volttron central.
         Should the agent autostart? [N]: y
+        VC admin and password are set up using the admin web interface.
+        After starting VOLTTRON, please go to https://volttron-pc:8443/admin/login.html to complete the setup.
         Will this instance be controlled by volttron central? [Y]: y
         Configuring /home/user/volttron/services/core/VolttronCentralPlatform.
         What is the name of this instance? [volttron1]: 
@@ -138,12 +137,12 @@ Remote Platform Configuration
 
 The next step is to configure the instances that will connect to VOLTTRON
 Central. In the second and third terminal windows run `vcfg`. Like
-the VOLTTRON\_HOME variable, these instances need to have unique addresses.
+the VOLTTRON\_HOME variable, these instances need to have unique VIP addresses and unique instance names.
 
 Install a platform agent and a historian as before. Since we used the default
 options when configuring VOLTTRON Central, we can use the default options when
 configuring these platform agents as well. The configuration will be a little
-different.
+different. The example below is for the second volttron instance. Note the unique VIP address and instance name.
 
 
  .. code-block:: console
@@ -156,11 +155,10 @@ different.
          What type of message bus (rmq/zmq)? [zmq]: 
          What is the vip address? [tcp://127.0.0.1]: tcp://127.0.0.2
          What is the port for the vip address? [22916]: 
-         Is this instance web enabled? [N]: 
-         Is this an instance of volttron central? [N]: 
-         Will this instance be controlled by volttron central? [Y]: y
+         Is this instance web enabled? [N]:
+         Will this instance be controlled by volttron central? [Y]:
          Configuring /home/user/volttron/services/core/VolttronCentralPlatform.
-         What is the name of this instance? [volttron1]: 
+         What is the name of this instance? [volttron1]: volttron2
          What is the hostname for volttron central? [https://volttron-pc]: 
          What is the port for volttron central? [8443]: 
          Should the agent autostart? [N]: y
@@ -182,9 +180,17 @@ different.
 Starting the Demo
 -----------------
 
-Start each Volttron instance after configuration. The "-l" option in the
-following command tells volttron to log to a file. The file name
-should be different for each instance.
+Start each Volttron instance after configuration. You have two options.
+
+Option 1: The following command starts the volttron process in the background. The "-l" option tells volttron to log
+to a file. The file name should be different for each instance.
+
+.. code-block:: console
+
+    $ volttron -vv -l volttron.log&
+
+Option 2: Use the utility script start-volttron.
+
 
 .. code-block:: console
 
@@ -218,14 +224,17 @@ or
         In each of the above examples one could use * suffix to match more 
         than one agent.
 
-Open your browser to `localhost:8443/vc/index.hmtl` and and log in with the
-credentials you provided. The platform agents should be automatically register
-with VOLTTRON central.
+Open your browser to the web address that you specified for the VOLTTRON Central agent that you configured for the
+first instance. The web address is the admin web interface to Volttron; it is defined in the configuration of the
+first instance. In the above examples, the configuration file would be located at `~/.volttron1/config` and the
+admin web interface would be defined in the "volttron-central-address" field. The address takes the pattern:
+`https://<localhost>:8443/index.html`, where localhost is the local host of your machine.
+In the above examples, our localhost is `volttron-pc`; thus our admin web interface would be `https://volttron-pc:8443/index.html`.
 
-.. note::
-
-        localhost is the local host of your machine. In the above examples,
-        this was volttron-pc.
+When you open the page for the first time, Volttron will prompt you to create a new user and password. Recall when you
+ran `vcfg` in the first shell to configure the VOLTTRON Central agent, the script displayed
+the message "VC admin and password are set up using the admin web interface." This is where you setup you admin name
+and password.
 
 
 Stopping the Demo
@@ -247,7 +256,10 @@ details on how to configure the agent for your specific use case.
 Log In
 ------
 
-To log in to VOLTTRON Central, navigate in a browser to localhost:8443/vc/index.html, and enter the user name and password on the login screen.
+To log in to VOLTTRON Central, open a browser and login to the Volttron web interface, which takes the form
+`https://localhost:8443/vc/index.html` where localhost is the local host of your machine. In the above example, we open the
+following URL in which our localhost is "volttron-pc": https://volttron-pc:8443/vc/index.html and enter the user name
+and password on the login screen.
 
 |Login Screen|
 

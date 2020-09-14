@@ -19,7 +19,7 @@ The platform comprises several components that allow agents to operate and conne
   variety of topics or directed communication using :ref:`Remote Procedure Calls <Remote-Procedure-Calls>`.
 
 * :ref:`Agents <Agent-Framework>` on the platform extend the base agent which provides a VIP connection to the message
-  bus as well as an agent lifecycle. Agents subscribe to topics which allow it to read The agent lifecycle is controlled
+  bus and an agent lifecycle. Agents subscribe to topics which allow it to read. The agent lifecycle is controlled
   by the :ref:`Agent Instantiation and Packaging <Agent-Instantiation-and-Packaging>` (AIP) component which launches
   agents in an agent execution environment.
 
