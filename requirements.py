@@ -85,7 +85,11 @@ extras_require = {
         'pymongo',
         'Sphinx',
         'recommonmark',
-        'sphinx-rtd-theme'
+        'sphinx-rtd-theme',
+        'werkzeug'
+        'pint',
+        'jwt',
+        'passlib'
     ],
     'drivers': [
         'pymodbus',
