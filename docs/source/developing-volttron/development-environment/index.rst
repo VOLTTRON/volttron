@@ -10,5 +10,4 @@ machine on which an IDE would be running.  The guides can be used to set up a de
 .. toctree::
 
    virtual_machine/install-vm
-   eclipse/index
    pycharm/index

@@ -1,8 +1,8 @@
 .. _Core-Service-Agents:
 
-===================
-Core Service Agents
-===================
+=============
+Core Services
+=============
 
 Agents in the `services/core` directory support the most common use cases of the platform.  For details on each, please
 refer to the corresponding documents.

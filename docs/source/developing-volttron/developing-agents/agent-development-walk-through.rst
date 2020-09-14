@@ -490,4 +490,5 @@ environment.  An example of setting `VOLTTRON_HOME` is as follows.
    writing-agent-tests
    developing-historian-agents
    developing-market-agents
+   example-agents/index
    specifications/index
