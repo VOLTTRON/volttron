@@ -8,49 +8,267 @@ from pytz import UTC
 from volttron.platform.agent.base_historian import BackupDatabase, BaseHistorian
 
 
-def test_get_outstanding_to_publish_should_return_records(backup_database):
+@pytest.mark.parametrize(
+    "size_limit, expected_record_count, expected_records",
+    [
+        (
+            1000,
+            3,
+            [
+                {
+                    "_id": 1,
+                    "headers": {},
+                    "meta": {},
+                    "source": "foobar_source",
+                    "timestamp": datetime(2020, 6, 1, 12, 31, tzinfo=UTC),
+                    "topic": "foobar_topic0",
+                    "value": 4242,
+                },
+                {
+                    "_id": 2,
+                    "headers": {},
+                    "meta": {},
+                    "source": "foobar_source",
+                    "timestamp": datetime(2020, 6, 1, 12, 31, 1, tzinfo=UTC),
+                    "topic": "foobar_topic1",
+                    "value": 4243,
+                },
+                {
+                    "_id": 3,
+                    "headers": {},
+                    "meta": {},
+                    "source": "foobar_source",
+                    "timestamp": datetime(2020, 6, 1, 12, 31, 2, tzinfo=UTC),
+                    "topic": "foobar_topic2",
+                    "value": 4244,
+                },
+            ],
+        ),
+        (
+            1,
+            3,
+            [
+                {
+                    "_id": 1,
+                    "headers": {},
+                    "meta": {},
+                    "source": "foobar_source",
+                    "timestamp": datetime(2020, 6, 1, 12, 31, tzinfo=UTC),
+                    "topic": "foobar_topic0",
+                    "value": 4242,
+                }
+            ],
+        ),
+    ],
+)
+def test_get_outstanding_to_publish_should_return_records(
+    backup_database, size_limit, expected_record_count, expected_records
+):
     init_db(backup_database)
-    expected_records = [
-        {
-            "_id": 1,
-            "headers": {},
-            "meta": {},
-            "source": "foobar_source",
-            "timestamp": datetime(2020, 6, 1, 12, 31, tzinfo=UTC),
-            "topic": "foobar_topic0",
-            "value": 4242,
-        },
-        {
-            "_id": 2,
-            "headers": {},
-            "meta": {},
-            "source": "foobar_source",
-            "timestamp": datetime(2020, 6, 1, 12, 31, 1, tzinfo=UTC),
-            "topic": "foobar_topic1",
-            "value": 4243,
-        },
-        {
-            "_id": 3,
-            "headers": {},
-            "meta": {},
-            "source": "foobar_source",
-            "timestamp": datetime(2020, 6, 1, 12, 31, 2, tzinfo=UTC),
-            "topic": "foobar_topic2",
-            "value": 4244,
-        },
-    ]
 
-    actual_records = backup_database.get_outstanding_to_publish(1000)
+    actual_records = backup_database.get_outstanding_to_publish(size_limit)
 
     assert actual_records == expected_records
-    assert backup_database._record_count == len(expected_records)
+    assert backup_database._record_count == expected_record_count
 
 
+@pytest.mark.parametrize(
+    "size_limit, expected_record_count, expected_records",
+    [
+        (
+            1000,
+            6,
+            [
+                {
+                    "_id": 1,
+                    "headers": {},
+                    "meta": {},
+                    "source": "dupesource",
+                    "timestamp": datetime(2020, 6, 1, 12, 30, 59, tzinfo=UTC),
+                    "topic": "dupetopic",
+                    "value": 123,
+                },
+                {
+                    "_id": 4,
+                    "headers": {},
+                    "meta": {},
+                    "source": "foobar_source",
+                    "timestamp": datetime(2020, 6, 1, 12, 31, tzinfo=UTC),
+                    "topic": "foobar_topic0",
+                    "value": 4242,
+                },
+                {
+                    "_id": 5,
+                    "headers": {},
+                    "meta": {},
+                    "source": "foobar_source",
+                    "timestamp": datetime(2020, 6, 1, 12, 31, 1, tzinfo=UTC),
+                    "topic": "foobar_topic1",
+                    "value": 4243,
+                },
+                {
+                    "_id": 6,
+                    "headers": {},
+                    "meta": {},
+                    "source": "foobar_source",
+                    "timestamp": datetime(2020, 6, 1, 12, 31, 2, tzinfo=UTC),
+                    "topic": "foobar_topic2",
+                    "value": 4244,
+                },
+                {
+                    "_id": 7,
+                    "headers": {},
+                    "meta": {},
+                    "source": "foobar_source",
+                    "timestamp": datetime(2020, 6, 1, 12, 31, 3, tzinfo=UTC),
+                    "topic": "foobar_topic3",
+                    "value": 4245,
+                },
+                {
+                    "_id": 8,
+                    "headers": {},
+                    "meta": {},
+                    "source": "foobar_source",
+                    "timestamp": datetime(2020, 6, 1, 12, 31, 4, tzinfo=UTC),
+                    "topic": "foobar_topic4",
+                    "value": 4244,
+                },
+            ],
+        ),
+        (
+            3,
+            8,
+            [
+                {
+                    "_id": 1,
+                    "headers": {},
+                    "meta": {},
+                    "source": "dupesource",
+                    "timestamp": datetime(2020, 6, 1, 12, 30, 59, tzinfo=UTC),
+                    "topic": "dupetopic",
+                    "value": 123,
+                },
+                {
+                    "_id": 4,
+                    "headers": {},
+                    "meta": {},
+                    "source": "foobar_source",
+                    "timestamp": datetime(2020, 6, 1, 12, 31, tzinfo=UTC),
+                    "topic": "foobar_topic0",
+                    "value": 4242,
+                },
+                {
+                    "_id": 5,
+                    "headers": {},
+                    "meta": {},
+                    "source": "foobar_source",
+                    "timestamp": datetime(2020, 6, 1, 12, 31, 1, tzinfo=UTC),
+                    "topic": "foobar_topic1",
+                    "value": 4243,
+                },
+            ],
+        ),
+    ],
+)
 def test_get_outstanding_to_publish_should_return_unique_records_when_duplicates_in_db(
+    backup_database, size_limit, expected_record_count, expected_records
+):
+    init_db_with_dupes(backup_database)
+
+    actual_records = backup_database.get_outstanding_to_publish(size_limit)
+
+    assert actual_records == expected_records
+    assert backup_database._record_count == expected_record_count
+
+
+def test_remove_successfully_published_should_clear_cache(backup_database):
+    init_db(backup_database)
+    cache_before_update = [
+        "1|2020-06-01 12:31:00|foobar_source|1|4242|{}",
+        "2|2020-06-01 12:31:01|foobar_source|2|4243|{}",
+        "3|2020-06-01 12:31:02|foobar_source|3|4244|{}",
+    ]
+
+    assert get_all_data("outstanding") == cache_before_update
+    assert backup_database._record_count == len(cache_before_update)
+
+    orig_record_count = backup_database._record_count
+
+    backup_database.remove_successfully_published(set((None,)), 1000)
+
+    assert get_all_data("outstanding") == []
+    current_record_count = backup_database._record_count
+    assert current_record_count < orig_record_count
+    assert current_record_count == 0
+
+
+@pytest.mark.parametrize(
+    "size_limit, expected_record_count, expected_cache_after_update",
+    [
+        (
+            1000,
+            2,
+            [
+                "2|2020-06-01 12:30:59|dupesource|1|123|{}",
+                "3|2020-06-01 12:30:59|dupesource|1|123|{}",
+            ],
+        ),
+        (
+            3,
+            5,
+            [
+                "2|2020-06-01 12:30:59|dupesource|1|123|{}",
+                "3|2020-06-01 12:30:59|dupesource|1|123|{}",
+                "6|2020-06-01 12:31:02|foobar_source|4|4244|{}",
+                "7|2020-06-01 12:31:03|foobar_source|5|4245|{}",
+                "8|2020-06-01 12:31:04|foobar_source|6|4244|{}",
+            ],
+        ),
+    ],
+)
+def test_remove_successfully_published_should_keep_duplicates_in_cache(
+    backup_database, size_limit, expected_record_count, expected_cache_after_update
+):
+    init_db_with_dupes(backup_database)
+    orig_record_count = backup_database._record_count
+    cache_before_update = [
+        "1|2020-06-01 12:30:59|dupesource|1|123|{}",
+        "2|2020-06-01 12:30:59|dupesource|1|123|{}",
+        "3|2020-06-01 12:30:59|dupesource|1|123|{}",
+        "4|2020-06-01 12:31:00|foobar_source|2|4242|{}",
+        "5|2020-06-01 12:31:01|foobar_source|3|4243|{}",
+        "6|2020-06-01 12:31:02|foobar_source|4|4244|{}",
+        "7|2020-06-01 12:31:03|foobar_source|5|4245|{}",
+        "8|2020-06-01 12:31:04|foobar_source|6|4244|{}",
+    ]
+    assert get_all_data("outstanding") == cache_before_update
+
+    backup_database.remove_successfully_published(set((None,)), size_limit)
+
+    assert get_all_data("outstanding") == expected_cache_after_update
+    current_record_count = backup_database._record_count
+    assert current_record_count < orig_record_count
+    assert current_record_count == expected_record_count
+
+
+def test_get_outstanding_to_publish_should_return_unique_records_on_multiple_trans(
     backup_database,
 ):
     init_db_with_dupes(backup_database)
-    expected_record_count = 8
+    size_limit = 3
+    cache_before_update = [
+        "1|2020-06-01 12:30:59|dupesource|1|123|{}",
+        "2|2020-06-01 12:30:59|dupesource|1|123|{}",
+        "3|2020-06-01 12:30:59|dupesource|1|123|{}",
+        "4|2020-06-01 12:31:00|foobar_source|2|4242|{}",
+        "5|2020-06-01 12:31:01|foobar_source|3|4243|{}",
+        "6|2020-06-01 12:31:02|foobar_source|4|4244|{}",
+        "7|2020-06-01 12:31:03|foobar_source|5|4245|{}",
+        "8|2020-06-01 12:31:04|foobar_source|6|4244|{}",
+    ]
+    assert get_all_data("outstanding") == cache_before_update
+
+    # First transaction
     expected_records = [
         {
             "_id": 1,
@@ -79,6 +297,24 @@ def test_get_outstanding_to_publish_should_return_unique_records_when_duplicates
             "topic": "foobar_topic1",
             "value": 4243,
         },
+    ]
+
+    actual_records = backup_database.get_outstanding_to_publish(size_limit)
+
+    assert actual_records == expected_records
+
+    # Second transaction
+    backup_database.remove_successfully_published(set((None,)), size_limit)
+    expected_records = [
+        {
+            "_id": 2,
+            "headers": {},
+            "meta": {},
+            "source": "dupesource",
+            "timestamp": datetime(2020, 6, 1, 12, 30, 59, tzinfo=UTC),
+            "topic": "dupetopic",
+            "value": 123,
+        },
         {
             "_id": 6,
             "headers": {},
@@ -97,6 +333,24 @@ def test_get_outstanding_to_publish_should_return_unique_records_when_duplicates
             "topic": "foobar_topic3",
             "value": 4245,
         },
+    ]
+
+    actual_records = backup_database.get_outstanding_to_publish(size_limit)
+
+    assert actual_records == expected_records
+
+    # Third transaction
+    backup_database.remove_successfully_published(set((None,)), size_limit)
+    expected_records = [
+        {
+            "_id": 3,
+            "headers": {},
+            "meta": {},
+            "source": "dupesource",
+            "timestamp": datetime(2020, 6, 1, 12, 30, 59, tzinfo=UTC),
+            "topic": "dupetopic",
+            "value": 123,
+        },
         {
             "_id": 8,
             "headers": {},
@@ -108,66 +362,13 @@ def test_get_outstanding_to_publish_should_return_unique_records_when_duplicates
         },
     ]
 
-    actual_records = backup_database.get_outstanding_to_publish(1000)
+    actual_records = backup_database.get_outstanding_to_publish(size_limit)
 
     assert actual_records == expected_records
-    assert backup_database._record_count == expected_record_count
 
-
-def test_remove_successfully_published_should_clear_cache(backup_database):
-    init_db(backup_database)
-    cache_before_update = [
-        "1|2020-06-01 12:31:00|foobar_source|1|4242|{}",
-        "2|2020-06-01 12:31:01|foobar_source|2|4243|{}",
-        "3|2020-06-01 12:31:02|foobar_source|3|4244|{}",
-    ]
-
-    assert get_all_data("outstanding") == cache_before_update
-    assert backup_database._record_count == len(cache_before_update)
-
-    orig_record_count = backup_database._record_count
-    successful_publishes = set((None,))
-    submit_size = 1000  # This is the default size given by BaseHistorianAgent
-
-    backup_database.remove_successfully_published(successful_publishes, submit_size)
-
-    assert get_all_data("outstanding") == []
-    current_record_count = backup_database._record_count
-    assert current_record_count < orig_record_count
-    assert current_record_count == 0
-
-
-def test_remove_successfully_published_should_keep_duplicates_in_cache(backup_database):
-    init_db_with_dupes(backup_database)
-    orig_record_count = backup_database._record_count
-    cache_before_update = [
-        "1|2020-06-01 12:30:59|dupesource|1|123|{}",
-        "2|2020-06-01 12:30:59|dupesource|1|123|{}",
-        "3|2020-06-01 12:30:59|dupesource|1|123|{}",
-        "4|2020-06-01 12:31:00|foobar_source|2|4242|{}",
-        "5|2020-06-01 12:31:01|foobar_source|3|4243|{}",
-        "6|2020-06-01 12:31:02|foobar_source|4|4244|{}",
-        "7|2020-06-01 12:31:03|foobar_source|5|4245|{}",
-        "8|2020-06-01 12:31:04|foobar_source|6|4244|{}",
-    ]
-    assert get_all_data("outstanding") == cache_before_update
-
-    #  modifying these attributes of the backup_database to simulate that we found duplicates upon getting duplicate records from the outstanding table
-    backup_database._dupe_ids = [2, 3]
-    backup_database._dedupe_ids = [1, 4, 5, 6, 7, 8]
-    expected_cache_after_update = [
-        "2|2020-06-01 12:30:59|dupesource|1|123|{}",
-        "3|2020-06-01 12:30:59|dupesource|1|123|{}",
-    ]
-    successful_publishes = set((None,))
-    submit_size = 1000  # This is the default size given by BaseHistorianAgent
-
-    backup_database.remove_successfully_published(successful_publishes, submit_size)
-
-    assert get_all_data("outstanding") == expected_cache_after_update
-    current_record_count = backup_database._record_count
-    assert current_record_count < orig_record_count
-    assert current_record_count == len(expected_cache_after_update)
+    # Fourth Transaction
+    backup_database.remove_successfully_published(set((None,)), size_limit)
+    assert backup_database.get_outstanding_to_publish(size_limit) == []
 
 
 def init_db_with_dupes(backup_database):

@@ -1400,8 +1400,6 @@ class BackupDatabase:
         self._backup_storage_report = backup_storage_report
         self._connection = None
         self._setupdb(check_same_thread)
-        self._dupe_ids = []
-        self._dedupe_ids = []
 
     def backup_new_data(self, new_publish_list):
         """
@@ -1533,23 +1531,14 @@ class BackupDatabase:
         c = self._connection.cursor()
 
         if None in successful_publishes:
-            if not self._dupe_ids:
-                c.execute('''DELETE FROM outstanding
-                            WHERE ROWID IN
-                            (SELECT ROWID FROM outstanding
-                              ORDER BY ts LIMIT ?)''', (submit_size,))
-                if self._record_count < c.rowcount:
-                    self._record_count = 0
-                else:
-                    self._record_count -= c.rowcount
+            c.execute('''DELETE FROM outstanding
+                        WHERE ROWID IN
+                        (SELECT ROWID FROM outstanding
+                          GROUP BY ts, topic_id ORDER BY ts LIMIT ?)''', (submit_size,))
+            if self._record_count < c.rowcount:
+                self._record_count = 0
             else:
-                _log.debug(f"Duplicates detected during successful publishes: {self._dupe_ids}")
-                c.executemany('''DELETE FROM outstanding 
-                                WHERE id = ?''',
-                              ((_id,) for _id in self._dedupe_ids))
-                self._record_count -= len(self._dedupe_ids)
-                self._dedupe_ids.clear()
-                self._dupe_ids.clear()
+                self._record_count -= c.rowcount
         else:
             temp = list(successful_publishes)
             temp.sort()
@@ -1573,9 +1562,8 @@ class BackupDatabase:
         """
         # _log.debug("Getting oldest outstanding to publish.")
         c = self._connection.cursor()
-        c.execute('select * from outstanding order by ts limit ?',
+        c.execute('select * from outstanding group by ts, topic_id order by ts limit ?',
                   (size_limit,))
-        dedupes = set()
         results = []
         for row in c:
             _id = row[0]
@@ -1586,13 +1574,6 @@ class BackupDatabase:
             headers = {} if row[5] is None else loads(row[5])
             meta = self._meta_data[(source, topic_id)].copy()
             topic = self._backup_cache[topic_id]
-
-            if (topic, timestamp) in dedupes:
-                _log.debug(f"Found duplicate from cache: {row}")
-                self._dupe_ids.append(_id)
-                continue
-            dedupes.add((topic, timestamp))
-            self._dedupe_ids.append(_id)
             results.append({'_id': _id,
                             'timestamp': timestamp.replace(tzinfo=pytz.UTC),
                             'source': source,
@@ -1607,11 +1588,6 @@ class BackupDatabase:
         if len(results) < size_limit:
             self._record_count = len(results)
 
-        # if we have duplicates, we must count them as part of the "real" total of _record_count
-        if self._dupe_ids:
-            _log.debug(f"Adding duplicates to the total record count: {self._dupe_ids}")
-            self._record_count += len(self._dupe_ids)
-
         return results
 
     def get_backlog_count(self):
@@ -1619,7 +1595,6 @@ class BackupDatabase:
         Retrieve the current number of records in the cache.
         """
         return self._record_count
-
 
     def close(self):
         self._connection.close()
