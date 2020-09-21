@@ -1,8 +1,8 @@
-.. _Driver-Development-Walk-through:
+.. _Driver-Development:
 
-===============================
-Driver Development Walk-through
-===============================
+==================
+Driver Development
+==================
 
 In order for VOLTTRON agents to gather data from a device or to set device values, agents send requests to the Master
 Driver Agent to read or set points.  The Master Driver Agent then sends these requests on to the appropriate driver for

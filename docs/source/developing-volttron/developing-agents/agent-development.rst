@@ -1,8 +1,8 @@
-.. _Agent-Development-Walk-through:
+.. _Agent-Development:
 
-==============================
-Agent Development Walk-through
-==============================
+=================
+Agent Development
+=================
 
 The VOLTTRON platform now has utilities to speed the creation and installation of new agents. To use these utilities the
 VOLTTRON environment must be activated.

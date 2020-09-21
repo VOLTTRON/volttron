@@ -50,8 +50,8 @@ at our bi-weekly office-hours and on Slack. To be invited to office-hours or sla
 
    developing-volttron/contributing/community
    developing-volttron/development-environment/index
-   developing-volttron/developing-agents/agent-development-walk-through
-   developing-volttron/developing-drivers/driver-development-walk-through
+   developing-volttron/developing-agents/agent-development
+   developing-volttron/developing-drivers/driver-development
    developing-volttron/jupyter/jupyter-notebooks
    developing-volttron/python-for-matlab-users
 
