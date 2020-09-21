@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+set -e
+
 list=( bionic  artful stretch buster trusty xenial )
 
 function exit_on_error {
@@ -14,8 +16,8 @@ function exit_on_error {
 function print_usage {
  echo "
 Command Usage:
-<path>/rabbit_dependencies.sh <debian or centos> <distribution name or centos version>
-Valid Debian distributions: ${list[@]}
+<path>/rabbit_dependencies.sh <debian, raspbian, or centos> <distribution name or centos version>
+Valid Raspbian/Debian distributions: ${list[@]}
 Valid centos versions: 6, 7, 8
 "
  exit 0
