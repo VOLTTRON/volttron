@@ -73,7 +73,9 @@ function install_on_debian {
 
     echo "installing ERLANG"
     ${prefix} apt-get install apt-transport-https libwxbase3.0-0v5 libwxgtk3.0-0v5 libsctp1  build-essential python-dev openssl libssl-dev libevent-dev git
+    set +e
     ${prefix} apt-get purge -yf erlang*
+    set -e
     # Add the signing key
     wget -O- https://packages.erlang-solutions.com/ubuntu/erlang_solutions.asc | ${prefix} apt-key add -
 
