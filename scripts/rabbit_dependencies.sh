@@ -79,34 +79,45 @@ function install_on_debian {
         echo "deb https://packages.erlang-solutions.com/ubuntu $DIST contrib" | ${prefix} tee /etc/apt/sources.list.d/erlang.solutions.list
     fi
 
+    common_deb_pkgs="\
+        erlang-asn1=$version \
+        erlang-base=$version \
+        erlang-crypto=$version \
+        erlang-diameter=$version \
+        erlang-edoc=$version \
+        erlang-eldap=$version \
+        erlang-erl-docgen=$version \
+        erlang-eunit=$version \
+        erlang-inets=$version \
+        erlang-mnesia=$version \
+        erlang-odbc=$version \
+        erlang-os-mon=$version \
+        erlang-parsetools=$version \
+        erlang-public-key=$version \
+        erlang-runtime-tools=$version \
+        erlang-snmp=$version \
+        erlang-ssh=$version \
+        erlang-ssl=$version \
+        erlang-syntax-tools=$version \
+        erlang-tools=$version \
+        erlang-xmerl=$version \
+        "
+    x86_pkgs="\
+        erlang-ic=$version \
+        erlang-inviso=$version \
+        erlang-percept=$version \
+        "
+    to_install=""
+    if [[ $is_arm == "FALSE" ]]; then
+       to_install="${common_deb_pkgs} ${x86_pkgs}"
+    else
+       to_install="${common_deb_pkgs}"
+    fi
+
     version=${erlang_package_version}
     ${prefix} apt-get update
     ${prefix} apt-get install -yf
-    ${prefix} apt-get install -y "erlang-asn1=$version" \
-        "erlang-base=$version" \
-        "erlang-crypto=$version" \
-        "erlang-diameter=$version" \
-        "erlang-edoc=$version" \
-        "erlang-eldap=$version" \
-        "erlang-erl-docgen=$version" \
-        "erlang-eunit=$version" \
-        "erlang-ic=$version" \
-        "erlang-inets=$version" \
-        "erlang-inviso=$version" \
-        "erlang-mnesia=$version" \
-        "erlang-odbc=$version" \
-        "erlang-os-mon=$version" \
-        "erlang-parsetools=$version" \
-        "erlang-percept=$version" \
-        "erlang-public-key=$version" \
-        "erlang-runtime-tools=$version" \
-        "erlang-snmp=$version" \
-        "erlang-ssh=$version" \
-        "erlang-ssl=$version" \
-        "erlang-syntax-tools=$version" \
-        "erlang-tools=$version" \
-        "erlang-xmerl=$version"
-
+    ${prefix} apt-get install -y ${to_install}
     ${prefix} apt-get install -y "erlang-nox=$version"
 }
 
@@ -118,14 +129,17 @@ if [[ ${user} == 'root' ]]; then
 else
   prefix="sudo"
 fi
+is_arm="FALSE"
 
 ${prefix} pwd > /dev/null
 
 if [[ "$os_name" == "debian" ]]; then
     erlang_package_version="1:22.1.8.1-1"
+    is_arm="FALSE"
     install_on_debian
 elif [[ "$os_name" == "raspbian" ]]; then
     erlang_package_version="1:21.2.6+dfsg-1"
+    is_arm="TRUE"
     install_on_debian
 elif [[ "$os_name" == "centos" ]]; then
     install_on_centos
