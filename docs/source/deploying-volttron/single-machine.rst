@@ -1,8 +1,8 @@
 .. _Single-Machine-Deployment:
 
-=========================
-Single Machine Deployment
-=========================
+==============
+Single Machine
+==============
 
 The purpose of this demonstration is to show the process of setting up a simple VOLTTRON instance for use on a single
 machine.

@@ -239,4 +239,5 @@ control and monitor the status of RabbitMQ message bus:
                             Remove shovel parameter
         remove-policies     Remove policy
 
-For information about using RabbitMQ in multi-platform deployments, view the :ref:`docs <RabbitMQ-Multi-platform>`
+For information about using RabbitMQ in multi-platform deployments, view the :ref:`docs
+<Multi-platform-RabbitMQ-Deployment>`

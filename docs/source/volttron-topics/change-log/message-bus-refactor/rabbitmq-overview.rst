@@ -78,9 +78,6 @@ For more information about queues, bindings, exchanges, please refer to the
 `RabbitMQ tutorial <https://www.rabbitmq.com/getstarted.html>`_.
 
 
-
-
-
 Authentication in RabbitMQ
 ==========================
 

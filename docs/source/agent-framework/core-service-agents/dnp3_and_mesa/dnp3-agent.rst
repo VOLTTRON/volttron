@@ -176,7 +176,7 @@ VOLTTRON's DNP3 device driver exposes `get_point`/`set_point` RPC calls and scra
 The driver periodically issues DNP3Agent RPC calls to refresh its cached representation of DNP3 data.  It issues RPC
 calls to the DNP3 Agent as needed when responding to `get_point`, `set_point` and `scrape_all` calls.
 
-For information about the DNP3 driver, see :ref:`DNP3 Driver Configuration <DNP3-Driver-Config>`.
+For information about the DNP3 driver, see :ref:`DNP3 Driver <DNP3-Driver>`.
 
 
 Installing the DNP3 Agent

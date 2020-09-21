@@ -1,8 +1,8 @@
 .. _Forward-Historian-Deployment:
 
-============================
-Forward Historian Deployment
-============================
+=================
+Forward Historian
+=================
 
 This guide describes a simple setup where one VOLTTRON instance collects data from a fake devices and sends to another
 instance .  Lets consider the following example.

@@ -133,7 +133,7 @@ in each platform using the `volttron-ctl auth` utility. For more details
 
 .. seealso::
 
-    :ref:`Multi-Platform Walk-through <Multi-Platform-Walk-through>`
+    :ref:`Multi-Platform Walk-through <Multi-Platform-Deployment>`
 
 
 .. toctree::

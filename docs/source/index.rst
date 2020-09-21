@@ -62,7 +62,7 @@ at our bi-weekly office-hours and on Slack. To be invited to office-hours or sla
    :titlesonly:
    :maxdepth: 1
 
-   deploying-volttron/deployment-walk-through
+   deploying-volttron/deployment-overview
    deploying-volttron/single-machine
    deploying-volttron/multi-platform/multi-platform
    deploying-volttron/linux-system-hardening
@@ -76,8 +76,8 @@ at our bi-weekly office-hours and on Slack. To be invited to office-hours or sla
 
    agent-framework/agents-overview
    agent-framework/core-service-agents/index
-   agent-framework/historian-agents/historian-framework
    agent-framework/operations-agents/index
+   agent-framework/historian-agents/historian-framework
    agent-framework/web-framework
    agent-framework/platform-service-standardization
    agent-framework/third-party-agents

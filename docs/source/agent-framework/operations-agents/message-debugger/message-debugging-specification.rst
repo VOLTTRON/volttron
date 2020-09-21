@@ -1,13 +1,14 @@
 .. _Message-Debugging-Specification:
 
-Message Bus Visualization and Debugging - Specification
-=======================================================
+===================================
+Message Bus Debugging Specification
+===================================
 
 NOTE: This is a planning document, created prior to implementation of the
 VOLTTRON Message Debugger. It describes the tool's general goals, but it's not
 always accurate about specifics of the ultimate implementation. For a description
 of Message Debugging as implemented, with advice on how to configure and
-use it, please see :doc:`Message-Debugging <../devguides/agent_development/Message-Debugging>`.
+use it, please see :ref:`Message-Debugging <Message-Debugging>`.
 
 Description
 -----------

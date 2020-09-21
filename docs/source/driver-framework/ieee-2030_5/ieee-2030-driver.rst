@@ -1,12 +1,13 @@
-.. _IEEE2030_5-Driver-Config:
+.. _IEEE2030_5-Driver:
 
-================================
-IEEE 2030.5 Driver Configuration
-================================
+============================
+IEEE 2030.5 (SEP 2.0) Driver
+============================
 
 Communicating with IEEE 2030.5 devices requires that the IEEE 2030.5 Agent is configured and running.
 All device communication happens through this agent. For information about the IEEE 2030.5 Agent,
-please see :ref:`IEEE2030_5-Agent`.
+please see :ref:`IEEE 2030.5 Agent <IEEE2030_5-Agent>`.
+
 
 driver_config
 *************
@@ -38,7 +39,6 @@ Here is a sample IEEE 2030.5 device configuration file:
 A sample IEEE 2030.5 driver configuration file can be found in the VOLTTRON repository
 in ``services/core/MasterDriverAgent/example_configurations/test_ieee2030_5_1.config``.
 
-.. _IEEE2030_5-Driver:
 
 IEEE 2030.5 Registry Configuration File
 ***************************************
