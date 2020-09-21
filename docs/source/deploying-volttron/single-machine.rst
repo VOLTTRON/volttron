@@ -1,30 +1,34 @@
-.. _Single-Machine-Walk-through:
+.. _Single-Machine-Deployment:
 
+=========================
 Single Machine Deployment
 =========================
 
 The purpose of this demonstration is to show the process of setting up a simple VOLTTRON instance for use on a single
 machine.
 
+
 Install and Build VOLTTRON
---------------------------
+==========================
 
 First, :ref:`install <Platform-Installation>` VOLTTRON:
 
-For a quick reference: 
+For a quick reference for Ubuntu machines:
 
 .. code-block:: console
         
         sudo apt-get update
-        sudo apt-get install build-essential python-dev openssl libssl-dev libevent-dev git
+        sudo apt-get install build-essential libffi-dev python3-dev python3-venv openssl libssl-dev libevent-dev git
         git clone https://github.com/VOLTTRON/volttron/
         cd volttron
         python3 bootstrap.py
 
+For all others, please see the platform install section.
+
 
 
 Activating the  VOLTTRON Environment
-------------------------------------
+====================================
 
 After the build is complete, activate the VOLTTRON environment.
 
@@ -34,7 +38,7 @@ After the build is complete, activate the VOLTTRON environment.
 
 
 Configuring VOLTTRON
---------------------
+====================
 
 The ``vcfg`` command allows for an easy configuration of the VOLTTRON environment.
 
@@ -105,13 +109,11 @@ A set of example responses are included here (username is user, localhost is vol
         If you need to change the instance configuration you can edit
         the config file is at /home/user/.volttron/config
 
-
-
 Once this is finished, run VOLTTRON and test the new configuration.
 
 
 Testing VOLTTRON
-----------------
+================
 
 To test that the configuration was successful, start an instance of VOLTTRON in the background:
 
@@ -125,7 +127,7 @@ To test that the configuration was successful, start an instance of VOLTTRON in 
 
 
 Command Line
-~~~~~~~~~~~~
+------------
 
 If the example ``vcfg`` responses were used, the listener, master_driver, platform_historian, vcp, and vc agents
 should have all started automatically. This can be checked using ``vctl status``.
@@ -143,76 +145,3 @@ The output should look similar to this:
         9 volttroncentralagent-5.0 volttron.central    vc                 running [2808]  GOOD
 
 You can further verify that the agents are functioning correctly with ``tail -f volttron.log``
-
-
-VOLTTRON Admin
-~~~~~~~~~~~~~~
-
-The admin page allows the user to manage RMQ and ZMQ certificates and credentials.
-
-Open a web browser and navigate to https://volttron-pc:8443/admin/login.html
-
-There may be a message warning about a potential security risk. Check to see if the certificate
-that was created in vcfg is being used. The process below is for firefox.
-
-|vc-cert-warning-1|
-
-.. |vc-cert-warning-1| image:: files/vc-cert-warning-1.png
-
-|vc-cert-warning-2|
-
-.. |vc-cert-warning-2| image:: files/vc-cert-warning-2.png
-
-|vc-cert-warning-3|
-
-.. |vc-cert-warning-3| image:: files/vc-cert-warning-3.png
-
-|vc-cert-warning-4|
-
-.. |vc-cert-warning-4| image:: files/vc-cert-warning-4.png
-
-When the admin page is accessed for the first time, the user will be prompted to set up a master
-username and password.
-
-|admin-page-login|
-
-.. |admin-page-login| image:: files/volttron-admin-page.png
-
-
-This will allow the user to log into both the admin page and VOLTTRON Central.
-
-
-VOLTTRON Central
-~~~~~~~~~~~~~~~~
-
-Navigate to https://volttron-pc:8443/vc/index.html
-
-Log in using the username and password you set up on the admin web page.
-
-|vc-login|
-
-.. |vc-login| image:: files/vc-login.png
-
-
-Once you have logged in, click on the Platforms tab in the upper right corner of the window.
-
-|vc-dashboard|
-
-.. |vc-dashboard| image:: files/vc-dashboard.png
-
-Once in the Platforms screen, click on the name of the platform.
-
-|vc-platform|
-
-.. |vc-platform| image:: files/vc-platform.png
-
-You will now see a list of agents. They should all be running.
-
-|vc-agents|
-
-.. |vc-agents| image:: files/vc-agents.png
-
-For more information on VOLTTRON Central, please see:
-
-* :ref:`VOLTTRON Central Management <VOLTTRON-Central>`
-* :ref:`VOLTTRON Central Demo <Device-Configuration-in-VOLTTRON-Central>`

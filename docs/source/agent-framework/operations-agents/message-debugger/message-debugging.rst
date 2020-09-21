@@ -4,9 +4,11 @@
 Message Debugging
 =================
 
-VOLTTRON agent messages are routed over the VOLTTRON message bus.
-The Message Debugger Agent provides enhanced examination of this message stream's
-contents as an aid to debugging and troubleshooting agents and drivers.
+VOLTTRON agent messages are routed over the VOLTTRON message bus.  The Message Debugger Agent provides enhanced
+examination of this message stream's contents as an aid to debugging and troubleshooting agents and drivers.
+
+This feature is implemented to provide visibility into the ZeroMQ message bus.  The RabbitMQ message bus includes
+methods for message debugging by default in the `RabbitMQ management UI <https://www.rabbitmq.com/management.html>`_.
 
 When enabled, the Message Debugger Agent captures and records each message as it is routed.
 A second process, Message Viewer, provides a user interface that optimizes and filters the
@@ -25,8 +27,9 @@ a given capture period by sender, receiver and topic.
 Another view displays the most-recently-published message, or message exchange, that
 satisfies the current filter criteria, continuously updated as new messages are routed.
 
+
 Enabling the Message Debugger
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+=============================
 
 In order to use the Message Debugger, two steps are required:
 
@@ -41,6 +44,7 @@ should be employed during development/debugging only, and should not be left ena
 a production environment.
 
 Example of starting VOLTTRON with the ``--msgdebug`` command line option:
+
 ::
 
     (volttron) ./start-volttron ``--msgdebug``
@@ -48,6 +52,7 @@ Example of starting VOLTTRON with the ``--msgdebug`` command line option:
 If VOLTTRON is running in this mode, the stream of routed messages is available to
 a subscribing Message Debugger Agent. It can be started from volttron-ctl in the same
 fashion as other agents, for example:
+
 ::
 
     (volttron) $ vctl status
@@ -68,13 +73,14 @@ fashion as other agents, for example:
     47 volttroncentralagent-3.5.5 volttron.central         vc
 
 See :ref:`Agent Creation Walk-through <Agent-Development-Walk-through>` for further details on
-installing and starting agents from vctl.
+installing and starting agents from `vctl`.
 
 Once the Message Debugger Agent is running, it begins capturing message data and
 writing it to a SQLite database.
 
+
 Message Viewer
-~~~~~~~~~~~~~~
+==============
 
 The Message Viewer is a separate process that interacts with the Message Debugger Agent
 primarily via VOLTTRON RPC calls. These calls allow it to request and report on filtered sets
@@ -86,12 +92,13 @@ created to satisfy a variety of specific debugging needs. For example, a viewer 
 browser-based message debugging with a graphical user interface, or a viewer could transform
 message data into PCAP format for consumption by WireShark.
 
-The Message Viewer in services/ops/MessageDebuggerAgent/messageviewer/viewer.py implements a
+The Message Viewer in `services/ops/MessageDebuggerAgent/messageviewer/viewer.py` implements a
 command-line UI, subclassing Python's ``Cmd`` class. Most of the command-line options that it
 displays result in a MessageDebuggerAgent RPC request. The Message Viewer formats and displays
 the results.
 
 In Linux, the Message Viewer can be started as follows, and displays the following menu:
+
 ::
 
     (volttron) $ cd services/ops/MessageDebuggerAgent/messageviewer
@@ -123,12 +130,14 @@ In Linux, the Message Viewer can be started as follows, and displays the followi
     Please enter a command.
     Viewer>
 
+
 Command-Line Help
-~~~~~~~~~~~~~~~~~
+-----------------
 
 The Message Viewer offers two help levels. Simply typing ``help`` gives a list of available
 commands. If a command name is provided as an argument, advice is offered on how to use
 that command:
+
 ::
 
     Viewer> help
@@ -160,12 +169,14 @@ that command:
                 . endtime <YYYY-MM-DD HH:MM:SS>: Matches rows with timestamps before the supplied time
                 . (etc. -- see the structures of DebugMessage and DebugMessageExchange)
 
+
 Debug Sessions
-~~~~~~~~~~~~~~
+==============
 
 The Message Debugger Agent tags each message with a debug session ID (a serial number),
 which groups a set of messages that are bounded by a start time and an end time. The ``list_sessions``
 command describes each session in the database:
+
 ::
 
     Viewer> list_sessions
@@ -180,13 +191,14 @@ but no session is active (i.e., because ``stop_session`` was used to stop it), m
 still written to the database, but they have no session ID.
 
 Filtered Display
-~~~~~~~~~~~~~~~~
+----------------
 
 The ``set_filter <property> <value>`` command enables filtered display of messages. A variety
 of properties can be filtered.
 
 In the following example, message filters are defined by session_id and sender, and the ``display_messages``
 command displays the results:
+
 ::
 
     Viewer> set_filter session_id 4
@@ -202,8 +214,9 @@ command displays the results:
       11:51:01     incoming     testagent    pubsub                    1197886248649056373.284581649  RPC          pubsub.publish  test_topic/test_subtopic  -             -            -
       11:51:01     outgoing     testagent    pubsub                    1197886248649056373.284581649  RPC          -               -                         -             -            None
 
+
 Debug Message Exchanges
-~~~~~~~~~~~~~~~~~~~~~~~
+=======================
 
 A VOLTTRON message's request ID is not unique to a single message. A group of messages in an "exchange"
 (essentially a small conversation among agents) will often share a common request ID, for instance during RPC
@@ -222,8 +235,9 @@ exchange queries.
       testagent    platform.driver  11:51:00     -                         chargepoint1  Status       AVAILABLE
       testagent    pubsub           11:51:01     test_topic/test_subtopic  -             -            None
 
+
 Special Filters
-~~~~~~~~~~~~~~~
+---------------
 
 Most filters that can be set with the ``set_filter`` command are simple string matches on
 one or another property of a message. Some filters have special characteristics, though.
@@ -233,6 +247,7 @@ inequalities that test for messages after a start time or before an end time.
 In the following example, note the use of quotes in the endtime value supplied to
 set_filter. Any filter value can be delimited with quotes. Quotes must be
 used when a value contains embedded spaces, as is the case here:
+
 ::
 
     Viewer> list_sessions
@@ -262,6 +277,7 @@ Another filter type with special behavior is ``set_filter topic <name>``. Ordina
 match on a message property. Since message topics are often expressed as hierarchical substrings,
 though, the ``topic`` filter does a substring match on the left edge of a message's topic,
 as in the following example:
+
 ::
 
     Viewer> set_filter topic test_topic
@@ -285,6 +301,7 @@ set_filter command syntax requires that a value be supplied as a parameter.
 In the following example, note the use of ``clear_filter <property>`` to remove a single
 named filter from the list of filters that are currently in effect. There is also a ``clear_filters``
 command, which clears all current filters.
+
 ::
 
     Viewer> clear_filter topic
@@ -297,8 +314,9 @@ command, which clears all current filters.
       testagent    platform.driver  11:51:25     -            chargepoint1  Status       AVAILABLE
       testagent    platform.driver  11:51:26     -            chargepoint1  Status       AVAILABLE
 
+
 Streamed Display
-~~~~~~~~~~~~~~~~
+----------------
 
 In addition to exposing a set of RPC calls that allow other agents (like the Message Viewer)
 to query the Message Debugger Agent's SQLite database of recent messages, the Agent can also
@@ -313,6 +331,7 @@ the message stream as it arrives.
 In the following ``display_message_stream`` example, the Message Viewer displays all messages
 sent by the agent named 'testagent', as they arrive. It continues to display messages until
 execution is interrupted with ctrl-C:
+
 ::
 
     Viewer> clear_filters
@@ -344,14 +363,16 @@ Message Viewer has incomplete information about how wide to make each column. In
 make guesses based on header widths, data widths in the first row received, and min/max values,
 and then wrap the data when it overflows the column boundaries.)
 
+
 Single-Line Display
-~~~~~~~~~~~~~~~~~~~
+-------------------
 
 Another filter with special behavior is ``set_filter freq <seconds>``. This filter, which takes a number N
 as its value, displays only one row, the most recently captured row that satisfies the filter criteria.
 (Like other filters, this filter can be used with either ``display_messages`` or ``display_exchanges``.)
 It then waits N seconds, reissues the query, and overwrites the old row with the new one.
 It continues this periodic single-line overwritten display until it is interrupted with ctrl-C:
+
 ::
 
     Viewer> list_filters
@@ -366,13 +387,15 @@ It continues this periodic single-line overwritten display until it is interrupt
 width of each column. In this single-line display format, data gets truncated if it doesn't fit,
 because no wrapping can be performed -- only one display line is available.)
 
+
 Displaying Exchange Details
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+---------------------------
 
 The ``display_exchange_details <request_id>`` command provides a way to get more specific details
 about an exchange, i.e. about all messages that share a common request ID. At low or medium
 verbosity, when this command is used (supplying the relevant request ID, which can be obtained
 from the output of other commands), it displays one row for each message:
+
 ::
 
     Viewer> set_filter sender testagent
@@ -392,6 +415,7 @@ from the output of other commands), it displays one row for each message:
 
 At high verbosity, ``display_exchange_details`` switches display formats, showing all properties for
 each message in a json-like dictionary format:
+
 ::
 
     Viewer> set_verbosity high
@@ -452,12 +476,14 @@ each message in a json-like dictionary format:
         "vip_signature": "VIP1"
     }
 
+
 Verbosity
-~~~~~~~~~
+=========
 
 As mentioned in the previous section, Agent and Viewer behavior can be adjusted by changing
 the current verbosity with the ``set_verbosity <level>`` command. The default verbosity is low.
 low, medium and high levels are available:
+
 ::
 
     Viewer> set_verbosity high
@@ -485,6 +511,7 @@ At low verbosity:
 
 The following "interesting" columns are displayed at low and medium verbosity levels
 (at high verbosity levels, all properties are displayed):
+
 ::
 
     Debug Message       Debug Message Exchange      Debug Session
@@ -503,6 +530,7 @@ The following "interesting" columns are displayed at low and medium verbosity le
 
 Messages from the following senders, or to the following receivers, are excluded at
 low and medium verbosity levels:
+
 ::
 
     Sender                                  Receiver
@@ -522,7 +550,7 @@ are defined as parameters in Message Viewer, and can be adjusted as necessary by
 global value lists in viewer.py.
 
 Session Statistics
-~~~~~~~~~~~~~~~~~~
+==================
 
 One useful tactic for starting at a summary level and drilling down is to capture a set
 of messages for a session and then examine the counts of sending and receiving agents,
@@ -536,6 +564,7 @@ the counts and can also reduce the number of columns and rows.
 
 The following example shows the command being used to list all senders and receivers for
 messages sent during debug session 7:
+
 ::
 
     Viewer> list_sessions
@@ -562,6 +591,7 @@ messages sent during debug session 7:
 
 The ``display_session_details_by_topic <session_id>`` command is similar to ``display_session_details_by_agent``,
 but each row contains statistics for a topic instead of for a receiving agent:
+
 ::
 
     Viewer> display_session_details_by_topic 7
@@ -628,8 +658,9 @@ but each row contains statistics for a topic instead of for a receiving agent:
       heartbeat/pubsub                               -            -                         -                -                         -            2            -
       test_topic/test_subtopic                       -            -                         -                -                         -            8            8
 
+
 Database Administration
-~~~~~~~~~~~~~~~~~~~~~~~
+=======================
 
 The Message Debugger Agent stores message data in a SQLite database's DebugMessage,
 DebugMessageExchange and DebugSession tables. If the database isn't present already
@@ -643,6 +674,7 @@ The ``delete_session <session_id>`` command deletes the database's DebugSession 
 with the indicated ID, and also deletes all DebugMessage and DebugMessageExchange rows
 with that session ID. In the following example, ``delete_session`` deletes the 60,000
 DebugMessages that were captured during a 20-minute period as session 6:
+
 ::
 
     Viewer> list_sessions
@@ -670,6 +702,7 @@ DebugMessages that were captured during a 20-minute period as session 6:
 The ``delete_database`` command deletes the entire SQLite database, removing all records
 of previously-captured DebugMessages, DebugMessageExchanges and DebugSessions.
 The database will be re-created the next time a debug session is started.
+
 ::
 
     Viewer> delete_database
@@ -690,8 +723,9 @@ of this kind prevents use of the Message Viewer's ``delete_database`` command, t
 database can be deleted directly from the filesystem. By default, it is located
 in $VOLTTRON_HOME's ``run`` directory.
 
+
 Implementation Details
-~~~~~~~~~~~~~~~~~~~~~~
+======================
 
 .. image:: files/40-message-debugger.jpg
 
@@ -740,3 +774,11 @@ which are formatted for display by MessageViewerCmd.
 MessageDebuggerAgent RPC calls, which are agent-agent interactions, it builds a "connection"
 that manages a temporary agent. This is a standard VOLTTRON pattern that is also used, for
 instance, by Volttron Central.
+
+View the :ref:`message debugging specification <Message-Debugging-Specification>` for more information on the message
+debugging implementation for ZeroMQ.
+
+
+.. toctree::
+
+   message-debugging-specification

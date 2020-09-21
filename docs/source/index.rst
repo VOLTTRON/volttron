@@ -63,10 +63,9 @@ at our bi-weekly office-hours and on Slack. To be invited to office-hours or sla
    :maxdepth: 1
 
    deploying-volttron/deployment-walk-through
-   deploying-volttron/single-machine-walk-through
-   deploying-volttron/multi-platform-walk-through
-   deploying-volttron/volttron-central
-   deploying-volttron/platform-hardening
+   deploying-volttron/single-machine
+   deploying-volttron/multi-platform/multi-platform
+   deploying-volttron/linux-system-hardening
 
 
 .. toctree::

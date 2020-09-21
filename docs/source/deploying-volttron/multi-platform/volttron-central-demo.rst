@@ -464,3 +464,77 @@ removes it from the Charts page and the Dashboard.
 .. |Chart Type| image:: files/chart-type.png
 .. |Pin Chart| image:: files/pin-chart.png
 .. |Inspect Chart| image:: files/inspect-charts.png
+
+
+VOLTTRON Admin
+--------------
+
+The admin page allows the user to manage RMQ and ZMQ certificates and credentials.
+
+Open a web browser and navigate to https://volttron-pc:8443/admin/login.html
+
+There may be a message warning about a potential security risk. Check to see if the certificate
+that was created in vcfg is being used. The process below is for firefox.
+
+|vc-cert-warning-1|
+
+.. |vc-cert-warning-1| image:: files/vc-cert-warning-1.png
+
+|vc-cert-warning-2|
+
+.. |vc-cert-warning-2| image:: files/vc-cert-warning-2.png
+
+|vc-cert-warning-3|
+
+.. |vc-cert-warning-3| image:: files/vc-cert-warning-3.png
+
+|vc-cert-warning-4|
+
+.. |vc-cert-warning-4| image:: files/vc-cert-warning-4.png
+
+When the admin page is accessed for the first time, the user will be prompted to set up a master
+username and password.
+
+|admin-page-login|
+
+.. |admin-page-login| image:: files/volttron-admin-page.png
+
+
+This will allow the user to log into both the admin page and VOLTTRON Central.
+
+
+VOLTTRON Central
+^^^^^^^^^^^^^^^^
+
+Navigate to https://volttron-pc:8443/vc/index.html
+
+Log in using the username and password you set up on the admin web page.
+
+|vc-login|
+
+.. |vc-login| image:: files/vc-login.png
+
+
+Once you have logged in, click on the Platforms tab in the upper right corner of the window.
+
+|vc-dashboard|
+
+.. |vc-dashboard| image:: files/vc-dashboard.png
+
+Once in the Platforms screen, click on the name of the platform.
+
+|vc-platform|
+
+.. |vc-platform| image:: files/vc-platform.png
+
+You will now see a list of agents. They should all be running.
+
+|vc-agents|
+
+.. |vc-agents| image:: files/vc-agents.png
+
+For more information on VOLTTRON Central, please see:
+
+* :ref:`VOLTTRON Central Management <VOLTTRON-Central>`
+* :ref:`VOLTTRON Central Demo <Device-Configuration-in-VOLTTRON-Central>`
+

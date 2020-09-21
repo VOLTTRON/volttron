@@ -1,8 +1,8 @@
-.. _Multi-Platform-Walk-through:
+.. _Multi-Platform-Deployment:
 
-======================================
-Multi-Platform Connection Walk-through
-======================================
+=========================
+Multi-Platform Deployment
+=========================
 
 Multi-Platform message bus communication alleviates the need for an agent in one platform to connect to another platform
 directly in order for it to send/receive messages from the other platform.  With multi-platform communication,
@@ -268,4 +268,6 @@ to listen on:
 
 .. toctree::
 
-   forward-historian-deployment
+    multi-platform-rabbitmq-deployment
+    multi-platform-multi-bus
+    volttron-central-demo
