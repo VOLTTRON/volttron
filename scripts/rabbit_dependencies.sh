@@ -83,6 +83,7 @@ function install_on_debian {
         echo "deb https://packages.erlang-solutions.com/ubuntu $DIST contrib" | ${prefix} tee /etc/apt/sources.list.d/erlang.solutions.list
     fi
 
+    version=${erlang_package_version}
     common_deb_pkgs="\
         erlang-asn1=$version \
         erlang-base=$version \
@@ -118,7 +119,6 @@ function install_on_debian {
        to_install="${common_deb_pkgs}"
     fi
 
-    version=${erlang_package_version}
     ${prefix} apt-get update
     ${prefix} apt-get install -yf
     ${prefix} apt-get install -y ${to_install}
