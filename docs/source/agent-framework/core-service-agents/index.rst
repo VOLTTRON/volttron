@@ -13,8 +13,8 @@ refer to the corresponding documents.
    master-driver/master-driver-agent
    market-service/market-service-agent
    volttron-central/volttron-central
-   dnp3_and_mesa/dnp3-agent
-   dnp3_and_mesa/mesa-agent
+   dnp3-and-mesa/dnp3-agent
+   dnp3-and-mesa/mesa-agent
    external-data/external-data
    ieee2030_5-agent/ieee2030_5-agent
    obix/obix-history-agent

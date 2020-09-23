@@ -97,7 +97,7 @@ at our bi-weekly office-hours and on Slack. To be invited to office-hours or sla
    driver-framework/chargepoint/chargepoint-driver
    driver-framework/dnp3-driver/dnp3-driver
    driver-framework/ecobee/ecobee-web-driver
-   driver-framework/ieee-2030_5/ieee-2030-driver
+   driver-framework/ieee-2030_5/ieee-2030_5-driver
    driver-framework/modbus/modbus-driver
    driver-framework/modbus/modbus-tk-driver
    driver-framework/obix/obix
