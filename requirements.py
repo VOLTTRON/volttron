@@ -46,6 +46,7 @@ option_requirements = [
 
 install_requires = [
     'gevent==20.6.1',
+    'greenlet==0.4.16',
     'grequests',
     'requests==2.23.0',
     'ply',
