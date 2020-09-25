@@ -13,7 +13,9 @@ HISTORIAN_DB = "./data/historian.sqlite"
 
 def test_historian_should_filter_duplicates(sql_historian):
     # Add duplicates to queue
-    for i in range(42, 45):
+    # Uniqeness is defined as a combination of topic and timestamp
+    # Thus a duplicate has the same topic and timestamp
+    for num in range(42, 45):
         sql_historian._capture_record_data(
             peer=None,
             sender=None,
@@ -23,26 +25,33 @@ def test_historian_should_filter_duplicates(sql_historian):
                 "Date": "2015-11-17 21:24:10.189393+00:00",
                 "TimeStamp": "2015-11-17 21:24:10.189393+00:00",
             },
-            message=i,
+            message=num,
         )
 
-    # Add unique to queue
-    sql_historian._capture_record_data(
-        peer=None,
-        sender=None,
-        bus=None,
-        topic="roma",
-        headers={
-            "Date": "2020-11-17 21:24:10.189393+00:00",
-            "TimeStamp": "2020-11-17 21:24:10.189393+00:00",
-        },
-        message=666,
-    )
+    # Add unique records to queue
+    for num in range(5, 8):
+        sql_historian._capture_record_data(
+            peer=None,
+            sender=None,
+            bus=None,
+            topic=f"roma{num}",
+            headers={
+                "Date": f"2020-11-17 21:2{num}:10.189393+00:00",
+                "TimeStamp": f"2020-11-17 21:2{num}:10.189393+00:00",
+            },
+            message=666,
+        )
 
-    sql_historian._retry_period = 1
-    sql_historian._max_time_publishing = timedelta(float(1))
+    sql_historian._retry_period = (
+        1
+    )  # default is 300 seconds or 5 minutes; setting to 1 second so tests don't take so long
+    sql_historian._max_time_publishing = timedelta(
+        float(1)
+    )  # when SQLHistorian is normally started on the platform, this attribute is set. Since this is a unitish test, setting this manually test can run
     sql_historian.start_process_thread()
-    sleep(3)
+    sleep(
+        3
+    )  # give time for all databases to initialize and historian to process workflow
 
     # make sure that cache is empty
     assert query_db("""select * from outstanding""", CACHE_NAME) == ""
