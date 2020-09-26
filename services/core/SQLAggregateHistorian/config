@@ -1,5 +1,4 @@
 {
-    # configuration from historian. given example is for mysql - START
     "connection": {
         "type": "mysql",
         "params": {
@@ -10,8 +9,6 @@
             "passwd": "historian"
         }
     },
-    # configuration from historian. given example is for mysql - END
-
     "aggregations":[
         {
         "aggregation_period": "1m",

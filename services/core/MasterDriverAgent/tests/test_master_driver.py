@@ -36,18 +36,24 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-import logging
 import contextlib
+import logging
+import os
 
 from datetime import datetime
 
+import pytest
 import json
+import gevent
 import pytest
 
+from volttron.platform import get_services_core
+from volttron.platform.messaging.health import STATUS_GOOD
 from master_driver import agent
 from master_driver.agent import MasterDriverAgent, OverrideError
 from volttrontesting.utils.utils import AgentMock
 from volttron.platform.vip.agent import Agent
+
 
 agent._log = logging.getLogger("test_logger")
 MasterDriverAgent.__bases__ = (AgentMock.imitate(Agent, Agent()),)
@@ -226,3 +232,25 @@ def get_master_driver_agent(override_patterns: set = set(),
     finally:
         master_driver_agent.vip.reset_mock()
         master_driver_agent._override_patterns.clear()
+
+
+@pytest.mark.driver
+def test_default_config(volttron_instance):
+    """
+    Test the default configuration file included with the agent
+    """
+    publish_agent = volttron_instance.build_agent(identity="test_agent")
+    gevent.sleep(1)
+
+    config_path = os.path.join(get_services_core("MasterDriverAgent"), "master-driver.agent")
+    with open(config_path, "r") as config_file:
+        config_json = json.load(config_file)
+    assert isinstance(config_json, dict)
+
+    volttron_instance.install_agent(
+        agent_dir=get_services_core("MasterDriverAgent"),
+        config_file=config_json,
+        start=True,
+        vip_identity="health_test")
+
+    assert publish_agent.vip.rpc.call("health_test", "health.get_status").get(timeout=10).get('status') == STATUS_GOOD

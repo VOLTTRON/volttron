@@ -39,14 +39,16 @@
 
 import gevent
 import pytest
-
-from volttron.platform import get_services_core
-
+import os
+import json
 try:
     from crate import client
     HAS_CRATE = True
 except ImportError:
     HAS_CRATE = False
+
+from volttron.platform import get_services_core
+from volttron.platform.messaging.health import STATUS_GOOD
 
 
 crate_config = {
@@ -73,8 +75,8 @@ expected_table_list = [
     u'topics'
 ]
 
-# used only in one test function. And clean up should happen between
-# different volttron_instance types
+
+# used only in one test function. And clean up should happen between different volttron_instance types
 @pytest.fixture()
 def crate_connection1():
     host = crate_config_no_schema['connection']['params']['host']
@@ -86,8 +88,7 @@ def crate_connection1():
     conn.close()
 
 
-# used only in one test function. And clean up should happen between
-# different volttron_instance types
+# used only in one test function. And clean up should happen between different volttron_instance types
 @pytest.fixture()
 def crate_connection2():
     host = crate_config['connection']['params']['host']
@@ -100,13 +101,11 @@ def crate_connection2():
     conn.close()
 
 
-
 def clean_schema_from_database(connection, schema):
     tables = retrieve_tables_from_schema(connection, schema)
     cursor = connection.cursor()
     for tbl in tables:
-        query = "DROP TABLE IF EXISTS {schema}.{table}".format(table=tbl,
-                                                               schema=schema)
+        query = "DROP TABLE IF EXISTS {schema}.{table}".format(table=tbl, schema=schema)
         cursor.execute(query)
     cursor.close()
 
@@ -133,8 +132,7 @@ def test_creates_default_table_prefixes(volttron_instance, crate_connection1):
         vi = volttron_instance
         assert not retrieve_tables_from_schema(crate_connection1, "historian")
 
-        agent_uuid = vi.install_agent(agent_dir=get_services_core("CrateHistorian"),
-                                      config_file=crate_config_no_schema)
+        agent_uuid = vi.install_agent(agent_dir=get_services_core("CrateHistorian"), config_file=crate_config_no_schema)
 
         gevent.sleep(2)
         tables = retrieve_tables_from_schema(crate_connection1, "historian")
@@ -154,8 +152,7 @@ def test_creates_schema_prefix_tables(volttron_instance, crate_connection2):
         vi = volttron_instance
         assert not retrieve_tables_from_schema(crate_connection2, "testing")
 
-        agent_uuid = vi.install_agent(agent_dir=get_services_core("CrateHistorian"),
-                                      config_file=crate_config)
+        agent_uuid = vi.install_agent(agent_dir=get_services_core("CrateHistorian"), config_file=crate_config)
         gevent.sleep(2)
         tables = retrieve_tables_from_schema(crate_connection2, "testing")
 
@@ -166,3 +163,22 @@ def test_creates_schema_prefix_tables(volttron_instance, crate_connection2):
         if agent_uuid:
             vi.remove_agent(agent_uuid)
 
+
+@pytest.mark.historian
+def test_crate_default_config(volttron_instance):
+    """
+    Test the default configuration file included with the agent
+    """
+    publish_agent = volttron_instance.build_agent(identity="test_agent")
+    gevent.sleep(1)
+
+    config_path = os.path.join(get_services_core("CrateHistorian"), "config")
+    with open(config_path, "r") as config_file:
+        config_json = json.load(config_file)
+    assert isinstance(config_json, dict)
+    volttron_instance.install_agent(
+        agent_dir=get_services_core("CrateHistorian"),
+        config_file=config_json,
+        start=True,
+        vip_identity="health_test")
+    assert publish_agent.vip.rpc.call("health_test", "health.get_status").get(timeout=10).get('status') == STATUS_GOOD
