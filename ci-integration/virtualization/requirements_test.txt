@@ -16,3 +16,4 @@ watchdog-gevent
 docker
 cryptography
 pymongo
+influxdb

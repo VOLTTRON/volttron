@@ -46,7 +46,7 @@ if HAS_DOCKER:
         """
 
         # Create docker client (Uses localhost as agent connection.
-        client = docker.from_env()
+        client = docker.from_env(version="auto")
 
         try:
             full_docker_image = image_name
