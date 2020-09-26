@@ -40,9 +40,8 @@ def test_get_outstanding_to_publish_should_return_records(backup_database):
         },
     ]
 
-    actual_records = backup_database.get_outstanding_to_publish(
-        1000
-    )  # 1000 is the default submit_size_limit for BaseHistorianAgents
+    # 1000 is the default submit_size_limit for BaseHistorianAgents
+    actual_records = backup_database.get_outstanding_to_publish(1000)
 
     assert actual_records == expected_records
     assert backup_database._record_count == len(expected_records)

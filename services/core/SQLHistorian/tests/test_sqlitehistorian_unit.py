@@ -13,52 +13,53 @@ HISTORIAN_DB = "./data/historian.sqlite"
 
 def test_historian_should_filter_duplicates(sql_historian):
     # Add duplicates to queue
-    # Uniqeness is defined as a combination of topic and timestamp
+    # Uniqueness is defined as a combination of topic and timestamp
     # Thus a duplicate has the same topic and timestamp
-    for num in range(42, 45):
+    for num in range(40, 43):
         sql_historian._capture_record_data(
             peer=None,
             sender=None,
             bus=None,
-            topic="foobar",
+            topic="duplicate_topic",
             headers={
                 "Date": "2015-11-17 21:24:10.189393+00:00",
                 "TimeStamp": "2015-11-17 21:24:10.189393+00:00",
             },
-            message=num,
+            message=f"last_duplicate_{num}",
         )
 
     # Add unique records to queue
-    for num in range(5, 8):
+    for num in range(2, 5):
         sql_historian._capture_record_data(
             peer=None,
             sender=None,
             bus=None,
-            topic=f"roma{num}",
+            topic=f"unique_record_topic{num}",
             headers={
                 "Date": f"2020-11-17 21:2{num}:10.189393+00:00",
                 "TimeStamp": f"2020-11-17 21:2{num}:10.189393+00:00",
             },
-            message=666,
+            message=f"unique_record_{num}",
         )
 
-    sql_historian._retry_period = (
-        1
-    )  # default is 300 seconds or 5 minutes; setting to 1 second so tests don't take so long
-    sql_historian._max_time_publishing = timedelta(
-        float(1)
-    )  # when SQLHistorian is normally started on the platform, this attribute is set. Since this is a unitish test, setting this manually test can run
+    # default is 300 seconds or 5 minutes; setting to 1 second so tests don't take so long
+    sql_historian._retry_period = 1
+    # When SQLHistorian is normally started on the platform, this attribute is set.
+    # Since the SQLHistorian is being tested without the volttron platform,
+    # this attribute must be set so that the test can run
+    sql_historian._max_time_publishing = timedelta(float(1))
+
     sql_historian.start_process_thread()
-    sleep(
-        3
-    )  # give time for all databases to initialize and historian to process workflow
+    # give time for all databases to initialize and historian to process workflow
+    sleep(3)
 
-    # make sure that cache is empty
     assert query_db("""select * from outstanding""", CACHE_NAME) == ""
-
-    # check that the historian did publish data in tables
-    assert query_db("""select * from data""", HISTORIAN_DB)
-    assert query_db("""select * from topics""", HISTORIAN_DB)
+    # check that the historian saves the last duplicate from the cache in the "data" table
+    assert f'2015-11-17T21:24:10.189393+00:00|1|"last_duplicate_42"' in query_db(
+        """select * from data""", HISTORIAN_DB
+    )
+    # check that the historian saves only one duplicate in the "topics" table
+    assert f"1|duplicate_topic" in query_db("""select * from topics""", HISTORIAN_DB)
 
 
 @pytest.fixture()
