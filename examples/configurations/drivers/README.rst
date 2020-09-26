@@ -17,7 +17,7 @@ BACnet
 MODBUS
 ------
 
-- ``modbus1.config`` - Driver configuration.
+- ``modbus.config`` - Driver configuration.
 - ``catalyst371.csv`` - Register configuration for a TWT Catalyst 371.
 
 Fake Devices

@@ -716,3 +716,41 @@ def test_indefinite_override_after_restart(config_store, test_agent, volttron_in
         PLATFORM_DRIVER,  # Target agent
         'clear_overrides'  # Method
     ).get(timeout=10)
+
+
+@pytest.mark.driver
+def test_override_pattern(config_store, test_agent):
+    setup_config(config_store, "config", master_driver_config)
+    # add a fake driver
+    config_path = "devices/{}"
+    device_path = "fakedriver1"
+    config_name = config_path.format(device_path)
+    setup_config(config_store, config_name, fake_device_config)
+    gevent.sleep(1.1)
+    # set override feature on device
+    test_agent.vip.rpc.call(PLATFORM_DRIVER, 'set_override_on', device_path, 2, True, True).get(timeout=10)
+    # Give it enough time to send the override request, then ensure that it has created the override
+    gevent.sleep(1.1)
+    devices = test_agent.vip.rpc.call(PLATFORM_DRIVER, "get_override_devices").get(timeout=3)
+    assert device_path in devices
+
+    test_agent.vip.rpc.call(PLATFORM_DRIVER, "clear_overrides")
+
+    # add an override pattern with capitalization that doesn't match an installed driver
+    camel_device_path = "fakeDriver1"
+    test_agent.vip.rpc.call(PLATFORM_DRIVER, 'set_override_on', camel_device_path, 2, True, True).get(timeout=10)
+    # Give it enough time to send the override request, then ensure that it has created the override
+    gevent.sleep(1.1)
+    devices = test_agent.vip.rpc.call(PLATFORM_DRIVER, "get_override_devices").get(timeout=3)
+    assert not devices
+
+    # add another device to the store using the same string with different casing
+    config_name = config_path.format(camel_device_path)
+    setup_config(config_store, config_name, fake_device_config)
+    gevent.sleep(1.1)
+    # set override feature on device
+    test_agent.vip.rpc.call(PLATFORM_DRIVER, 'set_override_on', camel_device_path, 2, True, True).get(timeout=10)
+    gevent.sleep(1.1)
+    devices = test_agent.vip.rpc.call(PLATFORM_DRIVER, "get_override_devices").get(timeout=3)
+    assert camel_device_path in devices
+    assert device_path not in devices

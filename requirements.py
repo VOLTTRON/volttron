@@ -46,6 +46,7 @@ option_requirements = [
 
 install_requires = [
     'gevent==20.6.1',
+    'greenlet==0.4.16',
     'grequests',
     'requests==2.23.0',
     'ply',
@@ -85,7 +86,11 @@ extras_require = {
         'pymongo',
         'Sphinx',
         'recommonmark',
-        'sphinx-rtd-theme'
+        'sphinx-rtd-theme',
+        'werkzeug'
+        'pint',
+        'jwt',
+        'passlib'
     ],
     'drivers': [
         'pymodbus',
@@ -120,9 +125,6 @@ extras_require = {
         'websocket-client',
         # Allows us to compare nested dictionaries easily.
         'deepdiff'
-    ],
-    'rabbitmq': [
-        'gevent-pika'
     ],
     'web': [    # Web support for launching web based agents including ssl and json web tokens.
         'ws4py',

@@ -168,11 +168,19 @@ class Dispatcher(jsonrpc.Dispatcher):
             del local.request
             del local.batch
 
-    def _inspect(self, method):
-        params = inspect.getargspec(method)
-        if hasattr(method, 'im_self'):
-            params.args.pop(0)
-        response = {'params': params}
+    @staticmethod
+    def _inspect(method):
+        response = {'params': {}}
+        signature = inspect.signature(method)
+        for p in signature.parameters.values():
+            response['params'][p.name] = {
+                    'kind': p.kind.name
+            }
+            if p.default is not inspect.Parameter.empty:
+                response['params'][p.name]['default'] = p.default
+            if p.annotation is not inspect.Parameter.empty:
+                annotation = p.annotation.__name__ if type(p.annotation) is type else str(p.annotation)
+                response['params'][p.name]['annotation'] = annotation
         doc = inspect.getdoc(method)
         if doc:
             response['doc'] = doc
@@ -181,15 +189,16 @@ class Dispatcher(jsonrpc.Dispatcher):
             cut = len(os.path.commonprefix([_ROOT_PACKAGE_PATH, source]))
             source = source[cut:]
             lineno = inspect.getsourcelines(method)[1]
-        except IOError:
+        except Exception:
             pass
         else:
-            response['source'] = source, lineno
-        try:
-            # pylint: disable=protected-access
-            response['return'] = method._returns
-        except AttributeError:
-            pass
+            response['source'] = {
+                'file': source,
+                'line_number': lineno
+            }
+        ret = signature.return_annotation
+        if ret is not inspect.Signature.empty:
+            response['return'] = ret.__name__ if type(ret) is type else str(ret)
         return response
 
 

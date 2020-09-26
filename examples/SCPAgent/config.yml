@@ -1,0 +1,3 @@
+---
+ssh_id: ~/.ssh/id_rsa
+remote_user: osboxes@localhost
