@@ -39,9 +39,9 @@
 import logging
 import sys
 import csv
+import requests
 from ast import literal_eval
 from io import StringIO
-import requests
 from requests.auth import HTTPBasicAuth
 
 from volttron.platform.vip.agent import Agent
@@ -307,13 +307,11 @@ class ExternalData(Agent):
 
 
 def main(argv=sys.argv):
-    """
-    Main method called by the eggsecutable.
-    """
+    """Main method called by the eggsecutable."""
     try:
         utils.vip_main(external_data_agent)
     except Exception as e:
-        _log.exception('unhandled exception')
+        _log.exception('unhandled exception: {}'.format(e))
 
 
 if __name__ == '__main__':

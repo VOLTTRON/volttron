@@ -41,7 +41,6 @@ import pint
 import csv
 import sqlite3
 import datetime
-import pkg_resources
 from functools import wraps
 from abc import abstractmethod
 from gevent import get_hub

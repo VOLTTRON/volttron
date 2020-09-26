@@ -301,6 +301,8 @@ class Darksky(BaseWeatherAgent):
         """
         darksky_response = self.get_darksky_data(
             'get_current_weather', location)
+        if 'currently' not in darksky_response:
+            _log.error("Current data not found in Dark Sky response: {}".format(darksky_response))
         current_response = darksky_response.pop('currently')
         # Darksky required attribution
         current_response["attribution"] = "Powered by Dark Sky"
