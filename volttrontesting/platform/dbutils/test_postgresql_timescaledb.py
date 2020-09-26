@@ -27,7 +27,7 @@ IMAGES = ["timescale/timescaledb:latest-pg10", "timescale/timescaledb:latest-pg1
 
 if "CI" not in os.environ:
     IMAGES.extend(
-        ["timescale/timescaledb:latest-pg12", "timescale/timescaledb:latest-pg9.6"]
+        ["timescale/timescaledb:latest-pg12"]
     )
 
 ALLOW_CONNECTION_TIME = 3
