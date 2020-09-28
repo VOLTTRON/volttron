@@ -87,7 +87,7 @@ extras_require = {
         'Sphinx',
         'recommonmark',
         'sphinx-rtd-theme',
-        'werkzeug'
+        'werkzeug',
         'pint',
         'jwt',
         'passlib'
