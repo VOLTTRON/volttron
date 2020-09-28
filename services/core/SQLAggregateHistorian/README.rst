@@ -27,12 +27,9 @@ Data flow between historian and aggregate historian
 ---------------------------------------------------
 
   1. Historian collects data from devices and stores it in its data store
-  2. Aggregate historian periodically queries historian's data store for data
-     within configured time period.
-  3. Aggregate historian computes aggregates and stores it in historian's
-     data store
-  3. Historian's query api queries aggregate data when used with additional
-     parameters - agg_type, agg_period
+  2. Aggregate historian periodically queries historian's data store for data within configured time period.
+  3. Aggregate historian computes aggregates and stores it in historian's data store
+  4. Historian's query api queries aggregate data when used with additional parameters - agg_type, agg_period
 
 Configuration
 -------------
@@ -87,8 +84,7 @@ Configuration
                         # same topic name is used for the aggregation topic
                         "topic_names": ["device1/out_temp"],
                         "aggregation_type": "sum",
-                        #minimum required records in the aggregation time period for
-                        #aggregate to be recorded
+                        #minimum required records in the aggregation time period for aggregate to be recorded
                         "min_count": 2
                         },
                         {
@@ -103,8 +99,7 @@ Configuration
                 "use_calendar_time_periods": "false",
                 "points": [
                     {
-                     # aggregation over more than one topic so
-                     # aggregation_topic_name should be specified
+                     # aggregation over more than one topic so aggregation_topic_name should be specified
                      "topic_names": ["Building/device/point1", "Building/device/point2"],
                      "aggregation_topic_name":"building/device/point1_2/month_sum",
                      "aggregation_type": "avg",
