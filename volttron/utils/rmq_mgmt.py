@@ -54,13 +54,12 @@ from requests.packages.urllib3.connection import (ConnectionError,
 import os
 from volttron.platform import certs
 from volttron.platform import jsonapi
-from . rmq_config_params import RMQConfig
+from .rmq_config_params import RMQConfig
 
 try:
     import yaml
 except ImportError:
     raise RuntimeError('PyYAML must be installed before running this script ')
-
 
 _log = logging.getLogger(__name__)
 
@@ -123,7 +122,6 @@ class RabbitMQMgmt(object):
                        "args {} : {}".format(url, kwargs, e))
             raise e
         return response
-
 
     def _get_authentication_args(self, ssl_auth):
         """
@@ -771,7 +769,7 @@ class RabbitMQMgmt(object):
         """
         ssl_auth = ssl_auth if ssl_auth is not None else self.is_ssl
         crt = self.rmq_config.crts
-        heartbeat_interval = 20 #sec
+        heartbeat_interval = 20  # sec
 
         try:
             if ssl_auth:
@@ -816,7 +814,7 @@ class RabbitMQMgmt(object):
         :return:
         """
         _log.debug("build_remote_connection_param")
-        from  urllib import parse
+        from urllib import parse
 
         parsed_addr = parse.urlparse(rmq_address)
         ssl_auth = ssl_auth if ssl_auth is not None else self.is_ssl
@@ -839,8 +837,8 @@ class RabbitMQMgmt(object):
                 if cert_dir:
                     ca_file = os.path.join(cert_dir, os.path.basename(ca_file))
                 _log.info("REMOTE connection: public cert: {}, private cert: {}, ca cert: {}".format(certfile,
-                                                                                                    local_keyfile,
-                                                                                                    ca_file))
+                                                                                                     local_keyfile,
+                                                                                                     ca_file))
                 ssl_options = dict(
                     ssl_version=ssl.PROTOCOL_TLSv1,
                     ca_certs=ca_file,
@@ -988,7 +986,7 @@ class RabbitMQMgmt(object):
         :param is_ssl: Flag to indicate if SSL connection or not
         :return: Return connection uri
         """
-        rmq_user = instance_name + '.' + identity
+        #rmq_user = instance_name + '.' + identity
         config_access = "{user}|{user}.pubsub.*|{user}.zmq.*|amq.*".format(
             user=rmq_user)
         read_access = "volttron|{}".format(config_access)
