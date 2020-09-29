@@ -3,17 +3,16 @@ import os
 import gevent
 import pytest
 
-from volttron.platform import get_examples
+from volttron.platform import get_examples, jsonapi
 from volttrontesting.utils.agent_additions import \
     add_volttron_central_platform, add_volttron_central, add_listener
 
 from volttrontesting.utils.platformwrapper import PlatformWrapper, \
     start_wrapper_platform
 
-from zmq.utils import jsonapi
-from vctestutils import APITester
-
-from vc_fixtures import vc_and_vcp_together, vc_instance, vcp_instance
+from services.core.VolttronCentral.tests.vctestutils import APITester
+from services.core.VolttronCentral.tests.vc_fixtures import \
+    vc_and_vcp_together, vc_instance, vcp_instance
 
 
 @pytest.fixture(scope="module")
@@ -140,7 +139,7 @@ def test_store_list_get_configuration(auto_registered_local):
     platform_uuid = platforms[0]["uuid"]
 
     resp = webapi.store_agent_config(platform_uuid, identity, config_name,
-                                  str_data)
+                                     str_data)
     assert resp is None
 
     resp = webapi.list_agent_configs(platform_uuid, identity)
@@ -286,8 +285,12 @@ def test_installagent(auto_registered_local):
     import random
 
     with open(agent_wheel, 'r+b') as f:
+        hold = f.read()
+        file_str = str(hold)
+        decoded_str = str(base64.decodebytes(hold).decode('utf-8'))
         # From the web this is what is added to the file.
-        filestr = "base64,"+base64.b64encode(f.read())
+        filestr = "base64," + file_str
+        # filestr = "base64,"+str(base64.b64encode(hold))
 
     file_props = dict(
         file_name=os.path.basename(agent_wheel),

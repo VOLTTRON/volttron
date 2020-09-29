@@ -83,8 +83,8 @@ def vc_and_vcp_together(volttron_instance_web):
 
     yield volttron_instance_web
 
-    volttron_instance_web.remove_agent(vc_uuid)
-    volttron_instance_web.remove_agent(vcp_uuid)
+    # volttron_instance_web.remove_agent(vc_uuid)
+    # volttron_instance_web.remove_agent(vcp_uuid)
 
 
 @pytest.fixture(scope="module")

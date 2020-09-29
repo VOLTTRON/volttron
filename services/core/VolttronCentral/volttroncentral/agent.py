@@ -245,10 +245,6 @@ class VolttronCentralAgent(Agent):
 
         self.vip.web.register_endpoint(r'/vc/jsonrpc', self.jsonrpc)
 
-        self.vip.web.register_websocket(r'/vc/ws',
-                                        self.open_authenticate_ws_endpoint,
-                                        self._ws_closed,
-                                        self._ws_received)
         self.vip.web.register_path(r'^/vc/.*',
                                    config.get('webroot'))
 

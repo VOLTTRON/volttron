@@ -8,8 +8,8 @@ from volttron.platform.agent.known_identities import (CONFIGURATION_STORE,
                                                       VOLTTRON_CENTRAL_PLATFORM)
 from volttrontesting.utils.agent_additions import (add_volttron_central,
                                                    add_volttron_central_platform)
+from services.core.VolttronCentral.tests.vctestutils import APITester
 
-from vctestutils import APITester
 
 
 @pytest.fixture(scope="module")
@@ -43,8 +43,8 @@ def multi_messagebus_vc_vcp(volttron_multi_messagebus):
 
     yield vcp_instance, vc_instance, vcp_uuid
 
-    vcp_instance.remove_agent(vcp_uuid)
-    vc_instance.remove_agent(vc_uuid)
+    # vcp_instance.remove_agent(vcp_uuid)
+    # vc_instance.remove_agent(vc_uuid)
 
 
 def test_able_to_register_unregister(multi_messagebus_vc_vcp):
