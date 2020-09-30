@@ -14,14 +14,34 @@ Web SubSystem
 Enabling
 --------
 
-The web subsystem is not enabled by default as it is only required by a small subset of agents.  To enable the web subsystem the platform instance must have an enabled the web server and the agent must pass enable_web=True to the agent constructor.
+The web subsystem is not enabled by default as it is only required by a small subset of agents.
+To enable the web subsystem the platform instance must have an enabled the web server and the agent
+must pass enable_web=True to the agent constructor.
+
+.. code-block:: python
+
+    class WebAgent(Agent):
+        def __init__(self, **kwargs):
+            super(WebAgent, self).__init__(enable_web=True,**kwargs)
+
+
+MANIFEST File
+-------------
+
+The MANIFEST.in file is used for setup. (TODO)
+
 
 Methods
 -------
 
-The web subsystem allows an agent to register three different types of endpoints; path based, JSON and websocket.  A path based endpoint allows the agent to specify a prefix and a static path on the file system to serve static files.  The prefix can be a regular expression.
+The web subsystem allows an agent to register three different types of methods; file paths, endpoints, and websocket.
 
-.. note:: The web subsystem is only available when the constructor contains enable_web=True.
+
+File Path
+~~~~~~~~~
+
+A path based endpoint allows the agent to specify a prefix and a static path on the file system to serve static files.
+The prefix can be a regular expression.
 
 The below examples are within the context of an object that has extended the :class:`volttron.platform.vip.agent.Agent` base class.
 
@@ -36,7 +56,11 @@ The below examples are within the context of an object that has extended the :cl
         """
         self.vip.web.register_path(r'^/vc/.*', '/var/www')
 
-JSON endpoints allows an agent to serve data responses to specific queries from a web client.non-static responses.  The agent will pass a callback to the subsystem which will be called when the endpoint is triggered.
+Endpoint
+~~~~~~~~~
+
+JSON endpoints allows an agent to serve data responses to specific queries from a web client.non-static responses.
+The agent will pass a callback to the subsystem which will be called when the endpoint is triggered.
 
 .. code-block:: python
 
@@ -53,8 +77,11 @@ JSON endpoints allows an agent to serve data responses to specific queries from 
     """
         self.vip.web.register_endpoint(r'/vc/jsonrpc', self.jsonrpc)
 
+Websocket
+~~~~~~~~~
 
-Websocket endpoints allow bi-directional communication between the client and the server.  Client connections can be authenticated during the opening of a websocket through the response of an open callback.
+Websocket endpoints allow bi-directional communication between the client and the server.
+Client connections can be authenticated during the opening of a websocket through the response of an open callback.
 
 
 .. code-block:: python
