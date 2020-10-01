@@ -2,11 +2,11 @@
     "connection": {
         "type": "postgresql",
         "params": {
-            "dbname": "historian"
-            #, "host": "127.0.0.1"
-            #, "port": 5432
-            #, "user": "volttron"
-            #, "password": "secret"
+            "dbname": "historian",
+            "host": "127.0.0.1",
+            "port": 5432,
+            "user": "volttron",
+            "password": "secret"
         }
     }
 }

@@ -45,6 +45,7 @@ try:
 except ImportError:
     pytest.skip("Market service requirements not installed.", allow_module_level=True)
 
+
 @pytest.mark.market
 def test_offer_settle_no_intersection():
     demand1 = create_demand_curve()
@@ -59,8 +60,8 @@ def create_demand_curve():
     demand_curve = PolyLine()
     price = 0
     quantity = 1000
-    demand_curve.add(Point(price,quantity))
+    demand_curve.add(Point(price, quantity))
     price = 1000
     quantity = 0
-    demand_curve.add(Point(price,quantity))
+    demand_curve.add(Point(price, quantity))
     return demand_curve

@@ -1,1 +1,1 @@
-paho
+paho-mqtt

@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+set -e
+
 list=( bionic  artful stretch buster trusty xenial )
 
 function exit_on_error {
@@ -14,8 +16,8 @@ function exit_on_error {
 function print_usage {
  echo "
 Command Usage:
-<path>/rabbit_dependencies.sh <debian or centos> <distribution name or centos version>
-Valid Debian distributions: ${list[@]}
+<path>/rabbit_dependencies.sh <debian, raspbian, or centos> <distribution name or centos version>
+Valid Raspbian/Debian distributions: ${list[@]}
 Valid centos versions: 6, 7, 8
 "
  exit 0
@@ -70,8 +72,10 @@ function install_on_debian {
     fi
 
     echo "installing ERLANG"
-    ${prefix} apt-get install apt-transport-https libwxbase3.0-0v5 libwxgtk3.0-0v5 libsctp1  build-essential python-dev openssl libssl-dev libevent-dev git
+    ${prefix} apt-get install -y apt-transport-https libwxbase3.0-0v5 libwxgtk3.0-0v5 libsctp1  build-essential python-dev openssl libssl-dev libevent-dev git
+    set +e
     ${prefix} apt-get purge -yf erlang*
+    set -e
     # Add the signing key
     wget -O- https://packages.erlang-solutions.com/ubuntu/erlang_solutions.asc | ${prefix} apt-key add -
 
@@ -80,33 +84,44 @@ function install_on_debian {
     fi
 
     version=${erlang_package_version}
+    common_deb_pkgs="\
+        erlang-asn1=$version \
+        erlang-base=$version \
+        erlang-crypto=$version \
+        erlang-diameter=$version \
+        erlang-edoc=$version \
+        erlang-eldap=$version \
+        erlang-erl-docgen=$version \
+        erlang-eunit=$version \
+        erlang-inets=$version \
+        erlang-mnesia=$version \
+        erlang-odbc=$version \
+        erlang-os-mon=$version \
+        erlang-parsetools=$version \
+        erlang-public-key=$version \
+        erlang-runtime-tools=$version \
+        erlang-snmp=$version \
+        erlang-ssh=$version \
+        erlang-ssl=$version \
+        erlang-syntax-tools=$version \
+        erlang-tools=$version \
+        erlang-xmerl=$version \
+        "
+    x86_pkgs="\
+        erlang-ic=$version \
+        erlang-inviso=$version \
+        erlang-percept=$version \
+        "
+    to_install=""
+    if [[ $is_arm == "FALSE" ]]; then
+       to_install="${common_deb_pkgs} ${x86_pkgs}"
+    else
+       to_install="${common_deb_pkgs}"
+    fi
+
     ${prefix} apt-get update
     ${prefix} apt-get install -yf
-    ${prefix} apt-get install -y "erlang-asn1=$version" \
-        "erlang-base=$version" \
-        "erlang-crypto=$version" \
-        "erlang-diameter=$version" \
-        "erlang-edoc=$version" \
-        "erlang-eldap=$version" \
-        "erlang-erl-docgen=$version" \
-        "erlang-eunit=$version" \
-        "erlang-ic=$version" \
-        "erlang-inets=$version" \
-        "erlang-inviso=$version" \
-        "erlang-mnesia=$version" \
-        "erlang-odbc=$version" \
-        "erlang-os-mon=$version" \
-        "erlang-parsetools=$version" \
-        "erlang-percept=$version" \
-        "erlang-public-key=$version" \
-        "erlang-runtime-tools=$version" \
-        "erlang-snmp=$version" \
-        "erlang-ssh=$version" \
-        "erlang-ssl=$version" \
-        "erlang-syntax-tools=$version" \
-        "erlang-tools=$version" \
-        "erlang-xmerl=$version"
-
+    ${prefix} apt-get install -y ${to_install}
     ${prefix} apt-get install -y "erlang-nox=$version"
 }
 
@@ -118,14 +133,17 @@ if [[ ${user} == 'root' ]]; then
 else
   prefix="sudo"
 fi
+is_arm="FALSE"
 
 ${prefix} pwd > /dev/null
 
 if [[ "$os_name" == "debian" ]]; then
     erlang_package_version="1:22.1.8.1-1"
+    is_arm="FALSE"
     install_on_debian
 elif [[ "$os_name" == "raspbian" ]]; then
     erlang_package_version="1:21.2.6+dfsg-1"
+    is_arm="TRUE"
     install_on_debian
 elif [[ "$os_name" == "centos" ]]; then
     install_on_centos

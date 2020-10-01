@@ -41,7 +41,6 @@ import pint
 import csv
 import sqlite3
 import datetime
-import pkg_resources
 from functools import wraps
 from abc import abstractmethod
 from gevent import get_hub
@@ -80,6 +79,8 @@ CREATE_STMT_FORECAST = """CREATE TABLE {table}
                          FORECAST_TIME TIMESTAMP NOT NULL,
                          POINTS TEXT NOT NULL);"""
 
+AGENT_DATA_DIR = os.path.basename(os.getcwd()) + ".agent-data"
+
 CACHE_READ_ERROR = "Cache read failed"
 CACHE_WRITE_ERROR = "Cache write failed"
 CACHE_FULL = "cache_full"
@@ -103,7 +104,7 @@ class BaseWeatherAgent(Agent):
     """
 
     def __init__(self,
-                 database_file="weather.sqlite",
+                 database_file=os.path.join(AGENT_DATA_DIR, "weather.sqlite"),
                  api_key=None,
                  max_size_gb=None,
                  poll_locations=None,
@@ -114,6 +115,8 @@ class BaseWeatherAgent(Agent):
         # Initial agent configuration
         try:
             super(BaseWeatherAgent, self).__init__(**kwargs)
+            if os.path.dirname(database_file) == AGENT_DATA_DIR and not os.path.isdir(AGENT_DATA_DIR):
+                os.mkdir(AGENT_DATA_DIR)
             self._database_file = database_file
             self._async_call = AsyncCall()
             self._api_key = api_key
@@ -427,7 +430,7 @@ class BaseWeatherAgent(Agent):
                                            "Configuration of weather agent "
                                            "successful")
             except sqlite3.OperationalError as error:
-                _log.error("Error initializing cache {}".format(error))
+                _log.error("Error initializing cache: {}".format(error))
                 self.vip.health.set_status(STATUS_BAD, "Cache failed to start "
                                                        "during configuration")
 
