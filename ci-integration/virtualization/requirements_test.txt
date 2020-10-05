@@ -12,6 +12,5 @@ docker
 psycopg2
 mysql-connector-python-rf
 docker
-cryptography
 pymongo
 influxdb
