@@ -254,14 +254,14 @@ def _create_shovel_setup(instance_name, local_host, port, vhost, vhome, is_ssl):
                                                            vhost, is_ssl)
                 is_csr = False
                 certs_dict = None
-                if 'destination' in shovel:
+                if 'certificates' in shovel:
                     _log.debug("shovel parameters under destination: {}".format(shovel))
-                    is_csr = shovel['destination']['csr']
+                    is_csr = shovel['certificates']['csr']
                     if is_csr:
                         certs_dict = dict()
-                        certs_dict['ca_file'] = shovel['destination']['remote_ca']
-                        certs_dict['cert_file'] = shovel['destination']['public_cert']
-                        certs_dict['key_file'] = shovel['destination']['private_cert']
+                        certs_dict['ca_file'] = shovel['certificates']['remote_ca']
+                        certs_dict['cert_file'] = shovel['certificates']['public_cert']
+                        certs_dict['key_file'] = shovel['certificates']['private_cert']
                         rmq_user = shovel['shovel-user']
                         _log.debug("certs parameters: {}".format(certs_dict))
                 else:
@@ -273,12 +273,6 @@ def _create_shovel_setup(instance_name, local_host, port, vhost, vhome, is_ssl):
                                                             remote_host, shovel['port'],
                                                             shovel['virtual-host'],
                                                             is_ssl, certs_dict=certs_dict)
-                #dest_uri = "amqps://ubuntu-vm:5671/volttron?cacertfile=/home/niddodi/.volttron_r2/agents/f4fc770c-8fb1-4aae-8a5d-d287333809d8/forwarderagent-5.1/forwarderagent-5.1.agent-data/volttron_r1_ca.crt&certfile=/home/niddodi/.volttron_r2/agents/f4fc770c-8fb1-4aae-8a5d-d287333809d8/forwarderagent-5.1/forwarderagent-5.1.agent-data/volttron_r1.ubuntu.forwarder.crt&keyfile=/home/niddodi/.volttron_r2/certificates/private/ubuntu.forwarder.pem&verify=verify_peer&fail_if_no_peer_cert=true&auth_mechanism=external&server_name_indication=ubuntu-vm"
-
-                #"amqps://ubuntu-vm:5671/volttron?cacertfile=/home/niddodi/.volttron_r2/certificates/shovels/volttron_r1_ca.crt&certfile=/home/niddodi/.volttron_r2/certificates/shovels/volttron_r1.ubuntu.shovel-ubuntu-vm.crt&keyfile=/home/niddodi/.volttron_r2/certificates/private/ubuntu.shovel-ubuntu-vm.pem&" \
-                #"verify=verify_peer&fail_if_no_peer_cert=true&auth_mechanism=external&server_name_indication=ubuntu-vm"
-                #dest_uri = "amqps://172.16.136.185:5671/volttron?cacertfile=/home/niddodi/.volttron_r2/certificates/shovels/volttron_r1_ca.crt&certfile=/home/niddodi/.volttron_r2/certificates/shovels/volttron_r1.ubuntu.router.crt&keyfile=/home/niddodi/.volttron_r2/certificates/private/ubuntu.router.pem&verify=verify_peer&fail_if_no_peer_cert=true&auth_mechanism=external&server_name_indication=ubuntu-vm"
-                #dest_uri = "amqps://172.16.136.185:5671/volttron?cacertfile=/home/niddodi/.volttron_r2/certificates/shovels/volttron_r1_ca.crt&certfile=/home/niddodi/.volttron_r2/certificates/shovels/volttron_r1.ubuntu.router.crt&keyfile=/home/niddodi/.volttron_r2/certificates/private/ubuntu.router.pem&verify=verify_peer&fail_if_no_peer_cert=true&auth_mechanism=external&server_name_indication=ubuntu-vm"
 
                 if not isinstance(topics, list):
                     topics = [topics]
@@ -299,7 +293,7 @@ def _create_shovel_setup(instance_name, local_host, port, vhost, vhome, is_ssl):
                                        "dest-uri": dest_uri,
                                        "dest-exchange": "volttron"}
                                 )
-                    _log.debug("SHOVEL ***** property: {}".format(prop))
+                    _log.info("SHOVEL ***** property: {}".format(prop))
                     rmq_mgmt.set_parameter("shovel",
                                             name,
                                             prop)
@@ -311,20 +305,21 @@ def _create_shovel_setup(instance_name, local_host, port, vhost, vhome, is_ssl):
                     remote_identity = ids[1]
                     src_uri = rmq_mgmt.build_shovel_connection(local_identity, instance_name,
                                                                local_host, port, vhost, is_ssl)
+                    # This certificates information need to be fed now
                     # dest_uri = rmq_mgmt.build_shovel_connection(local_identity, instance_name,
                     #                                             remote_host, shovel['port'],
                     #                                             shovel['virtual-host'], is_ssl)
                     rmq_user = instance_name + '.' + local_identity
                     is_csr = False
                     certs_dict = None
-                    if 'destination' in shovel:
+                    if 'certificates' in shovel:
                         _log.debug("shovel parameters under destination: {}".format(shovel))
-                        is_csr = shovel['destination']['csr']
+                        is_csr = shovel['certificates']['csr']
                         if is_csr:
                             certs_dict = dict()
-                            certs_dict['ca_file'] = shovel['destination']['remote_ca']
-                            certs_dict['cert_file'] = shovel['destination']['public_cert']
-                            certs_dict['key_file'] = shovel['destination']['private_cert']
+                            certs_dict['ca_file'] = shovel['certificates']['remote_ca']
+                            certs_dict['cert_file'] = shovel['certificates']['public_cert']
+                            certs_dict['key_file'] = shovel['certificates']['private_cert']
                             rmq_user = shovel['shovel-user']
                             _log.debug("certs parameters: {}".format(certs_dict))
 
@@ -949,37 +944,38 @@ def prompt_shovels(vhome):
             vhost = prompt_response(prompt, default='volttron')
             shovels[host] = {'port': port,
                              'virtual-host': vhost}
-            prompt = prompt_response('\nDo you have certificates signed by remote CA? ',
-                                     valid_answers=y_or_n,
-                                     default='N')
-            shovel_user = 'shovel_{}'.format(host)
+            shovel_user = 'shovel{}'.format(host)
             rmq_mgmt = RabbitMQMgmt()
             instance_name = get_platform_instance_name()
             rmq_mgmt.build_agent_connection(shovel_user, instance_name)
-
+            import time
+            time.sleep(20)
             shovels[host]['shovel-user'] = shovel_user
-            _log.debug("shovel_user: {}".format(shovel_user))
+            #_log.debug("shovel_user: {}".format(shovel_user))
+            prompt = prompt_response('\nDo you have certificates signed by remote CA? ',
+                                     valid_answers=y_or_n,
+                                     default='N')
 
             if prompt in y:
                 prompt = 'Full path to remote CA certificate: '
                 ca_file = prompt_response(prompt, default='')
-                shovels[host]['destination'] = {}
-                shovels[host]['destination']['csr'] = True
+                shovels[host]['certificates'] = {}
+                shovels[host]['certificates']['csr'] = True
 
                 # ca cert
-                shovels[host]['destination']['remote_ca'] = ca_file
+                shovels[host]['certificates']['remote_ca'] = ca_file
                 if not os.path.exists(ca_file):
                     _log.debug("path does not exist {}".format(ca_file))
                 prompt = 'Full path to remote CA signed public certificate: '
                 certfile = prompt_response(prompt, default='')
                 # public cert
-                shovels[host]['destination']['public_cert'] = certfile
+                shovels[host]['certificates']['public_cert'] = certfile
                 if not os.path.exists(certfile):
                     _log.debug("path does not exist {}".format(certfile))
                 prompt = 'Full path to private certificate: '
                 private_cert = prompt_response(prompt, default='')
                 # private_key
-                shovels[host]['destination']['private_cert'] = private_cert
+                shovels[host]['certificates']['private_cert'] = private_cert
                 if not os.path.exists(private_cert):
                     _log.debug("path does not exist {}".format(private_cert))
             else:
@@ -992,22 +988,22 @@ def prompt_shovels(vhome):
                     print("Address is not valid.")
                 else:
                     remote_addr = remote_addr
-                # request shovel CSR
+                # request shovel CSR from remote host
                 ca_file, certfile, prvtfile = _request_csr(shovel_user, remote_addr)
                 if ca_file is not None and certfile is not None and prvtfile is not None:
-                    shovels[host]['destination'] = {}
-                    shovels[host]['destination']['csr'] = True
-                    _log.debug("shovel ca file path: {}".format(ca_file))
-                    shovels[host]['destination']['remote_ca'] = ca_file
+                    shovels[host]['certificates'] = {}
+                    shovels[host]['certificates']['csr'] = True
+                    #_log.debug("shovel ca file path: {}".format(ca_file))
+                    shovels[host]['certificates']['remote_ca'] = ca_file
 
                     # public cert
-                    shovels[host]['destination']['public_cert'] = certfile
-                    _log.debug("shovel public cert path: {}".format(certfile))
+                    shovels[host]['certificates']['public_cert'] = certfile
+                    #_log.debug("shovel public cert path: {}".format(certfile))
 
                     # private_key
                     crts = certs.Certs()
-                    shovels[host]['destination']['private_cert'] = prvtfile
-                    _log.debug("shovel private cert path: {}".format(prvtfile))
+                    shovels[host]['certificates']['private_cert'] = prvtfile
+                    #_log.debug("shovel private cert path: {}".format(prvtfile))
 
             prompt = prompt_response('\nDo you want shovels for '
                                      'PUBSUB communication? ',
@@ -1054,12 +1050,12 @@ def _request_csr(shovel_user, remote_addr):
 
     response = request_cert_for_shovel(shovel_user=shovel_user,
                                        remote_address=remote_addr)
-    _log.debug("Shovel certs response: {}".format(response))
+    #_log.debug("Shovel certs response: {}".format(response))
     success = False
     retry_attempt = 0
     if response is None:
         # Error /status is pending
-        _log.info("Error occured, couldn't connect to server: {}".format(remote_addr))
+        _log.error("Error occured, couldn't connect to server: {}".format(remote_addr))
     elif isinstance(response, tuple):
 
         if response[0] == 'PENDING':
@@ -1069,19 +1065,19 @@ def _request_csr(shovel_user, remote_addr):
                 if response is None:
                     break
                 elif response[0] == 'PENDING':
-                    time.sleep(20)
-                    _log.debug("Attempting CSR for shovel: {} again".format(shovel_user))
+                    sleep_period = 30
+                    time.sleep(sleep_period)
+                    _log.info("Attempting CSR for shovel: {} again after {} seconds".format(shovel_user, sleep_period))
                     retry_attempt += 1
                 else:
                     success = True
     else:
         success = True
     if retry_attempt >= 3 and not success:
-        print("Maximum retry attempts for CSR reached. Please check the connection and the admin of the remote connection")
+        _log.error("Maximum retry attempts for CSR reached. Please check the connection and the admin of the remote connection")
 
     if success:
-        _log.debug("Received successful response to csr request")
-        # remote cert file for shovels will be in remote-certs dir
+        # remote cert file for shovels will be in $VOLTTRON_HOME/certificates/shovels dir
         cert_dir = None
         filename = None
         if os.path.exists(response):
@@ -1096,12 +1092,12 @@ def _request_csr(shovel_user, remote_addr):
         ca_name = metadata['remote_ca_name']
         # remote ca
         ca_file = '/'.join((get_remote_shovel_certs_dir(shovel_user), ca_name + '.crt'))
-        _log.debug("shovel ca file path: {}".format(ca_file))
+        #_log.debug("shovel ca file path: {}".format(ca_file))
 
         # private_key
         crts = certs.Certs()
         prvtfile = crts.private_key_file(name=local_keyfile)
-        _log.debug("shovel prvtfile path: {}".format(prvtfile))
+        #_log.debug("shovel prvtfile path: {}".format(prvtfile))
 
     return ca_file, certfile, prvtfile
 
@@ -1168,7 +1164,6 @@ def get_remote_shovel_certs_dir(shovel_user):
     shovel_path = os.path.join(shovel_base_dir)
     if not os.path.exists(shovel_path):
         os.makedirs(shovel_path)
-    print("shovel certs path: {}".format(shovel_path))
     return shovel_path
 
 
@@ -1181,12 +1176,8 @@ def request_shovel_cert(shovel_user, csr_server, fully_qualified_local_identity,
     if not config.is_ssl:
         raise ValueError("Only can create csr for rabbitmq based platform in ssl mode.")
 
-    #build_agent_connection
     rmq_mgmt = RabbitMQMgmt()
-    print("*****{}****".format(shovel_user))
     crts = certs.Certs()
-    print("*****{}****".format(fully_qualified_local_identity))
-    #crts.create_signed_cert_files(fully_qualified_local_identity, overwrite=True)
     csr_request = crts.create_csr(fully_qualified_local_identity, discovery_info.instance_name)
     # The csr request requires the fully qualified identity that is
     # going to be connected to the external instance.
@@ -1257,12 +1248,10 @@ def request_cert_for_shovel(shovel_user, remote_address):
         from volttron.platform.web import DiscoveryInfo
         from volttron.platform.web import DiscoveryError
         from volttron.platform.agent.utils import get_platform_instance_name, get_fq_identity, get_messagebus
-        #info = DiscoveryInfo.request_discovery_info("https://ubuntu-vm:8443")
         info = DiscoveryInfo.request_discovery_info(remote_address)
 
         # This is if both remote and local are rmq message buses.
         if info.messagebus_type == 'rmq':
-            print("Both remote and local are rmq messagebus.")
             fqid_local = get_fq_identity(shovel_user)
 
             # Check if we already have the cert, if so use it instead of requesting cert again
@@ -1273,7 +1262,7 @@ def request_cert_for_shovel(shovel_user, remote_address):
             if os.path.exists(certfile):
                 value = certfile
             else:
-                print("fqid_local: {}".format(fqid_local))
+                # request for new CSR
                 response = request_shovel_cert(shovel_user, remote_address, fqid_local, info)
                 if response is None:
                     _log.error("there was no response from the server")

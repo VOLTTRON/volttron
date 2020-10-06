@@ -953,7 +953,6 @@ class RabbitMQMgmt(object):
             # vctl certs create-ssl-keypair should be used to create a cert/key pair
             # and then agents should be started.
             try:
-                _log.info("Creating ca signed certs for {}".format(rmq_user))
                 self.rmq_config.crts.create_signed_cert_files(rmq_user, overwrite=False)
             except Exception as e:
                 _log.error("Exception creating certs. {}".format(e))
@@ -1001,13 +1000,11 @@ class RabbitMQMgmt(object):
                 self.rmq_config.crts.create_signed_cert_files(rmq_user,
                                                               overwrite=False)
                 ssl_params = self.get_ssl_url_params(user=rmq_user)
-            print("build_shovel_connection with certs is None: {}".format(certs_dict))
             return self.build_rmq_address(rmq_user, self.rmq_config.admin_pwd,
                                           host, port, vhost, is_ssl, ssl_params)
         else:
             self.rmq_config.crts.create_signed_cert_files(rmq_user,
                                                           overwrite=False)
-            print("build_shovel_connection with certs: {}".format(certs_dict))
             return self.build_rmq_address(rmq_user, self.rmq_config.admin_pwd,
                                           host, port, vhost, is_ssl, ssl_params,
                                           certs_dict=certs_dict)
@@ -1036,27 +1033,6 @@ class RabbitMQMgmt(object):
                                             retry_delay=2)
         return param
 
-    # def get_ssl_url_params(self, user=None):
-    #     """
-    #     Return SSL parameter string
-    #     :return:
-    #     """
-    #
-    #     root_ca_name, server_cert, admin_user = \
-    #         certs.Certs.get_admin_cert_names(self.rmq_config.instance_name)
-    #     if not user:
-    #         user = admin_user
-    #     ca_file = self.rmq_config.crts.cert_file(self.rmq_config.crts.trusted_ca_name)
-    #     cert_file = self.rmq_config.crts.cert_file(user)
-    #     key_file = self.rmq_config.crts.private_key_file(user)
-    #     #cert_file = '/home/niddodi/.volttron_r2/agents/becdffc0-760e-40af-9cf9-e9e80f7f5210/forwarderagent-5.1/forwarderagent-5.1.agent-data/volttron_r1.ubuntu.forwarder.crt'
-    #     #ca_file = '/home/niddodi/.volttron_r2/agents/becdffc0-760e-40af-9cf9-e9e80f7f5210/forwarderagent-5.1/forwarderagent-5.1.agent-data/volttron_r1_ca.crt'
-    #     #key_file = self.certs.private_key_file('ubuntu.forwarder')
-    #     return "cacertfile={ca}&certfile={cert}&keyfile={key}" \
-    #            "&verify=verify_peer&fail_if_no_peer_cert=true" \
-    #            "&auth_mechanism=external".format(ca=ca_file,
-    #                                              cert=cert_file,
-    #                                              key=key_file)
 
     def get_ssl_url_params(self, user=None, certs_dict=None):
         """
@@ -1067,14 +1043,13 @@ class RabbitMQMgmt(object):
         if not user:
             user = admin_user
         if certs_dict is None:
-            print("get_ssl_url_params: certs_dict is None")
+
             root_ca_name, server_cert, admin_user = \
                 certs.Certs.get_admin_cert_names(self.rmq_config.instance_name)
             ca_file = self.rmq_config.crts.cert_file(self.rmq_config.crts.trusted_ca_name)
             cert_file = self.rmq_config.crts.cert_file(user)
             key_file = self.rmq_config.crts.private_key_file(user)
         else:
-            print("get_ssl_url_params: certs_dict is {}".format(certs_dict))
             ca_file = certs_dict['ca_file']
             cert_file = certs_dict['cert_file']
             key_file = certs_dict['key_file']
