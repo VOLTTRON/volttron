@@ -28,13 +28,26 @@ must pass enable_web=True to the agent constructor.
 MANIFEST File
 -------------
 
-The MANIFEST.in file is used for setup. (TODO)
+The MANIFEST.in file is used to package additional files needed for your web enabled agent.
+Please read the python packaging documentation `https://packaging.python.org/guides/using-manifest-in/`
+on the MANIFEST.in file. For most cases, i.e. when you only need to include a webroot directory for html
+and javascript, the manifest file only needs to include the `recursive-include` command. An example for this using
+the VolttronCentral MANIFEST.in file is:
 
+.. code-block:: python
+
+    recursive-include volttroncentral/webroot *
+
+The MANIFEST.in file should be located in the root directory of the agent. All pathing for the MANIFEST.in file
+commands are relative to this root directory.
 
 Methods
 -------
 
 The web subsystem allows an agent to register three different types of methods; file paths, endpoints, and websocket.
+
+.. note::
+    For all endpoint methods the first match wins.  Therefore ordering which endpoints are registered first becomes important.
 
 
 File Path
@@ -45,7 +58,6 @@ The prefix can be a regular expression.
 
 The below examples are within the context of an object that has extended the :class:`volttron.platform.vip.agent.Agent` base class.
 
-.. note:: For all endpoint methods the first match wins.  Therefore ordering which endpoints are registered first becomes important.
 
 .. code-block:: python
 
@@ -55,6 +67,7 @@ The below examples are within the context of an object that has extended the :cl
         Allow serving of static content from /var/www
         """
         self.vip.web.register_path(r'^/vc/.*', '/var/www')
+
 
 Endpoint
 ~~~~~~~~~
@@ -76,6 +89,7 @@ The agent will pass a callback to the subsystem which will be called when the en
     Register the /vc/jsonrpc endpoint for doing json-rpc based methods
     """
         self.vip.web.register_endpoint(r'/vc/jsonrpc', self.jsonrpc)
+
 
 Websocket
 ~~~~~~~~~
