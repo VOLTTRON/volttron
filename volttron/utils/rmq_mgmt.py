@@ -1005,6 +1005,8 @@ class RabbitMQMgmt(object):
             return self.build_rmq_address(rmq_user, self.rmq_config.admin_pwd,
                                           host, port, vhost, is_ssl, ssl_params)
         else:
+            self.rmq_config.crts.create_signed_cert_files(rmq_user,
+                                                          overwrite=False)
             print("build_shovel_connection with certs: {}".format(certs_dict))
             return self.build_rmq_address(rmq_user, self.rmq_config.admin_pwd,
                                           host, port, vhost, is_ssl, ssl_params,
