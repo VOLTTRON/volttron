@@ -47,7 +47,7 @@ Routes
 The web subsystem allows an agent to register three different types of routes; file paths, endpoints, and websockets.
 
 .. note::
-    For all endpoint methods the first match wins.  Therefore ordering which endpoints are registered first becomes important.
+    For all routes the first match wins.  Therefore ordering which routes are registered first becomes important.
 
 
 File Path
