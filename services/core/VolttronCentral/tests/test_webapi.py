@@ -284,14 +284,20 @@ def test_installagent(auto_registered_local):
     import base64
     import random
 
-    with open(agent_wheel, 'r+b') as f:
-        hold = f.read()
-        file_str = str(hold)
-        decoded_str = str(base64.decodebytes(hold).decode('utf-8'))
-        # From the web this is what is added to the file.
-        filestr = "base64," + file_str
-        # filestr = "base64,"+str(base64.b64encode(hold))
+    # with open(agent_wheel, 'r+b') as f:
+    #     hold = f.read()
+    #     file_str = str(hold).encode('utf-8')
+    #     decoded_str = str(base64.decodestring(hold))
+    #     # From the web this is what is added to the file.
+    #     filestr = "base64," + file_str
+    #     # filestr = "base64,"+str(base64.b64encode(hold))
 
+    with open(agent_wheel, 'r+b') as f:
+        # From the web this is what is added to the file.
+        hold = f.read()
+        print(f"Package is {hold}")
+        filestr = "base64,"+base64.b64encode(hold).decode('utf-8')
+        print(f"file string is {filestr}")
     file_props = dict(
         file_name=os.path.basename(agent_wheel),
         file=filestr,

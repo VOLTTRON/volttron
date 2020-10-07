@@ -277,8 +277,16 @@ class PlatformWrapper:
         # the rest so it should work out ok.
         os.environ['VOLTTRON_HOME'] = self.volttron_home
 
-        with open(f'{self.volttron_home}/web-users.json', 'w') as f:
-            f.write(jsonapi.dumps({"admin":{"hashed_password":"$argon2id$v=19$m=102400,t=2,p=8$AMAYQ4gxhlDqfa+V0hqjlA$B0E+8g/wvnTAqpAgECBZOg","groups":["admin"]}}))
+        # Create web users for master web authentication
+        from volttron.platform.web.admin_endpoints import AdminEndpoints
+        from volttrontesting.utils.web_utils import get_test_web_env
+        adminep = AdminEndpoints()
+        params = urlencode(dict(username='admin', password1='admin', password2='admin'))
+        env = get_test_web_env("/admin/setpassword", method='POST')  # , input_data=input)
+        response = adminep.admin(env, params)
+
+        # with open(f'{self.volttron_home}/web-users.json', 'w') as f:
+        #     f.write(jsonapi.dumps({"admin":{"hashed_password":"$argon2id$v=19$m=102400,t=2,p=8$AMAYQ4gxhlDqfa+V0hqjlA$B0E+8g/wvnTAqpAgECBZOg","groups":["admin"]}}))
 
         # Writes the main volttron config file for this instance.
         store_message_bus_config(self.messagebus, self.instance_name)
@@ -1341,15 +1349,15 @@ class WebAdminApi(object):
         :param password:
         :return:
         """
-        if messagebus == 'zmq':
-            from volttron.platform.web.admin_endpoints import AdminEndpoints
-            from volttrontesting.utils.web_utils import get_test_web_env
-
-            params = urlencode(dict(username='admin', password1='admin', password2='admin'))
-            env = get_test_web_env("/admin/setpassword", method='POST')  # , input_data=input)
-            adminep = AdminEndpoints()
-            resp = adminep.admin(env, params)
-        else:
+        #     from volttron.platform.web.admin_endpoints import AdminEndpoints
+        #     from volttrontesting.utils.web_utils import get_test_web_env
+        #
+        #     params = urlencode(dict(username='admin', password1='admin', password2='admin'))
+        #     env = get_test_web_env("/admin/setpassword", method='POST')  # , input_data=input)
+        #     adminep = AdminEndpoints()
+        #     resp = adminep.admin(env, params)
+        # else:
+        if messagebus == 'rmq':
             data = dict(username=username, password1=password, password2=password)
             url = self.bind_web_address +"/admin/setpassword"
             #resp = requests.post(url, data=data,
@@ -1357,7 +1365,9 @@ class WebAdminApi(object):
             resp = requests.post(url, data=data,
                                  verify=self.certsobj.cert_file(
                                      name=self.certsobj.root_ca_name))
-        return resp
+            return resp
+        else:
+            return None
 
     def authenticate(self, username, password):
         data = dict(username=username, password=password)
