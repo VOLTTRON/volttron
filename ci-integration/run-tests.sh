@@ -21,10 +21,10 @@ echo "$PATH"
 echo "PYTHONPATH"
 echo "$PYTHONPATH"
 echo "VOLTTRON is at"
-which volttron
-which volttron-ctl
+command -v volttron
+command -v volttron-ctl
 echo "python is at"
-which python
+command -v python
 
 #directories that need split into individual files
 filedirs="volttrontesting/platform"
@@ -46,12 +46,12 @@ echo "bootstrapping RABBITMQ"
 python bootstrap.py --rabbitmq --market
 
 echo "rabbitmq status"
-$HOME/rabbitmq_server/rabbitmq_server-3.7.7/sbin/rabbitmqctl status
+"$HOME"/rabbitmq_server/rabbitmq_server-3.7.7/sbin/rabbitmqctl status
 
 echo "TestDirs"
 for dir in $testdirs; do
   echo "*********TESTDIR: $dir"
-  py.test -s -v $dir
+  py.test -s -v "$dir"
 
   tmp_code=$?
   exit_code=$tmp_code
@@ -71,7 +71,7 @@ for dir in $splitdirs; do
 
     for D in $dir; do
         for p in $testdirs; do
-            if [ "$p" == "$d" ]; then
+            if [ "$p" = "$D" ]; then
                 echo "ALREADY TESTED DIR: $p";
                 continue;
             fi;
@@ -79,7 +79,7 @@ for dir in $splitdirs; do
 
         if [ -d "${D}" ]; then
             echo "*********SPLITDIR: $D"
-            py.test -s -v ${D}
+            py.test -s -v "${D}"
             tmp_code=$?
             if [ $tmp_code -ne 0 ]; then
               if [ $tmp_code -ne 5 ]; then
@@ -97,10 +97,10 @@ done
 echo "File tests"
 for dir in $filedirs; do
   echo "File test for dir: $dir"
-  for testfile in $dir/*.py; do
+  for testfile in "$dir"/*.py; do
     echo "Using testfile: $testfile"
-    if [ $testfile != "volttrontesting/platform/packaging-tests.py" ]; then
-       py.test -s -v $testfile
+    if [ "$testfile" != "volttrontesting/platform/packaging-tests.py" ]; then
+       py.test -s -v "$testfile"
 
        tmp_code=$?
        exit_code=$tmp_code

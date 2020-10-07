@@ -45,8 +45,8 @@ fi
 # For packaging of scripts us pack_install
 PACK="$SCRIPTS_CORE/pack_install.sh"
 
-echo $PACK $HIST $HIST_CONFIG $HIST_TAG
+echo $PACK "$HIST" "$HIST_CONFIG" $HIST_TAG
 # Install and start HIST.
-$PACK $HIST $HIST_CONFIG $HIST_TAG
+$PACK "$HIST" "$HIST_CONFIG" $HIST_TAG
 $START --tag $HIST_TAG
 

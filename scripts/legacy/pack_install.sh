@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-if [ $1 == "-h" ]
+if [ "$1" == "-h" ]
 then
   echo "./install_agent.sh <path to agent directory> <config path> <tag>"
   echo ""
@@ -32,7 +32,7 @@ if [ -z "$VOLTTRON_HOME" ]; then
   echo "VOLTTRON_HOME UNSET setting to v1_home: $VOLTTRON_HOME"; 
 fi
 
-WHEEL=$(volttron-pkg package $1 | awk -F": " '{ print $2 }')
+WHEEL=$(volttron-pkg package "$1" | awk -F": " '{ print $2 }')
 
 if [ ! -e "$WHEEL" ]
 then

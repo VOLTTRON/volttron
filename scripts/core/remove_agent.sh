@@ -12,6 +12,6 @@ STOP="volttron-ctl stop"
 DEL="volttron-ctl remove"
 CLEAR="volttron-ctl clear"
 
-$STOP --tag $TAG
-$DEL --tag $TAG
+$STOP --tag "$TAG"
+$DEL --tag "$TAG"
 $CLEAR

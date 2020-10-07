@@ -31,7 +31,7 @@ if [ ! -e "./volttron/platform" ]; then
     exit 0
 fi
 
-if [ -z $VOLTTRON_HOME ]
+if [ -z "$VOLTTRON_HOME" ]
 then
   echo "VOLTTRON_HOME not set setting to $HOME/.volttron"
   export VOLTTRON_HOME=$HOME/.volttron
@@ -76,7 +76,7 @@ if [ "$START_VC" == 1 ];
 then
   $STOP --tag $VC_TAG
   $DEL -f --tag $VC_TAG
-  if [ -z $VC_CONFIG ]; then
+  if [ -z "$VC_CONFIG" ]; then
     #echo "VC_CONFIG set to $VC/config"
     VC_CONFIG=$VC/config
   fi
@@ -90,7 +90,7 @@ if [ "$START_PLATFORM" == 1 ];
 then
   $STOP --tag $PLATFORM_TAG
   $DEL -f --tag $PLATFORM_TAG
-  if [ -z $PLATFORM_CONFIG ]; then
+  if [ -z "$PLATFORM_CONFIG" ]; then
     #echo "PLATFORM_CONFIG set to $PLATFORM/config"
     PLATFORM_CONFIG=$PLATFORM/config
   fi

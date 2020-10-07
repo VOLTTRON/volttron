@@ -3,7 +3,7 @@
 
 #Script to install mongodb from source. reads install_mongodb.cfg from the
 #same directory as this script
-script_dir=$( cd $(dirname $0) ; pwd -P )
+script_dir=$( cd "$(dirname "$0")" || exit 127; pwd -P )
 download_url="https://fastdl.mongodb.org/linux/mongodb-linux-x86_64-3.2.4.tgz"
 cwd=$(pwd)
 install_path="$cwd/mongo_install"
@@ -26,7 +26,7 @@ function usage {
 while getopts ":d:i:c:hs" opt; do
   case $opt in
     d)
-      $download_url=$OPTARG
+      download_url=$OPTARG
       ;;
     s)
       setup_test=1
@@ -34,27 +34,30 @@ while getopts ":d:i:c:hs" opt; do
     i)
       install_path=$OPTARG
       parent_dir="$(dirname "$install_path")"
-      if [ ! -d $parent_dir ]
+      if [ ! -d "$parent_dir" ]
       then
        printf "\nParent directory of given install path not a valid\n"
        exit 1
       else
-        if [ -d $install_path ] || [ -f $install_path ]
+        if [ -d "$install_path" ] || [ -f "$install_path" ]
         then
-          printf "$install_path already exists\n"
+          echo "$install_path already exists"
           exit 1
         fi
       fi
-      printf "\n##Using install dir $install_path\n"
+      echo
+      echo "##Using install dir $install_path"
       ;;
     c)
       config_file=$OPTARG
-      if [ ! -f $config_file ]
+      if [ ! -f "$config_file" ]
       then
-       printf "\nInvalid config file $config_file\n"
+       echo
+       echo "Invalid config file $config_file"
        exit 1
       fi
-      printf "\n##Using config file $config_file"
+      echo
+      echo "##Using config file $config_file"
       ;;
     h)
       usage
@@ -73,40 +76,44 @@ while getopts ":d:i:c:hs" opt; do
   esac
 done
 
-if [ -d $install_path ] || [ -f $install_path ]
+if [ -d "$install_path" ] || [ -f "$install_path" ]
 then
-  printf "$install_path already exists\n"
+  echo "$install_path already exists"
   exit 1
 fi
 
-printf "\n##Downloading source from $download_url##\n"
+echo
+echo "##Downloading source from $download_url##"
 mkdir download_dir #create a clean temp_1 directory for our use and untar in it
-cd download_dir
-wget $download_url
+cd download_dir || exit
+wget "$download_url"
 filename="${download_url##*/}"
-tar -xvzf $filename
-untar_dir=`echo */`
+tar -xvzf "$filename"
+untar_dir=$(echo ./*/)
 
-printf "\n##Installing to $install_path\n"
+echo
+echo "##Installing to $install_path"
 
 #install_path=$(echo $install_path | sed 's:/*$::')
 #untar_dir=$(echo $untar_dir | sed 's:/*$::')
 
-mv $cwd/download_dir/$untar_dir $install_path
-cp $config_file $install_path/mongo_config.cfg
+mv "$cwd"/download_dir/"$untar_dir" "$install_path"
+cp "$config_file" "$install_path"/mongo_config.cfg
 
 printf "\n##Updating .bashrc##\n"
 
-printf "\n#Entries added by install_mongodb script - START" >> ~/.bashrc
-printf "\nexport PATH=$install_path/bin:\$PATH" >> ~/.bashrc
-printf "\nalias start_mongo='mongod --config $install_path/mongo_config.cfg &'" >> ~/.bashrc
-printf "\nalias stop_mongo='mongod --config $install_path/mongo_config.cfg --shutdown'" >> ~/.bashrc
-printf "\n#Entries added by install_mongodb script - STOP\n" >> ~/.bashrc
+{
+    echo "#Entries added by install_mongodb script - START"
+    echo "export PATH=$install_path/bin:\$PATH"
+    echo "alias start_mongo='mongod --config $install_path/mongo_config.cfg &'"
+    echo "alias stop_mongo='mongod --config $install_path/mongo_config.cfg --shutdown'"
+    echo "#Entries added by install_mongodb script - STOP"
+} >> ~/.bashrc
 
-echo "test"
-printf "\n##Starting mongodb....\n"
+echo
+echo "##Starting mongodb...."
 export PATH=$install_path/bin/:\$PATH
-$install_path/bin/mongod --config $config_file &
+"$install_path"/bin/mongod --config "$config_file" &
 /bin/sleep 5
 
 
@@ -117,6 +124,9 @@ then
     mongo mongo_test -u mongodbadmin -p V3admin --authenticationDatabase admin --eval 'db.createUser( {user: "test", pwd: "test", roles: [ { role: "readWrite", db: "mongo_test" }]});'
 fi
 
-printf "\n\n##Installed and started mongodb.
+echo "
+
+##Installed and started mongodb.
 Please verify the contents added to  your ~/.bashrc file and then source ~/.bashrc.
-Use the command start_mongo to start and stop_mongo to stop mongodb##\n"
+Use the command start_mongo to start and stop_mongo to stop mongodb##
+"

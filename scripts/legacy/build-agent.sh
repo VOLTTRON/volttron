@@ -5,10 +5,10 @@ if [ -z "$*" ]; then
 	exit 1
 fi
 
-SCRIPT="`readlink -f "$0"`"
-SCRIPT_DIR="`dirname "$SCRIPT"`"
-VOLTTRON_DIR="`dirname "$SCRIPT_DIR"`"
-BASE_DIR="`dirname "$VOLTTRON_DIR"`"
+SCRIPT="$(readlink -f "$0")"
+SCRIPT_DIR="$(dirname "$SCRIPT")"
+VOLTTRON_DIR="$(dirname "$SCRIPT_DIR")"
+BASE_DIR="$(dirname "$VOLTTRON_DIR")"
 
 while [ -n "$*" ]; do
 	(cd "$BASE_DIR/Agents/$1" &&

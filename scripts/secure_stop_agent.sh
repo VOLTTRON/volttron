@@ -7,7 +7,7 @@ stop_process_and_wait(){
     local count
     ((count=$3*2))
     local timeout=0
-    kill -s $signal $pid
+    kill -s "$signal" "$pid"
     exit_code="$?"
     if [ $exit_code -ne 0 ]; then
        echo "Agent stop failed"
@@ -17,8 +17,8 @@ stop_process_and_wait(){
     i=0
     while kill -0 "$pid" ; do
         sleep 0.5
-        let "i++"
-        if [ $i -eq $count ]; then
+        ((i++))
+        if [ "$i" -eq "$count" ]; then
             timeout=1
             break
         fi
@@ -53,7 +53,7 @@ if [ -z "$pid" ] || ! [[ $pid =~ $re ]]; then
 fi
 
 # Attempt to find process corresponding to pid
-command=`ps -h -p $pid -o command`
+command=$(ps -h -p "$pid" -o command)
 exit_code="$?"
 
 # If exit code is not 0 for the ps command then no such pid exists
@@ -74,7 +74,7 @@ if [[ ! $command =~ $re ]]; then
     exit 4
 fi
 
-agent_pid=`pgrep -P $pid `
+agent_pid=$(pgrep -P "$pid" )
 exit_code="$?"
 
 # If exit code is not 0 for the ps command then no such pid exists
@@ -86,8 +86,7 @@ fi
 
 echo "Sending SIGINT signal to $agent_pid  "
 # Attempt 1 send SIGINT give process to complete onstop functions
-stop_process_and_wait $agent_pid SIGINT 60
-if [ $? -eq 0 ]; then
+if (stop_process_and_wait "$agent_pid" SIGINT 60); then
     echo  "Agent stopped"
     exit 0
 fi
@@ -95,8 +94,7 @@ fi
 echo "Sending SIGTERM signal to $agent_pid  "
 
 # Attempt 2 send terminate
-stop_process_and_wait $agent_pid SIGTERM 30
-if [ $? -eq 0 ]; then
+if (stop_process_and_wait "$agent_pid" SIGTERM 30); then
     echo  "Agent terminated"
     exit 0
 fi
@@ -104,8 +102,7 @@ fi
 echo "Sending SIGKILL signal to $agent_pid  "
 
 # Attempt 3 kill
-stop_process_and_wait $agent_pid SIGKILL 30
-if [ $? -eq 0 ]; then
+if (stop_process_and_wait "$agent_pid" SIGKILL 30); then
     echo  "Agent killed"
     exit 0
 else

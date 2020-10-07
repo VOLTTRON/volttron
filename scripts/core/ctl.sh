@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # This script provides a shortcut for issuing VOLTTRON commands when you have 
 # setup an externally facing vip address, encryption, and authorization
 
@@ -21,5 +22,5 @@ fi
 
 export VIP_ADDRESS="$VIP_ADDRESS"
 
-volttron-ctl $1 --vip-address $VIP_ADDRESS
+volttron-ctl "$1" --vip-address "$VIP_ADDRESS"
 

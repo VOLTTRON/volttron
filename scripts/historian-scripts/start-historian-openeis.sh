@@ -9,5 +9,5 @@ export HIST="services/core/OpenEISHistorian"
 export HIST_CONFIG="$HIST/openeis.historian.config"
 SCRIPTS_CORE="./scripts/core"
 
-$SCRIPTS_CORE/start_historian.sh $1
+$SCRIPTS_CORE/start_historian.sh "$1"
 

@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+set -eu
 if [ -z "$VOLTTRON_HOME" ]; then
   VOLTTRON_HOME=$HOME/.volttron
   echo "VOLTTRON_HOME UNSET setting to $VOLTTRON_HOME";
@@ -14,7 +16,7 @@ fi
 
 COMMAND_ARGS=""
 
-if [ ! -z "$VIP_ADDRESS" ]; then
+if [ -n "$VIP_ADDRESS" ]; then
   COMMAND_ARGS="$COMMAND_ARGS --vip-address $VIP_ADDRESS"
   echo "Using VIP_ADDRESS: $VIP_ADDRESS";
 
@@ -69,9 +71,9 @@ $REMOVE
 # For packaging of scripts us pack_install
 PACK="$SCRIPTS_CORE/pack_install.sh"
 
-echo $PACK $SOURCE $CONFIG $TAG
+echo $PACK "$SOURCE" "$CONFIG" "$TAG"
 # Install and start HIST.
-$PACK $SOURCE $CONFIG $TAG
+$PACK "$SOURCE" "$CONFIG" "$TAG"
 
 if [ -z "$NO_START" ]; then
   echo "$START"

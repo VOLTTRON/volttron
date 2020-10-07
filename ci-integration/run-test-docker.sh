@@ -111,10 +111,10 @@ process_pid(){
                 echo "module ${containernames[$index]} FAILED"
                 HAS_FAILED=1
                 #echo "FAST_FAIL is ${FAST_FAIL} if its 0 should start clean exit procedure."
-                if [[ ${FAST_FAIL} -eq 0 && -n ${CI} ]]; then
+                if [[ "${FAST_FAIL}" -eq 0 && -n ${CI} ]]; then
                     docker logs "${containernames[$index]}"
                 fi
-                if [ ${FAST_FAIL} ]; then
+                if [ "${FAST_FAIL}" ]; then
                     echo "Exiting cleanly now!"
                     exit_cleanly
                 else
@@ -141,7 +141,8 @@ process_pid(){
 #LOOP through set of directories and run bunch of test files in parallel
 for dir in "${testdirs[@]}"
 do
-    for file in $( find $dir -type f -name "test*.py" -o -name "*test.py" ! -name "*conftest.py" )
+    # shellcheck disable=SC2044 # TODO: fix with `find -exec` or a `while read` loop.
+    for file in $( find "$dir" -type f -name "test*.py" -o -name "*test.py" ! -name "*conftest.py" )
     do
         echo "$file";
         ignore=0

@@ -1,3 +1,4 @@
+#!/usr/bin/env sh
 volttron-pkg package Agents/ListenerAgent/
 volttron-pkg sign --creator /tmp/volttron_wheels/listeneragent-0.1-py2-none-any.whl
 volttron-pkg sign --soi /tmp/volttron_wheels/listeneragent-0.1-py2-none-any.whl

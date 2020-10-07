@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 export SOURCE=examples/ListenerAgent/ 
 export CONFIG=examples/ListenerAgent/config 
 export TAG=listener 

@@ -1,4 +1,7 @@
+#!/usr/bin/env bash
+# shellcheck source=./vars.sh
 . vars.sh
+# shellcheck source=./prepare.sh
 . prepare.sh
 
 ./start-platforms.sh

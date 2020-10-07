@@ -17,7 +17,7 @@ function print_usage {
  echo "
 Command Usage:
 <path>/rabbit_dependencies.sh <debian, raspbian, or centos> <distribution name or centos version>
-Valid Raspbian/Debian distributions: ${list[@]}
+Valid Raspbian/Debian distributions: ${list[*]}
 Valid centos versions: 6, 7, 8
 "
  exit 0
@@ -51,7 +51,8 @@ enabled=1"
       echo "$repo" | ${prefix} tee -a /etc/yum.repos.d/rabbitmq-erlang.repo
       exit_on_error
     else
-      echo "\nrepo file /etc/yum.repos.d/rabbitmq-erlang.repo already exists\n"
+      echo
+      echo "repo file /etc/yum.repos.d/rabbitmq-erlang.repo already exists"
     fi
     ${prefix} yum install erlang
     exit_on_error
@@ -59,7 +60,7 @@ enabled=1"
 
 function install_on_debian {
     FOUND=0
-    for item in ${list[@]}; do
+    for item in "${list[@]}"; do
         if [[ "$DIST" == "$item" ]]; then
         FOUND=1
         break
@@ -121,13 +122,13 @@ function install_on_debian {
 
     ${prefix} apt-get update
     ${prefix} apt-get install -yf
-    ${prefix} apt-get install -y ${to_install}
+    ${prefix} apt-get install -y "${to_install}"
     ${prefix} apt-get install -y "erlang-nox=$version"
 }
 
 os_name="$1"
 DIST="$2"
-user=`whoami`
+user=$(whoami)
 if [[ ${user} == 'root' ]]; then
   prefix=""
 else

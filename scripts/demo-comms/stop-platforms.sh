@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+# shellcheck source=./vars.sh
 . vars.sh
 
 echo "Shutting down platform 1"

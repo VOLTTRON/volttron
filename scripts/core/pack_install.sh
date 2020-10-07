@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-if [ $1 == "-h" ]
+if [ "$1" == "-h" ]
 then
   echo "./pack_agent.sh <path to agent directory> <config path> <tag>"
   echo ""
@@ -36,13 +36,13 @@ echo "VOLTTRON_HOME=$VOLTTRON_HOME"
 
 COMMAND_ARGS=""
 
-if [ ! -z "$VIP_ADDRESS" ]; then
+if [ -n "$VIP_ADDRESS" ]; then
   COMMAND_ARGS="$COMMAND_ARGS --vip-address '$VIP_ADDRESS'"
   echo "Using VIP_ADDRESS: $VIP_ADDRESS";
 fi
 
 
-WHEEL=$(volttron-pkg package $1 | awk -F"Package created at: " '{ print $2 }')
+WHEEL=$(volttron-pkg package "$1" | awk -F"Package created at: " '{ print $2 }')
 
 #Remove newlines
 WHEEL=${WHEEL//$'\n'/}
@@ -59,8 +59,8 @@ VOLTTRON_HOME=$VOLTTRON_HOME volttron-ctl clear
 VOLTTRON_HOME=$VOLTTRON_HOME volttron-pkg configure "$WHEEL" "$2"
 
 if [ -z "$AGENT_VIP_IDENTITY" ]; then
-    VOLTTRON_HOME=$VOLTTRON_HOME volttron-ctl $COMMAND_ARGS install "$WHEEL" --tag "$3"
+    VOLTTRON_HOME=$VOLTTRON_HOME volttron-ctl "$COMMAND_ARGS" install "$WHEEL" --tag "$3"
 else
-    VOLTTRON_HOME=$VOLTTRON_HOME volttron-ctl $COMMAND_ARGS install "$WHEEL" --tag "$3" --vip-identity "$AGENT_VIP_IDENTITY"
+    VOLTTRON_HOME=$VOLTTRON_HOME volttron-ctl "$COMMAND_ARGS" install "$WHEEL" --tag "$3" --vip-identity "$AGENT_VIP_IDENTITY"
 fi
 

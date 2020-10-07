@@ -1,10 +1,12 @@
+#!/usr/bin/env bash
 # bring in the vars that are to be available for this script
+# shellcheck source=./vars.sh
 . vars.sh
 
 echo "Starting platform 1: $V1_HOME"
-VOLTTRON_HOME=$V1_HOME volttron -vv -l $V1_HOME/volttron.log --vip-address=tcp://127.0.0.2:8081&
+VOLTTRON_HOME=$V1_HOME volttron -vv -l "$V1_HOME"/volttron.log --vip-address=tcp://127.0.0.2:8081&
 echo "Starting platform 2: $V2_HOME"
-VOLTTRON_HOME=$V2_HOME volttron -vv -l $V2_HOME/volttron.log --vip-address=tcp://127.0.0.1:8081&
+VOLTTRON_HOME=$V2_HOME volttron -vv -l "$V2_HOME"/volttron.log --vip-address=tcp://127.0.0.1:8081&
 
 echo "Making volttron central on $V1_HOME"
 VOLTTRON_HOME=$V1_HOME ../pack_install.sh ../../Agents/VolttronCentralAgent/ \

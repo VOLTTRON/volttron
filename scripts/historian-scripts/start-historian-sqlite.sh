@@ -9,5 +9,5 @@ export HIST="services/core/SQLHistorian"
 export HIST_CONFIG="$HIST/config.sqlite.platform.historian"
 SCRIPTS_CORE="./scripts/core"
 
-$SCRIPTS_CORE/start_historian.sh $1
+$SCRIPTS_CORE/start_historian.sh "$1"
 

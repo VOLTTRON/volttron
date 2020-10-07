@@ -22,7 +22,7 @@ fi
 
 COMMAND_ARGS=""
 
-if [ ! -z "$VIP_ADDRESS" ]; then
+if [ -n "$VIP_ADDRESS" ]; then
   COMMAND_ARGS="$COMMAND_ARGS --vip-address $VIP_ADDRESS"
 else
   # Default to the ipc socket
@@ -55,7 +55,7 @@ if [ -z "$CONFIG" ]; then
 fi
 
 # Attempt to package the wheel file.
-WHEEL=$(volttron-pkg package $SOURCE | awk -F"Package created at: " '{ print $2 }')
+WHEEL=$(volttron-pkg package "$SOURCE" | awk -F"Package created at: " '{ print $2 }')
 
 #Remove newlines
 WHEEL=${WHEEL//$'\n'/}
