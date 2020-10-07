@@ -29,10 +29,10 @@ MANIFEST File
 -------------
 
 The MANIFEST.in file is used to package additional files needed for your web enabled agent.
-Please read the python packaging documentation `https://packaging.python.org/guides/using-manifest-in/`
+Please read the python packaging `documentation <https://packaging.python.org/guides/using-manifest-in/>`_
 on the MANIFEST.in file. For most cases, i.e. when you only need to include a webroot directory for html
-and javascript, the manifest file only needs to include the `recursive-include` command. An example for this using
-the VolttronCentral MANIFEST.in file is:
+and javascript, the manifest file only needs to include the `recursive-include` command. For example, the entirety
+of the VolttronCentral MANIFEST.in file is:
 
 .. code-block:: python
 
@@ -41,10 +41,10 @@ the VolttronCentral MANIFEST.in file is:
 The MANIFEST.in file should be located in the root directory of the agent. All pathing for the MANIFEST.in file
 commands are relative to this root directory.
 
-Methods
+Routes
 -------
 
-The web subsystem allows an agent to register three different types of methods; file paths, endpoints, and websocket.
+The web subsystem allows an agent to register three different types of routes; file paths, endpoints, and websockets.
 
 .. note::
     For all endpoint methods the first match wins.  Therefore ordering which endpoints are registered first becomes important.
