@@ -8,6 +8,7 @@ This is best described with an example agent. The example agent will interface w
 more info about HELICS, please refer to https://helics.readthedocs.io/en/latest/installation/linux.html.
 
 .. code-block:: python
+
     class HelicsExample(Agent):
         """
         HelicsExampleAgent demonstrates how VOLTTRON agent can interact with HELICS simulation environment
@@ -50,6 +51,7 @@ Start the Simulation Platform
 After registering with the simulation platform, the agent can go ahead and start the simulation.
 
 .. code-block:: python
+
     # Register inputs with HELICS and provide callback method to receive messages from simulation
     try:
         self.helics_sim.start_simulation()
@@ -71,6 +73,7 @@ requests from all it's federates before advancing the simulation. If no time req
 
 
 .. code-block:: python
+
     def do_work(self):
         """
         Perform application specific work here using HELICS messages
@@ -104,6 +107,7 @@ The agent can publish messages to the simulation using publish_to_simulation API
 and uses publish_to_simulation API to publish a dummy value of 67.90 for every publication key.
 
 .. code-block:: python
+
     for pub in self.publications:
         key = pub['sim_topic']
         value = 67.90
@@ -121,6 +125,7 @@ may not be the same as the requested time by the agent.
 Typically, the best place to make the time request is in the callback method provided to the simulation integration object.
 
 .. code-block:: python
+
     self.helics_sim.make_time_request()
 
 Pause the simulation
@@ -130,6 +135,7 @@ this functionality by calling the appropriate wrapper API exposed by the concret
 we do not have capabilty of pause/resume simulation, so calling pause_simulation() API will result in no operation.
 
 .. code-block:: python
+
     self.helics_sim.pause_simulation()
 
 Resume the simulation
@@ -139,6 +145,7 @@ the simulation. The agent can call resume_simulation API to resume the simulatio
 capabilty of pause/resume simulation, so calling resume_simulation() API will result in no operation.
 
 .. code-block:: python
+
     self.helics_sim.resume_simulation()
 
 Stop the simulation
@@ -148,6 +155,7 @@ the federate from the HELICS core and close the library. Generally, it is a good
 within the onstop() method of the agent. In this way, the agent stops the simulation before exiting the process.
 
 .. code-block:: python
+
     @Core.receiver("onstop")
     def onstop(self, sender, **kwargs):
         """
