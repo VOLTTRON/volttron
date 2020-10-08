@@ -73,7 +73,7 @@ class GridAPPSDSimIntegration(BaseSimIntegration):
         self.topic_callbacks = {}
         self.sim_id = None
 
-    def register_inputs(self, config=None, callback=None):
+    def register_inputs(self, config=None, callback=None, **kwargs):
         """
         Register configuration parameters with GridAppsD.
         The config parameters may include but not limited to:
@@ -105,7 +105,7 @@ class GridAPPSDSimIntegration(BaseSimIntegration):
         _log.debug("Registering for topic callbacks")
         self.topic_callbacks = callbacks
 
-    def start_simulation(self):
+    def start_simulation(self, *args, **kwargs):
         """
         Simulation start activities involve:
         - Creating GridAppsD connection gevent thread
@@ -166,7 +166,7 @@ class GridAPPSDSimIntegration(BaseSimIntegration):
         _log.debug('Gridappsd receiver_thread started!')
         return self._receiver_thread
 
-    def publish_to_simulation(self, topic, message):
+    def publish_to_simulation(self, topic, message, **kwargs):
         """
         Publish message to GridAppsD
         :param topic: GridAppsD publication topic
@@ -175,7 +175,7 @@ class GridAPPSDSimIntegration(BaseSimIntegration):
         """
         self.gridappsd.send(topic, message)
 
-    def pause_simulation(self, timeout=None):
+    def pause_simulation(self, timeout=None, **kwargs):
         """
         Pause the GridAppsD simulation
         """
@@ -184,19 +184,19 @@ class GridAPPSDSimIntegration(BaseSimIntegration):
         else:
             self.sim.pause(timeout)
 
-    def resume_simulation(self):
+    def resume_simulation(self, *args, **kwargs):
         """
         Resume the GridAppsD simulation
         """
         self.sim.resume()
 
-    def is_sim_installed(self):
+    def is_sim_installed(self, **kwargs):
         """
         Flag to indicate if GridAppsD is installed
         """
         return HAS_GAPPSD
 
-    def stop_simulation(self):
+    def stop_simulation(self, *args, **kwargs):
         """
         Stop the simulation if running and disconnect from GridAppsD server
         :return:

@@ -204,7 +204,7 @@ class GridappsdExample(Agent):
             # are paused we know it
             self.rcvd_measurement = False
             # Resume simulation after 30 sec
-            self.core.spawn_later(30, self.resume_simulation)
+            self.core.spawn_later(30, self.resume_gridappsd_simulation)
 
         if not self.rcvd_measurement:
             print(f"A measurement {measurements} happened at {timestep}")
@@ -242,7 +242,7 @@ class GridappsdExample(Agent):
         self.sim_complete = True
         _log.info('Simulation Complete')
 
-    def resume_simulation(self):
+    def resume_gridappsd_simulation(self):
         """
         Resume simulation if paused
         :return:

@@ -110,7 +110,7 @@ class EnergyPlusSimIntegration(BaseSimIntegration):
         self.sim_flag = 0
         self.cwd = os.getcwd()
 
-    def register_inputs(self, config=None, callback=None):
+    def register_inputs(self, config=None, callback=None, **kwargs):
         """
         Store input and output configurations
         Save the user agent callback
@@ -133,7 +133,7 @@ class EnergyPlusSimIntegration(BaseSimIntegration):
         self.socket_server.connect()
         self.core().spawn(self.socket_server.start)
 
-    def start_simulation(self):
+    def start_simulation(self, *args, **kwargs):
         """
         Start EnergyPlus simulation
         :return:
@@ -325,7 +325,7 @@ class EnergyPlusSimIntegration(BaseSimIntegration):
         elif self.sim_flag == '-20':
             self.exit('Simulation stopped with error during time integration: ' + self.sim_flag)
 
-    def publish_to_simulation(self, topic, message):
+    def publish_to_simulation(self, topic, message, **kwargs):
         """
         Publish message on EnergyPlus simulation
         :param topic: EnergyPlus input field
@@ -334,7 +334,7 @@ class EnergyPlusSimIntegration(BaseSimIntegration):
         """
         pass
 
-    def make_time_request(self, time_request=None):
+    def make_time_request(self, time_request=None, **kwargs):
         """
         Cannot request time with energyplus
         :param time_request:
@@ -342,16 +342,16 @@ class EnergyPlusSimIntegration(BaseSimIntegration):
         """
         pass
 
-    def pause_simulation(self):
+    def pause_simulation(self, timeout=None, **kwargs):
         pass
 
-    def resume_simulation(self):
+    def resume_simulation(self, *args, **kwargs):
         pass
 
-    def is_sim_installed(self):
+    def is_sim_installed(self, **kwargs):
         return HAS_ENERGYPLUS
 
-    def stop_simulation(self):
+    def stop_simulation(self, *args, **kwargs):
         """
         Stop EnergyPlus simulation
         :return:

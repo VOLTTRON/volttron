@@ -75,7 +75,7 @@ class HELICSSimIntegration(BaseSimIntegration):
         self.current_values = {}
         self.helics_to_volttron_publish = {}
 
-    def register_inputs(self, config=None, callback=None):
+    def register_inputs(self, config=None, callback=None, **kwargs):
         """
         Register configuration parameters with HELICS. The config parameters may include
         but not limited to:
@@ -176,7 +176,7 @@ class HELICSSimIntegration(BaseSimIntegration):
             except h._helics.HelicsException as e:
                 _log.exception("Error getting helics publication index: {}".format(e))
 
-    def start_simulation(self):
+    def start_simulation(self, *args, **kwargs):
         """
         This is a blocking call until the all the federates get connected to HELICS broker
         :return:
@@ -228,7 +228,7 @@ class HELICSSimIntegration(BaseSimIntegration):
         # Closing connection to HELICS
         self.stop_simulation()
 
-    def publish_to_simulation(self, topic, message):
+    def publish_to_simulation(self, topic, message, **kwargs):
         """
         Publish message on HELICS bus
         :param topic: HELICS publication key
@@ -310,7 +310,7 @@ class HELICSSimIntegration(BaseSimIntegration):
         _log.debug("GRANTED TIME: {}".format(granted_time))
         self.current_time = granted_time
 
-    def make_time_request(self, time_request=None):
+    def make_time_request(self, time_request=None, **kwargs):
         """
         Request for next time step. Granted time maybe lower than the requested time
         :param time_request:
@@ -323,13 +323,7 @@ class HELICSSimIntegration(BaseSimIntegration):
         _log.debug("GRANTED TIME maybe lower than time requested: {}".format(granted_time))
         self.current_time = granted_time
 
-    def pause_simulation(self):
-        pass
-
-    def resume_simulation(self):
-        pass
-
-    def is_sim_installed(self):
+    def is_sim_installed(self, **kwargs):
         return HAS_HELICS
 
     def send_to_endpoint(self, endpoint_name, destination='', value=0):
@@ -346,7 +340,7 @@ class HELICSSimIntegration(BaseSimIntegration):
         except h._helics.HelicsException as e:
             _log.exception("Error sending endpoint message to  HELICS {}".format(e))
 
-    def stop_simulation(self):
+    def stop_simulation(self, *args, **kwargs):
         """
         Disconnect the federate from helics core and close the library
         :return:

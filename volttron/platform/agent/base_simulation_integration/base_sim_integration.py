@@ -41,29 +41,30 @@ class BaseSimIntegration(object):
     def __init__(self, config):
         self.config = config
 
-    def start_simulation(self):
+    def start_simulation(self, *args, **kwargs):
         pass
 
-    def register_inputs(self):
+    def register_inputs(self, config=None, callback=None, **kwargs):
         pass
 
-    def publish_to_simulation(self, topic, message):
+    def publish_to_simulation(self, topic, message, **kwargs):
         pass
 
-    def make_time_request(self, time_steps):
+    def make_time_request(self, time_request=None, **kwargs):
         pass
 
-    def pause_simulation(self):
+    def pause_simulation(self, timeout=None, **kwargs):
         pass
 
-    def resume_simulation(self):
+    def resume_simulation(self, *args, **kwargs):
         pass
 
     @property
-    def is_sim_installed(self):
+    def is_sim_installed(self, *args, **kwargs):
         return True
 
-    def stop_simulation(self):
+    def stop_simulation(self, *args, **kwargs):
         pass
+
 
 
