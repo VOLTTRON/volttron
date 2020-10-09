@@ -4,55 +4,29 @@
 Configuration for Integrating With Simulation Platforms
 =======================================================
 Configurations for interfacing with simulation platforms will vary depending on the specifications of that platform but there may be few common configuration
-options that we can group together in seperate sections such as
+options that we can group together as separate sections such as
 
 * Config parameters that help us setup the simulation such as connection parameters (connection address), unique name for the participant, total simulation time
 * List of topics for subscribing with simulation platform
 * List of topics for publishing to the simulation platform
-* List of topics subscrbing with VOLTTRON message bus
+* List of topics subscribing with VOLTTRON message bus
 
-We have grouped these four category of configurations into four different sections - properties, inputs, outputs and volttron_subscriptions.
+We have grouped these four categories of configuration into four different sections - properties, inputs, outputs and volttron_subscriptions.
 The simulation integration class will read these four sections and register with simulation platform appropriately. If an agent needs to
 interface with EnergyPlus or HELICS using the simulation integration framework, then it will need to group the configurations into above four
 sections.
 
 **Note**
 
-GridAPPS-D can run complex power system simulations using variety of different types of simulators such as GridLabD, HELICS, Dymola etc.
-So the configuration for GridAPPS-D does not follow the above format. Because of this, the configuration for GridAPPSD is taken in the raw format and passed drectly to the GridAPPS-D simulation.
+GridAPPS-D can run complex power system simulations using variety of simulators such as GridLAB-D, HELICS, MatPower etc.
+So the configuration for GridAPPS-D cannot follow the above format. Because of this, the configuration for GridAPPSD is taken in the raw format and passed drectly to the GridAPPS-D simulation.
 
 Example Configuration
 ---------------------------------
 The configuration for interfacing with a simulation platform is described by using integration with HELICS as an example. Each participant in a
-HELICS simulation is called a federate.
+HELICS co-simulation environment is called a federate.
 
-The properties section may contain the following
-
-* Unique name for the federate
-* core type (for example, zmq, tcp, mpi)
-* time step delta in seconds
-* total simulation time etc
-
-**Note**
-The individual fields under this section may vary depending on whether the agent is interfacing with HELICS or EnergyPlus.
-
-In the outputs section, list of subscriptions (if any) need to be provided. Each subscription will contain the following.
-
-* subscription topic
-* data type
-* VOLTTRON topic to republish the message on VOLTTRON message bus (optional)
-* required flag (optional)
-
-
-In the outputs section, list of publications (if any) need to be provided. Each publication will contain the following.
-
-* publication topic
-* data type
-* metadata asscoiated with the topic
-* VOLTTRON topic to subscribe on the VOLTTRON message bus which will be republished on simulation bus (optional)
-* additional information (optional)
-
-In the volttron_subscriptions, list of topics need to be subscribed on VOLTTRON bus can be provided.
+Below is an example HELICS config file.
 
 .. code-block:: yaml
 
@@ -103,3 +77,32 @@ In the volttron_subscriptions, list of topics need to be subscribed on VOLTTRON 
 
     volttron_subscriptions:
         - feeder0_output/all
+
+
+The properties section may contain the following.
+
+* Unique name for the federate
+* core type (for example, zmq, tcp, mpi)
+* time step delta in seconds
+* total simulation time etc
+
+**Note**
+The individual fields under this section may vary depending on whether the agent is interfacing with HELICS or EnergyPlus.
+
+In the outputs section, list of subscriptions (if any) need to be provided. Each subscription will contain the following.
+
+* subscription topic
+* data type
+* VOLTTRON topic to republish the message on VOLTTRON message bus (optional)
+* required flag (optional)
+
+
+In the outputs section, list of publications (if any) need to be provided. Each publication will contain the following.
+
+* publication topic
+* data type
+* metadata asscoiated with the topic
+* VOLTTRON topic to subscribe on the VOLTTRON message bus which will be republished on simulation bus (optional)
+* additional information (optional)
+
+In the volttron_subscriptions, list of topics need to be subscribed on VOLTTRON bus can be provided.
