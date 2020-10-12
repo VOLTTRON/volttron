@@ -53,10 +53,14 @@ The web subsystem allows an agent to register three different types of routes; f
 File Path
 ~~~~~~~~~
 
-A path based endpoint allows the agent to specify a prefix and a static path on the file system to serve static files.
+A path-based route that allows the agent to specify a prefix and a static path on the file system to serve static files.
 The prefix can be a regular expression.
 
-The below examples are within the context of an object that has extended the :class:`volttron.platform.vip.agent.Agent` base class.
+.. note::
+    The static path should point to a location within the installed agent's agent-data directory.
+    You MUST have read access to the directory.
+
+The below example is based on the registered static route in the SimpleWebAgent.
 
 
 .. code-block:: python
@@ -64,15 +68,21 @@ The below examples are within the context of an object that has extended the :cl
     @Core.receiver('onstart')
     def onstart(self, sender, **kwargs):
         """
-        Allow serving of static content from /var/www
+        Allow serving of static content from 'webroot'
         """
-        self.vip.web.register_path(r'^/vc/.*', '/var/www')
+        # Sets MY_PATH to be the path of the installed agent.
+        MY_PATH = os.path.dirname(__file__)
+        # Sets WEBROOT to be the path to the webroot directory
+        # in the agent-data directory of the installed agent.
+        WEBROOT = os.path.join(MY_PATH, "webroot")
+        # Serves the static content from 'webroot' directory
+        self.vip.web.register_path("/simpleweb", WEBROOT)
 
 
 Endpoint
 ~~~~~~~~~
 
-JSON endpoints allows an agent to serve data responses to specific queries from a web client.non-static responses.
+JSON endpoints allows an agent to serve data responses to specific queries from a web client's non-static responses.
 The agent will pass a callback to the subsystem which will be called when the endpoint is triggered.
 
 .. code-block:: python
@@ -100,14 +110,32 @@ Client connections can be authenticated during the opening of a websocket throug
 
 .. code-block:: python
 
-    def _open_authenticate_ws_endpoint(self, fromip, endpoint):
+    def open_authenticate_ws_endpoint(self, fromip, endpoint):
         """
-        A client attempted to open an endpoint to the server.
+        Callback method from when websockets are opened.  The endpoine must
+        be '/' delimited with the second to last section being the session
+        of a logged in user to volttron central itself.
 
-        Return True or False if the endpoint should be allowed.
-
-        :rtype: bool
+        :param fromip:
+        :param endpoint:
+            A string representing the endpoint of the websocket.
+        :return:
         """
+        _log.debug("OPENED ip: {} endpoint: {}".format(fromip, endpoint))
+        try:
+            session = endpoint.split('/')[-2]
+        except IndexError:
+            _log.error("Malformed endpoint. Must be delimited by '/'")
+            _log.error(
+                'Endpoint must have valid session in second to last position')
+            return False
+
+        if not self._authenticated_sessions.check_session(session, fromip):
+            _log.error("Authentication error for session!")
+            return False
+
+        _log.debug('Websocket allowed.')
+        self._websocket_endpoints.add(endpoint)
         return True
 
     def _ws_closed(self, endpoint):
