@@ -19,7 +19,7 @@ fi
 
 export FAST_FAIL=${FAST_FAIL:-true}
 
-pip list
+python3 -m pip list
 echo "RUNNING $NUM_PROCESSES PARALLEL PROCESSESS AT A TIME"
 echo "FAST_FAIL IS $FAST_FAIL"
 

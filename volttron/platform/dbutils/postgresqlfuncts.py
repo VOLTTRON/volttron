@@ -118,7 +118,7 @@ class PostgreSqlFuncts(DbDriver):
         if self.timescale_dialect:
             _log.debug("trying to create hypertable")
             self.execute_stmt(SQL(
-                "SELECT create_hypertable({}, 'ts')").format(
+                "SELECT create_hypertable({}, 'ts', if_not_exists => true)").format(
                 Literal(self.data_table)))
             self.execute_stmt(SQL(
                 'CREATE INDEX ON {} (topic_id, ts)').format(
