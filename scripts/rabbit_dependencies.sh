@@ -72,6 +72,7 @@ function install_on_debian {
     fi
 
     echo "installing ERLANG"
+    ${prefix} apt-get update
     ${prefix} apt-get install -y apt-transport-https libwxbase3.0-0v5 libwxgtk3.0-0v5 libsctp1  build-essential python-dev openssl libssl-dev libevent-dev git
     set +e
     ${prefix} apt-get purge -yf erlang*
