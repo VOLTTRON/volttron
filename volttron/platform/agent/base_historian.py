@@ -1558,7 +1558,7 @@ class BackupDatabase:
                                successful_publishes))
                 self._record_count -= len(temp)
         finally:
-            # if we don't clear these attributes on every publish, we could possibly delete a non-existing record on the next publish or mistakenly enter into this else block
+            # if we don't clear these attributes on every publish, we could possibly delete a non-existing record on the next publish by mistakenly entering into the delete records on duplicates (rare case) block mentioned above in the comments
             self._unique_ids.clear()
             self._dupe_ids.clear()
 
@@ -1590,11 +1590,11 @@ class BackupDatabase:
             topic = self._backup_cache[topic_id]
 
             # check for duplicates before appending row to results
-            if (topic, timestamp) in unique_records:
+            if (topic_id, timestamp) in unique_records:
                 _log.debug(f"Found duplicate from cache: {row}")
                 self._dupe_ids.append(_id)
                 continue
-            unique_records.add((topic, timestamp))
+            unique_records.add((topic_id, timestamp))
             self._unique_ids.append(_id)
 
             results.append({'_id': _id,
