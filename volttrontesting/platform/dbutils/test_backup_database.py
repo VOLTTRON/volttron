@@ -128,8 +128,8 @@ def test_remove_successfully_published_should_clear_cache(backup_database):
 
     orig_record_count = backup_database._record_count
 
+    backup_database.get_outstanding_to_publish(SIZE_LIMIT)
     backup_database.remove_successfully_published(set((None,)), SIZE_LIMIT)
-
     assert get_all_data("outstanding") == []
     current_record_count = backup_database._record_count
     assert current_record_count < orig_record_count

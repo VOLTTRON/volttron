@@ -1529,25 +1529,15 @@ class BackupDatabase:
 
         """
 
-        #_log.debug("Cleaning up successfully published values.")
         c = self._connection.cursor()
         try:
             if None in successful_publishes:
-                if not self._dupe_ids:
-                    c.execute('''DELETE FROM outstanding
-                                WHERE ROWID IN
-                                (SELECT ROWID FROM outstanding ORDER BY ts LIMIT ?)''', (submit_size,))
-                    if self._record_count < c.rowcount:
-                        self._record_count = 0
-                    else:
-                        self._record_count -= c.rowcount
+                c.executemany('''DELETE FROM outstanding
+                                          WHERE id = ?''',
+                              ((_id,) for _id in self._unique_ids))
+                if self._record_count < c.rowcount:
+                    self._record_count = 0
                 else:
-                    # this is a rare case, so adding logs to help track and debug when this case does occur
-                    _log.debug(f"Duplicates detected during successful publishes. Keeping the following duplicate records in cache: {self._dupe_ids}")
-                    _log.debug(f"Deleting the following unique records: {self._unique_ids}")
-                    c.executemany('''DELETE FROM outstanding 
-                                              WHERE id = ?''',
-                                  ((_id,) for _id in self._unique_ids))
                     self._record_count -= len(self._unique_ids)
             else:
                 temp = list(successful_publishes)
@@ -1558,7 +1548,7 @@ class BackupDatabase:
                                successful_publishes))
                 self._record_count -= len(temp)
         finally:
-            # if we don't clear these attributes on every publish, we could possibly delete a non-existing record on the next publish by mistakenly entering into the delete records on duplicates (rare case) block mentioned above in the comments
+            # if we don't clear these attributes on every publish, we could possibly delete a non-existing record on the next publish
             self._unique_ids.clear()
             self._dupe_ids.clear()
 
