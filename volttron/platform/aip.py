@@ -224,7 +224,8 @@ class SecureExecutionEnvironment(object):
     def execute(self, *args, **kwargs):
         try:
             self.env = kwargs.get('env', None)
-            run_as_user = ['sudo', '-E', '-u', self.agent_user]
+            pythonpath = ':'.join(x for x in sys.path if x)
+            run_as_user = ['sudo', f"PYTHONPATH={pythonpath}", '-E', '-u', self.agent_user]
             run_as_user.extend(*args)
             _log.debug(run_as_user)
             self.process = subprocess.Popen(run_as_user, universal_newlines=True, **kwargs)
