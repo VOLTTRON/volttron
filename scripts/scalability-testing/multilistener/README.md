@@ -79,7 +79,7 @@ flag inside 'launch_drivers.sh' script.
 The `raw_output_multi_listener_agent.py` script is a modified version of the `multi_listener_agent.py` script, which will record the header and client times for each message received and save them in json format for more detailed processing.
 This is particularly useful if you may be interested in decoupling any statistical analyses of the timing results from the process of configuring and running the agents to collect the data (for example, if you're interested in exploring multiple or less defined analyses, or if collecting data in many configurations where the time cost of re-running the collection is significant).
 Some important notes about this script:
-- The raw output file will either end with `.raw` (if the provided o utput file name has no extension), or will insert `.raw` prior to the extension (if one is present); the output file from the normal output script is not impacted.
+- The raw output file will either end with `.raw` (if the provided output file name has no extension), or will insert `.raw` prior to the extension (if one is present); the output file from the normal output script is not impacted.
 - The raw output file must not already exist (this is checked before starting the agents).
   This is different from the overwrite behavior of the base script (and still present for the non-raw output file).
 
