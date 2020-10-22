@@ -2,7 +2,8 @@
 
 This is an example agent that demonstrates how to integrate with EnergyPlus simulation, run building model simulations 
 with EnergyPlus, send/receive messages back and forth between VOLTTRON and
-EnergyPlus simulation. For more information about EnergyPlus, please refer to https://www.energyplus.net/sites/default/files/docs/site_v8.3.0/GettingStarted/GettingStarted/index.html  
+EnergyPlus simulation. For more information about EnergyPlus, please refer to https://www.energyplus.net/sites/default/files/docs/site_v8.3.0/GettingStarted/GettingStarted/index.html. Technical documentation about the 
+simulation framework can be found at `docs/source/core_services/integrations`   
 
 ## EnergyPlus installation
 For installing setup in Ubuntu based systems, 

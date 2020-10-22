@@ -6,7 +6,7 @@ Specification For Simplifying Integration With Simulation Platforms
  
 There are several simulation platforms that can be integrated with VOLTTRON
 to run as a single cohesive simulated environment for different type of
-applications. Some of the platforms are FNCS, HELICS, GridApps-D and
+applications. Some of the platforms are FNCS, HELICS, GridAPPS-D and
 EnergyPlus. They all have unique application areas and differ in the type
 of simulations they run, inputs they accept and outputs they produce. There
 are some similarities in the some of the basic steps of integrating with
@@ -23,8 +23,10 @@ VOLTTRON such as
 9. Stop simulation
 
 Currently, VOLTTRON has individual implementations for integrating with
-many of the above simulation platforms (For example, an example of integrating with GridAPPSD can be found in
-`examples/GridAPPS-D/gridappsd_example/agent.py`, EnergyPlus agent can be found in ``). Instead, in this specification
+many of the above simulation platforms. For example, an example of
+integrating with GridAPPSD can be found in `examples/GridAPPS-D/gridappsd_example/agent.py`.
+EnergyPlus agent can be found in ``. These implementations
+will still be available for users. Instead, in this specification
 we are proposing a base simulation integration class that will provide
 common APIs and concrete simulation integration classes that will have 
 implementation of the these APIs as per the needs of the individual
