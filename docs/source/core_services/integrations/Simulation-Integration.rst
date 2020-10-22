@@ -130,9 +130,9 @@ Typically, the best place to make the time request is in the callback method pro
 
 Pause the simulation
 --------------------
-Some simulation platforms such as GridAPPS-D have the capability to pause the simulation. The agent can make of use of
+Some simulation platforms such as GridAPPS-D have the capability to pause the simulation. The agent can make use of
 this functionality by calling the appropriate wrapper API exposed by the concrete simulation class. In case of HELICS,
-we do not have capabilty of pause/resume simulation, so calling pause_simulation() API will result in no operation.
+we do not have capability of pause/resume simulation, so calling pause_simulation() API will result in no operation.
 
 .. code-block:: python
 

@@ -12,7 +12,7 @@ simulation and receive outputs from the simulation and act on it. Currently, we 
 GridAPPSD and EnergyPlus. If one wants to integrate with a new simulation platform, then one has to extend BaseSimIntegration class and provide
 concrete implementation for each of the APIs provided by BaseSimIntegration class. For details on BaseSimIntegration class, please refer to ``volttron/platform/agent/base_simulation_integration/base_sim_integration.py``
 
-The specification for integrating with different types of simulation platforms is available at ''
+The specification for integrating with different types of simulation platforms is available at :ref:`Specification For Simplifying Integration With Simulation Platforms <_SimulationIntegrationSpec>`
 
 .. toctree::
     :glob:

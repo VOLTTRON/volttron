@@ -89,7 +89,7 @@ The properties section may contain the following.
 **Note**
 The individual fields under this section may vary depending on whether the agent is interfacing with HELICS or EnergyPlus.
 
-In the outputs section, list of subscriptions (if any) need to be provided. Each subscription will contain the following.
+In the inputs section, list of subscriptions (if any) need to be provided. Each subscription will contain the following.
 
 * subscription topic
 * data type
@@ -101,7 +101,7 @@ In the outputs section, list of publications (if any) need to be provided. Each 
 
 * publication topic
 * data type
-* metadata asscoiated with the topic
+* metadata associated with the topic
 * VOLTTRON topic to subscribe on the VOLTTRON message bus which will be republished on simulation bus (optional)
 * additional information (optional)
 

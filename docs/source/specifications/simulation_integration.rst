@@ -23,8 +23,9 @@ VOLTTRON such as
 9. Stop simulation
 
 Currently, VOLTTRON has individual implementations for integrating with
-many of the above simulation platforms. Instead, in this specification we
-are proposing a base simulation integration class that will provide 
+many of the above simulation platforms (For example, an example of integrating with GridAPPSD can be found in
+`examples/GridAPPS-D/gridappsd_example/agent.py`, EnergyPlus agent can be found in ``). Instead, in this specification
+we are proposing a base simulation integration class that will provide
 common APIs and concrete simulation integration classes that will have 
 implementation of the these APIs as per the needs of the individual
 simulation platforms. Users can use appropriate simulation classes based on
@@ -109,3 +110,7 @@ APIs
 
 7. stop_simulation()
     - Stops the simulation
+
+8. is_sim_installed()
+    - Flag indicating if simulation is installed
+

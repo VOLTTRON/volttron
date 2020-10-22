@@ -26,6 +26,8 @@ sudo ./EnergyPlus-8.5.0-c87e61b44b-Linux-x86_64.sh
 
 1. Copy 'bcvtb' and 'eplus' folders into root of VOLTTRON source directories. 'eplus' should contain EnergyPlus Input Data File (IDF). IDF file is an ASCII file containing the data describing the building and HVAC system to be simulated.
 
+'eplus' is available at https://github.com/VOLTTRON/volttron-GS/tree/master/eplus
+
 2. You can specify the configuration in either json or yaml format.  The json format is specified
 below. 
 
