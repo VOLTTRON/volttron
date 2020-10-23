@@ -91,12 +91,12 @@ This script could be modified or expanded to look at other statistical metrics (
 ## Other notes and tips
 
 If running a large number of different configurations, working with the configuration store in the normal/supported way is quite slow (each interaction requires client/server interactions and were casually observed to take about a second).
-I therefore found it more useful to directly modify the configuration store's json file directly by:
+An alternate way is to directly modify the configuration store's json file directly by:
 1. stop the platform
 2. modify the `VOLTTRON_HOME/configuration_store/<agent.identity>.store` file
 3. restart the platform
 
-For step 2, I would often use an extended bash command unless the number of interactions was quite large.
+For step 2, an extended bash command can be used unless the number of interactions was quite large.
 This isn't the most efficient, but was very quick to write/modify as needed; a par of examples follow.
 For adding new devices:
 ```sh
