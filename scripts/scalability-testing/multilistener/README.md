@@ -98,6 +98,8 @@ I therefore found it more useful to directly modify the configuration store's js
 
 For step 2, I would often use an extended bash command unless the number of interactions was quite large.
 This isn't the most efficient, but was very quick to write/modify as needed; a par of examples follow.
+*Note:* to run the following commands you need to install two CLI tools: `jq` and `sponge`.
+On debian, you can do that with `sudo apt-get install jq moreutils`.
 For adding new devices:
 ```sh
 for i in {1..99}; do
@@ -110,3 +112,16 @@ You can replace the json wrangling part of the jq command with the following to 
 ```sh
 jq --arg dname "devices/fake$i" 'del(.[$dname])'
 ```
+
+Once the configuration store is configured to your needs, you run `raw_output_multi_listener_agent.py` in the same way as `multi_listener_agent.py` above.
+You can run it with `--help` to see a description of the arguments, or as an example, for the case where you're interested in a single listener and have 10 devices installed in the master driver, you could run the following (with your volttron virtual environment for a ZMQ platform activated):
+```sh
+python raw_output_multi_listener_agent.py -l 1 -d 10 -f `pwd`/1listener_10device_zmq.out -m zmq
+```
+which would produce two files in the current directory, `1listener_10device_zmq.out` and `1listener_10device_zmq.raw.out`.
+
+You could then process the raw output file to have it compute the mean of the total time of the device scrapes by running:
+```sh
+./process_file.py -i 1listener_10device_zmq.raw.out
+```
+The results are printed to STDOUT.
