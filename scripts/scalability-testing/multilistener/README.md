@@ -79,7 +79,7 @@ flag inside 'launch_drivers.sh' script.
 The `raw_output_multi_listener_agent.py` script is a modified version of the `multi_listener_agent.py` script, which will record the header and client times for each message received and save them in json format for more detailed processing.
 This is particularly useful if you may be interested in decoupling any statistical analyses of the timing results from the process of configuring and running the agents to collect the data (for example, if you're interested in exploring multiple or less defined analyses, or if collecting data in many configurations where the time cost of re-running the collection is significant).
 Some important notes about this script:
-- The raw output file will either end with `.raw` (if the provided o utput file name has no extension), or will insert `.raw` prior to the extension (if one is present); the output file from the normal output script is not impacted.
+- The raw output file will either end with `.raw` (if the provided output file name has no extension), or will insert `.raw` prior to the extension (if one is present); the output file from the normal output script is not impacted.
 - The raw output file must not already exist (this is checked before starting the agents).
   This is different from the overwrite behavior of the base script (and still present for the non-raw output file).
 
@@ -91,12 +91,12 @@ This script could be modified or expanded to look at other statistical metrics (
 ## Other notes and tips
 
 If running a large number of different configurations, working with the configuration store in the normal/supported way is quite slow (each interaction requires client/server interactions and were casually observed to take about a second).
-I therefore found it more useful to directly modify the configuration store's json file directly by:
+An alternate way is to directly modify the configuration store's json file directly by:
 1. stop the platform
 2. modify the `VOLTTRON_HOME/configuration_store/<agent.identity>.store` file
 3. restart the platform
 
-For step 2, I would often use an extended bash command unless the number of interactions was quite large.
+For step 2, an extended bash command can be used unless the number of interactions was quite large.
 This isn't the most efficient, but was very quick to write/modify as needed; a par of examples follow.
 *Note:* to run the following commands you need to install two CLI tools: `jq` and `sponge`.
 On debian, you can do that with `sudo apt-get install jq moreutils`.
