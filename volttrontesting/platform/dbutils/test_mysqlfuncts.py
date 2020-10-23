@@ -5,7 +5,7 @@ import logging
 
 logging.getLogger("urllib3.connectionpool").setLevel(logging.INFO)
 
-from time import time
+from time import time, sleep
 
 import pytest
 
@@ -27,15 +27,15 @@ pytestmark = [pytest.mark.mysqlfuncts, pytest.mark.dbutils, pytest.mark.unit]
 # mysqlfuncts was written for MYSQL 5.7; however, the latest version is 8.0
 # these tests cannot use latest or anything 8.0 and above and will fail if the latest image/8.0 is used
 # for example, latest/8.0 will throw a "specified key was too long; max key length is 3072 bytes" error
-IMAGES = ["mysql:5.6.49", "mysql:5.7.31"]
+IMAGES = ["mysql:5.6.49"]
 
 if "CI" not in os.environ:
-    IMAGES.extend(["mysql:5", "mysql:5.6", "mysql:5.7"])
+    IMAGES.extend(["mysql:5.7.31", "mysql:5", "mysql:5.6", "mysql:5.7"])
 
 TEST_DATABASE = "test_historian"
 ROOT_PASSWORD = "12345"
 ENV_MYSQL = {"MYSQL_ROOT_PASSWORD": ROOT_PASSWORD, "MYSQL_DATABASE": TEST_DATABASE}
-ALLOW_CONNECTION_TIME = 10
+ALLOW_CONNECTION_TIME = 30
 DATA_TABLE = "data"
 TOPICS_TABLE = "topics"
 META_TABLE = "meta"
@@ -486,6 +486,7 @@ def get_mysqlfuncts(port):
         "database": TEST_DATABASE,
         "user": "root",
         "passwd": ROOT_PASSWORD,
+        "connection_timeout": ALLOW_CONNECTION_TIME
     }
 
     table_names = {
@@ -599,6 +600,7 @@ def create_all_tables(container):
 def seed_database(container, query):
     command = f'mysql --user="root" --password="{ROOT_PASSWORD}" {TEST_DATABASE} --execute="{query}"'
     container.exec_run(cmd=command, tty=True)
+    sleep(3)
     return
 
 
@@ -655,6 +657,7 @@ def get_data_in_table(port, table):
 
 
 def get_cnx_cursor(port):
+    sleep(3)
     connect_params = {
         "host": "localhost",
         "port": port,
