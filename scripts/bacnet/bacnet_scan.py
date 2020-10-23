@@ -55,8 +55,8 @@ from bacpypes.apdu import WhoIsRequest, IAmRequest
 from bacpypes.basetypes import ServicesSupported
 from bacpypes.errors import DecodingError
 
-import threading, time, sys
-
+import threading
+import time
 import csv
 
 # some debugging
@@ -193,7 +193,8 @@ args = arg_parser.parse_args()
 f = None
 
 if args.csv_out is not None:
-    f = open(args.csv_out, "wb")
+    mode = 'wb' if sys.version_info.major == 2 else 'w'
+    f = open(args.csv_out, mode)
     field_names = ["address",
                    "device_id",
                    "max_apdu_length",

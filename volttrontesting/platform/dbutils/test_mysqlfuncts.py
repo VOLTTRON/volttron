@@ -21,6 +21,7 @@ from volttron.platform.dbutils.mysqlfuncts import MySqlFuncts
 from volttrontesting.fixtures.docker_wrapper import create_container
 from volttrontesting.utils.utils import get_rand_port
 
+pytestmark = [pytest.mark.mysqlfuncts, pytest.mark.dbutils, pytest.mark.unit]
 
 # mysqlfuncts was written for MYSQL 5.7; however, the latest version is 8.0
 # these tests cannot use latest or anything 8.0 and above and will fail if the latest image/8.0 is used

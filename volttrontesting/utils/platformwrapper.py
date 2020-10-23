@@ -784,7 +784,8 @@ class PlatformWrapper:
             # can enable the WebAdminApi.
             if self.ssl_auth:
                 self._web_admin_api = WebAdminApi(self)
-
+        
+        gevent.sleep(10)
 
 
     def is_running(self):
