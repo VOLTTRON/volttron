@@ -64,11 +64,15 @@ if [ $exit_code -ne 0 ]; then
 fi
 
 # if we find a command check the pattern
-# command should be of the pattern
+# command should be one of two patterns
+# Pattern 1:
 # sudo -E -u <username passed to this script> /<some path to volttron source>/env/bin/python -m <agent name>
+# Pattern 2: if the platform is created using an official volttron docker image, PYTHONPATH will be used in installing agents
+# sudo PTYHONPATH=<the pythonpath of the user> -E -u <username passed to this script> /<some path to volttron source>/env/bin/python -m <agent name>
 
 re="^sudo -E -u $user /.+/python.* -m .+"
-if [[ ! $command =~ $re ]]; then
+re2="^sudo PYTHONPATH=.* -E -u $user /.+/python.* -m .+"
+if [[ ! $command =~ $re && ! $command =~ $re2 ]]; then
     echo "Invalid process id. pid does not correspond to a volttron agent owned by user $user"
     echo "Usage: <path>/secure_stop_agent.sh <user name of requester> <pid of agent to be stopped>"
     exit 4
