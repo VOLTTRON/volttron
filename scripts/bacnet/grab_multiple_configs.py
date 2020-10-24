@@ -54,12 +54,13 @@ def makedirs(path):
             raise
 
 arg_parser = argparse.ArgumentParser()
-arg_parser.add_argument("csv_file", type=argparse.FileType('rb'),
+arg_parser.add_argument("csv_file", type=argparse.FileType('r'),
                         help="Input CSV file")
 arg_parser.add_argument("--use-proxy", action="store_true",
                         help="Use proxy_grab_bacnet_config.py to grab configurations.")
 arg_parser.add_argument("--out-directory",
                         help="Output directory.", default=".")
+arg_parser.add_argument("--ini", help="BACPypes.ini config file to use")
 
 args = arg_parser.parse_args()
 
@@ -79,20 +80,19 @@ for device in device_list:
     address = device["address"]
     device_id = device["device_id"]
 
-    prog_args = ["python", program_path]
+    prog_args = ["python3", program_path]
     prog_args.append(device_id)
-    if not args.use_proxy:
+    if not args.use_proxy and address:
         prog_args.append("--address")
         prog_args.append(address)
     prog_args.append("--registry-out-file")
     prog_args.append(join(registers_dir, str(device_id)+".csv"))
     prog_args.append("--driver-out-file")
     prog_args.append(join(devices_dir, str(device_id)))
+    if args.ini is not None:
+        prog_args.append("--ini")
+        prog_args.append(args.ini)
 
     print("executing command:", " ".join(prog_args))
 
     subprocess.call(prog_args)
-
-
-
-
