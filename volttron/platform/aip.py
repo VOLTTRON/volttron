@@ -242,8 +242,15 @@ class SecureExecutionEnvironment(object):
             stdout, stderr = process.communicate()
             _log.info("stopping agent: stdout {} stderr: {}".format(stdout, stderr))
             if process.returncode != 0:
-                _log.error("Exception stopping agent: stdout {} stderr: {}".format(stdout, stderr))
-                raise RuntimeError("Exception stopping agent: stdout {} stderr: {}".format(stdout, stderr))
+                # executing this script in a docker container requires a different path to the script
+                cmd2 = ["sudo", "/code/volttron/scripts/secure_stop_agent.sh", self.agent_user, str(self.process.pid)]
+                _log.debug("Initial request to stopping agent failed, trying different command {}".format(cmd2))
+                process2 = subprocess.Popen(cmd2, stdout=PIPE, stderr=PIPE)
+                stdout, stderr = process2.communicate()
+                _log.info("stopping agent: stdout {} stderr: {}".format(stdout, stderr))
+                if process2.returncode != 0:
+                    _log.error("Exception stopping agent: stdout {} stderr: {}".format(stdout, stderr))
+                    raise RuntimeError("Exception stopping agent: stdout {} stderr: {}".format(stdout, stderr))
         return self.process.poll()
 
     def __call__(self, *args, **kwargs):
