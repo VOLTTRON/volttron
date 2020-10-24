@@ -934,6 +934,9 @@ def update_health_cache(opts):
         health_cache_timeout_date = datetime.now() + timedelta(seconds=health_cache_timeout)
 
 
+def modify_agent_rpc_capabilites(opts):
+    pass
+
 def status_agents(opts):
     agents = {agent.uuid: agent for agent in _list_agents(opts.aip)}
     status = {}
@@ -2545,6 +2548,12 @@ def main(argv=sys.argv):
 
     rpc_list.set_defaults(func=list_agents_rpc, min_uuid_len=1)
 
+    rpc_cap = add_parser("cap", subparser=rpc_subparsers, help="modifies rpc method capabilities")
+
+    rpc_cap.add_argument('pattern', nargs='*',
+                       help='Identity of agent, followed by method(s)'
+                            '')
+    rpc_cap.set_defaults(func=modify_agent_rpc_capabilites, min_uuid_len=1)
     # ====================================================
     # certs commands
     # ====================================================
