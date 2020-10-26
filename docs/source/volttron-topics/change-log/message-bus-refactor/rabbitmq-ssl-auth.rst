@@ -7,8 +7,9 @@ Authentication And Authorization With RabbitMQ Message Bus
 
 Authentication In RabbitMQ VOLTTRON
 ***********************************
-RabbitMQ VOLTTRON uses SSL based authentication, rather than the default username and password authentication. VOLTTRON
-adds SSL based configuration entries into the 'rabbitmq.conf' file during the setup process. The necessary SSL
+
+RabbitMQ VOLTTRON uses SSL based authentication, rather than the default username and password authentication.  VOLTTRON
+adds SSL based configuration entries into the `rabbitmq.conf` file during the setup process.  The necessary SSL
 configurations can be seen by running the following command:
 
 .. code-block:: bash
@@ -33,17 +34,19 @@ The configurations required to enable SSL:
 - ssl_options.certfile: path to server public certificate  
 - ssl_options.keyfile: path to server's private key
 - ssl_options.verify: whether verification is enabled
-- ssl_options.fail_if_no_peer_cert: upon client's failure to provide certificate, SSL connection either rejected (true) or accepted (false)
+- ssl_options.fail_if_no_peer_cert: upon client's failure to provide certificate, SSL connection either rejected (true)
+  or accepted (false)
 - auth_mechanisms.1: type of authentication mechanism. EXTERNAL means SSL authentication is used
 
 
 SSL in RabbitMQ VOLTTRON
 ------------------------
+
 To configure RabbitMQ-VOLTTRON to use SSL based authentication, we need to add SSL configuration in rabbitmq_config.yml.
 
 .. code-block:: yaml
 
-    #host parameter is mandatory parameter. fully qualified domain name
+    # mandatory. fully qualified domain name for the system
     host: mymachine.pnl.gov
 
     # mandatory. certificate data used to create root ca certificate. Each volttron
@@ -54,7 +57,7 @@ To configure RabbitMQ-VOLTTRON to use SSL based authentication, we need to add S
       location: 'Richland'
       organization: 'PNNL'
       organization-unit: 'VOLTTRON Team'
-      # volttron1 has to be replaced with actual instance name of the VOLTTRON
+      # volttron1 has to be replaced with actual instance name of the VOLTTRON instance
       common-name: 'volttron1_root_ca'
 
     virtual-host: 'volttron' # defaults to volttron
@@ -85,33 +88,27 @@ The parameters of interest for SSL based configuration are
 - amqp-port-ssl: Port number for SSL connection (defaults to 5671)
 - mgmt-port-ssl: Port number for HTTPS management connection (defaults to 15671)
 
-
-We can then configure the VOLTTRON instance to use SSL based authentication with the below command.
+We can then configure the VOLTTRON instance to use SSL based authentication with the below command:
 
     vcfg --rabbitmq single <optional path to rabbitmq_config.yml>
 
-When one creates a single instance of RabbitMQ, the following is created / re-created in the VOLTTRON_HOME/certificates directory:
+When one creates a single instance of RabbitMQ, the following is created / re-created in the VOLTTRON_HOME/certificates
+directory:
 
 - Public and private certificates of root Certificate Authority (CA)
-
 - Public and private (automatically signed by the CA) server certificates needed by RabbitMQ broker
-
 - Admin certificate for the RabbitMQ instance
-
 - Public and private (automatically signed by the CA) certificates for VOLTTRON platform service agents.
-
 - Trusted CA certificate
 
 The public files can be found at ``VOLTTRON_HOME/certificates/certs`` and the private files can be found
-at ``VOLTTRON_HOME/certificates/private``. The trusted-cas.crt file is used to store
-the root CAs of all VOLTTRON instances that the RabbitMQ server has to connected to. The trusted ca is only created
-once, but can be updated. Initially, the trusted ca is a copy of the the root CA file,
-but when an external VOLTTRON instance needs to be connected to an instance, then external VOLTTRON instance's root CA
-have to be appended to this file in order for RabbitMQ broker to trust the new connection.
-
+at ``VOLTTRON_HOME/certificates/private``.  The `trusted-cas.crt` file is used to store
+the root CAs of all VOLTTRON instances that the RabbitMQ server has to connected to.  The trusted CA is only created
+once, but can be updated.  Initially, the trusted CA is a copy of the the root CA file,
+but when an external VOLTTRON instance needs to be connected to an instance, the external VOLTTRON instance's root CA
+will be appended to this file in order for the RabbitMQ broker to trust the new connection.
 
 .. image:: files/rmq_server_ssl_certs.png
-
 
 Every RabbitMQ has a single self signed root ca and server certificate signed by the root CA. This is created during
 VOLTTRON setup and the RabbitMQ server is configured and started with these two certificates.  Every time an agent is
@@ -121,30 +118,14 @@ key to the server and the server validates if it is signed by a root CA it trust
 started with. Since there is only a single root CA for one VOLTTRON instance, all the agents in this instance can
 communicate with the message bus over SSL.
 
-
-Multi-Platform Communication With RabbitMQ SSL
-==============================================
-
-For multi-platform communication over federation and shovel, we need connecting instances to trust each other.
-
-.. image:: files/multiplatform_ssl.png
-
-Suppose there are two VMs (VOLTTRON1 and VOLTTRON2) running single instances of RabbitMQ, and VOLTTRON1 and VOLTTRON2
-want to talk to each other via either the federation or shovel plugins. In order for VOLTTRON1 to talk to VOLTTRON2,
-VOLTTRON1's root certificate must be appended to VOLTTRON's trusted CA certificate, so that when VOLTTRON1 presents it's
-root certificate during connection, VOLTTRON2's RabbitMQ server can trust the connection. VOLTTRON2's root CA must be
-appended to VOLTTRON1's root CA and it must in turn present its root certificate during connection, so that VOLTTRON1 will
-know it is safe to talk to VOLTTRON2.
-
-Agents trying to connect to remote instance directly, need to have a public certificate signed by the remote
-instance for authenticated SSL based connection. To facilitate this process, the VOLTTRON platform exposes a web based server
-api for requesting, listing, approving and denying certificate requests. For more detailed description, refer to
-:ref:`Agent communication to Remote RabbitMQ instance <Agent-Communication-to-Remote-RabbitMQ>`
+For information about using SSL with multi-platform RabbitMQ deployments, view the
+:ref:`docs <RabbitMQ-Multi-platform-SSL>`
 
 
 Authorization in RabbitMQ VOLTTRON
 ==================================
-To be implemented in VOLTTRON
+
+To be implemented in VOLTTRON at a later date.
 
 For more detailed information about access control, please refer to RabbitMQ documentation
 `Access Control <https://www.rabbitmq.com/access-control.html>`_.

@@ -1,11 +1,10 @@
-.. _DNP3-Driver-Config:
+.. _DNP3-Driver:
 
-=========================
-DNP3 Driver Configuration
-=========================
+===========
+DNP3 Driver
+===========
 
-VOLTTRON's DNP3 driver enables the use
-of `DNP3 <https://en.wikipedia.org/wiki/DNP3>`_ (Distributed Network Protocol)
+VOLTTRON's DNP3 driver enables the use of `DNP3 <https://en.wikipedia.org/wiki/DNP3>`_ (Distributed Network Protocol)
 communications, reading and writing points via a DNP3 Outstation.
 
 In order to use a DNP3 driver to read and write point data, VOLTTRON's DNP3 Agent must also
@@ -53,8 +52,6 @@ Here is a sample DNP3 driver configuration file:
 A sample DNP3 driver configuration file can be found in the VOLTTRON repository
 in ``services/core/MasterDriverAgent/example_configurations/test_dnp3.config``.
 
-
-.. _DNP3-Driver:
 
 DNP3 Registry Configuration File
 ================================

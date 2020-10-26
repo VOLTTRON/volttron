@@ -29,4 +29,4 @@ sender, email addresses of all the recipients and minimum time for duplicate ema
     }
 
 Finally package, install and start the agent. For more details, see
-:ref:`Agent Creation Walk-through <Agent-Development-Walk-through>`
+:ref:`Agent Creation Walk-through <Agent-Development>`

@@ -1,8 +1,8 @@
-.. _WeatherAgentSpec:
+.. _Weather-Agent-Specification:
 
-=============================
-Weather service specification
-=============================
+===============
+Weather Service
+===============
 
 ***********
 Description
