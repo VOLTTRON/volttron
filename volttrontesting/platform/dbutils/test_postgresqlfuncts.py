@@ -22,6 +22,8 @@ from volttron.platform.dbutils.postgresqlfuncts import PostgreSqlFuncts
 from volttrontesting.fixtures.docker_wrapper import create_container
 from volttrontesting.utils.utils import get_rand_port
 
+pytestmark = [pytest.mark.postgresqlfuncts, pytest.mark.dbutils, pytest.mark.unit]
+
 # Current documentation claims that we have tested Historian on Postgres 10
 # See https://volttron.readthedocs.io/en/develop/core_services/historians/SQL-Historian.html#postgresql-and-redshift
 IMAGES = ["postgres:9.6.18", "postgres:10.13"]
@@ -57,8 +59,6 @@ AGG_META_TABLE = "aggregate_meta"
 METADATA_TABLE = "metadata"
 
 
-@pytest.mark.postgresqlfuncts
-@pytest.mark.dbutils
 def test_setup_historian_tables_should_create_tables(get_container_func, ports_config):
     get_container, image = get_container_func
     with get_container(
@@ -79,8 +79,6 @@ def test_setup_historian_tables_should_create_tables(get_container_func, ports_c
             assert actual_tables == expected_tables
 
 
-@pytest.mark.postgresqlfuncts
-@pytest.mark.dbutils
 def test_record_table_definitions_should_create_meta_table(
     get_container_func, ports_config
 ):
@@ -108,10 +106,81 @@ def test_record_table_definitions_should_create_meta_table(
             assert describe_table(port_on_host, METADATA_TABLE) == expected_table_defs
 
 
+def create_meta_data_table(container):
+    query = f"""
+                CREATE TABLE {METADATA_TABLE}
+                (table_id VARCHAR(512) PRIMARY KEY NOT NULL,
+                table_name VARCHAR(512) NOT NULL);
+                INSERT INTO {METADATA_TABLE} VALUES ('data_table', '{DATA_TABLE}');
+                INSERT INTO {METADATA_TABLE} VALUES ('topics_table', '{TOPICS_TABLE}');
+                INSERT INTO {METADATA_TABLE} VALUES ('meta_table', '{META_TABLE}');
+            """
+    seed_database(container, query)
+
+    return
+
+
+def create_empty_meta_data_table(container):
+    query = f"""
+                CREATE TABLE {METADATA_TABLE}
+                (table_id VARCHAR(512) PRIMARY KEY NOT NULL,
+                table_name VARCHAR(512) NOT NULL);
+            """
+    seed_database(container, query)
+
+    return
+
+
+def create_incorrect_meta_data_table(container):
+    query = f"""
+                CREATE TABLE {METADATA_TABLE}
+                (table_id VARCHAR(512) PRIMARY KEY NOT NULL,
+                table_name VARCHAR(512) NOT NULL);
+                INSERT INTO {METADATA_TABLE} VALUES ('data_tableFOOOBAR', '{DATA_TABLE}');
+                INSERT INTO {METADATA_TABLE} VALUES ('topifdkjadslkfcs_table', '{TOPICS_TABLE}');
+                INSERT INTO {METADATA_TABLE} VALUES ('3333gjhmeta_table', '{META_TABLE}');
+            """
+    seed_database(container, query)
+
+    return
+
+
+@pytest.mark.parametrize(
+    "seed_meta_data_table, expected_tables",
+    [
+        (
+            create_meta_data_table,
+            {
+                "data_table": "data",
+                "topics_table": "topics",
+                "meta_table": "meta",
+                "agg_topics_table": "aggregate_topics",
+                "agg_meta_table": "aggregate_meta",
+            },
+        ),
+        (
+            create_empty_meta_data_table,
+            {
+                "agg_topics_table": "aggregate_topics",
+                "agg_meta_table": "aggregate_meta",
+            },
+        ),
+        (
+            create_incorrect_meta_data_table,
+            {
+                "3333gjhmeta_table": "meta",
+                "agg_meta_table": "aggregate_meta",
+                "agg_topics_table": "aggregate_topics",
+                "data_tableFOOOBAR": "data",
+                "topifdkjadslkfcs_table": "topics",
+            },
+        ),
+    ],
+)
 @pytest.mark.postgresqlfuncts
 @pytest.mark.dbutils
 def test_read_tablenames_from_db_should_return_table_names(
-    get_container_func, ports_config
+    get_container_func, ports_config, seed_meta_data_table, expected_tables
 ):
     get_container, image = get_container_func
     with get_container(
@@ -119,26 +188,26 @@ def test_read_tablenames_from_db_should_return_table_names(
     ) as container:
         port_on_host = ports_config["port_on_host"]
         wait_for_connection(container, port_on_host)
-        create_meta_data_table(container)
+        seed_meta_data_table(container)
 
         with get_postgresqlfuncts(port_on_host) as postgresqlfuncts:
-            expected_tables = {
-                "data_table": "data",
-                "topics_table": "topics",
-                "meta_table": "meta",
-                "agg_topics_table": "aggregate_topics",
-                "agg_meta_table": "aggregate_meta",
-            }
-
             actual_tables = postgresqlfuncts.read_tablenames_from_db(METADATA_TABLE)
 
             assert actual_tables == expected_tables
 
 
+@pytest.mark.parametrize(
+    "seed_meta_data_table",
+    [
+        (create_meta_data_table),
+        (create_empty_meta_data_table),
+        (create_incorrect_meta_data_table),
+    ],
+)
 @pytest.mark.postgresqlfuncts
 @pytest.mark.dbutils
 def test_setup_aggregate_historian_tables_should_create_aggregate_tables(
-    get_container_func, ports_config
+    get_container_func, ports_config, seed_meta_data_table
 ):
     get_container, image = get_container_func
 
@@ -156,7 +225,7 @@ def test_setup_aggregate_historian_tables_should_create_aggregate_tables(
             assert agg_topic_table not in original_tables
             assert agg_meta_table not in original_tables
 
-            create_meta_data_table(container)
+            seed_meta_data_table(container)
             expected_agg_topic_fields = {
                 "agg_topic_id",
                 "agg_topic_name",
@@ -177,6 +246,11 @@ def test_setup_aggregate_historian_tables_should_create_aggregate_tables(
             assert (
                 describe_table(port_on_host, agg_meta_table) == expected_agg_meta_fields
             )
+            assert postgresqlfuncts.agg_topics_table == agg_topic_table
+            assert postgresqlfuncts.agg_meta_table == agg_meta_table
+            assert postgresqlfuncts.data_table == DATA_TABLE
+            assert postgresqlfuncts.topics_table == TOPICS_TABLE
+            assert postgresqlfuncts.meta_table == META_TABLE
 
 
 @pytest.mark.parametrize(
@@ -190,8 +264,6 @@ def test_setup_aggregate_historian_tables_should_create_aggregate_tables(
         ),
     ],
 )
-@pytest.mark.postgresqlfuncts
-@pytest.mark.dbutils
 def test_query_should_return_data(
     get_container_func, ports_config, topic_ids, id_name_map, expected_values
 ):
@@ -214,8 +286,6 @@ def test_query_should_return_data(
             assert actual_values == expected_values
 
 
-@pytest.mark.postgresqlfuncts
-@pytest.mark.dbutils
 def test_insert_topic_should_return_topic_id(get_container_func, ports_config):
     get_container, image = get_container_func
 
@@ -236,8 +306,6 @@ def test_insert_topic_should_return_topic_id(get_container_func, ports_config):
             assert actual_topic_id == expected_topic_id
 
 
-@pytest.mark.postgresqlfuncts
-@pytest.mark.dbutils
 def test_insert_agg_topic_should_return_agg_topic_id(get_container_func, ports_config):
     get_container, image = get_container_func
 
@@ -263,8 +331,6 @@ def test_insert_agg_topic_should_return_agg_topic_id(get_container_func, ports_c
             assert get_data_in_table(port_on_host, AGG_TOPICS_TABLE)[0] == expected_data
 
 
-@pytest.mark.postgresqlfuncts
-@pytest.mark.dbutils
 def test_insert_meta_should_return_true(get_container_func, ports_config):
     get_container, image = get_container_func
 
@@ -286,8 +352,6 @@ def test_insert_meta_should_return_true(get_container_func, ports_config):
             assert get_data_in_table(port_on_host, "meta")[0] == expected_data
 
 
-@pytest.mark.postgresqlfuncts
-@pytest.mark.dbutils
 def test_insert_data_should_return_true(get_container_func, ports_config):
     get_container, image = get_container_func
 
@@ -310,8 +374,6 @@ def test_insert_data_should_return_true(get_container_func, ports_config):
             assert get_data_in_table(port_on_host, "data") == expected_data
 
 
-@pytest.mark.postgresqlfuncts
-@pytest.mark.dbutils
 def test_update_topic_should_return_true(get_container_func, ports_config):
     get_container, image = get_container_func
 
@@ -335,8 +397,6 @@ def test_update_topic_should_return_true(get_container_func, ports_config):
             assert (actual_id, "soccer") == get_data_in_table(port_on_host, "topics")[0]
 
 
-@pytest.mark.postgresqlfuncts
-@pytest.mark.dbutils
 def test_get_aggregation_list_should_return_list(get_container_func, ports_config):
     get_container, image = get_container_func
 
@@ -369,8 +429,6 @@ def test_get_aggregation_list_should_return_list(get_container_func, ports_confi
             assert postgresqlfuncts.get_aggregation_list() == expected_list
 
 
-@pytest.mark.postgresqlfuncts
-@pytest.mark.dbutils
 def test_insert_agg_topic_should_return_true(get_container_func, ports_config):
     get_container, image = get_container_func
 
@@ -395,8 +453,6 @@ def test_insert_agg_topic_should_return_true(get_container_func, ports_config):
             assert get_data_in_table(port_on_host, AGG_TOPICS_TABLE)[0] == expected_data
 
 
-@pytest.mark.postgresqlfuncts
-@pytest.mark.dbutils
 def test_update_agg_topic_should_return_true(get_container_func, ports_config):
     get_container, image = get_container_func
 
@@ -429,8 +485,6 @@ def test_update_agg_topic_should_return_true(get_container_func, ports_config):
             assert get_data_in_table(port_on_host, AGG_TOPICS_TABLE)[0] == expected_data
 
 
-@pytest.mark.postgresqlfuncts
-@pytest.mark.dbutils
 def test_insert_agg_meta_should_return_true(get_container_func, ports_config):
     get_container, image = get_container_func
 
@@ -453,8 +507,6 @@ def test_insert_agg_meta_should_return_true(get_container_func, ports_config):
             assert get_data_in_table(port_on_host, AGG_META_TABLE)[0] == expected_data
 
 
-@pytest.mark.postgresqlfuncts
-@pytest.mark.dbutils
 def test_get_topic_map_should_return_maps(get_container_func, ports_config):
     get_container, image = get_container_func
 
@@ -483,8 +535,6 @@ def test_get_topic_map_should_return_maps(get_container_func, ports_config):
             assert actual == expected
 
 
-@pytest.mark.postgresqlfuncts
-@pytest.mark.dbutils
 def test_get_agg_topics_should_return_list(get_container_func, ports_config):
     get_container, image = get_container_func
 
@@ -511,8 +561,6 @@ def test_get_agg_topics_should_return_list(get_container_func, ports_config):
             assert actual_list == expected_list
 
 
-@pytest.mark.postgresqlfuncts
-@pytest.mark.dbutils
 def test_get_agg_topic_map_should_return_dict(get_container_func, ports_config):
     get_container, image = get_container_func
 
@@ -537,10 +585,32 @@ def test_get_agg_topic_map_should_return_dict(get_container_func, ports_config):
             assert actual == expected
 
 
-@pytest.mark.postgresqlfuncts
-@pytest.mark.dbutils
+@pytest.mark.parametrize(
+    "topic_1, topic_2, topic_3, topic_pattern, expected_result",
+    [
+        ("'football'", "'foobar'", "'xzxzxccx'", "foo", {"football": 1, "foobar": 2}),
+        ("'football'", "'foobar'", "'xzxzxccx'", "ba", {"football": 1, "foobar": 2}),
+        ("'football'", "'foobar'", "'xzxzxccx'", "ccx", {"xzxzxccx": 3}),
+        ("'fotball'", "'foobar'", "'xzxzxccx'", "foo", {"foobar": 2}),
+        ("'football'", "'foooobar'", "'xzxzxccx'", "foooo", {"foooobar": 2}),
+        (
+            "'FOOtball'",
+            "'ABCFOOoXYZ'",
+            "'XXXfOoOo'",
+            "foo",
+            {"FOOtball": 1, "ABCFOOoXYZ": 2, "XXXfOoOo": 3},
+        ),
+    ],
+)
+
 def test_query_topics_by_pattern_should_return_matching_results(
-    get_container_func, ports_config
+    get_container_func,
+    ports_config,
+    topic_1,
+    topic_2,
+    topic_3,
+    topic_pattern,
+    expected_result,
 ):
     get_container, image = get_container_func
 
@@ -550,27 +620,22 @@ def test_query_topics_by_pattern_should_return_matching_results(
         port_on_host = ports_config["port_on_host"]
         wait_for_connection(container, port_on_host)
         create_all_tables(container)
-
         with get_postgresqlfuncts(port_on_host) as postgresqlfuncts:
             query = f"""
                        INSERT INTO {TOPICS_TABLE}  (topic_name)
-                       VALUES ('football');
+                       VALUES ({topic_1});
                        INSERT INTO {TOPICS_TABLE} (topic_name)
-                       VALUES ('foobar');
+                       VALUES ({topic_2});
                        INSERT INTO {TOPICS_TABLE} (topic_name)
-                       VALUES ('xyzzzzzzzz');
+                       VALUES ({topic_3});
                     """
             seed_database(container, query)
-            expected = {"football": 1, "foobar": 2}
-            topic_pattern = "foo"
 
-            actual = postgresqlfuncts.query_topics_by_pattern(topic_pattern)
+            actual_result = postgresqlfuncts.query_topics_by_pattern(topic_pattern)
 
-            assert actual == expected
+            assert actual_result == expected_result
 
 
-@pytest.mark.postgresqlfuncts
-@pytest.mark.dbutils
 def test_create_aggregate_store_should_succeed(get_container_func, ports_config):
     get_container, image = get_container_func
 
@@ -596,8 +661,6 @@ def test_create_aggregate_store_should_succeed(get_container_func, ports_config)
             )
 
 
-@pytest.mark.postgresqlfuncts
-@pytest.mark.dbutils
 def test_insert_aggregate_stmt_should_succeed(get_container_func, ports_config):
     get_container, image = get_container_func
 
@@ -650,8 +713,6 @@ def test_insert_aggregate_stmt_should_succeed(get_container_func, ports_config):
             assert get_data_in_table(port_on_host, "avg_1776")[0] == expected_data
 
 
-@pytest.mark.postgresqlfuncts
-@pytest.mark.dbutils
 def test_collect_aggregate_stmt_should_return_rows(get_container_func, ports_config):
     get_container, image = get_container_func
 
@@ -680,8 +741,6 @@ def test_collect_aggregate_stmt_should_return_rows(get_container_func, ports_con
             assert actual_aggregate == expected_aggregate
 
 
-@pytest.mark.postgresqlfuncts
-@pytest.mark.dbutils
 def test_collect_aggregate_stmt_should_raise_value_error(
     get_container_func, ports_config
 ):
@@ -753,20 +812,6 @@ def create_historian_tables(container):
                 metadata TEXT NOT NULL);
             """
 
-    seed_database(container, query)
-
-    return
-
-
-def create_meta_data_table(container):
-    query = f"""
-                CREATE TABLE {METADATA_TABLE}
-                (table_id VARCHAR(512) PRIMARY KEY NOT NULL,
-                table_name VARCHAR(512) NOT NULL);
-                INSERT INTO {METADATA_TABLE} VALUES ('data_table', '{DATA_TABLE}');
-                INSERT INTO {METADATA_TABLE} VALUES ('topics_table', '{TOPICS_TABLE}');
-                INSERT INTO {METADATA_TABLE} VALUES ('meta_table', '{META_TABLE}');
-            """
     seed_database(container, query)
 
     return

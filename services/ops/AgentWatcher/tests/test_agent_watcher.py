@@ -36,11 +36,13 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
+import os
+import json
 import pytest
 import gevent
 
-
 from volttron.platform import get_ops, get_examples, jsonapi
+from volttron.platform.messaging.health import STATUS_GOOD
 
 WATCHER_CONFIG = {
     "watchlist": ["listener"],
@@ -49,6 +51,7 @@ WATCHER_CONFIG = {
 
 alert_messages = {}
 listener_uuid = None
+
 
 @pytest.fixture(scope='module')
 def platform(request, volttron_instance):
@@ -84,6 +87,10 @@ def platform(request, volttron_instance):
     def stop():
         volttron_instance.stop_agent(listener_uuid)
         volttron_instance.stop_agent(watcher_uuid)
+
+        volttron_instance.remove_agent(listener_uuid)
+        volttron_instance.remove_agent(watcher_uuid)
+
         agent.core.stop()
         alert_messages.clear()
 
@@ -108,3 +115,31 @@ def test_agent_watcher(platform):
     gevent.sleep(2)
 
     assert not alert_messages
+
+
+def test_default_config(volttron_instance):
+    """
+    Test the default configuration file included with the agent
+    """
+    publish_agent = volttron_instance.build_agent(identity="test_agent")
+    gevent.sleep(1)
+
+    config_path = os.path.join(get_ops("AgentWatcher"), "config")
+    with open(config_path, "r") as config_file:
+        config_json = json.load(config_file)
+    assert isinstance(config_json, dict)
+
+    volttron_instance.install_agent(
+        agent_dir=get_ops("AgentWatcher"),
+        config_file=config_json,
+        start=True,
+        vip_identity="health_test")
+
+    gevent.sleep(2)
+    assert not alert_messages
+
+    assert publish_agent.vip.rpc.call("health_test", "health.get_status").get(timeout=10).get('status') == STATUS_GOOD
+
+    volttron_instance.stop_agent(listener_uuid)
+    gevent.sleep(2)
+    assert alert_messages

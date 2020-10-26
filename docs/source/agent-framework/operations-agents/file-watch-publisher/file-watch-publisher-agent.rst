@@ -1,4 +1,4 @@
-FileWatchPulblisher Agent
+File Watch Publisher Agent
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
@@ -15,16 +15,18 @@ A simple configuration for FileWatchPublisher with two files to monitor is as fo
 
 ::
 
-    [
-        {
-            "file": "/var/log/syslog",
-            "topic": "platform/syslog"
-        },
-        {
-            "file": "/home/volttron/tempfile.txt",
-            "topic": "temp/filepublisher"
-        }
-    ]
+    {
+        "files": [
+            {
+                "file": "/var/log/syslog",
+                "topic": "platform/syslog"
+            },
+            {
+                "file": "/home/volttron/tempfile.txt",
+                "topic": "temp/filepublisher"
+            }
+        ]
+    }
 
 Using this example configuration, FileWatchPublisher will watch syslog and tempFile.txt files and
 publish the changes per line on their respective topics.
