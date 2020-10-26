@@ -1,8 +1,8 @@
-.. _Aggregate-Historian-Spec:
+.. _Aggregate-Historian-Specification:
 
-=======================================
-Aggregate Historian Agent Specification
-=======================================
+===================
+Aggregate Historian
+===================
 
 Description
 ===========
