@@ -1,118 +1,19 @@
-.. _IEEE2030_5-Agent:
+.. _IEEE-2030_5-Agent:
 
 =====================
 IEEE 2030.5 DER Agent
 =====================
 
-Version 1.0
+The IEEE 2030.5 Agent (IEEE2030_5 in the VOLTTRON repository) implements a IEEE 2030.5 server that receives HTTP
+`POST`/`PUT` requests from IEEE 2030.5 devices.  The requests are routed to the IEEE 2030.5 Agent over the VOLTTRON
+message bus by VOLTTRON's Master Web Service.  The IEEE 2030.5 Agent returns an appropriate HTTP response.  In some
+cases (e.g., DERControl requests), this response includes a data payload.
 
-Smart Energy Profile 2.0 (SEP2, IEEE 2030.5) specifies a REST architecture built around the core HTTP verbs: `GET`,
-`HEAD`, `PUT`, `POST` and `DELETE`.  A specification for the IEEE 2030.5 protocol can be found
-`here <https://standards.ieee.org/content/dam/ieee-standards/standards/web/documents/presentations/smart_energy_slides.pdf>`_.
-
-IEEE 2030.5 EndDevices (clients) `POST` XML resources representing their state, and `GET` XML resources containing
-command and control information from the server.  The server never reaches out to the client unless a "subscription" is
-registered and supported for a particular resource type. This implementation does not use IEEE 2030.5 registered
-subscriptions.
-
-The IEEE 2030.5 specification requires HTTP headers, and it explicitly requires RESTful response codes, for example:
-
-    -   201 - "Created"
-    -   204 - "No Content"
-    -   301 - "Moved Permanently"
-    -   etc.
-
-IEEE 2030.5 message encoding may be either XML or EXI.  Only XML is supported in this implementation.
-
-IEEE 2030.5 requires HTTPS/TLS version 1.2 along with support for the cipher suite `TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8`.
-Production installation requires a certificate issued by a IEEE 2030.5 CA.  The encryption requirement can be met by
-using a web server such as Apache to proxy the HTTPs traffic.
-
-IEEE 2030.5 discovery, if supported, must be implemented by an xmDNS server.  Avahi can be modified to perform this
-function.
-
-
-Function Sets
-=============
-
-IEEE 2030.5 groups XML resources into "Function Sets."  Some of these function sets provide a core set of functionality
-used across higher-level function sets.  This implementation implements resources from the following function sets:
-
-    -   Time
-    -   Device Information
-    -   Device Capabilities
-    -   End Device
-    -   Function Set Assignments
-    -   Power Status
-    -   Distributed Energy Resources
-
-
-Distributed Energy Resources
-============================
-
-Distributed energy resources (DERs) are devices that generate energy, e.g., solar inverters, or store energy, e.g.,
-battery storage systems, electric vehicle supply equipment (EVSEs).  These devices are managed by a IEEE 2030.5 DER
-server using DERPrograms which are described by the IEEE 2030.5 specification as follows:
-
-    Servers host one or more DERPrograms, which in turn expose DERControl events to DER clients.  DERControl instances
-    contain attributes that allow DER clients to respond to events that are targeted to their device type.  A DERControl
-    instance also includes scheduling attributes that allow DER clients to store and process future events.  These
-    attributes include start time and duration, as well an indication of the need for randomization of the start and /
-    or duration of the event.  The IEEE 2030.5 DER client model is based on the SunSpec Alliance Inverter Control Model
-    [SunSpec] which is derived from IEC 61850-90-7 [61850] and [EPRI].
-
-EndDevices post multiple IEEE 2030.5 resources describing their status.  The following is an example of a Power Status
-resource that might be posted by an EVSE (vehicle charging station):
-
-.. code-block:: xml
-
-    <PowerStatus xmlns="http://zigbee.org/sep" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" href="/sep2/edev/96/ps">
-        <batteryStatus>4</batteryStatus>
-        <changedTime>1487812095</changedTime>
-        <currentPowerSource>1</currentPowerSource>
-        <estimatedChargeRemaining>9300</estimatedChargeRemaining>
-        <PEVInfo>
-            <chargingPowerNow>
-                <multiplier>3</multiplier>
-                <value>-5</value>
-            </chargingPowerNow>
-            <energyRequestNow>
-                <multiplier>3</multiplier>
-                <value>22</value>
-            </energyRequestNow>
-            <maxForwardPower>
-                <multiplier>3</multiplier>
-                <value>7</value>
-            </maxForwardPower>
-            <minimumChargingDuration>11280</minimumChargingDuration>
-            <targetStateOfCharge>10000</targetStateOfCharge>
-            <timeChargeIsNeeded>9223372036854775807</timeChargeIsNeeded>
-            <timeChargingStatusPEV>1487812095</timeChargingStatusPEV>
-        </PEVInfo>
-    </PowerStatus>
-
-
-Design Details
---------------
-
-.. image:: files/volttron_ieee2030_5.jpg
-
-VOLTTRON's IEEE 2030.5 implementation includes a `IEEE2030_5` Agent and a IEEE 2030.5 device driver, as described below.
-
-
-VOLTTRON IEEE2030_5 Agent
-=========================
-
-The IEEE2030_5 Agent implements a IEEE 2030.5 server that receives HTTP `POST`/`PUT` requests from IEEE 2030.5 devices.
-The requests are routed to IEEE2030_5 Agent over the VOLTTRON message bus by VOLTTRON's Master Web Service.  The
-IEEE2030_5 Agent returns an appropriate HTTP response.  In some cases (e.g., DERControl requests), this response
-includes a data payload.
-
-The IEEE2030_5 Agent maps IEEE 2030.5 resource data to a VOLTTRON IEEE 2030.5 data model based on SunSpec, using block
+The IEEE 2030.5 Agent maps IEEE 2030.5 resource data to a VOLTTRON IEEE 2030.5 data model based on SunSpec, using block
 numbers and point names as defined in the SunSpec Information Model, which in turn is harmonized with 61850.  The data
 model is given in detail below.
 
-Each device's data is stored by the IEEE2030_5 Agent in an `EndDevice` memory structure.  This structure is not
+Each device's data is stored by the IEEE 2030.5 Agent in an `EndDevice` memory structure.  This structure is not
 persisted to a database.  Each `EndDevice` retains only the most recently received value for each field.
 
 The IEEE2030_5 Agent exposes RPC calls for getting and setting EndDevice data.
@@ -121,7 +22,7 @@ The IEEE2030_5 Agent exposes RPC calls for getting and setting EndDevice data.
 VOLTTRON IEEE 2030.5 Device Driver
 ----------------------------------
 
-The :ref:`IEEE 2030.5 device driver <IEEE2030_5-Driver>` is a new addition to VOLTTRON Master Driver Agent's
+The :ref:`IEEE 2030.5 device driver <IEEE-2030_5-Driver>` is a new addition to VOLTTRON Master Driver Agent's
 family of standard device drivers.  It exposes ``get_point``/``set_point calls`` for IEEE 2030.5 EndDevice fields.
 
 The IEEE 2030.5 device driver periodically issues IEEE2030_5 Agent RPC calls to refresh its cached representation of
@@ -208,13 +109,10 @@ The procedure for expanding the field mappings requires you to make changes in t
 When updating VOLTTRON's IEEE 2030.5 data model, please use field IDs that conform to the SunSpec
 block-number-and-field-name model outlined in the SunSpec Information Model Reference (see the link below).
 
+View the :ref:`IEEE 2030.5 agent specification document <IEEE-2030_5-Specification>` to learn more about IEEE 2030.5 and
+the IEEE 2030.5 agent and driver.
 
-For Further Information
------------------------
 
-SunSpec References:
+.. toctree::
 
-    -   Information model specification: http://sunspec.org/wp-content/uploads/2015/06/SunSpec-Information-Models-12041.pdf
-    -   Information model reference spreadsheet: http://sunspec.org/wp-content/uploads/2015/06/SunSpec-Information-Model-Reference.xlsx
-    -   Inverter models: http://sunspec.org/wp-content/uploads/2015/06/SunSpec-Inverter-Models-12020.pdf
-    -   Energy storage models: http://sunspec.org/wp-content/uploads/2015/06/SunSpec-Energy-Storage-Models-12032.pdf
+   ieee-2030_5-specification

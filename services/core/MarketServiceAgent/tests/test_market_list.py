@@ -54,7 +54,7 @@ except ImportError:
 @pytest.mark.market
 def test_market_participants_no_market():
     market_list = MarketList()
-    assert market_list.has_market('no_market') == False
+    assert market_list.has_market('no_market') is False
 
 
 @pytest.mark.market
@@ -63,14 +63,14 @@ def test_market_participants_has_market():
     market_name = 'test_market'
     seller_participant = MarketParticipant(SELLER, 'agent_id')
     market_list.make_reservation(market_name, seller_participant)
-    assert market_list.has_market(market_name) == True
+    assert market_list.has_market(market_name) is True
 
 
 @pytest.mark.market
 def test_market_participants_market_not_formed_no_market():
     market_list = MarketList()
     market_name = 'test_market'
-    assert market_list.has_market_formed(market_name) == False
+    assert market_list.has_market_formed(market_name) is False
 
 
 @pytest.mark.market
@@ -79,7 +79,7 @@ def test_market_participants_market_not_formed_one_seller():
     market_name = 'test_market'
     seller_participant = MarketParticipant(SELLER, 'agent_id')
     market_list.make_reservation(market_name, seller_participant)
-    assert market_list.has_market_formed(market_name) == False
+    assert market_list.has_market_formed(market_name) is False
 
 
 @pytest.mark.market
@@ -127,4 +127,3 @@ def test_market_unformed_market_list():
     assert market_list.market_count() == 2
     unformed_markets = market_list.unformed_market_list()
     assert len(unformed_markets) > 0
-
