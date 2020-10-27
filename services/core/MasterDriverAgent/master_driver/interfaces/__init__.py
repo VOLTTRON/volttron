@@ -67,7 +67,7 @@ Creating a New Interface
 To create a new device driver create a new module in the
 :py:mod:`MasterDriverAgent.master_driver.interfaces` package. The name of
 this module will be the name to use in the "driver_type" setting in
-a :ref:`driver configuration file <river-configuration-file>` in order to
+a :ref:`driver configuration file <Driver-configuration-file>` in order to
 load the new driver.
 
 In the new module create a subclass of :py:class:`BaseInterface` called `Interface`.
@@ -93,7 +93,7 @@ as needed to represent the points on a device.
 Interface Configuration and Startup
 -----------------------------------
 
-When processing a :ref:`driver configuration file <river-configuration-file>`
+When processing a :ref:`driver configuration file <Driver-configuration-file>`
 the Master Driver Agent will use the "driver_type" setting to automatically find and load the
 appropriate ``Interface`` class for the desired driver.
 
