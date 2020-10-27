@@ -79,7 +79,6 @@ be inverted using ``--no-autostart``).
 
 .. _VOLTTRON-Config:
 
-===============
 VOLTTRON Config
 ===============
 

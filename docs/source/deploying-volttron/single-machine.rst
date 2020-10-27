@@ -261,10 +261,6 @@ To test that the configuration was successful, start an instance of VOLTTRON in 
 
         This command must be run from the root VOLTTRON directory.
 
-
-Command Line
-------------
-
 Having following the examples above, the platform should be ready for demonstrating the example deployment.  Start
 the Listener, SQLite historian and Master Driver.
 
