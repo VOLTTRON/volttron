@@ -62,7 +62,8 @@ at our bi-weekly office-hours and on Slack. To be invited to office-hours or sla
    :titlesonly:
    :maxdepth: 1
 
-   deploying-volttron/deployment-overview
+   deploying-volttron/bootstrap-process
+   deploying-volttron/deployment-planning-options
    deploying-volttron/single-machine
    deploying-volttron/multi-platform/multi-platform
    deploying-volttron/linux-system-hardening
@@ -90,8 +91,9 @@ at our bi-weekly office-hours and on Slack. To be invited to office-hours or sla
    :maxdepth: 1
 
    driver-framework/drivers-overview
-   driver-framework/fake-driver/fake-driver
+   driver-framework/master-driver/master-driver
    driver-framework/actuator/actuator-agent
+   driver-framework/fake-driver/fake-driver
    driver-framework/bacnet/bacnet-driver
    driver-framework/chargepoint/chargepoint-driver
    driver-framework/dnp3-driver/dnp3-driver

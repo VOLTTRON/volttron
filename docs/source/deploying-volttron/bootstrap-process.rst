@@ -1,40 +1,29 @@
-.. _Bootstrap-Options:
+.. _Bootstrap-Process:
 
-VOLTTRON Bootstrap Script
-=========================
+=================
+Bootstrap Process
+=================
 
-The bootstrap.py Python script in the root directory of the VOLTTRON repository may be used to create
+The `bootstrap.py` Python script in the root directory of the VOLTTRON repository may be used to create
 VOLTTRON's Python virtual environment and install or update VOLTTRON dependencies into the virtual
 environment.
 
 Bootstrapping is broken into two stages. The first stage should only be invoked once per virtual
-environment. It downloads Virtualenv and creates a virtual Python environment in the virtual
+environment.  It downloads Virtualenv and creates a virtual Python environment in the virtual
 environment directory (defaults to a subdirectory named env in the same directory as this script).
-It then executes stage two using the newly installed virtual environment. Stage two uses the
+It then executes stage two using the newly installed virtual environment.  Stage two uses the
 new virtual Python environment to install VOLTTRON and its dependencies.
 
 If a new dependency is added, this script may be run again using the Python executable in the
 virtual environment to re-run stage two:
 
-  env/bin/python bootstrap.py
+.. code-block:: bash
 
-To speed up bootstrapping in a test environment, use the --wheel feature, which might look something
-like this:
+   python bootstrap.py --force
 
-  $ export PIP_WHEEL_DIR=/path/to/cache/wheelhouse
-  $ export PIP_FIND_LINKS=file://$PIP_WHEEL_DIR
-  $ mkdir -p $PIP_WHEEL_DIR
-  $ python2.7 bootstrap.py -o
-  $ env/bin/python bootstrap.py --wheel
-  $ env/bin/python bootstrap.py
-
-Instead of setting the environment variables, a pip configuration file may be used. Look here for more
-information on configuring pip:
-
-  https://pip.pypa.io/en/latest/user_guide.html#configuration
 
 Bootstrap Options
------------------
+=================
 
 To facilitate bootstrapping the various configurations of the VOLTTRON platform, the bootstrap script
 provides several options. Options exist for each message bus, specifying a new environment, updating
@@ -66,7 +55,7 @@ These options may be invoked to alter the operation of the bootstrap script.
 
 
 Optional Arguments
-~~~~~~~~~~~~~~~~~~
+------------------
 
 These options can be added to the command to run the bootstrap script to cause the process to produce
 varying levels of output during operation.
@@ -81,7 +70,7 @@ varying levels of output during operation.
     -v, --verbose: This option will cause the bootstrap script to produce additional output.
 
 Packaging Arguments
-~~~~~~~~~~~~~~~~~~~
+-------------------
 
 Packaging arguments can be added to the bootstrap argument list to specify an additional set of packages
 to install beyond those required for "vanilla" VOLTTRON. Multiple packaging arguments can be specified

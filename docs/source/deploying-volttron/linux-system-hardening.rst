@@ -22,8 +22,8 @@ the underlying Linux platform that VOLTTRON is deployed to.
    the appropriate corresponding mitigation techniques.
 
 
-Linux System Hardening
-======================
+Recommendations
+===============
 
 Here are the non-exhaustive recommendations for Linux hardening from the VOLTTRON team:
 

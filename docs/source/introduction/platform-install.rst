@@ -132,7 +132,7 @@ code or want the latest updates as they happen. In order of decreasing stability
 Step 3 - Setup virtual environment
 ==================================
 
-The :ref:`bootstrap.py <Bootstrap-Options>` script in the VOLTTRON root directory will create a
+The :ref:`bootstrap.py <Bootstrap-Process>` script in the VOLTTRON root directory will create a
 `virtual environment <https://docs.python-guide.org/dev/virtualenvs/>`_ and install the package's Python dependencies.
 Options exist for upgrading or rebuilding existing environments, and for adding additional dependencies for optional
 drivers and agents included in the repository.
@@ -250,7 +250,7 @@ documentation refers to the directory `<install dir>/rabbitmq_server-3.7.7` as `
 
 .. note::
 
-   There are many additional :ref:`options for bootstrap.py <Bootstrap-Options>` for including dependencies, altering
+   There are many additional :ref:`options for bootstrap.py <Bootstrap-Process>` for including dependencies, altering
    the environment, etc.
 
 You can check if the RabbitMQ server is installed by checking its status:
@@ -427,7 +427,6 @@ or use the included `stop-volttron` script:
         #To start the platform in the background and redirect stderr and stdout
         #to /dev/null
         volttron -vv -l volttron.log > /dev/null 2>&1&
-
 
 
 Installing and Running Agents

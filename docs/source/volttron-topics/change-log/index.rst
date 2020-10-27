@@ -12,6 +12,5 @@ message bus implementation. For information on specific changes, please refer to
 
    message-bus-refactor/index
    scalability/scalability
-   pubsub-enhancement
    version-history
    upgrading-versions

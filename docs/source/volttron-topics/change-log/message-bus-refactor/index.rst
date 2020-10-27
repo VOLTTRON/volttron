@@ -26,5 +26,4 @@ The goal of the message bus refactor task is to
    rabbitmq-overview
    message-bus-plugin
    rabbitmq-refactor
-   agent-communication-rabbitmq
    rabbitmq-ssl-auth

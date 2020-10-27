@@ -173,20 +173,20 @@ Open browser and go to master admin authentication page `https://central:8443/in
 
 Click on "Login To Admistration Area".
 
-.. image:: images/csr-initial-state.png
+.. image:: files/csr-initial-state.png
 
 Set the master admin username and password. This can be later used to login into master admin authentication page.
 This username and password will also be used to log in to Volttron Central.
 
-.. image:: images/csr-set-admin.png
+.. image:: files/csr-set-admin.png
 
 Login into the Master Admin page.
 
-.. image:: images/csr-login-page.png
+.. image:: files/csr-login-page.png
 
 After logging in, you will see no CSR requests initially.
 
-.. image:: images/central_no_pending.png
+.. image:: files/central_no_pending.png
 
 Go back to the terminal and start Volttron Central Platform agent on the "central" instance. The agent will send a CSR
 request to the web interface.
@@ -198,7 +198,7 @@ request to the web interface.
 Now go to master admin page to check if there is a new pending CSR request. You will see a "PENDING" request from
 "central.central.platform.agent"
 
-.. image:: images/central_pending.png
+.. image:: files/central_pending.png
 
 Approve the CSR request to allow authenticated SSL based connection to the "central" instance.
 
@@ -265,7 +265,7 @@ Start Volttron Central Platform on this platform manually.
 Check the VOLTTRON log in the "central" instance, you will see "authentication failure" entry from the incoming
 connection. You will need to add the public key of VCP agent on the "central" instance.
 
-.. image:: images/vc-auth-failure.png
+.. image:: files/vc-auth-failure.png
 
 
 At this point, you can either accept the connection through the admin page or the command line.
@@ -274,7 +274,7 @@ Using the admin page:
 
 Navigate back to the master admin authentication page. You should see a pending request under the ZMQ Keys Pending Authorization header.
 
-.. image:: images/zmq_pending_credential_1.png
+.. image:: files/zmq_pending_credential_1.png
 
 Accept the credential in the same method as a CSR.
 
@@ -321,7 +321,7 @@ To accept the credential using the admin page:
 
 Navigate back to the master admin authentication page. You should see another pending request under the ZMQ Keys Pending Authorization header.
 
-.. image:: images/zmq_pending_credential_2.png
+.. image:: files/zmq_pending_credential_2.png
 
 Accept this credential in the same method as before.
 
@@ -344,7 +344,7 @@ Add auth entry corresponding to VCP agent on **central** instance.
 
 In either case, you should start seeing messages from "collector1" instance on the "central" instance's VOLTTRON log now.
 
-.. image:: images/vc-collector1-forwarder.png
+.. image:: files/vc-collector1-forwarder.png
 
 
 Node-RMQ Instance Setup
@@ -452,7 +452,7 @@ Start Volttron Central Platform on this platform manually.
 Go the master admin authentication page and check if there is a new pending CSR request from VCP agent of "collector2"
 instance.
 
-.. image:: images/remote_rmq_pending.png
+.. image:: files/remote_rmq_pending.png
 
 
 Approve the CSR request to allow authenticated SSL based connection to the "central" instance.
@@ -478,11 +478,11 @@ Start forwarder agent.
 Go the master admin authentication page and check if there is a new pending CSR request from forwarder agent of "collector2"
 instance.
 
-.. image:: images/rmq_remote_forwarder_pending.png
+.. image:: files/rmq_remote_forwarder_pending.png
 
 Approve the CSR request to allow authenticated SSL based connection to the "central" instance.
 
-.. image:: images/rmq_remote_forwarder_accepted.png
+.. image:: files/rmq_remote_forwarder_accepted.png
 
 Now go back to the terminal and check the status of forwarder agent. It should be set to "GOOD".
 
@@ -490,7 +490,7 @@ Now go back to the terminal and check the status of forwarder agent. It should b
 Check the VOLTTRON log of "central" instance. You should see messages with "devices" topic coming from "collector2"
 instance.
 
-.. image:: images/vc-collector2-forwarder.png
+.. image:: files/vc-collector2-forwarder.png
 
 
 
@@ -499,4 +499,4 @@ To confirm that VolttronCentral is monitoring the status of all the 3 platforms,
 configuration step (using vcfg command in "central" instance). Click on "platforms" tab in the far right corner. You
 should see all three platforms listed in that page. Click on each of the platforms and check the status of the agents.
 
-.. image:: images/vc_platforms.png
+.. image:: files/vc_platforms.png
