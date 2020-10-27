@@ -39,6 +39,7 @@
 
 import pytest
 import os
+import yaml
 import json
 import requests
 
@@ -144,6 +145,26 @@ def test_websocket_open_authenticate(mock_vc_jsonrpc, mock_jsonrpc_env):
     print("BREAK")
     assert True
 
+@pytest.mark.vc
+def test_default_config(volttron_instance):
+    """
+    Test the default configuration file included with the agent
+    """
+    publish_agent = volttron_instance.build_agent(identity="test_agent")
+    gevent.sleep(1)
+
+    config_path = os.path.join(get_services_core("VolttronCentral"), "config")
+    with open(config_path, "r") as config_file:
+        config_json = yaml.safe_load(config_file)
+    assert isinstance(config_json, dict)
+
+    volttron_instance.install_agent(
+        agent_dir=get_services_core("VolttronCentral"),
+        config_file=config_json,
+        start=True,
+        vip_identity="health_test")
+
+    assert publish_agent.vip.rpc.call("health_test", "health.get_status").get(timeout=10).get('status') == STATUS_GOOD
 
 #
 # def test_platform_was_registered(vc_and_vcp_together):
@@ -290,25 +311,3 @@ def test_websocket_open_authenticate(mock_vc_jsonrpc, mock_jsonrpc_env):
 #     # peers = agent.vip.peerlist().get(timeout=2)
 #     # assert "volttron.central" in peers
 #
-
-
-@pytest.mark.vc
-def test_default_config(volttron_instance):
-    """
-    Test the default configuration file included with the agent
-    """
-    publish_agent = volttron_instance.build_agent(identity="test_agent")
-    gevent.sleep(1)
-
-    config_path = os.path.join(get_services_core("VolttronCentral"), "config")
-    with open(config_path, "r") as config_file:
-        config_json = json.load(config_file)
-    assert isinstance(config_json, dict)
-
-    volttron_instance.install_agent(
-        agent_dir=get_services_core("VolttronCentral"),
-        config_file=config_json,
-        start=True,
-        vip_identity="health_test")
-
-    assert publish_agent.vip.rpc.call("health_test", "health.get_status").get(timeout=10).get('status') == STATUS_GOOD

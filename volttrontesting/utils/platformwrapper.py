@@ -459,7 +459,7 @@ class PlatformWrapper:
             gevent.spawn(agent.core.run, event)  # .join(0)
             event.wait(timeout=2)
             gevent.sleep(2)
-            hello = agent.vip.hello().get(timeout=15)
+            hello = agent.vip.hello().get(timeout=30)
             assert len(hello) > 0
 
         agent.publickey = publickey

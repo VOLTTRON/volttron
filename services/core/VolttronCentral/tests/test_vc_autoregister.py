@@ -43,18 +43,20 @@ def multi_messagebus_vc_vcp(volttron_multi_messagebus):
 
     yield vcp_instance, vc_instance, vcp_uuid
 
-    # vcp_instance.remove_agent(vcp_uuid)
-    # vc_instance.remove_agent(vc_uuid)
+    vcp_instance.remove_agent(vcp_uuid)
+    vc_instance.remove_agent(vc_uuid)
 
-
+@pytest.mark.timeout(360)
 def test_able_to_register_unregister(multi_messagebus_vc_vcp):
-    gevent.sleep(10)
+    gevent.sleep(20)
     vcp_instance, vc_instance, vcp_uuid = multi_messagebus_vc_vcp
 
     apitester = APITester(vc_instance)
 
     platforms = apitester.list_platforms()
-
+    assert vc_instance.is_running()
+    assert vcp_instance.is_running()
+    gevent.sleep(10)
     assert len(platforms) == 1
     platform = platforms[0]
 
