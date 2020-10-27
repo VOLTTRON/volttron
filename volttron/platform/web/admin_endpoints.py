@@ -166,8 +166,6 @@ class AdminEndpoints(object):
         except NotAuthorized:
             _log.error("Unauthorized user attempted to connect to {}".format(env.get('PATH_INFO')))
             return Response('<h1>Unauthorized User</h1>', status="401 Unauthorized")
-        except Exception as e:
-            _log.error("Exception hit! {}".format(e))
 
         # Make sure we have only admins for viewing this.
         if 'admin' not in claims.get('groups'):
