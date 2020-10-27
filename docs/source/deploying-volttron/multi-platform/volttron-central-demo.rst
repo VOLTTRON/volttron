@@ -1,8 +1,8 @@
-.. _VOLTTRON-Central-Demo:
+.. _VOLTTRON-Central-Deployment:
 
-=====================
-VOLTTRON Central Demo
-=====================
+===========================
+VOLTTRON Central Deployment
+===========================
 
 VOLTTRON Central is a platform management web application that allows
 platforms to communicate and to be managed from a centralized server.
@@ -50,7 +50,10 @@ This helps us keep from losing terminal windows or duplicating work.
 |Terminator Setup|
 
 One of our instances will have a VOLTTRON Central agent. We will install a
-platform agent and a historian on all three platforms.
+platform agent and a historian on all three platforms. Please note, for this demo
+all the instances run on ZeroMQ messages. For multi-platform, multi-bus deployment
+setup please follow the steps described in :ref:`Multi Platform Multi-Bus Deployment <Multi-Platform-Multi-Bus>`.
+
 
 Run `vcfg` in the first shell. This command will ask how the instance
 should be set up. Many of the options have defaults that will be sufficient.
@@ -143,6 +146,7 @@ Install a platform agent and a historian as before. Since we used the default
 options when configuring VOLTTRON Central, we can use the default options when
 configuring these platform agents as well. The configuration will be a little
 different. The example below is for the second volttron instance. Note the unique VIP address and instance name.
+Please ensure the web-address of the volttron central is configured correctly.
 
 
  .. code-block:: console
@@ -224,17 +228,49 @@ or
         In each of the above examples one could use * suffix to match more 
         than one agent.
 
-Open your browser to the web address that you specified for the VOLTTRON Central agent that you configured for the
-first instance. The web address is the admin web interface to Volttron; it is defined in the configuration of the
-first instance. In the above examples, the configuration file would be located at `~/.volttron1/config` and the
-admin web interface would be defined in the "volttron-central-address" field. The address takes the pattern:
-`https://<localhost>:8443/index.html`, where localhost is the local host of your machine.
-In the above examples, our localhost is `volttron-pc`; thus our admin web interface would be `https://volttron-pc:8443/index.html`.
 
-When you open the page for the first time, Volttron will prompt you to create a new user and password. Recall when you
-ran `vcfg` in the first shell to configure the VOLTTRON Central agent, the script displayed
-the message "VC admin and password are set up using the admin web interface." This is where you setup you admin name
-and password.
+VOLTTRON Admin
+--------------
+
+The admin page is used to set the master username and password for both admin page and VOLTTRON Central page. Admin page
+can then be used to manage RMQ and ZMQ certificates and credentials.
+
+Open a web browser and navigate to https://volttron-pc:8443/admin/login.html
+
+There may be a message warning about a potential security risk. Check to see if the certificate
+that was created in vcfg is being used. The process below is for firefox.
+
+|vc-cert-warning-1|
+
+.. |vc-cert-warning-1| image:: files/vc-cert-warning-1.png
+
+|vc-cert-warning-2|
+
+.. |vc-cert-warning-2| image:: files/vc-cert-warning-2.png
+
+|vc-cert-warning-3|
+
+.. |vc-cert-warning-3| image:: files/vc-cert-warning-3.png
+
+|vc-cert-warning-4|
+
+.. |vc-cert-warning-4| image:: files/vc-cert-warning-4.png
+
+When the admin page is accessed for the first time, the user will be prompted to set up a master
+username and password.
+
+|admin-page-login|
+
+.. |admin-page-login| image:: files/volttron-admin-page.png
+
+
+Open your browser to the web address that you specified for the VOLTTRON Central agent that you configured for the
+first instance. In the above examples, the configuration file would be located at `~/.volttron1/config` and the
+VOLTTRON Central address would be defined in the "volttron-central-address" field. The VOLTTRON Central address takes the
+pattern: `https://<localhost>:8443/vc/index.html`, where localhost is the hostname of your machine.
+In the above examples, our hostname is `volttron-pc`; thus our VC interface would be `https://volttron-pc:8443/vc/index.html`.
+
+You will need to provide the username and password set earlier through admin web page.
 
 
 Stopping the Demo
@@ -257,7 +293,7 @@ Log In
 ------
 
 To log in to VOLTTRON Central, open a browser and login to the Volttron web interface, which takes the form
-`https://localhost:8443/vc/index.html` where localhost is the local host of your machine. In the above example, we open the
+`https://localhost:8443/vc/index.html` where localhost is the hostname of your machine. In the above example, we open the
 following URL in which our localhost is "volttron-pc": https://volttron-pc:8443/vc/index.html and enter the user name
 and password on the login screen.
 
@@ -466,41 +502,7 @@ removes it from the Charts page and the Dashboard.
 .. |Inspect Chart| image:: files/inspect-charts.png
 
 
-VOLTTRON Admin
---------------
 
-The admin page allows the user to manage RMQ and ZMQ certificates and credentials.
-
-Open a web browser and navigate to https://volttron-pc:8443/admin/login.html
-
-There may be a message warning about a potential security risk. Check to see if the certificate
-that was created in vcfg is being used. The process below is for firefox.
-
-|vc-cert-warning-1|
-
-.. |vc-cert-warning-1| image:: files/vc-cert-warning-1.png
-
-|vc-cert-warning-2|
-
-.. |vc-cert-warning-2| image:: files/vc-cert-warning-2.png
-
-|vc-cert-warning-3|
-
-.. |vc-cert-warning-3| image:: files/vc-cert-warning-3.png
-
-|vc-cert-warning-4|
-
-.. |vc-cert-warning-4| image:: files/vc-cert-warning-4.png
-
-When the admin page is accessed for the first time, the user will be prompted to set up a master
-username and password.
-
-|admin-page-login|
-
-.. |admin-page-login| image:: files/volttron-admin-page.png
-
-
-This will allow the user to log into both the admin page and VOLTTRON Central.
 
 
 VOLTTRON Central
