@@ -106,8 +106,9 @@ class ListenerAgent(Agent):
             self.vip.health.set_status(STATUS_GOOD, self._message)
         query = Query(self.core)
         _log.info('query: %r', query.query('serverkey').get())
+        self.vip.pubsub.subscribe('pubsub', 'devices', self.on_match, bus='', all_platforms=True)
 
-    @PubSub.subscribe('pubsub', '')
+    #@PubSub.subscribe('pubsub', '')
     def on_match(self, peer, sender, bus, topic, headers, message):
         """Use match_all to receive all messages and print them out."""
         self._logfn(
