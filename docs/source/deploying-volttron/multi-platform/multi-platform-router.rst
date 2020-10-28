@@ -1,11 +1,11 @@
-.. _Multi-Platform-Deployment:
+.. _Multi-Platform-Router-Deployment:
 
-==============
-Multi-Platform
-==============
+==============================
+Multi-Platform Between Routers
+==============================
 
-Multi-Platform message bus communication alleviates the need for an agent in one platform to connect to another platform
-directly in order for it to send/receive messages from the other platform.  With multi-platform communication,
+Multi-Platform between routers alleviates the need for an agent in one platform to connect to another platform
+directly in order for it to send/receive messages from the other platform. Instead with this new type of connection,
 connections to external platforms will be maintained by the platforms itself and agents do not have the burden to manage
 the connections directly.  This guide will show how to connect three VOLTTRON instances with a fake driver running on
 VOLTTRON instance 1 publishing to topic with prefix="devices" and listener agents running on other 2 VOLTTRON instances
@@ -266,9 +266,4 @@ to listen on:
     remote platform.
 
 
-.. toctree::
 
-    forward-historian-deployment
-    multi-platform-rabbitmq-deployment
-    multi-platform-multi-bus
-    volttron-central-demo
