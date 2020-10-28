@@ -79,18 +79,19 @@ Full options:
 
 volttron-ctl Commands
 =====================
-volttron-ctl is used to issue commands to the platform from the command line. Through
-volttron-ctl it is possible to install and removed agents, start and stop agents,
+
+`volttron-ctl` is used to issue commands to the platform from the command line.  Through
+`volttron-ctl` it is possible to install and removed agents, start and stop agents,
 manage the configuration store, get the platform status, and shutdown the platform.
 
-In more recent versions of VOLTTRON, the commands 'vctl', 'vpkg', and 'vcfg' have been added to be used as a stand-in
-for 'volttron-ctl', 'volttron-pkg', and 'volttron-cfg' in the CLI.  The VOLTTRON documentation will often use this
+In more recent versions of VOLTTRON, the commands `vctl`, `vpkg`, and `vcfg` have been added to be used as a stand-in
+for `volttron-ctl`, `volttron-pkg`, and `volttron-cfg` in the CLI.  The VOLTTRON documentation will often use this
 convention.
 
 .. warning::
 
-    volttron-ctl creates a special temporary agent ito communicate with the platform with a specific VIP IDENTITY, thus
-    multiple instances of volttron-ctl cannot run at the same time.  Attempting to do so will result in a conflicting
+    `volttron-ctl` creates a special temporary agent to communicate with the platform with a specific VIP IDENTITY, thus
+    multiple instances of `volttron-ctl` cannot run at the same time.  Attempting to do so will result in a conflicting
     identity error.
 
 .. code-block:: console
@@ -170,8 +171,9 @@ vctl config subcommands
         list                list stores or configurations in a store
         get                 get the contents of a configuration
 
+
 rpc subcommands
-~~~~~~~~~~~~
+---------------
 
 .. code-block:: console
 
@@ -185,6 +187,7 @@ rpc subcommands
           -v, --verbose         list all subsystem rpc methods in addition to the
                                 agent's rpc methods. If a method is specified, display
                                 the doc-string associated with the method.
+
 
 vpkg Commands
 -------------
@@ -208,7 +211,7 @@ vpkg Commands
                         agent.
         configure           add a configuration file to an agent package
 
-vpkg commands (with Volttron Restricted package installed and enabled):
+`vpkg` commands (with Volttron Restricted package installed and enabled):
 
 .. code-block:: console
 
@@ -246,7 +249,7 @@ vpkg commands (with Volttron Restricted package installed and enabled):
 volttron-cfg Commands
 ---------------------
 
-volttron-cfg (vcfg) is a tool aimed at making it easier to get up and running with VOLTTRON and a handful of agents.
+`volttron-cfg` (`vcfg`) is a tool aimed at making it easier to get up and running with VOLTTRON and a handful of agents.
 Running the tool without any arguments will start a *wizard* with a walk through for setting up instance configuration
 options and available agents.  If only individual agents need to be configured they can be listed at the command line.
 
