@@ -85,3 +85,8 @@ driver directory.
 
 A sample Chargepoint registry file can be found in the VOLTTRON repository in
 ``examples/configurations/drivers/chargepoint.csv``
+
+
+.. toctree::
+
+   chargepoint-specification

@@ -8,7 +8,7 @@ Operations agents assist with the operations of the platform systems and provide
 environmental conditions.  For details on each, please refer to the corresponding documents.
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
 
    emailer/emailer-agent
    failover/failover

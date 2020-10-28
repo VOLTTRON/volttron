@@ -1,8 +1,8 @@
-.. _TaggingServiceSpec:
+.. _Tagging-Service-Specification:
 
-===========================
-Tagging agent specification
-===========================
+===============
+Tagging Service
+===============
 
 ***********
 Description
