@@ -60,7 +60,7 @@ The prefix can be a regular expression.
     The static path should point to a location within the installed agent's agent-data directory.
     You MUST have read access to the directory.
 
-The below example is based on the registered static route in the SimpleWebAgent.
+The below example is based on the registered route in VolttronCentral.
 
 
 .. code-block:: python
@@ -70,13 +70,11 @@ The below example is based on the registered static route in the SimpleWebAgent.
         """
         Allow serving of static content from 'webroot'
         """
-        # Sets MY_PATH to be the path of the installed agent.
-        MY_PATH = os.path.dirname(__file__)
-        # Sets WEBROOT to be the path to the webroot directory
-        # in the agent-data directory of the installed agent.
-        WEBROOT = os.path.join(MY_PATH, "webroot")
+        # Sets WEB_ROOT to be the path to the webroot directory
+        # in the agent-data directory of the installed agent..
+        WEB_ROOT = os.path.abspath(p.abspath(p.join(p.dirname(__file__), 'webroot/')))
         # Serves the static content from 'webroot' directory
-        self.vip.web.register_path("/simpleweb", WEBROOT)
+        self.vip.web.register_path(r'^/vc/.*', WEB_ROOT)
 
 
 Endpoint
@@ -110,33 +108,23 @@ Client connections can be authenticated during the opening of a websocket throug
 
 .. code-block:: python
 
-    def open_authenticate_ws_endpoint(self, fromip, endpoint):
+    def open_authenticate_ws_endpoint(self, username, password, endpoint):
+        """ Authenticate that the user is known to the system.
+
+        Return True if the user is known  and opens the websocketotherwise returns False.
+        :param username:
+        :param password:
+        :return: list(groups) or None
         """
-        Callback method from when websockets are opened.  The endpoine must
-        be '/' delimited with the second to last section being the session
-        of a logged in user to volttron central itself.
-
-        :param fromip:
-        :param endpoint:
-            A string representing the endpoint of the websocket.
-        :return:
-        """
-        _log.debug("OPENED ip: {} endpoint: {}".format(fromip, endpoint))
-        try:
-            session = endpoint.split('/')[-2]
-        except IndexError:
-            _log.error("Malformed endpoint. Must be delimited by '/'")
-            _log.error(
-                'Endpoint must have valid session in second to last position')
-            return False
-
-        if not self._authenticated_sessions.check_session(session, fromip):
-            _log.error("Authentication error for session!")
-            return False
-
-        _log.debug('Websocket allowed.')
-        self._websocket_endpoints.add(endpoint)
-        return True
+        if username in self.users.keys():
+            # Do a naive hash of the user supplied password and if success return
+            # the groups that the user holds.
+            if self.users[username]['password'] == hashlib.sha512(password).hexdigest():
+                _log.debug('Websocket allowed.')
+                self._websocket_endpoints.add(endpoint)
+                return True
+        _log.error("Authentication error for session!")
+        return False
 
     def _ws_closed(self, endpoint):
         _log.debug("CLOSED endpoint: {}".format(endpoint))
