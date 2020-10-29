@@ -23,9 +23,17 @@ will be created in `$VOLTTRON_HOME/config`.  The following is an example configu
 
     [volttron]
     message-bus = rmq
-    instance-name = volttron-instance01
+    instance-name = volttron1
     vip-address = tcp://127.0.0.1:22916
-    volttron-central-address = https://<remote>:8443
+    bind-web-address = https://<hostname>:8443
+    volttron-central-address = https://<hostname>:8443
+
+where 
+**message-bus** - Indicates message bus to be used. Valid values are ``zmq`` and ``rmq``
+**instance-name** - Name of the VOLTTRON instance. This has to be unique if multiple instances need to be connected together
+**vip-address** - VIP address of the VOLTTRON instance. It contains the IP address and port number (default port number is 22916)
+**bind-web-address** - Optional parameter, only needed if VOLTTRON instance needs a web interface
+**volttron-central-address** - Optional parameter. Web address of VOLTTRON Central agent
 
 .. note::
 
@@ -72,7 +80,7 @@ volttron Optional Arguments
 - **--verboseness LEVEL** - set logger verboseness level
 - **-h, --help** - show this help message and exit
 - **--version** - show program's version number and exit
-- **--message-bus MESSAGE_BUS** - set message to be used. valid values are ``zmq`` and ``rmq``
+- **--message-bus MESSAGE_BUS** - set message bus to be used. valid values are ``zmq`` and ``rmq``
 
 .. note::
 
