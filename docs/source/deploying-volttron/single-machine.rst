@@ -266,7 +266,7 @@ the Listener, SQLite historian and Master Driver.
 
 .. code-block:: console
 
-   vctl start listener platform_historian master_driver
+   vctl start --tag listener platform_historian master_driver
 
 The output should look similar to this:
 
