@@ -296,7 +296,7 @@ for a sample configuration file.  At a minimum you will need to provide the host
 
 .. note::
 
-    common-name must be unique and the general convention is to use `<voltttron instance name>-root-ca`.
+    common-name must be unique and the general convention is to use `<volttron instance name>-root-ca`.
 
 Running the above command without the optional configuration file parameter will cause the user user to be prompted for
 all the required data in the command prompt. "vcfg" will use that data to generate a rabbitmq_config.yml file in the
@@ -488,5 +488,5 @@ platform:
 
 *   :ref:`Agent Framework <Agent-Framework>`
 *   :ref:`Driver Framework <Driver-Framework>`
-*   Demonstration of the :ref:`management UI <VOLTTRON-Central-Demo>`
+*   Demonstration of the :ref:`management UI <Device-Configuration-in-VOLTTRON-Central>`
 *   :ref:`RabbitMQ setup <RabbitMQ-Overview>` with Federation and Shovel plugins

@@ -66,7 +66,7 @@ at our bi-weekly office-hours and on Slack. To be invited to office-hours or sla
    deploying-volttron/platform-configuration
    deploying-volttron/deployment-planning-options
    deploying-volttron/single-machine
-   deploying-volttron/multi-platform/multi-platform
+   deploying-volttron/multi-platform/index
    deploying-volttron/linux-system-hardening
 
 

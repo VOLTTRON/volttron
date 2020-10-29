@@ -168,6 +168,55 @@ Here are the non-exhaustive recommendations for Linux hardening from the VOLTTRO
    `mod_evasive` modules.
 
 
+Raspberry Pi
+------------
+
+System hardening recommendations for Raspberry Pi closely match those for other Linux operating systems such as Ubuntu.
+VOLTTRON has only been officially tested with Raspbian, and there is one important consideration, which is noted in
+the Raspbian documentation as well:
+
+.. warning::
+
+    The Raspbian operating system includes only the default `pi` user on install, which uses a well-known default
+    password.  For any operational deployment, it is recommended to create a new user with a complex password (this user
+    must have sudoers permissions.
+
+    Summarizing the process of creating a new user `alice` from the Raspberry Pi documentation:
+
+    .. code-block:: bash
+
+        sudo adduser alice
+        sudo usermod -a -G adm,dialout,cdrom,sudo,audio,video,plugdev,games,users,input,netdev,gpio,i2c,spi alice
+        sudo su - alice
+        sudo visudo /etc/sudoers.d/010_pi-nopasswd
+
+    When the editor opens for the sudoer's file, add an entry for `alice`:
+
+    .. code-block:: console
+
+        alice ALL=(ALL) PASSWD: ALL
+
+    Also, update the default `pi` user's default password:
+
+    .. code-block:: console
+
+        pi@raspberrypi:~/volttron$ passwd
+        Changing password for pi.
+        (current) UNIX password:
+        Enter new UNIX password:
+        Retype new UNIX password:
+        passwd: password updated successfully
+
+    .. note::
+
+        The Raspberry Pi documentation states that ideally one would remove the `pi` user from the system, however this
+        is not currently recommended as some aspects of the Raspberry Pi OS are tied to the `pi` user.  This will be
+        changed in the future.
+
+    For more information, please visit the
+    `Raspberry Pi security site <https://www.raspberrypi.org/documentation/configuration/security.md>`_.
+
+
 System Monitoring
 -----------------
 

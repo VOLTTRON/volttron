@@ -9,80 +9,115 @@ directory is set via the `VOLTTRON_HOME` environment variable and defaults to ``
 the platform may exist under the same account on a system by setting the `VOLTTRON_HOME` environment variable
 appropriately before executing VOLTTRON commands.
 
-Configuration files use a modified INI format where section names are command names for which the settings in the
-section apply.  Settings before the first section are considered global and will be used by all commands for which the
-settings are valid.  Settings keys are long options (with or without the opening "--") and are followed by a colon (:)
-or equal (=) and then the value.  Boolean options need not include the separator or value, but may specify a value of 1,
-yes, or `true` for true or 0, no, or `false` for false.
+VOLTTRON's configuration file uses a modified INI format where section names are command names for which the settings in
+the section apply.  Settings before the first section are considered global and will be used by all commands for which
+the settings are valid.  Settings keys are long options (with or without the opening "--") and are followed by a colon
+(``:``) or equal (``=``) and then the value.  Boolean options need not include the separator or value, but may specify a
+value of ``1``, ``yes``, or ``true`` for `true` or ``0``, ``no``, or ``false`` for `false`.
 
-A default configuration file, `$VOLTTRON_HOME/config`, may be created to override default options.  If it exists, it
-will be automatically parsed before all other command-line options.  To skip parsing the default
-configuration file, either move the file out of the way or set the `SKIP_VOLTTRON_CONFIG` environment variable.
+It is best practice to use the :ref:`vcfg command <VOLTTRON-Config>` prior to starting VOLTTRON for the first time to
+populate the configuration file for your deployment.  If VOLTTRON is started without having run `vcfg`, a default config
+will be created in `$VOLTTRON_HOME/config`.  The following is an example configuration after running `vcfg`:
 
-All commands and sub-commands have help available with ``-h`` or ``--help``.
-Additional configuration files may be specified with ``-c`` or ``-config``.
-To specify a log file, use ``-l`` or ``--log``.
+.. code-block::
+
+    [volttron]
+    message-bus = rmq
+    instance-name = volttron-instance01
+    vip-address = tcp://127.0.0.1:22916
+    volttron-central-address = https://<remote>:8443
+
+.. note::
+
+
+
+    .. code-block:: bash
+    
+        env/bin/volttron -c <config> -l volttron.log &
+
+Below is a compendium of commands which can be used to operate the VOLTTRON Platform from the command line interface.
+
+
+VOLTTRON Platform Command
+=========================
+
+The main VOLTTRON platform command is ``volttron``, however this command is seldom run as-is.  In most cases the user
+will want to run the platform in the background.  In a limited number of cases, the user will wish to enable verbose
+logging.  A typical command to start the platform is:
+
+.. note::
+
+    * All commands and sub-commands have help available with ``-h`` or ``--help``
+    * Additional configuration files may be specified with ``-c`` or ``-config``
+    * To specify a log file, use ``-l`` or ``--log``
+    * The ampersand (``&``) can be added to then end of the command to run the platform in the background, freeing the
+      open shell to be used for additional commands.
 
 .. code-block:: bash
 
-    env/bin/volttron -c config.ini -l volttron.log
+    volttron -vv -l volttron.log &
 
-Full options:
 
-.. code-block:: console
+volttron Optional Arguments
+---------------------------
 
-    VOLTTRON platform service
+- **-c FILE, --config FILE** - Start the platform using the configuration from the provided FILE
+- **-l FILE, --log FILE** - send log output to FILE instead of standard output/error
+- **-L FILE, --log-config FILE** - Use the configuration from FILE for VOLTTRON platform logging
+- **--log-level LOGGER:LEVEL** - override default logger logging level (`INFO`, `DEBUG`, `WARNING`, `ERROR`, `CRITICAL`,
+  `NOTSET`)
+- **--monitor** - monitor and log connections (implies verbose logging mode ``-v``)
+- **-q, --quiet** - decrease logger verboseness; may be used multiple times to further reduce logging (i.e. ``-qq``)
+- **-v, --verbose** - increase logger verboseness; may be used multiple times (i.e. ``-vv``)
+- **--verboseness LEVEL** - set logger verboseness level
+- **-h, --help** - show this help message and exit
+- **--version** - show program's version number and exit
+- **--message-bus MESSAGE_BUS** - set message to be used. valid values are ``zmq`` and ``rmq``
 
-    optional arguments:
-      -c FILE, --config FILE
-                            read configuration from FILE
-      -l FILE, --log FILE   send log output to FILE instead of stderr
-      -L FILE, --log-config FILE
-                            read logging configuration from FILE
-      --log-level LOGGER:LEVEL
-                            override default logger logging level
-      --monitor             monitor and log connections (implies -v)
-      -q, --quiet           decrease logger verboseness; may be used multiple
-                            times
-      -v, --verbose         increase logger verboseness; may be used multiple
-                            times
-      --verboseness LEVEL   set logger verboseness
-      -h, --help            show this help message and exit
-      --version             show program's version number and exit
+.. note::
 
-    agent options:
-      --autostart           automatically start enabled agents and services
-      --publish-address ZMQADDR
-                            ZeroMQ URL used for pre-3.x agent publishing
-                            (deprecated)
-      --subscribe-address ZMQADDR
-                            ZeroMQ URL used for pre-3.x agent subscriptions
-                            (deprecated)
-      --vip-address ZMQADDR
-                            ZeroMQ URL to bind for VIP connections
-      --vip-local-address ZMQADDR
-                            ZeroMQ URL to bind for local agent VIP connections
-      --bind-web-address BINDWEBADDR
-                            Bind a web server to the specified ip:port passed
-      --volttron-central-address VOLTTRON_CENTRAL_ADDRESS
-                            The web address of a volttron central install
-                            instance.
-      --volttron-central-serverkey VOLTTRON_CENTRAL_SERVERKEY
-                            The serverkey of volttron central.
-      --instance-name INSTANCE_NAME
-                            The name of the instance that will be reported to
-                            VOLTTRON central.
+    Visit the Python 3 logging documentation for more information about
+    `logging and verboseness levels <https://docs.python.org/3/library/logging.html#logging-levels>`_.
 
-    Boolean options, which take no argument, may be inversed by prefixing the
-    option with no- (e.g. --autostart may be inversed using --no-autostart).
+
+Agent Options
+-------------
+
+- **--autostart** - automatically start enabled agents and services after platform startup
+- **--vip-address ZMQADDR** - ZeroMQ URL to bind for VIP connections
+- **--vip-local-address ZMQADDR** - ZeroMQ URL to bind for local agent VIP connections
+- **--bind-web-address BINDWEBADDR** - Bind a web server to the specified ip:port passed
+- **--web-ca-cert CAFILE** - If using self-signed certificates, this variable will be set globally to allow requests to
+  be able to correctly reach the webserver without having to specify verify in all calls.
+- **--web-secret-key WEB_SECRET_KEY** - Secret key to be used instead of HTTPS based authentication.
+- **--web-ssl-key KEYFILE** - SSL key file for using https with the VOLTTRON server
+- **--web-ssl-cert CERTFILE** - SSL certificate file for using https with the VOLTTRON server
+- **--volttron-central-address VOLTTRON_CENTRAL_ADDRESS** - The web address of a VOLTTRON Central install instance.
+- **--volttron-central-serverkey VOLTTRON_CENTRAL_SERVERKEY** - The server key of the VOLTTRON Central being connected
+  to.
+- **--instance-name INSTANCE_NAME** - The name of the instance that will be reported to VOLTTRON Central.
+- **--msgdebug** - Route all messages to an instance of the MessageDebug agent while debugging.
+- **--setup-mode** - Setup mode flag for setting up authorization of external platforms.
+- **--volttron-central-rmq-address VOLTTRON_CENTRAL_RMQ_ADDRESS** - The AMQP address of a VOLTTRON Central install
+  instance
+- **--agent-monitor-frequency AGENT_MONITOR_FREQUENCY** - How often should the platform check for crashed agents
+  and attempt to restart. Units=seconds. Default=600
+- **--secure-agent-users SECURE_AGENT_USERS** - Require that agents run with their own users (this requires running
+  scripts/secure_user_permissions.sh as sudo)
+
+.. warning::
+
+   Certain options alter some basic behaviors of the platform, such as `--secure-agent-users` which causes the platform
+   to run each agent using its own Unix user to spawn the process.  Please view the documentation for each feature to
+   understand its implications before choosing to run the platform in that fashion.
 
 
 volttron-ctl Commands
 =====================
 
-`volttron-ctl` is used to issue commands to the platform from the command line.  Through
-`volttron-ctl` it is possible to install and removed agents, start and stop agents,
-manage the configuration store, get the platform status, and shutdown the platform.
+`volttron-ctl` is used to issue commands to the platform from the command line.  Through `volttron-ctl` it is possible
+to install and removed agents, start and stop agents, manage the configuration store, get the platform status, and
+shutdown the platform.
 
 In more recent versions of VOLTTRON, the commands `vctl`, `vpkg`, and `vcfg` have been added to be used as a stand-in
 for `volttron-ctl`, `volttron-pkg`, and `volttron-cfg` in the CLI.  The VOLTTRON documentation will often use this
@@ -90,179 +125,212 @@ convention.
 
 .. warning::
 
-    `volttron-ctl` creates a special temporary agent to communicate with the platform with a specific VIP IDENTITY, thus
-    multiple instances of `volttron-ctl` cannot run at the same time.  Attempting to do so will result in a conflicting
+    `vctl` creates a special temporary agent to communicate with the platform with a specific VIP IDENTITY, thus
+    multiple instances of `vctl` cannot run at the same time.  Attempting to do so will result in a conflicting
     identity error.
 
-.. code-block:: console
-
-    usage: vctl command [OPTIONS] ...
-
-    Manage and control VOLTTRON agents.
-
-    optional arguments:
-      -c FILE, --config FILE
-                            read configuration from FILE
-      --debug               show tracebacks for errors rather than a brief message
-      -t SECS, --timeout SECS
-                            timeout in seconds for remote calls (default: 60)
-      --msgdebug MSGDEBUG   route all messages to an agent while debugging
-      --vip-address ZMQADDR
-                            ZeroMQ URL to bind for VIP connections
-      -l FILE, --log FILE   send log output to FILE instead of stderr
-      -L FILE, --log-config FILE
-                            read logging configuration from FILE
-      -q, --quiet           decrease logger verboseness; may be used multiple
-                            times
-      -v, --verbose         increase logger verboseness; may be used multiple
-                            times
-      --verboseness LEVEL   set logger verboseness
-      -h, --help            show this help message and exit
+Use `vctl` with one or more of the following arguments, or below sub-commands:
 
 
-
-    commands:
-
-        install             install agent from wheel
-        tag                 set, show, or remove agent tag
-        remove              remove agent
-        list                list installed agent
-        status              show status of agents
-        clear               clear status of defunct agents
-        enable              enable agent to start automatically
-        disable             prevent agent from start automatically
-        start               start installed agent
-        stop                stop agent
-        restart             restart agent
-        run                 start any agent by path
-        auth                manage authorization entries and encryption keys
-        config              manage the platform configuration store
-        shutdown            stop all agents
-        send                send agent and start on a remote platform
-        stats               manage router message statistics tracking
-
-
-vctl auth subcommands
----------------------
-
-.. code-block:: console
-
-    subcommands:
-
-        add                 add new authentication record
-        add-known-host      add server public key to known-hosts file
-        keypair             generate CurveMQ keys for encrypting VIP connections
-        list                list authentication records
-        publickey           show public key for each agent
-        remove              removes one or more authentication records by indices
-        serverkey           show the serverkey for the instance
-        update              updates one authentication record by index
-
-
-vctl config subcommands
+vctl Optional Arguments
 -----------------------
 
-.. code-block:: console
+- **-c FILE, --config FILE** - Start the platform using the configuration from the provided FILE
+- **--debug** - show tracebacks for errors rather than a brief message
+- **-t SECS, --timeout SECS** - timeout in seconds for remote calls (default: 60)
+- **--msgdebug MSGDEBUG** - route all messages to an agent while debugging
+- **--vip-address ZMQADDR** - ZeroMQ URL to bind for VIP connections
+- **-l FILE, --log FILE** - send log output to FILE instead of standard output/error
+- **-L FILE, --log-config FILE** - Use the configuration from FILE for VOLTTRON platform logging
+- **-q, --quiet** - decrease logger verboseness; may be used multiple times to further reduce logging (i.e. ``-qq``)
+- **-v, --verbose** - increase logger verboseness; may be used multiple times (i.e. ``-vv``)
+- **--verboseness LEVEL** - set logger verboseness level (this level is a numeric level co
+- **--json** - format output to json
+- **-h, --help** - show this help message and exit
 
-    subcommands:
 
-        store               store a configuration
-        delete              delete a configuration
-        list                list stores or configurations in a store
-        get                 get the contents of a configuration
+Commands
+--------
+
+- **install** - install an agent from wheel
+
+    .. note::
+
+       Does *NOT* package agents similarly to the `scripts/install-agent.py` script; installs agents from wheel files
+       only
+
+- **tag AGENT TAG** - set, show, or remove agent tag for a particular agent
+- **remove AGENT** - disconnect specified agent from the platform and remove its installed agent package from `VOLTTRON_HOME`
+- **peerlist** - list the peers connected to the platform
+- **list** - list installed agents
+- **status** - show status of installed agents
+- **health AGENT** - show agent health as JSON
+- **clear** - clear status of defunct agents
+- **enable AGENT** - enable agent to start automatically
+- **disable AGENT** - prevent agent from start automatically
+- **start AGENT** - start installed agent
+- **stop AGENT** - stop agent
+- **restart AGENT** - restart agent
+- **run PATH** - start any agent by path
+- **upgrade AGENT WHEEL** - upgrade agent from wheel file
+
+    .. note::
+
+       Does *NOT* upgrade agents from the agent's code directory, requires agent wheel file.
+
+- **rpc** - rpc controls
+- **certs OPTIONS** - manage certificate creation
+- **auth OPTIONS** - manage authorization entries and encryption keys
+- **config OPTIONS** - manage the platform configuration store
+- **shutdown** - stop all agents (providing the `--platform` optional argument causes the platform to be shutdown)
+- **send WHEEL** - send agent and start on a remote platform
+- **stats** - manage router message statistics tracking
+- **rabbitmq OPTIONS** - manage rabbitmq
+
+.. note::
+
+   For each command with `OPTIONS` in the description, additional options are required to make use of the command.  For
+   each, please visit the corresponding section of documentation.
+
+    * :ref:`Auth <VCTL-Auth-Commands>`
+    * :ref:`Certs <VCTL-Certs-Commands>`
+    * :ref:`Config <VCTL-Config-Commands>`
+    * :ref:`RPC <VCTL-RPC-Commands>`
+
+.. note::
+
+    Visit the Python 3 logging documentation for more information about
+    `logging and verboseness levels <https://docs.python.org/3/library/logging.html#logging-levels>`_.
 
 
-rpc subcommands
----------------
+.. _VCTL-Auth-Commands:
 
-.. code-block:: console
+vctl auth Subcommands
+^^^^^^^^^^^^^^^^^^^^^
 
-    subcommands:
+- **add** - add new authentication record
+- **add-group** - associate a group name with a set of roles
+- **add-known-host** - add server public key to known-hosts file
+- **add-role** - associate a role name with a set of capabilities
+- **keypair** - generate CurveMQ keys for encrypting VIP connections
+- **list** - list authentication records
+- **list-groups** - show list of group names and their sets of roles
+- **list-known-hosts** - list entries from known-hosts file
+- **list-roles** - show list of role names and their sets of capabilities
+- **publickey** - show public key for each agent
+- **remove** - removes one or more authentication records by indices
+- **remove-group** - disassociate a group name from a set of roles
+- **remove-known-host** - remove entry from known-hosts file
+- **remove-role** - disassociate a role name from a set of capabilities
+- **serverkey** - show the serverkey for the instance
+- **update** - updates one authentication record by index
+- **update-group** - update group to include (or remove) given roles
+- **update-role** - update role to include (or remove) given capabilities
 
-        code                shows how to use rpc call in other agents
-          -v, --verbose         list all subsystem rpc methods in addition to the
-                                agent's rpc methods
-        list                lists all agents and their rpc methods
-          -i, --vip             filter by vip identity
-          -v, --verbose         list all subsystem rpc methods in addition to the
-                                agent's rpc methods. If a method is specified, display
-                                the doc-string associated with the method.
+
+.. _VCTL-Certs-Commands:
+
+vctl certs Subcommands
+^^^^^^^^^^^^^^^^^^^^^^
+
+- **create-ssl-keypair** - create a SSL keypair
+- **export-pkcs12** - create a PKCS12 encoded file containing private and public key from an agent.  This function is
+  may also be used to create a Java key store using a p12 file.
+
+
+.. _VCTL-Config-Commands:
+
+vctl config Subcommands
+^^^^^^^^^^^^^^^^^^^^^^^
+
+- **store AGENT CONFIG_NAME CONFIG PATH** - store a configuration file in agent's config store (parses JSON by default,
+  use `--csv` for CSV files)
+- **edit AGENT CONFIG_NAME** - edit a configuration. (opens nano by default, respects EDITOR env variable)
+- **delete AGENT CONFIG_NAME** - delete a configuration from agent's config store (`--all` removes all configs for the
+  agent)
+- **list AGENT** - list stores or configurations in a store
+- **get AGENT CONFIG_NAME** - get the contents of a configuration
+
+
+.. _VCTL-RPC-Commands:
+
+vctl rpc Subcommands
+^^^^^^^^^^^^^^^^^^^^
+
+- **code** - shows how to use RPC call in other agents
+- **list** - lists all agents and their RPC methods
 
 
 vpkg Commands
--------------
+=============
 
-.. code-block:: console
+`vpkg` is the VOLTTRON command used to manage agent packages (code directories and wheel files) including creating
+initializing new agent code directories, creating agent wheels, etc.
 
-    usage: volttron-pkg [-h] [-l FILE] [-L FILE] [-q] [-v] [--verboseness LEVEL]
-                        {package,repackage,configure} ...
 
-    optional arguments:
-      -h, --help            show this help message and exit
+vpkg Optional Arguments
+-----------------------
 
-    subcommands:
-      valid subcommands
+- **-h, --help** - show this help message and exit
+- **-l FILE, --log FILE** - send log output to FILE instead of standard output/error
+- **-L FILE, --log-config FILE** - Use the configuration from FILE for VOLTTRON platform logging
+- **-q, --quiet** - decrease logger verboseness; may be used multiple times to further reduce logging (i.e. ``-qq``)
+- **-v, --verbose** - increase logger verboseness; may be used multiple times (i.e. ``-vv``)
+- **--verboseness LEVEL** - set logger verboseness level
 
-      {package,repackage,configure}
-                        additional help
-        package             Create agent package (whl) from a directory or
-                        installed agent name.
-        repackage           Creates agent package from a currently installed
-                        agent.
-        configure           add a configuration file to an agent package
 
-`vpkg` commands (with Volttron Restricted package installed and enabled):
+Subcommands
+-----------
 
-.. code-block:: console
-
-    usage: volttron-pkg [-h] [-l FILE] [-L FILE] [-q] [-v] [--verboseness LEVEL]
-                        {package,repackage,configure,create_ca,create_cert,sign,verify}
-                        ...
-
-    VOLTTRON packaging and signing utility
-
-    optional arguments:
-      -h, --help            show this help message and exit
-      -l FILE, --log FILE   send log output to FILE instead of stderr
-      -L FILE, --log-config FILE
-                            read logging configuration from FILE
-      -q, --quiet           decrease logger verboseness; may be used multiple
-                            times
-      -v, --verbose         increase logger verboseness; may be used multiple
-                            times
-      --verboseness LEVEL   set logger verboseness
-
-    subcommands:
-      valid subcommands
-
-      {package,repackage,configure,create_ca,create_cert,sign,verify}
-                            additional help
-        package             Create agent package (whl) from a directory or
-                            installed agent name.
-        repackage           Creates agent package from a currently installed
-                            agent.
-        configure           add a configuration file to an agent package
-        sign                sign a package
-        verify              verify an agent package
+- **package** - Create agent package (whl) from a directory
+- **init** - Create new agent code package from a template.  Will prompt for additional metadata.
+- **repackage** - Creates agent package from a currently installed agent.
+- **configure** - Add a configuration file to an agent package
 
 
 volttron-cfg Commands
----------------------
+=====================
 
 `volttron-cfg` (`vcfg`) is a tool aimed at making it easier to get up and running with VOLTTRON and a handful of agents.
 Running the tool without any arguments will start a *wizard* with a walk through for setting up instance configuration
 options and available agents.  If only individual agents need to be configured they can be listed at the command line.
 
-.. code-block:: console
+.. note::
 
-    usage: vcfg [-h] [--list-agents | --agent AGENT [AGENT ...]]
+    For a detailed description of the VOLTTRON configuration file and `vcfg` wizard, as well as example usage, view the
+    :ref:`platform configuration <Platform-Configuration>` docs.
 
-    optional arguments:
-      -h, --help            show this help message and exit
-      --list-agents         list configurable agents
-                                listener
-                                platform_historian
-                                vc
-                                vcp
-      --agent AGENT [AGENT ...]
-                            configure listed agents
+vcfg Optional Arguments
+-----------------------
+
+- **-h, --help** - show this help message and exit
+- **-v, --verbose** - increase logger verboseness; may be used multiple times (i.e. ``-vv``)
+- **--vhome VHOME**         Path to volttron home
+- **--instance-name INSTANCE_NAME**
+                        Name of this volttron instance
+- **--list-agents** - list configurable agents
+
+  .. code-block:: console
+
+     Agents available to configure:
+        listener
+        master_driver
+        platform_historian
+        vc
+        vcp
+
+- **--agent AGENT [AGENT ...]** - configure listed agents
+- **--rabbitmq RABBITMQ [RABBITMQ ...]** - Configure RabbitMQ for single instance, federation, or shovel either based on
+  configuration file in YML format or providing details when prompted.  Usage:
+
+  .. code-block:: bash
+
+     vcfg --rabbitmq single|federation|shovel [rabbitmq config file]
+
+- **--secure-agent-users**  Require that agents run with their own users (this requires running
+  scripts/secure_user_permissions.sh as sudo)
+
+  .. warning::
+
+     The secure agent users significantly changes the operation of agents on the platform, please read the
+     :ref:`secure agent users <Running-Agents-as-Unix-User>` documentation before using this feature.

@@ -10,7 +10,6 @@ message bus implementation. For information on specific changes, please refer to
 
 .. toctree::
 
-   message-bus-refactor/index
    scalability/scalability
    version-history
    upgrading-versions
