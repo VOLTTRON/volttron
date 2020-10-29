@@ -1,8 +1,8 @@
 .. _Multi-platform-RabbitMQ-Deployment:
 
-=================================
+==================================
 Multi-platform RabbitMQ Deployment
-=================================
+==================================
 
 With ZeroMQ based VOLTTRON, multi-platform communication was accomplished in three different ways:
 

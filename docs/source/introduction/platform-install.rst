@@ -132,7 +132,7 @@ code or want the latest updates as they happen. In order of decreasing stability
 Step 3 - Setup virtual environment
 ==================================
 
-The :ref:`bootstrap.py <Bootstrap-Options>` script in the VOLTTRON root directory will create a
+The :ref:`bootstrap.py <Bootstrap-Process>` script in the VOLTTRON root directory will create a
 `virtual environment <https://docs.python-guide.org/dev/virtualenvs/>`_ and install the package's Python dependencies.
 Options exist for upgrading or rebuilding existing environments, and for adding additional dependencies for optional
 drivers and agents included in the repository.
@@ -250,7 +250,7 @@ documentation refers to the directory `<install dir>/rabbitmq_server-3.7.7` as `
 
 .. note::
 
-   There are many additional :ref:`options for bootstrap.py <Bootstrap-Options>` for including dependencies, altering
+   There are many additional :ref:`options for bootstrap.py <Bootstrap-Process>` for including dependencies, altering
    the environment, etc.
 
 You can check if the RabbitMQ server is installed by checking its status:
@@ -296,7 +296,7 @@ for a sample configuration file.  At a minimum you will need to provide the host
 
 .. note::
 
-    common-name must be unique and the general convention is to use `<voltttron instance name>-root-ca`.
+    common-name must be unique and the general convention is to use `<volttron instance name>-root-ca`.
 
 Running the above command without the optional configuration file parameter will cause the user user to be prompted for
 all the required data in the command prompt. "vcfg" will use that data to generate a rabbitmq_config.yml file in the
@@ -429,7 +429,6 @@ or use the included `stop-volttron` script:
         volttron -vv -l volttron.log > /dev/null 2>&1&
 
 
-
 Installing and Running Agents
 -----------------------------
 
@@ -489,5 +488,5 @@ platform:
 
 *   :ref:`Agent Framework <Agent-Framework>`
 *   :ref:`Driver Framework <Driver-Framework>`
-*   Demonstration of the :ref:`management UI <VOLTTRON-Central-Demo>`
+*   Demonstration of the :ref:`management UI <Device-Configuration-in-VOLTTRON-Central>`
 *   :ref:`RabbitMQ setup <RabbitMQ-Overview>` with Federation and Shovel plugins

@@ -1,8 +1,8 @@
-.. _planning-install:
+.. _Planning-Deployments:
 
-===========================
-Planning a VOLTTRON Install
-===========================
+=====================
+Planning a Deployment
+=====================
 
 The 3 major installation types for VOLTTRON are doing development, doing research using VOLTTRON, and
 collecting and managing physical devices.

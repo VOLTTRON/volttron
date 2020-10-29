@@ -241,3 +241,11 @@ control and monitor the status of RabbitMQ message bus:
 
 For information about using RabbitMQ in multi-platform deployments, view the :ref:`docs
 <Multi-platform-RabbitMQ-Deployment>`
+
+
+.. toctree::
+    :caption: RabbitMQ
+
+    rabbitmq-overview
+    message-bus-plugin
+    rabbitmq-ssl-auth
