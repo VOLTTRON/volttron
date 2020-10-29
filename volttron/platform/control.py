@@ -51,7 +51,7 @@ import tarfile
 import tempfile
 import traceback
 import uuid
-from datetime import timedelta
+from datetime import timedelta, datetime
 
 import gevent
 import gevent.event
@@ -67,7 +67,7 @@ from volttron.platform import jsonapi
 from volttron.platform.jsonrpc import MethodNotFound
 from volttron.platform.agent import utils
 from volttron.platform.agent.known_identities import CONTROL_CONNECTION, \
-    CONFIGURATION_STORE
+    CONFIGURATION_STORE, PLATFORM_HEALTH
 from volttron.platform.auth import AuthEntry, AuthFile, AuthException
 from volttron.platform.certs import Certs
 from volttron.platform.jsonrpc import RemoteError
@@ -910,6 +910,30 @@ def list_agent_rpc_code(opts):
                 print(e)
     print_rpc_methods(opts, peer_method_metadata, code=True)
 
+
+# the following global variables are used to update the cache so
+# that we don't ask the platform too many times for the data
+# associated with health.
+health_cache_timeout_date = None
+health_cache_timeout = 5
+health_cache = {}
+
+
+def update_health_cache(opts):
+    global health_cache_timeout_date
+
+    t_now = datetime.now()
+    do_update = True
+    # Make sure we update if we don't have any health dicts, or if the cache has timed out.
+    if health_cache_timeout_date is not None and t_now < health_cache_timeout_date and health_cache:
+        do_update = False
+
+    if do_update:
+        health_cache.clear()
+        health_cache.update(opts.connection.server.vip.rpc.call(PLATFORM_HEALTH, 'get_platform_health').get(timeout=4))
+        health_cache_timeout_date = datetime.now() + timedelta(seconds=health_cache_timeout)
+
+
 def status_agents(opts):
     agents = {agent.uuid: agent for agent in _list_agents(opts.aip)}
     status = {}
@@ -940,11 +964,13 @@ def status_agents(opts):
         return ''
 
     def get_health(agent):
+        update_health_cache(opts)
+
         try:
-            # TODO Modify this later so that we aren't calling peerlist before we call the status of the agent.
-            if agent.vip_identity in opts.connection.server.vip.peerlist().get(timeout=4):
-                return opts.connection.server.vip.rpc.call(agent.vip_identity,
-                                                           'health.get_status_json').get(timeout=4)['status']
+            health_dict = health_cache.get(agent.vip_identity)
+
+            if health_dict:
+                return health_dict.get('message', '')
             else:
                 return ''
         except (VIPError, gevent.Timeout):
@@ -963,13 +989,17 @@ def agent_health(opts):
             _stdout.write(f'{jsonapi.dumps({}, indent=2)}\n')
         return
     agent = agents.pop()
-    try:
-        _stderr.write(jsonapi.dumps(
-            opts.connection.server.vip.rpc.call(agent.vip_identity, 'health.get_status_json').get(timeout=4),
-            indent=4) + '\n'
-                      )
-    except VIPError:
-        print("Agent {} is not running on the Volttron platform.".format(agent.uuid))
+    update_health_cache(opts)
+
+    data = health_cache.get(agent.vip_identity)
+
+    if not data:
+        if not opts.json:
+            _stdout.write(f'No health associated with {agent.vip_identity}\n')
+        else:
+            _stdout.write(f'{jsonapi.dumps({}, indent=2)}\n')
+    else:
+        _stdout.write(f'{jsonapi.dumps(data, indent=4)}\n')
 
 
 def clear_status(opts):
@@ -1609,6 +1639,13 @@ def _show_filtered_agents_status(opts, status_callback, health_callback, agents=
     if not agents:
         agents = _list_agents(opts.aip)
 
+    # Find max before so the uuid of the agent is available
+    # when a usre has filtered the list.
+    if not opts.min_uuid_len:
+        n = 36
+    else:
+        n = max(_calc_min_uuid_length(agents), opts.min_uuid_len)
+
     agents = get_filtered_agents(opts, agents)
 
     if not agents:
@@ -1619,10 +1656,6 @@ def _show_filtered_agents_status(opts, status_callback, health_callback, agents=
         return
 
     agents = sorted(agents, key=lambda x: x.name)
-    if not opts.min_uuid_len:
-        n = 36
-    else:
-        n = max(_calc_min_uuid_length(agents), opts.min_uuid_len)
     if not opts.json:
         name_width = max(5, max(len(agent.name) for agent in agents))
         tag_width = max(3, max(len(agent.tag or '') for agent in agents))
@@ -1636,6 +1669,7 @@ def _show_filtered_agents_status(opts, status_callback, health_callback, agents=
             fmt = '{} {:{}} {:{}} {:{}} {:{}} {:<15} {:<}\n'
             for agent in agents:
                 status_str = status_callback(agent)
+                agent_health_dict = health_callback(agent)
                 _stdout.write(fmt.format(agent.uuid[:n], agent.name, name_width,
                                          agent.vip_identity, identity_width,
                                          agent.tag or '', tag_width,

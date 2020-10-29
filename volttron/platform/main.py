@@ -42,6 +42,7 @@ import errno
 import logging
 from logging import handlers
 import logging.config
+from typing import Optional
 from urllib.parse import urlparse
 
 import os
@@ -55,6 +56,8 @@ import uuid
 import gevent
 import gevent.monkey
 
+from volttron.platform.vip.healthservice import HealthService
+from volttron.platform.vip.servicepeer import ServicePeerNotifier
 from volttron.utils import get_random_key
 from volttron.utils.frame_serialization import deserialize_frames, serialize_frames
 
@@ -89,7 +92,7 @@ except ImportError:
     HAS_WEB = False
 from .store import ConfigStoreService
 from .agent import utils
-from .agent.known_identities import MASTER_WEB, CONFIGURATION_STORE, AUTH, CONTROL, CONTROL_CONNECTION
+from .agent.known_identities import MASTER_WEB, CONFIGURATION_STORE, AUTH, CONTROL, CONTROL_CONNECTION, PLATFORM_HEALTH
 from .vip.agent.subsystems.pubsub import ProtectedPubSubTopics
 from .keystore import KeyStore, KnownHostsStore
 from .vip.pubsubservice import PubSubService
@@ -291,10 +294,11 @@ class Router(BaseRouter):
                  volttron_central_address=None, instance_name=None,
                  bind_web_address=None, volttron_central_serverkey=None,
                  protected_topics={}, external_address_file='',
-                 msgdebug=None, agent_monitor_frequency=600):
+                 msgdebug=None, agent_monitor_frequency=600,
+                 service_notifier=Optional[ServicePeerNotifier]):
 
         super(Router, self).__init__(
-            context=context, default_user_id=default_user_id)
+            context=context, default_user_id=default_user_id, service_notifier=service_notifier)
         self.local_address = Address(local_address)
         self._addr = addresses
         self.addresses = addresses = [Address(addr) for addr in set(addresses)]
@@ -432,6 +436,9 @@ class Router(BaseRouter):
                 drop = frames[6]
                 self._drop_peer(drop)
                 self._drop_pubsub_peers(drop)
+                if self._service_notifier:
+                    self._service_notifier.peer_dropped(drop)
+
                 _log.debug("ROUTER received agent stop message. dropping peer: {}".format(drop))
             except IndexError:
                 _log.error(f"agentstop called but unable to determine agent from frames sent {frames}")
@@ -809,6 +816,9 @@ def start_volttron_process(opts):
                              "often the platform checks for any crashed agent "
                              "and attempts to restart. {}".format(e))
 
+    # Allows registration agents to callbacks for peers
+    notifier = ServicePeerNotifier()
+
     # Main loops
     def zmq_router(stop):
         try:
@@ -823,7 +833,8 @@ def start_volttron_process(opts):
                    bind_web_address=opts.bind_web_address,
                    protected_topics=protected_topics,
                    external_address_file=external_address_file,
-                   msgdebug=opts.msgdebug).run()
+                   msgdebug=opts.msgdebug,
+                   service_notifier=notifier).run()
         except Exception:
             _log.exception('Unhandled exception in router loop')
             raise
@@ -1076,8 +1087,12 @@ def start_volttron_process(opts):
         #                   capabilities=['allow_auth_modifications'],
         #                   comments='Automatically added by platform on start')
         # AuthFile().add(entry, overwrite=True)
-
-
+        health_service = HealthService(address=address,
+                                       identity=PLATFORM_HEALTH, heartbeat_autostart=True,
+                                       enable_store=False,
+                                       message_bus='zmq')
+        notifier.register_peer_callback(health_service.peer_added, health_service.peer_dropped)
+        services.append(health_service)
         events = [gevent.event.Event() for service in services]
         tasks = [gevent.spawn(service.core.run, event)
                  for service, event in zip(services, events)]
