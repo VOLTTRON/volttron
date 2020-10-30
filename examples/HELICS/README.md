@@ -1,7 +1,7 @@
 # HELICS Example Agent
 
 This is an example agent that demonstrates how to integrate with HELICS co-simulation platform. Technical documentation 
-about the simulation framework can be found at `docs/source/developing-volttron/integrating-simulations/`
+about the simulation framework can be found at https://volttron.readthedocs.io/en/develop/developing-volttron/integrating-simulations/index.html
 ## HELICS installation
 For installing setup in Ubuntu based systems, follow the steps described in 
 https://helics.readthedocs.io/en/latest/installation/linux.html
