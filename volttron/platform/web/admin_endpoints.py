@@ -148,6 +148,7 @@ class AdminEndpoints(object):
 
         if 'login.html' in env.get('PATH_INFO') or '/admin/' == env.get('PATH_INFO'):
             template = template_env(env).get_template('login.html')
+            _log.debug("Login.html: {}".format(env.get('PATH_INFO')))
             return Response(template.render(), content_type='text/html')
 
         return self.verify_and_dispatch(env, data)

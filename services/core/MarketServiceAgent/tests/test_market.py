@@ -44,27 +44,32 @@ try:
 except ImportError:
     pytest.skip("Market service requirements not installed.", allow_module_level=True)
 
+
 @pytest.mark.market
 def test_market_state_create_name():
     market_name = 'test_market'
     market = build_test_machine(market_name, BUYER)
     assert market_name == market.market_name
 
-def build_test_machine(market_name = 'test_market', buyer_seller = BUYER):
+
+def build_test_machine(market_name='test_market', buyer_seller = BUYER):
     participant = MarketParticipant(buyer_seller, 'agent_id')
     publisher = Publisher()
     market = Market(market_name, participant, publisher.publish)
     return market
+
 
 @pytest.mark.market
 def test_market_state_create_state():
     market = build_test_machine()
     assert market.state == ACCEPT_RESERVATIONS
 
+
 @pytest.mark.market
 def test_market_state_create_has_formed_false():
     market = build_test_machine()
-    assert market.has_market_formed() == False
+    assert market.has_market_formed() is False
+
 
 @pytest.mark.market
 def test_market_state_create_has_formed_true():
@@ -73,6 +78,7 @@ def test_market_state_create_has_formed_true():
     participant = MarketParticipant(SELLER, 'agent_id2')
     market.make_reservation(participant)
     assert market.has_market_formed()
+
 
 class Publisher(object):
     def __init__(self):
