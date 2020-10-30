@@ -92,7 +92,8 @@ except ImportError:
     HAS_WEB = False
 from .store import ConfigStoreService
 from .agent import utils
-from .agent.known_identities import MASTER_WEB, CONFIGURATION_STORE, AUTH, CONTROL, CONTROL_CONNECTION, PLATFORM_HEALTH
+from .agent.known_identities import MASTER_WEB, CONFIGURATION_STORE, AUTH, CONTROL, CONTROL_CONNECTION, PLATFORM_HEALTH, \
+    KEY_DISCOVERY
 from .vip.agent.subsystems.pubsub import ProtectedPubSubTopics
 from .keystore import KeyStore, KnownHostsStore
 from .vip.pubsubservice import PubSubService

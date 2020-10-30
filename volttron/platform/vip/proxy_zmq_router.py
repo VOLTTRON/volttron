@@ -212,7 +212,7 @@ class ZMQProxyRouter(Agent):
         :param body:
         :return:
         """
-        zmq_frames = []
+
         frames = serialize_frames(jsonapi.loads(body))
 
         try:
