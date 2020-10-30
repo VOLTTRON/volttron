@@ -2,8 +2,8 @@
 
 This is an example agent that demonstrates how to integrate with GridAPPS-D platform, 
 run power system simulations and send/receive messages back and forth between VOLTTRON and
-GridAPPS-D environment. Technical documentation about the simulation framework can be found at
-`docs/source/developing-volttron/integrating-simulations/`
+GridAPPS-D environment. Technical documentation about the simulation framework can be found at 
+https://volttron.readthedocs.io/en/develop/developing-volttron/integrating-simulations/index.html
 
 ## GridAPPS-D installation
 For installing setup in Ubuntu based systems, follow the steps described in 
