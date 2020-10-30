@@ -28,6 +28,7 @@ exchange.
    vip-authentication
    vip-authorization
    vip-enhancements
+   agent-vip-id
 
 
 Design Overview

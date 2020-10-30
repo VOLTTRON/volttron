@@ -50,8 +50,8 @@ at our bi-weekly office-hours and on Slack. To be invited to office-hours or sla
 
    developing-volttron/contributing/community
    developing-volttron/development-environment/index
-   developing-volttron/developing-agents/agent-development-walk-through
-   developing-volttron/developing-drivers/driver-development-walk-through
+   developing-volttron/developing-agents/agent-development
+   developing-volttron/developing-drivers/driver-development
    developing-volttron/jupyter/jupyter-notebooks
    developing-volttron/python-for-matlab-users
 
@@ -62,11 +62,12 @@ at our bi-weekly office-hours and on Slack. To be invited to office-hours or sla
    :titlesonly:
    :maxdepth: 1
 
-   deploying-volttron/deployment-walk-through
-   deploying-volttron/single-machine-walk-through
-   deploying-volttron/multi-platform-walk-through
-   deploying-volttron/volttron-central
-   deploying-volttron/platform-hardening
+   deploying-volttron/bootstrap-process
+   deploying-volttron/platform-configuration
+   deploying-volttron/deployment-planning-options
+   deploying-volttron/single-machine
+   deploying-volttron/multi-platform/index
+   deploying-volttron/linux-system-hardening
 
 
 .. toctree::
@@ -77,8 +78,8 @@ at our bi-weekly office-hours and on Slack. To be invited to office-hours or sla
 
    agent-framework/agents-overview
    agent-framework/core-service-agents/index
-   agent-framework/historian-agents/historian-framework
    agent-framework/operations-agents/index
+   agent-framework/historian-agents/historian-framework
    agent-framework/web-framework
    agent-framework/platform-service-standardization
    agent-framework/third-party-agents
@@ -91,13 +92,14 @@ at our bi-weekly office-hours and on Slack. To be invited to office-hours or sla
    :maxdepth: 1
 
    driver-framework/drivers-overview
-   driver-framework/fake-driver/fake-driver
+   driver-framework/master-driver/master-driver
    driver-framework/actuator/actuator-agent
+   driver-framework/fake-driver/fake-driver
    driver-framework/bacnet/bacnet-driver
    driver-framework/chargepoint/chargepoint-driver
    driver-framework/dnp3-driver/dnp3-driver
    driver-framework/ecobee/ecobee-web-driver
-   driver-framework/ieee-2030_5/ieee-2030-driver
+   driver-framework/ieee-2030_5/ieee-2030_5-driver
    driver-framework/modbus/modbus-driver
    driver-framework/modbus/modbus-tk-driver
    driver-framework/obix/obix

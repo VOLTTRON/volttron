@@ -133,12 +133,13 @@ in each platform using the `volttron-ctl auth` utility. For more details
 
 .. seealso::
 
-    :ref:`Multi-Platform Walk-through <Multi-Platform-Walk-through>`
+    :ref:`Multi-Platform Walk-through <Multi-Platform-Deployment>`
 
 
 .. toctree::
     :caption: Multi-platform Message Bus Topics
 
-    multi-platform-pubsub
+    pubsub-remote-platforms
     multi-platform-rpc
-    multi-platform-rmq-csr-walk-through
+    multi-platform-rabbit/multi-platform-rabbitmq
+    multi-platform-rabbit/agent-communication-rabbitmq

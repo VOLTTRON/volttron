@@ -85,7 +85,7 @@ An example master driver configuration file can be found in the VOLTTRON reposit
 `services/core/MasterDriverAgent/master-driver.agent`.
 
 
-.. _driver-configuration-file:
+.. _Driver-Configuration-File:
 
 Driver Configuration File
 -------------------------
@@ -114,8 +114,9 @@ The following settings are required for all device configurations:
     - **driver_config** - Driver specific setting go here. See below for driver specific settings.
     - **driver_type** - Type of driver to use for this device: bacnet, modbus, fake, etc.
     - **registry_config** - Reference to a configuration file in the configuration store for registers
-      on the device. See the `Registry-Configuration-File`_
-      and `Adding Device Configurations to the Configuration Store`_ sections below.
+      on the device. See the `Registry-Configuration-File`_ section below or
+      and the :ref:`Adding Device Configurations to the Configuration Store <Adding-Devices-To-Config-Store>` section in
+      the driver framework docs.
 
 These settings are optional:
 
@@ -131,7 +132,8 @@ These settings are used to create the topic that this device will be referenced 
 it's current state.
 
 The topic used to reference the device is derived from the name of the device configuration in the store. See the
-`Adding Device Configurations to the Configuration Store`_ section.
+:ref:`Adding Device Configurations to the Configuration Store <Adding-Devices-To-Config-Store>` section of the driver
+framework docs.
 
 
 Device Grouping
@@ -171,125 +173,7 @@ The following is a simple example of a Modbus registry configuration file:
     HeatCall2,HeatCall2,On / Off,on/off,BOOL,FALSE,1114,,Status indicator of heating stage 2 need
 
 
-.. _Adding-Devices-To-Config-Store:
-
-Adding Device Configurations to the Configuration Store
-=======================================================
-
-Configurations are added to the Configuration Store using the command line:
-
-.. code-block:: bash
-
-    volttron-ctl config store platform.driver <name> <file name> <file type>
-
-* **name** - The name used to refer to the file from the store.
-* **file name** - A file containing the contents of the configuration.
-* **file type** - ``--raw``, ``--json``, or ``--csv``. Indicates the type of the file. Defaults to ``--json``.
-
-The main configuration must have the name ``config``
-
-Device configuration but **not** registry configurations must have a name prefixed with ``devices/``.  Scripts that
-automate the process will prefix registry configurations with ``registry_configs/``, but that is not a requirement for
-registry files.
-
-The name of the device's configuration in the store is used to create the topic used to reference the device. For
-instance, a configuration named `devices/PNNL/ISB1/vav1` will publish scrape results to `devices/PNNL/ISB1/vav1` and
-is accessible with the Actuator Agent via `PNNL/ISB1/vav1`.
-
-The name of a registry configuration must match the name used to refer to it in the driver configuration.  The reference
-is not case sensitive.
-
-If the Master Driver Agent is running any changes to the configuration store will immediately affect the running devices
-according to the changes.
-
-Consider the following three configuration files:
-
-A master driver configuration called `master-driver.agent`:
-
-.. code-block:: json
-
-    {
-        "driver_scrape_interval": 0.05
-    }
-
-A Modbus device configuration file called `modbus1.config`:
-
-.. code-block:: json
-
-    {
-        "driver_config": {"device_address": "10.1.1.2",
-                          "port": 502,
-                          "slave_id": 5},
-        "driver_type": "modbus",
-        "registry_config":"config://registry_configs/hvac.csv",
-        "interval": 60,
-        "timezone": "UTC",
-        "heart_beat_point": "heartbeat"
-    }
-
-A Modbus registry configuration file called `catalyst371.csv`:
-
-.. csv-table:: catalyst371.csv
-    :header: Reference Point Name,Volttron Point Name,Units,Units Details,Modbus Register,Writable,Point Address,Default Value,Notes
-
-    CO2Sensor,ReturnAirCO2,PPM,0.00-2000.00,>f,FALSE,1001,,CO2 Reading 0.00-2000.0 ppm
-    CO2Stpt,ReturnAirCO2Stpt,PPM,1000.00 (default),>f,TRUE,1011,1000,Setpoint to enable demand control ventilation
-    HeatCall2,HeatCall2,On / Off,on/off,BOOL,FALSE,1114,,Status indicator of heating stage 2 need
-
-To store the master driver configuration run the command:
-
-.. code-block:: bash
-
-    volttron-ctl config store platform.driver config master-driver.agent
-
-To store the registry configuration run the command (note the ``--csv`` option):
-
-.. code-block:: bash
-
-    volttron-ctl config store platform.driver registry_configs/hvac.csv catalyst371.csv --csv
-
-.. Note::
-
-    The name `registry_configs/hvac.csv` matches the configuration reference in the file `modbus1.config` - this
-    is required.
-
-To store the driver configuration run the command:
-
-.. code-block:: bash
-
-    volttron-ctl config store platform.driver devices/my_campus/my_building/hvac1 modbus1.config
-
-
-Converting Old Style Configuration
-----------------------------------
-
-The new Master Driver no longer supports the old style of device configuration.  The old `device_list` setting is
-ignored.
-
-To simplify updating to the new format `scripts/update_master_driver_config.py` is provide to automatically update to
-the new configuration format.
-
-With the platform running run:
-
-.. code-block:: bash
-
-    python scripts/update_master_driver_config.py <old configuration> <output>
-
-old_configuration`` is the main configuration file in the old format. The script automatically modifies the driver
-files to create references to CSV files and adds the CSV files with the appropriate name.
-
-`output` is the target output directory.
-
-If the ``--keep-old`` switch is used the old configurations in the output directory (if any) will not be deleted before
-new configurations are created.  Matching names will still be overwritten.
-
-The output from `scripts/update_master_driver_config.py` can be automatically added to the configuration store
-for the Master Driver agent with `scripts/install_master_driver_configs.py`.
-
-Creating and naming configuration files in the form needed by `scripts/install_master_driver_configs.py` can speed up
-the process of changing and updating a large number of configurations. See the ``--help`` message for
-`scripts/install_master_driver_configs.py` for more details.
-
+.. _Device-State-Publish:
 
 Device State Publishes
 ----------------------
@@ -370,7 +254,7 @@ the platform.
     All Historian Agents require `publish_depth_first_all` to be set to `True` in order to capture data.
 
 
-.. _Master_Driver_Override:
+.. _Master-Driver-Override:
 
 Master Driver Override
 ======================
@@ -469,3 +353,9 @@ Example "clear_overrides" RPC call:
 
     self.vip.rpc.call(PLATFORM_DRIVER, "clear_overrides")
 
+For more information, view the :ref:`Global Override Specification <Global-Override-Specification>`
+
+
+.. toctree::
+
+   global-override-specification
