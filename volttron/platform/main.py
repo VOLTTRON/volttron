@@ -585,7 +585,8 @@ class GreenRouter(Router):
                  volttron_central_address=None, instance_name=None,
                  bind_web_address=None, volttron_central_serverkey=None,
                  protected_topics={}, external_address_file='',
-                 msgdebug=None, volttron_central_rmq_address=None):
+                 msgdebug=None, volttron_central_rmq_address=None,
+                 service_notifier=Optional[ServicePeerNotifier]):
         self._context_class = _green.Context
         self._socket_class = _green.Socket
         self._poller_class = _green.Poller
@@ -596,7 +597,7 @@ class GreenRouter(Router):
             volttron_central_address=volttron_central_address, instance_name=instance_name,
             bind_web_address=bind_web_address, volttron_central_serverkey=volttron_central_address,
             protected_topics=protected_topics, external_address_file=external_address_file,
-            msgdebug=msgdebug)
+            msgdebug=msgdebug, service_notifier=service_notifier)
 
     def start(self):
         '''Create the socket and call setup().
@@ -971,7 +972,8 @@ def start_volttron_process(opts):
                                        bind_web_address=opts.bind_web_address,
                                        protected_topics=protected_topics,
                                        external_address_file=external_address_file,
-                                       msgdebug=opts.msgdebug)
+                                       msgdebug=opts.msgdebug,
+                                       service_notifier=notifier)
 
             proxy_router = ZMQProxyRouter(address=address,
                                           identity='proxy_router',
@@ -1016,7 +1018,7 @@ def start_volttron_process(opts):
                            agent_monitor_frequency=opts.agent_monitor_frequency),
 
             KeyDiscoveryAgent(address=address, serverkey=publickey,
-                              identity='keydiscovery',
+                              identity=KEY_DISCOVERY,
                               external_address_config=external_address_file,
                               setup_mode=opts.setup_mode,
                               bind_web_address=opts.bind_web_address,
@@ -1088,10 +1090,11 @@ def start_volttron_process(opts):
         #                   capabilities=['allow_auth_modifications'],
         #                   comments='Automatically added by platform on start')
         # AuthFile().add(entry, overwrite=True)
+
         health_service = HealthService(address=address,
                                        identity=PLATFORM_HEALTH, heartbeat_autostart=True,
                                        enable_store=False,
-                                       message_bus='zmq')
+                                       message_bus=opts.message_bus)
         notifier.register_peer_callback(health_service.peer_added, health_service.peer_dropped)
         services.append(health_service)
         events = [gevent.event.Event() for service in services]

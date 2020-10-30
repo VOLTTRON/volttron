@@ -61,7 +61,7 @@ __all__ = ['RMQRouter']
 _log = logging.getLogger(__name__)
 
 
-class RMQRouter(BaseRouter):
+class RMQRouter(object):
     """
     Concrete VIP Router for RabbitMQ message bus. It handles router specific
     messages and unrouteable messages.
