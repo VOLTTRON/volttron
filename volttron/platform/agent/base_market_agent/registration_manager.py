@@ -45,6 +45,9 @@ from volttron.platform.agent.base_market_agent.market_registration import Market
 _log = logging.getLogger(__name__)
 utils.setup_logging()
 
+GREENLET_ENABLED = True
+
+
 class RegistrationManager(object):
     """
     The ReservationManager manages a list of MarketReservations for the MarketAgents.
@@ -70,33 +73,49 @@ class RegistrationManager(object):
         result = False
         error_message = "Market: {} {} was not found in the local list of markets".format(market_name, buyer_seller)
         for registration in self.registrations:
-            if (registration.market_name == market_name):
+            if registration.market_name == market_name:
                 result, error_message = registration.make_offer(buyer_seller, curve, self.rpc_proxy)
         return result, error_message
 
     def request_reservations(self, timestamp):
+        greenlets = []
+        _log.debug("Registration manager request_reservations")
         for registration in self.registrations:
-            registration.request_reservations(timestamp, self.rpc_proxy)
+            if GREENLET_ENABLED:
+                event = gevent.spawn(registration.request_reservations, timestamp, self.rpc_proxy)
+                greenlets.append(event)
+            else:
+                registration.request_reservations(timestamp, self.rpc_proxy)
+        gevent.joinall(greenlets)
+        _log.debug("After request reserverations!")
 
     def request_offers(self, timestamp, unformed_markets):
+        greenlets = []
+        _log.debug("Registration manager request_offers")
         for registration in self.registrations:
-            if (registration.market_name not in unformed_markets):
-                registration.request_offers(timestamp)
+            if registration.market_name not in unformed_markets:
+                if GREENLET_ENABLED:
+                    event = gevent.spawn(registration.request_offers, timestamp)
+                    greenlets.append(event)
+                else:
+                    registration.request_offers(timestamp)
             else:
                 error_message = 'The market {} has not received a buy and a sell reservation.'.format(registration.market_name)
                 registration.report_error(timestamp, NOT_FORMED, error_message, {})
+        gevent.joinall(greenlets)
+        _log.debug("After request offers!")
 
     def report_clear_price(self, timestamp, market_name, price, quantity):
         for registration in self.registrations:
-            if (registration.market_name == market_name):
+            if registration.market_name == market_name:
                 registration.report_clear_price(timestamp, price, quantity)
 
     def report_aggregate(self, timestamp, market_name, buyer_seller, aggregate_curve):
         for registration in self.registrations:
-            if (registration.market_name == market_name):
+            if registration.market_name == market_name:
                 registration.report_aggregate(timestamp, buyer_seller, aggregate_curve)
 
     def report_error(self, timestamp, market_name, error_code, error_message, aux):
         for registration in self.registrations:
-            if (registration.market_name == market_name):
+            if registration.market_name == market_name:
                 registration.report_error(timestamp, error_code, error_message, aux)
