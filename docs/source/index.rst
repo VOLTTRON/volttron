@@ -83,6 +83,7 @@ at our bi-weekly office-hours and on Slack. To be invited to office-hours or sla
    agent-framework/operations-agents/index
    agent-framework/historian-agents/historian-framework
    agent-framework/web-framework
+   agent-framework/integrating-simulations/index
    agent-framework/platform-service-standardization
    agent-framework/third-party-agents
 
