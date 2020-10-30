@@ -970,7 +970,10 @@ def status_agents(opts):
             health_dict = health_cache.get(agent.vip_identity)
 
             if health_dict:
-                return health_dict.get('message', '')
+                if opts.json:
+                    return health_dict
+                else:
+                    return health_dict.get('message', '')
             else:
                 return ''
         except (VIPError, gevent.Timeout):
