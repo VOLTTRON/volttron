@@ -19,4 +19,3 @@ refer to the corresponding documents.
    obix/obix-history-agent
    openadr-ven/ven-agent
    volttron-central/volttron-central
-
