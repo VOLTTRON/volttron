@@ -1,8 +1,8 @@
 .. _Contributing-Code:
 
-========================
+================================
 Contributing to Eclipse VOLTTRON
-========================
+================================
 
 As an open source project Eclipse VOLTTRON requires input from the community to keep development focused on new and
 useful features.  To that end we are revising our commit process to hopefully allow more contributors to be apart of the
@@ -12,7 +12,7 @@ command line.
 
 The only requirement is that you sign the Eclipse Contributor agreement: https://www.eclipse.org/legal/ECA.php
 before making a pull request.
-The only technical requirements for contributing are Git (Linux version control software) and your
+The only technical requirements for contributing are Git (version control software) and your
 favorite web browser.
 
 
