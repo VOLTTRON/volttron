@@ -116,9 +116,9 @@ and uses publish_to_simulation API to publish a dummy value of 67.90 for every p
 Advance the simulation
 ----------------------
 With some simulation platforms such as HELICS, the federate can make explicit time request to advance in time by certain
-number of time steps. There will be a global time keeper (in this case HELICS broker) which will be responsible of maintaining
+number of time steps. There will be a global time keeper (in this case HELICS broker) which will be responsible for maintaining
 time within the simulation. In the time request mode, each federate has to request for time advancement after it has
-completed it's work. The global time keeper grants the lowest time among the all time requests. All the federates receive
+completed it's work. The global time keeper grants the lowest time among all time requests. All the federates receive
 the granted time and advance forward in simulation time together in a synchronized manner. Please note, the granted time
 may not be the same as the requested time by the agent.
 
@@ -151,7 +151,7 @@ capability of pause/resume simulation, so calling resume_simulation() API will r
 Stop the simulation
 -------------------
 The agent can stop the simulation at any point of point. In the case of HELICSSimIntegration object, it will disconnect
-the federate from the HELICS core and close the library. Generally, it is a good practise to call the stop_simulation API
+the federate from the HELICS core and close the library. Generally, it is a good practice to call the stop_simulation API
 within the onstop() method of the agent. In this way, the agent stops the simulation before exiting the process.
 
 .. code-block:: python

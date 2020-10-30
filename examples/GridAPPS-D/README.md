@@ -1,16 +1,17 @@
-# GridAPPSD Simulation Example Agent
+# GridAPPS-D Simulation Example Agent
 
-This is an example agent that demonstrates how to integrate with GridAPPSD platform, 
+This is an example agent that demonstrates how to integrate with GridAPPS-D platform, 
 run power system simulations and send/receive messages back and forth between VOLTTRON and
-GridAPPSD environment. 
+GridAPPS-D environment. Technical documentation about the simulation framework can be found at
+ `docs/source/core_services/integrations`
 
-## GridAPPSD installation
+## GridAPPS-D installation
 For installing setup in Ubuntu based systems, follow the steps described in 
-https://gridappsd.readthedocs.io/en/master/installing_gridappsd/index.html
+https://GridAPPS-D.readthedocs.io/en/master/installing_GridAPPS-D/index.html
 
-## GridAPPSD Agent Configuration
+## GridAPPS-D Agent Configuration
 
-In activated VOLTTRON environment, install all the GridAPPSD dependent python packages
+In activated VOLTTRON environment, install all the GridAPPS-D dependent python packages
 
 ```
 cd examples/GridAPPS-D/
@@ -57,14 +58,14 @@ below.
 }
 ````
 
-## Running GridAPPSD Simulation Example agent
+## Running GridAPPS-D Simulation Example agent
 
-1. In a new terminal, navigate to 'gridappsd-docker' directory. Start container services needed by GridAPPSD.
+1. In a new terminal, navigate to 'GridAPPS-D-docker' directory. Start container services needed by GridAPPS-D.
     ````
     ./run.sh
     ````
 
-2. Start GridAPPSD within the docker environment
+2. Start GridAPPS-D within the docker environment
    ````
    ./run-docker.sh
    ````
@@ -74,17 +75,17 @@ below.
    ./start-volttron
    ```` 
 
-4. Start GridAPPSD simulation example agent 
+4. Start GridAPPS-D simulation example agent 
     ````
     source env/bin/activate
-    python scripts/install-agent.py -s examples/GridAPPS-D/ -c examples/GridAPPS-D/test_gridappsd.json -i gappsd --start --force
+    python scripts/install-agent.py -s examples/GridAPPS-D/ -c examples/GridAPPS-D/test_GridAPPS-D.json -i gappsd --start --force
     ````
    
-5. You will see that GridAPPSD simulation starts and sends measurement data to VOLTTRON which is then republished
+5. You will see that GridAPPS-D simulation starts and sends measurement data to VOLTTRON which is then republished
    on VOLTTRON message bus
    
    ````
-    04 17:51:14,642 (listeneragent-3.3 27855) __main__ INFO: Peer: pubsub, Sender: gappsd:, Bus: , Topic: gridappsd/measurement, Headers: {'Date': '2020-08-04T21:51:14.596162+00:00', 'Content-Type': 'application/json', 'min_compatible_version': '3.0', 'max_compatible_version': ''}, Message: 
+    04 17:51:14,642 (listeneragent-3.3 27855) __main__ INFO: Peer: pubsub, Sender: gappsd:, Bus: , Topic: GridAPPS-D/measurement, Headers: {'Date': '2020-08-04T21:51:14.596162+00:00', 'Content-Type': 'application/json', 'min_compatible_version': '3.0', 'max_compatible_version': ''}, Message: 
     {'data': {'_00ff72f5-628c-462b-bdd1-2dcc1bd519b5': {'measurement_mrid': '_00ff72f5-628c-462b-bdd1-2dcc1bd519b5',
                                                     'value': 1},
           '_017f359e-77e5-48ca-9a02-eaa59d14a941': {'angle': 86.21660957775951,

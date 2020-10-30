@@ -2,8 +2,8 @@
 
 This is an example agent that demonstrates how to integrate with EnergyPlus simulation, run building model simulations 
 with EnergyPlus, send/receive messages back and forth between VOLTTRON and
-EnergyPlus simulation. For more information about EnergyPlus, please refer to https://www.energyplus.net/sites/default/files/docs/site_v8.3.0/GettingStarted/GettingStarted/index.html. Technical documentation about the 
-simulation framework can be found at `docs/source/core_services/integrations`   
+EnergyPlus simulation. For more information about EnergyPlus, please refer to https://www.energyplus.net/sites/default/files/docs/site_v8.3.0/GettingStarted/GettingStarted/index.html. 
+Technical documentation about the simulation framework can be found at `docs/source/core_services/integrations`   
 
 ## EnergyPlus installation
 For installing setup in Ubuntu based systems, 
@@ -28,9 +28,10 @@ sudo ./EnergyPlus-8.5.0-c87e61b44b-Linux-x86_64.sh
 1. Copy 'bcvtb' and 'eplus' folders into root of VOLTTRON source directories. 'eplus' should contain EnergyPlus Input Data File (IDF). IDF file is an ASCII file containing the data describing the building and HVAC system to be simulated.
 
 'eplus' is available at https://github.com/VOLTTRON/volttron-GS/tree/master/eplus
+'bcvtb' is available at https://github.com/VOLTTRON/volttron-GS/tree/master/pnnl/energyplusagent/bcvtb
 
-2. You can specify the configuration in either json or yaml format.  The json format is specified
-below. 
+2. You can specify the configuration in either json or yaml format.  The yaml format is specified
+below. Please ensure that paths to IDF, weather and 'bcvtb' directories are correctly specified.
 
 ```` yaml
 # Config parameters for setting up EnergyPlus agent
