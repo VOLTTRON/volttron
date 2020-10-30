@@ -65,8 +65,8 @@ At this point, the contents of the TestAgent directory should look like:
         └── __init__.py
 
 
-Examine the Agent Code
-----------------------
+Agent Code
+----------
 
 The resulting code is well documented with comments and documentation strings. It gives examples of how to do common
 tasks in VOLTTRON Agents (refer to the :ref:`Agent Development Cheatsheet <Agent-Development-Cheatsheet>` for more
@@ -171,6 +171,148 @@ on using the configuration store see :ref:`Agent Configuration Store <Agent-Conf
 `_create_subscriptions` (covered in the next section) will use the value in `self.setting2` to create a new subscription.
 
 
+Agent Lifecycle Events
+^^^^^^^^^^^^^^^^^^^^^^
+
+The agent lifecycle is controlled in the agents VIP `core`.  The agent lifecycle manages :ref:`scheduling and periodic
+function calls <Agent-Periodics-Scheduling>`, the main agent loop, and trigger a number of signals for callbacks in the
+concrete agent code.  These callbacks are listed and described in the skeleton code below:
+
+.. note::
+
+   The lifecycle signals can trigger any method.  To cause a method to be triggered by a lifecycle signal, use a
+   decorator:
+
+    .. code-block:: python
+
+        @Core.receiver("<lifecycle_method>")
+        def my_callback(self, sender, **kwargs):
+            # do my lifecycle method callback
+            pass
+
+.. code-block:: python
+
+        @Core.receiver("onsetup")
+        def onsetup(self, sender, **kwargs)
+            """
+            This method is called after the agent has successfully connected to the platform, but before the scheduled
+            methods loop has started.  This method not often used, but is most commonly used to define periodic
+            functions or do some pre-configuration.
+            """
+            self.vip.core.periodic(60, send_request)
+
+        @Core.receiver("onstart")
+        def onstart(self, sender, **kwargs):
+            """
+            This method is called once the Agent has successfully connected to the platform.
+            This is a good place to setup subscriptions if they are not dynamic or to
+            do any other startup activities that require a connection to the message bus.
+            Called after any configurations methods that are called at startup.
+
+            Usually not needed if using the configuration store.
+            """
+            #Example publish to pubsub
+            self.vip.pubsub.publish('pubsub', "some/random/topic", message="HI!")
+
+            #Example RPC call
+            self.vip.rpc.call("some_agent", "some_method", arg1, arg2)
+
+        @Core.receiver("onstop")
+        def onstop(self, sender, **kwargs):
+            """
+            This method is called when the Agent is about to shutdown, but before it disconnects from
+            the message bus.  Common use-cases for this method are to stop periodic processing, closing connections and
+            setting agent state prior to cleanup.
+            """
+            self.publishing = False
+            self.cache.close()
+
+        @Core.receiver("onfinish")
+        def onfinish(self, sender, **kwargs)
+            """
+            This method is called after all scheduled threads have concluded.  This method is rarely used, but could be
+            used to send shut down signals to other agents, etc.
+            """
+            self.vip.pubsub.publish('pubsub', 'some/topic', message=f'agent {self.core.identity} shutdown')
+
+
+.. _Agent-Periodics-Scheduling:
+
+Periodics and Scheduling
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+Periodic and Scheduled callback functions are callbacks made to functions in agent code from the thread scheduling in
+the agent core.
+
+
+Scheduled Callbacks
+"""""""""""""""""""
+
+Scheduled callback functions are often used similarly to cron jobs to perform tasks at specific times, or to schedule
+tasks ad-hoc as agent state is updated.  There are 2 ways to schedule callbacks: using a decorator, or calling the
+core's scheduling function.  Example usage follows.
+
+.. code-block:: python
+
+    # using the agent's core to schedule a task
+    self.core.schedule(periodic(5), self.sayhi)
+
+    def sayhi(self):
+        print("Hello-World!")
+
+.. code-block:: python
+
+    # using the decorator to schedule a task
+    @Core.schedule(cron('0 1 * * *'))
+    def cron_function(self):
+       print("this is a cron-scheduled function")
+
+.. note::
+
+    Scheduled Callbacks can use CRON scheduling, a datetime object, a number of seconds (from current time), or a
+    `periodic` which will make the schedule function as a periodic.
+
+
+Periodic Callbacks
+""""""""""""""""""
+
+Periodic call back functions are functions which are repeatedly called at a regular interval until the periodic is
+cancelled in the agent code or the agent stops running.  Like scheduled callbacks, periodics can be specified using
+either decorators or using core function calls.
+
+.. code-block:: python
+
+    self.core.periodic(10, self.saybye)
+
+    def saybye(self):
+        print('Good-bye Cruel World!')
+
+.. code-block:: python
+
+    @Core.periodic(60)
+    def poll_api(self):
+        return requests.get("https://lmgtfy.com").json()
+
+.. note::
+
+    Periodic intervals are specified in seconds.
+
+
+Publishing Data to the Message Bus
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The agent's VIP connection can be used to publish data to the message bus.  The message published and topic to publish
+to are determined by the agent implementation.  Classes of agents already
+:ref:`specified by VOLTTRON <Agent-Specifications>` may have well-defined intended topic usage, see those agent
+specifications for further detail.
+
+.. code-block:: python
+
+    def publish_oscillating_update(self):
+        self.publish_value = 1 if self.publish_value = 0 else 0
+        self. vip.pubsub.publish('pubsub', 'some/topic/', message=f'{"oscillating_value": "{self.publish_value}"')
+
+
 Setting up a Subscription
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -193,40 +335,8 @@ The Agent creates a subscription to a topic on the message bus using the value o
             pass
 
 
-Agent Lifecycle Events
+Remote Procedure Calls
 ^^^^^^^^^^^^^^^^^^^^^^
-
-Methods may be setup to be called at agent startup and shutdown:
-
-.. code-block:: python
-
-        @Core.receiver("onstart")
-        def onstart(self, sender, **kwargs):
-            """
-            This method is called once the Agent has successfully connected to the platform.
-            This is a good place to setup subscriptions if they are not dynamic or to
-            do any other startup activities that require a connection to the message bus.
-            Called after any configurations methods that are called at startup.
-
-            Usually not needed if using the configuration store.
-            """
-            #Example publish to pubsub
-            #self.vip.pubsub.publish('pubsub', "some/random/topic", message="HI!")
-
-            #Exmaple RPC call
-            #self.vip.rpc.call("some_agent", "some_method", arg1, arg2)
-
-        @Core.receiver("onstop")
-        def onstop(self, sender, **kwargs):
-            """
-            This method is called when the Agent is about to shutdown, but before it disconnects from
-            the message bus.
-            """
-            pass
-
-
-Agent Remote Procedure Calls
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 An agent may receive commands from other agents via a Remote Procedure Call (RPC).
 This is done with the `@RPC.export` decorator:
@@ -240,6 +350,18 @@ This is done with the `@RPC.export` decorator:
 
             May be called from another agent via self.core.rpc.call """
             return self.setting1 + arg1 - arg2
+
+To send an RPC call to another agent running on the platform, the agent must invoke the `rpc.call` method of its VIP
+connection.
+
+.. code-block:: python
+
+    # in agent code
+    def send_remote_procedure_call(self):
+        peer = "<agent identity>"
+        peer_method = "<method in peer agent API>"
+        args = ["list", "of", "peer", "method", "arguments", "..."]
+        self.vip.rpc.call(peer, peer_method, *args)
 
 
 Packaging Configuration
@@ -304,8 +426,8 @@ for the agent.  This file contains examples of every data type supported by the 
 
 .. _Agent-Packaging-and-Install:
 
-Packaging and Installing the Agent
-----------------------------------
+Packaging and Installation
+--------------------------
 
 To install the agent the platform must be running. Start the platform with the command:
 
@@ -352,8 +474,13 @@ This will result in output similar to the following:
 When using lifecycle commands on agents, they can be referred to by the UUID (default) or AGENT (name) or TAG.
 
 
-Testing the Agent
-=================
+Running and Testing the Agent
+=============================
+
+Now that the first pass of the agent code is complete, we can see if the agent works.  It is highly-suggested to build
+a set of automated tests for the agent code prior to writing the agent, and running those tests after the agent is
+code-complete.  Another quick way to determine if the agent is going the right direction is to run the agent on the
+platform using the VOLTTRON command line interface.
 
 
 From the Command Line
@@ -400,7 +527,7 @@ Check that it is :ref:`running <Agent-Status>`:
     TODO
 
 
-Automated Test cases and documentation
+Automated Test Cases and Documentation
 --------------------------------------
 
 Before contributing a new agent to the VOLTTRON source code repository, please consider adding two other essential
@@ -467,18 +594,31 @@ The most widely used script is `scripts/install-agent.py`.  The `install_agent.p
 tag is already present, create a new agent package, and install the agent to `VOLTTRON_HOME`.  This script has three
 required arguments and has the following signature:
 
-::
+.. note::
 
-    # Agent to Package must have a setup.py in the root of the directory.
-    scripts/install_agent.py <Agent to Package> <Config file> <Tag>
+    Agent to Package must have a setup.py in the root of the directory.  Additionally, the user must be in an activated
+    Python Virtual Environment for VOLTTRON
+
+    .. code-block:: bash
+
+      cd $VOLTTRON_ROOT
+      source env/bin/activate
+
+.. code-block:: console
+
+   python scripts/install_agent.py -s <agent path> -c <agent config file> -i <agent VIP identity> --tag <Tag>
+
+.. note::
+
+   The ``--help`` optional argument can be used with `scripts/install-agent.py` to view all available options for the
+   script
 
 The `install_agent.py` script will respect the `VOLTTRON_HOME` specified on the command line or set in the global
-environment.  An example of setting `VOLTTRON_HOME` is as follows.
+environment.  An example of setting `VOLTTRON_HOME` to `/tmp/v1home` is as follows.
 
-::
+.. code-block:: bash
 
-    # Sets VOLTTRON_HOME to /tmp/v1home
-    VOLTTRON_HOME=/tmp/v1home scripts/core/pack_install.sh <Agent to Package> <Config file> <Tag>
+    VOLTTRON_HOME=/tmp/v1home python scripts/install-agent.py -s <Agent to Package> -c <Config file> --tag <Tag>
 
 
 .. toctree::
