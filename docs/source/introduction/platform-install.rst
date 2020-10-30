@@ -59,6 +59,12 @@ On arm-based systems (including, but not limited to, Raspbian), you must also in
 
        sudo apt-get install libffi-dev
 
+.. note::
+
+    On arm-based systems, the available apt package repositories for Raspbian versions older than buster (10) do not
+    seem to be able to be fully satisfied.  While it may be possible to resolve these dependencies by building from
+    source, the only recommended usage pattern for VOLTTRON 7 and beyond is on raspberry pi OS 10 or newer.
+
 On **Redhat or CENTOS systems**, these can all be installed with the following
 command:
 

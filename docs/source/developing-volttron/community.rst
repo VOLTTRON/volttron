@@ -43,12 +43,4 @@ available through a Zoom meeting. To be invited to the link meeting, contact the
 Meetings are recorded and can be reviewed `here <https://volttron.org/office-hours>`__.
 
 
-Contributing Back
-=================
-
-.. toctree::
-
-   contributing-code
-   contributing-documentation
-
 .. |VOLTTRON| unicode:: VOLTTRON U+2122
