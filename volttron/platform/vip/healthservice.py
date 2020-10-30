@@ -40,7 +40,7 @@ from collections import defaultdict
 from datetime import datetime
 import logging
 
-from volttron.platform.agent.known_identities import CONTROL_CONNECTION
+from volttron.platform.agent.known_identities import CONTROL_CONNECTION, PROCESS_IDENTITIES
 from volttron.platform.agent.utils import format_timestamp
 from volttron.platform.vip.agent import Agent, Core, RPC
 
@@ -64,7 +64,8 @@ class HealthService(Agent):
         :param peer: The identity of the agent connected to the platform
         """
         self._health_dict[peer]['peer'] = peer
-        self._health_dict[peer]['service_agent'] = False
+        if not self._health_dict.get('service_agent'):
+            self._health_dict[peer]['service_agent'] = peer in PROCESS_IDENTITIES
         self._health_dict[peer]['connected'] = format_timestamp(datetime.now())
         self._health_dict[peer].pop('disconnected', None)
 
@@ -118,22 +119,13 @@ class HealthService(Agent):
         :return:
         """
         health = self._health_dict[sender]
-        if not health:
-            _log.warning(f"Missing health from peer {sender}")
+        if not health.get('peer'):
+            _log.warning(f"Message from an unknown peer {sender}.")
         health['last_heartbeat'] = format_timestamp(datetime.now())
         health['message'] = message
 
     @Core.receiver('onstart')
     def onstart(self, sender, **kwargs):
-
-        # assume that when this agent starts all other agents connected to the platform right now are service
-        # agents.  This should be a valid assumption because in main.py this is the last agent started
-        # as a service agent and none of the user agents has been added yet.
-        peers = self.vip.peerlist().get(timeout=10)
-        for p in peers:
-            self._health_dict[p]['service_agent'] = True
-            self._health_dict[p]['connected'] = format_timestamp(datetime.now())
-            self._health_dict[p]['health'] = self.vip.rpc.call(p, 'health.get_status_json').get(timeout=1)
-
         # Start subscribing to heartbeat topic to get updates from the health subsystem.
         self.vip.pubsub.subscribe('pubsub', 'heartbeat', callback=self._heartbeat_updates)
+
