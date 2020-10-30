@@ -4,3 +4,4 @@ PyYAML==5.3
 pytz==2019.3
 # psutil==5.4.7
 dateutils==0.6.7
+docker
