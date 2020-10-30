@@ -163,3 +163,4 @@ within the onstop() method of the agent. In this way, the agent stops the simula
         disconnects from the message bus.
         """
         self.helics_sim.stop_simulation()
+
