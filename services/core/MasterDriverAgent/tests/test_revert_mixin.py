@@ -36,8 +36,9 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-from master_driver.interfaces.fakedriver import Interface
 import pytest
+
+from master_driver.interfaces.fakedriver import Interface
 from volttron.platform.store import process_raw_config
 
 registry_config_string = """Point Name,Volttron Point Name,Units,Units Details,Writable,Starting Value,Type,Notes
@@ -46,6 +47,7 @@ FloatNoDefault,FloatNoDefault,F,-100 to 300,TRUE,,float,CO2 Reading 0.00-2000.0 
 """
 
 registry_config = process_raw_config(registry_config_string, config_type="csv")
+
 
 @pytest.mark.driver
 def test_revert_point():
@@ -61,7 +63,8 @@ def test_revert_point():
     interface.revert_point("Float")
     value = interface.get_point("Float")
     assert value == 50.0
-    
+
+
 @pytest.mark.driver
 def test_revert_device():
     interface = Interface()
@@ -76,7 +79,8 @@ def test_revert_device():
     interface.revert_all()
     value = interface.get_point("Float")
     assert value == 50.0
-    
+
+
 @pytest.mark.driver
 def test_revert_point_no_default():
     interface = Interface()
@@ -97,7 +101,7 @@ def test_revert_point_no_default():
     temp_value = interface.get_point("FloatNoDefault")
     assert temp_value == initial_value
     
-    #Do it twice to make sure it restores state after revert
+    # Do it twice to make sure it restores state after revert
     interface.set_point("FloatNoDefault", test_value)
     temp_value = interface.get_point("FloatNoDefault")
     assert temp_value == test_value
@@ -105,7 +109,8 @@ def test_revert_point_no_default():
     interface.revert_point("FloatNoDefault")
     temp_value = interface.get_point("FloatNoDefault")
     assert temp_value == initial_value
-    
+
+
 @pytest.mark.driver
 def test_revert_all_no_default():
     interface = Interface()
@@ -126,7 +131,7 @@ def test_revert_all_no_default():
     temp_value = interface.get_point("FloatNoDefault")
     assert temp_value == initial_value
     
-    #Do it twice to make sure it restores state after revert
+    # Do it twice to make sure it restores state after revert
     interface.set_point("FloatNoDefault", test_value)
     temp_value = interface.get_point("FloatNoDefault")
     assert temp_value == test_value
@@ -134,23 +139,24 @@ def test_revert_all_no_default():
     interface.revert_all()
     temp_value = interface.get_point("FloatNoDefault")
     assert temp_value == initial_value
-    
+
+
 @pytest.mark.driver
 def test_revert_no_default_changing_value():
     interface = Interface()
     interface.configure({}, registry_config)
     initial_value = interface.get_point("FloatNoDefault")
     
-    #Initialize the revert value.
+    # Initialize the revert value.
     interface.scrape_all()
         
     new_value = initial_value + 1.0
     
-    #Manually update the register values to give us something different to revert to.
+    # Manually update the register values to give us something different to revert to.
     register = interface.get_register_by_name("FloatNoDefault")
     register.value = new_value
     
-    #Update the revert value.
+    # Update the revert value.
     interface.scrape_all()
     
     test_value = new_value + 1.0
@@ -165,7 +171,7 @@ def test_revert_no_default_changing_value():
     
     assert temp_value != initial_value
     
-    #Do it twice to make sure it restores state after revert
+    # Do it twice to make sure it restores state after revert
     interface.set_point("FloatNoDefault", test_value)
     temp_value = interface.get_point("FloatNoDefault")
     assert temp_value == test_value

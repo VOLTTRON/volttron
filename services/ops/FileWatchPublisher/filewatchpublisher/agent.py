@@ -47,7 +47,7 @@ import sys
 
 from datetime import datetime
 from volttron.platform.agent.utils import watch_file_with_fullpath
-from volttron.platform.vip.agent import Agent, RPC, Core
+from volttron.platform.vip.agent import Agent, Core
 from volttron.platform.agent import utils
 
 
@@ -57,11 +57,10 @@ __version__ = '3.6'
 
 
 def file_watch_publisher(config_path, **kwargs):
-    """Load the FileWatchPublisher agent configuration and returns and instance
+    """
+    Load the FileWatchPublisher agent configuration and returns and instance
     of the agent created using that configuration.
-
     :param config_path: Path to a configuration file.
-
     :type config_path: str
     :returns: FileWatchPublisher agent instance
     :rtype: FileWatchPublisher agent
@@ -71,12 +70,10 @@ def file_watch_publisher(config_path, **kwargs):
 
 
 class FileWatchPublisher(Agent):
-    """Monitors files from configuration for changes and
-    publishes added lines on corresponding topics.
-    Ignores if a file does not exist and move to next file
-    in configuration with an error message.
+    """
+    Monitors files from configuration for changes and publishes added lines on corresponding topics.
+    Ignores if a file does not exist and move to next file in configuration with an error message.
     Exists if all files does not exist.
-
     :param config: Configuration dict
     :type config: dict
 
@@ -85,7 +82,7 @@ class FileWatchPublisher(Agent):
     .. code-block:: python
 
         {
-	        "publish_file": [
+            "publish_file": [
                 {
                     "file": "/var/log/syslog",
                     "topic": "platform/syslog",
@@ -94,17 +91,18 @@ class FileWatchPublisher(Agent):
                     "file": "/home/volttron/tempfile.txt",
                     "topic": "temp/filepublisher",
                 }
-	        ]
+            ]
         }
     """
     def __init__(self, config, **kwargs):
         super(FileWatchPublisher, self).__init__(**kwargs)
         self.config = config
-        items = config[:]
+        items = config.get("files")
+        assert isinstance(items, list)
         self.file_topic = {}
         self.file_end_position = {}
-        for item in self.config:
-            file =  item["file"]
+        for item in self.config.get("files"):
+            file = item["file"]
             self.file_topic[file] = item["topic"]
             if os.path.isfile(file):
                 with open(file, 'r') as f:
@@ -112,20 +110,20 @@ class FileWatchPublisher(Agent):
             else:
                 _log.error("File " + file + " does not exists. Ignoring this file.")
                 items.remove(item)
-        self.config = items
+        self.files_to_watch = items
 
     @Core.receiver('onstart')
     def starting(self, sender, **kwargs):
         _log.info("Starting "+self.__class__.__name__+" agent")
-        if len(self.config) == 0 :
+        if len(self.files_to_watch) == 0:
             _log.error("No file to watch and publish. Stopping "+self.__class__.__name__+" agent.")
             gevent.spawn_later(3, self.core.stop)
         else:
-            for item in self.config:
+            for item in self.files_to_watch:
                 file = item["file"]
                 self.core.spawn(watch_file_with_fullpath, file, self.read_file)
 
-    def read_file(self,file):
+    def read_file(self, file):
         _log.debug('loading file %s', file)
         with open(file, 'r') as f:
             f.seek(self.file_end_position[file])
@@ -137,18 +135,18 @@ class FileWatchPublisher(Agent):
         message = {'timestamp':  datetime.utcnow().isoformat() + 'Z',
                    'line': line}
         _log.debug('publishing message {} on topic {}'.format(message, topic))
-        self.vip.pubsub.publish(peer="pubsub", topic=topic,
-                                message=message)
+        self.vip.pubsub.publish(peer="pubsub", topic=topic, message=message)
 
     def get_end_position(self, f):
-        f.seek(0,2)
+        f.seek(0, 2)
         return f.tell()
 
 
 def main(argv=sys.argv):
-    """Main method called by the platform."""
-    utils.vip_main(file_watch_publisher, identity='platform.filewatchpublisher'
-                   , version=__version__)
+    """
+    Main method called by the platform.
+    """
+    utils.vip_main(file_watch_publisher, identity='platform.filewatchpublisher', version=__version__)
 
 
 if __name__ == '__main__':

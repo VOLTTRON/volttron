@@ -1,5 +1,3 @@
-import pytest
-
 # Module level variables
 BASE_DEVICE_TOPIC = "devices/Building/LAB/Device"
 BASE_ANALYSIS_TOPIC = "analysis/Economizer/Building/LAB/Device"
@@ -20,7 +18,6 @@ mongo_platform = {
 }
 
 
-# @pytest.fixture
 def mongo_connection_string():
     mongo_conn_str = 'mongodb://{user}:{passwd}@{host}:{port}/{database}'
     params = mongo_connection_params()
@@ -28,12 +25,10 @@ def mongo_connection_string():
     return mongo_conn_str
 
 
-# @pytest.fixture
 def mongo_agent_config():
     return mongo_platform
 
 
-# @pytest.fixture
 def mongo_connection_params():
     global mongo_platform
     mongo_params = mongo_platform['connection']['params']
