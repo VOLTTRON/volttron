@@ -3,11 +3,13 @@
 ==================
 Join the Community
 ==================
+The VOLTTRON project is transitioning into the Eclipse Foundation as Eclipse VOLTTRON. Current resources will still
+be used during this time. Please watch this space!
 
-The VOLTTRON team aims to work with users and contributors to continuously improve the platform with features requested
-by the community as well as architectural features that improve robustness, security, and scalability. Contributing
-back to the project, which is encouraged but not required, enhances its capabilities for the whole community. To
-learn more, check out :ref:`Contributing <Contributing-Code>` and :ref:`Documentation <Contributing-Documentation>`.
+The Eclipse VOLTTRON team aims to work with users and contributors to continuously improve the platform with features
+requested by the community as well as architectural features that improve robustness, security, and scalability.
+Contributing back to the project, which is encouraged but not required, enhances its capabilities for the whole community.
+To learn more, check out :ref:`Contributing <Contributing-Code>` and :ref:`Documentation <Contributing-Documentation>`.
 
 
 Slack Channel
