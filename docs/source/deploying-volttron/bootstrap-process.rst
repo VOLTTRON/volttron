@@ -5,111 +5,104 @@ Bootstrap Process
 =================
 
 The `bootstrap.py` Python script in the root directory of the VOLTTRON repository may be used to create
-VOLTTRON's Python virtual environment and install or update VOLTTRON dependencies into the virtual
-environment.
+VOLTTRON's Python virtual environment and install or update service agent dependencies.
 
-Bootstrapping is broken into two stages. The first stage should only be invoked once per virtual
-environment.  It downloads Virtualenv and creates a virtual Python environment in the virtual
-environment directory (defaults to a subdirectory named env in the same directory as this script).
-It then executes stage two using the newly installed virtual environment.  Stage two uses the
-new virtual Python environment to install VOLTTRON and its dependencies.
-
-If a new dependency is added, this script may be run again using the Python executable in the
-virtual environment to re-run stage two:
+The first running of `bootstrap.py` will be against the systems `python3` executable.  During this initial step the
+virtual environment is created using the `venv` module.  Additionally, all requirements for running a base volttron
+instance are installed.  Optionally specifying additional arguments to the `bootstrap.py` script allows a way to
+quickly install dependencies for service agents (e.g. bootstrap.py --mysql).
 
 .. code-block:: bash
 
-   python bootstrap.py --force
+    # boostrap with additional optional requirements for starting web enabled agents.
+    user@machine$ python3 bootstrap.py --web
 
+After activating an environemnt (source env/bin/activate) one can use the `bootstrap.py` script to install more
+service agent dependencies by executing the same boostrap.py command.
+
+.. note::
+
+    In the following example one can tell the environment is activated based upon the (volttron) prefix to the
+    command prompt
+
+.. code-block:: bash
+
+    # Adding additional database requirement for crate
+    (volttron) user@machine$ python3 bootstrap.py --crate
+
+If a fresh install is necessary one can use the --force argument to rebuild the virtual environment from scratch.
+
+.. code-block:: bash
+
+    # Rebuild the envirnoment from the system's python3
+    user@machine$ python3 bootstrap.py
+
+.. note::
+
+    Multiple options can be specified on the command line `python3 bootstrap.py --web --crate` would install
+    both the dependencies for web enabled agents as well as the crate historian.
 
 Bootstrap Options
 =================
 
-To facilitate bootstrapping the various configurations of the VOLTTRON platform, the bootstrap script
-provides several options. Options exist for each message bus, specifying a new environment, updating
-an existing environment, and installing some optional dependencies for features like historians.
+The `bootstrap.py` script takes several options that allow customization of the environment, installing and
+update packages, and setting the package locations.  The following sections can be reproduced by executing:
 
-These options may be invoked to alter the operation of the bootstrap script.
+.. code-block:: bash
 
-.. code-block::
+    # Show the help file from bootstrap.py
+    user@machine$ python3 bootstrap --help
 
-    --envdir VIRTUAL_ENV: This option allows the user to specify the directory for the creation of a
-    new environment. If an environment exists, this can be used to create a second environment with an
-    alternative set of dependencies.
+Options for customizing the location of the virtual environment.
 
-    --force: This option will force bootstrapping in a non-empty directory. This may be used to reset
-    an environment or if a previous bootstrapping attempt has failed.
+.. code-block:: bash
 
-    -o, --only-virtenv: This option will cause bootstrap to create a new Python virtual environment
-    without installing any VOLTTRON dependencies.
+    --envdir VIRTUAL_ENV  alternate location for virtual environment
+    --force               force installing in non-empty directory
+    -o, --only-virtenv    create virtual environment and exit (skip install)
+    --prompt PROMPT       provide alternate prompt in activated environment
+                        (default: volttron)
 
-    --prompt PROMPT: Specify prompt to use in an activated environment, defaults to (volttron)
-    (Prompt specifies the string proceeding <user>@<host> in an activated environment, e.i. Running
-    bootstrap with --prompt test would result in "(test) <user>@<host>:~/volttron$ " in bash)
+Additional options are available for customizing where an environment will retrieve packages and/or upgrade
+existing packages installed.
 
-    --offline: Install from Pip cache, prevents downloading dependencies
+.. code-block:: bash
 
-    -u, --upgrade: Upgrade installed packages to newest version
+    update options:
+      --offline             install from cache without downloading
+      -u, --upgrade         upgrade installed packages
+      -w, --wheel           build wheels in the pip wheelhouse
 
-    -w, --wheel: Build wheels in the Pip wheelhouse (Pip package cache)
+To help boostrap an environment in the shortest number of steps we have grouped dependency packages under named
+collections.  For example the --web argument will install six different packages from a single call to
+boostrap.py --web.  The following collections are available to use.
 
+.. code-block:: bash
 
-Optional Arguments
-------------------
+    ...
 
-These options can be added to the command to run the bootstrap script to cause the process to produce
-varying levels of output during operation.
+    Extra packaging options:
+      --all             All dependency groups.
+      --crate           Crate database adapter
+      --databases       All of the databases (crate, mysql, postgres, etc).
+      --dnp3            Dependencies for the dnp3 agent.
+      --documentation   All dependency groups to allow generation of documentation without error.
+      --drivers         All drivers known to the platform driver.
+      --influxdb        Influx database adapter
+      --market          Base market agent dependencies
+      --mongo           Mongo database adapter
+      --mysql           Mysql database adapter
+      --pandas          Pandas numerical analysis tool
+      --postgres        Postgres database adapter
+      --testing         A variety of testing tools for running unit/integration tests.
+      --web             Packages facilitating the building of web enabled agents.
+      --weather         Packages for the base weather agent
 
-.. code-block::
+    rabbitmq options:
+      --rabbitmq [RABBITMQ]
+                            install rabbitmq server and its dependencies. optional
+                            argument: Install directory that exists and is
+                            writeable. RabbitMQ server will be installed in a
+                            subdirectory.Defaults to /home/osboxes/rabbitmq_server
 
-    -help, --help: This option will display a message describing the options described below, and then
-    exist the bootstrap script.
-
-    -q, --quiet: This option will limit the output of the bootstrap script.
-
-    -v, --verbose: This option will cause the bootstrap script to produce additional output.
-
-Packaging Arguments
--------------------
-
-Packaging arguments can be added to the bootstrap argument list to specify an additional set of packages
-to install beyond those required for "vanilla" VOLTTRON. Multiple packaging arguments can be specified
-(e.i. python3 bootstrap.py --testing --databases ...)
-
-.. code-block::
-
-    --crate: Install crate.io Python database driver (crate) for use with Crate historian
-
-    --databases: Install Python database drivers for historians - Crate (crate), InfluxDB (influxdb),
-        MongoDB (pymongo), MySQL (mysql-connector-python-rf)
-
-    --dnp3: Install Python Distributed Network Protocol 3 wrapper (pydnp3)
-
-    --documentation: Install requirements for building VOLTTRON documentation - Mock (mock), MySQL
-        (mysql-connector-python-rf), PSUtil (psutil), MongoDB (pymongo), Sphinx (sphinx),
-        Recommonmark (recommonmark), Read the Docs Sphinx theme (sphinx-rtd-theme)
-
-    --drivers: Install device communication wrappers for VOLTTRON driver framework - Modbus (pymodbus),
-        Modbus Test Kit (modbus-tk), BACnet (bacpypes), Serial (pyserial)
-
-    --influxdb: Install InfluxDB Python database driver (influxdb) for use with influxdb historian
-
-    --market: Install requirements for VOLTTRON Market Service - NumPy (numpy), Transitions (transitions)
-
-    --mongo: Install MongoDB Python database driver (pymongo) for use with MongoDB historian
-
-    --mysql: Install MySQL database connector for Python (mysql-connector-python-rf)
-
-    --pandas: Install Pandas (pandas) and NumPy (numpy)
-
-    --postgres: Install Psycopg (postgres)
-
-    --testing: Install testing infrastructure dependencies - Mock (mock), PyTest (pytest), PyTest-timeout
-        (pytest-timeout), Websocket-Client (websocket-client)
-
-    --rabbitmq <optional installation directory>: Install Python Pika client library for use with RabbitMQ VOLTTRON deployments
-        (gevent-pika) If RabbitMQ is not installed at <user_home>/rabbitmq_server, the user should specify the optional
-        argument. RabbitMQ deployments require additional setup, for more information please read the RabbitMQ portion
-        of section 3 in the README in the root VOLTTRON directory.
-
-    --weather: Install Python unit conversion library Pint (point)
+    ...
