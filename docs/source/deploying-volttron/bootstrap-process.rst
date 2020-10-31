@@ -7,14 +7,14 @@ Bootstrap Process
 The `bootstrap.py` Python script in the root directory of the VOLTTRON repository may be used to create
 VOLTTRON's Python virtual environment and install or update service agent dependencies.
 
-The first running of `bootstrap.py` will be against the systems `python3` executable.  During this initial step the
+The first running of `bootstrap.py` will be against the systems `python3` executable.  During this initial step a
 virtual environment is created using the `venv` module.  Additionally, all requirements for running a base volttron
 instance are installed.  Optionally specifying additional arguments to the `bootstrap.py` script allows a way to
 quickly install dependencies for service agents (e.g. bootstrap.py --mysql).
 
 .. code-block:: bash
 
-    # boostrap with additional optional requirements for starting web enabled agents.
+    # boostrap with additional dependency requirements for web enabled agents.
     user@machine$ python3 bootstrap.py --web
 
 After activating an environemnt (source env/bin/activate) one can use the `bootstrap.py` script to install more
@@ -34,13 +34,13 @@ If a fresh install is necessary one can use the --force argument to rebuild the 
 
 .. code-block:: bash
 
-    # Rebuild the envirnoment from the system's python3
-    user@machine$ python3 bootstrap.py
+    # Rebuild the environment from the system's python3
+    user@machine$ python3 bootstrap.py --force
 
 .. note::
 
-    Multiple options can be specified on the command line `python3 bootstrap.py --web --crate` would install
-    both the dependencies for web enabled agents as well as the crate historian.
+    Multiple options can be specified on the command line `python3 bootstrap.py --web --crate` installs
+    dependencies for web enabled agents as well as the Crate database historian.
 
 Bootstrap Options
 =================
@@ -50,7 +50,7 @@ update packages, and setting the package locations.  The following sections can 
 
 .. code-block:: bash
 
-    # Show the help file from bootstrap.py
+    # Show the help output from bootstrap.py
     user@machine$ python3 bootstrap --help
 
 Options for customizing the location of the virtual environment.
