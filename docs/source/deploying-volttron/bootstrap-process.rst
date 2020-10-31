@@ -9,7 +9,7 @@ VOLTTRON's Python virtual environment and install or update service agent depend
 
 The first running of `bootstrap.py` will be against the systems `python3` executable.  During this initial step a
 virtual environment is created using the `venv` module.  Additionally, all requirements for running a base volttron
-instance are installed.  Optionally specifying additional arguments to the `bootstrap.py` script allows a way to
+instance are installed.  A user can specify additional arguments to the `bootstrap.py` script allowing a way to
 quickly install dependencies for service agents (e.g. bootstrap.py --mysql).
 
 .. code-block:: bash
@@ -17,7 +17,7 @@ quickly install dependencies for service agents (e.g. bootstrap.py --mysql).
     # boostrap with additional dependency requirements for web enabled agents.
     user@machine$ python3 bootstrap.py --web
 
-After activating an environemnt (source env/bin/activate) one can use the `bootstrap.py` script to install more
+After activating an environment (source env/bin/activate) one can use the `bootstrap.py` script to install more
 service agent dependencies by executing the same boostrap.py command.
 
 .. note::
@@ -53,7 +53,7 @@ update packages, and setting the package locations.  The following sections can 
     # Show the help output from bootstrap.py
     user@machine$ python3 bootstrap --help
 
-Options for customizing the location of the virtual environment.
+The options for customizing the location of the virtual environment are as follows.
 
 .. code-block:: bash
 
@@ -61,7 +61,7 @@ Options for customizing the location of the virtual environment.
     --force               force installing in non-empty directory
     -o, --only-virtenv    create virtual environment and exit (skip install)
     --prompt PROMPT       provide alternate prompt in activated environment
-                        (default: volttron)
+                          (default: volttron)
 
 Additional options are available for customizing where an environment will retrieve packages and/or upgrade
 existing packages installed.
@@ -74,7 +74,7 @@ existing packages installed.
       -w, --wheel           build wheels in the pip wheelhouse
 
 To help boostrap an environment in the shortest number of steps we have grouped dependency packages under named
-collections.  For example the --web argument will install six different packages from a single call to
+collections.  For example, the --web argument will install six different packages from a single call to
 boostrap.py --web.  The following collections are available to use.
 
 .. code-block:: bash
