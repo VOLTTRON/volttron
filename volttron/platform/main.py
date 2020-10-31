@@ -93,7 +93,7 @@ except ImportError:
 from .store import ConfigStoreService
 from .agent import utils
 from .agent.known_identities import MASTER_WEB, CONFIGURATION_STORE, AUTH, CONTROL, CONTROL_CONNECTION, PLATFORM_HEALTH, \
-    KEY_DISCOVERY
+    KEY_DISCOVERY, PROXY_ROUTER
 from .vip.agent.subsystems.pubsub import ProtectedPubSubTopics
 from .keystore import KeyStore, KnownHostsStore
 from .vip.pubsubservice import PubSubService
@@ -852,7 +852,8 @@ def start_volttron_process(opts):
             RMQRouter(opts.vip_address, opts.vip_local_address, opts.instance_name, opts.vip_address,
                       volttron_central_address=opts.volttron_central_address,
                       volttron_central_serverkey=opts.volttron_central_serverkey,
-                      bind_web_address=opts.bind_web_address
+                      bind_web_address=opts.bind_web_address,
+                      service_notifier=notifier
                       ).run()
         except Exception:
             _log.exception('Unhandled exception in rmq router loop')
@@ -976,7 +977,7 @@ def start_volttron_process(opts):
                                        service_notifier=notifier)
 
             proxy_router = ZMQProxyRouter(address=address,
-                                          identity='proxy_router',
+                                          identity=PROXY_ROUTER,
                                           zmq_router=green_router,
                                           message_bus=opts.message_bus)
             event = gevent.event.Event()
