@@ -51,7 +51,7 @@ This helps us keep from losing terminal windows or duplicating work.
 
 One of our instances will have a VOLTTRON Central agent. We will install a
 platform agent and a historian on all three platforms. Please note, for this demo
-all the instances run on ZeroMQ messages. For multi-platform, multi-bus deployment
+all the instances run on the ZeroMQ message bus. For multi-platform, multi-bus deployment
 setup please follow the steps described in :ref:`Multi Platform Multi-Bus Deployment <Multi-Platform-Multi-Bus>`.
 
 
@@ -193,14 +193,15 @@ to a file. The file name should be different for each instance.
 
     $ volttron -vv -l volttron.log&
 
-Option 2: Use the utility script start-volttron.
+Option 2: Use the utility script start-volttron. This will override the default log file each time the script is ran
+unless the script is modified with a different filename for each instance.
 
 
 .. code-block:: console
 
     $ ./start-volttron
 
-.. note:: If you choose to not start your agents with their platforms they will need to be started by hand.  
+.. note:: If you chose to not start your agents with their platforms they will need to be started by hand.
 
 List the installed agents with
 

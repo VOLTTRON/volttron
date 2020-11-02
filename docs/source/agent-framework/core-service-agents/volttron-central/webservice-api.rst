@@ -204,7 +204,7 @@ Retrieve Authorization Token
             # 200 OK
             {
                 "jsonrpc": "2.0",
-                "result": "somAuthorizationToken",
+                "result": "someAuthorizationToken",
                 "id": "someID"
             }
 
@@ -244,21 +244,6 @@ Register a VOLTTRON Platform Instance (Using Discovery)
                 },
                 "id": "someID"
             }
-
-
-TODO: Request Registration of an External Platform
-    .. code-block:: Python
-
-        # POST /vc/jsonrpc
-        {
-            "jsonrpc": "2.0",
-            "method": "register_platform",
-            "params": {
-                "uri": "127.0.0.2:8080?serverkey=...&publickey=...&secretkey=..."
-            }
-            "authorization": "someAuthorizationToken",
-            "id": #
-        }
 
 
 Unregister a Volttron Platform Instance
@@ -326,7 +311,8 @@ Retrieve Managed Instances
                 "id": #
             }
 
-TODO: change response Retrieve Installed Agents From platform1
+
+Retrieve Installed Agents From Platform
    .. code-block:: Python
 
       # POST /vc/jsonrpc
@@ -422,168 +408,7 @@ TODO: change response Retrieve Installed Agents From platform1
          }
 
 
-TODO: Start An Agent
-   .. code-block:: Python
-
-      # POST /vc/jsonrpc
-      {
-          "jsonrpc": "2.0",
-          "method": "platforms.uuid.0987fedc-65ba-43fe-21dc-098765bafedc.start_agent",
-          "params": ["a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6"],
-          "authorization": "someAuthorizationToken",
-          "id": #
-      }
-
-   Response Success
-      .. code-block:: Python
-
-         200 OK
-         {
-             "jsonrpc": "2.0",
-             "result": {
-                 "process_id": 1000,
-                 "return_code": null
-             },
-             "id": #
-         }
-
-TODO: Stop An Agent
-   .. code-block:: Python
-
-      # POST /vc/jsonrpc
-      {
-          "jsonrpc": "2.0",
-          "method": "platforms.uuid.0987fedc-65ba-43fe-21dc-098765bafedc.stop_agent",
-          "params": ["a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6"],
-          "authorization": "someAuthorizationToken",
-          "id": #
-      }
-
-   Response Success
-      .. code-block:: Python
-
-          200 OK
-          {
-              "jsonrpc": "2.0",
-              "result": {
-                  "process_id": 1000,
-                  "return_code": 0
-              },
-              "id": #
-          }
-
-TODO: Remove An Agent
-   .. code-block:: Python
-
-      # POST /vc/jsonrpc
-      {
-          "jsonrpc": "2.0",
-          "method": "platforms.uuid.0987fedc-65ba-43fe-21dc-098765bafedc.remove_agent",
-          "params": ["a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6"],
-          "authorization": "someAuthorizationToken",
-          "id": #
-      }
-
-   Response Success
-      .. code-block:: Python
-
-         200 OK
-         {
-             "jsonrpc": "2.0",
-             "result": {
-                 "process_id": 1000,
-                 "return_code": 0
-             },
-             "id": #
-         }
-
-TODO: Retrieve Running Agents
-   .. code-block:: Python
-
-      # POST /vc/jsonrpc
-      {
-          "jsonrpc": "2.0",
-          "method": "platforms.uuid.0987fedc-65ba-43fe-21dc-098765bafedc.status_agents",
-          "authorization": "someAuthorizationToken",
-          "id": #
-      }
-
-   Response Success
-      .. code-block:: Python
-
-         200 OK
-         {
-             "jsonrpc": "2.0",
-             "result": [
-                 {
-                     "name": "RunningAgent",
-                     "uuid": "a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6"
-                     "process_id": 1234,
-                     "return_code": null
-                 },
-                 {
-                     "name": "StoppedAgent",
-                     "uuid": "a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6"
-                     "process_id": 1000,
-                     "return_code": 0
-                 }
-             ],
-             "id": #
-         }
-
-TODO: currently getting 500 error Retrieve An Agent's RPC Methods
-   .. code-block:: Python
-
-      # POST /vc/jsonrpc
-      {
-          "jsonrpc": "2.0",
-          "method": "platforms.uuid.0987fedc-65ba-43fe-21dc-098765bafedc.agents.uuid.a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6.inspect",
-          "authorization": "someAuthorizationToken",
-          "id": #
-      }
-
-  Response Success
-     .. code-block:: Python
-
-        200 OK
-        {
-            "jsonrpc": "2.0",
-            "result": [
-                {
-                    "method": "sayHello",
-                    "params": {
-                        "name": "string"
-                    }
-                }
-            ],
-            "id": #
-        }
-
-TODO: Perform Agent Action
-   .. code-block:: Python
-
-      # POST /vc/jsonrpc
-      {
-          "jsonrpc": "2.0",
-          "method": "platforms.uuid.0987fedc-65ba-43fe-21dc-098765bafedc.agents.uuid.a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6.methods.say_hello",
-          "params": {
-              "name": "Dorothy"
-          },
-          "authorization": "someAuthorizationToken",
-          "id": #
-      }
-
-   Success Response
-      .. code-block:: Python
-
-         200 OK
-         {
-             "jsonrpc": "2.0",
-             "result": "Hello, Dorothy!",
-             "id": #
-         }
-
-TODO: Install Agent
+Install Agent
    .. code-block:: Python
 
       # POST /vc/jsonrpc
@@ -626,3 +451,29 @@ TODO: Install Agent
              },
              "id": #
          }
+
+Remove An Agent
+   .. code-block:: Python
+
+      # POST /vc/jsonrpc
+      {
+          "jsonrpc": "2.0",
+          "method": "platforms.uuid.0987fedc-65ba-43fe-21dc-098765bafedc.remove_agent",
+          "params": ["a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6"],
+          "authorization": "someAuthorizationToken",
+          "id": #
+      }
+
+   Response Success
+      .. code-block:: Python
+
+         200 OK
+         {
+             "jsonrpc": "2.0",
+             "result": {
+                 "process_id": 1000,
+                 "return_code": 0
+             },
+             "id": #
+         }
+
