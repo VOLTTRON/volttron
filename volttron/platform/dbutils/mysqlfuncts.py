@@ -151,11 +151,16 @@ class MySqlFuncts(DbDriver):
     def record_table_definitions(self, tables_def, meta_table_name):
         _log.debug(
             "In record_table_def {} {}".format(tables_def, meta_table_name))
-        self.execute_stmt(
-            'CREATE TABLE IF NOT EXISTS ' + meta_table_name +
-            ' (table_id varchar(512) PRIMARY KEY, \
-               table_name varchar(512) NOT NULL, \
-               table_prefix varchar(512));')
+
+        rows = self.select("show tables like %s", [meta_table_name])
+        if rows:
+            _log.debug("Found meta data table {}. ".format(meta_table_name))
+        else:
+            self.execute_stmt(
+                'CREATE TABLE ' + meta_table_name +
+                ' (table_id varchar(512) PRIMARY KEY, \
+                   table_name varchar(512) NOT NULL, \
+                   table_prefix varchar(512));')
 
         table_prefix = tables_def.get('table_prefix', "")
 
