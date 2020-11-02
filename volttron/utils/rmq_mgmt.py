@@ -54,12 +54,13 @@ from requests.packages.urllib3.connection import (ConnectionError,
 import os
 from volttron.platform import certs
 from volttron.platform import jsonapi
-from .rmq_config_params import RMQConfig
+from . rmq_config_params import RMQConfig
 
 try:
     import yaml
 except ImportError:
     raise RuntimeError('PyYAML must be installed before running this script ')
+
 
 _log = logging.getLogger(__name__)
 
@@ -122,6 +123,7 @@ class RabbitMQMgmt(object):
                        "args {} : {}".format(url, kwargs, e))
             raise e
         return response
+
 
     def _get_authentication_args(self, ssl_auth):
         """
@@ -769,7 +771,7 @@ class RabbitMQMgmt(object):
         """
         ssl_auth = ssl_auth if ssl_auth is not None else self.is_ssl
         crt = self.rmq_config.crts
-        heartbeat_interval = 20  # sec
+        heartbeat_interval = 20 #sec
 
         try:
             if ssl_auth:
@@ -813,19 +815,17 @@ class RabbitMQMgmt(object):
         :param ssl_auth: If SSL based connection or not
         :return:
         """
-        _log.debug("build_remote_connection_param")
-        from urllib import parse
+
+        from  urllib import parse
 
         parsed_addr = parse.urlparse(rmq_address)
         ssl_auth = ssl_auth if ssl_auth is not None else self.is_ssl
 
         _, virtual_host = parsed_addr.path.split('/')
 
-        _log.info("build_remote_connection_param: virtual host: {}, ssl_auth: {}".format(virtual_host, ssl_auth))
         try:
             if ssl_auth:
                 certfile = self.certs.cert_file(rmq_user, True)
-                _log.info("build_remote_connection_param: {}".format(certfile))
                 if cert_dir:
                     # remote cert file for agents will be in agent-data/remote-certs dir
                     certfile = os.path.join(cert_dir, os.path.basename(certfile))
@@ -836,9 +836,7 @@ class RabbitMQMgmt(object):
                 ca_file = self.certs.cert_file(metadata['remote_ca_name'], True)
                 if cert_dir:
                     ca_file = os.path.join(cert_dir, os.path.basename(ca_file))
-                _log.info("REMOTE connection: public cert: {}, private cert: {}, ca cert: {}".format(certfile,
-                                                                                                     local_keyfile,
-                                                                                                     ca_file))
+
                 ssl_options = dict(
                     ssl_version=ssl.PROTOCOL_TLSv1,
                     ca_certs=ca_file,
@@ -867,8 +865,7 @@ class RabbitMQMgmt(object):
 
     def build_rmq_address(self, user=None, password=None,
                           host=None, port=None, vhost=None,
-                          ssl_auth=None, ssl_params=None,
-                          certs_dict=None):
+                          ssl_auth=None, ssl_params=None):
         """
         Build RMQ address for federation or shovel connection
         :param ssl_auth:
@@ -881,7 +878,7 @@ class RabbitMQMgmt(object):
         host = host if host else self.rmq_config.hostname
         vhost = vhost if vhost else self.rmq_config.virtual_host
         if ssl_auth:
-            ssl_params = ssl_params if ssl_params else self.get_ssl_url_params(user, certs_dict)
+            ssl_params = ssl_params if ssl_params else self.get_ssl_url_params()
 
         rmq_address = None
         try:
@@ -895,6 +892,7 @@ class RabbitMQMgmt(object):
                     vhost=vhost,
                     ssl_params=ssl_params)
             else:
+
                 rmq_address = "amqp://{user}:{pwd}@{host}:{port}/{vhost}".format(
                     user=user, pwd=password, host=host,
                     port=port,
@@ -953,6 +951,7 @@ class RabbitMQMgmt(object):
             # vctl certs create-ssl-keypair should be used to create a cert/key pair
             # and then agents should be started.
             try:
+                _log.info("Creating ca signed certs for {}".format(rmq_user))
                 self.rmq_config.crts.create_signed_cert_files(rmq_user, overwrite=False)
             except Exception as e:
                 _log.error("Exception creating certs. {}".format(e))
@@ -972,7 +971,7 @@ class RabbitMQMgmt(object):
 
         return param
 
-    def build_shovel_connection(self, rmq_user, host, port, vhost, is_ssl, certs_dict=None):
+    def build_shovel_connection(self, identity, instance_name, host, port, vhost, is_ssl):
         """
         Check if RabbitMQ user and certs exists for this agent, if not
         create a new one. Add access control/permissions if necessary.
@@ -985,7 +984,7 @@ class RabbitMQMgmt(object):
         :param is_ssl: Flag to indicate if SSL connection or not
         :return: Return connection uri
         """
-        #rmq_user = instance_name + '.' + identity
+        rmq_user = instance_name + '.' + identity
         config_access = "{user}|{user}.pubsub.*|{user}.zmq.*|amq.*".format(
             user=rmq_user)
         read_access = "volttron|{}".format(config_access)
@@ -995,19 +994,12 @@ class RabbitMQMgmt(object):
 
         self.create_user_with_permissions(rmq_user, permissions)
         ssl_params = None
-        if certs_dict is None:
-            if is_ssl:
-                self.rmq_config.crts.create_signed_cert_files(rmq_user,
-                                                              overwrite=False)
-                ssl_params = self.get_ssl_url_params(user=rmq_user)
-            return self.build_rmq_address(rmq_user, self.rmq_config.admin_pwd,
-                                          host, port, vhost, is_ssl, ssl_params)
-        else:
+        if is_ssl:
             self.rmq_config.crts.create_signed_cert_files(rmq_user,
                                                           overwrite=False)
-            return self.build_rmq_address(rmq_user, self.rmq_config.admin_pwd,
-                                          host, port, vhost, is_ssl, ssl_params,
-                                          certs_dict=certs_dict)
+            ssl_params = self.get_ssl_url_params(user=rmq_user)
+        return self.build_rmq_address(rmq_user, self.rmq_config.admin_pwd,
+                                      host, port, vhost, is_ssl, ssl_params)
 
     def build_router_connection(self, identity, instance_name):
         """
@@ -1033,26 +1025,19 @@ class RabbitMQMgmt(object):
                                             retry_delay=2)
         return param
 
-
-    def get_ssl_url_params(self, user=None, certs_dict=None):
+    def get_ssl_url_params(self, user=None):
         """
         Return SSL parameter string
         :return:
         """
 
+        root_ca_name, server_cert, admin_user = \
+            certs.Certs.get_admin_cert_names(self.rmq_config.instance_name)
         if not user:
             user = admin_user
-        if certs_dict is None:
-
-            root_ca_name, server_cert, admin_user = \
-                certs.Certs.get_admin_cert_names(self.rmq_config.instance_name)
-            ca_file = self.rmq_config.crts.cert_file(self.rmq_config.crts.trusted_ca_name)
-            cert_file = self.rmq_config.crts.cert_file(user)
-            key_file = self.rmq_config.crts.private_key_file(user)
-        else:
-            ca_file = certs_dict['ca_file']
-            cert_file = certs_dict['cert_file']
-            key_file = certs_dict['key_file']
+        ca_file = self.rmq_config.crts.cert_file(self.rmq_config.crts.trusted_ca_name)
+        cert_file = self.rmq_config.crts.cert_file(user)
+        key_file = self.rmq_config.crts.private_key_file(user)
         return "cacertfile={ca}&certfile={cert}&keyfile={key}" \
                "&verify=verify_peer&fail_if_no_peer_cert=true" \
                "&auth_mechanism=external".format(ca=ca_file,
