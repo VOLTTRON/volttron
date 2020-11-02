@@ -37,6 +37,7 @@
 # }}}
 
 import logging
+import gevent
 
 from volttron.platform.agent import utils
 from volttron.platform.agent.base_market_agent.error_codes import NOT_FORMED
@@ -44,8 +45,6 @@ from volttron.platform.agent.base_market_agent.market_registration import Market
 
 _log = logging.getLogger(__name__)
 utils.setup_logging()
-
-GREENLET_ENABLED = True
 
 
 class RegistrationManager(object):
@@ -81,11 +80,9 @@ class RegistrationManager(object):
         greenlets = []
         _log.debug("Registration manager request_reservations")
         for registration in self.registrations:
-            if GREENLET_ENABLED:
-                event = gevent.spawn(registration.request_reservations, timestamp, self.rpc_proxy)
-                greenlets.append(event)
-            else:
-                registration.request_reservations(timestamp, self.rpc_proxy)
+            event = gevent.spawn(registration.request_reservations, timestamp, self.rpc_proxy)
+            greenlets.append(event)
+
         gevent.joinall(greenlets)
         _log.debug("After request reserverations!")
 
@@ -94,11 +91,8 @@ class RegistrationManager(object):
         _log.debug("Registration manager request_offers")
         for registration in self.registrations:
             if registration.market_name not in unformed_markets:
-                if GREENLET_ENABLED:
-                    event = gevent.spawn(registration.request_offers, timestamp)
-                    greenlets.append(event)
-                else:
-                    registration.request_offers(timestamp)
+                event = gevent.spawn(registration.request_offers, timestamp)
+                greenlets.append(event)
             else:
                 error_message = 'The market {} has not received a buy and a sell reservation.'.format(registration.market_name)
                 registration.report_error(timestamp, NOT_FORMED, error_message, {})

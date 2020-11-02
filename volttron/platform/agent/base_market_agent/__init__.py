@@ -57,10 +57,10 @@ class MarketAgent(Agent):
     an auction market.  By inheriting from this agent all the remote communication
     with the MarketService is handled and the sub-class can be unconcerned with those details.
     """
-    def __init__(self, verbose_logging = True, **kwargs):
+    def __init__(self, verbose_logging=True, timeout=60, **kwargs):
         super(MarketAgent, self).__init__(**kwargs)
         _log.debug("vip_identity: " + self.core.identity)
-        rpc_proxy = RpcProxy(self.vip.rpc.call, verbose_logging)
+        rpc_proxy = RpcProxy(self.vip.rpc.call, verbose_logging=verbose_logging, timeout=timeout)
         self.registrations = RegistrationManager(rpc_proxy)
         self.verbose_logging = verbose_logging
 

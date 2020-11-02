@@ -53,7 +53,7 @@ class RpcProxy(object):
     RPC calls on the agent that subclasses of the agent can't see and therefore
     can't make.
     """
-    def __init__(self, rpc_call, verbose_logging = True):
+    def __init__(self, rpc_call, verbose_logging=True, timeout=60):
         """
         The initalization needs the rpc_call method to grant access to the RPC calls needed to
         communicate with the marketService.
@@ -61,6 +61,7 @@ class RpcProxy(object):
         """
         self.rpc_call = rpc_call
         self.verbose_logging = verbose_logging
+        self.timeout = timeout
 
     def make_reservation(self, market_name, buyer_seller):
         """
@@ -73,7 +74,7 @@ class RpcProxy(object):
         The agent shall use the pre-defined strings provided.
         """
         try:
-            self.rpc_call(PLATFORM_MARKET_SERVICE, 'make_reservation', market_name, buyer_seller).get(timeout=300.0)
+            self.rpc_call(PLATFORM_MARKET_SERVICE, 'make_reservation', market_name, buyer_seller).get(timeout=self.timeout)
             has_reservation = True
         except RemoteError as e:
             has_reservation = False
@@ -94,12 +95,12 @@ class RpcProxy(object):
         """
         try:
             self.rpc_call(PLATFORM_MARKET_SERVICE, 'make_offer', market_name, buyer_seller,
-                              curve.tuppleize()).get(timeout=300.0)
+                          curve.tuppleize()).get(timeout=self.timeout)
             result = (True, None)
             if self.verbose_logging:
                 _log.debug("Market: {} {} has made an offer Curve: {}".format(market_name,
-                                                                                       buyer_seller,
-                                                                                       curve.points))
+                                                                              buyer_seller,
+                                                                              curve.points))
         except RemoteError as e:
             result = (False, e.message)
             _log.info(
