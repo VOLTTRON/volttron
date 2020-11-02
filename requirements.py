@@ -81,16 +81,9 @@ extras_require = {
     ],
     'documentation': [  # Requirements for building the documentation
         'mock',
-        'mysql-connector-python-rf',
-        'psutil',
-        'pymongo',
         'Sphinx',
         'recommonmark',
-        'sphinx-rtd-theme',
-        'werkzeug',
-        'pint',
-        'jwt',
-        'passlib'
+        'sphinx-rtd-theme'
     ],
     'drivers': [
         'pymodbus',
