@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-list=( bionic  artful stretch buster trusty xenial )
+list=( bionic  artful stretch buster )
 
 function exit_on_error {
     rc=$?
