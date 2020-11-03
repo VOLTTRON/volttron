@@ -17,9 +17,10 @@ only differ from a real device driver in terms of the specifics of the protocol.
 Create a Driver and Register class
 **********************************
 
-When a new driver configuration is added to the Master Driver, the Master Driver will look for a file in its interfaces
-directory (services/core/MasterDriverAgent/master_driver/interfaces) that shares the name of the value specified by
-"driver_type" in the configuration file.  For the CSV Driver, create a file named csvdriver.py in that directory.
+When a new driver configuration is added to the Master Driver, the Master Driver will look for a file or directory in
+its interfaces directory (services/core/MasterDriverAgent/master_driver/interfaces) that shares the name of the value
+specified by "driver_type" in the configuration file.  For the CSV Driver, create a file named csvdriver.py in that
+directory.
 
 ::
 
@@ -35,6 +36,32 @@ directory (services/core/MasterDriverAgent/master_driver/interfaces) that shares
     │         └── socket_lock.py
     ├── master-driver.agent
     └── setup.py
+
+Following is an example using the directory type structure:
+
+::
+
+    ├── master_driver
+    │         ├── agent.py
+    │         ├── driver.py
+    │         ├── __init__.py
+    │         ├── interfaces
+    │         │         ├── __init__.py
+    │         │         ├── bacnet.py
+    |         |         ├── csvdriver.py
+    │         │         ├── modbus.py
+    │         │         ├── modbus_tk.py
+    │         │         |   ├── __init__.py
+    │         │         |   ├── tests
+    │         │         |   ├── requirements.txt
+    │         │         |   └── README.rst
+
+.. note::
+
+    Using this format, the directory must be the name specified by "driver_type" in the configuration file and the
+    `Interface` class must be in the `__init__.py` file in that directory.
+
+This format is ideal for including additional code files as well as requirements files, tests and documentation.
 
 
 Interface Basics

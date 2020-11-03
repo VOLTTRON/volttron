@@ -10,7 +10,6 @@ drivers.
 
 .. toctree::
 
-   platform-configuration
    platform-commands
    agent-management-control
    authentication-commands
