@@ -243,9 +243,11 @@ For information about using RabbitMQ in multi-platform deployments, view the :re
 <Multi-platform-RabbitMQ-Deployment>`
 
 
-.. toctree::
-    :caption: RabbitMQ
+Deployments
+===========
 
-    rabbitmq-overview
-    message-bus-plugin
-    rabbitmq-ssl-auth
+The :ref:`platform installation <Platform-Installation>` docs describe performing first time setup for single machine
+RabbitMQ deployments.
+
+See the :ref:`multi-platform RabbitMQ <RabbitMQ-Multi-platform-SSL>` docs for setting up shovel or federation in
+multi-platform RabbitMQ deployments.

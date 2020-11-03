@@ -4,15 +4,22 @@
 RabbitMQ Overview
 =================
 
+RabbitMQ is a new message bus that was integrated with VOLTTRON in VOLTTRON 6 version.  RabbitMQ provides many of the
+features off the shelf that had to be custom built for ZeroMQ based message bus.  VOLTTRON leverages many of these
+features and take advantage of large pre-existing and growing industry support for RabbitMQ development.
+
 .. NOTE::
 
     Some of the RabbitMQ summary/overview documentation and supporting images added here are taken from the
     `RabbitMQ official documentation <https://www.rabbitmq.com/documentation.html>`_.
 
+
+RabbitMQ Library
+================
+
 RabbitMQ is the most popular messaging library with over 35,000 production deployments.  It is highly scalable, easy to
 deploy, runs on many operating systems and cloud environments.  It supports many kinds of distributed deployment
 methodologies such as clusters, federation and shovels.
-
 
 RabbitMQ uses `Advanced Message Queueing Protocol` (AMQP) and works on the basic producer consumer model.  A consumer is
 a program that consumes/receives messages and producer is a program that sends the messages.  Following are some
@@ -129,11 +136,9 @@ For more detailed information about the management plugin, please refer to Rabbi
 `Management Plugin <https://www.rabbitmq.com/management.html>`_.
 
 
-Deployments
-===========
+.. toctree::
+    :caption: RabbitMQ
 
-The :ref:`platform installation <Platform-Installation>` docs describe performing first time setup for single machine
-RabbitMQ deployments.
-
-See the :ref:`multi-platform RabbitMQ <RabbitMQ-Multi-platform-SSL>` docs for setting up shovel or federation in
-multi-platform RabbitMQ deployments.
+    message-bus-plugin
+    rabbitmq-volttron
+    rabbitmq-ssl-auth
