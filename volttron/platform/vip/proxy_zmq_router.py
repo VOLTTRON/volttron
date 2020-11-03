@@ -179,6 +179,7 @@ class ZMQProxyRouter(Agent):
         # Reformat message into ZMQ VIP format
         frames = [to_identity, from_identity, 'VIP1', userid,
                   props.message_id, props.type]
+
         try:
             args = jsonapi.loads(body)
             try:
@@ -197,7 +198,7 @@ class ZMQProxyRouter(Agent):
             return
 
         _log.debug("Proxy ZMQ Router Outbound handler {0}, {1}".format(to_identity, args))
-
+        frames = serialize_frames(frames)
         try:
             self.zmq_router.socket.send_multipart(frames, copy=True)
         except ZMQError as ex:
@@ -212,7 +213,7 @@ class ZMQProxyRouter(Agent):
         :param body:
         :return:
         """
-        zmq_frames = []
+
         frames = serialize_frames(jsonapi.loads(body))
 
         try:
