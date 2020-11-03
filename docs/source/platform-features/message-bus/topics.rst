@@ -21,9 +21,6 @@ conventions for communicating in the VOLTTRON are:
    and all subtopics.  Subscriptions to ``topic/subtopic1`` will only receive messages for that subtopic and any
    children subtopics. Subscriptions to empty string ("") will receive ALL messages. This is not recommended.
 
-   -  All agents should subscribe to the ``platform`` topic.  This is the topic the VOLTTRON will use to send messages
-      to agents, such as `shutdown`.
-
 Agents should set the `From` header.  This will allow agents to filter on the `To` message sent back.
 
 
@@ -34,14 +31,20 @@ Topics
 In VOLTTRON
 -----------
 
--  **platform** - Base topic used by the platform to inform agents of platform events
--  **platform/shutdown** - General shutdown command.  All agents should exit upon receiving this.  Message content will
-   be a reason for the shutdown
--  **platform/shutdown_agent** - This topic will provide a specific agent id.  Agents should subscribe to this topic and
-   exit if the id in the message matches their id.
--  **devices** - Base topic for data being published by drivers
--  **datalogger** - Base topic for agents wishing to record time series data
--  record - Base topic for agents to record data in an arbitrary format.
+- **alerts** - Base topic for alerts published by agents and subsystems, such as agent health alerts
+- **analysis** - Base topic for analytics being used with building data
+- **config** - Base topic for managing agent configuration
+- **devices** - Base topic for data being published by drivers
+- **datalogger** - Base topic for agents wishing to record time series data
+- **heartbeat** - Topic for publishing periodic "heartbeat" or "keep-alive"
+- **market** - Base topics for market agent communication
+- **record** - Base topic for agents to record data in an arbitrary format
+- **weather** - Base topic for polling publishes of weather service agents
+
+.. note::
+
+   Other more specific topics may exist for specific agents or purposes.  Please review the documentation for the
+   specific feature for more information.
 
 
 Controller Agent Topics

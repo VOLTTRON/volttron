@@ -423,7 +423,12 @@ def do_message_bus():
         #     print("Rabbitmq dependencies not installed. Installing now...")
         #     set_dependencies("rabbitmq")
         #     print("Done!")
-        check_rmq_setup()
+        try:
+            check_rmq_setup()
+        except AssertionError:
+            print("RabbitMQ setup is incomplete. RabbitMQ server directory is missing.")
+            print("Please run bootstrap --rabbitmq before running vcfg")
+            sys.exit()
 
     config_opts['message-bus'] = bus_type
 

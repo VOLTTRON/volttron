@@ -142,3 +142,4 @@ in each platform using the `volttron-ctl auth` utility. For more details
     pubsub-remote-platforms
     multi-platform-rpc
     multi-platform-rabbit/multi-platform-rabbitmq
+    multi-platform-rabbit/agent-communication-rabbitmq
