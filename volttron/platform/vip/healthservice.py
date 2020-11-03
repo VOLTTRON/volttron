@@ -63,11 +63,11 @@ class HealthService(Agent):
 
         :param peer: The identity of the agent connected to the platform
         """
-        self._health_dict[peer]['peer'] = peer
-        if not self._health_dict.get('service_agent'):
-            self._health_dict[peer]['service_agent'] = peer in PROCESS_IDENTITIES
-        self._health_dict[peer]['connected'] = format_timestamp(datetime.now())
-        self._health_dict[peer].pop('disconnected', None)
+        health = self._health_dict[peer]
+
+        health['peer'] = peer
+        health['service_agent'] = peer in PROCESS_IDENTITIES
+        health['connected'] = format_timestamp(datetime.now())
 
     def peer_dropped(self, peer):
         # TODO: Should there be an option for  a db/log file for agents coming and going from the platform?
@@ -119,9 +119,13 @@ class HealthService(Agent):
         :return:
         """
         health = self._health_dict[sender]
-        if not health.get('peer'):
-            _log.warning(f"Message from an unknown peer {sender}.")
-        health['last_heartbeat'] = format_timestamp(datetime.now())
+        time_now = format_timestamp(datetime.now())
+        if not health:
+            health['connected'] = time_now
+            health['peer'] = sender
+            health['service_agent'] = sender in PROCESS_IDENTITIES
+
+        health['last_heartbeat'] = time_now
         health['message'] = message
 
     @Core.receiver('onstart')
