@@ -1,0 +1,46 @@
+{
+	"power_system_config": {
+		"GeographicalRegion_name": "_73C512BD-7249-4F50-50DA-D93849B89C43",
+		"SubGeographicalRegion_name": "_ABEB635F-729D-24BF-B8A4-E2EF268D8B9E",
+		"Line_name": "_49AD8E07-3BF9-A4E2-CB8F-C3722F837B62"
+	},
+	"application_config": {
+		"applications": []
+	},
+	"simulation_config": {
+		"start_time": "1373814060",
+		"duration": "600",
+		"simulator": "GridLAB-D",
+		"timestep_frequency": "1000",
+		"timestep_increment": "1000",
+		"run_realtime": false,
+		"simulation_name": "ieee13nodeckt",
+		"power_flow_solver_method": "NR",
+		"model_creation_config": {
+			"load_scaling_factor": "1",
+			"schedule_name": "ieeezipload",
+			"z_fraction": "0",
+			"i_fraction": "1",
+			"p_fraction": "0",
+			"randomize_zipload_fractions": false,
+			"use_houses": false
+		}
+	},
+	"test_config": {
+		"events": [{"message":{"forward_differences":[{"object":"_302E3119-B3ED-46A1-87D5-EBC8496357DF","attribute":"Switch.open","value":1}],"reverse_differences":[{"object":"_302E3119-B3ED-46A1-87D5-EBC8496357DF","attribute":"Switch.open","value":0}]},"event_type":"ScheduledCommandEvent","occuredDateTime":1373814120,"stopDateTime":1373817600}],
+		"appId": ""
+	},
+	"service_configs": [{
+		"id": "gridappsd-sensor-simulator",
+		"user_options": {
+			"default-perunit-confidence-band": 0.02,
+			"simulate-all": false,
+			"sensors-config": {},
+			"default-normal-value": 100,
+			"random-seed": 0,
+			"default-aggregation-interval": 30,
+			"passthrough-if-not-specified": false,
+			"default-perunit-drop-rate": 0.05
+		}
+	}]
+}
