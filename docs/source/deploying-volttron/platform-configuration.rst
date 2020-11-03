@@ -60,13 +60,13 @@ The example consists of the following entries:
 
 * **message-bus** - message bus being used for this instance (rmq/zmq)
 * **vip-address** - address bound to by VIP for message bus communication
-* **bind-web-address** - address bound to by the platform web service for handling HTTP(s) requests
-* **web-ssl-cert** - path to the certificate for the instance's web service
-* **web-ssl-key** - secret key or path to secret key file used by web service authenticate requests
+* **bind-web-address** - Optional, needed if platform has to support web feature. Represents address bound to by the platform web service for handling HTTP(s) requests. Typical address would be https://<hostname>:8443
+* **web-ssl-cert** - Optional, needed if platform has to support web feature. Represents path to the certificate for the instance's web service
+* **web-ssl-key** - Optional, needed if platform has to support web feature. Represents secret key or path to secret key file used by web service authenticate requests
 * **instance-name** - name of this VOLTTRON platform instance, should be unique for the deployment
-* **volttron-central-address** - web address of VOLTTRON central managing this platform instance
+* **volttron-central-address** - Optional, needed if instance is running Volttron Central. Represents web address of VOLTTRON Central agent managing this platform instance. Typical address would be https://<hostname>:8443
 
-
+   
 .. _VOLTTRON-Config:
 
 VOLTTRON Config
