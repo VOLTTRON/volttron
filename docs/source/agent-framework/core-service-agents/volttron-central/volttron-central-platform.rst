@@ -8,7 +8,9 @@ The VCP agent exposes a VOLTTRON instance to a Volttron Central (VC) agent. The 
 agent can either be on the same or a remote VOLTTRON instance. The VCP agent will,
 once authenticated with the VC agent's instance, auto connect to the VC
 agent's instance and register itself on startup. The VCP instance will attempt
-to reconnect to the VC agent's instance if connection is disrupted.
+to reconnect to the VC agent's instance if connection is disrupted.VCP has
+many configuration options available that can be set via the configuration store.
+An example config is provided below with information on these options.
 
 Publish Specifications
 ----------------------
