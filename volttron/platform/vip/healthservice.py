@@ -78,10 +78,8 @@ class HealthService(Agent):
     def get_platform_health(self):
         """
         The `get_platform_health` retrieves all of the connected agent's health structures,
-        except for the service_agents and the CONTROL_CONNECTION.  These are filtered out
-        because they aren't relevant to the vctl command in general.  The vctl command
-        usese CONTROL_CONNECTION to connect to the volttron process so it is not relevant
-        either.
+        except for the `CONTROL_CONNECTION` (vctl's known identity).  Vctl's identity is used for short
+        term connections and is not relevant to the core health system.
 
         This function returns a dictionary in the form identity: values such as the following:
 
@@ -101,9 +99,9 @@ class HealthService(Agent):
         :return:
         """
         # Ignore the connection from control in the health as it will only be around for a short while.
-        non_service_agents = {k: v for k, v in self._health_dict.items()
+        agents = {k: v for k, v in self._health_dict.items()
                               if not v.get('peer') == CONTROL_CONNECTION}
-        return non_service_agents
+        return agents
 
     def _heartbeat_updates(self, peer, sender, bus, topic, headers, message):
         """
