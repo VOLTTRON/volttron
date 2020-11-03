@@ -8,6 +8,8 @@ VOLTTRON Central is responsible for controlling multiple VOLTTRON instances with
 The mnanaged VOLTTRON instances can be either local or remote. Each managed instance will have a VOLTTRON Central
 Platform agent installed and running to interface with the primary VOLTTRON Central agent.
 
+|VC-VCP Overview|
+
 There is a :ref:`VOLTTRON Central Deployment Demo <VOLTTRON-Central-Deployment>` that will allow you to quickly setup
 and see the current offerings of the interface.
 
@@ -42,4 +44,5 @@ The Platform Agent must have the VIP identity of `platform.agent` which is speci
    vc-device-configuration-demo
    webservice-api
 
-.. |VC-VCP Workflow| image:: files/vc_vcp_connection_ex.png
+
+.. |VC-VCP Overview| image:: files/vc_vcp_connection_overview.png

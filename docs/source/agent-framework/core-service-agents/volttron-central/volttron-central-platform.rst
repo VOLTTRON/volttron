@@ -30,6 +30,8 @@ FAQ / Notes
 * VC communicates through the :py:class:`vcplatform.vcconnection.VCConnection` rpc methods.
 * VCP uses the  :py:class:`vcplatform.vcconnection.VCConnection` to connect with the VC agent's instance.
 
+|VCP-VC Connection|
+
 Configuration Options
 ---------------------
 
@@ -79,3 +81,5 @@ by the VCP agent.  By default an empty config file is used.
             "from1": "to1"
         }
     }
+
+.. |VCP-VC Connection| image:: files/connect_vc_to_vcp.png
