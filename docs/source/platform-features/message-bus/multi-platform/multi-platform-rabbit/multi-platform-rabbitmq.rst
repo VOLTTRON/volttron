@@ -137,7 +137,3 @@ we need to a create a new shovel per subscription.
 
 For more detailed information about shovel, please refer to RabbitMQ documentation on the
 `Shovel plugin <https://www.rabbitmq.com/shovel.html>`_.
-
-.. toctree::
-
-   agent-communication-rabbitmq

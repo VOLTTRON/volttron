@@ -114,8 +114,9 @@ The following settings are required for all device configurations:
     - **driver_config** - Driver specific setting go here. See below for driver specific settings.
     - **driver_type** - Type of driver to use for this device: bacnet, modbus, fake, etc.
     - **registry_config** - Reference to a configuration file in the configuration store for registers
-      on the device. See the `Registry-Configuration-File`_
-      and `Adding Device Configurations to the Configuration Store`_ sections below.
+      on the device. See the `Registry-Configuration-File`_ section below or
+      and the :ref:`Adding Device Configurations to the Configuration Store <Adding-Devices-To-Config-Store>` section in
+      the driver framework docs.
 
 These settings are optional:
 
@@ -131,7 +132,8 @@ These settings are used to create the topic that this device will be referenced 
 it's current state.
 
 The topic used to reference the device is derived from the name of the device configuration in the store. See the
-`Adding Device Configurations to the Configuration Store`_ section.
+:ref:`Adding Device Configurations to the Configuration Store <Adding-Devices-To-Config-Store>` section of the driver
+framework docs.
 
 
 Device Grouping

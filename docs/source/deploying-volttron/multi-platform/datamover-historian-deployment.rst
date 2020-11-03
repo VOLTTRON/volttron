@@ -5,17 +5,19 @@ DataMover Historian
 ===================
 
 This guide describes how a DataMover historian can be used to transfer data from one VOLTTRON instance to another. The
-DataMover historian is different from Forward historian in the way it sends the data to the remote instance. It first
+DataMover historian is different from Forward historian in the way it sends the data to the remote instance.  It first
 batches the data and makes a RPC call to a remote historian instead of publishing data on the remote message bus
-instance. The remote historian then stores the data into it's database.
+instance.  The remote historian then stores the data into it's database.
 
-Below steps show how to setup DataMover historian to send data from one VOLTTRON instance to another. We are going to
-create two VOLTTRON instances and send data from one VOLTTRON instance running a fake driver (subscribing
-values from a fake device) and sending the values to a remote historian running on the second VOLTTRON instance.
+The walk-through below demonstrates how to setup DataMover historian to send data from one VOLTTRON instance to another.
 
 
 VOLTTRON instance 1 sends data to platform historian on VOLTTRON instance 2
 ---------------------------------------------------------------------------
+
+As an example two VOLTTRON instances will be created and to send data from one VOLTTRON instance running a fake driver
+(subscribing to publishes from a fake device) and sending the values to a remote historian running on the second
+VOLTTRON instance.
 
 
 VOLTTRON instance 1 
@@ -46,14 +48,18 @@ VOLTTRON instance 2
 DataMover Configuration
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-Example config file is available in ``services/core/DataMover/config``. We need to update the
-"destination-vip", "destination-serverkey", "destination-historian-identity" entries as per our setup.
-Please note, for this documentation, the topics from the driver agent on VOLTTRON instance 1  will be
-sent to the instance 2
+An example config file is available in ``services/core/DataMover/config``.  We need to update the
+`destination-vip`, `destination-serverkey`, and `destination-historian-identity` entries as per our setup.
 
-   - destination-vip: The VIP address of the volttron instance to which we need to send data. Example : ``tcp://127.0.0.2:22916``
-   - destination-serverkey: The server key of remote VOLTTRON instance
-     - Get the server key of VOLTTRON instance 2 and set "destination-serverkey" property with the server key
+.. note::
+
+   Here the topics from the driver on VOLTTRON instance 1  will be sent to instance 2.
+
+   - **destination-vip**: The VIP address of the volttron instance to which we need to send data. Example :
+     ``tcp://127.0.0.2:22916``
+   - **destination-serverkey**: The server key of remote VOLTTRON instance
+     - Get the server key of VOLTTRON instance 2 and set `destination-serverkey` property with the server key
+
      .. code-block:: console
 
         vctl auth serverkey
@@ -64,32 +70,41 @@ sent to the instance 2
 Running DataMover Historian
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-- Install datamover historian on the VOLTTRON instance 1
+- Install the DataMover historian on the VOLTTRON instance 1
+
 .. code-block:: console
 
     python scripts/install-agent.py -s services/core/DataMover -c services/core/DataMover/config -i datamover --start
 
-- Add the public key of data mover historian on VOLTTRON instance 2 to enable authentication of the data mover on VOLTTRON instance 2.
-    - Get the public key of data mover. Run the below command on instance 1 terminal.
+- Add the public key of the DataMover historian on VOLTTRON instance 2 to enable authentication of the DataMover on
+  VOLTTRON instance 2.
+
+    - Get the public key of the DataMover. Run the below command on instance 1 terminal.
+
     .. code-block:: console
 
         vctl auth publickey --name datamoveragent-0.1
 
-    - Add the credentials of data mover historian in VOLTTRON instance 2
+    - Add the credentials of the DataMover historian in VOLTTRON instance 2
+
     .. code-block:: console
 
         vctl auth add --credentials <public key of data mover>
+
 
 Check data in SQLite database
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 To check if data is transferred and stored in the database of remote platform historian, we need to check the
-entries in the database. The default location of SQL database (if not explicitly specified in the config file) will be in the "data" directory
-inside the platform historian's installed directory within it's $VOLTTRON_HOME.
+entries in the database.  The default location of SQL database (if not explicitly specified in the config file) will be
+in the `data` directory inside the platform historian's installed directory within it's `$VOLTTRON_HOME`.
 
-- Get the uuid of the platform historian. This can be found by running the ``vctl status`` on the terminal of instance 2. The first column of the data mover historian entry in the status table gives the first alphabet/number of the uuid.
+- Get the uuid of the platform historian. This can be found by running the ``vctl status`` on the terminal of instance
+  2.  The first column of the data mover historian entry in the status table gives the first alphabet/number of the
+  uuid.
 
-- Go the "data" directory of platform historian's install directory. For example, "/home/ubuntu/.platform2/agents/6292302c-32cf-4744-bd13-27e78e96184f/sqlhistorianagent-3.7.0/data"
+- Go the `data` directory of platform historian's install directory.  For example,
+  `/home/ubuntu/.platform2/agents/6292302c-32cf-4744-bd13-27e78e96184f/sqlhistorianagent-3.7.0/data`
 
 - Run the SQL command to see the data
     .. code-block:: console
