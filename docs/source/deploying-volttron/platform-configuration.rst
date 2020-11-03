@@ -11,24 +11,26 @@ created with default values on start up of the platform otherwise.
 Following is helpful information about the `config` file and the `vcfg` command.
 
 
-VOLTTRON Environment
-====================
+VOLTTRON_HOME
+=============
 
-By default, the VOLTTRON projects bases its files out of `VOLTTRON_HOME`
-which defaults to `~/.volttron`.
+By default, the VOLTTRON project bases its files out of `VOLTTRON_HOME` which defaults to `~/.volttron`.  This directory
+features directories and files used by the platform for important operation and management tasks as well as containing
+packaged agents and their individual runtime environments (including data directories, identity files, etc.)
 
--  ``$VOLTTRON_HOME/agents`` contains the agents installed on the
-   platform
--  ``$VOLTTRON_HOME/certificates`` contains the certificates for use
-   with the Licensed VOLTTRON code.
--  ``$VOLTTRON_HOME/run`` contains files create by the platform during
-   execution. The main ones are the 0MQ files created for publish and
-   subcribe.
--  ``$VOLTTRON_HOME/ssh`` keys used by agent mobility in the Licensed
-   VOLTTRON code
--  ``$VOLTTRON_HOME/config`` Default location to place a config file to
-   override any platform settings.
--  ``$VOLTTRON_HOME/packaged`` is where agent packages created with `volttron-pkg` are created
+- **$VOLTTRON_HOME/agents** - contains the agents installed on the platform
+- **$VOLTTRON_HOME/auth.json** - file containing authentication and authorization rules for agents connecting to the
+  VOLTTRON instance.
+- **$VOLTTRON_HOME/certificates** - contains the certificates for use with the Licensed VOLTTRON code.
+- **$VOLTTRON_HOME/configuration_store** - agent configuration store files are stored in this directory.  Each agent
+  may have a file here in which JSON representations of their stored configuration files are stored.
+- **$VOLTTRON_HOME/run** - contains files create by the platform during execution.  The main ones are the ZMQ files
+  created for publish and subscribe functionality.
+- **$VOLTTRON_HOME/ssh** - keys used by agent mobility in the Licensed VOLTTRON code
+- **$VOLTTRON_HOME/config** - Default location to place a config file to override any platform settings.
+- **$VOLTTRON_HOME/packaged** - agent packages created with `volttron-pkg` are created in this directory
+- **$VOLTTRON_HOME/VOLTTRON_PID** - File containing the Unix process ID for the VOLTTRON platform - used for tracking
+  platform status.
 
 
 .. _Platform-Config-File:
@@ -36,45 +38,33 @@ which defaults to `~/.volttron`.
 VOLTTRON Config File
 ====================
 
-The VOLTTRON platform config file can contain any of the command line arguments for starting the platform...
+The `config` file in `VOLTTRON_HOME` is the config file used by the platform.  This configuration file specifies the
+behavior of the platform at runtime, including which message bus it uses, the name of the platform instance, the address
+bound to by VIP, and so-on.  It is recommended to use the `VOLTTRON Config`_ wizard (explained below) for configuring
+an instance for the first time as it will create a thorough template unique to your deployment.  After using the wizard
+the file may be edited by the user as necessary for operations.  The following is a simple example `config` for a
+multi-platform deployment:
 
-.. code-block:: console
+::
 
-       -c FILE, --config FILE
-                        read configuration from FILE
-       -l FILE, --log FILE   send log output to FILE instead of stderr
-       -L FILE, --log-config FILE
-                        read logging configuration from FILE
-       -q, --quiet           decrease logger verboseness; may be used multiple
-                        times
-       -v, --verbose         increase logger verboseness; may be used multiple
-                        times
-       --verboseness LEVEL   set logger verboseness
-       --help                show this help message and exit
-       --version             show program's version number and exit
+    [volttron]
+    message-bus = zmq
+    vip-address = tcp://127.0.0.1:22916
+    bind-web-address = <web service bind address>
+    web-ssl-cert = <VOLTTRON_HOME>/certificates/certs/master_web-server.crt
+    web-ssl-key = <VOLTTRON_HOME>/certificates/private/master_web-server.pem
+    instance-name = volttron1
+    volttron-central-address = <VC address>
 
-agent options:
+The example consists of the following entries:
 
-.. code-block:: console
-
-       --autostart           automatically start enabled agents and services
-       --publish-address ZMQADDR
-                            ZeroMQ URL for used for agent publishing
-       --subscribe-address ZMQADDR
-                            ZeroMQ URL for used for agent subscriptions
-
-control options:
-
-.. code-block:: console
-
-       --control-socket FILE
-                             path to socket used for control messages
-       --allow-root          allow root to connect to control socket
-       --allow-users LIST    users allowed to connect to control socket
-       --allow-groups LIST   user groups allowed to connect to control socket
-
-Boolean options, which take no argument, may be inverted by prefixing the option with no '-' (e.g. ``--autostart`` may
-be inverted using ``--no-autostart``).
+* **message-bus** - message bus being used for this instance (rmq/zmq)
+* **vip-address** - address bound to by VIP for message bus communication
+* **bind-web-address** - address bound to by the platform web service for handling HTTP(s) requests
+* **web-ssl-cert** - path to the certificate for the instance's web service
+* **web-ssl-key** - secret key or path to secret key file used by web service authenticate requests
+* **instance-name** - name of this VOLTTRON platform instance, should be unique for the deployment
+* **volttron-central-address** - web address of VOLTTRON central managing this platform instance
 
 
 .. _VOLTTRON-Config:
@@ -143,7 +133,7 @@ A set of example responses are included here (`username` is ``user``, `localhost
         Would you like to install a master driver? [N]: y
         Configuring /home/user/volttron/services/core/MasterDriverAgent.
         ['volttron', '-vv', '-l', '/home/user/.volttron/volttron.cfg.log']
-        Would you like to install a fake device on the master driver? [N]: y
+        Would you like to**install a fake device on the master driver? [N]: y
         Should the agent autostart? [N]: y
         Would you like to install a listener agent? [N]: y
         Configuring examples/ListenerAgent.
@@ -160,7 +150,7 @@ Once this is finished, run VOLTTRON and test the new configuration.
 
 
 Optional Arguments
-==================
+------------------
 
   - **-v, --verbose** - Enables verbose output in standard-output (PIP output, etc.)
   - **--vhome VHOME** - Provide a path to set `VOLTTRON_HOME` for this instance
