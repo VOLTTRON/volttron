@@ -45,7 +45,9 @@ def test_base_historian_agent_should_filter_duplicates(base_historian_agent):
             message=f"unique_record_{num}",
         )
 
+    # Since this is a unit test, we have to "manually start" the base_historian to get the workflow going
     base_historian_agent.start_process_thread()
+    # Adding sleep to ensure that all data gets publised in the cache before testing
     sleep(3)
 
     expected_to_publish_list = [
@@ -65,6 +67,16 @@ def test_base_historian_agent_should_filter_duplicates(base_historian_agent):
         }
     ]
 
+
+    # When the base_historian is handling duplicates from the cache, the base_historian is expected to make multiple calls to publish_to_historian
+    # in which each call contains exactly one duplicate record. More importanly, the base_historian is also expected to make each call to publish_to_historian
+    # in the order in which the duplicates were initially inserted into the cache (i.e. First-in, First Out, FIFO)
+    # In this specific case, we have three duplicates that need to be processed. Thus, publish_to_historian will get called thrice.
+    # On the first call, publish_to_historian will publish 'unique_record_2', 'unique_record_3', 'unique_record_4' AND  'last_duplicate_40'
+    # On the second call, publish_to_historian will publish last_duplicate_41
+    # On the third and final call, publish_to_historian will publish last_duplicate_42
+    # Since it is difficult to validate every call except the last call, we will simply validate that the last call
+    # did indeed publish exactly one duplicate record that was the last duplicate record inserted into the cache.
     assert base_historian_agent.last_to_publish_list == expected_to_publish_list
 
 
