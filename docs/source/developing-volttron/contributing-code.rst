@@ -17,6 +17,12 @@ The only requirements for contributing are Git (Linux version control software) 
    The following guide assumes the user has already created a fork of the core VOLTTRON repository.  Please review the
    :ref:`docs <Fork-Repository>` if you have not yet created a fork.
 
+The only technical requirements for contributing are Git (version control software) and your
+favorite web browser.
+
+As a part of VOLTTRON joining the Eclipse community, Eclipse requires that all contributors sign the
+`Eclipse Contributor agreement <https://www.eclipse.org/legal/ECA.php>`_ before making a pull request.
+
 
 Reviewing Changes
 =================
