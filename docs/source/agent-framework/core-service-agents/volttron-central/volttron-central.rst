@@ -4,7 +4,7 @@
 VOLTTRON Central (VC)
 =====================
 
-The VC Agent is responsible for controlling multiple VOLTTRON instances through a single interfaces.
+The VC Agent is responsible for controlling multiple VOLTTRON instances through a single web interface.
 The VOLTTRON instances can be either local or remote. VC leverages an internal VOLTTRON web server providing a
 interface to our JSON-RPC based web API.  Both the web api and the interface are served through the VC agent.
 

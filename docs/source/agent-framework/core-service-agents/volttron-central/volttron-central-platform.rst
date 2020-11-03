@@ -4,13 +4,11 @@
 Volttron Central Platform (VCP)
 ===============================
 
-The VCP exposes a VOLTTRON instance to a Volttron Central (VC) agent. The VC
-agent can either be on the same or a different VOLTTRON instance. The VCP agent will,
+The VCP agent exposes a VOLTTRON instance to a Volttron Central (VC) agent. The VC
+agent can either be on the same or a remote VOLTTRON instance. The VCP agent will,
 once authenticated with the VC agent's instance, auto connect to the VC
 agent's instance and register itself on startup. The VCP instance will attempt
-to reconnect to the VC agent's instance if connection is disrupted. VCP has
-many configuration options available that can be set via the configuration store
-and/or initial configuration file.
+to reconnect to the VC agent's instance if connection is disrupted.
 
 Publish Specifications
 ----------------------
@@ -24,8 +22,8 @@ name is normalized into a identity.
 FAQ / Notes
 -----------
 
-* VCP agent has an identity of 'platform.agent' this cannot be changed.
-* There may only be a single agent connected to a VOLTTRON instances with the identiy of 'platform.agent'
+* VCP agent has an identity of 'platform.agent'. This cannot be changed.
+* There may only be a single agent connected to a VOLTTRON instance with the identiy of 'platform.agent'
 * VCP will publish to VC under the topic platforms/vcp-(normalized instance name)/
 * VC communicates through the :py:class:`vcplatform.vcconnection.VCConnection` rpc methods.
 * VCP uses the  :py:class:`vcplatform.vcconnection.VCConnection` to connect with the VC agent's instance.

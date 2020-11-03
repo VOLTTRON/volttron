@@ -1,7 +1,6 @@
-The VOLTTRON Central agent allows the control of different VOLTTRON platforms
+The VOLTTRON Central agent allows the control of remote VOLTTRON platforms
 through the registered platform agents. The registration of platforms can be
-initiated either from the platform agent side or from VOLTTRON Central
-requesting to manage a specified platform agent. Once a platform agent
+initiated from a remote platform agent. Once a platform agent
 is registered the allowed operations are start, stop, install, and run
 methods on the registered platform's agents.
 

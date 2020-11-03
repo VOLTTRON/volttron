@@ -5,7 +5,7 @@ VOLTTRON Central Management Overview
 ====================================
 
 VOLTTRON Central is responsible for controlling multiple VOLTTRON instances with a single management instance.
-The mnanaged VOLTTRON instances can be either local or remote. Each managed instance will have a VOLTTRON Central
+The managed VOLTTRON instances can be either local or remote. Each managed instance will have a VOLTTRON Central
 Platform agent installed and running to interface with the primary VOLTTRON Central agent.
 
 |VC-VCP Overview|
