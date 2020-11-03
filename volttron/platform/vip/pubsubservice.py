@@ -827,7 +827,6 @@ class PubSubService(object):
         # happens only in case of errors in multi platform use case
         _log.warning(f"In _handle_error of pubsub subsystem. Frames: {frames}")
 
-
     def publish_callback(self, peer, sender, bus, topic, headers, message):
         """
         Callback method to receive PubSub messages from internal RabbitMQ message bus and send it

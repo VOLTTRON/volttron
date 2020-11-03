@@ -3,28 +3,33 @@
 =======================================================
 Configuration for Integrating With Simulation Platforms
 =======================================================
-Configurations for interfacing with simulation platforms will vary depending on the specifications of that platform but there may be few common configuration
-options that we can group together as separate sections such as
 
-* Config parameters that help us setup the simulation such as connection parameters (connection address), unique name for the participant, total simulation time
+Configurations for interfacing with simulation platforms will vary depending on the specifications of that platform but
+there may be few common configuration options that we can group together as separate sections such as:
+
+* Config parameters that help us setup the simulation such as connection parameters (connection address), unique name
+  for the participant, total simulation time
 * List of topics for subscribing with simulation platform
 * List of topics for publishing to the simulation platform
 * List of topics subscribing with VOLTTRON message bus
 
-We have grouped these four categories of configuration into four different sections - properties, inputs, outputs and volttron_subscriptions.
-The simulation integration class will read these four sections and register with simulation platform appropriately. If an agent needs to
-interface with EnergyPlus or HELICS using the simulation integration framework, then it will need to group the configurations into above four
-sections.
+We have grouped these four categories of configuration into four different sections - `properties`, `inputs`, `outputs`
+and  `volttron_subscriptions`.  The simulation integration class will read these four sections and register with
+simulation platform appropriately.  If an agent needs to interface with EnergyPlus or HELICS using the simulation
+integration framework, then it will need to group the configurations into above four sections.
 
-**Note**
+.. note::
 
-GridAPPS-D can run complex power system simulations using variety of simulators such as GridLAB-D, HELICS, MatPower etc.
-So the configuration for GridAPPS-D cannot follow the above format. Because of this, the configuration for GridAPPSD is taken in the raw format and passed drectly to the GridAPPS-D simulation.
+    GridAPPS-D can run complex power system simulations using variety of simulators such as GridLAB-D, HELICS, MatPower
+    etc.  So the configuration for GridAPPS-D cannot follow the above format.  Because of this, the configuration for
+    GridAPPSD is taken in the raw format and passed directly to the GridAPPS-D simulation.
+
 
 Example Configuration
----------------------------------
-The configuration for interfacing with a simulation platform is described by using integration with HELICS as an example. Each participant in a
-HELICS co-simulation environment is called a federate.
+---------------------
+
+The configuration for interfacing with a simulation platform is described by using integration with HELICS as an
+example.  Each participant in a HELICS co-simulation environment is called a federate.
 
 Below is an example HELICS config file.
 
@@ -86,8 +91,10 @@ The properties section may contain the following.
 * time step delta in seconds
 * total simulation time etc
 
-**Note**
-The individual fields under this section may vary depending on whether the agent is interfacing with HELICS or EnergyPlus.
+.. note::
+
+    The individual fields under this section may vary depending on whether the agent is interfacing with HELICS or
+    EnergyPlus.
 
 In the inputs section, list of subscriptions (if any) need to be provided. Each subscription will contain the following.
 
@@ -95,7 +102,6 @@ In the inputs section, list of subscriptions (if any) need to be provided. Each 
 * data type
 * VOLTTRON topic to republish the message on VOLTTRON message bus (optional)
 * required flag (optional)
-
 
 In the outputs section, list of publications (if any) need to be provided. Each publication will contain the following.
 

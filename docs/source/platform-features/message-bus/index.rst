@@ -21,6 +21,6 @@ documentation linked below:
 
     topics
     vip/vip-overview
-    rabbitmq/rabbitmq-volttron
+    rabbitmq/rabbitmq-overview
     multi-platform/multi-platform-communication
 
