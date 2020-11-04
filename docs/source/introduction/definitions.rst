@@ -66,6 +66,7 @@ Industry Terms
   ZeroMQ (also ØMQ)
     A library used for inter-process and inter-computer communication.
 
+
 VOLTTRON Terms
 ==============
 
