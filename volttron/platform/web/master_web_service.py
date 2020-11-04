@@ -205,6 +205,10 @@ class MasterWebService(Agent):
         self.appContainer.websocket_send(endpoint, message)
 
     @RPC.export
+    def print_websocket_clients(self):
+        _log.debug(self.appContainer.endpoint_clients)
+
+    @RPC.export
     def get_bind_web_address(self):
         return self.bind_web_address
 
@@ -460,6 +464,7 @@ class MasterWebService(Agent):
 
         # if ws4pi.socket is set then this connection is a web socket
         # and so we return the websocket response.
+
         if 'ws4py.socket' in env:
             return env['ws4py.socket'](env, start_response)
 

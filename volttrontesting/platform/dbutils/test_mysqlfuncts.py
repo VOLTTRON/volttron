@@ -1,9 +1,22 @@
 import contextlib
 import datetime
-from time import time
+import os
+import logging
+
+logging.getLogger("urllib3.connectionpool").setLevel(logging.INFO)
+
+from time import time, sleep
 
 import pytest
-import mysql.connector
+
+try:
+    import mysql.connector
+except ImportError:
+    pytest.skip(
+        "Required imports for testing are not installed; thus, not running tests. Install imports with: python bootstrap.py --mysql",
+        allow_module_level=True,
+    )
+
 
 from volttron.platform.dbutils.mysqlfuncts import MySqlFuncts
 from volttrontesting.fixtures.docker_wrapper import create_container
@@ -14,13 +27,15 @@ pytestmark = [pytest.mark.mysqlfuncts, pytest.mark.dbutils, pytest.mark.unit]
 # mysqlfuncts was written for MYSQL 5.7; however, the latest version is 8.0
 # these tests cannot use latest or anything 8.0 and above and will fail if the latest image/8.0 is used
 # for example, latest/8.0 will throw a "specified key was too long; max key length is 3072 bytes" error
-IMAGES = [
-    "mysql:5.7",
-]  # To test more images, add them here
+IMAGES = ["mysql:5.6.49"]
+
+if "CI" not in os.environ:
+    IMAGES.extend(["mysql:5.7.31", "mysql:5", "mysql:5.6", "mysql:5.7"])
+
 TEST_DATABASE = "test_historian"
 ROOT_PASSWORD = "12345"
 ENV_MYSQL = {"MYSQL_ROOT_PASSWORD": ROOT_PASSWORD, "MYSQL_DATABASE": TEST_DATABASE}
-ALLOW_CONNECTION_TIME = 10
+ALLOW_CONNECTION_TIME = 30
 DATA_TABLE = "data"
 TOPICS_TABLE = "topics"
 META_TABLE = "meta"
@@ -28,6 +43,7 @@ AGG_TOPICS_TABLE = "p_aggregate_topics"
 AGG_META_TABLE = "p_aggregate_meta"
 
 
+@pytest.mark.mysqlfuncts
 def test_setup_historian_tables_should_create_tables(get_container_func, ports_config):
     get_container, image = get_container_func
     with get_container(image, ports=ports_config["ports"], env=ENV_MYSQL) as container:
@@ -46,6 +62,7 @@ def test_setup_historian_tables_should_create_tables(get_container_func, ports_c
             assert "meta" in tables
 
 
+@pytest.mark.mysqlfuncts
 def test_record_table_definitions_should_succeed(get_container_func, ports_config):
     get_container, image = get_container_func
     with get_container(image, ports=ports_config["ports"], env=ENV_MYSQL) as container:
@@ -79,6 +96,7 @@ def test_record_table_definitions_should_succeed(get_container_func, ports_confi
                 assert val in expected_data
 
 
+@pytest.mark.mysqlfuncts
 def test_setup_aggregate_historian_tables_should_succeed(
     get_container_func, ports_config
 ):
@@ -101,6 +119,7 @@ def test_setup_aggregate_historian_tables_should_succeed(
             assert AGG_META_TABLE in tables
 
 
+@pytest.mark.mysqlfuncts
 @pytest.mark.parametrize(
     "topic_ids, id_name_map, expected_values",
     [
@@ -137,6 +156,7 @@ def test_query_should_return_data(
             assert actual_values == expected_values
 
 
+@pytest.mark.mysqlfuncts
 def test_insert_meta_query_should_succeed(get_container_func, ports_config):
     get_container, image = get_container_func
     with get_container(image, ports=ports_config["ports"], env=ENV_MYSQL) as container:
@@ -155,6 +175,7 @@ def test_insert_meta_query_should_succeed(get_container_func, ports_config):
             assert get_data_in_table(port_on_host, "meta")[0] == expected_data
 
 
+@pytest.mark.mysqlfuncts
 def test_insert_data_query_should_succeed(get_container_func, ports_config):
     get_container, image = get_container_func
     with get_container(image, ports=ports_config["ports"], env=ENV_MYSQL) as container:
@@ -174,6 +195,7 @@ def test_insert_data_query_should_succeed(get_container_func, ports_config):
             assert get_data_in_table(port_on_host, "data") == expected_data
 
 
+@pytest.mark.mysqlfuncts
 def test_insert_topic_query_should_succeed(get_container_func, ports_config):
     get_container, image = get_container_func
     with get_container(image, ports=ports_config["ports"], env=ENV_MYSQL) as container:
@@ -192,6 +214,7 @@ def test_insert_topic_query_should_succeed(get_container_func, ports_config):
             ]
 
 
+@pytest.mark.mysqlfuncts
 def test_update_topic_should_succeed(get_container_func, ports_config):
     get_container, image = get_container_func
     with get_container(image, ports=ports_config["ports"], env=ENV_MYSQL) as container:
@@ -212,6 +235,7 @@ def test_update_topic_should_succeed(get_container_func, ports_config):
             assert (actual_id, "soccer") == get_data_in_table(port_on_host, "topics")[0]
 
 
+@pytest.mark.mysqlfuncts
 def test_insert_agg_topic_should_succeed(get_container_func, ports_config):
     get_container, image = get_container_func
     with get_container(image, ports=ports_config["ports"], env=ENV_MYSQL) as container:
@@ -231,6 +255,7 @@ def test_insert_agg_topic_should_succeed(get_container_func, ports_config):
             assert get_data_in_table(port_on_host, AGG_TOPICS_TABLE)[0] == expected_data
 
 
+@pytest.mark.mysqlfuncts
 def test_update_agg_topic_should_succeed(get_container_func, ports_config):
     get_container, image = get_container_func
     with get_container(image, ports=ports_config["ports"], env=ENV_MYSQL) as container:
@@ -258,6 +283,7 @@ def test_update_agg_topic_should_succeed(get_container_func, ports_config):
             assert get_data_in_table(port_on_host, AGG_TOPICS_TABLE)[0] == expected_data
 
 
+@pytest.mark.mysqlfuncts
 def test_insert_agg_meta_should_succeed(get_container_func, ports_config):
     get_container, image = get_container_func
     with get_container(image, ports=ports_config["ports"], env=ENV_MYSQL) as container:
@@ -277,6 +303,7 @@ def test_insert_agg_meta_should_succeed(get_container_func, ports_config):
             assert get_data_in_table(port_on_host, AGG_META_TABLE)[0] == expected_data
 
 
+@pytest.mark.mysqlfuncts
 def test_get_topic_map_should_succeed(get_container_func, ports_config):
     get_container, image = get_container_func
     with get_container(image, ports=ports_config["ports"], env=ENV_MYSQL) as container:
@@ -302,6 +329,7 @@ def test_get_topic_map_should_succeed(get_container_func, ports_config):
             assert actual == expected
 
 
+@pytest.mark.mysqlfuncts
 def test_get_agg_topic_map_should_return_dict(get_container_func, ports_config):
     get_container, image = get_container_func
     with get_container(image, ports=ports_config["ports"], env=ENV_MYSQL) as container:
@@ -323,6 +351,7 @@ def test_get_agg_topic_map_should_return_dict(get_container_func, ports_config):
             assert actual == expected
 
 
+@pytest.mark.mysqlfuncts
 def test_query_topics_by_pattern_should_succeed(get_container_func, ports_config):
     get_container, image = get_container_func
     with get_container(image, ports=ports_config["ports"], env=ENV_MYSQL) as container:
@@ -348,6 +377,7 @@ def test_query_topics_by_pattern_should_succeed(get_container_func, ports_config
             assert actual == expected
 
 
+@pytest.mark.mysqlfuncts
 def test_create_aggregate_store_should_succeed(get_container_func, ports_config):
     get_container, image = get_container_func
     with get_container(image, ports=ports_config["ports"], env=ENV_MYSQL) as container:
@@ -371,6 +401,7 @@ def test_create_aggregate_store_should_succeed(get_container_func, ports_config)
             )
 
 
+@pytest.mark.mysqlfuncts
 def test_insert_aggregate_stmt_should_succeed(get_container_func, ports_config):
     get_container, image = get_container_func
     with get_container(image, ports=ports_config["ports"], env=ENV_MYSQL) as container:
@@ -408,6 +439,7 @@ def test_insert_aggregate_stmt_should_succeed(get_container_func, ports_config):
             assert get_data_in_table(port_on_host, "AVG_1776")[0] == expected_data
 
 
+@pytest.mark.mysqlfuncts
 def test_collect_aggregate_should_return_aggregate_result(
     get_container_func, ports_config
 ):
@@ -435,6 +467,7 @@ def test_collect_aggregate_should_return_aggregate_result(
             assert actual_aggregate == expected_aggregate
 
 
+@pytest.mark.mysqlfuncts
 def test_collect_aggregate_should_raise_value_error(get_container_func, ports_config):
     get_container, image = get_container_func
     with get_container(image, ports=ports_config["ports"], env=ENV_MYSQL) as container:
@@ -453,6 +486,7 @@ def get_mysqlfuncts(port):
         "database": TEST_DATABASE,
         "user": "root",
         "passwd": ROOT_PASSWORD,
+        "connection_timeout": ALLOW_CONNECTION_TIME
     }
 
     table_names = {
@@ -566,6 +600,7 @@ def create_all_tables(container):
 def seed_database(container, query):
     command = f'mysql --user="root" --password="{ROOT_PASSWORD}" {TEST_DATABASE} --execute="{query}"'
     container.exec_run(cmd=command, tty=True)
+    sleep(3)
     return
 
 
@@ -622,6 +657,7 @@ def get_data_in_table(port, table):
 
 
 def get_cnx_cursor(port):
+    sleep(3)
     connect_params = {
         "host": "localhost",
         "port": port,

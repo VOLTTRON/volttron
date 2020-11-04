@@ -46,6 +46,7 @@ from volttron.platform.agent.base_market_agent.poly_line_factory import PolyLine
 _log = logging.getLogger(__name__)
 utils.setup_logging()
 
+
 class OfferManager(object):
 
     def __init__(self):
@@ -67,7 +68,8 @@ class OfferManager(object):
         return curve
 
     def _aggregate(self, collection):
-        curve = PolyLineFactory.combine(collection, self.increment)
+#        curve = PolyLineFactory.combine(collection, self.increment)
+        curve = PolyLineFactory.combine_withoutincrement(collection)
         return curve
 
     def settle(self):
