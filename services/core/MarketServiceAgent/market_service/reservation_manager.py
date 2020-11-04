@@ -36,9 +36,11 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
+
 class MarketReservationError(Exception):
     """Base class for exceptions in this module."""
     pass
+
 
 class ReservationManager(object):
 

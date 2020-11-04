@@ -45,6 +45,15 @@ from volttron.platform.agent import utils
 _log = logging.getLogger(__name__)
 utils.setup_logging()
 
+
+def remove(duplicate):
+    final_list = []
+    for num in duplicate:
+        if num not in final_list:
+            final_list.append(num)
+    return final_list
+
+
 class PolyLineFactory(object):
     @staticmethod
     def combine(lines, increment):
@@ -86,8 +95,8 @@ class PolyLineFactory(object):
         for y in ys:
             xt = None
             for line in lines:
-                x = line.x(y, left=np.nan)
-
+                x = line.x(y)
+                # print x, y
                 if x is not None:
                     xt = x if xt is None else xt + x
             composite.add(Point(xt, y))
@@ -95,10 +104,38 @@ class PolyLineFactory(object):
         return composite
 
     @staticmethod
+    def combine_withoutincrement(lines):
+
+        # we return a new PolyLine which is a composite (summed horizontally) of inputs
+        composite = PolyLine()
+        if len(lines) < 2:
+            if isinstance(lines[0], list):
+                for point in lines[0]:
+                    composite.add(Point(point[0], point[1]))
+                return composite
+            return lines[0]
+        # find the range defined by the curves
+        ys=[]
+        for l in lines:
+            ys=ys+l.vectorize()[1]
+
+        ys = remove(ys)
+
+        ys.sort(reverse=True)
+        for y in ys:
+            xt = None
+            for line in lines:
+                x = line.x(y)
+                if x is not None:
+                    xt = x if xt is None else xt + x
+            composite.add(Point(xt, y))
+        return composite
+
+    @staticmethod
     def fromTupples(points):
-        polyLine = PolyLine()
+        poly_line = PolyLine()
         for p in points:
             if p is not None and len(p) == 2:
-                polyLine.add(Point(p[0], p[1]))
-        return polyLine
+                poly_line.add(Point(p[0], p[1]))
+        return poly_line
 
