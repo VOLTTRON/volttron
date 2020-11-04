@@ -10,7 +10,7 @@ from volttrontesting.utils.agent_additions import \
 from volttrontesting.utils.platformwrapper import PlatformWrapper, \
     start_wrapper_platform
 
-from services.core.VolttronCentral.tests.vctestutils import APITester
+from vctestutils import APITester
 from services.core.VolttronCentral.tests.vc_fixtures import \
     vc_and_vcp_together, vc_instance, vcp_instance
 

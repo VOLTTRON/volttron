@@ -8,7 +8,7 @@ from volttron.platform.agent.known_identities import (CONFIGURATION_STORE,
                                                       VOLTTRON_CENTRAL_PLATFORM)
 from volttrontesting.utils.agent_additions import (add_volttron_central,
                                                    add_volttron_central_platform)
-from services.core.VolttronCentral.tests.vctestutils import APITester
+from vctestutils import APITester
 
 
 
