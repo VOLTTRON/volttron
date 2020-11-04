@@ -14,9 +14,9 @@ def user_pass():
 def test_can_create_admin_user(volttron_instance_web, user_pass):
     instance = volttron_instance_web
 
-    if instance.messagebus != 'rmq':
-        pytest.skip("Only for rmq at this point in time.")
-        return
+    # if instance.messagebus != 'rmq':
+    #     pytest.skip("Only for rmq at this point in time.")
+    #     return
 
     webadmin = instance.web_admin_api
 
