@@ -107,14 +107,14 @@ class MySqlFuncts(DbDriver):
         try:
             if self.MICROSECOND_SUPPORT:
                 self.execute_stmt(
-                    'CREATE TABLE IF NOT EXISTS ' + self.data_table +
+                    'CREATE TABLE ' + self.data_table +
                     ' (ts timestamp(6) NOT NULL,\
                      topic_id INTEGER NOT NULL, \
                      value_string TEXT NOT NULL, \
                      UNIQUE(topic_id, ts))')
             else:
                 self.execute_stmt(
-                    'CREATE TABLE IF NOT EXISTS ' + self.data_table +
+                    'CREATE TABLE ' + self.data_table +
                     ' (ts timestamp NOT NULL,\
                      topic_id INTEGER NOT NULL, \
                      value_string TEXT NOT NULL, \
@@ -122,13 +122,13 @@ class MySqlFuncts(DbDriver):
 
             self.execute_stmt('''CREATE INDEX data_idx
                                     ON ''' + self.data_table + ''' (ts ASC)''')
-            self.execute_stmt('''CREATE TABLE IF NOT EXISTS ''' +
+            self.execute_stmt('''CREATE TABLE  ''' +
                               self.topics_table +
                               ''' (topic_id INTEGER NOT NULL AUTO_INCREMENT,
                                    topic_name varchar(512) NOT NULL,
                                    PRIMARY KEY (topic_id),
                                    UNIQUE(topic_name))''')
-            self.execute_stmt('''CREATE TABLE IF NOT EXISTS '''
+            self.execute_stmt('''CREATE TABLE  '''
                               + self.meta_table +
                               '''(topic_id INTEGER NOT NULL,
                                metadata TEXT NOT NULL,
@@ -189,21 +189,26 @@ class MySqlFuncts(DbDriver):
         self.agg_topics_table = table_names.get('agg_topics_table', None)
         self.agg_meta_table = table_names.get('agg_meta_table', None)
 
-        self.execute_stmt(
-            'CREATE TABLE IF NOT EXISTS ' + self.agg_topics_table +
-            ' (agg_topic_id INTEGER NOT NULL AUTO_INCREMENT, \
-               agg_topic_name varchar(512) NOT NULL, \
-               agg_type varchar(512) NOT NULL, \
-               agg_time_period varchar(512) NOT NULL, \
-               PRIMARY KEY (agg_topic_id), \
-               UNIQUE(agg_topic_name, agg_type, agg_time_period));')
+        rows = self.select("show tables like %s", [self.agg_topics_table])
+        if rows:
+            _log.debug("Found table {}. Historian table exists".format(
+                self.agg_topics_table))
+        else:
+            self.execute_stmt(
+                'CREATE TABLE ' + self.agg_topics_table +
+                ' (agg_topic_id INTEGER NOT NULL AUTO_INCREMENT, \
+                   agg_topic_name varchar(512) NOT NULL, \
+                   agg_type varchar(512) NOT NULL, \
+                   agg_time_period varchar(512) NOT NULL, \
+                   PRIMARY KEY (agg_topic_id), \
+                   UNIQUE(agg_topic_name, agg_type, agg_time_period));')
 
-        self.execute_stmt(
-            'CREATE TABLE IF NOT EXISTS ' + self.agg_meta_table +
-            '(agg_topic_id INTEGER NOT NULL, \
-              metadata TEXT NOT NULL, \
-              PRIMARY KEY(agg_topic_id));')
-        self.commit()
+            self.execute_stmt(
+                'CREATE TABLE ' + self.agg_meta_table +
+                '(agg_topic_id INTEGER NOT NULL, \
+                  metadata TEXT NOT NULL, \
+                  PRIMARY KEY(agg_topic_id));')
+            self.commit()
         _log.debug("Created aggregate topics and meta tables")
 
     def query(self, topic_ids, id_name_map, start=None, end=None, skip=0,
@@ -401,18 +406,22 @@ class MySqlFuncts(DbDriver):
         if self.MICROSECOND_SUPPORT is None:
             self.init_microsecond_support()
 
-        stmt = "CREATE TABLE IF NOT EXISTS " + table_name + \
-               " (ts timestamp(6) NOT NULL, topic_id INTEGER NOT NULL, " \
-               "value_string TEXT NOT NULL, topics_list TEXT," \
-               " UNIQUE(topic_id, ts)," \
-               "INDEX (ts ASC))"
-        if not self.MICROSECOND_SUPPORT:
-            stmt = "CREATE TABLE IF NOT EXISTS " + table_name + \
-                   " (ts timestamp NOT NULL, topic_id INTEGER NOT NULL, " \
+        rows = self.select("show tables like %s", [table_name])
+        if rows:
+            _log.debug("Found table {}. Historian table exists".format(table_name))
+        else:
+            stmt = "CREATE TABLE " + table_name + \
+                   " (ts timestamp(6) NOT NULL, topic_id INTEGER NOT NULL, " \
                    "value_string TEXT NOT NULL, topics_list TEXT," \
                    " UNIQUE(topic_id, ts)," \
                    "INDEX (ts ASC))"
-        return self.execute_stmt(stmt, commit=True)
+            if not self.MICROSECOND_SUPPORT:
+                stmt = "CREATE TABLE " + table_name + \
+                       " (ts timestamp NOT NULL, topic_id INTEGER NOT NULL, " \
+                       "value_string TEXT NOT NULL, topics_list TEXT," \
+                       " UNIQUE(topic_id, ts)," \
+                       "INDEX (ts ASC))"
+            return self.execute_stmt(stmt, commit=True)
 
     def insert_aggregate_stmt(self, table_name):
         return '''REPLACE INTO ''' + table_name + \
