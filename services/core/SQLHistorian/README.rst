@@ -4,7 +4,7 @@
 SQLHistorian
 ============
 
-This is a historian agent that writes data to a SQLite, Mysql, Postgres,
+This is a historian agent that writes data to a SQLite, Mysql, Postgres, TimeScale,
 or Redshift database based on the connection parameters in the configuration.
 The sql historian has been programmed to allow for inconsistent network connectivity
 (automatic re-connection to tcp based databases). All additions to the
