@@ -16,13 +16,13 @@ Industry Terms
 Agent
 -----
 
-Software which acts on the behalf of a user to perform a set of tasks.
+Software which acts on behalf of a user to perform a set of tasks.
 
 
 BACNet
 ------
 
-Building Automation and Control network, that leverages ASHRAE, ANSI, and IOS 16484-5 standard protocols
+Building Automation and Control network that leverages ASHRAE, ANSI, and IOS 16484-5 standard protocols
 
 
 DNP3 (Distributed Network Protocol 3)
@@ -34,7 +34,7 @@ Communications protocol used to coordinate processes in distributed automation s
 JSON (JavaScript Object Notation)
 ---------------------------------
 
-JavaScript object notation is a text-based, human-readable, open data interchange format, similar to XML,
+JavaScript object notation is a text-based, human-readable, open data interchange format, similar to XML
 but less verbose
 
 
@@ -85,37 +85,37 @@ or topic.
 RabbitMQ
 --------
 
-Open-Source message brokering system used by VOLTTRON for sending messages between services on the platform
+Open-Source message brokering system used by VOLTTRON for sending messages between services on the platform.
 
 
 Remote Procedure Call
 ---------------------
 
-Protocol used to request services of another computer located elsewhere on the network or on a different network
+Protocol used to request services of another computer located elsewhere on the network or on a different network.
 
 
 SSH (Secure Shell)
 ------------------
 
-Secure shell is a network protocol providing encryption and authentication of data using public-key cryptography
+Secure Shell is a network protocol providing encryption and authentication of data using public-key cryptography.
 
 
 SSL (Secure Sockets Layer)
 --------------------------
 
-Secure Sockets Layer is a technology for encryption and authentication of network traffic based on a chain of trust
+Secure Sockets Layer is a technology for encryption and authentication of network traffic based on a chain of trust.
 
 
 TLS (Transport Layer Security)
 ------------------------------
 
-Transport layer security is the successor to SSL
+Transport Layer Security is the successor to SSL.
 
 
 ZeroMQ (also ØMQ)
 -----------------
 
-A library used for inter-process and inter-computer communication
+A library used for inter-process and inter-computer communication.
 
 
 VOLTTRON Terms
@@ -127,8 +127,8 @@ VOLTTRON Terms
 Activated Environment
 ---------------------
 
-An activated environment is the environment a VOLTTRON instance is run in. The bootstrap process creates the
-environment from the shell and to activate it the following command is executed.
+    An activated environment is the environment a VOLTTRON instance is run in. The bootstrap process creates the
+    environment from the shell. The following command activates the environment:
 
 .. code-block:: bash
 
@@ -146,11 +146,13 @@ AIP (Agent Instantiation and Packaging)
 This is the module responsible for creating agent wheels, the agent execution environment and running agents.  Found in
 the VOLTTRON repository in the `volttron/platform` directory.
 
+    Agent Instantiation and Packaging: this module is responsible for creating agent wheels and the agent execution
+    environment and running agents. Found in the VOLTTRON repository in the `volttron/platform` directory.
 
 Agent Framework
 ---------------
 
-Framework which provides connectivity to the VOLTTRON platform and subsystems for software agents
+Framework which provides connectivity to the VOLTTRON platform and subsystems for software agents.
 
 
 .. _Bootstrap-Environment:
@@ -158,8 +160,8 @@ Framework which provides connectivity to the VOLTTRON platform and subsystems fo
 Bootstrap the Environment
 -------------------------
 
-The process by which an operating environment (activated environment) is produced.  From the
-:ref:`VOLTTRON_ROOT` directory executing `python bootstrap.py` will start the bootstrap process.
+    The process by which an operating environment (activated environment) is produced.  From the
+    :ref:`VOLTTRON_ROOT` directory, executing `python bootstrap.py` will start the bootstrap process.
 
 
 Config Store
@@ -199,19 +201,18 @@ VOLTTRON Central (VC) is a special purpose agent for managing multiple platforms
 VOLTTRON_HOME
 -------------
 
-The location for a specific :ref:`VOLTTRON_INSTANCE` to store its specific information.  There can be many
-VOLTTRON_HOMEs on a single computing resource(VM, machine, etc.), and each `VOLTTRON_HOME` will correspond to a
-single instance of VOLTTRON.
+    The location for a specific :ref:`VOLTTRON_INSTANCE` to store its specific information.  There can be many
+    VOLTTRON_HOMEs on a single computing resource such as a VM, machine, etc. Each `VOLTTRON_HOME` will correspond to a
+    single instance of VOLTTRON.
 
 
 .. _VOLTTRON_INSTANCE:
 
 VOLTTRON_INSTANCE
 -----------------
-
-A single volttron process executing instructions on a computing resource. For each VOLTTRON_INSTANCE there WILL
-BE only one :ref:`VOLTTRON_HOME` associated with it.  In order for a VOLTTRON_INSTANCE to be able to
-participate outside its computing resource it must be bound to an external ip address.
+    A single volttron process executing instructions on a computing resource. For each VOLTTRON_INSTANCE, there WILL
+    BE only one :ref:`VOLTTRON_HOME` associated with it.  For a VOLTTRON_INSTANCE to participate outside its computing
+    resource, it must be bound to an external IP address.
 
 
 .. _VOLTTRON_ROOT:
@@ -219,13 +220,13 @@ participate outside its computing resource it must be bound to an external ip ad
 VOLTTRON_ROOT
 -------------
 
-The cloned directory from Github.  When executing the command
+    The cloned directory from Github.  When executing the command:
 
 .. code-block:: bash
 
     git clone http://github.com/VOLTTRON/volttron
 
-the top level volttron folder is the VOLTTRON_ROOT
+    the top level volttron folder is the VOLTTRON_ROOT.
 
 
 .. _VIP:
@@ -233,8 +234,8 @@ the top level volttron folder is the VOLTTRON_ROOT
 VIP
 ---
 
-VOLTTRON Interconnect Protocol is a secure routing protocol that facilitates communications between agents,
-controllers, services and the supervisory :ref:`VOLTTRON_INSTANCE`.
+    VOLTTRON Interconnect Protocol is a secure routing protocol that facilitates communications between agents,
+    controllers, services, and the supervisory :ref:`VOLTTRON_INSTANCE`.
 
 
 Web Framework
