@@ -62,12 +62,12 @@ class PolyLine:
                     return
         doSort = False
         # if len(self.points) > 0 and point.y < self.points[-1].y:
-        if len(self.points) > 0 and point.x < self.points[-1].x:
+        if len(self.points) > 0:
             doSort = True
 
         self.points.append(point)
         if doSort:
-            self.points.sort()
+            self.points.sort(key=lambda tup: tup[1], reverse=True)
         self.xs = None
         self.ys = None
         if point.x is not None and point.y is not None:
@@ -108,7 +108,7 @@ class PolyLine:
             return x1
         return x1 + x2
 
-    def x(self, y, left=None, right=None):
+    def x(self, y):
         if not self.points:
             return None
         if y is None:
@@ -118,10 +118,10 @@ class PolyLine:
         # ascending = self.ys[0]<self.ys[-1]
         # ys = self.ys if ascending else self.ys[::-1]
         # xs = self.xs if ascending else self.xs[::-1]
-        r = np.interp(y, self.ysSortedByY, self.xsSortedByY, left=left, right=right)
+        r = np.interp(y, self.ysSortedByY, self.xsSortedByY)
         return None if np.isnan(r) else r
 
-    def y(self, x, left=None, right=None):
+    def y(self, x):
         if not self.points:
             return None
         if x is None:
@@ -131,7 +131,7 @@ class PolyLine:
         # ascending = self.xs[0]<self.xs[-1]
         # ys = self.ys if ascending else self.ys[::-1]
         # xs = self.xs if ascending else self.xs[::-1]
-        r = np.interp(x, self.xs, self.ys, left=left, right=right)
+        r = np.interp(x, self.xs, self.ys)
         return None if np.isnan(r) else r
 
     # probably replace w/ zip()
@@ -263,11 +263,83 @@ class PolyLine:
                     if PolyLine.segment_intersects((pl_1_1, pl_1_2), (pl_2_1, pl_2_2)):
                         quantity, price = PolyLine.segment_intersection((pl_1_1, pl_1_2), (pl_2_1, pl_2_2))
                         return quantity, price
+        p1_qmax = max([point[0] for point in pl_1])
+        p1_qmin = min([point[0] for point in pl_1])
 
+        p2_qmax = max([point[0] for point in pl_2])
+        p2_qmin = min([point[0] for point in pl_2])
+
+        p1_pmax = max([point[1] for point in pl_1])
+        p2_pmax = max([point[1] for point in pl_2])
+
+        p1_pmin = min([point[1] for point in pl_1])
+        p2_pmin = min([point[1] for point in pl_2])
         # The lines don't intersect, add the auxillary information
-        quantity = None
-        price = None
+        # TODO - clean this method up.
+        if p1_pmax <= p2_pmax and p1_pmax <=p2_pmin:
+            quantity = p1_qmin
+            price = p2_pmax
+
+        elif p2_pmin <=p1_pmin and p2_pmax <=p1_pmin:
+            quantity = p1_qmax
+            price = p2_pmin
+
+        elif p2_qmax >= p1_qmin and p2_qmax >= p1_qmax:
+            quantity = np.mean([point[0] for point in pl_1])
+            price = np.mean([point[1] for point in pl_1])
+
+        elif p2_qmin <= p1_qmin and p2_qmin <= p1_qmax:
+            quantity = p2_qmax
+            price = p1_pmax
+
+        else:
+            price = None
+            quantity = None
+
         return quantity, price
+
+    @staticmethod
+    def line_intersection(line1, line2):
+        x1x3 = line1[0][0]-line2[0][0]
+        y3y4 = line2[0][1]-line2[1][1]
+        y1y3 = line1[0][1]-line2[0][1]
+        y1y2 = line1[0][1]-line1[1][1]
+        x3x4 = line2[0][0]-line2[1][0]
+        x1x2 = line1[0][0]-line1[1][0]
+        y1y3 = line1[0][1]-line2[0][1]
+        if x1x2*y3y4 - y1y2*x3x4 == 0:
+            return None
+        t = (x1x3*y3y4 - y1y3*x3x4)/(x1x2*y3y4 - y1y2*x3x4)
+        #    u=(x1x2*y1y3-y1y2*x1x3)/(x1x2*y3y4-y1y2*x3x4)
+        x = line1[0][0] + t*(line1[1][0] - line1[0][0])
+        y = line1[0][1] + t*(line1[1][1] - line1[0][1])
+        #       if x>max(line1[0][0],line1[1][0]) or x>max(line2[0][0],line2[1][0]) or x<min(line1[0][0],line1[1][0]) or x<min(line2[0][0],line2[1][0]) or y>max(line1[0][1],line1[1][1]) or y>max(line2[0][1],line2[1][1]) or y<min(line1[0][1],line1[1][1]) or y<min(line2[0][1],line2[1][1]):
+        #                return x
+        if y > max(line1[0][1], line1[1][1]):
+                 return min(line1[0][0], line1[1][0]), y
+        if y > max(line2[0][1], line2[1][1]):
+                 return min(line2[0][0], line2[1][0]), y
+        if y < min(line1[0][1], line1[1][1]):
+                 return max(line1[0][0], line1[1][0]), y
+        if y < min(line2[0][1], line2[1][1]):
+            return max(line2[0][0], line2[1][0]), y
+        return x, y
+
+    @staticmethod
+    def poly_intersection(poly1, poly2):
+        poly1 = poly1.points
+        poly2 = poly2.points
+        for i, p1_first_point in enumerate(poly1[:-1]):
+            p1_second_point = poly1[i + 1]
+
+            for j, p2_first_point in enumerate(poly2[:-1]):
+                p2_second_point = poly2[j + 1]
+
+                if PolyLine.line_intersection((p1_first_point, p1_second_point), (p2_first_point, p2_second_point)):
+                    x, y = PolyLine.line_intersection((p1_first_point, p1_second_point), (p2_first_point, p2_second_point))
+                    return x, y
+
+        return False
 
     @staticmethod
     def compare(demand_curve, supply_curve):
@@ -276,10 +348,18 @@ class PolyLine:
         demand_min_quantity = demand_curve.min_x()
         supply_max_quantity = supply_curve.max_x()
         supply_min_quantity = supply_curve.min_x()
-        aux['Sn,Dn'] = cmp(supply_min_quantity,demand_min_quantity)
-        aux['Sn,DX'] = cmp(supply_min_quantity,demand_max_quantity)
-        aux['Sx,Dn'] = cmp(supply_max_quantity,demand_min_quantity)
-        aux['Sx,DX'] = cmp(supply_max_quantity,demand_max_quantity)
+        demand_max_price = demand_curve.max_y()
+        demand_min_price = demand_curve.min_y()
+        supply_max_price = supply_curve.max_y()
+        supply_min_price = supply_curve.min_y()
+
+        aux['SQn,DQn'] = (supply_min_quantity > demand_min_quantity) - (supply_min_quantity < demand_min_quantity)
+        aux['SQn,DQx'] = (supply_min_quantity > demand_max_quantity) - (supply_min_quantity < demand_max_quantity)
+        aux['SQx,DQn'] = (supply_max_quantity > demand_min_quantity) - (supply_max_quantity < demand_min_quantity)
+        aux['SQx,DQx'] = (supply_max_quantity > demand_max_quantity) - (supply_max_quantity < demand_max_quantity)
+
+        aux['SPn,DPn'] = (supply_min_price > demand_min_price) - (supply_min_price < demand_min_price)
+        aux['SPn,DPx'] = (supply_min_price > demand_max_price) - (supply_min_price < demand_max_price)
+        aux['SPx,DPn'] = (supply_max_price > demand_min_price) - (supply_max_price < demand_min_price)
+        aux['SPx,DPx'] = (supply_max_price > demand_max_price) - (supply_max_price < demand_max_price)
         return aux
-
-

@@ -47,46 +47,47 @@ class Point(tuple):
     _fields = ('quantity', 'price')
 
     def __new__(_cls, quantity, price):
-        'Create new instance of Point(quantity, price)'
-        if (quantity < 0 or quantity is None):
-            raise ValueError('The quantity provided ({}) is an invalid value.'.format(quantity))
-        if (price < 0 or price is None):
-            raise ValueError('The price provided ({}) is an invalid value.'.format(price))
+        """Create new instance of Point(quantity, price)"""
+#        if (quantity < 0 or quantity is None):
+#            raise ValueError('The quantity provided ({}) is an invalid value.'.format(quantity))
+#        if (price < 0 or price is None):
+#            raise ValueError('The price provided ({}) is an invalid value.'.format(price))
+        # Catch exception to
         float_quantity = float(quantity)
         float_price = float(price)
         return _tuple.__new__(_cls, (float_quantity, float_price))
 
     @classmethod
     def _make(cls, iterable, new=tuple.__new__, len=len):
-        'Make a new Point object from a sequence or iterable'
+        """Make a new Point object from a sequence or iterable"""
         result = new(cls, iterable)
         if len(result) != 2:
             raise TypeError('Expected 2 arguments, got %d' % len(result))
         return result
 
     def __repr__(self):
-        'Return a nicely formatted representation string'
+        """Return a nicely formatted representation string"""
         return 'Point(quantity=%r, price=%r)' % self
 
     def _asdict(self):
-        'Return a new OrderedDict which maps field names to their values'
+        """Return a new OrderedDict which maps field names to their values"""
         return OrderedDict(zip(self._fields, self))
 
     def _replace(_self, **kwds):
-        'Return a new Point object replacing specified fields with new values'
+        """Return a new Point object replacing specified fields with new values"""
         result = _self._make(map(kwds.pop, ('quantity', 'price'), _self))
         if kwds:
-            raise ValueError('Got unexpected field names: %r' % list(kwds.keys()))
+            raise ValueError('Got unexpected field names: %r' % kwds.keys())
         return result
 
     def __getnewargs__(self):
-        'Return self as a plain tuple.  Used by copy and pickle.'
+        """Return self as a plain tuple.  Used by copy and pickle."""
         return tuple(self)
 
     __dict__ = _property(_asdict)
 
     def __getstate__(self):
-        'Exclude the OrderedDict from pickling'
+        """Exclude the OrderedDict from pickling"""
         pass
 
     def tuppleize(self):
