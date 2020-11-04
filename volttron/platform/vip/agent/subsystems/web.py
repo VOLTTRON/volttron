@@ -157,7 +157,7 @@ class WebSubSystem(SubsystemBase):
             def ws_closed(self, endpoint):
                 print('ws_closed endpoint {}'.format(endpoint))
 
-        The received event is triggered when the websocket is writtent to fro
+        The received event is triggered when the websocket is written to from
         the client.  The received event must have a signature such as the
         following interface:
 
