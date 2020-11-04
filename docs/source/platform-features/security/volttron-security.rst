@@ -27,7 +27,6 @@ Additional documentation related to VIP authentication and authorization is avai
 
 .. toctree::
 
-   protecting-pubsub-topics
    running-agent-as-user
    key-stores
    known-hosts-file

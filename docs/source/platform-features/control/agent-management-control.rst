@@ -204,6 +204,29 @@ The ``vctl status`` command shows the list of installed agents and whether they 
 - `HEALTH` represents the current state of the agent.  `GOOD` health is displayed while the agent is operating as
   expected.  If an agent enters an error state the health will display as `BAD`
 
+To get more information about a current agents' health one can execute
+
+.. code-block:: console
+
+    # vctl health agent_uuid
+    vctl health a
+
+The above command will output json such as the following:
+
+.. code-block:: json
+
+    {
+        "peer": "listeneragent-3.2_1",
+        "service_agent": false,
+        "connected": "2020-11-02T14:26:07.749003",
+        "last_heartbeat": "2020-11-02T14:26:12.762268",
+        "message": "GOOD"
+    }
+
+.. note::
+
+    When an agent sets its health it can set the message to any serializable string.
+
 
 .. _Agent-Autostart:
 

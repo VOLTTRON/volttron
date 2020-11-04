@@ -47,7 +47,7 @@ from configparser import ConfigParser
 from ..utils.frozendict import FrozenDict
 from urllib.parse import urlparse
 
-__version__ = '7.0'
+__version__ = '8.0-rc'
 
 _log = logging.getLogger(__name__)
 
