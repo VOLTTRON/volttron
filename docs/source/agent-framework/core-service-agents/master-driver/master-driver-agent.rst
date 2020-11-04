@@ -14,9 +14,8 @@ Master Driver Agent.  For more information on the Master Driver Agent's operatio
 Configuring the Master Driver
 =============================
 
-The Master Driver like all other agents, requires a configuration file (described in brief below).  Once the user
-has copied the example or created their own config, the Master Driver Agent is deployed in a manner similar to any other
-agent:
+The Master Driver requires a configuration file (described in brief below) to set global settings for all drivers.  Once
+the user has copied the example or created their own config, the Master Driver Agent is deployed with this command:
 
 .. code-block:: bash
 
@@ -47,8 +46,8 @@ The easiest way to install the requirements for drivers included in the VOLTTRON
 Master Driver Agent Configuration
 ---------------------------------
 
-The Master Driver Agent configuration consists of general settings for all devices. The default values of the Master
-Driver should be sufficient for most users.
+The Master Driver Agent configuration consists of general settings for all devices. Below is an example config from the
+repository:
 
 .. code-block:: json
 
