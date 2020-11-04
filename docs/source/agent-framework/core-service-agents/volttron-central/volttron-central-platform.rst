@@ -26,6 +26,7 @@ FAQ / Notes
 
 * VCP agent has an identity of 'platform.agent'. This cannot be changed.
 * There may only be a single agent connected to a VOLTTRON instance with the identiy of 'platform.agent'
+* From VC's perspective, the VCP agent's identity is <VCP Instance Name>.platform.agent
 * VCP will publish to VC under the topic platforms/vcp-(normalized instance name)/
 * VC communicates through the :py:class:`vcplatform.vcconnection.VCConnection` rpc methods.
 * VCP uses the  :py:class:`vcplatform.vcconnection.VCConnection` to connect with the VC agent's instance.
