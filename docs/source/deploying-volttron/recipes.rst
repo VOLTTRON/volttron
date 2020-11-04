@@ -1,3 +1,8 @@
+.. _volttron_recipes:
+
+================
+VOLTTRON RECIPES
+================
 
 :ref:`_Platform-Configuration`
 
