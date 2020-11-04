@@ -108,23 +108,8 @@ Client connections can be authenticated during the opening of a websocket throug
 
 .. code-block:: python
 
-    def open_authenticate_ws_endpoint(self, username, password, endpoint):
-        """ Authenticate that the user is known to the system.
-
-        Return True if the user is known  and opens the websocketotherwise returns False.
-        :param username:
-        :param password:
-        :return: list(groups) or None
-        """
-        if username in self.users.keys():
-            # Do a naive hash of the user supplied password and if success return
-            # the groups that the user holds.
-            if self.users[username]['password'] == hashlib.sha512(password).hexdigest():
-                _log.debug('Websocket allowed.')
-                self._websocket_endpoints.add(endpoint)
-                return True
-        _log.error("Authentication error for session!")
-        return False
+    def _ws_opened(self, fromip, endpoint):
+        _log.debug("OPENED ip: {} endpoint: {}".format(fromip, endpoint))
 
     def _ws_closed(self, endpoint):
         _log.debug("CLOSED endpoint: {}".format(endpoint))
@@ -135,4 +120,4 @@ Client connections can be authenticated during the opening of a websocket throug
 
     @Core.receiver('onstart')
     def onstart(self, sender, **kwargs):
-        self.vip.web.register_websocket(r'/vc/ws', self.open_authenticate_ws_endpoint, self._ws_closed, self._ws_received)
+        self.vip.web.register_websocket(r'/vc/ws', self._ws_opened, self._ws_closed, self._ws_received)
