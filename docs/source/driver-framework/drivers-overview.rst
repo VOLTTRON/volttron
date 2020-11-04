@@ -100,7 +100,7 @@ not intended to collect data or share control of a single device.
 
 The below diagram demonstrates driver communication on the platform in a typical case.
 
-.. |Single Platform Communication Pattern| image:: files/driver_flow.png
+.. image:: files/driver_flow.png
 
 1. Platform agents and agents developed and/or installed by users communicate with the platform via pub/sub or JSON-RPC.
    Agents share data for a number of reasons including querying historians for data to use in control algorithms,
@@ -130,7 +130,7 @@ Special Case Drivers
 
 Some drivers require a different communication paradigm. One common alternative is shown in the diagram below:
 
-.. |Driver Proxy Pattern| image:: files/proxy_driver_flow.png
+.. image:: files/proxy_driver_flow.png
 
 This example describes an alternative pattern wherein BACnet drivers communicate via a BACnet proxy agent to communicate
 with end devices. This behavior is derived from the networking requirements of the BACnet specification. BACnet
