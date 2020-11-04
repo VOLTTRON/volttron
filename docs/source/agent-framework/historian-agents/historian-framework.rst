@@ -87,8 +87,6 @@ All Historians support the following settings:
         "capture_record_data": true,
 
         # Replace a one topic with another before saving to the database.
-        # Deprecated in favor of retrieving the list of
-        # replacements from the VCP on the current instance.
         "topic_replace_list": [
         #{"from": "FromString", "to": "ToString"}
         ],

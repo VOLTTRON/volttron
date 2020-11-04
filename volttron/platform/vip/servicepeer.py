@@ -36,34 +36,56 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-AUTH = 'platform.auth'
+import logging
 
-VOLTTRON_CENTRAL = 'volttron.central'
-VOLTTRON_CENTRAL_PLATFORM = 'platform.agent'
+_log = logging.getLogger(__name__)
 
-PLATFORM_DRIVER = 'platform.driver'
-PLATFORM_TOPIC_WATCHER = 'platform.topic_watcher'
-PLATFORM_SYSMON = 'platform.sysmon'
-PLATFORM_EMAILER = 'platform.emailer'
-PLATFORM_HEALTH = 'platform.health'
-# The PLATFORM_ALERTER known name is now deprecated
-PLATFORM_ALERTER = PLATFORM_TOPIC_WATCHER
-PLATFORM_HISTORIAN = 'platform.historian'
 
-PLATFORM_MARKET_SERVICE = 'platform.market'
+class ServicePeerNotifier(object):
+    """
+    This class is responsible for routing the base_router's connections and disconnections
+    from the zmq thread through to the registered callback functions.
+    """
+    def __init__(self):
+        self._registered_added = set()
+        self._registered_dropped = set()
 
-ROUTER = ''
-CONTROL = 'control'
-CONTROL_CONNECTION = 'control.connection'
-MASTER_WEB = 'master_web'
-CONFIGURATION_STORE = 'config.store'
-KEY_DISCOVERY = 'keydiscovery'
-PROXY_ROUTER = 'zmq.proxy.router'
+    def register_peer_callback(self, added_callback, dropped_callback):
+        """
+        Register functions for adding callbacks for connected and disconnected peers
+        to the message bus.
 
-ALL_KNOWN_IDENTITIES = sorted((ROUTER, VOLTTRON_CENTRAL, VOLTTRON_CENTRAL_PLATFORM, PLATFORM_HISTORIAN, CONTROL,
-                               CONTROL_CONNECTION, MASTER_WEB, AUTH, PLATFORM_TOPIC_WATCHER, CONFIGURATION_STORE,
-                               PLATFORM_MARKET_SERVICE, PLATFORM_EMAILER, PLATFORM_SYSMON, PLATFORM_HEALTH,
-                               KEY_DISCOVERY, PROXY_ROUTER))
+        The signature of the callback should be:
 
-PROCESS_IDENTITIES = sorted((AUTH, PLATFORM_HEALTH, CONFIGURATION_STORE, CONTROL, MASTER_WEB, KEY_DISCOVERY,
-                             PROXY_ROUTER))
+        .. code-block :: python
+
+            def added_callback(peer):
+                # the peer is a string identity connected.
+                pass
+
+        :param added_callback:
+        :param dropped_callback:
+        """
+        assert added_callback is not None
+        assert dropped_callback is not None
+
+        self._registered_added.add(added_callback)
+        self._registered_dropped.add(dropped_callback)
+
+    def peer_added(self, peer):
+        """
+        Handles calling registered methods
+        :param peer:
+        :return:
+        """
+        for fn in self._registered_added:
+            fn(peer)
+
+    def peer_dropped(self, peer):
+        """
+        Handles calling of registered methods when a peer drops a connection to the platform.
+        :param peer:
+        :return:
+        """
+        for fn in self._registered_dropped:
+            fn(peer)
