@@ -10,6 +10,6 @@ pyzmq
 setuptools
 tzlocal
 pyOpenSSL==19.0.0
-cryptography==2.3
+cryptography==3.2
 watchdog-gevent
 wheel==0.30
