@@ -312,7 +312,7 @@ class VolttronCentralAgent(Agent):
 
     def open_authenticate_ws_endpoint(self, fromip, endpoint):
         """
-        Callback method from when websockets are opened.  The endpoine must
+        Callback method from when websockets are opened.  The endpoint must
         be '/' delimited with the second to last section being the session
         of a logged in user to volttron central itself.
 
