@@ -203,7 +203,7 @@ texinfo_documents = [
 
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {'https://docs.python.org/2.7': None,
-                       'volttron-ansible': ('https://cs-volttron-ansible.readthedocs.io/en/main/', None)}
+                       'volttron-ansible': ('https://cs-volttron-ansible.readthedocs.io/en/latest/', None)}
 
 # -- Options for todo extension ----------------------------------------------
 
