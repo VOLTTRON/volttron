@@ -221,7 +221,7 @@ def setup(app):
     by readthedocs
     :param app:
     """
-#    app.connect('builder-inited', generate_apidoc)
+    app.connect('builder-inited', generate_apidoc)
 #    app.connect('build-finished', clean_apirst)
 
 #

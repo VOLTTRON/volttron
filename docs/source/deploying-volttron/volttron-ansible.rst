@@ -1,8 +1,8 @@
 .. _volttron_recipes:
 
-================
-VOLTTRON RECIPES
-================
+===============
+Ansible Recipes
+===============
 
 :std:doc:`VOLTTRON Deployment Recipes <volttron-ansible:index>`
 
