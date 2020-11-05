@@ -1,10 +1,8 @@
 .. _volttron_recipes:
 
-===============
-Ansible Recipes
-===============
-
-:std:doc:`Deployment Recipes <volttron-ansible:index>`
+==================================
+Deployment Recipes (Multi-Machine)
+==================================
 
 Begining with version 7, VOLTTRON introduces the concept of recipes. This system leverages
 `ansible <https://docs.ansible.com/ansible/latest/index.html>`_ to orchestrate the deployment and
@@ -20,4 +18,4 @@ many platforms in an organized way. Some of the key features are:
 4. Ansible's inventory system is leveraged so that the marginal burden of managing additional VOLTTRON
    deployments is low, and confidence of uniformity among those deployments is high.
 
-:std:doc: `Getting started with recipes <volttron-ansible:index#getting-started-with-recipes>`
+See :ref:`volttron-ansible:index:getting started with recipes` for scalable deployment strategies.
