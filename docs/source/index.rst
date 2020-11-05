@@ -70,6 +70,7 @@ at our bi-weekly office-hours and on Slack. To be invited to office-hours or sla
    deploying-volttron/single-machine
    deploying-volttron/multi-platform/index
    deploying-volttron/linux-system-hardening
+   deploying-volttron/volttron-ansible
 
 
 .. toctree::

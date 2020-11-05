@@ -36,7 +36,7 @@ terminal execute the following commands:
 
 .. note::
 
-  VOLTTRON uses develop as its main development branch rather than the standard master branch (the default).
+  VOLTTRON uses develop as its main development branch rather than the standard `main` branch (the default).
 
 
 Adding and Committing files

@@ -36,23 +36,136 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-import os
-import json
-import gevent
+
 import pytest
+import os
+import yaml
+import json
+import requests
 
-from volttron.platform import get_services_core
 from volttron.platform.messaging.health import STATUS_GOOD
+from volttron.platform.web import DiscoveryInfo
+# noinspection PyUnresolvedReferences
+from vc_fixtures import vc_instance, vcp_instance, vc_and_vcp_together
+from volttrontesting.utils.utils import AgentMock
+from volttron.platform import jsonapi, jsonrpc, get_services_core
+from volttron.platform.web.websocket import VolttronWebSocket
+from volttrontesting.utils.web_utils import get_test_web_env
+from volttron.platform.vip.agent import Agent
+from services.core.VolttronCentral.volttroncentral.agent import VolttronCentralAgent
+import gevent
 
-# import pytest
-# import os
-#
-# from volttron.platform.web import DiscoveryInfo
-# # noinspection PyUnresolvedReferences
-# from vc_fixtures import vc_instance, vcp_instance, vc_and_vcp_together
-#
-# import gevent
-#
+
+@pytest.fixture
+def mock_vc():
+    VolttronCentralAgent.__bases__ = (AgentMock.imitate(Agent, VolttronCentralAgent()),)
+    vc = VolttronCentralAgent()
+    vc._configure("test_config", "NEW", {})
+    yield vc
+
+
+@pytest.fixture
+def mock_jsonrpc_env(path="jsonrpc", input_data=None, method="POST"):
+    yield get_test_web_env(path, input_data, method=method)
+
+
+@pytest.fixture
+def mock_response(monkeypatch):
+    def mock_resp(*args, **kwargs):
+        class MockResp():
+            def __init__(self):
+                mock_args = kwargs['json']
+                if mock_args['username'] == 'test' and mock_args['password'] == 'test':
+                    self.ok = True
+                    self.text = "super_secret_auth_token"
+                else:
+                    self.ok = False
+                    self.text = "invalid username/password"
+        return MockResp()
+    monkeypatch.setattr(requests, "post", mock_resp)
+
+
+@pytest.mark.vc
+def test_jsonrpc_get_authorization(mock_response, mock_vc, mock_jsonrpc_env, monkeypatch):
+
+    mock_claims = {"groups": ["test_admin"]}
+    mock_vc.vip.web.configure_mock(**{"get_user_claims.return_value": mock_claims})
+
+    data = jsonrpc.json_method("12345", "get_authorization", {"username": "test", "password": "test"}, None)
+
+    assert len(mock_vc._authenticated_sessions._sessions) == 0
+
+    mock_vc.jsonrpc(mock_jsonrpc_env, data)
+
+    assert len(mock_vc._authenticated_sessions._sessions) == 1
+
+    data = jsonrpc.json_method("12345", "get_authorization", {"username": "test", "password": "nah"}, None)
+    response = mock_vc.jsonrpc(mock_jsonrpc_env, data)
+    assert response['error']['message'] == "Invalid username/password specified."
+
+
+@pytest.fixture
+def mock_vc_jsonrpc(mock_response, mock_vc, mock_jsonrpc_env, monkeypatch):
+
+    mock_claims = {"groups": ["test_admin"]}
+    mock_vc.vip.web.configure_mock(**{"get_user_claims.return_value": mock_claims})
+    # mock_vc.vip.web.configure_mock(**{"register_websocket.return_value": VolttronWebSocket})
+    data = jsonrpc.json_method("12345", "get_authorization", {"username": "test", "password": "test"}, None)
+    mock_vc.jsonrpc(mock_jsonrpc_env, data)
+    #mock_vc_env = {"mock_vc": mock_vc, "mock_env": mock_jsonrpc_env}
+
+    yield mock_vc
+
+@pytest.fixture
+def mock_websocket(mock_vc):
+    mock_vc.vip.web.configure_mock(**{"register_websocket.return_value": VolttronWebSocket})
+    #.vip.web.configure_mock(**{"register_websocket.return_value": VolttronWebSocket})
+
+
+
+@pytest.mark.vc
+def test_jsonrpc_is_authorized(mock_vc_jsonrpc, mock_jsonrpc_env):
+    data = jsonrpc.json_method("12345", "list_platforms", None, None)
+    data['authorization'] = "super_secret_auth_token"
+    response = mock_vc_jsonrpc.jsonrpc(mock_jsonrpc_env, data)
+    assert len(response['result']) is 0 and type(response['result']) is list
+
+
+@pytest.mark.vc
+def test_jsonrpc_is_unauthorized(mock_vc_jsonrpc, mock_jsonrpc_env):
+    data = jsonrpc.json_method("12345", "list_platforms", None, None)
+    data['authorization'] = "really_bad_auth_token"
+    response = mock_vc_jsonrpc.jsonrpc(mock_jsonrpc_env, data)
+    assert response['error']['message'] == "Invalid authentication token"
+
+
+@pytest.mark.vc
+def test_websocket_open_authenticate(mock_vc_jsonrpc, mock_jsonrpc_env):
+    vc = mock_vc_jsonrpc
+    print("BREAK")
+    assert True
+
+@pytest.mark.vc
+def test_default_config(volttron_instance):
+    """
+    Test the default configuration file included with the agent
+    """
+    publish_agent = volttron_instance.build_agent(identity="test_agent")
+    gevent.sleep(1)
+
+    config_path = os.path.join(get_services_core("VolttronCentral"), "config")
+    with open(config_path, "r") as config_file:
+        config_json = yaml.safe_load(config_file)
+    assert isinstance(config_json, dict)
+
+    volttron_instance.install_agent(
+        agent_dir=get_services_core("VolttronCentral"),
+        config_file=config_json,
+        start=True,
+        vip_identity="health_test")
+
+    assert publish_agent.vip.rpc.call("health_test", "health.get_status").get(timeout=10).get('status') == STATUS_GOOD
+
 #
 # def test_platform_was_registered(vc_and_vcp_together):
 #
@@ -198,25 +311,3 @@ from volttron.platform.messaging.health import STATUS_GOOD
 #     # peers = agent.vip.peerlist().get(timeout=2)
 #     # assert "volttron.central" in peers
 #
-
-
-@pytest.mark.vc
-def test_default_config(volttron_instance):
-    """
-    Test the default configuration file included with the agent
-    """
-    publish_agent = volttron_instance.build_agent(identity="test_agent")
-    gevent.sleep(1)
-
-    config_path = os.path.join(get_services_core("VolttronCentral"), "config")
-    with open(config_path, "r") as config_file:
-        config_json = json.load(config_file)
-    assert isinstance(config_json, dict)
-
-    volttron_instance.install_agent(
-        agent_dir=get_services_core("VolttronCentral"),
-        config_file=config_json,
-        start=True,
-        vip_identity="health_test")
-
-    assert publish_agent.vip.rpc.call("health_test", "health.get_status").get(timeout=10).get('status') == STATUS_GOOD
