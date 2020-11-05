@@ -18,4 +18,4 @@ refer to the corresponding documents.
    ieee-2030_5-agent/ieee-2030_5-agent
    obix/obix-history-agent
    openadr-ven/ven-agent
-   volttron-central/volttron-central
+   volttron-central/volttron-central-overview
