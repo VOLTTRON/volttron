@@ -72,6 +72,7 @@ extensions = [
     'sphinx.ext.autosectionlabel',
     # http://www.sphinx-doc.org/en/master/usage/extensions/todo.html
     'sphinx.ext.todo',
+    'sphinx.ext.intersphinx',
 ]
 
 # prefix sections with the document so that we can cross link
@@ -201,7 +202,8 @@ texinfo_documents = [
 # -- Options for intersphinx extension ---------------------------------------
 
 # Example configuration for intersphinx: refer to the Python standard library.
-intersphinx_mapping = {'https://docs.python.org/2.7': None}
+intersphinx_mapping = {'https://docs.python.org/2.7': None,
+                       'volttron-ansible': ('https://volttron-ansible.readthedocs.io/en/latest/', None)}
 
 # -- Options for todo extension ----------------------------------------------
 
