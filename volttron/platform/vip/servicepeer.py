@@ -36,11 +36,56 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-ACCEPT_RESERVATIONS = 0
+import logging
+
+_log = logging.getLogger(__name__)
 
 
-class MarketStateMachine(object):
+class ServicePeerNotifier(object):
+    """
+    This class is responsible for routing the base_router's connections and disconnections
+    from the zmq thread through to the registered callback functions.
+    """
+    def __init__(self):
+        self._registered_added = set()
+        self._registered_dropped = set()
 
-    def __init__(self, market_name, reservation):
-        self.market_name = market_name
-        self.market_state = ACCEPT_RESERVATIONS
+    def register_peer_callback(self, added_callback, dropped_callback):
+        """
+        Register functions for adding callbacks for connected and disconnected peers
+        to the message bus.
+
+        The signature of the callback should be:
+
+        .. code-block :: python
+
+            def added_callback(peer):
+                # the peer is a string identity connected.
+                pass
+
+        :param added_callback:
+        :param dropped_callback:
+        """
+        assert added_callback is not None
+        assert dropped_callback is not None
+
+        self._registered_added.add(added_callback)
+        self._registered_dropped.add(dropped_callback)
+
+    def peer_added(self, peer):
+        """
+        Handles calling registered methods
+        :param peer:
+        :return:
+        """
+        for fn in self._registered_added:
+            fn(peer)
+
+    def peer_dropped(self, peer):
+        """
+        Handles calling of registered methods when a peer drops a connection to the platform.
+        :param peer:
+        :return:
+        """
+        for fn in self._registered_dropped:
+            fn(peer)

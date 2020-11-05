@@ -39,14 +39,16 @@
 import logging
 
 from volttron.platform.agent import utils
-from market_service.market import Market
+from .market import Market
 
 _log = logging.getLogger(__name__)
 utils.setup_logging()
 
+
 class NoSuchMarketError(Exception):
     """Base class for exceptions in this module."""
     pass
+
 
 class MarketList(object):
     def __init__(self, publish = None, verbose_logging = True):
@@ -70,7 +72,7 @@ class MarketList(object):
         self.markets.clear()
 
     def collect_offers(self):
-        for market in self.markets.values():
+        for market in list(self.markets.values()):
             market.collect_offers()
 
     def get_market(self, market_name):
@@ -91,7 +93,7 @@ class MarketList(object):
         return market_has_formed
 
     def send_market_failure_errors(self):
-        for market in self.markets.values():
+        for market in list(self.markets.values()):
             # We have already sent unformed market failures
            if market.has_market_formed():
                # If the market has not cleared trying to clear it will send an error.
@@ -102,9 +104,8 @@ class MarketList(object):
         return len(self.markets)
 
     def unformed_market_list(self):
-        list = []
-        for market in self.markets.values():
-           if not market.has_market_formed():
-               list.append(market.market_name)
-        return list
-
+        _list = []
+        for market in list(self.markets.values()):
+            if not market.has_market_formed():
+                _list.append(market.market_name)
+        return _list

@@ -43,12 +43,14 @@ import errno
 import logging
 import os
 from queue import Queue
+from typing import Optional
 
 from volttron.platform import is_rabbitmq_available
 from volttron.platform import jsonapi
 from volttron.utils.rmq_mgmt import RabbitMQMgmt
 from .rmq_connection import RMQRouterConnection
 from .router import BaseRouter
+from .servicepeer import ServicePeerNotifier
 from .socket import Message, Address
 from ..keystore import KeyStore
 from ..main import __version__
@@ -61,7 +63,7 @@ __all__ = ['RMQRouter']
 _log = logging.getLogger(__name__)
 
 
-class RMQRouter(BaseRouter):
+class RMQRouter(object):
     """
     Concrete VIP Router for RabbitMQ message bus. It handles router specific
     messages and unrouteable messages.
@@ -71,7 +73,8 @@ class RMQRouter(BaseRouter):
                  addresses=(), identity='router', default_user_id=None,
                  volttron_central_address=None,
                  volttron_central_serverkey=None,
-                 bind_web_address=None
+                 bind_web_address=None,
+                 service_notifier=Optional[ServicePeerNotifier]
                  ):
         """
         Initialize the object instance.
@@ -92,6 +95,7 @@ class RMQRouter(BaseRouter):
         self._identity = identity
         self.rmq_mgmt = RabbitMQMgmt()
         self.event_queue = Queue()
+        self._service_notifier = service_notifier
         param = self._build_connection_parameters()
         self.connection = RMQRouterConnection(param,
                                               identity,
@@ -167,10 +171,12 @@ class RMQRouter(BaseRouter):
         self._distribute('peerlist', 'add', peer, message_bus)
         self._peers.add(peer)
         self._peers_with_messagebus[peer] = message_bus
+        self._service_notifier.peer_added(peer)
 
     def _drop_peer(self, peer, message_bus='rmq'):
         try:
             self._peers.remove(peer)
+            self._service_notifier.peer_dropped(peer)
             del self._peers_with_messagebus[peer]
         except KeyError:
             return
@@ -316,9 +322,6 @@ class RMQRouter(BaseRouter):
             _log.debug(f"Distributing to peers {peer}")
             if self._peers_with_messagebus[peer] == 'rmq':
                 self.connection.send_vip_object(message)
-            else:
-                _log.debug(f"???????????????????Looks like we should be destributing message {message}")
-                #self.connection.send_vip_object_via_proxy(message)
 
     def _make_user_access_tokens(self, identity):
         tokens = dict()
