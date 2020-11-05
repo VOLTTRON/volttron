@@ -23,7 +23,6 @@ How the API is Implemented
 * All calls are made through a POST to `/vc/jsonrpc`
 * All calls (not including the call to authenticate) will include an authorization token (a json-rpc extension).
 
-|Route-RPC|
 
 JSON-RPC Request Payload
 ------------------------
@@ -481,4 +480,3 @@ Remove An Agent
 
 
 
-.. |Route-RPC| image:: files/rpc_call_vc_vcp.png
