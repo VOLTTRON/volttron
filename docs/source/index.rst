@@ -6,8 +6,8 @@
 
 |VOLTTRON Tagline|
 
-|VOLTTRON| is an open-source platform for distributed sensing and control.  The platform is an open source tool for
-performing simulations, improving building system performance, and creating a more flexible and reliable power grid.
+|VOLTTRON| is an open-source platform for distributed sensing and control.  The platform provides services for
+collecting and storing data from buildings and devices and provides an environment for developing applications that interact with that data.
 
 
 Features
@@ -70,6 +70,7 @@ at our bi-weekly office-hours and on Slack. To be invited to office-hours or sla
    deploying-volttron/single-machine
    deploying-volttron/multi-platform/index
    deploying-volttron/linux-system-hardening
+   deploying-volttron/recipe-deployment
 
 
 .. toctree::

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -245,10 +245,6 @@ class VolttronCentralAgent(Agent):
 
         self.vip.web.register_endpoint(r'/vc/jsonrpc', self.jsonrpc)
 
-        self.vip.web.register_websocket(r'/vc/ws',
-                                        self.open_authenticate_ws_endpoint,
-                                        self._ws_closed,
-                                        self._ws_received)
         self.vip.web.register_path(r'^/vc/.*',
                                    config.get('webroot'))
 
@@ -312,7 +308,7 @@ class VolttronCentralAgent(Agent):
 
     def open_authenticate_ws_endpoint(self, fromip, endpoint):
         """
-        Callback method from when websockets are opened.  The endpoine must
+        Callback method from when websockets are opened.  The endpoint must
         be '/' delimited with the second to last section being the session
         of a logged in user to volttron central itself.
 

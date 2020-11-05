@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -203,6 +203,10 @@ class MasterWebService(Agent):
         _log.debug("Sending data to {} with message {}".format(endpoint,
                                                                message))
         self.appContainer.websocket_send(endpoint, message)
+
+    @RPC.export
+    def print_websocket_clients(self):
+        _log.debug(self.appContainer.endpoint_clients)
 
     @RPC.export
     def get_bind_web_address(self):
@@ -460,6 +464,7 @@ class MasterWebService(Agent):
 
         # if ws4pi.socket is set then this connection is a web socket
         # and so we return the websocket response.
+
         if 'ws4py.socket' in env:
             return env['ws4py.socket'](env, start_response)
 
