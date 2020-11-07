@@ -52,9 +52,9 @@ Instance Setup
 The following conventions/assumptions are made for the rest of this document:
 
   - Commands should be run from the VOLTTRON root
-  - Default values are used for VOLTTRON_HOME($HOME/.volttron), VIP port (22916), HTTPS port (8443), rabbitmq ports
-    (5671 for AMQPs and 15671 for RabbitMQ management interface).  If using different `VOLTTRON_HOME` or ports, please
-    replace accordingly.
+  - Default values are used for VOLTTRON_HOME($HOME/.volttron), :term:`VIP` port (22916), HTTPS port (8443), RabbitMQ
+    ports (5671 for AMQPs and 15671 for RabbitMQ management interface).  If using different :term:`VOLTTRON_HOME` or
+    ports, please replace accordingly.
   - Replace central, node-zmq and node-rmq with your own hostnames.
   - user will represent your current user.
 

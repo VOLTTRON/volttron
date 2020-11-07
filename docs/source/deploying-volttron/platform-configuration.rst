@@ -5,8 +5,8 @@ Platform Configuration
 ======================
 
 Each instance of the VOLTTRON platform includes a `config` file which is used to configure the platform instance on
-startup.  This file is kept in `VOLTTRON_HOME` and is created using the `volttron-cfg` (`vcfg`) command, or will be
-created with default values on start up of the platform otherwise.
+startup.  This file is kept in :term:`VOLTTRON_HOME` and is created using the `volttron-cfg` (`vcfg`) command, or will
+be created with default values on start up of the platform otherwise.
 
 Following is helpful information about the `config` file and the `vcfg` command.
 
@@ -40,10 +40,10 @@ VOLTTRON Config File
 
 The `config` file in `VOLTTRON_HOME` is the config file used by the platform.  This configuration file specifies the
 behavior of the platform at runtime, including which message bus it uses, the name of the platform instance, the address
-bound to by VIP, and so-on.  It is recommended to use the `VOLTTRON Config`_ wizard (explained below) for configuring
-an instance for the first time as it will create a thorough template unique to your deployment.  After using the wizard
-the file may be edited by the user as necessary for operations.  The following is a simple example `config` for a
-multi-platform deployment:
+bound to by :term:`VIP`, and so-on.  It is recommended to use the `VOLTTRON Config`_ wizard (explained below) for
+configuring an instance for the first time as it will create a thorough template unique to your deployment.  After using
+the wizard the file may be edited by the user as necessary for operations.  The following is a simple example `config`
+for a multi-platform deployment:
 
 ::
 

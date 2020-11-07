@@ -17,7 +17,7 @@ Each agent has it's own configuration store (or just store). Agents are not give
 
 The existence of a store is not dependent on the existence of an agent installed on the platform.
 
-Each store has a unique identity.  Stores are matched to agents at agent runtime via the agent's VIP IDENTITY.
+Each store has a unique identity.  Stores are matched to agents at agent runtime via the agent's :term:`VIP Identity`.
 Therefore the store for an agent is the store with the same identity as the agent's VIP IDENTITY.
 
 When a user updates a configuration in the store the platform immediately informs the agent of the change.  The platform
