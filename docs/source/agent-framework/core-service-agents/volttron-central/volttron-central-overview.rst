@@ -34,7 +34,7 @@ VOLTTRON Central Platform Agent
 
 The VOLTTRON Central Platform (VCP) Agent allows communication with a VOLTTRON Central instance.
 Each VOLTTRON instance managed by VOLTTRON Central should have only one Platform Agent.
-The Platform Agent must have the VIP identity of `platform.agent` which is specified as default by VOLTTRON
+The Platform Agent must have the :term:`VIP Identity` of `platform.agent` which is specified as default by VOLTTRON
 :ref:`known identities <VIP-Known-Identities>`.
 
 .. toctree::

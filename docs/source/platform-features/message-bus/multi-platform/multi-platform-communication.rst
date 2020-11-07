@@ -5,8 +5,8 @@ Multi-Platform Communication
 ============================
 
 To connect to remote VOLTTRON platforms, we would need platform discovery information of the remote platforms. This
-information contains the platform name, VIP address and `serverkey` of the remote platforms and we need to provide this
-as part of multi-platform configuration.
+information contains the platform name, :term:`VIP` address and `serverkey` of the remote platforms and we need to
+provide this as part of multi-platform configuration.
 
 
 Configuration
@@ -27,7 +27,7 @@ For ease of use and to support multi-scale deployment, the process of obtaining 
 authenticating the new platform connection is automated.  We can now bypass the manual process of adding auth keys
 (i.e., either by using the `volttron-ctl` utility or directly updating the `auth.json` config file).
 
-A config file containing list of web addresses (one for each platform) need to be made available in `VOLTTRON_HOME`
+A config file containing list of web addresses (one for each platform) need to be made available in :term:`VOLTTRON_HOME`
 directory.
 
 Name of the file: `external_address.json`

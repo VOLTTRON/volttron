@@ -596,6 +596,28 @@ connection.
         self.vip.rpc.call(peer, peer_method, *args)
 
 
+Agent Resiliency
+----------------
+
+The VOLTTRON team has come up with a number of methods to help users develop more robust agents.
+
+#. Use `gevent.sleep(<seconds>)` in callbacks which perform long running functions.  Long running functions can cause
+   other agent functions including those in the base agent to be delayed. Calling `gevent.sleep` frees up the thread
+   temporarily for other agent code to be run.
+#. Call `.get(<timeout>) on VIP subsystem calls (i.e. ``self.vip.rpc.call(...).get()``) to ensure that the call
+   returns a value or throws an Exception in a timely manner.  A number of seconds can be provided to specify a timeout
+   duration.
+#. Many of the :ref:`Operations Agents <Operations-Agents>` can be used to monitor agent health, status, publishing
+   frequency and more.  Read up on the "ops agents" for more information.
+
+    .. note::
+
+       If an agent crashes, becomes unreachable, etc., it is up to the user to restart or reconnect the agent.
+
+#. The main agent thread should monitor any spawned threads or processes to ensure they're cleaned up and/or exit
+   safely.
+
+
 Packaging Configuration
 =======================
 
@@ -823,8 +845,8 @@ scripts in sub-folders such as the `historian-scripts` and `demo-comms` use the 
 directory.
 
 The most widely used script is `scripts/install-agent.py`.  The `install_agent.py` script will remove an agent if the
-tag is already present, create a new agent package, and install the agent to `VOLTTRON_HOME`.  This script has three
-required arguments and has the following signature:
+tag is already present, create a new agent package, and install the agent to :term:`VOLTTRON_HOME`.  This script has
+three required arguments and has the following signature:
 
 .. note::
 
