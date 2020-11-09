@@ -117,15 +117,16 @@ def main():
     _log.debug("    - args: %r", args)
 
     csv_writer = None
+    csv_file = None
 
     if args.csv_out is not None:
-        f = open(args.csv_out, "w")
+        csv_file = open(args.csv_out, "w")
         field_names = ["address",
                        "device_id",
                        "max_apdu_length",
                        "segmentation_supported",
                        "vendor_id"]
-        csv_writer = csv.DictWriter(f, field_names)
+        csv_writer = csv.DictWriter(csv_file, field_names)
         csv_writer.writeheader()
 
     keystore = KeyStore()
@@ -154,13 +155,12 @@ def main():
             args.proxy_id))
     else:
         gevent.sleep(args.timeout)
+    finally:
+        if csv_file is not None:
+            csv_file.close()
 
 
 try:
     main()
 except Exception as e:
     _log.exception("an error has occurred: %s".format(repr(e)))
-
-
-    
-
