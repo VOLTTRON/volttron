@@ -119,7 +119,7 @@ def main():
     csv_writer = None
 
     if args.csv_out is not None:
-        f = open(args.csv_out, "wb")
+        f = open(args.csv_out, "w")
         field_names = ["address",
                        "device_id",
                        "max_apdu_length",
