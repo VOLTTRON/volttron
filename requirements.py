@@ -69,6 +69,14 @@ extras_require = {
     'crate': [  # crate databases
         'crate'
     ],
+    'central_platform': [
+        'bacpypes',
+        'jinja2',
+        'ws4py',
+        'Werkzeug',
+        'PyJWT',
+        'passlib',
+    ],
     'databases': [  # Support for all known databases
         'mysql-connector-python-rf',
         'pymongo',
