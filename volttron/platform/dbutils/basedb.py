@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -41,20 +41,22 @@ import contextlib
 import importlib
 import logging
 import threading
-from gevent.local import local
-
+import sqlite3
 import sys
 from abc import abstractmethod
+from gevent.local import local
+
 from volttron.platform.agent import utils
 from volttron.platform import jsonapi
-import sqlite3
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
 
 class ConnectionError(Exception):
-    """Custom class for connection errors"""
+    """
+    Custom class for connection errors
+    """
     pass
 
 
@@ -68,32 +70,26 @@ def closing(obj):
         except BaseException as exc:
             # if exc.__class__.__module__ == 'exceptions':
             if exc.__class__.__module__ == 'builtins':
-                # Don't ignore built-in exceptions because they likely indicate
-                # a bug that should stop execution. psycopg2.Error subclasses
-                # Exception, so the module must also be checked. :-(
+                # Don't ignore built-in exceptions because they likely indicate a bug that should stop execution.
+                # psycopg2.Error subclasses Exception, so the module must also be checked.
                 raise
-            _log.exception('An exception was raised while closing '
-                           'the cursor and is being ignored.')
+            _log.exception('An exception was raised while closing the cursor and is being ignored.')
 
 
 class DbDriver(object):
     """
     Parent class used by :py:class:`sqlhistorian.historian.SQLHistorian` to
     do the database operations. This class is inherited by
-
     - :py:class:`volttron.platform.dbutils.mysqlfuncts.MySqlFuncts`
     - :py:class:`volttron.platform.dbutils.sqlitefuncts.SqlLiteFuncts`
-
     """
     def __init__(self, dbapimodule, **kwargs):
         thread_name = threading.currentThread().getName()
         if callable(dbapimodule):
-            _log.debug("Constructing Driver for %s in thread: %s",
-                       dbapimodule.__name__, thread_name)
+            _log.debug("Constructing Driver for %s in thread: %s", dbapimodule.__name__, thread_name)
             connect = dbapimodule
         else:
-            _log.debug("Constructing Driver for %s in thread: %s",
-                       dbapimodule, thread_name)
+            _log.debug("Constructing Driver for %s in thread: %s", dbapimodule, thread_name)
             _log.debug("kwargs for connect is %r", kwargs)
             dbapimodule = importlib.import_module(dbapimodule)
             connect = lambda: dbapimodule.connect(**kwargs)
@@ -107,7 +103,6 @@ class DbDriver(object):
         Function to meet bulk insert requirements. This function can be overridden by historian drivers to yield the
         required method for data insertion during bulk inserts in the respective historians. In this generic case it
         will yield the single insert method
-
         :yields: insert method
         """
         yield self.insert_data
@@ -120,8 +115,7 @@ class DbDriver(object):
                 self.stash.cursor = self.__connection.cursor()
                 return self.stash.cursor
             except Exception:
-                _log.warn("An exception occurred while creating "
-                          "a cursor. Will try establishing connection again")
+                _log.warning("An exception occurred while creating a cursor. Will try establishing connection again")
         self.__connection = None
         try:
             self.__connection = self.__connect()
@@ -129,8 +123,7 @@ class DbDriver(object):
             _log.error("Could not connect to database. Raise ConnectionError")
             raise ConnectionError(e).with_traceback(sys.exc_info()[2])
         if self.__connection is None:
-            raise ConnectionError(
-                "Unknown error. Could not connect to database")
+            raise ConnectionError("Unknown error. Could not connect to database")
 
         # if any exception happens here have it go to the caller.
         self.stash.cursor = self.__connection.cursor()
@@ -141,9 +134,7 @@ class DbDriver(object):
         """
         Reads names of the tables used by this historian to store data,
         topics, metadata, aggregate topics and aggregate metadata
-
-        :param meta_table_name: The volttron metadata table in which table
-                                definitions are stored
+        :param meta_table_name: The volttron metadata table in which table definitions are stored
         :return: table names
         .. code-block:: python
 
@@ -155,8 +146,7 @@ class DbDriver(object):
              'agg_meta_table':name of table that store aggregate metadata
              }
         """
-        rows = self.select("SELECT table_id, table_name, table_prefix from " +
-                           meta_table_name, None)
+        rows = self.select("SELECT table_id, table_name, table_prefix from " + meta_table_name, None)
         table_names = dict()
         table_prefix = ""
         table_map = {}
@@ -166,10 +156,8 @@ class DbDriver(object):
             table_prefix = row[2] + "_" if row[2] else ""
             table_names[row[0]] = table_prefix + row[1]
 
-        table_names['agg_topics_table'] = table_prefix + \
-            'aggregate_' + table_map['topics_table']
-        table_names['agg_meta_table'] = table_prefix + 'aggregate_' + \
-            table_map['meta_table']
+        table_names['agg_topics_table'] = table_prefix + 'aggregate_' + table_map['topics_table']
+        table_names['agg_meta_table'] = table_prefix + 'aggregate_' + table_map['meta_table']
         return table_names
 
     @abstractmethod
@@ -183,7 +171,6 @@ class DbDriver(object):
     def get_topic_map(self):
         """
         Returns details of topics in database
-
         :return: two dictionaries.
         - First one maps topic_name.lower() to topic id  and
         - Second one maps topic_name.lower() to topic name
@@ -194,10 +181,8 @@ class DbDriver(object):
     def get_agg_topics(self):
         """
         Get the list of aggregate topics available
-
         :return: list of tuples containing
-        (agg_topic_name, agg_type, agg_time_period, configured topics/topic
-        name pattern)
+            (agg_topic_name, agg_type, agg_time_period, configured topics/topic name pattern)
         """
         pass
 
@@ -205,7 +190,6 @@ class DbDriver(object):
     def get_agg_topic_map(self):
         """
         Get a map of aggregate_topics to aggregate_topic_id
-
         :return: dict of format
         {(agg_topic_name, agg_type, agg_time_period):agg_topic_id}
         """
@@ -214,8 +198,7 @@ class DbDriver(object):
     @abstractmethod
     def query_topics_by_pattern(self, topic_pattern):
         """
-        Return a map of {topi_name.lower():topic_id} that matches the given
-        pattern
+        Return a map of {topic_name.lower():topic_id} that matches the given pattern
         :param topic_pattern: pattern to match against topic_name
         :return:
         """
@@ -253,7 +236,6 @@ class DbDriver(object):
     def get_aggregation_list(self):
         """
         Return list of aggregation supported by the specific data store
-
         :return: list of aggregations
         """
         pass
@@ -283,7 +265,6 @@ class DbDriver(object):
     def manage_db_size(self, history_limit_timestamp, storage_limit_gb):
         """
         Optional function to manage database size.
-
         :param history_limit_timestamp: remove all data older than this timestamp
         :param storage_limit_gb: remove oldest data until database is smaller than this value.
         """
@@ -292,37 +273,29 @@ class DbDriver(object):
     def insert_meta(self, topic_id, metadata):
         """
         Inserts metadata for topic
-
         :param topic_id: topic id for which metadata is inserted
         :param metadata: metadata
-        :return: True if execution completes. Raises exception if unable to
-        connect to database
+        :return: True if execution completes. Raises exception if unable to connect to database
         """
-        self.execute_stmt(self.insert_meta_query(),
-                          (topic_id, jsonapi.dumps(metadata)), commit=False)
+        self.execute_stmt(self.insert_meta_query(), (topic_id, jsonapi.dumps(metadata)), commit=False)
         return True
 
     def insert_data(self, ts, topic_id, data):
         """
         Inserts data for topic
-
         :param ts: timestamp
         :param topic_id: topic id for which data is inserted
         :param data: data value
-        :return: True if execution completes. raises Exception if unable to
-        connect to database
+        :return: True if execution completes. raises Exception if unable to connect to database
         """
-        self.execute_stmt(self.insert_data_query(),
-                          (ts, topic_id, jsonapi.dumps(data)), commit=False)
+        self.execute_stmt(self.insert_data_query(), (ts, topic_id, jsonapi.dumps(data)), commit=False)
         return True
 
     def insert_topic(self, topic):
         """
         Insert a new topic
-
         :param topic: topic to insert
-        :return: id of the topic inserted if insert was successful.
-                 Raises exception if unable to connect to database
+        :return: id of the topic inserted if insert was successful. Raises exception if unable to connect to database
         """
         with closing(self.cursor()) as cursor:
             cursor.execute(self.insert_topic_query(), (topic,))
@@ -331,55 +304,44 @@ class DbDriver(object):
     def update_topic(self, topic, topic_id):
         """
         Update a topic name
-
         :param topic: new topic name
         :param topic_id: topic id for which update is done
-        :return: True if execution is complete. Raises exception if unable to
-        connect to database
+        :return: True if execution is complete. Raises exception if unable to connect to database
         """
-        self.execute_stmt(self.update_topic_query(), (topic, topic_id),
-                          commit=False)
+        self.execute_stmt(self.update_topic_query(), (topic, topic_id), commit=False)
         return True
 
     def insert_agg_meta(self, topic_id, metadata):
         """
         Inserts metadata for aggregate topic
-
         :param topic_id: aggregate topic id for which metadata is inserted
         :param metadata: metadata
-        :return: True if execution completes. Raises exception if connection to
-        database fails
+        :return: True if execution completes. Raises exception if connection to database fails
         """
-        self.execute_stmt(self.replace_agg_meta_stmt(),
-                          (topic_id, jsonapi.dumps(metadata)), commit=False)
+        self.execute_stmt(self.replace_agg_meta_stmt(), (topic_id, jsonapi.dumps(metadata)), commit=False)
         return True
 
     def insert_agg_topic(self, topic, agg_type, agg_time_period):
         """
         Insert a new aggregate topic
-
         :param topic: topic name to insert
         :param agg_type: type of aggregation
         :param agg_time_period: time period of aggregation
-        :return: id of the topic inserted if insert was successful.
-                 Raises exception if unable to connect to database
+        :return: id of the topic inserted if insert was successful. Raises exception if unable to connect to database
         """
         with closing(self.cursor()) as cursor:
-            cursor.execute(self.insert_agg_topic_stmt(),
-                           (topic, agg_type, agg_time_period))
+            cursor.execute(self.insert_agg_topic_stmt(), (topic, agg_type, agg_time_period))
             return cursor.lastrowid
 
     def update_agg_topic(self, agg_id, agg_topic_name):
         """
         Update a aggregate topic name
-
         :param agg_id: topic id for which update is done
         :param agg_topic_name: new aggregate topic name
         :return: True if execution is complete. Raises exception if unable to
         connect to database
         """
-        self.execute_stmt(self.update_agg_topic_stmt(),
-                          (agg_topic_name, agg_id),commit=False)
+        self.execute_stmt(self.update_agg_topic_stmt(), (agg_topic_name, agg_id),commit=False)
         return True
 
     def commit(self):
@@ -394,17 +356,11 @@ class DbDriver(object):
                 return True
             except sqlite3.OperationalError as e:
                 if "database is locked" in str(e):
-                    _log.error("EXCEPTION: SQLITE3 Database is locked. This "
-                               "error could occur when there are multiple "
-                               "simultaneous read and write requests, making "
-                               "individual request to wait more than the "
-                               "default timeout period. If you are using "
-                               "sqlite for frequent reads and write, please "
-                               "configure a higher timeout in agent "
-                               "configuration under \n"
-                               "config[\"connection\"][\"params\"]["
-                               "\"timeout\"]  "
-                               "Default value is 10. Timeout units is seconds")
+                    _log.error("EXCEPTION: SQLITE3 Database is locked. This error could occur when there are multiple "
+                               "simultaneous read and write requests, making individual request to wait more than the "
+                               "default timeout period. If you are using sqlite for frequent reads and write, please "
+                               "configure a higher timeout in agent configuration under \nconfig[\"connection\"]"
+                               "[\"params\"][\"timeout\"] Default value is 10. Timeout units is seconds")
                 raise
         _log.warning('connection was null during commit phase.')
         return False
@@ -412,7 +368,6 @@ class DbDriver(object):
     def rollback(self):
         """
         Rollback a transaction
-
         :return: True if successful, False otherwise
         """
         if self.__connection is not None:
@@ -432,7 +387,6 @@ class DbDriver(object):
     def select(self, query, args=None, fetch_all=True):
         """
         Execute a select statement
-
         :param query: select statement
         :param args: arguments for the where clause
         :param fetch_all: Set to True if function should return retrieve all
@@ -456,11 +410,9 @@ class DbDriver(object):
     def execute_stmt(self, stmt, args=None, commit=False):
         """
         Execute a sql statement
-
         :param stmt: the statement to execute
         :param args: optional arguments
-        :param commit: True if transaction should be committed. Defaults to
-        False
+        :param commit: True if transaction should be committed. Defaults to False
         :return: count of the number of affected rows
         """
         if args is None:
@@ -474,11 +426,9 @@ class DbDriver(object):
     def execute_many(self, stmt, args, commit=False):
         """
         Execute a sql statement with multiple args
-
         :param stmt: the statement to execute
         :param args: optional arguments
-        :param commit: True if transaction should be committed. Defaults to
-        False
+        :param commit: True if transaction should be committed. Defaults to False
         :return: count of the number of affected rows
         """
         with closing(self.cursor()) as cursor:
@@ -488,29 +438,20 @@ class DbDriver(object):
             return cursor.rowcount
 
     @abstractmethod
-    def query(self, topic_ids, id_name_map, start=None, end=None,
-              agg_type=None,
-              agg_period=None, skip=0, count=None, order="FIRST_TO_LAST"):
+    def query(self, topic_ids, id_name_map, start=None, end=None, agg_type=None, agg_period=None, skip=0, count=None,
+              order="FIRST_TO_LAST"):
         """
-        Queries the raw historian data or aggregate data and returns the
-        results of the query
-
+        Queries the raw historian data or aggregate data and returns the results of the query
         :param topic_ids: list of topic ids to query for.
         :param id_name_map: dictionary that maps topic id to topic name
         :param start: Start of query timestamp as a datetime.
         :param end: End of query timestamp as a datetime.
-        :param agg_type: If this is a query for aggregate data, the type of
-                         aggregation ( for example, sum, avg)
-        :param agg_period: If this is a query for aggregate data, the time
-                           period of aggregation
+        :param agg_type: If this is a query for aggregate data, the type of aggregation ( for example, sum, avg)
+        :param agg_period: If this is a query for aggregate data, the time period of aggregation
         :param skip: Skip this number of results.
-        :param count: Limit results to this value. When the query is for
-                      multiple topics, count applies to individual topics. For
-                      example, a query on 2 topics with count=5 will return 5
-                      records for each topic
-        :param order: How to order the results, either "FIRST_TO_LAST" or
-                      "LAST_TO_FIRST"
-        :type topic: str or list
+        :param count: Limit results to this value. When the query is for multiple topics, count applies to individual
+        topics. For example, a query on 2 topics with count=5 will return 5 records for each topic
+        :param order: How to order the results, either "FIRST_TO_LAST" or "LAST_TO_FIRST"
         :type start: datetime
         :type end: datetime
         :type skip: int
@@ -533,66 +474,51 @@ class DbDriver(object):
     @abstractmethod
     def create_aggregate_store(self, agg_type, period):
         """
-        Create the data structure (table or collection) that is going to store
-        the aggregate data for the give aggregation type and aggregation
-        time period. Table name should be constructed as <agg_type>_<period>
-
+        Create the data structure (table or collection) that is going to store the aggregate data for the give
+        aggregation type and aggregation time period. Table name should be constructed as <agg_type>_<period>
         :param agg_type: The type of aggregation. (avg, sum etc.)
-        :param agg_time_period: The time period of aggregation
-        :return - True if successful, False otherwise
+        :param period: The time period of aggregation
+        :return: True if successful, False otherwise
         """
         pass
 
     @abstractmethod
     def insert_aggregate_stmt(self, table_name):
         """
-        The sql statement to insert collected aggregate for a given time
-        period into database
-
-        :param table_name: name of the table into which the aggregate data
-                           needs to be inserted
-        :return: sql insert/replace statement to insert aggregate data for a
-                 specific time slice
+        The sql statement to insert collected aggregate for a given time period into database
+        :param table_name: name of the table into which the aggregate data needs to be inserted
+        :return: sql insert/replace statement to insert aggregate data for a specific time slice
         :rtype: str
         """
         pass
 
-    def insert_aggregate(self, agg_topic_id, agg_type, period, ts,
-                         data, topic_ids):
+    def insert_aggregate(self, agg_topic_id, agg_type, period, ts, data, topic_ids):
         """
         Insert aggregate data collected for a specific  time period into
         database. Data is inserted into <agg_type>_<period> table
-
         :param agg_topic_id: topic id
         :param agg_type: type of aggregation
         :param period: time period of aggregation
         :param ts: end time of aggregation period (not inclusive)
         :param data: computed aggregate
-        :param topic_ids: topic ids or topic ids for which aggregate was
-                          computed
-        :return: True if execution was successful, raises exception
-        in case of connection failures
+        :param topic_ids: topic ids or topic ids for which aggregate was computed
+        :return: True if execution was successful, raises exception in case of connection failures
         """
         table_name = agg_type + '_' + period
         _log.debug("Inserting aggregate: {} {} {} {} into table {}".format(
             ts, agg_topic_id, jsonapi.dumps(data), str(topic_ids), table_name))
-        self.execute_stmt(
-            self.insert_aggregate_stmt(table_name),
-            (ts, agg_topic_id, jsonapi.dumps(data), str(topic_ids)),
-            commit=True)
+        self.execute_stmt(self.insert_aggregate_stmt(table_name),
+                          (ts, agg_topic_id, jsonapi.dumps(data), str(topic_ids)), commit=True)
         return True
 
     @abstractmethod
     def collect_aggregate(self, topic_ids, agg_type, start=None, end=None):
         """
         Collect the aggregate data by querying the historian's data store
-
-        :param topic_ids: list of topic ids for which aggregation should be
-                          performed.
+        :param topic_ids: list of topic ids for which aggregation should be performed.
         :param agg_type: type of aggregation
-        :param start_time: start time for query (inclusive)
-        :param end_time:  end time for query (exclusive)
-        :return: a tuple of (aggregated value, count of records over which
-                 this aggregation was computed)
+        :param start: start time for query (inclusive)
+        :param end:  end time for query (exclusive)
+        :return: a tuple of (aggregated value, count of records over which this aggregation was computed)
         """
         pass

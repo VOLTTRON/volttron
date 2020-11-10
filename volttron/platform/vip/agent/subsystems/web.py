@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -157,7 +157,7 @@ class WebSubSystem(SubsystemBase):
             def ws_closed(self, endpoint):
                 print('ws_closed endpoint {}'.format(endpoint))
 
-        The received event is triggered when the websocket is writtent to fro
+        The received event is triggered when the websocket is written to from
         the client.  The received event must have a signature such as the
         following interface:
 

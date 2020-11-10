@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -49,6 +49,7 @@ from services.core.ActuatorAgent.tests.actuator_fixtures import MockedAsyncResul
 from volttrontesting.utils.utils import AgentMock
 from volttron.platform.vip.agent import Agent
 
+pytestmark = [pytest.mark.actuator_unit, pytest.mark.unit]
 
 PEER = "peer-1"
 SENDER = "sender-1"
@@ -65,7 +66,6 @@ agent._log = logging.getLogger("test_logger")
 ActuatorAgent.__bases__ = (AgentMock.imitate(Agent, Agent()),)
 
 
-@pytest.mark.actuator_unit
 def test_handle_get_should_succeed():
     with get_actuator_agent() as actuator_agent:
         actuator_agent.handle_get(PEER, SENDER, BUS, GET_TOPIC, HEADERS, MESSAGE)
@@ -74,7 +74,6 @@ def test_handle_get_should_succeed():
         actuator_agent.vip.pubsub.publish.assert_called_once()
 
 
-@pytest.mark.actuator_unit
 def test_handle_get_should_handle_standard_error(caplog):
     with get_actuator_agent(vip_identity=None) as actuator_agent:
         actuator_agent.handle_get(PEER, SENDER, BUS, GET_TOPIC, HEADERS, MESSAGE)
@@ -88,7 +87,6 @@ def test_handle_get_should_handle_standard_error(caplog):
         )
 
 
-@pytest.mark.actuator_unit
 @pytest.mark.parametrize(
     "sender, device_state",
     [
@@ -111,7 +109,6 @@ def test_handle_set_should_succeed(sender, device_state):
         actuator_agent.vip.pubsub.publish.assert_called()
 
 
-@pytest.mark.actuator_unit
 def test_handle_set_should_return_none_on_none_message(caplog):
     with get_actuator_agent(vip_identity=None) as actuator_agent:
         result = actuator_agent.handle_set(PEER, SENDER, BUS, SET_TOPIC, HEADERS, None)
@@ -125,7 +122,6 @@ def test_handle_set_should_return_none_on_none_message(caplog):
         )
 
 
-@pytest.mark.actuator_unit
 def test_handle_set_should_handle_type_error_on_invalid_sender(caplog):
     with get_actuator_agent(vip_identity=None) as actuator_agent:
         actuator_agent.handle_set(PEER, None, BUS, SET_TOPIC, HEADERS, MESSAGE)
@@ -138,7 +134,6 @@ def test_handle_set_should_handle_type_error_on_invalid_sender(caplog):
         )
 
 
-@pytest.mark.actuator_unit
 def test_handle_set_should_handle_lock_error(caplog):
     with get_actuator_agent(vip_identity=None) as actuator_agent:
         actuator_agent.handle_set(PEER, SENDER, BUS, SET_TOPIC, HEADERS, MESSAGE)
@@ -151,7 +146,6 @@ def test_handle_set_should_handle_lock_error(caplog):
         )
 
 
-@pytest.mark.actuator_unit
 def test_handle_revert_point_should_succeed():
     device_state = {
         "actuators/revert/point/somedevicepath": DeviceState(
@@ -168,7 +162,6 @@ def test_handle_revert_point_should_succeed():
         actuator_agent.vip.pubsub.publish.assert_called_once()
 
 
-@pytest.mark.actuator_unit
 def test_handle_revert_point_should_handle_lock_error(caplog):
     with get_actuator_agent(vip_identity=None) as actuator_agent:
         actuator_agent.handle_revert_point(
@@ -183,7 +176,6 @@ def test_handle_revert_point_should_handle_lock_error(caplog):
         )
 
 
-@pytest.mark.actuator_unit
 def test_handle_revert_device_should_succeed():
     device_state = {
         "somedevicepath": DeviceState("sender-1", "task-id-1", "anytime")
@@ -199,7 +191,6 @@ def test_handle_revert_device_should_succeed():
         actuator_agent.vip.pubsub.publish.assert_called_once()
 
 
-@pytest.mark.actuator_unit
 def test_handle_revert_device_should_handle_lock_error(caplog):
    with get_actuator_agent(vip_identity=None) as actuator_agent:
         actuator_agent.handle_revert_device(
@@ -214,7 +205,6 @@ def test_handle_revert_device_should_handle_lock_error(caplog):
         )
 
 
-@pytest.mark.actuator_unit
 @pytest.mark.parametrize(
     "priority, success",
     [
@@ -244,7 +234,6 @@ def test_handle_schedule_request_should_succeed_on_new_schedule_request_type(
         actuator_agent.vip.pubsub.publish.assert_called()
 
 
-@pytest.mark.actuator_unit
 @pytest.mark.parametrize("success", [True, False])
 def test_handle_schedule_request_should_succeed_on_cancel_schedule_request_type(success):
     headers = {"type": "CANCEL_SCHEDULE", "requesterID": "id-123", "taskID": "12345"}
@@ -257,7 +246,6 @@ def test_handle_schedule_request_should_succeed_on_cancel_schedule_request_type(
         actuator_agent.vip.pubsub.publish.assert_called()
 
 
-@pytest.mark.actuator_unit
 @pytest.mark.parametrize("invalid_request_type", ["bad request type", None])
 def test_handle_schedule_request_should_log_invalid_request_type(
     invalid_request_type, caplog

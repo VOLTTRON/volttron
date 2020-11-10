@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -55,8 +55,8 @@ from bacpypes.apdu import WhoIsRequest, IAmRequest
 from bacpypes.basetypes import ServicesSupported
 from bacpypes.errors import DecodingError
 
-import threading, time, sys
-
+import threading
+import time
 import csv
 
 # some debugging
@@ -193,7 +193,8 @@ args = arg_parser.parse_args()
 f = None
 
 if args.csv_out is not None:
-    f = open(args.csv_out, "wb")
+    mode = 'wb' if sys.version_info.major == 2 else 'w'
+    f = open(args.csv_out, mode)
     field_names = ["address",
                    "device_id",
                    "max_apdu_length",

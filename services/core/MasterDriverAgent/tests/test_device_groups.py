@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -41,12 +41,11 @@ py.test cases for global master driver settings.
 """
 
 import pytest
+import gevent
 
 from volttron.platform import get_services_core
-from volttrontesting.utils.platformwrapper import start_wrapper_platform
 from volttron.platform.agent.known_identities import CONFIGURATION_STORE, PLATFORM_DRIVER
-import gevent
-from volttron.platform.vip.agent import Agent, PubSub
+from volttron.platform.vip.agent import Agent
 from volttron.platform.messaging import topics
 from volttron.platform.agent.utils import parse_timestamp_string
 
@@ -78,12 +77,9 @@ class _subscriber_agent(Agent):
 @pytest.fixture(scope="module")
 def subscriber_agent(request, volttron_instance):
 
-    agent = volttron_instance.build_agent(identity='subscriber_agent',
-                                          agent_class=_subscriber_agent)
+    agent = volttron_instance.build_agent(identity='subscriber_agent', agent_class=_subscriber_agent)
 
-    agent.vip.pubsub.subscribe(peer='pubsub',
-                                prefix=topics.DRIVER_TOPIC_BASE,
-                                callback=agent.add_result).get()
+    agent.vip.pubsub.subscribe(peer='pubsub', prefix=topics.DRIVER_TOPIC_BASE, callback=agent.add_result).get()
 
     yield agent
 

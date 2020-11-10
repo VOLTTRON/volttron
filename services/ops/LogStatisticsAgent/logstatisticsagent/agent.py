@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -52,11 +52,10 @@ __version__ = '1.0'
 
 
 def log_statistics(config_path, **kwargs):
-    """Load the LogStatisticsAgent agent configuration and returns and instance
-        of the agent created using that configuration.
-
+    """
+    Load the LogStatisticsAgent agent configuration and returns and instance
+    of the agent created using that configuration.
     :param config_path: Path to a configuration file.
-
     :type config_path: str
     :returns: LogStatisticsAgent agent instance
     :rtype: LogStatisticsAgent agent
@@ -67,20 +66,18 @@ def log_statistics(config_path, **kwargs):
 
 class LogStatisticsAgent(Agent):
     """
-    LogStatisticsAgent reads volttron.log file size every hour,
-    compute the size delta from previous hour and publish the difference
-    with timestamp. It also publishes standard deviation every 24 hours.
+    LogStatisticsAgent reads volttron.log file size every hour, compute the size delta from previous hour and publish
+    the difference with timestamp. It also publishes standard deviation every 24 hours.
     :param config: Configuration dict
     :type config: dict
-
     Example configuration:
     .. code-block:: python
-    {
-    "file_path" : "/home/volttron/volttron.log",
-    "analysis_interval_sec" : 60,
-    "publish_topic" : "platform/log_statistics",
-    "historian_topic" : "analysis/log_statistics"
-    }
+        {
+        "file_path" : "/home/volttron/volttron.log",
+        "analysis_interval_sec" : 60,
+        "publish_topic" : "platform/log_statistics",
+        "historian_topic" : "analysis/log_statistics"
+        }
     """
 
     def __init__(self, config, **kwargs):
@@ -101,10 +98,8 @@ class LogStatisticsAgent(Agent):
 
     def publish_analysis(self):
         """
-        Publishes file's size increment in previous time interval (60 minutes)
-        with timestamp.
-        Also publishes standard deviation of file's hourly size differences
-        every 24 hour.
+        Publishes file's size increment in previous time interval (60 minutes) with timestamp.
+        Also publishes standard deviation of file's hourly size differences every 24 hour.
         """
         if self._scheduled_event is not None:
             self._scheduled_event.cancel()
@@ -137,22 +132,19 @@ class LogStatisticsAgent(Agent):
 
                 _log.debug('publishing message {} with header {} on historian topic {}'
                            .format(historian_message, headers, self.historian_topic))
-                self.vip.pubsub.publish(peer="pubsub", topic=self.historian_topic, headers = headers,
+                self.vip.pubsub.publish(peer="pubsub", topic=self.historian_topic, headers=headers,
                                         message=historian_message)
 
                 self.size_delta_list = []
 
             _log.debug('publishing message {} on topic {}'.format(publish_message, self.publish_topic))
-            self.vip.pubsub.publish(peer="pubsub", topic=self.publish_topic,
-                                    message=publish_message)
+            self.vip.pubsub.publish(peer="pubsub", topic=self.publish_topic, message=publish_message)
 
         _log.debug('Scheduling next periodic call')
         now = get_aware_utc_now()
-        next_update_time = now + datetime.timedelta(
-            seconds=self.analysis_interval_sec)
+        next_update_time = now + datetime.timedelta(seconds=self.analysis_interval_sec)
 
-        self._scheduled_event = self.core.schedule(
-            next_update_time, self.publish_analysis)
+        self._scheduled_event = self.core.schedule(next_update_time, self.publish_analysis)
 
     def get_file_size(self):
         try:
@@ -162,7 +154,9 @@ class LogStatisticsAgent(Agent):
 
 
 def main(argv=sys.argv):
-    """Main method called by the platform."""
+    """
+    Main method called by the platform.
+    """
     utils.vip_main(log_statistics, identity='platform.logstatisticsagent')
 
 

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -41,9 +41,12 @@
 
 import os
 import logging
+from typing import Optional
+
 import zmq
 from zmq import Frame, NOBLOCK, ZMQError, EINVAL, EHOSTUNREACH
 
+from volttron.platform.vip.servicepeer import ServicePeerNotifier
 from volttron.utils.frame_serialization import serialize_frames
 
 __all__ = ['BaseRouter', 'OUTGOING', 'INCOMING', 'UNROUTABLE', 'ERROR']
@@ -66,6 +69,7 @@ _INVALID_SUBSYSTEM = (
     zmq.Frame(os.strerror(zmq.EPROTONOSUPPORT).encode('ascii'))
 )
 
+
 class BaseRouter(object):
     '''Abstract base class of VIP router implementation.
 
@@ -85,7 +89,7 @@ class BaseRouter(object):
     _socket_class = zmq.Socket
     _poller_class = zmq.Poller
 
-    def __init__(self, context=None, default_user_id=None):
+    def __init__(self, context=None, default_user_id=None, service_notifier=Optional[ServicePeerNotifier]):
         '''Initialize the object instance.
 
         If context is None (the default), the zmq global context will be
@@ -98,6 +102,7 @@ class BaseRouter(object):
         self._poller = self._poller_class()
         self._ext_sockets = []
         self._socket_id_mapping = {}
+        self._service_notifier = service_notifier
 
     def run(self):
         '''Main router loop.'''
@@ -213,6 +218,8 @@ class BaseRouter(object):
             drop.update(self._send(frames))
         for peer in drop:
             self._drop_peer(peer)
+            if self._service_notifier:
+                self._service_notifier.peer_dropped(peer)
 
     def _drop_pubsub_peers(self, peer):
         '''Drop peers for pubsub subsystem. To be handled by subclasses'''
@@ -228,6 +235,8 @@ class BaseRouter(object):
         self._distribute('peerlist', 'add', peer)
         self._peers.add(peer)
         self._add_pubsub_peers(peer)
+        if self._service_notifier:
+            self._service_notifier.peer_added(peer)
 
     def _drop_peer(self, peer):
         try:

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -826,7 +826,6 @@ class PubSubService(object):
         """
         # happens only in case of errors in multi platform use case
         _log.warning(f"In _handle_error of pubsub subsystem. Frames: {frames}")
-
 
     def publish_callback(self, peer, sender, bus, topic, headers, message):
         """

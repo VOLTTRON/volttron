@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -41,16 +41,15 @@ import random
 import pytest
 import gevent
 import pytz
+import os
+import json
 from pytest import approx
 from datetime import datetime, timedelta
 from dateutil import parser
 
 from volttron.platform import get_services_core, jsonapi
-from volttron.platform.agent.utils import format_timestamp, \
-                                          parse_timestamp_string, \
-                                          get_aware_utc_now
+from volttron.platform.agent.utils import format_timestamp, parse_timestamp_string, get_aware_utc_now
 from volttron.platform.messaging import headers as headers_mod
-
 
 try:
     from influxdb import InfluxDBClient
@@ -61,7 +60,6 @@ except ImportError:
 if HAS_INFLUXDB:
     from volttron.platform.dbutils import influxdbutils
     from fixtures import *
-
 
 
 def clean_database(client, clean_updated_database=False):
@@ -82,10 +80,7 @@ def publish_some_fake_data(publish_agent, data_count, value_type='float'):
     """
     Generate some random data for all query_topics and uses the passed
     publish_agent's vip pubsub to publish all messages.
-
-
     Timestamp of these data points will be in the range of today 12:00AM to 23:59PM
-
     :param publish_agent: publish agent used to publish data
     :param data_count: number of data points generated
                       E.g: if data_count = 10 and number of topics is 3,
@@ -184,7 +179,6 @@ def publish_data_with_updated_meta(publish_agent):
     """
     Publish a new data point containing an updated meta dictionary
     for some topics
-
     :param publish_agent: publish agent used to publish data
     :return: updated meta dictionaries for all topics and updated_time
 
@@ -291,12 +285,8 @@ def publish_data_with_updated_topic_case(publish_agent, data_count):
 @pytest.mark.skipif(not HAS_INFLUXDB, reason='No influxdb library. Please run \'pip install influxdb\'')
 def test_installation_and_connection(volttron_instance, influxdb_client):
     """
-    Test installing the InfluxdbHistorian agent and then
-    connect to influxdb client.
-
-
-    When it first connect to the client, there should be no
-    database yet. If database already existed, clean database.
+    Test installing the InfluxdbHistorian agent and then connect to influxdb client.
+    When it first connect to the client, there should be no database yet. If database already existed, clean database.
     """
     clean_database(influxdb_client)
 
@@ -325,7 +315,6 @@ def test_installation_and_connection(volttron_instance, influxdb_client):
 def test_publish_to_historian(volttron_instance, influxdb_client):
     """
     Test basic functionality of publish_to_historian.
-
     Inserts a specific number of data and checks if all of them
     got into the database.
     """
@@ -568,9 +557,7 @@ def test_publish_with_changed_value_type(volttron_instance, influxdb_client):
 def test_query_topic_list(volttron_instance, influxdb_client):
     """
     Test basic functionality of query_topic_list method in InfluxdbHistorian.
-
-    Inserts a specific number of data and call 'get_topic_list' method through
-    a new built agent.
+    Inserts a specific number of data and call 'get_topic_list' method through a new built agent.
     """
 
     clean_database(influxdb_client)
@@ -605,22 +592,22 @@ def test_query_topic_list(volttron_instance, influxdb_client):
 @pytest.mark.skipif(not HAS_INFLUXDB, reason='No influxdb library. Please run \'pip install influxdb\'')
 def test_query_historian_all_topics(volttron_instance, influxdb_client):
     """
-        Test basic functionality of query_historian method in InfluxdbHistorian.
+    Test basic functionality of query_historian method in InfluxdbHistorian.
 
-        Inserts a specific number of data and call 'query' method through
-        a new built agent. The topic argument can be a single topic or a
-        list of topics.
+    Inserts a specific number of data and call 'query' method through
+    a new built agent. The topic argument can be a single topic or a
+    list of topics.
 
-        We test a list of topics in this case.
+    We test a list of topics in this case.
 
-        The method 'query' actually executes multiple times the following queries:
+    The method 'query' actually executes multiple times the following queries:
 
-        .. code-block:: python
+    .. code-block:: python
 
-            SELECT value FROM <measurement> WHERE campus='<campus>' and building='<building>' and device='<device>'
-            LIMIT 30
+        SELECT value FROM <measurement> WHERE campus='<campus>' and building='<building>' and device='<device>'
+        LIMIT 30
 
-        :note: <measurement>, <campus>, <building> and <device> are parsed from topic_id
+    :note: <measurement>, <campus>, <building> and <device> are parsed from topic_id
     """
 
     clean_database(influxdb_client)
@@ -1297,13 +1284,11 @@ def test_update_topic_case(volttron_instance, influxdb_client):
 
         publish_some_fake_data(publisher, 3)
 
-        old_topic_list = publisher.vip.rpc.call('influxdb.historian',
-                                                'get_topic_list').get(timeout=5)
+        old_topic_list = publisher.vip.rpc.call('influxdb.historian', 'get_topic_list').get(timeout=5)
 
         publish_data_with_updated_topic_case(publisher, 3)
 
-        new_topic_list = publisher.vip.rpc.call('influxdb.historian',
-                                                'get_topic_list').get(timeout=5)
+        new_topic_list = publisher.vip.rpc.call('influxdb.historian', 'get_topic_list').get(timeout=5)
 
         assert old_topic_list != new_topic_list
 
@@ -1316,17 +1301,13 @@ def test_update_topic_case(volttron_instance, influxdb_client):
 
 
 # Any test run after this one has to switch to 'historian' database again.
-# Hence, for convenience, put this test at last in the file
-# because it will drop 'test' database at last.
+# Hence, for convenience, put this test at last in the file because it will drop 'test' database at last.
 @pytest.mark.historian
 @pytest.mark.skipif(not HAS_INFLUXDB, reason='No influxdb library. Please run \'pip install influxdb\'')
 def test_update_config_store(volttron_instance, influxdb_client):
     """
-    Test the case when user updates config store while an
-    InfluxdbHistorian Agent is running.
-
-    In this test, database name is updated and data should be
-    stored in the updated one.
+    Test the case when user updates config store while an InfluxdbHistorian Agent is running.
+    In this test, database name is updated and data should be stored in the updated one.
     """
     clean_database(influxdb_client)
     db = influxdb_config['connection']['params']['database']
@@ -1349,8 +1330,7 @@ def test_update_config_store(volttron_instance, influxdb_client):
         publish_some_fake_data(publisher, 5)
 
         # Update config store
-        publisher.vip.rpc.call('config.store', 'manage_store',
-                               'influxdb.historian','config',
+        publisher.vip.rpc.call('config.store', 'manage_store', 'influxdb.historian', 'config',
                                jsonapi.dumps(updated_influxdb_config), config_type="json").get(timeout=10)
         publish_some_fake_data(publisher, 5)
 
@@ -1377,3 +1357,54 @@ def test_update_config_store(volttron_instance, influxdb_client):
         volttron_instance.remove_agent(agent_uuid)
         clean_database(influxdb_client, clean_updated_database=True)
 
+
+@pytest.mark.historian
+@pytest.mark.skipif(not HAS_INFLUXDB, reason='No influxdb library. Please run \'pip install influxdb\'')
+def test_default_config(volttron_instance, influxdb_client):
+    """
+    Test installing the InfluxdbHistorian agent and then connect to influxdb client.
+    When it first connect to the client, there should be no database yet. If database already existed, clean database.
+    """
+    clean_database(influxdb_client)
+
+    config_path = os.path.join(get_services_core("InfluxdbHistorian"), "config")
+    with open(config_path, "r") as config_file:
+        config_json = json.load(config_file)
+    assert isinstance(config_json, dict)
+
+    clean_database(influxdb_client)
+    db = config_json['connection']['params']['database']
+    influxdb_client.create_database(db)
+
+    agent_uuid = start_influxdb_instance(volttron_instance, config_json)
+    assert agent_uuid is not None
+    assert volttron_instance.is_agent_running(agent_uuid)
+
+    try:
+        # query the table to check publishes, do a minimal comparison
+        publisher = volttron_instance.build_agent()
+        assert publisher is not None
+        expected = publish_some_fake_data(publisher, 10)
+
+        rs = influxdb_client.get_list_database()
+
+        # the databases historian
+        assert {'name': 'historian'} in rs
+
+        # Check for measurement OutsideAirTemperature
+        query = 'SELECT value FROM outsideairtemperature ' \
+                'WHERE campus=\'building\' and building=\'lab\' and device=\'device\''
+        rs = influxdb_client.query(query)
+        rs = list(rs.get_points())
+        topic = query_topics["oat_point"]
+
+        assert len(rs) == 10
+
+        for point in rs:
+            ts = parser.parse(point['time'])
+            ts = format_timestamp(ts)
+            assert point["value"] == approx(expected['data'][ts][topic])
+    finally:
+        volttron_instance.stop_agent(agent_uuid)
+        volttron_instance.remove_agent(agent_uuid)
+        clean_database(influxdb_client)

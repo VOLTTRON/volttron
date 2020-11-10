@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -423,7 +423,12 @@ def do_message_bus():
         #     print("Rabbitmq dependencies not installed. Installing now...")
         #     set_dependencies("rabbitmq")
         #     print("Done!")
-        check_rmq_setup()
+        try:
+            check_rmq_setup()
+        except AssertionError:
+            print("RabbitMQ setup is incomplete. RabbitMQ server directory is missing.")
+            print("Please run bootstrap --rabbitmq before running vcfg")
+            sys.exit()
 
     config_opts['message-bus'] = bus_type
 

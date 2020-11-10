@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -35,37 +35,39 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
+
 import ast
 import errno
 import logging
 import sqlite3
 import pytz
 import threading
+import os
+import re
+from .basedb import DbDriver
 from collections import defaultdict
 from datetime import datetime
 from math import ceil
 
-import os
-import re
-from .basedb import DbDriver
 from volttron.platform.agent import utils
 from volttron.platform import jsonapi
+from volttron.platform.agent.utils import fix_sqlite3_datetime
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
-from volttron.platform.agent.utils import fix_sqlite3_datetime
-#Make sure sqlite3 datetime adapters are updated.
+# Make sure sqlite3 datetime adapters are updated.
 fix_sqlite3_datetime()
 
-"""
-Implementation of SQLite3 database operation for
-:py:class:`sqlhistorian.historian.SQLHistorian` and
-:py:class:`sqlaggregator.aggregator.SQLAggregateHistorian`
-For method details please refer to base class
-:py:class:`volttron.platform.dbutils.basedb.DbDriver`
-"""
+
 class SqlLiteFuncts(DbDriver):
+    """
+    Implementation of SQLite3 database operation for
+    :py:class:`sqlhistorian.historian.SQLHistorian` and
+    :py:class:`sqlaggregator.aggregator.SQLAggregateHistorian`
+    For method details please refer to base class
+    :py:class:`volttron.platform.dbutils.basedb.DbDriver`
+    """
     def __init__(self, connect_params, table_names):
         database = connect_params['database']
         thread_name = threading.currentThread().getName()
@@ -74,7 +76,6 @@ class SqlLiteFuncts(DbDriver):
         if database == ':memory:':
             self.__database = database
         else:
-
             self.__database = os.path.expandvars(os.path.expanduser(database))
             db_dir = os.path.dirname(self.__database)
 
@@ -97,8 +98,7 @@ class SqlLiteFuncts(DbDriver):
         connect_params['database'] = self.__database
 
         if 'detect_types' not in connect_params:
-            connect_params['detect_types'] = \
-                sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
+            connect_params['detect_types'] = sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
         if 'timeout' not in connect_params.keys():
             connect_params['timeout'] = 10
 
@@ -124,7 +124,7 @@ class SqlLiteFuncts(DbDriver):
 
         if auto_vacuum != 1:
             _log.info("auto_vacuum set to 0 (None), updating to 1 (full).")
-            _log.info("VACCUMing DB to cause new auto_vacuum setting to take effect. "
+            _log.info("VACCUUMing DB to cause new auto_vacuum setting to take effect. "
                       "This could be slow on a large database.")
             self.select('''PRAGMA auto_vacuum=1''')
             self.select('''VACUUM;''')
@@ -134,7 +134,7 @@ class SqlLiteFuncts(DbDriver):
             ''' (ts timestamp NOT NULL,
                  topic_id INTEGER NOT NULL,
                  value_string TEXT NOT NULL,
-                 UNIQUE(topic_id, ts))''',commit=False)
+                 UNIQUE(topic_id, ts))''', commit=False)
         self.execute_stmt(
             '''CREATE INDEX IF NOT EXISTS data_idx 
             ON ''' + self.data_table + ''' (ts ASC)''', commit=False)
@@ -149,10 +149,8 @@ class SqlLiteFuncts(DbDriver):
                 metadata TEXT NOT NULL)''', commit=True)
         _log.debug("Created data topics and meta tables")
 
-
     def record_table_definitions(self, table_defs, meta_table_name):
-        _log.debug(
-            "In record_table_def {} {}".format(table_defs, meta_table_name))
+        _log.debug("In record_table_def {} {}".format(table_defs, meta_table_name))
         self.execute_stmt(
             'CREATE TABLE IF NOT EXISTS ' + meta_table_name +
             ' (table_id TEXT PRIMARY KEY, \
@@ -171,7 +169,6 @@ class SqlLiteFuncts(DbDriver):
             'INSERT OR REPLACE INTO ' + meta_table_name + ' VALUES (?, ?, ?)',
             ['meta_table', table_defs['meta_table'], table_prefix])
         self.commit()
-
 
     def setup_aggregate_historian_tables(self, meta_table_name):
         table_names = self.read_tablenames_from_db(meta_table_name)
@@ -196,9 +193,7 @@ class SqlLiteFuncts(DbDriver):
         _log.debug("Created aggregate topics and meta tables")
         self.commit()
 
-
-    def query(self, topic_ids, id_name_map, start=None, end=None,
-              agg_type=None, agg_period=None, skip=0, count=None,
+    def query(self, topic_ids, id_name_map, start=None, end=None, agg_type=None, agg_period=None, skip=0, count=None,
               order="FIRST_TO_LAST"):
         """
         This function should return the results of a query in the form:
@@ -233,9 +228,8 @@ class SqlLiteFuncts(DbDriver):
         where_clauses = ["WHERE topic_id = ?"]
         args = [topic_ids[0]]
 
-        # base historian converts naive timestamps to UTC, but if the
-        # start and end had explicit timezone info then they need to get
-        # converted to UTC since sqlite3 only store naive timestamp
+        # base historian converts naive timestamps to UTC, but if the start and end had explicit timezone info then they
+        # need to get converted to UTC since sqlite3 only store naive timestamp
         if start:
             start = start.astimezone(pytz.UTC)
         if end:
@@ -252,7 +246,6 @@ class SqlLiteFuncts(DbDriver):
                 where_clauses.append("ts < ?")
                 args.append(end)
 
-
         where_statement = ' AND '.join(where_clauses)
 
         order_by = 'ORDER BY topic_id ASC, ts ASC'
@@ -260,8 +253,7 @@ class SqlLiteFuncts(DbDriver):
             order_by = ' ORDER BY topic_id DESC, ts DESC'
 
         # can't have an offset without a limit
-        # -1 = no limit and allows the user to
-        # provide just an offset
+        # -1 = no limit and allows the user to provide just an offset
         if count is None:
             count = -1
 
@@ -280,7 +272,6 @@ class SqlLiteFuncts(DbDriver):
         _log.debug("Real Query: " + real_query)
         _log.debug("args: " + str(args))
 
-
         values = defaultdict(list)
         start_t = datetime.utcnow()
         for topic_id in topic_ids:
@@ -289,29 +280,27 @@ class SqlLiteFuncts(DbDriver):
             cursor = self.select(real_query, args, fetch_all=False)
             if cursor:
                 for _id, ts, value in cursor:
-                    values[id_name_map[topic_id]].append(
-                        (utils.format_timestamp(ts), jsonapi.loads(value)))
+                    values[id_name_map[topic_id]].append((utils.format_timestamp(ts), jsonapi.loads(value)))
                 cursor.close()
 
-        _log.debug("Time taken to load results from db:{}".format(
-            datetime.utcnow()-start_t))
+        _log.debug("Time taken to load results from db:{}".format(datetime.utcnow()-start_t))
         return values
 
     def manage_db_size(self, history_limit_timestamp, storage_limit_gb):
         """
         Manage database size.
-
         :param history_limit_timestamp: remove all data older than this timestamp
         :param storage_limit_gb: remove oldest data until database is smaller than this value.
         """
 
-        _log.debug("Managing store - timestamp limit: {}  GB size limit: {}".format(history_limit_timestamp, storage_limit_gb))
+        _log.debug("Managing store - timestamp limit: {}  GB size limit: {}".format(
+            history_limit_timestamp, storage_limit_gb))
 
         commit = False
 
         if history_limit_timestamp is not None:
             count = self.execute_stmt(
-                '''DELETE FROM ''' + self.data_table + \
+                '''DELETE FROM ''' + self.data_table +
                 ''' WHERE ts < ?''', (history_limit_timestamp,))
 
             if count is not None and count > 0:
@@ -330,10 +319,10 @@ class SqlLiteFuncts(DbDriver):
 
             while page_count() >= max_pages:
                 count = self.execute_stmt(
-                    '''DELETE FROM ''' + self.data_table + \
+                    '''DELETE FROM ''' + self.data_table +
                     '''
                     WHERE ts IN
-                    (SELECT ts FROM ''' + self.data_table + \
+                    (SELECT ts FROM ''' + self.data_table +
                     '''
                     ORDER BY ts ASC LIMIT 100)''')
 
@@ -391,10 +380,8 @@ class SqlLiteFuncts(DbDriver):
     def get_agg_topics(self):
         try:
             _log.debug("in get_agg_topics")
-            query = "SELECT agg_topic_name, agg_type, agg_time_period, " \
-                    "metadata FROM " + self.agg_topics_table + " as t, " + \
-                    self.agg_meta_table + " as m WHERE t.agg_topic_id = " \
-                                          "m.agg_topic_id "
+            query = "SELECT agg_topic_name, agg_type, agg_time_period, metadata FROM " + self.agg_topics_table + \
+                    " as t, " + self.agg_meta_table + " as m WHERE t.agg_topic_id = m.agg_topic_id "
             rows = self.select(query, None)
             topics = []
             for row in rows:
@@ -404,7 +391,7 @@ class SqlLiteFuncts(DbDriver):
             return topics
         except sqlite3.Error as e:
             if e.args[0][0:13] == 'no such table':
-                _log.warn("No such table : {}".format(self.agg_topics_table))
+                _log.warning("No such table : {}".format(self.agg_topics_table))
                 return []
             else:
                 raise
@@ -412,9 +399,7 @@ class SqlLiteFuncts(DbDriver):
     def get_agg_topic_map(self):
         try:
             _log.debug("in get_agg_topic_map")
-            q = "SELECT agg_topic_id, agg_topic_name, agg_type, " \
-                "agg_time_period " \
-                "FROM " + self.agg_topics_table
+            q = "SELECT agg_topic_id, agg_topic_name, agg_type, agg_time_period FROM " + self.agg_topics_table
             rows = self.select(q, None)
             _log.debug("loading agg_topic map from db")
             id_map = dict()
@@ -424,7 +409,7 @@ class SqlLiteFuncts(DbDriver):
             return id_map
         except sqlite3.Error as e:
             if e.args[0][0:13] == 'no such table':
-                _log.warn("No such table : {}".format(self.agg_topics_table))
+                _log.warning("No such table : {}".format(self.agg_topics_table))
                 return {}
             else:
                 raise
@@ -441,13 +426,10 @@ class SqlLiteFuncts(DbDriver):
         conn = None
         cursor = None
         try:
-            conn = sqlite3.connect(
-                self.__database,
-                detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
+            conn = sqlite3.connect(self.__database, detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
 
             if conn is None:
-                _log.error("Unable to connect to sqlite database {} ".format(
-                    self.__database))
+                _log.error("Unable to connect to sqlite database {} ".format(self.__database))
                 return []
             conn.create_function("REGEXP", 2, SqlLiteFuncts.regexp)
             if cache_size:
@@ -466,8 +448,7 @@ class SqlLiteFuncts(DbDriver):
             else:
                 return cursor, conn
         except Exception as e:
-            _log.error("Exception querying database based on regular "
-                       "expression:{}".format(e.args))
+            _log.error("Exception querying database based on regular expression:{}".format(e.args))
         finally:
             if fetch_all:
                 if cursor:
@@ -478,38 +459,33 @@ class SqlLiteFuncts(DbDriver):
     def query_topics_by_pattern(self, topic_pattern):
         id_map, name_map = self.get_topic_map()
         _log.debug("Contents of topics table {}".format(list(id_map.keys())))
-        q = "SELECT topic_id, topic_name FROM " + self.topics_table + \
-            " WHERE topic_name REGEXP '" + topic_pattern + "';"
+        q = "SELECT topic_id, topic_name FROM " + self.topics_table + " WHERE topic_name REGEXP '" + topic_pattern + \
+            "';"
 
         rows = self.regex_select(q, None)
         _log.debug("loading topic map from db")
         id_map = dict()
         for t, n in rows:
             id_map[n] = t
-        _log.debug("topics that matched the pattern {} : {}".format(
-            topic_pattern, id_map))
+        _log.debug("topics that matched the pattern {} : {}".format(topic_pattern, id_map))
         return id_map
 
     def create_aggregate_store(self, agg_type, period):
-
         table_name = agg_type + '''_''' + period
 
-        # period = sqlutils.parse_time_period(period)
         stmt = "CREATE TABLE IF NOT EXISTS " + table_name + \
                " (ts timestamp NOT NULL, topic_id INTEGER NOT NULL, " \
                "value_string TEXT NOT NULL, topics TEXT, " \
                "UNIQUE(topic_id, ts)); "
         self.execute_stmt(stmt)
 
-        stmt = "CREATE INDEX IF NOT EXISTS idx_" + table_name + " ON " + \
-               table_name + "(ts ASC);"
+        stmt = "CREATE INDEX IF NOT EXISTS idx_" + table_name + " ON " + table_name + "(ts ASC);"
 
         self.execute_stmt(stmt, commit=True)
         return True
 
     def insert_aggregate_stmt(self, table_name):
-        return '''INSERT OR REPLACE INTO ''' + table_name + \
-               ''' values(?, ?, ?, ?)'''
+        return '''INSERT OR REPLACE INTO ''' + table_name + ''' values(?, ?, ?, ?)'''
 
     def collect_aggregate(self, topic_ids, agg_type, start=None, end=None):
         """
@@ -523,11 +499,9 @@ class SqlLiteFuncts(DbDriver):
         """
         if isinstance(agg_type, str):
             if agg_type.upper() not in ['AVG', 'MIN', 'MAX', 'COUNT', 'SUM']:
-                raise ValueError(
-                    "Invalid aggregation type {}".format(agg_type))
-        query = '''SELECT ''' \
-                + agg_type + '''(value_string), count(value_string) FROM ''' \
-                + self.data_table + ''' {where}'''
+                raise ValueError("Invalid aggregation type {}".format(agg_type))
+        query = '''SELECT ''' + agg_type + '''(value_string), count(value_string) FROM ''' + \
+                self.data_table + ''' {where}'''
 
         where_clauses = ["WHERE topic_id = ?"]
         args = [topic_ids[0]]
@@ -540,9 +514,8 @@ class SqlLiteFuncts(DbDriver):
             where_clauses = [where_str]
             args = topic_ids[:]
 
-        # base historian converts naive timestamps to UTC, but if the
-        # start and end had explicit timezone info then they need to get
-        # converted to UTC since sqlite3 only store naive timestamp
+        # base historian converts naive timestamps to UTC, but if the start and end had explicit timezone info then they
+        # need to get converted to UTC since sqlite3 only store naive timestamp
         if start:
             start = start.astimezone(pytz.UTC)
         if end:
@@ -567,12 +540,10 @@ class SqlLiteFuncts(DbDriver):
 
         results = self.select(real_query, args)
         if results:
-            _log.debug("results got {}, {}".format(results[0][0],
-                                                   results[0][1]))
+            _log.debug("results got {}, {}".format(results[0][0], results[0][1]))
             return results[0][0], results[0][1]
         else:
             return 0, 0
-
 
     @staticmethod
     def get_tagging_query_from_ast(topic_tags_table, tup, tag_refs):
@@ -614,8 +585,7 @@ class SqlLiteFuncts(DbDriver):
         :return: sqlite query
         :rtype str
         """
-        query = SqlLiteFuncts._get_compound_query(topic_tags_table, tup,
-                                                  tag_refs)
+        query = SqlLiteFuncts._get_compound_query(topic_tags_table, tup, tag_refs)
         # Verify for parent tag finally. if present convert to subquery
         # Process parent tag
         # Convert
@@ -630,8 +600,7 @@ class SqlLiteFuncts(DbDriver):
         # )
         parent = ""
 
-        search_pattern = r"WHERE\s+tag='(.+)\.(" \
-                         r".+)'\s+AND\s+value\s+(.+)($|\n)"
+        search_pattern = r"WHERE\s+tag='(.+)\.(.+)'\s+AND\s+value\s+(.+)($|\n)"
         results = re.findall(search_pattern, query, flags=re.IGNORECASE)
         # Example result :<type 'list'>: [('campusRef', 'tag1', '= 2', '\n'),
         #                                 ('siteRef', 'tag2', '= 3 ', '\n')]
@@ -648,8 +617,7 @@ class SqlLiteFuncts(DbDriver):
                               r"AND " \
                               r"value \3 \4)".format(table=topic_tags_table,
                                                      parent=parent)
-            query = re.sub(search_pattern, replace_pattern, query, count=1,
-                           flags=re.I)
+            query = re.sub(search_pattern, replace_pattern, query, count=1, flags=re.I)
 
         _log.debug("Returning sqlite query condition {}".format(query))
         return query
@@ -690,32 +658,24 @@ class SqlLiteFuncts(DbDriver):
         :rtype str
         """
 
-        # Instead of using sqlite LIKE operator we use python regular
-        # expression and sqlite REGEXP operator
-        reserved_words = {'and':'INTERSECT', "or":'UNION', 'not':'NOT',
-                          'like':'REGEXP'}
+        # Instead of using sqlite LIKE operator we use python regular expression and sqlite REGEXP operator
+        reserved_words = {'and': 'INTERSECT', "or": 'UNION', 'not': 'NOT', 'like': 'REGEXP'}
         prefix = 'SELECT topic_prefix FROM {} WHERE '.format(topic_tags_table)
-        # _log.debug("In get sqlite query condition. tup: {}".format(tup))
         if tup is None:
             return tup
         if not isinstance(tup[1], tuple):
-            left = repr(tup[1]) # quote the tag
+            left = repr(tup[1])  # quote the tag
         else:
-            left = SqlLiteFuncts._get_compound_query(topic_tags_table,
-                                                     tup[1], tag_refs,
-                                                     False)
+            left = SqlLiteFuncts._get_compound_query(topic_tags_table, tup[1], tag_refs, False)
         if not isinstance(tup[2], tuple):
             if isinstance(tup[2],str):
                 right = repr(tup[2])
-            elif isinstance(tup[2],bool):
+            elif isinstance(tup[2], bool):
                 right = 1 if tup[2] else 0
             else:
                 right = tup[2]
         else:
-            right = SqlLiteFuncts._get_compound_query(topic_tags_table,
-                                                      tup[2],
-                                                      tag_refs,
-                                                      False)
+            right = SqlLiteFuncts._get_compound_query(topic_tags_table, tup[2], tag_refs, False)
 
         assert isinstance(tup[0], str)
 
@@ -724,17 +684,13 @@ class SqlLiteFuncts(DbDriver):
         if lower_tup0 in reserved_words:
             operator = reserved_words[lower_tup0]
 
-        query = ""
         if operator == 'NOT':
             query = SqlLiteFuncts._negate_condition(right, topic_tags_table)
         elif operator == 'INTERSECT' or operator == 'UNION':
             if root:
-                query = "{left}\n{operator}\n{right}".format(left=left,
-                                                             operator=operator,
-                                                             right=right)
+                query = "{left}\n{operator}\n{right}".format(left=left, operator=operator, right=right)
             else:
-                query = 'SELECT topic_prefix FROM ({left} \n{operator}\n{' \
-                        'right})'.format(
+                query = 'SELECT topic_prefix FROM ({left} \n{operator}\n{right})'.format(
                     left=left, operator=operator, right=right)
         else:
             query = "{prefix} tag={tag} AND value {operator} {value}".format(
@@ -778,21 +734,18 @@ class SqlLiteFuncts(DbDriver):
         :return: negated select query
         :rtype str
         """
-
         _log.debug("Query condition to negate: {}".format(condition))
         # Change and to or and or to and
         condition = condition.replace('INTERSECT\n', 'UNION_1\n')
         condition = condition.replace('UNION\n', 'INTERSECT\n')
         condition = condition.replace('UNION_1\n', 'UNION\n')
         # Now negate all SELECT... value<operator><value> with
-        # SELECT topic_prefix FROM topic_tags WHERE topic_prefix NOT IN (
-        #     SELECT....value<operator><value>)
+        # SELECT topic_prefix FROM topic_tags WHERE topic_prefix NOT IN (SELECT....value<operator><value>)
 
         search_pattern = r'(SELECT\s+topic_prefix\s+FROM\s+' + table_name + \
                          r'\s+WHERE\s+tag=\'.*\'\s+AND\s+value.*($|\n))'
 
-        replace_pattern = r'SELECT topic_prefix FROM ' + table_name + \
-                          r' WHERE topic_prefix NOT IN (\1)\2'
+        replace_pattern = r'SELECT topic_prefix FROM ' + table_name + r' WHERE topic_prefix NOT IN (\1)\2'
         c = re.search(search_pattern, condition)
         condition = re.sub(search_pattern,
                            replace_pattern,
@@ -801,6 +754,7 @@ class SqlLiteFuncts(DbDriver):
                            )
         _log.debug("Condition after negation: {}".format(condition))
         return condition
+
 
 if __name__ == '__main__':
     con = {
@@ -813,12 +767,6 @@ if __name__ == '__main__':
         "meta_table": "meta_table"
     }
     functs = SqlLiteFuncts(con, tables_def)
-    functs.collect_aggregate('device1/in_temp',
-                             'sum',
-                             datetime.strptime(
-                                 '2016-06-05 22:47:02.417604+00:00',
-                                 "%Y-%m-%d %H:%M:%S.%f+00:00"),
-                             datetime.strptime(
-                                 '2016-06-05 22:49:02.417604+00:00',
-                                 "%Y-%m-%d %H:%M:%S.%f+00:00")
-                             )
+    functs.collect_aggregate('device1/in_temp', 'sum',
+                             datetime.strptime('2016-06-05 22:47:02.417604+00:00', "%Y-%m-%d %H:%M:%S.%f+00:00"),
+                             datetime.strptime('2016-06-05 22:49:02.417604+00:00', "%Y-%m-%d %H:%M:%S.%f+00:00"))

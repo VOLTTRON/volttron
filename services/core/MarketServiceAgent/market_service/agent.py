@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -81,53 +81,29 @@ __docformat__ = 'reStructuredText'
 
 import logging
 import sys
+import gevent
 
 from transitions import Machine
 from volttron.platform.agent.known_identities import PLATFORM_MARKET_SERVICE
 from volttron.platform.agent import utils
 from volttron.platform.messaging.topics import MARKET_RESERVE, MARKET_BID
 from volttron.platform.vip.agent import Agent, Core, RPC
-from market_service.director import Director
-from market_service.market_list import MarketList
-from market_service.market_participant import MarketParticipant
 from volttron.platform.agent.base_market_agent.poly_line_factory import PolyLineFactory
+
+from .market_list import MarketList
+from .market_participant import MarketParticipant
+from .director import Director
 
 _tlog = logging.getLogger('transitions.core')
 _tlog.setLevel(logging.WARNING)
 _log = logging.getLogger(__name__)
 utils.setup_logging()
-__version__ = "0.01"
+__version__ = "1.0"
 
 INITIAL_WAIT = 'service_initial_wait'
 COLLECT_RESERVATIONS = 'service_collect_reservations'
 COLLECT_OFFERS = 'service_collect_offers'
 NO_MARKETS = 'service_has_no_markets'
-
-def market_service_agent(config_path, **kwargs):
-    """Parses the Market Service Agent configuration and returns an instance of
-    the agent created using that configuation.
-
-    :param config_path: Path to a configuation file.
-
-    :type config_path: str
-    :returns: Market Service Agent
-    :rtype: MarketServiceAgent
-    """
-    _log.debug("Starting MarketServiceAgent")
-    try:
-        config = utils.load_config(config_path)
-    except Exception:
-        config = {}
-
-    if not config:
-        _log.info("Using Market Service Agent defaults for starting configuration.")
-
-    market_period = int(config.get('market_period', 300))
-    reservation_delay = int(config.get('reservation_delay', 0))
-    offer_delay = int(config.get('offer_delay', 120))
-    verbose_logging = int(config.get('verbose_logging', True))
-
-    return MarketServiceAgent(market_period, reservation_delay, offer_delay, verbose_logging, **kwargs)
 
 
 class MarketServiceAgent(Agent):
@@ -140,25 +116,43 @@ class MarketServiceAgent(Agent):
         {'trigger': 'start_reservations', 'source': NO_MARKETS, 'dest': COLLECT_RESERVATIONS},
     ]
 
-    def __init__(self, market_period=300, reservation_delay=0, offer_delay=120, verbose_logging = True, **kwargs):
+    def __init__(self, config_path, **kwargs):
         super(MarketServiceAgent, self).__init__(**kwargs)
 
-        _log.debug("vip_identity: {}".format(self.core.identity))
-        _log.debug("market_period: {}".format(market_period))
-        _log.debug("reservation_delay: {}".format(reservation_delay))
-        _log.debug("offer_delay: {}".format(offer_delay))
-        _log.debug("verbose_logging: {}".format(verbose_logging))
+        config = utils.load_config(config_path)
+        self.agent_name = config.get('agent_name', 'MixMarketService')
+        self.market_period = int(config.get('market_period', 300))
+        self.reservation_delay = int(config.get('reservation_delay', 0))
+        self.offer_delay = int(config.get('offer_delay', 120))
+        self.verbose_logging = int(config.get('verbose_logging', True))
+        self.director = None
+        # This can be periodic or event_driven
+        self.market_type = config.get("market_type", "event_driven")
+        if self.market_type not in ["periodic", "event_driven"]:
+            self.market_type = "event_driven"
 
         self.state_machine = Machine(model=self, states=MarketServiceAgent.states,
                                      transitions= MarketServiceAgent.transitions, initial=INITIAL_WAIT)
-        self.market_list = None
-        self.verbose_logging = verbose_logging
-        self.director = Director(market_period, reservation_delay, offer_delay)
+        self.market_list = MarketList(self.vip.pubsub.publish, self.verbose_logging)
 
     @Core.receiver("onstart")
     def onstart(self, sender, **kwargs):
-        self.market_list = MarketList(self.vip.pubsub.publish, self.verbose_logging)
-        self.director.start(self)
+        if self.market_type == "periodic":
+            self.director = Director(self.market_period, self.reservation_delay, self.offer_delay)
+            self.director.start(self)
+        else:
+            # Listen to the new_cycle signal
+            self.vip.pubsub.subscribe(peer='pubsub',
+                                      prefix='mixmarket/start_new_cycle',
+                                      callback=self.start_new_cycle)
+
+    def start_new_cycle(self, peer, sender, bus, topic, headers, message):
+        _log.debug("Trigger market period for Market agent.")
+        gevent.sleep(self.reservation_delay)
+        self.send_collect_reservations_request(utils.get_aware_utc_now())
+
+        gevent.sleep(self.offer_delay)
+        self.send_collect_offers_request(utils.get_aware_utc_now())
 
     def send_collect_reservations_request(self, timestamp):
         _log.debug("send_collect_reservations_request at {}".format(timestamp))
@@ -170,7 +164,7 @@ class MarketServiceAgent(Agent):
                                 message=utils.format_timestamp(timestamp))
 
     def send_collect_offers_request(self, timestamp):
-        if (self.has_any_markets()):
+        if self.has_any_markets():
             self.begin_collect_offers(timestamp)
         else:
             self.start_offers_no_markets()
@@ -186,13 +180,19 @@ class MarketServiceAgent(Agent):
 
     @RPC.export
     def make_reservation(self, market_name, buyer_seller):
-        identity = bytes(self.vip.rpc.context.vip_message.peer).decode("utf-8")
+        import time
+        start = time.time()
+
+        identity = bytes(self.vip.rpc.context.vip_message.peer, "utf8")
         log_message = "Received {} reservation for market {} from agent {}".format(buyer_seller, market_name, identity)
         _log.debug(log_message)
-        if (self.state == COLLECT_RESERVATIONS):
+        if self.state == COLLECT_RESERVATIONS:
             self.accept_reservation(buyer_seller, identity, market_name)
         else:
             self.reject_reservation(buyer_seller, identity, market_name)
+
+        end = time.time()
+        print(end - start)
 
     def accept_reservation(self, buyer_seller, identity, market_name):
         _log.info("Reservation on Market: {} {} made by {} was accepted.".format(market_name, buyer_seller, identity))
@@ -205,10 +205,10 @@ class MarketServiceAgent(Agent):
 
     @RPC.export
     def make_offer(self, market_name, buyer_seller, offer):
-        identity = bytes(self.vip.rpc.context.vip_message.peer).decode("utf-8")
+        identity = bytes(self.vip.rpc.context.vip_message.peer, "utf8")
         log_message = "Received {} offer for market {} from agent {}".format(buyer_seller, market_name, identity)
         _log.debug(log_message)
-        if (self.state == COLLECT_OFFERS):
+        if self.state == COLLECT_OFFERS:
             self.accept_offer(buyer_seller, identity, market_name, offer)
         else:
             self.reject_offer(buyer_seller, identity, market_name, offer)
@@ -227,9 +227,11 @@ class MarketServiceAgent(Agent):
         unformed_markets = self.market_list.unformed_market_list()
         return len(unformed_markets) < self.market_list.market_count()
 
+
 def main():
     """Main method called to start the agent."""
-    utils.vip_main(market_service_agent, identity=PLATFORM_MARKET_SERVICE,
+    utils.vip_main(MarketServiceAgent,
+                   identity=PLATFORM_MARKET_SERVICE,
                    version=__version__)
 
 

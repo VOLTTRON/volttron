@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -41,7 +41,7 @@ __docformat__ = 'reStructuredText'
 import logging
 import sys
 from volttron.platform.agent import utils
-from volttron.platform.vip.agent import Agent, Core, RPC
+from volttron.platform.vip.agent import Agent
 from volttron.platform.scheduling import periodic
 import grequests
 import gevent
@@ -50,7 +50,7 @@ import datetime
 from collections import defaultdict
 from volttron.platform.messaging import headers as headers_mod
 
-TOPIC_DELIM ='/'
+TOPIC_DELIM = '/'
 
 _log = logging.getLogger(__name__)
 utils.setup_logging()
@@ -58,11 +58,9 @@ __version__ = "1.0"
 
 
 def obix_history(config_path, **kwargs):
-    """Parses the Agent configuration and returns an instance of
-    the agent created using that configuration.
-
+    """
+    Parses the Agent configuration and returns an instance of the agent created using that configuration.
     :param config_path: Path to a configuration file.
-
     :type config_path: str
     :returns: ObixHistory
     :rtype: ObixHistory
@@ -133,7 +131,9 @@ class Register(object):
         return grequests.get(url, auth=(username, password), params=payload_str)
 
     def time_format(self, dt):
-        """Format timestamp for becchp.com query"""
+        """
+        Format timestamp for becchp.com query
+        """
         _log.debug("time_format dt: {}".format(dt))
         return "%s:%06.3f%s" % (
             dt.strftime('%Y-%m-%dT%H:%M'),
@@ -210,6 +210,9 @@ class ObixHistory(Agent):
         self.last_read = None
         self.default_last_read = default_last_read
 
+        self.topics = None
+        self.historian_name = ""
+
         self.scheduled_update = None
         self.registers = list()
 
@@ -228,7 +231,6 @@ class ObixHistory(Agent):
         """
         Called after the Agent has connected to the message bus. If a configuration exists at startup
         this will be called before onstart.
-
         Is called every time the configuration in the store changes.
         """
         config = self.default_config.copy()
@@ -263,7 +265,6 @@ class ObixHistory(Agent):
         self.register_config = register_config
         self.historian_name = historian_name
 
-
         self.configure_registers(register_config)
 
         if self.last_read is None:
@@ -283,20 +284,17 @@ class ObixHistory(Agent):
                 _log.error("ERROR PROCESSING CONFIGURATION: last_read file does not contain dictionary")
                 last_read = None
 
-
         if last_read is None:
             last_read = {}
 
-        backup_last_read = utils.format_timestamp(utils.get_aware_utc_now() + datetime.timedelta(hours=-1*self.default_last_read))
+        backup_last_read = utils.format_timestamp(utils.get_aware_utc_now() + datetime.timedelta(
+            hours=-1*self.default_last_read))
 
         for r in self.registers:
             new_last_read = last_read.get(r.index, backup_last_read)
             last_read[r.index] = r.last_read = new_last_read
 
         self.last_read = last_read
-        # for r in self.registers:
-        #     r.last_read = last_read[r.index]
-
 
     def restart_greenlet(self):
         if self.scheduled_update is not None:
@@ -313,12 +311,11 @@ class ObixHistory(Agent):
             _log.warning("No registers configured.")
             return
 
-        self.topics = [] # used to index registers
+        self.topics = []  # used to index registers
         self.registers = []
         for register_line in register_config:
-            if ("Device Name" not in register_line or
-                "Volttron Point Name" not in register_line or
-                "Obix Name" not in register_line):
+            if "Device Name" not in register_line or "Volttron Point Name" not in register_line or \
+                    "Obix Name" not in register_line:
                 _log.warning("Column missing from configuration file line: {}".format(register_line))
                 continue
             device_topic = self.path_prefix + register_line['Device Name']
@@ -330,12 +327,12 @@ class ObixHistory(Agent):
             self.topics.append((device_topic, point_name))
 
     def collate_results(self, devices):
-        # devices[device_topic][point_name][time]: [value, units] -> result[time][device_topic][{point_name: value}, {point_name: {'units': units}]
+        # devices[device_topic][point_name][time]: [value, units] ->
+        #   result[time][device_topic][{point_name: value}, {point_name: {'units': units}]
         result = defaultdict(lambda: defaultdict(lambda: [{}, {}]))
         for device_topic, points in devices.items():
             for point_name, times in points.items():
                 for time, value in times.items():
-                    #result[time][device_topic] = [{}, {}]
                     result[time][device_topic][0][point_name] = value[0]
                     result[time][device_topic][1][point_name] = {'units': value[1]}
         return result
@@ -420,8 +417,7 @@ class ObixHistory(Agent):
 
 def main():
     """Main method called to start the agent."""
-    utils.vip_main(obix_history, 
-                   version=__version__)
+    utils.vip_main(obix_history, version=__version__)
 
 
 if __name__ == '__main__':
