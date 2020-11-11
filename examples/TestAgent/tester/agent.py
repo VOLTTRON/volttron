@@ -110,7 +110,7 @@ class Tester(Agent):
         Usually not needed if using the configuration store.
         """
         #Example publish to pubsub
-        self.vip.pubsub.publish('pubsub', "some/random/topic", message="HI!")
+        # self.vip.pubsub.publish('pubsub', "some/random/topic", message="HI!")
 
         #Exmaple RPC call
         #self.vip.rpc.call("some_agent", "some_method", arg1, arg2)
