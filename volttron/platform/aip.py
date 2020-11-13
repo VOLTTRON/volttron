@@ -49,6 +49,7 @@ import signal
 import sys
 import uuid
 
+import requests
 import gevent
 import gevent.event
 from gevent import subprocess
@@ -681,7 +682,10 @@ class AIPplatform(object):
             # Delete RabbitMQ user for the agent
             instance_name = self.instance_name
             rmq_user = instance_name + '.' + identity
-            self.rmq_mgmt.delete_user(rmq_user)
+            try:
+                self.rmq_mgmt.delete_user(rmq_user)
+            except requests.exceptions.HTTPError as e:
+                _log.error(f"RabbitMQ user {rmq_user} is not available to delete. Going ahead and removing agent directory")
         self.agents.pop(agent_uuid, None)
         agent_directory = os.path.join(self.install_dir, agent_uuid)
         volttron_agent_user = None
