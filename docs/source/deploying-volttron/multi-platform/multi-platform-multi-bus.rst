@@ -4,12 +4,12 @@
 Multi-Platform Multi-Bus
 ========================
 
-This guide describes the setup process for a multi-platform connection that has a combination of ZeroMQ and RabbitMQ
-instances. For this example, we want to use the Forwarder to pass device data from two VOLTTRON instance to
-a single "central" instance for storage. It will also have a Volttron Central agent running on the "central"
-instance and Volttron Central Platform agents on all 3 instances and connected to "central" instance to provide
-operational status of it's instance to the "central" instance. For this document "node" will be used interchangeably
-with VOLTTRON instance.
+This guide describes the setup process for a multi-platform connection that has a combination of :term:`ZeroMQ` and
+:term:`RabbitMQ` instances.  For this example, we want to use the Forwarder to pass device data from two VOLTTRON
+instance to a single "central" instance for storage.  It will also have a Volttron Central agent running on the
+"central" instance and Volttron Central Platform agents on all 3 instances and connected to "central" instance to
+provide operational status of it's instance to the "central" instance. For this document "node" will be used
+interchangeably with VOLTTRON instance.
 
 Node Setup
 ----------
