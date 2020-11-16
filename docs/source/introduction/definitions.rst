@@ -50,9 +50,9 @@ Industry Terms
     necessarily have knowledge of each other, but instead exchange messages through an intermediary based on a mutual
     class or topic.
 
-.. note::
+    .. note::
 
-   The Publish/Subscribe paradigm is often notated as ``pub/sub`` in VOLTTRON documentation.
+       The Publish/Subscribe paradigm is often notated as ``pub/sub`` in VOLTTRON documentation.
 
   RabbitMQ
     Open-Source message brokering system used by VOLTTRON for sending messages between services on the platform.
@@ -60,17 +60,18 @@ Industry Terms
   Remote Procedure Call
     Protocol used to request services of another computer located elsewhere on the network or on a different network.
 
-  SSH (Secure Shell)
-    Secure Shell is a network protocol providing encryption and authentication of data using public-key cryptography.
+  SSH
+    `Secure Shell` is a network protocol providing encryption and authentication of data using public-key cryptography.
 
-  SSL (Secure Sockets Layer)
-    Secure Sockets Layer is a technology for encryption and authentication of network traffic based on a chain of trust.
+  SSL
+    `Secure Sockets Layer` is a technology for encryption and authentication of network traffic based on a chain of
+    trust.
 
-  TLS (Transport Layer Security)
-    Transport Layer Security is the successor to SSL.
+  TLS
+    `Transport Layer Security` is the successor to SSL.
 
-  ZeroMQ (also ØMQ)
-    A library used for inter-process and inter-computer communication.
+  ZeroMQ
+    (also ØMQ) A library used for inter-process and inter-computer communication.
 
 
 VOLTTRON Terms

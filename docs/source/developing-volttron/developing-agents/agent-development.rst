@@ -602,8 +602,9 @@ Agent Resiliency
 The VOLTTRON team has come up with a number of methods to help users develop more robust agents.
 
 #. Use `gevent.sleep(<seconds>)` in callbacks which perform long running functions.  Long running functions can cause
-   other agent functions including those in the base agent to be delayed. Calling `gevent.sleep` frees up the thread
-   temporarily for other agent code to be run.
+   other agent functions including those in the base agent to be delayed. Calling `gevent.sleep` transfers control from
+   the current executing greenlet to the next scheduled greenlet for the duration of the sleep, allowing other
+   components of the agent code to run.
 #. Call `.get(<timeout>) on VIP subsystem calls (i.e. ``self.vip.rpc.call(...).get()``) to ensure that the call
    returns a value or throws an Exception in a timely manner.  A number of seconds can be provided to specify a timeout
    duration.
