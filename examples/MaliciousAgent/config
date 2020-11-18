@@ -1,0 +1,12 @@
+{
+  # VOLTTRON config files are JSON with support for python style comments.
+  "topic": "devices/fake-campus/fake-building/fake-device/all", #Strings
+
+  # Uncomment below and configure as needed if you need more settings on this agent
+  # "setting1": 2, #Integers,
+  # "setting3": true, #Booleans: remember that in JSON true and false are not capitalized.
+  # "setting4": false,
+  # "setting5": 5.1, #Floating point numbers.
+  # "setting6": [1,2,3,4], #Lists
+  # "setting7": {"setting7a": "a", "setting7b": "b"} #Objects
+}
