@@ -28,15 +28,6 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install dependencies
-        if: steps.env-cache.outputs.cache-hit != 'true'
-        run: |
-          echo "First cache hit?"
-          echo "${{steps.env-cache.outputs.cache-hit}}"
-          echo "Second cache hit?"
-          echo "${{steps.cache.outputs.cache-hit}}"
-          pip install wheel
-          python bootstrap.py --all
       - name: Cache Env
         id: env-cache
         uses: actions/cache@v2
@@ -47,6 +38,16 @@ jobs:
           key: env-${{ matrix.os }}-${{matrix.python-version}}-${{hashFiles('requirements.py')}}
           restore-keys: |
             env-${{ matrix.os }}-${{matrix.python-version}}
+      
+      - name: Install dependencies
+        if: steps.env-cache.outputs.cache-hit != 'true'
+        run: |
+          echo "First cache hit?"
+          echo "${{steps.env-cache.outputs.cache-hit}}"
+          echo "Second cache hit?"
+          echo "${{steps.cache.outputs.cache-hit}}"
+          pip install wheel
+          python bootstrap.py --all
 
       - name: Install volttron
         run: |
