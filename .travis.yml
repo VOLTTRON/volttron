@@ -9,6 +9,3 @@ services:
 
 script: ci-integration/run-test-docker.sh
 
-notifications:
-  slack: volttron-team:EgnBsUcQ98b75kU59tV8TnEa
-
