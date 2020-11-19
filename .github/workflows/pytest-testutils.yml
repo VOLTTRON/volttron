@@ -37,6 +37,7 @@ jobs:
           # Look to see if there is a cache hit for the corresponding requirements file
           key: env-${{ matrix.os }}-${{matrix.python-version}}-${{hashFiles('requirements.py')}}
           restore-keys: |
+            env-${{ matrix.os }}-${{matrix.python-version}}-${{hashFiles('requirements.py')}}
             env-${{ matrix.os }}-${{matrix.python-version}}
       
       - name: Install dependencies
