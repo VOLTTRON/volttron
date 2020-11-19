@@ -29,7 +29,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Cache Env
-        id: env-cache
+        id: envcache
         uses: actions/cache@v2
         with:
           # This path is specific to Ubuntu
@@ -47,10 +47,10 @@ jobs:
         run: echo "$GITHUB_CONTEXT"
       
       - name: Install dependencies
-        if: steps.env-cache.outputs.cache-hit != 'true'
+        if: steps.envcache.outputs.cache-hit != 'true'
         run: |
           echo "First cache hit?"
-          echo "${{steps.env-cache.outputs.cache-hit}}"
+          echo "${{steps.envcache.outputs.cache-hit}}"
           echo "Second cache hit?"
           echo "${{steps.cache.outputs.cache-hit}}"
           pip install wheel
