@@ -38,14 +38,16 @@ jobs:
           restore-keys: |
             env-${{ matrix.os }}-${{matrix.python-version}}-${{hashFiles('requirements.py')}}
             env-${{ matrix.os }}-${{matrix.python-version}}
-            
+      
+      - name: Check env existance
+        id: check_files
+        uses: andstor/file-existence-action@v1
+        with:
+          files: "env/bin/activate"
+          
       - name: Install dependencies
-        if: steps.envcache.outputs.cache-hit != 'true'
+        if: steps.check_files.outputs.files_exists != 'true'
         run: |
-          echo "First cache hit?"
-          echo "${{steps.envcache.outputs.cache-hit}}"
-          echo "Second cache hit?"
-          echo "${{steps.cache.outputs.cache-hit}}"
           pip install wheel
           python bootstrap.py --all
           
