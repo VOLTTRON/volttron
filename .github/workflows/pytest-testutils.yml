@@ -31,6 +31,10 @@ jobs:
       - name: Install dependencies
         if: steps.env-cache.outputs.cache-hit != 'true'
         run: |
+          echo "First cache hit?"
+          echo "${{steps.env-cache.outputs.cache-hit}}"
+          echo "Second cache hit?"
+          echo "${{steps.cache.outputs.cache-hit}}"
           pip install wheel
           python bootstrap.py --all
       - name: Cache Env
