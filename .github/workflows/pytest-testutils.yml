@@ -40,9 +40,14 @@ jobs:
           restore-keys: |
             # env-${{ matrix.os }}-${{matrix.python-version}}-${{hashFiles('requirements.py')}}
             env-${{ matrix.os }}-${{matrix.python-version}}
+            
+      - name: Dump GitHub context
+        env:
+          GITHUB_CONTEXT: ${{ toJson(steps) }}
+        run: echo "$GITHUB_CONTEXT"
       
       - name: Install dependencies
-        if: steps.cache.outputs.cache-hit != 'true'
+        if: steps.env-cache.outputs.cache-hit != 'true'
         run: |
           echo "First cache hit?"
           echo "${{steps.env-cache.outputs.cache-hit}}"
