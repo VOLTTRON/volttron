@@ -43,11 +43,6 @@ jobs:
 #           restore-keys: |
 #             env-${{ matrix.os }}-${{matrix.python-version}}
             
-      - name: Dump GitHub context
-        env:
-          GITHUB_CONTEXT: ${{ toJson(steps) }}
-        run: echo "$GITHUB_CONTEXT"
-      
       - name: Install dependencies
         if: steps.envcache.outputs.cache-hit != 'true'
         run: |
