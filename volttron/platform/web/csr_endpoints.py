@@ -115,7 +115,7 @@ class CSREndpoints(object):
 
         response = None
         try:
-            if json_response['cert']:
+            if json_response('cert', None):
                 json_response['cert'] = json_response['cert'].decode('utf-8')
             response = Response(jsonapi.dumps(json_response),
                      content_type='application/json',
