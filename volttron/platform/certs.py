@@ -608,7 +608,9 @@ class Certs(object):
             extension=x509.BasicConstraints(ca=False, path_length=None),
             critical=True
         ).add_extension(
-            extension=x509.AuthorityKeyIdentifier.from_issuer_public_key(ca_pkey.public_key()),
+            x509.AuthorityKeyIdentifier.from_issuer_subject_key_identifier(
+                ca_crt.extensions.get_extension_for_class(
+                    x509.SubjectKeyIdentifier)),
             critical=False
         ).sign(
             private_key=ca_pkey,

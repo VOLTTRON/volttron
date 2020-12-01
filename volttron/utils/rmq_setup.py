@@ -944,13 +944,14 @@ def prompt_shovels(vhome):
             vhost = prompt_response(prompt, default='volttron')
             shovels[host] = {'port': port,
                              'virtual-host': vhost}
-            shovel_user = 'shovel{}'.format(host)
             rmq_mgmt = RabbitMQMgmt()
             instance_name = get_platform_instance_name()
+            shovel_user = 'shovel{}'.format(host)
+
             rmq_mgmt.build_agent_connection(shovel_user, instance_name)
             import time
-            time.sleep(20)
-            shovels[host]['shovel-user'] = shovel_user
+            time.sleep(2)
+            shovels[host]['shovel-user'] = instance_name + "." + shovel_user
             #_log.debug("shovel_user: {}".format(shovel_user))
             prompt = prompt_response('\nDo you have certificates signed by remote CA? ',
                                      valid_answers=y_or_n,
