@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2020, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -608,7 +608,10 @@ class Certs(object):
             extension=x509.BasicConstraints(ca=False, path_length=None),
             critical=True
         ).add_extension(
-            extension=x509.AuthorityKeyIdentifier.from_issuer_public_key(ca_pkey.public_key()),
+            extension=x509.AuthorityKeyIdentifier.from_issuer_subject_key_identifier(
+                ca_crt.extensions.get_extension_for_class(
+                    x509.SubjectKeyIdentifier)
+            ),
             critical=False
         ).sign(
             private_key=ca_pkey,
