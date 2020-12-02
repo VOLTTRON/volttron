@@ -49,7 +49,7 @@ jobs:
         if: steps.check_files.outputs.files_exists != 'true'
         run: |
           pip install wheel
-          python bootstrap.py --all
+          python bootstrap.py --all --force
 
 # Only works on default branch of the target repo
 #       - name: Repository Dispatch
