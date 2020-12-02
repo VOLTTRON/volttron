@@ -76,9 +76,11 @@ extras_require = {
         'influxdb',
         'psycopg2-binary'
     ],
-    'dnp3': [  # dnp3 agent requirements.
-        'pydnp3'
-    ],
+    # Removing from requirements until we can get cmake installed on
+    # ubuntu 20.04 and pydnp3 is working with python3
+    # 'dnp3': [  # dnp3 agent requirements.
+    #     'pydnp3'
+    # ],
     'documentation': [  # Requirements for building the documentation
         'mock',
         'Sphinx',
