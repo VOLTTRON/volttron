@@ -44,9 +44,9 @@ import os
 import psutil
 import sys
 from configparser import ConfigParser
-from ..utils.frozendict import FrozenDict
 from urllib.parse import urlparse
 
+from ..utils.frozendict import FrozenDict
 __version__ = '8.0-rc'
 
 _log = logging.getLogger(__name__)
@@ -93,12 +93,38 @@ def get_config_path() -> str:
 
 def get_address():
     """Return the VIP address of the platform
-    If the VOLTTRON_VIP_ADDR environment variable is set, it used.
+    If the VOLTTRON_VIP_ADDR environment variable is set, it is used to connect to.
     Otherwise, it is derived from get_home()."""
     address = os.environ.get('VOLTTRON_VIP_ADDR')
     if not address:
+        # Connect via virtual unix socket if linux platform (mac doesn't have @ in it)
         abstract = '@' if sys.platform.startswith('linux') else ''
         address = 'ipc://%s%s/run/vip.socket' % (abstract, get_home())
+
+    import zmq.green as zmqgreen
+    import zmq
+    # The following block checks to make sure that we can
+    # connect to the zmq based upon the ipc address.
+    #
+    # The zmq.sock.bind() will raise an error because the
+    # address is already bound (therefore volttron is running there)
+    sock = None
+    try:
+        ctx = zmqgreen.Context.instance()
+        sock = ctx.socket(zmq.PUB)  # or SUB - does not make any difference
+        sock.bind(address)
+        raise ValueError("Unable to connect to vip address "
+                         f"make sure VOLTTRON_HOME: {get_home()} "
+                         "is set properly")
+    except zmq.error.ZMQError as e:
+         print(f"Zmq error was {e}")
+    finally:
+        try:
+            print("Closing socket")
+            sock.close()
+        except AttributeError as e:  # Raised when sock is None type
+            print(f"Attribute Error sock {e}")
+            pass
 
     return address
 

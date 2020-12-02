@@ -81,6 +81,7 @@ from volttron.utils.rmq_config_params import RMQConfig
 from volttron.utils.rmq_mgmt import RabbitMQMgmt
 from volttron.utils.rmq_setup import check_rabbit_status
 from volttron.platform.agent.utils import is_secure_mode, wait_for_volttron_shutdown
+from . install_agents import add_install_agent_parser, install_agent
 
 try:
     import volttron.restricted
@@ -610,85 +611,6 @@ def upgrade_agent(opts):
 
     install_agent(opts, publickey=publickey, secretkey=secretkey,
                   callback=restore_agents_data)
-
-
-def install_agent(opts, publickey=None, secretkey=None, callback=None):
-    aip = opts.aip
-    filename = opts.wheel
-    tag = opts.tag
-    vip_identity = opts.vip_identity
-    if opts.vip_address.startswith('ipc://'):
-        _log.info("Installing wheel locally without channel subsystem")
-        filename = config.expandall(filename)
-        agent_uuid = opts.connection.call('install_agent_local',
-                                          filename,
-                                          vip_identity=vip_identity,
-                                          publickey=publickey,
-                                          secretkey=secretkey)
-
-        if tag:
-            opts.connection.call('tag_agent', agent_uuid, tag)
-
-    else:
-        try:
-            _log.debug('Creating channel for sending the agent.')
-            channel_name = str(uuid.uuid4())
-            channel = opts.connection.server.vip.channel('control',
-                                                         channel_name)
-            _log.debug('calling control install agent.')
-            agent_uuid = opts.connection.call_no_get('install_agent',
-                                                     filename,
-                                                     channel_name,
-                                                     vip_identity=vip_identity,
-                                                     publickey=publickey,
-                                                     secretkey=secretkey)
-
-            _log.debug('Sending wheel to control')
-            sha512 = hashlib.sha512()
-            with open(filename, 'rb') as wheel_file_data:
-                while True:
-                    # get a request
-                    with gevent.Timeout(60):
-                        request, file_offset, chunk_size = channel.recv_multipart()
-                    if request == 'checksum':
-                        channel.send(sha512.digest())
-                        break
-
-                    assert request == 'fetch'
-
-                    # send a chunk of the file
-                    file_offset = int(file_offset)
-                    chunk_size = int(chunk_size)
-                    wheel_file_data.seek(file_offset)
-                    data = wheel_file_data.read(chunk_size)
-                    sha512.update(data)
-                    channel.send(data)
-
-            agent_uuid = agent_uuid.get(timeout=10)
-
-        except Exception as exc:
-            if opts.debug:
-                traceback.print_exc()
-            _stderr.write(
-                '{}: error: {}: {}\n'.format(opts.command, exc, filename))
-            return 10
-        else:
-            if tag:
-                opts.connection.call('tag_agent',
-                                     agent_uuid,
-                                     tag)
-        finally:
-            _log.debug('closing channel')
-            channel.close(linger=0)
-            del channel
-
-    name = opts.connection.call('agent_name', agent_uuid)
-    _stdout.write('Installed {} as {} {}\n'.format(filename, agent_uuid, name))
-
-    # Need to use a callback here rather than a return value.  I am not 100%
-    # sure why this is the reason for allowing our tests to pass.
-    if callback:
-        callback(agent_uuid)
 
 
 def tag_agent(opts):
@@ -2384,29 +2306,14 @@ def main(argv=sys.argv):
     top_level_subparsers = parser.add_subparsers(title='commands', metavar='',
                                                  dest='command')
 
-    def add_parser(*args, **kwargs):
+    def add_parser(*args, **kwargs) -> argparse.ArgumentParser:
         parents = kwargs.get('parents', [])
         parents.append(global_args)
         kwargs['parents'] = parents
         subparser = kwargs.pop("subparser", top_level_subparsers)
         return subparser.add_parser(*args, **kwargs)
 
-    install = add_parser('install', help='install agent from wheel',
-                         epilog='Optionally you may specify the --tag argument to tag the '
-                                'agent during install without requiring a separate call to '
-                                'the tag command. ')
-    install.add_argument('wheel', help='path to agent wheel')
-    install.add_argument('--tag', help='tag for the installed agent')
-    install.add_argument('--vip-identity', help='VIP IDENTITY for the installed agent. '
-                                                'Overrides any previously configured VIP IDENTITY.')
-    if HAVE_RESTRICTED:
-        install.add_argument('--verify', action='store_true',
-                             dest='verify_agents',
-                             help='verify agent integrity during install')
-        install.add_argument('--no-verify', action='store_false',
-                             dest='verify_agents',
-                             help=argparse.SUPPRESS)
-    install.set_defaults(func=install_agent, verify_agents=True)
+    add_install_agent_parser(add_parser, HAVE_RESTRICTED)
 
     tag = add_parser('tag', parents=[filterable],
                      help='set, show, or remove agent tag')
