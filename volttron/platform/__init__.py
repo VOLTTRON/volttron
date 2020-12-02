@@ -91,7 +91,7 @@ def get_config_path() -> str:
     return os.path.join(get_home(), "config")
 
 
-def get_address():
+def get_address(verify_listening=False):
     """Return the VIP address of the platform
     If the VOLTTRON_VIP_ADDR environment variable is set, it is used to connect to.
     Otherwise, it is derived from get_home()."""
@@ -110,12 +110,16 @@ def get_address():
     # address is already bound (therefore volttron is running there)
     sock = None
     try:
-        ctx = zmqgreen.Context.instance()
-        sock = ctx.socket(zmq.PUB)  # or SUB - does not make any difference
-        sock.bind(address)
-        raise ValueError("Unable to connect to vip address "
-                         f"make sure VOLTTRON_HOME: {get_home()} "
-                         "is set properly")
+        # TODO: We should not just do the connection test when verfiy_listening is True but always
+        # Though we leave this here because we have backward compatible unit tests that require
+        # the get_address to not have somethiing bound to the address.
+        if verify_listening:
+            ctx = zmqgreen.Context.instance()
+            sock = ctx.socket(zmq.PUB)  # or SUB - does not make any difference
+            sock.bind(address)
+            raise ValueError("Unable to connect to vip address "
+                             f"make sure VOLTTRON_HOME: {get_home()} "
+                             "is set properly")
     except zmq.error.ZMQError as e:
          print(f"Zmq error was {e}")
     finally:
