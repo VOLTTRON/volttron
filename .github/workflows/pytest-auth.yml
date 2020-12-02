@@ -1,0 +1,93 @@
+---
+# This workflow is meant as a foundational workflow for running integration/unit tests on the
+# plaform.  For this workflow we are testing the
+#
+# volttrontesting/testutils directory using pytest.
+#
+# This workflow also shows the caching mechanisms available for storage
+# and retrieval of cache for quicker setup of test environments.
+
+name: Testing auth marker
+on: [push]
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        #ubuntu-16.04
+        #os: [ubuntu-18.04, ubuntu-20.04]
+        os: [ubuntu-16.04, ubuntu-18.04, ubuntu-20.04]
+        python-version: [3.6, 3.7, 3.8, 3.9]
+    steps:
+      # checkout the volttron repository and set current direectory to it
+      - uses: actions/checkout@v2
+
+      - name: Set up Python ${{matrix.os}} ${{ matrix.python-version }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - id: envcache
+        uses: actions/cache@v2
+        env:
+          cache-name: cache-env
+        with:
+          # This path is specific to Ubuntu
+          path: ./env
+          # Look to see if there is a cache hit for the corresponding requirements file
+          key: env-${{ matrix.os }}-${{matrix.python-version}}
+          #-${{hashFiles('requirements.py')}}
+          #  env-${{ matrix.os }}-${{matrix.python-version}}
+          
+#           restore-keys: |
+#             env-${{ matrix.os }}-${{matrix.python-version}}
+            
+      - name: Install dependencies
+        if: steps.envcache.outputs.cache-hit != 'true'
+        run: |
+          echo "First cache hit?"
+          echo "${{steps.envcache.outputs.cache-hit}}"
+          echo "Second cache hit?"
+          echo "${{steps.cache.outputs.cache-hit}}"
+          pip install wheel
+          python bootstrap.py --all
+            
+      - name: Install volttron
+        run: |
+          source env/bin/activate
+          pip install -e .
+
+      - name: Run pytest
+        run: |
+          source env/bin/activate
+          pip install -e .
+          pytest -m auth -o junit_family=xunit2 --junitxml=output/test-auth-${{matrix.os}}-${{ matrix.python-version }}-results.xml
+
+      - name: Archive test results
+        uses: actions/upload-artifact@v2
+        if: always()
+        with:
+          name: pytest-report
+          path: output/test-auth-${{matrix.os}}-${{ matrix.python-version }}-results.xml
+    
+#       - name: Publish Unit Test Results
+#         uses: EnricoMi/publish-unit-test-result-action@v1.5
+#         if: always()
+#         with:
+#           github_token: ${{ secrets.WORKFLOW_ACCESS_TOKEN }}
+#           files: output/test-testutils*.xml
+          
+          
+#-cov=com --cov-report=xml --cov-report=html
+# pytest tests.py --doctest-modules --junitxml=junit/test-results.xml --cov=com --cov-report=xml --cov-report=html
+#    - name: Lint with flake8
+#      run: |
+#        # stop the build if there are Python syntax errors or undefined names
+#        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+#        # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
+#        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+#    - name: Test with pytest
+#      run: |
+#        pytest --junitxml=junit/test-results.xml --cov=com --cov-report=xml --cov-report=html
