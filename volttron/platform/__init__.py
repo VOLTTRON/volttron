@@ -41,6 +41,8 @@
 
 import logging
 import os
+import traceback
+
 import psutil
 import sys
 from configparser import ConfigParser
@@ -121,13 +123,11 @@ def get_address(verify_listening=False):
                              f"make sure VOLTTRON_HOME: {get_home()} "
                              "is set properly")
     except zmq.error.ZMQError as e:
-         print(f"Zmq error was {e}")
+         print(f"Zmq error was {e}\n{traceback.format_exc()}")
     finally:
         try:
-            print("Closing socket")
             sock.close()
         except AttributeError as e:  # Raised when sock is None type
-            print(f"Attribute Error sock {e}")
             pass
 
     return address
