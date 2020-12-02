@@ -801,7 +801,6 @@ class PlatformWrapper:
         
         gevent.sleep(10)
 
-
     def is_running(self):
         return utils.is_volttron_running(self.volttron_home)
 
