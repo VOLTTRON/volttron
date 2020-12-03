@@ -6,16 +6,16 @@ Multi-platform RabbitMQ Deployment
 
 With ZeroMQ based VOLTTRON, multi-platform communication was accomplished in three different ways:
 
-1. Direct connection to remote instance - Write an agent that would connect to a remote instance directly.
+#. Direct connection to remote instance - Write an agent that would connect to a remote instance directly.
 
-2. Special agents - Use special agents such as forward historian/data puller agents that would forward/receive messages
-   to/from remote instances.  In RabbitMQ-VOLTTRON, we make use of the `shovel` plugin to achieve this behavior.  Please
-   refer to :ref:`Shovel Plugin <RabbitMQ-Shovel>` to get an overview of shovels.
+#. Special agents - Use special agents such as forward historian/data puller agents that would forward/receive messages
+   to/from remote instances.  In RabbitMQ-VOLTTRON, we make use of the :ref:`Shovel Plugin <RabbitMQ-Shovel>` to achieve
+   this behavior.
 
-3. Multi-Platform RPC and PubSub - Configure VIP address of all remote instances that an instance has to connect to in
-   it's `$VOLTTRON_HOME/external_discovery.json` and let the router module in each instance manage the connection and
-   take care of the message routing for us.  In RabbitMQ-VOLTTRON, we make use of the `federation` plugin to achieve
-   this behavior.  Please refer to :ref:`Federation Plugin <RabbitMQ-Federation>` get an overview of federation.
+#. Multi-Platform RPC and PubSub - Configure :term:`VIP` address of all remote instances that an instance has to connect
+   to it's `$VOLTTRON_HOME/external_discovery.json` and let the router module in each instance manage the connection
+   and take care of the message routing for us.  In RabbitMQ-VOLTTRON, we make use of the
+   :ref:`Federation Plugin <RabbitMQ-Federation>` to achieve this behavior.
 
 
 Using the Federation Plugin

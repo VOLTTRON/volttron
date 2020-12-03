@@ -13,7 +13,12 @@ Starting VOLTTRON Platform
 
 .. note::
 
-    Activate the environment first :ref:`active the environment <Activated-Environment>`
+    Starting the VOLTTRON platform requires an :term:`Activated Environment`. Run the following command from the root
+    directory:
+
+    .. code-block:: bash
+
+       . env/bin/activate
 
 In order to start the simple web agent, we need to bind the VOLTTRON instance to the a web server.  We need to specify
 the address and the port for the web server.  For example, if we want to bind the `localhost:8080` as the web server
@@ -31,7 +36,7 @@ Running Simple Web Agent
 
 .. note::
 
-    The following assumes the shell is located at the :ref:`VOLTTRON_ROOT`.
+    The following assumes the shell is located at the :term:`VOLTTRON_ROOT`.
 
 Copy the following into your shell (save it to a file for executing it again later):
 
