@@ -13,7 +13,7 @@ With ZeroMQ based VOLTTRON, multi-platform communication was accomplished in thr
    this behavior.
 
 #. Multi-Platform RPC and PubSub - Configure :term:`VIP` address of all remote instances that an instance has to connect
-   to in it's `$VOLTTRON_HOME/external_discovery.json` and let the router module in each instance manage the connection
+   to it's `$VOLTTRON_HOME/external_discovery.json` and let the router module in each instance manage the connection
    and take care of the message routing for us.  In RabbitMQ-VOLTTRON, we make use of the
    :ref:`Federation Plugin <RabbitMQ-Federation>` to achieve this behavior.
 
