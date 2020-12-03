@@ -19,8 +19,8 @@ VOLTTRON platform.
 All files and folder created by the VOLTTRON process in this mode would not have any access to others by default.
 Permission for Unix group others would be provided to specific files and folder based on VOLTTRON process requirement.
 
-It is recommended that you use a new `VOLTTRON_HOME` to run VOLTTRON in secure mode.  Converting a existing VOLTTRON
-instance to secure mode is also possible but would involve some manual changes.  Please see the section
+It is recommended that you use a new :term:`VOLTTRON_HOME` to run VOLTTRON in secure mode.  Converting a existing
+VOLTTRON instance to secure mode is also possible but would involve some manual changes.  Please see the section
 `Porting existing volttron home to secure mode`_.
 
 .. note::

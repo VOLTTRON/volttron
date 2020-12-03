@@ -4,12 +4,12 @@
 Multi-Platform Multi-Bus
 ========================
 
-This guide describes the setup process for a multi-platform connection that has a combination of ZeroMQ and RabbitMQ
-instances. For this example, we want to use the Forwarder to pass device data from two VOLTTRON instance to
-a single "central" instance for storage. It will also have a Volttron Central agent running on the "central"
-instance and Volttron Central Platform agents on all 3 instances and connected to "central" instance to provide
-operational status of it's instance to the "central" instance. For this document "node" will be used interchangeably
-with VOLTTRON instance.
+This guide describes the setup process for a multi-platform connection that has a combination of :term:`ZeroMQ` and
+:term:`RabbitMQ` instances.  For this example, we want to use the Forwarder to pass device data from two VOLTTRON
+instance to a single "central" instance for storage.  It will also have a Volttron Central agent running on the
+"central" instance and Volttron Central Platform agents on all 3 instances and connected to "central" instance to
+provide operational status of it's instance to the "central" instance. For this document "node" will be used
+interchangeably with VOLTTRON instance.
 
 Node Setup
 ----------
@@ -52,9 +52,9 @@ Instance Setup
 The following conventions/assumptions are made for the rest of this document:
 
   - Commands should be run from the VOLTTRON root
-  - Default values are used for VOLTTRON_HOME($HOME/.volttron), VIP port (22916), HTTPS port (8443), rabbitmq ports
-    (5671 for AMQPs and 15671 for RabbitMQ management interface).  If using different `VOLTTRON_HOME` or ports, please
-    replace accordingly.
+  - Default values are used for VOLTTRON_HOME($HOME/.volttron), :term:`VIP` port (22916), HTTPS port (8443), RabbitMQ
+    ports (5671 for AMQPs and 15671 for RabbitMQ management interface).  If using different :term:`VOLTTRON_HOME` or
+    ports, please replace accordingly.
   - Replace central, node-zmq and node-rmq with your own hostnames.
   - user will represent your current user.
 

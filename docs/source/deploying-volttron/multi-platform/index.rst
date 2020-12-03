@@ -45,8 +45,8 @@ Assumptions
 
 .. note::
 
-     ``VOLTTRON_HOME`` is the directory used by the platform for managing state and configuration of the platform and
-     agents installed locally on the platform.  Auth keys, certificates, the configuration store, etc. are stored in
+     :term:`VOLTTRON_HOME` is the directory used by the platform for managing state and configuration of the platform
+     and agents installed locally on the platform.  Auth keys, certificates, the configuration store, etc. are stored in
      this directory by the platform.
 
 .. toctree::

@@ -48,7 +48,7 @@ or add below line in the `onstart` method
 
 
 After :ref:`installing VOLTTRON <Platform-Installation>`, open three shells with the current directory the root of the
-VOLTTRON repository.  Then activate the VOLTTRON environment and export the `VOLTTRON_HOME` variable. The home
+VOLTTRON repository.  Then activate the VOLTTRON environment and export the :term:`VOLTTRON_HOME` variable. The home
 variable needs to be different for each instance.
 
 .. code-block:: console
@@ -65,7 +65,7 @@ platform.  Configure fake master driver in the first shell and listener agent in
 
 Multi-Platform Configuration
 ----------------------------
-For each instance, specify the instance name in platform config file under it's ``VOLTTRON_HOME`` directory.
+For each instance, specify the instance name in platform config file under it's `VOLTTRON_HOME` directory.
 If the platform supports web server, add the ``bind-web-address`` as well.
 
 Here is an example,

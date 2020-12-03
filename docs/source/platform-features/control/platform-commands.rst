@@ -5,7 +5,7 @@ Platform Commands
 =================
 
 VOLTTRON files for a platform instance are stored under a single directory known as the VOLTTRON home.  This home
-directory is set via the `VOLTTRON_HOME` environment variable and defaults to ``~/.volttron``.  Multiple instances of
+directory is set via the :term:`VOLTTRON_HOME` environment variable and defaults to ``~/.volttron``.  Multiple instances of
 the platform may exist under the same account on a system by setting the `VOLTTRON_HOME` environment variable
 appropriately before executing VOLTTRON commands.
 
@@ -133,7 +133,7 @@ convention.
 
 .. warning::
 
-    `vctl` creates a special temporary agent to communicate with the platform with a specific VIP IDENTITY, thus
+    `vctl` creates a special temporary agent to communicate with the platform with a specific :term:`VIP Identity`, thus
     multiple instances of `vctl` cannot run at the same time.  Attempting to do so will result in a conflicting
     identity error.
 
