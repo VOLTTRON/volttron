@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -137,6 +137,7 @@ def update(operation, verbose=None, upgrade=False, offline=False, optional_requi
 
     # Build option_requirements separately to pass install options
     build_option = '--build-option' if wheeling else '--install-option'
+
     for requirement, options in option_requirements:
         args = []
         for opt in options:
@@ -147,9 +148,17 @@ def update(operation, verbose=None, upgrade=False, offline=False, optional_requi
     # Install local packages and remaining dependencies
     args = []
     target = path
+    if 'all' in optional_requirements or 'documentation' in optional_requirements:
+        option_set = set()
+
+        for requirement, options in extras_require.items():
+            option_set.add(requirement)
+
+        optional_requirements = list(option_set)
     if optional_requirements:
         target += '[' + ','.join(optional_requirements) + ']'
     args.extend(['--editable', target])
+    print(f"Target: {target}")
     pip(operation, args, verbose, upgrade, offline)
 
     try:
@@ -281,6 +290,8 @@ def main(argv=sys.argv):
     # variable at the end of the block.  If the option is set then it needs
     # to be passed on.
     po = parser.add_argument_group('Extra packaging options')
+    # If all is specified then install all of the different packages listed in requirements.py
+    po.add_argument('--all', action='append_const', const='all', dest='optional_args')
     for arg in extras_require:
         po.add_argument('--'+arg, action='append_const', const=arg, dest="optional_args")
 

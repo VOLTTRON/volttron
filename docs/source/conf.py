@@ -41,13 +41,13 @@ sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
 # -- Project information -----------------------------------------------------
 
 project = 'VOLTTRON'
-copyright = '2019, The VOLTTRON Community'
+copyright = '2020, The VOLTTRON Community'
 author = 'The VOLTTRON Community'
 
 # The short X.Y version
-version = '7.0'
+version = '8.0-rc'
 # The full version, including alpha/beta/rc tags
-release = '7.0 Release Candidate'
+release = '8.0 Release Candidate'
 
 
 # -- General configuration ---------------------------------------------------
@@ -72,6 +72,7 @@ extensions = [
     'sphinx.ext.autosectionlabel',
     # http://www.sphinx-doc.org/en/master/usage/extensions/todo.html
     'sphinx.ext.todo',
+    'sphinx.ext.intersphinx',
 ]
 
 # prefix sections with the document so that we can cross link
@@ -201,7 +202,9 @@ texinfo_documents = [
 # -- Options for intersphinx extension ---------------------------------------
 
 # Example configuration for intersphinx: refer to the Python standard library.
-intersphinx_mapping = {'https://docs.python.org/2.7': None}
+intersphinx_mapping = {'https://docs.python.org/2.7': None,
+                       'volttron-ansible': ('https://volttron.readthedocs.io/projects/volttron-ansible/en/main/',
+                                            None)}
 
 # -- Options for todo extension ----------------------------------------------
 
@@ -236,7 +239,6 @@ def generate_apidoc(app):
     :param app:
     :return:
     """
-
     volttron_src = os.path.abspath('../volttron')
 
     if os.environ.get("READTHEDOCS"):
@@ -247,7 +249,9 @@ def generate_apidoc(app):
         os.path.join(volttron_src, 'lint/'),
         os.path.join(volttron_src, 'drivers/')
     ]
-    cmd = ["sphinx-apidoc", '-M', '-d 4', '-o', 'source/volttron_api', '--force', volttron_src]
+    # Adds pydocs from VOLTTRON API source code to ReadtheDocs under source/volttron_api, formats top level heading as
+    # VOLTTRON API
+    cmd = ["sphinx-apidoc", '-H', 'VOLTTRON API', '-M', '-d 4', '-o', 'source/volttron_api', '--force', volttron_src]
 
     cmd.extend(exlusions)
     print("The command is: {}".format(cmd))

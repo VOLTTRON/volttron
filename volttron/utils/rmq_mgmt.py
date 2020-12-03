@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -296,7 +296,7 @@ class RabbitMQMgmt(object):
         try:
             response = self._http_delete_request(url, ssl_auth)
         except requests.exceptions.HTTPError as e:
-            if not e.message.startswith("404 Client Error"):
+            if e.response.status_code == 404:
                 raise
 
     def delete_users_in_bulk(self, users, ssl_auth=None):
@@ -329,7 +329,7 @@ class RabbitMQMgmt(object):
             response = self._http_get_request(url, ssl_auth)
             return response
         except requests.exceptions.HTTPError as e:
-            if e.message.startswith("404 Client Error"):
+            if e.response.status_code == 404:
                 # No permissions are set for this user yet. Return none
                 # so caller can try to set permissions
                 return None

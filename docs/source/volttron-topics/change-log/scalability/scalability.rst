@@ -119,7 +119,7 @@ platform (and how does it scale with the hardware)?
 
 Chaos router to introduce delays and dropped packets.
 
-MasterNode needs to have vip address of clients.
+MasterNode needs to have :term:`VIP` address of clients.
 
 Experiment capture historian - not listening to devices, just capturing
 results

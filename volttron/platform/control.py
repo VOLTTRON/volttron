@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -51,7 +51,7 @@ import tarfile
 import tempfile
 import traceback
 import uuid
-from datetime import timedelta
+from datetime import timedelta, datetime
 
 import gevent
 import gevent.event
@@ -67,7 +67,7 @@ from volttron.platform import jsonapi
 from volttron.platform.jsonrpc import MethodNotFound
 from volttron.platform.agent import utils
 from volttron.platform.agent.known_identities import CONTROL_CONNECTION, \
-    CONFIGURATION_STORE
+    CONFIGURATION_STORE, PLATFORM_HEALTH
 from volttron.platform.auth import AuthEntry, AuthFile, AuthException
 from volttron.platform.certs import Certs
 from volttron.platform.jsonrpc import RemoteError
@@ -910,6 +910,30 @@ def list_agent_rpc_code(opts):
                 print(e)
     print_rpc_methods(opts, peer_method_metadata, code=True)
 
+
+# the following global variables are used to update the cache so
+# that we don't ask the platform too many times for the data
+# associated with health.
+health_cache_timeout_date = None
+health_cache_timeout = 5
+health_cache = {}
+
+
+def update_health_cache(opts):
+    global health_cache_timeout_date
+
+    t_now = datetime.now()
+    do_update = True
+    # Make sure we update if we don't have any health dicts, or if the cache has timed out.
+    if health_cache_timeout_date is not None and t_now < health_cache_timeout_date and health_cache:
+        do_update = False
+
+    if do_update:
+        health_cache.clear()
+        health_cache.update(opts.connection.server.vip.rpc.call(PLATFORM_HEALTH, 'get_platform_health').get(timeout=4))
+        health_cache_timeout_date = datetime.now() + timedelta(seconds=health_cache_timeout)
+
+
 def status_agents(opts):
     agents = {agent.uuid: agent for agent in _list_agents(opts.aip)}
     status = {}
@@ -940,11 +964,16 @@ def status_agents(opts):
         return ''
 
     def get_health(agent):
+        update_health_cache(opts)
+
         try:
-            # TODO Modify this later so that we aren't calling peerlist before we call the status of the agent.
-            if agent.vip_identity in opts.connection.server.vip.peerlist().get(timeout=4):
-                return opts.connection.server.vip.rpc.call(agent.vip_identity,
-                                                           'health.get_status_json').get(timeout=4)['status']
+            health_dict = health_cache.get(agent.vip_identity)
+
+            if health_dict:
+                if opts.json:
+                    return health_dict
+                else:
+                    return health_dict.get('message', '')
             else:
                 return ''
         except (VIPError, gevent.Timeout):
@@ -957,16 +986,23 @@ def agent_health(opts):
     agents = {agent.uuid: agent for agent in _list_agents(opts.aip)}.values()
     agents = get_filtered_agents(opts, agents)
     if not agents:
-        _stderr.write('No installed Agents found\n')
+        if not opts.json:
+            _stderr.write('No installed Agents found\n')
+        else:
+            _stdout.write(f'{jsonapi.dumps({}, indent=2)}\n')
         return
     agent = agents.pop()
-    try:
-        _stderr.write(jsonapi.dumps(
-            opts.connection.server.vip.rpc.call(agent.vip_identity, 'health.get_status_json').get(timeout=4),
-            indent=4) + '\n'
-                      )
-    except VIPError:
-        print("Agent {} is not running on the Volttron platform.".format(agent.uuid))
+    update_health_cache(opts)
+
+    data = health_cache.get(agent.vip_identity)
+
+    if not data:
+        if not opts.json:
+            _stdout.write(f'No health associated with {agent.vip_identity}\n')
+        else:
+            _stdout.write(f'{jsonapi.dumps({}, indent=2)}\n')
+    else:
+        _stdout.write(f'{jsonapi.dumps(data, indent=4)}\n')
 
 
 def clear_status(opts):
@@ -1545,7 +1581,10 @@ def _show_filtered_agents(opts, field_name, field_callback, agents=None):
     agents = get_filtered_agents(opts, agents)
 
     if not agents:
-        _stderr.write('No installed Agents found\n')
+        if not opts.json:
+            _stderr.write('No installed Agents found\n')
+        else:
+            _stdout.write(f'{jsonapi.dumps({}, indent=2)}\n')
         return
     agents = sorted(agents, key=lambda x: x.name)
     if not opts.min_uuid_len:
@@ -1556,14 +1595,27 @@ def _show_filtered_agents(opts, field_name, field_callback, agents=None):
     tag_width = max(3, max(len(agent.tag or '') for agent in agents))
     identity_width = max(3, max(len(agent.vip_identity or '') for agent in agents))
     fmt = '{} {:{}} {:{}} {:{}} {:>6}\n'
-    _stderr.write(
-        fmt.format(' ' * n, 'AGENT', name_width, 'IDENTITY', identity_width,
-                   'TAG', tag_width, field_name))
-    for agent in agents:
-        _stdout.write(fmt.format(agent.uuid[:n], agent.name, name_width,
-                                 agent.vip_identity, identity_width,
-                                 agent.tag or '', tag_width,
-                                 field_callback(agent)))
+
+    if not opts.json:
+        _stderr.write(
+            fmt.format(' ' * n, 'AGENT', name_width, 'IDENTITY', identity_width,
+                       'TAG', tag_width, field_name))
+        for agent in agents:
+            _stdout.write(fmt.format(agent.uuid[:n], agent.name, name_width,
+                                     agent.vip_identity, identity_width,
+                                     agent.tag or '', tag_width,
+                                     field_callback(agent)))
+    else:
+        json_obj = {}
+        for agent in agents:
+            json_obj[agent.vip_identity] = {
+                'agent_uuid': agent.uuid,
+                'name': agent.name,
+                'identity': agent.vip_identity,
+                'agent_tag': agent.tag or '',
+                field_name: field_callback(agent),
+            }
+        _stdout.write(f'{jsonapi.dumps(json_obj, indent=2)}\n')
 
 
 def _show_filtered_agents_status(opts, status_callback, health_callback, agents=None):
@@ -1590,45 +1642,68 @@ def _show_filtered_agents_status(opts, status_callback, health_callback, agents=
     if not agents:
         agents = _list_agents(opts.aip)
 
-    agents = get_filtered_agents(opts, agents)
-
-    if not agents:
-        _stderr.write('No installed Agents found\n')
-        return
-
-    agents = sorted(agents, key=lambda x: x.name)
+    # Find max before so the uuid of the agent is available
+    # when a usre has filtered the list.
     if not opts.min_uuid_len:
         n = 36
     else:
         n = max(_calc_min_uuid_length(agents), opts.min_uuid_len)
-    name_width = max(5, max(len(agent.name) for agent in agents))
-    tag_width = max(3, max(len(agent.tag or '') for agent in agents))
-    identity_width = max(3, max(len(agent.vip_identity or '') for agent in agents))
-    if is_secure_mode():
-        user_width = max(3, max(len(agent.agent_user or '') for agent in agents))
-        fmt = '{} {:{}} {:{}} {:{}} {:{}} {:>6} {:>15}\n'
-        _stderr.write(
-            fmt.format(' ' * n, 'AGENT', name_width, 'IDENTITY', identity_width,
-                       'TAG', tag_width, 'AGENT_USER', user_width, 'STATUS', 'HEALTH'))
-        fmt = '{} {:{}} {:{}} {:{}} {:{}} {:<15} {:<}\n'
-        for agent in agents:
-            status_str = status_callback(agent)
-            _stdout.write(fmt.format(agent.uuid[:n], agent.name, name_width,
-                                     agent.vip_identity, identity_width,
-                                     agent.tag or '', tag_width,
-                                     agent.agent_user if status_str.startswith("running") else "", user_width,
-                                     status_str, health_callback(agent)))
+
+    agents = get_filtered_agents(opts, agents)
+
+    if not agents:
+        if not opts.json:
+            _stderr.write('No installed Agents found\n')
+        else:
+            _stdout.write(f'{jsonapi.dumps({}, indent=2)}\n')
+        return
+
+    agents = sorted(agents, key=lambda x: x.name)
+    if not opts.json:
+        name_width = max(5, max(len(agent.name) for agent in agents))
+        tag_width = max(3, max(len(agent.tag or '') for agent in agents))
+        identity_width = max(3, max(len(agent.vip_identity or '') for agent in agents))
+        if is_secure_mode():
+            user_width = max(3, max(len(agent.agent_user or '') for agent in agents))
+            fmt = '{} {:{}} {:{}} {:{}} {:{}} {:>6} {:>15}\n'
+            _stderr.write(
+                fmt.format(' ' * n, 'AGENT', name_width, 'IDENTITY', identity_width,
+                           'TAG', tag_width, 'AGENT_USER', user_width, 'STATUS', 'HEALTH'))
+            fmt = '{} {:{}} {:{}} {:{}} {:{}} {:<15} {:<}\n'
+            for agent in agents:
+                status_str = status_callback(agent)
+                agent_health_dict = health_callback(agent)
+                _stdout.write(fmt.format(agent.uuid[:n], agent.name, name_width,
+                                         agent.vip_identity, identity_width,
+                                         agent.tag or '', tag_width,
+                                         agent.agent_user if status_str.startswith("running") else "", user_width,
+                                         status_str, health_callback(agent)))
+        else:
+            fmt = '{} {:{}} {:{}} {:{}} {:>6} {:>15}\n'
+            _stderr.write(
+                fmt.format(' ' * n, 'AGENT', name_width, 'IDENTITY', identity_width,
+                           'TAG', tag_width, 'STATUS', 'HEALTH'))
+            fmt = '{} {:{}} {:{}} {:{}} {:<15} {:<}\n'
+            for agent in agents:
+                _stdout.write(fmt.format(agent.uuid[:n], agent.name, name_width,
+                                         agent.vip_identity, identity_width,
+                                         agent.tag or '', tag_width,
+                                         status_callback(agent), health_callback(agent)))
     else:
-        fmt = '{} {:{}} {:{}} {:{}} {:>6} {:>15}\n'
-        _stderr.write(
-            fmt.format(' ' * n, 'AGENT', name_width, 'IDENTITY', identity_width,
-                       'TAG', tag_width, 'STATUS', 'HEALTH'))
-        fmt = '{} {:{}} {:{}} {:{}} {:<15} {:<}\n'
+        json_obj = {}
         for agent in agents:
-            _stdout.write(fmt.format(agent.uuid[:n], agent.name, name_width,
-                                     agent.vip_identity, identity_width,
-                                     agent.tag or '', tag_width,
-                                     status_callback(agent), health_callback(agent)))
+            json_obj[agent.vip_identity] = {
+                'agent_uuid': agent.uuid,
+                'name': agent.name,
+                'identity': agent.vip_identity,
+                'agent_tag': agent.tag or '',
+                'status': status_callback(agent),
+                'health': health_callback(agent),
+            }
+            if is_secure_mode():
+                json_obj[agent.vip_identity]['agent_user'] = agent_user if json_obj[agent.vip_identity]['status'].startswith('running') else ''
+        _stdout.write(f'{jsonapi.dumps(json_obj, indent=2)}\n')
+
 
 
 def get_agent_publickey(opts):
@@ -2295,6 +2370,7 @@ def main(argv=sys.argv):
     parser.add_argument(
         '--show-config', action='store_true',
         help=argparse.SUPPRESS)
+    parser.add_argument("--json", action="store_true", default=False, help="format output to json")
 
     parser.add_help_argument()
     parser.set_defaults(

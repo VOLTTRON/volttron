@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -42,6 +42,7 @@ import errno
 import logging
 from logging import handlers
 import logging.config
+from typing import Optional
 from urllib.parse import urlparse
 
 import os
@@ -55,6 +56,8 @@ import uuid
 import gevent
 import gevent.monkey
 
+from volttron.platform.vip.healthservice import HealthService
+from volttron.platform.vip.servicepeer import ServicePeerNotifier
 from volttron.utils import get_random_key
 from volttron.utils.frame_serialization import deserialize_frames, serialize_frames
 
@@ -89,14 +92,14 @@ except ImportError:
     HAS_WEB = False
 from .store import ConfigStoreService
 from .agent import utils
-from .agent.known_identities import MASTER_WEB, CONFIGURATION_STORE, AUTH, CONTROL, CONTROL_CONNECTION
+from .agent.known_identities import MASTER_WEB, CONFIGURATION_STORE, AUTH, CONTROL, CONTROL_CONNECTION, PLATFORM_HEALTH, \
+    KEY_DISCOVERY, PROXY_ROUTER
 from .vip.agent.subsystems.pubsub import ProtectedPubSubTopics
 from .keystore import KeyStore, KnownHostsStore
 from .vip.pubsubservice import PubSubService
 from .vip.routingservice import RoutingService
 from .vip.externalrpcservice import ExternalRPCService
 from .vip.keydiscovery import KeyDiscoveryAgent
-from .vip.pubsubwrapper import PubSubWrapper
 from ..utils.persistance import load_create_store
 from .vip.rmq_router import RMQRouter
 from volttron.platform.agent.utils import store_message_bus_config
@@ -291,10 +294,11 @@ class Router(BaseRouter):
                  volttron_central_address=None, instance_name=None,
                  bind_web_address=None, volttron_central_serverkey=None,
                  protected_topics={}, external_address_file='',
-                 msgdebug=None, agent_monitor_frequency=600):
+                 msgdebug=None, agent_monitor_frequency=600,
+                 service_notifier=Optional[ServicePeerNotifier]):
 
         super(Router, self).__init__(
-            context=context, default_user_id=default_user_id)
+            context=context, default_user_id=default_user_id, service_notifier=service_notifier)
         self.local_address = Address(local_address)
         self._addr = addresses
         self.addresses = addresses = [Address(addr) for addr in set(addresses)]
@@ -432,6 +436,9 @@ class Router(BaseRouter):
                 drop = frames[6]
                 self._drop_peer(drop)
                 self._drop_pubsub_peers(drop)
+                if self._service_notifier:
+                    self._service_notifier.peer_dropped(drop)
+
                 _log.debug("ROUTER received agent stop message. dropping peer: {}".format(drop))
             except IndexError:
                 _log.error(f"agentstop called but unable to determine agent from frames sent {frames}")
@@ -577,7 +584,8 @@ class GreenRouter(Router):
                  volttron_central_address=None, instance_name=None,
                  bind_web_address=None, volttron_central_serverkey=None,
                  protected_topics={}, external_address_file='',
-                 msgdebug=None, volttron_central_rmq_address=None):
+                 msgdebug=None, volttron_central_rmq_address=None,
+                 service_notifier=Optional[ServicePeerNotifier]):
         self._context_class = _green.Context
         self._socket_class = _green.Socket
         self._poller_class = _green.Poller
@@ -588,7 +596,7 @@ class GreenRouter(Router):
             volttron_central_address=volttron_central_address, instance_name=instance_name,
             bind_web_address=bind_web_address, volttron_central_serverkey=volttron_central_address,
             protected_topics=protected_topics, external_address_file=external_address_file,
-            msgdebug=msgdebug)
+            msgdebug=msgdebug, service_notifier=service_notifier)
 
     def start(self):
         '''Create the socket and call setup().
@@ -809,6 +817,9 @@ def start_volttron_process(opts):
                              "often the platform checks for any crashed agent "
                              "and attempts to restart. {}".format(e))
 
+    # Allows registration agents to callbacks for peers
+    notifier = ServicePeerNotifier()
+
     # Main loops
     def zmq_router(stop):
         try:
@@ -823,7 +834,8 @@ def start_volttron_process(opts):
                    bind_web_address=opts.bind_web_address,
                    protected_topics=protected_topics,
                    external_address_file=external_address_file,
-                   msgdebug=opts.msgdebug).run()
+                   msgdebug=opts.msgdebug,
+                   service_notifier=notifier).run()
         except Exception:
             _log.exception('Unhandled exception in router loop')
             raise
@@ -839,7 +851,8 @@ def start_volttron_process(opts):
             RMQRouter(opts.vip_address, opts.vip_local_address, opts.instance_name, opts.vip_address,
                       volttron_central_address=opts.volttron_central_address,
                       volttron_central_serverkey=opts.volttron_central_serverkey,
-                      bind_web_address=opts.bind_web_address
+                      bind_web_address=opts.bind_web_address,
+                      service_notifier=notifier
                       ).run()
         except Exception:
             _log.exception('Unhandled exception in rmq router loop')
@@ -959,10 +972,11 @@ def start_volttron_process(opts):
                                        bind_web_address=opts.bind_web_address,
                                        protected_topics=protected_topics,
                                        external_address_file=external_address_file,
-                                       msgdebug=opts.msgdebug)
+                                       msgdebug=opts.msgdebug,
+                                       service_notifier=notifier)
 
             proxy_router = ZMQProxyRouter(address=address,
-                                          identity='proxy_router',
+                                          identity=PROXY_ROUTER,
                                           zmq_router=green_router,
                                           message_bus=opts.message_bus)
             event = gevent.event.Event()
@@ -1004,17 +1018,12 @@ def start_volttron_process(opts):
                            agent_monitor_frequency=opts.agent_monitor_frequency),
 
             KeyDiscoveryAgent(address=address, serverkey=publickey,
-                              identity='keydiscovery',
+                              identity=KEY_DISCOVERY,
                               external_address_config=external_address_file,
                               setup_mode=opts.setup_mode,
                               bind_web_address=opts.bind_web_address,
                               enable_store=False,
-                              message_bus='zmq'),
-            # For Backward compatibility with VOLTTRON versions <= 4.1
-            PubSubWrapper(address=address,
-                          identity='pubsub', heartbeat_autostart=True,
-                          enable_store=False,
-                          message_bus='zmq')
+                              message_bus='zmq')
         ]
 
         entry = AuthEntry(credentials=services[0].core.publickey,
@@ -1077,7 +1086,12 @@ def start_volttron_process(opts):
         #                   comments='Automatically added by platform on start')
         # AuthFile().add(entry, overwrite=True)
 
-
+        health_service = HealthService(address=address,
+                                       identity=PLATFORM_HEALTH, heartbeat_autostart=True,
+                                       enable_store=False,
+                                       message_bus=opts.message_bus)
+        notifier.register_peer_callback(health_service.peer_added, health_service.peer_dropped)
+        services.append(health_service)
         events = [gevent.event.Event() for service in services]
         tasks = [gevent.spawn(service.core.run, event)
                  for service, event in zip(services, events)]

@@ -333,7 +333,7 @@ platform for an agent with the specified identity
 **manage_delete_config(identity, config_name)** - Delete a configuration for an agent with the specified identity.
 Calls the agent's update_config with the action `DELETE_ALL` and no configuration name.
 
-**manage_delete_store(identity)** - Delete all configurations for a VIP IDENTITY.
+**manage_delete_store(identity)** - Delete all configurations for a :term:`VIP Identity`.
 
 **manage_list_config(identity)** - Get a list of configurations for an agent with the specified identity.
 

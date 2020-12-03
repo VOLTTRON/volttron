@@ -1,0 +1,87 @@
+{
+	"name": "federate2",
+	"loglevel": 5,
+	"coreType": "zmq",
+	"timeDelta": 1.0,
+	"uninterruptible": true,
+
+	"publications":[
+	{
+		"key": "totalLoad",
+		"type": "complex"
+	},  { 
+		"key": "federate2/charge_EV6",
+		"type": "complex",
+		"global": true
+	},	{ 
+		"key": "federate2/charge_EV5",
+		"type": "complex",
+		"global": true
+	},	{ 
+		"key": "federate2/charge_EV4",
+		"type": "complex",
+		"global": true
+	},  { 
+		"key": "federate2/charge_EV3",
+		"type": "complex",
+		"global": true
+	},  { 
+		"key": "federate2/charge_EV2",
+		"type": "complex",
+		"global": true
+	},  { 
+		"key": "federate2/charge_EV1",
+		"type": "complex",
+		"global": true
+	}],
+    "subscriptions":[
+    {
+        "key":"pub1",
+        "type":"double",
+        "required": true
+    },
+    {
+        "key": "federate1/pub2",
+        "type": "double",
+        "required": true
+    }
+	],
+    "endpoints":[
+    {
+        "name": "federate2/EV6",
+        "destination": "federate1/EV1",
+        "type": "genmessage",
+        "global": true
+    },
+    {
+        "name": "federate2/EV5",
+        "destination": "federate1/EV2",
+        "type": "genmessage",
+        "global": true
+    },
+    {
+        "name": "federate2/EV4",
+        "destination": "federate1/EV3",
+        "type": "genmessage",
+        "global": true
+    },
+    {
+        "name": "federate2/EV3",
+        "destination": "federate1/EV4",
+        "type": "genmessage",
+        "global": true
+    },
+    {
+        "name": "federate2/EV2",
+        "destination": "federate1/EV5",
+        "type": "genmessage",
+        "global": true
+    },
+    {
+        "name": "federate2/EV1",
+        "destination": "federate1/EV6",
+        "type": "genmessage",
+        "global": true
+    }
+]
+}

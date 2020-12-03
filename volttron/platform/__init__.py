@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -47,7 +47,7 @@ from configparser import ConfigParser
 from ..utils.frozendict import FrozenDict
 from urllib.parse import urlparse
 
-__version__ = '7.0'
+__version__ = '8.0-rc'
 
 _log = logging.getLogger(__name__)
 

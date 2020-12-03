@@ -276,7 +276,7 @@ need to be modified based on the use case.
         self.vip.rpc.call(volttron.central, get_publickey).get()
         self.vip.rpc.call(volttron.central, is_registered, ['address_hash', 'address']).get()
 
-As with rpc list, the code subcommand can be filtered based on the vip identity and/or the method(s).
+As with rpc list, the code subcommand can be filtered based on the :term`VIP identity` and/or the method(s).
 
 .. code-block:: console
 

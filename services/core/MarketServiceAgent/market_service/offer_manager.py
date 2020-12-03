@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -46,6 +46,7 @@ from volttron.platform.agent.base_market_agent.poly_line_factory import PolyLine
 _log = logging.getLogger(__name__)
 utils.setup_logging()
 
+
 class OfferManager(object):
 
     def __init__(self):
@@ -67,7 +68,8 @@ class OfferManager(object):
         return curve
 
     def _aggregate(self, collection):
-        curve = PolyLineFactory.combine(collection, self.increment)
+#        curve = PolyLineFactory.combine(collection, self.increment)
+        curve = PolyLineFactory.combine_withoutincrement(collection)
         return curve
 
     def settle(self):
