@@ -17,8 +17,8 @@ VOLTTRON 7 includes a migration from Python 2.7 to Python 3.6, as well as securi
 From 6.x
 --------
 
-From version 6.x to 7.x important changes have been made to the virtual environment as well as `VOLTTRON_HOME`.  Take
-the following steps to upgrade:
+From version 6.x to 7.x important changes have been made to the virtual environment as well as :term:`VOLTTRON_HOME`.
+Take the following steps to upgrade:
 
 .. note::
 
@@ -58,7 +58,7 @@ the following steps to upgrade:
         Because the new environment uses a different version of Python, using the ``--force`` option with bootstrap will
         throw errors.  Please follow the above instructions when upgrading.
 
-#.  Make necessary VOLTTRON_HOME changes
+#.  Make necessary `VOLTTRON_HOME` changes
 
 
     .. warning::

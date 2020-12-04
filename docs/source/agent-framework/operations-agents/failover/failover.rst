@@ -76,6 +76,6 @@ primary and secondary configuration files are shown below.
 - **simple_behavior** - Switch to turn on or off simple behavior. Both instances should match.
 - **remote_vip** - Address where *remote_id* can be reached.
 - **remote_serverkey** - The public key of the platform where *remote_id* lives.
-- **agent_vip_identity** - The vip identity of the agent that we want to manage.
+- **agent_vip_identity** - The :term:`VIP Identity` of the agent that we want to manage.
 - **heartbeat_period** - Send a message to *remote_id* with this period. Measured in seconds.
 - **timeout** - Consider a platform inactive if a heartbeat has not been received for *timeout* seconds.

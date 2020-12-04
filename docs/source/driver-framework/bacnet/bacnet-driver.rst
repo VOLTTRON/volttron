@@ -47,7 +47,7 @@ There are nine arguments for the `driver_config` section of the device configura
     - **max_per_request** - (Optional) Configure driver to manually segment read requests. The driver will only grab up
       to the number of objects specified in this setting at most per request.  This setting is primarily for scraping
       many points off of low resource devices that do not support segmentation. Defaults to 10000
-    - **proxy_address** - (Optional) VIP address of the BACnet proxy. Defaults to "platform.bacnet_proxy". See
+    - **proxy_address** - (Optional) :term:`VIP` address of the BACnet proxy. Defaults to ``platform.bacnet_proxy``. See
       :ref:`bacnet-proxy-multiple-networks` for details.  Unless your BACnet network has special needs you should not
       change this value
     - **ping_retry_interval** - (Optional) The driver will ping the device to establish a route at startup. If the

@@ -100,7 +100,6 @@ from .vip.pubsubservice import PubSubService
 from .vip.routingservice import RoutingService
 from .vip.externalrpcservice import ExternalRPCService
 from .vip.keydiscovery import KeyDiscoveryAgent
-from .vip.pubsubwrapper import PubSubWrapper
 from ..utils.persistance import load_create_store
 from .vip.rmq_router import RMQRouter
 from volttron.platform.agent.utils import store_message_bus_config
@@ -1024,12 +1023,7 @@ def start_volttron_process(opts):
                               setup_mode=opts.setup_mode,
                               bind_web_address=opts.bind_web_address,
                               enable_store=False,
-                              message_bus='zmq'),
-            # For Backward compatibility with VOLTTRON versions <= 4.1
-            PubSubWrapper(address=address,
-                          identity='pubsub', heartbeat_autostart=True,
-                          enable_store=False,
-                          message_bus='zmq')
+                              message_bus='zmq')
         ]
 
         entry = AuthEntry(credentials=services[0].core.publickey,

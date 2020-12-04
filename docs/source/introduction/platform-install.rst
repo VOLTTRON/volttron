@@ -306,7 +306,7 @@ for a sample configuration file.  At a minimum you will need to provide the host
 
 Running the above command without the optional configuration file parameter will cause the user user to be prompted for
 all the required data in the command prompt. "vcfg" will use that data to generate a rabbitmq_config.yml file in the
-`VOLTTRON_HOME` directory.
+:term:`VOLTTRON_HOME` directory.
 
 .. note::
 
@@ -320,11 +320,15 @@ exchange to capture unrouteable messages.
 
 .. note::
 
-    We configure the RabbitMQ instance for a single volttron_home and volttron_instance. This script will confirm with
-    the user the volttron_home to be configured.  The VOLTTRON instance name will be read from volttron_home/config
-    if available, if not the user will be prompted for VOLTTRON instance name.  To run the scripts without any prompts,
-    save the the VOLTTRON instance name in volttron_home/config file and pass the VOLTTRON home directory as a command
-    line argument. For example: `vcfg --vhome /home/vdev/.new_vhome --rabbitmq single`
+    We configure the RabbitMQ instance for a single :term:`VOLTTRON_HOME` and :term:`VOLTTRON_INSTANCE`. This script
+    will confirm with the user the volttron_home to be configured.  The VOLTTRON instance name will be read from
+    `volttron_home/config` if available, if not the user will be prompted for VOLTTRON instance name.  To run the
+    scripts without any prompts, save the the VOLTTRON instance name in volttron_home/config file and pass the VOLTTRON
+    home directory as a command line argument. For example:
+
+    .. code-block:: bash
+
+       vcfg --vhome /home/vdev/.new_vhome --rabbitmq single
 
 The Following are the example inputs for `vcfg --rabbitmq single` command.  Since no config file is passed the script
 prompts for necessary details.

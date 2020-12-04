@@ -239,7 +239,6 @@ def generate_apidoc(app):
     :param app:
     :return:
     """
-
     volttron_src = os.path.abspath('../volttron')
 
     if os.environ.get("READTHEDOCS"):
@@ -250,7 +249,9 @@ def generate_apidoc(app):
         os.path.join(volttron_src, 'lint/'),
         os.path.join(volttron_src, 'drivers/')
     ]
-    cmd = ["sphinx-apidoc", '-M', '-d 4', '-o', 'source/volttron_api', '--force', volttron_src]
+    # Adds pydocs from VOLTTRON API source code to ReadtheDocs under source/volttron_api, formats top level heading as
+    # VOLTTRON API
+    cmd = ["sphinx-apidoc", '-H', 'VOLTTRON API', '-M', '-d 4', '-o', 'source/volttron_api', '--force', volttron_src]
 
     cmd.extend(exlusions)
     print("The command is: {}".format(cmd))
