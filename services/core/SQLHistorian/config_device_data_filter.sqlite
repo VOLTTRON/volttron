@@ -2,9 +2,19 @@
     "connection": {
         "type": "sqlite",
         "params": {
-            # if no directory is given, location will be under install_dir/<agent name>.agent-data directory
-            # in secure mode as this will be only directory in which agent will have write access
-            # In regular mode it will be under install_dir/data for backward compatibility
+            # 'database' should be a non-empty string, which represents a location on the filesystem
+            # By default, the location is relative to the agent's installation directory, however it will respect a rooted or relative path to the database.
+            # The following are two examples:
+
+            # Example 1 includes a path to the database:
+            # "my_data/historian_test.sqlite"
+
+            # Example 2 does not include a directory:
+            # "historian_test.sqlite"
+            # NOTE: In this example, the location of the database depends on whether the volttron platform is in secure mode.
+            # In secure mode, the location will be under install_dir/<agent name>.agent-data directory because this will be the only directory in which the agent will have write-access.
+            # In regular mode, the location will be under install_dir/data for backward compatibility.
+
             "database": "historian_test.sqlite"
         }
     },
