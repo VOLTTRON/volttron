@@ -141,6 +141,6 @@ Indices and tables
 * :ref:`modindex`
 
 
-.. |VOLTTRON Logo| image:: images/volttron-webimage.jpg
+.. |VOLTTRON Logo| image:: files/volttron-webimage.jpg
 .. |VOLTTRON| unicode:: VOLTTRON U+2122
 .. |VOLTTRON Tagline| image:: files/VOLLTRON_Logo_Black_Horizontal_with_Tagline.png
