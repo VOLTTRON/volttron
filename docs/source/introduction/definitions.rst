@@ -110,6 +110,18 @@ VOLTTRON Terms
     Historians in VOLTTRON are special purpose agents for automatically collecting data from the platform message bus
     and storing in a persistent data store.
 
+  VIP
+    VOLTTRON Interconnect Protocol is a secure routing protocol that facilitates communications between agents,
+    controllers, services, and the supervisory :term:`VOLTTRON_INSTANCE`.
+
+  VIP address
+    Public address bound to by a VOLTTRON platform instance for communication (Example: ``tcp:///192.168.1.20:22916``).
+    Communication to external platform instances requires that the address be in range for external communication from
+    the host.
+
+  VIP Identity
+    Unique identifier for an agent connected to an instance.  Used for messaging, routing and security.
+
   VOLTTRON Central
     VOLTTRON Central (VC) is a special purpose agent for managing multiple platforms in a distributed VOLTTRON
     deployment
@@ -132,13 +144,6 @@ VOLTTRON Terms
         git clone https://github.com/VOLTTRON/volttron.git
 
     the top level volttron folder is the VOLTTRON_ROOT.
-
-  VIP
-    VOLTTRON Interconnect Protocol is a secure routing protocol that facilitates communications between agents,
-    controllers, services, and the supervisory :term:`VOLTTRON_INSTANCE`.
-
-  VIP Identity
-    Unique identifier for an agent connected to an instance.  Used for messaging, routing and security.
 
   Web Framework
     Framework used by VOLTTRON agents to implement web services with HTTP and HTTPS

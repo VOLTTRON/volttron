@@ -4,9 +4,9 @@
 Known Hosts File
 ================
 
-Before an agent can connect to a VOLTTRON platform that agent must know the platform's VIP address and public key (known
-as the `server key`).  It can be tedious to manually keep track of server keys and match them with their corresponding
-addresses.
+Before an agent can connect to a VOLTTRON platform that agent must know the platform's :term:`VIP address` and public
+key (known as the `server key`).  It can be tedious to manually keep track of server keys and match them with their
+corresponding addresses.
 
 The purpose of the known-hosts file is to save a mapping of platform addresses to server keys.  This way the user only
 has to specify a server key one time.
@@ -42,6 +42,7 @@ Know-Host-File Details
     The following details regarding the known-hosts file are subject to change.  These notes are primarily for
     developers, but the may be helpful if troubleshooting an issue. **The known-hosts file should not be edited
     directly.**
+
 
 File Location
 ^^^^^^^^^^^^^
