@@ -71,17 +71,17 @@ def get_server_keys():
     return ks.public, ks.secret
 
 
-def build_connection(identity, peer='', address=get_address(),
+def build_connection(identity, peer='', address=None,
                      publickey=None, secretkey=None, message_bus=None, **kwargs):
+    address = address if address is not None else get_address()
     if publickey is None or secretkey is None:
         publickey, secretkey = get_server_keys(publickey, secretkey)
-
     cn = Connection(address=address, identity=identity, peer=peer,
                     publickey=publickey, secretkey=secretkey, message_bus=message_bus, **kwargs)
     return cn
 
 
-def build_agent(address=get_address(), identity=None, publickey=None,
+def build_agent(address=None, identity=None, publickey=None,
                 secretkey=None, timeout=10, serverkey=None,
                 agent_class=Agent, volttron_central_address=None,
                 volttron_central_instance_name=None, **kwargs) -> Agent:
@@ -101,8 +101,8 @@ def build_agent(address=get_address(), identity=None, publickey=None,
     :return: an agent based upon agent_class that has been started
     :rtype: agent_class
     """
-    # if not serverkey:
-    #     serverkey = get_known_host_serverkey(address)
+
+    address = address if address is not None else get_address()
 
     # This is a fix allows the connect to message bus to be different than
     # the one that is currently running.
