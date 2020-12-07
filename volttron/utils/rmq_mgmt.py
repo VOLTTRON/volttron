@@ -53,8 +53,9 @@ from requests.packages.urllib3.connection import (ConnectionError,
                                                   NewConnectionError)
 import os
 from volttron.platform import certs
-from volttron.platform import jsonapi
-from .rmq_config_params import RMQConfig
+from volttron.platform import jsonapi, get_home
+from .rmq_config_params import RMQConfig, read_config_file, write_to_config_file
+
 
 try:
     import yaml
@@ -757,6 +758,19 @@ class RabbitMQMgmt(object):
         :param vhost: virtual host
         :return:
         """
+        if component == 'shovel':
+            vhome = get_home()
+            shovel_config_file = os.path.join(vhome, 'rabbitmq_shovel_config.yml')
+            shovel_config = read_config_file(shovel_config_file)
+            print("Removing certificate paths from the shovel config file. Please remove remote certificates manually "
+                  "from the VOLTTRON_HOME folder if needed")
+
+            names = parameter_name.split("-")
+            try:
+                del shovel_config['shovel'][names[1]]['certificates']
+                write_to_config_file(shovel_config_file, shovel_config)
+            except (KeyError, IndexError) as e:
+                pass
         self.delete_parameter(component, parameter_name, vhost,
                               ssl_auth=self.rmq_config.is_ssl)
 
