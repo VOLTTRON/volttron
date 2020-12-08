@@ -1,8 +1,14 @@
 ---
 # Creates a cache of the env directory
+# Documentation for the syntax of this file is located
+# https://docs.github.com/en/free-pro-team@latest/actions/reference/workflow-syntax-for-github-actions
+
+# The workflow name will show up in the action tab on github during execution
+# https://github.com/VOLTTRON/volttron/actions (or if you are pushing to your own fork change the user)
 
 name: cache virtual env
 
+# Check the cache when a push happens to the repository.
 on: [push]
 
 jobs:
@@ -10,8 +16,6 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        #ubuntu-16.04
-        #os: [ubuntu-18.04, ubuntu-20.04]
         os: [ubuntu-16.04, ubuntu-18.04, ubuntu-20.04]
         python-version: [3.6, 3.7, 3.8]
     steps:
@@ -49,7 +53,7 @@ jobs:
         if: steps.check_files.outputs.files_exists != 'true'
         run: |
           pip install wheel
-          python bootstrap.py --all
+          python bootstrap.py --all --force
 
 # Only works on default branch of the target repo
 #       - name: Repository Dispatch
