@@ -12,29 +12,36 @@ on: [push, pull_request]
 
 jobs:
   build:
-    runs-on: ${{ matrix.os }}
+    # The strategy allows customization of the build and allows matrixing the version of os and software
+    # https://docs.github.com/en/free-pro-team@l.atest/actions/reference/workflow-syntax-for-github-actions#jobsjob_idstrategy
     strategy:
       fail-fast: false
       matrix:
-        #ubuntu-16.04
-        #os: [ubuntu-18.04, ubuntu-20.04]
-        os: [ubuntu-16.04, ubuntu-18.04, ubuntu-20.04]
-        python-version: [3.6, 3.7, 3.8, 3.9]
+        # Each entry in the os and python-version matrix will be run so for the 3 x 4 there will be 12 jobs run
+        os: [ ubuntu-16.04, ubuntu-18.04, ubuntu-20.04 ]
+        python-version: [ 3.6, 3.7, 3.8, 3.9 ]
+
+    runs-on: ${{ matrix.os }}
+
     steps:
       # checkout the volttron repository and set current direectory to it
       - uses: actions/checkout@v2
 
+      # Attempt to restore the cache from the build-dependency-cache workflow if present then
+      # the output value steps.check_files.outputs.files_exists will be set (see the next step for usage)
       - name: Set up Python ${{matrix.os}} ${{ matrix.python-version }}
         uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python-version }}
 
+      # Determine if the cache was restored or not.
       - name: Has restored cache
         id: check_files
         uses: andstor/file-existence-action@v1
         with:
           files: "env/bin/activate"
 
+      # if cache wasn't restored then do an installation of the dependencies
       - name: Install dependencies
         if: steps.check_files.outputs.files_exists != 'true'
         run: |
@@ -46,12 +53,14 @@ jobs:
           source env/bin/activate
           pip install -e .
 
+      # Run the specified tests and save the results to a unique file that can be archived for later analysis.
       - name: Run pytest
         run: |
           source env/bin/activate
           pip install -e .
           pytest volttrontesting/testutils -o junit_family=xunit2 --junitxml=output/test-testutils-${{matrix.os}}-${{ matrix.python-version }}-results.xml
 
+      # Archive the results from the pytest to storage.
       - name: Archive test results
         uses: actions/upload-artifact@v2
         if: always()
