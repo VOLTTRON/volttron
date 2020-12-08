@@ -17,7 +17,7 @@ Publish Specifications
 
 During connection to the VC agent's instance the instance-name from the VCP
 will be used to connect to the VC agent's instance.  It will have the form
-vcp-instancename with all invalid characters replaced with an underscore. See
+vcp-instance name with all invalid characters replaced with an underscore. See
 :py:meth:`volttron.platform.agent.util.normalize_identity` for how the instance
 name is normalized into a identity.
 
@@ -25,12 +25,14 @@ FAQ / Notes
 -----------
 
 * VCP agent has an identity of 'platform.agent'. This cannot be changed.
-* There may only be a single agent connected to a VOLTTRON instance with the identiy of 'platform.agent'
+* There may only be a single agent connected to a VOLTTRON instance with the identity of 'platform.agent'
 * From VC's perspective, the VCP agent's identity is <VCP Instance Name>.platform.agent
 * VCP will publish to the remote platform under the topic platforms/vcp-(normalized instance name)/
 * VC subscribes to platforms/* and gets status of the remote instance.
-* VCP connects to the remote instance using the auth subsystem.  Once is connected to the remote instance, VCP's rpc functions are available for the remote VC to call.
-* VC looks at the peers connected to the instance in order to determine what remote instances are connected to the platform (*.platform.agent are assumed to be VCP instances).
+* VCP connects to the remote instance using the auth subsystem.  Once is connected to the remote instance, VCP's rpc
+  functions are available for the remote VC to call.
+* VC looks at the peers connected to the instance in order to determine what remote instances are connected to the
+  platform (*.platform.agent are assumed to be VCP instances*).
 
 |VCP-VC Connection|
 

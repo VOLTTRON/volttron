@@ -27,7 +27,7 @@ VOLTTRON instance 1
 -  ``volttron-cfg`` (this helps in configuring the volttron instance
    http://volttron.readthedocs.io/en/releases-4.1/core_services/control/VOLTTRON-Config.html
 
-   - Specify the VIP address of the instance: ``tcp://127.0.0.1:22916``
+   - Specify the :term:`VIP` address of the instance: ``tcp://127.0.0.1:22916``
    - Install Master Driver Agent with a fake driver for the instance.
    - Install a listener agent so see the topics that are coming from the diver agent
 - Then run the volttron instance by using the following command: ``./start-volttron``
