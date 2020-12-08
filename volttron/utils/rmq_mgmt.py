@@ -348,8 +348,8 @@ class RabbitMQMgmt(object):
         """
         ssl_auth = ssl_auth if ssl_auth is not None else self.is_ssl
         vhost = vhost if vhost else self.rmq_config.virtual_host
-        _log.debug("Create READ, WRITE and CONFIGURE permissions for the user: "
-                   "{}".format(user))
+        #_log.debug("Create READ, WRITE and CONFIGURE permissions for the user: "
+        #           "{}".format(user))
         url = '/api/permissions/{vhost}/{user}'.format(vhost=vhost, user=user)
         response = self._http_put_request(url, body=permissions, ssl_auth=ssl_auth)
 
