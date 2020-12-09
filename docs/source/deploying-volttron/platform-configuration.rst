@@ -50,8 +50,8 @@ The following is a simple  example `config` for a multi-platform deployment:
     message-bus = zmq
     vip-address = tcp://127.0.0.1:22916
     bind-web-address = <web service bind address>
-    web-ssl-cert = <VOLTTRON_HOME>/certificates/certs/master_web-server.crt
-    web-ssl-key = <VOLTTRON_HOME>/certificates/private/master_web-server.pem
+    web-ssl-cert = <VOLTTRON_HOME>/certificates/certs/platform_web-server.crt
+    web-ssl-key = <VOLTTRON_HOME>/certificates/private/platform_web-server.pem
     instance-name = volttron1
     volttron-central-address = <VC address>
 

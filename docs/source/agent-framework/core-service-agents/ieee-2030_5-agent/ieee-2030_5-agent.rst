@@ -6,7 +6,7 @@ IEEE 2030.5 DER Agent
 
 The IEEE 2030.5 Agent (IEEE2030_5 in the VOLTTRON repository) implements a IEEE 2030.5 server that receives HTTP
 `POST`/`PUT` requests from IEEE 2030.5 devices.  The requests are routed to the IEEE 2030.5 Agent over the VOLTTRON
-message bus by VOLTTRON's Master Web Service.  The IEEE 2030.5 Agent returns an appropriate HTTP response.  In some
+message bus by VOLTTRON's Platform Web Service.  The IEEE 2030.5 Agent returns an appropriate HTTP response.  In some
 cases (e.g., DERControl requests), this response includes a data payload.
 
 The IEEE 2030.5 Agent maps IEEE 2030.5 resource data to a VOLTTRON IEEE 2030.5 data model based on SunSpec, using block

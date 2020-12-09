@@ -24,7 +24,7 @@ from .agent_additions import (add_volttron_central,
 from gevent.fileobject import FileObject
 from gevent.subprocess import Popen
 from volttron.platform import packaging, jsonapi
-from volttron.platform.agent.known_identities import MASTER_WEB, CONTROL
+from volttron.platform.agent.known_identities import PLATFORM_WEB, CONTROL
 from volttron.platform.certs import Certs
 from volttron.platform.agent import utils
 from volttron.platform.agent.utils import (strip_comments,
@@ -277,7 +277,7 @@ class PlatformWrapper:
         # the rest so it should work out ok.
         os.environ['VOLTTRON_HOME'] = self.volttron_home
 
-        # Create web users for master web authentication
+        # Create web users for platform web authentication
         from volttron.platform.web.admin_endpoints import AdminEndpoints
         from volttrontesting.utils.web_utils import get_test_web_env
         adminep = AdminEndpoints()
@@ -506,18 +506,18 @@ class PlatformWrapper:
     def is_auto_csr_enabled(self):
         assert self.messagebus == 'rmq', 'Only available for rmq messagebus'
         assert self.bind_web_address, 'Must have a web based instance'
-        return self.dynamic_agent.vip.rpc(MASTER_WEB, 'is_auto_allow_csr').get()
+        return self.dynamic_agent.vip.rpc(PLATFORM_WEB, 'is_auto_allow_csr').get()
 
     def enable_auto_csr(self):
         assert self.messagebus == 'rmq', 'Only available for rmq messagebus'
         assert self.bind_web_address, 'Must have a web based instance'
-        self.dynamic_agent.vip.rpc(MASTER_WEB, 'auto_allow_csr', True).get()
+        self.dynamic_agent.vip.rpc(PLATFORM_WEB, 'auto_allow_csr', True).get()
         assert self.is_auto_csr_enabled()
 
     def disable_auto_csr(self):
         assert self.messagebus == 'rmq', 'Only available for rmq messagebus'
         assert self.bind_web_address, 'Must have a web based instance'
-        self.dynamic_agent.vip.rpc(MASTER_WEB, 'auto_allow_csr', False).get()
+        self.dynamic_agent.vip.rpc(PLATFORM_WEB, 'auto_allow_csr', False).get()
         assert not self.is_auto_csr_enabled()
 
     def add_capabilities(self, publickey, capabilities):
