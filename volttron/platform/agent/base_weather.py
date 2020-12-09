@@ -399,8 +399,7 @@ class BaseWeatherAgent(Agent):
             if max_size_gb is not None:
                 self._max_size_gb = float(max_size_gb)
         except ValueError:
-            _log.warn("Invalid value for max_size_gb: {} "
-                      "defaulting to 1GB".format(max_size_gb))
+            _log.warning("Invalid value for max_size_gb: {} defaulting to 1GB".format(max_size_gb))
             self._max_size_gb = 1
 
         self._api_key = config.get("api_key")

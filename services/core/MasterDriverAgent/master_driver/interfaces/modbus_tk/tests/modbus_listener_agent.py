@@ -68,13 +68,13 @@ class ListenerAgent(Agent):
         try:
             self._heartbeat_period = int(self._heartbeat_period)
         except:
-            _log.warn('Invalid heartbeat period specified setting to default')
+            _log.warning('Invalid heartbeat period specified setting to default')
             self._heartbeat_period = DEFAULT_HEARTBEAT_PERIOD
         log_level = self.config.get('log-level', 'INFO')
         if log_level == 'ERROR':
             self._logfn = _log.error
         elif log_level == 'WARN':
-            self._logfn = _log.warn
+            self._logfn = _log.warning
         elif log_level == 'DEBUG':
             self._logfn = _log.debug
         else:

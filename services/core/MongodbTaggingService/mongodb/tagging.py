@@ -258,7 +258,7 @@ class MongodbTaggingService(BaseTaggingService):
                              "description": i['description']})
             bulk.execute()
         else:
-            _log.warn("No categories to initialize. No such file "+ file_path)
+            _log.warning("No categories to initialize. No such file " + file_path)
 
     def _init_category_tags(self, db):
         file_path = self.resource_sub_dir + '/category_tags.txt'
@@ -297,8 +297,7 @@ class MongodbTaggingService(BaseTaggingService):
                 [('categories', pymongo.ASCENDING)], background=True)
 
         else:
-            _log.warn("No category to tags mapping to initialize. No such "
-                      "file " + file_path)
+            _log.warning("No category to tags mapping to initialize. No such file " + file_path)
 
     @doc_inherit
     def query_categories(self, include_description=False, skip=0, count=None,
@@ -388,10 +387,10 @@ class MongodbTaggingService(BaseTaggingService):
                 # tag_value = get_tag_value(tag_value,
                 #                          self.valid_tags[tag_name])
                 if tag_name == 'id' and tag_value is not None:
-                    _log.warn("id tags are not explicitly stored. "
-                              "topic prefix servers as unique identifier for"
-                              "an entity. id value sent({}) will not be "
-                              "stored".format(tag_value))
+                    _log.warning("id tags are not explicitly stored. "
+                                 "topic prefix servers as unique identifier for"
+                                 "an entity. id value sent({}) will not be "
+                                 "stored".format(tag_value))
             prefixes = self.get_matching_topic_prefixes(topic_pattern)
             if not prefixes:
                 result['error'][topic_pattern] = "No matching topic found"

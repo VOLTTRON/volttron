@@ -105,8 +105,7 @@ class WebApplicationWrapper(object):
         _log.debug('Sending message to clients!')
         clients = self.endpoint_clients.get(endpoint, [])
         if not clients:
-            _log.warn("There were no clients for endpoint {}".format(
-                endpoint))
+            _log.warning("There were no clients for endpoint {}".format(endpoint))
         for c in clients:
             identity, client = c
             _log.debug('Sending endpoint&&message {}&&{}'.format(

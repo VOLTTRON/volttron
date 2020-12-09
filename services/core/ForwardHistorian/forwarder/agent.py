@@ -302,7 +302,7 @@ class ForwardHistorian(BaseHistorian):
             # if the topic wasn't changed then we don't forward anything for
             # it.
             if topic == original_topic:
-                _log.warn(
+                _log.warning(
                     "Topic {} not published because not anonymized.".format(original_topic))
                 return
 
@@ -351,7 +351,7 @@ class ForwardHistorian(BaseHistorian):
             except Unreachable:
                 skip = "Skipping publish: Target platform not running " \
                        "required agent {}".format(vip_id)
-                _log.warn(skip)
+                _log.warning(skip)
                 self.vip.health.set_status(
                     STATUS_BAD, skip)
                 return
