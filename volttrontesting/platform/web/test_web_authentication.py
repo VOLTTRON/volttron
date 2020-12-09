@@ -13,7 +13,7 @@ from volttron.utils import get_random_key
 from volttrontesting.utils.platformwrapper import create_volttron_home
 from volttrontesting.utils.utils import AgentMock
 from volttrontesting.utils.web_utils import get_test_web_env
-from volttron.platform.web.platform_web_service import MasterWebService
+from volttron.platform.web.platform_web_service import PlatformWebService
 from volttron.platform.web.admin_endpoints import AdminEndpoints
 from volttron.platform.web.authenticate_endpoint import AuthenticateEndpoints
 from volttrontesting.fixtures.cert_fixtures import certs_profile_1
@@ -117,8 +117,8 @@ def test_authenticate_endpoint(scheme):
 
 @pytest.fixture()
 def mock_masterweb_service():
-    MasterWebService.__bases__ = (AgentMock.imitate(Agent, Agent()), )
-    masterweb = MasterWebService(serverkey=MagicMock(), identity=MagicMock(), address=MagicMock(), bind_web_address=MagicMock())
+    PlatformWebService.__bases__ = (AgentMock.imitate(Agent, Agent()),)
+    masterweb = PlatformWebService(serverkey=MagicMock(), identity=MagicMock(), address=MagicMock(), bind_web_address=MagicMock())
     rpc_caller = masterweb.vip.rpc
     masterweb._admin_endpoints = AdminEndpoints(rpc_caller=rpc_caller)
     yield masterweb

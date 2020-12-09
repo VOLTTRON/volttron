@@ -86,7 +86,7 @@ from .vip.tracking import Tracker
 from .auth import AuthService, AuthFile, AuthEntry
 from .control import ControlService
 try:
-    from .web import MasterWebService
+    from .web import PlatformWebService
     HAS_WEB = True
 except ImportError:
     HAS_WEB = False
@@ -1056,7 +1056,7 @@ def start_volttron_process(opts):
                     opts.web_ssl_cert = certs.cert_file(base_webserver_name)
 
             _log.info("Starting master web service")
-            services.append(MasterWebService(
+            services.append(PlatformWebService(
                 serverkey=publickey, identity=MASTER_WEB,
                 address=address,
                 bind_web_address=opts.bind_web_address,

@@ -59,7 +59,7 @@ class ResourceType(Enum):
 class WebSubSystem(SubsystemBase):
     """
     The web subsystem handles the agent side of routing web data from the
-    :class:`volttron.platform.web.MasterWebService`.
+    :class:`volttron.platform.web.PlatformWebService`.
 
     """
 
@@ -93,7 +93,7 @@ class WebSubSystem(SubsystemBase):
         """
         The :meth:`register_endpoint` method registers an endpoint with the
         :param res_type:
-        :class:`volttron.platform.web.MasterWebService` on the VOLTTRON
+        :class:`volttron.platform.web.PlatformWebService` on the VOLTTRON
         instance.
 
         Each endpoint can map to at most one callback function.  The callback
@@ -129,7 +129,7 @@ class WebSubSystem(SubsystemBase):
         :param prefix:
         :param static_path:
             An existing path available to the
-            :class:`volttron.platform.web.MasterWebService`
+            :class:`volttron.platform.web.PlatformWebService`
         :type prefix: str
         :type static_path: str
         """
@@ -144,7 +144,7 @@ class WebSubSystem(SubsystemBase):
         """
         The :meth:`register_websocket` method registers a websocket endpoint
         that can be connected to through the
-        :class:`volttron.platform.web.MasterWebService`.
+        :class:`volttron.platform.web.PlatformWebService`.
 
         The parameters opened and closed can be specified as callback events
         with the following signature:

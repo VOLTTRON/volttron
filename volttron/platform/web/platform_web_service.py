@@ -106,7 +106,7 @@ tplenv = Environment(
 )
 
 
-class MasterWebService(Agent):
+class PlatformWebService(Agent):
     """The service that is responsible for managing and serving registered pages
 
     Agents can register either a directory of files to serve or an rpc method
@@ -120,7 +120,7 @@ class MasterWebService(Agent):
         Initialize the configuration of the base web service integration within the platform.
 
         """
-        super(MasterWebService, self).__init__(identity, address, **kwargs)
+        super(PlatformWebService, self).__init__(identity, address, **kwargs)
 
         # no matter what we need to have a bind_web_address passed to us.
         if not bind_web_address:
@@ -522,7 +522,7 @@ class MasterWebService(Agent):
 
     def process_response(self, start_response, response):
         # if we are using the original response, then morph it into a werkzueg response.
-        # response = MasterWebService.convert_response_to_werkzueg(response)
+        # response = PlatformWebService.convert_response_to_werkzueg(response)
         # return response()
         # process the response
         start_response(response.status, response.headers)
