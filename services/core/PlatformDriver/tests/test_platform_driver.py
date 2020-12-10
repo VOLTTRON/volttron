@@ -56,7 +56,7 @@ from volttron.platform.vip.agent import Agent
 
 
 agent._log = logging.getLogger("test_logger")
-MasterDriverAgent.__bases__ = (AgentMock.imitate(Agent, Agent()),)
+PlatformDriver.__bases__ = (AgentMock.imitate(Agent, Agent()),)
 
 
 @pytest.mark.driver_unit

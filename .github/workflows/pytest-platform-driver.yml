@@ -67,7 +67,7 @@ jobs:
         if: always()
         with:
           name: pytest-report
-          path: output/test-test-platform_driver-${{matrix.os}}-${{ matrix.python-version }}-results.xml
+          path: output/test-platform_driver-${{matrix.os}}-${{ matrix.python-version }}-results.xml
     
 #       - name: Publish Unit Test Results
 #         uses: EnricoMi/publish-unit-test-result-action@v1.5
