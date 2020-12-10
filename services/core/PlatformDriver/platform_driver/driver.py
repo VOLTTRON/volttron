@@ -364,7 +364,7 @@ class DriverAgent(BasicAgent):
 
     def publish_cov_value(self, point_name, point_values):
         """
-        Called in the master driver agent to publish a cov from a point
+        Called in the platform driver agent to publish a cov from a point
         :param point_name: point which sent COV notifications
         :param point_values: COV point values
         """

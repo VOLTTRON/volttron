@@ -27,7 +27,7 @@ VOLTTRON instance 1
    -  Specify if you want to run VC(Volttron Central) here or this this instance would be controlled 
       by a VC and the IP and port of the VC
 
-      - Then install agents like Master Driver Agent with a fake driver for the instance.
+      - Then install agents like Platform Driver Agent with a fake driver for the instance.
       - Install a listener agent so see the topics that are coming from the diver agent
       - Then run the volttron instance by using the following command: ``./start-volttron``
 

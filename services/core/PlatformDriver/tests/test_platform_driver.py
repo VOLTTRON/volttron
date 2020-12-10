@@ -242,7 +242,7 @@ def test_default_config(volttron_instance):
     publish_agent = volttron_instance.build_agent(identity="test_agent")
     gevent.sleep(1)
 
-    config_path = os.path.join(get_services_core("PlatformDriver"), "master-driver.agent")
+    config_path = os.path.join(get_services_core("PlatformDriver"), "platform-driver.agent")
     with open(config_path, "r") as config_file:
         config_json = json.load(config_file)
     assert isinstance(config_json, dict)

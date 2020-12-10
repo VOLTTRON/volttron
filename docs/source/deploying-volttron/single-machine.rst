@@ -65,7 +65,7 @@ deployment, most values can be left at their default values.  The following is a
     Is this instance web enabled? [N]:
     Will this instance be controlled by volttron central? [Y]: N
     Would you like to install a platform historian? [N]:
-    Would you like to install a master driver? [N]:
+    Would you like to install a platform driver? [N]:
     Would you like to install a listener agent? [N]:
     Finished configuration!
 
@@ -79,7 +79,7 @@ To learn more, read the :ref:`volttron-config <VOLTTRON-Config>` section of the 
 .. note::
 
    Steps below highlight manually installing some example agents.  To skip manual install, supply `y` or `Y` for the
-   ``platform historian``, ``master driver`` and ``listener agent`` installation options.
+   ``platform historian``, ``platform driver`` and ``listener agent`` installation options.
 
 
 Start VOLTTRON
@@ -149,7 +149,7 @@ Out of the box, VOLTTRON includes a number of agents which may be useful for sin
       :ref:`docs <Historian-Framework>`
     * Listener - This example agent can be useful for debugging drivers or other agents publishing to the bus.
       :ref:`docs <Listener-Agent>`
-    * Master Driver - The :ref:`Master-Driver` is responsible for managing device communication on a platform instance.
+    * Platform Driver - The :ref:`Master-Driver` is responsible for managing device communication on a platform instance.
     * weather agents - weather agents can be used to collect weather data from sources like
       :ref:`Weather.gov <Weather-Dot-Gov>`
 
@@ -158,13 +158,13 @@ Out of the box, VOLTTRON includes a number of agents which may be useful for sin
        The `services/core`, `services/ops`, and `examples` directories in the repository contain additional agents to
        use to fit individual use cases.
 
-For a simple setup example, a Master Driver, SQLite Historian, and Listener are installed using the following steps:
+For a simple setup example, a Platform Driver, SQLite Historian, and Listener are installed using the following steps:
 
-#. Create a configuration file for the Master Driver and SQLite Historian (it is advised to create a `configs` directory
+#. Create a configuration file for the Platform Driver and SQLite Historian (it is advised to create a `configs` directory
    in volttron root to keep configs for a deployment).  For information on how to create configurations for these
    agents, view their docs:
 
-    * :ref:`Master Driver <Master-Driver-Configuration>`
+    * :ref:`Platform Driver <Master-Driver-Configuration>`
     * :ref:`SQLite Historian <SQL-Historian>`
     * :ref:`Listener <Listener-Agent>`
 
@@ -181,7 +181,7 @@ For a simple setup example, a Master Driver, SQLite Historian, and Listener are 
 .. code-block:: bash
 
    python scripts/install-agent.py -s services/core/SQLHistorian -c configs/config.sqlite --tag listener
-   python scripts/install-agent.py -s services/core/PlatformDriver -c configs/master-driver.agent --tag platform_driver
+   python scripts/install-agent.py -s services/core/PlatformDriver -c configs/platform-driver.json --tag platform_driver
    python scripts/install-agent.py -s examples/ListenerAgent -c configs/listener.config --tag platform_historian
 
    .. note::
@@ -262,7 +262,7 @@ To test that the configuration was successful, start an instance of VOLTTRON in 
         This command must be run from the root VOLTTRON directory.
 
 Having following the examples above, the platform should be ready for demonstrating the example deployment.  Start
-the Listener, SQLite historian and Master Driver.
+the Listener, SQLite historian and Platform Driver.
 
 .. code-block:: console
 
@@ -281,7 +281,7 @@ The output should look similar to this:
 .. note::
 
    The `STATUS` column indicates whether the agent is running.  The `HEALTH` column indicates whether the current state
-   of the agent is within intended parameters (if the Master Driver is publishing, the platform historian has not been
+   of the agent is within intended parameters (if the Platform Driver is publishing, the platform historian has not been
    backlogged, etc.)
 
 You can further verify that the agents are functioning correctly with ``tail -f volttron.log``.
@@ -293,7 +293,7 @@ ListenerAgent:
   2020-10-27 11:43:33,997 (listeneragent-3.3 3294) __main__ INFO: Peer: pubsub, Sender: listeneragent-3.3_1:, Bus: , Topic: heartbeat/listeneragent-3.3_1, Headers: {'TimeStamp': '2020-10-27T18:43:33.988561+00:00', 'min_compatible_version': '3.0', 'max_compatible_version': ''}, Message:
   'GOOD'
 
-Master Driver with Fake Driver:
+Platform Driver with Fake Driver:
 
 .. code-block:: console
 

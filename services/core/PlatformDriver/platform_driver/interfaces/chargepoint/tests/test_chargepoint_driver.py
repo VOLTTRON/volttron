@@ -153,7 +153,7 @@ driverName,driverName,ChargingSessionRegister,1,string,,,FALSE,"""
 @pytest.fixture(scope='module')
 def agent(request, volttron_instance):
     md_agent = volttron_instance.build_agent()
-    # Clean out master driver configurations.
+    # Clean out platform driver configurations.
     md_agent.vip.rpc.call('config.store',
                           'manage_delete_store',
                           'platform.driver').get(timeout=10)

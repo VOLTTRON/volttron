@@ -5,7 +5,7 @@ Global Override Specification
 =============================
 
 This document describes the specification for the global override feature.  By default, every user is allowed write
-access to the devices by the master driver.  The override feature will allow the user (for example, a building
+access to the devices by the platform driver.  The override feature will allow the user (for example, a building
 administrator) to override this default behavior and enable the user to lock the write access on the devices for a
 specified duration of time or indefinitely.
 
@@ -27,7 +27,7 @@ Functional Capabilities
     * Time duration over which override behavior is applicable - If the time duration is negative, then the override
       condition is applied indefinitely.
 
-    * Optional `revert-to-fail-safe-state` flag - If the flag is set, the master driver shall set all the set points
+    * Optional `revert-to-fail-safe-state` flag - If the flag is set, the platform driver shall set all the set points
       falling under the override condition to its default state/value immediately.  This is to ensure that the devices
       are in fail-safe state when the override/lock feature is removed.  If the flag is not set, the device state/value
       is untouched.

@@ -213,7 +213,7 @@ if __name__ == "__main__":
                         help='number of devices to configure')
     
     parser.add_argument('--scalability-test', action='store_true', 
-                        help='Configure master driver for a scalability test')
+                        help='Configure platform driver for a scalability test')
     
     parser.add_argument('--publish-only-depth-all', action='store_true', 
                         help='Configure drivers to only publish depth first all.')

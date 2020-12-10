@@ -73,8 +73,8 @@ def test_agent(request, volttron_instance):
 @pytest.mark.driver
 def test_cov_update_published(volttron_instance, test_agent):
     """Tests the functionality of BACnet change of value forwarding in the
-    Master Driver and driver.py"""
-    # Reset master driver config store
+    Platform Driver and driver.py"""
+    # Reset platform driver config store
     cmd = ['volttron-ctl', 'config', 'delete', PLATFORM_DRIVER, '--all']
     process = Popen(cmd, env=volttron_instance.env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     result = process.wait()
@@ -93,14 +93,14 @@ def test_cov_update_published(volttron_instance, test_agent):
     result = process.wait()
     assert result == 0
 
-    # install master driver, start the master driver, which starts the device
+    # install platform driver, start the platform driver, which starts the device
     master_uuid = volttron_instance.install_agent(
         agent_dir=get_services_core("PlatformDriver"),
         config_file={},
         start=True)
     print("agent id: ", master_uuid)
 
-    # tell the master driver to forward the value
+    # tell the platform driver to forward the value
     point_name = "PowerState"
     device_path = "fakedriver"
     result_dict = {"fake1": "test", "fake2": "test", "fake3": "test"}

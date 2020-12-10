@@ -106,7 +106,7 @@ def platform_driver_agent(config_path, **kwargs):
     driver_scrape_interval = get_config('driver_scrape_interval', 0.02)
 
     if config.get("driver_config_list") is not None:
-        _log.warning("Master driver configured with old setting. This is no longer supported.")
+        _log.warning("Platform driver configured with old setting. This is no longer supported.")
         _log.warning('Use the script "scripts/update_platform_driver_config.py" to convert the configuration.')
 
     publish_depth_first_all = bool(get_config("publish_depth_first_all", True))
@@ -240,17 +240,17 @@ class PlatformDriver(Agent):
 
         else:
             if self.max_open_sockets != config["max_open_sockets"]:
-                _log.info("The master driver must be restarted for changes to the max_open_sockets setting to take "
+                _log.info("The platform driver must be restarted for changes to the max_open_sockets setting to take "
                           "effect")
 
             if self.max_concurrent_publishes != config["max_concurrent_publishes"]:
-                _log.info("The master driver must be restarted for changes to the max_concurrent_publishes setting to "
+                _log.info("The platform driver must be restarted for changes to the max_concurrent_publishes setting to "
                           "take effect")
 
             if self.scalability_test != bool(config["scalability_test"]):
                 if not self.scalability_test:
                     _log.info(
-                        "The master driver must be restarted with scalability_test set to true in order to run a test.")
+                        "The platform driver must be restarted with scalability_test set to true in order to run a test.")
                 if self.scalability_test:
                     _log.info("A scalability test may not be interrupted. Restarting the driver is required to stop "
                               "the test.")
@@ -293,14 +293,14 @@ class PlatformDriver(Agent):
             driver_scrape_interval = float(config["driver_scrape_interval"])
         except ValueError as e:
             _log.error("ERROR PROCESSING CONFIGURATION: {}".format(e))
-            _log.error("Master driver scrape interval settings unchanged")
+            _log.error("Platform driver scrape interval settings unchanged")
             # TODO: set a health status for the agent
 
         try:
             group_offset_interval = float(config["group_offset_interval"])
         except ValueError as e:
             _log.error("ERROR PROCESSING CONFIGURATION: {}".format(e))
-            _log.error("Master driver group interval settings unchanged")
+            _log.error("Platform driver group interval settings unchanged")
             # TODO: set a health status for the agent
 
         if self.scalability_test and action == "UPDATE":

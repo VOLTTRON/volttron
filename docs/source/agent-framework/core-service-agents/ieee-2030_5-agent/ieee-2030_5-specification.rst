@@ -105,7 +105,7 @@ VOLTTRON's IEEE 2030.5 implementation includes a IEEE 2030.5 Agent and a IEEE 20
 VOLTTRON IEEE 2030.5 Device Driver
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The IEEE 2030.5 device driver is a new addition to VOLTTRON Master Driver Agent's family of standard device drivers.  It
+The IEEE 2030.5 device driver is a new addition to VOLTTRON Platform Driver Agent's family of standard device drivers.  It
 exposes `get_point`/`set_point` calls for IEEE 2030.5 EndDevice fields.
 
 The IEEE 2030.5 device driver periodically issues the IEEE 2030.5 Agent RPC calls to refresh its cached representation

@@ -560,7 +560,7 @@ def test_scrape_all_trigger_refresh(mock_ecobee):
 #
 #     volttron_instance.install_agent()
 #
-#     # create a master driver
+#     # create a platform driver
 #     platform_driver = volttron_instance.install_agent(
 #         agent_dir=get_services_core("PlatformDriver"),
 #         start=False,

@@ -4,9 +4,9 @@ MODBUS_TK REGRESSION TEST README
 
 modbus_listener_agent.py
 ------------------------
-Set-up listener agent to listen to master driver agent with TCP and RTU transport:
+Set-up listener agent to listen to platform driver agent with TCP and RTU transport:
 
-- Use "volttron-cfg" to set-up master driver agent with default fake_driver, add the int register "count"
+- Use "volttron-cfg" to set-up platform driver agent with default fake_driver, add the int register "count"
 to its csv config using this script:
     $ vctl config edit platform.driver fake.csv
 - Add modbus_test driver config and csv using this script for tcp transport testing:
@@ -28,7 +28,7 @@ test_modbus_tk_driver.py
 ------------------------
 Regression test for modbus_tk interface with tcp transport:
 
-- Build master driver agent and define two different modbus driver config and two different register csv set,
+- Build platform driver agent and define two different modbus driver config and two different register csv set,
 one followed the original modbus structure, and another followed the new modbus_tk structure
 - With the set-up server running, do regression test on set_point, get_point, scrape_all, revert_point,
 and revert_device for both drivers
@@ -38,7 +38,7 @@ test_scrape_all.py
 ------------------
 Regression test for modbus_tk interface with tcp transport:
 
-- Build master driver agent and define two different modbus driver config and two different register csv set,
+- Build platform driver agent and define two different modbus driver config and two different register csv set,
 one followed the original modbus structure, and another followed the new modbus_tk structure
 - With the set-up server running, run scrape_all for both drivers in two different threads with some set-up
 time interval
@@ -66,7 +66,7 @@ test_write_single_registers.py
 ------------------------------
 Regression test for modbus_tk interface with tcp transport:
 
-- Build master driver agent and define write_single_registers driver config and register csv set with the additional
+- Build platform driver agent and define write_single_registers driver config and register csv set with the additional
 feature write_multiple_registers = false (it means write single register with modbus function code 06)
 - With the set-up server running, do regression test on set_point, get_point, scrape_all, revert_point,
 and revert_device for the driver

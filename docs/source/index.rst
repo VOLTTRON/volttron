@@ -96,7 +96,7 @@ at our bi-weekly office-hours and on Slack. To be invited to office-hours or sla
    :maxdepth: 1
 
    driver-framework/drivers-overview
-   driver-framework/master-driver/master-driver
+   driver-framework/platform-driver/platform-driver
    driver-framework/actuator/actuator-agent
    driver-framework/fake-driver/fake-driver
    driver-framework/bacnet/bacnet-driver

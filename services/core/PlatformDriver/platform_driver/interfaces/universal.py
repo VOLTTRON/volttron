@@ -99,10 +99,10 @@ class Interface(BasicRevert, BaseInterface):
 			verbiage = logging.DEBUG	# '-vvv'
 		_log.setLevel(verbiage)
 	'''
-	 config_dict: 'filename'.config, specified in the 'master-driver.agent' file.
+	 config_dict: 'filename'.config, specified in the 'platform-driver.agent' file.
 	 registry_config_str: points csv file
 	 def configure(self, config_dict, registry_config_str):
-	 when 4.0 master driver is started, class ConfigStore is instantiated:
+	 when 4.0 platform driver is started, class ConfigStore is instantiated:
 	 	volttron/platform/vip/agent/subsystems/configstore.py which exports initial_update()
 			which calls volttron/platform/store.py: def get_configs(self):
 				self.vip.rpc.call(identity, "config.initial_update" sets list of registry_configs

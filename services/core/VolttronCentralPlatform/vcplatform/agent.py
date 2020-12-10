@@ -189,7 +189,7 @@ class VolttronCentralPlatform(Agent):
         self._platform_driver_ids = None
         self._device_publishes = {}
         self._devices = {}
-        # master driver config store stat times
+        # platform driver config store stat times
         self._platform_driver_stat_times = {}
 
         # instance id is the vip identity of this agent on the remote platform.
@@ -958,7 +958,7 @@ class VolttronCentralPlatform(Agent):
             self._platform_driver_stat_times[platform_driver_id] = stat_time
 
         if not found_a_platform_driver:
-            _log.debug("No master driver currently on this platform.")
+            _log.debug("No platform driver currently on this platform.")
             return {}
 
         if not config_changed:

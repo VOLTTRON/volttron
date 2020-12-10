@@ -273,7 +273,7 @@ class Interface(BasicRevert, BaseInterface):
 
     def update_auth_config(self):
         """
-        Update the master driver configuration for this device with new values from auth functions
+        Update the platform driver configuration for this device with new values from auth functions
         """
         auth_config = {"AUTH_CODE": self.authorization_code,
                        "ACCESS_TOKEN": self.access_token,

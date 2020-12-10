@@ -78,7 +78,7 @@ def handle(env, start_response):
 @pytest.fixture(scope='module')
 def agent(request, volttron_instance):
     agent = volttron_instance.build_agent()
-    # Clean out master driver configurations.
+    # Clean out platform driver configurations.
     capabilities = {'edit_config_store': {'identity': PLATFORM_DRIVER}}
     volttron_instance.add_capabilities(agent.core.publickey, capabilities)
     agent.vip.rpc.call(CONFIGURATION_STORE,

@@ -819,7 +819,7 @@ def do_platform_historian():
 
 
 def add_fake_device_to_configstore():
-    prompt = 'Would you like to install a fake device on the master driver?'
+    prompt = 'Would you like to install a fake device on the platform driver?'
     response = prompt_response(prompt, valid_answers=y_or_n, default='N')
     if response in y:
         _cmd(['volttron-ctl', 'config', 'store', PLATFORM_DRIVER,
@@ -913,7 +913,7 @@ def wizard():
     response = prompt_response(prompt, valid_answers=y_or_n, default='N')
     if response in y:
         do_platform_historian()
-    prompt = 'Would you like to install a master driver?'
+    prompt = 'Would you like to install a platform driver?'
     response = prompt_response(prompt, valid_answers=y_or_n, default='N')
     if response in y:
         if not _check_dependencies_met("drivers"):

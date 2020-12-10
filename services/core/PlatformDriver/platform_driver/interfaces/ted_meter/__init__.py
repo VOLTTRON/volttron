@@ -161,7 +161,7 @@ class Interface(BasicRevert, BaseInterface):
         self.device_path = kwargs.get("device_path")
 
     def configure(self, config_dict, registry_config_str):
-        """Configure method called by the master driver with configuration 
+        """Configure method called by the platform driver with configuration 
         stanza and registry config file, we ignore the registry config, as we
         build the registers based on the configuration collected from TED Pro
         Device

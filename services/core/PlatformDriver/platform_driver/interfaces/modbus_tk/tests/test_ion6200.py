@@ -80,12 +80,12 @@ def ion_driver_agent(request, volttron_instance):
     """Build PlatformDriver, add modbus driver & csv configurations
     """
 
-    # Build master driver agent
+    # Build platform driver agent
     md_agent = volttron_instance.build_agent(identity="test_md_agent")
     capabilities = {'edit_config_store': {'identity': PLATFORM_DRIVER}}
     volttron_instance.add_capabilities(md_agent.core.publickey, capabilities)
 
-    # Clean out master driver configurations
+    # Clean out platform driver configurations
     # wait for it to return before adding new config
     md_agent.vip.rpc.call('config.store',
                           'manage_delete_store',
@@ -121,7 +121,7 @@ def ion_driver_agent(request, volttron_instance):
     gevent.sleep(10)  # wait for the agent to start and start the devices
 
     def stop():
-        """Stop master driver agent
+        """Stop platform driver agent
         """
         volttron_instance.stop_agent(master_uuid)
         md_agent.core.stop()

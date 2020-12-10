@@ -27,5 +27,5 @@ The following table details the vip identities that are reserved for VOLTTRON sp
     "keydiscovery","Server Key Discovery","Agent that enables discovery of server keys of remote platforms in a multi-platform setup"
     "platform.actuator","Actuator","Agent which coordinates sending control commands to devices"
     "config.store","Configuration Store","The configuration subsystem service agent on the platform.  Includes scheduling"
-    "platform.driver","Master Driver","The default identity for the Master Driver Agent (will be renamed Platform Driver Agent) which is responsible for coordinating device communication"
+    "platform.driver","Platform Driver","The default identity for the Platform Driver Agent (will be renamed Platform Driver Agent) which is responsible for coordinating device communication"
     "zmq.proxy.router","Zero MQ Proxy","ZeroMQ's proxy service for Pub/Sub subsystem router.  Allows backward compatibility between rmq and zmq instances of VOLTTRON"

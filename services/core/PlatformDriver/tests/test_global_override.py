@@ -85,10 +85,10 @@ platform_driver_config = """
 def config_store_connection(request, volttron_instance):
     capabilities = [{'edit_config_store': {'identity': PLATFORM_DRIVER}}]
     connection = volttron_instance.build_connection(peer=CONFIGURATION_STORE, capabilities=capabilities)
-    # Reset master driver config store
+    # Reset platform driver config store
     connection.call("manage_delete_store", PLATFORM_DRIVER)
 
-    # Start the master driver agent which would in turn start the fake driver
+    # Start the platform driver agent which would in turn start the fake driver
     #  using the configs created above
     master_uuid = volttron_instance.install_agent(
         agent_dir=get_services_core("PlatformDriver"),
@@ -118,7 +118,7 @@ def config_store(request, config_store_connection):
     config_store_connection.call("manage_store", PLATFORM_DRIVER, "fake.csv", registry_config_string, config_type="csv")
 
     def cleanup():
-        # Reset master driver config store
+        # Reset platform driver config store
         print("Wiping out store.")
         config_store_connection.call("manage_delete_store", PLATFORM_DRIVER)
         gevent.sleep(0.1)
@@ -674,7 +674,7 @@ def test_indefinite_override_after_restart(config_store, test_agent, volttron_in
     global master_uuid
     volttron_instance.stop_agent(master_uuid)
     gevent.sleep(0.5)
-    # Start the master driver agent which would in turn start the fake driver
+    # Start the platform driver agent which would in turn start the fake driver
     #  using the configs created above
     volttron_instance.start_agent(master_uuid)
     gevent.sleep(1)  # wait for the agent to start and start the devices

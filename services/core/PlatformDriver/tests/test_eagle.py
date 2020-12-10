@@ -198,7 +198,7 @@ def agent(volttron_instance):
     agent = volttron_instance.build_agent(identity="test_agent")
     capabilities = {'edit_config_store': {'identity': PLATFORM_DRIVER}}
     volttron_instance.add_capabilities(agent.core.publickey, capabilities)
-    # Clean out master driver configurations.
+    # Clean out platform driver configurations.
     agent.vip.rpc.call(CONFIGURATION_STORE,
                        'manage_delete_store',
                        PLATFORM_DRIVER).get(timeout=10)

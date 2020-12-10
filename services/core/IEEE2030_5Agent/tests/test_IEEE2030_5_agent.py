@@ -105,7 +105,7 @@ def agent(request, volttron_instance_module_web):
     test_agent = volttron_instance_module_web.build_agent(identity="test_agent")
     capabilities = {'edit_config_store': {'identity': PLATFORM_DRIVER}}
     volttron_instance_module_web.add_capabilities(test_agent.core.publickey, capabilities)
-    # Configure a IEEE 2030.5 device in the Master Driver
+    # Configure a IEEE 2030.5 device in the Platform Driver
     test_agent.vip.rpc.call('config.store', 'manage_delete_store', PLATFORM_DRIVER).get(timeout=10)
     test_agent.vip.rpc.call('config.store', 'manage_store', PLATFORM_DRIVER,
                             'devices/{}'.format(DRIVER_NAME),
@@ -140,7 +140,7 @@ def agent(request, volttron_instance_module_web):
     md_id = volttron_instance_module_web.install_agent(agent_dir=get_services_core("PlatformDriver"),
                                                        config_file={},
                                                        start=True)
-    print('master driver agent id: ', md_id)
+    print('platform driver agent id: ', md_id)
 
     global web_address
     web_address = volttron_instance_module_web.bind_web_address
