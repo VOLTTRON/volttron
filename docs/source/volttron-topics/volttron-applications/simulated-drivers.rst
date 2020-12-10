@@ -24,10 +24,10 @@ Three agents work together to run a simulation:
    in response to requests. If no stop time has been provided, the SimulationClockAgent
    continues to manage the simulation clock until the agent is stopped. If no clock-speed
    multiplier has been provided, the simulation clock runs at normal wall-clock speed.
-2. **SimulationDriverAgent.**  Like MasterDriverAgent, this agent is a front-end manager for
+2. **SimulationDriverAgent.**  Like PlatformDriverAgent, this agent is a front-end manager for
    device drivers. It handles get_point/set_point requests from other agents, and it
    periodically "scrapes" and publishes each driver's points. If a device driver has been
-   built to run under MasterDriverAgent, with a few minor modifications (detailed below)
+   built to run under PlatformDriverAgent, with a few minor modifications (detailed below)
    it can be adapted to run under SimulationDriverAgent.
 3. **SimulationAgent.**  This agent configures, starts, and reports on a simulation.
    It furnishes a variety of configuration parameters to the other simulation agents,
@@ -381,10 +381,10 @@ Using the Simulation Framework to Test a Driver
 ===============================================
 
 If you're developing a VOLTTRON driver, and you intend to add it to the drivers
-managed by MasterDriverAgent, then with a few tweaks, you can adapt it so that it's testable from
+managed by PlatformDriverAgent, then with a few tweaks, you can adapt it so that it's testable from
 this simulation framework.
 
-As with drivers under MasterDriverAgent, your driver should be go in a .py module that implements
+As with drivers under PlatformDriverAgent, your driver should be go in a .py module that implements
 a Register class and an Interface class. In order to work within the simulation framework,
 simulation drivers need to be adjusted as follows:
 

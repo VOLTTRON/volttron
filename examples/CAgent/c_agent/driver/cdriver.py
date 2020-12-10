@@ -41,7 +41,7 @@ __docformat__ = 'reStructuredText'
 """The cdriver is an example implementation of an interface that
 allows the master driver to transparently call C code.
 This file is an `interface` and will only be usable in the
-master_driver/interfaces directory. The shared object will
+platform_driver/interfaces directory. The shared object will
 need to be somewhere it can be found by this file.
 """
 

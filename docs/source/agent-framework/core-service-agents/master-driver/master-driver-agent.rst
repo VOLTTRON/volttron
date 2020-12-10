@@ -19,7 +19,7 @@ the user has copied the example or created their own config, the Master Driver A
 
 .. code-block:: bash
 
-    python scripts/install-agent.py -s services/core/MasterDriverAgent -c <master driver config file>
+    python scripts/install-agent.py -s services/core/PlatformDriverAgent -c <master driver config file>
 
 
 Requirements
@@ -60,7 +60,7 @@ repository:
 
 
 The example master driver configuration file above can be found in the VOLTTRON repository in
-`services/core/MasterDriverAgent/master-driver.agent`.
+`services/core/PlatformDriverAgent/master-driver.agent`.
 
 For information on configuring the Master Driver with devices, including creating driver configs and using the config
 store, please read ref`configuration <Master-Driver-Configuration>` the section in the Driver Framework docs.

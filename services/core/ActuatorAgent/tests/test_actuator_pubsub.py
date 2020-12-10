@@ -175,7 +175,7 @@ def publish_agent(request, volttron_instance):
     # Start the master driver agent which would intern start the fake driver
     # using the configs created above
     master_uuid = volttron_instance.install_agent(
-        agent_dir=get_services_core("MasterDriverAgent"),
+        agent_dir=get_services_core("PlatformDriverAgent"),
         config_file={},
         start=True)
     print("agent id: ", master_uuid)
@@ -1254,7 +1254,7 @@ def test_get_error_invalid_point(publish_agent):
     assert publish_agent.callback.call_args[0][1] == PLATFORM_ACTUATOR
     assert publish_agent.callback.call_args[0][3] == error_topic
     result_message = publish_agent.callback.call_args[0][5]
-    assert result_message['type'] == 'master_driver.interfaces.DriverInterfaceError'
+    assert result_message['type'] == 'platform_driver.interfaces.DriverInterfaceError'
     assert result_message['value'] == "['Point not configured on device: SampleWritableFloat12']"
 
 

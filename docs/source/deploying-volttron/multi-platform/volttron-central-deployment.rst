@@ -104,7 +104,7 @@ and localhost is volttron-pc.
         Configuring /home/user/volttron/services/core/SQLHistorian.
         Should the agent autostart? [N]: y
         Would you like to install a master driver? [N]: y
-        Configuring /home/user/volttron/services/core/MasterDriverAgent.
+        Configuring /home/user/volttron/services/core/PlatformDriverAgent.
         Would you like to install a fake device on the master driver? [N]: y
         Should the agent autostart? [N]: y
         Would you like to install a listener agent? [N]: y

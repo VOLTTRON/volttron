@@ -65,7 +65,7 @@ Once configured, the Master Driver Agent is configured and deployed in a manner 
 
 .. code-block:: bash
 
-    python scripts/install-agent.py -s services/core/MasterDriverAgent -c <master driver config file>
+    python scripts/install-agent.py -s services/core/PlatformDriverAgent -c <master driver config file>
 
 
 Requirements
@@ -120,7 +120,7 @@ All of the following setting are optional and default to `True`.
   devices.
 
 An example master driver configuration file can be found in the VOLTTRON repository in
-`services/core/MasterDriverAgent/master-driver.agent`.
+`services/core/PlatformDriverAgent/master-driver.agent`.
 
 
 .. _Driver-Configuration-File:

@@ -234,7 +234,7 @@ a master driver agent with a fake driver.
     Should the agent autostart? [N]:
     Would you like to install a platform historian? [N]:
     Would you like to install a master driver? [N]: y
-    Configuring /home/user/volttron/services/core/MasterDriverAgent.
+    Configuring /home/user/volttron/services/core/PlatformDriverAgent.
     ['volttron', '-vv', '-l', '/home/user/.volttron/volttron.cfg.log']
     Would you like to install a fake device on the master driver? [N]: y
     Should the agent autostart? [N]: y
@@ -420,7 +420,7 @@ name is set to "collector2".
     Should the agent autostart? [N]:
     Would you like to install a platform historian? [N]:
     Would you like to install a master driver? [N]: y
-    Configuring /home/user/volttron/services/core/MasterDriverAgent.
+    Configuring /home/user/volttron/services/core/PlatformDriverAgent.
     ['volttron', '-vv', '-l', '/home/user/.volttron/volttron.cfg.log']
     Would you like to install a fake device on the master driver? [N]: y
     Should the agent autostart? [N]: y

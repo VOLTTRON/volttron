@@ -172,7 +172,7 @@ For a simple setup example, a Master Driver, SQLite Historian, and Listener are 
 
    .. code-block:: bash
 
-      cp services/core/MasterDriverAgent/master-driver.agent configs
+      cp services/core/PlatformDriverAgent/master-driver.agent configs
       cp services/core/SQLHistorian/config.sqlite configs
       cp examples/ListenerAgent/config configs/listener.config
 
@@ -181,7 +181,7 @@ For a simple setup example, a Master Driver, SQLite Historian, and Listener are 
 .. code-block:: bash
 
    python scripts/install-agent.py -s services/core/SQLHistorian -c configs/config.sqlite --tag listener
-   python scripts/install-agent.py -s services/core/MasterDriverAgent -c configs/master-driver.agent --tag master_driver
+   python scripts/install-agent.py -s services/core/PlatformDriverAgent -c configs/master-driver.agent --tag master_driver
    python scripts/install-agent.py -s examples/ListenerAgent -c configs/listener.config --tag platform_historian
 
    .. note::

@@ -23,7 +23,7 @@ Driver Conventions
 
 -  Drivers are polled by the Master Driver agent and values can be set using the `Actuator Agent`
 -  Drivers should have a 1-to-1 relationship with a device
--  Driver modules should be written in Python files in the `services/core/MasterDriverAgent/master_driver/interfaces`
+-  Driver modules should be written in Python files in the `services/core/PlatformDriverAgent/master_driver/interfaces`
    directory in the VOLTTRON repository.  The master driver will search for a Python file in this directory matching the
    name provided by the `driver_type` value from the driver configuration when creating the Driver agent.
 -  Driver code consists of an Interface class (exactly named), supported in most cases by one or more Register classes

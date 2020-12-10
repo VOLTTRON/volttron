@@ -136,8 +136,8 @@ def agent(request, volttron_instance_module_web):
                                                                start=True)
     print('IEEE2030_5 agent id: ', IEEE2030_5_id)
 
-    # Install and start a MasterDriverAgent
-    md_id = volttron_instance_module_web.install_agent(agent_dir=get_services_core("MasterDriverAgent"),
+    # Install and start a PlatformDriverAgent
+    md_id = volttron_instance_module_web.install_agent(agent_dir=get_services_core("PlatformDriverAgent"),
                                                        config_file={},
                                                        start=True)
     print('master driver agent id: ', md_id)

@@ -153,8 +153,8 @@ def agent(request, volttron_instance_module_web):
                             REGISTRY_CONFIG_STRING,
                             'csv').get(timeout=10)
 
-    # Install and start a MasterDriverAgent
-    md_id = volttron_instance_module_web.install_agent(agent_dir=get_services_core("MasterDriverAgent"),
+    # Install and start a PlatformDriverAgent
+    md_id = volttron_instance_module_web.install_agent(agent_dir=get_services_core("PlatformDriverAgent"),
                                                        config_file={},
                                                        start=True)
     print('master driver agent id: ', md_id)

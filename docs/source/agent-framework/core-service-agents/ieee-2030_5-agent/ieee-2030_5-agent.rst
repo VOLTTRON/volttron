@@ -102,7 +102,7 @@ field definitions. Developers are encouraged to expand the definitions.
 
 The procedure for expanding the field mappings requires you to make changes in two places:
 
-1. Update the driver's point definitions in ``services/core/MasterDriverAgent/master_driver/ieee2030_5.csv``
+1. Update the driver's point definitions in ``services/core/PlatformDriverAgent/master_driver/ieee2030_5.csv``
 2. Update the IEEE 2030.5-to-SunSpec field mappings in ``services/core/IEEE2030_5Agent/ieee2030_5/end_device.py`` and
    ``__init__.py``
 

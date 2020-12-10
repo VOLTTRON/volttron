@@ -214,7 +214,7 @@ platform and connect it to the Ecobee remote API:
 
     .. code-block:: Bash
 
-        python scripts/install-agent.py --agent-source services/core/MasterDriverAgent --config \
+        python scripts/install-agent.py --agent-source services/core/PlatformDriverAgent --config \
         examples/configurations/drivers/master-driver.agent --tag platform.driver
 
 #. Load the driver configuration into the configuration store ("vctl config list platform.driver" can be used to show

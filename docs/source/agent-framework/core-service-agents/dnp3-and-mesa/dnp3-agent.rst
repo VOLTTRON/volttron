@@ -14,7 +14,7 @@ VOLTTRON's DNP3 Agent is an implementation of a DNP3 Outstation as specified in 
 bidirectional network communications with a DNP3 Master, which might be located at a power utility.
 
 Like some other VOLTTRON protocol agents (e.g. IEEE2030_5Agent), the DNP3 Agent can optionally be front-ended by a DNP3
-device driver running under VOLTTRON's MasterDriverAgent.  This allows a DNP3 Master to be treated like any other device
+device driver running under VOLTTRON's PlatformDriverAgent.  This allows a DNP3 Master to be treated like any other device
 in VOLTTRON's ecosystem.
 
 The VOLTTRON DNP3 Agent implementation of an Outstation is built on PyDNP3, an open-source library from Kisensum
