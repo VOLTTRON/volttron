@@ -38,9 +38,9 @@
 
 from gevent import monkey
 from volttron.platform.agent import utils
-from master_driver.interfaces import BaseRegister, BaseInterface, BasicRevert
-from master_driver.interfaces.modbus_tk import helpers
-from master_driver.interfaces.modbus_tk.maps import Map
+from platform_driver.interfaces import BaseRegister, BaseInterface, BasicRevert
+from platform_driver.interfaces.modbus_tk import helpers
+from platform_driver.interfaces.modbus_tk.maps import Map
 
 import logging
 import struct

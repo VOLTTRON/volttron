@@ -40,8 +40,8 @@
 import logging
 from datetime import datetime, timedelta
 
-from master_driver.driver_exceptions import DriverConfigError
-from master_driver.interfaces import BaseInterface, BaseRegister
+from platform_driver.driver_exceptions import DriverConfigError
+from platform_driver.interfaces import BaseInterface, BaseRegister
 from volttron.platform.vip.agent import errors
 from volttron.platform.jsonrpc import RemoteError
 

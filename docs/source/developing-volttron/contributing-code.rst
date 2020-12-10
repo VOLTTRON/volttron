@@ -105,7 +105,7 @@ For drivers, the interface should be a file named after the driver in the Master
 
 ::
 
-    ├── master_driver
+    ├── platform_driver
     │         ├── agent.py
     │         ├── driver.py
     │         ├── __init__.py
@@ -119,7 +119,7 @@ Or in the `__init__.py` file in a directory named after the driver in the Master
 
 ::
 
-    ├── master_driver
+    ├── platform_driver
     │         ├── agent.py
     │         ├── driver.py
     │         ├── __init__.py

@@ -18,13 +18,13 @@ Create a Driver and Register class
 **********************************
 
 When a new driver configuration is added to the Master Driver, the Master Driver will look for a file or directory in
-its interfaces directory (services/core/PlatformDriver/master_driver/interfaces) that shares the name of the value
+its interfaces directory (services/core/PlatformDriver/platform_driver/interfaces) that shares the name of the value
 specified by "driver_type" in the configuration file.  For the CSV Driver, create a file named csvdriver.py in that
 directory.
 
 ::
 
-    ├── master_driver
+    ├── platform_driver
     │         ├── agent.py
     │         ├── driver.py
     │         ├── __init__.py
@@ -41,7 +41,7 @@ Following is an example using the directory type structure:
 
 ::
 
-    ├── master_driver
+    ├── platform_driver
     │         ├── agent.py
     │         ├── driver.py
     │         ├── __init__.py

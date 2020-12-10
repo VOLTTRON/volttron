@@ -44,10 +44,10 @@ from mock import create_autospec
 import pytest
 import pytz
 
-from master_driver import agent
-from master_driver.agent import DriverAgent
-from master_driver.interfaces import BaseInterface
-from master_driver.interfaces.fakedriver import Interface as FakeInterface
+from platform_driver import agent
+from platform_driver.agent import DriverAgent
+from platform_driver.interfaces import BaseInterface
+from platform_driver.interfaces.fakedriver import Interface as FakeInterface
 from volttrontesting.utils.utils import AgentMock
 from volttron.platform.vip.agent import Agent
 from volttron.platform.messaging.utils import Topic

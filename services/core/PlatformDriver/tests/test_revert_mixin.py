@@ -38,7 +38,7 @@
 
 import pytest
 
-from master_driver.interfaces.fakedriver import Interface
+from platform_driver.interfaces.fakedriver import Interface
 from volttron.platform.store import process_raw_config
 
 registry_config_string = """Point Name,Volttron Point Name,Units,Units Details,Writable,Starting Value,Type,Notes

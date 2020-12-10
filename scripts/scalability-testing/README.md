@@ -9,7 +9,7 @@ This will create configuration files in configs/ directory to produce fake data 
 To use put the configurations into the configuration store run the following command. **NOTE: the volttron platform must be running at this point**
 
 ````
-python ../install_master_driver_configs.py configs
+python ../install_platform_driver_configs.py configs
 ````
 
 To start the test launch the Master Driver Agent. A shortcut is to launch the Master Driver is found in the scripts directory

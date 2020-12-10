@@ -42,7 +42,7 @@ import logging
 import grequests
 from xml.dom.minidom import parseString
 
-from master_driver.interfaces import BaseInterface, BaseRegister, BasicRevert
+from platform_driver.interfaces import BaseInterface, BaseRegister, BasicRevert
 
 #Logging is completely configured by now.
 _log = logging.getLogger(__name__)

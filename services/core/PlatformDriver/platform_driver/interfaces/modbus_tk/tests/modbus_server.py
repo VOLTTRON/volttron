@@ -1,7 +1,7 @@
-from master_driver.interfaces.modbus_tk.server import Server
-from master_driver.interfaces.modbus_tk import helpers
-from master_driver.interfaces.modbus_tk.client import Client, Field
-from master_driver.interfaces.modbus_tk.maps import Map, Catalog
+from platform_driver.interfaces.modbus_tk.server import Server
+from platform_driver.interfaces.modbus_tk import helpers
+from platform_driver.interfaces.modbus_tk.client import Client, Field
+from platform_driver.interfaces.modbus_tk.maps import Map, Catalog
 import serial
 
 from struct import pack, unpack

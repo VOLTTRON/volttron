@@ -42,7 +42,7 @@ import requests
 import time
 import sys
 
-from master_driver.interfaces import (BaseInterface,
+from platform_driver.interfaces import (BaseInterface,
                                       BaseRegister,
                                       BasicRevert,
                                       DriverInterfaceError)

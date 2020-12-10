@@ -43,7 +43,7 @@ import abc
 import argparse
 from shutil import copy, rmtree
 from test_settings import (virtual_device_host, device_types, config_dir, 
-                           volttron_install, master_driver_file,
+                           volttron_install, platform_driver_file,
                            host_config_location)
 from volttron.platform import jsonapi
 

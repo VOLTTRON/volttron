@@ -279,14 +279,14 @@ Converting Old Style Configuration
 The new Master Driver no longer supports the old style of device configuration.  The old `device_list` setting is
 ignored.
 
-To simplify updating to the new format `scripts/update_master_driver_config.py` is provide to automatically update to
+To simplify updating to the new format `scripts/update_platform_driver_config.py` is provide to automatically update to
 the new configuration format.
 
 With the platform running run:
 
 .. code-block:: bash
 
-    python scripts/update_master_driver_config.py <old configuration> <output>
+    python scripts/update_platform_driver_config.py <old configuration> <output>
 
 old_configuration`` is the main configuration file in the old format. The script automatically modifies the driver
 files to create references to CSV files and adds the CSV files with the appropriate name.
@@ -296,12 +296,12 @@ files to create references to CSV files and adds the CSV files with the appropri
 If the ``--keep-old`` switch is used the old configurations in the output directory (if any) will not be deleted before
 new configurations are created.  Matching names will still be overwritten.
 
-The output from `scripts/update_master_driver_config.py` can be automatically added to the configuration store
-for the Master Driver agent with `scripts/install_master_driver_configs.py`.
+The output from `scripts/update_platform_driver_config.py` can be automatically added to the configuration store
+for the Master Driver agent with `scripts/install_platform_driver_configs.py`.
 
-Creating and naming configuration files in the form needed by `scripts/install_master_driver_configs.py` can speed up
+Creating and naming configuration files in the form needed by `scripts/install_platform_driver_configs.py` can speed up
 the process of changing and updating a large number of configurations. See the ``--help`` message for
-`scripts/install_master_driver_configs.py` for more details.
+`scripts/install_platform_driver_configs.py` for more details.
 
 
 Device Scalability Settings

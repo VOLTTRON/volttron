@@ -203,7 +203,7 @@ command.
 
 .. code-block:: console
 
-    $ vctl start --tag master_driver
+    $ vctl start --tag platform_driver
 
 
 Start Listener agents on VOLTTRON instance 2 and 3

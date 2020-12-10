@@ -5,9 +5,9 @@ import time
 from struct import pack, unpack
 
 from volttron.platform import get_services_core, jsonapi
-from master_driver.interfaces.modbus_tk.server import Server
-from master_driver.interfaces.modbus_tk.client import Client, Field
-from master_driver.interfaces.modbus_tk import helpers
+from platform_driver.interfaces.modbus_tk.server import Server
+from platform_driver.interfaces.modbus_tk.client import Client, Field
+from platform_driver.interfaces.modbus_tk import helpers
 from volttrontesting.utils.utils import get_rand_ip_and_port
 from volttron.platform.agent.known_identities import PLATFORM_DRIVER
 

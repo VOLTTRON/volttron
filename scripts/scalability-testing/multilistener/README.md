@@ -44,7 +44,7 @@ This will create configuration files in configs/ directory to produce fake data 
 4. Put the configurations into the configuration store with the following command.
 
     ```sh
-    python ../install_master_driver_configs.py configs
+    python ../install_platform_driver_configs.py configs
     ```
 
 5. In a new terminal, activate the VOLTTRON environment and run the multi-listener script.

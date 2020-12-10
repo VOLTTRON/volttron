@@ -5,8 +5,8 @@ import time
 import os.path
 
 from volttron.platform import get_services_core
-from master_driver.interfaces.modbus_tk.server import Server
-from master_driver.interfaces.modbus_tk.maps import Catalog
+from platform_driver.interfaces.modbus_tk.server import Server
+from platform_driver.interfaces.modbus_tk.maps import Catalog
 from volttron.platform.agent.known_identities import PLATFORM_DRIVER
 
 logger = logging.getLogger(__name__)

@@ -37,7 +37,7 @@
 # }}}
 
 import os
-from master_driver.interfaces import BaseInterface, BaseRegister, BasicRevert
+from platform_driver.interfaces import BaseInterface, BaseRegister, BasicRevert
 from csv import DictReader, DictWriter
 import logging
 

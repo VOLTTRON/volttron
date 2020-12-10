@@ -831,7 +831,7 @@ def add_fake_device_to_configstore():
 
 @installs(get_services_core("PlatformDriver"), 'platform_driver',
           post_install_func=add_fake_device_to_configstore)
-def do_master_driver():
+def do_platform_driver():
     return {}
 
 
@@ -920,7 +920,7 @@ def wizard():
             print("Driver dependencies not installed. Installing now...")
             set_dependencies("drivers")
             print("Done!")
-        do_master_driver()
+        do_platform_driver()
 
     prompt = 'Would you like to install a listener agent?'
     response = prompt_response(prompt, valid_answers=y_or_n, default='N')

@@ -40,7 +40,7 @@ from csv import DictReader
 import logging
 import requests
 
-from master_driver.interfaces import (BaseInterface,
+from platform_driver.interfaces import (BaseInterface,
                                       BaseRegister,
                                       BasicRevert,
                                       DriverInterfaceError)

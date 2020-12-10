@@ -39,7 +39,7 @@
 import logging
 import requests
 
-from master_driver.interfaces import BaseInterface, BaseRegister, BasicRevert
+from platform_driver.interfaces import BaseInterface, BaseRegister, BasicRevert
 
 _log = logging.getLogger(__name__)
 

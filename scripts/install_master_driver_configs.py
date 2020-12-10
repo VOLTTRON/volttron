@@ -48,7 +48,7 @@ import glob
 description = """
 Updates the contents of the Master Driver configuration store with a set of
 configurations in a directory. This is designed to work with the output of
-the update_master_driver_config.py script.
+the update_platform_driver_config.py script.
 
 The script expects the target directory to have the following files and directories:
 
@@ -80,7 +80,7 @@ def install_configs(input_directory, keep=False):
     os.chdir(input_directory)
 
     keystore = KeyStore()
-    agent = Agent(address=get_address(), identity="master_driver_update_agent",
+    agent = Agent(address=get_address(), identity="platform_driver_update_agent",
                   publickey=keystore.public, secretkey=keystore.secret,
                   enable_store=False)
 

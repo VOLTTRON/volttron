@@ -99,7 +99,7 @@ fake_device_config = """
 }}
 """
 
-master_driver_config = """
+platform_driver_config = """
 {{
     "driver_scrape_interval": 0.1,
     "group_offset_interval": {interval},
@@ -166,7 +166,7 @@ def remove_config(config_store, config_name):
 
 @pytest.mark.driver
 def test_no_groups(config_store, subscriber_agent):
-    setup_config(config_store, "config", master_driver_config, interval=0)
+    setup_config(config_store, "config", platform_driver_config, interval=0)
     setup_config(config_store, "devices/fake0", fake_device_config, group=0)
     setup_config(config_store, "devices/fake1", fake_device_config, group=0)
     setup_config(config_store, "devices/fake2", fake_device_config, group=0)
@@ -185,7 +185,7 @@ def test_no_groups(config_store, subscriber_agent):
 
 @pytest.mark.driver
 def test_groups_no_interval(config_store, subscriber_agent):
-    setup_config(config_store, "config", master_driver_config, interval=0)
+    setup_config(config_store, "config", platform_driver_config, interval=0)
     setup_config(config_store, "devices/fake0", fake_device_config, group=0)
     setup_config(config_store, "devices/fake1", fake_device_config, group=1)
     setup_config(config_store, "devices/fake2", fake_device_config, group=2)
@@ -204,7 +204,7 @@ def test_groups_no_interval(config_store, subscriber_agent):
 
 @pytest.mark.driver
 def test_groups_interval(config_store, subscriber_agent):
-    setup_config(config_store, "config", master_driver_config, interval=0.5)
+    setup_config(config_store, "config", platform_driver_config, interval=0.5)
     setup_config(config_store, "devices/fake0", fake_device_config, group=0)
     setup_config(config_store, "devices/fake1", fake_device_config, group=1)
     setup_config(config_store, "devices/fake2", fake_device_config, group=1)
@@ -223,7 +223,7 @@ def test_groups_interval(config_store, subscriber_agent):
 
 @pytest.mark.driver
 def test_add_remove_drivers(config_store, subscriber_agent):
-    setup_config(config_store, "config", master_driver_config, interval=0.5)
+    setup_config(config_store, "config", platform_driver_config, interval=0.5)
     setup_config(config_store, "devices/fake0_0", fake_device_config, group=0)
     setup_config(config_store, "devices/fake0_1", fake_device_config, group=0)
     setup_config(config_store, "devices/fake0_2", fake_device_config, group=0)

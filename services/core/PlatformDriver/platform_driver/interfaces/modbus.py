@@ -49,8 +49,8 @@ from pymodbus.constants import Defaults
 
 from contextlib import contextmanager, closing
 
-from master_driver.driver_locks import socket_lock
-from master_driver.interfaces import BaseInterface, BaseRegister, BasicRevert, DriverInterfaceError
+from platform_driver.driver_locks import socket_lock
+from platform_driver.interfaces import BaseInterface, BaseRegister, BasicRevert, DriverInterfaceError
 from volttron.platform.agent import utils
 
 @contextmanager

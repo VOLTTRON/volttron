@@ -5,6 +5,6 @@ if [ -z "$VOLTTRON_HOME" ]; then
     export VOLTTRON_HOME=~/.volttron
 fi
 export AGENT_CONFIG=fake-master-driver.agent
-python -m master_driver.agent
+python -m platform_driver.agent
 popd
 

@@ -45,7 +45,7 @@ import sys
 import service as cps
 import async_service as async
 
-from master_driver.interfaces import BaseInterface, BaseRegister, BasicRevert, DriverInterfaceError
+from platform_driver.interfaces import BaseInterface, BaseRegister, BasicRevert, DriverInterfaceError
 from suds.sudsobject import asdict
 
 _log = logging.getLogger(__name__)

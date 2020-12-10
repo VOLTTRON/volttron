@@ -41,7 +41,7 @@ the Master Driver's `interfaces` directory:
 
     ::
 
-        examples/CAgent/c_agent/driver/cdriver -> services/core/PlatformDriver/master_driver/interfaces
+        examples/CAgent/c_agent/driver/cdriver -> services/core/PlatformDriver/platform_driver/interfaces
 
 
 The C Driver configuration tells the interface where to find the shared object.  An example is available in the C

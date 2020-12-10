@@ -64,7 +64,7 @@ fake_device_config = """
 }}
 """
 
-master_driver_config = """
+platform_driver_config = """
 {{
     "driver_scrape_interval": 0.05,
     "publish_breadth_first_all": false,
@@ -147,7 +147,7 @@ def test_agent(request, volttron_instance):
 
 @pytest.mark.driver
 def test_set_override(config_store, test_agent):
-    setup_config(config_store, "config", master_driver_config)
+    setup_config(config_store, "config", platform_driver_config)
     for i in range(4):
         config_name = "devices/fakedriver{}".format(i)
         setup_config(config_store, config_name, fake_device_config)
@@ -196,7 +196,7 @@ def test_set_override(config_store, test_agent):
 
 @pytest.mark.driver
 def test_set_point_after_override_elapsed_interval(config_store, test_agent):
-    setup_config(config_store, "config", master_driver_config)
+    setup_config(config_store, "config", platform_driver_config)
     for i in range(4):
         config_name = "devices/fakedriver{}".format(i)
         setup_config(config_store, config_name, fake_device_config)
@@ -235,7 +235,7 @@ def test_set_point_after_override_elapsed_interval(config_store, test_agent):
 #
 @pytest.mark.driver
 def test_set_hierarchical_override(config_store, test_agent):
-    setup_config(config_store, "config", master_driver_config)
+    setup_config(config_store, "config", platform_driver_config)
     for i in range(4):
         config_name = "devices/fakedriver{}".format(i)
         setup_config(config_store, config_name, fake_device_config)
@@ -270,7 +270,7 @@ def test_set_hierarchical_override(config_store, test_agent):
 
 @pytest.mark.driver
 def test_set_override_no_revert(config_store, test_agent):
-    setup_config(config_store, "config", master_driver_config)
+    setup_config(config_store, "config", platform_driver_config)
     for i in range(4):
         config_name = "devices/fakedriver{}".format(i)
         setup_config(config_store, config_name, fake_device_config)
@@ -307,7 +307,7 @@ def test_set_override_no_revert(config_store, test_agent):
 
 @pytest.mark.driver
 def test_set_override_off(config_store, test_agent):
-    setup_config(config_store, "config", master_driver_config)
+    setup_config(config_store, "config", platform_driver_config)
     for i in range(4):
         config_name = "devices/fakedriver{}".format(i)
         setup_config(config_store, config_name, fake_device_config)
@@ -702,7 +702,7 @@ def test_indefinite_override_after_restart(config_store, test_agent, volttron_in
 
 @pytest.mark.driver
 def test_override_pattern(config_store, test_agent):
-    setup_config(config_store, "config", master_driver_config)
+    setup_config(config_store, "config", platform_driver_config)
     # add a fake driver
     config_path = "devices/{}"
     device_path = "fakedriver1"

@@ -107,7 +107,7 @@ def platform_driver_agent(config_path, **kwargs):
 
     if config.get("driver_config_list") is not None:
         _log.warning("Master driver configured with old setting. This is no longer supported.")
-        _log.warning('Use the script "scripts/update_master_driver_config.py" to convert the configuration.')
+        _log.warning('Use the script "scripts/update_platform_driver_config.py" to convert the configuration.')
 
     publish_depth_first_all = bool(get_config("publish_depth_first_all", True))
     publish_breadth_first_all = bool(get_config("publish_breadth_first_all", False))

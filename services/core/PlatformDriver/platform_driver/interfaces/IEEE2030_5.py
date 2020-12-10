@@ -39,7 +39,7 @@
 from datetime import datetime, timedelta
 import logging
 
-from master_driver.interfaces import BaseInterface, BaseRegister, BasicRevert
+from platform_driver.interfaces import BaseInterface, BaseRegister, BasicRevert
 
 _log = logging.getLogger(__name__)
 type_mapping = {"string": str,

@@ -121,7 +121,7 @@ fake_device_config_single_override = """
 }}
 """
 
-master_driver_config = """
+platform_driver_config = """
 {{
     "driver_scrape_interval": 0.05,
     "publish_breadth_first_all": {breadth_all},
@@ -131,7 +131,7 @@ master_driver_config = """
 }}
 """
 
-master_driver_config_default = """
+platform_driver_config_default = """
 {{
     "driver_scrape_interval": 0.05
 }}
@@ -199,7 +199,7 @@ def setup_config(config_store, config_name, config_string, **kwargs):
 
 @pytest.mark.driver
 def test_default_publish(config_store, subscriber_agent):
-    setup_config(config_store, "config", master_driver_config_default)
+    setup_config(config_store, "config", platform_driver_config_default)
     setup_config(config_store, "devices/fake", fake_device_config)
 
     subscriber_agent.reset_results()
@@ -214,7 +214,7 @@ def test_default_publish(config_store, subscriber_agent):
 
 @pytest.mark.driver
 def test_default_global_off(config_store, subscriber_agent):
-    setup_config(config_store, "config", master_driver_config,
+    setup_config(config_store, "config", platform_driver_config,
                  breadth_all="false",
                  depth_all="false",
                  breadth="false",
@@ -233,7 +233,7 @@ def test_default_global_off(config_store, subscriber_agent):
 
 @pytest.mark.driver
 def test_default_global_breadth_all(config_store, subscriber_agent):
-    setup_config(config_store, "config", master_driver_config,
+    setup_config(config_store, "config", platform_driver_config,
                  breadth_all="true",
                  depth_all="false",
                  breadth="false",
@@ -252,7 +252,7 @@ def test_default_global_breadth_all(config_store, subscriber_agent):
 
 @pytest.mark.driver
 def test_default_global_depth_all(config_store, subscriber_agent):
-    setup_config(config_store, "config", master_driver_config,
+    setup_config(config_store, "config", platform_driver_config,
                  breadth_all="false",
                  depth_all="true",
                  breadth="false",
@@ -271,7 +271,7 @@ def test_default_global_depth_all(config_store, subscriber_agent):
 
 @pytest.mark.driver
 def test_default_global_depth(config_store, subscriber_agent):
-    setup_config(config_store, "config", master_driver_config,
+    setup_config(config_store, "config", platform_driver_config,
                  breadth_all="false",
                  depth_all="false",
                  breadth="false",
@@ -290,7 +290,7 @@ def test_default_global_depth(config_store, subscriber_agent):
 
 @pytest.mark.driver
 def test_default_global_breadth(config_store, subscriber_agent):
-    setup_config(config_store, "config", master_driver_config,
+    setup_config(config_store, "config", platform_driver_config,
                  breadth_all="false",
                  depth_all="false",
                  breadth="true",
@@ -309,7 +309,7 @@ def test_default_global_breadth(config_store, subscriber_agent):
 
 @pytest.mark.driver
 def test_default_override_all(config_store, subscriber_agent):
-    setup_config(config_store, "config", master_driver_config,
+    setup_config(config_store, "config", platform_driver_config,
                  breadth_all="false",
                  depth_all="false",
                  breadth="false",
@@ -333,7 +333,7 @@ def test_default_override_all(config_store, subscriber_agent):
 
 @pytest.mark.driver
 def test_default_override_breadth_all(config_store, subscriber_agent):
-    setup_config(config_store, "config", master_driver_config,
+    setup_config(config_store, "config", platform_driver_config,
                  breadth_all="false",
                  depth_all="false",
                  breadth="false",
@@ -357,7 +357,7 @@ def test_default_override_breadth_all(config_store, subscriber_agent):
 
 @pytest.mark.driver
 def test_default_override_depth_all(config_store, subscriber_agent):
-    setup_config(config_store, "config", master_driver_config,
+    setup_config(config_store, "config", platform_driver_config,
                  breadth_all="false",
                  depth_all="false",
                  breadth="false",
@@ -381,7 +381,7 @@ def test_default_override_depth_all(config_store, subscriber_agent):
 
 @pytest.mark.driver
 def test_default_override_depth(config_store, subscriber_agent):
-    setup_config(config_store, "config", master_driver_config,
+    setup_config(config_store, "config", platform_driver_config,
                  breadth_all="false",
                  depth_all="false",
                  breadth="false",
@@ -405,7 +405,7 @@ def test_default_override_depth(config_store, subscriber_agent):
 
 @pytest.mark.driver
 def test_default_override_breadth(config_store, subscriber_agent):
-    setup_config(config_store, "config", master_driver_config,
+    setup_config(config_store, "config", platform_driver_config,
                  breadth_all="false",
                  depth_all="false",
                  breadth="false",
@@ -429,7 +429,7 @@ def test_default_override_breadth(config_store, subscriber_agent):
 
 @pytest.mark.driver
 def test_default_override_single_breadth_all(config_store, subscriber_agent):
-    setup_config(config_store, "config", master_driver_config,
+    setup_config(config_store, "config", platform_driver_config,
                  breadth_all="false",
                  depth_all="false",
                  breadth="false",
@@ -450,7 +450,7 @@ def test_default_override_single_breadth_all(config_store, subscriber_agent):
 
 @pytest.mark.driver
 def test_default_override_single_depth_all(config_store, subscriber_agent):
-    setup_config(config_store, "config", master_driver_config,
+    setup_config(config_store, "config", platform_driver_config,
                  breadth_all="false",
                  depth_all="false",
                  breadth="false",
@@ -471,7 +471,7 @@ def test_default_override_single_depth_all(config_store, subscriber_agent):
 
 @pytest.mark.driver
 def test_default_override_single_depth(config_store, subscriber_agent):
-    setup_config(config_store, "config", master_driver_config,
+    setup_config(config_store, "config", platform_driver_config,
                  breadth_all="false",
                  depth_all="false",
                  breadth="false",
@@ -492,7 +492,7 @@ def test_default_override_single_depth(config_store, subscriber_agent):
 
 @pytest.mark.driver
 def test_default_override_single_breadth(config_store, subscriber_agent):
-    setup_config(config_store, "config", master_driver_config,
+    setup_config(config_store, "config", platform_driver_config,
                  breadth_all="false",
                  depth_all="false",
                  breadth="false",

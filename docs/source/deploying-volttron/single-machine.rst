@@ -181,7 +181,7 @@ For a simple setup example, a Master Driver, SQLite Historian, and Listener are 
 .. code-block:: bash
 
    python scripts/install-agent.py -s services/core/SQLHistorian -c configs/config.sqlite --tag listener
-   python scripts/install-agent.py -s services/core/PlatformDriver -c configs/master-driver.agent --tag master_driver
+   python scripts/install-agent.py -s services/core/PlatformDriver -c configs/master-driver.agent --tag platform_driver
    python scripts/install-agent.py -s examples/ListenerAgent -c configs/listener.config --tag platform_historian
 
    .. note::
@@ -213,7 +213,7 @@ For a simple setup example, a Master Driver, SQLite Historian, and Listener are 
      (volttron)user@volttron-pc:~/volttron$ vctl status
        AGENT                    IDENTITY            TAG                STATUS          HEALTH
      8 listeneragent-3.2        listeneragent-3.2_1 listener
-     0 master_driveragent-3.2   platform.driver     master_driver
+     0 platform_driveragent-3.2   platform.driver     platform_driver
      3 sqlhistorianagent-3.7.0  platform.historian  platform_historian
 
 .. note::
@@ -266,7 +266,7 @@ the Listener, SQLite historian and Master Driver.
 
 .. code-block:: console
 
-   vctl start --tag listener platform_historian master_driver
+   vctl start --tag listener platform_historian platform_driver
 
 The output should look similar to this:
 
@@ -275,7 +275,7 @@ The output should look similar to this:
         (volttron)user@volttron-pc:~/volttron$ vctl status
           AGENT                    IDENTITY            TAG                STATUS          HEALTH
         8 listeneragent-3.2        listeneragent-3.2_1 listener           running [2810]  GOOD
-        0 master_driveragent-3.2   platform.driver     master_driver      running [2813]  GOOD
+        0 platform_driveragent-3.2   platform.driver     platform_driver      running [2813]  GOOD
         3 sqlhistorianagent-3.7.0  platform.historian  platform_historian running [2811]  GOOD
 
 .. note::
@@ -316,5 +316,5 @@ SQLite Historian:
 
 .. code-block:: console
 
-    2020-10-27 11:50:25,021 (master_driveragent-4.0 3535) master_driver.driver DEBUG: finish publishing: devices/campus/building/fake/all
+    2020-10-27 11:50:25,021 (platform_driveragent-4.0 3535) platform_driver.driver DEBUG: finish publishing: devices/campus/building/fake/all
     2020-10-27 11:50:25,052 (sqlhistorianagent-3.7.0 3551) volttron.platform.dbutils.sqlitefuncts DEBUG: Managing store - timestamp limit: None  GB size limit: None

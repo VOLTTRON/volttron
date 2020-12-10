@@ -107,7 +107,7 @@ class Interface(BasicRevert, BaseInterface):
 			which calls volttron/platform/store.py: def get_configs(self):
 				self.vip.rpc.call(identity, "config.initial_update" sets list of registry_configs
 				
-	scripts/install_master_driver_configs.py calls 'manage_store' rpc, which is in volttron/platform/store.py
+	scripts/install_platform_driver_configs.py calls 'manage_store' rpc, which is in volttron/platform/store.py
 					which calls process_raw_config(), which stores it as a dict.
 					process_raw_config() is also called by process_store() in store.py 
 					when the platform starts ( class ConfigStoreService):
@@ -115,7 +115,7 @@ class Interface(BasicRevert, BaseInterface):
 	process_store() is called by _setup using a 'PersistentDict', i.e.:
 		store_path '/home/carl/.volttron/configuration_store/platform.driver.store'
 
-	install_master_driver_configs.py stores them as config_type="csv", it is useful for batch processing alot
+	install_platform_driver_configs.py stores them as config_type="csv", it is useful for batch processing alot
 	of files at once, like when upgrading from 3.5 to 4.0
 	
 	to add single config to store, activate and start platform then:

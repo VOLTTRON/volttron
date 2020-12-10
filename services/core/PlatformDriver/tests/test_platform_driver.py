@@ -64,12 +64,12 @@ MasterDriverAgent.__bases__ = (AgentMock.imitate(Agent, Agent()),)
                                                                ("campus/building1/", 1),
                                                                ("wrongcampus/building", 0)])
 def test_set_override_on_should_succeed(pattern, expected_device_override):
-    with get_master_driver_agent() as master_driver_agent:
-        master_driver_agent.set_override_on(pattern)
+    with get_platform_driver_agent() as platform_driver_agent:
+        platform_driver_agent.set_override_on(pattern)
 
-        assert len(master_driver_agent._override_patterns) == 1
-        assert len(master_driver_agent._override_devices) == expected_device_override
-        master_driver_agent.vip.config.set.assert_called_once()
+        assert len(platform_driver_agent._override_patterns) == 1
+        assert len(platform_driver_agent._override_devices) == expected_device_override
+        platform_driver_agent.vip.config.set.assert_called_once()
 
 
 @pytest.mark.driver_unit
@@ -78,12 +78,12 @@ def test_set_override_on_should_succeed_on_definite_duration():
     duration = 42.9
     override_interval_events = {"campus/building1/*": None}
 
-    with get_master_driver_agent(override_interval_events=override_interval_events) as master_driver_agent:
-        master_driver_agent.set_override_on(pattern, duration=duration)
+    with get_platform_driver_agent(override_interval_events=override_interval_events) as platform_driver_agent:
+        platform_driver_agent.set_override_on(pattern, duration=duration)
 
-        assert len(master_driver_agent._override_patterns) == 1
-        assert len(master_driver_agent._override_devices) == 1
-        master_driver_agent.vip.config.set.assert_not_called()
+        assert len(platform_driver_agent._override_patterns) == 1
+        assert len(platform_driver_agent._override_devices) == 1
+        platform_driver_agent.vip.config.set.assert_not_called()
 
 
 @pytest.mark.driver_unit
@@ -92,22 +92,22 @@ def test_set_override_off_should_succeed():
     override_interval_events = {"device1": None}
     pattern = "foobar"
 
-    with get_master_driver_agent(override_interval_events=override_interval_events, patterns=patterns) as master_driver_agent:
-        override_patterns_count = len(master_driver_agent._override_patterns)
+    with get_platform_driver_agent(override_interval_events=override_interval_events, patterns=patterns) as platform_driver_agent:
+        override_patterns_count = len(platform_driver_agent._override_patterns)
 
-        master_driver_agent.set_override_off(pattern)
+        platform_driver_agent.set_override_off(pattern)
 
-        assert len(master_driver_agent._override_patterns) == override_patterns_count - 1
-        master_driver_agent.vip.config.set.assert_called_once()
+        assert len(platform_driver_agent._override_patterns) == override_patterns_count - 1
+        platform_driver_agent.vip.config.set.assert_called_once()
 
 
 @pytest.mark.driver_unit
 def test_set_override_off_should_raise_override_error():
     with pytest.raises(OverrideError):
-        with get_master_driver_agent() as master_driver_agent:
+        with get_platform_driver_agent() as platform_driver_agent:
             pattern = "foobar"
 
-            master_driver_agent.set_override_off(pattern)
+            platform_driver_agent.set_override_off(pattern)
 
 
 @pytest.mark.driver_unit
@@ -115,8 +115,8 @@ def test_derive_device_topic_should_succeed():
     config_name = "mytopic/foobar_topic"
     expected_result = "foobar_topic"
 
-    with get_master_driver_agent() as master_driver_agent:
-        result = master_driver_agent.derive_device_topic(config_name)
+    with get_platform_driver_agent() as platform_driver_agent:
+        result = platform_driver_agent.derive_device_topic(config_name)
 
         assert result == expected_result
 
@@ -125,8 +125,8 @@ def test_derive_device_topic_should_succeed():
 def test_stop_driver_should_return_none():
     device_topic = "mytopic/foobar_topic"
 
-    with get_master_driver_agent() as master_driver_agent:
-        result = master_driver_agent.stop_driver(device_topic)
+    with get_platform_driver_agent() as platform_driver_agent:
+        result = platform_driver_agent.stop_driver(device_topic)
 
     assert result is None
 
@@ -135,8 +135,8 @@ def test_stop_driver_should_return_none():
 def test_scrape_starting_should_return_none_on_false_scalability_test():
     topic = "mytopic/foobar"
 
-    with get_master_driver_agent() as master_driver_agent:
-        result = master_driver_agent.scrape_starting(topic)
+    with get_platform_driver_agent() as platform_driver_agent:
+        result = platform_driver_agent.scrape_starting(topic)
 
     assert result is None
 
@@ -145,20 +145,20 @@ def test_scrape_starting_should_return_none_on_false_scalability_test():
 def test_scrape_starting_should_start_new_measurement_on_true_scalability_test():
     topic = "mytopic/foobar"
 
-    with get_master_driver_agent(scalability_test=True) as master_driver_agent:
-        master_driver_agent.scrape_starting(topic)
+    with get_platform_driver_agent(scalability_test=True) as platform_driver_agent:
+        platform_driver_agent.scrape_starting(topic)
 
-        assert master_driver_agent.current_test_start < datetime.now()
+        assert platform_driver_agent.current_test_start < datetime.now()
         # This should equal the size of the agent's instances
-        assert len(master_driver_agent.waiting_to_finish) == 1
+        assert len(platform_driver_agent.waiting_to_finish) == 1
 
 
 @pytest.mark.driver_unit
 def test_scrape_ending_should_return_none_on_false_scalability_test():
     topic = "mytopic/foobar"
 
-    with get_master_driver_agent() as master_driver_agent:
-        result = master_driver_agent.scrape_ending(topic)
+    with get_platform_driver_agent() as platform_driver_agent:
+        result = platform_driver_agent.scrape_ending(topic)
         assert result is None
 
 
@@ -168,25 +168,25 @@ def test_scrape_ending_should_increase_test_results_iterations():
     waiting_to_finish.add("mytopic/foobar")
     topic = "mytopic/foobar"
 
-    with get_master_driver_agent(scalability_test=True,
+    with get_platform_driver_agent(scalability_test=True,
                                  waiting_to_finish=waiting_to_finish,
-                                 current_test_start=datetime.now()) as master_driver_agent:
-        master_driver_agent.scrape_ending(topic)
+                                 current_test_start=datetime.now()) as platform_driver_agent:
+        platform_driver_agent.scrape_ending(topic)
 
-        assert len(master_driver_agent.test_results) > 0
-        assert master_driver_agent.test_iterations > 0
+        assert len(platform_driver_agent.test_results) > 0
+        assert platform_driver_agent.test_iterations > 0
 
 
 @pytest.mark.driver_unit
 def test_clear_overrides():
     override_patterns = set("ffdfdsfd")
 
-    with get_master_driver_agent(override_patterns=override_patterns) as master_driver_agent:
-        master_driver_agent.clear_overrides()
+    with get_platform_driver_agent(override_patterns=override_patterns) as platform_driver_agent:
+        platform_driver_agent.clear_overrides()
 
-        assert len(master_driver_agent._override_interval_events) == 0
-        assert len(master_driver_agent._override_devices) == 0
-        assert len(master_driver_agent._override_patterns) == 0
+        assert len(platform_driver_agent._override_interval_events) == 0
+        assert len(platform_driver_agent._override_devices) == 0
+        assert len(platform_driver_agent._override_patterns) == 0
 
 
 class MockedInstance:
@@ -195,7 +195,7 @@ class MockedInstance:
 
 
 @contextlib.contextmanager
-def get_master_driver_agent(override_patterns: set = set(),
+def get_platform_driver_agent(override_patterns: set = set(),
                             override_interval_events: dict = {},
                             patterns: dict = None,
                             scalability_test: bool = None,
@@ -209,29 +209,29 @@ def get_master_driver_agent(override_patterns: set = set(),
     })
 
     if scalability_test:
-        master_driver_agent = MasterDriverAgent(driver_config, scalability_test=scalability_test)
+        platform_driver_agent = MasterDriverAgent(driver_config, scalability_test=scalability_test)
     else:
-        master_driver_agent = MasterDriverAgent(driver_config)
+        platform_driver_agent = MasterDriverAgent(driver_config)
 
-    master_driver_agent._override_patterns = override_patterns
-    master_driver_agent.instances = {"campus/building1/": MockedInstance()}
-    master_driver_agent.core.spawn_return_value = None
-    master_driver_agent._override_interval_events = override_interval_events
-    master_driver_agent._cancel_override_events_return_value = None
-    master_driver_agent.vip.config.set.return_value = ""
+    platform_driver_agent._override_patterns = override_patterns
+    platform_driver_agent.instances = {"campus/building1/": MockedInstance()}
+    platform_driver_agent.core.spawn_return_value = None
+    platform_driver_agent._override_interval_events = override_interval_events
+    platform_driver_agent._cancel_override_events_return_value = None
+    platform_driver_agent.vip.config.set.return_value = ""
 
     if patterns is not None:
-        master_driver_agent._override_patterns = patterns
+        platform_driver_agent._override_patterns = patterns
     if waiting_to_finish is not None:
-        master_driver_agent.waiting_to_finish = waiting_to_finish
+        platform_driver_agent.waiting_to_finish = waiting_to_finish
     if current_test_start is not None:
-        master_driver_agent.current_test_start = current_test_start
+        platform_driver_agent.current_test_start = current_test_start
 
     try:
-        yield master_driver_agent
+        yield platform_driver_agent
     finally:
-        master_driver_agent.vip.reset_mock()
-        master_driver_agent._override_patterns.clear()
+        platform_driver_agent.vip.reset_mock()
+        platform_driver_agent._override_patterns.clear()
 
 
 @pytest.mark.driver

@@ -48,7 +48,7 @@ need to be somewhere it can be found by this file.
 from io import StringIO
 from csv import DictReader
 
-from master_driver.interfaces import BasicRevert, BaseInterface, BaseRegister
+from platform_driver.interfaces import BasicRevert, BaseInterface, BaseRegister
 
 from ctypes import *
 

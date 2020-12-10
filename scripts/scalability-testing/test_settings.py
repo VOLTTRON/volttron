@@ -53,7 +53,7 @@ config_dir = "configs"
 volttron_install = "~/volttron"
 
 #Master driver config file name
-master_driver_file = "master-driver.agent"
+platform_driver_file = "master-driver.agent"
 
 #Location of virtual device config files on virtual device host.
 #Directory will be created if it does not exist and will
