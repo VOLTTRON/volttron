@@ -27,15 +27,16 @@ Here is an example device configuration file:
 
     {
         "driver_config": {},
-        "driver_type": "bacnet",
-        "registry_config":"config://registry_configs/vav.csv",
+        "registry_config":"config://fake.csv",
         "interval": 5,
-        "timezone": "UTC",
-        "heart_beat_point": "heartbeat"
+        "timezone": "US/Pacific",
+        "heart_beat_point": "Heartbeat",
+        "driver_type": "fakedriver"
     }
 
 A sample fake device configuration file can be found in the VOLTTRON repository in
 `examples/configurations/drivers/fake.config`
+
 
 Fake Device Registry Configuration File
 ---------------------------------------
@@ -71,20 +72,22 @@ include the device documentation's name for the point and `Notes` and `Unit Deta
 about a point.  Please note that there is nothing in the driver that will enforce anything specified in the
 `Unit Details` column.
 
-.. csv-table:: BACnet
-        :header: Volttron Point Name,Units,Units Details,Writable,Starting Value,Type,Notes
+.. csv-table:: FakeDriver
+        :header: Point Name,Volttron Point Name,Units,Units Details,Writable,Starting Value,Type,Notes
 
-        Heartbeat,On/Off,On/Off,TRUE,0,boolean,Point for heartbeat toggle
-        OutsideAirTemperature1,F,-100 to 300,FALSE,50,float,CO2 Reading 0.00-2000.0 ppm
-        SampleWritableFloat1,PPM,10.00 (default),TRUE,10,float,Setpoint to enable demand control ventilation
-        SampleLong1,Enumeration,1 through 13,FALSE,50,int,Status indicator of service switch
-        SampleWritableShort1,%,0.00 to 100.00 (20 default),TRUE,20,int,Minimum damper position during the standard mode
-        SampleBool1,On / Off,on/off,FALSE,TRUE,boolean,Status indicator of cooling stage 1
-        SampleWritableBool1,On / Off,on/off,TRUE,TRUE,boolean,Status indicator
+        Heartbeat,Heartbeat,On/Off,On/Off,TRUE,0,boolean,Point for heartbeat toggle
+        EKG,EKG,waveform,waveform,TRUE,1,float,Sine wave for baseline output
+        SampleWritableFloat1,SampleWritableFloat1,PPM,1000.00 (default),TRUE,10,float,Setpoint to enable demand control ventilation
+        SampleLong1,SampleLong1,Enumeration,1 through 13,FALSE,50,int,Status indicator of service switch
+        SampleWritableShort1,SampleWritableShort1,%,0.00 to 100.00 (20 default),TRUE,20,int,Minimum damper position during the standard mode
+        SampleBool1,SampleBool1,On / Off,on/off,FALSE,TRUE,boolean,Status indicator of cooling stage 1
+        SampleWritableBool1,SampleWritableBool1,On / Off,on/off,TRUE,TRUE,boolean,Status indicator
+        EKG_Sin,EKG_Sin,1-0,SIN Wave,TRUE,0,float,SIN wave
+        EKG_Cos,EKG_Cos,1-0,COS Wave,TRUE,0,float,COS wave
 
 A sample fake registry configuration file can be found
 `here <https://raw.githubusercontent.com/VOLTTRON/volttron/c57569bd9e71eb32afefe8687201d674651913ed/examples/configurations/drivers/fake.csv>`_
-or in the VOLTTRON repository in ``examples/configurations/drivers/fake.csv``
+or in the VOLTTRON repository in `examples/configurations/drivers/fake.csv`
 
 
 .. _Fake-Driver-Install:
@@ -110,42 +113,18 @@ All local config files will be worked on here.
     cp examples/configurations/drivers/fake.config config/
     cp examples/configurations/drivers/fake.csv config/
 
-- Edit the driver config `fake.config` for the paths on your system:
-
-.. code-block:: json
-
-    {
-        "driver_config": {},
-        "registry_config": "config://fake.csv",
-        "interval": 5,
-        "timezone": "US/Pacific",
-        "heart_beat_point": "Heartbeat",
-        "driver_type": "fakedriver",
-        "publish_breadth_first_all": false,
-        "publish_depth_first": false,
-        "publish_breadth_first": false
-   	}
-
 - Create a copy of the Platform Driver config from the VOLTTRON repository:
 
 .. code-block:: bash
 
-    cp examples/configurations/drivers/platform-driver.json config/fake-master-driver.config
+    cp services/core/PlatformDriver/platform-driver.json config/fake-platform-driver.config
 
-- Add fake.csv and fake.config to the :ref:`configuration store <Configuration-Store>`:
+- Add fake.csv and fake.config to the Platform Driver's :ref:`configuration store <Configuration-Store>`:
 
 .. code-block:: bash
 
     vctl config store platform.driver devices/campus/building/fake config/fake.config
     vcfl config store platform.driver fake.csv config/fake.csv --csv
-
-- Edit `fake-master-driver.config` to reflect paths on your system
-
-.. code-block:: json
-
-    {
-        "driver_scrape_interval": 0.05
-    }
 
 - Use the scripts/install-agent.py script to install the Platform Driver agent:
 
