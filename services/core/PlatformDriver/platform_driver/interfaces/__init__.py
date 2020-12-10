@@ -65,7 +65,7 @@ Creating a New Interface
 ------------------------
 
 To create a new device driver create a new module in the
-:py:mod:`PlatformDriverAgent.platform_driver.interfaces` package. The name of
+:py:mod:`PlatformDriver.platform_driver.interfaces` package. The name of
 this module will be the name to use in the "driver_type" setting in
 a :ref:`driver configuration file <Driver-configuration-file>` in order to
 load the new driver.
@@ -246,7 +246,7 @@ class BaseInterface(object, metaclass=abc.ABCMeta):
 
     All interfaces *must* subclass this.
 
-    :param vip: A reference to the PlatformDriverAgent vip subsystem.
+    :param vip: A reference to the PlatformDriver vip subsystem.
     :param core: A reference to the parent driver agent's core subsystem.
 
     """

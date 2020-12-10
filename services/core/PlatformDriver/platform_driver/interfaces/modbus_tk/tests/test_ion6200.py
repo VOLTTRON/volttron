@@ -77,7 +77,7 @@ demand_sub_interval,44016,uint16,interval,TRUE,,analog_output_holding_registers"
 
 @pytest.fixture(scope="module")
 def ion_driver_agent(request, volttron_instance):
-    """Build PlatformDriverAgent, add modbus driver & csv configurations
+    """Build PlatformDriver, add modbus driver & csv configurations
     """
 
     # Build master driver agent
@@ -114,7 +114,7 @@ def ion_driver_agent(request, volttron_instance):
                           ION6200_CSV_MAP,
                           config_type='csv')
 
-    master_uuid = volttron_instance.install_agent(agent_dir=get_services_core("PlatformDriverAgent"),
+    master_uuid = volttron_instance.install_agent(agent_dir=get_services_core("PlatformDriver"),
                                                   config_file={},
                                                   start=True)
 

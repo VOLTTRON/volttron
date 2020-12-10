@@ -134,7 +134,7 @@ A set of example responses are included here (`username` is ``user``, `localhost
         ['volttron', '-vv', '-l', '/home/user/.volttron/volttron.cfg.log']
         Should the agent autostart? [N]: y
         Would you like to install a master driver? [N]: y
-        Configuring /home/user/volttron/services/core/PlatformDriverAgent.
+        Configuring /home/user/volttron/services/core/PlatformDriver.
         ['volttron', '-vv', '-l', '/home/user/.volttron/volttron.cfg.log']
         Would you like to**install a fake device on the master driver? [N]: y
         Should the agent autostart? [N]: y

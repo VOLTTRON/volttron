@@ -116,21 +116,21 @@ def platform_driver_agent(config_path, **kwargs):
 
     group_offset_interval = get_config("group_offset_interval", 0.0)
 
-    return PlatformDriverAgent(driver_config_list, scalability_test,
-                               scalability_test_iterations,
-                               driver_scrape_interval,
-                               group_offset_interval,
-                               max_open_sockets,
-                               max_concurrent_publishes,
-                               system_socket_limit,
-                               publish_depth_first_all,
-                               publish_breadth_first_all,
-                               publish_depth_first,
-                               publish_breadth_first,
-                               heartbeat_autostart=True, **kwargs)
+    return PlatformDriver(driver_config_list, scalability_test,
+                          scalability_test_iterations,
+                          driver_scrape_interval,
+                          group_offset_interval,
+                          max_open_sockets,
+                          max_concurrent_publishes,
+                          system_socket_limit,
+                          publish_depth_first_all,
+                          publish_breadth_first_all,
+                          publish_depth_first,
+                          publish_breadth_first,
+                          heartbeat_autostart=True, **kwargs)
 
 
-class PlatformDriverAgent(Agent):
+class PlatformDriver(Agent):
     def __init__(self, driver_config_list, scalability_test = False,
                  scalability_test_iterations=3,
                  driver_scrape_interval=0.02,
@@ -143,7 +143,7 @@ class PlatformDriverAgent(Agent):
                  publish_depth_first=False,
                  publish_breadth_first=False,
                  **kwargs):
-        super(PlatformDriverAgent, self).__init__(**kwargs)
+        super(PlatformDriver, self).__init__(**kwargs)
         self.instances = {}
         self.scalability_test = scalability_test
         self.scalability_test_iterations = scalability_test_iterations

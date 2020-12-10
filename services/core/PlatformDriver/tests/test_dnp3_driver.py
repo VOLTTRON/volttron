@@ -65,7 +65,7 @@ REGISTER_VALUES = {
 
 @pytest.fixture(scope="module")
 def agent(request, volttron_instance):
-    """Build PlatformDriverAgent and add DNP3 driver config to it."""
+    """Build PlatformDriver and add DNP3 driver config to it."""
 
     test_agent = volttron_instance.build_agent()
 
@@ -83,11 +83,11 @@ def agent(request, volttron_instance):
                                                       vip_identity=DNP3_AGENT_ID,
                                                       start=True)
 
-    # Build and start PlatformDriverAgent
+    # Build and start PlatformDriver
 
     test_agent.vip.rpc.call('config.store', 'manage_delete_store', PLATFORM_DRIVER)
 
-    master_uuid = volttron_instance.install_agent(agent_dir=get_services_core("PlatformDriverAgent"),
+    master_uuid = volttron_instance.install_agent(agent_dir=get_services_core("PlatformDriver"),
                                                   config_file={},
                                                   start=True)
 

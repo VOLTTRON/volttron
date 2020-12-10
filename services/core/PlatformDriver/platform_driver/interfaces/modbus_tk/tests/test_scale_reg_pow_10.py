@@ -47,7 +47,7 @@ registers_dict = {"I_AC_Current": 540,
 
 @pytest.fixture(scope="module")
 def agent(request, volttron_instance):
-    """Build PlatformDriverAgent, add modbus driver & csv configurations
+    """Build PlatformDriver, add modbus driver & csv configurations
     """
 
     # Build master driver agent
@@ -84,7 +84,7 @@ def agent(request, volttron_instance):
                           REGISTER_MAP,
                           config_type='csv')
 
-    master_uuid = volttron_instance.install_agent(agent_dir=get_services_core("PlatformDriverAgent"),
+    master_uuid = volttron_instance.install_agent(agent_dir=get_services_core("PlatformDriver"),
                                                    config_file={},
                                                    start=True)
 

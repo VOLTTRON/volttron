@@ -95,7 +95,7 @@ def test_cov_update_published(volttron_instance, test_agent):
 
     # install master driver, start the master driver, which starts the device
     master_uuid = volttron_instance.install_agent(
-        agent_dir=get_services_core("PlatformDriverAgent"),
+        agent_dir=get_services_core("PlatformDriver"),
         config_file={},
         start=True)
     print("agent id: ", master_uuid)

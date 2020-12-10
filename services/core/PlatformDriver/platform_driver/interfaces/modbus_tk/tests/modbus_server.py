@@ -84,7 +84,7 @@ def watts_on_server():
     # Can define ModbusClient2 by Map or defined the class as ModbusClient1 or ModbusClient2
 
     # modbus_map = Map(
-    #     map_dir='/Users/anhnguyen/repos/kisensum-volttron/volttron/services/core/PlatformDriverAgent/platform_driver/interfaces/modbus_tk/maps',
+    #     map_dir='/Users/anhnguyen/repos/kisensum-volttron/volttron/services/core/PlatformDriver/platform_driver/interfaces/modbus_tk/maps',
     #     addressing='offset', name='watts_on', file='watts_on.csv', endian='big')
     # ModbusClient2 = modbus_map.get_class()
 

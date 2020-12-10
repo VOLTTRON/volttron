@@ -119,7 +119,7 @@ class Interface(BasicRevert, BaseInterface):
         Test drivers for the IEEE 2030.5 interface can be configured as follows:
 
             cd $VOLTTRON_ROOT
-            export DRIVER_ROOT=$VOLTTRON_ROOT/services/core/PlatformDriverAgent/platform_driver
+            export DRIVER_ROOT=$VOLTTRON_ROOT/services/core/PlatformDriver/platform_driver
             volttron-ctl config store platform.driver IEEE2030_5.csv $DRIVER_ROOT/IEEE2030_5.csv --csv
             volttron-ctl config store platform.driver devices/IEEE2030_5_1 $DRIVER_ROOT/test_IEEE2030_5_1.config
             volttron-ctl config store platform.driver devices/IEEE2030_5_2 $DRIVER_ROOT/test_IEEE2030_5_2.config

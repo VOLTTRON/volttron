@@ -158,7 +158,7 @@ def config_store_connection(request, volttron_instance):
     # Start the master driver agent which would in turn start the fake driver
     #  using the configs created above
     master_uuid = volttron_instance.install_agent(
-        agent_dir=get_services_core("PlatformDriverAgent"),
+        agent_dir=get_services_core("PlatformDriver"),
         config_file={},
         start=True)
     print("agent id: ", master_uuid)

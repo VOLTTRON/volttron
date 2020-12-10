@@ -829,7 +829,7 @@ def add_fake_device_to_configstore():
               'examples/configurations/drivers/fake.config'])
 
 
-@installs(get_services_core("PlatformDriverAgent"), 'platform_driver',
+@installs(get_services_core("PlatformDriver"), 'platform_driver',
           post_install_func=add_fake_device_to_configstore)
 def do_master_driver():
     return {}

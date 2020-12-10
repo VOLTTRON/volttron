@@ -499,7 +499,7 @@ def test_old_config(volttron_instances, forwarder):
 #     # Start the master driver agent which would intern start the fake driver
 #     # using the configs created above
 #     master_uuid = volttron_instance1.install_agent(
-#         agent_dir="services/core/PlatformDriverAgent",
+#         agent_dir="services/core/PlatformDriver",
 #         config_file="scripts/scalability-testing/configs/config",
 #         start=True)
 #     print("agent id: ", master_uuid)

@@ -202,7 +202,7 @@ class Interface(BasicRevert, BaseInterface):
 		return register._value
 
 	# this gets called periodically via DriverAgent::periodic_read()
-	#	( on behalf of PlatformDriverAgent )
+	#	( on behalf of PlatformDriver )
 	def _scrape_all(self):
 		result = {}
 		read_registers = self.get_registers_by_type("byte", True)

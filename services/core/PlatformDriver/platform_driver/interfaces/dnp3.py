@@ -105,7 +105,7 @@ class Interface(BasicRevert, BaseInterface):
         Test drivers for the DNP3 interface can be configured as follows:
 
         export VOLTTRON_ROOT=<your VOLTTRON install directory>
-        export DRIVER_ROOT=$VOLTTRON_ROOT/services/core/PlatformDriverAgent
+        export DRIVER_ROOT=$VOLTTRON_ROOT/services/core/PlatformDriver
         cd $VOLTTRON_ROOT
         volttron-ctl config store platform.driver dnp3.csv $DRIVER_ROOT/example_configurations/dnp3.csv --csv
         volttron-ctl config store platform.driver devices/dnp3 $DRIVER_ROOT/example_configurations/test_dnp3.config

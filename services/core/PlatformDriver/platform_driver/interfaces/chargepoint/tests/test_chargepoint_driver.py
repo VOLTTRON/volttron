@@ -184,7 +184,7 @@ def agent(request, volttron_instance):
                           REGISTRY_CONFIG_STRING,
                           'csv').get(timeout=10)
 
-    master_uuid = volttron_instance.install_agent(agent_dir=get_services_core("PlatformDriverAgent"),
+    master_uuid = volttron_instance.install_agent(agent_dir=get_services_core("PlatformDriver"),
                                                    config_file={},
                                                    start=True)
     print('agent id: ', master_uuid)

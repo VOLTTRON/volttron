@@ -90,7 +90,7 @@ sample str,None,string[12],True,17,hello world!"""
 @pytest.fixture(scope="module")
 def agent(request, volttron_instance):
     """
-    Build PlatformDriverAgent, add modbus driver & csv configurations
+    Build PlatformDriver, add modbus driver & csv configurations
     """
 
     # Build master driver agent
@@ -142,7 +142,7 @@ def agent(request, volttron_instance):
                           config_type='csv')
 
     master_uuid = volttron_instance.install_agent(
-        agent_dir=get_services_core("PlatformDriverAgent"),
+        agent_dir=get_services_core("PlatformDriver"),
         config_file={},
         start=True)
 

@@ -18,7 +18,7 @@ Create a Driver and Register class
 **********************************
 
 When a new driver configuration is added to the Master Driver, the Master Driver will look for a file or directory in
-its interfaces directory (services/core/PlatformDriverAgent/master_driver/interfaces) that shares the name of the value
+its interfaces directory (services/core/PlatformDriver/master_driver/interfaces) that shares the name of the value
 specified by "driver_type" in the configuration file.  For the CSV Driver, create a file named csvdriver.py in that
 directory.
 
@@ -375,7 +375,7 @@ environment start the platform, tail the platform's log file, then try the follo
 .. code-block:: bash
 
     python scripts/install-agent.py -s examples/ListenerAgent
-    python scripts/install-agent.py -s services/core/PlatformDriverAgent -c services/core/PlatformDriverAgent/master-driver.agent
+    python scripts/install-agent.py -s services/core/PlatformDriver -c services/core/PlatformDriver/master-driver.agent
     vctl config store platform.driver devices/<campus>/<building>/csv_driver <path to driver configuration>
     vctl config store platform.driver <registry config path from driver configuration> <path to registry configuration>
 

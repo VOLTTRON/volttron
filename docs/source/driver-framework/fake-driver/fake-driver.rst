@@ -151,7 +151,7 @@ All local config files will be worked on here.
 
 .. code-block:: bash
 
-    python scripts/install-agent.py -s services/core/PlatformDriverAgent -c config/fake-master-driver.config
+    python scripts/install-agent.py -s services/core/PlatformDriver -c config/fake-master-driver.config
 
 - If you have a :ref:`Listener Agent<Listener-Agent>` already installed, you should start seeing data being published to
   the bus.

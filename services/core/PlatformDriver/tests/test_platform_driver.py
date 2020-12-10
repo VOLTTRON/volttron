@@ -49,8 +49,8 @@ import pytest
 
 from volttron.platform import get_services_core
 from volttron.platform.messaging.health import STATUS_GOOD
-from master_driver import agent
-from master_driver.agent import MasterDriverAgent, OverrideError
+from platform_driver import agent
+from platform_driver.agent import PlatformDriver, OverrideError
 from volttrontesting.utils.utils import AgentMock
 from volttron.platform.vip.agent import Agent
 
@@ -242,13 +242,13 @@ def test_default_config(volttron_instance):
     publish_agent = volttron_instance.build_agent(identity="test_agent")
     gevent.sleep(1)
 
-    config_path = os.path.join(get_services_core("PlatformDriverAgent"), "master-driver.agent")
+    config_path = os.path.join(get_services_core("PlatformDriver"), "master-driver.agent")
     with open(config_path, "r") as config_file:
         config_json = json.load(config_file)
     assert isinstance(config_json, dict)
 
     volttron_instance.install_agent(
-        agent_dir=get_services_core("PlatformDriverAgent"),
+        agent_dir=get_services_core("PlatformDriver"),
         config_file=config_json,
         start=True,
         vip_identity="health_test")
