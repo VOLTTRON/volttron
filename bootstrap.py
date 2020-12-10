@@ -293,8 +293,7 @@ def main(argv=sys.argv):
     # If all is specified then install all of the different packages listed in requirements.py
     po.add_argument('--all', action='append_const', const='all', dest='optional_args')
     for arg in extras_require:
-        if 'dnp' not in arg:
-            po.add_argument('--'+arg, action='append_const', const=arg, dest="optional_args")
+        po.add_argument('--'+arg, action='append_const', const=arg, dest="optional_args")
 
     # Add rmq download actions.
     rabbitmq = parser.add_argument_group('rabbitmq options')
