@@ -91,10 +91,18 @@ YML format
 SQLite3
 ~~~~~~~
 
-An Sqlite historian provides a convenient solution for under powered
-systems. The database parameter is a location on the file system. By
-default it is relative to the agents installation directory, however it
-will respect a rooted or relative path to the database.
+An Sqlite Historian provides a convenient solution for under powered
+systems. The database is a parameter to a location on the file system; 'database' should be a non-empty string.
+By default, the location is relative to the agent's installation directory,
+however it will respect a rooted or relative path to the database.
+
+If 'database' does not have a rooted or relative path, the location of the database depends on whether the volttron
+platform is in secure mode.
+In secure mode, the location will be under <install_dir>/<agent name>.agent-data directory because this will be
+the only directory in which the agent will have write-access.
+In regular mode, the location will be under <install_dir>/data for backward compatibility.
+
+The following is a minimal configuration file that uses a relative path to the database.
 
 Configuration
 -------------

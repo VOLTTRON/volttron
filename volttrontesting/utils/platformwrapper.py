@@ -454,7 +454,7 @@ class PlatformWrapper:
             self._append_allow_curve_key(publickey, agent.core.identity)
 
         if should_spawn:
-            self.logit('platformwrapper.build_agent spawning')
+            self.logit(f'platformwrapper.build_agent spawning for identity {identity}')
             event = gevent.event.Event()
             gevent.spawn(agent.core.run, event)  # .join(0)
             event.wait(timeout=2)
@@ -801,7 +801,6 @@ class PlatformWrapper:
         
         gevent.sleep(10)
 
-
     def is_running(self):
         return utils.is_volttron_running(self.volttron_home)
 
@@ -840,7 +839,7 @@ class PlatformWrapper:
         self.logit("VOLTTRON_HOME SETTING: {}".format(
             self.env['VOLTTRON_HOME']))
         env = self.env.copy()
-        cmd = ['volttron-ctl', '-vv', 'install', wheel_file]
+        cmd = ['volttron-ctl', '--json', 'install', wheel_file]
         if vip_identity:
             cmd.extend(['--vip-identity', vip_identity])
 
@@ -949,15 +948,7 @@ class PlatformWrapper:
             else:
                 raise ValueError("Can't determine correct config file.")
 
-            script = os.path.join(self.volttron_root,
-                                  "scripts/install-agent.py")
-            cmd = [self.python, script,
-                   "--volttron-home", self.volttron_home,
-                   "--volttron-root", self.volttron_root,
-                   "--agent-source", agent_dir,
-                   "--config", config_file,
-                   "--json",
-                   "--agent-start-time", str(startup_time)]
+            cmd = ["vctl", "--json", "install", agent_dir, "--agent-config", config_file]
 
             if force:
                 cmd.extend(["--force"])
@@ -969,7 +960,6 @@ class PlatformWrapper:
             stdout = execute_command(cmd, logger=_log,
                                      err_prefix="Error installing agent")
 
-            self.logit(stdout)
             # Because we are no longer silencing output from the install, the
             # the results object is now much more verbose.  Our assumption is
             # that the result we are looking for is the only JSON block in
@@ -1015,17 +1005,16 @@ class PlatformWrapper:
         self.logit('Starting agent {}'.format(agent_uuid))
         self.logit("VOLTTRON_HOME SETTING: {}".format(
             self.env['VOLTTRON_HOME']))
-        cmd = ['volttron-ctl']
+        cmd = ['volttron-ctl', '--json']
         cmd.extend(['start', agent_uuid])
-        p = Popen(cmd, env=self.env,
-                  stdout=sys.stdout, stderr=sys.stderr, universal_newlines=True)
-        p.wait()
+
+        result = execute_command(cmd, self.env)
 
         # Confirm agent running
-        cmd = ['volttron-ctl']
+        cmd = ['volttron-ctl', '--json']
         cmd.extend(['status', agent_uuid])
         res = execute_command(cmd, env=self.env)
-        # 776 TODO: Timing issue where check fails
+           # 776 TODO: Timing issue where check fails
         time.sleep(.1)
         self.logit("Subprocess res is {}".format(res))
         assert 'running' in res
