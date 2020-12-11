@@ -56,9 +56,9 @@ We then start each VOLTTRON platform with setup mode option in this way.
 
 Each platform will obtain the platform discovery information of the remote platform that it is trying to connect through
 a HTTP discovery request and store the information in a configuration file
-(`$VOLTTRON_HOME/external_platform_discovery.json`). It will then use the VIP address and `serverkey` to connect to the
-remote platform.  The remote platform shall authenticate the new connection and store the auth keys (public key) of the
-connecting platform for future use.
+(`$VOLTTRON_HOME/external_platform_discovery.json`). It will then use the :term:`VIP address` and `serverkey` to connect
+to the remote platform.  The remote platform shall authenticate the new connection and store the auth keys (public key)
+of the connecting platform for future use.
 
 The platform discovery information will be stored in `VOLTTRON_HOME` directory and looks like below:
 

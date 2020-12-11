@@ -140,7 +140,7 @@ Remote Platform Configuration
 
 The next step is to configure the instances that will connect to VOLTTRON
 Central. In the second and third terminal windows run `vcfg`. Like
-the VOLTTRON\_HOME variable, these instances need to have unique VIP addresses and unique instance names.
+the `VOLTTRON_HOME` variable, these instances need to have a unique :term:`VIP address` and a unique instance name.
 
 Install a platform agent and a historian as before. Since we used the default
 options when configuring VOLTTRON Central, we can use the default options when
@@ -269,7 +269,8 @@ Open your browser to the web address that you specified for the VOLTTRON Central
 first instance. In the above examples, the configuration file would be located at `~/.volttron1/config` and the
 VOLTTRON Central address would be defined in the "volttron-central-address" field. The VOLTTRON Central address takes the
 pattern: `https://<localhost>:8443/vc/index.html`, where localhost is the hostname of your machine.
-In the above examples, our hostname is `volttron-pc`; thus our VC interface would be `https://volttron-pc:8443/vc/index.html`.
+In the above examples, our hostname is `volttron-pc`; thus our VC interface would be
+`https://volttron-pc:8443/vc/index.html`.
 
 You will need to provide the username and password set earlier through admin web page.
 
@@ -294,9 +295,9 @@ Log In
 ------
 
 To log in to VOLTTRON Central, open a browser and login to the Volttron web interface, which takes the form
-`https://localhost:8443/vc/index.html` where localhost is the hostname of your machine. In the above example, we open the
-following URL in which our localhost is "volttron-pc": https://volttron-pc:8443/vc/index.html and enter the user name
-and password on the login screen.
+`https://localhost:8443/vc/index.html` where localhost is the hostname of your machine. In the above example, we open
+the following URL in which our localhost is "volttron-pc": https://volttron-pc:8443/vc/index.html and enter the user
+name and password on the login screen.
 
 |Login Screen|
 
@@ -452,6 +453,7 @@ a different option.
 
 |Chart Type|
 
+
 Dashboard Charts
 ----------------
 
@@ -466,6 +468,7 @@ Charts that have been pinned to the Dashboard are saved to the database
 and will automatically load when the user logs in to VOLTTRON Central.
 Different users can save their own configurations of dashboard charts.
 
+
 Remove Charts
 -------------
 
@@ -474,11 +477,6 @@ the X button next to the chart on the Charts page. Removing a chart
 removes it from the Charts page and the Dashboard.
 
 .. |Terminator Setup| image:: files/terminator-setup.png
-                      :target: ../../_images/terminator-setup.png
-.. |VC Config| image:: files/vc-config.png
-               :target: ../../_images/vc-config.png
-.. |Platform Config| image:: files/platform-config.png
-                     :target: ../../_images/platform-config.png
 .. |Login Screen| image:: files/login-screen.png
 .. |Logout Button| image:: files/logout-button.png
 .. |Platforms| image:: files/platforms.png
@@ -501,9 +499,6 @@ removes it from the Charts page and the Dashboard.
 .. |Chart Type| image:: files/chart-type.png
 .. |Pin Chart| image:: files/pin-chart.png
 .. |Inspect Chart| image:: files/inspect-charts.png
-
-
-
 
 
 VOLTTRON Central
@@ -540,4 +535,3 @@ For more information on VOLTTRON Central, please see:
 
 * :ref:`VOLTTRON Central Management <VOLTTRON-Central>`
 * :ref:`VOLTTRON Central Demo <Device-Configuration-in-VOLTTRON-Central>`
-

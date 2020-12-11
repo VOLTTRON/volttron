@@ -27,8 +27,8 @@ point towards the foreign VOLTTRON instance.
         "destination-vip": "ipc://@/home/volttron/.volttron/run/vip.socket"
     }
 
-In order to send to a remote platform, you will need its VIP address and server key.  The server key can be found by
-running:
+In order to send to a remote platform, you will need its :term:`VIP address` and server key.  The server key can be
+found by running:
 
 .. code-block:: bash
 
