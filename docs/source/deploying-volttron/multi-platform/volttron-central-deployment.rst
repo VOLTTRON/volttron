@@ -453,6 +453,7 @@ a different option.
 
 |Chart Type|
 
+
 Dashboard Charts
 ----------------
 
@@ -467,6 +468,7 @@ Charts that have been pinned to the Dashboard are saved to the database
 and will automatically load when the user logs in to VOLTTRON Central.
 Different users can save their own configurations of dashboard charts.
 
+
 Remove Charts
 -------------
 
@@ -475,11 +477,6 @@ the X button next to the chart on the Charts page. Removing a chart
 removes it from the Charts page and the Dashboard.
 
 .. |Terminator Setup| image:: files/terminator-setup.png
-                      :target: ../../_images/terminator-setup.png
-.. |VC Config| image:: files/vc-config.png
-               :target: ../../_images/vc-config.png
-.. |Platform Config| image:: files/platform-config.png
-                     :target: ../../_images/platform-config.png
 .. |Login Screen| image:: files/login-screen.png
 .. |Logout Button| image:: files/logout-button.png
 .. |Platforms| image:: files/platforms.png
@@ -502,9 +499,6 @@ removes it from the Charts page and the Dashboard.
 .. |Chart Type| image:: files/chart-type.png
 .. |Pin Chart| image:: files/pin-chart.png
 .. |Inspect Chart| image:: files/inspect-charts.png
-
-
-
 
 
 VOLTTRON Central
@@ -541,4 +535,3 @@ For more information on VOLTTRON Central, please see:
 
 * :ref:`VOLTTRON Central Management <VOLTTRON-Central>`
 * :ref:`VOLTTRON Central Demo <Device-Configuration-in-VOLTTRON-Central>`
-
