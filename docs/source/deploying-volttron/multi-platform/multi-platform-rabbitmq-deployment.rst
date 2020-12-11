@@ -133,7 +133,8 @@ for requesting, listing, approving and denying certificate requests.  For more d
 Installation Steps
 ------------------
 
-1. Setup two VOLTTRON instances using the instructions at :ref:`RMQ Setup<Setup-RMQ>`. **Please note that each instance should have a unique instance name and should be running on machine/VM that has a unique host name.**
+1. Setup two VOLTTRON instances using the instructions at :ref:`platform installation steps for RMQ <RabbitMQ-Install>`.
+**Please note that each instance should have a unique instance name and should be running on machine/VM that has a unique host name.**
 
 2. In a multi platform setup that need to communicate with each other with RabbitMQ over SSL, each VOLTTRON instance should should trust the ROOT CA of the other instance(RabbitMQ root ca)
 
@@ -266,8 +267,9 @@ Using the Shovel Plugin
 
 Shovels act as well written client applications which move messages from a source to a destination broker.
 The below configuration shows how to setup a shovel to forward PubSub messages or perform multi-platform RPC
-communication from local to a remote instance.  It expects `hostname`, `port` and `virtual host` configuration values
-for the remote instance.
+communication from local to a remote instance.  It expects `hostname`, `port` and `virtual host` of configuration values
+for the remote instance. In addition it needs certificates (private certs, public certificate signed by remote instance
+and remote CA certificate)
 
 Path: `$VOLTTRON_HOME/rabbitmq_shovel_config.yml`
 
@@ -278,6 +280,12 @@ Path: `$VOLTTRON_HOME/rabbitmq_shovel_config.yml`
       rabbit-2:
         port: '5671'
         virtual-host: volttron
+        certificates:
+          csr: true
+          private_cert: "path to private cert" # For example, /home/volttron/vhome/test_shovel/certificates/private/volttron1.shovelvolttron2.pem
+          public_cert: "path to public cert" # For example, /home/volttron/vhome/test_shovel/certificates/shovels/volttron2.volttron1.shovelvolttron2.crt
+          remote_ca: "path to CA cert" # For example, /home/volttron/vhome/test_shovel/certificates/shovels/volttron2_ca.crt
+
         # Configuration to forward pubsub topics
         pubsub:
           # Identity of agent that is publishing the topic
@@ -368,7 +376,7 @@ on VOLTTRON instance "volttron2" on host "host_B".
 
 
 Installation Steps for Pubsub Communication
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-------------------------------------------
 For multi-platform communication over shovel, we need the connecting instances to trust each other. As part of the shovel
 creation process, a certificate signing request is made to the remote instance. The admin of the remote instance has to
 accept or reject such a request through VOLTTRON admin web interface. If accepted, a bundle containing certificate
@@ -380,9 +388,9 @@ connection. Else 'vcfg rabbitmq shovel' command prompt will guide the user to ma
 Please note that each instance should have a unique instance name.
 
 2. Identify the instance that is going to act as the "publisher" instance. Suppose
-   "v1" instance is the "publisher" instance and "v2" instance is the "subscriber"
-   instance. Then we need to create a shovel on "v1" to forward messages matching
-   certain topics to remote instance "v2".
+   "volttron1" instance is the "publisher" instance and "volttron2" instance is the "subscriber"
+   instance. Then we need to create a shovel on "volttron1" to forward messages matching
+   certain topics to remote instance "volttron2".
 
     a.  On the publisher node,
 
@@ -403,8 +411,24 @@ Please note that each instance should have a unique instance name.
 
     b. If no config file is provided and certificates for connecting to remote instance have to be generated afresh,
     then the remote instance should be web enabled and admin should be ready to accept/reject incoming requests. Please
-    refer to <> on how to enable web feature and accept/reject incoming authentication requests.
-    
+    refer to :ref:`Multiple Platform Multiple Bus connection < Multi-Platform-Multi-Bus>` on how to enable web feature and accept/reject incoming authentication requests.
+    Below image shows steps to follow to create a shovel to connect from "volttron1" to "volttron2" to
+    publish "devices" topic from "volttron1" to "volttron2".
+
+    On publisher node,
+
+    .. image:: files/cmd_line.png
+
+
+    On subscriber node, Login to "https://volttron2:8443/index.html" in a web browser. You will see incoming
+    CSR request from "volttron1" instance.
+
+    .. image:: files/admin_request.png
+
+
+    Accept the incoming CSR request from "volttron1" instance.
+
+    .. image:: files/csr_accepted.png
 
     c.  Create a user in the subscriber node with username set to publisher instance's
         agent name ( (instance-name)-PublisherAgent ) and allow the shovel access to
@@ -451,3 +475,136 @@ Please note that each instance should have a unique instance name.
     .. code-block:: bash
 
         vctl rabbitmq remove-shovel-parameters shovel-rabbit-3-devices
+
+    Please note, this remove shovel parameter from RabbitMQ and also certificate entries from rabbitmq_shovel_config.yml.
+    If you need to rerun the shovel command again for the same setup and need to create fresh certificates, then you will
+    need to manually remove public and private certificates. Private certificates will be in
+    $VOLTTRON_HOME/certificates/private and rest of the shovel certificates will be in
+    $VOLTTRON_HOME/certificates/shovel directory. Other thing, that you need to delete the authentication entry from
+    the remote instance. You can do that from the admin web interface by the clicking the delete
+    option.
+
+DataMover Communication
+-----------------------
+
+The DataMover historian running on one instance makes RPC call to platform historian running on remote
+instance to store data on remote instance. Platform historian agent returns response back to DataMover
+agent. For such a request-response behavior, shovels need to be created on both instances.
+
+1. Please ensure that preliminary steps for multi-platform communication are completed (namely,
+   steps 1-3 described above) .
+
+2. To setup a data mover to send messages from local instance (say v1) to remote instance (say v2)
+   and back, we would need to setup shovels on both instances.
+
+   Example of RabbitMQ shovel configuration on v1
+
+   .. code-block:: json
+
+      shovel:
+      # hostname of remote machine
+       rabbit-2:
+        port: 5671
+        certificates:
+          csr: true
+          private_cert: "path to private cert" # For example, /home/volttron/vhome/test_shovel/certificates/private/volttron1.shovelvolttron2.pem
+          public_cert: "path to public cert" # For example, /home/volttron/vhome/test_shovel/certificates/shovels/volttron2.volttron1.shovelvolttron2.crt
+          remote_ca: "path to CA cert" # For example, /home/volttron/vhome/test_shovel/certificates/shovels/volttron2_ca.crt
+        rpc:
+          # Remote instance name
+          v2:
+          # List of pair of agent identities (local caller, remote callee)
+          - [data.mover, platform.historian]
+        virtual-host: v1
+
+   This says that DataMover agent on v1 wants to make RPC call to platform historian on v2.
+
+  .. code-block:: bash
+
+    vcfg --rabbitmq shovel [optional path to rabbitmq_shovel_config.yml
+
+
+   Example of RabbitMQ shovel configuration on v2
+
+  .. code-block:: json
+
+   shovel:
+    # hostname of remote machine
+    rabbit-1:
+      port: 5671
+      rpc:
+      # Remote instance name
+      v1:
+      # List of pair of agent identities (local caller, remote callee)
+      - [platform.historian, data.mover]
+    virtual-host: v2
+
+   This says that Hplatform historian on v2 wants to make RPC call to DataMover agent on v1.
+
+   a. On v1, run below command to setup a shovel from v1 to v2.
+
+  .. code-block:: bash
+
+     vcfg --rabbitmq shovel [optional path to rabbitmq_shovel_config.yml
+
+   b. Create a user on v2 with username set to remote agent's username
+      ( for example, v1.data.mover i.e., <instance_name>.<agent_identity>) and allow
+      the shovel access to the virtual host of v2.
+
+  .. code-block:: bash
+
+      cd $RABBITMQ_HOME
+      vctl add-user <username> <password>
+
+   c. On v2, run below command to setup a shovel from v2 to v1
+
+  .. code-block:: bash
+
+      vcfg --rabbitmq shovel [optional path to rabbitmq_shovel_config.yml
+
+   d. Create a user on v1 with username set to remote agent's username
+     ( for example, v2.patform.historian i.e., <instance_name>.<agent_identity>) and allow
+     the shovel access to the virtual host of the v1.
+
+  .. code-block:: bash
+
+      cd $RABBITMQ_HOME
+      vctl add-user <username> <password>
+
+3. Start Master driver agent on v1
+
+   .. code-block:: bash
+
+       ./stop-volttron
+       vcfg --agent master_driver
+       ./start-volttron
+       vctl start --tag master_driver
+
+4. Install DataMover agent on v1. Contents of the install script can look like below.
+
+   .. code-block:: bash
+
+       #!/bin/bash
+       export CONFIG=$(mktemp /tmp/abc-script.XXXXXX)
+       cat > $CONFIG <<EOL
+       {
+           "destination-vip": "",
+           "destination-serverkey": "",
+           "destination-instance-name": "volttron2",
+           "destination-message-bus": "rmq"
+       }
+       EOL
+       python scripts/install-agent.py -s services/core/DataMover -c $CONFIG --start --force -i data.mover
+
+    Execute the install script.
+
+5. Start platform historian of your choice on v2. Example shows starting SQLiteHistorian
+
+   .. code-block:: bash
+
+       ./stop-volttron
+       vcfg --agent platform_historian
+       ./start-volttron
+       vctl start --tag platform_historian
+
+6. Observe data getting stored in sqlite historian on v2.
