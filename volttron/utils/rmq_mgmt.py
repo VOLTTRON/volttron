@@ -827,7 +827,6 @@ class RabbitMQMgmt(object):
         :param ssl_auth: If SSL based connection or not
         :return:
         """
-        _log.debug("build_remote_connection_param")
         from urllib import parse
 
         parsed_addr = parse.urlparse(rmq_address)
@@ -835,7 +834,6 @@ class RabbitMQMgmt(object):
 
         _, virtual_host = parsed_addr.path.split('/')
 
-        _log.info("build_remote_connection_param: virtual host: {}, ssl_auth: {}".format(virtual_host, ssl_auth))
         try:
             if ssl_auth:
                 certfile = self.certs.cert_file(rmq_user, True)
@@ -850,9 +848,7 @@ class RabbitMQMgmt(object):
                 ca_file = self.certs.cert_file(metadata['remote_ca_name'], True)
                 if cert_dir:
                     ca_file = os.path.join(cert_dir, os.path.basename(ca_file))
-                _log.info("REMOTE connection: public cert: {}, private cert: {}, ca cert: {}".format(certfile,
-                                                                                                     local_keyfile,
-                                                                                                     ca_file))
+
                 ssl_options = dict(
                     ssl_version=ssl.PROTOCOL_TLSv1,
                     ca_certs=ca_file,
