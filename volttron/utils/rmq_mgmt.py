@@ -295,7 +295,7 @@ class RabbitMQMgmt(object):
         try:
             response = self._http_delete_request(url, ssl_auth)
         except requests.exceptions.HTTPError as e:
-            if not e.message.startswith("404 Client Error"):
+            if e.response.status_code == 404:
                 raise
 
     def delete_users_in_bulk(self, users, ssl_auth=None):
@@ -328,7 +328,7 @@ class RabbitMQMgmt(object):
             response = self._http_get_request(url, ssl_auth)
             return response
         except requests.exceptions.HTTPError as e:
-            if e.message.startswith("404 Client Error"):
+            if e.response.status_code == 404:
                 # No permissions are set for this user yet. Return none
                 # so caller can try to set permissions
                 return None
