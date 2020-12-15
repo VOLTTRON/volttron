@@ -295,7 +295,7 @@ Add auth entry corresponding to VCP agent on "central" instance using the below 
 
 
 Complete similar steps to start a forwarder agent that connects to "central" instance. Modify the configuration in
-`services/core/ForwardHistorian/rmq_config.yml` to have a destination VIP address pointing to VIP address of the
+`services/core/ForwardHistorian/rmq_config.yml` to have a destination :term:`VIP address` pointing to VIP address of the
 "central" instance and server key of the "central" instance.
 
 .. code-block:: yaml
