@@ -193,7 +193,7 @@ class BasicCore(object):
         self._owner = owner
 
     def setup(self):
-        # Split out setup from __init__ to give oportunity to add
+        # Split out setup from __init__ to give opportunity to add
         # subsystems with signals
         try:
             owner = self._owner
@@ -622,11 +622,6 @@ class Core(BasicCore):
                 running_event.set()
 
         return connection_failed_check, hello, hello_response
-
-        @RPC.export
-        @RPC.allow('modify_rpc_method_allowance')
-        def set_capabilities(self, method, capabilities):
-            self.vip.rpc.allow(getattr(self, method), capabilities)
 
 
 class ZMQCore(Core):

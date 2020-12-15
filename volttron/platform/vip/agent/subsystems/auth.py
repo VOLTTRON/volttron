@@ -38,6 +38,7 @@
 
 import logging
 import os
+import gevent
 import grequests
 
 from urllib.parse import urlparse
@@ -46,7 +47,8 @@ import weakref
 from .base import SubsystemBase
 
 from volttron.platform import jsonapi
-from volttron.platform.agent.known_identities import AUTH
+from volttron.platform.agent.known_identities import AUTH, MASTER_WEB, CONTROL, KEY_DISCOVERY, CONFIGURATION_STORE, \
+    CONTROL_CONNECTION, PLATFORM_HEALTH
 from volttron.platform.keystore import KnownHostsStore
 from volttron.platform.agent.utils import get_platform_instance_name, get_fq_identity, get_messagebus
 from volttron.platform.certs import Certs
@@ -79,7 +81,13 @@ class Auth(SubsystemBase):
 
         def onsetup(sender, **kwargs):
             rpc.export(self._update_capabilities, 'auth.update')
-
+            rpc.export(self.get_rpc_authorizations, 'auth.get_rpc_authorizations')
+            rpc.export(self.set_rpc_authorizations, 'auth.set_rpc_authorizations')
+            # rpc.allow(self.set_rpc_authorizations, 'modify_rpc_method_allowance')
+            ignored_ids = [AUTH, MASTER_WEB, CONTROL, KEY_DISCOVERY, CONFIGURATION_STORE,
+                           CONTROL_CONNECTION, PLATFORM_HEALTH, 'pubsub']
+            if core.identity not in ignored_ids:
+                gevent.spawn_later(1, self.update_rpc_method_capabilities)
         core.onsetup.connect(onsetup, self)
 
     def connect_remote_platform(self, address, serverkey=None, agent_class=None):
@@ -381,3 +389,41 @@ class Auth(SubsystemBase):
             self._user_to_capabilities = user_to_capabilities
             self._dirty = True
 
+    def get_rpc_exports(self):
+        rpc_exports = list(self._rpc()._exports)
+        return rpc_exports
+
+    def get_rpc_authorizations(self, method_str):
+        try:
+            method = getattr(self._owner, method_str)
+        except AttributeError:
+            try:
+                method = getattr(self._owner.vip, method_str)
+            except AttributeError:
+                return []
+        try:
+            authorized_capabilities = list(method._annotations['rpc.allow_capabilities'])
+        except KeyError:
+            authorized_capabilities = []
+        except Exception as e:
+            print(e)
+        return authorized_capabilities
+
+    def set_rpc_authorizations(self, method_str, capabilities):
+        try:
+            method = getattr(self._owner, method_str)
+        except AttributeError:
+            try:
+                method = getattr(self._owner.vip, method_str)
+            except AttributeError:
+                _log.error(f"Method {method_str} does not exist.")
+                return
+        self._rpc().allow(method, capabilities)
+        _log.debug(f"Set authorized capabilities: {capabilities} for method: {method_str}")
+
+    def update_rpc_method_capabilities(self):
+        rpc_method_authorizations = {}
+        rpc_methods = self.get_rpc_exports()
+        for method in rpc_methods:
+            rpc_method_authorizations[method] = self.get_rpc_authorizations(method)
+        self._rpc().call(AUTH, 'update_auth_entry_rpc_method_authorizations', self._core().identity, rpc_method_authorizations)
