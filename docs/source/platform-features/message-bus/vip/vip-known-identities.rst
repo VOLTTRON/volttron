@@ -14,7 +14,7 @@ The following table details the vip identities that are reserved for VOLTTRON sp
     "platform.agent","Platform Agent","Used to allow the VolttronCentralAgent to control and individual platform"
     "platform.auth","Platform Auth","The identity of VolttronCentralAgent"
     "volttron.central","VOLTTRON Central","The identity of VolttronCentralAgent"
-    "platform.historian","User-Selected Historian","An individual platform may have many historians available to it, however this is one available through Volttron Central. Note that this does not require a specific type of historian, just that it's VIP Identity"
+    "platform.historian","User-Selected Historian","An individual platform may have many historians available to it, however this is one available through Volttron Central. Note that this does not require a specific type of historian, just that it's :term:`VIP Identity`"
     "platform.topic_watcher","TopicWatcher","Agent which publishes alerts for topics based on timing thresholds"
     "platform.sysmon","Sysmon","Agent which publishes System Monitoring statistics"
     "platform.emailer","Emailer","Agent used by other agents on the platform to send email notifications"

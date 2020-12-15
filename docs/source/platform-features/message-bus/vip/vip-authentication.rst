@@ -145,7 +145,7 @@ Platform Configuration
 By default, the platform only listens on the local IPC VIP socket.
 Additional addresses may be bound using the ``--vip-address`` option,
 which can be provided multiple times to bind multiple addresses. Each
-VIP address should follow the standard ZeroMQ convention of prefixing
+:term:`VIP address` should follow the standard ZeroMQ convention of prefixing
 with the socket type (*ipc://* or *tcp://*) and may include any of the
 following additional URL parameters:
 

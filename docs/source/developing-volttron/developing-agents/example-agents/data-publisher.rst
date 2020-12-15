@@ -12,9 +12,9 @@ response to device publishes.
 Installation notes
 ------------------
 
-In order to simulate the actuator you must install the agent with the VIP identity of `platform.actuator`.  If an
-an actuator is already installed on the platform, this will cause VIP identity conflicts.  To install the agent, the
-agent install script can be used:
+In order to simulate the actuator you must install the agent with the :term:`VIP Identity` of `platform.actuator`.  If
+an an actuator is already installed on the platform, this will cause VIP identity conflicts.  To install the
+agent, the agent install script can be used:
 
 .. code-block:: bash
 

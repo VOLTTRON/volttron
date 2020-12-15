@@ -107,7 +107,7 @@ class ListenerAgent(Agent):
         query = Query(self.core)
         _log.info('query: %r', query.query('serverkey').get())
 
-    @PubSub.subscribe('pubsub', '')
+    @PubSub.subscribe('pubsub', '', all_platforms=True)
     def on_match(self, peer, sender, bus, topic, headers, message):
         """Use match_all to receive all messages and print them out."""
         self._logfn(
