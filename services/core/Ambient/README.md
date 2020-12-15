@@ -1,4 +1,4 @@
-# Ambient Weather Agent {#Ambient Weather Agent}
+# Ambient Weather Agent
 
 The Ambient weather agent provides the ability to query for current
 weather data from Ambient weather stations via the Ambient weather API.
@@ -35,8 +35,9 @@ base weather endpoints are unimplemented, and will return a record
 containing \"weather_error\" if used).
 
 The location format for the Ambient agent is as follows:
-
-> {\"location\": \"\<location_string\>\"}
+```
+{"location": "<location_string>"}
+```
 
 Ambient locations are Arbitrary string identifiers given to a weather
 station by the weather station owner/operator.
@@ -85,25 +86,25 @@ optional.
 
 **Parameters**
 
-:   1.  \"api_key\" - api key string provided by Ambient - this is
-        required and will not be provided by the VOLTTRON team.
-    2.  \"appplication_key\" - application key string provided by
-        Ambient - this is required and will not be provided by the
-        VOLTTRON team.
-    3.  \"database_file\" - sqlite database file for weather data
-        caching. Defaults to \"weather.sqlite\" in the agent\'s data
-        directory.
-    4.  \"max_size_gb\" - maximum size of cache database. When cache
-        exceeds this size, data will get purged from cache till cache is
-        within the configured size.
-    5.  \"poll_locations - list of locations to periodically poll for
-        current data.
-    6.  \"poll_interval\" - polling frequency or the number of seconds
-        between each poll.
+1.  "api_key" - api key string provided by Ambient - this is
+    required and will not be provided by the VOLTTRON team.
+2.  "appplication_key" - application key string provided by
+    Ambient - this is required and will not be provided by the
+    VOLTTRON team.
+3.  "database_file" - sqlite database file for weather data
+    caching. Defaults to \"weather.sqlite\" in the agent\'s data
+    directory.
+4.  "max_size_gb" - maximum size of cache database. When cache
+    exceeds this size, data will get purged from cache till cache is
+    within the configured size.
+5.  "poll_locations" - list of locations to periodically poll for
+    current data.
+6.  "poll_interval" - polling frequency or the number of seconds
+    between each poll.
 
 Example configuration:
 
-``` {.json}
+```
 {
     "application_key" : "<api_key>",
     "api_key":"<application_key>",
@@ -125,16 +126,14 @@ Points that do not specify \"Standard_Point_Name\" were found to not
 have a logical match to any point found in the CF-Conventions. For these
 points Ambient point name convention (Service_Point_Name) will be used.
 
-  Service_Point_Name   Standard_Point_Name            Service_Units   Standard_Units
-  -------------------- ------------------------------ --------------- ----------------
-  feelsLike            apparent_temperature           degF            
-  dewPoint             dew_point_temperature          degF            
-  dewPointin           dew_point_temperature_indoor   degF            
-  soiltempf                                           degF            
-  soilhum                                                             
-  uv                   ultraviolet_index                              
-
-  : Registry Configuration
+  Service_Point_Name  |Standard_Point_Name          |  Service_Units |  Standard_Units
+  --------------------|------------------------------|----------------|----------------
+  feelsLike           |apparent_temperature          | degF           | 
+  dewPoint            |dew_point_temperature         | degF           |
+  dewPointin          |dew_point_temperature_indoor  | degF           | 
+  soiltempf           |                              | degF           |
+  soilhum             |                              |                | 
+  uv                  |ultraviolet_index             |                |
 
 ## Running Ambient Agent Tests
 
@@ -160,6 +159,6 @@ source/checkout directory.
 
 Example command line:
 
-``` {.}
+``` 
 (volttron) <user>@<host>:~/volttron$ pytest -s ~/house-deployment/Ambient
 ```
