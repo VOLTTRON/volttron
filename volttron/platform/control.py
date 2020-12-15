@@ -82,6 +82,7 @@ from volttron.utils.rmq_mgmt import RabbitMQMgmt
 from volttron.utils.rmq_setup import check_rabbit_status
 from volttron.platform.agent.utils import is_secure_mode, wait_for_volttron_shutdown
 from . install_agents import add_install_agent_parser, install_agent
+from .. import platform
 
 try:
     import volttron.restricted
@@ -715,6 +716,7 @@ def print_rpc_methods(opts, peer_method_metadata, code=False):
                         .get('doc', "No documentation for this method.")\
                         .replace("\n", "\n\t\t")
                     print(f'\t\t{doc}\n')
+                print(f'\t\t{peer_method_metadata[peer][method]["authorized_capabilities"]}\n')
             print("\tParameters:")
             if type(params) is str:
                 print(f'\t\t{params}')
@@ -739,6 +741,10 @@ def list_agents_rpc(opts):
             try:
                 peer_method_metadata[peer][method] = conn.server.vip.rpc.call(
                     peer, f'{method}.inspect').get(timeout=4)
+                authorized_capabilities = conn.server.vip.rpc.call(
+                    peer, "auth.get_rpc_authorizations", method).get(timeout=4)
+                peer_method_metadata[peer][method]['authorized_capabilities'] = \
+                    f"Authorized capabilities: {authorized_capabilities} for method: {method}"
             except gevent.Timeout:
                 print(f'{peer} has timed out.')
             except Unreachable:
@@ -856,8 +862,41 @@ def update_health_cache(opts):
         health_cache_timeout_date = datetime.now() + timedelta(seconds=health_cache_timeout)
 
 
-def modify_agent_rpc_capabilites(opts):
-    pass
+def modify_agent_rpc_authorizations(opts):
+    conn = opts.connection
+    agent_id = ".".join(opts.pattern[0].split(".")[:-1])
+    agent_method = opts.pattern[0].split(".")[-1]
+    if len(opts.pattern) < 2:
+        _log.error(f"Missing authorizations for method. "
+                   f"Should be in the format agent_id.method authorized_capability1 authorized_capability2 ...")
+        return
+    added_auths = [x for x in opts.pattern[1:]]
+    try:
+
+        auth_file = _get_auth_file(os.path.abspath(platform.get_home()))
+        entries = auth_file.read_allow_entries()
+        print(f'agent_id: {agent_id}\nEntries are:')
+        for entry in entries:
+            print(f"Entry: {entry}")
+            if entry.identity == agent_id:
+                if agent_method not in entry.rpc_method_authorizations:
+                    entry.rpc_method_authorizations[agent_method] = added_auths
+                elif not entry.rpc_method_authorizations[agent_method]:
+                    entry.rpc_method_authorizations[agent_method] = added_auths
+                else:
+                    entry.rpc_method_authorizations[agent_method].extend(
+                        [rpc_auth for rpc_auth in added_auths
+                         if rpc_auth in added_auths and
+                         rpc_auth not in entry.rpc_method_authorizations[agent_method]])
+                auth_file.update_by_index(entry, entries.index(entry))
+                return
+        _log.error(f"Agent identity not found in auth file!")
+        return
+    except Exception as e:
+        _log.error(f"{e}) \nCommand format should be agent_id.method "
+                   f"authorized_capability1 authorized_capability2 ...")
+    return
+
 
 def status_agents(opts):
     agents = {agent.uuid: agent for agent in _list_agents(opts.aip)}
@@ -1283,6 +1322,7 @@ def add_auth(opts):
         "mechanism": opts.mechanism,
         "credentials": opts.credentials,
         "user_id": opts.user_id,
+        "identity": opts.identity,
         "groups": _comma_split(opts.groups),
         "roles": _comma_split(opts.roles),
         "capabilities": _parse_capabilities(opts.capabilities),
@@ -2455,12 +2495,6 @@ def main(argv=sys.argv):
 
     rpc_list.set_defaults(func=list_agents_rpc, min_uuid_len=1)
 
-    rpc_cap = add_parser("cap", subparser=rpc_subparsers, help="modifies rpc method capabilities")
-
-    rpc_cap.add_argument('pattern', nargs='*',
-                       help='Identity of agent, followed by method(s)'
-                            '')
-    rpc_cap.set_defaults(func=modify_agent_rpc_capabilites, min_uuid_len=1)
     # ====================================================
     # certs commands
     # ====================================================
@@ -2501,6 +2535,7 @@ def main(argv=sys.argv):
     auth_add.add_argument('--mechanism', default=None)
     auth_add.add_argument('--credentials', default=None)
     auth_add.add_argument('--user_id', default=None)
+    auth_add.add_argument('--identity', default=None)
     auth_add.add_argument('--groups', default=None,
                           help='delimit multiple entries with comma')
     auth_add.add_argument('--roles', default=None,
@@ -2624,6 +2659,17 @@ def main(argv=sys.argv):
     auth_update_role.add_argument('--remove', action='store_true',
                                   help='remove (rather than append) given capabilities')
     auth_update_role.set_defaults(func=update_role)
+
+    auth_rpc = add_parser("rpc", subparser=auth_subparsers, help="Manage rpc method authorizations")
+
+    auth_rpc_subparsers = auth_rpc.add_subparsers(title='subcommands',
+                                               metavar='', dest='store_commands')
+
+    auth_rpc_allow = add_parser("allow", subparser=auth_rpc_subparsers, help="modifies rpc method authorizations")
+
+    auth_rpc_allow.add_argument('pattern', nargs='*',
+                                help='Identity of agent, followed by method(s)')
+    auth_rpc_allow.set_defaults(func=modify_agent_rpc_authorizations, min_uuid_len=1)
 
     # ====================================================
     # config commands

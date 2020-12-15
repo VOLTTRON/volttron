@@ -43,6 +43,7 @@ import os
 import random
 import re
 import shutil
+import copy
 import uuid
 from collections import defaultdict
 
@@ -51,9 +52,10 @@ import gevent.core
 from gevent.fileobject import FileObject
 from zmq import green as zmq
 
-from volttron.platform import jsonapi
+from volttron.platform import jsonapi, get_home
 from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM, CONTROL, MASTER_WEB
-from volttron.platform.vip.agent.errors import VIPError
+from volttron.platform.jsonrpc import MethodNotFound
+from volttron.platform.vip.agent.errors import VIPError, Unreachable
 from volttron.platform.vip.pubsubservice import ProtectedPubSubTopics
 from .agent.utils import strip_comments, create_file_if_missing, watch_file
 from .vip.agent import Agent, Core, RPC
@@ -96,6 +98,8 @@ class AuthService(Agent):
 
         self.auth_file_path = os.path.abspath(auth_file)
         self.auth_file = AuthFile(self.auth_file_path)
+        self.can_update = False
+        self.needs_rpc_update = False
         self.aip = aip
         self.zap_socket = None
         self._zap_greenlet = None
@@ -120,20 +124,118 @@ class AuthService(Agent):
         self.zap_socket.bind('inproc://zeromq.zap.01')
         if self.allow_any:
             _log.warning('insecure permissive authentication enabled')
-        self.read_auth_file()
+        self.read_auth_file(skip_update=True)
         self._read_protected_topics_file()
+        gevent.spawn_later(10, self.update_auth_file)
         self.core.spawn(watch_file, self.auth_file_path, self.read_auth_file)
         self.core.spawn(watch_file, self._protected_topics_file_path, self._read_protected_topics_file)
+        self.core.periodic(1, self.update_if_needed)
+        # self.core.spawn(watch_file, os.path.join(get_home(), "VOLTTRON_PID"), self.update_auth_file)
         if self.core.messagebus == 'rmq':
             self.vip.peerlist.onadd.connect(self._check_topic_rules)
 
-    def read_auth_file(self):
+    def get_entry_rpc_method_authorizations(self, peer_id):
+        rpc_method_authorizations = {}
+        peer_methods = []
+        try:
+            peer_methods = self.vip.rpc.call(
+                peer_id, 'inspect').get(timeout=4)["methods"]
+        except gevent.Timeout:
+            _log.warn(f'{peer_id} has timed out while attempting to get rpc methods')
+        except Unreachable:
+            _log.warn(f'{peer_id} is unreachable while attempting to get rpc methods')
+        except MethodNotFound as e:
+            _log.error(e)
+
+        for method in peer_methods:
+            try:
+                rpc_method_authorizations[method] = \
+                    self.vip.rpc.call(peer_id, 'auth.get_rpc_authorizations', method).get(timeout=4)
+            except gevent.Timeout:
+                rpc_method_authorizations[method] = []
+                _log.warn(f'{peer_id} has timed out while attempting to get rpc method authorizations')
+            except Unreachable:
+                _log.warn(f'{peer_id} is unreachable while attempting to get rpc method authorizations')
+                rpc_method_authorizations[method] = []
+            except MethodNotFound as e:
+                _log.error(e)
+                rpc_method_authorizations[method] = []
+
+        return rpc_method_authorizations
+
+    @RPC.export
+    def update_auth_entry_rpc_method_authorizations(self, identity, rpc_methods):
+        methods = copy.deepcopy(rpc_methods)
+        entries = self.auth_file.read_allow_entries()
+        for entry in entries:
+            if entry.identity == identity:
+                for method in methods:
+                    if method not in entry.rpc_method_authorizations:
+                        entry.rpc_method_authorizations[method] = methods[method]
+                    if not entry.rpc_method_authorizations[method]:
+                        entry.rpc_method_authorizations[method] = methods[method]
+                    if entry.rpc_method_authorizations[method] != methods[method]:
+                        methods[method] = entry.rpc_method_authorizations[method]
+                self.auth_file.update_by_index(entry, entries.index(entry))
+
+    def update_rpc_method_authorizations(self, entries):
+        for entry in entries:
+            if entry.identity is not None:
+                rpc_method_authorizations = self.get_entry_rpc_method_authorizations(entry.identity)
+                for method in rpc_method_authorizations:
+                    if method not in entry.rpc_method_authorizations:
+                        entry.rpc_method_authorizations[method] = rpc_method_authorizations[method]
+                    if not entry.rpc_method_authorizations[method]:
+                        entry.rpc_method_authorizations[method] = rpc_method_authorizations[method]
+                    if entry.rpc_method_authorizations[method] != rpc_method_authorizations[method]:
+                        try:
+                            self.vip.rpc.call(
+                                entry.identity, "auth.set_rpc_authorizations",
+                                method, entry.rpc_method_authorizations[method])
+                        except gevent.Timeout:
+                            _log.error(f"{entry.identity} "
+                                       f"has timed out while attempting to update rpc_method_authorizations")
+
+    def update_auth_file_rpc_method_authorizations(self, entries):
+        new_entries = copy.deepcopy(entries)
+        for entry in new_entries:
+            if entry.identity is not None:
+                rpc_method_authorizations = self.get_entry_rpc_method_authorizations(entry.identity)
+                for method in rpc_method_authorizations:
+                    if method not in entry.rpc_method_authorizations:
+                        entry.rpc_method_authorizations[method] = rpc_method_authorizations[method]
+                    if not entry.rpc_method_authorizations[method]:
+                        entry.rpc_method_authorizations[method] = rpc_method_authorizations[method]
+                    if entry.rpc_method_authorizations[method] != rpc_method_authorizations[method]:
+                        self.vip.rpc.call(
+                            entry.identity, "auth.set_rpc_authorizations",
+                            {"method": method, "capabilities": entry.rpc_method_authorizations[method]})
+        return new_entries
+
+    def update_auth_file(self):
+        entries = self.auth_file.read_allow_entries()
+        entries = [entry for entry in entries if entry.enabled]
+        new_entries = self.update_auth_file_rpc_method_authorizations(entries)
+        if entries != new_entries:
+            for entry in new_entries:
+                self.auth_file.update_by_index(entry, new_entries.index(entry))
+        self.can_update = True
+
+    def update_if_needed(self):
+        if self.needs_rpc_update:
+            entries = self.auth_file.read_allow_entries()
+            self.update_rpc_method_authorizations(entries)
+            self.needs_rpc_update = False
+
+    def read_auth_file(self, skip_update=False):
         _log.info('loading auth file %s', self.auth_file_path)
         entries = self.auth_file.read_allow_entries()
         entries = [entry for entry in entries if entry.enabled]
         # sort the entries so the regex credentails follow the concrete creds
         entries.sort()
         self.auth_entries = entries
+        if not skip_update and self.can_update:
+            self.needs_rpc_update = True
         if self._is_connected:
             try:
                 _log.debug("Sending auth updates to peers")
@@ -532,6 +634,7 @@ class AuthService(Agent):
             "groups": "",
             "roles": "",
             "capabilities": "",
+            "rpc_method_authorizations": {},
             "comments": "Auth entry added in setup mode",
         }
         new_entry = AuthEntry(**fields)
@@ -736,19 +839,23 @@ class AuthEntry(object):
         to encode public key)
     :param str user_id: Name to associate with agent (Note: this does
         not have to match the agent's VIP identity)
+    :param str identity: This does match the agent's VIP identity
     :param list capabilities: Authorized capabilities for this agent
     :param list roles: Authorized roles for this agent. (Role names map
         to a set of capabilities)
     :param list groups: Authorized groups for this agent. (Group names
         map to a set of roles)
+    :param list rpc_method_authorizations: Authorized
+        capabilities for this agent's rpc methods
     :param str comments: Comments to associate with entry
     :param bool enabled: Entry will only be used if this value is True
     :param kwargs: These extra arguments will be ignored
     """
 
     def __init__(self, domain=None, address=None, mechanism='CURVE',
-                 credentials=None, user_id=None, groups=None, roles=None,
-                 capabilities=None, comments=None, enabled=True, **kwargs):
+                 credentials=None, user_id=None, identity=None, groups=None, roles=None,
+                 capabilities=None, rpc_method_authorizations=None,
+                 comments=None, enabled=True, **kwargs):
 
         self.domain = AuthEntry._build_field(domain)
         self.address = AuthEntry._build_field(address)
@@ -757,10 +864,13 @@ class AuthEntry(object):
         self.groups = AuthEntry._build_field(groups) or []
         self.roles = AuthEntry._build_field(roles) or []
         self.capabilities = AuthEntry.build_capabilities_field(capabilities) or {}
+        self.rpc_method_authorizations = \
+            AuthEntry.build_rpc_method_authorizations_field(rpc_method_authorizations) or {}
         self.comments = AuthEntry._build_field(comments)
         if user_id is None:
             user_id = str(uuid.uuid4())
         self.user_id = user_id
+        self.identity = identity
         self.enabled = enabled
         if kwargs:
             _log.debug(
@@ -823,6 +933,27 @@ class AuthEntry(object):
         if temp:
             self.capabilities.update(temp)
 
+    @staticmethod
+    def build_rpc_method_authorizations_field(value):
+        if not value:
+            return None
+        return AuthEntry._get_rpc_method_authorizations(value)
+
+    @staticmethod
+    def _get_rpc_method_authorizations(value):
+        err_message = "Invalid rpc method authorization value: {} of type {}. " \
+                      "Authorized rpc method entries can only be a dictionary. " \
+                      "dictionaries should be of the format" \
+                      " {'method1:[list of capabilities], 'method2: [], ...}"
+        if isinstance(value, dict):
+            return value
+        else:
+            raise AuthEntryInvalid(err_message.format(value, type(value)))
+
+        temp = AuthEntry.build_rpc_method_authorizations_field(rpc_method_authorizations)
+        if temp:
+            self.rpc_method_authorizations.update(temp)
+
     def match(self, domain, address, mechanism, credentials):
         return ((self.domain is None or self.domain.match(domain)) and
                 (self.address is None or self.address.match(address)) and
@@ -878,7 +1009,7 @@ class AuthFile(object):
 
     @property
     def version(self):
-        return {'major': 1, 'minor': 2}
+        return {'major': 1, 'minor': 3}
 
     def _check_for_upgrade(self):
         allow_list, groups, roles, version = self._read()
@@ -1005,6 +1136,15 @@ class AuthFile(object):
                 new_allow_list.append(entry)
             return new_allow_list
 
+        def upgrade_1_2_to_1_3(allow_list):
+            new_allow_list = []
+            for entry in allow_list:
+                rpc_method_authorizations = entry.get('rpc_method_authorizations')
+                entry['rpc_method_authorizations'] = \
+                    AuthEntry.build_rpc_method_authorizations_field(rpc_method_authorizations) or {}
+                new_allow_list.append(entry)
+            return new_allow_list
+
         if version['major'] == 0:
             allow_list = upgrade_0_to_1(allow_list)
             version['major'] = 1
@@ -1014,6 +1154,8 @@ class AuthFile(object):
             version['minor'] = 1
         if version['major'] == 1 and version['minor'] == 1:
             allow_list = upgrade_1_1_to_1_2(allow_list)
+        if version['major'] == 1 and version['minor'] == 2:
+            allow_list = upgrade_1_2_to_1_3(allow_list)
 
         entries = self._get_entries(allow_list)
         self._write(entries, groups, roles)
@@ -1189,7 +1331,7 @@ class AuthFile(object):
         self._set_groups_or_roles(roles, is_group=False)
 
     def update_by_index(self, auth_entry, index):
-        """Updates entry will given auth entry at given index
+        """Updates entry with given auth entry at given index
 
         :param auth_entry: new authorization entry
         :param index: index of entry to update
