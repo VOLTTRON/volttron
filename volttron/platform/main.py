@@ -1059,12 +1059,6 @@ def start_volttron_process(opts):
                           comments='Automatically added by platform on start')
         AuthFile().add(entry, overwrite=True)
 
-        entry = AuthEntry(credentials=services[2].core.publickey,
-                          user_id='pubsub',
-                          identity='pubsub',
-                          comments='Automatically added by platform on start')
-        AuthFile().add(entry, overwrite=True)
-
         # Begin the webserver based options here.
         if opts.bind_web_address is not None:
             if not HAS_WEB:
