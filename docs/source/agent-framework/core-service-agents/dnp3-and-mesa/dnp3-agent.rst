@@ -165,7 +165,7 @@ The DNP3Agent configuration file specifies the following fields:
      ``NORMAL``. Possible values: ``ALL``, ``ALL_APP_COMMS``, ``ALL_COMMS``, ``NORMAL``, ``NOTHING``.
    - **threads_to_allocate**: (integer) Threads to allocate in the manager's thread pool.  Default: 1.
 
-A sample DNP3 Agent configuration file is available in `services/core/DNP3Agent/dnp3agent.config`.
+A sample DNP3 Agent configuration file is available in `services/core/DNP3Agent/config`.
 
 
 VOLTTRON DNP3 Device Driver

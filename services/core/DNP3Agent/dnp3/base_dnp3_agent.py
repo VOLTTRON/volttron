@@ -69,7 +69,7 @@ class BaseDNP3Agent(Agent):
             export VOLTTRON_ROOT=<your volttron install directory>
             export DNP3_ROOT=$VOLTTRON_ROOT/services/core/DNP3Agent
             cd $VOLTTRON_ROOT
-            python scripts/install-agent.py -s $DNP3_ROOT -i dnp3agent -c $DNP3_ROOT/dnp3agent.config -t dnp3agent -f
+            python scripts/install-agent.py -s $DNP3_ROOT -i dnp3agent -c $DNP3_ROOT/config -t dnp3agent -f
     """
 
     def __init__(self, points=None, point_topic='', local_ip=None, port=None,
