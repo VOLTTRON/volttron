@@ -5,7 +5,7 @@ weather data from Ambient weather stations via the Ambient weather API.
 The agent inherits features of the Volttron BaseWeatherAgent which
 provides caching of recently recieved data, as well as point name
 mapping and unit conversion using the standardized CF-conventions
-scheme.
+scheme.lu
 
 The values from the Ambient weather station can be accessed through the
 cloud platform which can be accessed at
@@ -126,14 +126,14 @@ Points that do not specify \"Standard_Point_Name\" were found to not
 have a logical match to any point found in the CF-Conventions. For these
 points Ambient point name convention (Service_Point_Name) will be used.
 
-  Service_Point_Name  |Standard_Point_Name          |  Service_Units |  Standard_Units
-  --------------------|------------------------------|----------------|----------------
-  feelsLike           |apparent_temperature          | degF           | 
-  dewPoint            |dew_point_temperature         | degF           |
-  dewPointin          |dew_point_temperature_indoor  | degF           | 
-  soiltempf           |                              | degF           |
-  soilhum             |                              |                | 
-  uv                  |ultraviolet_index             |                |
+  |Service_Point_Name  |Standard_Point_Name           |  Service_Units |  Standard_Units |
+  |--------------------|------------------------------|----------------|-----------------|
+  |feelsLike           |apparent_temperature          | degF           |                 |
+  |dewPoint            |dew_point_temperature         | degF           |                 |
+  |dewPointin          |dew_point_temperature_indoor  | degF           |                 |
+  |soiltempf           |                              | degF           |                 |
+  |soilhum             |                              |                |                 |
+  |uv                  |ultraviolet_index             |                |                 |
 
 ## Running Ambient Agent Tests
 
