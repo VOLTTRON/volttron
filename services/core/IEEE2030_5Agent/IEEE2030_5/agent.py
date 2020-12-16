@@ -108,7 +108,7 @@ class IEEE2030_5Agent(Agent):
         This agent can be installed as follows:
             export IEEE2030_5_ROOT=$VOLTTRON_ROOT/services/core/IEEE2030_5Agent
             cd $VOLTTRON_ROOT
-            python scripts/install-agent.py -s $IEEE2030_5_ROOT -i IEEE2030_5agent -c $IEEE2030_5_ROOT/IEEE2030_5.config
+            python scripts/install-agent.py -s $IEEE2030_5_ROOT -i IEEE2030_5agent -c $IEEE2030_5_ROOT/config
                 -t IEEE2030_5agent -f
     """
 
