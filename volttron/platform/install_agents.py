@@ -247,8 +247,7 @@ def install_agent(opts, publickey=None, secretkey=None, callback=None):
         install_agent_directory(opts, opts, opts.agent_config)
         return
 
-    aip = opts.aip
-    filename = opts.install_path
+    filename = install_path
     tag = opts.tag
     vip_identity = opts.vip_identity
     if opts.vip_address.startswith('ipc://'):
