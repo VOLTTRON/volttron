@@ -126,7 +126,7 @@ at our bi-weekly office-hours and on Slack. To be invited to office-hours or sla
    :maxdepth: 2
    :glob:
 
-   volttron_api/services/*/modules
+   volttron-api/services/*/modules
 
 .. toctree::
    :caption: VOLTTRON Topics

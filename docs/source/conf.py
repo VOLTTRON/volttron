@@ -73,6 +73,7 @@ extensions = [
     # http://www.sphinx-doc.org/en/master/usage/extensions/todo.html
     'sphinx.ext.todo',
     'sphinx.ext.intersphinx',
+    'recommonmark'
 ]
 
 # prefix sections with the document so that we can cross link
@@ -222,13 +223,33 @@ def setup(app):
     by readthedocs
     :param app:
     """
+    app.add_config_value('recommonmark_config', {
+        # 'url_resolver': lambda url: github_doc_root + url,
+        'auto_toc_tree_section': 'Contents',
+        'enable_math': False,
+        'enable_inline_math': False,
+        'enable_eval_rst': True,
+    }, True)
+    from recommonmark.transform import AutoStructify
+    app.add_transform(AutoStructify)
     app.connect('builder-inited', generate_apidoc)
-#    app.connect('build-finished', clean_apirst)
+#   app.connect('build-finished', clean_apirst)
 
 
 script_dir = os.path.dirname(os.path.realpath(__file__))
-apidocs_base_dir =os.path.abspath(script_dir + "/volttron_api")
+apidocs_base_dir =os.path.abspath(script_dir + "/volttron-api")
 
+def grab_agent_readme():
+    from shutil import copyfile
+    docs_subdir = os.path.join(apidocs_base_dir, "services")
+    ambient = os.path.join(docs_subdir, "Ambient")
+    agent_dir = os.path.join(script_dir, "../../services/core/Ambient")
+    src = os.path.join(agent_dir, "README.md")
+    dst = os.path.join(ambient, "README.md")
+    copyfile(src, dst)
+    print("Copied MD")
+    with open(os.path.join(ambient, "modules.rst"), "a") as f:
+        f.write("   README")
 
 def generate_apidoc(app):
     """
@@ -247,9 +268,9 @@ def generate_apidoc(app):
     #     os.path.join(volttron_src, 'lint/'),
     #     os.path.join(volttron_src, 'drivers/')
     # ]
-    # # Adds pydocs from VOLTTRON API source code to ReadtheDocs under source/volttron_api, formats top level heading as
+    # # Adds pydocs from VOLTTRON API source code to ReadtheDocs under source/volttron-api, formats top level heading as
     # # VOLTTRON API
-    # cmd = ["sphinx-apidoc", '-H', 'VOLTTRON API', '-M', '-d 4', '-o', 'source/volttron_api', '--force', volttron_src]
+    # cmd = ["sphinx-apidoc", '-H', 'VOLTTRON API', '-M', '-d 4', '-o', 'source/volttron-api', '--force', volttron_src]
     #
     # cmd.extend(exlusions)
     #
@@ -265,9 +286,9 @@ def generate_apidoc(app):
 
     os.makedirs(apidocs_base_dir, 0o755)
     #file_name = os.path.join(script_dir, "../docs_exclude_list.txt")
-    services_excludes = ['DNP3Agent', 'MarketServiceAgent',
-                         'penADRVenAgent', 'OpenEISHistorian',
-                         'ObixHistoryPublish', 'IEEE2030_5Agent']
+    services_excludes = ['', '',
+                         '', '',
+                         '', '']
     volttron_excludes = ['tests/**/*']
     examples_excludes = []
 
@@ -287,10 +308,13 @@ def generate_apidoc(app):
     # print ("volttron excludes {}".format(volttron_excludes))
 
     # generate api-docs for  services/core
-    docs_subdir=os.path.join(apidocs_base_dir, "services")
+    docs_subdir = os.path.join(apidocs_base_dir, "services")
     agent_dirs = glob(script_dir+"/../../services/core/*/")
     run_apidoc(docs_subdir, agent_dirs, services_excludes)
     print("COMPLETED RUNNING API DOC")
+    grab_readme()
+    # with open(os.path.join(docs_subdir,"README.rst"), "w") as f:
+    #     f.write()
     # generate api-docs for examples
     # docs_subdir = os.path.join(apidocs_base_dir, "examples")
     # agent_dirs = glob(script_dir + "/../../examples/*/")
@@ -329,9 +353,13 @@ def run_apidoc(docs_dir, agent_dirs, exclude_list):
             sys.path.insert(0, agent_dir)
             print("Added to syspath {}".format(agent_dir))
             name = os.path.basename(agent_dir)
-            cmd = ["sphinx-apidoc", '-M', '-d 4', '--force', '-o', os.path.join(docs_dir, name), agent_dir,
+            print(f"Adding to path name {agent_dir}")
+            cmd = ["sphinx-apidoc", '-e', '-a', '-M', '-d 4',
+                   '-t', os.path.join(script_dir, 'apidocs-templates'),
+                   '--force', '-o', os.path.join(docs_dir, name), agent_dir,
                    os.path.join(agent_dir, "setup.py"), os.path.join(agent_dir, "conftest.py")
-                 ]
+                   ]
+
             cmd.extend(exclude_list)
             print("RuNNING COMMAND:")
             print(cmd)
