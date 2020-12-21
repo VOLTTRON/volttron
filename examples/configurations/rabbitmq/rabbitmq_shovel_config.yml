@@ -3,6 +3,11 @@ shovel:
   rabbit-2:
     port: '5671'
     virtual-host: volttron
+    certificates:
+        csr: true
+        private_cert: "path to private cert" # For example, /home/volttron/vhome/test_shovel/certificates/private/volttron1.shovelvolttron2.pem
+        public_cert: "path to public cert" # For example, /home/volttron/vhome/test_shovel/certificates/shovels/volttron2.volttron1.shovelvolttron2.crt
+        remote_ca: "path to CA cert" # For example, /home/volttron/vhome/test_shovel/certificates/shovels/volttron2_ca.crt
     # Configuration to forward pubsub topics
     pubsub:
       # Identity of agent that is publishing the topic
