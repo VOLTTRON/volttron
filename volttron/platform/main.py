@@ -128,7 +128,7 @@ log_level_info = (
     'watchdog.observers.inotify_buffer',
     'volttron.platform.auth',
     'volttron.platform.store',
-    'volttron.platform.control',
+    #'volttron.platform.control',
     'volttron.platform.vip.agent.core',
     'volttron.utils',
     'volttron.platform.vip.router'
@@ -346,9 +346,10 @@ class Router(BaseRouter):
         if not addr.domain:
             addr.domain = 'vip'
 
-        addr.server = 'CURVE'
+        #SN -- Testing
+        addr.server = 'NULL' #'CURVE'
         addr.secretkey = self._secretkey
-
+        _log.debug(f"Address properties: {addr}")
         addr.bind(sock)
         _log.debug('Local VIP router bound to %s' % addr)
         for address in self.addresses:
@@ -825,7 +826,8 @@ def start_volttron_process(opts):
         try:
             _log.debug("Running zmq router")
             Router(opts.vip_local_address, opts.vip_address,
-                   secretkey=secretkey, publickey=publickey,
+                   #secretkey=secretkey, publickey=publickey,
+                   secretkey=None, publickey=None,
                    default_user_id='vip.service', monitor=opts.monitor,
                    tracker=tracker,
                    volttron_central_address=opts.volttron_central_address,
@@ -1008,6 +1010,9 @@ def start_volttron_process(opts):
         external_address_file = os.path.join(opts.volttron_home, 'external_address.json')
         _log.debug('external_address_file file %s', external_address_file)
 
+        #SN -- testing
+        publickey = None
+
         # Launch additional services and wait for them to start before
         # auto-starting agents
         services = [
@@ -1026,11 +1031,12 @@ def start_volttron_process(opts):
                               message_bus='zmq')
         ]
 
-        entry = AuthEntry(credentials=services[0].core.publickey,
-                          user_id=CONTROL,
-                          capabilities=[{'edit_config_store': {'identity': '/.*/'}}],
-                          comments='Automatically added by platform on start')
-        AuthFile().add(entry, overwrite=True)
+        #SN -- testing
+        # entry = AuthEntry(credentials=services[0].core.publickey,
+        #                   user_id=CONTROL,
+        #                   capabilities=[{'edit_config_store': {'identity': '/.*/'}}],
+        #                   comments='Automatically added by platform on start')
+        # AuthFile().add(entry, overwrite=True)
 
         # Begin the webserver based options here.
         if opts.bind_web_address is not None:
@@ -1068,13 +1074,13 @@ def start_volttron_process(opts):
                 web_ssl_cert=opts.web_ssl_cert,
                 web_secret_key=opts.web_secret_key
             ))
-
-        ks_masterweb = KeyStore(KeyStore.get_agent_keystore_path(MASTER_WEB))
-        entry = AuthEntry(credentials=encode_key(decode_key(ks_masterweb.public)),
-                          user_id=MASTER_WEB,
-                          capabilities=['allow_auth_modifications'],
-                          comments='Automatically added by platform on start')
-        AuthFile().add(entry, overwrite=True)
+        #SN -- testing
+        # ks_masterweb = KeyStore(KeyStore.get_agent_keystore_path(MASTER_WEB))
+        # entry = AuthEntry(credentials=encode_key(decode_key(ks_masterweb.public)),
+        #                   user_id=MASTER_WEB,
+        #                   capabilities=['allow_auth_modifications'],
+        #                   comments='Automatically added by platform on start')
+        # AuthFile().add(entry, overwrite=True)
 
         # # MASTER_WEB did not work on RMQ. Referred to agent as master
         # # Added this auth to allow RPC calls for credential authentication

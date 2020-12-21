@@ -635,6 +635,10 @@ class ZMQCore(Core):
                  agent_uuid=None, reconnect_interval=None,
                  version='0.1', enable_fncs=False,
                  instance_name=None, messagebus='zmq'):
+        #SN -- Testing
+        publickey = None
+        secretkey = None
+        serverkey = None
         super(ZMQCore, self).__init__(owner, address=address, identity=identity,
                                       context=context, publickey=publickey, secretkey=secretkey,
                                       serverkey=serverkey, volttron_home=volttron_home,
@@ -644,7 +648,8 @@ class ZMQCore(Core):
         self.context = context or zmq.Context.instance()
         self._fncs_enabled = enable_fncs
         self.messagebus = messagebus
-        self._set_keys()
+        #SN -- Testing
+        #self._set_keys()
 
         _log.debug("AGENT RUNNING on ZMQ Core {}".format(self.identity))
 
@@ -680,6 +685,7 @@ class ZMQCore(Core):
             return '{}{}={}'.format('&' if query_str else '', key, value)
 
         url = list(urlsplit(self.address))
+
         if url[0] in ['tcp', 'ipc']:
             url[3] += add_param(url[3], 'publickey', self.publickey)
             url[3] += add_param(url[3], 'secretkey', self.secretkey)
@@ -725,6 +731,7 @@ class ZMQCore(Core):
     def loop(self, running_event):
         # pre-setup
         # self.context.set(zmq.MAX_SOCKETS, 30690)
+        _log.info(f"CORE address:{self.address}")
         self.connection = ZMQConnection(self.address,
                                         self.identity,
                                         self.instance_name,
