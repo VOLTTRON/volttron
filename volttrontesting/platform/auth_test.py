@@ -231,6 +231,21 @@ def test_authorized_rpc_call2(volttron_instance, build_two_test_agents):
     result = agent2.vip.rpc.call(agent1.core.identity, 'foo', 42).get(timeout=2)
     assert result == 42
 
+@pytest.mark.auth
+def test_get_rpc_method_authorizations(volttron_instance, build_two_test_agents):
+    agent1, agent2 = build_two_test_agents
+    agent1_rpc_authorizations = agent2.vip.rpc.call(agent1.core.identity, 'auth.get_rpc_authorizations').get(timeout=2)
+    assert len(agent1_rpc_authorizations) == 1
+
+@pytest.mark.auth
+def test_set_rpc_method_authorizations(volttron_instance, build_two_test_agents):
+    agent1, agent2 = build_two_test_agents
+    agent1_rpc_authorizations = agent2.vip.rpc.call(agent1.core.identity, 'auth.get_rpc_authorizations').get(timeout=2)
+    assert len(agent1_rpc_authorizations) == 1
+    agent2.vip.rpc.call(agent1.core.identity, 'auth.set_rpc_authorizations', 'foo', 'test_authorization_1')
+    agent1_rpc_authorizations = agent2.vip.rpc.call(agent1.core.identity, 'auth.get_rpc_authorizations').get(timeout=2)
+    assert len(agent1_rpc_authorizations) == 2
+    assert "test_authorization_1" in agent1_rpc_authorizations
 
 @pytest.mark.auth
 def test_rpc_call_with_capability_and_param_restrictions(volttron_instance, build_agents_with_capability_args):
