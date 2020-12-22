@@ -54,7 +54,7 @@ from zmq import green as zmq
 
 from volttron.platform import jsonapi, get_home
 from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM, CONTROL, MASTER_WEB
-from volttron.platform.jsonrpc import MethodNotFound
+from volttron.platform.jsonrpc import MethodNotFound, RemoteError
 from volttron.platform.vip.agent.errors import VIPError, Unreachable
 from volttron.platform.vip.pubsubservice import ProtectedPubSubTopics
 from .agent.utils import strip_comments, create_file_if_missing, watch_file
@@ -191,10 +191,12 @@ class AuthService(Agent):
                         try:
                             self.vip.rpc.call(
                                 entry.identity, "auth.set_rpc_authorizations",
-                                method, entry.rpc_method_authorizations[method])
+                                {"method": method, "capabilities": entry.rpc_method_authorizations[method]}).get(timeout=4)
                         except gevent.Timeout:
                             _log.error(f"{entry.identity} "
                                        f"has timed out while attempting to update rpc_method_authorizations")
+                        except RemoteError:
+                            _log.error(f"Method {method} does not exist.")
 
     def update_auth_file_rpc_method_authorizations(self, entries):
         new_entries = copy.deepcopy(entries)
@@ -207,9 +209,15 @@ class AuthService(Agent):
                     if not entry.rpc_method_authorizations[method]:
                         entry.rpc_method_authorizations[method] = rpc_method_authorizations[method]
                     if entry.rpc_method_authorizations[method] != rpc_method_authorizations[method]:
-                        self.vip.rpc.call(
-                            entry.identity, "auth.set_rpc_authorizations",
-                            {"method": method, "capabilities": entry.rpc_method_authorizations[method]})
+                        try:
+                            self.vip.rpc.call(
+                                entry.identity, "auth.set_rpc_authorizations",
+                                {"method": method, "capabilities": entry.rpc_method_authorizations[method]}).get(timeout=4)
+                        except gevent.Timeout:
+                            _log.error(f"{entry.identity} "
+                                       f"has timed out while attempting to update rpc_method_authorizations")
+                        except RemoteError:
+                            _log.error(f"Method {method} does not exist.")
         return new_entries
 
     def update_auth_file(self):

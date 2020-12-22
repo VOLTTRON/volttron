@@ -83,7 +83,8 @@ class Auth(SubsystemBase):
             rpc.export(self._update_capabilities, 'auth.update')
             rpc.export(self.get_rpc_authorizations, 'auth.get_rpc_authorizations')
             rpc.export(self.set_rpc_authorizations, 'auth.set_rpc_authorizations')
-            # rpc.allow(self.set_rpc_authorizations, 'modify_rpc_method_allowance')
+            rpc.allow(self.get_rpc_authorizations, 'modify_rpc_method_allowance')
+            rpc.allow(self.set_rpc_authorizations, 'modify_rpc_method_allowance')
             ignored_ids = [AUTH, MASTER_WEB, CONTROL, KEY_DISCOVERY, CONFIGURATION_STORE,
                            CONTROL_CONNECTION, PLATFORM_HEALTH, 'pubsub']
             if core.identity not in ignored_ids:
@@ -416,8 +417,7 @@ class Auth(SubsystemBase):
             try:
                 method = getattr(self._owner.vip, method_str)
             except AttributeError:
-                _log.error(f"Method {method_str} does not exist.")
-                return
+                raise
         self._rpc().allow(method, capabilities)
         _log.debug(f"Set authorized capabilities: {capabilities} for method: {method_str}")
 

@@ -399,3 +399,87 @@ def test_upgrade_file_version_1_1_to_1_2(tmpdir_factory):
             assert entry.capabilities == {'blah': None, 'foo': None,
                                           'edit_config_store': {'identity': 'user2'}}
 
+@pytest.mark.auth
+def test_upgrade_file_version_1_2_to_1_3(tmpdir_factory):
+    """The only required field in 'version 0' was credentials"""
+
+    version1_1 = {
+      "roles":{
+        "manager":[
+          "can_managed_platform"
+        ]
+      },
+      "version":{
+        "major":1,
+        "minor":2
+      },
+      "groups":{
+        "admin":[
+          "reader",
+          "writer"
+        ]
+      },
+      "allow":[
+        {
+          "domain":"vip",
+          "user_id":"user1",
+          "roles":[],
+          "enabled":True,
+          "mechanism":"CURVE",
+          "capabilities":{'can_publish_temperature': None,
+                                           'edit_config_store': {'identity': 'user1'}},
+          "groups":[],
+          "address":"127.0.0.1",
+          "credentials":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+          "comments":"This is a test entry"
+        },
+        {
+          "domain": "vip",
+          "user_id": "user2",
+          "roles": [],
+          "enabled": True,
+          "mechanism": "CURVE",
+          "capabilities": {'blah': None, 'foo': None,
+                                          'edit_config_store': {'identity': 'user2'}},
+          "groups": [],
+          "address": "127.0.0.1",
+          "credentials": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+          "comments": "This is a test entry"
+        },
+        {
+          "domain": "vip",
+          "user_id": CONTROL,
+          "roles": [],
+          "enabled": True,
+          "mechanism": "CURVE",
+          "capabilities": {'edit_config_store': {'identity': '/.*/'}},
+          "groups": [],
+          "address": "127.0.0.1",
+          "credentials": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+          "comments": "This is a test entry"
+        },
+        {
+          "domain": "vip",
+          "user_id": VOLTTRON_CENTRAL_PLATFORM,
+          "roles": [],
+          "enabled": True,
+          "mechanism": "CURVE",
+          "capabilities": {'edit_config_store': {'identity': '/.*/'}},
+          "groups": [],
+          "address": "127.0.0.1",
+          "credentials": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+          "comments": "This is a test entry"
+        }
+
+      ]
+    }
+
+    filename = str(tmpdir_factory.mktemp('auth_test').join('auth.json'))
+    with open(filename, 'w') as fp:
+        fp.write(jsonapi.dumps(version1_1, indent=2))
+
+    upgraded = AuthFile(filename)
+    entries = upgraded.read()[0]
+    assert len(entries) == 4
+    for entry in entries:
+        assert entry.rpc_method_authorizations == {}

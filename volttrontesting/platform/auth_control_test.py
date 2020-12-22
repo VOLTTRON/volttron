@@ -12,7 +12,7 @@ from volttron.platform import jsonapi
 
 _auth_entry1 = AuthEntry(
     domain='test1_domain', address='test1_address', mechanism='NULL',
-    user_id='test1_userid', groups=['test1_group1', 'test1_group2'],
+    user_id='test1_userid', identity='test_userid', groups=['test1_group1', 'test1_group2'],
     roles=['test1_role1', 'test1_role2'],
     capabilities=['test1_cap1', 'test1_cap2'],
     comments='test1 comment', enabled=True)
@@ -287,6 +287,13 @@ def auth_update(platform, index, **kwargs):
     assert p.returncode == 0
 
 
+def auth_rpc_method_allow(platform, agent, method, auth_cap):
+    env = get_env(platform)
+    p = subprocess.Popen(['volttron-ctl', 'auth', 'rpc', 'allow', f'{agent}.{method}', auth_cap], env=env,
+                         stdin=subprocess.PIPE, universal_newlines=True)
+    p.communicate()
+    assert p.returncode == 0
+
 def assert_auth_entries_same(e1, e2):
     for field in ['domain', 'address', 'user_id', 'credentials', 'comments',
                   'enabled']:
@@ -355,6 +362,18 @@ def test_auth_remove(volttron_instance):
     assert len(entries) > 0
     assert_auth_entries_same(entries[-1], _auth_entry3.__dict__)
 
+@pytest.mark.control
+def test_auth_rpc_method_allow(volttron_instance):
+    """Add an entry then update it with a different entry"""
+    platform = volttron_instance
+    auth_add(platform, _auth_entry1)
+    entries = auth_list_json(platform)
+    assert len(entries) > 0
+
+    auth_rpc_method_allow(platform, 'test_userid', 'test_method', 'test_auth')
+
+    entries = auth_list_json(platform)
+    assert entries[0].rpc_method_authorizations == {'test_method': ["test_auth"]}
 
 @pytest.mark.control
 def test_group_cmds(volttron_instance):
