@@ -11,7 +11,7 @@ The PUB/SUB interface remains primarily for VOLTTRON 2.0 agents.
 The Actuator Agent also triggers the heart beat on devices whose 
 drivers are configured to do so. 
 
-##ActuatorAgent Configuration
+## ActuatorAgent Configuration
 
 
 1. "schedule_publish_interval"
@@ -29,7 +29,7 @@ drivers are configured to do so.
     How often to send a heartbeat signal to all devices in seconds. Defaults to 60.
        
 
-##Sample configuration file
+## Sample configuration file
 
 ```
     {
