@@ -1,6 +1,6 @@
 sphinx_rtd_theme
 sphinx-autobuild
-sphinx
+sphinx==3.3.0
 m2r2
 bacpypes
 enum34
