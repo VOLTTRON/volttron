@@ -1,7 +1,7 @@
 sphinx_rtd_theme
 sphinx-autobuild
 sphinx
-recommonmark
+m2r2
 bacpypes
 enum34
 funcsigs
@@ -26,7 +26,4 @@ greenlet
 zmq
 ply
 psutil
-pymongo
-mysql-connector-python-rf
 ws4py
-paho-mqtt
