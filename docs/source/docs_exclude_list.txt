@@ -1,6 +1,0 @@
-services/core/DNP3Agent
-services/core/MarketServiceAgent
-services/core/OpenADRVenAgent
-services/core/OpenEISHistorian
-services/core/ObixHistoryPublish
-services/core/IEEE2030_5Agent
