@@ -32,17 +32,9 @@ class Mock(MagicMock):
             return Mock()
 
 
-#MOCK_MODULES = ['loadshape', 'numpy', 'sympy', 'xlrd', 'stomp', 'oadr2', 'pyodbc', 'lxml', 'stomp.listener',
-                # 'sympy.parsing', 'sympy.parsing.sympy_parser', 'pytest', 'pint', 'pandas', 'suds', 'suds.client',
-                # 'suds.wsse', 'asdict', 'suds.sudsobject', 'paho', 'paho.mqtt.client', 'MQTTv31', 'MQTTv311',
-                # 'paho.mqtt.publish', 'paho.mqtt.subscribe', 'subprocess32', 'heaters', 'HeaterDriver', 'MeterDriver',
-                # 'ThermostatDriver', 'BlindsDriver', 'VehicleDriver', 'heaters.agent', 'meters.agent', 'hvac.agent',
-                # 'blinds.agent', 'vehicles.agent', 'pymongo', 'pymongo.errors' 'bson', 'bson.objectid']
-
-#sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
 autodoc_mock_imports = ['loadshape', 'numpy', 'sympy', 'xlrd', 'stomp', 'oadr2', 'pyodbc', 'lxml', 'pytest',
                         'pint', 'pandas', 'suds', 'paho', 'pymongo', 'bson', 'subprocess32', 'heaters', 'meters',
-                        'hvac', 'blinds']
+                        'hvac', 'blinds', 'vehicles']
 
 # -- Project information -----------------------------------------------------
 
