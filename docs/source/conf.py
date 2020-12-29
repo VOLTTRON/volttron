@@ -221,7 +221,8 @@ def setup(app):
     :param app:
     """
     app.connect('builder-inited', generate_apidoc)
-    app.connect('build-finished', clean_api_rst)
+    # For now clean before building so that we can use the rst generated for debugging issues
+    # app.connect('build-finished', clean_api_rst)
 
 
 script_dir = os.path.dirname(os.path.realpath(__file__))
@@ -238,6 +239,7 @@ def generate_apidoc(app):
     """
 
     print("\n##In run_apidocs##\n")
+    clean_api_rst(app, None)
     global script_dir, apidocs_base_dir
 
     os.makedirs(apidocs_base_dir, 0o755)
@@ -317,5 +319,6 @@ def clean_api_rst(app, exception):
     """
     global apidocs_base_dir
     import shutil
-    print("Cleanup: Removing apidocs directory {}".format(apidocs_base_dir))
-    shutil.rmtree(apidocs_base_dir)
+    if os.path.exists(apidocs_base_dir):
+        print("Cleanup: Removing apidocs directory {}".format(apidocs_base_dir))
+        shutil.rmtree(apidocs_base_dir)
