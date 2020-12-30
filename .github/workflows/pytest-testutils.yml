@@ -19,7 +19,7 @@ jobs:
       matrix:
         # Each entry in the os and python-version matrix will be run so for the 3 x 4 there will be 12 jobs run
         os: [ ubuntu-16.04, ubuntu-18.04, ubuntu-20.04 ]
-        python-version: [ 3.6, 3.7, 3.8, 3.9 ]
+        python-version: [ 3.6, 3.7] # , 3.8, 3.9 ]
 
     runs-on: ${{ matrix.os }}
 
