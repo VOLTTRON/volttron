@@ -810,18 +810,18 @@ class PlatformWrapper:
                 self.shutdown_platform()
                 raise Exception("Couldn't connect to core platform!")
 
-            def subscribe_to_all(peer, sender, bus, topic, headers, messages):
-                logged = "{} --------------------Pubsub Message--------------------\n".format(
-                    utils.format_timestamp(datetime.now()))
-                logged += "PEER: {}\n".format(peer)
-                logged += "SENDER: {}\n".format(sender)
-                logged += "Topic: {}\n".format(topic)
-                logged += "headers: {}\n".format([str(k) + '=' + str(v) for k, v in headers.items()])
-                logged += "message: {}\n".format(messages)
-                logged += "-------------------------------------------------------\n"
-                self.logit(logged)
-
-            self.dynamic_agent.vip.pubsub.subscribe('pubsub', '', subscribe_to_all).get()
+            # def subscribe_to_all(peer, sender, bus, topic, headers, messages):
+            #     logged = "{} --------------------Pubsub Message--------------------\n".format(
+            #         utils.format_timestamp(datetime.now()))
+            #     logged += "PEER: {}\n".format(peer)
+            #     logged += "SENDER: {}\n".format(sender)
+            #     logged += "Topic: {}\n".format(topic)
+            #     logged += "headers: {}\n".format([str(k) + '=' + str(v) for k, v in headers.items()])
+            #     logged += "message: {}\n".format(messages)
+            #     logged += "-------------------------------------------------------\n"
+            #     self.logit(logged)
+            #
+            # self.dynamic_agent.vip.pubsub.subscribe('pubsub', '', subscribe_to_all).get()
 
         if bind_web_address:
             times = 0
