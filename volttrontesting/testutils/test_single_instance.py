@@ -8,7 +8,7 @@ from volttron.platform import get_examples
 def test_can_install_listeners(volttron_instance):
     assert volttron_instance.is_running()
     uuids = []
-    num_listeners = 5
+    num_listeners = 3
 
     try:
         for x in range(num_listeners):
