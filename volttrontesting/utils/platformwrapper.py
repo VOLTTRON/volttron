@@ -1018,7 +1018,8 @@ class PlatformWrapper:
             if start:
                 cmd.extend(["--start"])
 
-            stdout = execute_command(cmd, logger=_log,
+            env = self.env.copy()
+            stdout = execute_command(cmd, logger=_log, env=env,
                                      err_prefix="Error installing agent")
 
             # Because we are no longer silencing output from the install, the
