@@ -5,9 +5,8 @@ from volttrontesting.fixtures.volttron_platform_fixtures import *
 # Add system path of the agent's directory
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
-# Skip tests when we don't have these specific modules available
-# to test with.  Add others that some agents are required, but
-# unavailable.
-pytest.importorskip("pydnp3")
-pytest.importorskip("pandas")
-pytest.importorskip("numpy")
+
+def pytest_runtest_logfinish(nodeid, location):
+    # After each test the nodid is the name of the test
+    pass
+    # print(f"finished test nodeid: {nodeid} location: {location}")
