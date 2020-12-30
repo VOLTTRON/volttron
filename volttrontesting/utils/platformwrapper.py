@@ -1070,7 +1070,7 @@ class PlatformWrapper:
         cmd.extend(['start', agent_uuid])
 
         result = execute_command(cmd, self.env)
-
+        time.sleep(3)
         # Confirm agent running
         cmd = ['volttron-ctl', '--json']
         cmd.extend(['status', agent_uuid])
@@ -1078,7 +1078,7 @@ class PlatformWrapper:
         self.logit(res)
         result = jsonapi.loads(res)
         # 776 TODO: Timing issue where check fails
-        time.sleep(.1)
+        time.sleep(3)
         self.logit("Subprocess res is {}".format(res))
         assert 'running' in res
         pidpos = res.index('[') + 1
