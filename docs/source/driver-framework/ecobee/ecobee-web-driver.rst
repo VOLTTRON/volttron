@@ -1,8 +1,8 @@
 .. _ecobee-web-driver:
 
-*************
+=============
 Ecobee Driver
-*************
+=============
 
 The Ecobee driver is an implementation of a :ref:`VOLTTRON driver framework <Driver-Framework>` Interface.
 In this case, the Master Driver issues commands to the Ecobee driver to collect data from and send control signals to
@@ -26,7 +26,7 @@ This guide covers:
 .. _Ecobee-Application:
 
 Ecobee Application
-##################
+==================
 
 Connecting the Ecobee driver to the Ecobee API requires configuring your account with an Ecobee application.
 
@@ -50,8 +50,8 @@ Connecting the Ecobee driver to the Ecobee API requires configuring your account
         From Ecobee `authenication docs <https://www.ecobee.com/home/developer/api/examples/ex1.shtml>`_
 
 
-Configuration File
-##################
+Configuration Files
+===================
 
 The Ecobee driver uses two configuration files, a driver configuration which sets the parameters of the behavior of the
 driver, and registry configuration which instructs the driver on how to interact with each point.
@@ -73,34 +73,16 @@ This is an example driver configuration:
 
 The driver configuration works as follows:
 
-+-----------------+----------------------------------------------------------------------------------------------------+
-| config field    | description                                                                                        |
-+=================+====================================================================================================+
-| driver_config   | this section specifies values used by the driver agent during operation                            |
-+-----------------+----------------------------------------------------------------------------------------------------+
-| API_KEY         | This is the User's API key. This must be obtained by the user from the Ecobee web UI and provided  |
-|                 | in this part of the configuration. Notes on how to do this will be provided below.                 |
-+-----------------+----------------------------------------------------------------------------------------------------+
-| DEVICE_ID       | This is the device number of the Ecobee thermostat the driver is responsible for operating. This   |
-|                 | must be obtained by the user from the Ecobee web UI. Notes on how to do this will be provided      |
-|                 | below.                                                                                             |
-+-----------------+----------------------------------------------------------------------------------------------------+
-| driver_type     | This value should match the name of the python file which contains the interface class             |
-|                 | implementation for the Ecobee driver and should not change.                                        |
-+-----------------+----------------------------------------------------------------------------------------------------+
-| registry_config | This should a user specified path of the form "config://<path>. It is recommended to use the       |
-|                 | device topic string following "devices" with the file extension                                    |
-|                 | ("config://<campus>/<building?/ecobee.csv")to help the user keep track of configuration pairs in   |
-|                 | the store.  This value must be used when storing the config (see installation step below).         |
-+-----------------+----------------------------------------------------------------------------------------------------+
-| interval        | This should specify the time in seconds between publishes to the message bus by the Master Driver  |
-|                 | for the Ecobee driver (Note: the user can specify an interval for the Ecobee driver which is       |
-|                 | shorter than 180 seconds, however Ecobee API data is only updated at 180 second intervals, so old  |
-|                 | data will be published if a scrape occurs between updates.)                                        |
-+-----------------+----------------------------------------------------------------------------------------------------+
-| timezone        | Timezone to use for publishing timestamps. This value should match the                             |
-|                 | `timezone from the Ecobee device <https://bit.ly/2Bvnols>`_                                        |
-+-----------------+----------------------------------------------------------------------------------------------------+
+.. csv-table:: Driver Configuration Description
+    :header: Config Field,Description
+
+    driver_config,This section specifies values used by the driver agent during operation
+    API_KEY,This is the User's API key. This must be obtained by the user from the Ecobee web UI and provided in this part of the configuration. Notes on how to do this will be provided below
+    DEVICE_ID,This is the device number of the Ecobee thermostat the driver is responsible for operating. This must be obtained by the user from the Ecobee web UI. Notes on how to do this will be provided below
+    driver_type,This value should match the name of the python file which contains the interface class implementation for the Ecobee driver and should not change
+    registry_config,This should a user specified path of the form "config://<path>. It is recommended to use the device topic string following "devices" with the file extension ("config://<campus>/<building?/ecobee.csv") to help the user keep track of configuration pairs in the store.  This value must be used when storing the config (see installation step below)
+    interval,"This should specify the time in seconds between publishes to the message bus by the Master Driver for the Ecobee driver (Note: the user can specify an interval for the Ecobee driver which is shorter than 180 seconds, however Ecobee API data is only updated at 180 second intervals, so old data will be published if a scrape occurs between updates.)"
+    timezone,Timezone to use for publishing timestamps. This value should match the `timezone from the Ecobee device <https://bit.ly/2Bvnols>`_
 
 .. note::
 
@@ -134,51 +116,29 @@ same range of data in a similar format.
 
 This is an example registry configuration:
 
-+-------------------+---------------------+---------+---------+----------+----------+---------------+-------+
-| Point Name        | Volttron Point Name | Units   | Type    | Writable | Readable | Default Value | Notes |
-+===================+=====================+=========+=========+==========+==========+===============+=======+
-| fanMinOnTime      | fanMinOnTime        | seconds | setting | True     | True     |               |       |
-+-------------------+---------------------+---------+---------+----------+----------+---------------+-------+
-| hvacMode          | hvacMode            | seconds | setting | True     | True     |               |       |
-+-------------------+---------------------+---------+---------+----------+----------+---------------+-------+
-| humidity          | humidity            | %       | setting | False    | True     |               |       |
-+-------------------+---------------------+---------+---------+----------+----------+---------------+-------+
-| coolHoldTemp      | coolHoldTemp        | degF    | hold    | True     | False    |               |       |
-+-------------------+---------------------+---------+---------+----------+----------+---------------+-------+
-| heatHoldTemp      | heatHoldTemp        | degF    | hold    | True     | False    |               |       |
-+-------------------+---------------------+---------+---------+----------+----------+---------------+-------+
-| actualTemperature | actualTemperature   | degF    | hold    | False    | True     |               |       |
-+-------------------+---------------------+-------------------+----------+----------+---------------+-------+
+.. csv-table:: Registry Configuration Example
+    :header: Point Name,Volttron Point Name,Units,Type,Writeable,Readble,Default Value,Notes
 
+    fanMinOnTime,fanMinOnTime,seconds,setting,True,True,,
+    hvacMode,hvacMode,seconds,setting,True,True,,
+    humidity,humidity,%,setting,False,True,,
+    coolHoldTemp,coolHoldTemp,degF,hold,True,False,,
+    heatHoldTemp,heatHoldTemp,degf,hold,True,False,,
+    actualTemperature,ActualTemperature,degF,hold,False,True,,
 
 This configuration works as follows:
 
-+---------------------+------------------------------------------------------------------------------------------------+
-| config field        | description                                                                                    |
-+=====================+================================================================================================+
-| Point Name          | Name of a point as it appears in Ecobee response data (example below)                          |
-+---------------------+------------------------------------------------------------------------------------------------+
-| Volttron Point Name | Name of a point as a user would like it to be displayed in data publishes to the message bus   |
-+---------------------+------------------------------------------------------------------------------------------------+
-| Units               | Unit of measurement specified by remote API                                                    |
-+---------------------+------------------------------------------------------------------------------------------------+
-| Type                | The Ecobee driver registry configuration supports "setting" and "hold" register types, based   |
-|                     | on how the data is represented in Ecobee response data (example below)                         |
-+---------------------+------------------------------------------------------------------------------------------------+
-| Writable            | Whether or not the point is able to be written to. This may be determined by what Ecobee       |
-|                     | allows, and by the operation of Ecobee's API (to set an Ecobee cool/heat hold, cool/HoldTemp   |
-|                     | is used, but to read other data points are used and therefore are not writable; this is a      |
-|                     | quirk of Ecobee's API)                                                                         |
-+---------------------+------------------------------------------------------------------------------------------------+
-| Readable            | Whether or not the point is able to be read as specified. This may be determined by what       |
-|                     | Ecobee allows, and by the operation of Ecobee's API (to set an Ecobee cool/heat hold,          |
-|                     | cool/HoldTemp is used, however the requested hold values are represented as desiredCool/Heat   |
-|                     | in Ecobee's response data; this is a quirk of Ecobee's API)                                    |
-+---------------------+------------------------------------------------------------------------------------------------+
-| Default Value       | Used to send device defaults to the Ecobee API, this is optional.                              |
-+---------------------+------------------------------------------------------------------------------------------------+
-| Notes               | Any user specified notes, this is optional                                                     |
-+---------------------+------------------------------------------------------------------------------------------------+
+.. csv-table:: Registry Configuration Description
+    :header: Config Field,Description
+
+    Point Name,Name of a point as it appears in Ecobee response data (example below)
+    Volttron Point Name,Name of a point as a user would like it to be displayed in data publishes to the message bus
+    Units,Unit of measurement specified by remote API
+    Type,"The Ecobee driver registry configuration supports 'setting' and 'hold' register types, based on how the data is represented in Ecobee response data (example below)"
+    Writable,"Whether or not the point is able to be written to. This may be determined by what Ecobee allows, and by the operation of Ecobee's API (to set an Ecobee cool/heat hold, cool/HoldTemp is used, but to read other data points are used and therefore are not writable; this is a quirk of Ecobee's API)"
+    Readable,"Whether or not the point is able to be read as specified. This may be determined by what Ecobee allows, and by the operation of Ecobee's API (to set an Ecobee cool/heat hold, cool/HoldTemp is used, however the requested hold values are represented as desiredCool/Heat in Ecobee's response data; this is a quirk of Ecobee's API)"
+    Default Value,"Used to send device defaults to the Ecobee API, this is optional"
+    Notes,"Any user specified notes, this is optional"
 
 An example registry configuration containing all points from the development device is available in the
 `examples/configurations/drivers/ecobee.csv` file in the VOLTTRON repository.
@@ -188,7 +148,7 @@ https://www.ecobee.com/home/developer/api/documentation/v1/functions/SetHold.sht
 
 
 Installation
-############
+============
 
 The following instructions make up the minimal steps required to set up an instance of the Ecobee driver on the VOLTTRON
 platform and connect it to the Ecobee remote API:
@@ -272,7 +232,7 @@ This will complete the pin verification step.
 
 
 Ecobee Driver Usage
-###################
+===================
 
 At the configured interval, the master driver will publish a JSON object
 with data obtained from Ecobee based on the provided configuration files.
@@ -343,29 +303,274 @@ In an agent:
 
 
 Set_point Conventions
-#####################
+---------------------
 
-To set points using the Ecobee driver, it is recommended to use the actuator
-agent. Explanations of the actuation can be found in the VOLTTRON readthedocs
-and example agent code can be found in the CsvDriverAgent (
-examples/CSVDriver/CsvDriverAgent/agent.py in the VOLTTRON repository)
+.. note::
 
-Setting values for Vacations and Programs requires understanding Vacation and
-Program object structure for Ecobee.
+    Examples from this section are from Ecobee's documentation.
 
-Documentation for Vacation structure can be found here:
-https://www.ecobee.com/home/developer/api/documentation/v1/functions/CreateVacation.shtml
+The Ecobee Web API requires a variety of objects to be supplied for the various functionalities: setting a hold, adding
+a vacation and adding a program require creating a JSON object.  Each object is described in its corresponding section
+below.
 
-Documentation for Program structure can be found here:
-https://www.ecobee.com/home/developer/api/examples/ex11.shtml
+To set points using the Ecobee driver, it is recommended to use the actuator agent.  If you are not familiar with the
+Actuator, :ref:`read the documentation <Actuator-Agent>` and check out the example agent code at
+`examples/CSVDriver/CsvDriverAgent/agent.py` in the VOLTTRON repository.
 
-When using set_point for program, specifying a program structure will create a
-new program. Otherwise, if the user has not specified resume_all, Ecobee will
-resume the next program on the program stack. If resume_all, Ecobee will resume
-all programs on the program stack.
 
-For all other points, the corresponding integer, string, boolean, etc. value may
-be sent.
+Setting an Ecobee "Setting"
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Ecobee "Settings" points are simple points which are similar to a typical set point.  Many settings are boolean values
+for basic Ecobee configuration settings (such as whether the temperature should be in degrees Celsius or Fahrenheit).
+Setting a "Setting" point is as simple as making an RPC request to the Actuator's `set_point` method with a supplied
+point name and desired setting.  Consider a "setting" point `useCelsius`; use the following code to send a `set_point`
+RPC request:
+
+.. code-block:: python
+
+    self.vip.rpc.call('platform.actuator', 'devices/campus/building/ecobee/useCelsius', True)
+
+
+Setting a Hold
+^^^^^^^^^^^^^^
+
+Setting a Hold requires creating a `params` JSON object for the hold, many holds require setting more than one value
+each.  For example, setting a temperature hold requires setting the upper (coolHoldTemp) and lower (heatHoldTemp) bounds
+desired. Create a Hold params object and send it as the contents of a `set_point` RPC call to the Actuator.
+
+Example Hold params object:
+
+.. code-block:: json
+
+    {
+        "holdType":"nextTransition",
+        "heatHoldTemp":680,
+        "coolHoldTemp":720
+    }
+
+Body of the HTTP request sent by the driver to Ecobee's Web API:
+
+::
+
+    {
+        "selection": {
+            "selectionType": "thermostats",
+            "selectionMatch": "<ecobee id>"
+        },
+        "functions": [
+            {
+                "type": "setHold",
+                "params": {
+                    # user-specified params object
+                }
+            }
+        ]
+    }
+
+.. note::
+
+    In a heat/coolHoldTemp hold, ``holdType``, ``heatHoldTemp``, and ``coolHoldTemp`` values are all required by the
+    Ecobee web API.  In this case, the `holdType` describes how the hold should be applied, the `heatHoldTemp` is the
+    lower temperature bound for the hold, and the `coolHoldTemp` is the upper temperature bound.
+
+RPC request to the actuator:
+
+.. code-block:: python
+
+    self.vip.rpc.call('platform.actuator', 'devices/campus/building/ecobee/heatHoldTemp', True)
+
+.. note::
+
+    In Ecobee data, a Hold set by the user is sometimes denoted as "desired<point>" and the sensor reading for the held
+    value as "actual<point>".  For example, a Hold set by a user called `heatHoldTemp` can be found in Ecobee publishes
+    as `desiredHeat` and the actual temperature reading as `actualTemperature`.
+
+Ecobee's documentation on Hold objects can be found here:
+
+
+Adding and Deleting a Vacation
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To add a vacation, call the `set_point` JSON-RPC method of the Actuator, providing the vacation parameters object
+required by Ecobee along with the Vacation point.  The params object is sent inside a create vacation object sent to the
+web API:
+
+::
+
+    {
+          "selection": {
+                "selectionType":"registered",
+                "selectionMatch":""
+          },
+          "functions": [
+                {
+                      "type":"createVacation",
+                      "params":{
+                            # user-specified params object
+                      }
+                }
+          ]
+    }
+
+It is possible to supply complex objects including values for fans, vents, occupation status, etc. but a basic vacation
+requires only a name, cool and heat hold temperatures, start and end dates with start and end times.  Example:
+
+.. code-block:: json
+
+    {
+        "name": "Skiing",
+        "coolHoldTemp": 780,
+        "heatHoldTemp": 660,
+        "startDate": "2016-03-15",
+        "startTime": "20:00:00",
+        "endDate": "2016-03-29",
+        "endTime": "08:00:00"
+      }
+
+Providing a params object which does not contain these required values will result in the driver throwing an error.
+
+Example `set_point` RPC call for Vacation:
+
+.. code-block:: python
+
+    self.vip.rpc.call('platform.actuator', 'set_point', 'devices/campus/building/ecobee/Vacation', params)
+
+It is also possible to delete a stored vacation object.  To do so, supply the vacation name specified in the params
+object with the delete keyword set to True.
+
+.. code-block:: python
+
+    self.vip.rpc.call('platform.actuator', 'set_point',
+                      'devices/campus/building/ecobee/Vacation', "Skiing", True)
+
+A more in-depth example of using the Ecobee web API endpoint for setting a vacation can be found here:
+https://www.ecobee.com/home/developer/api/examples/ex9.shtml
+
+
+Adding a Program
+^^^^^^^^^^^^^^^^
+
+Programs can also be added using the Ecobee driver.  To add a program, the user should supply an Ecobee program object
+in the `set_point` JSON-RPC request:
+
+::
+
+    {
+          "selection": {
+                "selectionType":"registered",
+                "selectionMatch":""
+          },
+          "thermostat": {
+                "program": {
+                    <program object here>
+                }
+          }
+    }
+
+Program objects consist of a list of "climate" objects and "schedule" objects.  Climate objects specify the climate
+settings which correspond to a climate name (for example, a "Warm" climate may be set for a high heat and cool hold
+temp).  Schedule objects list the desired climate settings for every half hour of the day (48 total) for 7 days, each
+referring to a climate name.
+
+Example climate:
+
+.. code-block:: json
+
+    {
+       "name": "Warm",
+       "isOccupied": true,
+       "isOptimized": false,
+       "coolFan": "auto",
+       "heatFan": "auto",
+       "vent": "off",
+       "ventilatorMinOnTime": 20,
+       "owner": "system",
+       "type": "program",
+       "coolTemp": 752,
+       "heatTemp": 740
+    }
+
+Example Schedule:
+
+::
+
+    [
+          [
+            "sleep",
+            "sleep",
+            "sleep",
+            "sleep",
+            "home",
+            "home",
+            "home",
+            ...
+          ],
+          ...
+    ]
+
+Program Body:
+
+::
+
+    {
+        "schedule": [
+          [
+            "sleep",
+            "sleep",
+            ...
+            "home",
+            "sleep"
+          ],
+          ...
+        ],
+        "climates": [
+            {
+               "name": "Sleep",
+               "climateRef": "sleep",
+               "isOccupied": true,
+               "isOptimized": false,
+               "coolFan": "auto",
+               "heatFan": "auto",
+               "vent": "off",
+               "ventilatorMinOnTime": 20,
+               "owner": "system",
+               "type": "program",
+               "colour": 2179683,
+               "coolTemp": 752,
+               "heatTemp": 662
+            },
+            ...
+        ]
+    }
+
+Example `set_point` RPC call for Program:
+
+.. code-block:: python
+
+    self.vip.rpc.call('platform.actuator', 'set_point', 'devices/campus/building/ecobee/Vacation', program_body)
+
+If the user would like to resume the existing program instead, it is possible to specify ``None`` for the program body
+with the keyword ``resume_all`` set to ``True``.
+
+Example `set_point` RPC call to resume the Program:
+
+.. code-block:: python
+
+    self.vip.rpc.call('platform.actuator', 'set_point',
+                      'devices/campus/building/ecobee/Vacation', None, True)
+
+A more in-depth example describing the objects required by the Ecobee web API endpoint for setting a program can be
+found here: https://www.ecobee.com/home/developer/api/examples/ex11.shtml
+
+
+Status
+^^^^^^
+
+The `Status` point is a read-only register supplying the running status of the HVAC systems the thermostat is
+interfacing with.  `set_point` is not available for this point; `set_point` RPC calls for this point will raise a
+`NotImplementedError` exception.
+
 
 Versioning
 ----------
