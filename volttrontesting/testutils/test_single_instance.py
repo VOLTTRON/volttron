@@ -53,11 +53,9 @@ def test_can_install_listeners_vi(volttron_instance):
                     "message": "So Happpy"})
             assert auuid
             uuids.append(auuid)
-            gevent.sleep(0.5)
+            gevent.sleep(3)
 
-        agent = volttron_instance.build_agent()
-        agent_list = agent.vip.rpc('control', 'list_agents').get(timeout=5)
-        print('Agent List: {}'.format(agent_list))
+        agent_list = volttron_instance.dynamic_agent.vip.rpc('control', 'list_agents').get(timeout=5)
         assert len(agent_list) == num_listeners
     finally:
         for x in uuids:
