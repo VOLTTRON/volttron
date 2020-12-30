@@ -19,7 +19,7 @@ def test_can_install_listeners(volttron_instance):
                     "message": "So Happpy"})
             assert auuid
             uuids.append(auuid)
-            gevent.sleep(0.5)
+            gevent.sleep(4)
 
         for u in uuids:
             assert volttron_instance.is_agent_running(u)
@@ -27,35 +27,6 @@ def test_can_install_listeners(volttron_instance):
         agent = volttron_instance.build_agent()
         agent_list = agent.vip.rpc('control', 'list_agents').get(timeout=5)
         print('Agent List: {}'.format(agent_list))
-        assert len(agent_list) == num_listeners
-    finally:
-        for x in uuids:
-            try:
-                volttron_instance.remove_agent(x)
-            except:
-                print('COULDN"T REMOVE AGENT')
-
-
-@pytest.mark.wrapper
-def test_can_install_listeners_vi(volttron_instance):
-    assert volttron_instance.is_running()
-    uuids = []
-    num_listeners = 5
-
-    try:
-        for x in range(num_listeners):
-            identity = "listener_" + str(x)
-            auuid = volttron_instance.install_agent(
-                agent_dir=get_examples("ListenerAgent"),
-                start=True,
-                config_file={
-                    "agentid": identity,
-                    "message": "So Happpy"})
-            assert auuid
-            uuids.append(auuid)
-            gevent.sleep(3)
-
-        agent_list = volttron_instance.dynamic_agent.vip.rpc('control', 'list_agents').get(timeout=5)
         assert len(agent_list) == num_listeners
     finally:
         for x in uuids:
