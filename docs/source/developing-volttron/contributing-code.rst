@@ -5,7 +5,7 @@ Contributing Code
 =================
 
 As an open source project VOLTTRON requires input from the community to keep development focused on new and useful
-features.  To that end we are revising our commit process to hopefully allow more contributors to be apart of the
+features.  To that end we are revising our commit process to hopefully allow more contributors to be a part of the
 community.  The following document outlines the process for source code and documentation to be submitted.
 There are GUI tools that may make this process easier, however this document will focus on what is required from the
 command line.
