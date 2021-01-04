@@ -127,9 +127,27 @@ class AuthService(Agent):
         if self.core.messagebus == 'rmq':
             self.vip.peerlist.onadd.connect(self._check_topic_rules)
 
+    def _update_auth_lists(self, entries, is_allow=True):
+        auth_list = []
+        for entry in entries:
+            auth_list.append({'domain': entry.domain,
+                        'address': entry.address,
+                        'mechanism': entry.mechanism,
+                        'credentials': entry.credentials,
+                        'user_id': entry.user_id
+                        }
+            )
+        if is_allow:
+            for entry in auth_list:
+
+
     def read_auth_file(self):
         _log.info('loading auth file %s', self.auth_file_path)
         entries = self.auth_file.read_allow_entries()
+        denied_entries = self.auth_file.read_deny_entries()
+        # Populate auth lists with current entries
+        # self._auth_approved = [entry for entry in entries]
+        # self._auth_denied = [entry for entry in denied_entries]
         entries = [entry for entry in entries if entry.enabled]
         # sort the entries so the regex credentails follow the concrete creds
         entries.sort()
@@ -430,11 +448,27 @@ class AuthService(Agent):
         """
         for pending in self._auth_failures:
             if user_id == pending['user_id']:
+                self._update_auth_entry(
+                    pending['domain'],
+                    pending['address'],
+                    pending['mechanism'],
+                    pending['credentials'],
+                    pending['user_id'],
+                    is_allow=False
+                    )
                 self._auth_denied.append(pending)
                 del self._auth_failures[self._auth_failures.index(pending)]
 
         for pending in self._auth_approved:
             if user_id == pending['user_id']:
+                self._update_auth_entry(
+                    pending['domain'],
+                    pending['address'],
+                    pending['mechanism'],
+                    pending['credentials'],
+                    pending['user_id'],
+                    is_allow=False
+                    )
                 self._remove_auth_entry(pending['credentials'])
                 self._auth_denied.append(pending)
                 del self._auth_approved[self._auth_approved.index(pending)]
@@ -465,14 +499,17 @@ class AuthService(Agent):
 
     @RPC.export
     def get_authorization_failures(self):
+        print(list(self._auth_failures))
         return list(self._auth_failures)
 
     @RPC.export
     def get_authorization_approved(self):
+        print(list(self._auth_approved))
         return list(self._auth_approved)
 
     @RPC.export
     def get_authorization_denied(self):
+        print(list(self._auth_denied))
         return list(self._auth_denied)
 
     def _get_authorizations(self, user_id, index):
@@ -521,7 +558,7 @@ class AuthService(Agent):
         """
         return self._get_authorizations(user_id, 2)
 
-    def _update_auth_entry(self, domain, address, mechanism, credential, user_id):
+    def _update_auth_entry(self, domain, address, mechanism, credential, user_id, is_allow=True):
         # Make a new entry
         fields = {
             "domain": domain,
@@ -537,7 +574,7 @@ class AuthService(Agent):
         new_entry = AuthEntry(**fields)
 
         try:
-            self.auth_file.add(new_entry, overwrite=False)
+            self.auth_file.add(new_entry, overwrite=False, is_allow=is_allow)
         except AuthException as err:
             _log.error('ERROR: %s\n' % str(err))
 
@@ -881,10 +918,10 @@ class AuthFile(object):
         return {'major': 1, 'minor': 2}
 
     def _check_for_upgrade(self):
-        allow_list, groups, roles, version = self._read()
+        allow_list, deny_list, groups, roles, version = self._read()
         if version != self.version:
             if version['major'] <= self.version['major']:
-                self._upgrade(allow_list, groups, roles, version)
+                self._upgrade(allow_list, deny_list, groups, roles, version)
             else:
                 _log.error('This version of VOLTTRON cannot parse {}. '
                            'Please upgrade VOLTTRON or move or delete '
@@ -906,10 +943,11 @@ class AuthFile(object):
             _log.exception('error loading %s', self.auth_file)
 
         allow_list = auth_data.get('allow', [])
+        deny_list = auth_data.get('deny', [])
         groups = auth_data.get('groups', {})
         roles = auth_data.get('roles', {})
         version = auth_data.get('version', {'major': 0, 'minor': 0})
-        return allow_list, groups, roles, version
+        return allow_list, deny_list, groups, roles, version
 
     def read(self):
         """Gets the allowed entries, groups, and roles from the auth
@@ -918,12 +956,12 @@ class AuthFile(object):
         :returns: tuple of allow-entries-list, groups-dict, roles-dict
         :rtype: tuple
         """
-        allow_list, groups, roles, _ = self._read()
-        entries = self._get_entries(allow_list)
-        self._use_groups_and_roles(entries, groups, roles)
-        return entries, groups, roles
+        allow_list, deny_list, groups, roles, _ = self._read()
+        allow_entries, deny_entries = self._get_entries(allow_list, deny_list)
+        self._use_groups_and_roles(allow_entries, groups, roles)
+        return allow_entries, deny_entries, groups, roles
 
-    def _upgrade(self, allow_list, groups, roles, version):
+    def _upgrade(self, allow_list, deny_list, groups, roles, version):
         backup = self.auth_file + '.' + str(uuid.uuid4()) + '.bak'
         shutil.copy(self.auth_file, backup)
         _log.info('Created backup of {} at {}'.format(self.auth_file, backup))
@@ -1015,8 +1053,8 @@ class AuthFile(object):
         if version['major'] == 1 and version['minor'] == 1:
             allow_list = upgrade_1_1_to_1_2(allow_list)
 
-        entries = self._get_entries(allow_list)
-        self._write(entries, groups, roles)
+        allow_entries, deny_entries = self._get_entries(allow_list, deny_list)
+        self._write(allow_entries, deny_entries, groups, roles)
 
     def read_allow_entries(self):
         """Gets the allowed entries from the auth file.
@@ -1026,18 +1064,31 @@ class AuthFile(object):
         """
         return self.read()[0]
 
-    def find_by_credentials(self, credentials):
+    def read_deny_entries(self):
+        """Gets the denied entries from the auth file.
+
+        :returns: list of deny-entries
+        :rtype: list
+        """
+        return self.read()[1]
+
+    def find_by_credentials(self, credentials, is_allow=True):
         """Find all entries that have the given credentials
 
         :param str credentials: The credentials to search for
         :return: list of entries
         :rtype: list
         """
-        return [entry for entry in self.read_allow_entries()
-                if str(entry.credentials) == credentials]
 
-    def _get_entries(self, allow_list):
-        entries = []
+        if is_allow:
+            return [entry for entry in self.read_allow_entries()
+                    if str(entry.credentials) == credentials]
+        else:
+            return [entry for entry in self.read_deny_entries()
+                    if str(entry.credentials) == credentials]
+
+    def _get_entries(self, allow_list, deny_list):
+        allow_entries = []
         for file_entry in allow_list:
             try:
                 entry = AuthEntry(**file_entry)
@@ -1048,8 +1099,21 @@ class AuthFile(object):
                 _log.warn('invalid entry %r in auth file %s (%s)',
                           file_entry, self.auth_file, str(e))
             else:
-                entries.append(entry)
-        return entries
+                allow_entries.append(entry)
+
+        deny_entries = []
+        for file_entry in deny_list:
+            try:
+                entry = AuthEntry(**file_entry)
+            except TypeError:
+                _log.warn('invalid entry %r in auth file %s',
+                          file_entry, self.auth_file)
+            except AuthEntryInvalid as e:
+                _log.warn('invalid entry %r in auth file %s (%s)',
+                          file_entry, self.auth_file, str(e))
+            else:
+                deny_entries.append(entry)
+        return allow_entries, deny_entries
 
     def _use_groups_and_roles(self, entries, groups, roles):
         """Add capabilities to each entry based on groups and roles"""
@@ -1064,7 +1128,7 @@ class AuthFile(object):
                 capabilities += roles.get(role, [])
             entry.add_capabilities(list(set(capabilities)))
 
-    def _check_if_exists(self, entry):
+    def _check_if_exists(self, entry, is_allow=True):
         """Raises AuthFileEntryAlreadyExists if entry is already in file"""
         for index, prev_entry in enumerate(self.read_allow_entries()):
             if entry.user_id == prev_entry.user_id:
@@ -1078,12 +1142,12 @@ class AuthFile(object):
                     prev_entry.credentials == entry.credentials):
                 raise AuthFileEntryAlreadyExists([index])
 
-    def _update_by_indices(self, auth_entry, indices):
+    def _update_by_indices(self, auth_entry, indices, is_allow=True):
         """Updates all entries at given indices with auth_entry"""
         for index in indices:
-            self.update_by_index(auth_entry, index)
+            self.update_by_index(auth_entry, index, is_allow)
 
-    def add(self, auth_entry, overwrite=False):
+    def add(self, auth_entry, overwrite=False, is_allow=True):
         """Adds an AuthEntry to the auth file
 
         :param auth_entry: authentication entry
@@ -1096,32 +1160,42 @@ class AuthFile(object):
                      AuthFileEntryAlreadyExists
         """
         try:
-            self._check_if_exists(auth_entry)
+            self._check_if_exists(auth_entry, is_allow)
         except AuthFileEntryAlreadyExists as err:
             if overwrite:
                 _log.debug("Updating existing auth entry with {} ".format(auth_entry))
-                self._update_by_indices(auth_entry, err.indices)
+                self._update_by_indices(auth_entry, err.indices, is_allow)
             else:
                 raise err
         else:
-            entries, groups, roles = self.read()
-            entries.append(auth_entry)
-            self._write(entries, groups, roles)
+            allow_entries, deny_entries, groups, roles = self.read()
+            if is_allow:
+                allow_entries.append(auth_entry)
+            else:
+                deny_entries.append(auth_entry)
+            self._write(allow_entries, deny_entries, groups, roles)
             _log.debug("Added auth entry {} ".format(auth_entry))
         gevent.sleep(1)
 
-    def remove_by_credentials(self, credentials):
+    def remove_by_credentials(self, credentials, is_allow=True):
         """Removes entry from auth file by credential
 
         :para credential: entries will this credential will be
             removed
         :type credential: str
         """
-        entries, groups, roles = self.read()
+        allow_entries, deny_entries, groups, roles = self.read()
+        if is_allow:
+            entries = allow_entries
+        else:
+            entries = deny_entries
         entries = [e for e in entries if e.credentials != credentials]
-        self._write(entries, groups, roles)
+        if is_allow:
+            self._write(entries, deny_entries, groups, roles)
+        else:
+            self._write(allow_entries, entries, groups, roles)
 
-    def remove_by_index(self, index):
+    def remove_by_index(self, index, is_allow=True):
         """Removes entry from auth file by index
 
         :param index: index of entry to remove
@@ -1130,9 +1204,9 @@ class AuthFile(object):
         .. warning:: Calling with out-of-range index will raise
                      AuthFileIndexError
         """
-        self.remove_by_indices([index])
+        self.remove_by_indices([index], is_allow)
 
-    def remove_by_indices(self, indices):
+    def remove_by_indices(self, indices, is_allow=True):
         """Removes entry from auth file by indices
 
         :param indices: list of indicies of entries to remove
@@ -1143,13 +1217,20 @@ class AuthFile(object):
         """
         indices = list(set(indices))
         indices.sort(reverse=True)
-        entries, groups, roles = self.read()
+        allow_entries, deny_entries, groups, roles = self.read()
+        if is_allow:
+            entries = allow_entries
+        else:
+            entries = deny_entries
         for index in indices:
             try:
                 del entries[index]
             except IndexError:
                 raise AuthFileIndexError(index)
-        self._write(entries, groups, roles)
+        if is_allow:
+            self._write(entries, deny_entries, groups, roles)
+        else:
+            self._write(allow_entries, entries, groups, roles)
 
     def _set_groups_or_roles(self, groups_or_roles, is_group=True):
         param_name = 'groups' if is_group else 'roles'
@@ -1159,12 +1240,12 @@ class AuthFile(object):
             if not isinstance(value, list):
                 raise ValueError('each value of the {} dict must be '
                                  'a list'.format(param_name))
-        entries, groups, roles = self.read()
+        allow_entries, deny_entries, groups, roles = self.read()
         if is_group:
             groups = groups_or_roles
         else:
             roles = groups_or_roles
-        self._write(entries, groups, roles)
+        self._write(allow_entries, deny_entries, groups, roles)
 
     def set_groups(self, groups):
         """Define the mapping of group names to role lists
@@ -1188,7 +1269,7 @@ class AuthFile(object):
         """
         self._set_groups_or_roles(roles, is_group=False)
 
-    def update_by_index(self, auth_entry, index):
+    def update_by_index(self, auth_entry, index, is_allow=True):
         """Updates entry will given auth entry at given index
 
         :param auth_entry: new authorization entry
@@ -1199,16 +1280,24 @@ class AuthFile(object):
         .. warning:: Calling with out-of-range index will raise
                      AuthFileIndexError
         """
-        entries, groups, roles = self.read()
+        allow_entries, deny_entries, groups, roles = self.read()
+        if is_allow:
+            entries = allow_entries
+        else:
+            entries = deny_entries
         try:
             entries[index] = auth_entry
         except IndexError:
             raise AuthFileIndexError(index)
-        self._write(entries, groups, roles)
+        if is_allow:
+            self._write(entries, deny_entries, groups, roles)
+        else:
+            self._write(allow_entries, entries, groups, roles)
 
-    def _write(self, entries, groups, roles):
-        auth = {'allow': [vars(x) for x in entries], 'groups': groups,
-                'roles': roles, 'version': self.version}
+    def _write(self, allow_entries, deny_entries, groups, roles):
+        auth = {'allow': [vars(x) for x in allow_entries],
+                'deny': [vars(x) for x in deny_entries],
+                'groups': groups, 'roles': roles, 'version': self.version}
 
         with open(self.auth_file, 'w') as fp:
             jsonapi.dump(auth, fp, indent=2)

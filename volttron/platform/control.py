@@ -67,7 +67,7 @@ from volttron.platform import jsonapi
 from volttron.platform.jsonrpc import MethodNotFound
 from volttron.platform.agent import utils
 from volttron.platform.agent.known_identities import CONTROL_CONNECTION, \
-    CONFIGURATION_STORE, PLATFORM_HEALTH
+    CONFIGURATION_STORE, PLATFORM_HEALTH, AUTH
 from volttron.platform.auth import AuthEntry, AuthFile, AuthException
 from volttron.platform.certs import Certs
 from volttron.platform.jsonrpc import RemoteError
@@ -833,6 +833,70 @@ def list_agent_rpc_code(opts):
     print_rpc_methods(opts, peer_method_metadata, code=True)
 
 
+def list_certs(opts):
+    print("Made it: 1")
+    conn = opts.connection
+    print("Made it: 2")
+    output_view = []
+    print("Made it: 3")
+    if opts.type == "all":
+        print("Made it: 3a")
+        try:
+            approved_certs = conn.server.vip.rpc.call(AUTH, "get_authorization_approved").get(timeout=4)
+            print("Made it: 3a1")
+        except TimeoutError:
+            print("Approved_Certs timed out")
+        try:
+            denied_certs = conn.server.vip.rpc.call(AUTH, "get_authorization_denied").get(timeout=4)
+            print("Made it: 3a2")
+        except TimeoutError:
+            print("Denied_certs timed out")
+        try:
+            pending_certs = conn.server.vip.rpc.call(AUTH, "get_authorization_failures").get(timeout=4)
+            print("Made it: 3a3")
+        except TimeoutError:
+            print("Pending_certs timed out")
+        print("Made it: 3b")
+        for index, value in enumerate(approved_certs):
+            output_view.append({"index": index, "entry": value, "status": "APPROVED"})
+        for index, value in enumerate(denied_certs):
+            output_view.append({"index": index, "entry": value, "status": "DENIED"})
+        for index, value in enumerate(pending_certs):
+            output_view.append({"index": index, "entry": value, "status": "PENDING"})
+        print("Made it: 3c")
+    elif opts.type == "approved":
+        approved_certs = conn.server.vip.rpc.call(AUTH, "get_authorization_approved").get(timeout=4)
+        for index, value in enumerate(approved_certs):
+            output_view.append({"index": index, "entry": value, "status": "APPROVED"})
+
+    elif opts.type == "denied":
+        denied_certs = conn.server.vip.rpc.call(AUTH, "get_authorization_denied").get(timeout=4)
+        for index, value in enumerate(denied_certs):
+            output_view.append({"index": index, "entry": value, "status": "DENIED"})
+
+    elif opts.type == "pending":
+        pending_certs = conn.server.vip.rpc.call(AUTH, "get_authorization_failures").get(timeout=4)
+        for index, value in enumerate(pending_certs):
+            output_view.append({"index": index, "entry": value, "status": "PENDING"})
+    else:
+        _stdout.write("Invalid parameter. Please use 'all', 'approved', 'denied', or 'pending'.")
+    print("Made it: 4")
+    index_width = max(3, max(len(output["index"]) for output in output_view))
+    userid_width = max(5, max(len(output["entry"].user_id) for output in output_view))
+    address_width = max(5, max(len(output["entry"].address) for output in output_view))
+    status_width = max(5, max(len(output["status"]) for output in output_view))
+
+    fmt = '{:{}} {:{}} {:{}} {:{}}\n'
+    _stderr.write(
+        fmt.format('INDEX', index_width, 'USER_ID', userid_width,
+                   'ADDRESS', address_width, 'STATUS', status_width))
+    fmt = '{:{}} {:{}} {:{}} {:{}}\n'
+    for output in output_view:
+        _stdout.write(fmt.format(output["index"], index_width,
+                                 output["entry"].user_id, userid_width,
+                                 output["entry"].address, address_width,
+                                 output["status"], status_width))
+
 # the following global variables are used to update the cache so
 # that we don't ask the platform too many times for the data
 # associated with health.
@@ -1381,7 +1445,7 @@ def update_auth(opts):
 
 def add_role(opts):
     auth_file = _get_auth_file(opts.volttron_home)
-    roles = auth_file.read()[2]
+    roles = auth_file.read()[3]
     if opts.role in roles:
         _stderr.write('role "{}" already exists\n'.format(opts.role))
         return
@@ -1392,13 +1456,13 @@ def add_role(opts):
 
 def list_roles(opts):
     auth_file = _get_auth_file(opts.volttron_home)
-    roles = auth_file.read()[2]
+    roles = auth_file.read()[3]
     _print_two_columns(roles, 'ROLE', 'CAPABILITIES')
 
 
 def update_role(opts):
     auth_file = _get_auth_file(opts.volttron_home)
-    roles = auth_file.read()[2]
+    roles = auth_file.read()[3]
     if opts.role not in roles:
         _stderr.write('role "{}" does not exist\n'.format(opts.role))
         return
@@ -1413,7 +1477,7 @@ def update_role(opts):
 
 def remove_role(opts):
     auth_file = _get_auth_file(opts.volttron_home)
-    roles = auth_file.read()[2]
+    roles = auth_file.read()[3]
     if opts.role not in roles:
         _stderr.write('role "{}" does not exist\n'.format(opts.role))
         return
@@ -1424,7 +1488,7 @@ def remove_role(opts):
 
 def add_group(opts):
     auth_file = _get_auth_file(opts.volttron_home)
-    groups = auth_file.read()[1]
+    groups = auth_file.read()[2]
     if opts.group in groups:
         _stderr.write('group "{}" already exists\n'.format(opts.group))
         return
@@ -1435,13 +1499,13 @@ def add_group(opts):
 
 def list_groups(opts):
     auth_file = _get_auth_file(opts.volttron_home)
-    groups = auth_file.read()[1]
+    groups = auth_file.read()[2]
     _print_two_columns(groups, 'GROUPS', 'ROLES')
 
 
 def update_group(opts):
     auth_file = _get_auth_file(opts.volttron_home)
-    groups = auth_file.read()[1]
+    groups = auth_file.read()[2]
     if opts.group not in groups:
         _stderr.write('group "{}" does not exist\n'.format(opts.group))
         return
@@ -1456,7 +1520,7 @@ def update_group(opts):
 
 def remove_group(opts):
     auth_file = _get_auth_file(opts.volttron_home)
-    groups = auth_file.read()[1]
+    groups = auth_file.read()[2]
     if opts.group not in groups:
         _stderr.write('group "{}" does not exist\n'.format(opts.group))
         return
@@ -2474,6 +2538,10 @@ def main(argv=sys.argv):
     export_pkcs12.add_argument("identity", help="identity of the agent to export")
     export_pkcs12.add_argument("outfile", help="file to write the PKCS12 file to")
     export_pkcs12.set_defaults(func=export_pkcs12_from_identity)
+
+    list_cert_cmd = add_parser("list", subparser=certs_subparsers, help="Lists approved, pending, and denied certs.")
+    list_cert_cmd.add_argument("type", help="Specify all, approved, denied, or pending")
+    list_cert_cmd.set_defaults(func=list_certs)
 
     # ====================================================
     # auth commands

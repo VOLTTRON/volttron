@@ -1028,7 +1028,8 @@ def start_volttron_process(opts):
 
         entry = AuthEntry(credentials=services[0].core.publickey,
                           user_id=CONTROL,
-                          capabilities=[{'edit_config_store': {'identity': '/.*/'}}],
+                          capabilities=[{'edit_config_store': {'identity': '/.*/'}},
+                                        "allow_auth_modifications"],
                           comments='Automatically added by platform on start')
         AuthFile().add(entry, overwrite=True)
 
