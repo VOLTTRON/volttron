@@ -225,7 +225,7 @@ class PlatformWrapper:
             'DEBUG_MODE': os.environ.get('DEBUG_MODE', ''),
             'DEBUG': os.environ.get('DEBUG', ''),
             'SKIP_CLEANUP': os.environ.get('SKIP_CLEANUP', ''),
-            'PATH': VOLTTRON_ROOT + ':' + os.environ['PATH'],
+            'PATH': os.path.dirname(sys.executable) + ':' + VOLTTRON_ROOT + ':' + os.environ['PATH'],
             # RABBITMQ requires HOME env set
             'HOME': os.environ.get('HOME'),
             # Elixir (rmq pre-req) requires locale to be utf-8
@@ -235,8 +235,11 @@ class PlatformWrapper:
         }
         self.volttron_root = VOLTTRON_ROOT
 
-        volttron_exe = os.path.dirname(sys.executable) + '/volttron'
-        assert os.path.exists(volttron_exe)
+        self.vctl_exe = str(Path(sys.executable).parent.joinpath('volttron-ctl'))
+        self.volttron_exe = str(Path(sys.executable).parent.joinpath('volttron'))
+
+        assert Path(self.vctl_exe).exists()
+        assert Path(self.volttron_exe).exists()
         self.python = sys.executable
         assert os.path.exists(self.python)
 
@@ -765,7 +768,7 @@ class PlatformWrapper:
             raise PlatformWrapperError(
                 "Invalid platform mode specified: {}".format(mode))
 
-        cmd = ['volttron']
+        cmd = [self.volttron_exe]
         # if msgdebug:
         #     cmd.append('--msgdebug')
         if enable_logging:
@@ -890,9 +893,8 @@ class PlatformWrapper:
         return aip
 
     def _install_agent(self, wheel_file, start, vip_identity):
-        self.logit('Creating channel for sending the agent.')
-        gevent.sleep(0.3)
-        self.logit('calling control install agent.')
+        self.__wait_for_control_connection_to_exit__(5)
+
         self.logit("VOLTTRON_HOME SETTING: {}".format(
             self.env['VOLTTRON_HOME']))
         env = self.env.copy()
@@ -1009,7 +1011,7 @@ class PlatformWrapper:
             else:
                 raise ValueError("Can't determine correct config file.")
 
-            cmd = ["vctl", "--json", "install", agent_dir, "--agent-config", config_file]
+            cmd = [self.vctl_exe, "--json", "install", agent_dir, "--agent-config", config_file]
 
             if force:
                 cmd.extend(["--force"])
@@ -1063,20 +1065,49 @@ class PlatformWrapper:
 
         return agent_uuid
 
+    def __wait_for_control_connection_to_exit__(self, timeout: int = 20):
+        """
+        Call the dynamic agent's peerlist method until the control connection is no longer connected or
+        timeout is reached
+        :param timeout:
+        :return:
+        """
+        self.logit("Waiting for control_connection to exit")
+        disconnected = False
+        timer_start = time.time()
+        while not disconnected:
+            peers = self.dynamic_agent.vip.peerlist().get(timeout=20)
+            disconnected = CONTROL_CONNECTION not in peers
+            if disconnected:
+                break
+            self.logit(f"Waiting for control connection to disconnect: {peers} time: {timer_start - time.time()} timeout is {timeout}")
+            if time.time() - timer_start > timeout:
+                raise PlatformWrapperError(f"Failed for {CONTROL_CONNECTION} to exit in a timely manner.")
+            time.sleep(0.5)
+
+        if not disconnected:
+            raise PlatformWrapperError("Control connection did not stop properly")
+
     def start_agent(self, agent_uuid):
         self.logit('Starting agent {}'.format(agent_uuid))
         self.logit("VOLTTRON_HOME SETTING: {}".format(
             self.env['VOLTTRON_HOME']))
-        cmd = ['volttron-ctl', '--json']
-        cmd.extend(['start', agent_uuid])
+        if not self.is_running():
+            raise PlatformWrapperError("Instance must be running before starting agent")
 
+        self.__wait_for_control_connection_to_exit__(5)
+
+        cmd = [self.vctl_exe, '--json']
+        cmd.extend(['start', agent_uuid])
         result = execute_command(cmd, self.env)
-        time.sleep(3)
+
+        self.__wait_for_control_connection_to_exit__(5)
+
         # Confirm agent running
-        cmd = ['volttron-ctl', '--json']
+        cmd = [self.vctl_exe, '--json']
         cmd.extend(['status', agent_uuid])
         res = execute_command(cmd, env=self.env)
-        self.logit(res)
+
         result = jsonapi.loads(res)
         # 776 TODO: Timing issue where check fails
         time.sleep(3)
@@ -1090,13 +1121,18 @@ class PlatformWrapper:
             "The pid associated with agent {} does not exist".format(pid)
 
         self.started_agent_pids.append(pid)
+
+        self.__wait_for_control_connection_to_exit__(5)
+
         return pid
 
     def stop_agent(self, agent_uuid):
         # Confirm agent running
+        self.__wait_for_control_connection_to_exit__(5)
+
         _log.debug("STOPPING AGENT: {}".format(agent_uuid))
 
-        cmd = ['volttron-ctl']
+        cmd = [self.vctl_exe]
         cmd.extend(['stop', agent_uuid])
         res = execute_command(cmd, env=self.env, logger=_log,
                               err_prefix="Error stopping agent")
@@ -1109,10 +1145,12 @@ class PlatformWrapper:
     def remove_agent(self, agent_uuid):
         """Remove the agent specified by agent_uuid"""
         _log.debug("REMOVING AGENT: {}".format(agent_uuid))
+        self.__wait_for_control_connection_to_exit__(5)
 
-        cmd = ['volttron-ctl']
+        cmd = [self.vctl_exe]
         cmd.extend(['remove', agent_uuid])
-        res = execute_command(cmd, env=self.env, logger=_log,
+        env = self.env.copy()
+        res = execute_command(cmd, env=env, logger=_log,
                               err_prefix="Error removing agent")
         return self.agent_pid(agent_uuid)
 
@@ -1122,6 +1160,7 @@ class PlatformWrapper:
         agent_list = self.dynamic_agent.vip.rpc('control', 'list_agents').get(timeout=10)
         for agent_props in agent_list:
             self.dynamic_agent.vip.rpc('control', 'remove_agent', agent_props['uuid']).get(timeout=10)
+            time.sleep(0.2)
 
     def is_agent_running(self, agent_uuid):
         return self.agent_pid(agent_uuid) is not None
@@ -1133,8 +1172,9 @@ class PlatformWrapper:
         :param agent_uuid:
         :return:
         """
+        self.__wait_for_control_connection_to_exit__(5)
         # Confirm agent running
-        cmd = ['volttron-ctl']
+        cmd = [self.vctl_exe]
         cmd.extend(['status', agent_uuid])
         pid = None
         try:
@@ -1258,7 +1298,7 @@ class PlatformWrapper:
         else:
             self.logit("platform process was null")
         #
-        # cmd = ['volttron-ctl']
+        # cmd = [self.vctl_exe]
         # cmd.extend(['shutdown', '--platform'])
         # try:
         #     execute_command(cmd, env=self.env, logger=_log,

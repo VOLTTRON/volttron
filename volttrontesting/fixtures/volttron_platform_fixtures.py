@@ -116,14 +116,17 @@ def volttron_instance(request, **kwargs):
                             **kwargs)
     wrapper_pid = wrapper.p_process.pid
 
-    yield wrapper
-
-    cleanup_wrapper(wrapper)
-    if not wrapper.debug_mode:
-        assert not Path(wrapper.volttron_home).exists()
-    # Final way to kill off the platform wrapper for the tests.
-    if psutil.pid_exists(wrapper_pid):
-        psutil.Process(wrapper_pid).kill()
+    try:
+        yield wrapper
+    except Exception as ex:
+        print(ex.args)
+    finally:
+        cleanup_wrapper(wrapper)
+        if not wrapper.debug_mode:
+            assert not Path(wrapper.volttron_home).exists()
+        # Final way to kill off the platform wrapper for the tests.
+        if psutil.pid_exists(wrapper_pid):
+            psutil.Process(wrapper_pid).kill()
 
 
 # Use this fixture to get more than 1 volttron instance for test.
