@@ -46,7 +46,6 @@ from volttron.platform.auth import (AuthEntry, AuthFile, AuthFileIndexError,
                                     AuthFileEntryAlreadyExists,
                                     AuthFileUserIdAlreadyExists,
                                     AuthEntryInvalid)
-from volttrontesting.platform.auth_control_test import assert_auth_entries_same
 from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM, CONTROL
 from volttron.platform import jsonapi
 

@@ -4,6 +4,8 @@ import re
 import subprocess
 import pytest
 from mock import MagicMock
+
+from volttrontesting.platform.auth_tests.conftest import assert_auth_entries_same
 from volttrontesting.utils.utils import AgentMock
 from volttron.platform.vip.agent import Agent
 from volttron.platform.auth import AuthService
@@ -285,15 +287,6 @@ def auth_update(platform, index, **kwargs):
                          stdin=subprocess.PIPE, universal_newlines=True)
     p.communicate(input=entry_to_input_string(**kwargs))
     assert p.returncode == 0
-
-
-def assert_auth_entries_same(e1, e2):
-    for field in ['domain', 'address', 'user_id', 'credentials', 'comments',
-                  'enabled']:
-        assert e1[field] == e2[field]
-    for field in ['roles', 'groups']:
-        assert set(e1[field]) == set(e2[field])
-    assert e1['capabilities'] == e2['capabilities']
 
 
 @pytest.mark.control
