@@ -217,6 +217,12 @@ class PlatformWrapper:
         self.packaged_dir = os.path.join(self.volttron_home, "packaged")
         os.makedirs(self.packaged_dir)
 
+        bin_dir = str(Path(sys.executable).parent)
+        path = os.environ['PATH']
+        if bin_dir not in path:
+            path = bin_dir + ":" + path
+        if VOLTTRON_ROOT not in path:
+            path = VOLTTRON_ROOT + ":" + path
         # in the context of this platform it is very important not to
         # use the main os.environ for anything.
         self.env = {
@@ -225,7 +231,7 @@ class PlatformWrapper:
             'DEBUG_MODE': os.environ.get('DEBUG_MODE', ''),
             'DEBUG': os.environ.get('DEBUG', ''),
             'SKIP_CLEANUP': os.environ.get('SKIP_CLEANUP', ''),
-            'PATH': os.path.dirname(sys.executable) + ':' + VOLTTRON_ROOT + ':' + os.environ['PATH'],
+            'PATH': path,
             # RABBITMQ requires HOME env set
             'HOME': os.environ.get('HOME'),
             # Elixir (rmq pre-req) requires locale to be utf-8
