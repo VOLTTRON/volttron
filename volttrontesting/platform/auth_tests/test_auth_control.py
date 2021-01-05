@@ -1,4 +1,3 @@
-import gevent
 import os
 import re
 import subprocess
