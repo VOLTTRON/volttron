@@ -4,7 +4,7 @@ pushd ../services/core/ActuatorAgent
 if [ -z "$VOLTTRON_HOME" ]; then
     export VOLTTRON_HOME=~/.volttron
 fi
-export AGENT_CONFIG=actuator-deploy.service
+export AGENT_CONFIG=config
 python -m actuator.agent
 popd
 

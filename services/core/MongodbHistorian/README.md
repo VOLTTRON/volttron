@@ -1,121 +1,105 @@
-.. _Mongo_Historian:
+# Mongo Historian
 
-===============
-Mongo Historian
-===============
-This is a historian that stores its data in mongodb. Data is store in three
-different collection as
+This is a historian that stores its data in mongodb. Data is store in
+three different collection as
 
-    1. raw data
-    2. hourly grouped/rolled up data
-    3. daily grouped/rolled up data
+1.  raw data
+2.  hourly grouped/rolled up data
+3.  daily grouped/rolled up data
 
-The hourly_data and daily_data collections store data grouped together by time
-to allow for faster queries. It does not aggregate data (point values). Data
-gets loaded into hourly and daily collections through a periodic batch process
-and hence might be lagging behind when compared to raw data collection. The
-lag time would depend on the load on the system and hence needs to be set in
-the configuration. Query API of mongo historian is designed to handle this. It
-will combine results from rollup data and raw data table as needed.
+The hourly_data and daily_data collections store data grouped together
+by time to allow for faster queries. It does not aggregate data (point
+values). Data gets loaded into hourly and daily collections through a
+periodic batch process and hence might be lagging behind when compared
+to raw data collection. The lag time would depend on the load on the
+system and hence needs to be set in the configuration. Query API of
+mongo historian is designed to handle this. It will combine results from
+rollup data and raw data table as needed.
 
-Prerequisites
-~~~~~~~~~~~~~
+## Prerequisites
 
-1. Mongodb
-----------
+### 1. Mongodb
 
 Setup mongodb based on using one of the three below scripts.
 
-1. Install as root on Redhat or Cent OS
-
-    ::
-
-        sudo scripts/historian-scripts/root_install_mongo_rhel.sh
-
-    The above script will prompt user for os version, db user name, password
-    and database name. Once installed you can start and stop the service
-    using the command:
-
-    **sudo service mongod [start|stop|service]**
-
-2. Install as root on Ubuntu
-
-    ::
-
-        sudo scripts/historian-scripts/root_install_mongo_ubuntu.sh
-
-    The above script will prompt user for os version, db user name, password
-    and database name. Once installed you can start and stop the service
-    using the command:
-
-    **sudo service mongod [start|stop|service]**
-
-3. Install as non root user on any Linux machine
-
-    ::
-
-        scripts/historian-scripts/install_mongodb.sh
-
+1.  Install as root on Redhat or Cent OS
+    ```
+    sudo scripts/historian-scripts/root_install_mongo_rhel.sh
+    ```
+    The above script will prompt user for os version, db user name,
+    password and database name. Once installed you can start and stop
+    the service using the command:
+    ```
+    sudo service mongod \[start\|stop\|service\]
+    ```
+    
+2.  Install as root on Ubuntu
+    ```
+    sudo scripts/historian-scripts/root_install_mongo_ubuntu.sh
+    ```
+    
+    The above script will prompt user for os version, db user name,
+    password and database name. Once installed you can start and stop
+    the service using the command:
+    ```
+    sudo service mongod \[start\|stop\|service\]
+    ```
+3.  Install as non root user on any Linux machine
+    ```
+    scripts/historian-scripts/install_mongodb.sh
+    ```
     Usage:
-       install_mongodb.sh [-h] [-d download_url] [-i install_dir] [-c config_file] [-s]
+    ```
+    install_mongodb.sh \[-h\] \[-d download_url\] \[-i  install_dir\] \[-c config_file\] \[-s\]
+    ```
+    
     Optional arguments:
-       -s setup admin user and test collection after install and startup
+    
+    **-s** setup admin user and test collection after install and startup
+ 
+    **-d** download url. defaults to <https://fastdl.mongodb.org/linux/mongodb-linux-x86_64-3.2.4.tgz>
+    
+    **-i** install_dir. defaults to current_dir/mongo_install
+    
+    **-c** config file to be used for mongodb startup. Defaults to default_mongodb.conf in the same directory as this 
+    script. Any datapath mentioned in the config file should already exist and should have write access to the current user
+    
+    **-h** print this help message
 
-       -d download url. defaults to https://fastdl.mongodb.org/linux/mongodb-linux-x86_64-3.2.4.tgz
-
-       -i install_dir. defaults to current_dir/mongo_install
-
-       -c config file to be used for mongodb startup. Defaults to
-       default_mongodb.conf in the same directory as this script.Any datapath
-       mentioned in the config file should already exist and should have write
-       access to the current user
-
-       -h print this help message
-
-2. Create database and user
----------------------------
+### 2. Create database and user
 
 You also need to pre-create your database in MongoDB before running this
 historian. For example, to create a local MongoDB, do the followings in
 Mongo shell:
 
-- Switch to the new database "volttron_guide":
+-   Switch to the new database \"volttron_guide\":
+    ```
+    use volttron_guide
+    ```
 
-    ::
+-   Create a new user for \"volttron_guide\":
+    ```
+    db.createUser({user: "admin", pwd: "admin", roles: ["readWrite"] })
+    ```
+    
 
-      use volttron_guide
+### 3. Mongodb connector
 
-- Create a new user for "volttron_guide":
-
-    ::
-
-      db.createUser({user: "admin", pwd: "admin", roles: ["readWrite"] })
-
-3. Mongodb connector
---------------------
 This historian requires a mongodb connector installed in your activated
 volttron environment to talk to mongodb. Please execute the following
 from an activated shell in order to install it.
-
-::
 
     pip install pymongo
 
 The Mongodb Historian also requires the following libraries:
 
-::
-
     bson, ujson, dateutil
 
 And install with
 
-::
-
     pip install <library>
 
-Configuration
-~~~~~~~~~~~~~
-::
+## Configuration
 
     {
         #mandatory connection details
@@ -188,5 +172,3 @@ Configuration
         "rollup_topic_pattern": "^Economizer_RCx|^Airside_RCx"
 
     }
-
-

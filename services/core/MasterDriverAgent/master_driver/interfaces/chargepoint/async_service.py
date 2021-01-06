@@ -64,7 +64,7 @@ import gevent.queue
 import logging
 import suds
 from gevent import monkey
-from service import CPAPIException
+from .service import CPAPIException
 from datetime import datetime, timedelta
 
 monkey.patch_all()
