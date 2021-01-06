@@ -900,7 +900,7 @@ class PlatformWrapper:
         return aip
 
     def _install_agent(self, wheel_file, start, vip_identity):
-        self.__wait_for_control_connection_to_exit__(5)
+        self.__wait_for_control_connection_to_exit__()
 
         self.logit("VOLTTRON_HOME SETTING: {}".format(
             self.env['VOLTTRON_HOME']))
@@ -1102,13 +1102,13 @@ class PlatformWrapper:
         if not self.is_running():
             raise PlatformWrapperError("Instance must be running before starting agent")
 
-        self.__wait_for_control_connection_to_exit__(5)
+        self.__wait_for_control_connection_to_exit__()
 
         cmd = [self.vctl_exe, '--json']
         cmd.extend(['start', agent_uuid])
         result = execute_command(cmd, self.env)
 
-        self.__wait_for_control_connection_to_exit__(5)
+        self.__wait_for_control_connection_to_exit__()
 
         # Confirm agent running
         cmd = [self.vctl_exe, '--json']
@@ -1129,13 +1129,13 @@ class PlatformWrapper:
 
         self.started_agent_pids.append(pid)
 
-        self.__wait_for_control_connection_to_exit__(5)
+        self.__wait_for_control_connection_to_exit__()
 
         return pid
 
     def stop_agent(self, agent_uuid):
         # Confirm agent running
-        self.__wait_for_control_connection_to_exit__(5)
+        self.__wait_for_control_connection_to_exit__()
 
         _log.debug("STOPPING AGENT: {}".format(agent_uuid))
 
@@ -1152,7 +1152,7 @@ class PlatformWrapper:
     def remove_agent(self, agent_uuid):
         """Remove the agent specified by agent_uuid"""
         _log.debug("REMOVING AGENT: {}".format(agent_uuid))
-        self.__wait_for_control_connection_to_exit__(5)
+        self.__wait_for_control_connection_to_exit__()
 
         cmd = [self.vctl_exe]
         cmd.extend(['remove', agent_uuid])
@@ -1179,7 +1179,7 @@ class PlatformWrapper:
         :param agent_uuid:
         :return:
         """
-        self.__wait_for_control_connection_to_exit__(5)
+        self.__wait_for_control_connection_to_exit__()
         # Confirm agent running
         cmd = [self.vctl_exe]
         cmd.extend(['status', agent_uuid])
