@@ -84,8 +84,9 @@ extras_require = {
     'documentation': [  # Requirements for building the documentation
         'mock',
         'Sphinx',
-        'recommonmark',
-        'sphinx-rtd-theme'
+        'sphinx-rtd-theme',
+        'sphinx==3.3.0',
+        'm2r2'
     ],
     'drivers': [
         'pymodbus',

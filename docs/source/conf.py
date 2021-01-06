@@ -21,7 +21,7 @@ import sys
 import os
 from glob import glob
 from mock import Mock as MagicMock
-from recommonmark.parser import CommonMarkParser
+import yaml
 
 from volttron.platform.agent.utils import execute_command
 
@@ -32,11 +32,9 @@ class Mock(MagicMock):
             return Mock()
 
 
-MOCK_MODULES = ['loadshape', 'numpy', 'sympy', 'xlrd', 'stomp', 'oadr2',
-                'pyodbc', 'lxml', 'stomp.listener',
-                'sympy.parsing', 'sympy.parsing.sympy_parser', 'pytest']
-sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
-
+autodoc_mock_imports = ['loadshape', 'numpy', 'sympy', 'xlrd', 'stomp', 'oadr2', 'pyodbc', 'lxml', 'pytest',
+                        'pint', 'pandas', 'suds', 'paho', 'pymongo', 'bson', 'subprocess32', 'heaters', 'meters',
+                        'hvac', 'blinds', 'vehicles']
 
 # -- Project information -----------------------------------------------------
 
@@ -73,6 +71,7 @@ extensions = [
     # http://www.sphinx-doc.org/en/master/usage/extensions/todo.html
     'sphinx.ext.todo',
     'sphinx.ext.intersphinx',
+    'm2r2'
 ]
 
 # prefix sections with the document so that we can cross link
@@ -90,7 +89,6 @@ templates_path = ['_templates']
 #
 # source_suffix = ['.rst', '.md']
 source_suffix = ['.rst', '.md']
-source_parsers = {'.md': CommonMarkParser}
 
 # The master toctree document.
 master_doc = 'index'
@@ -223,13 +221,13 @@ def setup(app):
     :param app:
     """
     app.connect('builder-inited', generate_apidoc)
-#    app.connect('build-finished', clean_apirst)
+    # For now clean before building so that we can use the rst generated for debugging issues
+    # app.connect('build-finished', clean_api_rst)
 
-#
-# script_dir = os.path.dirname(os.path.realpath(__file__))
-# apidocs_base_dir =os.path.abspath(script_dir + "/apidocs")
-#
-#
+
+script_dir = os.path.dirname(os.path.realpath(__file__))
+apidocs_base_dir = os.path.abspath(script_dir + "/volttron-api")
+volttron_root = os.path.abspath(os.path.join(script_dir, "../.."))
 
 
 def generate_apidoc(app):
@@ -239,109 +237,88 @@ def generate_apidoc(app):
     :param app:
     :return:
     """
-    volttron_src = os.path.abspath('../volttron')
 
-    if os.environ.get("READTHEDOCS"):
-        volttron_src = os.path.abspath('../../volttron')
+    print("\n##In run_apidocs##\n")
+    clean_api_rst(app, None)
+    global script_dir, apidocs_base_dir
 
-    # Exclusions must be full paths to directories
-    exlusions = [
-        os.path.join(volttron_src, 'lint/'),
-        os.path.join(volttron_src, 'drivers/')
-    ]
-    # Adds pydocs from VOLTTRON API source code to ReadtheDocs under source/volttron_api, formats top level heading as
-    # VOLTTRON API
-    cmd = ["sphinx-apidoc", '-H', 'VOLTTRON API', '-M', '-d 4', '-o', 'source/volttron_api', '--force', volttron_src]
+    os.makedirs(apidocs_base_dir, 0o755)
+    config = _read_config()
+    # generate api-docs for each api docs directory
+    for docs_subdir in config.keys():
+        docs_subdir_path = os.path.join(apidocs_base_dir, docs_subdir)
+        agent_dirs = glob(os.path.join(volttron_root, config[docs_subdir]["path"], "*/"))
+        file_excludes = []
+        if config[docs_subdir].get("file_excludes"):
+            for exclude_pattern in config[docs_subdir].get("file_excludes", []):
+                file_excludes.append(os.path.join(volttron_root, config[docs_subdir]["path"], exclude_pattern))
+        print("after file excludes. calling apidoc")
+        agent_excludes = \
+            config[docs_subdir].get("agent_excludes") if config[docs_subdir].get("agent_excludes", []) else []
+        run_apidoc(docs_subdir_path, agent_dirs, agent_excludes, file_excludes)
+        print("COMPLETED RUNNING API DOC")
 
-    cmd.extend(exlusions)
-    print("The command is: {}".format(cmd))
 
-    execute_command(cmd)
+def run_apidoc(docs_dir, agent_dirs, agent_excludes, exclude_pattern):
+    """
+    Runs sphinx-apidoc on all subdirectories under the given directory.
+    commnad runs with --force and exclude any setup.py file in the subdirectory
+    :param docs_dir: The base directory into with .rst files are generated.
+    :param agent_dirs: directory to search for packages to document
+    :param agent_excludes: agent directories to be skipped
+    :param exclude_pattern: file name patterns to be excluded. This passed on to sphinx-apidoc command for exclude
+    """
+    print(f"In run apidoc params {docs_dir}, {agent_dirs}, {agent_excludes}, {exclude_pattern}")
+    for agent_src_dir in agent_dirs:
+        agent_src_dir = os.path.abspath(agent_src_dir)
+        agent_src_dir = agent_src_dir[:-1] if agent_src_dir.endswith("/") else agent_src_dir
+        name = os.path.basename(agent_src_dir)
+        agent_doc_dir = os.path.join(docs_dir, name)
+        if name not in agent_excludes:
+            sys.path.insert(0, agent_src_dir)
+            cmd = ["sphinx-apidoc", '-e', '-a', '-M', '-d 4',
+                   '-t', os.path.join(script_dir, 'apidocs-templates'),
+                   '--force', '-o', agent_doc_dir, agent_src_dir,
+                   os.path.join(agent_src_dir, "setup.py"), os.path.join(agent_src_dir, "conftest.py")
+                   ]
 
-#     print("\n##In run_apidocs##\n")
-#     global script_dir, apidocs_base_dir
-#
-#     os.makedirs(apidocs_base_dir, 0755)
-#     file_name = os.path.join(script_dir,"../docs_exclude_list.txt" )
-#     services_excludes = []
-#     volttron_excludes = ['tests/**/*']
-#     examples_excludes = []
-#
-#     if os.path.exists(file_name):
-#         print "file_name {} exists".format(file_name)
-#         with open(file_name,'r') as file:
-#             for line in file:
-#                 print "line is {}".format(line)
-#                 if line.startswith('services'):
-#                     _add_to_excludes(services_excludes, line)
-#                 elif line.startswith('volttron'):
-#                     _add_to_excludes(volttron_excludes, line)
-#                 elif line.startswith('examples'):
-#                     _add_to_excludes(examples_excludes, line)
-#     print ("processed exclude list")
-#     print ("services {}".format(services_excludes))
-#     print ("volttron excludes {}".format(volttron_excludes))
-#
-#     # generate api-docs for  services/core
-#     docs_subdir=os.path.join(apidocs_base_dir, "services")
-#     agent_dirs = glob(script_dir+"/../../services/core/*/")
-#     run_apidoc(docs_subdir, agent_dirs, services_excludes)
-#
-#     # generate api-docs for examples
-#     docs_subdir = os.path.join(apidocs_base_dir, "examples")
-#     agent_dirs =  glob(script_dir + "/../../examples/*/")
-#     agent_dirs += glob(script_dir + "/../../examples/MarketAgents/*/")
-#     run_apidoc(docs_subdir, agent_dirs, examples_excludes)
-#
-#     # generate api-docs for platform core and drivers
-#     sys.path.insert(0,
-#                     os.path.abspath(script_dir + "/../../volttron"))
-#     print("Added to sys path***: {}".format(os.path.abspath(script_dir + "/../..")))
-#
-#     cmd = ["sphinx-apidoc", '--force', '-o',
-#            os.path.join(apidocs_base_dir, "volttron"),
-#            script_dir + "/../../volttron"]
-#     cmd.extend(volttron_excludes)
-#     subprocess.check_call(cmd)
-#
-#
-# def _add_to_excludes(application_excludes, line):
-#     global script_dir
-#     volttron_root = os.path.abspath(os.path.join(script_dir, "../.."))
-#     application_excludes.append(os.path.join(volttron_root, line))
-#
-#
-# def run_apidoc(docs_dir, agent_dirs, exclude_list):
-#     """
-#     Runs sphinx-apidoc on all subdirectories under the given directory.
-#     commnad runs with --force and exclude any setup.py file in the subdirectory
-#     :param docs_dir: The base directory into with .rst files are generated.
-#     :param module_services_path: directory to search for packages to document
-#     """
-#
-#     for agent_dir in agent_dirs:
-#         agent_dir = os.path.abspath(agent_dir)
-#         agent_dir = agent_dir[:-1] if agent_dir.endswith("/") else agent_dir
-#         sys.path.insert(0, agent_dir)
-#         print "Added to syspath {}".format(agent_dir)
-#         name = os.path.basename(agent_dir)
-#         cmd = ["sphinx-apidoc", '--force', '-e', '-o',
-#             os.path.join(apidocs_base_dir, "volttron"),
-#             script_dir + "/../../volttron"]
-#         cmd.extend(exclude_list)
-#         print("RuNNING COMMAND:")
-#         print(cmd)
-#         subprocess.check_call(cmd)
-#
-#
-# def clean_apirst(app, exception):
-#     """
-#     Deletes folder containing all auto generated .rst files at the end of
-#     sphinx build immaterial of the exit state of sphinx build.
-#     :param app:
-#     :param exception:
-#     """
-#     global apidocs_base_dir
-#     import shutil
-#     print("Cleanup: Removing apidocs directory {}".format(apidocs_base_dir))
-#     shutil.rmtree(apidocs_base_dir)
+            cmd.extend(exclude_pattern)
+            subprocess.check_call(cmd)
+            grab_agent_readme(agent_src_dir, agent_doc_dir)
+
+
+def _read_config():
+    filename = os.path.join(script_dir, "api_doc_config.yml")
+    data = {}
+    try:
+        with open(filename, 'r') as yaml_file:
+            data = yaml.safe_load(yaml_file)
+    except IOError as exc:
+        print("Error reading from file: {}".format(filename))
+        raise exc
+    except yaml.YAMLError as exc:
+        print("Yaml Error: {}".format(filename))
+        raise exc
+    return data
+
+
+def grab_agent_readme(agent_src_dir, agent_doc_dir):
+    src = os.path.join(agent_src_dir, "README.md")
+    dst = os.path.join(agent_doc_dir, "README.md")
+    os.symlink(src, dst)
+    with open(os.path.join(agent_doc_dir, "modules.rst"), "a") as f:
+        f.write("   Agent README <README>")
+
+
+def clean_api_rst(app, exception):
+    """
+    Deletes folder containing all auto generated .rst files at the end of
+    sphinx build immaterial of the exit state of sphinx build.
+    :param app:
+    :param exception:
+    """
+    global apidocs_base_dir
+    import shutil
+    if os.path.exists(apidocs_base_dir):
+        print("Cleanup: Removing apidocs directory {}".format(apidocs_base_dir))
+        shutil.rmtree(apidocs_base_dir)

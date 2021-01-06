@@ -46,7 +46,6 @@ import pymongo
 import re
 from pkg_resources import resource_string, resource_exists
 from pymongo.errors import BulkWriteError
-
 from volttron.platform.agent import utils
 from volttron.platform.agent.base_tagging import BaseTaggingService
 from volttron.platform.dbutils import mongoutils
@@ -62,14 +61,14 @@ TAGGING_SERVICE_SETUP_FAILED = 'TAGGING_SERVICE_SETUP_FAILED'
 
 def tagging_service(config_path, **kwargs):
     """
-    This method is called by the :py:func:`service.tagging.main` to
+    This method is called by the :py:func:`tagging.main` to
     parse the passed config file or configuration dictionary object, validate
     the configuration entries, and create an instance of MongodbTaggingService
 
     :param config_path: could be a path to a configuration file or can be a
      dictionary object
     :param kwargs: additional keyword arguments if any
-    :return: an instance of :py:class:`service.tagging.SQLTaggingService`
+    :return: an instance of :py:class:`tagging.MongodbTaggingService`
     """
     if isinstance(config_path, dict):
         config_dict = config_path
