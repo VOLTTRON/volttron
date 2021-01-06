@@ -2,6 +2,8 @@ import configparser as configparser
 from datetime import datetime
 import logging
 import os
+from pathlib import Path
+from typing import Optional, Union
 import uuid
 from urllib.parse import urlencode
 
@@ -19,12 +21,13 @@ import gevent
 import gevent.subprocess as subprocess
 import requests
 
+from volttron.platform.vip.socket import encode_key, decode_key
 from .agent_additions import (add_volttron_central,
                               add_volttron_central_platform)
 from gevent.fileobject import FileObject
 from gevent.subprocess import Popen
 from volttron.platform import packaging, jsonapi
-from volttron.platform.agent.known_identities import MASTER_WEB, CONTROL
+from volttron.platform.agent.known_identities import MASTER_WEB, CONTROL, CONTROL_CONNECTION, PROCESS_IDENTITIES
 from volttron.platform.certs import Certs
 from volttron.platform.agent import utils
 from volttron.platform.agent.utils import (strip_comments,
@@ -36,11 +39,10 @@ from volttron.platform.auth import (AuthFile, AuthEntry,
 from volttron.platform.keystore import KeyStore, KnownHostsStore
 from volttron.platform.vip.agent import Agent
 from volttron.platform.vip.agent.connection import Connection
-from volttrontesting.utils.utils import get_rand_http_address
+from volttrontesting.utils.utils import get_rand_http_address, get_rand_vip
 from volttrontesting.utils.utils import get_rand_tcp_address
 from volttrontesting.fixtures.rmq_test_setup import create_rmq_volttron_setup
 from volttron.utils.rmq_setup import start_rabbit, stop_rabbit
-
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -184,6 +186,10 @@ def create_volttron_home() -> str:
     # This is needed to run tests with volttron's secure mode. Without this
     # default permissions for folders under /tmp directory doesn't not have read or execute for group or others
     os.chmod(volttron_home, 0o755)
+    # Move volttron_home to be one level below the mkdir so that
+    # the volttron.log file is not part of the same folder for
+    # observer.
+    volttron_home = os.path.join(volttron_home, "volttron_home")
     return volttron_home
 
 
@@ -205,10 +211,18 @@ class PlatformWrapper:
         self._instance_shutdown = False
 
         self.volttron_home = create_volttron_home()
+        # log file is one level above volttron_home now
+        self.log_path = os.path.join(os.path.dirname(self.volttron_home), "volttron.log")
 
         self.packaged_dir = os.path.join(self.volttron_home, "packaged")
         os.makedirs(self.packaged_dir)
 
+        bin_dir = str(Path(sys.executable).parent)
+        path = os.environ['PATH']
+        if bin_dir not in path:
+            path = bin_dir + ":" + path
+        if VOLTTRON_ROOT not in path:
+            path = VOLTTRON_ROOT + ":" + path
         # in the context of this platform it is very important not to
         # use the main os.environ for anything.
         self.env = {
@@ -217,7 +231,7 @@ class PlatformWrapper:
             'DEBUG_MODE': os.environ.get('DEBUG_MODE', ''),
             'DEBUG': os.environ.get('DEBUG', ''),
             'SKIP_CLEANUP': os.environ.get('SKIP_CLEANUP', ''),
-            'PATH': VOLTTRON_ROOT + ':' + os.environ['PATH'],
+            'PATH': path,
             # RABBITMQ requires HOME env set
             'HOME': os.environ.get('HOME'),
             # Elixir (rmq pre-req) requires locale to be utf-8
@@ -227,8 +241,11 @@ class PlatformWrapper:
         }
         self.volttron_root = VOLTTRON_ROOT
 
-        volttron_exe = os.path.dirname(sys.executable) + '/volttron'
-        assert os.path.exists(volttron_exe)
+        self.vctl_exe = str(Path(sys.executable).parent.joinpath('volttron-ctl'))
+        self.volttron_exe = str(Path(sys.executable).parent.joinpath('volttron'))
+
+        assert Path(self.vctl_exe).exists()
+        assert Path(self.volttron_exe).exists()
         self.python = sys.executable
         assert os.path.exists(self.python)
 
@@ -277,17 +294,6 @@ class PlatformWrapper:
         # the rest so it should work out ok.
         os.environ['VOLTTRON_HOME'] = self.volttron_home
 
-        # Create web users for master web authentication
-        from volttron.platform.web.admin_endpoints import AdminEndpoints
-        from volttrontesting.utils.web_utils import get_test_web_env
-        adminep = AdminEndpoints()
-        params = urlencode(dict(username='admin', password1='admin', password2='admin'))
-        env = get_test_web_env("/admin/setpassword", method='POST')  # , input_data=input)
-        response = adminep.admin(env, params)
-
-        # with open(f'{self.volttron_home}/web-users.json', 'w') as f:
-        #     f.write(jsonapi.dumps({"admin":{"hashed_password":"$argon2id$v=19$m=102400,t=2,p=8$AMAYQ4gxhlDqfa+V0hqjlA$B0E+8g/wvnTAqpAgECBZOg","groups":["admin"]}}))
-
         # Writes the main volttron config file for this instance.
         store_message_bus_config(self.messagebus, self.instance_name)
 
@@ -314,6 +320,13 @@ class PlatformWrapper:
     @property
     def web_admin_api(self):
         return self._web_admin_api
+
+    def get_identity_keys(self, identity: str):
+        if not Path(KeyStore.get_agent_keystore_path(identity)).exists():
+            raise PlatformWrapperError(f"Invalid identity keystore {identity}")
+
+        with open(KeyStore.get_agent_keystore_path(identity)) as ks:
+            return jsonapi.loads(ks.read())
 
     def logit(self, message):
         print('{}: {}'.format(self.volttron_home, message))
@@ -418,12 +431,11 @@ class PlatformWrapper:
         if serverkey is None:
             serverkey = self.serverkey
         if publickey is None:
-            self.logit('generating new public secret key pair')
-            keyfile = tempfile.mktemp(".keys", "agent", self.volttron_home)
-            keys = KeyStore(keyfile)
-            keys.generate()
-            publickey = keys.public
-            secretkey = keys.secret
+            self.logit(f'generating new public secret key pair {KeyStore.get_agent_keystore_path(identity=identity)}')
+            ks = KeyStore(KeyStore.get_agent_keystore_path(identity=identity))
+            # ks.generate()
+            publickey = ks.public
+            secretkey = ks.secret
 
         if address is None:
             self.logit('Using vip-address {address}'.format(
@@ -439,6 +451,15 @@ class PlatformWrapper:
 
         if 'enable_store' not in kwargs:
             kwargs['enable_store'] = False
+        entry = AuthEntry(user_id=identity, credentials=publickey,
+                          capabilities={'allow_auth_modifications': None},
+                          comments="Added by platform wrapper")
+        authfile = AuthFile()
+        authfile.add(entry, overwrite=False, no_error=True)
+        # allow 2 seconds here for the auth to be updated in auth service
+        # before connecting to the platform with the agent.
+        #
+        gevent.sleep(2)
         agent = agent_class(address=address, identity=identity,
                             publickey=publickey, secretkey=secretkey,
                             serverkey=serverkey,
@@ -452,15 +473,16 @@ class PlatformWrapper:
         if publickey:
             self.logit(f'Adding publickey to auth.json {publickey} {identity}')
             self._append_allow_curve_key(publickey, agent.core.identity)
+            # allow write to file and event to reload all the auths.
+            gevent.sleep(2)
 
         if should_spawn:
             self.logit(f'platformwrapper.build_agent spawning for identity {identity}')
             event = gevent.event.Event()
-            gevent.spawn(agent.core.run, event)  # .join(0)
+            gevent.spawn(agent.core.run, event)
             event.wait(timeout=2)
-            gevent.sleep(2)
-            hello = agent.vip.hello().get(timeout=30)
-            assert len(hello) > 0
+            router_ping = agent.vip.ping("").get(timeout=30)
+            assert len(router_ping) > 0
 
         agent.publickey = publickey
         return agent
@@ -489,10 +511,7 @@ class PlatformWrapper:
         else:
             entry = AuthEntry(credentials=publickey, comments="Added by platform wrapper. No identity passed")
         authfile = AuthFile(self.volttron_home + "/auth.json")
-        try:
-            authfile.add(entry, overwrite=True)
-        except AuthFileEntryAlreadyExists:
-            pass
+        authfile.add(entry, no_error=True)
 
     def add_vc(self):
         os.environ.update(self.env)
@@ -541,7 +560,6 @@ class PlatformWrapper:
         # auth.update rpc call. So sleeping here instead expecting individual test cases to sleep for long
         gevent.sleep(2)
 
-
     @staticmethod
     def add_capability(entry, capabilites):
         if isinstance(entry, str):
@@ -565,18 +583,71 @@ class PlatformWrapper:
                          msgdebug=False,
                          setupmode=False,
                          agent_monitor_frequency=600,
-                         timeout=60):
+                         timeout=60,
+                         # Allow the AuthFile to be preauthenticated with keys for service agents.
+                         perform_preauth_service_agents=True):
         # Update OS env to current platform's env so get_home() call will result
         # in correct home director. Without this when more than one test instance are created, get_home()
         # will return home dir of last started platform wrapper instance
         os.environ.update(self.env)
 
+        # Add check and raise error if the platform is already running for this instance.
+        if self.is_running():
+            raise PlatformWrapperError("Already running platform")
+
         self.vip_address = vip_address
         self.mode = mode
         self.volttron_central_address = volttron_central_address
-        self.volttron_central_serverkey =volttron_central_serverkey
+        self.volttron_central_serverkey = volttron_central_serverkey
         self.bind_web_address = bind_web_address
+
+        if perform_preauth_service_agents:
+            authfile = AuthFile()
+
+            # pre-seed all of the volttron process identities before starting the platform
+            for identity in PROCESS_IDENTITIES:
+                capabilities = ['allow_auth_modifications']
+                ks = KeyStore(KeyStore.get_agent_keystore_path(identity))
+                entry = AuthEntry(credentials=encode_key(decode_key(ks.public)),
+                                  user_id=identity,
+                                  capabilities=capabilities,
+                                  comments='Added by pre-seeding.')
+                authfile.add(entry)
+
+            # Control connection needs to be added so that vctl can connect easily
+            identity = CONTROL_CONNECTION
+            capabilities = [{'edit_config_store': {'identity': '/.*/'}}]
+            ks = KeyStore(KeyStore.get_agent_keystore_path(identity))
+            entry = AuthEntry(credentials=encode_key(decode_key(ks.public)),
+                              user_id=identity,
+                              capabilities=capabilities,
+                              comments='Added by pre-seeding.')
+            authfile.add(entry)
+
+            identity = "dynamic_agent"
+            capabilities = ['allow_auth_modifications']
+            # Lets cheat a little because this is a wrapper and add the dynamic agent in here as well
+            ks = KeyStore(KeyStore.get_agent_keystore_path(identity))
+            entry = AuthEntry(credentials=encode_key(decode_key(ks.public)),
+                              user_id=identity,
+                              capabilities=capabilities,
+                              comments='Added by pre-seeding.')
+            authfile.add(entry)
+
+        # # Add platform key to known-hosts file:
+        # known_hosts = KnownHostsStore()
+        # known_hosts.add(opts.vip_local_address, encode_key(publickey))
+        # for addr in opts.vip_address:
+        #     known_hosts.add(addr, encode_key(publickey))
         if self.bind_web_address:
+            # Create web users for master web authentication
+            from volttron.platform.web.admin_endpoints import AdminEndpoints
+            from volttrontesting.utils.web_utils import get_test_web_env
+            adminep = AdminEndpoints()
+            params = urlencode(dict(username='admin', password1='admin', password2='admin'))
+            env = get_test_web_env("/admin/setpassword", method='POST')  # , input_data=input)
+            response = adminep.admin(env, params)
+
             self.discovery_address = "{}/discovery/".format(
                 self.bind_web_address)
 
@@ -632,7 +703,7 @@ class PlatformWrapper:
                      'volttron_central_serverkey': volttron_central_serverkey,
                      'secure_agent_users': self.secure_agent_users,
                      'platform_name': None,
-                     'log': os.path.join(self.volttron_home, 'volttron.log'),
+                     'log': self.log_path,
                      'log_config': None,
                      'monitor': True,
                      'autostart': True,
@@ -694,7 +765,7 @@ class PlatformWrapper:
 
             certsdir = os.path.join(self.volttron_home, 'certificates')
 
-            print ("certsdir", certsdir)
+            print("certsdir", certsdir)
             self.certsobj = Certs(certsdir)
 
             with closing(open(pconfig, 'w')) as cfg:
@@ -703,14 +774,12 @@ class PlatformWrapper:
             raise PlatformWrapperError(
                 "Invalid platform mode specified: {}".format(mode))
 
-        log = os.path.join(self.volttron_home, 'volttron.log')
-
-        cmd = ['volttron']
+        cmd = [self.volttron_exe]
         # if msgdebug:
         #     cmd.append('--msgdebug')
         if enable_logging:
             cmd.append('-vv')
-        cmd.append('-l{}'.format(log))
+        cmd.append('-l{}'.format(self.log_path))
         if setupmode:
             cmd.append('--setup-mode')
 
@@ -721,7 +790,6 @@ class PlatformWrapper:
         self.p_process = Popen(cmd, env=self.env, stdout=subprocess.PIPE,
                                stderr=subprocess.PIPE, universal_newlines=True)
 
-        assert self.p_process is not None
         # A None value means that the process is still running.
         # A negative means that the process exited with an error.
         assert self.p_process.poll() is None
@@ -751,18 +819,18 @@ class PlatformWrapper:
                 self.shutdown_platform()
                 raise Exception("Couldn't connect to core platform!")
 
-            def subscribe_to_all(peer, sender, bus, topic, headers, messages):
-                logged = "{} --------------------Pubsub Message--------------------\n".format(
-                    utils.format_timestamp(datetime.now()))
-                logged += "PEER: {}\n".format(peer)
-                logged += "SENDER: {}\n".format(sender)
-                logged += "Topic: {}\n".format(topic)
-                logged += "headers: {}\n".format([str(k) + '=' + str(v) for k, v in headers.items()])
-                logged += "message: {}\n".format(messages)
-                logged += "-------------------------------------------------------\n"
-                self.logit(logged)
-
-            self.dynamic_agent.vip.pubsub.subscribe('pubsub', '', subscribe_to_all).get()
+            # def subscribe_to_all(peer, sender, bus, topic, headers, messages):
+            #     logged = "{} --------------------Pubsub Message--------------------\n".format(
+            #         utils.format_timestamp(datetime.now()))
+            #     logged += "PEER: {}\n".format(peer)
+            #     logged += "SENDER: {}\n".format(sender)
+            #     logged += "Topic: {}\n".format(topic)
+            #     logged += "headers: {}\n".format([str(k) + '=' + str(v) for k, v in headers.items()])
+            #     logged += "message: {}\n".format(messages)
+            #     logged += "-------------------------------------------------------\n"
+            #     self.logit(logged)
+            #
+            # self.dynamic_agent.vip.pubsub.subscribe('pubsub', '', subscribe_to_all).get()
 
         if bind_web_address:
             times = 0
@@ -798,15 +866,13 @@ class PlatformWrapper:
             # can enable the WebAdminApi.
             # if self.ssl_auth:
             self._web_admin_api = WebAdminApi(self)
-        
-        gevent.sleep(10)
 
     def is_running(self):
         return utils.is_volttron_running(self.volttron_home)
 
     def direct_sign_agentpackage_creator(self, package):
         assert RESTRICTED, "Auth not available"
-        print ("wrapper.certsobj", self.certsobj.cert_dir)
+        print("wrapper.certsobj", self.certsobj.cert_dir)
         assert (
             auth.sign_as_creator(package, 'creator',
                                  certsobj=self.certsobj)), "Signing as {} failed.".format(
@@ -833,9 +899,8 @@ class PlatformWrapper:
         return aip
 
     def _install_agent(self, wheel_file, start, vip_identity):
-        self.logit('Creating channel for sending the agent.')
-        gevent.sleep(0.3)
-        self.logit('calling control install agent.')
+        self.__wait_for_control_connection_to_exit__(5)
+
         self.logit("VOLTTRON_HOME SETTING: {}".format(
             self.env['VOLTTRON_HOME']))
         env = self.env.copy()
@@ -851,7 +916,6 @@ class PlatformWrapper:
         if start:
             self.start_agent(agent_uuid)
         return agent_uuid
-
 
     def install_multiple_agents(self, agent_configs):
         """
@@ -882,8 +946,13 @@ class PlatformWrapper:
 
         return results
 
-    def install_agent(self, agent_wheel=None, agent_dir=None, config_file=None,
-                      start=True, vip_identity=None, startup_time=2, force=False):
+    def install_agent(self, agent_wheel: Optional[str] = None,
+                      agent_dir: Optional[str] = None,
+                      config_file: Optional[Union[dict, str]] = None,
+                      start: bool = True,
+                      vip_identity: Optional[str] = None,
+                      startup_time: int = 5,
+                      force: bool = False):
         """
         Install and optionally start an agent on the instance.
 
@@ -948,7 +1017,7 @@ class PlatformWrapper:
             else:
                 raise ValueError("Can't determine correct config file.")
 
-            cmd = ["vctl", "--json", "install", agent_dir, "--agent-config", config_file]
+            cmd = [self.vctl_exe, "--json", "install", agent_dir, "--agent-config", config_file]
 
             if force:
                 cmd.extend(["--force"])
@@ -957,7 +1026,8 @@ class PlatformWrapper:
             if start:
                 cmd.extend(["--start"])
 
-            stdout = execute_command(cmd, logger=_log,
+            env = self.env.copy()
+            stdout = execute_command(cmd, logger=_log, env=env,
                                      err_prefix="Error installing agent")
 
             # Because we are no longer silencing output from the install, the
@@ -1001,21 +1071,52 @@ class PlatformWrapper:
 
         return agent_uuid
 
+    def __wait_for_control_connection_to_exit__(self, timeout: int = 20):
+        """
+        Call the dynamic agent's peerlist method until the control connection is no longer connected or
+        timeout is reached
+        :param timeout:
+        :return:
+        """
+        self.logit("Waiting for control_connection to exit")
+        disconnected = False
+        timer_start = time.time()
+        while not disconnected:
+            peers = self.dynamic_agent.vip.peerlist().get(timeout=20)
+            disconnected = CONTROL_CONNECTION not in peers
+            if disconnected:
+                break
+            self.logit(f"Waiting for control connection to disconnect: {peers} time: {timer_start - time.time()} timeout is {timeout}")
+            if time.time() - timer_start > timeout:
+                raise PlatformWrapperError(f"Failed for {CONTROL_CONNECTION} to exit in a timely manner.")
+            time.sleep(0.5)
+
+        if not disconnected:
+            raise PlatformWrapperError("Control connection did not stop properly")
+
     def start_agent(self, agent_uuid):
         self.logit('Starting agent {}'.format(agent_uuid))
         self.logit("VOLTTRON_HOME SETTING: {}".format(
             self.env['VOLTTRON_HOME']))
-        cmd = ['volttron-ctl', '--json']
-        cmd.extend(['start', agent_uuid])
+        if not self.is_running():
+            raise PlatformWrapperError("Instance must be running before starting agent")
 
+        self.__wait_for_control_connection_to_exit__(5)
+
+        cmd = [self.vctl_exe, '--json']
+        cmd.extend(['start', agent_uuid])
         result = execute_command(cmd, self.env)
 
+        self.__wait_for_control_connection_to_exit__(5)
+
         # Confirm agent running
-        cmd = ['volttron-ctl', '--json']
+        cmd = [self.vctl_exe, '--json']
         cmd.extend(['status', agent_uuid])
         res = execute_command(cmd, env=self.env)
-           # 776 TODO: Timing issue where check fails
-        time.sleep(.1)
+
+        result = jsonapi.loads(res)
+        # 776 TODO: Timing issue where check fails
+        time.sleep(3)
         self.logit("Subprocess res is {}".format(res))
         assert 'running' in res
         pidpos = res.index('[') + 1
@@ -1026,13 +1127,18 @@ class PlatformWrapper:
             "The pid associated with agent {} does not exist".format(pid)
 
         self.started_agent_pids.append(pid)
+
+        self.__wait_for_control_connection_to_exit__(5)
+
         return pid
 
     def stop_agent(self, agent_uuid):
         # Confirm agent running
+        self.__wait_for_control_connection_to_exit__(5)
+
         _log.debug("STOPPING AGENT: {}".format(agent_uuid))
 
-        cmd = ['volttron-ctl']
+        cmd = [self.vctl_exe]
         cmd.extend(['stop', agent_uuid])
         res = execute_command(cmd, env=self.env, logger=_log,
                               err_prefix="Error stopping agent")
@@ -1045,10 +1151,12 @@ class PlatformWrapper:
     def remove_agent(self, agent_uuid):
         """Remove the agent specified by agent_uuid"""
         _log.debug("REMOVING AGENT: {}".format(agent_uuid))
+        self.__wait_for_control_connection_to_exit__(5)
 
-        cmd = ['volttron-ctl']
+        cmd = [self.vctl_exe]
         cmd.extend(['remove', agent_uuid])
-        res = execute_command(cmd, env=self.env, logger=_log,
+        env = self.env.copy()
+        res = execute_command(cmd, env=env, logger=_log,
                               err_prefix="Error removing agent")
         return self.agent_pid(agent_uuid)
 
@@ -1058,6 +1166,7 @@ class PlatformWrapper:
         agent_list = self.dynamic_agent.vip.rpc('control', 'list_agents').get(timeout=10)
         for agent_props in agent_list:
             self.dynamic_agent.vip.rpc('control', 'remove_agent', agent_props['uuid']).get(timeout=10)
+            time.sleep(0.2)
 
     def is_agent_running(self, agent_uuid):
         return self.agent_pid(agent_uuid) is not None
@@ -1069,8 +1178,9 @@ class PlatformWrapper:
         :param agent_uuid:
         :return:
         """
+        self.__wait_for_control_connection_to_exit__(5)
         # Confirm agent running
-        cmd = ['volttron-ctl']
+        cmd = [self.vctl_exe]
         cmd.extend(['status', agent_uuid])
         pid = None
         try:
@@ -1128,7 +1238,7 @@ class PlatformWrapper:
         retries = 0
         while not running and retries < max_retries:
             status = self.test_aip.status_agents()
-            print ("Status", status)
+            print("Status", status)
             if len(status) > 0:
                 status_name = status[0][1]
                 assert status_name == agent_name
@@ -1148,17 +1258,22 @@ class PlatformWrapper:
         _log.debug("Setting up federation using config : {}".format(config_path))
 
         cmd = ['vcfg']
-        cmd.extend(['--vhome', self.volttron_home, '--instance-name', self.instance_name,'--rabbitmq',
+        cmd.extend(['--vhome', self.volttron_home, '--instance-name', self.instance_name, '--rabbitmq',
                     "federation", config_path])
         execute_command(cmd, env=self.env, logger=_log,
-                              err_prefix="Error setting up federation")
+                        err_prefix="Error setting up federation")
 
     def restart_platform(self):
+        original_skip_cleanup = self.skip_cleanup
+        self.skip_cleanup = True
         self.shutdown_platform()
+        self.skip_cleanup = original_skip_cleanup
+        # since this is a restart, we don't want to do an update/overwrite of services.
         self.startup_platform(vip_address=self.vip_address,
                               bind_web_address=self.bind_web_address,
                               volttron_central_address=self.volttron_central_address,
-                              volttron_central_serverkey=self.volttron_central_serverkey)
+                              volttron_central_serverkey=self.volttron_central_serverkey,
+                              perform_preauth_service_agents=False)
         gevent.sleep(1)
 
     def stop_platform(self):
@@ -1189,7 +1304,7 @@ class PlatformWrapper:
         else:
             self.logit("platform process was null")
         #
-        # cmd = ['volttron-ctl']
+        # cmd = [self.vctl_exe]
         # cmd.extend(['shutdown', '--platform'])
         # try:
         #     execute_command(cmd, env=self.env, logger=_log,
@@ -1205,6 +1320,10 @@ class PlatformWrapper:
         #     else:
         #         self.logit("platform process was null")
         # gevent.sleep(1)
+
+    def __remove_home_directory__(self):
+        self.logit('Removing {}'.format(self.volttron_home))
+        shutil.rmtree(Path(self.volttron_home).parent, ignore_errors=True)
 
     def shutdown_platform(self):
         """
@@ -1223,6 +1342,8 @@ class PlatformWrapper:
             return
 
         if not self.is_running():
+            if not self.skip_cleanup:
+                self.__remove_home_directory__()
             return
 
         running_pids = []
@@ -1236,6 +1357,7 @@ class PlatformWrapper:
             # don't wait indefinetly as shutdown will not throw an error if RMQ is down/has cert errors
             self.dynamic_agent.vip.rpc(CONTROL, 'shutdown').get(timeout=10)
             self.dynamic_agent.core.stop()
+            self.dynamic_agent = None
 
         if self.p_process is not None:
             try:
@@ -1263,8 +1385,7 @@ class PlatformWrapper:
             print("Calling rabbit shutdown")
             stop_rabbit(rmq_home=self.rabbitmq_config_obj.rmq_home, env=self.env, quite=True)
         if not self.skip_cleanup:
-            self.logit('Removing {}'.format(self.volttron_home))
-            shutil.rmtree(self.volttron_home, ignore_errors=True)
+            self.__remove_home_directory__()
 
         self._instance_shutdown = True
 
@@ -1325,7 +1446,7 @@ class WebAdminApi(object):
             platform_wrapper = PlatformWrapper()
         assert platform_wrapper.is_running(), "Platform must be running"
         assert platform_wrapper.bind_web_address, "Platform must have web address"
-        #assert platform_wrapper.ssl_auth, "Platform must be ssl enabled"
+        # assert platform_wrapper.ssl_auth, "Platform must be ssl enabled"
 
         self._wrapper = platform_wrapper
         self.bind_web_address = self._wrapper.bind_web_address
@@ -1348,8 +1469,8 @@ class WebAdminApi(object):
         # else:
         if messagebus == 'rmq':
             data = dict(username=username, password1=password, password2=password)
-            url = self.bind_web_address +"/admin/setpassword"
-            #resp = requests.post(url, data=data,
+            url = self.bind_web_address + "/admin/setpassword"
+            # resp = requests.post(url, data=data,
             # verify=self.certsobj.remote_cert_bundle_file())
             resp = requests.post(url, data=data,
                                  verify=self.certsobj.cert_file(
@@ -1360,10 +1481,10 @@ class WebAdminApi(object):
 
     def authenticate(self, username, password):
         data = dict(username=username, password=password)
-        url = self.bind_web_address+"/authenticate"
+        url = self.bind_web_address + "/authenticate"
         # Passing dictionary to the data argument will automatically pass as
         # application/x-www-form-urlencoded to the request
-        #resp = requests.post(url, data=data,
+        # resp = requests.post(url, data=data,
         # verify=self.certsobj.remote_cert_bundle_file())
         resp = requests.post(url, data=data, verify=self.certsobj.cert_file(
             self.certsobj.root_ca_name))

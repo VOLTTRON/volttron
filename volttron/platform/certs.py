@@ -67,7 +67,7 @@ KEY_SIZE = 1024
 ENC_STANDARD = 65537
 SHA_HASH = 'sha256'
 # # days before the certificate will timeout.
-DEFAULT_DAYS = 365
+DEFAULT_DAYS = 365 * 10
 # 10 years
 DEFAULT_TIMOUT = 60 * 60 * 24 * 360 * 10
 
@@ -574,55 +574,12 @@ class Certs(object):
             fp.write(jsonapi.dumps(meta))
 
     def sign_csr(self, csr_file):
-        ca_crt = self.ca_cert()
-        ca_pkey = _load_key(self.private_key_file(self.root_ca_name))
         with open(csr_file, 'rb') as f:
             csr = x509.load_pem_x509_csr(data=f.read(), backend=default_backend())
 
         subject_common_name = csr.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value
-
-        if self.cert_exists(subject_common_name):
-            crt = self.cert(subject_common_name)
-            return crt.public_bytes(encoding=serialization.Encoding.PEM)
-
-        crt = x509.CertificateBuilder().subject_name(
-            csr.subject
-        ).issuer_name(
-            ca_crt.subject
-        ).public_key(
-            csr.public_key()
-        ).serial_number(
-            int(time.time())  # pylint: disable=no-member
-        ).not_valid_before(
-            datetime.datetime.utcnow()
-        ).not_valid_after(
-            datetime.datetime.utcnow() + datetime.timedelta(days=365 * 10)
-        ).add_extension(
-            extension=x509.KeyUsage(
-                digital_signature=True, key_encipherment=True, content_commitment=True,
-                data_encipherment=False, key_agreement=False, encipher_only=False, decipher_only=False,
-                key_cert_sign=False, crl_sign=False
-            ),
-            critical=True
-        ).add_extension(
-            extension=x509.BasicConstraints(ca=False, path_length=None),
-            critical=True
-        ).add_extension(
-            x509.AuthorityKeyIdentifier.from_issuer_subject_key_identifier(
-                ca_crt.extensions.get_extension_for_class(
-                    x509.SubjectKeyIdentifier)),
-            critical=False
-        ).sign(
-            private_key=ca_pkey,
-            algorithm=hashes.SHA256(),
-            backend=default_backend()
-        )
-
-        new_cert_file = self.cert_file(
-            csr.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value)
-        with open(new_cert_file, 'wb') as f:
-            f.write(crt.public_bytes(encoding=serialization.Encoding.PEM))
-        return crt.public_bytes(encoding=serialization.Encoding.PEM)
+        cert, _ = self.create_signed_cert_files(name=subject_common_name, overwrite=False, csr=csr)
+        return cert.public_bytes(encoding=serialization.Encoding.PEM)
 
     def cert_exists(self, cert_name, remote=False):
         """
@@ -800,7 +757,7 @@ class Certs(object):
             os.chmod(key_file, 0o600)
 
     def create_signed_cert_files(self, name, cert_type='client', ca_name=None,
-                                 overwrite=True, valid_days=DEFAULT_DAYS,
+                                 overwrite=True, valid_days=DEFAULT_DAYS, csr=None,
                                  **kwargs):
         """
         Create a new certificate and sign it with the volttron instance's
@@ -813,6 +770,9 @@ class Certs(object):
          overwritten
         :param name: name used to save the newly created certificate and
          private key. Files are saved as <name>.crt and <name>.pem
+        :param csr: Certificate Signing Request(CSR) based on which cert should be created.
+         In this case no new private key is generated. CSR's public bytes and subject are used in building the
+         certificate
         :param kwargs: dictionary object containing various details about who we
          are.
          Possible arguments:
@@ -824,22 +784,32 @@ class Certs(object):
              CN - Common Name
         :return: True if certificate creation was successful
         """
-        if not overwrite:
-            if self.cert_exists(name):
-                return False
+        if csr:
+            remote = True
+        else:
+            remote = False
+
+        if not overwrite and self.cert_exists(name, remote=remote):
+            if remote:
+                return _load_cert(self.cert_file(name, remote)), None
+            else:
+                return _load_cert(self.cert_file(name)), self.private_key_file(name)
 
         if not ca_name:
             ca_name = self.root_ca_name
 
         cert, key, serial = _create_signed_certificate(ca_cert=self.cert(ca_name),
                                                        ca_key=_load_key(self.private_key_file(ca_name)),
-                                                       name=name, valid_days=valid_days, type=cert_type, **kwargs)
-
-        self._save_cert(name, cert, key)
+                                                       name=name, valid_days=valid_days, type=cert_type,
+                                                       csr=csr, **kwargs)
+        if csr:
+            self._save_cert(name, cert, key, remote=remote)
+        else:
+            self._save_cert(name, cert, key)
         self.update_ca_db(cert, ca_name, serial)
         return cert, key
 
-    def _save_cert(self, name, cert, pk):
+    def _save_cert(self, name, cert, pk, remote=False):
         """
         Save the given certificate and private key using name.crt and
         name.pem respectively.
@@ -848,26 +818,28 @@ class Certs(object):
         :param pk:  :class: `
         :return:
         """
-        with open(self.cert_file(name), "wb") as f:
+        with open(self.cert_file(name, remote=remote), "wb") as f:
             f.write(cert.public_bytes(serialization.Encoding.PEM))
         os.chmod(self.cert_file(name), 0o644)
-        encryption = serialization.NoEncryption()
-        if PROMPT_PASSPHRASE:
-            encryption = serialization.BestAvailableEncryption(
-                get_passphrase(prompt1='Enter passphrase for private '
-                                       'key ' +
-                                       name + ":")
-            )
 
-        # Write our key to disk for safe keeping
-        key_file = self.private_key_file(name)
-        with open(key_file, "wb") as f:
-            f.write(pk.private_bytes(
-                encoding=serialization.Encoding.PEM,
-                format=serialization.PrivateFormat.TraditionalOpenSSL,
-                encryption_algorithm=encryption
-            ))
-        os.chmod(key_file, 0o600)
+        if pk:
+            encryption = serialization.NoEncryption()
+            if PROMPT_PASSPHRASE:
+                encryption = serialization.BestAvailableEncryption(
+                    get_passphrase(prompt1='Enter passphrase for private '
+                                           'key ' +
+                                           name + ":")
+                )
+
+            # Write our key to disk for safe keeping
+            key_file = self.private_key_file(name)
+            with open(key_file, "wb") as f:
+                f.write(pk.private_bytes(
+                    encoding=serialization.Encoding.PEM,
+                    format=serialization.PrivateFormat.TraditionalOpenSSL,
+                    encryption_algorithm=encryption
+                ))
+            os.chmod(key_file, 0o600)
 
     def update_ca_db(self, cert, ca_name, serial):
         """
@@ -949,7 +921,7 @@ def _create_private_key():
     )
 
 
-def _create_signed_certificate(ca_cert, ca_key, name, valid_days=365, type='client', **kwargs):
+def _create_signed_certificate(ca_cert, ca_key, name, valid_days=DEFAULT_DAYS, type='client', csr=None, **kwargs):
     """
     Creates signed cert of type provided and signs it with ca_key provided. To create subject for the new certificate
     common name is set new value, rest of the attributes are copied from subject of provided ca certificate
@@ -967,15 +939,18 @@ def _create_signed_certificate(ca_cert, ca_key, name, valid_days=365, type='clie
     # crptography 2.2.2
     ski = ca_cert.extensions.get_extension_for_class(
         x509.SubjectKeyIdentifier)
-
-    key = _create_private_key()
-    # key = rsa.generate_private_key(
-    #     public_exponent=65537,
-    #     key_size=2048,
-    #     backend=default_backend()
-    # )
     fqdn = kwargs.pop('fqdn', None)
-    if kwargs:
+
+    if csr:
+        key = None
+        public_key = csr.public_key()
+    else:
+        key = _create_private_key()
+        public_key = key.public_key()
+
+    if csr:
+        subject = csr.subject
+    elif kwargs:
         subject = _create_subject(**kwargs)
     else:
         temp_list = ca_cert.subject.rdns
@@ -1006,11 +981,11 @@ def _create_signed_certificate(ca_cert, ca_key, name, valid_days=365, type='clie
     ).issuer_name(
         issuer
     ).public_key(
-        key.public_key()
+        public_key
     ).not_valid_before(
         datetime.datetime.utcnow()
     ).not_valid_after(
-        # Our certificate will be valid for 365 days
+        # Our certificate will be valid for 3650 days
         datetime.datetime.utcnow() + datetime.timedelta(days=valid_days)
     ).add_extension(
         x509.AuthorityKeyIdentifier.from_issuer_subject_key_identifier(ski),
@@ -1023,7 +998,7 @@ def _create_signed_certificate(ca_cert, ca_key, name, valid_days=365, type='clie
             critical=True
         ).add_extension(
             x509.SubjectKeyIdentifier(
-                _create_fingerprint(key.public_key())),
+                _create_fingerprint(public_key)),
             critical=False
         )
         # cryptography 2.7

@@ -1,9 +1,10 @@
-import gevent
 import os
 import re
 import subprocess
 import pytest
 from mock import MagicMock
+
+from volttrontesting.platform.auth_tests.conftest import assert_auth_entries_same
 from volttrontesting.utils.utils import AgentMock
 from volttron.platform.vip.agent import Agent
 from volttron.platform.auth import AuthService

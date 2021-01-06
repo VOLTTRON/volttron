@@ -53,7 +53,8 @@ from gevent.fileobject import FileObject
 from zmq import green as zmq
 
 from volttron.platform import jsonapi, get_home
-from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM, CONTROL, MASTER_WEB
+from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM, CONTROL, MASTER_WEB, CONTROL_CONNECTION
+from volttron.platform.vip.agent.errors import VIPError
 from volttron.platform.jsonrpc import MethodNotFound, RemoteError
 from volttron.platform.vip.agent.errors import VIPError, Unreachable
 from volttron.platform.vip.pubsubservice import ProtectedPubSubTopics
@@ -294,12 +295,13 @@ class AuthService(Agent):
                 exception = e
 
         if not peers:
-            raise exception
+            raise BaseException("No peers connected to the platform")
 
         _log.debug("after getting peerlist to send auth updates")
 
         for peer in peers:
-            if peer not in [self.core.identity]:
+            if peer not in [self.core.identity, CONTROL_CONNECTION]:
+                _log.debug(f"Sending auth update to peers {peer}")
                 self.vip.rpc.call(peer, 'auth.update', user_to_caps)
         if self.core.messagebus == 'rmq':
             self._check_rmq_topic_permissions()
@@ -1009,8 +1011,7 @@ class AuthEntry(object):
 class AuthFile(object):
     def __init__(self, auth_file=None):
         if auth_file is None:
-            auth_file_dir = os.path.expanduser(
-                os.environ.get('VOLTTRON_HOME', '~/.volttron'))
+            auth_file_dir = get_home()
             auth_file = os.path.join(auth_file_dir, 'auth.json')
         self.auth_file = auth_file
         self._check_for_upgrade()
@@ -1233,17 +1234,21 @@ class AuthFile(object):
         for index in indices:
             self.update_by_index(auth_entry, index)
 
-    def add(self, auth_entry, overwrite=False):
+    def add(self, auth_entry, overwrite=False, no_error=False):
         """Adds an AuthEntry to the auth file
 
         :param auth_entry: authentication entry
         :param overwrite: set to true to overwrite matching entries
+        :param no_error:
+            set to True to not throw an AuthFileEntryAlreadyExists when attempting to add an exiting entry.
+
         :type auth_entry: AuthEntry
         :type overwrite: bool
+        :type no_error: bool
 
         .. warning:: If overwrite is set to False and if auth_entry matches an
                      existing entry then this method will raise
-                     AuthFileEntryAlreadyExists
+                     AuthFileEntryAlreadyExists unless no_error is set to true
         """
         try:
             self._check_if_exists(auth_entry)
@@ -1252,7 +1257,8 @@ class AuthFile(object):
                 _log.debug("Updating existing auth entry with {} ".format(auth_entry))
                 self._update_by_indices(auth_entry, err.indices)
             else:
-                raise err
+                if not no_error:
+                    raise err
         else:
             entries, groups, roles = self.read()
             entries.append(auth_entry)

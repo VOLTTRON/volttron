@@ -35,42 +35,18 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-import faulthandler
-faulthandler.enable()
-
-
 from configparser import ConfigParser
-import gevent
-import pytest
 import time
 import os
 
+import requests
+import gevent
+import pytest
 from mock import MagicMock
 
 from volttron.platform import get_services_core, get_examples, jsonapi
 from volttrontesting.utils.platformwrapper import PlatformWrapper
-from volttrontesting.utils.utils import get_rand_tcp_address
-from volttrontesting.utils.platform_process import VolttronProcess, VolttronRuntimeOptions, AgentProcess
-from time import sleep
-
-#
-# def test_volttron_process():
-#     rto = VolttronRuntimeOptions()
-#     p2 = VolttronProcess(runtime_options=rto)
-#     p = VolttronProcess(runtime_options=rto)
-#     p.start()
-#     p2.start()
-#     # a = AgentProcess("/home/osboxes/repos/volttron-develop/examples/ListenerAgent/listener/agent.py",
-#     #                  p.volttron_home, "/home/osboxes/repos/volttron-develop/examples/ListenerAgent/config")
-#     # a.start()
-#
-#     sleep(5)
-#     # a.terminate()
-#     # a.join()
-#     p2.shutdown()
-#     p2.join()
-#     p.shutdown()
-#     p.join()
+from volttrontesting.utils.utils import get_rand_tcp_address, get_rand_http_address
 
 
 @pytest.mark.parametrize("messagebus, ssl_auth", [
@@ -79,7 +55,6 @@ from time import sleep
     # , ('rmq', True)
 ])
 def test_can_create(messagebus, ssl_auth):
-
     p = PlatformWrapper(messagebus=messagebus, ssl_auth=ssl_auth)
     try:
         assert not p.is_running()
@@ -87,6 +62,7 @@ def test_can_create(messagebus, ssl_auth):
 
         p.startup_platform(vip_address=get_rand_tcp_address())
         assert p.is_running()
+        assert p.dynamic_agent.vip.ping("").get(timeout=2)
     finally:
         if p:
             p.shutdown_platform()
@@ -94,7 +70,28 @@ def test_can_create(messagebus, ssl_auth):
     assert not p.is_running()
 
 
+@pytest.mark.parametrize("messagebus, https_enabled", [
+    ('zmq', False)
+    # TODO: Test enable generation of certs to support https
+    # , ('zmq', True)
+    # , ('zmq', False)
+    # , ('rmq', True)
+])
+def test_can_create_web_enabled(messagebus: str, https_enabled: bool):
+    p = PlatformWrapper(messagebus=messagebus)
+    try:
+        assert not p.is_running()
+        assert p.volttron_home.startswith("/tmp/tmp")
+        http_address = get_rand_http_address(https=https_enabled)
+        p.startup_platform(vip_address=get_rand_tcp_address(), bind_web_address=http_address)
+        assert p.is_running()
+        response = requests.get(http_address, verify=False)
+        assert response.ok
+    finally:
+        if p:
+            p.shutdown_platform()
 
+    assert not p.is_running()
 
 
 @pytest.mark.wrapper
@@ -111,7 +108,6 @@ def test_volttron_config_created(volttron_instance):
 
 @pytest.mark.wrapper
 def test_can_restart_platform_without_addresses_changing(get_volttron_instances):
-
     inst_forward, inst_target = get_volttron_instances(2)
 
     original_vip = inst_forward.vip_address
@@ -126,7 +122,6 @@ def test_can_restart_platform_without_addresses_changing(get_volttron_instances)
 
 @pytest.mark.wrapper
 def test_can_restart_platform(volttron_instance):
-
     orig_vip = volttron_instance.vip_address
     orig_vhome = volttron_instance.volttron_home
     orig_bus = volttron_instance.messagebus
@@ -172,7 +167,6 @@ def test_instance_writes_to_instances_file(volttron_instance):
 
 @pytest.mark.wrapper
 def test_can_install_listener(volttron_instance):
-
     vi = volttron_instance
     assert vi is not None
     assert vi.is_running()
@@ -229,16 +223,22 @@ def test_reinstall_agent(volttron_instance):
             }
         }
     }
-    for i in range(0, 5):
-        print("Counter: {}".format(i))
+    auuid = volttron_instance.install_agent(
+        agent_dir=get_services_core("SQLHistorian"),
+        config_file=sqlite_config,
+        start=True,
+        vip_identity='test_historian')
+    assert volttron_instance.is_agent_running(auuid)
 
-        auuid = volttron_instance.install_agent(
-            agent_dir=get_services_core("SQLHistorian"),
-            config_file=sqlite_config,
-            start=True,
-            vip_identity='test_historian')
-        assert volttron_instance.is_agent_running(auuid)
-        volttron_instance.remove_agent(auuid)
+    newuuid = volttron_instance.install_agent(
+        agent_dir=get_services_core("SQLHistorian"),
+        config_file=sqlite_config,
+        start=True,
+        force=True,
+        vip_identity='test_historian')
+
+    assert volttron_instance.is_agent_running(newuuid)
+    assert auuid != newuuid and auuid is not None
 
 
 @pytest.mark.wrapper
@@ -349,51 +349,3 @@ def test_can_publish(volttron_instance):
 def test_fixture_returns_single_if_one_requested(get_volttron_instances):
     wrapper = get_volttron_instances(1, False)
     assert isinstance(wrapper, PlatformWrapper)
-
-
-@pytest.mark.wrapper
-def test_can_install_listener_on_two_platforms(get_volttron_instances):
-
-    wrapper1, wrapper2 = get_volttron_instances(2)
-
-    global messages
-    clear_messages()
-    auuid = wrapper1.install_agent(
-        agent_dir=get_examples("ListenerAgent"),
-        start=False)
-    assert auuid is not None
-    started = wrapper1.start_agent(auuid)
-    print('STARTED: ', started)
-    listening = wrapper1.build_agent()
-    listening.vip.pubsub.subscribe(peer='pubsub',
-                                   prefix='heartbeat/listeneragent',
-                                   callback=onmessage)
-
-    # sleep for 10 seconds and at least one heartbeat should have been
-    # published
-    # because it's set to 5 seconds.
-    time_start = time.time()
-
-    clear_messages()
-    auuid2 = wrapper2.install_agent(
-        agent_dir=get_examples("ListenerAgent"),
-        start=True)
-    assert auuid2 is not None
-    started2 = wrapper2.start_agent(auuid2)
-    print('STARTED: ', started2)
-    listening = wrapper2.build_agent()
-    listening.vip.pubsub.subscribe(peer='pubsub',
-                                   prefix='heartbeat/listeneragent',
-                                   callback=onmessage)
-
-    # sleep for 10 seconds and at least one heartbeat should have been
-    # published
-    # because it's set to 5 seconds.
-    time_start = time.time()
-
-    print('Awaiting heartbeat response.')
-    while not messages_contains_prefix(
-            'heartbeat/listeneragent') and time.time() < time_start + 10:
-        gevent.sleep(0.2)
-
-    assert messages_contains_prefix('heartbeat/listeneragent')
