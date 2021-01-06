@@ -347,6 +347,7 @@ class PlatformWrapper:
             self.web_admin_api.create_web_admin('admin', 'admin', self.messagebus)
 
     def get_agent_identity(self, agent_uuid):
+        identity = None
         path = os.path.join(self.volttron_home, 'agents/{}/IDENTITY'.format(agent_uuid))
         with open(path) as f:
             identity = f.read().strip()
