@@ -404,7 +404,7 @@ class PlatformWrapper:
 
     def build_agent(self, address=None, should_spawn=True, identity=None,
                     publickey=None, secretkey=None, serverkey=None,
-                    agent_class=Agent, **kwargs):
+                    agent_class=Agent, capabilities: Optional[dict] = None, **kwargs):
         """ Build an agent connnected to the passed bus.
 
         By default the current instance that this class wraps will be the
@@ -452,8 +452,12 @@ class PlatformWrapper:
 
         if 'enable_store' not in kwargs:
             kwargs['enable_store'] = False
+
+        if capabilities is None:
+            capabilities = dict(allow_auth_modifications=None,
+                                edit_config_store=identity)
         entry = AuthEntry(user_id=identity, credentials=publickey,
-                          capabilities={'allow_auth_modifications': None},
+                          capabilities=capabilities,
                           comments="Added by platform wrapper")
         authfile = AuthFile()
         authfile.add(entry, overwrite=False, no_error=True)
@@ -469,13 +473,6 @@ class PlatformWrapper:
                             message_bus=self.messagebus,
                             **kwargs)
         self.logit('platformwrapper.build_agent.address: {}'.format(address))
-
-        # Automatically add agent's credentials to auth.json file
-        if publickey:
-            self.logit(f'Adding publickey to auth.json {publickey} {identity}')
-            self._append_allow_curve_key(publickey, agent.core.identity)
-            # allow write to file and event to reload all the auths.
-            gevent.sleep(2)
 
         if should_spawn:
             self.logit(f'platformwrapper.build_agent spawning for identity {identity}')
