@@ -45,7 +45,7 @@ import pytest
 from mock import MagicMock
 
 from volttron.platform import get_services_core, get_examples, jsonapi
-from volttrontesting.utils.platformwrapper import PlatformWrapper
+from volttrontesting.utils.platformwrapper import PlatformWrapper, with_os_environ
 from volttrontesting.utils.utils import get_rand_tcp_address, get_rand_http_address
 
 
@@ -375,3 +375,20 @@ def test_can_install_multiple_listeners(volttron_instance):
                 volttron_instance.remove_agent(x)
             except:
                 print('COULDN"T REMOVE AGENT')
+
+
+def test_will_update_environ():
+    to_update = dict(farthing="50")
+    with with_os_environ(to_update):
+        assert os.environ.get("farthing") == "50"
+
+    assert "farthing" not in os.environ
+
+
+def test_will_update_validation():
+    # Note dictionary for os.environ must be string=string for key=value
+
+    to_update = dict(farthing=35)
+    with pytest.raises(TypeError) as ex:
+        with with_os_environ(to_update):
+            pass

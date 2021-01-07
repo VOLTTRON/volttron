@@ -13,7 +13,7 @@ import sys
 import tempfile
 import time
 import re
-from contextlib import closing
+from contextlib import closing, contextmanager
 from os.path import dirname
 from subprocess import CalledProcessError
 
@@ -193,6 +193,31 @@ def create_volttron_home() -> str:
     return volttron_home
 
 
+@contextmanager
+def with_os_environ(update_env: dict):
+    """
+    Wrapper function for updating os environment and returning it to the previous state.  This function
+    should be used whenever a modification to os.environ is necessary.  The restoration of the environment
+    after the call will happen automatically
+
+    Exaample::
+
+        with with_os_environ(self.env):
+            print('within self.env context now')
+
+    :param update_env:
+    :return:
+    """
+    copy_env = os.environ.copy()
+
+    os.environ.update(update_env)
+    try:
+        yield
+    finally:
+        if id(os.environ) != id(copy_env):
+            os.environ = copy_env
+
+
 class PlatformWrapper:
     def __init__(self, messagebus=None, ssl_auth=False, instance_name=None,
                  secure_agent_users=False, remote_platform_ca=None):
@@ -289,44 +314,42 @@ class PlatformWrapper:
         if not self.instance_name:
             self.instance_name = os.path.basename(self.volttron_home)
 
-        # Set the VOLTTRON_HOME for this process...note this
-        # seems tricky but this platform should start up before
-        # the rest so it should work out ok.
-        os.environ['VOLTTRON_HOME'] = self.volttron_home
+        with with_os_environ(self.env):
 
-        # Writes the main volttron config file for this instance.
-        store_message_bus_config(self.messagebus, self.instance_name)
+            # Writes the main volttron config file for this instance.
+            store_message_bus_config(self.messagebus, self.instance_name)
 
-        self.remote_platform_ca = remote_platform_ca
-        self.requests_ca_bundle = None
-        self.dynamic_agent = None
+            self.remote_platform_ca = remote_platform_ca
+            self.requests_ca_bundle = None
+            self.dynamic_agent = None
 
-        if self.messagebus == 'rmq':
-            self.rabbitmq_config_obj = create_rmq_volttron_setup(vhome=self.volttron_home,
-                                                                 ssl_auth=self.ssl_auth,
-                                                                 env=self.env,
-                                                                 instance_name=self.instance_name,
-                                                                 secure_agent_users=secure_agent_users)
+            if self.messagebus == 'rmq':
+                self.rabbitmq_config_obj = create_rmq_volttron_setup(vhome=self.volttron_home,
+                                                                     ssl_auth=self.ssl_auth,
+                                                                     env=self.env,
+                                                                     instance_name=self.instance_name,
+                                                                     secure_agent_users=secure_agent_users)
 
-            self.certsobj = Certs(os.path.join(self.volttron_home, "certificates"))
+                self.certsobj = Certs(os.path.join(self.volttron_home, "certificates"))
 
-        self.debug_mode = self.env.get('DEBUG_MODE', False)
-        if not self.debug_mode:
-            self.debug_mode = self.env.get('DEBUG', False)
-        self.skip_cleanup = self.env.get('SKIP_CLEANUP', False)
+            self.debug_mode = self.env.get('DEBUG_MODE', False)
+            if not self.debug_mode:
+                self.debug_mode = self.env.get('DEBUG', False)
+            self.skip_cleanup = self.env.get('SKIP_CLEANUP', False)
 
-        self._web_admin_api = None
+            self._web_admin_api = None
 
     @property
     def web_admin_api(self):
         return self._web_admin_api
 
     def get_identity_keys(self, identity: str):
-        if not Path(KeyStore.get_agent_keystore_path(identity)).exists():
-            raise PlatformWrapperError(f"Invalid identity keystore {identity}")
+        with with_os_environ(self.env):
+            if not Path(KeyStore.get_agent_keystore_path(identity)).exists():
+                raise PlatformWrapperError(f"Invalid identity keystore {identity}")
 
-        with open(KeyStore.get_agent_keystore_path(identity)) as ks:
-            return jsonapi.loads(ks.read())
+            with open(KeyStore.get_agent_keystore_path(identity)) as ks:
+                return jsonapi.loads(ks.read())
 
     def logit(self, message):
         print('{}: {}'.format(self.volttron_home, message))
@@ -334,17 +357,18 @@ class PlatformWrapper:
     def allow_all_connections(self):
         """ Add a /.*/ entry to the auth.json file.
         """
-        entry = AuthEntry(credentials="/.*/", comments="Added by platformwrapper")
-        authfile = AuthFile(self.volttron_home + "/auth.json")
-        try:
-            authfile.add(entry)
-        except AuthFileEntryAlreadyExists:
-            pass
+        with with_os_environ(self.env):
+            entry = AuthEntry(credentials="/.*/", comments="Added by platformwrapper")
+            authfile = AuthFile(self.volttron_home + "/auth.json")
+            try:
+                authfile.add(entry)
+            except AuthFileEntryAlreadyExists:
+                pass
 
-        if self.messagebus == 'rmq' and self.bind_web_address is not None:
-            self.enable_auto_csr()
-        if self.bind_web_address is not None:
-            self.web_admin_api.create_web_admin('admin', 'admin', self.messagebus)
+            if self.messagebus == 'rmq' and self.bind_web_address is not None:
+                self.enable_auto_csr()
+            if self.bind_web_address is not None:
+                self.web_admin_api.create_web_admin('admin', 'admin', self.messagebus)
 
     def get_agent_identity(self, agent_uuid):
         identity = None
@@ -360,7 +384,7 @@ class PlatformWrapper:
 
     def build_connection(self, peer=None, address=None, identity=None,
                          publickey=None, secretkey=None, serverkey=None,
-                         capabilities=[], **kwargs):
+                         capabilities: Optional[dict] = None, **kwargs):
         self.logit('Building connection to {}'.format(peer))
         os.environ.update(self.env)
         self.allow_all_connections()
@@ -584,27 +608,43 @@ class PlatformWrapper:
                          timeout=60,
                          # Allow the AuthFile to be preauthenticated with keys for service agents.
                          perform_preauth_service_agents=True):
-        # Update OS env to current platform's env so get_home() call will result
-        # in correct home director. Without this when more than one test instance are created, get_home()
-        # will return home dir of last started platform wrapper instance
-        os.environ.update(self.env)
 
-        # Add check and raise error if the platform is already running for this instance.
-        if self.is_running():
-            raise PlatformWrapperError("Already running platform")
+        with with_os_environ(self.env):
+            # Update OS env to current platform's env so get_home() call will result
+            # in correct home director. Without this when more than one test instance are created, get_home()
+            # will return home dir of last started platform wrapper instance
+            os.environ.update(self.env)
 
-        self.vip_address = vip_address
-        self.mode = mode
-        self.volttron_central_address = volttron_central_address
-        self.volttron_central_serverkey = volttron_central_serverkey
-        self.bind_web_address = bind_web_address
+            # Add check and raise error if the platform is already running for this instance.
+            if self.is_running():
+                raise PlatformWrapperError("Already running platform")
 
-        if perform_preauth_service_agents:
-            authfile = AuthFile()
+            self.vip_address = vip_address
+            self.mode = mode
+            self.volttron_central_address = volttron_central_address
+            self.volttron_central_serverkey = volttron_central_serverkey
+            self.bind_web_address = bind_web_address
 
-            # pre-seed all of the volttron process identities before starting the platform
-            for identity in PROCESS_IDENTITIES:
-                capabilities = ['allow_auth_modifications']
+            if perform_preauth_service_agents:
+                authfile = AuthFile()
+
+                # pre-seed all of the volttron process identities before starting the platform
+                for identity in PROCESS_IDENTITIES:
+                    if identity == MASTER_WEB:
+                        capabilities = dict(allow_auth_modifications=None)
+                    else:
+                        capabilities = dict(edit_config_stor=dict(identity="/.*/"))
+
+                    ks = KeyStore(KeyStore.get_agent_keystore_path(identity))
+                    entry = AuthEntry(credentials=encode_key(decode_key(ks.public)),
+                                      user_id=identity,
+                                      capabilities=capabilities,
+                                      comments='Added by pre-seeding.')
+                    authfile.add(entry)
+
+                # Control connection needs to be added so that vctl can connect easily
+                identity = CONTROL_CONNECTION
+                capabilities = dict(edit_config_stor=dict(identity="/.*/"))
                 ks = KeyStore(KeyStore.get_agent_keystore_path(identity))
                 entry = AuthEntry(credentials=encode_key(decode_key(ks.public)),
                                   user_id=identity,
@@ -612,261 +652,252 @@ class PlatformWrapper:
                                   comments='Added by pre-seeding.')
                 authfile.add(entry)
 
-            # Control connection needs to be added so that vctl can connect easily
-            identity = CONTROL_CONNECTION
-            capabilities = [{'edit_config_store': {'identity': '/.*/'}}]
-            ks = KeyStore(KeyStore.get_agent_keystore_path(identity))
-            entry = AuthEntry(credentials=encode_key(decode_key(ks.public)),
-                              user_id=identity,
-                              capabilities=capabilities,
-                              comments='Added by pre-seeding.')
-            authfile.add(entry)
+                identity = "dynamic_agent"
+                capabilities = ['allow_auth_modifications']
+                # Lets cheat a little because this is a wrapper and add the dynamic agent in here as well
+                ks = KeyStore(KeyStore.get_agent_keystore_path(identity))
+                entry = AuthEntry(credentials=encode_key(decode_key(ks.public)),
+                                  user_id=identity,
+                                  capabilities=capabilities,
+                                  comments='Added by pre-seeding.')
+                authfile.add(entry)
 
-            identity = "dynamic_agent"
-            capabilities = ['allow_auth_modifications']
-            # Lets cheat a little because this is a wrapper and add the dynamic agent in here as well
-            ks = KeyStore(KeyStore.get_agent_keystore_path(identity))
-            entry = AuthEntry(credentials=encode_key(decode_key(ks.public)),
-                              user_id=identity,
-                              capabilities=capabilities,
-                              comments='Added by pre-seeding.')
-            authfile.add(entry)
+            # # Add platform key to known-hosts file:
+            # known_hosts = KnownHostsStore()
+            # known_hosts.add(opts.vip_local_address, encode_key(publickey))
+            # for addr in opts.vip_address:
+            #     known_hosts.add(addr, encode_key(publickey))
+            if self.bind_web_address:
+                # Create web users for master web authentication
+                from volttron.platform.web.admin_endpoints import AdminEndpoints
+                from volttrontesting.utils.web_utils import get_test_web_env
+                adminep = AdminEndpoints()
+                params = urlencode(dict(username='admin', password1='admin', password2='admin'))
+                env = get_test_web_env("/admin/setpassword", method='POST')  # , input_data=input)
+                response = adminep.admin(env, params)
 
-        # # Add platform key to known-hosts file:
-        # known_hosts = KnownHostsStore()
-        # known_hosts.add(opts.vip_local_address, encode_key(publickey))
-        # for addr in opts.vip_address:
-        #     known_hosts.add(addr, encode_key(publickey))
-        if self.bind_web_address:
-            # Create web users for master web authentication
-            from volttron.platform.web.admin_endpoints import AdminEndpoints
-            from volttrontesting.utils.web_utils import get_test_web_env
-            adminep = AdminEndpoints()
-            params = urlencode(dict(username='admin', password1='admin', password2='admin'))
-            env = get_test_web_env("/admin/setpassword", method='POST')  # , input_data=input)
-            response = adminep.admin(env, params)
+                self.discovery_address = "{}/discovery/".format(
+                    self.bind_web_address)
 
-            self.discovery_address = "{}/discovery/".format(
-                self.bind_web_address)
+                # Only available if vc is installed!
+                self.jsonrpc_endpoint = "{}/vc/jsonrpc".format(
+                    self.bind_web_address)
 
-            # Only available if vc is installed!
-            self.jsonrpc_endpoint = "{}/vc/jsonrpc".format(
-                self.bind_web_address)
+            msgdebug = self.env.get('MSG_DEBUG', False)
+            enable_logging = self.env.get('ENABLE_LOGGING', False)
 
-        msgdebug = self.env.get('MSG_DEBUG', False)
-        enable_logging = self.env.get('ENABLE_LOGGING', False)
+            if self.debug_mode:
+                self.skip_cleanup = True
+                enable_logging = True
+                msgdebug = True
 
-        if self.debug_mode:
-            self.skip_cleanup = True
-            enable_logging = True
-            msgdebug = True
+            self.logit("Starting Platform: {}".format(self.volttron_home))
+            assert self.mode in MODES, 'Invalid platform mode set: ' + str(mode)
+            opts = None
 
-        self.logit("Starting Platform: {}".format(self.volttron_home))
-        assert self.mode in MODES, 'Invalid platform mode set: ' + str(mode)
-        opts = None
+            # see main.py for how we handle pub sub addresses.
+            ipc = 'ipc://{}{}/run/'.format(
+                '@' if sys.platform.startswith('linux') else '',
+                self.volttron_home)
+            self.local_vip_address = ipc + 'vip.socket'
+            self.set_auth_dict(auth_dict)
 
-        # see main.py for how we handle pub sub addresses.
-        ipc = 'ipc://{}{}/run/'.format(
-            '@' if sys.platform.startswith('linux') else '',
-            self.volttron_home)
-        self.local_vip_address = ipc + 'vip.socket'
-        self.set_auth_dict(auth_dict)
+            if self.messagebus == 'rmq' and bind_web_address:
+                self.env['REQUESTS_CA_BUNDLE'] = self.certsobj.cert_file(self.certsobj.root_ca_name)
 
-        if self.messagebus == 'rmq' and bind_web_address:
-            self.env['REQUESTS_CA_BUNDLE'] = self.certsobj.cert_file(self.certsobj.root_ca_name)
-
-        if self.remote_platform_ca:
-            ca_bundle_file = os.path.join(self.volttron_home, "cat_ca_certs")
-            with open(ca_bundle_file, 'w') as cf:
-                if self.messagebus == 'rmq':
-                    with open(self.certsobj.cert_file(self.certsobj.root_ca_name)) as f:
+            if self.remote_platform_ca:
+                ca_bundle_file = os.path.join(self.volttron_home, "cat_ca_certs")
+                with open(ca_bundle_file, 'w') as cf:
+                    if self.messagebus == 'rmq':
+                        with open(self.certsobj.cert_file(self.certsobj.root_ca_name)) as f:
+                            cf.write(f.read())
+                    with open(self.remote_platform_ca) as f:
                         cf.write(f.read())
-                with open(self.remote_platform_ca) as f:
-                    cf.write(f.read())
-            os.chmod(ca_bundle_file, 0o744)
-            self.env['REQUESTS_CA_BUNDLE'] = ca_bundle_file
-            os.environ['REQUESTS_CA_BUNDLE'] = self.env['REQUESTS_CA_BUNDLE']
-        # This file will be passed off to the main.py and available when
-        # the platform starts up.
-        self.requests_ca_bundle = self.env.get('REQUESTS_CA_BUNDLE')
+                os.chmod(ca_bundle_file, 0o744)
+                self.env['REQUESTS_CA_BUNDLE'] = ca_bundle_file
+                os.environ['REQUESTS_CA_BUNDLE'] = self.env['REQUESTS_CA_BUNDLE']
+            # This file will be passed off to the main.py and available when
+            # the platform starts up.
+            self.requests_ca_bundle = self.env.get('REQUESTS_CA_BUNDLE')
 
-        self.opts = {'verify_agents': False,
-                     'volttron_home': self.volttron_home,
-                     'vip_address': vip_address,
-                     'vip_local_address': ipc + 'vip.socket',
-                     'publish_address': ipc + 'publish',
-                     'subscribe_address': ipc + 'subscribe',
-                     'bind_web_address': bind_web_address,
-                     'volttron_central_address': volttron_central_address,
-                     'volttron_central_serverkey': volttron_central_serverkey,
-                     'secure_agent_users': self.secure_agent_users,
-                     'platform_name': None,
-                     'log': self.log_path,
-                     'log_config': None,
-                     'monitor': True,
-                     'autostart': True,
-                     'log_level': logging.DEBUG,
-                     'verboseness': logging.DEBUG,
-                     'web_ca_cert': self.requests_ca_bundle}
+            self.opts = {'verify_agents': False,
+                         'volttron_home': self.volttron_home,
+                         'vip_address': vip_address,
+                         'vip_local_address': ipc + 'vip.socket',
+                         'publish_address': ipc + 'publish',
+                         'subscribe_address': ipc + 'subscribe',
+                         'bind_web_address': bind_web_address,
+                         'volttron_central_address': volttron_central_address,
+                         'volttron_central_serverkey': volttron_central_serverkey,
+                         'secure_agent_users': self.secure_agent_users,
+                         'platform_name': None,
+                         'log': self.log_path,
+                         'log_config': None,
+                         'monitor': True,
+                         'autostart': True,
+                         'log_level': logging.DEBUG,
+                         'verboseness': logging.DEBUG,
+                         'web_ca_cert': self.requests_ca_bundle}
 
-        pconfig = os.path.join(self.volttron_home, 'config')
-        config = {}
+            pconfig = os.path.join(self.volttron_home, 'config')
+            config = {}
 
-        # Add platform's public key to known hosts file
-        publickey = self.keystore.public
-        known_hosts_file = os.path.join(self.volttron_home, 'known_hosts')
-        known_hosts = KnownHostsStore(known_hosts_file)
-        known_hosts.add(self.opts['vip_local_address'], publickey)
-        known_hosts.add(self.opts['vip_address'], publickey)
+            # Add platform's public key to known hosts file
+            publickey = self.keystore.public
+            known_hosts_file = os.path.join(self.volttron_home, 'known_hosts')
+            known_hosts = KnownHostsStore(known_hosts_file)
+            known_hosts.add(self.opts['vip_local_address'], publickey)
+            known_hosts.add(self.opts['vip_address'], publickey)
 
-        # Set up the configuration file based upon the passed parameters.
-        parser = configparser.ConfigParser()
-        parser.add_section('volttron')
-        parser.set('volttron', 'vip-address', vip_address)
-        if bind_web_address:
-            parser.set('volttron', 'bind-web-address', bind_web_address)
-        if volttron_central_address:
-            parser.set('volttron', 'volttron-central-address',
-                       volttron_central_address)
-        if volttron_central_serverkey:
-            parser.set('volttron', 'volttron-central-serverkey',
-                       volttron_central_serverkey)
-        if self.instance_name:
-            parser.set('volttron', 'instance-name',
-                       self.instance_name)
-        if self.messagebus:
-            parser.set('volttron', 'message-bus',
-                       self.messagebus)
-        if self.secure_agent_users:
-            parser.set('volttron', 'secure-agent-users',
-                       str(self.secure_agent_users))
-        # In python3 option values must be strings.
-        parser.set('volttron', 'agent-monitor-frequency',
-                   str(agent_monitor_frequency))
+            # Set up the configuration file based upon the passed parameters.
+            parser = configparser.ConfigParser()
+            parser.add_section('volttron')
+            parser.set('volttron', 'vip-address', vip_address)
+            if bind_web_address:
+                parser.set('volttron', 'bind-web-address', bind_web_address)
+            if volttron_central_address:
+                parser.set('volttron', 'volttron-central-address',
+                           volttron_central_address)
+            if volttron_central_serverkey:
+                parser.set('volttron', 'volttron-central-serverkey',
+                           volttron_central_serverkey)
+            if self.instance_name:
+                parser.set('volttron', 'instance-name',
+                           self.instance_name)
+            if self.messagebus:
+                parser.set('volttron', 'message-bus',
+                           self.messagebus)
+            if self.secure_agent_users:
+                parser.set('volttron', 'secure-agent-users',
+                           str(self.secure_agent_users))
+            # In python3 option values must be strings.
+            parser.set('volttron', 'agent-monitor-frequency',
+                       str(agent_monitor_frequency))
 
-        self.logit(
-            "Platform will run on message bus type {} ".format(self.messagebus))
-        self.logit("writing config to: {}".format(pconfig))
+            self.logit(
+                "Platform will run on message bus type {} ".format(self.messagebus))
+            self.logit("writing config to: {}".format(pconfig))
 
-        if self.ssl_auth:
-            certsdir = os.path.join(self.volttron_home, 'certificates')
+            if self.ssl_auth:
+                certsdir = os.path.join(self.volttron_home, 'certificates')
 
-            self.certsobj = Certs(certsdir)
+                self.certsobj = Certs(certsdir)
 
-        if self.mode == UNRESTRICTED:
-            with open(pconfig, 'w') as cfg:
-                parser.write(cfg)
+            if self.mode == UNRESTRICTED:
+                with open(pconfig, 'w') as cfg:
+                    parser.write(cfg)
 
-        elif self.mode == RESTRICTED:
-            if not RESTRICTED_AVAILABLE:
-                raise ValueError("restricted is not available.")
+            elif self.mode == RESTRICTED:
+                if not RESTRICTED_AVAILABLE:
+                    raise ValueError("restricted is not available.")
 
-            certsdir = os.path.join(self.volttron_home, 'certificates')
+                certsdir = os.path.join(self.volttron_home, 'certificates')
 
-            print("certsdir", certsdir)
-            self.certsobj = Certs(certsdir)
+                print("certsdir", certsdir)
+                self.certsobj = Certs(certsdir)
 
-            with closing(open(pconfig, 'w')) as cfg:
-                cfg.write(PLATFORM_CONFIG_RESTRICTED.format(**config))
-        else:
-            raise PlatformWrapperError(
-                "Invalid platform mode specified: {}".format(mode))
+                with closing(open(pconfig, 'w')) as cfg:
+                    cfg.write(PLATFORM_CONFIG_RESTRICTED.format(**config))
+            else:
+                raise PlatformWrapperError(
+                    "Invalid platform mode specified: {}".format(mode))
 
-        cmd = [self.volttron_exe]
-        # if msgdebug:
-        #     cmd.append('--msgdebug')
-        if enable_logging:
-            cmd.append('-vv')
-        cmd.append('-l{}'.format(self.log_path))
-        if setupmode:
-            cmd.append('--setup-mode')
+            cmd = [self.volttron_exe]
+            # if msgdebug:
+            #     cmd.append('--msgdebug')
+            if enable_logging:
+                cmd.append('-vv')
+            cmd.append('-l{}'.format(self.log_path))
+            if setupmode:
+                cmd.append('--setup-mode')
 
-        from pprint import pprint
-        print('process environment: ')
-        pprint(self.env)
-        print('popen params: {}'.format(cmd))
-        self.p_process = Popen(cmd, env=self.env, stdout=subprocess.PIPE,
-                               stderr=subprocess.PIPE, universal_newlines=True)
+            from pprint import pprint
+            print('process environment: ')
+            pprint(self.env)
+            print('popen params: {}'.format(cmd))
+            self.p_process = Popen(cmd, env=self.env, stdout=subprocess.PIPE,
+                                   stderr=subprocess.PIPE, universal_newlines=True)
 
-        # A None value means that the process is still running.
-        # A negative means that the process exited with an error.
-        assert self.p_process.poll() is None
+            # A None value means that the process is still running.
+            # A negative means that the process exited with an error.
+            assert self.p_process.poll() is None
 
-        utils.wait_for_volttron_startup(self.volttron_home, timeout)
+            utils.wait_for_volttron_startup(self.volttron_home, timeout)
 
-        self.serverkey = self.keystore.public
-        assert self.serverkey
+            self.serverkey = self.keystore.public
+            assert self.serverkey
 
-        # Use dynamic_agent so we can look and see the agent with peerlist.
-        if not setupmode:
-            gevent.sleep(2)
-            self.dynamic_agent = self.build_agent(identity="dynamic_agent")
-            assert self.dynamic_agent is not None
-            assert isinstance(self.dynamic_agent, Agent)
-            has_control = False
-            times = 0
-            while not has_control and times < 10:
-                times += 1
-                try:
-                    has_control = CONTROL in self.dynamic_agent.vip.peerlist().get(timeout=.2)
-                    self.logit("Has control? {}".format(has_control))
-                except gevent.Timeout:
-                    pass
+            # Use dynamic_agent so we can look and see the agent with peerlist.
+            if not setupmode:
+                gevent.sleep(2)
+                self.dynamic_agent = self.build_agent(identity="dynamic_agent")
+                assert self.dynamic_agent is not None
+                assert isinstance(self.dynamic_agent, Agent)
+                has_control = False
+                times = 0
+                while not has_control and times < 10:
+                    times += 1
+                    try:
+                        has_control = CONTROL in self.dynamic_agent.vip.peerlist().get(timeout=.2)
+                        self.logit("Has control? {}".format(has_control))
+                    except gevent.Timeout:
+                        pass
 
-            if not has_control:
-                self.shutdown_platform()
-                raise Exception("Couldn't connect to core platform!")
+                if not has_control:
+                    self.shutdown_platform()
+                    raise Exception("Couldn't connect to core platform!")
 
-            # def subscribe_to_all(peer, sender, bus, topic, headers, messages):
-            #     logged = "{} --------------------Pubsub Message--------------------\n".format(
-            #         utils.format_timestamp(datetime.now()))
-            #     logged += "PEER: {}\n".format(peer)
-            #     logged += "SENDER: {}\n".format(sender)
-            #     logged += "Topic: {}\n".format(topic)
-            #     logged += "headers: {}\n".format([str(k) + '=' + str(v) for k, v in headers.items()])
-            #     logged += "message: {}\n".format(messages)
-            #     logged += "-------------------------------------------------------\n"
-            #     self.logit(logged)
-            #
-            # self.dynamic_agent.vip.pubsub.subscribe('pubsub', '', subscribe_to_all).get()
+                # def subscribe_to_all(peer, sender, bus, topic, headers, messages):
+                #     logged = "{} --------------------Pubsub Message--------------------\n".format(
+                #         utils.format_timestamp(datetime.now()))
+                #     logged += "PEER: {}\n".format(peer)
+                #     logged += "SENDER: {}\n".format(sender)
+                #     logged += "Topic: {}\n".format(topic)
+                #     logged += "headers: {}\n".format([str(k) + '=' + str(v) for k, v in headers.items()])
+                #     logged += "message: {}\n".format(messages)
+                #     logged += "-------------------------------------------------------\n"
+                #     self.logit(logged)
+                #
+                # self.dynamic_agent.vip.pubsub.subscribe('pubsub', '', subscribe_to_all).get()
 
-        if bind_web_address:
-            times = 0
-            has_discovery = False
-            error_was = None
+            if bind_web_address:
+                times = 0
+                has_discovery = False
+                error_was = None
 
-            while times < 10:
-                times += 1
-                try:
-                    if self.ssl_auth:
-                        resp = requests.get(self.discovery_address,
-                                            verify=self.certsobj.cert_file(self.certsobj.root_ca_name))
-                    else:
-                        resp = requests.get(self.discovery_address)
-                    if resp.ok:
-                        self.logit("Has discovery address for {}".format(self.discovery_address))
-                        if self.requests_ca_bundle:
-                            self.logit("Using REQUESTS_CA_BUNDLE: {}".format(self.requests_ca_bundle))
+                while times < 10:
+                    times += 1
+                    try:
+                        if self.ssl_auth:
+                            resp = requests.get(self.discovery_address,
+                                                verify=self.certsobj.cert_file(self.certsobj.root_ca_name))
                         else:
-                            self.logit("Not using requests_ca_bundle for message bus: {}".format(self.messagebus))
-                        has_discovery = True
-                        break
-                except Exception as e:
-                    gevent.sleep(0.5)
-                    error_was = e
-                    self.logit("Connection error found {}".format(e))
-            if not has_discovery:
-                if error_was:
-                    raise error_was
-                raise Exception("Couldn't connect to discovery platform.")
+                            resp = requests.get(self.discovery_address)
+                        if resp.ok:
+                            self.logit("Has discovery address for {}".format(self.discovery_address))
+                            if self.requests_ca_bundle:
+                                self.logit("Using REQUESTS_CA_BUNDLE: {}".format(self.requests_ca_bundle))
+                            else:
+                                self.logit("Not using requests_ca_bundle for message bus: {}".format(self.messagebus))
+                            has_discovery = True
+                            break
+                    except Exception as e:
+                        gevent.sleep(0.5)
+                        error_was = e
+                        self.logit("Connection error found {}".format(e))
+                if not has_discovery:
+                    if error_was:
+                        raise error_was
+                    raise Exception("Couldn't connect to discovery platform.")
 
-            # Now that we know we have web and we are using ssl then we
-            # can enable the WebAdminApi.
-            # if self.ssl_auth:
-            self._web_admin_api = WebAdminApi(self)
+                # Now that we know we have web and we are using ssl then we
+                # can enable the WebAdminApi.
+                # if self.ssl_auth:
+                self._web_admin_api = WebAdminApi(self)
 
     def is_running(self):
-        return utils.is_volttron_running(self.volttron_home)
+        with with_os_environ(self.env):
+            return utils.is_volttron_running(self.volttron_home)
 
     def direct_sign_agentpackage_creator(self, package):
         assert RESTRICTED, "Auth not available"
@@ -1093,81 +1124,86 @@ class PlatformWrapper:
             raise PlatformWrapperError("Control connection did not stop properly")
 
     def start_agent(self, agent_uuid):
-        self.logit('Starting agent {}'.format(agent_uuid))
-        self.logit("VOLTTRON_HOME SETTING: {}".format(
-            self.env['VOLTTRON_HOME']))
-        if not self.is_running():
-            raise PlatformWrapperError("Instance must be running before starting agent")
+        with with_os_environ(self.env):
+            self.logit('Starting agent {}'.format(agent_uuid))
+            self.logit("VOLTTRON_HOME SETTING: {}".format(
+                self.env['VOLTTRON_HOME']))
+            if not self.is_running():
+                raise PlatformWrapperError("Instance must be running before starting agent")
 
-        self.__wait_for_control_connection_to_exit__()
+            self.__wait_for_control_connection_to_exit__()
 
-        cmd = [self.vctl_exe, '--json']
-        cmd.extend(['start', agent_uuid])
-        result = execute_command(cmd, self.env)
+            cmd = [self.vctl_exe, '--json']
+            cmd.extend(['start', agent_uuid])
+            result = execute_command(cmd, self.env)
 
-        self.__wait_for_control_connection_to_exit__()
+            self.__wait_for_control_connection_to_exit__()
 
-        # Confirm agent running
-        cmd = [self.vctl_exe, '--json']
-        cmd.extend(['status', agent_uuid])
-        res = execute_command(cmd, env=self.env)
+            # Confirm agent running
+            cmd = [self.vctl_exe, '--json']
+            cmd.extend(['status', agent_uuid])
+            res = execute_command(cmd, env=self.env)
 
-        result = jsonapi.loads(res)
-        # 776 TODO: Timing issue where check fails
-        time.sleep(3)
-        self.logit("Subprocess res is {}".format(res))
-        assert 'running' in res
-        pidpos = res.index('[') + 1
-        pidend = res.index(']')
-        pid = int(res[pidpos: pidend])
+            result = jsonapi.loads(res)
+            # 776 TODO: Timing issue where check fails
+            time.sleep(3)
+            self.logit("Subprocess res is {}".format(res))
+            assert 'running' in res
+            pidpos = res.index('[') + 1
+            pidend = res.index(']')
+            pid = int(res[pidpos: pidend])
 
-        assert psutil.pid_exists(pid), \
-            "The pid associated with agent {} does not exist".format(pid)
+            assert psutil.pid_exists(pid), \
+                "The pid associated with agent {} does not exist".format(pid)
 
-        self.started_agent_pids.append(pid)
+            self.started_agent_pids.append(pid)
 
-        self.__wait_for_control_connection_to_exit__()
+            self.__wait_for_control_connection_to_exit__()
 
-        return pid
+            return pid
 
     def stop_agent(self, agent_uuid):
-        # Confirm agent running
-        self.__wait_for_control_connection_to_exit__()
+        with with_os_environ(self.env):
+            # Confirm agent running
+            self.__wait_for_control_connection_to_exit__()
 
-        _log.debug("STOPPING AGENT: {}".format(agent_uuid))
+            _log.debug("STOPPING AGENT: {}".format(agent_uuid))
 
-        cmd = [self.vctl_exe]
-        cmd.extend(['stop', agent_uuid])
-        res = execute_command(cmd, env=self.env, logger=_log,
-                              err_prefix="Error stopping agent")
-        return self.agent_pid(agent_uuid)
+            cmd = [self.vctl_exe]
+            cmd.extend(['stop', agent_uuid])
+            res = execute_command(cmd, env=self.env, logger=_log,
+                                  err_prefix="Error stopping agent")
+            return self.agent_pid(agent_uuid)
 
     def list_agents(self):
-        agent_list = self.dynamic_agent.vip.rpc('control', 'list_agents').get(timeout=10)
-        return agent_list
+        with with_os_environ(self.env):
+            agent_list = self.dynamic_agent.vip.rpc('control', 'list_agents').get(timeout=10)
+            return agent_list
 
     def remove_agent(self, agent_uuid):
         """Remove the agent specified by agent_uuid"""
-        _log.debug("REMOVING AGENT: {}".format(agent_uuid))
-        self.__wait_for_control_connection_to_exit__()
+        with with_os_environ(self.env):
+            _log.debug("REMOVING AGENT: {}".format(agent_uuid))
+            self.__wait_for_control_connection_to_exit__()
 
-        cmd = [self.vctl_exe]
-        cmd.extend(['remove', agent_uuid])
-        env = self.env.copy()
-        res = execute_command(cmd, env=env, logger=_log,
-                              err_prefix="Error removing agent")
-        return self.agent_pid(agent_uuid)
+            cmd = [self.vctl_exe]
+            cmd.extend(['remove', agent_uuid])
+            res = execute_command(cmd, env=self.env, logger=_log,
+                                  err_prefix="Error removing agent")
+            return self.agent_pid(agent_uuid)
 
     def remove_all_agents(self):
-        if self._instance_shutdown:
-            return
-        agent_list = self.dynamic_agent.vip.rpc('control', 'list_agents').get(timeout=10)
-        for agent_props in agent_list:
-            self.dynamic_agent.vip.rpc('control', 'remove_agent', agent_props['uuid']).get(timeout=10)
-            time.sleep(0.2)
+        with with_os_environ(self.env):
+            if self._instance_shutdown:
+                return
+            agent_list = self.dynamic_agent.vip.rpc('control', 'list_agents').get(timeout=10)
+            for agent_props in agent_list:
+                self.dynamic_agent.vip.rpc('control', 'remove_agent', agent_props['uuid']).get(timeout=10)
+                time.sleep(0.2)
 
     def is_agent_running(self, agent_uuid):
-        return self.agent_pid(agent_uuid) is not None
+        with with_os_environ(self.env):
+            return self.agent_pid(agent_uuid) is not None
 
     def agent_pid(self, agent_uuid):
         """
@@ -1253,26 +1289,28 @@ class PlatformWrapper:
         Set up federation using the given config path
         :param config_path: path to federation config yml file.
         """
-        _log.debug("Setting up federation using config : {}".format(config_path))
+        with with_os_environ(self.env):
+            _log.debug("Setting up federation using config : {}".format(config_path))
 
-        cmd = ['vcfg']
-        cmd.extend(['--vhome', self.volttron_home, '--instance-name', self.instance_name, '--rabbitmq',
-                    "federation", config_path])
-        execute_command(cmd, env=self.env, logger=_log,
-                        err_prefix="Error setting up federation")
+            cmd = ['vcfg']
+            cmd.extend(['--vhome', self.volttron_home, '--instance-name', self.instance_name, '--rabbitmq',
+                        "federation", config_path])
+            execute_command(cmd, env=self.env, logger=_log,
+                            err_prefix="Error setting up federation")
 
     def restart_platform(self):
-        original_skip_cleanup = self.skip_cleanup
-        self.skip_cleanup = True
-        self.shutdown_platform()
-        self.skip_cleanup = original_skip_cleanup
-        # since this is a restart, we don't want to do an update/overwrite of services.
-        self.startup_platform(vip_address=self.vip_address,
-                              bind_web_address=self.bind_web_address,
-                              volttron_central_address=self.volttron_central_address,
-                              volttron_central_serverkey=self.volttron_central_serverkey,
-                              perform_preauth_service_agents=False)
-        gevent.sleep(1)
+        with with_os_environ(self.env):
+            original_skip_cleanup = self.skip_cleanup
+            self.skip_cleanup = True
+            self.shutdown_platform()
+            self.skip_cleanup = original_skip_cleanup
+            # since this is a restart, we don't want to do an update/overwrite of services.
+            self.startup_platform(vip_address=self.vip_address,
+                                  bind_web_address=self.bind_web_address,
+                                  volttron_central_address=self.volttron_central_address,
+                                  volttron_central_serverkey=self.volttron_central_serverkey,
+                                  perform_preauth_service_agents=False)
+            gevent.sleep(1)
 
     def stop_platform(self):
         """
@@ -1281,43 +1319,38 @@ class PlatformWrapper:
         maintain the context of the platform.
         :return:
         """
+        with with_os_environ(self.env):
+            if not self.is_running():
+                return
 
-        if not self.is_running():
-            return
-
-        # Update OS env to current platform's env so get_home() call will result
-        # in correct home director. Without this when more than one test instance are created, get_home()
-        # will return home dir of last started platform wrapper instance
-        os.environ.update(self.env)
-
-        self.dynamic_agent.vip.rpc(CONTROL, "shutdown").get()
-        self.dynamic_agent.core.stop()
-        if self.p_process is not None:
-            try:
-                gevent.sleep(0.2)
-                self.p_process.terminate()
-                gevent.sleep(0.2)
-            except OSError:
-                self.logit('Platform process was terminated.')
-        else:
-            self.logit("platform process was null")
-        #
-        # cmd = [self.vctl_exe]
-        # cmd.extend(['shutdown', '--platform'])
-        # try:
-        #     execute_command(cmd, env=self.env, logger=_log,
-        #                     err_prefix="Error shutting down platform")
-        # except RuntimeError:
-        #     if self.p_process is not None:
-        #         try:
-        #             gevent.sleep(0.2)
-        #             self.p_process.terminate()
-        #             gevent.sleep(0.2)
-        #         except OSError:
-        #             self.logit('Platform process was terminated.')
-        #     else:
-        #         self.logit("platform process was null")
-        # gevent.sleep(1)
+            self.dynamic_agent.vip.rpc(CONTROL, "shutdown").get()
+            self.dynamic_agent.core.stop()
+            if self.p_process is not None:
+                try:
+                    gevent.sleep(0.2)
+                    self.p_process.terminate()
+                    gevent.sleep(0.2)
+                except OSError:
+                    self.logit('Platform process was terminated.')
+            else:
+                self.logit("platform process was null")
+            #
+            # cmd = [self.vctl_exe]
+            # cmd.extend(['shutdown', '--platform'])
+            # try:
+            #     execute_command(cmd, env=self.env, logger=_log,
+            #                     err_prefix="Error shutting down platform")
+            # except RuntimeError:
+            #     if self.p_process is not None:
+            #         try:
+            #             gevent.sleep(0.2)
+            #             self.p_process.terminate()
+            #             gevent.sleep(0.2)
+            #         except OSError:
+            #             self.logit('Platform process was terminated.')
+            #     else:
+            #         self.logit("platform process was null")
+            # gevent.sleep(1)
 
     def __remove_home_directory__(self):
         self.logit('Removing {}'.format(self.volttron_home))
@@ -1330,62 +1363,58 @@ class PlatformWrapper:
         pids are still running then kill them.
         """
 
-        # Update OS env to current platform's env so get_home() call will result
-        # in correct home director. Without this when more than one test instance are created, get_home()
-        # will return home dir of last started platform wrapper instance
-        os.environ.update(self.env)
+        with with_os_environ(self.env):
+            # Handle cascading calls from multiple levels of fixtures.
+            if self._instance_shutdown:
+                return
 
-        # Handle cascading calls from multiple levels of fixtures.
-        if self._instance_shutdown:
-            return
+            if not self.is_running():
+                if not self.skip_cleanup:
+                    self.__remove_home_directory__()
+                return
 
-        if not self.is_running():
+            running_pids = []
+            if self.dynamic_agent:  # because we are not creating dynamic agent in setupmode
+                for agnt in self.list_agents():
+                    pid = self.agent_pid(agnt['uuid'])
+                    if pid is not None and int(pid) > 0:
+                        running_pids.append(int(pid))
+                if not self.skip_cleanup:
+                    self.remove_all_agents()
+                # don't wait indefinetly as shutdown will not throw an error if RMQ is down/has cert errors
+                self.dynamic_agent.vip.rpc(CONTROL, 'shutdown').get(timeout=10)
+                self.dynamic_agent.core.stop()
+                self.dynamic_agent = None
+
+            if self.p_process is not None:
+                try:
+                    gevent.sleep(0.2)
+                    self.p_process.terminate()
+                    gevent.sleep(0.2)
+                except OSError:
+                    self.logit('Platform process was terminated.')
+                pid_file = "{vhome}/VOLTTRON_PID".format(vhome=self.volttron_home)
+                try:
+                    os.remove(pid_file)
+                except OSError:
+                    self.logit('Error while removing VOLTTRON PID file {}'.format(pid_file))
+            else:
+                self.logit("platform process was null")
+
+            for pid in running_pids:
+                if psutil.pid_exists(pid):
+                    self.logit("TERMINATING: {}".format(pid))
+                    proc = psutil.Process(pid)
+                    proc.terminate()
+
+            print(" Skip clean up flag is {}".format(self.skip_cleanup))
+            if self.messagebus == 'rmq':
+                print("Calling rabbit shutdown")
+                stop_rabbit(rmq_home=self.rabbitmq_config_obj.rmq_home, env=self.env, quite=True)
             if not self.skip_cleanup:
                 self.__remove_home_directory__()
-            return
 
-        running_pids = []
-        if self.dynamic_agent:  # because we are not creating dynamic agent in setupmode
-            for agnt in self.list_agents():
-                pid = self.agent_pid(agnt['uuid'])
-                if pid is not None and int(pid) > 0:
-                    running_pids.append(int(pid))
-            if not self.skip_cleanup:
-                self.remove_all_agents()
-            # don't wait indefinetly as shutdown will not throw an error if RMQ is down/has cert errors
-            self.dynamic_agent.vip.rpc(CONTROL, 'shutdown').get(timeout=10)
-            self.dynamic_agent.core.stop()
-            self.dynamic_agent = None
-
-        if self.p_process is not None:
-            try:
-                gevent.sleep(0.2)
-                self.p_process.terminate()
-                gevent.sleep(0.2)
-            except OSError:
-                self.logit('Platform process was terminated.')
-            pid_file = "{vhome}/VOLTTRON_PID".format(vhome=self.volttron_home)
-            try:
-                os.remove(pid_file)
-            except OSError:
-                self.logit('Error while removing VOLTTRON PID file {}'.format(pid_file))
-        else:
-            self.logit("platform process was null")
-
-        for pid in running_pids:
-            if psutil.pid_exists(pid):
-                self.logit("TERMINATING: {}".format(pid))
-                proc = psutil.Process(pid)
-                proc.terminate()
-
-        print(" Skip clean up flag is {}".format(self.skip_cleanup))
-        if self.messagebus == 'rmq':
-            print("Calling rabbit shutdown")
-            stop_rabbit(rmq_home=self.rabbitmq_config_obj.rmq_home, env=self.env, quite=True)
-        if not self.skip_cleanup:
-            self.__remove_home_directory__()
-
-        self._instance_shutdown = True
+            self._instance_shutdown = True
 
     def __repr__(self):
         return str(self)
