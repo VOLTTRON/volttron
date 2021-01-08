@@ -239,6 +239,7 @@ def test_reinstall_agent(volttron_instance):
 
     assert volttron_instance.is_agent_running(newuuid)
     assert auuid != newuuid and auuid is not None
+    volttron_instance.remove_agent(newuuid)
 
 
 @pytest.mark.wrapper
@@ -349,6 +350,8 @@ def test_can_publish(volttron_instance):
 def test_can_install_multiple_listeners(volttron_instance):
     assert volttron_instance.is_running()
     uuids = []
+    agent_list = volttron_instance.dynamic_agent.vip.rpc('control', 'list_agents').get(timeout=5)
+    num_agents_before = len(agent_list)
     num_listeners = 3
 
     try:
@@ -365,16 +368,29 @@ def test_can_install_multiple_listeners(volttron_instance):
         for u in uuids:
             assert volttron_instance.is_agent_running(u)
 
-        agent = volttron_instance.build_agent()
-        agent_list = agent.vip.rpc('control', 'list_agents').get(timeout=5)
+        agent_list = volttron_instance.dynamic_agent.vip.rpc('control', 'list_agents').get(timeout=5)
         print('Agent List: {}'.format(agent_list))
-        assert len(agent_list) == num_listeners
+        assert len(agent_list) - num_agents_before == num_listeners
     finally:
         for x in uuids:
             try:
                 volttron_instance.remove_agent(x)
             except:
                 print('COULDN"T REMOVE AGENT')
+
+
+def test_will_update_throws_typeerror():
+    # Note dictionary for os.environ must be string=string for key=value
+
+    to_update = dict(bogus=35)
+    with pytest.raises(TypeError):
+        with with_os_environ(to_update):
+            print("Should not reach here")
+
+    to_update = dict(shanty=dict(holy="cow"))
+    with pytest.raises(TypeError):
+        with with_os_environ(to_update):
+            print("Should not reach here")
 
 
 def test_will_update_environ():
@@ -384,11 +400,3 @@ def test_will_update_environ():
 
     assert "farthing" not in os.environ
 
-
-def test_will_update_validation():
-    # Note dictionary for os.environ must be string=string for key=value
-
-    to_update = dict(bogus=35)
-    with pytest.raises(TypeError) as ex:
-        with with_os_environ(to_update):
-            pass

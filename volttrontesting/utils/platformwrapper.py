@@ -213,6 +213,8 @@ def with_os_environ(update_env: dict):
     os.environ.update(update_env)
     try:
         yield
+    except TypeError:
+        raise
     finally:
         if id(os.environ) != id(copy_env):
             os.environ = copy_env
@@ -561,25 +563,26 @@ class PlatformWrapper:
         assert not self.is_auto_csr_enabled()
 
     def add_capabilities(self, publickey, capabilities):
-        if isinstance(capabilities, str) or isinstance(capabilities, dict):
-            capabilities = [capabilities]
-        auth_path = self.volttron_home + "/auth.json"
-        auth = AuthFile(auth_path)
-        entry = auth.find_by_credentials(publickey)[0]
-        caps = entry.capabilities
+        with with_os_environ(self.env):
+            if isinstance(capabilities, str) or isinstance(capabilities, dict):
+                capabilities = [capabilities]
+            auth_path = self.volttron_home + "/auth.json"
+            auth = AuthFile(auth_path)
+            entry = auth.find_by_credentials(publickey)[0]
+            caps = entry.capabilities
 
-        if isinstance(capabilities, list):
-            for c in capabilities:
-                self.add_capability(c, caps)
-        else:
-            self.add_capability(capabilities, caps)
-        auth.add(entry, overwrite=True)
-        _log.debug("Updated entry is {}".format(entry))
-        # Minimum sleep of 2 seconds seem to be needed in order for auth updates to get propagated to peers.
-        # This slow down is not an issue with file watcher but rather vip.peerlist(). peerlist times out
-        # when invoked in quick succession. add_capabilities updates auth.json, gets the peerlist and calls all peers'
-        # auth.update rpc call. So sleeping here instead expecting individual test cases to sleep for long
-        gevent.sleep(2)
+            if isinstance(capabilities, list):
+                for c in capabilities:
+                    self.add_capability(c, caps)
+            else:
+                self.add_capability(capabilities, caps)
+            auth.add(entry, overwrite=True)
+            _log.debug("Updated entry is {}".format(entry))
+            # Minimum sleep of 2 seconds seem to be needed in order for auth updates to get propagated to peers.
+            # This slow down is not an issue with file watcher but rather vip.peerlist(). peerlist times out
+            # when invoked in quick succession. add_capabilities updates auth.json, gets the peerlist and calls all peers'
+            # auth.update rpc call. So sleeping here instead expecting individual test cases to sleep for long
+            gevent.sleep(2)
 
     @staticmethod
     def add_capability(entry, capabilites):
@@ -926,24 +929,25 @@ class PlatformWrapper:
         aip.setup()
         return aip
 
-    def _install_agent(self, wheel_file, start, vip_identity):
-        self.__wait_for_control_connection_to_exit__()
+    def __install_agent_wheel__(self, wheel_file, start, vip_identity):
+        with with_os_environ(self.env):
+            self.__wait_for_control_connection_to_exit__()
 
-        self.logit("VOLTTRON_HOME SETTING: {}".format(
-            self.env['VOLTTRON_HOME']))
-        env = self.env.copy()
-        cmd = ['volttron-ctl', '--json', 'install', wheel_file]
-        if vip_identity:
-            cmd.extend(['--vip-identity', vip_identity])
+            self.logit("VOLTTRON_HOME SETTING: {}".format(
+                self.env['VOLTTRON_HOME']))
+            env = self.env.copy()
+            cmd = ['volttron-ctl', '--json', 'install', wheel_file]
+            if vip_identity:
+                cmd.extend(['--vip-identity', vip_identity])
 
-        res = execute_command(cmd, env=env, logger=_log)
-        assert res, "failed to install wheel:{}".format(wheel_file)
-        agent_uuid = res.split(' ')[-2]
-        self.logit(agent_uuid)
+            res = execute_command(cmd, env=env, logger=_log)
+            assert res, "failed to install wheel:{}".format(wheel_file)
+            agent_uuid = res.split(' ')[-2]
+            self.logit(agent_uuid)
 
-        if start:
-            self.start_agent(agent_uuid)
-        return agent_uuid
+            if start:
+                self.start_agent(agent_uuid)
+            return agent_uuid
 
     def install_multiple_agents(self, agent_configs):
         """
@@ -964,13 +968,15 @@ class PlatformWrapper:
             In order for this method to be called the platform must be
             currently running.
         """
-        if not self.is_running():
-            raise PlatformWrapperError("Instance isn't running!")
         results = []
+        with with_os_environ(self.env):
+            if not self.is_running():
+                raise PlatformWrapperError("Instance isn't running!")
 
-        for path, config, start in agent_configs:
-            results = self.install_agent(agent_dir=path, config_file=config,
-                                         start=start)
+
+            for path, config, start in agent_configs:
+                results = self.install_agent(agent_dir=path, config_file=config,
+                                             start=start)
 
         return results
 
@@ -1016,7 +1022,7 @@ class PlatformWrapper:
                 assert not config_file
                 assert os.path.exists(agent_wheel)
                 wheel_file = agent_wheel
-                agent_uuid = self._install_agent(wheel_file, start, vip_identity)
+                agent_uuid = self.__install_agent_wheel__(wheel_file, start, vip_identity)
 
             # Now if the agent_dir is specified.
             temp_config = None
