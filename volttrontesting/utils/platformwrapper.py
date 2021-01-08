@@ -209,8 +209,8 @@ def with_os_environ(update_env: dict):
     :return:
     """
     copy_env = os.environ.copy()
+    os.environ.update(update_env)
     try:
-        os.environ.update(update_env)
         yield
     finally:
         os.environ = copy_env
@@ -1200,6 +1200,7 @@ class PlatformWrapper:
             finally:
                 if pid is not None:
                     raise RuntimeError(f"Expected runtime error for looking at removed agent. {agent_uuid}")
+
     def remove_all_agents(self):
         with with_os_environ(self.env):
             if self._instance_shutdown:
