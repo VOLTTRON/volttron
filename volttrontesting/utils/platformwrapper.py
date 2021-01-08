@@ -478,8 +478,7 @@ class PlatformWrapper:
             kwargs['enable_store'] = False
 
         if capabilities is None:
-            capabilities = dict(allow_auth_modifications=None,
-                                edit_config_store=identity)
+            capabilities = dict(edit_config_store=dict(identity=identity))
         entry = AuthEntry(user_id=identity, credentials=publickey,
                           capabilities=capabilities,
                           comments="Added by platform wrapper")
