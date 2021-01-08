@@ -1,0 +1,90 @@
+# Config parameters for setting up HELICS federate
+properties:
+    name: federate1 # unique name for the federate
+    loglevel: 5 # log level
+    coreType: zmq # core type
+    timeDelta: 1.0 # time delta (defaults to 1s)
+    uninterruptible: true
+    simulation_length: 360 # simulation length in seconds (defaults to 360s)
+
+# configuration for subscribing to HELICS simulation
+outputs:
+    # List of subscription information, typically contains
+    # - HELICS subscription topic,
+    # - datatype
+    # - publication topic for VOLTTRON (optional) to republish the
+    #   message on VOLTTRON message bus
+    # - additional/optional simulation specific configuration
+    - sim_topic: federate2/totalLoad
+      volttron_topic: helics/abc
+      type: complex
+      required: true
+    - sim_topic: federate2/charge_EV6
+      volttron_topic: helics/ev6
+      type: complex
+      required: true
+    - sim_topic: federate2/charge_EV5
+      type: complex
+      required: true
+    - sim_topic: federate2/charge_EV4
+      type: complex
+      required: true
+    - sim_topic: federate2/charge_EV3
+      type: complex
+      required: true
+    - sim_topic: federate2/charge_EV2
+      type: complex
+      required: true
+    - sim_topic: federate2/charge_EV1
+      type: complex
+      required: true
+
+# configuration for publishing to HELICS simulation
+inputs:
+    # List of publication information, containing
+    # - HELICS publication topic,
+    # - datatype
+    # - metadata associated with the topic (for example unit)
+    # - subscription topic for VOLTTRON message bus (optional) which can then be
+    #   republished on HELICS with HELICS publication topic
+    # - additional/optional publication specific configuration
+    - sim_topic: pub1 # HELICS publication key
+      type: double    # datatype
+      unit: m         # unit
+      info: this is an information string for use by the application #additional info
+      volttron_topic: pub1/all # topic to subscribe on VOLTTRON bus
+      global: true
+    - sim_topic: pub2
+      type: double
+      volttron_topic: pub2/all
+
+# Send/Receive messages directly to endpoints
+endpoints:
+    # List of endpoint configuration
+    - name: federate1/EV6 # your endpoint (base prefix needs to be federate name, in our case it's "federate1")
+      destination: federate2/EV6 # destination endpoint
+      type: genmessage #message type
+      global: true # global endpoint: true/false
+    - name: federate1/EV5
+      destination: federate2/EV5
+      type: genmessage
+      global: true
+    - name: federate1/EV4
+      destination: federate2/EV4
+      type: genmessage
+      global: true
+    - name: federate1/EV3
+      destination: federate2/EV3
+      type: genmessage
+      global: true
+    - name: federate1/EV2
+      destination: federate2/EV2
+      type: genmessage
+      global: true
+    - name: federate1/EV1
+      destination: federate2/EV1
+      type: genmessage
+      global: true
+
+volttron_subscriptions:
+    - feeder0_output/all

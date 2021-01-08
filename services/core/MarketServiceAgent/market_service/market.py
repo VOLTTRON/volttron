@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -46,23 +46,29 @@ MARKET_DONE = 'market_done'
 import logging
 from transitions import Machine
 from volttron.platform.agent import utils
-from market_service.offer_manager import OfferManager
-from market_service.reservation_manager import ReservationManager
 from volttron.platform.agent.base_market_agent.error_codes import NOT_FORMED, SHORT_OFFERS, BAD_STATE, NO_INTERSECT
 from volttron.platform.agent.base_market_agent.buy_sell import BUYER, SELLER
 from volttron.platform.messaging.topics import MARKET_AGGREGATE, MARKET_CLEAR, MARKET_ERROR, MARKET_RECORD
+
+from .offer_manager import OfferManager
+from .reservation_manager import ReservationManager
 
 _tlog = logging.getLogger('transitions.core')
 _tlog.setLevel(logging.WARNING)
 _log = logging.getLogger(__name__)
 utils.setup_logging()
 
+
 class MarketFailureError(Exception):
     """Base class for exceptions in this module."""
-    def __init__(self, market_name, market_state, object_type):
+    def __init__(self, market_name, market_state, object_type, participant):
+        name = role = ''
+        if participant is not None:
+            name = participant.identity
+            role = participant.buyer_seller
         super(MarketFailureError, self).__init__('The market {} is not accepting {} '
-                                                 'at this time. The state is {}.'.format(market_name,
-                                                 object_type, market_state))
+                                                 'at this time. The state is {}. Participant info: {} {}.'.format(market_name,
+                                                 object_type, market_state, name, role))
 
 
 class Market(object):
@@ -120,7 +126,7 @@ class Market(object):
         self.receive_reservation()
         market_already_formed = self.has_market_formed()
         if self.state not in [ACCEPT_RESERVATIONS, ACCEPT_RESERVATIONS_HAS_FORMED]:
-            raise MarketFailureError(self.market_name, self.state, 'reservations')
+            raise MarketFailureError(self.market_name, self.state, 'reservations', participant)
         self.reservations.make_reservation(participant)
         if self.verbose_logging:
             if participant.buyer_seller == BUYER:
@@ -136,7 +142,6 @@ class Market(object):
                                                                                   participant.buyer_seller,
                                                                                   self.state))
 
-
     def make_offer(self, participant, curve):
         if self.verbose_logging:
             _log.debug("Make offer Market: {} {} entered in state {}".format(self.market_name,
@@ -147,7 +152,7 @@ class Market(object):
         else:
             self.receive_buy_offer()
         if self.state not in [ACCEPT_ALL_OFFERS, ACCEPT_BUY_OFFERS, ACCEPT_SELL_OFFERS]:
-            raise MarketFailureError(self.market_name, self.state, 'offers')
+            raise MarketFailureError(self.market_name, self.state, 'offers', participant)
         self.reservations.take_reservation(participant)
         if self.verbose_logging:
             if participant.buyer_seller == BUYER:
@@ -162,10 +167,14 @@ class Market(object):
                 self.last_sell_offer()
             else:
                 self.last_buy_offer()
+
+            # Aggregate curve
             aggregate_curve = self.offers.aggregate_curves(participant.buyer_seller)
             if self.verbose_logging:
                 _log.debug("Report aggregate Market: {} {} Curve: {}".format(self.market_name,
                            participant.buyer_seller, aggregate_curve.tuppleize()))
+
+            # Publish message with clearing price & aggregate curve
             if aggregate_curve is not None:
                 timestamp = self._get_time()
                 timestamp_string = utils.format_timestamp(timestamp)
@@ -175,6 +184,7 @@ class Market(object):
                                       participant.buyer_seller, aggregate_curve.tuppleize()])
             if self.is_market_done():
                 self.clear_market()
+
         if self.verbose_logging:
             _log.debug("Make offer Market: {} {} exited in state {}".format(self.market_name,
                                                                              participant.buyer_seller,
@@ -191,17 +201,21 @@ class Market(object):
         aux = {}
         if (self.state in [ACCEPT_ALL_OFFERS, ACCEPT_BUY_OFFERS, ACCEPT_SELL_OFFERS]):
             error_code = SHORT_OFFERS
-            error_message = 'The market {} failed to recieve all the expected offers. The state is {}.'.format(self.market_name, self.state)
+            error_message = 'The market {} failed to receive all the expected offers. ' \
+                            'The state is {}.'.format(self.market_name, self.state)
         elif (self.state != MARKET_DONE):
             error_code = BAD_STATE
-            error_message = 'Programming error in Market class. State of {} and clear market signal arrived. This represents a logic error.'.format(self.state)
+            error_message = 'Programming error in Market class. State of {} and clear market signal arrived. ' \
+                            'This represents a logic error.'.format(self.state)
         else:
             if not self.has_market_formed():
                 error_code = NOT_FORMED
                 error_message = 'The market {} has not received a buy and a sell reservation.'.format(self.market_name)
             else:
                 quantity, price, aux = self.offers.settle()
-                if price is None:
+                _log.info("Clearing mixmarket: {} Price: {} Qty: {}".format(self.market_name, price, quantity))
+                aux = {}
+                if price is None or quantity is None:
                     error_code = NO_INTERSECT
                     error_message = "Error: The supply and demand curves do not intersect. The market {} failed to clear.".format(self.market_name)
         _log.info("Clearing price for Market: {} Price: {} Qty: {}".format(self.market_name, price, quantity))

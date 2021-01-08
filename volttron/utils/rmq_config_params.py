@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -50,6 +50,28 @@ from volttron.platform import get_home
 from volttron.platform.agent.utils import get_platform_instance_name
 
 _log = logging.getLogger(__name__)
+
+
+def read_config_file(filename):
+    data = {}
+    try:
+        with open(filename, 'r') as yaml_file:
+            data = yaml.safe_load(yaml_file)
+    except IOError as exc:
+        _log.error("Error reading from file: {}".format(filename))
+    except yaml.YAMLError as exc:
+        _log.error("Yaml Error: {}".format(filename))
+    return data
+
+
+def write_to_config_file(filename, data):
+    try:
+        with open(filename, 'w') as yaml_file:
+            yaml.dump(data, yaml_file, default_flow_style=False)
+    except IOError as exc:
+        _log.error("Error writing to file: {}".format(filename))
+    except yaml.YAMLError as exc:
+        _log.error("Yaml Error: {}".format(filename))
 
 
 class RMQConfig(object):
@@ -131,7 +153,6 @@ class RMQConfig(object):
                        "check VOLTTRON_HOME".format(self.volttron_home))
         except yaml.YAMLError as exc:
             raise
-
 
 
     @property

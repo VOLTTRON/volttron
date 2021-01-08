@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -58,6 +58,7 @@ arg_parser.add_argument("csv_file", type=argparse.FileType('r'),
                         help="Input CSV file")
 arg_parser.add_argument("--use-proxy", action="store_true",
                         help="Use proxy_grab_bacnet_config.py to grab configurations.")
+arg_parser.add_argument("--proxy-id", help="Use this VIP identity for the BACnet Proxy instance")
 arg_parser.add_argument("--out-directory",
                         help="Output directory.", default=".")
 arg_parser.add_argument("--ini", help="BACPypes.ini config file to use")
@@ -85,6 +86,8 @@ for device in device_list:
     if not args.use_proxy and address:
         prog_args.append("--address")
         prog_args.append(address)
+    if args.use_proxy and args.proxy_id:
+        prog_args += ['--proxy-id', args.proxy_id]
     prog_args.append("--registry-out-file")
     prog_args.append(join(registers_dir, str(device_id)+".csv"))
     prog_args.append("--driver-out-file")

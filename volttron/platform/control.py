@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -51,7 +51,7 @@ import tarfile
 import tempfile
 import traceback
 import uuid
-from datetime import timedelta
+from datetime import timedelta, datetime
 
 import gevent
 import gevent.event
@@ -67,7 +67,7 @@ from volttron.platform import jsonapi
 from volttron.platform.jsonrpc import MethodNotFound
 from volttron.platform.agent import utils
 from volttron.platform.agent.known_identities import CONTROL_CONNECTION, \
-    CONFIGURATION_STORE
+    CONFIGURATION_STORE, PLATFORM_HEALTH
 from volttron.platform.auth import AuthEntry, AuthFile, AuthException
 from volttron.platform.certs import Certs
 from volttron.platform.jsonrpc import RemoteError
@@ -81,6 +81,7 @@ from volttron.utils.rmq_config_params import RMQConfig
 from volttron.utils.rmq_mgmt import RabbitMQMgmt
 from volttron.utils.rmq_setup import check_rabbit_status
 from volttron.platform.agent.utils import is_secure_mode, wait_for_volttron_shutdown
+from . install_agents import add_install_agent_parser, install_agent
 
 try:
     import volttron.restricted
@@ -612,85 +613,6 @@ def upgrade_agent(opts):
                   callback=restore_agents_data)
 
 
-def install_agent(opts, publickey=None, secretkey=None, callback=None):
-    aip = opts.aip
-    filename = opts.wheel
-    tag = opts.tag
-    vip_identity = opts.vip_identity
-    if opts.vip_address.startswith('ipc://'):
-        _log.info("Installing wheel locally without channel subsystem")
-        filename = config.expandall(filename)
-        agent_uuid = opts.connection.call('install_agent_local',
-                                          filename,
-                                          vip_identity=vip_identity,
-                                          publickey=publickey,
-                                          secretkey=secretkey)
-
-        if tag:
-            opts.connection.call('tag_agent', agent_uuid, tag)
-
-    else:
-        try:
-            _log.debug('Creating channel for sending the agent.')
-            channel_name = str(uuid.uuid4())
-            channel = opts.connection.server.vip.channel('control',
-                                                         channel_name)
-            _log.debug('calling control install agent.')
-            agent_uuid = opts.connection.call_no_get('install_agent',
-                                                     filename,
-                                                     channel_name,
-                                                     vip_identity=vip_identity,
-                                                     publickey=publickey,
-                                                     secretkey=secretkey)
-
-            _log.debug('Sending wheel to control')
-            sha512 = hashlib.sha512()
-            with open(filename, 'rb') as wheel_file_data:
-                while True:
-                    # get a request
-                    with gevent.Timeout(60):
-                        request, file_offset, chunk_size = channel.recv_multipart()
-                    if request == 'checksum':
-                        channel.send(sha512.digest())
-                        break
-
-                    assert request == 'fetch'
-
-                    # send a chunk of the file
-                    file_offset = int(file_offset)
-                    chunk_size = int(chunk_size)
-                    wheel_file_data.seek(file_offset)
-                    data = wheel_file_data.read(chunk_size)
-                    sha512.update(data)
-                    channel.send(data)
-
-            agent_uuid = agent_uuid.get(timeout=10)
-
-        except Exception as exc:
-            if opts.debug:
-                traceback.print_exc()
-            _stderr.write(
-                '{}: error: {}: {}\n'.format(opts.command, exc, filename))
-            return 10
-        else:
-            if tag:
-                opts.connection.call('tag_agent',
-                                     agent_uuid,
-                                     tag)
-        finally:
-            _log.debug('closing channel')
-            channel.close(linger=0)
-            del channel
-
-    name = opts.connection.call('agent_name', agent_uuid)
-    _stdout.write('Installed {} as {} {}\n'.format(filename, agent_uuid, name))
-
-    # Need to use a callback here rather than a return value.  I am not 100%
-    # sure why this is the reason for allowing our tests to pass.
-    if callback:
-        callback(agent_uuid)
-
-
 def tag_agent(opts):
     agents = filter_agent(_list_agents(opts.aip), opts.agent, opts)
     if len(agents) != 1:
@@ -910,6 +832,30 @@ def list_agent_rpc_code(opts):
                 print(e)
     print_rpc_methods(opts, peer_method_metadata, code=True)
 
+
+# the following global variables are used to update the cache so
+# that we don't ask the platform too many times for the data
+# associated with health.
+health_cache_timeout_date = None
+health_cache_timeout = 5
+health_cache = {}
+
+
+def update_health_cache(opts):
+    global health_cache_timeout_date
+
+    t_now = datetime.now()
+    do_update = True
+    # Make sure we update if we don't have any health dicts, or if the cache has timed out.
+    if health_cache_timeout_date is not None and t_now < health_cache_timeout_date and health_cache:
+        do_update = False
+
+    if do_update:
+        health_cache.clear()
+        health_cache.update(opts.connection.server.vip.rpc.call(PLATFORM_HEALTH, 'get_platform_health').get(timeout=4))
+        health_cache_timeout_date = datetime.now() + timedelta(seconds=health_cache_timeout)
+
+
 def status_agents(opts):
     agents = {agent.uuid: agent for agent in _list_agents(opts.aip)}
     status = {}
@@ -940,11 +886,16 @@ def status_agents(opts):
         return ''
 
     def get_health(agent):
+        update_health_cache(opts)
+
         try:
-            # TODO Modify this later so that we aren't calling peerlist before we call the status of the agent.
-            if agent.vip_identity in opts.connection.server.vip.peerlist().get(timeout=4):
-                return opts.connection.server.vip.rpc.call(agent.vip_identity,
-                                                           'health.get_status_json').get(timeout=4)['status']
+            health_dict = health_cache.get(agent.vip_identity)
+
+            if health_dict:
+                if opts.json:
+                    return health_dict
+                else:
+                    return health_dict.get('message', '')
             else:
                 return ''
         except (VIPError, gevent.Timeout):
@@ -963,13 +914,17 @@ def agent_health(opts):
             _stdout.write(f'{jsonapi.dumps({}, indent=2)}\n')
         return
     agent = agents.pop()
-    try:
-        _stderr.write(jsonapi.dumps(
-            opts.connection.server.vip.rpc.call(agent.vip_identity, 'health.get_status_json').get(timeout=4),
-            indent=4) + '\n'
-                      )
-    except VIPError:
-        print("Agent {} is not running on the Volttron platform.".format(agent.uuid))
+    update_health_cache(opts)
+
+    data = health_cache.get(agent.vip_identity)
+
+    if not data:
+        if not opts.json:
+            _stdout.write(f'No health associated with {agent.vip_identity}\n')
+        else:
+            _stdout.write(f'{jsonapi.dumps({}, indent=2)}\n')
+    else:
+        _stdout.write(f'{jsonapi.dumps(data, indent=4)}\n')
 
 
 def clear_status(opts):
@@ -1609,6 +1564,13 @@ def _show_filtered_agents_status(opts, status_callback, health_callback, agents=
     if not agents:
         agents = _list_agents(opts.aip)
 
+    # Find max before so the uuid of the agent is available
+    # when a usre has filtered the list.
+    if not opts.min_uuid_len:
+        n = 36
+    else:
+        n = max(_calc_min_uuid_length(agents), opts.min_uuid_len)
+
     agents = get_filtered_agents(opts, agents)
 
     if not agents:
@@ -1619,10 +1581,6 @@ def _show_filtered_agents_status(opts, status_callback, health_callback, agents=
         return
 
     agents = sorted(agents, key=lambda x: x.name)
-    if not opts.min_uuid_len:
-        n = 36
-    else:
-        n = max(_calc_min_uuid_length(agents), opts.min_uuid_len)
     if not opts.json:
         name_width = max(5, max(len(agent.name) for agent in agents))
         tag_width = max(3, max(len(agent.tag or '') for agent in agents))
@@ -1636,6 +1594,7 @@ def _show_filtered_agents_status(opts, status_callback, health_callback, agents=
             fmt = '{} {:{}} {:{}} {:{}} {:{}} {:<15} {:<}\n'
             for agent in agents:
                 status_str = status_callback(agent)
+                agent_health_dict = health_callback(agent)
                 _stdout.write(fmt.format(agent.uuid[:n], agent.name, name_width,
                                          agent.vip_identity, identity_width,
                                          agent.tag or '', tag_width,
@@ -2344,29 +2303,14 @@ def main(argv=sys.argv):
     top_level_subparsers = parser.add_subparsers(title='commands', metavar='',
                                                  dest='command')
 
-    def add_parser(*args, **kwargs):
+    def add_parser(*args, **kwargs) -> argparse.ArgumentParser:
         parents = kwargs.get('parents', [])
         parents.append(global_args)
         kwargs['parents'] = parents
         subparser = kwargs.pop("subparser", top_level_subparsers)
         return subparser.add_parser(*args, **kwargs)
 
-    install = add_parser('install', help='install agent from wheel',
-                         epilog='Optionally you may specify the --tag argument to tag the '
-                                'agent during install without requiring a separate call to '
-                                'the tag command. ')
-    install.add_argument('wheel', help='path to agent wheel')
-    install.add_argument('--tag', help='tag for the installed agent')
-    install.add_argument('--vip-identity', help='VIP IDENTITY for the installed agent. '
-                                                'Overrides any previously configured VIP IDENTITY.')
-    if HAVE_RESTRICTED:
-        install.add_argument('--verify', action='store_true',
-                             dest='verify_agents',
-                             help='verify agent integrity during install')
-        install.add_argument('--no-verify', action='store_false',
-                             dest='verify_agents',
-                             help=argparse.SUPPRESS)
-    install.set_defaults(func=install_agent, verify_agents=True)
+    add_install_agent_parser(add_parser, HAVE_RESTRICTED)
 
     tag = add_parser('tag', parents=[filterable],
                      help='set, show, or remove agent tag')

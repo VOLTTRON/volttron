@@ -318,7 +318,7 @@ installed in the VOLTTRON virtual environment prior to building the agent:
     (volttron) $ cd $VOLTTRON_ROOT/services/core/OpenADRVenAgent
     (volttron) $ pip install -r requirements.txt
 
-where ``$VOLTTRON_ROOT`` is the base directory of the cloned VOLTTRON code repository.
+where :term:`$VOLTTRON_ROOT <VOLTTRON_ROOT>` is the base directory of the cloned VOLTTRON code repository.
 
 The VEN agent is designed to work in tandem with a “control agent,” another VOLTTRON agent that uses VOLTTRON RPC calls
 to manage events and supply report data.  A sample control agent has been provided in the `test/ControlAgentSim`
@@ -334,7 +334,7 @@ Configuration Parameters
 ------------------------
 
 The VEN agent’s configuration file contains JSON that includes several parameters for configuring VTN server
-communications and other behavior. A sample configuration file, `openadrven.config`, has been provided in the agent
+communications and other behavior. A sample configuration file, `config`, has been provided in the agent
 directory.
 
 The VEN agent supports the following configuration parameters:

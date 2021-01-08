@@ -17,7 +17,7 @@ VIP was built with security in mind from the ground up.  VIP uses encrypted chan
 granularity.
 
 Even with these security mechanisms built into VOLTTRON, it is important for system administrators to
-:ref:`harden VOLTTRON's underlying OS <Platform-Hardening>`.
+:ref:`harden VOLTTRON's underlying OS <Linux-System-Hardening>`.
 
 The VOLTTRON team has engaged with PNNL's Secure Software Central team to create a threat profile document.  You can
 read about the threat assessment findings and how the VOLTTRON team is addressing them here: `SSC Threat Profile
@@ -27,7 +27,6 @@ Additional documentation related to VIP authentication and authorization is avai
 
 .. toctree::
 
-   protecting-pubsub-topics
-   running-agent-as-user
    key-stores
    known-hosts-file
+   running-agent-as-user

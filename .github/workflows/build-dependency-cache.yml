@@ -1,0 +1,65 @@
+---
+# Creates a cache of the env directory
+# Documentation for the syntax of this file is located
+# https://docs.github.com/en/free-pro-team@latest/actions/reference/workflow-syntax-for-github-actions
+
+# The workflow name will show up in the action tab on github during execution
+# https://github.com/VOLTTRON/volttron/actions (or if you are pushing to your own fork change the user)
+
+name: cache virtual env
+
+# Check the cache when a push happens to the repository.
+on: [push]
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-16.04, ubuntu-18.04, ubuntu-20.04]
+        python-version: [3.6, 3.7, 3.8]
+    steps:
+      # checkout the volttron repository and set current direectory to it
+      - uses: actions/checkout@v2
+
+      - name: Set up Python ${{matrix.os}} ${{ matrix.python-version }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - id: envcache
+        uses: actions/cache@v2
+        env:
+          cache-name: cache-env
+        with:
+          # This path is specific to Ubuntu
+          path: ./env
+          # Look to see if there is a cache hit for the corresponding requirements file
+          key: env-${{ matrix.os }}-${{matrix.python-version}}-${{hashFiles('requirements.py')}}
+          #-${{hashFiles('requirements.py')}}
+          #  env-${{ matrix.os }}-${{matrix.python-version}}
+          
+          restore-keys: |
+            env-${{ matrix.os }}-${{matrix.python-version}}-${{hashFiles('requirements.py')}}
+            env-${{ matrix.os }}-${{matrix.python-version}}
+      
+      - name: Check env existance
+        id: check_files
+        uses: andstor/file-existence-action@v1
+        with:
+          files: "env/bin/activate"
+          
+      - name: Install dependencies
+        if: steps.check_files.outputs.files_exists != 'true'
+        run: |
+          pip install wheel
+          python bootstrap.py --all --force
+
+# Only works on default branch of the target repo
+#       - name: Repository Dispatch
+#         uses: peter-evans/repository-dispatch@v1
+#         with:
+#           token: ${{ secrets.WORKFLOW_ACCESS_TOKEN }}
+#           repository: ${{ github.repository }}
+#           event-type: my-event
+#           client-payload: '{"ref": "${{ github.ref }}", "sha": "${{ github.sha }}"}'

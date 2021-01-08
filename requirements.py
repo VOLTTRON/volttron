@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -48,6 +48,7 @@ install_requires = [
     'gevent==20.6.1',
     'greenlet==0.4.16',
     'grequests',
+    'idna<3,>=2.5',
     'requests==2.23.0',
     'ply',
     'psutil',
@@ -76,21 +77,17 @@ extras_require = {
         'influxdb',
         'psycopg2-binary'
     ],
-    'dnp3': [  # dnp3 agent requirements.
-        'pydnp3'
-    ],
+    # Removing from requirements until we can get cmake installed on
+    # ubuntu 20.04 and pydnp3 is working with python3
+    # 'dnp3': [  # dnp3 agent requirements.
+    #     'pydnp3'
+    # ],
     'documentation': [  # Requirements for building the documentation
         'mock',
-        'mysql-connector-python-rf',
-        'psutil',
-        'pymongo',
         'Sphinx',
-        'recommonmark',
         'sphinx-rtd-theme',
-        'werkzeug',
-        'pint',
-        'jwt',
-        'passlib'
+        'sphinx==3.3.0',
+        'm2r2'
     ],
     'drivers': [
         'pymodbus',
@@ -130,7 +127,7 @@ extras_require = {
     ],
     'web': [    # Web support for launching web based agents including ssl and json web tokens.
         'ws4py',
-        'PyJWT',
+        'PyJWT==1.7.1',
         'Jinja2',
         'passlib',
         'argon2-cffi',

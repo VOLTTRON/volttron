@@ -5,8 +5,8 @@ Multi-Platform Communication
 ============================
 
 To connect to remote VOLTTRON platforms, we would need platform discovery information of the remote platforms. This
-information contains the platform name, VIP address and `serverkey` of the remote platforms and we need to provide this
-as part of multi-platform configuration.
+information contains the platform name, :term:`VIP` address and `serverkey` of the remote platforms and we need to
+provide this as part of multi-platform configuration.
 
 
 Configuration
@@ -27,7 +27,7 @@ For ease of use and to support multi-scale deployment, the process of obtaining 
 authenticating the new platform connection is automated.  We can now bypass the manual process of adding auth keys
 (i.e., either by using the `volttron-ctl` utility or directly updating the `auth.json` config file).
 
-A config file containing list of web addresses (one for each platform) need to be made available in `VOLTTRON_HOME`
+A config file containing list of web addresses (one for each platform) need to be made available in :term:`VOLTTRON_HOME`
 directory.
 
 Name of the file: `external_address.json`
@@ -56,9 +56,9 @@ We then start each VOLTTRON platform with setup mode option in this way.
 
 Each platform will obtain the platform discovery information of the remote platform that it is trying to connect through
 a HTTP discovery request and store the information in a configuration file
-(`$VOLTTRON_HOME/external_platform_discovery.json`). It will then use the VIP address and `serverkey` to connect to the
-remote platform.  The remote platform shall authenticate the new connection and store the auth keys (public key) of the
-connecting platform for future use.
+(`$VOLTTRON_HOME/external_platform_discovery.json`). It will then use the :term:`VIP address` and `serverkey` to connect
+to the remote platform.  The remote platform shall authenticate the new connection and store the auth keys (public key)
+of the connecting platform for future use.
 
 The platform discovery information will be stored in `VOLTTRON_HOME` directory and looks like below:
 
@@ -133,12 +133,13 @@ in each platform using the `volttron-ctl auth` utility. For more details
 
 .. seealso::
 
-    :ref:`Multi-Platform Walk-through <Multi-Platform-Walk-through>`
+    :ref:`Multi-Platform Walk-through <Multi-Platform-Deployment>`
 
 
 .. toctree::
     :caption: Multi-platform Message Bus Topics
 
-    multi-platform-pubsub
+    pubsub-remote-platforms
     multi-platform-rpc
-    multi-platform-rmq-csr-walk-through
+    multi-platform-rabbit/multi-platform-rabbitmq
+    multi-platform-rabbit/agent-communication-rabbitmq

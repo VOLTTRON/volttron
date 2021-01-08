@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -67,7 +67,7 @@ Creating a New Interface
 To create a new device driver create a new module in the
 :py:mod:`MasterDriverAgent.master_driver.interfaces` package. The name of
 this module will be the name to use in the "driver_type" setting in
-a :ref:`driver configuration file <driver-configuration-file>` in order to
+a :ref:`driver configuration file <Driver-configuration-file>` in order to
 load the new driver.
 
 In the new module create a subclass of :py:class:`BaseInterface` called `Interface`.
@@ -93,13 +93,13 @@ as needed to represent the points on a device.
 Interface Configuration and Startup
 -----------------------------------
 
-When processing a :ref:`driver configuration file <driver-configuration-file>`
+When processing a :ref:`driver configuration file <Driver-configuration-file>`
 the Master Driver Agent will use the "driver_type" setting to automatically find and load the
 appropriate ``Interface`` class for the desired driver.
 
 After loading the class the Master Driver Agent will call :py:meth:`BaseInterface.configure`
 with the contents of the "driver_config" section of the
-:ref:`driver configuration file <driver-configuration-file>`
+:ref:`driver configuration file <Driver-Configuration-File>`
 parsed into a python dictionary and the contents of the file referenced in
 "registry_config" entry.
 

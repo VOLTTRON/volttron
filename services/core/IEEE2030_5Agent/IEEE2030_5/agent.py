@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -108,7 +108,7 @@ class IEEE2030_5Agent(Agent):
         This agent can be installed as follows:
             export IEEE2030_5_ROOT=$VOLTTRON_ROOT/services/core/IEEE2030_5Agent
             cd $VOLTTRON_ROOT
-            python scripts/install-agent.py -s $IEEE2030_5_ROOT -i IEEE2030_5agent -c $IEEE2030_5_ROOT/IEEE2030_5.config
+            python scripts/install-agent.py -s $IEEE2030_5_ROOT -i IEEE2030_5agent -c $IEEE2030_5_ROOT/config
                 -t IEEE2030_5agent -f
     """
 

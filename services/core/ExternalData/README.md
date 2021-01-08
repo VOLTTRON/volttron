@@ -1,5 +1,6 @@
 External Data Agent
 ===================
+This agent gathers and publishes JSON data available via a web api
 
 Configuration
 -------------

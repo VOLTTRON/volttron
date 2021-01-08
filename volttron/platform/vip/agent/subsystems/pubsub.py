@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -92,9 +92,6 @@ class PubSub(SubsystemBase):
         self.rpc = weakref.ref(rpc_subsys)
         self.peerlist = weakref.ref(peerlist_subsys)
         self._owner = owner
-        self._pubsubwithrpc = PubSubWithRPC(self.core, self.rpc)
-        self._send_via_rpc = False
-        self._parameters_needed = True
 
         def platform_subscriptions():
             return defaultdict(subscriptions)
@@ -105,7 +102,6 @@ class PubSub(SubsystemBase):
         self._my_subscriptions = defaultdict(platform_subscriptions)
         self.protected_topics = ProtectedPubSubTopics()
         core.register('pubsub', self._handle_subsystem, self._handle_error)
-        self.rpc().export(self._peer_push, 'pubsub.push')
         self.vip_socket = None
         self._results = ResultsDictionary()
         self._event_queue = Queue()
@@ -185,7 +181,7 @@ class PubSub(SubsystemBase):
         items = {(bus, prefix) for bus, topics in items.items()
                  for prefix in topics}
         remove = []
-        for bus, subscriptions in self._peer_subscriptions.items():
+        for bus, subscriptions in self._my_subscriptions.items():
             for prefix, subscribers in subscriptions.items():
                 item = bus, prefix
                 try:
@@ -197,80 +193,26 @@ class PubSub(SubsystemBase):
                 else:
                     subscribers.add(peer)
         for bus, prefix in remove:
-            subscriptions = self._peer_subscriptions[bus]
+            subscriptions = self._my_subscriptions[bus]
             assert not subscriptions.pop(prefix)
         for bus, prefix in items:
             self._add_peer_subscription(peer, bus, prefix)
 
-    def _peer_sync(self, items):
-        peer = self.rpc().context.vip_message.peer
-        assert isinstance(items, dict)
-        self._sync(peer, items)
-
     def _add_peer_subscription(self, peer, bus, prefix):
         try:
-            subscriptions = self._peer_subscriptions[bus]
+            subscriptions = self._my_subscriptions[bus]
         except KeyError:
-            self._peer_subscriptions[bus] = subscriptions = dict()
+            self._my_subscriptions[bus] = subscriptions = dict()
         try:
             subscribers = subscriptions[prefix]
         except KeyError:
             subscriptions[prefix] = subscribers = set()
         subscribers.add(peer)
 
-    def _peer_subscribe(self, prefix, bus=''):
-        peer = self.rpc().context.vip_message.peer
-        for prefix in prefix if isinstance(prefix, list) else [prefix]:
-            self._add_peer_subscription(peer, bus, prefix)
-
-    def _peer_unsubscribe(self, prefix, bus=''):
-        peer = self.rpc().context.vip_message.peer
-        try:
-            subscriptions = self._peer_subscriptions[bus]
-        except KeyError:
-            return
-        if prefix is None:
-            remove = []
-            for topic, subscribers in subscriptions.items():
-                subscribers.discard(peer)
-                if not subscribers:
-                    remove.append(topic)
-            for topic in remove:
-                del subscriptions[topic]
-        else:
-            for prefix in prefix if isinstance(prefix, list) else [prefix]:
-                subscribers = subscriptions[prefix]
-                subscribers.discard(peer)
-                if not subscribers:
-                    del subscriptions[prefix]
-
-    def _peer_list(self, prefix='', bus='', subscribed=True, reverse=False):
-        peer = self.rpc().context.vip_message.peer
-        if bus is None:
-            buses = iter(self._peer_subscriptions.items())
-        else:
-            buses = [(bus, self._peer_subscriptions[bus])]
-        if reverse:
-            test = prefix.startswith
-        else:
-            test = lambda t: t.startswith(prefix)
-        results = []
-        for bus, subscriptions in buses:
-            for topic, subscribers in subscriptions.items():
-                if test(topic):
-                    member = peer in subscribers
-                    if not subscribed or member:
-                        results.append((bus, topic, member))
-        return results
-
-    def _peer_publish(self, topic, headers, message=None, bus=''):
-        peer = self.rpc().context.vip_message.peer
-        self._distribute(peer, topic, headers, message, bus)
-
     def _distribute(self, peer, topic, headers, message=None, bus=''):
         self._check_if_protected_topic(topic)
         try:
-            subscriptions = self._peer_subscriptions[bus]
+            subscriptions = self._my_subscriptions[bus]
         except KeyError:
             subscriptions = dict()
         subscribers = set()
@@ -290,13 +232,6 @@ class PubSub(SubsystemBase):
                 socket.send_multipart(frames, copy=False)
         return len(subscribers)
 
-    def _peer_push(self, sender, bus, topic, headers, message):
-        '''Handle incoming subscription pushes from peers.'''
-        peer = self.rpc().context.vip_message.peer
-        handled = 0
-        sender = decode_peer(sender)
-        self._process_callback(sender, bus, topic, headers, message)
-
     def synchronize(self):
         """Synchronize local subscriptions with the PubSubService.
         """
@@ -307,16 +242,7 @@ class PubSub(SubsystemBase):
                          for bus, subscriptions in bus_subscriptions.items()}
         sync_msg = jsonapi.dumpb(dict(subscriptions=subscriptions))
         frames = ['synchronize', 'connected', sync_msg]
-        # For backward compatibility with old pubsub
-        if self._send_via_rpc:
-            delay = random.random()
-            self.core().spawn_later(delay, self.rpc().notify, 'pubsub', 'pubsub.sync', subscriptions)
-        else:
-            # Parameters are stored initially, in case remote agent/platform is using old pubsub
-            if self._parameters_needed:
-                kwargs = dict(op='synchronize', subscriptions=subscriptions)
-                self._save_parameters(result.ident, **kwargs)
-            self.vip_socket.send_vip('', 'pubsub', frames, result.ident, copy=False)
+        self.vip_socket.send_vip('', 'pubsub', frames, result.ident, copy=False)
 
         # 2073 - python3 dictionary keys method returns a dict_keys structure that isn't serializable.
         #        added list(subscriptions.keys()) to make it like python2 list of strings.
@@ -329,16 +255,7 @@ class PubSub(SubsystemBase):
                 dict(subscriptions=subscriptions)
             )
             frames = ['synchronize', 'connected', sync_msg]
-            # For backward compatibility with old pubsub
-            if self._send_via_rpc:
-                delay = random.random()
-                self.core().spawn_later(delay, self.rpc().notify, 'pubsub', 'pubsub.sync', subscriptions)
-            else:
-                # Parameters are stored initially, in case remote agent/platform is using old pubsub
-                if self._parameters_needed:
-                    kwargs = dict(op='synchronize', subscriptions=subscriptions)
-                    self._save_parameters(result.ident, **kwargs)
-                self.vip_socket.send_vip('', 'pubsub', frames, result.ident, copy=False)
+            self.vip_socket.send_vip('', 'pubsub', frames, result.ident, copy=False)
 
     def list(self, peer, prefix='', bus='', subscribed=True, reverse=False, all_platforms=False):
         """Gets list of subscriptions matching the prefix and bus for the specified peer.
@@ -359,22 +276,13 @@ class PubSub(SubsystemBase):
         :Return Values:
         List of tuples [(topic, bus, flag to indicate if peer is a subscriber or not)]
         """
-        # For backward compatibility with old pubsub
-        if self._send_via_rpc:
-            return self.rpc().call(peer, 'pubsub.list', prefix,
-                                   bus, subscribed, reverse)
-        else:
-            result = next(self._results)
-            # Parameters are stored initially, in case remote agent/platform is using old pubsub
-            if self._parameters_needed:
-                kwargs = dict(op='list', prefix=prefix, subscribed=subscribed, reverse=reverse, bus=bus)
-                self._save_parameters(result.ident, **kwargs)
-            list_msg = jsonapi.dumpb(dict(prefix=prefix, all_platforms=all_platforms,
-                                          subscribed=subscribed, reverse=reverse, bus=bus))
+        result = next(self._results)
+        list_msg = jsonapi.dumpb(dict(prefix=prefix, all_platforms=all_platforms,
+                                      subscribed=subscribed, reverse=reverse, bus=bus))
 
-            frames = ['list', list_msg]
-            self.vip_socket.send_vip('', 'pubsub', frames, result.ident, copy=False)
-            return result
+        frames = ['list', list_msg]
+        self.vip_socket.send_vip('', 'pubsub', frames, result.ident, copy=False)
+        return result
 
     def _add_subscription(self, prefix, callback, bus='', all_platforms=False):
         # _log.debug(f"Adding subscription prefix: {prefix} allplatforms: {all_platforms}")
@@ -417,24 +325,15 @@ class PubSub(SubsystemBase):
         :Return Values:
         Success or Failure
         """
-        # For backward compatibility with old pubsub
-        if self._send_via_rpc:
-            self._add_subscription(prefix, callback, bus)
-            return self.rpc().call(peer, 'pubsub.subscribe', prefix, bus=bus)
-        else:
-            result = next(self._results)
-            # Parameters are stored initially, in case remote agent/platform is using old pubsub
-            if self._parameters_needed:
-                kwargs = dict(op='subscribe', prefix=prefix, bus=bus)
-                self._save_parameters(result.ident, **kwargs)
-            self._add_subscription(prefix, callback, bus, all_platforms)
-            sub_msg = jsonapi.dumpb(
-                dict(prefix=prefix, bus=bus, all_platforms=all_platforms)
-            )
+        result = next(self._results)
+        self._add_subscription(prefix, callback, bus, all_platforms)
+        sub_msg = jsonapi.dumpb(
+            dict(prefix=prefix, bus=bus, all_platforms=all_platforms)
+        )
 
-            frames = ['subscribe', sub_msg]
-            self.vip_socket.send_vip('', 'pubsub', frames, result.ident, copy=False)
-            return result
+        frames = ['subscribe', sub_msg]
+        self.vip_socket.send_vip('', 'pubsub', frames, result.ident, copy=False)
+        return result
 
     @subscribe.classmethod
     def subscribe(cls, peer, prefix, bus='', all_platforms=False, persistent_queue=None):
@@ -443,25 +342,6 @@ class PubSub(SubsystemBase):
             return method
 
         return decorate
-
-    def _peer_push(self, sender, bus, topic, headers, message):
-        """
-            Added for backward compatibility with old pubsub
-            param sender: publisher
-            type sender: str
-            param bus: bus
-            type callback: str
-            param topic: topic for the message
-            type topic: str
-            param headers: header for the message
-            type headers: dict
-            param message: actual message
-            type message: dict
-        """
-        peer = self.rpc().context.vip_message.peer
-        handled = 0
-        sender = decode_peer(sender)
-        self._process_callback(sender, bus, topic, headers, message)
 
     def _drop_subscription(self, prefix, callback, bus='', platform='internal'):
 
@@ -514,12 +394,13 @@ class PubSub(SubsystemBase):
             if not topics:
                 raise KeyError('no such subscription')
         else:
-            _log.debug("PUSUB unsubscribe my subscriptions: {0} {1}".format(
-                prefix, self._my_subscriptions))
+            _log.debug(f"BEFORE: {self._my_subscriptions}")
             if platform in self._my_subscriptions:
                 bus_subscriptions = self._my_subscriptions[platform]
                 if bus in bus_subscriptions:
+                    _log.debug(f"BUS: {bus}")
                     subscriptions = bus_subscriptions[bus]
+                    _log.debug(f"subscriptions: {subscriptions}")
                     if callback is None:
                         try:
                             del subscriptions[prefix]
@@ -528,15 +409,18 @@ class PubSub(SubsystemBase):
                     else:
                         try:
                             callbacks = subscriptions[prefix]
+                            _log.debug(f"callbacks: {callbacks}")
                         except KeyError:
                             return []
                         try:
                             callbacks.remove(callback)
-                        except KeyError:
+                        except KeyError as e:
+                            _log.debug(f"KeyError: {e}")
                             pass
                         if not callbacks:
                             try:
                                 del subscriptions[prefix]
+                                _log.debug(f"subscriptions: {subscriptions}")
                             except KeyError:
                                 return []
                     topics = [prefix]
@@ -544,6 +428,7 @@ class PubSub(SubsystemBase):
                         del bus_subscriptions[bus]
                     if not bus_subscriptions:
                         del self._my_subscriptions[platform]
+        _log.debug(f"AFTER: {self._my_subscriptions}")
         return topics
 
     def unsubscribe(self, peer, prefix, callback, bus='', all_platforms=False):
@@ -565,32 +450,22 @@ class PubSub(SubsystemBase):
         :Return Values:
         success or not
         """
-        # For backward compatibility with old pubsub
-        if self._send_via_rpc == True:
-            topics = self._drop_subscription(prefix, callback, bus)
-            return self.rpc().call(peer, 'pubsub.unsubscribe', topics, bus=bus)
+        subscriptions = dict()
+        result = next(self._results)
+        if not all_platforms:
+            platform = 'internal'
+            topics = self._drop_subscription(prefix, callback, bus, platform)
+            subscriptions[platform] = dict(prefix=topics, bus=bus)
         else:
-            subscriptions = dict()
-            result = next(self._results)
-            if not all_platforms:
-                platform = 'internal'
-                topics = self._drop_subscription(prefix, callback, bus, platform)
-                subscriptions[platform] = dict(prefix=topics, bus=bus)
-            else:
-                platform = 'all'
-                topics = self._drop_subscription(prefix, callback, bus, platform)
-                subscriptions[platform] = dict(prefix=topics, bus=bus)
+            platform = 'all'
+            topics = self._drop_subscription(prefix, callback, bus, platform)
+            subscriptions[platform] = dict(prefix=topics, bus=bus)
 
-            # Parameters are stored initially, in case remote agent/platform is using old pubsub
-            if self._parameters_needed:
-                kwargs = dict(op='unsubscribe', prefix=topics, bus=bus)
-                self._save_parameters(result.ident, **kwargs)
-
-            unsub_msg = jsonapi.dumpb(subscriptions)
-            topics = self._drop_subscription(prefix, callback, bus)
-            frames = ['unsubscribe', unsub_msg]
-            self.vip_socket.send_vip('', 'pubsub', frames, result.ident, copy=False)
-            return result
+        unsub_msg = jsonapi.dumpb(subscriptions)
+        topics = self._drop_subscription(prefix, callback, bus)
+        frames = ['unsubscribe', unsub_msg]
+        self.vip_socket.send_vip('', 'pubsub', frames, result.ident, copy=False)
+        return result
 
     def publish(self, peer: str, topic: str, headers=None, message=None, bus=''):
         """Publish a message to a given topic via a peer.
@@ -623,23 +498,10 @@ class PubSub(SubsystemBase):
         if peer is None:
             peer = 'pubsub'
 
-        # For backward compatibility with old pubsub
-        if self._send_via_rpc:
-            return self.rpc().call(
-                peer, 'pubsub.publish', topic=topic, headers=headers,
-                message=message, bus=bus)
-        else:
-            result = next(self._results)
-            # Parameters are stored initially, in case remote agent/platform is using old pubsub
-            if self._parameters_needed:
-                kwargs = dict(op='publish', peer=peer,
-                              topic=topic, bus=bus,
-                              headers=headers, message=message)
-                self._save_parameters(result.ident, **kwargs)
-
-            args = ['publish', topic, dict(bus=bus, headers=headers, message=message)]
-            self.vip_socket.send_vip('', 'pubsub', args, result.ident, copy=False)
-            return result
+        result = next(self._results)
+        args = ['publish', topic, dict(bus=bus, headers=headers, message=message)]
+        self.vip_socket.send_vip('', 'pubsub', args, result.ident, copy=False)
+        return result
 
     def _check_if_protected_topic(self, topic):
         required_caps = self.protected_topics.get(topic)
@@ -674,11 +536,6 @@ class PubSub(SubsystemBase):
             except KeyError:
                 pass
 
-            if self._parameters_needed:
-                self._send_via_rpc = False
-                self._parameters_needed = False
-                self._pubsubwithrpc.clear_parameters()
-                del self._pubsubwithrpc
             response = message.args[1]
             import struct
             if not isinstance(response, int):
@@ -734,238 +591,11 @@ class PubSub(SubsystemBase):
         param **kwargs: variable arguments
         type **kwargs: dict
         """
-        if isinstance(error, UnknownSubsystem):
-            # Must be connected to OLD pubsub. Try sending using RPC
-            self._send_via_rpc = True
-            self._pubsubwithrpc.send(self._results, message)
-        else:
-            try:
-                result = self._results.pop(message.id)
-            except KeyError:
-                return
-            result.set_exception(error)
-
-    def _save_parameters(self, result_id, **kwargs):
-        """Save the parameters for later use.
-        param result_id: asyn result id
-        type result_id: float
-        param **kwargs: parameters to be stored
-        type **kwargs: dict
-        """
-        end_time = utils.get_aware_utc_now() + timedelta(seconds=60)
-        event = self.core().schedule(end_time, self._cancel_event, result_id)
-        if kwargs is not None:
-            kwargs['event'] = event
-            self._pubsubwithrpc.parameters[result_id] = kwargs
-
-    def _cancel_event(self, ident):
-        """Cancel event
-            param ident: event id
-            param ident: float
-        """
-
-        # #2074 the self._pubsubwithrpc attribute is delete when we have
-        # successfully determined that we are not connected to a backward
-        # compatible with volttron 4.0
         try:
-            parameters = self._pubsubwithrpc.parameters.pop(id)
-            event = parameters['event']
-            event.cancel()
+            result = self._results.pop(message.id)
         except KeyError:
             return
-        except AttributeError:
-            pass
-
-        try:
-            result = self._results.pop(id)
-            result.set_exception(gevent.Timeout)
-        except KeyError:
-            return
-
-
-class PubSubWithRPC(object):
-    """For backward compatibility with old PubSub. The input parameters for each pubsub call is stored for short period
-    till we establish that the agent is connected to platform with old pubsub or not. Once this is established, the
-    parameters are no longer stored and this class is longer used."""
-
-    def __init__(self, core, rpc):
-        self.parameters = dict()
-        self._rpc = rpc
-        self._core = core
-
-    def send(self, results, message):
-        """Check the message id to determine the type of call: subscribe or publish or list or unsubscribe.
-            Retrieve the corresponding input parameters and make the correct RPC call.
-            param results: Async results dictionary
-            type results: Weak dictionary
-            param message: Error message
-            type:
-        """
-        id = message.id
-
-        try:
-            parameters = self.parameters.pop(id)
-        except KeyError:
-            _log.error("Missing key {}".format(id))
-            return
-        try:
-            if parameters['op'] == 'synchronize':
-                self._core().spawn(self._synchronize, id, results, parameters)
-            elif parameters['op'] == 'subscribe':
-                self._core().spawn(self._subscribe, id, results, parameters)
-            elif parameters['op'] == 'publish':
-                self._core().spawn(self._publish, id, results, parameters)
-            elif parameters['op'] == 'list':
-                self._core().spawn(self._list, id, results, parameters)
-            elif parameters['op'] == 'unsubscribe':
-                self._core().spawn(self._unsubscribe, id, results, parameters)
-            else:
-                _log.error("Error: Unknown operation {}".format(parameters['op']))
-        except KeyError as exc:
-            _log.error("Error: Missing KEY in message {}".format(exc))
-
-    def _synchronize(self, results_id, results, parameters):
-        """Unsubscribe call using RPC
-            param results_id: Asynchronous result ID required to the set response for the caller
-            type results_id: float (hash value)
-            param results: Async results dictionary
-            type results: Weak dictionary
-            param parameters: Input parameters for the unsubscribe call
-        """
-        try:
-            subscriptions = parameters['subscriptions']
-            event = parameters['event']
-            event.cancel()
-        except KeyError:
-            return
-        self._rpc().notify('pubsub', 'pubsub.sync', subscriptions)
-
-    def _subscribe(self, results_id, results, parameters):
-        """Subscribe call using RPC
-            param results_id: Asynchronous result ID required to the set response for the caller
-            type results_id: float (hash value)
-            param results: Async results dictionary
-            type results: Weak dictionary
-            param parameters: Input parameters for the subscribe call
-        """
-        try:
-            result = results.pop(results_id)
-        except KeyError:
-            result = None
-
-        try:
-            prefix = parameters['prefix']
-            bus = parameters['bus']
-            event = parameters['event']
-            event.cancel()
-        except KeyError:
-            return
-        try:
-            response = self._rpc().call('pubsub', 'pubsub.subscribe', prefix, bus=bus).get(timeout=5)
-            if result is not None:
-                result.set(response)
-        except gevent.Timeout as exc:
-            if result is not None:
-                result.set_exception(exc)
-
-    def _list(self, results_id, results, parameters):
-        """List call using RPC
-            param results_id: Asynchronous result ID required to the set response for the caller
-            type results_id: float (hash value)
-            param results: Async results dictionary
-            type results: Weak dictionary
-            param parameters: Input parameters for the list call
-        """
-        try:
-            result = results.pop(results_id)
-        except KeyError:
-            result = None
-
-        try:
-            prefix = parameters['prefix']
-            subscribed = parameters['subscribed']
-            reverse = parameters['reverse']
-            bus = parameters['bus']
-            event = parameters['event']
-            event.cancel()
-        except KeyError:
-            return
-        try:
-            response = self._rpc().call('pubsub', 'pubsub.list', prefix,
-                                        bus, subscribed, reverse).get(timeout=5)
-            if result is not None:
-                result.set(response)
-        except gevent.Timeout as exc:
-            if result is not None:
-                result.set_exception(exc)
-
-    def _publish(self, results_id, results, parameters):
-        """Publish call using RPC
-            param results_id: Asynchronous result ID required to the set response for the caller
-            type results_id: float (hash value)
-            param results: Async results dictionary
-            type results: Weak dictionary
-            param parameters: Input parameters for the publish call
-        """
-        try:
-            result = results.pop(results_id)
-        except KeyError:
-            result = None
-        try:
-            topic = parameters['topic']
-            headers = parameters['headers']
-            message = parameters['message']
-            bus = parameters['bus']
-            event = parameters['event']
-            event.cancel()
-        except KeyError:
-            return
-        try:
-            response = self._rpc().call(
-                'pubsub', 'pubsub.publish', topic=topic, headers=headers,
-                message=message, bus=bus).get(timeout=5)
-            if result is not None:
-                result.set(response)
-        except gevent.Timeout as exc:
-            if result is not None:
-                result.set_exception(exc)
-
-    def _unsubscribe(self, results_id, results, parameters):
-        """Unsubscribe call using RPC
-            param results_id: Asynchronous result ID required to the set response for the caller
-            type results_id: float (hash value)
-            param results: Async results dictionary
-            type results: Weak dictionary
-            param parameters: Input parameters for the unsubscribe call
-        """
-        try:
-            result = results.pop(results_id)
-        except KeyError:
-            result = None
-        try:
-            topics = parameters['prefix']
-            bus = parameters['bus']
-            event = parameters['event']
-            event.cancel()
-        except KeyError:
-            return
-        try:
-            response = self._rpc().call('pubsub', 'pubsub.unsubscribe', topics, bus=bus).get(timeout=5)
-            if result is not None:
-                result.set(response)
-        except gevent.Timeout as exc:
-            if result is not None:
-                result.set_exception(exc)
-
-    def clear_parameters(self):
-        """Clear all the saved parameters.
-        """
-        try:
-            for ident, param in self.parameters.items():
-                param['event'].cancel()
-            self.parameters.clear()
-        except KeyError:
-            return
+        result.set_exception(error)
 
 
 class ProtectedPubSubTopics(object):

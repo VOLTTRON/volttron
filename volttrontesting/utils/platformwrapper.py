@@ -3,6 +3,7 @@ from datetime import datetime
 import logging
 import os
 import uuid
+from urllib.parse import urlencode
 
 import psutil
 import shutil
@@ -17,6 +18,7 @@ from subprocess import CalledProcessError
 import gevent
 import gevent.subprocess as subprocess
 import requests
+
 from .agent_additions import (add_volttron_central,
                               add_volttron_central_platform)
 from gevent.fileobject import FileObject
@@ -275,6 +277,17 @@ class PlatformWrapper:
         # the rest so it should work out ok.
         os.environ['VOLTTRON_HOME'] = self.volttron_home
 
+        # Create web users for master web authentication
+        from volttron.platform.web.admin_endpoints import AdminEndpoints
+        from volttrontesting.utils.web_utils import get_test_web_env
+        adminep = AdminEndpoints()
+        params = urlencode(dict(username='admin', password1='admin', password2='admin'))
+        env = get_test_web_env("/admin/setpassword", method='POST')  # , input_data=input)
+        response = adminep.admin(env, params)
+
+        # with open(f'{self.volttron_home}/web-users.json', 'w') as f:
+        #     f.write(jsonapi.dumps({"admin":{"hashed_password":"$argon2id$v=19$m=102400,t=2,p=8$AMAYQ4gxhlDqfa+V0hqjlA$B0E+8g/wvnTAqpAgECBZOg","groups":["admin"]}}))
+
         # Writes the main volttron config file for this instance.
         store_message_bus_config(self.messagebus, self.instance_name)
 
@@ -317,7 +330,8 @@ class PlatformWrapper:
 
         if self.messagebus == 'rmq' and self.bind_web_address is not None:
             self.enable_auto_csr()
-            self.web_admin_api.create_web_admin('admin', 'admin')
+        if self.bind_web_address is not None:
+            self.web_admin_api.create_web_admin('admin', 'admin', self.messagebus)
 
     def get_agent_identity(self, agent_uuid):
         path = os.path.join(self.volttron_home, 'agents/{}/IDENTITY'.format(agent_uuid))
@@ -440,12 +454,12 @@ class PlatformWrapper:
             self._append_allow_curve_key(publickey, agent.core.identity)
 
         if should_spawn:
-            self.logit('platformwrapper.build_agent spawning')
+            self.logit(f'platformwrapper.build_agent spawning for identity {identity}')
             event = gevent.event.Event()
             gevent.spawn(agent.core.run, event)  # .join(0)
             event.wait(timeout=2)
             gevent.sleep(2)
-            hello = agent.vip.hello().get(timeout=15)
+            hello = agent.vip.hello().get(timeout=30)
             assert len(hello) > 0
 
         agent.publickey = publickey
@@ -507,7 +521,7 @@ class PlatformWrapper:
         assert not self.is_auto_csr_enabled()
 
     def add_capabilities(self, publickey, capabilities):
-        if isinstance(capabilities, str)  or isinstance(capabilities, dict):
+        if isinstance(capabilities, str) or isinstance(capabilities, dict):
             capabilities = [capabilities]
         auth_path = self.volttron_home + "/auth.json"
         auth = AuthFile(auth_path)
@@ -782,11 +796,10 @@ class PlatformWrapper:
 
             # Now that we know we have web and we are using ssl then we
             # can enable the WebAdminApi.
-            if self.ssl_auth:
-                self._web_admin_api = WebAdminApi(self)
+            # if self.ssl_auth:
+            self._web_admin_api = WebAdminApi(self)
         
         gevent.sleep(10)
-
 
     def is_running(self):
         return utils.is_volttron_running(self.volttron_home)
@@ -826,7 +839,7 @@ class PlatformWrapper:
         self.logit("VOLTTRON_HOME SETTING: {}".format(
             self.env['VOLTTRON_HOME']))
         env = self.env.copy()
-        cmd = ['volttron-ctl', '-vv', 'install', wheel_file]
+        cmd = ['volttron-ctl', '--json', 'install', wheel_file]
         if vip_identity:
             cmd.extend(['--vip-identity', vip_identity])
 
@@ -935,15 +948,7 @@ class PlatformWrapper:
             else:
                 raise ValueError("Can't determine correct config file.")
 
-            script = os.path.join(self.volttron_root,
-                                  "scripts/install-agent.py")
-            cmd = [self.python, script,
-                   "--volttron-home", self.volttron_home,
-                   "--volttron-root", self.volttron_root,
-                   "--agent-source", agent_dir,
-                   "--config", config_file,
-                   "--json",
-                   "--agent-start-time", str(startup_time)]
+            cmd = ["vctl", "--json", "install", agent_dir, "--agent-config", config_file]
 
             if force:
                 cmd.extend(["--force"])
@@ -955,7 +960,6 @@ class PlatformWrapper:
             stdout = execute_command(cmd, logger=_log,
                                      err_prefix="Error installing agent")
 
-            self.logit(stdout)
             # Because we are no longer silencing output from the install, the
             # the results object is now much more verbose.  Our assumption is
             # that the result we are looking for is the only JSON block in
@@ -1001,17 +1005,16 @@ class PlatformWrapper:
         self.logit('Starting agent {}'.format(agent_uuid))
         self.logit("VOLTTRON_HOME SETTING: {}".format(
             self.env['VOLTTRON_HOME']))
-        cmd = ['volttron-ctl']
+        cmd = ['volttron-ctl', '--json']
         cmd.extend(['start', agent_uuid])
-        p = Popen(cmd, env=self.env,
-                  stdout=sys.stdout, stderr=sys.stderr, universal_newlines=True)
-        p.wait()
+
+        result = execute_command(cmd, self.env)
 
         # Confirm agent running
-        cmd = ['volttron-ctl']
+        cmd = ['volttron-ctl', '--json']
         cmd.extend(['status', agent_uuid])
         res = execute_command(cmd, env=self.env)
-        # 776 TODO: Timing issue where check fails
+           # 776 TODO: Timing issue where check fails
         time.sleep(.1)
         self.logit("Subprocess res is {}".format(res))
         assert 'running' in res
@@ -1322,27 +1325,38 @@ class WebAdminApi(object):
             platform_wrapper = PlatformWrapper()
         assert platform_wrapper.is_running(), "Platform must be running"
         assert platform_wrapper.bind_web_address, "Platform must have web address"
-        assert platform_wrapper.ssl_auth, "Platform must be ssl enabled"
+        #assert platform_wrapper.ssl_auth, "Platform must be ssl enabled"
 
         self._wrapper = platform_wrapper
         self.bind_web_address = self._wrapper.bind_web_address
         self.certsobj = self._wrapper.certsobj
 
-    def create_web_admin(self, username, password):
+    def create_web_admin(self, username, password, messagebus='rmq'):
         """ Creates a global master user for the platform https interface.
 
         :param username:
         :param password:
         :return:
         """
-        data = dict(username=username, password1=password, password2=password)
-        url = self.bind_web_address +"/admin/setpassword"
-        #resp = requests.post(url, data=data,
-        # verify=self.certsobj.remote_cert_bundle_file())
-        resp = requests.post(url, data=data,
-                             verify=self.certsobj.cert_file(
-                                 name=self.certsobj.root_ca_name))
-        return resp
+        #     from volttron.platform.web.admin_endpoints import AdminEndpoints
+        #     from volttrontesting.utils.web_utils import get_test_web_env
+        #
+        #     params = urlencode(dict(username='admin', password1='admin', password2='admin'))
+        #     env = get_test_web_env("/admin/setpassword", method='POST')  # , input_data=input)
+        #     adminep = AdminEndpoints()
+        #     resp = adminep.admin(env, params)
+        # else:
+        if messagebus == 'rmq':
+            data = dict(username=username, password1=password, password2=password)
+            url = self.bind_web_address +"/admin/setpassword"
+            #resp = requests.post(url, data=data,
+            # verify=self.certsobj.remote_cert_bundle_file())
+            resp = requests.post(url, data=data,
+                                 verify=self.certsobj.cert_file(
+                                     name=self.certsobj.root_ca_name))
+            return resp
+        else:
+            return None
 
     def authenticate(self, username, password):
         data = dict(username=username, password=password)
