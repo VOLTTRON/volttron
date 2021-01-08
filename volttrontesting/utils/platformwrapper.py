@@ -1006,99 +1006,99 @@ class PlatformWrapper:
             Should this overwrite the current or not.
         :return:
         """
-        os.environ.update(self.env)
-        assert self.is_running(), "Instance must be running to install agent."
-        assert agent_wheel or agent_dir, "Invalid agent_wheel or agent_dir."
-        assert isinstance(startup_time, int), "Startup time should be an integer."
+        with with_os_environ(self.env):
+            self.__wait_for_control_connection_to_exit__()
+            assert self.is_running(), "Instance must be running to install agent."
+            assert agent_wheel or agent_dir, "Invalid agent_wheel or agent_dir."
+            assert isinstance(startup_time, int), "Startup time should be an integer."
 
-        if agent_wheel:
-            assert not agent_dir
-            assert not config_file
-            assert os.path.exists(agent_wheel)
-            wheel_file = agent_wheel
-            agent_uuid = self._install_agent(wheel_file, start, vip_identity)
+            if agent_wheel:
+                assert not agent_dir
+                assert not config_file
+                assert os.path.exists(agent_wheel)
+                wheel_file = agent_wheel
+                agent_uuid = self._install_agent(wheel_file, start, vip_identity)
 
-        # Now if the agent_dir is specified.
-        temp_config = None
-        if agent_dir:
-            assert not agent_wheel
-            temp_config = os.path.join(self.volttron_home,
-                                       os.path.basename(agent_dir) + "_config_file")
-            if isinstance(config_file, dict):
-                from os.path import join, basename
-                temp_config = join(self.volttron_home,
-                                   basename(agent_dir) + "_config_file")
-                with open(temp_config, "w") as fp:
-                    fp.write(jsonapi.dumps(config_file))
-                config_file = temp_config
-            elif not config_file:
-                if os.path.exists(os.path.join(agent_dir, "config")):
-                    config_file = os.path.join(agent_dir, "config")
-                else:
+            # Now if the agent_dir is specified.
+            temp_config = None
+            if agent_dir:
+                assert not agent_wheel
+                temp_config = os.path.join(self.volttron_home,
+                                           os.path.basename(agent_dir) + "_config_file")
+                if isinstance(config_file, dict):
                     from os.path import join, basename
                     temp_config = join(self.volttron_home,
                                        basename(agent_dir) + "_config_file")
                     with open(temp_config, "w") as fp:
-                        fp.write(jsonapi.dumps({}))
+                        fp.write(jsonapi.dumps(config_file))
                     config_file = temp_config
-            elif os.path.exists(config_file):
-                pass  # config_file already set!
-            else:
-                raise ValueError("Can't determine correct config file.")
+                elif not config_file:
+                    if os.path.exists(os.path.join(agent_dir, "config")):
+                        config_file = os.path.join(agent_dir, "config")
+                    else:
+                        from os.path import join, basename
+                        temp_config = join(self.volttron_home,
+                                           basename(agent_dir) + "_config_file")
+                        with open(temp_config, "w") as fp:
+                            fp.write(jsonapi.dumps({}))
+                        config_file = temp_config
+                elif os.path.exists(config_file):
+                    pass  # config_file already set!
+                else:
+                    raise ValueError("Can't determine correct config file.")
 
-            cmd = [self.vctl_exe, "--json", "install", agent_dir, "--agent-config", config_file]
+                cmd = [self.vctl_exe, "--json", "install", agent_dir, "--agent-config", config_file]
 
-            if force:
-                cmd.extend(["--force"])
-            if vip_identity:
-                cmd.extend(["--vip-identity", vip_identity])
+                if force:
+                    cmd.extend(["--force"])
+                if vip_identity:
+                    cmd.extend(["--vip-identity", vip_identity])
+                if start:
+                    cmd.extend(["--start"])
+
+                stdout = execute_command(cmd, logger=_log, env=self.env,
+                                         err_prefix="Error installing agent")
+
+                # Because we are no longer silencing output from the install, the
+                # the results object is now much more verbose.  Our assumption is
+                # that the result we are looking for is the only JSON block in
+                # the output
+
+                match = re.search(r'^({.*})', stdout, flags=re.M | re.S)
+                if match:
+                    results = match.group(0)
+                else:
+                    raise ValueError(
+                        "The results were not found in the command output")
+                self.logit("here are the results: {}".format(results))
+
+                #
+                # Response from results is expected as follows depending on
+                # parameters, note this is a json string so parse to get dictionary
+                # {
+                #     "started": true,
+                #     "agent_pid": 26241,
+                #     "starting": true,
+                #     "agent_uuid": "ec1fd94e-922a-491f-9878-c392b24dbe50"
+                # }
+                assert results
+
+                resultobj = jsonapi.loads(str(results))
+
+                if start:
+                    assert resultobj['started']
+                agent_uuid = resultobj['agent_uuid']
+
+            assert agent_uuid is not None
+
             if start:
-                cmd.extend(["--start"])
+                assert self.is_agent_running(agent_uuid)
 
-            env = self.env.copy()
-            stdout = execute_command(cmd, logger=_log, env=env,
-                                     err_prefix="Error installing agent")
+            # remove temp config_file
+            if temp_config and os.path.isfile(temp_config):
+                os.remove(temp_config)
 
-            # Because we are no longer silencing output from the install, the
-            # the results object is now much more verbose.  Our assumption is
-            # that the result we are looking for is the only JSON block in
-            # the output
-
-            match = re.search(r'^({.*})', stdout, flags=re.M | re.S)
-            if match:
-                results = match.group(0)
-            else:
-                raise ValueError(
-                    "The results were not found in the command output")
-            self.logit("here are the results: {}".format(results))
-
-            #
-            # Response from results is expected as follows depending on
-            # parameters, note this is a json string so parse to get dictionary
-            # {
-            #     "started": true,
-            #     "agent_pid": 26241,
-            #     "starting": true,
-            #     "agent_uuid": "ec1fd94e-922a-491f-9878-c392b24dbe50"
-            # }
-            assert results
-
-            resultobj = jsonapi.loads(str(results))
-
-            if start:
-                assert resultobj['started']
-            agent_uuid = resultobj['agent_uuid']
-
-        assert agent_uuid is not None
-
-        if start:
-            assert self.is_agent_running(agent_uuid)
-
-        # remove temp config_file
-        if temp_config and os.path.isfile(temp_config):
-            os.remove(temp_config)
-
-        return agent_uuid
+            return agent_uuid
 
     def __wait_for_control_connection_to_exit__(self, timeout: int = 20):
         """
@@ -1107,21 +1107,22 @@ class PlatformWrapper:
         :param timeout:
         :return:
         """
-        self.logit("Waiting for control_connection to exit")
-        disconnected = False
-        timer_start = time.time()
-        while not disconnected:
-            peers = self.dynamic_agent.vip.peerlist().get(timeout=20)
-            disconnected = CONTROL_CONNECTION not in peers
-            if disconnected:
-                break
-            self.logit(f"Waiting for control connection to disconnect: {peers} time: {timer_start - time.time()} timeout is {timeout}")
-            if time.time() - timer_start > timeout:
-                raise PlatformWrapperError(f"Failed for {CONTROL_CONNECTION} to exit in a timely manner.")
-            time.sleep(0.5)
+        with with_os_environ(self.env):
+            self.logit("Waiting for control_connection to exit")
+            disconnected = False
+            timer_start = time.time()
+            while not disconnected:
+                peers = self.dynamic_agent.vip.peerlist().get(timeout=20)
+                disconnected = CONTROL_CONNECTION not in peers
+                if disconnected:
+                    break
+                self.logit(f"Waiting for control connection to disconnect: {peers} time: {timer_start - time.time()} timeout is {timeout}")
+                if time.time() - timer_start > timeout:
+                    raise PlatformWrapperError(f"Failed for {CONTROL_CONNECTION} to exit in a timely manner.")
+                time.sleep(0.5)
 
-        if not disconnected:
-            raise PlatformWrapperError("Control connection did not stop properly")
+            if not disconnected:
+                raise PlatformWrapperError("Control connection did not stop properly")
 
     def start_agent(self, agent_uuid):
         with with_os_environ(self.env):
@@ -1190,8 +1191,14 @@ class PlatformWrapper:
             cmd.extend(['remove', agent_uuid])
             res = execute_command(cmd, env=self.env, logger=_log,
                                   err_prefix="Error removing agent")
-            return self.agent_pid(agent_uuid)
-
+            pid = None
+            try:
+                pid = self.agent_pid(agent_uuid)
+            except RuntimeError:
+                self.logit("Runtime error occured successfully as it was expected")
+            finally:
+                if pid is not None:
+                    raise RuntimeError(f"Expected runtime error for looking at removed agent. {agent_uuid}")
     def remove_all_agents(self):
         with with_os_environ(self.env):
             if self._instance_shutdown:

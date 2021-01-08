@@ -388,7 +388,7 @@ def test_will_update_environ():
 def test_will_update_validation():
     # Note dictionary for os.environ must be string=string for key=value
 
-    to_update = dict(farthing=35)
+    to_update = dict(bogus=35)
     with pytest.raises(TypeError) as ex:
         with with_os_environ(to_update):
             pass
