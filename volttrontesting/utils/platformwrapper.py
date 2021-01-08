@@ -209,15 +209,11 @@ def with_os_environ(update_env: dict):
     :return:
     """
     copy_env = os.environ.copy()
-
-    os.environ.update(update_env)
     try:
+        os.environ.update(update_env)
         yield
-    except TypeError:
-        raise
     finally:
-        if id(os.environ) != id(copy_env):
-            os.environ = copy_env
+        os.environ = copy_env
 
 
 class PlatformWrapper:
