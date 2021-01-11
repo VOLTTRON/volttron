@@ -11,7 +11,7 @@
 
 # The workflow name will show up in the action tab on github during execution
 # https://github.com/VOLTTRON/volttron/actions (or if you are pushing to your own fork change the user)
-name: Testing auth marker
+name: Testing platform auth
 
 # Determine what events are going to trigger a running of the workflow
 on: [push, pull_request]
@@ -26,7 +26,7 @@ jobs:
       matrix:
         # Each entry in the os and python-version matrix will be run so for the 3 x 4 there will be 12 jobs run
         os: [ ubuntu-16.04, ubuntu-18.04, ubuntu-20.04 ]
-        python-version: [ 3.6, 3.7, 3.8, 3.9 ]
+        python-version: [ 3.6, 3.7] # , 3.8, 3.9 ]
 
     # Run-on determines the operating system available to run on
     # - At the current time there is only ubuntu machines between 16.04 and 20.04 available
@@ -69,7 +69,7 @@ jobs:
         run: |
           source env/bin/activate
           pip install -e .
-          pytest -m auth -o junit_family=xunit2 --junitxml=output/test-auth-${{matrix.os}}-${{ matrix.python-version }}-results.xml
+          pytest volttrontesting/platform/auth_tests -o junit_family=xunit2 --junitxml=output/test-auth-${{matrix.os}}-${{ matrix.python-version }}-results.xml
 
       # Archive the results from the pytest to storage.
       - name: Archive test results

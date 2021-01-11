@@ -46,9 +46,10 @@ from volttron.platform.auth import (AuthEntry, AuthFile, AuthFileIndexError,
                                     AuthFileEntryAlreadyExists,
                                     AuthFileUserIdAlreadyExists,
                                     AuthEntryInvalid)
-from volttrontesting.platform.auth_control_test import assert_auth_entries_same
 from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM, CONTROL
 from volttron.platform import jsonapi
+from volttrontesting.platform.auth_tests.conftest import assert_auth_entries_same
+
 
 @pytest.fixture(scope='function')
 def auth_file_platform_tuple(volttron_instance):

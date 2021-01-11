@@ -35,7 +35,7 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-
+import inspect
 import os
 import re
 
@@ -138,3 +138,15 @@ class AbsolutePathFileReloader(PatternMatchingEventHandler):
         except BaseException as e:
             _log.error("Exception in callback: {}".format(e))
         _log.debug("After callback on event {}".format(event))
+
+
+def print_stack():
+    """
+    Utility function to print the full frames stack of a function call.
+
+    The format of the stack is filename->function:lineno
+    """
+    called = 0
+    for x in inspect.stack():
+        _log.debug(f"stack: [{called}] {x.filename}->{x.function}:{x.lineno}")
+        called += 1
