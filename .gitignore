@@ -33,3 +33,5 @@ rabbitmq.log
 htmlcov/
 MnesiaCore.*
 rabbitmq-server.download.tar.xz
+/MagicMock/mock/
+/docs/source/volttron_api/
