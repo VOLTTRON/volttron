@@ -408,6 +408,7 @@ class Auth(SubsystemBase):
             authorized_capabilities = []
         except Exception as e:
             print(e)
+            authorized_capabilities = None
         return authorized_capabilities
 
     def set_rpc_authorizations(self, method_str, capabilities):
@@ -426,4 +427,5 @@ class Auth(SubsystemBase):
         rpc_methods = self.get_rpc_exports()
         for method in rpc_methods:
             rpc_method_authorizations[method] = self.get_rpc_authorizations(method)
-        self._rpc().call(AUTH, 'update_auth_entry_rpc_method_authorizations', self._core().identity, rpc_method_authorizations)
+        self._rpc().call(AUTH, 'update_auth_entry_rpc_method_authorizations',
+                         self._core().identity, rpc_method_authorizations)

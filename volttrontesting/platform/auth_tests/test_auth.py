@@ -5,6 +5,7 @@ import pytest
 
 from volttron.platform import jsonrpc
 from volttron.platform import keystore
+from volttron.platform.agent.known_identities import AUTH
 from volttrontesting.utils.utils import poll_gevent_sleep
 from volttron.platform.vip.agent.errors import VIPError
 from volttron.platform import jsonapi
@@ -232,18 +233,20 @@ def test_authorized_rpc_call2(volttron_instance, build_two_test_agents):
     assert result == 42
 
 @pytest.mark.auth
-def test_get_rpc_method_authorizations(volttron_instance, build_two_test_agents):
-    agent1, agent2 = build_two_test_agents
-    agent1_rpc_authorizations = agent2.vip.rpc.call(agent1.core.identity, 'auth.get_rpc_authorizations').get(timeout=2)
+def test_get_rpc_method_authorizations(volttron_instance, build_agents_with_capability_args):
+    (agent1, agent2) = build_agents_with_capability_args
+    volttron_instance.add_capabilities(agent2.publickey, 'modify_rpc_method_allowance')
+    agent1_rpc_authorizations = agent2.vip.rpc.call(agent1.core.identity, 'auth.get_rpc_authorizations', 'foo').get(timeout=2)
     assert len(agent1_rpc_authorizations) == 1
 
 @pytest.mark.auth
-def test_set_rpc_method_authorizations(volttron_instance, build_two_test_agents):
-    agent1, agent2 = build_two_test_agents
-    agent1_rpc_authorizations = agent2.vip.rpc.call(agent1.core.identity, 'auth.get_rpc_authorizations').get(timeout=2)
+def test_set_rpc_method_authorizations(volttron_instance, build_agents_with_capability_args):
+    (agent1, agent2) = build_agents_with_capability_args
+
+    agent1_rpc_authorizations = agent2.vip.rpc.call(agent1.core.identity, 'auth.get_rpc_authorizations', 'foo').get(timeout=2)
     assert len(agent1_rpc_authorizations) == 1
     agent2.vip.rpc.call(agent1.core.identity, 'auth.set_rpc_authorizations', 'foo', 'test_authorization_1')
-    agent1_rpc_authorizations = agent2.vip.rpc.call(agent1.core.identity, 'auth.get_rpc_authorizations').get(timeout=2)
+    agent1_rpc_authorizations = agent2.vip.rpc.call(agent1.core.identity, 'auth.get_rpc_authorizations', 'foo').get(timeout=2)
     assert len(agent1_rpc_authorizations) == 2
     assert "test_authorization_1" in agent1_rpc_authorizations
 

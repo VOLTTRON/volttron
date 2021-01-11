@@ -1204,10 +1204,10 @@ def list_auth(opts, indices=None):
         _stdout.write('No entries in {}\n'.format(auth_file.auth_file))
 
 
-def _ask_for_auth_fields(domain=None, address=None, user_id=None,
-                         capabilities=None, roles=None, groups=None,
-                         mechanism='CURVE', credentials=None, comments=None,
-                         enabled=True, **kwargs):
+def _ask_for_auth_fields(domain=None, address=None, user_id=None, identity=None,
+                         capabilities=None, rpc_method_authorizations=None,
+                         roles=None, groups=None, mechanism='CURVE', credentials=None,
+                         comments=None, enabled=True, **kwargs):
     class Asker(object):
         def __init__(self):
             self._fields = collections.OrderedDict()
@@ -1276,8 +1276,10 @@ def _ask_for_auth_fields(domain=None, address=None, user_id=None,
     asker.add('domain', domain)
     asker.add('address', address)
     asker.add('user_id', user_id)
+    asker.add('identity', identity)
     asker.add('capabilities', capabilities,
               'delimit multiple entries with comma', _parse_capabilities)
+    asker.add('rpc_method_authorizations', rpc_method_authorizations)
     asker.add('roles', roles, 'delimit multiple entries with comma',
               _comma_split)
     asker.add('groups', groups, 'delimit multiple entries with comma',
@@ -1322,10 +1324,11 @@ def add_auth(opts):
         "mechanism": opts.mechanism,
         "credentials": opts.credentials,
         "user_id": opts.user_id,
-        "identity": opts.identity,
+        "identity": opts.user_id,
         "groups": _comma_split(opts.groups),
         "roles": _comma_split(opts.roles),
         "capabilities": _parse_capabilities(opts.capabilities),
+        "rpc_method_authorizations": None,
         "comments": opts.comments,
     }
 

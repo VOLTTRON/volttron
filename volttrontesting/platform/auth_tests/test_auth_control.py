@@ -222,14 +222,17 @@ def auth_list_json(platform):
     return [jsonapi.loads(entry) for entry in entries]
 
 
-def entry_to_input_string(domain='', address='', user_id='', capabilities='',
+def entry_to_input_string(domain='', address='', user_id='', identity='',
+                          capabilities='', rpc_method_authorizations='',
                           roles='', groups='', mechanism='', credentials='',
                           comments='', enabled=''):
     inputs = []
     inputs.append(domain)
     inputs.append(address)
     inputs.append(user_id)
+    inputs.append(identity)
     inputs.append(','.join(capabilities))
+    inputs.append(','.join(rpc_method_authorizations))
     inputs.append(','.join(roles))
     inputs.append(','.join(groups))
     inputs.append(mechanism)
@@ -246,6 +249,7 @@ def auth_add(platform, entry):
     env = get_env(platform)
     p = subprocess.Popen(['volttron-ctl', 'auth', 'add'], env=env,
                          stdin=subprocess.PIPE, universal_newlines=True)
+    print(entry.__dict__)
     p.communicate(input=entry_to_input_string(**entry.__dict__))
     assert p.returncode == 0
 
@@ -290,10 +294,12 @@ def auth_update(platform, index, **kwargs):
 
 def auth_rpc_method_allow(platform, agent, method, auth_cap):
     env = get_env(platform)
-    p = subprocess.Popen(['volttron-ctl', 'auth', 'rpc', 'allow', f'{agent}.{method}', auth_cap], env=env,
-                         stdin=subprocess.PIPE, universal_newlines=True)
-    p.communicate()
-    assert p.returncode == 0
+    with subprocess.Popen(['volttron-ctl', 'auth', 'rpc', 'allow', f'{agent}.{method}', auth_cap], env=env,
+                         stdin=subprocess.PIPE, universal_newlines=True) as p:
+        out, err = p.communicate()
+        assert p.returncode == 0
+    print(f"Out is: {out}")
+    print(f"ERROR is: {err}")
 
 def assert_auth_entries_same(e1, e2):
     for field in ['domain', 'address', 'user_id', 'credentials', 'comments',
@@ -374,7 +380,8 @@ def test_auth_rpc_method_allow(volttron_instance):
     auth_rpc_method_allow(platform, 'test_userid', 'test_method', 'test_auth')
 
     entries = auth_list_json(platform)
-    assert entries[0].rpc_method_authorizations == {'test_method': ["test_auth"]}
+    print(entries[-1])
+    assert entries[-1]['rpc_method_authorizations'] == {'test_method': ["test_auth"]}
 
 @pytest.mark.control
 def test_group_cmds(volttron_instance):
