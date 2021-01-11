@@ -1,17 +1,17 @@
-The VOLTTRON Central agent allows the control of remote VOLTTRON platforms
-through the registered platform agents. The registration of platforms can be
-initiated from a remote platform agent. Once a platform agent
-is registered the allowed operations are start, stop, install, and run
-methods on the registered platform's agents.
+# VOLTTRON Central Agent
 
-Configuration
--------------
-The agentid does not have to be unique.  It is what will be used
-as a human readable name on volttron central.  If it is not set the
-default 'volttron central' will be used.  The default config file is pasted below.
-in the following.
+The VOLTTRON Central agent allows the control of remote VOLTTRON
+platforms through the registered platform agents. The registration of
+platforms can be initiated from a remote platform agent. Once a platform
+agent is registered the allowed operations are start, stop, install, and
+run methods on the registered platform\'s agents.
 
-::
+# Configuration
+
+The agentid does not have to be unique. It is what will be used as a
+human readable name on volttron central. If it is not set the default
+\'volttron central\' will be used. The default config file is pasted
+below. in the following.
 
     # By default the webroot will be relative to the installation directory
     # of the agent when it is installed.  One can override this by specifying

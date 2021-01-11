@@ -1937,7 +1937,7 @@ def test_actuator_default_config(volttron_instance, publish_agent):
     """
     Test the default configuration file included with the agent
     """
-    config_path = os.path.join(get_services_core("ActuatorAgent"), "actuator-deploy.service")
+    config_path = os.path.join(get_services_core("ActuatorAgent"), "config")
     with open(config_path, "r") as config_file:
         config_json = json.load(config_file)
     assert isinstance(config_json, dict)

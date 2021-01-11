@@ -12,20 +12,6 @@ from volttron.platform import jsonapi
 from volttron.platform.auth import AuthFile
 
 
-def build_agent(platform, identity):
-    """Build an agent, configure its keys and return the agent."""
-    keys = keystore.KeyStore(os.path.join(platform.volttron_home,
-                                          identity + '.keys'))
-    keys.generate()
-    agent = platform.build_agent(identity=identity,
-                                 serverkey=platform.serverkey,
-                                 publickey=keys.public,
-                                 secretkey=keys.secret)
-    # Make publickey easily accessible for these tests
-    agent.publickey = keys.public
-    return agent
-
-
 @pytest.fixture
 def build_two_test_agents(volttron_instance):
     """Returns two agents for testing authorization
@@ -33,8 +19,8 @@ def build_two_test_agents(volttron_instance):
     The first agent is the "RPC callee."
     The second agent is the unauthorized "RPC caller."
     """
-    agent1 = build_agent(volttron_instance, 'agent1')
-    agent2 = build_agent(volttron_instance, 'agent2')
+    agent1 = volttron_instance.build_agent(identity='agent1')
+    agent2 = volttron_instance.build_agent(identity='agent2')
     gevent.sleep(1)
 
     agent1.foo = lambda x: x
@@ -43,14 +29,15 @@ def build_two_test_agents(volttron_instance):
     agent1.vip.rpc.export(method=agent1.foo)
     agent1.vip.rpc.allow(agent1.foo, 'can_call_foo')
 
-    yield agent1, agent2
-
-    agent1.core.stop()
-    agent2.core.stop()
-    auth_file = AuthFile(os.path.join(volttron_instance.volttron_home, 'auth.json'))
-    allow_entries = auth_file.read_allow_entries()
-    auth_file.remove_by_indices(list(range(3, len(allow_entries))))
-    gevent.sleep(0.5)
+    try:
+        yield agent1, agent2
+    finally:
+        agent1.core.stop()
+        agent2.core.stop()
+        auth_file = AuthFile(os.path.join(volttron_instance.volttron_home, 'auth.json'))
+        allow_entries = auth_file.read_allow_entries()
+        auth_file.remove_by_indices(list(range(3, len(allow_entries))))
+        gevent.sleep(0.5)
 
 
 @pytest.fixture
@@ -61,10 +48,11 @@ def build_agents_with_capability_args(volttron_instance):
     The first agent is the "RPC callee."
     The second agent is the unauthorized "RPC caller."
     """
-    agent1 = build_agent(volttron_instance, 'agent1')
+    # Can't call the fixture directly so build our own agent here.
+    agent1 = volttron_instance.build_agent(identity='agent1')
+    agent2 = volttron_instance.build_agent(identity='agent2')
     gevent.sleep(1)
-    agent2 = build_agent(volttron_instance, 'agent2')
-    gevent.sleep(1)
+
 
     agent1.foo = lambda x: x
     agent1.foo.__name__ = 'foo'
@@ -85,8 +73,6 @@ def build_agents_with_capability_args(volttron_instance):
     allow_entries = auth_file.read_allow_entries()
     auth_file.remove_by_indices(list(range(3, len(allow_entries))))
     gevent.sleep(0.5)
-
-
 
 
 @pytest.fixture
@@ -233,15 +219,15 @@ def test_authorized_rpc_call2(volttron_instance, build_two_test_agents):
     assert result == 42
 
 @pytest.mark.auth
-def test_get_rpc_method_authorizations(volttron_instance, build_agents_with_capability_args):
-    (agent1, agent2) = build_agents_with_capability_args
+def test_get_rpc_method_authorizations(volttron_instance, build_two_test_agents):
+    (agent1, agent2) = build_two_test_agents
     volttron_instance.add_capabilities(agent2.publickey, 'modify_rpc_method_allowance')
     agent1_rpc_authorizations = agent2.vip.rpc.call(agent1.core.identity, 'auth.get_rpc_authorizations', 'foo').get(timeout=2)
     assert len(agent1_rpc_authorizations) == 1
 
 @pytest.mark.auth
-def test_set_rpc_method_authorizations(volttron_instance, build_agents_with_capability_args):
-    (agent1, agent2) = build_agents_with_capability_args
+def test_set_rpc_method_authorizations(volttron_instance, build_two_test_agents):
+    (agent1, agent2) = build_two_test_agents
 
     agent1_rpc_authorizations = agent2.vip.rpc.call(agent1.core.identity, 'auth.get_rpc_authorizations', 'foo').get(timeout=2)
     assert len(agent1_rpc_authorizations) == 1

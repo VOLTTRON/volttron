@@ -75,9 +75,10 @@ def volttron_instance_msgdebug(request):
                             messagebus=request.param['messagebus'],
                             ssl_auth=request.param['ssl_auth'])
 
-    yield wrapper
-
-    cleanup_wrapper(wrapper)
+    try:
+        yield wrapper
+    finally:
+        cleanup_wrapper(wrapper)
 
 
 @pytest.fixture(scope="module")
@@ -169,6 +170,9 @@ def get_volttron_instances(request):
                                     ssl_auth=request.param['ssl_auth'],
                                     **kwargs)
             instances.append(wrapper)
+        if should_start:
+            for w in instances:
+                assert w.is_running()
         # instances = instances if n > 1 else instances[0]
         # setattr(get_n_volttron_instances, 'instances', instances)
         get_n_volttron_instances.instances = instances if n > 1 else instances[0]
@@ -188,9 +192,11 @@ def get_volttron_instances(request):
                 get_n_volttron_instances.instances[i].volttron_home))
             cleanup_wrapper(get_n_volttron_instances.instances[i])
 
-    yield get_n_volttron_instances
+    try:
+        yield get_n_volttron_instances
+    finally:
+        cleanup()
 
-    cleanup()
 
 
 # Use this fixture when you want a single instance of volttron platform for zmq message bus

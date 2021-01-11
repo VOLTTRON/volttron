@@ -45,7 +45,7 @@ import pytest
 from mock import MagicMock
 
 from volttron.platform import get_services_core, get_examples, jsonapi
-from volttrontesting.utils.platformwrapper import PlatformWrapper
+from volttrontesting.utils.platformwrapper import PlatformWrapper, with_os_environ
 from volttrontesting.utils.utils import get_rand_tcp_address, get_rand_http_address
 
 
@@ -239,6 +239,7 @@ def test_reinstall_agent(volttron_instance):
 
     assert volttron_instance.is_agent_running(newuuid)
     assert auuid != newuuid and auuid is not None
+    volttron_instance.remove_agent(newuuid)
 
 
 @pytest.mark.wrapper
@@ -346,6 +347,55 @@ def test_can_publish(volttron_instance):
 
 
 @pytest.mark.wrapper
-def test_fixture_returns_single_if_one_requested(get_volttron_instances):
-    wrapper = get_volttron_instances(1, False)
-    assert isinstance(wrapper, PlatformWrapper)
+def test_can_install_multiple_listeners(volttron_instance):
+    assert volttron_instance.is_running()
+    volttron_instance.remove_all_agents()
+    uuids = []
+    num_listeners = 3
+
+    try:
+        for x in range(num_listeners):
+            identity = "listener_" + str(x)
+            auuid = volttron_instance.install_agent(
+                agent_dir=get_examples("ListenerAgent"), config_file={
+                    "agentid": identity,
+                    "message": "So Happpy"})
+            assert auuid
+            uuids.append(auuid)
+            gevent.sleep(4)
+
+        for u in uuids:
+            assert volttron_instance.is_agent_running(u)
+
+        agent_list = volttron_instance.dynamic_agent.vip.rpc('control', 'list_agents').get(timeout=5)
+        print('Agent List: {}'.format(agent_list))
+        assert len(agent_list) == num_listeners
+    finally:
+        for x in uuids:
+            try:
+                volttron_instance.remove_agent(x)
+            except:
+                print('COULDN"T REMOVE AGENT')
+
+
+def test_will_update_throws_typeerror():
+    # Note dictionary for os.environ must be string=string for key=value
+
+    to_update = dict(shanty=dict(holy="cow"))
+    #with pytest.raises(TypeError):
+    with with_os_environ(to_update):
+        print("Should not reach here")
+
+    to_update = dict(bogus=35)
+#    with pytest.raises(TypeError):
+    with with_os_environ(to_update):
+        print("Should not reach here")
+
+
+def test_will_update_environ():
+    to_update = dict(farthing="50")
+    with with_os_environ(to_update):
+        assert os.environ.get("farthing") == "50"
+
+    assert "farthing" not in os.environ
+

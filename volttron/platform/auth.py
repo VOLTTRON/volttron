@@ -43,6 +43,7 @@ import os
 import random
 import re
 import shutil
+from typing import Optional
 import copy
 import uuid
 from collections import defaultdict
@@ -506,6 +507,7 @@ class AuthService(Agent):
         :param user_id: user id field from VOLTTRON Interconnect Protocol
         :type user_id: str
         """
+
         for pending in self._auth_failures:
             if user_id == pending['user_id']:
                 self._update_auth_entry(
@@ -864,7 +866,7 @@ class AuthEntry(object):
 
     def __init__(self, domain=None, address=None, mechanism='CURVE',
                  credentials=None, user_id=None, identity=None, groups=None, roles=None,
-                 capabilities=None, rpc_method_authorizations=None,
+                 capabilities: Optional[dict] = None, rpc_method_authorizations=None,
                  comments=None, enabled=True, **kwargs):
 
         self.domain = AuthEntry._build_field(domain)
@@ -906,7 +908,7 @@ class AuthEntry(object):
         return List(String(elem) for elem in value)
 
     @staticmethod
-    def build_capabilities_field(value):
+    def build_capabilities_field(value: Optional[dict]):
         #_log.debug("_build_capabilities {}".format(value))
 
         if not value:

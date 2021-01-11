@@ -1,4 +1,4 @@
-import service as cps
+from . import service as cps
 import suds
 import io
 

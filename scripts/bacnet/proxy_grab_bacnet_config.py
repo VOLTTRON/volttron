@@ -38,13 +38,13 @@
 
 import sys
 from csv import DictWriter
-
+from os.path import basename
 import logging
 import argparse
 import gevent
 from gevent.event import AsyncResult
 
-from volttron.platform import get_address, get_home
+from volttron.platform import get_address, get_home, jsonapi
 from volttron.platform.agent import utils
 from volttron.platform.agent.bacnet_proxy_reader import BACnetReader
 from volttron.platform.keystore import KeyStore
@@ -111,6 +111,17 @@ def main():
 
     _log.debug("initialization")
     _log.debug("    - args: %r", args)
+
+    config_file_name = basename(args.registry_out_file.name)
+
+    config = {
+        "driver_config": {"device_address": str(args.address),
+                          "device_id": args.device_id},
+        "driver_type": "bacnet",
+        "registry_config": "config://registry_configs/{}".format(config_file_name)
+    }
+
+    jsonapi.dump(config, args.driver_out_file, indent=4)
 
     key_store = KeyStore()
     config_writer = DictWriter(args.registry_out_file,

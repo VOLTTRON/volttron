@@ -48,7 +48,6 @@ from volttron.platform.messaging import headers as headers_mod
 
 from volttron.platform.messaging import topics, headers as headers_mod
 
-from . import settings
 
 
 utils.setup_logging()
