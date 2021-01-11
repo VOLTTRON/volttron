@@ -101,8 +101,8 @@ For Future:
 KeyDiscovery Service
 --------------------
 
-1. Each platform tries to obtain the platform discovery information - platform name, VIP address and server key of
-   remote VOLTTRON platforms through HTTP discovery service at startup.
+1. Each platform tries to obtain the platform discovery information - platform name, :term:`VIP address` and server key
+   of remote VOLTTRON platforms through HTTP discovery service at startup.
 
 2. If unsuccessful, it shall make regular attempts to obtain discovery information until successful.
 

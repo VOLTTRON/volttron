@@ -121,6 +121,12 @@ at our bi-weekly office-hours and on Slack. To be invited to office-hours or sla
    platform-features/config-store/configuration-store
    platform-features/security/volttron-security
 
+.. toctree::
+   :caption: VOLTTRON Core Agents
+   :maxdepth: 2
+   :glob:
+
+   volttron-api/services/*/modules
 
 .. toctree::
    :caption: VOLTTRON Topics
@@ -131,7 +137,7 @@ at our bi-weekly office-hours and on Slack. To be invited to office-hours or sla
    volttron-topics/troubleshooting/index
    volttron-topics/volttron-applications/index
    volttron-topics/change-log/index
-   volttron_api/modules
+
 
 
 Indices and tables
@@ -140,7 +146,5 @@ Indices and tables
 * :ref:`genindex`
 * :ref:`modindex`
 
-
-.. |VOLTTRON Logo| image:: images/volttron-webimage.jpg
 .. |VOLTTRON| unicode:: VOLTTRON U+2122
 .. |VOLTTRON Tagline| image:: files/VOLLTRON_Logo_Black_Horizontal_with_Tagline.png

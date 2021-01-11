@@ -37,7 +37,7 @@
 # }}}
 
 
-from master_driver.interfaces.modbus_tk.helpers import str2bool
+from .helpers import str2bool
 
 import cmd
 import yaml

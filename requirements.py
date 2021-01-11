@@ -48,6 +48,7 @@ install_requires = [
     'gevent==20.6.1',
     'greenlet==0.4.16',
     'grequests',
+    'idna<3,>=2.5',
     'requests==2.23.0',
     'ply',
     'psutil',
@@ -84,8 +85,9 @@ extras_require = {
     'documentation': [  # Requirements for building the documentation
         'mock',
         'Sphinx',
-        'recommonmark',
-        'sphinx-rtd-theme'
+        'sphinx-rtd-theme',
+        'sphinx==3.3.0',
+        'm2r2'
     ],
     'drivers': [
         'pymodbus',
@@ -125,7 +127,7 @@ extras_require = {
     ],
     'web': [    # Web support for launching web based agents including ssl and json web tokens.
         'ws4py',
-        'PyJWT',
+        'PyJWT==1.7.1',
         'Jinja2',
         'passlib',
         'argon2-cffi',

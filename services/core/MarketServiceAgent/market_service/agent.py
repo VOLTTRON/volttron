@@ -50,14 +50,14 @@ MarketServiceAgent Configuration
 ================================
 
     "market_period"
-        The time allowed for a market cycle in seconds. After this amount of time the market starts again.
-        Defaults to 300.
+        The time allowed for a market cycle in seconds. After this amount of time the market starts again.
+        Defaults to 300.
     "reservation_delay"
-        The time delay between the start of a market cycle and the start of gathering market reservations
-         in seconds. Defaults to 0.
+        The time delay between the start of a market cycle and the start of gathering market reservations
+         in seconds. Defaults to 0.
     "offer_delay"
-        The time delay between the start of gathering market reservations and the start of gathering market bids/offers
-         in seconds. Defaults to 120.
+        The time delay between the start of gathering market reservations and the start of gathering market bids/offers
+         in seconds. Defaults to 120.
     "verbose_logging"
         If True this enables verbose logging.  If False, there is little or no logging.
         Defaults to True.
