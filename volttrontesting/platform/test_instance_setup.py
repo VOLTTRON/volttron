@@ -241,8 +241,8 @@ def test_zmq_case_web_no_agents(monkeypatch):
         assert config.get('volttron', 'vip-address') == "tcp://127.0.0.15:22916"
         assert config.get('volttron', 'instance-name') == "volttron1"
         assert config.get('volttron', 'bind-web-address') == "{}{}{}".format("https://", get_hostname().lower(), ":8443")
-        assert config.get('volttron', 'web-ssl-cert') == os.path.join(vhome, "certificates", "certs", "master_web-server.crt")
-        assert config.get('volttron', 'web-ssl-key') == os.path.join(vhome, "certificates", "private", "master_web-server.pem")
+        assert config.get('volttron', 'web-ssl-cert') == os.path.join(vhome, "certificates", "certs", "platform_web-server.crt")
+        assert config.get('volttron', 'web-ssl-key') == os.path.join(vhome, "certificates", "private", "platform_web-server.pem")
         assert not _is_agent_installed("listener")
         assert not _is_agent_installed("master_driver")
         assert not _is_agent_installed("platform_historian")
@@ -323,8 +323,8 @@ def test_zmq_case_web_with_agents(monkeypatch):
         assert config.get('volttron', 'vip-address') == "tcp://127.0.0.15:22916"
         assert config.get('volttron', 'instance-name') == "test_zmq"
         assert config.get('volttron', 'bind-web-address') == "{}{}{}".format("https://", get_hostname().lower(), ":8443")
-        assert config.get('volttron', 'web-ssl-cert') == os.path.join(vhome, "certificates", "certs", "master_web-server.crt")
-        assert config.get('volttron', 'web-ssl-key') == os.path.join(vhome, "certificates", "private", "master_web-server.pem")
+        assert config.get('volttron', 'web-ssl-cert') == os.path.join(vhome, "certificates", "certs", "platform_web-server.crt")
+        assert config.get('volttron', 'web-ssl-key') == os.path.join(vhome, "certificates", "private", "platform_web-server.pem")
         assert _is_agent_installed("listener")
         assert _is_agent_installed("master_driver")
         assert _is_agent_installed("platform_historian")
@@ -398,8 +398,8 @@ def test_zmq_case_web_vc(monkeypatch):
         assert config.get('volttron', 'instance-name') == "test_zmq"
         assert config.get('volttron', 'volttron-central-address') == "{}{}{}".format("https://", get_hostname().lower(), ":8443")
         assert config.get('volttron', 'bind-web-address') == "{}{}{}".format("https://", get_hostname().lower(), ":8443")
-        assert config.get('volttron', 'web-ssl-cert') == os.path.join(vhome, "certificates", "certs", "master_web-server.crt")
-        assert config.get('volttron', 'web-ssl-key') == os.path.join(vhome, "certificates", "private", "master_web-server.pem")
+        assert config.get('volttron', 'web-ssl-cert') == os.path.join(vhome, "certificates", "certs", "platform_web-server.crt")
+        assert config.get('volttron', 'web-ssl-key') == os.path.join(vhome, "certificates", "private", "platform_web-server.pem")
         assert not _is_agent_installed("listener")
         assert not _is_agent_installed("master_driver")
         assert not _is_agent_installed("platform_historian")
@@ -478,8 +478,8 @@ def test_zmq_case_web_vc_with_agents(monkeypatch):
         assert config.get('volttron', 'instance-name') == "test_zmq"
         assert config.get('volttron', 'volttron-central-address') == "{}{}{}".format("https://", get_hostname().lower(), ":8443")
         assert config.get('volttron', 'bind-web-address') == "{}{}{}".format("https://", get_hostname().lower(), ":8443")
-        assert config.get('volttron', 'web-ssl-cert') == os.path.join(vhome, "certificates", "certs", "master_web-server.crt")
-        assert config.get('volttron', 'web-ssl-key') == os.path.join(vhome, "certificates", "private", "master_web-server.pem")
+        assert config.get('volttron', 'web-ssl-cert') == os.path.join(vhome, "certificates", "certs", "platform_web-server.crt")
+        assert config.get('volttron', 'web-ssl-key') == os.path.join(vhome, "certificates", "private", "platform_web-server.pem")
         assert _is_agent_installed("listener")
         assert _is_agent_installed("master_driver")
         assert _is_agent_installed("platform_historian")

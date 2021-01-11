@@ -41,7 +41,7 @@ import os
 import re
 from urllib.parse import parse_qs
 
-from volttron.platform.agent.known_identities import MASTER_WEB, AUTH
+from volttron.platform.agent.known_identities import PLATFORM_WEB, AUTH
 
 try:
     from jinja2 import Environment, FileSystemLoader, select_autoescape, TemplateNotFound
@@ -162,7 +162,7 @@ class AdminEndpoints(object):
         """
         from volttron.platform.web import get_bearer, NotAuthorized
         try:
-            claims = self._rpc_caller(MASTER_WEB, 'get_user_claims', get_bearer(env)).get()
+            claims = self._rpc_caller(PLATFORM_WEB, 'get_user_claims', get_bearer(env)).get()
         except NotAuthorized:
             _log.error("Unauthorized user attempted to connect to {}".format(env.get('PATH_INFO')))
             return Response('<h1>Unauthorized User</h1>', status="401 Unauthorized")

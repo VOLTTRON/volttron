@@ -23,7 +23,7 @@ The following table details the vip identities that are reserved for VOLTTRON sp
     "control","Platform Control","Control service facilitates the starting, stopping, removal, and installation of the agents on an instance.  This agent is executing within the main volttron process"
     "control.connection","Platform Control","Short lived identity used by all of the volttron-ctl (`vctl`) commands"
     "pubsub","Pub/Sub Router","Pub/Sub subsystem router. Allows backward compatibility with version 4.1"
-    "master_web","Platform Web Service","Facilitates HTTP/HTTPS requests from browsers and routes them to the corresponding agent for processing (will be renamed to platform.web in future update)"
+    "platform_web","Platform Web Service","Facilitates HTTP/HTTPS requests from browsers and routes them to the corresponding agent for processing (will be renamed to platform.web in future update)"
     "keydiscovery","Server Key Discovery","Agent that enables discovery of server keys of remote platforms in a multi-platform setup"
     "platform.actuator","Actuator","Agent which coordinates sending control commands to devices"
     "config.store","Configuration Store","The configuration subsystem service agent on the platform.  Includes scheduling"

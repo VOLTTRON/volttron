@@ -53,7 +53,7 @@ from gevent.fileobject import FileObject
 from zmq import green as zmq
 
 from volttron.platform import jsonapi, get_home
-from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM, CONTROL, MASTER_WEB, CONTROL_CONNECTION
+from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM, CONTROL, PLATFORM_WEB, CONTROL_CONNECTION
 from volttron.platform.vip.agent.errors import VIPError
 from volttron.platform.vip.pubsubservice import ProtectedPubSubTopics
 from .agent.utils import strip_comments, create_file_if_missing, watch_file

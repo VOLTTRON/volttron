@@ -54,7 +54,7 @@ from bootstrap import install_rabbit, default_rmq_dir
 from requirements import extras_require
 from volttron.platform import certs, is_rabbitmq_available
 from volttron.platform import jsonapi
-from volttron.platform.agent.known_identities import MASTER_WEB, PLATFORM_DRIVER, VOLTTRON_CENTRAL
+from volttron.platform.agent.known_identities import PLATFORM_WEB, PLATFORM_DRIVER, VOLTTRON_CENTRAL
 from volttron.platform.agent.utils import get_platform_instance_name, wait_for_volttron_startup, \
     is_volttron_running, wait_for_volttron_shutdown
 from volttron.utils import get_hostname
@@ -385,7 +385,7 @@ def _create_web_certs():
             return 1
     
     print("Creating new web server certificate.")
-    crts.create_signed_cert_files(name=MASTER_WEB + "-server", cert_type='server', ca_name=crts.root_ca_name, fqdn=get_hostname())
+    crts.create_signed_cert_files(name=PLATFORM_WEB + "-server", cert_type='server', ca_name=crts.root_ca_name, fqdn=get_hostname())
     return 0
 
 
@@ -647,23 +647,23 @@ def get_cert_and_key(vhome):
 
     # Check for existing files first. If present and are valid ask if we are to use that
 
-    master_web_cert = os.path.join(vhome, 'certificates/certs/', MASTER_WEB+"-server.crt")
-    master_web_key = os.path.join(vhome, 'certificates/private/', MASTER_WEB + "-server.pem")
+    platform_web_cert = os.path.join(vhome, 'certificates/certs/', PLATFORM_WEB+"-server.crt")
+    platform_web_key = os.path.join(vhome, 'certificates/private/', PLATFORM_WEB + "-server.pem")
     cert_error = True
 
-    if is_file_readable(master_web_cert, False) and is_file_readable(master_web_key, False):
+    if is_file_readable(platform_web_cert, False) and is_file_readable(platform_web_key, False):
         try:
-            if certs.Certs.validate_key_pair(master_web_cert, master_web_key):
+            if certs.Certs.validate_key_pair(platform_web_cert, platform_web_key):
                 print('\nThe following certificate and keyfile exists for web access over https: \n{}\n{}'.format(
-                    master_web_cert,master_web_key))
+                    platform_web_cert,platform_web_key))
                 prompt = '\nDo you want to use these certificates for the web server?'
                 if prompt_response(prompt, valid_answers=y_or_n, default='Y') in y:
-                    config_opts['web-ssl-cert'] = master_web_cert
-                    config_opts['web-ssl-key'] = master_web_key
+                    config_opts['web-ssl-cert'] = platform_web_cert
+                    config_opts['web-ssl-key'] = platform_web_key
                     cert_error = False
                 else:
                     print('\nPlease provide the path to cert and key files. '
-                          'This will overwrite existing files: \n{} and {}'.format(master_web_cert, master_web_key))
+                          'This will overwrite existing files: \n{} and {}'.format(platform_web_cert, platform_web_key))
             else:
                 print("Existing key pair is not valid.")
         except RuntimeError as e:
@@ -710,12 +710,12 @@ def get_cert_and_key(vhome):
         else:
             cert_error = _create_web_certs()
             if not cert_error:
-                master_web_cert = os.path.join(vhome, 'certificates/certs/',
-                        MASTER_WEB+"-server.crt")
-                master_web_key = os.path.join(vhome, 'certificates/private/', 
-                        MASTER_WEB + "-server.pem")
-                config_opts['web-ssl-cert'] = master_web_cert
-                config_opts['web-ssl-key'] = master_web_key
+                platform_web_cert = os.path.join(vhome, 'certificates/certs/',
+                        PLATFORM_WEB+"-server.crt")
+                platform_web_key = os.path.join(vhome, 'certificates/private/',
+                        PLATFORM_WEB + "-server.pem")
+                config_opts['web-ssl-cert'] = platform_web_cert
+                config_opts['web-ssl-key'] = platform_web_key
 
 
 def is_file_readable(file_path, log=True):

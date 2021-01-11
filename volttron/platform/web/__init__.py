@@ -49,7 +49,7 @@ except ImportError:
 from . discovery import DiscoveryInfo, DiscoveryError
 
 # Used outside so we make it available through this file.
-from . master_web_service import MasterWebService
+from . platform_web_service import MasterWebService
 
 _log = logging.getLogger(__name__)
 

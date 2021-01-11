@@ -18,7 +18,7 @@ from deepdiff import DeepDiff
 from werkzeug.wrappers import Response
 
 from volttron.platform import jsonapi
-from volttron.platform.agent.known_identities import MASTER_WEB
+from volttron.platform.agent.known_identities import PLATFORM_WEB
 from volttron.platform.keystore import KeyStore
 from volttron.platform.vip.agent import Agent
 from volttron.platform.vip.agent.subsystems.web import ResourceType
@@ -42,15 +42,15 @@ MasterWebService.__bases__ = (AgentMock.imitate(Agent, Agent()),)
 #TODO add tests for new RPC calls
 
 @pytest.fixture()
-def master_web_service():
+def platform_web_service():
     serverkey = "serverkey"
     mock_aip = mock.Mock()
-    yield MasterWebService(serverkey=serverkey, identity=MASTER_WEB, address="tcp://stuff",
+    yield MasterWebService(serverkey=serverkey, identity=PLATFORM_WEB, address="tcp://stuff",
                            bind_web_address="http://v2:8888")
 
 
 @contextlib.contextmanager
-def get_master_web(bind_web_address="http://v2:8080", **kwargs) -> MasterWebService:
+def get_platform_web(bind_web_address="http://v2:8080", **kwargs) -> MasterWebService:
     """
     Create a new MasterWebService instance with a mocked aip.
 
@@ -58,7 +58,7 @@ def get_master_web(bind_web_address="http://v2:8080", **kwargs) -> MasterWebServ
     """
     serverkey = "serverkey"
 
-    mws = MasterWebService(serverkey=serverkey, identity=MASTER_WEB, address="tcp://stuff",
+    mws = MasterWebService(serverkey=serverkey, identity=PLATFORM_WEB, address="tcp://stuff",
                            bind_web_address=bind_web_address, **kwargs)
     mws.startupagent(sender='testweb')
     # original_volttron_home = os.environ.get('VOLTTRON_HOME')
@@ -149,7 +149,7 @@ def test_authenticate_endpoint(scheme):
         adminep.add_user(user, passwd, groups=['foo', 'read-only'])
         expected_claims = dict(groups=['foo', 'read-only'])
 
-        with get_master_web(**kwargs) as mw:
+        with get_platform_web(**kwargs) as mw:
 
             data = urlencode(dict(username=user, password=passwd)).encode('utf-8')
             assert len(data) > 0
@@ -241,7 +241,7 @@ def test_discovery(scheme):
             bind_web_address = f"{scheme}://{host}:{port}"
             serverkey = decode_key(keystore.public)
 
-            mws = MasterWebService(serverkey=serverkey, identity=MASTER_WEB, address=address,
+            mws = MasterWebService(serverkey=serverkey, identity=PLATFORM_WEB, address=address,
                                    bind_web_address=bind_web_address, **config_params)
             mws.startupagent(sender='testweb')
 
@@ -271,7 +271,7 @@ def test_discovery(scheme):
 #         return MockQuery(**kv)
 #
 #     with mock.patch('volttron.platform.vip.agent.subsystems.query.Query', _construct_query_mock):
-#         with get_master_web(web_secret_key=web_secret) as mw:
+#         with get_platform_web(web_secret_key=web_secret) as mw:
 #             env = get_test_web_env("/discovery/")
 #             mocked_start_response, response = get_server_response(env, mw)
 #
@@ -280,7 +280,7 @@ def test_discovery(scheme):
 
 @pytest.mark.web
 def test_path_route():
-    with get_master_web(web_secret_key="oh my goodnes") as ws:
+    with get_platform_web(web_secret_key="oh my goodnes") as ws:
         # Stage 1 create a temp dir and add index.html to that directory
         tempdir = tempfile.mkdtemp(prefix="web")
         html = """<html><head><title>sweet</title><body>Yay I am here</body></html>"""
@@ -327,8 +327,8 @@ def test_path_route():
 
 
 @pytest.mark.web
-def test_register_route(master_web_service: MasterWebService):
-    ws = master_web_service
+def test_register_route(platform_web_service: MasterWebService):
+    ws = platform_web_service
     fn_mock = mock.Mock()
     fn_mock.__name__ = "test_register_route"
     interest = {'/web': {'type': 'agent_route', 'fn': fn_mock}}
@@ -346,8 +346,8 @@ def test_register_route(master_web_service: MasterWebService):
 
 
 @pytest.mark.web
-def test_register_endpoint(master_web_service: MasterWebService):
-    ws = master_web_service
+def test_register_endpoint(platform_web_service: MasterWebService):
+    ws = platform_web_service
     fn_mock = mock.Mock()
     fn_mock.__name__ = "test_register_endpoint"
     interest = {"/battle/one": {'type': 'endpoint'}}
