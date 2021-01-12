@@ -152,7 +152,7 @@ class AuthService(Agent):
         for method in peer_methods:
             try:
                 rpc_method_authorizations[method] = \
-                    self.vip.rpc.call(peer_id, 'auth.get_rpc_authorizations', method).get(timeout=4)
+                    self.vip.rpc.call(peer_id, 'get_rpc_authorizations', method).get(timeout=4)
             except gevent.Timeout:
                 rpc_method_authorizations[method] = []
                 _log.warn(f'{peer_id} has timed out while attempting to get rpc method authorizations')
@@ -192,7 +192,7 @@ class AuthService(Agent):
                     if entry.rpc_method_authorizations[method] != rpc_method_authorizations[method]:
                         try:
                             self.vip.rpc.call(
-                                entry.identity, "auth.set_rpc_authorizations",
+                                entry.identity, "set_rpc_authorizations",
                                 {"method": method, "capabilities": entry.rpc_method_authorizations[method]}).get(timeout=4)
                         except gevent.Timeout:
                             _log.error(f"{entry.identity} "
@@ -213,7 +213,7 @@ class AuthService(Agent):
                     if entry.rpc_method_authorizations[method] != rpc_method_authorizations[method]:
                         try:
                             self.vip.rpc.call(
-                                entry.identity, "auth.set_rpc_authorizations",
+                                entry.identity, "set_rpc_authorizations",
                                 {"method": method, "capabilities": entry.rpc_method_authorizations[method]}).get(timeout=4)
                         except gevent.Timeout:
                             _log.error(f"{entry.identity} "

@@ -222,19 +222,23 @@ def test_authorized_rpc_call2(volttron_instance, build_two_test_agents):
 def test_get_rpc_method_authorizations(volttron_instance, build_two_test_agents):
     (agent1, agent2) = build_two_test_agents
     volttron_instance.add_capabilities(agent2.publickey, 'modify_rpc_method_allowance')
-    agent1_rpc_authorizations = agent2.vip.rpc.call(agent1.core.identity, 'auth.get_rpc_authorizations', 'foo').get(timeout=2)
+    gevent.sleep(1)
+    agent1_rpc_authorizations = agent2.vip.rpc.call(AUTH, 'get_rpc_authorizations', 'approve_authorization_failure').get(timeout=2)
     assert len(agent1_rpc_authorizations) == 1
 
 @pytest.mark.auth
 def test_set_rpc_method_authorizations(volttron_instance, build_two_test_agents):
     (agent1, agent2) = build_two_test_agents
+    volttron_instance.add_capabilities(agent2.publickey, 'modify_rpc_method_allowance')
+    # If the agent is not authorized, then an exception will be raised
+    with pytest.raises(jsonrpc.RemoteError):
+        agent2.vip.rpc.call(agent1.core.identity, 'foo', 42).get(timeout=1)
 
-    agent1_rpc_authorizations = agent2.vip.rpc.call(agent1.core.identity, 'auth.get_rpc_authorizations', 'foo').get(timeout=2)
-    assert len(agent1_rpc_authorizations) == 1
-    agent2.vip.rpc.call(agent1.core.identity, 'auth.set_rpc_authorizations', 'foo', 'test_authorization_1')
-    agent1_rpc_authorizations = agent2.vip.rpc.call(agent1.core.identity, 'auth.get_rpc_authorizations', 'foo').get(timeout=2)
-    assert len(agent1_rpc_authorizations) == 2
-    assert "test_authorization_1" in agent1_rpc_authorizations
+    agent2.vip.rpc.call(agent1.core.identity, 'set_rpc_authorizations', 'foo', 'test_authorization_1')
+
+    volttron_instance.add_capabilities(agent2.publickey, 'test_authorization_1')
+    return_val = agent2.vip.rpc.call(agent1.core.identity, 'foo', 42).get(timeout=1)
+    assert return_val == 42
 
 @pytest.mark.auth
 def test_rpc_call_with_capability_and_param_restrictions(volttron_instance, build_agents_with_capability_args):

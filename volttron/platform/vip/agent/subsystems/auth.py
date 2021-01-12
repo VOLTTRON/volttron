@@ -81,8 +81,8 @@ class Auth(SubsystemBase):
 
         def onsetup(sender, **kwargs):
             rpc.export(self._update_capabilities, 'auth.update')
-            rpc.export(self.get_rpc_authorizations, 'auth.get_rpc_authorizations')
-            rpc.export(self.set_rpc_authorizations, 'auth.set_rpc_authorizations')
+            rpc.export(self.get_rpc_authorizations)
+            rpc.export(self.set_rpc_authorizations)
             rpc.allow(self.get_rpc_authorizations, 'modify_rpc_method_allowance')
             rpc.allow(self.set_rpc_authorizations, 'modify_rpc_method_allowance')
             ignored_ids = [AUTH, MASTER_WEB, CONTROL, KEY_DISCOVERY, CONFIGURATION_STORE,

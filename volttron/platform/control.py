@@ -742,7 +742,7 @@ def list_agents_rpc(opts):
                 peer_method_metadata[peer][method] = conn.server.vip.rpc.call(
                     peer, f'{method}.inspect').get(timeout=4)
                 authorized_capabilities = conn.server.vip.rpc.call(
-                    peer, "auth.get_rpc_authorizations", method).get(timeout=4)
+                    peer, "get_rpc_authorizations", method).get(timeout=4)
                 peer_method_metadata[peer][method]['authorized_capabilities'] = \
                     f"Authorized capabilities: {authorized_capabilities} for method: {method}"
             except gevent.Timeout:
