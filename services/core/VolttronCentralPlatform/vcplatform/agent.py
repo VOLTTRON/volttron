@@ -539,10 +539,10 @@ class VolttronCentralPlatform(Agent):
             return self._vc_connection
 
         if self._vc_address is None or self._vc_serverkey is None:
-            _log.warn('volttron_central_address is None in config store '
-                      'and volttron.central is not a peer.')
-            _log.warn('Recommend adding volttron.central address or adding a '
-                      '"config" file to the config store.')
+            _log.warning('volttron_central_address is None in config store '
+                         'and volttron.central is not a peer.')
+            _log.warning('Recommend adding volttron.central address or adding a '
+                         '"config" file to the config store.')
             return None
 
         self._vc_connection = build_agent(

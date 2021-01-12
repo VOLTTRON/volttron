@@ -86,7 +86,7 @@ class EKGregister(BaseRegister):
             self.math_func = getattr(math, default_value)
         else:
             _log.error('Invalid default_value in EKGregister.')
-            _log.warn('Defaulting to sin(x)')
+            _log.warning('Defaulting to sin(x)')
             self.math_func = math.sin
 
     @property

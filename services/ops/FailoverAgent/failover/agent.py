@@ -226,7 +226,7 @@ class FailoverAgent(Agent):
         if current_state != self._state:
             context = 'Starting agent {}'.format(self.agent_vip_identity)
             self._state = current_state
-            _log.warn(context)
+            _log.warning(context)
             status = Status.build(STATUS_GOOD, context=context)
             self.vip.health.send_alert(alert_key, status)
 
@@ -256,7 +256,7 @@ class FailoverAgent(Agent):
                 self.agent_vip_identity)
             if current_state != self._state:
                 self._state = current_state
-                _log.warn(context)
+                _log.warning(context)
                 status = Status.build(STATUS_GOOD, context=context)
                 self.vip.health.send_alert(alert_key, status)
 
@@ -267,7 +267,7 @@ class FailoverAgent(Agent):
                 self.agent_vip_identity)
             if current_state != self._state:
                 self._state = current_state
-                _log.warn(context)
+                _log.warning(context)
                 status = Status.build(STATUS_BAD, context=context)
                 self.vip.health.send_alert(alert_key, status)
 

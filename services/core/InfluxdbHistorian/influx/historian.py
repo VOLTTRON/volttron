@@ -322,7 +322,7 @@ class InfluxdbHistorian(BaseHistorian):
                                                                self._use_calendar_time_periods)
                         values[topic_name] = value
                     else:
-                        _log.warn('No such topic {}'.format(topic_name))
+                        _log.warning('No such topic {}'.format(topic_name))
 
                 results = {
                     "values": values,
