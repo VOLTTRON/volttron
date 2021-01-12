@@ -272,7 +272,7 @@ class OpenADRVenAgent(Agent):
         """
             Initialize the agent's configuration.
 
-            Configuration parameters (see openadrven.config for a sample config file):
+            Configuration parameters (see config for a sample config file):
 
                 db_path:                Pathname of the agent's sqlite database.
                                         ~ and shell variables will be expanded if present.

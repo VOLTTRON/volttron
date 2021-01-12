@@ -20,7 +20,7 @@ applications
 /configs/
 /config/
 /docs/build/*
-/docs/source/volttron_api
+/docs/source/volttron-api
 volttron.log
 __pycache__
 .python-version
@@ -33,3 +33,5 @@ rabbitmq.log
 htmlcov/
 MnesiaCore.*
 rabbitmq-server.download.tar.xz
+/MagicMock/mock/
+/docs/source/volttron_api/

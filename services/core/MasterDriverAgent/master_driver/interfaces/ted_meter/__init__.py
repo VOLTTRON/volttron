@@ -37,7 +37,7 @@ import xml.etree.ElementTree as ET
 import grequests
 
 from volttron.platform.agent import utils
-from master_driver.interfaces import BaseRegister, BaseInterface, BasicRevert
+from ...interfaces import BaseRegister, BaseInterface, BasicRevert
 
 
 TED_METER_LOGGER = logging.getLogger("ted_meter")

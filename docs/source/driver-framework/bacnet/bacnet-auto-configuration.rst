@@ -188,6 +188,9 @@ Grab Multiple Configs Options
 
     - ``--out-directory OUT_DIRECTORY`` Specify the output directory.
     - ``--use-proxy`` Use `proxy_grab_bacnet_config.py` to gather configuration data.
+    - ``--proxy-id`` When using ``-use-proxy``, supply ``proxy-id`` with the VIP identity of a BACnet proxy agent.  This
+      is useful for deployments with multiple BACnet proxies, such as on segmented networks, or in deployments
+      communicating with multiple BACnet networks.
 
 
 BACnet Proxy Alternative Scripts

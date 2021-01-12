@@ -334,7 +334,7 @@ Configuration Parameters
 ------------------------
 
 The VEN agent’s configuration file contains JSON that includes several parameters for configuring VTN server
-communications and other behavior. A sample configuration file, `openadrven.config`, has been provided in the agent
+communications and other behavior. A sample configuration file, `config`, has been provided in the agent
 directory.
 
 The VEN agent supports the following configuration parameters:
