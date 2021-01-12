@@ -218,6 +218,7 @@ def test_authorized_rpc_call2(volttron_instance, build_two_test_agents):
     result = agent2.vip.rpc.call(agent1.core.identity, 'foo', 42).get(timeout=2)
     assert result == 42
 
+
 @pytest.mark.auth
 def test_get_rpc_method_authorizations(volttron_instance, build_two_test_agents):
     (agent1, agent2) = build_two_test_agents
@@ -225,6 +226,7 @@ def test_get_rpc_method_authorizations(volttron_instance, build_two_test_agents)
     gevent.sleep(1)
     agent1_rpc_authorizations = agent2.vip.rpc.call(AUTH, 'get_rpc_authorizations', 'approve_authorization_failure').get(timeout=2)
     assert len(agent1_rpc_authorizations) == 1
+
 
 @pytest.mark.auth
 def test_set_rpc_method_authorizations(volttron_instance, build_two_test_agents):
