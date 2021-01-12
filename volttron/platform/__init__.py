@@ -79,7 +79,7 @@ def get_home():
         vhome = vhome[:-1]
         if os.environ.get('VOLTTRON_HOME') is not None:
             log = logging.getLogger('volttron')
-            log.warn("Removing / from the end of VOLTTRON_HOME")
+            log.warning("Removing / from the end of VOLTTRON_HOME")
             os.environ['VOLTTRON_HOME'] = vhome
     return vhome
 

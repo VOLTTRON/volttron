@@ -969,8 +969,7 @@ class AuthFile(object):
         _log.info('Created backup of {} at {}'.format(self.auth_file, backup))
 
         def warn_invalid(entry, msg=''):
-            _log.warn('Invalid entry {} in auth file {}. {}'
-                      .format(entry, self.auth_file, msg))
+            _log.warning('Invalid entry {} in auth file {}. {}'.format(entry, self.auth_file, msg))
 
         def upgrade_0_to_1(allow_list):
             new_allow_list = []
@@ -1024,7 +1023,7 @@ class AuthFile(object):
                         msg = ('user_id {} is already present in '
                                'authentication entry. Changed to user_id to '
                                '{}').format(user_id, new_user_id)
-                        _log.warn(msg)
+                        _log.warning(msg)
                         user_id_ = new_user_id
                 else:
                     user_id = str(uuid.uuid4())
@@ -1095,11 +1094,9 @@ class AuthFile(object):
             try:
                 entry = AuthEntry(**file_entry)
             except TypeError:
-                _log.warn('invalid entry %r in auth file %s',
-                          file_entry, self.auth_file)
+                _log.warning('invalid entry %r in auth file %s', file_entry, self.auth_file)
             except AuthEntryInvalid as e:
-                _log.warn('invalid entry %r in auth file %s (%s)',
-                          file_entry, self.auth_file, str(e))
+                _log.warning('invalid entry %r in auth file %s (%s)', file_entry, self.auth_file, str(e))
             else:
                 allow_entries.append(entry)
 

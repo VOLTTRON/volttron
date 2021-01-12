@@ -515,9 +515,7 @@ class PlatformHandler(object):
         agents = self.call('list_agents')
 
         if agents is None:
-            self._log.warn('No agents found for vcp: {} ({})'.format(
-                self.vip_identity, self.address
-            ))
+            self._log.warning('No agents found for vcp: {} ({})'.format(self.vip_identity, self.address))
             agents = []
 
         for a in agents:
@@ -583,7 +581,7 @@ class PlatformHandler(object):
     def get_stats(self, stat_type):
         # TODO Change so stat_type is available.
         if stat_type != 'status/cpu':
-            self._log.warn('The only stats available are cpu stats currently')
+            self._log.warning('The only stats available are cpu stats currently')
             return {}
 
         return self._platform_stats.get(stat_type, {}).copy()
@@ -685,9 +683,7 @@ class PlatformHandler(object):
         expected_prefix = "platforms/{}/".format(self.vip_identity)
 
         if not topic.startswith(expected_prefix):
-            self._log.warn("Unexpected topic published to stats function: {}".format(
-                topic
-            ))
+            self._log.warning("Unexpected topic published to stats function: {}".format(topic))
             return
 
         self._log.debug("TOPIC WAS: {}".format(topic))
@@ -745,10 +741,7 @@ class PlatformHandler(object):
         expected_prefix = "platforms/{}/".format(self.vip_identity)
 
         if not topic.startswith(expected_prefix):
-            self._log.warn(
-                "Unexpected topic published to stats function: {}".format(
-                    topic
-                ))
+            self._log.warning("Unexpected topic published to stats function: {}".format(topic))
             return
 
         self._log.debug("TOPIC WAS: {}".format(topic))
@@ -772,8 +765,8 @@ class PlatformHandler(object):
         topicsplit = topic.split('/')
 
         if len(topicsplit) < 3:
-            self._log.warn("Invalid topic length no operation or datatype.")
-            self._log.warn("Topic was {}".format(topic))
+            self._log.warning("Invalid topic length no operation or datatype.")
+            self._log.warning("Topic was {}".format(topic))
             return
 
         _, platform_uuid, op_or_datatype, other = topicsplit[0], \
