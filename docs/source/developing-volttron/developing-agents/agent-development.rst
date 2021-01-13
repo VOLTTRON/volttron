@@ -205,7 +205,7 @@ Descriptions of the features of this code as well as additional development help
             """
             RPC method
 
-            May be called from another agent via self.core.rpc.call
+            May be called from another agent via self.vip.rpc.call
             """
             return self.setting1 + arg1 - arg2
 
