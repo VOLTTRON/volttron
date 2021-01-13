@@ -335,10 +335,10 @@ class MongodbHistorian(BaseHistorian):
             if d_errors or h_errors:
                 # something failed in bulk write. try from last err
                 # row during the next periodic call
-                _log.warn("bulk publish errors. last_processed_data would "
-                          "have got recorded in collection. returning from "
-                          "periodic call to try again during next scheduled "
-                          "call")
+                _log.warning("bulk publish errors. last_processed_data would "
+                             "have got recorded in collection. returning from "
+                             "periodic call to try again during next scheduled "
+                             "call")
                 return
             gevent.sleep(0.2)
 
@@ -587,7 +587,7 @@ class MongodbHistorian(BaseHistorian):
                 topic_ids.append(topic_id)
                 id_name_map[ObjectId(topic_id)] = topic
             else:
-                _log.warn('No such topic {}'.format(topic))
+                _log.warning('No such topic {}'.format(topic))
 
         if not topic_ids:
             return {}

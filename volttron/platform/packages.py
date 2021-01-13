@@ -146,7 +146,7 @@ class VolttronPackageWheelFileNoSign(WheelFile):
                                                         files_to_add['contract'])
                             msg += ' to execreqs.json'
                             sys.stderr.write(msg)
-                            _log.warn(msg)
+                            _log.warning(msg)
 
                         self.zipfile.writestr("%s/%s" % (self.distinfo_name, 'execreqs.json'),
                                               data)
