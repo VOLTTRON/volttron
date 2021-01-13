@@ -139,7 +139,9 @@ class AuthService(Agent):
                         }
             )
         if is_allow:
-            for entry in auth_list:
+            self._auth_approved = [entry for entry in auth_list]
+        else:
+            self._auth_denied = [entry for entry in auth_list]
 
 
     def read_auth_file(self):
@@ -147,8 +149,9 @@ class AuthService(Agent):
         entries = self.auth_file.read_allow_entries()
         denied_entries = self.auth_file.read_deny_entries()
         # Populate auth lists with current entries
-        # self._auth_approved = [entry for entry in entries]
-        # self._auth_denied = [entry for entry in denied_entries]
+        self._update_auth_lists(entries)
+        self._update_auth_lists(denied_entries, is_allow=False)
+
         entries = [entry for entry in entries if entry.enabled]
         # sort the entries so the regex credentails follow the concrete creds
         entries.sort()

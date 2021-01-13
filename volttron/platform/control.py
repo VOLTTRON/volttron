@@ -834,36 +834,27 @@ def list_agent_rpc_code(opts):
 
 
 def list_certs(opts):
-    print("Made it: 1")
     conn = opts.connection
-    print("Made it: 2")
     output_view = []
-    print("Made it: 3")
     if opts.type == "all":
-        print("Made it: 3a")
         try:
             approved_certs = conn.server.vip.rpc.call(AUTH, "get_authorization_approved").get(timeout=4)
-            print("Made it: 3a1")
         except TimeoutError:
             print("Approved_Certs timed out")
         try:
             denied_certs = conn.server.vip.rpc.call(AUTH, "get_authorization_denied").get(timeout=4)
-            print("Made it: 3a2")
         except TimeoutError:
             print("Denied_certs timed out")
         try:
             pending_certs = conn.server.vip.rpc.call(AUTH, "get_authorization_failures").get(timeout=4)
-            print("Made it: 3a3")
         except TimeoutError:
             print("Pending_certs timed out")
-        print("Made it: 3b")
         for index, value in enumerate(approved_certs):
             output_view.append({"index": index, "entry": value, "status": "APPROVED"})
         for index, value in enumerate(denied_certs):
             output_view.append({"index": index, "entry": value, "status": "DENIED"})
         for index, value in enumerate(pending_certs):
             output_view.append({"index": index, "entry": value, "status": "PENDING"})
-        print("Made it: 3c")
     elif opts.type == "approved":
         approved_certs = conn.server.vip.rpc.call(AUTH, "get_authorization_approved").get(timeout=4)
         for index, value in enumerate(approved_certs):
@@ -880,21 +871,26 @@ def list_certs(opts):
             output_view.append({"index": index, "entry": value, "status": "PENDING"})
     else:
         _stdout.write("Invalid parameter. Please use 'all', 'approved', 'denied', or 'pending'.")
-    print("Made it: 4")
-    index_width = max(3, max(len(output["index"]) for output in output_view))
-    userid_width = max(5, max(len(output["entry"].user_id) for output in output_view))
-    address_width = max(5, max(len(output["entry"].address) for output in output_view))
-    status_width = max(5, max(len(output["status"]) for output in output_view))
 
+    for output in output_view:
+        for value in output["entry"]:
+            if output["entry"][value] is None:
+                output["entry"][value] = "-"
+    index_width = max(3, max(len(str(output["index"])) for output in output_view))
+    userid_width = max(5, max(len(str(output["entry"]["user_id"])) for output in output_view))
+    address_width = max(5, max(len(str(output["entry"]["address"])) for output in output_view))
+    status_width = max(5, max(len(str(output["status"])) for output in output_view))
     fmt = '{:{}} {:{}} {:{}} {:{}}\n'
     _stderr.write(
-        fmt.format('INDEX', index_width, 'USER_ID', userid_width,
-                   'ADDRESS', address_width, 'STATUS', status_width))
+        fmt.format('INDEX', index_width,
+                   'USER_ID', userid_width,
+                   'ADDRESS', address_width,
+                   'STATUS', status_width))
     fmt = '{:{}} {:{}} {:{}} {:{}}\n'
     for output in output_view:
         _stdout.write(fmt.format(output["index"], index_width,
-                                 output["entry"].user_id, userid_width,
-                                 output["entry"].address, address_width,
+                                 output["entry"]["user_id"], userid_width,
+                                 output["entry"]["address"], address_width,
                                  output["status"], status_width))
 
 # the following global variables are used to update the cache so
