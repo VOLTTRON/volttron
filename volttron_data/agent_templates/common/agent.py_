@@ -111,7 +111,7 @@ class __class_name__(Agent):
         Usually not needed if using the configuration store.
         """
         # Example publish to pubsub
-        # self.vip.pubsub.publish('pubsub', "some/random/topic", message="HI!")
+        self.vip.pubsub.publish('pubsub', "some/random/topic", message="HI!")
 
         # Example RPC call
         # self.vip.rpc.call("some_agent", "some_method", arg1, arg2)

@@ -90,18 +90,18 @@ Descriptions of the features of this code as well as additional development help
 
 
     def tester(config_path, **kwargs):
-        """Parses the Agent configuration and returns an instance of
+        """
+        Parses the Agent configuration and returns an instance of
         the agent created using that configuration.
 
         :param config_path: Path to a configuration file.
-
         :type config_path: str
-        :returns: Garbage
-        :rtype: Garbage
+        :returns: Tester
+        :rtype: Tester
         """
         try:
             config = utils.load_config(config_path)
-        except StandardError:
+        except Exception:
             config = {}
 
         if not config:
@@ -110,9 +110,7 @@ Descriptions of the features of this code as well as additional development help
         setting1 = int(config.get('setting1', 1))
         setting2 = config.get('setting2', "some/random/topic")
 
-        return Tester(setting1,
-                              setting2,
-                              **kwargs)
+        return Tester(setting1, setting2, **kwargs)
 
 
     class Tester(Agent):
@@ -120,9 +118,8 @@ Descriptions of the features of this code as well as additional development help
         Document agent constructor here.
         """
 
-        def __init__(self, setting1=1, setting2="some/random/topic",
-                     **kwargs):
-            super(Garbage, self).__init__(**kwargs)
+        def __init__(self, setting1=1, setting2="some/random/topic", **kwargs):
+            super(Tester, self).__init__(**kwargs)
             _log.debug("vip_identity: " + self.core.identity)
 
             self.setting1 = setting1
@@ -131,11 +128,10 @@ Descriptions of the features of this code as well as additional development help
             self.default_config = {"setting1": setting1,
                                    "setting2": setting2}
 
-
-            #Set a default configuration to ensure that self.configure is called immediately to setup
-            #the agent.
+            # Set a default configuration to ensure that self.configure is called immediately to setup
+            # the agent.
             self.vip.config.set_default("config", self.default_config)
-            #Hook self.configure up to changes to the configuration file "config".
+            # Hook self.configure up to changes to the configuration file "config".
             self.vip.config.subscribe(self.configure, actions=["NEW", "UPDATE"], pattern="config")
 
         def configure(self, config_name, action, contents):
@@ -163,15 +159,20 @@ Descriptions of the features of this code as well as additional development help
             self._create_subscriptions(self.setting2)
 
         def _create_subscriptions(self, topic):
-            #Unsubscribe from everything.
+            """
+            Unsubscribe from all pub/sub topics and create a subscription to a topic in the configuration which triggers
+            the _handle_publish callback
+            """
             self.vip.pubsub.unsubscribe("pubsub", None, None)
 
             self.vip.pubsub.subscribe(peer='pubsub',
                                       prefix=topic,
                                       callback=self._handle_publish)
 
-        def _handle_publish(self, peer, sender, bus, topic, headers,
-                                    message):
+        def _handle_publish(self, peer, sender, bus, topic, headers, message):
+            """
+            Callback triggered by the subscription setup using the topic from the agent's config file
+            """
             pass
 
         @Core.receiver("onstart")
@@ -184,11 +185,12 @@ Descriptions of the features of this code as well as additional development help
 
             Usually not needed if using the configuration store.
             """
-            #Example publish to pubsub
-            #self.vip.pubsub.publish('pubsub', "some/random/topic", message="HI!")
+            # Example publish to pubsub
+            # self.vip.pubsub.publish('pubsub', "some/random/topic", message="HI!")
 
-            #Exmaple RPC call
-            #self.vip.rpc.call("some_agent", "some_method", arg1, arg2)
+            # Example RPC call
+            # self.vip.rpc.call("some_agent", "some_method", arg1, arg2)
+            pass
 
         @Core.receiver("onstop")
         def onstop(self, sender, **kwargs):
@@ -203,12 +205,14 @@ Descriptions of the features of this code as well as additional development help
             """
             RPC method
 
-            May be called from another agent via self.core.rpc.call """
+            May be called from another agent via self.core.rpc.call
+            """
             return self.setting1 + arg1 - arg2
+
 
     def main():
         """Main method called to start the agent."""
-        utils.vip_main(garbage,
+        utils.vip_main(tester,
                        version=__version__)
 
 
@@ -218,7 +222,6 @@ Descriptions of the features of this code as well as additional development help
             sys.exit(main())
         except KeyboardInterrupt:
             pass
-
 
 The resulting code is well documented with comments and documentation strings. It gives examples of how to do common
 tasks in VOLTTRON Agents.  The main agent code is found in `tester/agent.py`.
@@ -238,18 +241,18 @@ The code to parse a configuration file packaged and installed with the agent is 
 .. code-block:: python
 
     def tester(config_path, **kwargs):
-        """Parses the Agent configuration and returns an instance of
+        """
+        Parses the Agent configuration and returns an instance of
         the agent created using that configuration.
 
         :param config_path: Path to a configuration file.
-
         :type config_path: str
         :returns: Tester
         :rtype: Tester
         """
         try:
             config = utils.load_config(config_path)
-        except StandardError:
+        except Exception:
             config = {}
 
         if not config:
@@ -258,9 +261,7 @@ The code to parse a configuration file packaged and installed with the agent is 
         setting1 = int(config.get('setting1', 1))
         setting2 = config.get('setting2', "some/random/topic")
 
-        return Tester(setting1,
-                      setting2,
-                      **kwargs)
+        return Tester(setting1, setting2, **kwargs)
 
 The configuration is parsed with the `utils.load_config` function and the results are stored in the `config` variable.
 An instance of the Agent is created from the parsed values and is returned.
@@ -279,8 +280,7 @@ a simple example of setting up default configuration store values and setting up
         Document agent constructor here.
         """
 
-        def __init__(self, setting1=1, setting2="some/random/topic",
-                     **kwargs):
+        def __init__(self, setting1=1, setting2="some/random/topic", **kwargs):
             super(Tester, self).__init__(**kwargs)
             _log.debug("vip_identity: " + self.core.identity)
 
@@ -290,11 +290,10 @@ a simple example of setting up default configuration store values and setting up
             self.default_config = {"setting1": setting1,
                                    "setting2": setting2}
 
-
-            #Set a default configuration to ensure that self.configure is called immediately to setup
-            #the agent.
+            # Set a default configuration to ensure that self.configure is called immediately to setup
+            # the agent.
             self.vip.config.set_default("config", self.default_config)
-            #Hook self.configure up to changes to the configuration file "config".
+            # Hook self.configure up to changes to the configuration file "config".
             self.vip.config.subscribe(self.configure, actions=["NEW", "UPDATE"], pattern="config")
 
         def configure(self, config_name, action, contents):
@@ -337,7 +336,6 @@ on using the configuration store see :ref:`Agent Configuration Store <Agent-Conf
 `_create_subscriptions` (covered in a later section) will use the value in `self.setting2` to create a new subscription.
 
 
-
 Agent Lifecycle Events
 ----------------------
 
@@ -359,48 +357,48 @@ concrete agent code.  These callbacks are listed and described in the skeleton c
 
 .. code-block:: python
 
-        @Core.receiver("onsetup")
-        def onsetup(self, sender, **kwargs)
-            """
-            This method is called after the agent has successfully connected to the platform, but before the scheduled
-            methods loop has started.  This method not often used, but is most commonly used to define periodic
-            functions or do some pre-configuration.
-            """
-            self.vip.core.periodic(60, send_request)
+    @Core.receiver("onsetup")
+    def onsetup(self, sender, **kwargs)
+        """
+        This method is called after the agent has successfully connected to the platform, but before the scheduled
+        methods loop has started.  This method not often used, but is most commonly used to define periodic
+        functions or do some pre-configuration.
+        """
+        self.vip.core.periodic(60, send_request)
 
-        @Core.receiver("onstart")
-        def onstart(self, sender, **kwargs):
-            """
-            This method is called once the Agent has successfully connected to the platform.
-            This is a good place to setup subscriptions if they are not dynamic or to
-            do any other startup activities that require a connection to the message bus.
-            Called after any configurations methods that are called at startup.
+    @Core.receiver("onstart")
+    def onstart(self, sender, **kwargs):
+        """
+        This method is called once the Agent has successfully connected to the platform.
+        This is a good place to setup subscriptions if they are not dynamic or to
+        do any other startup activities that require a connection to the message bus.
+        Called after any configurations methods that are called at startup.
 
-            Usually not needed if using the configuration store.
-            """
-            #Example publish to pubsub
-            self.vip.pubsub.publish('pubsub', "some/random/topic", message="HI!")
+        Usually not needed if using the configuration store.
+        """
+        #Example publish to pubsub
+        self.vip.pubsub.publish('pubsub', "some/random/topic", message="HI!")
 
-            #Example RPC call
-            self.vip.rpc.call("some_agent", "some_method", arg1, arg2)
+        #Example RPC call
+        self.vip.rpc.call("some_agent", "some_method", arg1, arg2)
 
-        @Core.receiver("onstop")
-        def onstop(self, sender, **kwargs):
-            """
-            This method is called when the Agent is about to shutdown, but before it disconnects from
-            the message bus.  Common use-cases for this method are to stop periodic processing, closing connections and
-            setting agent state prior to cleanup.
-            """
-            self.publishing = False
-            self.cache.close()
+    @Core.receiver("onstop")
+    def onstop(self, sender, **kwargs):
+        """
+        This method is called when the Agent is about to shutdown, but before it disconnects from
+        the message bus.  Common use-cases for this method are to stop periodic processing, closing connections and
+        setting agent state prior to cleanup.
+        """
+        self.publishing = False
+        self.cache.close()
 
-        @Core.receiver("onfinish")
-        def onfinish(self, sender, **kwargs)
-            """
-            This method is called after all scheduled threads have concluded.  This method is rarely used, but could be
-            used to send shut down signals to other agents, etc.
-            """
-            self.vip.pubsub.publish('pubsub', 'some/topic', message=f'agent {self.core.identity} shutdown')
+    @Core.receiver("onfinish")
+    def onfinish(self, sender, **kwargs)
+        """
+        This method is called after all scheduled threads have concluded.  This method is rarely used, but could be
+        used to send shut down signals to other agents, etc.
+        """
+        self.vip.pubsub.publish('pubsub', 'some/topic', message=f'agent {self.core.identity} shutdown')
 
 
 .. _Agent-Periodics-Scheduling:
@@ -483,6 +481,10 @@ specifications for further detail.
 .. code-block:: python
 
     def publish_oscillating_update(self):
+        """
+        Publish an "oscillating_value" which cycles between values 1 and 0 to the message bus using the topic
+        "some/topic/oscillating_value"
+        """
         self.publish_value = 1 if self.publish_value = 0 else 0
         self. vip.pubsub.publish('pubsub', 'some/topic/', message=f'{"oscillating_value": "{self.publish_value}"')
 
@@ -495,30 +497,38 @@ The Agent creates a subscription to a topic on the message bus using the value o
 
 .. code-block:: python
 
-        def _create_subscriptions(self, topic):
-            #Unsubscribe from everything.
-            self.vip.pubsub.unsubscribe("pubsub", None, None)
+    def _create_subscriptions(self, topic):
+        """
+        Unsubscribe from all pub/sub topics and create a subscription to a topic in the configuration which triggers
+        the _handle_publish callback
+        """
+        # Unsubscribe from everything.
+        self.vip.pubsub.unsubscribe("pubsub", None, None)
 
-            self.vip.pubsub.subscribe(peer='pubsub',
-                                      prefix=topic,
-                                      callback=self._handle_publish)
+        self.vip.pubsub.subscribe(peer='pubsub',
+                                  prefix=topic,
+                                  callback=self._handle_publish)
 
-        def _handle_publish(self, peer, sender, bus, topic, headers,
-                                    message):
-            #By default no action is taken.
-            pass
+    def _handle_publish(self, peer, sender, bus, topic, headers, message):
+        """
+        Callback triggered by the subscription setup using the topic from the agent's config file
+        """
+        # By default no action is taken.
+        pass
 
 Alternatively, a decorator can be used to specify the function as a callback:
 
 .. code-block:: python
 
     @PubSub.subscribe('pubsub', "topic_prefix")
-    def _handle_publish(self, peer, sender, bus, topic, headers,
-                                    message):
-            #By default no action is taken.
-            pass
+    def _handle_publish(self, peer, sender, bus, topic, headers, message):
+        """
+        Callback triggered by the subscription setup using the topic from the agent's config file
+        """
+        # By default no action is taken.
+        pass
 
-To unsubscribe from a topic, the `self.vip.pubsub.unsubscribe` can be used:
+`self.vip.pubsub.unsubscribe` can be used to unsubscribe from a topic:
 
 .. code-block:: python
 
@@ -529,6 +539,7 @@ To unsubscribe from a topic, the `self.vip.pubsub.unsubscribe` can be used:
 Giving ``None`` as values for the prefix and callback argument will unsubscribe from everything on that bus.  This is
 handy for subscriptions that must be updated base on a configuration setting.
 
+
 Heartbeat
 ^^^^^^^^^
 
@@ -537,13 +548,13 @@ agents can subscribe to the `heartbeat` topic to see who is actively publishing 
 
 Enabling the `heartbeat` publish:
 
-.. code-block::
+.. code-block:: python
 
     self.vip.heartbeat.start_with_period(self._heartbeat_period)
 
 Subscribing to the heartbeat topic:
 
-.. code-block::
+.. code-block:: python
 
     self.vip.pubsub.subscribe(peer='pubsub',
                               prefix='heartbeat',
@@ -560,7 +571,7 @@ such as if an agent is unable to reach a remote web API.
 
 Example of setting health:
 
-.. code-block::
+.. code-block:: python
 
     from volttron.platform.messaging.health import STATUS_BAD, STATUS_GOOD,
 
@@ -575,13 +586,12 @@ This is done with the `@RPC.export` decorator:
 
 .. code-block:: python
 
-        @RPC.export
-        def rpc_method(self, arg1, arg2, kwarg1=None, kwarg2=None):
-            """
-            RPC method
-
-            May be called from another agent via self.core.rpc.call """
-            return self.setting1 + arg1 - arg2
+    @RPC.export
+    def rpc_method(self, arg1, arg2, kwarg1=None, kwarg2=None):
+        """
+        RPC method. May be called from another agent via self.vip.rpc.call
+        """
+        return self.setting1 + arg1 - arg2
 
 To send an RPC call to another agent running on the platform, the agent must invoke the `rpc.call` method of its VIP
 connection.
@@ -669,11 +679,11 @@ for the agent.  This file contains examples of every data type supported by the 
 
     {
       # VOLTTRON config files are JSON with support for python style comments.
-      "setting1": 2, #Integers
+      "setting1": 2, # Integers
       "setting2": "some/random/topic2", #Strings
-      "setting3": true, #Booleans: remember that in JSON true and false are not capitalized.
+      "setting3": true, # Booleans: remember that in JSON true and false are not capitalized.
       "setting4": false,
-      "setting5": 5.1, #Floating point numbers.
+      "setting5": 5.1, # Floating point numbers.
       "setting6": [1,2,3,4], #Lists
       "setting7": {"setting7a": "a", "setting7b": "b"} #Objects
     }
@@ -777,9 +787,9 @@ Check that it is :ref:`running <Agent-Status>`:
 * Start the ListenerAgent as in the :ref:`platform installation guide <Platform-Installation>`.
 * Check the log file for messages indicating the TestAgent is receiving the ListenerAgents messages:
 
-.. code-block:: bash
+.. code-block:: console
 
-    TODO
+    2021-01-12 16:46:58,291 (listeneragent-3.3 12136) __main__ INFO: Peer: pubsub, Sender: testeragent-0.1_1:, Bus: , Topic: some/random/topic, Headers: {'min_compatible_version': '5.0', 'max_compatible_version': ''}, Message: 'HI!'
 
 
 Automated Test Cases and Documentation
@@ -809,7 +819,7 @@ following:
 
   .. code-block:: bash
 
-    python bootstrap.py --help
+      python bootstrap.py --help
 
   in the Extra Package Options section.
 
