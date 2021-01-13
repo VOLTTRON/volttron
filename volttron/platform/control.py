@@ -2899,7 +2899,10 @@ def main(argv=sys.argv):
 
     opts.aip = aipmod.AIPplatform(opts)
     opts.aip.setup()
-    opts.connection = ControlConnection(opts.vip_address)
+
+    opts.connection = None
+    if utils.is_volttron_running(volttron_home):
+        opts.connection = ControlConnection(opts.vip_address)
 
     try:
         with gevent.Timeout(opts.timeout):
@@ -2921,6 +2924,7 @@ def main(argv=sys.argv):
         # make sure the connection to the server is closed when this scriopt is about to exit.
         if opts.connection:
             opts.connection.server.core.stop()
+
     if opts.debug:
         print_tb()
     _stderr.write('{}: error: {}\n'.format(opts.command, error))

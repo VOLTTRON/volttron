@@ -221,7 +221,7 @@ def _install_agent(agent_dir, config, tag):
 
 
 def _is_agent_installed(tag):
-    installed_list_process = Popen(['vctl','list'], env=os.environ, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    installed_list_process = Popen(['vctl', 'list'], env=os.environ, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     installed_list = installed_list_process.communicate()
     installed = b"".join(installed_list)
     if tag.encode('utf-8') in installed:
@@ -484,6 +484,23 @@ zmq bus's vip address?"""
             print('\nERROR: That address has already been bound to.')
     config_opts['vip-address'] = '{}:{}'.format(vip_address, vip_port)
 
+
+def do_instance_name():
+    global config_opts
+    # Default instance name to the vip address.
+    instance_name = config_opts.get('instance-name',
+                                    'volttron1')
+    instance_name = instance_name.strip('"')
+
+    valid_name = False
+    while not valid_name:
+        prompt = 'What is the name of this instance?'
+        new_instance_name = prompt_response(prompt, default=instance_name)
+        if new_instance_name:
+            valid_name = True
+            instance_name = new_instance_name
+    config_opts['instance-name'] = '"{}"'.format(instance_name)
+
 def do_web_enabled_rmq(vhome):
     global config_opts
 
@@ -736,20 +753,6 @@ def do_vcp():
     vctl_list = vctl_list_process.communicate()
     vctl_list_output = ''.join([v.decode('utf-8') for v in vctl_list])
 
-    # Default instance name to the vip address.
-    instance_name = config_opts.get('instance-name',
-                                    'volttron1')
-    instance_name = instance_name.strip('"')
-
-    valid_name = False
-    while not valid_name:
-        prompt = 'What is the name of this instance?'
-        new_instance_name = prompt_response(prompt, default=instance_name)
-        if new_instance_name:
-            valid_name = True
-            instance_name = new_instance_name
-    config_opts['instance-name'] = '"{}"'.format(instance_name)
-
     try:
         vc_address = config_opts['volttron-central-address']
         no_vc_address = False
@@ -868,6 +871,7 @@ def wizard():
     _update_config_file()
     do_message_bus()
     do_vip()
+    do_instance_name()
     _update_config_file()
 
     prompt = 'Is this instance web enabled?'
@@ -894,8 +898,6 @@ def wizard():
                       "After starting VOLTTRON, please go to {} to complete the setup.".format(
                         os.path.join(config_opts['bind-web-address'], "admin", "login.html")
                         ))
-    # TODO: Commented out so we don't prompt for installing vc or vcp until they
-    # have been figured out totally for python3
 
     prompt = 'Will this instance be controlled by volttron central?'
     response = prompt_response(prompt, valid_answers=y_or_n, default='Y')
