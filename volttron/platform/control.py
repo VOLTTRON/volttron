@@ -2957,7 +2957,10 @@ def main(argv=sys.argv):
 
     opts.aip = aipmod.AIPplatform(opts)
     opts.aip.setup()
-    opts.connection = ControlConnection(opts.vip_address)
+
+    opts.connection = None
+    if utils.is_volttron_running(volttron_home):
+        opts.connection = ControlConnection(opts.vip_address)
 
     try:
         with gevent.Timeout(opts.timeout):
