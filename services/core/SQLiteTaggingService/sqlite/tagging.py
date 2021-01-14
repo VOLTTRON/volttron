@@ -309,8 +309,7 @@ class SQLiteTaggingService(BaseTaggingService):
                 "VALUES (?, ?);".format(self.category_tags_table), to_db)
             self.sqlite_utils.commit()
         else:
-            _log.warn("No category to tags mapping to initialize. No such "
-                      "file " + file_path)
+            _log.warning("No category to tags mapping to initialize. No such file " + file_path)
 
     def _init_topic_tags(self):
         self.sqlite_utils.execute_stmt(
