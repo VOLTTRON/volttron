@@ -46,9 +46,9 @@ import os
 import glob
 
 description = """
-Updates the contents of the Master Driver configuration store with a set of
+Updates the contents of the Platform Driver configuration store with a set of
 configurations in a directory. This is designed to work with the output of
-the update_master_driver_config.py script.
+the update_platform_driver_config.py script.
 
 The script expects the target directory to have the following files and directories:
 
@@ -63,7 +63,7 @@ used to created the name of the configuration in the store and therefore
 For example:
 
 A device configuration with the path "devices/campus/building/my_device" will
-be named "devices/campus/building/my_device" when added to the Master Driver
+be named "devices/campus/building/my_device" when added to the Platform Driver
 configuration store.
 
 All other files and directories are ignored.
@@ -72,7 +72,7 @@ The VOLTTRON platform must be running in order for this script to work.
 
 Any errors in the configurations will cause the process to stop with an error.
 
-By default this will delete the old master driver configuration store before
+By default this will delete the old platform driver configuration store before
 adding new configurations.
 """
 
@@ -80,7 +80,7 @@ def install_configs(input_directory, keep=False):
     os.chdir(input_directory)
 
     keystore = KeyStore()
-    agent = Agent(address=get_address(), identity="master_driver_update_agent",
+    agent = Agent(address=get_address(), identity="platform_driver_update_agent",
                   publickey=keystore.public, secretkey=keystore.secret,
                   enable_store=False)
 
@@ -89,7 +89,7 @@ def install_configs(input_directory, keep=False):
     event.wait()
 
     if not keep:
-        print("Deleting old Master Driver store")
+        print("Deleting old Platform Driver store")
         agent.vip.rpc.call(CONFIGURATION_STORE,
                            'manage_delete_store',
                            PLATFORM_DRIVER).get(timeout=10)
@@ -134,7 +134,7 @@ if __name__ == "__main__":
                         help='The input directory.')
 
     parser.add_argument('--keep-old', action="store_true",
-                        help="Do not remove existing device driver and registry files from the Master Driver configuration store.")
+                        help="Do not remove existing device driver and registry files from the Platform Driver configuration store.")
 
 
     args = parser.parse_args()

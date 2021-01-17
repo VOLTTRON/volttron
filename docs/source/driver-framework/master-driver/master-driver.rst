@@ -1,10 +1,10 @@
-.. _Master-Driver:
+.. _Platform-Driver:
 
 =============
-Master Driver
+Platform Driver
 =============
 
-The Master Driver agent is a special purpose agent a user can install on the platform to manage communication of
+The Platform Driver agent is a special purpose agent a user can install on the platform to manage communication of
 the platform with devices.  The Master driver features a number of endpoints for collecting data and sending control
 signals using the message bus and automatically publishes data to the bus on a specified interval.
 
@@ -12,15 +12,15 @@ signals using the message bus and automatically publishes data to the bus on a s
 How does it work?
 =================
 
-The Master Driver creates a number of driver instances based on the contents of its config store; for each
+The Platform Driver creates a number of driver instances based on the contents of its config store; for each
 combination of driver configuration, registry configuration and other referenced config files, a driver instance is
-created by the Master Driver.  When configuration files are removed, the corresponding driver instance is removed by the
-Master Driver.
+created by the Platform Driver.  When configuration files are removed, the corresponding driver instance is removed by the
+Platform Driver.
 
 Drivers are special-purpose agents for device communication, and unlike most agents, run
-as separate threads under the Master Driver (typically agents are spawned as their own process).  While running, the
+as separate threads under the Platform Driver (typically agents are spawned as their own process).  While running, the
 driver periodically "scrapes" device data and publishes the scrape to the message bus, as well as handling ad-hoc data
-collection and control signalling commands issued from the Master Driver.  The actual commands are issued to devices by
+collection and control signalling commands issued from the Platform Driver.  The actual commands are issued to devices by
 the driver's "Interface" class.
 
 An Interface class is a Python class which serves as the interface between the driver and the device.  The Interface
@@ -32,7 +32,7 @@ used by the driver.  In other cases, interfaces interact with web-API's, etc.
 Device/Driver Communication
 ---------------------------
 
-Device communication with the Master Driver typically occurs using the following steps:
+Device communication with the Platform Driver typically occurs using the following steps:
 
 #. Platform agents and the user's agents communicate between themselves and the message bus using publish/subscribe or
    JSON-RPC
@@ -47,31 +47,31 @@ For more in-depth descriptions and coverage of atypical scenarios, read up on
 :ref:`the driver communication patterns <Driver_Communication>`.
 
 
-.. _Master-Driver-Configuration:
+.. _Platform-Driver-Configuration:
 
 Configuration and Installation
 ==============================
 
 Configuration for each device consists of 3 parts:
 
-* Master Driver Agent configuration file - lists all driver configuration files to load
+* Platform Driver Agent configuration file - lists all driver configuration files to load
 * Driver configuration file - contains the general driver configuration and device settings
 * Device Register configuration file - contains the settings for each individual data point on the device
 
 For each device, you must create a driver configuration file, device register configuration file, and an entry in the
-Master Driver Agent configuration file.
+Platform Driver Agent configuration file.
 
-Once configured, the Master Driver Agent is configured and deployed in a manner similar to any other agent:
+Once configured, the Platform Driver Agent is configured and deployed in a manner similar to any other agent:
 
 .. code-block:: bash
 
-    python scripts/install-agent.py -s services/core/MasterDriverAgent -c <master driver config file>
+    python scripts/install-agent.py -s services/core/PlatformDriverAgent -c <platform driver config file>
 
 
 Requirements
 ------------
 
-VOLTTRON drivers operated by the master driver may have additional requirements for installation.
+VOLTTRON drivers operated by the platform driver may have additional requirements for installation.
 Required libraries:
 
 ::
@@ -85,10 +85,10 @@ The easiest way to install the requirements for drivers included in the VOLTTRON
 (see :ref:`platform installation for more detail <Platform-Installation>`)
 
 
-Master Driver Configuration
+Platform Driver Configuration
 ===========================
 
-The Master Driver Agent configuration consists of general settings for all devices. The default values of the Master
+The Platform Driver Agent configuration consists of general settings for all devices. The default values of the Master
 Driver should be sufficient for most users.  The user may optionally change the interval between device scrapes with the
 driver_scrape_interval.
 
@@ -119,8 +119,8 @@ All of the following setting are optional and default to `True`.
 * **publish_breadth_first** - Enable "breadth first" device state publishes for each register on the device for all
   devices.
 
-An example master driver configuration file can be found in the VOLTTRON repository in
-`services/core/MasterDriverAgent/master-driver.agent`.
+An example platform driver configuration file can be found in the VOLTTRON repository in
+`services/core/PlatformDriverAgent/platform-driver.agent`.
 
 
 .. _Driver-Configuration-File:
@@ -239,21 +239,21 @@ is accessible with the Actuator Agent via `PNNL/ISB1/vav1`.
 The name of a registry configuration must match the name used to refer to it in the driver configuration.  The reference
 is not case sensitive.
 
-If the Master Driver Agent is running any changes to the configuration store will immediately affect the running devices
+If the Platform Driver Agent is running any changes to the configuration store will immediately affect the running devices
 according to the changes.
 
 Example
 ^^^^^^^
 
-Consider the following three configuration files:  A master driver configuration called `master-driver.agent`, a
+Consider the following three configuration files:  A platform driver configuration called `platform-driver.agent`, a
 Modbus device configuration file called `modbus_driver.config` and corresponding Modbus registry configuration file called
 `modbus_registry.csv`
 
-To store the master driver configuration run the command:
+To store the platform driver configuration run the command:
 
 .. code-block:: bash
 
-    volttron-ctl config store platform.driver config master-driver.agent
+    volttron-ctl config store platform.driver config platform-driver.agent
 
 To store the registry configuration run the command (note the ``--csv`` option):
 
@@ -276,17 +276,17 @@ To store the driver configuration run the command:
 Converting Old Style Configuration
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The new Master Driver no longer supports the old style of device configuration.  The old `device_list` setting is
+The new Platform Driver no longer supports the old style of device configuration.  The old `device_list` setting is
 ignored.
 
-To simplify updating to the new format `scripts/update_master_driver_config.py` is provide to automatically update to
+To simplify updating to the new format `scripts/update_platform_driver_config.py` is provide to automatically update to
 the new configuration format.
 
 With the platform running run:
 
 .. code-block:: bash
 
-    python scripts/update_master_driver_config.py <old configuration> <output>
+    python scripts/update_platform_driver_config.py <old configuration> <output>
 
 old_configuration`` is the main configuration file in the old format. The script automatically modifies the driver
 files to create references to CSV files and adds the CSV files with the appropriate name.
@@ -296,19 +296,19 @@ files to create references to CSV files and adds the CSV files with the appropri
 If the ``--keep-old`` switch is used the old configurations in the output directory (if any) will not be deleted before
 new configurations are created.  Matching names will still be overwritten.
 
-The output from `scripts/update_master_driver_config.py` can be automatically added to the configuration store
-for the Master Driver agent with `scripts/install_master_driver_configs.py`.
+The output from `scripts/update_platform_driver_config.py` can be automatically added to the configuration store
+for the Platform Driver agent with `scripts/install_platform_driver_configs.py`.
 
-Creating and naming configuration files in the form needed by `scripts/install_master_driver_configs.py` can speed up
+Creating and naming configuration files in the form needed by `scripts/install_platform_driver_configs.py` can speed up
 the process of changing and updating a large number of configurations. See the ``--help`` message for
-`scripts/install_master_driver_configs.py` for more details.
+`scripts/install_platform_driver_configs.py` for more details.
 
 
 Device Scalability Settings
 ---------------------------
 
 In order to improve the scalability of the platform unneeded device state publishes for a device can be turned off.
-All of the following setting are optional and will override the value set in the main master driver configuration.
+All of the following setting are optional and will override the value set in the main platform driver configuration.
 
     - **publish_depth_first_all** - Enable "depth first" publish of all points to a single topic.
     - **publish_breadth_first_all** - Enable "breadth first" publish of all points to a single topic.
@@ -328,7 +328,7 @@ the platform.
 Usage
 =====
 
-After installing the Master Driver and loading driver configs into the config store, the installed drivers begin
+After installing the Platform Driver and loading driver configs into the config store, the installed drivers begin
 polling and JSON-RPC endpoints become usable.
 
 
@@ -337,7 +337,7 @@ polling and JSON-RPC endpoints become usable.
 Polling
 -------
 
-Once running, the Master Driver will spawn drivers using the `driver_type` parameter of the
+Once running, the Platform Driver will spawn drivers using the `driver_type` parameter of the
 :ref:`driver configuration <Driver-Configuration-File>` and periodically poll devices for all point data specified in
 the :ref:`registry configuration <Registry-Configuration-File>` (at the interval specified by the interval parameter
 of the driver configuration).
@@ -438,7 +438,7 @@ JSON-RPC Endpoints
         - **point_names_value** - list of tuples consisting of (point_name, value) pairs for setting a series of
           points
 
-**heart_beat** - Send a heartbeat/keep-alive signal to all devices configured for Master Driver
+**heart_beat** - Send a heartbeat/keep-alive signal to all devices configured for Platform Driver
 
 **revert_point** - Revert the set point of a device to its default state/value.  If global override is condition is
   set, raise OverrideError exception.
@@ -454,7 +454,7 @@ JSON-RPC Endpoints
         - **path** - device topic string (typical format is devices/campus/building/device)
 
 **set_override_on** - Turn on override condition on all the devices matching the specified pattern (
-  :ref:`override docs <Master-Driver-Override>`)
+  :ref:`override docs <Platform-Driver-Override>`)
 
     Parameters
         - **pattern** - Override pattern to be applied. For example,
@@ -481,12 +481,12 @@ JSON-RPC Endpoints
 **get_override_patterns** - Get a list of all override condition patterns currently set.
 
 
-.. _Master-Driver-Override:
+.. _Platform-Driver-Override:
 
 Driver Override Condition
 =========================
 
-By default, every user is allowed write access to the devices by the master driver.  The override feature will allow the
+By default, every user is allowed write access to the devices by the platform driver.  The override feature will allow the
 user (for example, building administrator) to override this default behavior and enable the user to lock the write
 access on the devices for a specified duration of time or indefinitely.
 
@@ -494,7 +494,7 @@ access on the devices for a specified duration of time or indefinitely.
 Set Override On
 ---------------
 
-The Master Driver's ``set_override_on`` RPC method can be used to set the override condition for all drivers with topic
+The Platform Driver's ``set_override_on`` RPC method can be used to set the override condition for all drivers with topic
 matching the provided pattern.  This can be specific devices, groups of devices, or even all configured devices.  The
 pattern matching is based on bash style filename matching semantics.
 
@@ -520,7 +520,7 @@ Example ``set_override_on`` RPC call:
 Set Override Off
 ----------------
 
-The override condition can also be toggled off based on a provided pattern using the Master Driver's
+The override condition can also be toggled off based on a provided pattern using the Platform Driver's
 ``set_override_off`` RPC call.
 
 Parameters:
@@ -541,7 +541,7 @@ Example ``set_override_off`` RPC call:
 Get Override Devices
 --------------------
 
-A list of all overridden devices can be obtained with the Master Driver's ``get_override_devices`` RPC call.
+A list of all overridden devices can be obtained with the Platform Driver's ``get_override_devices`` RPC call.
 
 This method call has no additional parameters.
 
@@ -555,7 +555,7 @@ Example ``get_override_devices`` RPC call:
 Get Override Patterns
 ---------------------
 
-A list of all patterns which have been requested for override can be obtained with the Master Driver's
+A list of all patterns which have been requested for override can be obtained with the Platform Driver's
 ``get_override_patterns`` RPC call.
 
 This method call has no additional parameters

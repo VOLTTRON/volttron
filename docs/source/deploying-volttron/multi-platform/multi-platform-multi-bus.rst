@@ -23,7 +23,7 @@ following table.
    :widths: 20, 15, 10, 10
 
    "Node Type", "Central", "Data Collector", "Data Collector"
-   "Master Driver", "", "yes", "yes"
+   "Platform Driver", "", "yes", "yes"
    "Forwarder", "", "yes", "yes"
    "SQL Historian", "yes", "", ""
    "Volttron Central", "yes", "", ""
@@ -144,7 +144,7 @@ Platform agent, SQL historian agent and a Listener agent. The following shows an
     Configuring /home/user/volttron/services/core/SQLHistorian.
     ['volttron', '-vv', '-l', '/home/user/.volttron/volttron.cfg.log']
     Should the agent autostart? [N]: y
-    Would you like to install a master driver? [N]:
+    Would you like to install a platform driver? [N]:
     Would you like to install a listener agent? [N]: y
     Configuring examples/ListenerAgent.
     ['volttron', '-vv', '-l', '/home/user/.volttron/volttron.cfg.log']
@@ -208,7 +208,7 @@ Go back to the terminal and check the status of Volttron Central Platform agent.
 Node-ZMQ Instance Setup
 -----------------------
 On the "node-zmq" VM, setup a ZeroMQ based VOLTTRON instance. Using "vcfg" command, install Volttron Central Platform agent,
-a master driver agent with a fake driver.
+a platform driver agent with a fake driver.
 
 .. note::
 
@@ -233,10 +233,10 @@ a master driver agent with a fake driver.
     ['volttron', '-vv', '-l', '/home/user/.volttron/volttron.cfg.log']
     Should the agent autostart? [N]:
     Would you like to install a platform historian? [N]:
-    Would you like to install a master driver? [N]: y
-    Configuring /home/user/volttron/services/core/MasterDriverAgent.
+    Would you like to install a platform driver? [N]: y
+    Configuring /home/user/volttron/services/core/PlatformDriverAgent.
     ['volttron', '-vv', '-l', '/home/user/.volttron/volttron.cfg.log']
-    Would you like to install a fake device on the master driver? [N]: y
+    Would you like to install a fake device on the platform driver? [N]: y
     Should the agent autostart? [N]: y
     Would you like to install a listener agent? [N]:
     Finished configuration!
@@ -356,7 +356,7 @@ Node-RMQ Instance Setup
   :ref:`RabbitMq installation instructions <RabbitMQ-Install>`.
 
 
-Using "vcfg" command, install Volttron Central Platform agent, a master driver agent with fake driver. The instance
+Using "vcfg" command, install Volttron Central Platform agent, a platform driver agent with fake driver. The instance
 name is set to "collector2".
 
 .. code-block:: console
@@ -419,10 +419,10 @@ name is set to "collector2".
     ['volttron', '-vv', '-l', '/home/user/.volttron/volttron.cfg.log']
     Should the agent autostart? [N]:
     Would you like to install a platform historian? [N]:
-    Would you like to install a master driver? [N]: y
-    Configuring /home/user/volttron/services/core/MasterDriverAgent.
+    Would you like to install a platform driver? [N]: y
+    Configuring /home/user/volttron/services/core/PlatformDriverAgent.
     ['volttron', '-vv', '-l', '/home/user/.volttron/volttron.cfg.log']
-    Would you like to install a fake device on the master driver? [N]: y
+    Would you like to install a fake device on the platform driver? [N]: y
     Should the agent autostart? [N]: y
     Would you like to install a listener agent? [N]:
     Finished configuration!

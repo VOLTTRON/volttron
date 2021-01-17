@@ -819,7 +819,7 @@ def do_platform_historian():
 
 
 def add_fake_device_to_configstore():
-    prompt = 'Would you like to install a fake device on the master driver?'
+    prompt = 'Would you like to install a fake device on the platform driver?'
     response = prompt_response(prompt, valid_answers=y_or_n, default='N')
     if response in y:
         _cmd(['volttron-ctl', 'config', 'store', PLATFORM_DRIVER,
@@ -829,9 +829,9 @@ def add_fake_device_to_configstore():
               'examples/configurations/drivers/fake.config'])
 
 
-@installs(get_services_core("MasterDriverAgent"), 'master_driver',
+@installs(get_services_core("PlatformDriverAgent"), 'platform_driver',
           post_install_func=add_fake_device_to_configstore)
-def do_master_driver():
+def do_platform_driver():
     return {}
 
 
@@ -913,14 +913,14 @@ def wizard():
     response = prompt_response(prompt, valid_answers=y_or_n, default='N')
     if response in y:
         do_platform_historian()
-    prompt = 'Would you like to install a master driver?'
+    prompt = 'Would you like to install a platform driver?'
     response = prompt_response(prompt, valid_answers=y_or_n, default='N')
     if response in y:
         if not _check_dependencies_met("drivers"):
             print("Driver dependencies not installed. Installing now...")
             set_dependencies("drivers")
             print("Done!")
-        do_master_driver()
+        do_platform_driver()
 
     prompt = 'Would you like to install a listener agent?'
     response = prompt_response(prompt, valid_answers=y_or_n, default='N')

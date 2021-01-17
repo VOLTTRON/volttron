@@ -212,17 +212,17 @@ upstream servers on the downstream server and make the VOLTTRON exchange
             scripts/core/upgrade-listener
 
 
-   b. Install master driver, configure fake device on upstream server and start volttron and master driver. vcfg --agent master_driver command can install master driver and setup a fake device.
+   b. Install platform driver, configure fake device on upstream server and start volttron and platform driver. vcfg --agent platform_driver command can install platform driver and setup a fake device.
 
        .. code-block:: bash
 
            ./stop-volttron
-           vcfg --agent master_driver
+           vcfg --agent platform_driver
            ./start-volttron
-           vctl start --tag master_driver
+           vctl start --tag platform_driver
 
 
-   c. Verify listener agent in downstream VOLTTRON instance is able to receive the messages. downstream volttron instance's volttron.log should display device data scrapped by master driver agent in upstream volttron instance
+   c. Verify listener agent in downstream VOLTTRON instance is able to receive the messages. downstream volttron instance's volttron.log should display device data scrapped by platform driver agent in upstream volttron instance
 
 6. Open ports and https service if needed
    On Redhat based systems ports used by RabbitMQ (defaults to 5671, 15671 for
@@ -443,7 +443,7 @@ Please note that each instance should have a unique instance name.
 
    a. Start VOLTTRON on publisher and subscriber nodes.
 
-   b. On the publisher node, start a master driver agent that publishes messages related to
+   b. On the publisher node, start a platform driver agent that publishes messages related to
    a fake device. ( Easiest way is to run volttron-cfg command and follow the steps )
 
    c. On the subscriber node, run a listener agent which subscribes to messages
@@ -576,9 +576,9 @@ agent. For such a request-response behavior, shovels need to be created on both 
    .. code-block:: bash
 
        ./stop-volttron
-       vcfg --agent master_driver
+       vcfg --agent platform_driver
        ./start-volttron
-       vctl start --tag master_driver
+       vctl start --tag platform_driver
 
 4. Install DataMover agent on v1. Contents of the install script can look like below.
 

@@ -666,7 +666,7 @@ class PlatformWrapper:
             # for addr in opts.vip_address:
             #     known_hosts.add(addr, encode_key(publickey))
             if self.bind_web_address:
-                # Create web users for master web authentication
+                # Create web users for platform web authentication
                 from volttron.platform.web.admin_endpoints import AdminEndpoints
                 from volttrontesting.utils.web_utils import get_test_web_env
                 adminep = AdminEndpoints()
@@ -1489,7 +1489,7 @@ class WebAdminApi(object):
         self.certsobj = self._wrapper.certsobj
 
     def create_web_admin(self, username, password, messagebus='rmq'):
-        """ Creates a global master user for the platform https interface.
+        """ Creates a global administrator user for the platform https interface.
 
         :param username:
         :param password:

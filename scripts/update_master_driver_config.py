@@ -162,11 +162,11 @@ def process_main_config(main_file, output_directory, keep=False):
 if __name__ == "__main__":
     parser = ArgumentParser(description="Update a master configuration to use the configuration store and"
                                         " writes the new configurations to disk. To automatically update the"
-                                        " configurations for the Master Driver in the store use the script"
-                                        " install_master_driver_configs.py on the output from this script.")
+                                        " configurations for the Platform Driver in the store use the script"
+                                        " install_platform_driver_configs.py on the output from this script.")
 
     parser.add_argument('main_configuration', type=file,
-                        help='The pre-configuration store master driver configuration file')
+                        help='The pre-configuration store platform driver configuration file')
 
     parser.add_argument('output_directory',
                         help='The output directory.')

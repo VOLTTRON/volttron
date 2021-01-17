@@ -8,7 +8,7 @@ Communication between two RabbitMQ based VOLTTRON instances must be done using S
 Non SSL based authentication will not be supported for communication to remote RabbitMQ based VOLTTRON instances.
 A VOLTTORN instance that wants to communicate with a remote instance should first request a SSL certificate that is
 signed by the remote instance.  To facilitate this process there will be a web based server API for requesting, listing,
-approving and denying certificate requests.  This api will be exposed via the MasterWebService and will be available
+approving and denying certificate requests.  This api will be exposed via the PlatformWebService and will be available
 to any RabbitMQ based VOLTTRON instance with SSL enabled.  This API will be tested and used in the following agents:
 
 - ForwarderAgent
@@ -39,7 +39,7 @@ file
     bind-web-address = https://volttron1:8443
     instance-name = volttron1
 
-By default the `bind-web-address` parameter will use the MasterWebService agent's certificate and private key.
+By default the `bind-web-address` parameter will use the PlatformWebService agent's certificate and private key.
 Both private and public key are necessary in order to bind the port to the socket for incoming connections. This key
 pair is auto generated for RabbitMQ based VOLTTRON at the time of platform startup.  Users can provide a different
 certificate and private key to be used for the bind-web-address by specifying web-ssl-cert and web-ssl-key in the

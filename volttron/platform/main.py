@@ -86,7 +86,7 @@ from .vip.tracking import Tracker
 from .auth import AuthService, AuthFile, AuthEntry
 from .control import ControlService
 try:
-    from .web import MasterWebService
+    from .web import PlatformWebService
     HAS_WEB = True
 except ImportError:
     HAS_WEB = False
@@ -1046,7 +1046,7 @@ def start_volttron_process(opts):
                 if opts.web_ssl_key is None or opts.web_ssl_cert is None or \
                         (not os.path.isfile(opts.web_ssl_key) and not os.path.isfile(opts.web_ssl_cert)):
                     # This is different than the master.web cert which is used for the agent to connect
-                    # to rmq server.  The master.web-server certificate will be used for the master web
+                    # to rmq server.  The master.web-server certificate will be used for the platform web
                     # services.
                     base_webserver_name = PLATFORM_WEB + "-server"
                     from volttron.platform.certs import Certs
@@ -1055,8 +1055,8 @@ def start_volttron_process(opts):
                     opts.web_ssl_key = certs.private_key_file(base_webserver_name)
                     opts.web_ssl_cert = certs.cert_file(base_webserver_name)
 
-            _log.info("Starting master web service")
-            services.append(MasterWebService(
+            _log.info("Starting platform web service")
+            services.append(PlatformWebService(
                 serverkey=publickey, identity=PLATFORM_WEB,
                 address=address,
                 bind_web_address=opts.bind_web_address,

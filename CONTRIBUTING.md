@@ -6,7 +6,7 @@ We have a lengthy [Guide to Contributions](https://volttron.readthedocs.io/en/de
 
 ### Branch Naming
 
-We use `develop` as the active development branch, and not `master`. Please submit PRs to `develop` by default.
+We use `develop` as the active development branch, and not `main`. Please submit PRs to `develop` by default.
 
 ### Testing
 

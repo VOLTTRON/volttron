@@ -5,9 +5,9 @@ Driver Development
 ==================
 
 In order for VOLTTRON agents to gather data from a device or to set device values, agents send requests to the Master
-Driver Agent to read or set points.  The Master Driver Agent then sends these requests on to the appropriate driver for
-interfacing with that device based on the topic specified in the request and the configuration of the Master Driver.
-Drivers provide an interface between the device and the master driver by implementing portions of the devices' protocols
+Driver Agent to read or set points.  The Platform Driver Agent then sends these requests on to the appropriate driver for
+interfacing with that device based on the topic specified in the request and the configuration of the Platform Driver.
+Drivers provide an interface between the device and the platform driver by implementing portions of the devices' protocols
 needed to serve the functions of setting and reading points.
 
 As a demonstration of developing a driver a driver can be made to read and set points in a CSV file.  This driver will
@@ -17,14 +17,14 @@ only differ from a real device driver in terms of the specifics of the protocol.
 Create a Driver and Register class
 **********************************
 
-When a new driver configuration is added to the Master Driver, the Master Driver will look for a file or directory in
-its interfaces directory (services/core/MasterDriverAgent/master_driver/interfaces) that shares the name of the value
+When a new driver configuration is added to the Platform Driver, the Platform Driver will look for a file or directory in
+its interfaces directory (services/core/PlatformDriverAgent/platform_driver/interfaces) that shares the name of the value
 specified by "driver_type" in the configuration file.  For the CSV Driver, create a file named csvdriver.py in that
 directory.
 
 ::
 
-    ├── master_driver
+    ├── platform_driver
     │         ├── agent.py
     │         ├── driver.py
     │         ├── __init__.py
@@ -34,14 +34,14 @@ directory.
     |         |         ├── csvdriver.py
     │         │         └── modbus.py
     │         └── socket_lock.py
-    ├── master-driver.agent
+    ├── platform-driver.agent
     └── setup.py
 
 Following is an example using the directory type structure:
 
 ::
 
-    ├── master_driver
+    ├── platform_driver
     │         ├── agent.py
     │         ├── driver.py
     │         ├── __init__.py
@@ -72,7 +72,7 @@ A complete interface consists of two parts: the interface class and one or more 
 
 Interface Class Skeleton
 ------------------------
-When the Master Driver processes a driver configuration file it creates an instance of the interface class found in the
+When the Platform Driver processes a driver configuration file it creates an instance of the interface class found in the
 interface file (such as the one we've just created).  The interface class is responsible for managing the communication
 between the Volttron Platform, and the device.  Each device has many registers which hold the values Volttron agents are
 interested in so generally the interface manages reading and writing to and from a device's registers.  At a minimum,
@@ -102,7 +102,7 @@ scrape_all methods.
 
 .. Note::
 
-   In some sense, drivers are sub-agents running under the same process as the Master Driver. They should be
+   In some sense, drivers are sub-agents running under the same process as the Platform Driver. They should be
    instantiated following the agent pattern, so a function to handle configuration and create the Driver object has
    been included.
 
@@ -139,7 +139,7 @@ Filling out the Interface class
 
 The CSV interface will be writing to and reading from a CSV file, so the device configuration should include a path
 specifying a CSV file to use as the "device".  The CSV "device: path value is set at the beginning of the agent loop
-which runs the configure method when the Master Driver starts.  Since this Driver is for demonstration, we'll create the
+which runs the configure method when the Platform Driver starts.  Since this Driver is for demonstration, we'll create the
 CSV with some default values if the configured path doesn't exist.  The CSV device will consist of 2 columns: "Point
 Name" specifying the name of the register, and "Point Value", the current value of the register.
 
@@ -327,7 +327,7 @@ new value then continues on.  Finally it writes the output back to the csv.
                 writer.writerows([dict(row) for row in points])
         return self.get_state()
 
-At this point we should be able to scrape the CSV device using the Master Driver and set points using the actuator.
+At this point we should be able to scrape the CSV device using the Platform Driver and set points using the actuator.
 
 Creating Driver Configurations
 ==============================
@@ -350,7 +350,7 @@ Here's the driver configuration for the CSV driver:
 
 .. Note::
 
-    The "driver_type" value must match the name of the driver's python file as this is what the Master Driver
+    The "driver_type" value must match the name of the driver's python file as this is what the Platform Driver
     will look for when searching for the correct interface.
 
 And here's the registry configuration:
@@ -368,24 +368,24 @@ configurations.
 
 Testing your driver
 *******************
-To test the driver's scrape all functionality, one can install a ListenerAgent and Master Driver with the driver's
+To test the driver's scrape all functionality, one can install a ListenerAgent and Platform Driver with the driver's
 configurations, and run them.  To do so for the CSV driver using the configurations above: activate the Volttron
 environment start the platform, tail the platform's log file, then try the following:
 
 .. code-block:: bash
 
     python scripts/install-agent.py -s examples/ListenerAgent
-    python scripts/install-agent.py -s services/core/MasterDriverAgent -c services/core/MasterDriverAgent/master-driver.agent
+    python scripts/install-agent.py -s services/core/PlatformDriverAgent -c services/core/PlatformDriverAgent/platform-driver.agent
     vctl config store platform.driver devices/<campus>/<building>/csv_driver <path to driver configuration>
     vctl config store platform.driver <registry config path from driver configuration> <path to registry configuration>
 
 .. Note::
 
-    `vctl config list platform.driver` will list device and registry configurations stored for the master driver and
+    `vctl config list platform.driver` will list device and registry configurations stored for the platform driver and
     `vctl config delete platform.driver <config in configs list>` can be used to remove a configuration entry -
     these commands are very useful for debugging
 
-After the Master Driver starts the driver's output should appear in the logs at regular intervals based on the Master
+After the Platform Driver starts the driver's output should appear in the logs at regular intervals based on the Master
 Driver's configuration.
 
 Here is some sample CSV driver output:

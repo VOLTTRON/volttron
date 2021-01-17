@@ -1,7 +1,7 @@
 """
-This file tests the MasterWebService as it is used in the base platform.  Most
+This file tests the PlatformWebService as it is used in the base platform.  Most
 of the tests in here are not integration tests, but unit tests to test the
-functionality of the MasterWebService agent.
+functionality of the PlatformWebService agent.
 """
 import binascii
 import contextlib
@@ -23,7 +23,7 @@ from volttron.platform.keystore import KeyStore
 from volttron.platform.vip.agent import Agent
 from volttron.platform.vip.agent.subsystems.web import ResourceType
 from volttron.platform.vip.socket import decode_key
-from volttron.platform.web import MasterWebService
+from volttron.platform.web import PlatformWebService
 from volttron.platform.web.admin_endpoints import AdminEndpoints
 from volttron.utils import get_random_key
 from volttrontesting.utils.platformwrapper import create_volttron_home
@@ -34,9 +34,9 @@ from volttrontesting.utils.utils import AgentMock, get_hostname_and_random_port
 #from volttrontesting.utils.platformwrapper import create_volttron_home
 from volttrontesting.fixtures.cert_fixtures import certs_profile_1
 
-# Patch the MasterWebService so the underlying Agent interfaces are mocked
-# so we can just test the things that the MasterWebService is responsible for.
-MasterWebService.__bases__ = (AgentMock.imitate(Agent, Agent()),)
+# Patch the PlatformWebService so the underlying Agent interfaces are mocked
+# so we can just test the things that the PlatformWebService is responsible for.
+PlatformWebService.__bases__ = (AgentMock.imitate(Agent, Agent()),)
 
 
 #TODO add tests for new RPC calls
@@ -45,21 +45,21 @@ MasterWebService.__bases__ = (AgentMock.imitate(Agent, Agent()),)
 def platform_web_service():
     serverkey = "serverkey"
     mock_aip = mock.Mock()
-    yield MasterWebService(serverkey=serverkey, identity=PLATFORM_WEB, address="tcp://stuff",
-                           bind_web_address="http://v2:8888")
+    yield PlatformWebService(serverkey=serverkey, identity=PLATFORM_WEB, address="tcp://stuff",
+                             bind_web_address="http://v2:8888")
 
 
 @contextlib.contextmanager
-def get_platform_web(bind_web_address="http://v2:8080", **kwargs) -> MasterWebService:
+def get_platform_web(bind_web_address="http://v2:8080", **kwargs) -> PlatformWebService:
     """
-    Create a new MasterWebService instance with a mocked aip.
+    Create a new PlatformWebService instance with a mocked aip.
 
-    :return: MasterWebService
+    :return: PlatformWebService
     """
     serverkey = "serverkey"
 
-    mws = MasterWebService(serverkey=serverkey, identity=PLATFORM_WEB, address="tcp://stuff",
-                           bind_web_address=bind_web_address, **kwargs)
+    mws = PlatformWebService(serverkey=serverkey, identity=PLATFORM_WEB, address="tcp://stuff",
+                             bind_web_address=bind_web_address, **kwargs)
     mws.startupagent(sender='testweb')
     # original_volttron_home = os.environ.get('VOLTTRON_HOME')
     # new_volttron_home = create_volttron_home()
@@ -79,7 +79,7 @@ def get_platform_web(bind_web_address="http://v2:8080", **kwargs) -> MasterWebSe
 
 def get_server_response(env_fixture, ws):
     """
-    Use the `MasterWebService` instance passed to call the app_routing function with
+    Use the `PlatformWebService` instance passed to call the app_routing function with
     the environment <env_fixture> and a mocked start_response function.
 
     :param env_fixture: environment to run in
@@ -103,7 +103,7 @@ def get_server_response(env_fixture, ws):
     return mocked_start_response, response
 
 
-def add_points_of_interest(ws: MasterWebService, endpoints: dict):
+def add_points_of_interest(ws: PlatformWebService, endpoints: dict):
     """
     Adds endpoints based upon type.
 
@@ -241,8 +241,8 @@ def test_discovery(scheme):
             bind_web_address = f"{scheme}://{host}:{port}"
             serverkey = decode_key(keystore.public)
 
-            mws = MasterWebService(serverkey=serverkey, identity=PLATFORM_WEB, address=address,
-                                   bind_web_address=bind_web_address, **config_params)
+            mws = PlatformWebService(serverkey=serverkey, identity=PLATFORM_WEB, address=address,
+                                     bind_web_address=bind_web_address, **config_params)
             mws.startupagent(sender='testweb')
 
             env = get_test_web_env("/discovery/")
@@ -327,7 +327,7 @@ def test_path_route():
 
 
 @pytest.mark.web
-def test_register_route(platform_web_service: MasterWebService):
+def test_register_route(platform_web_service: PlatformWebService):
     ws = platform_web_service
     fn_mock = mock.Mock()
     fn_mock.__name__ = "test_register_route"
@@ -346,7 +346,7 @@ def test_register_route(platform_web_service: MasterWebService):
 
 
 @pytest.mark.web
-def test_register_endpoint(platform_web_service: MasterWebService):
+def test_register_endpoint(platform_web_service: PlatformWebService):
     ws = platform_web_service
     fn_mock = mock.Mock()
     fn_mock.__name__ = "test_register_endpoint"

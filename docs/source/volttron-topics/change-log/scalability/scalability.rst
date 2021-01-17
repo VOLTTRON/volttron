@@ -56,10 +56,10 @@ Core Services
    once without issue.
 -  ModBUS opens up a TCP connection for each communication with a device
    and then closes it when finished. This has the potential to hit the
-   limit for open file descriptors available to the master driver
+   limit for open file descriptors available to the platform driver
    process. (Before, each driver would run in a separate process, but
    that quickly uses up sockets available to the platform.) To protect
-   from this the master driver process raises the total allowed open
+   from this the platform driver process raises the total allowed open
    sockets to the hard limit. The number of concurrently open sockets is
    throttled at 80% of the max sockets. On most Linux systems this is
    about 3200. Once that limit is hit additional device communications
