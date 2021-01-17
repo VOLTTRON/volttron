@@ -1140,7 +1140,7 @@ def start_volttron_process(opts):
             if os.path.exists(pid_file):
                 os.remove(pid_file)
         except Exception:
-            _log.warn("Unable to load {}".format(VOLTTRON_INSTANCES))
+            _log.warning("Unable to load {}".format(VOLTTRON_INSTANCES))
         _log.debug("********************************************************************")
         _log.debug("VOLTTRON PLATFORM HAS SHUTDOWN")
         _log.debug("********************************************************************")

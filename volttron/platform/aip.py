@@ -197,12 +197,12 @@ class ExecutionEnvironment(object):
             try:
                 return gevent.with_timeout(60, process_wait, self.process)
             except gevent.Timeout:
-                _log.warn("First timeout")
+                _log.warning("First timeout")
                 self.process.terminate()
             try:
                 return gevent.with_timeout(30, process_wait, self.process)
             except gevent.Timeout:
-                _log.warn("2nd timeout")
+                _log.warning("2nd timeout")
                 self.process.kill()
             try:
                 return gevent.with_timeout(30, process_wait, self.process)
@@ -695,9 +695,9 @@ class AIPplatform(object):
                 with open(user_id_path, 'r') as user_id_file:
                     volttron_agent_user = user_id_file.readline()
             except (KeyError, IOError) as user_id_err:
-                _log.warn("Volttron agent user not found at {}".format(
+                _log.warning("Volttron agent user not found at {}".format(
                     user_id_path))
-                _log.warn(user_id_err)
+                _log.warning(user_id_err)
         if remove_auth:
             self._unauthorize_agent_keys(agent_uuid)
         shutil.rmtree(agent_directory)

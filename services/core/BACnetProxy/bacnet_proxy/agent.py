@@ -219,9 +219,6 @@ class BACnetApplication(BIPSimpleApplication, RecurringTask):
 
     def _get_value_from_read_property_request(self, apdu, working_iocb):
         # find the datatype
-
-        #_log.debug("WIGGEDYWACKYO")
-
         datatype = get_datatype(apdu.objectIdentifier[0], apdu.propertyIdentifier)
         if not datatype:
             working_iocb.set_exception(TypeError("unknown datatype"))
@@ -595,13 +592,13 @@ class BACnetProxyAgent(Agent):
         self.who_is(device_id, device_id, target_address)
 
     def _cast_value(self, value, datatype):
-            if datatype is Integer:
-                value = int(value)
-            elif datatype is Real:
-                value = float(value)
-            elif datatype is Unsigned:
-                value = int(value)
-            return datatype(value)
+        if datatype is Integer:
+            value = int(value)
+        elif datatype is Real:
+            value = float(value)
+        elif datatype is Unsigned:
+            value = int(value)
+        return datatype(value)
 
     @RPC.export
     def write_property(self, target_address, value, object_type, instance_number, property_name, priority=None,
