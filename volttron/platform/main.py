@@ -1055,6 +1055,12 @@ def start_volttron_process(opts):
                     opts.web_ssl_key = certs.private_key_file(base_webserver_name)
                     opts.web_ssl_cert = certs.cert_file(base_webserver_name)
 
+            try:
+                if opts.auto_allow_csr == 'True':
+                    opts.auto_allow_csr = True
+            except AttributeError:
+                opts.auto_allow_csr = None
+
             _log.info("Starting master web service")
             services.append(MasterWebService(
                 serverkey=publickey, identity=MASTER_WEB,
@@ -1066,7 +1072,8 @@ def start_volttron_process(opts):
                 volttron_central_rmq_address=opts.volttron_central_rmq_address,
                 web_ssl_key=opts.web_ssl_key,
                 web_ssl_cert=opts.web_ssl_cert,
-                web_secret_key=opts.web_secret_key
+                web_secret_key=opts.web_secret_key,
+                auto_allow_csr=opts.auto_allow_csr
             ))
 
         ks_masterweb = KeyStore(KeyStore.get_agent_keystore_path(MASTER_WEB))
@@ -1197,6 +1204,12 @@ def main(argv=sys.argv):
     parser.add_argument(
         '--show-config', action='store_true',
         help=argparse.SUPPRESS)
+    parser.add_argument(
+        '--message-bus', action='store', default='zmq', dest='message_bus',
+        help='set message to be used. valid values are zmq and rmq')
+    parser.add_argument(
+        '--auto-allow-csr', action='store_true', dest='auto_allow_csr',
+        help='Set auto approval of CSR requests')
     parser.add_help_argument()
     parser.add_version_argument(version='%(prog)s ' + __version__)
 
@@ -1255,9 +1268,6 @@ def main(argv=sys.argv):
     agents.add_argument(
         '--setup-mode', action='store_true',
         help='Setup mode flag for setting up authorization of external platforms.')
-    parser.add_argument(
-        '--message-bus', action='store', default='zmq', dest='message_bus',
-        help='set message to be used. valid values are zmq and rmq')
     agents.add_argument(
         '--volttron-central-rmq-address', default=None,
         help='The AMQP address of a volttron central install instance')

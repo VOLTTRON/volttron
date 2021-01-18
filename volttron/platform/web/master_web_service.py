@@ -115,7 +115,7 @@ class MasterWebService(Agent):
 
     def __init__(self, serverkey, identity, address, bind_web_address,
                  volttron_central_address=None, volttron_central_rmq_address=None,
-                 web_ssl_key=None, web_ssl_cert=None, web_secret_key=None, **kwargs):
+                 web_ssl_key=None, web_ssl_cert=None, web_secret_key=None, auto_allow_csr=False, **kwargs):
         """
         Initialize the configuration of the base web service integration within the platform.
 
@@ -137,6 +137,7 @@ class MasterWebService(Agent):
         self.web_ssl_key = web_ssl_key
         self.web_ssl_cert = web_ssl_cert
         self._web_secret_key = web_secret_key
+        self._auto_allow_csr = auto_allow_csr
 
         # Maps from endpoint to peer.
         self.endpoints = {}
@@ -782,6 +783,9 @@ class MasterWebService(Agent):
             # We need reference to the object so we can change the behavior of
             # whether or not to have auto certs be created or not.
             self._csr_endpoints = CSREndpoints(self.core)
+            if self._auto_allow_csr:
+                _log.info("MasterWebService has enabled auto approval of CSR's")
+                self._csr_endpoints.auto_allow_csr = self._auto_allow_csr
             for rt in self._csr_endpoints.get_routes():
                 self.registeredroutes.append(rt)
 
