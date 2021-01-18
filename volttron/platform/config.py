@@ -589,7 +589,8 @@ def _main():
         # Protect against configuration of base logger when not the "main entry point"
         utils.setup_logging()
         import logging
-        logging.getLogger('urllib3.connectionpool').setLevel(logging.WARNING)
+        # below does not get rid of urllib3 logs
+        #logging.getLogger('urllib3.connectionpool').setLevel(logging.WARNING)
         main()
     except KeyboardInterrupt:
         print('\n')

@@ -986,6 +986,20 @@ def main():
 
     args = parser.parse_args()
     verbose = args.verbose
+
+    import logging
+    import warnings
+    from urllib3.exceptions import InsecureRequestWarning
+
+    if verbose:
+        logging.getLogger().setLevel(logging.DEBUG)
+    else:
+        logging.getLogger().setLevel(logging.INFO)
+        # Hide the InsecureRequestWarning from urllib3
+        warnings.filterwarnings("ignore", category=InsecureRequestWarning)
+        # Is this always called only from command line, if so below is a more readable format for console
+        logging.getLogger().handlers[0].setFormatter(logging.Formatter('%(levelname)s: %(message)s'))
+
     prompt_vhome = True
     if args.vhome:
         set_home(args.vhome)
