@@ -257,7 +257,7 @@ def _create_shovel_setup(instance_name, local_host, port, vhost, vhome, is_ssl):
                         certs_dict = dict()
                         certs_dict['ca_file'] = shovel['certificates']['remote_ca']
                         certs_dict['cert_file'] = shovel['certificates']['public_cert']
-                        certs_dict['key_file'] = shovel['certificates']['private_cert']
+                        certs_dict['key_file'] = shovel['certificates']['private_key']
                         rmq_user = shovel['shovel-user']
                 else:
                     # destination key not found in shovel config
@@ -310,7 +310,7 @@ def _create_shovel_setup(instance_name, local_host, port, vhost, vhome, is_ssl):
                             certs_dict = dict()
                             certs_dict['ca_file'] = shovel['certificates']['remote_ca']
                             certs_dict['cert_file'] = shovel['certificates']['public_cert']
-                            certs_dict['key_file'] = shovel['certificates']['private_cert']
+                            certs_dict['key_file'] = shovel['certificates']['private_key']
                             rmq_user = shovel['shovel-user']
                             _log.debug(f"certs parameters: {certs_dict}")
 
@@ -972,12 +972,12 @@ def prompt_shovels(vhome, verbose=False):
                 # public cert
                 shovels[host]['certificates']['public_cert'] = certfile
 
-                prompt = 'Full path to private certificate: '
-                private_cert = prompt_response(prompt, default='')
-                if not os.path.exists(private_cert):
-                    raise IOError(f"Path does not exist: {private_cert}. Please check the path and try again")
+                prompt = 'Full path to private key: '
+                private_key = prompt_response(prompt, default='')
+                if not os.path.exists(private_key):
+                    raise IOError(f"Path does not exist: {private_key}. Please check the path and try again")
                 # private_key
-                shovels[host]['certificates']['private_cert'] = private_cert
+                shovels[host]['certificates']['private_key'] = private_key
                 got_certs = True
             else:
                 remote_https_address = "https://{}:8443".format(host)
@@ -1001,7 +1001,7 @@ def prompt_shovels(vhome, verbose=False):
 
                     # private_key
                     crts = certs.Certs()
-                    shovels[host]['certificates']['private_cert'] = prvtfile
+                    shovels[host]['certificates']['private_key'] = prvtfile
                     #_log.debug("shovel private cert path: {}".format(prvtfile))
                     got_certs = True
 
