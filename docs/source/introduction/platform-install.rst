@@ -101,6 +101,9 @@ On **Redhat or CentOS systems**, these can be installed from the Extra Packages 
 It may be possible to deploy VOLTTRON on a system not listed above but may involve some troubleshooting and dependency
 management on the part of the user.
 
+In order to support historians, the python installation must include the built-in sqlite3 support (a compile time option).
+This is included in all of the linux distribution packages referenced above, which is the recommended and supported way of running python.
+In cases where a user needs to compile their own python (not an officially supported configuration), make sure that the sqlite3 option is enabled.
 
 Step 2 - Clone VOLTTRON code
 ============================
@@ -329,6 +332,10 @@ exchange to capture unrouteable messages.
     .. code-block:: bash
 
        vcfg --vhome /home/vdev/.new_vhome --rabbitmq single
+
+.. note::
+
+    The default behavior generates a certificate which is valid for a period of 1 year.
 
 The Following are the example inputs for `vcfg --rabbitmq single` command.  Since no config file is passed the script
 prompts for necessary details.
