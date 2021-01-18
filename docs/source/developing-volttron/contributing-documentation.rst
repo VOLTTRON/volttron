@@ -33,7 +33,7 @@ Then, open your browser to the created local files:
 
 .. code-block:: bash
 
-   file:///home/<USER>/git/volttron/docs/build/html/overview/index.html
+   file:///home/<USER>/git/volttron/docs/build/html/index.html
 
 
 When complete, changes can be contributed back using the same process as code :ref:`contributions <Contributing-Code>`
