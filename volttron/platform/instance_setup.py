@@ -486,8 +486,13 @@ zmq bus's vip address?"""
 
 
 def do_instance_name():
+    """
+        Prompts the user for volttron instance-name.
+        "volttron1" will be used as the default otherwise.
+    """
+    # TODO: Set constraints on what can be used for volttron instance-name.
     global config_opts
-    # Default instance name to the vip address.
+
     instance_name = config_opts.get('instance-name',
                                     'volttron1')
     instance_name = instance_name.strip('"')

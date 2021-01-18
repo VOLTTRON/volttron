@@ -52,10 +52,9 @@ agent_autostart = "N"
 def create_vcfg_vhome():
     debug_flag = os.environ.get('DEBUG', False)
     vhome = create_volttron_home()
-    vhome_dir = os.path.split(vhome)[0]
-    yield vhome_dir
+    yield vhome
     if not debug_flag:
-        shutil.rmtree(vhome_dir, ignore_errors=True)
+        shutil.rmtree(vhome, ignore_errors=True)
 
 
 def test_should_remove_config_vhome(monkeypatch):

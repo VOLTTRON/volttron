@@ -190,6 +190,7 @@ def create_volttron_home() -> str:
     # the volttron.log file is not part of the same folder for
     # observer.
     volttron_home = os.path.join(volttron_home, "volttron_home")
+    os.makedirs(volttron_home)
     return volttron_home
 
 
