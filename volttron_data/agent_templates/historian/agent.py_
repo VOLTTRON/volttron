@@ -7,6 +7,8 @@ __docformat__ = 'reStructuredText'
 import logging
 import sys
 import foo_db
+from typing import Optional
+
 from volttron.platform.agent import utils
 from volttron.platform.agent.base_historian import BaseHistorian
 
@@ -44,8 +46,7 @@ class __class_name__(BaseHistorian):
     Document historian here.
     """
 
-    def __init__(self, connection_parameters={},
-                 **kwargs):
+    def __init__(self, connection_parameters: Optional[dict] = None, **kwargs):
         # The publish_to_historian function will run in a
         # separate thread unless you change this to True.
         # Unless you need to interact with the VOLTTRON platform
@@ -64,12 +65,14 @@ class __class_name__(BaseHistorian):
         self.update_default_config(config)
 
     def configure(self, configuration):
-        # The base historian will call this whenever the
-        # Historian is reconfigured in the main process thread.
+        """
+        The base historian will call this whenever the Historian is reconfigured in the main process thread.
 
-        # If the Historian is already running historian_teardown
-        # will be called before this is called and
-        # historian_setup will be called afterwards.
+        If the Historian is already running historian_teardown will be called before this is called and historian_setup
+        will be called afterwards.
+
+        :param configuration: dictionary representation of the agent's config file
+        """
 
         connection_parameters = configuration["connection_parameters"]
 
@@ -81,8 +84,11 @@ class __class_name__(BaseHistorian):
         self.db_port = connection_parameters.get("port")
 
     def publish_to_historian(self, to_publish_list):
-        # Called automatically by the BaseHistorian class when data is available to be
-        # published.
+        """
+        Called automatically by the BaseHistorian class when data is available to be published.
+
+        :param to_publish_list: list of dictionaries containing data to be added to the historian's data store
+        """
 
         # This is run in a separate thread from the main agent thread. This means that
         # this function may block for a short period of time without fear of
@@ -116,8 +122,7 @@ class __class_name__(BaseHistorian):
         # If everything is published in a single batch then self.report_all_handled
         # must be called.
 
-        _log.debug("publish_to_historian number of items: {}"
-                   .format(len(to_publish_list)))
+        _log.debug("publish_to_historian number of items: {}".format(len(to_publish_list)))
 
         # Here it may be appropriate to check to see if our connection is still
         # active and restoring it as needed.
@@ -140,18 +145,18 @@ class __class_name__(BaseHistorian):
                 # The details of how to publish data will be data store specific.
                 self.db_connection.publish(item["topic"], item["source"], item["value"], item["meta"])
                 self.report_handled(item)
-            except StandardError as e:
+            except Exception as e:
                 _log.error("Failed to publish {}: {}".format(item, repr(e)))
 
-        #Example batch publish
+        # Example batch publish
         batch = [(item["topic"], item["source"], item["value"], item["meta"]) for item in to_publish_list]
 
         try:
             # The details of how to publish batch data will be data store specific.
             self.db_connection.batch_publish(batch)
             self.report_all_handled()
-        except StandardError:
-                _log.error("Failed to publish {}".format(repr(e)))
+        except Exception as e:
+            _log.error("Failed to publish {}".format(repr(e)))
 
     def manage_db_size(self, history_limit_timestamp, storage_limit_gb):
         """
@@ -169,8 +174,10 @@ class __class_name__(BaseHistorian):
         self.db_connection.delete(older_than=history_limit_timestamp)
 
     def historian_setup(self):
-        # Setup any connection needed for this historian.
-        # If a connection does not need to be maintained this function may be deleted.
+        """
+        Setup any connection needed for this historian.
+        If a connection does not need to be maintained this function may be deleted.
+        """
 
         # This is called from the same thread as publish_to_historian.
 
@@ -186,14 +193,15 @@ class __class_name__(BaseHistorian):
         self.historian_teardown()
         try:
             self.db_connection = foo_db.connect(self.db_address, self.db_port)
-        except StandardError as e:
+        except Exception as e:
             _log.error("Failed to create data base connection: {}".format(e))
 
-
     def historian_teardown(self):
-        # Kill the connection if needed.
-        # If a connection does not need to be maintained this function may be deleted.
-        # This is called to shut down the connection before reconfiguration.
+        """
+        Kill the connection if needed.
+        If a connection does not need to be maintained this function may be deleted.
+        This is called to shut down the connection before reconfiguration.
+        """
         if self.db_connection is not None:
             self.db_connection.close()
             self.db_connection = None
@@ -204,7 +212,6 @@ class __class_name__(BaseHistorian):
         :return: version number
         """
         return __version__
-
 
     # The following methods are for adding query support. This will allow other
     # agents to get data from the store and will allow this historian to act as
@@ -239,7 +246,6 @@ class __class_name__(BaseHistorian):
                  topic_name: {metadata_key:metadata_value, ...} ...}
 
         :rtype: dict
-
         """
         # The details of how to get meta data will be data store specific.
         # return self.db_connection.get_meta(topics)
@@ -309,13 +315,11 @@ class __class_name__(BaseHistorian):
 
         :return: Results of the query
         :rtype: dict
-
         """
         # The details of how to get data will be data store specific.
         # return self.db_connection.get_data(topic, start, end, agg_type,
         #                agg_period, skip, count, order)
         raise NotImplemented()
-
 
     def query_aggregate_topics(self):
         """
@@ -326,16 +330,16 @@ class __class_name__(BaseHistorian):
         :return: List of tuples containing (topic_name, aggregation_type,
                  aggregation_time_period, metadata)
         :rtype: list
-
         """
-        []
+        return []
 
     def query_topics_by_pattern(self, topic_pattern):
-        """ Find the list of topics and its id for a given topic_pattern
+        """
+        Find the list of topics and its id for a given topic_pattern
 
-            :return: returns list of dictionary object {topic_name:id}"""
+        :return: returns list of dictionary object {topic_name:id}
+        """
         raise NotImplemented()
-
 
 
 def main():
