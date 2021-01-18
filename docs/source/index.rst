@@ -49,8 +49,6 @@ at our bi-weekly office-hours and on Slack. To be invited to office-hours or sla
    :titlesonly:
    :maxdepth: 1
 
-   introduction/what-is-volttron
-   introduction/how-does-it-work
    introduction/platform-install
    introduction/definitions
    introduction/license
