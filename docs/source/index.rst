@@ -12,6 +12,16 @@ expand the capabilities of the platform to meet their use cases.  Features are i
 components, called agents, enabling flexible deployment options and easy customization.
 
 
+Key Use-Cases
+=============
+
+- Developing scalable, reusable applications to deploy in the field without spending development resources on
+  operational components not specific to the application
+- Low-cost data collection deployable on commodity hardware
+- Integration hub for connecting a diverse set of devices together in a common interface
+- Testbed for developing applications for a simulated environment
+
+
 Features
 ========
 
@@ -26,15 +36,6 @@ Features
   from anywhere
 - Capability to interface with simulation engines and applications to evaluate applications prior to deployment
 
-
-Key Use-Cases
-=============
-
-- Developing scalable, reusable applications to deploy in the field without spending development resources on
-  operational components not specific to the application
-- Low-cost data collection deployable on commodity hardware
-- Integration hub for connecting a diverse set of devices together in a common interface
-- Testbed for developing applications for a simulated environment
 
 VOLTTRON™ is publicly available from `GitHub <https://github.com/volttron/volttron.git>`_. The project
 is supported by the U.S. Department of Energy and receives ongoing updates from a team of core developers at PNNL.  The
