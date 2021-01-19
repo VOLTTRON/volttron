@@ -164,7 +164,8 @@ Start VOLTTRON instance and check if the agents are installed.
   ./start-volttron
   vctl status
 
-Open browser and go to the VOLTTRON Central admin authentication page `https://central:8443/index.html` to accept/reject incoming certificate signing request (CSR) from other platforms.
+Open browser and go to the platform web admin authentication page `https://central:8443/index.html` to accept/reject
+incoming certificate signing request (CSR) from other platforms.
 
 .. note::
 
@@ -175,12 +176,12 @@ Click on "Login To Administration Area".
 
 .. image:: files/csr-initial-state.png
 
-Set the VOLTTRON Central admin username and password. This can be later used to login into the VOLTTRON Central admin
+Set the platform web admin username and password. This can be later used to login into the web admin
 authentication page.  This username and password will also be used to log in to Volttron Central.
 
 .. image:: files/csr-set-admin.png
 
-Login into the VOLTTRON Central Admin page.
+Login into the platform web admin page.
 
 .. image:: files/csr-login-page.png
 
@@ -195,7 +196,7 @@ request to the web interface.
 
   vctl start --tag vcp
 
-Now go to VOLTTRON Central admin page to check if there is a new pending CSR request. You will see a "PENDING" request
+Now go to the platform web admin page to check if there is a new pending CSR request. You will see a "PENDING" request
 from "central.central.platform.agent"
 
 .. image:: files/central_pending.png
@@ -272,7 +273,8 @@ At this point, you can either accept the connection through the admin page or th
 
 Using the admin page:
 
-Navigate back to the VOLTTRON Central admin authentication page. You should see a pending request under the ZMQ Keys Pending Authorization header.
+Navigate back to the platform web admin authentication page. You should see a pending request under the ZMQ Keys Pending
+Authorization header.
 
 .. image:: files/zmq_pending_credential_1.png
 
@@ -319,7 +321,8 @@ Install and start forwarder agent.
 
 To accept the credential using the admin page:
 
-Navigate back to the VOLTTRON Central admin authentication page. You should see another pending request under the ZMQ Keys Pending Authorization header.
+Navigate back to the platform web admin authentication page. You should see another pending request under the ZMQ Keys
+Pending Authorization header.
 
 .. image:: files/zmq_pending_credential_2.png
 
