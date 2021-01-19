@@ -12,7 +12,7 @@ driver.  Unlike the original modbus driver, the Modbus-TK driver supports Modbus
 The Modbus-TK driver introduces a map library and configuration builder, intended as a way to streamline configuration
 file creation and maintenance.
 
-.. warning:: Currently the modbus_tk library is not able to make connections from 2 masters on one host to 2 slaves
+.. warning:: Currently the modbus_tk library is not able to make connections from 2 Modbus masters on one host to 2 slaves
     on one host - this will will prevent a single platform from being able to communicate to 2 slaves on IP as each
     instance of a Modbus_Tk driver creates a new Modbus master.
     `Issue on Modbus_Tk Github <https://github.com/ljean/modbus-tk/issues/124>`_.

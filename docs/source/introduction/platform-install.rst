@@ -114,9 +114,9 @@ Repository Structure
 There are several options for using the VOLTTRON code depending on whether you require the most stable version of the
 code or want the latest updates as they happen. In order of decreasing stability and increasing currency:
 
-* `Master` - Most stable release branch, current major release is 7.0.  This branch is default.
+* `Main` - Most stable release branch, current major release is 7.0.  This branch is default.
 * `develop` - contains the latest `finished` features as they are developed.  When all features are stable, this branch
-  will be merged into `Master`.
+  will be merged into `Main`.
 
   .. note::
 

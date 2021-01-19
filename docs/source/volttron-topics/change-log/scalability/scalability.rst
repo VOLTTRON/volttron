@@ -109,7 +109,7 @@ platform (and how does it scale with the hardware)?
    developer-mode? (Option to turn off encryption, no longer available)
 
 -  | Regulation Agent
-   | Every 10 minutes there is an action the master node determines.
+   | Every 10 minutes there is an action the VOLTTRON Central node determines.
      Duty cycle cannot be faster than that but is set to 2 seconds for
      simulation.
    | Some clients miss duty cycle signal

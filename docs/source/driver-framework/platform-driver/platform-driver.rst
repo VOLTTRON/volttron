@@ -1,8 +1,8 @@
 .. _Platform-Driver:
 
-=============
+===============
 Platform Driver
-=============
+===============
 
 The Platform Driver agent is a special purpose agent a user can install on the platform to manage communication of
 the platform with devices.  The Master driver features a number of endpoints for collecting data and sending control
@@ -86,7 +86,7 @@ The easiest way to install the requirements for drivers included in the VOLTTRON
 
 
 Platform Driver Configuration
-===========================
+=============================
 
 The Platform Driver Agent configuration consists of general settings for all devices. The default values of the Master
 Driver should be sufficient for most users.  The user may optionally change the interval between device scrapes with the
@@ -570,7 +570,7 @@ Example "get_override_patterns" RPC call:
 Clear Overrides
 ---------------
 
-All overrides set by RPC calls described above can be toggled off at using a single ``clear_overridesPP`` RPC call.
+All overrides set by RPC calls described above can be toggled off at using a single ``clear_overrides`` RPC call.
 
 This method call has no additional parameters
 
@@ -580,5 +580,5 @@ Example "clear_overrides" RPC call:
 
     self.vip.rpc.call(PLATFORM_DRIVER, "clear_overrides")
 
-For information on the global overide feature specification, view the
+For information on the global override feature specification, view the
 :ref:`Global Override Specification <Global-Override-Specification>` doc.

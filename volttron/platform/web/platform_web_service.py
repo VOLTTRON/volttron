@@ -751,7 +751,7 @@ class PlatformWebService(Agent):
                                                            get_fq_identity(self.core.identity)),
                                                        rpc_caller=rpc_caller)
             if ssl_key is None or ssl_cert is None:
-                # Because the master.web service certificate is a client to rabbitmq we
+                # Because the  platform.web service certificate is a client to rabbitmq we
                 # can't use it directly therefore we use the -server on the file to specify
                 # the server based file.
                 base_filename = get_fq_identity(self.core.identity) + "-server"
