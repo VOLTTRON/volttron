@@ -43,9 +43,10 @@ import argparse
 import calendar
 import errno
 import logging
+import warnings
+from urllib3.exceptions import InsecureRequestWarning
 import os
-import re
-import stat
+
 import subprocess
 import sys
 try:
@@ -509,16 +510,21 @@ class AgentFormatter(logging.Formatter):
         return super(AgentFormatter, self).format(record)
 
 
-def setup_logging(level=logging.DEBUG):
+def setup_logging(level=logging.DEBUG, console=False):
     root = logging.getLogger()
     if not root.handlers:
         handler = logging.StreamHandler()
+
         if isapipe(sys.stderr) and '_LAUNCHED_BY_PLATFORM' in os.environ:
             handler.setFormatter(JsonFormatter())
+        elif console:
+            # Below format is more readable for console
+            logging.getLogger().handlers[0].setFormatter(logging.Formatter('%(levelname)s: %(message)s'))
         else:
             fmt = '%(asctime)s %(name)s %(levelname)s: %(message)s'
             handler.setFormatter(logging.Formatter(fmt))
-
+        if level != logging.DEBUG:
+            warnings.filterwarnings("ignore", category=InsecureRequestWarning)
         root.addHandler(handler)
     root.setLevel(level)
 

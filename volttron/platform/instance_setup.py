@@ -45,6 +45,7 @@ import time
 from configparser import ConfigParser
 from shutil import copy
 from urllib.parse import urlparse
+import logging
 
 from gevent import subprocess
 from gevent.subprocess import Popen
@@ -56,7 +57,7 @@ from volttron.platform import certs, is_rabbitmq_available
 from volttron.platform import jsonapi
 from volttron.platform.agent.known_identities import MASTER_WEB, PLATFORM_DRIVER, VOLTTRON_CENTRAL
 from volttron.platform.agent.utils import get_platform_instance_name, wait_for_volttron_startup, \
-    is_volttron_running, wait_for_volttron_shutdown
+    is_volttron_running, wait_for_volttron_shutdown, setup_logging
 from volttron.utils import get_hostname
 from volttron.utils.prompt import prompt_response, y, n, y_or_n
 from volttron.utils.rmq_config_params import RMQConfig
@@ -986,19 +987,11 @@ def main():
 
     args = parser.parse_args()
     verbose = args.verbose
-
-    import logging
-    import warnings
-    from urllib3.exceptions import InsecureRequestWarning
-
+    # Protect against configuration of base logger when not the "main entry point"
     if verbose:
-        logging.getLogger().setLevel(logging.DEBUG)
+        setup_logging(logging.DEBUG, True)
     else:
-        logging.getLogger().setLevel(logging.INFO)
-        # Hide the InsecureRequestWarning from urllib3
-        warnings.filterwarnings("ignore", category=InsecureRequestWarning)
-        # Is this always called only from command line, if so below is a more readable format for console
-        logging.getLogger().handlers[0].setFormatter(logging.Formatter('%(levelname)s: %(message)s'))
+        setup_logging(logging.INFO, True)
 
     prompt_vhome = True
     if args.vhome:
