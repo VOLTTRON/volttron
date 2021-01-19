@@ -519,7 +519,7 @@ def setup_logging(level=logging.DEBUG, console=False):
             handler.setFormatter(JsonFormatter())
         elif console:
             # Below format is more readable for console
-            logging.getLogger().handlers[0].setFormatter(logging.Formatter('%(levelname)s: %(message)s'))
+            handler.setFormatter(logging.Formatter('%(levelname)s: %(message)s'))
         else:
             fmt = '%(asctime)s %(name)s %(levelname)s: %(message)s'
             handler.setFormatter(logging.Formatter(fmt))
