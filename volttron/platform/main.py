@@ -86,13 +86,13 @@ from .vip.tracking import Tracker
 from .auth import AuthService, AuthFile, AuthEntry
 from .control import ControlService
 try:
-    from .web import MasterWebService
+    from .web import PlatformWebService
     HAS_WEB = True
 except ImportError:
     HAS_WEB = False
 from .store import ConfigStoreService
 from .agent import utils
-from .agent.known_identities import MASTER_WEB, CONFIGURATION_STORE, AUTH, CONTROL, CONTROL_CONNECTION, PLATFORM_HEALTH, \
+from .agent.known_identities import PLATFORM_WEB, CONFIGURATION_STORE, AUTH, CONTROL, CONTROL_CONNECTION, PLATFORM_HEALTH, \
     KEY_DISCOVERY, PROXY_ROUTER
 from .vip.agent.subsystems.pubsub import ProtectedPubSubTopics
 from .keystore import KeyStore, KnownHostsStore
@@ -1046,18 +1046,18 @@ def start_volttron_process(opts):
                 if opts.web_ssl_key is None or opts.web_ssl_cert is None or \
                         (not os.path.isfile(opts.web_ssl_key) and not os.path.isfile(opts.web_ssl_cert)):
                     # This is different than the master.web cert which is used for the agent to connect
-                    # to rmq server.  The master.web-server certificate will be used for the master web
+                    # to rmq server.  The master.web-server certificate will be used for the platform web
                     # services.
-                    base_webserver_name = MASTER_WEB + "-server"
+                    base_webserver_name = PLATFORM_WEB + "-server"
                     from volttron.platform.certs import Certs
                     certs = Certs()
                     certs.create_signed_cert_files(base_webserver_name, cert_type='server')
                     opts.web_ssl_key = certs.private_key_file(base_webserver_name)
                     opts.web_ssl_cert = certs.cert_file(base_webserver_name)
 
-            _log.info("Starting master web service")
-            services.append(MasterWebService(
-                serverkey=publickey, identity=MASTER_WEB,
+            _log.info("Starting platform web service")
+            services.append(PlatformWebService(
+                serverkey=publickey, identity=PLATFORM_WEB,
                 address=address,
                 bind_web_address=opts.bind_web_address,
                 volttron_central_address=opts.volttron_central_address,
@@ -1069,18 +1069,18 @@ def start_volttron_process(opts):
                 web_secret_key=opts.web_secret_key
             ))
 
-        ks_masterweb = KeyStore(KeyStore.get_agent_keystore_path(MASTER_WEB))
-        entry = AuthEntry(credentials=encode_key(decode_key(ks_masterweb.public)),
-                          user_id=MASTER_WEB,
+        ks_platformweb = KeyStore(KeyStore.get_agent_keystore_path(PLATFORM_WEB))
+        entry = AuthEntry(credentials=encode_key(decode_key(ks_platformweb.public)),
+                          user_id=PLATFORM_WEB,
                           capabilities=['allow_auth_modifications'],
                           comments='Automatically added by platform on start')
         AuthFile().add(entry, overwrite=True)
 
-        # # MASTER_WEB did not work on RMQ. Referred to agent as master
+        # # PLATFORM_WEB did not work on RMQ. Referred to agent as master
         # # Added this auth to allow RPC calls for credential authentication
         # # when using the RMQ messagebus.
-        # ks_masterweb = KeyStore(KeyStore.get_agent_keystore_path('master'))
-        # entry = AuthEntry(credentials=encode_key(decode_key(ks_masterweb.public)),
+        # ks_platformweb = KeyStore(KeyStore.get_agent_keystore_path('master'))
+        # entry = AuthEntry(credentials=encode_key(decode_key(ks_platformweb.public)),
         #                   user_id='master',
         #                   capabilities=['allow_auth_modifications'],
         #                   comments='Automatically added by platform on start')

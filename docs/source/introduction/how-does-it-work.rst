@@ -23,7 +23,7 @@ The platform comprises several components that allow agents to operate and conne
   by the :ref:`Agent Instantiation and Packaging <Agent-Instantiation-and-Packaging>` (AIP) component which launches
   agents in an agent execution environment.
 
-* The :ref:`Master Driver Agent <Master-Driver>` can be configured with a number of driver configurations and will spawn
+* The :ref:`Platform Driver Agent <Platform-Driver>` can be configured with a number of driver configurations and will spawn
   corresponding driver instances.  Each driver instance provides functions for collecting device data and setting values
   on the device.  These functions implement device protocol or remote communication endpoint interfaces.  Driver data
   is published to the message bus or if requested by an agent will be delivered in an RPC response.

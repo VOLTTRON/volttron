@@ -220,18 +220,18 @@ upstream servers on the downstream server and make the VOLTTRON exchange
             scripts/core/upgrade-listener
 
 
-   b. Install master driver, configure a fake device on the upstream server, and start volttron and master driver. The command ``vcfg --agent master_driver`` can install the master driver and setup a fake device.
+   b. Install platform driver, configure fake device on upstream server and start volttron and platform driver. ``vcfg --agent platform_drive
 
        .. code-block:: bash
 
            ./stop-volttron
-           vcfg --agent master_driver
+           vcfg --agent platform_driver
            ./start-volttron
-           vctl start --tag master_driver
+           vctl start --tag platform_driver
 
 
-   c. Verify that the listener agent in the downstream VOLTTRON instance can receive messages.
-      The downstream volttron instance's volttron.log should display device data scrapped by the master driver agent in the upstream volttron instance.
+   c. Verify that the listener agent in downstream VOLTTRON instance is able to receive the messages. 
+      The downstream volttron instance's volttron.log should display device data scrapped by platform driver agent in upstream volttron instance.
 
 6. Open ports and https service if needed. On Redhat based systems, ports used by RabbitMQ (defaults to 5671, 15671 for
    SSL, 5672 and 15672 otherwise) might not be open by default. Please
@@ -450,14 +450,14 @@ Please note that each instance should have a unique instance name.
 
    a. Start VOLTTRON on publisher and subscriber nodes.
 
-   b. On the publisher node, install and start a master driver agent that publishes messages related to a fake device.
+   b. On the publisher node, install and start a platform driver agent that publishes messages related to a fake device.
 
        .. code-block:: bash
 
            ./stop-volttron
-           vcfg --agent master_driver
+           vcfg --agent platform_driver
            ./start-volttron
-           vctl start --tag master_driver
+           vctl start --tag platform_driver
 
    c. On the subscriber node, run a listener agent which subscribes to messages from all platforms.
 
@@ -596,9 +596,9 @@ agent. For such a request-response behavior, shovels need to be created on both 
    .. code-block:: bash
 
        ./stop-volttron
-       vcfg --agent master_driver
+       vcfg --agent platform_driver
        ./start-volttron
-       vctl start --tag master_driver
+       vctl start --tag platform_driver
 
 4. Install DataMover agent on v1. Contents of the install script can look like below.
 

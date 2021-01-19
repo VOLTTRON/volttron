@@ -129,7 +129,7 @@ web_address = ""
 def agent(request, volttron_instance_module_web):
     test_agent = volttron_instance_module_web.build_agent()
 
-    # Configure a IEEE 2030.5 device in the Master Driver
+    # Configure a IEEE 2030.5 device in the Platform Driver
     test_agent.vip.rpc.call('config.store', 'manage_delete_store', 'platform.driver').get(timeout=10)
     test_agent.vip.rpc.call('config.store', 'manage_store', 'platform.driver',
                             'devices/{}'.format(DRIVER_NAME),
@@ -153,11 +153,11 @@ def agent(request, volttron_instance_module_web):
                             REGISTRY_CONFIG_STRING,
                             'csv').get(timeout=10)
 
-    # Install and start a MasterDriverAgent
-    md_id = volttron_instance_module_web.install_agent(agent_dir=get_services_core("MasterDriverAgent"),
+    # Install and start a PlatformDriverAgent
+    md_id = volttron_instance_module_web.install_agent(agent_dir=get_services_core("PlatformDriverAgent"),
                                                        config_file={},
                                                        start=True)
-    print('master driver agent id: ', md_id)
+    print('platform driver agent id: ', md_id)
 
     # Install and start a IEEE2030_5Agent
     IEEE2030_5_id = volttron_instance_module_web.install_agent(agent_dir=get_services_core("IEEE2030_5Agent"),

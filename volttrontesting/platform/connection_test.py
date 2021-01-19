@@ -1,6 +1,6 @@
 import gevent
 import pytest
-from volttron.platform.agent.known_identities import CONTROL, MASTER_WEB, AUTH, CONFIGURATION_STORE
+from volttron.platform.agent.known_identities import CONTROL, PLATFORM_WEB, AUTH, CONFIGURATION_STORE
 from volttron.platform.keystore import KeyStore
 from volttron.platform.vip.agent.connection import Connection
 from volttron.platform.vip.agent.utils import build_connection

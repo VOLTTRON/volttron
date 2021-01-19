@@ -20,7 +20,7 @@ def get_test_web_env(path, input_data: bytes = None, query_string='', url_scheme
     :param query_string: form or other data to be used as input to the environment.
     :param url_scheme: the scheme used to set the environment (http, https, ws, wss)
     :param method: REQUEST_METHOD used for this request (GET, POST, PUT etc)
-    :return: A dictionary to be passed to the app_routing function in the masterwebservice
+    :return: A dictionary to be passed to the app_routing function in the platformwebservice
     """
     if path is None:
         raise ValueError("Invalid path specified.  Cannot be None.")

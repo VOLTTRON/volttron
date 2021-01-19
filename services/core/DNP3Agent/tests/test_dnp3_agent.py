@@ -46,7 +46,7 @@ from volttron.platform import get_services_core, jsonapi
 from volttron.platform.agent.utils import strip_comments
 
 from dnp3.points import PointDefinitions
-from mesa_master_test import MesaMasterTest
+from mesa_platform_test import MesaMasterTest
 
 from pydnp3 import asiodnp3, asiopal, opendnp3, openpal
 
