@@ -1069,8 +1069,8 @@ def start_volttron_process(opts):
                 web_secret_key=opts.web_secret_key
             ))
 
-        ks_masterweb = KeyStore(KeyStore.get_agent_keystore_path(PLATFORM_WEB))
-        entry = AuthEntry(credentials=encode_key(decode_key(ks_masterweb.public)),
+        ks_platformweb = KeyStore(KeyStore.get_agent_keystore_path(PLATFORM_WEB))
+        entry = AuthEntry(credentials=encode_key(decode_key(ks_platformweb.public)),
                           user_id=PLATFORM_WEB,
                           capabilities=['allow_auth_modifications'],
                           comments='Automatically added by platform on start')
@@ -1079,8 +1079,8 @@ def start_volttron_process(opts):
         # # PLATFORM_WEB did not work on RMQ. Referred to agent as master
         # # Added this auth to allow RPC calls for credential authentication
         # # when using the RMQ messagebus.
-        # ks_masterweb = KeyStore(KeyStore.get_agent_keystore_path('master'))
-        # entry = AuthEntry(credentials=encode_key(decode_key(ks_masterweb.public)),
+        # ks_platformweb = KeyStore(KeyStore.get_agent_keystore_path('master'))
+        # entry = AuthEntry(credentials=encode_key(decode_key(ks_platformweb.public)),
         #                   user_id='master',
         #                   capabilities=['allow_auth_modifications'],
         #                   comments='Automatically added by platform on start')

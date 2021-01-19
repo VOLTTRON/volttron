@@ -603,7 +603,7 @@ class ActuatorAgent(Agent):
         self.schedule_publish_interval = schedule_publish_interval
         self.allow_no_lock_write = allow_no_lock_write
 
-        _log.debug("MasterDriver VIP IDENTITY: {}".format(self.driver_vip_identity))
+        _log.debug("PlatformDriver VIP IDENTITY: {}".format(self.driver_vip_identity))
         _log.debug("Schedule publish interval: {}".format(self.schedule_publish_interval))
 
         #Only restart the heartbeat if it changes.

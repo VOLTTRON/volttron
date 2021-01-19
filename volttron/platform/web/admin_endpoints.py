@@ -46,12 +46,12 @@ from volttron.platform.agent.known_identities import PLATFORM_WEB, AUTH
 try:
     from jinja2 import Environment, FileSystemLoader, select_autoescape, TemplateNotFound
 except ImportError:
-    logging.getLogger().warning("Missing jinja2 libaray in admin_endpoints.py")
+    logging.getLogger().warning("Missing jinja2 library in admin_endpoints.py")
 
 try:
     from passlib.hash import argon2
 except ImportError:
-    logging.getLogger().warning("Missing passlib libaray in admin_endpoints.py")
+    logging.getLogger().warning("Missing passlib library in admin_endpoints.py")
 
 from watchdog_gevent import Observer
 from volttron.platform.agent.web import Response
@@ -120,7 +120,7 @@ class AdminEndpoints(object):
 
     def get_routes(self):
         """
-        Returns a list of tuples with the routes for the adminstration endpoints
+        Returns a list of tuples with the routes for the administration endpoints
         available in it.
 
         :return:
@@ -139,7 +139,7 @@ class AdminEndpoints(object):
                 pass2 = decoded.get('password2')
 
                 if pass1 == pass2 and pass1 is not None:
-                    _log.debug("Setting master password")
+                    _log.debug("Setting administrator password")
                     self.add_user(username, pass1, groups=['admin'])
                     return Response('', status='302', headers={'Location': '/admin/login.html'})
 

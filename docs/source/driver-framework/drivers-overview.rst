@@ -58,9 +58,9 @@ The diagram features several entities that comprise the platform and its connect
 * Platform Driver Agent - This agent is installed by a user to facilitate communication with drivers. Drivers should not
   communicated with directly - the platform driver implements several features for communicating with drivers to ensure
   smooth operation and consistent driver behavior.
-* Actuator agent - This agent is installed by user to provide scheduling capability for controlling drivers. The master
-  driver does not include protections for race conditions, etc. It is always recommended to use the Actuator agent to
-  set values on a device.
+* Actuator agent - This agent is installed by user to provide scheduling capability for controlling drivers. The
+  Platform Driver does not include protections for race conditions, etc. It is always recommended to use the Actuator
+  agent to set values on a device.
 * Device Driver - Drivers are special purpose agents which provide an interface between the platform driver and devices
   such as Modbus, and BACnet devices. Drivers implement a specific set of features for protecting device communication
   ensuring uniform behaviors across different devices.
@@ -90,7 +90,7 @@ Connectivity of the platform follows the following paradigm:
   similarly to polling, but rather than an "all" publish, the data is returned via the Platform Driver to the user agent.
 * To set a point on a device, it is recommended to use an Actuator Agent. The user agent sends an RPC request to the
   Actuator to schedule time for the agent to control the device. During that scheduled time the user agent may send it
-  a set point request. If the schedule has been created, the actuator will then forward that request to the Master
+  a set point request. If the schedule has been created, the actuator will then forward that request to the Platform
   Driver, at which point the communication happens similarly to a "get_point" request.
 
 The general paradigm for the device-driver relationship as specified by the VOLTTRON driver framework is a 1-to-1

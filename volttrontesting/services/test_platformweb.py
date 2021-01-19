@@ -83,7 +83,7 @@ def get_server_response(env_fixture, ws):
     the environment <env_fixture> and a mocked start_response function.
 
     :param env_fixture: environment to run in
-    :param ws: MasterWebServer instance.
+    :param ws: PlatformWebServer instance.
     :return: tuple
     """
     mocked_start_response = mock.MagicMock()
@@ -107,9 +107,9 @@ def add_points_of_interest(ws: PlatformWebService, endpoints: dict):
     """
     Adds endpoints based upon type.
 
-    The three t ypes of
+    The three types of
 
-    :param ws: The masterwebservice object
+    :param ws: The platformwebservice object
     :param endpoints: A dictionary of endpoints
     """
     for k, v in endpoints.items():
@@ -259,7 +259,7 @@ def test_discovery(scheme):
             assert address == response.get('vip-address')
 
 
-# def test_masterweb_has_discovery():
+# def test_platformweb_has_discovery():
 #     web_secret = "my secret key"
 #
 #     def _construct_query_mock(core):

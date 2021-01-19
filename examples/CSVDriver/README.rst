@@ -12,7 +12,7 @@ interfaces directory, then configure the platform driver normally using the
 included csv_driver.config configuration file and csv_registers.csv registry
 configuration file (see devguides > walkthroughs > Driver-Creation-Walkthrough
 for a more in-depth explanation of the driver framework, including configuration
-, directory structure, etc.) To see csv driver publishes, start the master
+, directory structure, etc.) To see csv driver publishes, start the platform
 driver and listener agents.
 
 =====================

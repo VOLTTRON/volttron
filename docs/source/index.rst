@@ -1,4 +1,4 @@
-.. VOLTTRON documentation master file
+.. VOLTTRON documentation root file
 
 ==========================
 |VOLTTRON|  documentation!
