@@ -44,7 +44,6 @@ import calendar
 import errno
 import logging
 import warnings
-from urllib3.exceptions import InsecureRequestWarning
 import os
 
 import subprocess
@@ -524,6 +523,10 @@ def setup_logging(level=logging.DEBUG, console=False):
             fmt = '%(asctime)s %(name)s %(levelname)s: %(message)s'
             handler.setFormatter(logging.Formatter(fmt))
         if level != logging.DEBUG:
+            # import it here so that when urllib3 imports the requests package, ssl would already got
+            # monkey patched by gevent.
+            # and this warning is needed only when log level is not debug
+            from urllib3.exceptions import InsecureRequestWarning
             warnings.filterwarnings("ignore", category=InsecureRequestWarning)
         root.addHandler(handler)
     root.setLevel(level)
