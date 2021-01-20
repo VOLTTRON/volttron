@@ -570,33 +570,29 @@ def setup_rabbitmq_volttron(setup_type, verbose=False, prompt=False, instance_na
     :param prompt
     :raises RabbitMQSetupAlreadyError
     """
+    # TODO: we should ideally pass the rmq_conf_file here and use that
+    #   setup any new shovels, federation links etc and then update
+    #   the config in vhome. Else we will overwrite existing connection settings
+    #   when trying to create new ones
     if not instance_name:
         instance_name = get_platform_instance_name(prompt=True)
     # Store config this is checked at startup
     store_message_bus_config(message_bus='rmq', instance_name=instance_name)
 
     rmq_config = RMQConfig()
-    # if verbose:
-    #     _log.setLevel(logging.DEBUG)
-    #     _log.debug("verbose set to True")
-    #     _log.debug(get_home())
-    #     logging.getLogger("requests.packages.urllib3.connectionpool"
-    #                       "").setLevel(logging.DEBUG)
-    # else:
-    #     print("SETTING LOG LEVEL TO INFO")
-    #     _log.setLevel(logging.INFO)
-    #     logging.getLogger("requests.packages.urllib3.connectionpool"
-    #                       "").setLevel(logging.CRITICAL)
-
+    success = True
     if prompt:
         # ignore any existing rabbitmq_config.yml in vhome. Prompt user and
         # generate a new rabbitmq_config.yml
         try:
-            _create_rabbitmq_config(rmq_config, setup_type, verbose)
+            success = _create_rabbitmq_config(rmq_config, setup_type, verbose)
         except Exception as exc:
             _log.error(f"{exc}")
             return exc
-
+    if not success:
+        # something went wrong when creating rmq config
+        # do not create anything. return
+        return
     # Load either the newly created config or config passed
     try:
         rmq_config.load_rmq_config()
@@ -704,7 +700,8 @@ def _create_rabbitmq_config(rmq_config, setup_type, verbose=False):
     volttron home
     :param setup_type: type of rmq setup - single, federation, shovel or all
     """
-
+    success = True
+    # TODO - check if error cases(that are not exceptions) exit correctly for single, federation and all
     if setup_type == 'single' or setup_type == 'all':
         if os.path.exists(rmq_config.volttron_rmq_config):
             prompt = "rabbitmq_config.yml exists in {} Do you wish to " \
@@ -820,7 +817,8 @@ def _create_rabbitmq_config(rmq_config, setup_type, verbose=False):
         # if option was all then config_opts would be not null
         # if this was called with just setup_type = shovel, load existing
         # config so that we don't overwrite existing list
-        prompt_shovels(rmq_config.volttron_home, verbose)
+        success = prompt_shovels(rmq_config.volttron_home, verbose)
+    return success
 
 
 def is_file_readable(file_path):
@@ -1008,7 +1006,7 @@ def prompt_shovels(vhome, verbose=False):
             if not got_certs:
                 # we did not get certificates - neither existing, nor through csr process
                 # exit
-                return
+                return False
             prompt = prompt_response('\nDo you want shovels for '
                                      'PUBSUB communication? ',
                                      valid_answers=y_or_n,
@@ -1049,6 +1047,7 @@ def prompt_shovels(vhome, verbose=False):
     else:
         shovel_config['shovel'] = shovels
         write_to_config_file(shovel_config_file, shovel_config)
+        return True
 
 
 def _request_csr(shovel_user, remote_addr, verbose=False):
@@ -1066,6 +1065,7 @@ def _request_csr(shovel_user, remote_addr, verbose=False):
     success = False
     retry_attempt = 0
     max_retries = 12
+    denied = False
     if response is None:
         # Error /status is pending
         raise ConnectionError("Please check the connection to the remote instance")
@@ -1093,10 +1093,11 @@ def _request_csr(shovel_user, remote_addr, verbose=False):
                 else:
                     success = True
         if response[0] == 'DENIED':
+            denied = True
             _log.info("Request for signed certificate(CSR) has been denied by the remote instance administrator")
     else:
         success = True
-    if retry_attempt >= max_retries and not success:
+    if not denied and retry_attempt >= max_retries and not success:
         raise TimeoutError("Maximum retry attempts for CSR reached. "
                            "Please retry command once administrator of remote VOLTTRON instance is ready to approve"
                            " certificate signing request")
