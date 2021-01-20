@@ -673,7 +673,7 @@ class DebugMessage(ORMBase):
         self.frame9 = bytes(msg_elements[10]) if len(msg_elements) > 10 else ''
         self.method = ''
         self.params = ''
-        self.topic = self.frame7        # MasterDriverAgent device topics go in routed message's frame 7
+        self.topic = self.frame7        # PlatformDriverAgent device topics go in routed message's frame 7
         self.headers = ''
         self.message = ''
         self.message_value = ''

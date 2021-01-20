@@ -15,18 +15,18 @@ __version__ = "__version_string__"
 
 
 def __module_name__(config_path, **kwargs):
-    """Parses the Agent configuration and returns an instance of
+    """
+    Parses the Agent configuration and returns an instance of
     the agent created using that configuration.
 
     :param config_path: Path to a configuration file.
-
     :type config_path: str
     :returns: __class_name__
     :rtype: __class_name__
     """
     try:
         config = utils.load_config(config_path)
-    except StandardError:
+    except Exception:
         config = {}
 
     if not config:
@@ -35,9 +35,7 @@ def __module_name__(config_path, **kwargs):
     setting1 = int(config.get('setting1', 1))
     setting2 = config.get('setting2', "some/random/topic")
 
-    return __class_name__(setting1,
-                          setting2,
-                          **kwargs)
+    return __class_name__(setting1, setting2, **kwargs)
 
 
 class __class_name__(Agent):
@@ -45,8 +43,7 @@ class __class_name__(Agent):
     Document agent constructor here.
     """
 
-    def __init__(self, setting1=1, setting2="some/random/topic",
-                 **kwargs):
+    def __init__(self, setting1=1, setting2="some/random/topic", **kwargs):
         super(__class_name__, self).__init__(**kwargs)
         _log.debug("vip_identity: " + self.core.identity)
 
@@ -56,11 +53,10 @@ class __class_name__(Agent):
         self.default_config = {"setting1": setting1,
                                "setting2": setting2}
 
-
-        #Set a default configuration to ensure that self.configure is called immediately to setup
-        #the agent.
+        # Set a default configuration to ensure that self.configure is called immediately to setup
+        # the agent.
         self.vip.config.set_default("config", self.default_config)
-        #Hook self.configure up to changes to the configuration file "config".
+        # Hook self.configure up to changes to the configuration file "config".
         self.vip.config.subscribe(self.configure, actions=["NEW", "UPDATE"], pattern="config")
 
     def configure(self, config_name, action, contents):
@@ -88,15 +84,20 @@ class __class_name__(Agent):
         self._create_subscriptions(self.setting2)
 
     def _create_subscriptions(self, topic):
-        #Unsubscribe from everything.
+        """
+        Unsubscribe from all pub/sub topics and create a subscription to a topic in the configuration which triggers
+        the _handle_publish callback
+        """
         self.vip.pubsub.unsubscribe("pubsub", None, None)
 
         self.vip.pubsub.subscribe(peer='pubsub',
                                   prefix=topic,
                                   callback=self._handle_publish)
 
-    def _handle_publish(self, peer, sender, bus, topic, headers,
-                                message):
+    def _handle_publish(self, peer, sender, bus, topic, headers, message):
+        """
+        Callback triggered by the subscription setup using the topic from the agent's config file
+        """
         pass
 
     @Core.receiver("onstart")
@@ -109,11 +110,12 @@ class __class_name__(Agent):
 
         Usually not needed if using the configuration store.
         """
-        #Example publish to pubsub
-        #self.vip.pubsub.publish('pubsub', "some/random/topic", message="HI!")
+        # Example publish to pubsub
+        self.vip.pubsub.publish('pubsub', "some/random/topic", message="HI!")
 
-        #Exmaple RPC call
-        #self.vip.rpc.call("some_agent", "some_method", arg1, arg2)
+        # Example RPC call
+        # self.vip.rpc.call("some_agent", "some_method", arg1, arg2)
+        pass
 
     @Core.receiver("onstop")
     def onstop(self, sender, **kwargs):
@@ -128,8 +130,10 @@ class __class_name__(Agent):
         """
         RPC method
 
-        May be called from another agent via self.core.rpc.call """
+        May be called from another agent via self.core.rpc.call
+        """
         return self.setting1 + arg1 - arg2
+
 
 def main():
     """Main method called to start the agent."""

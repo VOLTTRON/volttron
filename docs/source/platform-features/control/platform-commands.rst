@@ -325,7 +325,7 @@ vcfg Optional Arguments
 
      Agents available to configure:
         listener
-        master_driver
+        platform_driver
         platform_historian
         vc
         vcp

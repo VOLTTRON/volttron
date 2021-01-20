@@ -514,7 +514,7 @@ class BACnetProxyAgent(Agent):
 
         def forward_cov_callback(point_name, apdu, result_dict):
             """
-            Asynchronous callback to forward cov values to the master driver
+            Asynchronous callback to forward cov values to the platform driver
             for gevent
             """
             async_call.send(None, self.forward_cov, point_name, apdu, result_dict)

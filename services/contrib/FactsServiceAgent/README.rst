@@ -25,7 +25,7 @@ Recommended Setup
 -----------------
 - ``BACnet Proxy`` Agent
 - ``Facts Service`` Agent
-- ``Master Driver`` Agent
+- ``Platform Driver`` Agent
 
 **Note**: If you're planning on using only the Facts Service agent, it is recommended to disable the ``Platform`` agent since communication with a Volttron Central instance isn't required, hence saving resources.
 

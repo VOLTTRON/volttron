@@ -9,7 +9,7 @@ The C Agent uses the `ctypes` module to load a shared object into memory so its 
 There are two versions of the C Agent:
 
 * A standard agent that can be installed with the agent installation process
-* A driver which can can be controlled using the Master Driver Agent
+* A driver which can can be controlled using the Platform Driver Agent
 
 
 Building the Shared Object
@@ -36,12 +36,12 @@ script:
 
     python scripts/install-agent.py -s examples/CAgent
 
-The other is a driver interface for the Master Driver.  To use the C driver, the driver code file must be moved into
-the Master Driver's `interfaces` directory:
+The other is a driver interface for the Platform Driver.  To use the C driver, the driver code file must be moved into
+the Platform Driver's `interfaces` directory:
 
     ::
 
-        examples/CAgent/c_agent/driver/cdriver -> services/core/MasterDriverAgent/master_driver/interfaces
+        examples/CAgent/c_agent/driver/cdriver -> services/core/PlatformDriverAgent/platform_driver/interfaces
 
 
 The C Driver configuration tells the interface where to find the shared object.  An example is available in the C

@@ -50,7 +50,7 @@ Here is a sample DNP3 driver configuration file:
     }
 
 A sample DNP3 driver configuration file can be found in the VOLTTRON repository
-in ``services/core/MasterDriverAgent/example_configurations/test_dnp3.config``.
+in ``services/core/PlatformDriverAgent/example_configurations/test_dnp3.config``.
 
 
 DNP3 Registry Configuration File
@@ -86,4 +86,4 @@ Point definitions in the DNP3 driver's registry should look something like this:
     DCHD.RmpTms,41,67,1.0,NA,FALSE
 
 A sample DNP3 driver registry configuration file is available
-in ``services/core/MasterDriverAgent/example_configurations/dnp3.csv``.
+in ``services/core/PlatformDriverAgent/example_configurations/dnp3.csv``.
