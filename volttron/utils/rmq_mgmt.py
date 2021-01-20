@@ -982,7 +982,7 @@ class RabbitMQMgmt(object):
 
         return param
 
-    def build_shovel_connection(self, rmq_user, host, port, vhost, is_ssl, certs_dict=None):
+    def build_remote_plugin_connection(self, rmq_user, host, port, vhost, is_ssl, certs_dict=None):
         """
         Check if RabbitMQ user and certs exists for this agent, if not
         create a new one. Add access control/permissions if necessary.
