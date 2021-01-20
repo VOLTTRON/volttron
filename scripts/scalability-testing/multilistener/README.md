@@ -2,7 +2,7 @@
 
 This python script can be used to check the performance of PubSub communication for either ZMQ/RMQ message bus.
 It spins up multiple agents with each agent running as separate process and each listening on 'devices' topic.
-So it needs to run along with master driver with different scalability test confguration.
+So it needs to run along with platform driver with different scalability test confguration.
 
 Steps:
 
@@ -23,14 +23,14 @@ Steps:
     enabled [True]:
     ```
 
-2. Build fake device configuration for the master driver.
+2. Build fake device configuration for the platform driver.
     ```sh
     cd scripts/scalability-testing/
     python config_builder.py --count=1500 --publish-only-depth-all --scalability-test fake fake18.csv null
     ```
 This will create configuration files in configs/ directory to produce fake data from 1500 devices with 18 points each.
 
-3. Set "driver_scrape_interval" parameter in configs/config to '0.0' so that master driver scrapes all the devices together with zero staggered scrape interval.
+3. Set "driver_scrape_interval" parameter in configs/config to '0.0' so that platform driver scrapes all the devices together with zero staggered scrape interval.
 
 {
     "scalability_test_iterations": 5,
@@ -44,7 +44,7 @@ This will create configuration files in configs/ directory to produce fake data 
 4. Put the configurations into the configuration store with the following command.
 
     ```sh
-    python ../install_master_driver_configs.py configs
+    python ../install_platform_driver_configs.py configs
     ```
 
 5. In a new terminal, activate the VOLTTRON environment and run the multi-listener script.
@@ -57,15 +57,15 @@ This will create configuration files in configs/ directory to produce fake data 
     This starts 10 listeners, each listening for 1500 device topics. By default, agents use 'zmq' message bus. But you
     can the message bus by changing message bus option to '-m rmq'.
 
-5. To start the test launch the Master Driver Agent. A shortcut is to launch the Master Driver is found in the scripts directory
+5. To start the test launch the Platform Driver Agent. A shortcut is to launch the Platform Driver is found in the scripts directory
 
     ```sh
     cd ..
     ./launch_drivers.sh
     ```
 
-This will launch the master driver using the configurations created earlier. The MasterDriver will publish 5 sets of 1500 device "all" publishes and time the results. After 5 publishes have finished the master driver will print the average time and quit. After 5 set of publishes, 'multi_listener_agent.py' script will also finish execution. It finally prints the mean time taken to receive each set of publishes.
-By default, the master driver runs on 'zmq' message bus. You can change the default setting, adding below environment
+This will launch the platform driver using the configurations created earlier. The MasterDriver will publish 5 sets of 1500 device "all" publishes and time the results. After 5 publishes have finished the platform driver will print the average time and quit. After 5 set of publishes, 'multi_listener_agent.py' script will also finish execution. It finally prints the mean time taken to receive each set of publishes.
+By default, the platform driver runs on 'zmq' message bus. You can change the default setting, adding below environment
 flag inside 'launch_drivers.sh' script.
 
     ```sh
@@ -114,7 +114,7 @@ jq --arg dname "devices/fake$i" 'del(.[$dname])'
 ```
 
 Once the configuration store is configured to your needs, you run `raw_output_multi_listener_agent.py` in the same way as `multi_listener_agent.py` above.
-You can run it with `--help` to see a description of the arguments, or as an example, for the case where you're interested in a single listener and have 10 devices installed in the master driver, you could run the following (with your volttron virtual environment for a ZMQ platform activated):
+You can run it with `--help` to see a description of the arguments, or as an example, for the case where you're interested in a single listener and have 10 devices installed in the platform driver, you could run the following (with your volttron virtual environment for a ZMQ platform activated):
 ```sh
 python raw_output_multi_listener_agent.py -l 1 -d 10 -f `pwd`/1listener_10device_zmq.out -m zmq
 ```

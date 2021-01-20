@@ -38,6 +38,6 @@ methods that test and validate various types of data and behavior.
 **MesaTestAgent** is a VOLTTRON agent that interacts with MesaAgent, sending
 RPC calls and subscribing to MesaAgent publication of data.
 
-**mesa_master_cmd.py** is a standalone command-line utility (built on the Python
+**mesa_platform_cmd.py** is a standalone command-line utility (built on the Python
 Cmd library) that sends point and function values from the master to 
 the (MesaAgent) DNP3 outstation.

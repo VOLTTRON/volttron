@@ -103,9 +103,9 @@ and localhost is volttron-pc.
         Would you like to install a platform historian? [N]: y
         Configuring /home/user/volttron/services/core/SQLHistorian.
         Should the agent autostart? [N]: y
-        Would you like to install a master driver? [N]: y
-        Configuring /home/user/volttron/services/core/MasterDriverAgent.
-        Would you like to install a fake device on the master driver? [N]: y
+        Would you like to install a platform driver? [N]: y
+        Configuring /home/user/volttron/services/core/PlatformDriverAgent.
+        Would you like to install a fake device on the platform driver? [N]: y
         Should the agent autostart? [N]: y
         Would you like to install a listener agent? [N]: y
         Configuring examples/ListenerAgent.
@@ -169,7 +169,7 @@ Please ensure the web-address of the volttron central is configured correctly.
          Would you like to install a platform historian? [N]: y
          Configuring /home/user/volttron/services/core/SQLHistorian.
          Should the agent autostart? [N]: y
-         Would you like to install a master driver? [N]: 
+         Would you like to install a platform driver? [N]:
          Would you like to install a listener agent? [N]: 
          Finished configuration!
 

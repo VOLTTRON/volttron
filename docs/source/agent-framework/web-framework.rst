@@ -4,7 +4,7 @@
 Web Framework
 =============
 
-This document describes the interaction between web enabled agents and the Master Web Service agent.
+This document describes the interaction between web enabled agents and the Platform Web Service agent.
 
 The web framework enables agent developers to expose JSON, static, and websocket endpoints.
 

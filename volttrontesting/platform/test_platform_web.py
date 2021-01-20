@@ -2,7 +2,7 @@ import logging
 
 import gevent
 
-from volttron.platform.agent.known_identities import MASTER_WEB
+from volttron.platform.agent.known_identities import PLATFORM_WEB
 from volttron.platform.vip.agent import Agent
 from volttrontesting.utils.platformwrapper import start_wrapper_platform
 from volttron.utils import get_hostname
@@ -257,7 +257,7 @@ def test_register_path_route(web_instance):
 
     webdir, index_html = _build_web_dir(vi.volttron_home)
     agent = vi.build_agent(use_ipc=True)
-    agent.vip.rpc.call(MASTER_WEB,
+    agent.vip.rpc.call(PLATFORM_WEB,
                        'register_path_route', '', webdir).get(timeout=5)
     response = requests.get(vi.bind_web_address+"/index.html")
     assert index_html == response.text

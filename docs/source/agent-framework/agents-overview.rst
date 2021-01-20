@@ -12,7 +12,7 @@ framework inherit a number of capabilities, including message bus connectivity a
 Agents deployed on VOLTTRON can perform one or more roles which can be broadly classified into the following groups:
 
 -  Platform Agents: Agents which are part of the platform and provide a service to other agents. Examples are the
-   Actuator and Master Driver agents which serve as interfaces between control agents and drivers.
+   Actuator and Platform Driver agents which serve as interfaces between control agents and drivers.
 -  Control Agents: These agents implement algorithms to control the devices of interest and interact with other
    resources to achieve some goal.
 -  Service Agents: These agents perform various data collection or platform management services.  Agents in this

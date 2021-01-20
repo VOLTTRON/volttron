@@ -56,10 +56,10 @@ Core Services
    once without issue.
 -  ModBUS opens up a TCP connection for each communication with a device
    and then closes it when finished. This has the potential to hit the
-   limit for open file descriptors available to the master driver
+   limit for open file descriptors available to the platform driver
    process. (Before, each driver would run in a separate process, but
    that quickly uses up sockets available to the platform.) To protect
-   from this the master driver process raises the total allowed open
+   from this the platform driver process raises the total allowed open
    sockets to the hard limit. The number of concurrently open sockets is
    throttled at 80% of the max sockets. On most Linux systems this is
    about 3200. Once that limit is hit additional device communications
@@ -109,7 +109,7 @@ platform (and how does it scale with the hardware)?
    developer-mode? (Option to turn off encryption, no longer available)
 
 -  | Regulation Agent
-   | Every 10 minutes there is an action the master node determines.
+   | Every 10 minutes there is an action the VOLTTRON Central node determines.
      Duty cycle cannot be faster than that but is set to 2 seconds for
      simulation.
    | Some clients miss duty cycle signal

@@ -29,10 +29,10 @@ Eight VOLTTRON agents work together to run this simulation:
    while the ReferenceApp is managing the clock), the SimulationClockAgent runs the simulation
    until the agent is stopped. If no clock-speed multiplier has been provided, the simulation
    clock runs at normal wallclock speed.
-3. **SimulationDriverAgent.** Like MasterDriverAgent, this agent is a front-end manager for
+3. **SimulationDriverAgent.** Like PlatformDriverAgent, this agent is a front-end manager for
    device drivers. It handles get_point/set_point requests from other agents, and it
    periodically "scrapes" and publishes each driver's points. If a device driver has been
-   built to run under MasterDriverAgent, with a few minor modifications (detailed below)
+   built to run under PlatformDriverAgent, with a few minor modifications (detailed below)
    it can be adapted to run under SimulationDriverAgent.
 4. **ActuatorAgent.** This agent manages write access to device drivers. Another agent
    may request a scheduled time period, called a Task, during which it controls a device.

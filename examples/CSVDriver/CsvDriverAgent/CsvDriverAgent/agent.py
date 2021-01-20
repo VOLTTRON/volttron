@@ -97,13 +97,13 @@ class Csvdriveragent(Agent):
     def _handle_publish(self, peer, sender, bus, topic, headers, message):
         """
         When we recieve an update from our all publish subscription, log something so we can see that we are
-        successfully scraping CSV points with the Master Driver
+        successfully scraping CSV points with the Platform Driver
         :param peer: unused
         :param sender: unused
         :param bus: unused
         :param topic: unused
         :param headers: unused
-        :param message: "All" messaged published by the Master Driver for the CSV Driver containing values for all
+        :param message: "All" messaged published by the Platform Driver for the CSV Driver containing values for all
         registers on the device
         """
         # Just write something to the logs so that we can see our success
