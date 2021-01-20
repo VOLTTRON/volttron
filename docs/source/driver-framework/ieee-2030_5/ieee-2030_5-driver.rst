@@ -37,7 +37,7 @@ Here is a sample IEEE 2030.5 device configuration file:
     }
 
 A sample IEEE 2030.5 driver configuration file can be found in the VOLTTRON repository
-in ``services/core/MasterDriverAgent/example_configurations/test_ieee2030_5_1.config``.
+in ``services/core/PlatformDriverAgent/example_configurations/test_ieee2030_5_1.config``.
 
 
 Registry Configuration
@@ -46,7 +46,7 @@ Registry Configuration
 For a description of IEEE 2030.5 registry values, see :ref:`IEEE-2030_5-Agent`.
 
 A sample IEEE 2030.5 registry configuration file can be found in the VOLTTRON repository
-in ``services/core/MasterDriverAgent/example_configurations/ieee2030_5.csv``.
+in ``services/core/PlatformDriverAgent/example_configurations/ieee2030_5.csv``.
 
 View the :ref:`IEEE 2030.5 agent specification document <IEEE-2030_5-Specification>` to learn more about IEEE 2030.5 and
 the IEEE 2030.5 agent and driver.

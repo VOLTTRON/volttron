@@ -1,9 +1,9 @@
 {
-    #This configuration for the master driver is now obsolete.
+    #This configuration for the platform driver is now obsolete.
     #It is included for historical purposes.
     #This file (after paths are fixed for your particular environment) can be automatically
-    #converted and uploaded with scripts/update_master_driver_config.py
-    "agentid": "master_driver",
+    #converted and uploaded with scripts/update_platform_driver_config.py
+    "agentid": "platform_driver",
     "driver_config_list": [
     					   "/home/volttron/volttron/examples/configurations/drivers/obsolete/bacnet1.config",
     					   "/home/volttron/volttron/examples/configurations/drivers/obsolete/bacnet2.config",

@@ -202,7 +202,7 @@ function loadChart(panelItem, emitChange, authorization) {
                     var platform = platformsPanelItemsStore.getItem(platformPath);
 
                     message = "Unable to load chart: No data was retrieved for " + topic + ". Check for proper configuration " +
-                        " of any forwarder, master driver, and platform agents on platform '" + platform[uuid].name + "'.";
+                        " of any forwarder, platform driver, and platform agents on platform '" + platform[uuid].name + "'.";
                     orientation = "left";
                     highlight = topic;                        
                 }
