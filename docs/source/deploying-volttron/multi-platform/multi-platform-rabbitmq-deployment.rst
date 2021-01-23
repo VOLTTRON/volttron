@@ -125,16 +125,13 @@ For multi-platform communication over federation, we need the connecting instanc
 .. image:: files/multiplatform_ssl.png
 
 Suppose there are two virtual machines (VOLTTRON1 and VOLTTRON2) running single instances of RabbitMQ; VOLTTRON1 and VOLTTRON2
-want to talk to each other via the federation or shovel plugins.  For VOLTTRON1 to talk to VOLTTRON2,
-VOLTTRON1's root certificate must be appended to VOLTTRON2's trusted CA certificate. Thus when VOLTTRON1 presents its
-root certificate to VOLTTRON2 during connection, VOLTTRON2's RabbitMQ server can trust the connection. For VOLTTRON2 to talk to VOLTTRON1, the
-same idea applies. VOLTTRON2's root CA must be appended to VOLTTRON1's root certificate.  When VOLTTRON2 presents its root certificate during connection,
-VOLTTRON1 will know it's safe to talk to VOLTTRON2.
+want to talk to each other via the federation or shovel plugins. For shovel/federation to have authenticated connection to the
+remote instance, it needs to have it's public certificate signed by the remote instance's CA. So as part of the shovel
+or federation creation steps, a certificate signing request is made to the remote instance. The admin of the remote instance
+should be ready to accept/reject such a request through VOLTTRON's admin web interface. To facilitate this process, the
+VOLTTRON platform exposes a web-based server API for requesting, listing, approving, and denying certificate requests. For
+more detailed description, refer to :ref:`Agent communication to Remote RabbitMQ instance <Agent-Communication-to-Remote-RabbitMQAfter the CSR request is accepted, an authenticated shovel/federation connection can be established.
 
-Agents trying to connect to a remote instance directly need to have a public certificate signed by the remote instance for
-authenticated SSL-based connection.  To facilitate this process, the VOLTTRON platform exposes a web-based server API
-for requesting, listing, approving, and denying certificate requests.  For more detailed description, refer to
-:ref:`Agent communication to Remote RabbitMQ instance <Agent-Communication-to-Remote-RabbitMQ>`
 
 Installation Steps
 ------------------
@@ -142,38 +139,7 @@ Installation Steps
 1. Setup two VOLTTRON instances using the instructions at :ref:`platform installation steps for RMQ <RabbitMQ-Install>`.
 **Please note that each instance should have a unique instance name and should be running on a machine/VM that has a unique host name.**
 
-2. In a multi-platform setup that needs each platform to communicate with each other using RabbitMQ over SSL,
-each VOLTTRON instance should should trust the ROOT CA of the other instance (RabbitMQ root ca). To achieve this, do the following:
-
-   a. Transfer (scp/sftp/similar) voltttron_home/certificates/certs/<instance_name>-root-ca.crt to a temporary
-      location on the other volttron instance machine. For example, if you have two instances called v1 and v2,
-      use scp to copy and transfer v1's 'v1-root-ca.crt' to v2 and v2's 'v2-root-ca.crt' to v1.
-
-       Note: If using virtual machines (VM) to scp files between VM's, openssh should be installed and running.
-
-   b. Append the contents of the transferred root ca to the instance's trusted-cas.crt file. Do this on both the instances. Now both
-      the instances <instance_name>-trusted-cas.crt will have two certificates.
-
-      For example:
-
-      On v1:
-      cat /tmp/v2-root-ca.crt >> VOLTTRON_HOME/certificates/certs/v1-trusted-cas.crt
-
-      On v2:
-      cat /tmp/v1-root-ca.crt >> VOLTTRON_HOME/certificates/certs/v2-trusted-cas.crt
-
-3. `Note: This step is required only when you update the root certificate and not
-required when you add a new shovel/federation between the same hosts.`
-Stop volttron, stop rabbitmq server, and start volttron on both the
-instances:
-
-.. code-block:: bash
-
-    ./stop-volttron
-    ./stop-rabbitmq
-    ./start-volttron
-
-4. Identify upstream servers (publisher nodes) and downstream servers
+2. Identify upstream servers (publisher nodes) and downstream servers
 (collector nodes). To create a RabbitMQ federation, we have to configure
 upstream servers on the downstream server and make the VOLTTRON exchange
 "federated".
@@ -192,13 +158,19 @@ upstream servers on the downstream server and make the VOLTTRON exchange
 
         If no config file is provided, the script will prompt for
         hostname (or IP address), port, and vhost of each upstream node you
-        would like to add. Hostname provided should match the hostname in the
-        SSL certificate of the upstream server. For bi-directional data flow,
+        would like to add and certificates for connecting to upstream server. For bi-directional data flow,
         we will have to run the same script on both the nodes.
 
+    b. If no config file is provided and certificates for connecting to upstream server have to be generated afresh, then the upstream server should be web enabled and admin should be ready to accept/reject incoming requests. Please refer to :ref:`Multiple Platform Multiple Bus connection < Multi-Platform-Multi-Bus>` on how to enable web feature and accept/reject incoming authentication requests. Below image shows steps to follow to create a federation link from downstream instance "volttron1" to upstream instance "volttron2".
+        On downstream node,
+
+        On subscriber node, Login to "https://volttron2:8443/index.html" in a web browser. You will see incoming CSR request from "volttron1" instance.
+
+        Accept the incoming CSR request from "volttron1" instance.
+
     b.  Create a user in the upstream server (publisher) and provide it access to the virtual host of the upstream RabbitMQ server.
-        The username should be set to the instance name of the downstream server; it should take the form of <instance name>-admin.
-        For example, if the downstream server name is "volttron2", then the instance name would be "volttron2-admin".
+        The username should take the form of <instance name of local><instance name of downstream>.federation.
+        For example, if the downstream server name is "volttron1", and instance of local instance is "volttron2" then the instance name would be "volttron2.volttron1.federation".
         Run the below command in the upstream server
 
         .. code-block:: bash
@@ -212,15 +184,12 @@ upstream servers on the downstream server and make the VOLTTRON exchange
 
    a. On the downstream server run a listener agent which subscribes to messages from all platforms
 
-     - Open the file: examples/ListenerAgent/listener/agent.py. Search for ``@PubSub.subscribe('pubsub', '')`` and replace that line with ``@PubSub.subscribe('pubsub', 'devices', all_platforms=True)``
-     - upgrade the listener
+       .. code-block:: bash
 
-         .. code-block:: bash
-
-            scripts/core/upgrade-listener
+          scripts/core/upgrade-listener
 
 
-   b. Install platform driver, configure fake device on upstream server and start volttron and platform driver. ``vcfg --agent platform_drive
+   b. Install platform driver, configure fake device on upstream server and start volttron and platform driver.
 
        .. code-block:: bash
 
@@ -260,13 +229,22 @@ upstream servers on the downstream server and make the VOLTTRON exchange
 
            vctl rabbitmq list-federation-parameters
            NAME                         URI
-           upstream-volttron2-rabbit-2  amqps://rabbit-2:5671/volttron2?cacertfile=/home/nidd494/.volttron1/certificates/certs/volttron1-root-ca.crt&certfile=/home/nidd494/.volttron1/certificates/certs/volttron1-admin.crt&keyfile=/home/nidd494/.volttron1/certificates/private/volttron1-admin.pem&verify=verify_peer&fail_if_no_peer_cert=true&auth_mechanism=external&server_name_indication=rabbit-2
+           upstream-volttron2-volttron amqps://volttron2:5671/volttron?cacertfile=/home/volttron/vhome/test_fed/certificates/federation/volttron2_ca.crt&certfile=/home/volttron/vhome/test_fed/certificates/federation/volttron2.volttron1.federation.crt&keyfile=/home/volttron/vhome/test_fed/certificates/private/volttron1.federation.pem&verify=verify_peer&fail_if_no_peer_cert=true&auth_mechanism=external&server_name_indication=volttron2
+
 
      Copy the upstream link name and run the below command to remove it.
 
        .. code-block:: bash
 
-         vctl rabbitmq remove-federation-parameters upstream-volttron2-rabbit-2
+         vctl rabbitmq remove-federation-parameters upstream-volttron2-volttron
+
+.. note::
+
+    These commands only remove the federation parameter from RabbitMQ and certificate entries from rabbitmq_federation_config.yml on the publisher node.
+    `It does not remove the actual certificates.` If you need to rerun the federation command again for the same setup and need to create fresh certificates, then you will
+    need to manually remove public and private certificates. Private certificates will be in
+    $VOLTTRON_HOME/certificates/private. Public certificates will be in two directories:
+    $VOLTTRON_HOME/certificates/federation and $VOLTTRON_HOME/certificates/certs.
 
 
 
