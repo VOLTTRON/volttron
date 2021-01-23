@@ -758,19 +758,25 @@ class RabbitMQMgmt(object):
         :param vhost: virtual host
         :return:
         """
+        vhome = get_home()
         if component == 'shovel':
-            vhome = get_home()
-            shovel_config_file = os.path.join(vhome, 'rabbitmq_shovel_config.yml')
-            shovel_config = read_config_file(shovel_config_file)
-            print("Removing certificate paths from the shovel config file. Please remove remote certificates manually "
-                  "from the VOLTTRON_HOME folder if needed")
+            config_file = os.path.join(vhome, 'rabbitmq_shovel_config.yml')
+            key = 'shovel'
+        else:
+            config_file = os.path.join(vhome, 'rabbitmq_federation_config.yml')
+            key = 'federation-upstream'
+        config = read_config_file(config_file)
+        print("Removing certificate paths from the shovel config file. Please remove remote certificates manually "
+              "from the VOLTTRON_HOME folder if needed")
 
-            names = parameter_name.split("-")
-            try:
-                del shovel_config['shovel'][names[1]]['certificates']
-                write_to_config_file(shovel_config_file, shovel_config)
-            except (KeyError, IndexError) as e:
-                pass
+        names = parameter_name.split("-")
+
+        try:
+            del config[key][names[1]]['certificates']
+            write_to_config_file(config_file, config)
+        except (KeyError, IndexError) as e:
+            print(f"names:{e}")
+            pass
         self.delete_parameter(component, parameter_name, vhost,
                               ssl_auth=self.rmq_config.is_ssl)
 
