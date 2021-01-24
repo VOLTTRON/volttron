@@ -39,12 +39,25 @@ Path: `$VOLTTRON_HOME/rabbitmq_federation_config.yml`
 
     # Mandatory parameters for federation setup
     federation-upstream:
-      rabbit-4:
+      volttron4: # hostname of upstream server
         port: '5671'
         virtual-host: volttron4
-      rabbit-5:
+        certificates:
+            csr: true
+            private_key: "path to private cert" # For example, /home/volttron/vhome/test_fed/certificates/private/volttron1.federation.pem
+            public_cert: "path to public cert" # For example, /home/volttron/vhome/test_fed/certificates/federation/volttron2.volttron1.federation.crt
+            remote_ca: "path to CA cert" # For example, /home/volttron/vhome/test_fed/certificates/federation/volttron2_ca.crt
+        federation-user: volttron4.federation #<local instance name>.federation
+      volttron5: # hostname of upstream server
         port: '5671'
         virtual-host: volttron5
+        certificates:
+            csr: true
+            private_key: "path to private cert"
+            public_cert: "path to public cert"
+            remote_ca: "path to CA cert"
+        federation-user: volttron5.federation #<local instance name>.federation
+
 
 To setup federation on the VOLTTRON instance, run the following command on the downstream server:
 
@@ -149,7 +162,7 @@ upstream servers on the downstream server and make the VOLTTRON exchange
         .. code-block:: bash
 
             vcfg --rabbitmq federation [optional path to rabbitmq_federation_config.yml
-            containing the details of the upstream hostname, port and vhost.
+            containing the details of the upstream hostname, port and vhost.]
 
 
         Example configuration for federation is available
@@ -161,14 +174,21 @@ upstream servers on the downstream server and make the VOLTTRON exchange
         would like to add and certificates for connecting to upstream server. For bi-directional data flow,
         we will have to run the same script on both the nodes.
 
-    b. If no config file is provided and certificates for connecting to upstream server have to be generated afresh, then the upstream server should be web enabled and admin should be ready to accept/reject incoming requests. Please refer to :ref:`Multiple Platform Multiple Bus connection < Multi-Platform-Multi-Bus>` on how to enable web feature and accept/reject incoming authentication requests. Below image shows steps to follow to create a federation link from downstream instance "volttron1" to upstream instance "volttron2".
-        On downstream node,
+    b.  If no config file is provided and certificates for connecting to upstream server have to be generated afresh, then the upstream server should be web enabled and admin should be ready to accept/reject incoming requests. Please refer to :ref:`Multiple Platform Multiple Bus connection <Multi-Platform-Multi-Bus>` on how to enable web feature and accept/reject incoming authentication requests. Below image shows steps to follow to create a federation link from downstream instance "volttron1" to upstream instance "volttron2".
 
-        On subscriber node, Login to "https://volttron2:8443/index.html" in a web browser. You will see incoming CSR request from "volttron1" instance.
+        On downstream server (collector node),
+
+        .. image:: files/cmd_line_federation.png
+
+        On upstream server (publisher node), Login to "https://volttron2:8443/index.html" in a web browser. You will see incoming CSR request from "volttron1" instance.
+
+        .. image:: files/admin_request_federation.png
 
         Accept the incoming CSR request from "volttron1" instance.
 
-    b.  Create a user in the upstream server (publisher) and provide it access to the virtual host of the upstream RabbitMQ server.
+        .. image:: files/csr_accepted_federation.png
+
+    c.  Create a user in the upstream server (publisher) and provide it access to the virtual host of the upstream RabbitMQ server.
         The username should take the form of <instance name of local><instance name of downstream>.federation.
         For example, if the downstream server name is "volttron1", and instance of local instance is "volttron2" then the instance name would be "volttron2.volttron1.federation".
         Run the below command in the upstream server
