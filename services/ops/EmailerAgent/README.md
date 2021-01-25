@@ -2,16 +2,18 @@ Emailer
 =======
 
 The Emailer agent allows an instance of the VOLTTRON platform to send
-email.  When used in combination with the AlertAgent agent alerts from
+email.  When used in combination with the Alert agent alerts from
 unpublished configured devices will automatically be sent.  In addition,
 agents are able to send emails directly through the pubsub interface.
 
 Agents needing to send an email through the instance can do so by
-sending the following header and message to the "emailer" topic. The
-Emailer agent monitors the 'platform/send\_email' topic. The following 
+sending the following header and message to the "emailer" topic.  The
+Emailer agent monitors the "platform_send_email" topic.  The following 
 is the expected payload for the message body and the optional header.
 
-Optional Headers \~\~\~\~\~\~\~\~\~\~\~\~\~\~\~
+
+Optional Headers
+----------------
 
 Emails by default will be sent to the initial configured email
 addresses. The below headers will overwrite those properties for the
@@ -24,7 +26,9 @@ current email being sent.
 }
 ```
 
-Required Message Body \~\~\~\~\~\~\~\~\~\~\~\~\~\~\~\~\~\~\~\~
+
+Required Message Body
+---------------------
 
 ``` {.sourceCode .python}
 {
@@ -33,7 +37,9 @@ Required Message Body \~\~\~\~\~\~\~\~\~\~\~\~\~\~\~\~\~\~\~\~
 }
 ```
 
-Example Sending of Email \~\~\~\~\~\~\~\~\~\~\~\~\~\~\~\~\~\~\~\~\~\~\~
+
+Example Sending of Email
+------------------------
 
 ``` {.sourceCode .python}
 headers = {
@@ -50,11 +56,12 @@ self.vip.pubsub.publish('pubsub', topic='platform/send_email',
                         headers=headers, message=message)
 ```
 
+
 Configuration Options
 ---------------------
 
 The following JSON configuration file shows all the options currently
-supported by the ForwardHistorian agent.
+supported by the Forward Historian agent.
 
 ``` {.sourceCode .python}
 {
