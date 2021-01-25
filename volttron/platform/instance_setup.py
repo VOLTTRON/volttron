@@ -45,6 +45,7 @@ import time
 from configparser import ConfigParser
 from shutil import copy
 from urllib.parse import urlparse
+import logging
 
 from gevent import subprocess
 from gevent.subprocess import Popen
@@ -56,7 +57,7 @@ from volttron.platform import certs, is_rabbitmq_available
 from volttron.platform import jsonapi
 from volttron.platform.agent.known_identities import PLATFORM_WEB, PLATFORM_DRIVER, VOLTTRON_CENTRAL
 from volttron.platform.agent.utils import get_platform_instance_name, wait_for_volttron_startup, \
-    is_volttron_running, wait_for_volttron_shutdown
+    is_volttron_running, wait_for_volttron_shutdown, setup_logging
 from volttron.utils import get_hostname
 from volttron.utils.prompt import prompt_response, y, n, y_or_n
 from volttron.utils.rmq_config_params import RMQConfig
@@ -986,6 +987,12 @@ def main():
 
     args = parser.parse_args()
     verbose = args.verbose
+    # Protect against configuration of base logger when not the "main entry point"
+    if verbose:
+        setup_logging(logging.DEBUG, True)
+    else:
+        setup_logging(logging.INFO, True)
+
     prompt_vhome = True
     if args.vhome:
         set_home(args.vhome)

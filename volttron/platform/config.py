@@ -54,7 +54,6 @@ import re as _re
 import shlex as _shlex
 import sys as _sys
 from volttron.platform.instance_setup import main
-from volttron.platform.agent import utils
 
 
 def expandall(string):
@@ -586,10 +585,6 @@ _patch_argparse()
 
 def _main():
     try:
-        # Protect against configuration of base logger when not the "main entry point"
-        utils.setup_logging()
-        import logging
-        logging.getLogger('urllib3.connectionpool').setLevel(logging.WARNING)
         main()
     except KeyboardInterrupt:
         print('\n')
