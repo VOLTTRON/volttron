@@ -78,14 +78,19 @@ class Agent(object):
 
     def __init__(self, identity=None, address=None, context=None,
                  publickey=None, secretkey=None, serverkey=None,
+                 # Since heartbeat is now 100% tied to status on the vctl change the defaults
+                 # to auto start the heartbeat.
                  heartbeat_autostart=True, heartbeat_period=30,
-                 volttron_home=os.path.abspath(platform.get_home()),
+                 volttron_home=None,
                  agent_uuid=None, enable_store=True,
                  enable_web=False, enable_channel=False,
                  reconnect_interval=None, version='0.1', enable_fncs=False,
                  instance_name=None, message_bus=None,
                  volttron_central_address=None, volttron_central_instance_name=None):
 
+        if volttron_home is None:
+            volttron_home = os.path.abspath(platform.get_home())
+            
         try:
             self._version = version
 
