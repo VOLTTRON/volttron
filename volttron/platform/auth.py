@@ -54,6 +54,7 @@ from zmq import green as zmq
 
 from volttron.platform import jsonapi, get_home
 from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM, CONTROL, PLATFORM_WEB, CONTROL_CONNECTION
+from volttron.platform.certs import Certs
 from volttron.platform.vip.agent.errors import VIPError
 from volttron.platform.vip.pubsubservice import ProtectedPubSubTopics
 from .agent.utils import strip_comments, create_file_if_missing, watch_file
@@ -94,7 +95,9 @@ class AuthService(Agent):
         # This agent is started before the router so we need
         # to keep it from blocking.
         self.core.delay_running_event_set = False
-
+        self._certs = None
+        if self.core.messagebus == "rmq":
+            self._certs = Certs()
         self.auth_file_path = os.path.abspath(auth_file)
         self.auth_file = AuthFile(self.auth_file_path)
         self.aip = aip
@@ -418,6 +421,15 @@ class AuthService(Agent):
         :type user_id: str
         """
 
+        if self._certs:
+            try:
+                self._certs.approve_csr(user_id)
+                permissions = self._rmq_mgmt.get_default_permissions(user_id)
+                self._rmq_mgmt.create_user_with_permissions(user_id, permissions, True)
+                _log.debug("Created cert and permissions for user: {}".format(user_id))
+            except ValueError:
+                pass
+
         for pending in self._auth_failures:
             if user_id == pending['user_id']:
                 self._update_auth_entry(
@@ -439,6 +451,7 @@ class AuthService(Agent):
                     pending['credentials'],
                     pending['user_id']
                     )
+                self._remove_auth_entry(pending['credentials'], is_allow=False)
                 self._auth_approved.append(pending)
                 del self._auth_denied[self._auth_denied.index(pending)]
 
@@ -452,6 +465,13 @@ class AuthService(Agent):
         :param user_id: user id field from VOLTTRON Interconnect Protocol
         :type user_id: str
         """
+        if self._certs:
+            try:
+                self._certs.deny_csr(user_id)
+                _log.debug("Denied cert for user: {}".format(user_id))
+            except ValueError:
+                pass
+
         for pending in self._auth_failures:
             if user_id == pending['user_id']:
                 self._update_auth_entry(
@@ -490,6 +510,13 @@ class AuthService(Agent):
         :param user_id: user id field from VOLTTRON Interconnect Protocol
         :type user_id: str
         """
+        if self._certs:
+            try:
+                self._certs.delete_csr(user_id)
+                _log.debug("Denied cert for user: {}".format(user_id))
+            except ValueError:
+                pass
+
         for pending in self._auth_failures:
             if user_id == pending['user_id']:
                 del self._auth_failures[self._auth_failures.index(pending)]
@@ -501,6 +528,7 @@ class AuthService(Agent):
 
         for pending in self._auth_denied:
             if user_id == pending['user_id']:
+                self._remove_auth_entry(pending['credentials'], is_allow=False)
                 del self._auth_denied[self._auth_denied.index(pending)]
 
     @RPC.export
@@ -517,6 +545,12 @@ class AuthService(Agent):
     def get_authorization_denied(self):
         print(list(self._auth_denied))
         return list(self._auth_denied)
+
+    @RPC.export
+    def get_pending_csrs(self):
+        csrs = [c for c in self._certs.get_pending_csr_requests()]
+        print(csrs)
+        return csrs
 
     def _get_authorizations(self, user_id, index):
         """Convenience method for getting authorization component by index"""
@@ -584,9 +618,12 @@ class AuthService(Agent):
         except AuthException as err:
             _log.error('ERROR: %s\n' % str(err))
 
-    def _remove_auth_entry(self, credential):
+    def _remove_auth_entry(self, credential, is_allow=True):
         try:
-            self.auth_file.remove_by_credentials(credential)
+            if is_allow:
+                self.auth_file.remove_by_credentials(credential)
+            else:
+                self.auth_file.remove_by_credentials(credential, is_allow=False)
         except AuthException as err:
             _log.error('ERROR: %s\n' % str(err))
 
