@@ -163,12 +163,12 @@ vctl Optional Arguments
 Commands
 --------
 
-- **install** - install an agent from wheel
+- **install** - install an agent from wheel or from an agent package directory
 
     .. note::
 
-       Does *NOT* package agents similarly to the `scripts/install-agent.py` script; installs agents from wheel files
-       only
+        If --agent-config is not specified then a default config, config.json or config.yml file in the agent
+        directory will be used as configuration.  If none present then no configuration file will be loaded.
 
 - **tag AGENT TAG** - set, show, or remove agent tag for a particular agent
 - **remove AGENT** - disconnect specified agent from the platform and remove its installed agent package from `VOLTTRON_HOME`
