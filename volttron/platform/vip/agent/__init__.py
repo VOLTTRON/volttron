@@ -78,7 +78,7 @@ class Agent(object):
 
     def __init__(self, identity=None, address=None, context=None,
                  publickey=None, secretkey=None, serverkey=None,
-                 heartbeat_autostart=False, heartbeat_period=60,
+                 heartbeat_autostart=True, heartbeat_period=30,
                  volttron_home=os.path.abspath(platform.get_home()),
                  agent_uuid=None, enable_store=True,
                  enable_web=False, enable_channel=False,
