@@ -6,7 +6,7 @@
 
 |VOLTTRON Tagline|
 
-|VOLTTRON| VOLTTRON is an open source, scalable, and distributed platform that seamlessly integrates data, devices, and
+|VOLTTRON| is an open source, scalable, and distributed platform that seamlessly integrates data, devices, and
 systems for sensing and control applications.  It is built on extensible frameworks allowing contributors to easily
 expand the capabilities of the platform to meet their use cases.  Features are implemented as loosely coupled software
 components, called agents, enabling flexible deployment options and easy customization.
