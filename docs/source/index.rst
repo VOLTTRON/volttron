@@ -22,6 +22,8 @@ Key Use-Cases
 - Testbed for developing applications for a simulated environment
 
 
+.. image:: files/volttron_diagram.png
+
 Features
 ========
 
