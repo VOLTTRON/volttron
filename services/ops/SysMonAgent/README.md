@@ -42,7 +42,7 @@ Example publish:
 2020-03-10 11:20:33,804 (listeneragent-3.3 7993) listener.agent INFO: Peer: pubsub, Sender: platform.sysmon:, Bus: , Topic: datalogger/log/platform/memory_percent, Headers: {'min_compatible_version': '3.0', 'max_compatible_version': ''}, Message:
 35.6
 2020-03-10 11:20:33,809 (listeneragent-3.3 7993) listener.agent INFO: Peer: pubsub, Sender: platform.sysmon:, Bus: , Topic: datalogger/log/platform/disk_percent, Headers: {'min_compatible_version': '3.0', 'max_compatible_version': ''}, Message:
-
+65.6
 ```
 
 
