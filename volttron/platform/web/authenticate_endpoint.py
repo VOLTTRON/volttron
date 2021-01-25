@@ -88,7 +88,7 @@ class AuthenticateEndpoints(object):
             _log.warning("Authentication must use POST request.")
             return Response('401 Unauthorized', status='401 Unauthorized', content_type='text/html')
 
-        assert len(self._userdict) > 0, "No users in user dictionary, set the master password first!"
+        assert len(self._userdict) > 0, "No users in user dictionary, set the administrator password first!"
 
         if not isinstance(data, dict):
             _log.debug("data is not a dict, decoding")

@@ -121,10 +121,10 @@ class MesaMasterTest(MesaMaster):
 
 
 def main():
-    mesa_master_test = MesaMasterTest()
-    mesa_master_test.connect()
+    mesa_platform_test = MesaMasterTest()
+    mesa_platform_test.connect()
     # Ad-hoc tests can be inserted here if desired.
-    mesa_master_test.shutdown()
+    mesa_platform_test.shutdown()
 
 
 if __name__ == '__main__':

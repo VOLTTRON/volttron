@@ -7,12 +7,12 @@ CSV Driver
 This example driver writes data to "registers" as lines in a CSV file. This
 driver is an example driver for development purposes only.
 
-In order to run this driver, put the csvdriver.py file into the master driver's
-interfaces directory, then configure the master driver normally using the
+In order to run this driver, put the csvdriver.py file into the platform driver's
+interfaces directory, then configure the platform driver normally using the
 included csv_driver.config configuration file and csv_registers.csv registry
 configuration file (see devguides > walkthroughs > Driver-Creation-Walkthrough
 for a more in-depth explanation of the driver framework, including configuration
-, directory structure, etc.) To see csv driver publishes, start the master
+, directory structure, etc.) To see csv driver publishes, start the platform
 driver and listener agents.
 
 =====================
@@ -35,7 +35,7 @@ example driver. This agent performs 2 functions:
 To use this agent as-is, install it as normal with the provided configuration
 file ("config" in the agent's directory), install an actuator agent instance
 (minimal or no configuration is necessary in the easiest case), and install a
-listener agent instance. If the driver code file is in the master driver's
+listener agent instance. If the driver code file is in the platform driver's
 interfaces directory the user should see publishes via the listener agent and
 logging from this agent which indicates that the driver is functioning (some
 values in the scrape_all publish should oscillate to demonstrate that the driver

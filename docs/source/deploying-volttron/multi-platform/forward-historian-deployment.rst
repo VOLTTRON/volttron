@@ -19,6 +19,30 @@ The Forward Historian can be found in the *services/core* directory.
 The default configuration file is services/core/ForwardHistorian/config.
 We will use this configuration file to create the ForwardHistorian agent. However, we need to modify the following fields:
 
+VOLTTRON instance 1 
+^^^^^^^^^^^^^^^^^^^
+
+-  ``vctl shutdown –platform`` (if the platform is already working)
+-  ``vcfg`` (this helps in configuring the volttron instance
+   http://volttron.readthedocs.io/en/releases-4.1/core_services/control/VOLTTRON-Config.html
+
+   -  Specify the IP of the machine: ``tcp://130.20.*.*:22916``
+   -  Specify the port you want to use
+   -  Specify if you want to run VC(Volttron Central) here or this this instance would be controlled 
+      by a VC and the IP and port of the VC
+
+      - Then install agents like Platform Driver Agent with a fake driver for the instance.
+      - Install a listener agent so see the topics that are coming from the diver agent
+      - Then run the volttron instance by using the following command: ``./start-volttron``
+
+- Volttron authentication: We need to add the IP of the instance 2 in the `auth.config` file of the VOLTTRON agent.
+  This is done as follows:
+
+   -  ``vctl auth-add``
+   -  We specify the IP of the instance 2 and the credentials of the agent (read
+      :ref:`Agent Authentication <Agent-Authentication>`
+   -  For specifying authentication for all the agents , we specify ``/.*/``
+   -  This should enable authentication for all the volttron-instance based on the IP you specify here
    - 'destination-vip': this should be the IP address and port of the destination instance which will receive data from the ForwardHistorian.
      number.  Example : ``tcp://130.20.*.*:22916``
    - 'destination-serverkey': The server key of the destination instance. The server key can be retrieved in two ways:

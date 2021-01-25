@@ -540,7 +540,7 @@ class ActuatorAgent(Agent):
         state to. This file is updated every time a schedule changes. 
     :param preempt_grace_time: Time in seconds after a schedule is preemted
         before it is actually cancelled. 
-    :param driver_vip_identity: VIP identity of the Master Driver Agent. 
+    :param driver_vip_identity: VIP identity of the Platform Driver Agent.
 
     :type heartbeat_interval: float
     :type schedule_publish_interval: float
@@ -603,7 +603,7 @@ class ActuatorAgent(Agent):
         self.schedule_publish_interval = schedule_publish_interval
         self.allow_no_lock_write = allow_no_lock_write
 
-        _log.debug("MasterDriver VIP IDENTITY: {}".format(self.driver_vip_identity))
+        _log.debug("PlatformDriver VIP IDENTITY: {}".format(self.driver_vip_identity))
         _log.debug("Schedule publish interval: {}".format(self.schedule_publish_interval))
 
         #Only restart the heartbeat if it changes.
@@ -976,7 +976,7 @@ class ActuatorAgent(Agent):
         """RPC method
 
         Get multiple points on multiple devices. Makes a single
-        RPC call to the master driver per device.
+        RPC call to the platform driver per device.
 
         :param topics: List of topics or list of [device, point] pairs.
         :param \*\*kwargs: Any driver specific parameters
@@ -1020,7 +1020,7 @@ class ActuatorAgent(Agent):
         """RPC method
 
         Set multiple points on multiple devices. Makes a single
-        RPC call to the master driver per device.
+        RPC call to the platform driver per device.
 
         :param requester_id: Ignored, VIP Identity used internally
         :param topics_values: List of (topic, value) tuples

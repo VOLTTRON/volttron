@@ -93,20 +93,17 @@ def _start_rabbitmq_without_ssl(rmq_config, conf_file, env=None):
         if os.path.exists(rmq_home):
             os.environ['RABBITMQ_HOME'] = rmq_home
         else:
-            print("\nERROR:\n"
-                  "Missing key 'rmq_home' in RabbitMQ config and RabbitMQ is "
-                  "not installed in default path: \n"
-                  "~/rabbitmq_server/rabbitmq_server-3.7.7 \n"
-                  "Please set the correct RabbitMQ installation path in "
-                  "rabbitmq_config.yml")
+            _log.error("\nMissing key 'rmq_home' in RabbitMQ config and RabbitMQ is "
+                       "not installed in default path: \n"
+                       "~/rabbitmq_server/rabbitmq_server-3.7.7 \n"
+                       "Please set the correct RabbitMQ installation path in "
+                       "rabbitmq_config.yml")
             exit(1)
     else:
         if not os.path.exists(rmq_home) or not os.path.exists(os.path.join(
                 rmq_home, 'sbin/rabbitmq-server')):
-            print("\nERROR:\n"
-                  "Invalid rmq-home value ({}). Please fix rmq-home "
-                  "in {} and rerun this script".format(
-                rmq_home, rmq_config.volttron_rmq_config))
+            _log.error("\nInvalid rmq-home value ({}). Please fix rmq-home "
+                       "in {} and rerun this script".format(rmq_home, rmq_config.volttron_rmq_config))
             exit(1)
         else:
             os.environ['RABBITMQ_HOME'] = rmq_home
@@ -260,7 +257,7 @@ def _create_shovel_setup(instance_name, local_host, port, vhost, vhome, is_ssl):
                         certs_dict = dict()
                         certs_dict['ca_file'] = shovel['certificates']['remote_ca']
                         certs_dict['cert_file'] = shovel['certificates']['public_cert']
-                        certs_dict['key_file'] = shovel['certificates']['private_cert']
+                        certs_dict['key_file'] = shovel['certificates']['private_key']
                         rmq_user = shovel['shovel-user']
                 else:
                     # destination key not found in shovel config
@@ -313,7 +310,7 @@ def _create_shovel_setup(instance_name, local_host, port, vhost, vhome, is_ssl):
                             certs_dict = dict()
                             certs_dict['ca_file'] = shovel['certificates']['remote_ca']
                             certs_dict['cert_file'] = shovel['certificates']['public_cert']
-                            certs_dict['key_file'] = shovel['certificates']['private_cert']
+                            certs_dict['key_file'] = shovel['certificates']['private_key']
                             rmq_user = shovel['shovel-user']
                             _log.debug(f"certs parameters: {certs_dict}")
 
@@ -504,9 +501,8 @@ def _create_certs(rmq_config, admin_client_name, server_cert_name):
                                               'common-name']) or
                  all(
                   k in cert_data for k in ['ca-public-key', 'ca-private-key'])):
-        print(
-            "\nERROR:\n"
-            "No certificate data found in {} or certificate data is "
+        _log.error(
+            "\nNo certificate data found in {} or certificate data is "
             "incomplete. certificate-data should either contain all "
             "the details necessary to create a self signed CA or "
             "point to the file path of an existing CA's public and "
@@ -574,32 +570,29 @@ def setup_rabbitmq_volttron(setup_type, verbose=False, prompt=False, instance_na
     :param prompt
     :raises RabbitMQSetupAlreadyError
     """
+    # TODO: we should ideally pass the rmq_conf_file here and use that
+    #   setup any new shovels, federation links etc and then update
+    #   the config in vhome. Else we will overwrite existing connection settings
+    #   when trying to create new ones
     if not instance_name:
         instance_name = get_platform_instance_name(prompt=True)
     # Store config this is checked at startup
     store_message_bus_config(message_bus='rmq', instance_name=instance_name)
 
     rmq_config = RMQConfig()
-    if verbose:
-        _log.setLevel(logging.DEBUG)
-        _log.debug("verbose set to True")
-        _log.debug(get_home())
-        logging.getLogger("requests.packages.urllib3.connectionpool"
-                          "").setLevel(logging.DEBUG)
-    else:
-        _log.setLevel(logging.INFO)
-        logging.getLogger("requests.packages.urllib3.connectionpool"
-                          "").setLevel(logging.WARN)
-
+    success = True
     if prompt:
         # ignore any existing rabbitmq_config.yml in vhome. Prompt user and
         # generate a new rabbitmq_config.yml
         try:
-            _create_rabbitmq_config(rmq_config, setup_type)
+            success = _create_rabbitmq_config(rmq_config, setup_type, verbose)
         except Exception as exc:
             _log.error(f"{exc}")
             return exc
-
+    if not success:
+        # something went wrong when creating rmq config
+        # do not create anything. return
+        return
     # Load either the newly created config or config passed
     try:
         rmq_config.load_rmq_config()
@@ -701,13 +694,14 @@ def setup_rabbitmq_volttron(setup_type, verbose=False, prompt=False, instance_na
         _log.error("Unknown option. Exiting....")
 
 
-def _create_rabbitmq_config(rmq_config, setup_type):
+def _create_rabbitmq_config(rmq_config, setup_type, verbose=False):
     """
     Prompt user for required details and create a rabbitmq_config.yml file in
     volttron home
     :param setup_type: type of rmq setup - single, federation, shovel or all
     """
-
+    success = True
+    # TODO - check if error cases(that are not exceptions) exit correctly for single, federation and all
     if setup_type == 'single' or setup_type == 'all':
         if os.path.exists(rmq_config.volttron_rmq_config):
             prompt = "rabbitmq_config.yml exists in {} Do you wish to " \
@@ -823,7 +817,8 @@ def _create_rabbitmq_config(rmq_config, setup_type):
         # if option was all then config_opts would be not null
         # if this was called with just setup_type = shovel, load existing
         # config so that we don't overwrite existing list
-        prompt_shovels(rmq_config.volttron_home)
+        success = prompt_shovels(rmq_config.volttron_home, verbose)
+    return success
 
 
 def is_file_readable(file_path):
@@ -831,7 +826,7 @@ def is_file_readable(file_path):
     if os.path.exists(file_path) and os.access(file_path, os.R_OK):
         return True
     else:
-        print("\nInvalid file path. Path does not exists or is not readable")
+        _log.error("\nInvalid file path. Path does not exists or is not readable")
         return False
 
 
@@ -914,7 +909,7 @@ def prompt_upstream_servers(vhome):
     write_to_config_file(federation_config_file, federation_config)
 
 
-def prompt_shovels(vhome):
+def prompt_shovels(vhome, verbose=False):
     """
     Prompt for shovel configuration and save in rabbitmq_shovel_config.yml
     :return:
@@ -953,6 +948,7 @@ def prompt_shovels(vhome):
             time.sleep(2)
             shovels[host]['shovel-user'] = instance_name + "." + shovel_user
             #_log.debug("shovel_user: {}".format(shovel_user))
+            got_certs = False
             prompt = prompt_response('\nDo you have certificates signed by remote CA? ',
                                      valid_answers=y_or_n,
                                      default='N')
@@ -974,12 +970,13 @@ def prompt_shovels(vhome):
                 # public cert
                 shovels[host]['certificates']['public_cert'] = certfile
 
-                prompt = 'Full path to private certificate: '
-                private_cert = prompt_response(prompt, default='')
-                if not os.path.exists(private_cert):
-                    raise IOError(f"Path does not exist: {private_cert}. Please check the path and try again")
+                prompt = 'Full path to private key: '
+                private_key = prompt_response(prompt, default='')
+                if not os.path.exists(private_key):
+                    raise IOError(f"Path does not exist: {private_key}. Please check the path and try again")
                 # private_key
-                shovels[host]['certificates']['private_cert'] = private_cert
+                shovels[host]['certificates']['private_key'] = private_key
+                got_certs = True
             else:
                 remote_https_address = "https://{}:8443".format(host)
                 prompt = 'Path to remote web interface: '
@@ -989,7 +986,7 @@ def prompt_shovels(vhome):
                 if not valid_address:
                     raise IOError(f"Remote web interface is not valid: {valid_address}. Please check and try again")
                 # request shovel CSR from remote host
-                ca_file, certfile, prvtfile = _request_csr(shovel_user, remote_addr)
+                ca_file, certfile, prvtfile = _request_csr(shovel_user, remote_addr, verbose)
                 if ca_file is not None and certfile is not None and prvtfile is not None:
                     shovels[host]['certificates'] = {}
                     shovels[host]['certificates']['csr'] = True
@@ -1002,9 +999,14 @@ def prompt_shovels(vhome):
 
                     # private_key
                     crts = certs.Certs()
-                    shovels[host]['certificates']['private_cert'] = prvtfile
+                    shovels[host]['certificates']['private_key'] = prvtfile
                     #_log.debug("shovel private cert path: {}".format(prvtfile))
+                    got_certs = True
 
+            if not got_certs:
+                # we did not get certificates - neither existing, nor through csr process
+                # exit
+                return False
             prompt = prompt_response('\nDo you want shovels for '
                                      'PUBSUB communication? ',
                                      valid_answers=y_or_n,
@@ -1045,39 +1047,60 @@ def prompt_shovels(vhome):
     else:
         shovel_config['shovel'] = shovels
         write_to_config_file(shovel_config_file, shovel_config)
+        return True
 
 
-def _request_csr(shovel_user, remote_addr):
+def _request_csr(shovel_user, remote_addr, verbose=False):
     ca_file = None
     certfile = None
     prvtfile = None
+
+    if not verbose:
+        # so that we don't get info level logs showing up during our multiple csr requests
+        logging.getLogger("volttron.platform.web.discovery").setLevel(logging.WARNING)
 
     response = request_cert_for_shovel(shovel_user=shovel_user,
                                        remote_address=remote_addr)
 
     success = False
     retry_attempt = 0
+    max_retries = 12
+    denied = False
     if response is None:
         # Error /status is pending
-        raise ConnectionError("Please check the connection and the admin of the remote connection")
+        raise ConnectionError("Please check the connection to the remote instance")
     elif isinstance(response, tuple):
         if response[0] == 'PENDING':
-            while not success and retry_attempt < 5:
-                response = request_cert_for_shovel(shovel_user=shovel_user,
-                                                   remote_address=remote_addr)
+            _log.info("Waiting for administrator to accept the CSR request.")
+            # Try for two minutes.
+            # TODO make max attempts and/or sleep interval optional arg
+            while not success and retry_attempt < max_retries:
+
                 if response is None:
                     break
                 elif response[0] == 'PENDING':
+                    if verbose:
+                        _log.info("Waiting for administrator to accept the CSR request.")
                     sleep_period = 10
                     time.sleep(sleep_period)
-                    _log.error("Attempting CSR for shovel: {} again after {} seconds".format(shovel_user, sleep_period))
+                    if verbose:
+                        _log.info("Retrying request for signing certificate")
+                    response = request_cert_for_shovel(shovel_user=shovel_user,
+                                                       remote_address=remote_addr)
                     retry_attempt += 1
+                elif response[0] == 'DENIED':
+                    break
                 else:
                     success = True
+        if response[0] == 'DENIED':
+            denied = True
+            _log.info("Request for signed certificate(CSR) has been denied by the remote instance administrator")
     else:
         success = True
-    if retry_attempt >= 3 and not success:
-        raise TimeoutError("Maximum retry attempts for CSR reached. Please check the connection and the admin of the remote connection")
+    if not denied and retry_attempt >= max_retries and not success:
+        raise TimeoutError("Maximum retry attempts for CSR reached. "
+                           "Please retry command once administrator of remote VOLTTRON instance is ready to approve"
+                           " certificate signing request")
 
     if success:
         # remote cert file for shovels will be in $VOLTTRON_HOME/certificates/shovels dir
@@ -1237,10 +1260,6 @@ def request_cert_for_shovel(shovel_user, remote_address):
                     _log.error("there was no response from the server")
                     value = None
                 elif isinstance(response, tuple):
-                    if response[0] == 'PENDING':
-                        _log.info("Waiting for administrator to accept a CSR request.")
-                    if response[0] == 'DENIED':
-                        _log.info("CSR request has been denied")
                     value = response
                 elif os.path.exists(response):
                     value = response
