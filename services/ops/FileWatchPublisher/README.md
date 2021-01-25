@@ -34,3 +34,14 @@ Below is a File Watch Publisher example configuration to match the above scenari
     ]
 }
 ```
+
+
+### Example Publish
+
+The following is an example publish by the File Watch Publisher tracking changes for a file called test.txt and being
+published to the topic "record/filewatcher/test".
+
+    2021-01-25 14:54:43,483 (listeneragent-3.3 4150) __main__ INFO: Peer: pubsub, Sender: platform.filewatchpublisher1
+    :, Bus: , Topic: record/filewatcher/test, Headers: {'min_compatible_version': '3.0', 'max_compatible_version': ''}, 
+    Message: {'line': 'test text', 'timestamp': '2021-01-25T22:54:43.474352Z'}
+
