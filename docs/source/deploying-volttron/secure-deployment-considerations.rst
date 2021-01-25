@@ -10,7 +10,8 @@ environment in which they are running.
 In the subsections here, we will discuss a variety of possible actions which
 may increase the security of a particular deployment, along with their context.
 
-For more examples and discussion, see the `Publications section of the VOLTTRON website <https://volttron.org/publications>`_ where there are a number of Threat Profile reports.
+For more examples and discussion, see the `Publications section of the VOLTTRON website <https://volttron.org/publications>`_
+where there are a number of Threat Profile reports.
 
 Running as a Managed System Process
 ===================================
@@ -34,9 +35,15 @@ event that it fails.
 There are scenarios when this configuration may not be desired:
 
 1. If a system restarts cleanly after an unexpected failure, it is possible that
-   the failure could go unnoticed (and therefore unresolved). Consider the relative
-   value of up-time and failure discovery, or consider adding some additional
-   notification or record keeping to track restarts.
+   the underlying issue could go unnoticed (and therefore unresolved). This would
+   happen if a user checks the system and sees it is running but does not have a
+   way to realize that there has been one or more restarts. For development systems
+   it may be desirable to not restart, leaving the system in a failed state which
+   is more likely to be noticed as unusual, and with the failure details still present
+   in the recent logs. Consider the relative value of platform up-time and failure
+   this kind of failure discovery. If both are highly valuable, it may be possible
+   to add extra notifications to the process monitoring system (systemd, initd, or
+   other) so that records are retained while service is restored.
 2. For development systems, or systems that are frequently stopped or restarted,
    it can be more convenient to use the normal start and stop scripts packaged
    with VOLTTRON. These do not require the user have system-level permissions
