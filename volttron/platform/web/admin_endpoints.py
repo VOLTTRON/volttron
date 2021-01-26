@@ -76,10 +76,6 @@ class AdminEndpoints(object):
 
         self._rpc_caller = rpc_caller
         self._rmq_mgmt = rmq_mgmt
-        self._certs = None
-
-        if rmq_mgmt is not None:
-            self._certs = Certs()
 
         self._pending_auths = None
         self._denied_auths = None
@@ -111,8 +107,6 @@ class AdminEndpoints(object):
             get_home()
         )
         self._observer.start()
-        if ssl_public_key is not None:
-            self._certs = Certs()
 
     def reload_userdict(self):
         webuserpath = os.path.join(get_home(), 'web-users.json')
@@ -182,14 +176,12 @@ class AdminEndpoints(object):
             except TemplateNotFound:
                 return Response("<h1>404 Not Found</h1>", status="404 Not Found")
 
-            # if page == 'list_certs.html':
-            #     html = template.render(certs=self._certs.get_all_cert_subjects())
             if page == 'pending_auth_reqs.html':
                 self._pending_auths = self._rpc_caller.call(AUTH, 'get_authorization_failures').get()
                 self._denied_auths = self._rpc_caller.call(AUTH, 'get_authorization_denied').get()
                 self._approved_auths = self._rpc_caller.call(AUTH, 'get_authorization_approved').get()
-                if self._certs:
-                    html = template.render(csrs=self._certs.get_pending_csr_requests(),
+                if self._rmq_mgmt is not None:
+                    html = template.render(csrs=self._rpc_caller.call(AUTH, 'get_pending_csrs').get(timeout=2),
                                            auths=self._pending_auths,
                                            denied_auths=self._denied_auths,
                                            approved_auths=self._approved_auths)
@@ -233,14 +225,9 @@ class AdminEndpoints(object):
     def __approve_csr_api(self, common_name):
         try:
             _log.debug("Creating cert and permissions for user: {}".format(common_name))
-            self._certs.approve_csr(common_name)
-            permissions = self._rmq_mgmt.get_default_permissions(common_name)
-            self._rmq_mgmt.create_user_with_permissions(common_name,
-                                                        permissions,
-                                                        True)
-            data = dict(status=self._certs.get_csr_status(common_name),
-                        cert=self._certs.get_cert_from_csr(common_name))
-            data['cert'] = data['cert'].decode('utf-8')
+            self._rpc_caller.call(AUTH, 'approve_authorization_failure', common_name).wait(timeout=4)
+            data = dict(status=self._rpc_caller.call(AUTH, "get_pending_csr_status", common_name).get(timeout=2),
+                        cert=self._rpc_caller.call(AUTH, "get_pending_csr_cert", common_name).get(timeout=2))
         except ValueError as e:
             data = dict(status="ERROR", message=e.message)
 
@@ -248,7 +235,7 @@ class AdminEndpoints(object):
 
     def __deny_csr_api(self, common_name):
         try:
-            self._certs.deny_csr(common_name)
+            self._rpc_caller.call(AUTH, 'deny_authorization_failure', common_name)
             data = dict(status="DENIED",
                         message="The administrator has denied the request")
         except ValueError as e:
@@ -258,7 +245,7 @@ class AdminEndpoints(object):
 
     def __delete_csr_api(self, common_name):
         try:
-            self._certs.delete_csr(common_name)
+            self._rpc_caller.call(AUTH, 'delete_authorization_failure', common_name)
             data = dict(status="DELETED",
                         message="The administrator has denied the request")
         except ValueError as e:
@@ -267,19 +254,19 @@ class AdminEndpoints(object):
         return Response(jsonapi.dumps(data), content_type="application/json")
 
     def __pending_csrs_api(self):
-        csrs = [c for c in self._certs.get_pending_csr_requests()]
+        csrs = self._rpc_caller.call(AUTH, 'get_pending_csrs').get(timeout=10)
         return Response(jsonapi.dumps(csrs), content_type="application/json")
 
     def __cert_list_api(self):
 
         subjects = [dict(common_name=x.common_name)
-                    for x in self._certs.get_all_cert_subjects()]
+                    for x in self._rpc_caller.call(AUTH, "get_all_pending_csr_subjects").get(timeout=2)]
         return Response(jsonapi.dumps(subjects), content_type="application/json")
 
     def __approve_credential_api(self, user_id):
         try:
             _log.debug("Creating credential and permissions for user: {}".format(user_id))
-            self._rpc_caller.call(AUTH, 'approve_authorization_failure', user_id).wait()
+            self._rpc_caller.call(AUTH, 'approve_authorization_failure', user_id).wait(timeout=4)
             data = dict(status='APPROVED',
                         message="The administrator has approved the request")
         except ValueError as e:

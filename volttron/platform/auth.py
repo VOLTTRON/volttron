@@ -57,7 +57,7 @@ from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM, 
 from volttron.platform.certs import Certs
 from volttron.platform.vip.agent.errors import VIPError
 from volttron.platform.vip.pubsubservice import ProtectedPubSubTopics
-from .agent.utils import strip_comments, create_file_if_missing, watch_file
+from .agent.utils import strip_comments, create_file_if_missing, watch_file, is_web_enabled, get_messagebus
 from .vip.agent import Agent, Core, RPC
 from .vip.socket import encode_key, BASE64_ENCODED_CURVE_KEY_LEN
 
@@ -96,8 +96,11 @@ class AuthService(Agent):
         # to keep it from blocking.
         self.core.delay_running_event_set = False
         self._certs = None
-        if self.core.messagebus == "rmq":
+        if get_messagebus() == "rmq":
             self._certs = Certs()
+        self.web_enabled = False
+        if is_web_enabled():
+            self.web_enabled = True
         self.auth_file_path = os.path.abspath(auth_file)
         self.auth_file = AuthFile(self.auth_file_path)
         self.aip = aip
@@ -142,9 +145,9 @@ class AuthService(Agent):
                         }
             )
         if is_allow:
-            self._auth_approved = [entry for entry in auth_list]
+            self._auth_approved = [entry for entry in auth_list if entry["address"] is not None]
         else:
-            self._auth_denied = [entry for entry in auth_list]
+            self._auth_denied = [entry for entry in auth_list if entry["address"] is not None]
 
 
     def read_auth_file(self):
@@ -415,17 +418,19 @@ class AuthService(Agent):
     def approve_authorization_failure(self, user_id):
         """RPC method
 
-        Approves a previously failed authorization
+        Approves a pending CSR or credential, based on provided identity.
+        The approved CSR or credential can be deleted or denied later.
+        An approved credential is stored in the allow list in auth.json.
 
-        :param user_id: user id field from VOLTTRON Interconnect Protocol
+        :param user_id: user id field from VOLTTRON Interconnect Protocol or common name for CSR
         :type user_id: str
         """
 
-        if self._certs:
+        if self._certs and self.web_enabled:
             try:
                 self._certs.approve_csr(user_id)
-                permissions = self._rmq_mgmt.get_default_permissions(user_id)
-                self._rmq_mgmt.create_user_with_permissions(user_id, permissions, True)
+                permissions = self.core.rmq_mgmt.get_default_permissions(user_id)
+                self.core.rmq_mgmt.create_user_with_permissions(user_id, permissions, True)
                 _log.debug("Created cert and permissions for user: {}".format(user_id))
             except ValueError:
                 pass
@@ -439,7 +444,7 @@ class AuthService(Agent):
                     pending['credentials'],
                     pending['user_id']
                     )
-                self._auth_approved.append(pending)
+                # self._auth_approved.append(pending)
                 del self._auth_failures[self._auth_failures.index(pending)]
 
         for pending in self._auth_denied:
@@ -452,20 +457,22 @@ class AuthService(Agent):
                     pending['user_id']
                     )
                 self._remove_auth_entry(pending['credentials'], is_allow=False)
-                self._auth_approved.append(pending)
-                del self._auth_denied[self._auth_denied.index(pending)]
+                # self._auth_approved.append(pending)
+                # del self._auth_denied[self._auth_denied.index(pending)]
 
     @RPC.export
     @RPC.allow(capabilities="allow_auth_modifications")
     def deny_authorization_failure(self, user_id):
         """RPC method
 
-        Denies a previously failed authorization
+        Denies a pending CSR or credential, based on provided identity.
+        The denied CSR or credential can be deleted or accepted later.
+        A denied credential is stored in the deny list in auth.json.
 
-        :param user_id: user id field from VOLTTRON Interconnect Protocol
+        :param user_id: user id field from VOLTTRON Interconnect Protocol or common name for CSR
         :type user_id: str
         """
-        if self._certs:
+        if self._certs and self.web_enabled:
             try:
                 self._certs.deny_csr(user_id)
                 _log.debug("Denied cert for user: {}".format(user_id))
@@ -482,7 +489,7 @@ class AuthService(Agent):
                     pending['user_id'],
                     is_allow=False
                     )
-                self._auth_denied.append(pending)
+                # self._auth_denied.append(pending)
                 del self._auth_failures[self._auth_failures.index(pending)]
 
         for pending in self._auth_approved:
@@ -496,8 +503,8 @@ class AuthService(Agent):
                     is_allow=False
                     )
                 self._remove_auth_entry(pending['credentials'])
-                self._auth_denied.append(pending)
-                del self._auth_approved[self._auth_approved.index(pending)]
+                # self._auth_denied.append(pending)
+                # del self._auth_approved[self._auth_approved.index(pending)]
 
 
     @RPC.export
@@ -505,12 +512,14 @@ class AuthService(Agent):
     def delete_authorization_failure(self, user_id):
         """RPC method
 
-        Denies a previously failed authorization
+        Deletes a pending CSR or credential, based on provided identity.
+        To approve or deny a deleted pending CSR or credential,
+        the request must be resent by the remote platform or agent.
 
-        :param user_id: user id field from VOLTTRON Interconnect Protocol
+        :param user_id: user id field from VOLTTRON Interconnect Protocol or common name for CSR
         :type user_id: str
         """
-        if self._certs:
+        if self._certs and self.web_enabled:
             try:
                 self._certs.delete_csr(user_id)
                 _log.debug("Denied cert for user: {}".format(user_id))
@@ -533,24 +542,117 @@ class AuthService(Agent):
 
     @RPC.export
     def get_authorization_failures(self):
-        print(list(self._auth_failures))
+        """RPC method
+
+        Returns a list of failed (pending) ZMQ credentials.
+
+        :return: list
+        """
+        _log.debug(list(self._auth_failures))
         return list(self._auth_failures)
 
     @RPC.export
     def get_authorization_approved(self):
-        print(list(self._auth_approved))
+        """RPC method
+
+        Returns a list of approved ZMQ credentials.
+        This list is updated whenever the auth file is read.
+        It includes all allow entries from the auth file that contain a populated address field.
+
+        :return: list
+        """
+        _log.debug(list(self._auth_approved))
         return list(self._auth_approved)
 
     @RPC.export
     def get_authorization_denied(self):
-        print(list(self._auth_denied))
+        """RPC method
+
+        Returns a list of denied ZMQ credentials.
+        This list is updated whenever the auth file is read.
+        It includes all deny entries from the auth file that contain a populated address field.
+
+        :return: list
+        """
+        _log.debug(list(self._auth_denied))
         return list(self._auth_denied)
 
     @RPC.export
+    @RPC.allow(capabilities="allow_auth_modifications")
     def get_pending_csrs(self):
-        csrs = [c for c in self._certs.get_pending_csr_requests()]
-        print(csrs)
-        return csrs
+        """RPC method
+
+        Returns a list of pending CSRs.
+        This method provides RPC access to the Certs class's get_pending_csr_requests method.
+        This method is only applicable for web-enabled, RMQ instances.
+
+        :return: list or None
+        """
+        if self._certs and self.web_enabled:
+            csrs = [c for c in self._certs.get_pending_csr_requests()]
+            _log.debug(csrs)
+            return csrs
+        else:
+            _log.debug("RMQ must be enabled to use certs")
+            return None
+
+    @RPC.export
+    @RPC.allow(capabilities="allow_auth_modifications")
+    def get_pending_csr_status(self, common_name):
+        """RPC method
+
+        Returns the status of a pending CSRs.
+        This method provides RPC access to the Certs class's get_csr_status method.
+        This method is only applicable for web-enabled, RMQ instances.
+        Currently, this method is only used by admin_endpoints.
+
+        :param common_name: Common name for CSR
+        :type common_name: str
+        :return: str or None
+        """
+        if self._certs and self.web_enabled:
+            return self._certs.get_csr_status(common_name)
+        else:
+            _log.debug("RMQ must be enabled to use certs")
+            return None
+
+    @RPC.export
+    @RPC.allow(capabilities="allow_auth_modifications")
+    def get_pending_csr_cert(self, common_name):
+        """RPC method
+
+        Returns the cert of a pending CSRs.
+        This method provides RPC access to the Certs class's get_cert_from_csr method.
+        This method is only applicable for web-enabled, RMQ instances.
+        Currently, this method is only used by admin_endpoints.
+
+        :param common_name: Common name for CSR
+        :type common_name: str
+        :return: str or None
+        """
+        if self._certs and self.web_enabled:
+            return self._certs.get_cert_from_csr(common_name).decode('utf-8')
+        else:
+            _log.debug("RMQ must be enabled to use certs")
+            return None
+
+    @RPC.export
+    @RPC.allow(capabilities="allow_auth_modifications")
+    def get_all_pending_csr_subjects(self):
+        """RPC method
+
+        Returns a list of all certs subjects.
+        This method provides RPC access to the Certs class's get_all_cert_subjects method.
+        This method is only applicable for web-enabled, RMQ instances.
+        Currently, this method is only used by admin_endpoints.
+
+        :return: list or None
+        """
+        if self._certs and self.web_enabled:
+            return self._certs.get_all_cert_subjects()
+        else:
+            _log.debug("RMQ must be enabled to use certs")
+            return None
 
     def _get_authorizations(self, user_id, index):
         """Convenience method for getting authorization component by index"""
@@ -1169,17 +1271,30 @@ class AuthFile(object):
 
     def _check_if_exists(self, entry, is_allow=True):
         """Raises AuthFileEntryAlreadyExists if entry is already in file"""
-        for index, prev_entry in enumerate(self.read_allow_entries()):
-            if entry.user_id == prev_entry.user_id:
-                raise AuthFileUserIdAlreadyExists(entry.user_id, [index])
+        if is_allow:
+            for index, prev_entry in enumerate(self.read_allow_entries()):
+                if entry.user_id == prev_entry.user_id:
+                    raise AuthFileUserIdAlreadyExists(entry.user_id, [index])
 
-            # Compare AuthEntry objects component-wise, rather than
-            # using match, because match will evaluate regex.
-            if (prev_entry.domain == entry.domain and
+                # Compare AuthEntry objects component-wise, rather than
+                # using match, because match will evaluate regex.
+                if (prev_entry.domain == entry.domain and
+                        prev_entry.address == entry.address and
+                        prev_entry.mechanism == entry.mechanism and
+                        prev_entry.credentials == entry.credentials):
+                    raise AuthFileEntryAlreadyExists([index])
+        else:
+            for index, prev_entry in enumerate(self.read_deny_entries()):
+                if entry.user_id == prev_entry.user_id:
+                    raise AuthFileUserIdAlreadyExists(entry.user_id, [index])
+
+                # Compare AuthEntry objects component-wise, rather than
+                # using match, because match will evaluate regex.
+                if (prev_entry.domain == entry.domain and
                     prev_entry.address == entry.address and
                     prev_entry.mechanism == entry.mechanism and
                     prev_entry.credentials == entry.credentials):
-                raise AuthFileEntryAlreadyExists([index])
+                    raise AuthFileEntryAlreadyExists([index])
 
     def _update_by_indices(self, auth_entry, indices, is_allow=True):
         """Updates all entries at given indices with auth_entry"""

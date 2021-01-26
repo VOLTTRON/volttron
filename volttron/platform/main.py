@@ -686,7 +686,7 @@ def start_volttron_process(opts):
     # and opts.web_ssl_cert
 
     os.environ['MESSAGEBUS'] = opts.message_bus
-    os.environ['SECURE_AGENT_USER'] = opts.secure_agent_users
+    os.environ['SECURE_AGENT_USERS'] = opts.secure_agent_users
     if opts.instance_name is None:
         if len(opts.vip_address) > 0:
             opts.instance_name = opts.vip_address[0]
@@ -700,6 +700,7 @@ def start_volttron_process(opts):
         get_platform_instance_name(vhome=opts.volttron_home, prompt=False)
 
     if opts.bind_web_address:
+        os.environ['BIND_WEB_ADDRESS'] = opts.bind_web_address
         parsed = urlparse(opts.bind_web_address)
         if parsed.scheme not in ('http', 'https'):
             raise Exception(

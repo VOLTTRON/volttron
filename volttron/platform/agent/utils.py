@@ -234,8 +234,22 @@ def get_messagebus():
     return message_bus
 
 
+def is_web_enabled():
+    """Returns True if web enabled, False otherwise"""
+    is_web = os.environ.get('BIND_WEB_ADDRESS')
+    _log.debug("value from env {}".format(is_web))
+    if not is_web:
+        config = load_platform_config()
+        string_value = config.get('bind-web-address')
+        _log.debug("value from config {}".format(string_value))
+        if not is_web:
+            return False
+        return True
+    return True
+
+
 def is_secure_mode():
-    """Get type of message bus - zeromq or rabbbitmq."""
+    """Returns True if running in secure mode, False otherwise"""
     string_value = os.environ.get('SECURE_AGENT_USERS')
     _log.debug("value from env {}".format(string_value))
     if not string_value:
