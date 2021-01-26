@@ -80,7 +80,7 @@ class Agent(object):
                  publickey=None, secretkey=None, serverkey=None,
                  # Since heartbeat is now 100% tied to status on the vctl change the defaults
                  # to auto start the heartbeat.
-                 heartbeat_autostart=True, heartbeat_period=30,
+                 heartbeat_autostart=True, heartbeat_period=60,
                  volttron_home=None,
                  agent_uuid=None, enable_store=True,
                  enable_web=False, enable_channel=False,
