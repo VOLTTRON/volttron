@@ -153,7 +153,7 @@ def install_agent_directory(opts):
 
     if opts.tag:
         cmds.extend(["--tag", opts.tag])
-    print(cmds)
+
     out = execute_command(cmds, env=env, logger=_log,
                           err_prefix="Error installing agent")
 
