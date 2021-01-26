@@ -631,7 +631,7 @@ class PlatformWrapper:
                     if identity == PLATFORM_WEB:
                         capabilities = dict(allow_auth_modifications=None)
                     else:
-                        capabilities = dict(edit_config_stor=dict(identity="/.*/"))
+                        capabilities = dict(edit_config_store=dict(identity="/.*/"))
 
                     ks = KeyStore(KeyStore.get_agent_keystore_path(identity))
                     entry = AuthEntry(credentials=encode_key(decode_key(ks.public)),
@@ -642,7 +642,7 @@ class PlatformWrapper:
 
                 # Control connection needs to be added so that vctl can connect easily
                 identity = CONTROL_CONNECTION
-                capabilities = dict(edit_config_stor=dict(identity="/.*/"))
+                capabilities = dict(edit_config_store=dict(identity="/.*/"))
                 ks = KeyStore(KeyStore.get_agent_keystore_path(identity))
                 entry = AuthEntry(credentials=encode_key(decode_key(ks.public)),
                                   user_id=identity,
