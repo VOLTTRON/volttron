@@ -2925,9 +2925,6 @@ def main(argv=sys.argv):
         _stderr.write("Invalid command: '{}' or command requires additional arguments\n".format(opts.command))
         parser.print_help()
         return 1
-    # except Exception as exc:
-    #     print_tb = traceback.print_exc
-    #     error = str(exc)
     finally:
         # make sure the connection to the server is closed when this scriopt is about to exit.
         if opts.connection:
