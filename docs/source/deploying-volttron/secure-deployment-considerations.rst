@@ -10,8 +10,8 @@ environment in which they are running.
 In the subsections here, we will discuss a variety of possible actions which
 may increase the security of a particular deployment, along with their context.
 
-For more examples and discussion, see the `Publications section of the VOLTTRON website <https://volttron.org/publications>`_
-where there are a number of Threat Profile reports.
+For more examples and discussion, see the `Publications section of the VOLTTRON website
+<https://volttron.org/publications>`_ where there are a number of Threat Profile reports.
 
 Running as a Managed System Process
 ===================================
@@ -64,8 +64,13 @@ proxy in front of the system, including:
 - Provides a opportunity for institutional cyber security experts to help maintain a
   secure and compliant web server configuration without needing to gain VOLTTRON-specific
   experience.
+- Many other traffic management and filtering options which are documented by the various
+  tools (load balancing, http header management, etc.).
 
-.. TODO: do we have instructions for this that I can link to?
+Configuring a reverse proxy is outside the scope of this documentation. For reference,
+two common open source options are `apache httpd <https://httpd.apache.org/docs/2.4/howto/reverse_proxy.html>`_
+and `nginx <https://docs.nginx.com/nginx/admin-guide/web-server/reverse-proxy/>`_
+(relevant portions of their respective documentation pages are linked).
 
 
 Monitor for Data Tampering
