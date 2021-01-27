@@ -146,7 +146,7 @@ remote instance, it needs to have it's public certificate signed by the remote i
 or federation creation steps, a certificate signing request is made to the remote instance. The admin of the remote instance
 should be ready to accept/reject such a request through VOLTTRON's admin web interface. To facilitate this process, the
 VOLTTRON platform exposes a web-based server API for requesting, listing, approving, and denying certificate requests. For
-more detailed description, refer to :ref:`Agent communication to Remote RabbitMQ instance <Agent-Communication-to-Remote-RabbitMQ>.
+more detailed description, refer to :ref:`Agent communication to Remote RabbitMQ instance <Agent-Communication-to-Remote-RabbitMQ>`.
 After the CSR request is accepted, an authenticated shovel/federation connection can be established.
 
 
@@ -270,8 +270,8 @@ upstream servers on the downstream server and make the VOLTTRON exchange
     Private certificates will be in
     $VOLTTRON_HOME/certificates/private. Public certificates will be in two directories:
     $VOLTTRON_HOME/certificates/federation and $VOLTTRON_HOME/certificates/certs.
-    Further, you should request the remote instance admin to delete earlier generated cert before a new CSR is
-    sent for approval.
+    Further, you should request the remote instance admin to delete earlier generated certificates through admin web
+    interface  before a new CSR is sent for approval.
 
 
 
@@ -467,7 +467,7 @@ Please note that each instance should have a unique instance name.
    c. On the subscriber node, run a listener agent which subscribes to messages from all platforms.
 
      - Open the file examples/ListenerAgent/listener/agent.py. Search for ``@PubSub.subscribe('pubsub', '')`` and replace that line with ``@PubSub.subscribe('pubsub', 'devices', all_platforms=True)``
-     - upgrade the listener
+     - Install the listener
 
          .. code-block:: bash
 
@@ -507,8 +507,8 @@ Please note that each instance should have a unique instance name.
     need to manually remove public and private certificates. Private certificates will be in
     $VOLTTRON_HOME/certificates/private. Public certificates will be in two directories:
     $VOLTTRON_HOME/certificates/shovel and $VOLTTRON_HOME/certificates/certs.
-    Further, you should request the remote instance admin to delete earlier generated cert before a new CSR is
-    sent for approval.
+    Further, you should request the remote instance admin to delete earlier generated cert through the admin web
+    interface before a new CSR is sent for approval.
 
 
 DataMover Communication
