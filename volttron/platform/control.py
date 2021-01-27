@@ -2925,10 +2925,26 @@ def main(argv=sys.argv):
         _stderr.write("Invalid command: '{}' or command requires additional arguments\n".format(opts.command))
         parser.print_help()
         return 1
+    except SystemExit as exc:
+        # Handles if sys.exit is called from within a function if not 0
+        # then we know there was an error and processing will continue
+        # else we return 0 from here.  This has the added effect of
+        # allowing us to cascade short circuit calls.
+        if exc.args[0] != 0:
+            print_tb = exc.print_tb
+            error = exc.message
+        else:
+            return 0
     finally:
         # make sure the connection to the server is closed when this scriopt is about to exit.
         if opts.connection:
-            opts.connection.server.core.stop()
+            try:
+                opts.connection.server.core.stop()
+            except Unreachable:
+                # its ok for this to fail at this point it might not even be valid.
+                pass
+            finally:
+                opts.connection = None
 
     if opts.debug:
         print_tb()
