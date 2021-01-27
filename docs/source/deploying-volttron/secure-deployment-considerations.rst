@@ -99,8 +99,8 @@ Monitoring RabbitMQ Server
 RabbitMQ server may be configured to run as a systemd service and allow systemd to monitor the
 status of the service. It can be further configured to detect and restart the RabbitMQ service
 if it crashes. VOLTTRON agents have the ability to detect when the RabbitMQ server crashes/disconnects
-and reconnect when it comes back up again. In this deployment setup, VOLTTRON platform will not
-start/stop the RabbitMQ server instead allow systemd service to start/stop RabbitMQ server.
+and reconnect when it becomes available. In this deployment setup, a VOLTTRON platform will not
+start/stop the RabbitMQ server.
 
 VOLTTRON also has mechanism to monitor RabbitMQ server periodically and restart if a crash is detected
 through HealthService Agent. This is an optional feature and can be enabled using '--monitor-rabbit'
