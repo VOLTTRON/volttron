@@ -107,9 +107,9 @@ def test_zmq_case_no_agents(monkeypatch):
                               text=True
                               ) as vcfg:
             out, err = vcfg.communicate(vcfg_args)
-        print("CWD is: {}".format(os.getcwd()))
-        print("OUT is: {}".format(out))
-        print("ERROR is: {}".format(err))
+        #print("CWD is: {}".format(os.getcwd()))
+        #print("OUT is: {}".format(out))
+        #print("ERROR is: {}".format(err))
         assert os.path.exists(config_path)
         config = ConfigParser()
         config.read(config_path)
