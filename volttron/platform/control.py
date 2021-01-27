@@ -2929,6 +2929,7 @@ def main(argv=sys.argv):
         # make sure the connection to the server is closed when this scriopt is about to exit.
         if opts.connection:
             opts.connection.server.core.stop()
+
     if opts.debug:
         print_tb()
     _stderr.write('{}: error: {}\n'.format(opts.command, error))
