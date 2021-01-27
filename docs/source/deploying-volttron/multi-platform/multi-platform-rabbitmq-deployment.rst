@@ -30,7 +30,7 @@ Note that upstream server & publisher node and downstream server & subscriber no
 Using the Federation Plugin
 ---------------------------
 
-We can connect multiple VOLTTRON instances using the federation plugin. To create a RabbitMQ federation, we have to
+Connecting multiple VOLTTRON instances can be done using the federation plugin. To create a RabbitMQ federation, we have to
 configure the downstream volttron instance to create federated exchange. A federated exchange links to other exchanges.
 In this case, the downstream federated exchange links to the upstream exchange. Conceptually, messages published to the
 upstream exchanges are copied to the federated exchange, as though they were published directly to the federated exchange.
@@ -68,7 +68,7 @@ To setup federation on the VOLTTRON instance, run the following command on the d
     vcfg --rabbitmq federation [optional path to rabbitmq_federation_config.yml]
 
 
-This will setup federation links to upstream servers. Once a federation link to the upstream server is established on
+This establishes federation links to upstream servers. Once a federation link to the upstream server is established on
 the downstream server, the messages published on the upstream server become available to the downstream server as if
 it were published locally.
 
@@ -210,7 +210,7 @@ upstream servers on the downstream server and make the VOLTTRON exchange
 
        .. code-block:: bash
 
-          vctl install examples/ListenerAgent
+          vctl install examples/ListenerAgent --agent-config examples/ListenerAgent/config --start
 
 
    b. Install platform driver, configure fake device on upstream server and start volttron and platform driver.
@@ -265,7 +265,8 @@ upstream servers on the downstream server and make the VOLTTRON exchange
 .. note::
 
     These commands only remove the federation parameter from RabbitMQ and certificate entries from rabbitmq_federation_config.yml on the publisher node.
-    `It does not remove the actual certificates.` If you need to rerun the federation command again for the same setup
+    `It does not remove the actual certificates.` Rerunning the federation command for same setup will reuse the existing certificates.
+    If you need to rerun the federation command again for the same setup
     and need to create fresh certificates, then you will need to manually remove public and private certificates.
     Private certificates will be in
     $VOLTTRON_HOME/certificates/private. Public certificates will be in two directories:
@@ -471,7 +472,7 @@ Please note that each instance should have a unique instance name.
 
          .. code-block:: bash
 
-            vctl install examples/ListenerAgent
+            vctl install examples/ListenerAgent --agent-config examples/ListenerAgent/config --start
 
 
    d. Verify listener agent in downstream VOLTTRON instance can receive the messages.
@@ -503,7 +504,8 @@ Please note that each instance should have a unique instance name.
 .. note::
 
     These commands only remove the shovel parameter from RabbitMQ and certificate entries from rabbitmq_shovel_config.yml on the publisher node.
-    `It does not remove the actual certificates.` If you need to rerun the shovel command again for the same setup and need to create fresh certificates, then you will
+    `It does not remove the actual certificates.` Rerunning the shovel command for same setup will reuse the existing certificates.
+    But if you need to rerun the shovel command again for the same setup and need to create fresh certificates, then you will
     need to manually remove public and private certificates. Private certificates will be in
     $VOLTTRON_HOME/certificates/private. Public certificates will be in two directories:
     $VOLTTRON_HOME/certificates/shovel and $VOLTTRON_HOME/certificates/certs.
