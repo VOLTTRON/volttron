@@ -92,8 +92,8 @@ or in the VOLTTRON repository in ``examples/configurations/drivers/fake.csv``
 Installation
 ============
 
-Installing a Fake driver in the :ref:`Master Driver Agent <Master-Driver>` requires adding copies of the device
-configuration and registry configuration files to the Master Driver's :ref:`configuration store <Configuration-Store>`
+Installing a Fake driver in the :ref:`Platform Driver Agent <Platform-Driver>` requires adding copies of the device
+configuration and registry configuration files to the Platform Driver's :ref:`configuration store <Configuration-Store>`
 
 - Create a config directory (if one doesn't already exist) inside your Volttron repository:
 
@@ -126,11 +126,11 @@ All local config files will be worked on here.
         "publish_breadth_first": false
    	}
 
-- Create a copy of the Master Driver config from the VOLTTRON repository:
+- Create a copy of the Platform Driver config from the VOLTTRON repository:
 
 .. code-block:: bash
 
-    cp examples/configurations/drivers/master-driver.agent config/fake-master-driver.config
+    cp examples/configurations/drivers/platform-driver.agent config/fake-platform-driver.config
 
 - Add fake.csv and fake.config to the :ref:`configuration store <Configuration-Store>`:
 
@@ -139,7 +139,7 @@ All local config files will be worked on here.
     vctl config store platform.driver devices/campus/building/fake config/fake.config
     vcfl config store platform.driver fake.csv config/fake.csv --csv
 
-- Edit `fake-master-driver.config` to reflect paths on your system
+- Edit `fake-platform-driver.config` to reflect paths on your system
 
 .. code-block:: json
 
@@ -147,11 +147,11 @@ All local config files will be worked on here.
         "driver_scrape_interval": 0.05
     }
 
-- Use the scripts/install-agent.py script to install the Master Driver agent:
+- Use the scripts/install-agent.py script to install the Platform Driver agent:
 
 .. code-block:: bash
 
-    python scripts/install-agent.py -s services/core/MasterDriverAgent -c config/fake-master-driver.config
+    python scripts/install-agent.py -s services/core/PlatformDriverAgent -c config/fake-platform-driver.config
 
 - If you have a :ref:`Listener Agent<Listener-Agent>` already installed, you should start seeing data being published to
   the bus.

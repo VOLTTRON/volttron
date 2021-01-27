@@ -85,7 +85,7 @@ def install_requirements(agent_source):
             sys.exit(1)
 
 
-def install_agent_directory(opts, package, agent_config):
+def install_agent_directory(opts):
     """
     The main installation method for installing the agent on the correct local
     platform instance.
@@ -120,6 +120,7 @@ def install_agent_directory(opts, package, agent_config):
             # Note we don't remove the agent here because if we do that will
             # not allow us to update without losing the keys.  The
             # install_agent method either installs or upgrades the agent.
+    agent_config = opts.agent_config
 
     if agent_config is None:
         agent_config = {}
@@ -143,6 +144,7 @@ def install_agent_directory(opts, package, agent_config):
     # Configure the whl file before installing.
     add_files_to_package(opts.package, {'config_file': config_file})
     env = os.environ.copy()
+
 
     if agent_exists:
         cmds = [volttron_control, "--json", "upgrade", opts.vip_identity, opts.package]
@@ -244,9 +246,10 @@ def install_agent(opts, publickey=None, secretkey=None, callback=None):
         install_path = opts.wheel
 
     if os.path.isdir(install_path):
-        install_agent_directory(opts, opts, opts.agent_config)
-        return
-
+        install_agent_directory(opts)
+        if opts.connection is not None:
+            opts.connection.server.core.stop()
+        sys.exit(0)
     filename = install_path
     tag = opts.tag
     vip_identity = opts.vip_identity
@@ -320,10 +323,10 @@ def install_agent(opts, publickey=None, secretkey=None, callback=None):
     name = opts.connection.call('agent_name', agent_uuid)
     _stdout.write('Installed {} as {} {}\n'.format(filename, agent_uuid, name))
 
-    # Need to use a callback here rather than a return value.  I am not 100%
-    # sure why this is the reason for allowing our tests to pass.
-    if callback:
-        callback(agent_uuid)
+    opts.connection.server.core.stop()
+
+    # This is where we need to exit so the script doesn't continue after installation.
+    sys.exit(0)
 
 
 def add_install_agent_parser(add_parser_fn, has_restricted):

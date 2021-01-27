@@ -54,7 +54,7 @@ from gevent.fileobject import FileObject
 from zmq import green as zmq
 
 from volttron.platform import jsonapi, get_home
-from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM, CONTROL, MASTER_WEB, CONTROL_CONNECTION
+from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM, CONTROL, PLATFORM_WEB, CONTROL_CONNECTION
 from volttron.platform.vip.agent.errors import VIPError
 from volttron.platform.jsonrpc import MethodNotFound, RemoteError
 from volttron.platform.vip.agent.errors import VIPError, Unreachable

@@ -45,6 +45,7 @@ import time
 from configparser import ConfigParser
 from shutil import copy
 from urllib.parse import urlparse
+import logging
 
 from gevent import subprocess
 from gevent.subprocess import Popen
@@ -54,9 +55,9 @@ from bootstrap import install_rabbit, default_rmq_dir
 from requirements import extras_require
 from volttron.platform import certs, is_rabbitmq_available
 from volttron.platform import jsonapi
-from volttron.platform.agent.known_identities import MASTER_WEB, PLATFORM_DRIVER, VOLTTRON_CENTRAL
+from volttron.platform.agent.known_identities import PLATFORM_WEB, PLATFORM_DRIVER, VOLTTRON_CENTRAL
 from volttron.platform.agent.utils import get_platform_instance_name, wait_for_volttron_startup, \
-    is_volttron_running, wait_for_volttron_shutdown
+    is_volttron_running, wait_for_volttron_shutdown, setup_logging
 from volttron.utils import get_hostname
 from volttron.utils.prompt import prompt_response, y, n, y_or_n
 from volttron.utils.rmq_config_params import RMQConfig
@@ -385,7 +386,7 @@ def _create_web_certs():
             return 1
     
     print("Creating new web server certificate.")
-    crts.create_signed_cert_files(name=MASTER_WEB + "-server", cert_type='server', ca_name=crts.root_ca_name, fqdn=get_hostname())
+    crts.create_signed_cert_files(name=PLATFORM_WEB + "-server", cert_type='server', ca_name=crts.root_ca_name, fqdn=get_hostname())
     return 0
 
 
@@ -647,23 +648,23 @@ def get_cert_and_key(vhome):
 
     # Check for existing files first. If present and are valid ask if we are to use that
 
-    master_web_cert = os.path.join(vhome, 'certificates/certs/', MASTER_WEB+"-server.crt")
-    master_web_key = os.path.join(vhome, 'certificates/private/', MASTER_WEB + "-server.pem")
+    platform_web_cert = os.path.join(vhome, 'certificates/certs/', PLATFORM_WEB+"-server.crt")
+    platform_web_key = os.path.join(vhome, 'certificates/private/', PLATFORM_WEB + "-server.pem")
     cert_error = True
 
-    if is_file_readable(master_web_cert, False) and is_file_readable(master_web_key, False):
+    if is_file_readable(platform_web_cert, False) and is_file_readable(platform_web_key, False):
         try:
-            if certs.Certs.validate_key_pair(master_web_cert, master_web_key):
+            if certs.Certs.validate_key_pair(platform_web_cert, platform_web_key):
                 print('\nThe following certificate and keyfile exists for web access over https: \n{}\n{}'.format(
-                    master_web_cert,master_web_key))
+                    platform_web_cert,platform_web_key))
                 prompt = '\nDo you want to use these certificates for the web server?'
                 if prompt_response(prompt, valid_answers=y_or_n, default='Y') in y:
-                    config_opts['web-ssl-cert'] = master_web_cert
-                    config_opts['web-ssl-key'] = master_web_key
+                    config_opts['web-ssl-cert'] = platform_web_cert
+                    config_opts['web-ssl-key'] = platform_web_key
                     cert_error = False
                 else:
                     print('\nPlease provide the path to cert and key files. '
-                          'This will overwrite existing files: \n{} and {}'.format(master_web_cert, master_web_key))
+                          'This will overwrite existing files: \n{} and {}'.format(platform_web_cert, platform_web_key))
             else:
                 print("Existing key pair is not valid.")
         except RuntimeError as e:
@@ -710,12 +711,12 @@ def get_cert_and_key(vhome):
         else:
             cert_error = _create_web_certs()
             if not cert_error:
-                master_web_cert = os.path.join(vhome, 'certificates/certs/',
-                        MASTER_WEB+"-server.crt")
-                master_web_key = os.path.join(vhome, 'certificates/private/', 
-                        MASTER_WEB + "-server.pem")
-                config_opts['web-ssl-cert'] = master_web_cert
-                config_opts['web-ssl-key'] = master_web_key
+                platform_web_cert = os.path.join(vhome, 'certificates/certs/',
+                        PLATFORM_WEB+"-server.crt")
+                platform_web_key = os.path.join(vhome, 'certificates/private/',
+                        PLATFORM_WEB + "-server.pem")
+                config_opts['web-ssl-cert'] = platform_web_cert
+                config_opts['web-ssl-key'] = platform_web_key
 
 
 def is_file_readable(file_path, log=True):
@@ -819,7 +820,7 @@ def do_platform_historian():
 
 
 def add_fake_device_to_configstore():
-    prompt = 'Would you like to install a fake device on the master driver?'
+    prompt = 'Would you like to install a fake device on the platform driver?'
     response = prompt_response(prompt, valid_answers=y_or_n, default='N')
     if response in y:
         _cmd(['volttron-ctl', 'config', 'store', PLATFORM_DRIVER,
@@ -829,9 +830,9 @@ def add_fake_device_to_configstore():
               'examples/configurations/drivers/fake.config'])
 
 
-@installs(get_services_core("MasterDriverAgent"), 'master_driver',
+@installs(get_services_core("PlatformDriverAgent"), 'platform_driver',
           post_install_func=add_fake_device_to_configstore)
-def do_master_driver():
+def do_platform_driver():
     return {}
 
 
@@ -913,14 +914,14 @@ def wizard():
     response = prompt_response(prompt, valid_answers=y_or_n, default='N')
     if response in y:
         do_platform_historian()
-    prompt = 'Would you like to install a master driver?'
+    prompt = 'Would you like to install a platform driver?'
     response = prompt_response(prompt, valid_answers=y_or_n, default='N')
     if response in y:
         if not _check_dependencies_met("drivers"):
             print("Driver dependencies not installed. Installing now...")
             set_dependencies("drivers")
             print("Done!")
-        do_master_driver()
+        do_platform_driver()
 
     prompt = 'Would you like to install a listener agent?'
     response = prompt_response(prompt, valid_answers=y_or_n, default='N')
@@ -986,6 +987,12 @@ def main():
 
     args = parser.parse_args()
     verbose = args.verbose
+    # Protect against configuration of base logger when not the "main entry point"
+    if verbose:
+        setup_logging(logging.DEBUG, True)
+    else:
+        setup_logging(logging.INFO, True)
+
     prompt_vhome = True
     if args.vhome:
         set_home(args.vhome)

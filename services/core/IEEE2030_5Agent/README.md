@@ -4,7 +4,7 @@ IEEE2030_5Agent uses the VOLTTRON web service to communicate with IEEE 2030.5  e
 End device configuration is outlined in the agent config file.
 
 IEEE 2030.5 data is exposed via get_point(), get_points() and set_point() calls.
-A IEEE 2030.5 device driver (IEEE2030_5.py under MasterDriverAgent) can be configured,
+A IEEE 2030.5 device driver (IEEE2030_5.py under PlatformDriverAgent) can be configured,
 which gets and sets data by sending RPCs to this agent.
 
 For further information about this subsystem, please see the VOLTTRON

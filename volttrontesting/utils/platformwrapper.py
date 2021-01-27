@@ -27,7 +27,7 @@ from .agent_additions import (add_volttron_central,
 from gevent.fileobject import FileObject
 from gevent.subprocess import Popen
 from volttron.platform import packaging, jsonapi
-from volttron.platform.agent.known_identities import MASTER_WEB, CONTROL, CONTROL_CONNECTION, PROCESS_IDENTITIES
+from volttron.platform.agent.known_identities import PLATFORM_WEB, CONTROL, CONTROL_CONNECTION, PROCESS_IDENTITIES
 from volttron.platform.certs import Certs
 from volttron.platform.agent import utils
 from volttron.platform.agent.utils import (strip_comments,
@@ -544,18 +544,18 @@ class PlatformWrapper:
     def is_auto_csr_enabled(self):
         assert self.messagebus == 'rmq', 'Only available for rmq messagebus'
         assert self.bind_web_address, 'Must have a web based instance'
-        return self.dynamic_agent.vip.rpc(MASTER_WEB, 'is_auto_allow_csr').get()
+        return self.dynamic_agent.vip.rpc(PLATFORM_WEB, 'is_auto_allow_csr').get()
 
     def enable_auto_csr(self):
         assert self.messagebus == 'rmq', 'Only available for rmq messagebus'
         assert self.bind_web_address, 'Must have a web based instance'
-        self.dynamic_agent.vip.rpc(MASTER_WEB, 'auto_allow_csr', True).get()
+        self.dynamic_agent.vip.rpc(PLATFORM_WEB, 'auto_allow_csr', True).get()
         assert self.is_auto_csr_enabled()
 
     def disable_auto_csr(self):
         assert self.messagebus == 'rmq', 'Only available for rmq messagebus'
         assert self.bind_web_address, 'Must have a web based instance'
-        self.dynamic_agent.vip.rpc(MASTER_WEB, 'auto_allow_csr', False).get()
+        self.dynamic_agent.vip.rpc(PLATFORM_WEB, 'auto_allow_csr', False).get()
         assert not self.is_auto_csr_enabled()
 
     def add_capabilities(self, publickey, capabilities):
@@ -628,10 +628,10 @@ class PlatformWrapper:
 
                 # pre-seed all of the volttron process identities before starting the platform
                 for identity in PROCESS_IDENTITIES:
-                    if identity == MASTER_WEB:
+                    if identity == PLATFORM_WEB:
                         capabilities = dict(allow_auth_modifications=None)
                     else:
-                        capabilities = dict(edit_config_stor=dict(identity="/.*/"))
+                        capabilities = dict(edit_config_store=dict(identity="/.*/"))
 
                     ks = KeyStore(KeyStore.get_agent_keystore_path(identity))
                     entry = AuthEntry(credentials=encode_key(decode_key(ks.public)),
@@ -642,7 +642,7 @@ class PlatformWrapper:
 
                 # Control connection needs to be added so that vctl can connect easily
                 identity = CONTROL_CONNECTION
-                capabilities = dict(edit_config_stor=dict(identity="/.*/"))
+                capabilities = dict(edit_config_store=dict(identity="/.*/"))
                 ks = KeyStore(KeyStore.get_agent_keystore_path(identity))
                 entry = AuthEntry(credentials=encode_key(decode_key(ks.public)),
                                   user_id=identity,
@@ -666,7 +666,7 @@ class PlatformWrapper:
             # for addr in opts.vip_address:
             #     known_hosts.add(addr, encode_key(publickey))
             if self.bind_web_address:
-                # Create web users for master web authentication
+                # Create web users for platform web authentication
                 from volttron.platform.web.admin_endpoints import AdminEndpoints
                 from volttrontesting.utils.web_utils import get_test_web_env
                 adminep = AdminEndpoints()
@@ -1489,7 +1489,7 @@ class WebAdminApi(object):
         self.certsobj = self._wrapper.certsobj
 
     def create_web_admin(self, username, password, messagebus='rmq'):
-        """ Creates a global master user for the platform https interface.
+        """ Creates a global administrator user for the platform https interface.
 
         :param username:
         :param password:

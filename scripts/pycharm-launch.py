@@ -73,11 +73,17 @@ Optional Environmental Variables
 sys.path.insert(0, abspath)
 if not parsed.no_config:
     if not os.environ.get('AGENT_CONFIG'):
-        if not os.path.exists(os.path.join(abspath, 'config')):
+        path_found = None
+        # Order of search is as follows config, config.yml, config.json
+        for cfg in ('config', 'config.yml', 'config.json'):
+            if os.path.exists(os.path.join(abspath, cfg)):
+                path_found = os.path.join(abspath, cfg)
+                break
+        if not path_found:
             sys.stderr.write('AGENT_CONFIG variable not set.  Either set it or '
                              'put a config file in the root of the agent dir.')
             sys.exit()
-        os.environ['AGENT_CONFIG'] = os.path.join(abspath, 'config')
+        os.environ['AGENT_CONFIG'] = path_found
 
 volttron_home = os.environ.get('VOLTTRON_HOME')
 

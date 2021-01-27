@@ -101,11 +101,11 @@ For agents:
     └── tests
         └── test_agent.py
 
-For drivers, the interface should be a file named after the driver in the Master Driver's interfaces directory:
+For drivers, the interface should be a file named after the driver in the Platform Driver's interfaces directory:
 
 ::
 
-    ├── master_driver
+    ├── platform_driver
     │         ├── agent.py
     │         ├── driver.py
     │         ├── __init__.py
@@ -115,11 +115,11 @@ For drivers, the interface should be a file named after the driver in the Master
     |         |         ├── csvdriver.py
     │         │         └── new_driver.py
 
-Or in the `__init__.py` file in a directory named after the driver in the Master Driver's interfaces directory:
+Or in the `__init__.py` file in a directory named after the driver in the Platform Driver's interfaces directory:
 
 ::
 
-    ├── master_driver
+    ├── platform_driver
     │         ├── agent.py
     │         ├── driver.py
     │         ├── __init__.py

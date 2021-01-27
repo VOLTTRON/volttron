@@ -18,7 +18,7 @@
   "gather_timing_data": false, # For benchmarking historians.
   "readonly": false, # Turn off data collection.
 
-  # Which catagories of data to collect.
+  # Which categories of data to collect.
   "capture_device_data": true,
   "capture_log_data": true,
   "capture_analysis_data": true,

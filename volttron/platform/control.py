@@ -532,11 +532,18 @@ def filter_agents(agents, patterns, opts):
     for pattern in patterns:
         regex, _ = escape(pattern)
         result = set()
+
+        # if no option is selected, try matching based on uuid
         if not (by_uuid or by_name or by_tag):
             reobj = re.compile(regex)
             matches = [agent for agent in agents if reobj.match(agent.uuid)]
             if len(matches) == 1:
                 result.update(matches)
+            # if no match is found based on uuid, try matching on agent name
+            elif len(matches) == 0:
+                matches = [agent for agent in agents if reobj.match(agent.name)]
+                if len(matches) >= 1:
+                    result.update(matches)
         else:
             reobj = re.compile(regex + '$')
             if by_uuid:
@@ -1669,7 +1676,8 @@ def _show_filtered_agents_status(opts, status_callback, health_callback, agents=
                 'health': health_callback(agent),
             }
             if is_secure_mode():
-                json_obj[agent.vip_identity]['agent_user'] = agent_user if json_obj[agent.vip_identity]['status'].startswith('running') else ''
+                json_obj[agent.vip_identity]['agent_user'] = agent.agent_user if \
+                    json_obj[agent.vip_identity]['status'].startswith('running') else ''
         _stdout.write(f'{jsonapi.dumps(json_obj, indent=2)}\n')
 
 
@@ -2975,9 +2983,6 @@ def main(argv=sys.argv):
         _stderr.write("Invalid command: '{}' or command requires additional arguments\n".format(opts.command))
         parser.print_help()
         return 1
-    # except Exception as exc:
-    #     print_tb = traceback.print_exc
-    #     error = str(exc)
     finally:
         # make sure the connection to the server is closed when this scriopt is about to exit.
         if opts.connection:

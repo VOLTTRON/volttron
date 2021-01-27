@@ -101,6 +101,9 @@ On **Redhat or CentOS systems**, these can be installed from the Extra Packages 
 It may be possible to deploy VOLTTRON on a system not listed above but may involve some troubleshooting and dependency
 management on the part of the user.
 
+In order to support historians, the python installation must include the built-in sqlite3 support (a compile time option).
+This is included in all of the linux distribution packages referenced above, which is the recommended and supported way of running python.
+In cases where a user needs to compile their own python (not an officially supported configuration), make sure that the sqlite3 option is enabled.
 
 Step 2 - Clone VOLTTRON code
 ============================
@@ -114,9 +117,9 @@ Repository Structure
 There are several options for using the VOLTTRON code depending on whether you require the most stable version of the
 code or want the latest updates as they happen. In order of decreasing stability and increasing currency:
 
-* `Master` - Most stable release branch, current major release is 7.0.  This branch is default.
+* `Main` - Most stable release branch, current major release is 7.0.  This branch is default.
 * `develop` - contains the latest `finished` features as they are developed.  When all features are stable, this branch
-  will be merged into `Master`.
+  will be merged into `Main`.
 
   .. note::
 
@@ -330,6 +333,10 @@ exchange to capture unrouteable messages.
 
        vcfg --vhome /home/vdev/.new_vhome --rabbitmq single
 
+.. note::
+
+    The default behavior generates a certificate which is valid for a period of 1 year.
+
 The Following are the example inputs for `vcfg --rabbitmq single` command.  Since no config file is passed the script
 prompts for necessary details.
 
@@ -477,7 +484,7 @@ You can also use the `volttron-ctl` (or `vctl`) command to start, stop or check 
     (volttron)volttron@volttron1:~/git/rmq_volttron$ vctl status
       AGENT                  IDENTITY            TAG           STATUS          HEALTH
     6 listeneragent-3.2      listeneragent-3.2_1               running [13125] GOOD
-    f master_driveragent-3.2 platform.driver     master_driver
+    f platform_driveragent-3.2 platform.driver     platform_driver
 
 .. code-block:: bash
 
