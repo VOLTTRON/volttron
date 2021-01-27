@@ -76,7 +76,7 @@ and `nginx <https://docs.nginx.com/nginx/admin-guide/web-server/reverse-proxy/>`
 Monitor for Data Tampering
 ==========================
 
-One common indication of a potential problem, including tampering, would the the presense
+One common indication of a potential problem, including tampering, would be the presense
 of out of bounds values.
 The :ref:`Threshold-Agent` can be used leveraged to create alerts in the event that a
 topic has a value which is out of reasonable bounds.
@@ -92,3 +92,32 @@ This approach has some limitations, including:
 - There could be cases where tampering adjusts values to incorrect but in-bounds values
   which would not be detected.
 
+
+Limit Publishing on the Devices Topic to Platform Driver
+========================================================
+
+To further reduce the chances of malicious data disrupting your system, you can limit the
+ability to publish to the devices topic to the platform driver only.
+
+To accomplish this, you will need to modify protected_topics.json,
+found in your $VOLTTRON_HOME directory. In this specific case, you would need
+to add the topic "devices" and some capability, for example "can_publish_to_devices".
+
+.. code-block:: json
+
+    {
+       "write-protect": [
+          {"topic": "devices", "capabilities": ["can_publish_to_devices"]}
+       ]
+    }
+
+Next, using ``vctl auth list`` get the auth index for the platform.driver,
+and use the command ``vctl auth update <index of platform.driver>``.
+You will get a prompt to update the auth entry. Skip through the prompts until it prompts for
+capabilities, and add can_publish_to_devices.
+
+.. code-block:: console
+
+    capabilities (delimit multiple entries with comma) []: can_publish_to_devices
+
+For more information, refer to the section on :ref:`protecting.
