@@ -105,7 +105,7 @@ VOLTTRON to log to a file. The file name should be different for each instance.
 
 .. code-block:: console
 
-    $ ./start-volttron --setup-mode
+    $ volttron -vv -l volttron.log --setup-mode > volttron.log 2>&1 &
 
 A new auth entry is added for each new platform connection. This can be checked with below command in each terminal
 window.
