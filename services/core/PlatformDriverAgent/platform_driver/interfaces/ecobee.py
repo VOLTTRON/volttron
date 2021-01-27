@@ -48,7 +48,7 @@ from volttron.platform import jsonapi
 from volttron.platform.agent import utils
 from volttron.platform.agent.known_identities import CONFIGURATION_STORE, PLATFORM_DRIVER
 from volttron.utils.persistance import PersistentDict
-from .interfaces import BaseInterface, BaseRegister, BasicRevert
+from platform_driver.interfaces import BaseInterface, BaseRegister, BasicRevert
 
 AUTH_CONFIG_PATH = "drivers/auth/ecobee_{}"
 THERMOSTAT_URL = 'https://api.ecobee.com/1/thermostat'
