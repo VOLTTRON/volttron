@@ -47,7 +47,7 @@ import weakref
 from .base import SubsystemBase
 
 from volttron.platform import jsonapi
-from volttron.platform.agent.known_identities import AUTH, MASTER_WEB, CONTROL, KEY_DISCOVERY, CONFIGURATION_STORE, \
+from volttron.platform.agent.known_identities import AUTH, PLATFORM_WEB, CONTROL, KEY_DISCOVERY, CONFIGURATION_STORE, \
     CONTROL_CONNECTION, PLATFORM_HEALTH
 from volttron.platform.keystore import KnownHostsStore
 from volttron.platform.agent.utils import get_platform_instance_name, get_fq_identity, get_messagebus
@@ -85,7 +85,7 @@ class Auth(SubsystemBase):
             rpc.export(self.set_rpc_authorizations)
             rpc.allow(self.get_rpc_authorizations, 'modify_rpc_method_allowance')
             rpc.allow(self.set_rpc_authorizations, 'modify_rpc_method_allowance')
-            ignored_ids = [AUTH, MASTER_WEB, CONTROL, KEY_DISCOVERY, CONFIGURATION_STORE,
+            ignored_ids = [AUTH, PLATFORM_WEB, CONTROL, KEY_DISCOVERY, CONFIGURATION_STORE,
                            CONTROL_CONNECTION, PLATFORM_HEALTH, 'pubsub']
             if core.identity not in ignored_ids:
                 gevent.spawn_later(1, self.update_rpc_method_capabilities)

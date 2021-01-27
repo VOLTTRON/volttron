@@ -226,7 +226,6 @@ def entry_to_input_string(domain='', address='', user_id='', identity='',
     inputs.append(user_id)
     inputs.append(identity)
     inputs.append(','.join(capabilities))
-    inputs.append(','.join(rpc_method_authorizations))
     inputs.append(','.join(roles))
     inputs.append(','.join(groups))
     inputs.append(mechanism)
@@ -287,7 +286,7 @@ def auth_update(platform, index, **kwargs):
 
 def auth_rpc_method_allow(platform, agent, method, auth_cap):
     with with_os_environ(platform.env):
-        with subprocess.Popen(['volttron-ctl', 'auth', 'rpc', 'allow', f'{agent}.{method}', auth_cap], env=env,
+        with subprocess.Popen(['volttron-ctl', 'auth', 'rpc', 'allow', f'{agent}.{method}', auth_cap], env=platform.env,
                              stdin=subprocess.PIPE, universal_newlines=True) as p:
             out, err = p.communicate()
             assert p.returncode == 0

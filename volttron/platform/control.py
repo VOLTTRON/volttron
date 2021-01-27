@@ -882,9 +882,7 @@ def modify_agent_rpc_authorizations(opts):
 
         auth_file = _get_auth_file(os.path.abspath(platform.get_home()))
         entries = auth_file.read_allow_entries()
-        print(f'agent_id: {agent_id}\nEntries are:')
         for entry in entries:
-            print(f"Entry: {entry}")
             if entry.identity == agent_id:
                 if agent_method not in entry.rpc_method_authorizations:
                     entry.rpc_method_authorizations[agent_method] = added_auths
@@ -1212,9 +1210,8 @@ def list_auth(opts, indices=None):
 
 
 def _ask_for_auth_fields(domain=None, address=None, user_id=None, identity=None,
-                         capabilities=None, rpc_method_authorizations=None,
-                         roles=None, groups=None, mechanism='CURVE', credentials=None,
-                         comments=None, enabled=True, **kwargs):
+                         capabilities=None, roles=None, groups=None, mechanism='CURVE',
+                         credentials=None, comments=None, enabled=True, **kwargs):
     class Asker(object):
         def __init__(self):
             self._fields = collections.OrderedDict()
@@ -1286,7 +1283,6 @@ def _ask_for_auth_fields(domain=None, address=None, user_id=None, identity=None,
     asker.add('identity', identity)
     asker.add('capabilities', capabilities,
               'delimit multiple entries with comma', _parse_capabilities)
-    asker.add('rpc_method_authorizations', rpc_method_authorizations)
     asker.add('roles', roles, 'delimit multiple entries with comma',
               _comma_split)
     asker.add('groups', groups, 'delimit multiple entries with comma',
@@ -1347,6 +1343,7 @@ def add_auth(opts):
     else:
         # No options were specified, use interactive wizard
         responses = _ask_for_auth_fields()
+        responses['rpc_method_authorizations'] = None
         entry = AuthEntry(**responses)
 
     if opts.add_known_host:
@@ -1423,6 +1420,7 @@ def update_auth(opts):
         entry = entries[opts.index]
         _stdout.write('(For any field type "clear" to clear the value.)\n')
         response = _ask_for_auth_fields(**entry.__dict__)
+        response['rpc_method_authorizations'] = None
         updated_entry = AuthEntry(**response)
         auth_file.update_by_index(updated_entry, opts.index)
         _stdout.write('updated entry at index {}\n'.format(opts.index))

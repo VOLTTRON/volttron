@@ -276,7 +276,6 @@ class RPC(SubsystemBase):
                 # When we address issue #2107 external platform user should
                 # have instance name also included in username.
                 user = user.split(".")[1]
-            _log.debug("Current user in checked_method is {}".format(user))
             user_capabilites = self._owner.vip.auth.get_capabilities(user)
             _log.debug("**user caps is: {}".format(user_capabilites))
             if user_capabilites:
@@ -284,8 +283,6 @@ class RPC(SubsystemBase):
             else:
                 user_capabilities_names = set()
 
-            _log.debug("Required caps is : {}".format(required_caps))
-            _log.debug("user capability names: {}".format(user_capabilities_names))
             if not required_caps.issubset(user_capabilities_names):
                 msg = ('method "{}" requires capabilities {}, but capability {} was'
                        ' provided for user {}').format(method.__name__, required_caps, user_capabilites, user)

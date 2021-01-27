@@ -193,7 +193,7 @@ class AuthService(Agent):
                         try:
                             self.vip.rpc.call(
                                 entry.identity, "set_rpc_authorizations",
-                                {"method": method, "capabilities": entry.rpc_method_authorizations[method]}).get(timeout=4)
+                                method_str=method, capabilities=entry.rpc_method_authorizations[method]).get(timeout=4)
                         except gevent.Timeout:
                             _log.error(f"{entry.identity} "
                                        f"has timed out while attempting to update rpc_method_authorizations")
@@ -214,7 +214,7 @@ class AuthService(Agent):
                         try:
                             self.vip.rpc.call(
                                 entry.identity, "set_rpc_authorizations",
-                                {"method": method, "capabilities": entry.rpc_method_authorizations[method]}).get(timeout=4)
+                                method_str=method, capabilities=entry.rpc_method_authorizations[method]).get(timeout=4)
                         except gevent.Timeout:
                             _log.error(f"{entry.identity} "
                                        f"has timed out while attempting to update rpc_method_authorizations")

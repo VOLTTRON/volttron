@@ -12,20 +12,24 @@ All authentication sub-commands can be viewed by entering following command.
 
 .. code-block:: console
 
+    usage: vctl command [OPTIONS] ... auth [-h] [-c FILE] [--debug] [-t SECS]
+                                           [--msgdebug MSGDEBUG]
+                                           [--vip-address ZMQADDR]
+                                           ...
+
     optional arguments:
-    -h, --help            show this help message and exit
-    -c FILE, --config FILE
+      -h, --help            show this help message and exit
+      -c FILE, --config FILE
                             read configuration from FILE
-    --debug               	show tracbacks for errors rather than a brief message
-    -t SECS, --timeout SECS
-                            timeout in seconds for remote calls (default: 30)
-    --vip-address ZMQADDR
+      --debug               show tracebacks for errors rather than a brief message
+      -t SECS, --timeout SECS
+                            timeout in seconds for remote calls (default: 60)
+      --msgdebug MSGDEBUG   route all messages to an agent while debugging
+      --vip-address ZMQADDR
                             ZeroMQ URL to bind for VIP connections
-    --keystore-file FILE  	use keystore from FILE
-    --known-hosts-file FILE
-                            get known-host server keys from FILE
 
     subcommands:
+
         add                 add new authentication record
         add-group           associate a group name with a set of roles
         add-known-host      add server public key to known-hosts file
@@ -44,6 +48,7 @@ All authentication sub-commands can be viewed by entering following command.
         update              updates one authentication record by index
         update-group        update group to include (or remove) given roles
         update-role         update role to include (or remove) given capabilities
+        rpc                 Manage rpc method authorizations
 
 
 Authentication record
@@ -56,7 +61,9 @@ An authentication record consist of following parameters
     domain []:
     address []: Either a single agent identity or an array of agents identities
     user_id []: Arbitrary string to identify the agent
+    identity []: agents vip identity, if provided
     capabilities (delimit multiple entries with comma) []: Array of strings referring to authorized capabilities defined by exported RPC methods
+    rpc_method_authorizations []: Dictionary containing the agent's exported RPC methods, and the authorized capabilities for each. Will populate on startup.
     roles (delimit multiple entries with comma) []:
     groups (delimit multiple entries with comma) []:
     mechanism [CURVE]:
@@ -84,6 +91,7 @@ arguments.
         domain []:
         address []:
         user_id []:
+        identity []:
         capabilities (delimit multiple entries with comma) []:
         roles (delimit multiple entries with comma) []:
         groups (delimit multiple entries with comma) []:
@@ -128,7 +136,7 @@ Domain:
 Domain is the name assigned to locally bound address. Domain parameter is currently not being used in VOLTTRON and is placeholder for future implementation.
 
 Address:
----------
+--------
 By specifying address, administrator can allow an agent to connect with VOLTTRON only if that agent is running on that address.
 Address parameter can take a string representing an IP addresses.
 It can also take a regular expression representing a range of IP addresses.
@@ -139,24 +147,31 @@ It can also take a regular expression representing a range of IP addresses.
     address []: /192.168.*/
 
 User_id:
----------
+--------
 User_id can be any arbitrary string that is used to identify the agent by the platform.
 If a regular expression is used for address or credential to combine agents in an authentication record then all
 those agents will be identified by this user_id. It is primarily used for identifying agents during logging.
 
+Identity:
+---------
+An identity is a string that represents the agent's VIP identity. This is an optional field, used by the platform to
+communicate between agents via RPC calls. It should be set if an agent has RPC exports.
+
+
 Capabilities:
 -------------
-Capability is an arbitrary string used by an agent to describe its exported RPC method. It is used to limit the access
-to that RPC method to only those agents who have that capailbity listed in their authentication record.
+A capability is an arbitrary string used by an agent to constrain its exported RPC method.
+Only agents who have that capability listed in their authentication record will be able to access that RPC method.
 
+If an administrator wants to authorize an agent to access an exported RPC method with a specific capability
+on another agent, the administrator can list that capability string in this parameter.
+The capability parameter takes a string, an array of strings, or the string representation of dictionary
+listing all the capabilities this agent is authorized to access.
 
-If administrator wants to authorize an agent to access an exported RPC method with capability of another agent,
-the administrator can list that capability string in this parameter. Capability parameter takes an string or an array of strings or
-a string representation of dictionary listing all the capabilities this agent is authorized to access.
-Listing capabilities here will allow this agent to access corresponding exported RPC methods of other agents.
-
-For example, if there is an AgentA with capability enables exported RPC method and AgentB needs to access that method then
-AgentA's code and AgentB's authentication record would be as follow:
+The agent will have access to all corresponding exported RPC methods of other agents that are
+constrained by the listed capabilities. For example, if there is an AgentA with capability enables exported
+RPC method and AgentB needs to access that method then AgentA's code and AgentB's authentication record
+would be as follows:
 
 
 AgentA's capability enabled exported RPC method:
@@ -187,15 +202,15 @@ AgentB's authentication record to access bar method:
         enabled [True]:
 
 
-Similarly, capability parameter can take an array of string:
+Similarly, the capability parameter can take an array of strings:
 
 .. code-block:: console
 
     capabilities (delimit multiple entries with comma) []: can_call_bar
     capabilities (delimit multiple entries with comma) []: can_call_method1, can_call_method2
 
-Capabilities can also be used to restrict access to a rpc method only with certain parameter values. For example, if AgentA
-exposes a method bar which accepts parameter x
+Capabilities can also be used to restrict access to a rpc method with specific parameter values.
+For example, if AgentA exposes a method bar which accepts parameter x
 
 
 AgentA's capability enabled exported RPC method:
@@ -207,14 +222,14 @@ AgentA's capability enabled exported RPC method:
    def bar(self, x):
       return 'If you can see this, then you have the required capabilities'
 
-You can restrict access to AgentA's bar method to AgentB with x=1. To add this auth entry use the vctl auth add command
-as show below
+You can restrict access to AgentA's bar method to AgentB with x=1.
+To add this auth entry use the vctl auth add command shown below.
 
 ::
 
    vctl auth add --capabilities '{"test1_cap2":{"x":1}}' --user_id AgentB --credential vELQORgWOUcXo69DsSmHiCCLesJPa4-CtVfvoNHwIR0
 
-auth.json file entry for the above command would be
+The auth.json file entry for the above command would be:
 
 ::
 
@@ -237,7 +252,7 @@ auth.json file entry for the above command would be
 
 
 
-Parameter values can also be regular expressions
+Parameter values can also be regular expressions. For example, the following command will allow any agent with
 
 ::
 
@@ -275,7 +290,6 @@ auth.json file entry for the above command would be:
       "credentials": "vELQORgWOUcXo69DsSmHiCCLesJPa4-CtVfvoNHwIR0",
       "comments": null
     }
-
 
 Roles:
 -------
@@ -381,3 +395,36 @@ Enabled:
 ---------
 TRUE of FALSE value to enable or disable the authentication record.
 Record will only be used if this value is True
+
+Dynamic RPC Method Authorization
+================================
+RPC method authorizations are the capabilities used to limit access to specific exported RPC methods on an agent.
+While the capability field is used to define which exported RPC methods the agent can access, the rpc_method_authorization
+field describes which capabilities will authorize a remote agent to access it's exported RPC methods.
+
+.. note::
+    While this field can be modified manually, it is best practice to use the interface.
+    When the agent starts up, the AuthService will automatically query it for all current allowed rpc capabilities on each method.
+
+The format for rpc_method_authorizations is as follows:
+
+.. code-block:: json
+
+    rpc_method_authorizations: {
+        "RPC_exported_method_1": [
+            "authorized_capability_1",
+            "authorized_capability_2"
+            ],
+        "RPC_exported_method_2": [
+            "authorized_capability_3",
+            ]
+    }
+
+To dynamically modify an RPC method's authorization, use:
+
+.. code-block:: console
+
+    vctl auth rpc allow <agent_id.method> <authorized capability 1> <authorized capability 2> ...
+
+
+
