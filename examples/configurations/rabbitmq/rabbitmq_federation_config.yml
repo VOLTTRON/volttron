@@ -1,10 +1,21 @@
 # Mandatory parameters for federation setup
 federation-upstream:
-  rabbit-4:
+  volttron4: # hostname of upstream server
     port: '5671'
     virtual-host: volttron4
-  rabbit-5:
+    certificates:
+        csr: true
+        private_key: "path to private cert" # For example, /home/volttron/vhome/test_fed/certificates/private/volttron1.federation.pem
+        public_cert: "path to public cert" # For example, /home/volttron/vhome/test_fed/certificates/federation/volttron2.volttron1.federation.crt
+        remote_ca: "path to CA cert" # For example, /home/volttron/vhome/test_fed/certificates/federation/volttron2_ca.crt
+    federation-user: volttron4.federation #<local instance name>.federation
+  volttron5: # hostname of upstream server
     port: '5671'
     virtual-host: volttron5
-
+    certificates:
+        csr: true
+        private_key: "path to private cert"
+        public_cert: "path to public cert"
+        remote_ca: "path to CA cert"
+    federation-user: volttron5.federation #<local instance name>.federation
 
