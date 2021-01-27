@@ -1273,7 +1273,7 @@ def main(argv=sys.argv):
         help='Require that agents run with their own users (this requires '
              'running scripts/secure_user_permissions.sh as sudo)')
     agents.add_argument(
-        '--monitor-rabbit', default=False,
+        '--monitor-rabbit', action='store_true',
         help='Monitor RabbitMQ broker and restart if necessary')
 
     # XXX: re-implement control options
