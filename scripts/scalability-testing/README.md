@@ -19,7 +19,7 @@ cd ..
 ./launch_drivers.sh
 ````    
 
-This will launch the platform driver using the configurations created earlier. The MasterDriver will publish 5 sets of 1500 device "all" publishes and time the results. After 5 publishes have finished the platform driver will print the average time and quit.
+This will launch the platform driver using the configurations created earlier. The PlatformDriver will publish 5 sets of 1500 device "all" publishes and time the results. After 5 publishes have finished the platform driver will print the average time and quit.
 
 To change the number of points on each device to 6 rerun config_builder.py and change "fake18.csv" to "fake6.csv". To change the number of devices change the value passed to the --count argument.
 

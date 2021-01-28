@@ -476,7 +476,7 @@ Please note that each instance should have a unique instance name.
 
 
    d. Verify listener agent in downstream VOLTTRON instance can receive the messages.
-      The downstream volttron instance's volttron.log should display device data scrapped by the master driver agent in the upstream volttron instance.
+      The downstream volttron instance's volttron.log should display device data scrapped by the platform driver agent in the upstream volttron instance.
 
 5. How to remove the shovel setup.
 
@@ -600,7 +600,7 @@ agent. For such a request-response behavior, shovels need to be created on both 
       cd $RABBITMQ_HOME
       vctl rabbitmq add-user <username> <password>
 
-3. Start Master driver agent on v1
+3. Start Platform driver agent on v1
 
    .. code-block:: bash
 

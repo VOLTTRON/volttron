@@ -64,7 +64,7 @@ This will create configuration files in configs/ directory to produce fake data 
     ./launch_drivers.sh
     ```
 
-This will launch the platform driver using the configurations created earlier. The MasterDriver will publish 5 sets of 1500 device "all" publishes and time the results. After 5 publishes have finished the platform driver will print the average time and quit. After 5 set of publishes, 'multi_listener_agent.py' script will also finish execution. It finally prints the mean time taken to receive each set of publishes.
+This will launch the platform driver using the configurations created earlier. The PlatformDriver will publish 5 sets of 1500 device "all" publishes and time the results. After 5 publishes have finished the platform driver will print the average time and quit. After 5 set of publishes, 'multi_listener_agent.py' script will also finish execution. It finally prints the mean time taken to receive each set of publishes.
 By default, the platform driver runs on 'zmq' message bus. You can change the default setting, adding below environment
 flag inside 'launch_drivers.sh' script.
 
