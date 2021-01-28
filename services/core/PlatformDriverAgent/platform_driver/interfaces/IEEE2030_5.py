@@ -123,7 +123,7 @@ class Interface(BasicRevert, BaseInterface):
             volttron-ctl config store platform.driver IEEE2030_5.csv $DRIVER_ROOT/IEEE2030_5.csv --csv
             volttron-ctl config store platform.driver devices/IEEE2030_5_1 $DRIVER_ROOT/test_IEEE2030_5_1.config
             volttron-ctl config store platform.driver devices/IEEE2030_5_2 $DRIVER_ROOT/test_IEEE2030_5_2.config
-            echo IEEE2030_5 drivers configured for MasterDriver:
+            echo IEEE2030_5 drivers configured for PlatformDriver:
             volttron-ctl config list platform.driver
     """
 

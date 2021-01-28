@@ -52,7 +52,7 @@ config_dir = "configs"
 #Volttron installation directory on virtua_device_host.
 volttron_install = "~/volttron"
 
-#Master driver config file name
+#platform driver config file name
 platform_driver_file = "platform-driver.agent"
 
 #Location of virtual device config files on virtual device host.
