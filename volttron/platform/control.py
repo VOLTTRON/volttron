@@ -879,13 +879,13 @@ def list_remotes(opts):
     except TimeoutError:
         print("Denied credentials timed out")
     try:
-        pending_certs = conn.server.vip.rpc.call(AUTH, "get_authorization_failures").get(timeout=4)
+        pending_certs = conn.server.vip.rpc.call(AUTH, "get_authorization_pending").get(timeout=4)
         for value in pending_certs:
             output_view.append({"entry": value, "status": "PENDING"})
     except TimeoutError:
         print("Pending credentials timed out")
 
-    if len(output_view) == 0:
+    if not output_view:
         print("No remote certificates or credentials")
         return
 

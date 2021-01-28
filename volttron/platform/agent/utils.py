@@ -240,8 +240,8 @@ def is_web_enabled():
     _log.debug("value from env {}".format(is_web))
     if not is_web:
         config = load_platform_config()
-        string_value = config.get('bind-web-address')
-        _log.debug("value from config {}".format(string_value))
+        is_web = config.get('bind-web-address')
+        _log.debug("value from config {}".format(is_web))
         if not is_web:
             return False
         return True

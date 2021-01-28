@@ -177,11 +177,17 @@ class AdminEndpoints(object):
                 return Response("<h1>404 Not Found</h1>", status="404 Not Found")
 
             if page == 'pending_auth_reqs.html':
-                self._pending_auths = self._rpc_caller.call(AUTH, 'get_authorization_failures').get()
-                self._denied_auths = self._rpc_caller.call(AUTH, 'get_authorization_denied').get()
-                self._approved_auths = self._rpc_caller.call(AUTH, 'get_authorization_approved').get()
+                try:
+                    self._pending_auths = self._rpc_caller.call(AUTH, 'get_authorization_pending').get(timeout=2)
+                    self._denied_auths = self._rpc_caller.call(AUTH, 'get_authorization_denied').get(timeout=2)
+                    self._approved_auths = self._rpc_caller.call(AUTH, 'get_authorization_approved').get(timeout=2)
+                except TimeoutError:
+                    self._pending_auths = []
+                    self._denied_auths = []
+                    self._approved_auths = []
+                # When messagebus is rmq, include pending csrs in the output pending_auth_reqs.html page
                 if self._rmq_mgmt is not None:
-                    html = template.render(csrs=self._rpc_caller.call(AUTH, 'get_pending_csrs').get(timeout=2),
+                    html = template.render(csrs=self._rpc_caller.call(AUTH, 'get_pending_csrs').get(timeout=4),
                                            auths=self._pending_auths,
                                            denied_auths=self._denied_auths,
                                            approved_auths=self._approved_auths)
@@ -231,6 +237,9 @@ class AdminEndpoints(object):
         except ValueError as e:
             data = dict(status="ERROR", message=e.message)
 
+        except TimeoutError as e:
+            data = dict(status="ERROR", message=e.message)
+
         return Response(jsonapi.dumps(data), content_type="application/json")
 
     def __deny_csr_api(self, common_name):
@@ -254,14 +263,24 @@ class AdminEndpoints(object):
         return Response(jsonapi.dumps(data), content_type="application/json")
 
     def __pending_csrs_api(self):
-        csrs = self._rpc_caller.call(AUTH, 'get_pending_csrs').get(timeout=10)
-        return Response(jsonapi.dumps(csrs), content_type="application/json")
+        try:
+            data = self._rpc_caller.call(AUTH, 'get_pending_csrs').get(timeout=4)
+
+        except TimeoutError as e:
+            data = dict(status="ERROR", message=e.message)
+
+        return Response(jsonapi.dumps(data), content_type="application/json")
 
     def __cert_list_api(self):
 
-        subjects = [dict(common_name=x.common_name)
-                    for x in self._rpc_caller.call(AUTH, "get_all_pending_csr_subjects").get(timeout=2)]
-        return Response(jsonapi.dumps(subjects), content_type="application/json")
+        try:
+            data = [dict(common_name=x.common_name) for x in
+                    self._rpc_caller.call(AUTH, "get_all_pending_csr_subjects").get(timeout=2)]
+
+        except TimeoutError as e:
+            data = dict(status="ERROR", message=e.message)
+
+        return Response(jsonapi.dumps(data), content_type="application/json")
 
     def __approve_credential_api(self, user_id):
         try:
@@ -270,6 +289,9 @@ class AdminEndpoints(object):
             data = dict(status='APPROVED',
                         message="The administrator has approved the request")
         except ValueError as e:
+            data = dict(status="ERROR", message=e.message)
+
+        except TimeoutError as e:
             data = dict(status="ERROR", message=e.message)
 
         return Response(jsonapi.dumps(data), content_type="application/json")

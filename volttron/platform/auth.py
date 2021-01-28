@@ -57,7 +57,7 @@ from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM, 
 from volttron.platform.certs import Certs
 from volttron.platform.vip.agent.errors import VIPError
 from volttron.platform.vip.pubsubservice import ProtectedPubSubTopics
-from .agent.utils import strip_comments, create_file_if_missing, watch_file, is_web_enabled, get_messagebus
+from .agent.utils import strip_comments, create_file_if_missing, watch_file, get_messagebus
 from .vip.agent import Agent, Core, RPC
 from .vip.socket import encode_key, BASE64_ENCODED_CURVE_KEY_LEN
 
@@ -98,9 +98,6 @@ class AuthService(Agent):
         self._certs = None
         if get_messagebus() == "rmq":
             self._certs = Certs()
-        self.web_enabled = False
-        if is_web_enabled():
-            self.web_enabled = True
         self.auth_file_path = os.path.abspath(auth_file)
         self.auth_file = AuthFile(self.auth_file_path)
         self.aip = aip
@@ -112,7 +109,7 @@ class AuthService(Agent):
         self._protected_topics_file_path = os.path.abspath(protected_topics_file)
         self._protected_topics_for_rmq = ProtectedPubSubTopics()
         self._setup_mode = setup_mode
-        self._auth_failures = []
+        self._auth_pending = []
         self._auth_denied = []
         self._auth_approved = []
 
@@ -328,7 +325,7 @@ class AuthService(Agent):
                     else:
                         if type(userid) == bytes:
                             userid = userid.decode("utf-8")
-                        self._update_auth_failures(domain, address, kind, credentials[0], userid)
+                        self._update_auth_pending(domain, address, kind, credentials[0], userid)
 
                     try:
                         expire, delay = blocked[address]
@@ -426,16 +423,19 @@ class AuthService(Agent):
         :type user_id: str
         """
 
-        if self._certs and self.web_enabled:
+        val_err = None
+        if self._certs:
+            # Will fail with ValueError when a zmq credential user_id is passed.
             try:
                 self._certs.approve_csr(user_id)
                 permissions = self.core.rmq_mgmt.get_default_permissions(user_id)
                 self.core.rmq_mgmt.create_user_with_permissions(user_id, permissions, True)
                 _log.debug("Created cert and permissions for user: {}".format(user_id))
-            except ValueError:
-                pass
+            # Stores error message in case it is caused by an unexpected failure
+            except ValueError as e:
+                val_err = e
 
-        for pending in self._auth_failures:
+        for pending in self._auth_pending:
             if user_id == pending['user_id']:
                 self._update_auth_entry(
                     pending['domain'],
@@ -444,8 +444,8 @@ class AuthService(Agent):
                     pending['credentials'],
                     pending['user_id']
                     )
-                # self._auth_approved.append(pending)
-                del self._auth_failures[self._auth_failures.index(pending)]
+                del self._auth_pending[self._auth_pending.index(pending)]
+                val_err = None
 
         for pending in self._auth_denied:
             if user_id == pending['user_id']:
@@ -457,8 +457,11 @@ class AuthService(Agent):
                     pending['user_id']
                     )
                 self._remove_auth_entry(pending['credentials'], is_allow=False)
-                # self._auth_approved.append(pending)
-                # del self._auth_denied[self._auth_denied.index(pending)]
+                val_err = None
+        # If the user_id supplied was not for a ZMQ credential, and the pending_csr check failed,
+        # output the ValueError message to the error log.
+        if val_err:
+            _log.error(f"{e}")
 
     @RPC.export
     @RPC.allow(capabilities="allow_auth_modifications")
@@ -472,14 +475,18 @@ class AuthService(Agent):
         :param user_id: user id field from VOLTTRON Interconnect Protocol or common name for CSR
         :type user_id: str
         """
-        if self._certs and self.web_enabled:
+
+        val_err = None
+        if self._certs:
+            # Will fail with ValueError when a zmq credential user_id is passed.
             try:
                 self._certs.deny_csr(user_id)
                 _log.debug("Denied cert for user: {}".format(user_id))
-            except ValueError:
-                pass
+            # Stores error message in case it is caused by an unexpected failure
+            except ValueError as e:
+                val_err = e
 
-        for pending in self._auth_failures:
+        for pending in self._auth_pending:
             if user_id == pending['user_id']:
                 self._update_auth_entry(
                     pending['domain'],
@@ -489,8 +496,8 @@ class AuthService(Agent):
                     pending['user_id'],
                     is_allow=False
                     )
-                # self._auth_denied.append(pending)
-                del self._auth_failures[self._auth_failures.index(pending)]
+                del self._auth_pending[self._auth_pending.index(pending)]
+                val_err = None
 
         for pending in self._auth_approved:
             if user_id == pending['user_id']:
@@ -503,8 +510,11 @@ class AuthService(Agent):
                     is_allow=False
                     )
                 self._remove_auth_entry(pending['credentials'])
-                # self._auth_denied.append(pending)
-                # del self._auth_approved[self._auth_approved.index(pending)]
+                val_err = None
+        # If the user_id supplied was not for a ZMQ credential, and the pending_csr check failed,
+        # output the ValueError message to the error log.
+        if val_err:
+            _log.error(f"{val_err}")
 
 
     @RPC.export
@@ -519,37 +529,48 @@ class AuthService(Agent):
         :param user_id: user id field from VOLTTRON Interconnect Protocol or common name for CSR
         :type user_id: str
         """
-        if self._certs and self.web_enabled:
+
+        val_err = None
+        if self._certs:
+            # Will fail with ValueError when a zmq credential user_id is passed.
             try:
                 self._certs.delete_csr(user_id)
                 _log.debug("Denied cert for user: {}".format(user_id))
-            except ValueError:
-                pass
+            # Stores error message in case it is caused by an unexpected failure
+            except ValueError as e:
+                val_err = e
 
-        for pending in self._auth_failures:
+        for pending in self._auth_pending:
             if user_id == pending['user_id']:
-                del self._auth_failures[self._auth_failures.index(pending)]
+                del self._auth_pending[self._auth_pending.index(pending)]
+                val_err = None
 
         for pending in self._auth_approved:
             if user_id == pending['user_id']:
                 self._remove_auth_entry(pending['credentials'])
                 del self._auth_approved[self._auth_approved.index(pending)]
+                val_err = None
 
         for pending in self._auth_denied:
             if user_id == pending['user_id']:
                 self._remove_auth_entry(pending['credentials'], is_allow=False)
                 del self._auth_denied[self._auth_denied.index(pending)]
+                val_err = None
+        # If the user_id supplied was not for a ZMQ credential, and the pending_csr check failed,
+        # output the ValueError message to the error log.
+        if val_err:
+            _log.error(f"{val_err}")
 
     @RPC.export
-    def get_authorization_failures(self):
+    def get_authorization_pending(self):
         """RPC method
 
         Returns a list of failed (pending) ZMQ credentials.
 
         :return: list
         """
-        _log.debug(list(self._auth_failures))
-        return list(self._auth_failures)
+        _log.debug(list(self._auth_pending))
+        return list(self._auth_pending)
 
     @RPC.export
     def get_authorization_approved(self):
@@ -588,7 +609,7 @@ class AuthService(Agent):
 
         :return: list or None
         """
-        if self._certs and self.web_enabled:
+        if self._certs:
             csrs = [c for c in self._certs.get_pending_csr_requests()]
             _log.debug(csrs)
             return csrs
@@ -610,7 +631,7 @@ class AuthService(Agent):
         :type common_name: str
         :return: str or None
         """
-        if self._certs and self.web_enabled:
+        if self._certs:
             return self._certs.get_csr_status(common_name)
         else:
             _log.debug("RMQ must be enabled to use certs")
@@ -630,7 +651,7 @@ class AuthService(Agent):
         :type common_name: str
         :return: str or None
         """
-        if self._certs and self.web_enabled:
+        if self._certs:
             return self._certs.get_cert_from_csr(common_name).decode('utf-8')
         else:
             _log.debug("RMQ must be enabled to use certs")
@@ -648,7 +669,7 @@ class AuthService(Agent):
 
         :return: list or None
         """
-        if self._certs and self.web_enabled:
+        if self._certs:
             return self._certs.get_all_cert_subjects()
         else:
             _log.debug("RMQ must be enabled to use certs")
@@ -729,7 +750,7 @@ class AuthService(Agent):
         except AuthException as err:
             _log.error('ERROR: %s\n' % str(err))
 
-    def _update_auth_failures(self, domain, address, mechanism, credential, user_id):
+    def _update_auth_pending(self, domain, address, mechanism, credential, user_id):
         for entry in self._auth_denied:
             # Check if failure entry has been denied. If so, increment the failure's denied count
             if ((entry['domain'] == domain) and
@@ -739,7 +760,7 @@ class AuthService(Agent):
                 entry['retries'] += 1
                 return
 
-        for entry in self._auth_failures:
+        for entry in self._auth_pending:
             # Check if failure entry exists. If so, increment the failure count
             if ((entry['domain'] == domain) and
                     (entry['address'] == address) and
@@ -756,7 +777,7 @@ class AuthService(Agent):
             "user_id": user_id,
             "retries": 1
         }
-        self._auth_failures.append(dict(fields))
+        self._auth_pending.append(dict(fields))
         return
 
     def _load_protected_topics_for_rmq(self):
