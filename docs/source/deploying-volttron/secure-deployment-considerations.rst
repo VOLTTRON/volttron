@@ -96,15 +96,20 @@ This approach has some limitations, including:
 Monitoring RabbitMQ Server
 ==========================
 
-RabbitMQ server may be configured to run as a systemd service and allow systemd to monitor the
-status of the service. It can be further configured to detect and restart the RabbitMQ service
+Monitoring of RabbitMQ server in deployment setup can be achieved in two ways.
+
+1. Running RabbitMQ server as a systemd service
+2. Configure VOLTTRON platform to monitor RabbitMQ server
+
+In the first case, RabbitMQ server is configured to run as a systemd service and allow systemd to
+monitor the status of the service. It can be further configured to detect and restart the RabbitMQ service
 if it crashes. VOLTTRON agents have the ability to detect when the RabbitMQ server crashes/disconnects
 and reconnect when it becomes available. In this deployment setup, a VOLTTRON platform will not
 start/stop the RabbitMQ server.
 
-VOLTTRON also has mechanism to monitor RabbitMQ server periodically and restart if a crash is detected
-through HealthService Agent. This is an optional feature and can be enabled using '--monitor-rabbit'
-flag as part of VOLTTRON platform startup command.
+In the second case, VOLTTRON configured to monitor RabbitMQ server periodically and restart if a crash is detected.
+This action is performed by the HealthService Agent. This is an optional feature and can be enabled using
+'--monitor-rabbit' flag as part of VOLTTRON platform startup command.
 
 .. code-block:: console
 
