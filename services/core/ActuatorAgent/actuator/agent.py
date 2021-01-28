@@ -661,7 +661,7 @@ class ActuatorAgent(Agent):
             self.vip.rpc.call(self.driver_vip_identity, 'heart_beat').get(
                 timeout=20.0)
         except Unreachable:
-            _log.warning("Master driver is not running")
+            _log.warning("Platform driver is not running")
         except (Exception, gevent.Timeout) as e:
             _log.warning(''.join([e.__class__.__name__, '(', str(e), ')']))
 
