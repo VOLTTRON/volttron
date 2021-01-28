@@ -83,8 +83,8 @@ class Auth(SubsystemBase):
             rpc.export(self._update_capabilities, 'auth.update')
             rpc.export(self.get_rpc_authorizations)
             rpc.export(self.set_rpc_authorizations)
-            rpc.allow(self.get_rpc_authorizations, 'modify_rpc_method_allowance')
             rpc.allow(self.set_rpc_authorizations, 'modify_rpc_method_allowance')
+            # Do not update platform agents on start-up, which can cause trouble.
             ignored_ids = [AUTH, PLATFORM_WEB, CONTROL, KEY_DISCOVERY, CONFIGURATION_STORE,
                            CONTROL_CONNECTION, PLATFORM_HEALTH, 'pubsub']
             if core.identity not in ignored_ids:
@@ -391,10 +391,25 @@ class Auth(SubsystemBase):
             self._dirty = True
 
     def get_rpc_exports(self):
+        """Returns a list of agent's RPC exported methods
+        :returns: agent's list of RPC exported methods
+        :rtype: list
+        """
         rpc_exports = list(self._rpc()._exports)
         return rpc_exports
 
     def get_rpc_authorizations(self, method_str):
+        """Returns a list of authorized capabilities for the provided method
+        This list will only include authorized capabilities included in the RPC.allow() decorator.
+        Any capabilities added dynamically later or by calling RPC.allow() in-line will not be included.
+        These dynamic changes are recorded and handled by the auth file. This method's primary purpose is
+        to collect the initial condition of the method's allowed capabilites.
+
+        :param method_str: name of method to get list of allowed capabilities
+        :type method_str: str
+        :returns: list of capabilities that will be able to access the method, exclusively
+        :rtype: list
+        """
         try:
             method = getattr(self._owner, method_str)
         except AttributeError:
@@ -412,6 +427,13 @@ class Auth(SubsystemBase):
         return authorized_capabilities
 
     def set_rpc_authorizations(self, method_str, capabilities):
+        """Sets authorized capabilites for an RPC exported method.
+
+        :param method_str: name of method to modify
+        :type method_str: str
+        :param capabilities: list of capabilities that will be able to access the method, exclusively
+        :type capabilities: list
+        """
         try:
             method = getattr(self._owner, method_str)
         except AttributeError:
@@ -419,10 +441,13 @@ class Auth(SubsystemBase):
                 method = getattr(self._owner.vip, method_str)
             except AttributeError:
                 raise
+        _log.debug(f"Setting authorized capabilities: {capabilities} for method: {method_str}")
         self._rpc().allow(method, capabilities)
-        _log.debug(f"Set authorized capabilities: {capabilities} for method: {method_str}")
+        _log.debug(f"Authorized capabilities: {capabilities} for method: {method_str} set")
 
     def update_rpc_method_capabilities(self):
+        """Updates the rpc_method_authorizations field in the auth entry for this agent.
+        """
         rpc_method_authorizations = {}
         rpc_methods = self.get_rpc_exports()
         for method in rpc_methods:

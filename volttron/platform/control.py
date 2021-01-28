@@ -869,7 +869,7 @@ def update_health_cache(opts):
         health_cache_timeout_date = datetime.now() + timedelta(seconds=health_cache_timeout)
 
 
-def modify_agent_rpc_authorizations(opts):
+def add_agent_rpc_authorizations(opts):
     conn = opts.connection
     agent_id = ".".join(opts.pattern[0].split(".")[:-1])
     agent_method = opts.pattern[0].split(".")[-1]
@@ -894,6 +894,47 @@ def modify_agent_rpc_authorizations(opts):
                          if rpc_auth in added_auths and
                          rpc_auth not in entry.rpc_method_authorizations[agent_method]])
                 auth_file.update_by_index(entry, entries.index(entry))
+                return
+        _log.error(f"Agent identity not found in auth file!")
+        return
+    except Exception as e:
+        _log.error(f"{e}) \nCommand format should be agent_id.method "
+                   f"authorized_capability1 authorized_capability2 ...")
+    return
+
+
+def remove_agent_rpc_authorizations(opts):
+    agent_id = ".".join(opts.pattern[0].split(".")[:-1])
+    agent_method = opts.pattern[0].split(".")[-1]
+    if len(opts.pattern) < 2:
+        _log.error(f"Missing authorizations for method. "
+                   f"Should be in the format agent_id.method authorized_capability1 authorized_capability2 ...")
+        return
+    removed_auths = [x for x in opts.pattern[1:]]
+    try:
+
+        auth_file = _get_auth_file(os.path.abspath(platform.get_home()))
+        entries = auth_file.read_allow_entries()
+        for entry in entries:
+            if entry.identity == agent_id:
+                if agent_method not in entry.rpc_method_authorizations:
+                    _log.error(f"{entry.identity} does not have a method called {agent_method}")
+                elif not entry.rpc_method_authorizations[agent_method]:
+                    _log.error(f"{entry.identity}.{agent_method} does not have any authorized capabilities.")
+                else:
+                    any_match = False
+                    for rpc_auth in removed_auths:
+                        if rpc_auth not in entry.rpc_method_authorizations[agent_method]:
+                            _log.error(f"{rpc_auth} is not an authorized capability for {agent_method}")
+                        else:
+                            any_match = True
+                    if any_match:
+                        entry.rpc_method_authorizations[agent_method] = \
+                            [rpc_auth for rpc_auth in entry.rpc_method_authorizations[agent_method]
+                             if rpc_auth not in removed_auths]
+                        auth_file.update_by_index(entry, entries.index(entry))
+                    else:
+                        _log.error(f"No matching authorized capabilities provided for {agent_method}")
                 return
         _log.error(f"Agent identity not found in auth file!")
         return
@@ -2674,11 +2715,17 @@ def main(argv=sys.argv):
     auth_rpc_subparsers = auth_rpc.add_subparsers(title='subcommands',
                                                metavar='', dest='store_commands')
 
-    auth_rpc_allow = add_parser("allow", subparser=auth_rpc_subparsers, help="modifies rpc method authorizations")
+    auth_rpc_allow = add_parser("allow", subparser=auth_rpc_subparsers, help="adds rpc method authorizations")
 
     auth_rpc_allow.add_argument('pattern', nargs='*',
                                 help='Identity of agent, followed by method(s)')
-    auth_rpc_allow.set_defaults(func=modify_agent_rpc_authorizations, min_uuid_len=1)
+    auth_rpc_allow.set_defaults(func=add_agent_rpc_authorizations, min_uuid_len=1)
+
+    auth_rpc_allow = add_parser("deny", subparser=auth_rpc_subparsers, help="removes rpc method authorizations")
+
+    auth_rpc_allow.add_argument('pattern', nargs='*',
+                                help='Identity of agent, followed by method(s)')
+    auth_rpc_allow.set_defaults(func=remove_agent_rpc_authorizations, min_uuid_len=1)
 
     # ====================================================
     # config commands

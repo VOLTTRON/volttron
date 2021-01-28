@@ -795,7 +795,7 @@ def start_volttron_process(opts):
                       user_id=CONTROL_CONNECTION,
                       identity=CONTROL_CONNECTION,
                       capabilities=[{'edit_config_store': {'identity': '/.*/'}},
-                                    {'modify_rpc_method_allowance': None}],
+                                    'modify_rpc_method_allowance'],
                       comments='Automatically added by platform on start')
     AuthFile().add(entry, overwrite=True)
 
