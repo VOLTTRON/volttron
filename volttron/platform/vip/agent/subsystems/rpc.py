@@ -282,8 +282,9 @@ class RPC(SubsystemBase):
                 user_capabilities_names = set(user_capabilites.keys())
             else:
                 user_capabilities_names = set()
-
-            if not required_caps.issubset(user_capabilities_names):
+            if required_caps == {""}:
+                pass
+            elif not required_caps.issubset(user_capabilities_names):
                 msg = ('method "{}" requires capabilities {}, but capability {} was'
                        ' provided for user {}').format(method.__name__, required_caps, user_capabilites, user)
                 raise jsonrpc.exception_from_json(jsonrpc.UNAUTHORIZED, msg)

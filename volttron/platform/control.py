@@ -932,6 +932,8 @@ def remove_agent_rpc_authorizations(opts):
                         entry.rpc_method_authorizations[agent_method] = \
                             [rpc_auth for rpc_auth in entry.rpc_method_authorizations[agent_method]
                              if rpc_auth not in removed_auths]
+                        if not entry.rpc_method_authorizations[agent_method]:
+                            entry.rpc_method_authorizations[agent_method] = [""]
                         auth_file.update_by_index(entry, entries.index(entry))
                     else:
                         _log.error(f"No matching authorized capabilities provided for {agent_method}")
