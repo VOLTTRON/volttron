@@ -632,7 +632,7 @@ The VOLTTRON team has come up with a number of methods to help users develop mor
 Building a resilient API
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-Many agents export RPC calls or  to expose an API (application programming interface) which can be used by other agents
+Many agents export RPC calls or expose an API (application programming interface) which can be used by other agents
 on the platform.  The agent should include validation against input data for its API to ensure the agent is able to
 continue to operate even if asked to handle faulty or malicious requests.
 
