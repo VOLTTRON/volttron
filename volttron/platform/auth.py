@@ -569,7 +569,6 @@ class AuthService(Agent):
 
         :return: list
         """
-        _log.debug(list(self._auth_pending))
         return list(self._auth_pending)
 
     @RPC.export
@@ -582,7 +581,6 @@ class AuthService(Agent):
 
         :return: list
         """
-        _log.debug(list(self._auth_approved))
         return list(self._auth_approved)
 
     @RPC.export
@@ -595,7 +593,6 @@ class AuthService(Agent):
 
         :return: list
         """
-        _log.debug(list(self._auth_denied))
         return list(self._auth_denied)
 
     @RPC.export
@@ -611,11 +608,10 @@ class AuthService(Agent):
         """
         if self._certs:
             csrs = [c for c in self._certs.get_pending_csr_requests()]
-            _log.debug(csrs)
             return csrs
         else:
-            _log.debug("RMQ must be enabled to use certs")
-            return None
+            _log.error("RMQ must be enabled to use certs")
+            return []
 
     @RPC.export
     @RPC.allow(capabilities="allow_auth_modifications")

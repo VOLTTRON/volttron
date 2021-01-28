@@ -794,7 +794,8 @@ def start_volttron_process(opts):
     ks_control_conn = KeyStore(KeyStore.get_agent_keystore_path(CONTROL_CONNECTION))
     entry = AuthEntry(credentials=encode_key(decode_key(ks_control_conn.public)),
                       user_id=CONTROL_CONNECTION,
-                      capabilities=[{'edit_config_store': {'identity': '/.*/'}}],
+                      capabilities=[{'edit_config_store': {'identity': '/.*/'}},
+                                    "allow_auth_modifications"],
                       comments='Automatically added by platform on start')
     AuthFile().add(entry, overwrite=True)
 
