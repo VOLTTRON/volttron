@@ -632,8 +632,9 @@ The VOLTTRON team has come up with a number of methods to help users develop mor
 Building a resilient API
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-Many agents expose an API (application programming interface) which can be used by other agents on the platform.   To
-ensure an agent's API is robust, the user should take care to validate input and secure the endpoints.
+Many agents export RPC calls or  to expose an API (application programming interface) which can be used by other agents
+on the platform.  The agent should include validation against input data for its API to ensure the agent is able to
+continue to operate even if asked to handle faulty or malicious requests.
 
 
 Type-hints
@@ -667,7 +668,7 @@ determine what the agent expects as input.
 
 .. code-block:: python
 
-    # Here our function expects either a string or dictionary representation of some JSON data
+    # Here our function expects either a string or dictionary
     @RPC.export
     def type_hint_rpc(input_json: Union[str, dict]) -> str:
 
@@ -675,18 +676,24 @@ determine what the agent expects as input.
 
 .. code-block:: python
 
-    # 'Optional' is used here to specify that either a string should be passed or the default value 'None' will be
-    # used
-    # 'Optional' can be used in combination with 'Union' for optional arguments which expect one of multiple types
+    # 'Optional' is used to specify either a string should be passed or the default value 'None' will be used
     @RPC.export
     def type_hint_rpc(optional_input: Optional[str] = None) -> str:
+
+* These techniques can be combined:
+
+.. code-block:: python
+
+    # 'Optional' can be used in combination with 'Union' for optional arguments which expect one of multiple types and
+    # default to None
+    @RPC.export
+    def type_hint_rpc(optional_input: Optional[Union[str, dict]] = None) -> str:
 
 
 API Validation
 """"""""""""""
 
-Inside of the function, the agent should perform input validation on each parameter, being sure to evaluate structured
-data as well.
+Each function within an agent should validate its input parameters, especially with structured data.
 
 * Make use of isinstance to do type checking:
 
