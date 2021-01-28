@@ -632,7 +632,7 @@ The VOLTTRON team has come up with a number of methods to help users develop mor
 Building a resilient API
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-Many agents expose an API (application programming interface) which can be used by other agents on the platform.   TO
+Many agents expose an API (application programming interface) which can be used by other agents on the platform.   To
 ensure an agent's API is robust, the user should take care to validate input and secure the endpoints.
 
 
