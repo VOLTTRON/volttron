@@ -98,9 +98,9 @@ An example configuration with above parameters is available at  `services/core/F
 Optional Configurations
 -----------------------
 
-The most common use case for a forwarder is to forward data to a remote historian. Due to this forward historian by
-default forwards the default topics a historian subscribes to - devices, analysis, log, and record.
-Forward historian can be configured to forward any custom topic or disable forwarding devices, analysis, log and/or
+The most common use case for a forwarder is to forward data to a remote historian. Therefore, forward historians' by
+default forward the default topics a historian subscribes to - devices, analysis, log, and record.
+However, a forward historian can be configured to forward any custom topic or disable forwarding devices, analysis, log and/or
 record topic data. For example
 
 .. code-block:: json
