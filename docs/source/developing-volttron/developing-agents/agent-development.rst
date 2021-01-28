@@ -722,6 +722,9 @@ Each function within an agent should validate its input parameters, especially w
                if isinstance(input_json, str):
                    input_json = json.loads(input_json)
                # for this example, we expect our JSON to include two fields: test1 and test2
+               # Use 'dict.get(<key>)' rather than 'dict[<key>]' to return None and avoid causing a KeyError if the key
+               #  is not present.  Optionally, a second argument can be added to specify a default value to use in
+               # place of None: 'dict.get(<key>, <default value>)'
                test_1 = input_json.get("test1")
                test_2 = input_json.get("test2")
                # test 1 must be any string value
