@@ -567,7 +567,7 @@ class AuthService(Agent):
 
         Returns a list of failed (pending) ZMQ credentials.
 
-        :return: list
+        :rtype: list
         """
         return list(self._auth_pending)
 
@@ -579,7 +579,7 @@ class AuthService(Agent):
         This list is updated whenever the auth file is read.
         It includes all allow entries from the auth file that contain a populated address field.
 
-        :return: list
+        :rtype: list
         """
         return list(self._auth_approved)
 
@@ -591,7 +591,7 @@ class AuthService(Agent):
         This list is updated whenever the auth file is read.
         It includes all deny entries from the auth file that contain a populated address field.
 
-        :return: list
+        :rtype: list
         """
         return list(self._auth_denied)
 
@@ -604,13 +604,12 @@ class AuthService(Agent):
         This method provides RPC access to the Certs class's get_pending_csr_requests method.
         This method is only applicable for web-enabled, RMQ instances.
 
-        :return: list or None
+        :rtype: list
         """
         if self._certs:
             csrs = [c for c in self._certs.get_pending_csr_requests()]
             return csrs
         else:
-            _log.error("RMQ must be enabled to use certs")
             return []
 
     @RPC.export
@@ -625,13 +624,12 @@ class AuthService(Agent):
 
         :param common_name: Common name for CSR
         :type common_name: str
-        :return: str or None
+        :rtype: str
         """
         if self._certs:
             return self._certs.get_csr_status(common_name)
         else:
-            _log.debug("RMQ must be enabled to use certs")
-            return None
+            return ""
 
     @RPC.export
     @RPC.allow(capabilities="allow_auth_modifications")
@@ -645,13 +643,12 @@ class AuthService(Agent):
 
         :param common_name: Common name for CSR
         :type common_name: str
-        :return: str or None
+        :rtype: str
         """
         if self._certs:
             return self._certs.get_cert_from_csr(common_name).decode('utf-8')
         else:
-            _log.debug("RMQ must be enabled to use certs")
-            return None
+            return ""
 
     @RPC.export
     @RPC.allow(capabilities="allow_auth_modifications")
@@ -663,13 +660,12 @@ class AuthService(Agent):
         This method is only applicable for web-enabled, RMQ instances.
         Currently, this method is only used by admin_endpoints.
 
-        :return: list or None
+        :rtype: list
         """
         if self._certs:
             return self._certs.get_all_cert_subjects()
         else:
-            _log.debug("RMQ must be enabled to use certs")
-            return None
+            return []
 
     def _get_authorizations(self, user_id, index):
         """Convenience method for getting authorization component by index"""
