@@ -5,7 +5,7 @@ Platform Driver
 ===============
 
 The Platform Driver agent is a special purpose agent a user can install on the platform to manage communication of
-the platform with devices.  The Master driver features a number of endpoints for collecting data and sending control
+the platform with devices.  The Platform driver features a number of endpoints for collecting data and sending control
 signals using the message bus and automatically publishes data to the bus on a specified interval.
 
 

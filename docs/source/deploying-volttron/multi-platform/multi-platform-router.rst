@@ -16,7 +16,7 @@ subscribed to topic "devices".
 -  `Multi-Platform Configuration <#multi-platform-configuration>`__
 -  `Configuration and Authentication in Setup Mode <#configuration-and-authentication-in-setup-mode>`__
 -  `Setup Configuration and Authentication Manually <#setup-configuration-and-authentication-manually>`__
--  `Start Master driver on VOLTTRON instance 1 <#start-platform-driver-on-volttron-instance-1>`__
+-  `Start Platform driver on VOLTTRON instance 1 <#start-platform-driver-on-volttron-instance-1>`__
 -  `Start Listener agents on VOLTTRON instance 2 and 3 <#start-listener-agents-on-volttron-instance-2-and-3>`__
 -  `Stopping All the Platforms <#stopping-all-the-platforms>`__
 
@@ -195,8 +195,8 @@ Once the initial configuration are setup, you can start all the VOLTTRON instanc
 Next step is to start agents in each platform to observe the multi-platform PubSub communication behavior.
 
 
-Start Master driver on VOLTTRON instance 1
-------------------------------------------
+Start Platform driver on VOLTTRON instance 1
+--------------------------------------------
 
 If platform driver is not configured to auto start when the instance starts up, we can start it explicitly with this
 command.
