@@ -120,4 +120,38 @@ capabilities, and add can_publish_to_devices.
 
     capabilities (delimit multiple entries with comma) []: can_publish_to_devices
 
-For more information, refer to the section on :ref:`protecting.
+For more information, refer to the section on :ref:`Protected-Topics`.
+
+
+Limit Access to RPC Methods Using Capabilities
+==============================================
+
+RPC enabled methods provide convenient interfaces between agents.
+When they are unrestricted however, the open up the potential for malicious agents
+to cause harm to yoru system. The best way to prevent this is through the use of capabilities.
+A capability is an arbitrary string used by an agent to describe its exported RPC method.
+It is used to limit the access to that RPC method to only those agents who have that capability listed in
+their authentication record.
+
+To add a capability restriction to an RPC method, the ``RPC.allow`` decorator is used.
+For example, to limit those who can call the RPC enabled method "foo" to those with the capability "can_call_foo":
+
+.. code-block:: python
+
+    @RPC.export
+    @RPC.allow("can_call_foo")
+    def foo:
+        print("hello")
+
+To give an agent permission to access this method, the auth file must be updated.
+As in the above example for limiting publishing to the devices topic, vctl can be
+used to update the auth file and grant the specific agent permission to access the RPC enabled method.
+
+.. code-block:: console
+
+    capabilities (delimit multiple entries with comma) []: can_call_foo
+
+For a secure system, only add capabilties to the agents that will need to call a specific RPC enabled method,
+and apply the allow decorator to all RPC enabled methods.
+
+For more information, refer to the section on :ref:`VIP-Authorization`.
