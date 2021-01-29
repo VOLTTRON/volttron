@@ -126,14 +126,14 @@ def mock_platformweb_service():
 
 @pytest.mark.web
 def test_get_credentials(mock_platformweb_service):
-    mock_platformweb_service._admin_endpoints._pending_auths = mock_platformweb_service._admin_endpoints._rpc_caller.call(AUTH, 'get_authorization_failures')
+    mock_platformweb_service._admin_endpoints._pending_auths = mock_platformweb_service._admin_endpoints._rpc_caller.call(AUTH, 'get_authorization_pending')
     mock_platformweb_service._admin_endpoints._denied_auths = mock_platformweb_service._admin_endpoints._rpc_caller.call(AUTH, 'get_authorization_denied')
     pass
 
 
 @pytest.mark.web
 def test_accept_credential(mock_platformweb_service):
-    mock_platformweb_service._admin_endpoints._pending_auths = mock_platformweb_service._admin_endpoints._rpc_caller.call(AUTH, 'get_authorization_failures').get()
+    mock_platformweb_service._admin_endpoints._pending_auths = mock_platformweb_service._admin_endpoints._rpc_caller.call(AUTH, 'get_authorization_pending').get()
     mock_platformweb_service._admin_endpoints._denied_auths = mock_platformweb_service._admin_endpoints._rpc_caller.call(AUTH, 'get_authorization_denied').get()
     pass
 

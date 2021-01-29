@@ -686,7 +686,7 @@ def start_volttron_process(opts):
     # and opts.web_ssl_cert
 
     os.environ['MESSAGEBUS'] = opts.message_bus
-    os.environ['SECURE_AGENT_USER'] = opts.secure_agent_users
+    os.environ['SECURE_AGENT_USERS'] = opts.secure_agent_users
     if opts.instance_name is None:
         if len(opts.vip_address) > 0:
             opts.instance_name = opts.vip_address[0]
@@ -700,6 +700,7 @@ def start_volttron_process(opts):
         get_platform_instance_name(vhome=opts.volttron_home, prompt=False)
 
     if opts.bind_web_address:
+        os.environ['BIND_WEB_ADDRESS'] = opts.bind_web_address
         parsed = urlparse(opts.bind_web_address)
         if parsed.scheme not in ('http', 'https'):
             raise Exception(
@@ -795,7 +796,8 @@ def start_volttron_process(opts):
                       user_id=CONTROL_CONNECTION,
                       identity=CONTROL_CONNECTION,
                       capabilities=[{'edit_config_store': {'identity': '/.*/'}},
-                                    'modify_rpc_method_allowance'],
+                                     'modify_rpc_method_allowance',
+                                     'allow_auth_modifications'],
                       comments='Automatically added by platform on start')
     AuthFile().add(entry, overwrite=True)
 
@@ -927,15 +929,17 @@ def start_volttron_process(opts):
                 _log.error("DEBUG: Exiting due to error in rabbitmq config file. Please check.")
                 sys.exit()
 
-            try:
-                start_rabbit(rmq_config.rmq_home)
-            except AttributeError as exc:
-                _log.error("Exception while starting RabbitMQ. Check the path in the config file.")
-                sys.exit()
-            except subprocess.CalledProcessError as exc:
-                _log.error("Unable to start rabbitmq server. "
-                           "Check rabbitmq log for errors")
-                sys.exit()
+            # If RabbitMQ is started as service, don't start it through the code
+            if not rmq_config.rabbitmq_as_service:
+                try:
+                    start_rabbit(rmq_config.rmq_home)
+                except AttributeError as exc:
+                    _log.error("Exception while starting RabbitMQ. Check the path in the config file.")
+                    sys.exit()
+                except subprocess.CalledProcessError as exc:
+                    _log.error("Unable to start rabbitmq server. "
+                               "Check rabbitmq log for errors")
+                    sys.exit()
 
             # Start the config store before auth so we may one day have auth use it.
             config_store = ConfigStoreService(address=address,
@@ -1040,7 +1044,8 @@ def start_volttron_process(opts):
                           user_id=CONTROL,
                           identity=CONTROL,
                           capabilities=[{'edit_config_store': {'identity': '/.*/'}},
-                                        'modify_rpc_method_allowance'],
+                                        'modify_rpc_method_allowance',
+                                        'allow_auth_modifications'],
                           comments='Automatically added by platform on start')
         AuthFile().add(entry, overwrite=True)
 
@@ -1108,7 +1113,8 @@ def start_volttron_process(opts):
         health_service = HealthService(address=address,
                                        identity=PLATFORM_HEALTH, heartbeat_autostart=True,
                                        enable_store=False,
-                                       message_bus=opts.message_bus)
+                                       message_bus=opts.message_bus,
+                                       monitor_rabbit=opts.monitor_rabbit)
         notifier.register_peer_callback(health_service.peer_added, health_service.peer_dropped)
         services.append(health_service)
         events = [gevent.event.Event() for service in services]
@@ -1288,6 +1294,9 @@ def main(argv=sys.argv):
         '--secure-agent-users', default=False,
         help='Require that agents run with their own users (this requires '
              'running scripts/secure_user_permissions.sh as sudo)')
+    agents.add_argument(
+        '--monitor-rabbit', action='store_true',
+        help='Monitor RabbitMQ broker and restart if necessary')
 
     # XXX: re-implement control options
     # on
@@ -1380,7 +1389,8 @@ def main(argv=sys.argv):
         web_ssl_cert=None,
         web_ca_cert=None,
         # If we aren't using ssl then we need a secret key available for us to use.
-        web_secret_key=None
+        web_secret_key=None,
+        monitor_rabbit=False
     )
 
     # Parse and expand options

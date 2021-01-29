@@ -18,6 +18,7 @@ captured and stored in some sort of data store.  Historians exist for the follow
 Other implementations of Historians can be created by following the
 :ref:`Developing Historian Agents <Developing-Historian-Agents>` guide.
 
+A video tutorial of historian framework can be found :ref:`here<historian-video-tutorial>`
 
 Base Historian
 ==============
@@ -174,6 +175,16 @@ be turned into a platform historian the `identity` keyword must be added to it's
         }
     }
 
+.. _historian-video-tutorial:
+
+Historian Video Tutorial
+========================
+
+.. raw:: html
+
+    <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%; height: auto; margin-bottom: 2em;">
+        <iframe src="https://www.youtube.com/embed/iGPKmh382YE" frameborder="0" allowfullscreen style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></iframe>
+    </div>
 
 .. toctree::
 

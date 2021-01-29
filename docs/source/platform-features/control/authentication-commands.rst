@@ -48,6 +48,7 @@ All authentication sub-commands can be viewed by entering following command.
         update              updates one authentication record by index
         update-group        update group to include (or remove) given roles
         update-role         update role to include (or remove) given capabilities
+        remote              manage pending RMQ certs and ZMQ credentials
         rpc                 Manage rpc method authorizations
 
 
@@ -395,6 +396,87 @@ Enabled:
 ---------
 TRUE of FALSE value to enable or disable the authentication record.
 Record will only be used if this value is True
+
+
+Remote Agent Management
+=======================
+
+The remote sub-parser allows the user to manage connections to remote platforms and agents.
+This functionality is comparable to that provided by the admin webpage, and requires the
+volttron instance to be web enabled. In addition, when working with RMQ based CSRs, the RMQ messagebus must be used.
+
+All remote sub-commands can be viewed by entering following command:
+
+.. code-block:: console
+
+    vctl auth remote --help
+
+.. code-block:: console
+
+    optional arguments:
+      -h, --help            show this help message and exit
+      -c FILE, --config FILE
+                            read configuration from FILE
+      --debug               show tracebacks for errors rather than a brief message
+      -t SECS, --timeout SECS
+                            timeout in seconds for remote calls (default: 60)
+      --msgdebug MSGDEBUG   route all messages to an agent while debugging
+      --vip-address ZMQADDR
+                            ZeroMQ URL to bind for VIP connections
+
+    remote subcommands:
+
+        list                lists approved, denied, and pending certs and
+                            credentials
+        approve             approves pending or denied remote connection
+        deny                denies pending or denied remote connection
+        delete              approves pending or denied remote connection
+
+
+The four primary actions are list, approve, deny, and delete.
+List displays all remote CSRs and ZMQ credentials, their address,
+and current status, either APPROVED, DENIED, or PENDING.
+
+.. code-block:: console
+
+    USER_ID                              ADDRESS        STATUS
+    volttron1.volttron1.platform.agent   192.168.56.101 PENDING
+    917a5da0-5a85-4201-b7d8-cd8c3959f391 127.0.0.1      PENDING
+
+To accept a pending cert/credential, use:
+
+.. code-block:: console
+
+    vctl auth remote approve <USER_ID>
+
+The USER_ID can be taken directly from vctl auth remote list.
+
+To deny a pending cert/credential, use:
+
+.. code-block:: console
+
+    vctl auth remote deny <USER_ID>
+
+
+Once a cert/credential has been approved or denied, the status will change.
+
+.. code-block::
+
+    USER_ID                              ADDRESS        STATUS
+    volttron1.volttron1.platform.agent   192.168.56.101 APPROVED
+    917a5da0-5a85-4201-b7d8-cd8c3959f391 127.0.0.1      DENIED
+
+
+The status of an approved or denied cert is persistent. A user may deny a previously approved cert/credential,
+or approve a previously denied cert/credential. However, if a cert or credential is deleted, then the remote instance
+must resend the request.
+
+A request can be deleted using the following command:
+
+.. code-block::
+
+    vctl auth remote delete <USER_ID>
+
 
 Dynamic RPC Method Authorization
 ================================
