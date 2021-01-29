@@ -62,7 +62,6 @@ from volttron.platform.agent.utils import (store_message_bus_config,
 from volttron.utils.prompt import prompt_response, y, y_or_n
 from volttron.platform.agent.utils import get_platform_instance_name
 from volttron.platform import jsonapi
-from volttron.platform import instance_setup
 from urllib.parse import urlparse
 
 _log = logging.getLogger(os.path.basename(__file__))
@@ -1059,9 +1058,10 @@ def _prompt_csr_request(rmq_user, host, type, verbose=False):
         prompt = 'Path to remote web interface: '
 
         remote_addr = prompt_response(prompt, default=remote_https_address)
-        valid_address = instance_setup.is_valid_url(remote_addr, ['https'])
-        if not valid_address:
-            raise IOError(f"Remote web interface is not valid: {valid_address}. Please check and try again")
+        parsed_address = urlparse(remote_addr)
+        if parsed_address.scheme in ('https',):
+            raise IOError(f"Remote web interface is not valid: {parsed_address}. Please check and try again")
+
         # request CSR from remote host
         ca_file, cert_file, prvt_file = _request_csr(rmq_user, remote_addr, type,verbose)
         if ca_file is not None and cert_file is not None and prvt_file is not None:
@@ -1377,6 +1377,4 @@ if __name__ == "__main__":
         setup_rabbitmq_volttron(args.setup_type, args.prompt)
     except KeyboardInterrupt:
         _log.info("Exiting setup process")
-
-
 

@@ -54,3 +54,6 @@ rmq-home: ~/rabbitmq_server/rabbitmq_server-3.7.7
 # RabbitMQ reconnect retry delay (in seconds)
 reconnect-delay: 30
 
+# Flag to indicate if RabbitMQ server is configured to run as a systemd service.
+rabbbitmq-service: false
+
