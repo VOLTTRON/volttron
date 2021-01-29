@@ -2,13 +2,13 @@ Emailer
 =======
 
 The Emailer agent allows an instance of the VOLTTRON platform to send
-email.  When used in combination with the Alert agent alerts from
+email.  When used in combination with the Alert agent, alerts from
 unpublished configured devices will automatically be sent.  In addition,
-agents are able to send emails directly through the pubsub interface.
+agents are able to send emails directly through the pub/sub interface.
 
 Agents needing to send an email through the instance can do so by
-sending the following header and message to the "emailer" topic.  The
-Emailer agent monitors the "platform_send_email" topic.  The following 
+sending the following header and message to the `platform/send_email` topic
+which is monitored by the Emailer agent.  The following 
 is the expected payload for the message body and the optional header.
 
 
@@ -19,7 +19,7 @@ Emails by default will be sent to the initial configured email
 addresses. The below headers will overwrite those properties for the
 current email being sent.
 
-``` {.sourceCode .python}
+``` json
 {
     "from-address": 'foo@bar.com',
     "to-addresses": ['alpha.beta@foo.com', 'bob-and-joe@bar.com']
@@ -30,7 +30,7 @@ current email being sent.
 Required Message Body
 ---------------------
 
-``` {.sourceCode .python}
+``` json
 {
     "subject": "I am a happy camper",
     "message": "This is a big long string message that I am sending"
@@ -41,7 +41,7 @@ Required Message Body
 Example Sending of Email
 ------------------------
 
-``` {.sourceCode .python}
+``` python
 headers = {
     "from-address": 'foo@bar.com',
     "to-addresses": ['alpha.beta@foo.com', 'bob-and-joe@bar.com']
@@ -63,10 +63,10 @@ Configuration Options
 The following JSON configuration file shows all the options currently
 supported by the Forward Historian agent.
 
-``` {.sourceCode .python}
+``` python
 {
     # The smtp-address (Simple Mail Transfer Protocol) to ship the email
-    # from the "from-address" to each of the recipients.
+    # from (the "from-address" to each of the recipients).
     "smtp-address": "smtp.example.com",
 
     # The smtp-username is to provide the username of the SMTP server

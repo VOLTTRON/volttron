@@ -6,15 +6,16 @@ on disk path.
 
 ### Configuration
 
-The SysMon agent has 5 configuration values:
+The SysMon agent has 5 configuration values, all of which are optional:
 
 - "base_topic":  Topic prefix used to publish all system metric points, is formatted with the metric function name in 
-  publishes (i.e. "base/topic/prefix/cpu_percent")
-- "cpu_check_interval":  Interval in seconds between publishes of % all core CPU utilization
-- "memory_check_interval":  Interval in seconds between publishes of % system memory (RAM) utilization
-- "disk_check_interval":  Interval in seconds between publishes of % disk (ROM) utilization for the configured disk
+  publishes (i.e. "base/topic/prefix/cpu_percent") - default "datalogger/log/platform"
+- "cpu_check_interval":  Interval in seconds between publishes of % all core CPU utilization  - default 5
+- "memory_check_interval":  Interval in seconds between publishes of % system memory (RAM) utilization - default 5
+- "disk_check_interval":  Interval in seconds between publishes of % disk utilization for the configured disk - 
+  default 5
 - "disk_path":  Directory path used as the root directory for a mounted disk (Currently, the SysMon agent supports 
-  collecting metrics for only 1 disk at a time)
+  collecting metrics for only 1 disk at a time) - default "/"
 
 ```json
 {
@@ -34,7 +35,7 @@ for the resource utilization statistics and publish it to the message bus using 
 message content for each publish will contain only a single numeric value for that specific topic.  Currently, 
 “scrape_all” style publishes are not supported.
 
-Example publish:
+The following are example publishes as captured by the Listener agent into the VOLTTRON log:
 
 ```
 2020-03-10 11:20:33,755 (listeneragent-3.3 7993) listener.agent INFO: Peer: pubsub, Sender: platform.sysmon:, Bus: , Topic: datalogger/log/platform/cpu_percent, Headers: {'min_compatible_version': '3.0', 'max_compatible_version': ''}, Message:

@@ -79,9 +79,13 @@ Example configuration:
 
 This example publish uses the example config above along with a fake driver running on the platform.
 
-    2021-01-25 14:39:35,049 (listeneragent-3.3 3450) __main__ INFO: Peer: pubsub, Sender: platform.thresholddetection:, 
-    Bus: , Topic: alerts/ThresholdDetectionAgent/james_platform_thresholddetection, Headers: {'alert_key': 
-    'devices/campus/building/fake/all', 'min_compatible_version': '3.0', 'max_compatible_version': ''}, Message: 
-    ('{"status": "BAD", "context": "devices/campus/building/fake/all(EKG_Sin) '
-     'value (-0.4999999999999997)is below acceptable limit (-0.1)", '
-     '"last_updated": "2021-01-25T22:39:35.035606+00:00"}')
+```
+Peer: pubsub
+Sender: platform.thresholddetection
+Bus:
+Topic: alerts/ThresholdDetectionAgent/james_platform_thresholddetection
+Headers: {'alert_key': 'devices/campus/building/fake/all', 'min_compatible_version': '3.0', 'max_compatible_version': ''}
+Message: ('{"status": "BAD", "context": "devices/campus/building/fake/all(EKG_Sin) '
+            'value (-0.4999999999999997)is below acceptable limit (-0.1)", '
+            '"last_updated": "2021-01-25T22:39:35.035606+00:00"}')
+```
