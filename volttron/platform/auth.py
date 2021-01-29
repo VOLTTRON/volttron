@@ -736,10 +736,7 @@ class AuthService(Agent):
 
     def _remove_auth_entry(self, credential, is_allow=True):
         try:
-            if is_allow:
-                self.auth_file.remove_by_credentials(credential)
-            else:
-                self.auth_file.remove_by_credentials(credential, is_allow=False)
+            self.auth_file.remove_by_credentials(credential, is_allow=is_allow)
         except AuthException as err:
             _log.error('ERROR: %s\n' % str(err))
 

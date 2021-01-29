@@ -244,20 +244,26 @@ class AdminEndpoints(object):
 
     def __deny_csr_api(self, common_name):
         try:
-            self._rpc_caller.call(AUTH, 'deny_authorization_failure', common_name)
+            self._rpc_caller.call(AUTH, 'deny_authorization_failure', common_name).wait(timeout=2)
             data = dict(status="DENIED",
                         message="The administrator has denied the request")
         except ValueError as e:
+            data = dict(status="ERROR", message=e.message)
+
+        except TimeoutError as e:
             data = dict(status="ERROR", message=e.message)
 
         return Response(jsonapi.dumps(data), content_type="application/json")
 
     def __delete_csr_api(self, common_name):
         try:
-            self._rpc_caller.call(AUTH, 'delete_authorization_failure', common_name)
+            self._rpc_caller.call(AUTH, 'delete_authorization_failure', common_name).wait(timeout=2)
             data = dict(status="DELETED",
                         message="The administrator has denied the request")
         except ValueError as e:
+            data = dict(status="ERROR", message=e.message)
+
+        except TimeoutError as e:
             data = dict(status="ERROR", message=e.message)
 
         return Response(jsonapi.dumps(data), content_type="application/json")
@@ -298,20 +304,26 @@ class AdminEndpoints(object):
 
     def __deny_credential_api(self, user_id):
         try:
-            self._rpc_caller.call(AUTH, 'deny_authorization_failure', user_id)
+            self._rpc_caller.call(AUTH, 'deny_authorization_failure', user_id).wait(timeout=2)
             data = dict(status="DENIED",
                         message="The administrator has denied the request")
         except ValueError as e:
+            data = dict(status="ERROR", message=e.message)
+
+        except TimeoutError as e:
             data = dict(status="ERROR", message=e.message)
 
         return Response(jsonapi.dumps(data), content_type="application/json")
 
     def __delete_credential_api(self, user_id):
         try:
-            self._rpc_caller.call(AUTH, 'delete_authorization_failure', user_id)
+            self._rpc_caller.call(AUTH, 'delete_authorization_failure', user_id).wait(timeout=2)
             data = dict(status="DELETED",
                         message="The administrator has denied the request")
         except ValueError as e:
+            data = dict(status="ERROR", message=e.message)
+
+        except TimeoutError as e:
             data = dict(status="ERROR", message=e.message)
 
         return Response(jsonapi.dumps(data), content_type="application/json")
