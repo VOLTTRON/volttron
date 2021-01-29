@@ -107,7 +107,7 @@ if it crashes. VOLTTRON agents have the ability to detect when the RabbitMQ serv
 and reconnect when it becomes available. In this deployment setup, a VOLTTRON platform will not
 start/stop the RabbitMQ server.
 
-In the second case, VOLTTRON configured to monitor RabbitMQ server periodically and restart if a crash is detected.
+In the second case, VOLTTRON is configured to monitor RabbitMQ server periodically and restart if a crash is detected.
 This action is performed by the HealthService Agent. This is an optional feature and can be enabled using
 '--monitor-rabbit' flag as part of VOLTTRON platform startup command.
 
