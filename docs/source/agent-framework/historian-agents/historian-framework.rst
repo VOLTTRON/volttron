@@ -18,7 +18,7 @@ captured and stored in some sort of data store.  Historians exist for the follow
 Other implementations of Historians can be created by following the
 :ref:`Developing Historian Agents <Developing-Historian-Agents>` guide.
 
-A video tutorial of historian framework can be found ref:`here<historian-video-tutorial>`
+A video tutorial of historian framework can be found :ref:`here<historian-video-tutorial>`
 
 Base Historian
 ==============
