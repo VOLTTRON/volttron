@@ -93,36 +93,11 @@ This approach has some limitations, including:
   which would not be detected.
 
 
-Monitoring RabbitMQ Server
-==========================
-
-Monitoring of RabbitMQ server in deployment setup can be achieved in two ways.
-
-1. Running RabbitMQ server as a systemd service
-2. Configure VOLTTRON platform to monitor RabbitMQ server
-
-In the first case, RabbitMQ server is configured to run as a systemd service and allow systemd to
-monitor the status of the service. It can be further configured to detect and restart the RabbitMQ service
-if it crashes. VOLTTRON agents have the ability to detect when the RabbitMQ server crashes/disconnects
-and reconnect when it becomes available. In this deployment setup, a VOLTTRON platform will not
-start/stop the RabbitMQ server.
-
-In the second case, VOLTTRON is configured to monitor RabbitMQ server periodically and restart if a crash is detected.
-This action is performed by the HealthService Agent. This is an optional feature and can be enabled using
-'--monitor-rabbit' flag as part of VOLTTRON platform startup command.
-
-.. code-block:: console
-
-    $ volttron -vv -l volttron.log --monitor-rabbit > volttron.log 2>&1 &
-
-
-
-
 Limit Publishing on the Devices Topic to Platform Driver
 ========================================================
 
 To further reduce the chances of malicious data disrupting your system, you can limit the
-ability to publish to the devices topic to the platform driver only.
+ability to publish to the "devices" topic to the platform driver only.
 
 To accomplish this, you will need to modify protected_topics.json,
 found in your $VOLTTRON_HOME directory. In this specific case, you would need
@@ -152,9 +127,9 @@ Limit Access to RPC Methods Using Capabilities
 ==============================================
 
 RPC enabled methods provide convenient interfaces between agents.
-When they are unrestricted however, the open up the potential for malicious agents
-to cause harm to yoru system. The best way to prevent this is through the use of capabilities.
-A capability is an arbitrary string used by an agent to describe its exported RPC method.
+When they are unrestricted however, they open up the potential for malicious agents
+to cause harm to your system. The best way to prevent this is through the use of capabilities.
+A capability is a user defined arbitary string used by an agent to describe its exported RPC method.
 It is used to limit the access to that RPC method to only those agents who have that capability listed in
 their authentication record.
 
@@ -180,3 +155,26 @@ For a secure system, only add capabilties to the agents that will need to call a
 and apply the allow decorator to all RPC enabled methods.
 
 For more information, refer to the section on :ref:`VIP-Authorization`.
+
+
+Monitoring RabbitMQ Server
+==========================
+
+Monitoring of RabbitMQ server in deployment setup can be achieved in two ways.
+
+1. Running RabbitMQ server as a systemd service
+2. Configure VOLTTRON platform to monitor RabbitMQ server
+
+In the first case, RabbitMQ server is configured to run as a systemd service and allow systemd to
+monitor the status of the service. It can be further configured to detect and restart the RabbitMQ service
+if it crashes. VOLTTRON agents have the ability to detect when the RabbitMQ server crashes/disconnects
+and reconnect when it becomes available. In this deployment setup, a VOLTTRON platform will not
+start/stop the RabbitMQ server.
+
+In the second case, VOLTTRON is configured to monitor RabbitMQ server periodically and restart if a crash is detected.
+This action is performed by the HealthService Agent. This is an optional feature and can be enabled using
+'--monitor-rabbit' flag as part of VOLTTRON platform startup command.
+
+.. code-block:: console
+
+    $ volttron -vv -l volttron.log --monitor-rabbit > volttron.log 2>&1 &
