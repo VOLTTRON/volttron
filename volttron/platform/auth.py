@@ -135,12 +135,13 @@ class AuthService(Agent):
         auth_list = []
         for entry in entries:
             auth_list.append({'domain': entry.domain,
-                        'address': entry.address,
-                        'mechanism': entry.mechanism,
-                        'credentials': entry.credentials,
-                        'user_id': entry.user_id
-                        }
-            )
+                              'address': entry.address,
+                              'mechanism': entry.mechanism,
+                              'credentials': entry.credentials,
+                              'user_id': entry.user_id,
+                              'retries': 0
+                              }
+                             )
         if is_allow:
             self._auth_approved = [entry for entry in auth_list if entry["address"] is not None]
         else:
