@@ -192,6 +192,35 @@ upstream servers on the downstream server and make the VOLTTRON exchange
 
         .. image:: files/csr_accepted_federation.png
 
+
+        You can also find and accept the pending CSR via the command line, using the vctl auth remote sub-commands.
+
+        First list the pending certs and credentials.
+
+        .. code-block:: console
+
+            vctl auth remote list
+
+        .. code-block:: console
+
+            USER_ID                                 ADDRESS        STATUS
+            volttron2.volttron1.federation          172.20.0.2     PENDING
+
+
+        Approve the pending CSR using the ``approve`` command.
+
+        .. code-block:: console
+
+            vctl auth remote approve volttron2.volttron1.federation
+
+        Run the ``list`` command again, and see that the CSR has been approved.
+
+        .. code-block:: console
+
+            USER_ID                                 ADDRESS        STATUS
+            volttron2.volttron1.federation          172.20.0.2     APPROVED
+
+
     c.  Create a user in the upstream server (publisher) and provide it access to the virtual host of the upstream RabbitMQ server.
         The username should take the form of <instance name of local><instance name of downstream>.federation.
         For example, if the downstream server name is "volttron1", and instance of local instance is "volttron2" then the instance name would be "volttron2.volttron1.federation".
@@ -440,6 +469,34 @@ Please note that each instance should have a unique instance name.
 
 
     Accept the incoming CSR request from "volttron1" instance.
+
+    As before, you can find and accept the pending CSR via the command line, using the vctl auth remote sub-commands.
+
+    First list the pending certs and credentials.
+
+    .. code-block:: console
+
+        vctl auth remote list
+
+    .. code-block:: console
+
+        USER_ID                                 ADDRESS        STATUS
+        volttron2.volttron1.shovelvolttron2     172.20.0.2     PENDING
+
+
+    Approve the pending CSR using the ``approve`` command.
+
+    .. code-block:: console
+
+        vctl auth remote approve volttron2.volttron1.shovelvolttron2
+
+    Run the ``list`` command again, and see that the CSR has been approved.
+
+    .. code-block:: console
+
+        USER_ID                                 ADDRESS        STATUS
+        volttron2.volttron1.shovelvolttron2     172.20.0.2     APPROVED
+
 
     .. image:: files/csr_accepted.png
 

@@ -207,7 +207,8 @@ Go back to the terminal and check the status of Volttron Central Platform agent.
 
 You can also check the status of pending CSRs via the command line.
 
-After starting the Volttron Central Platform agent, use the auth remote subparser to list the current pending certs.
+After starting the Volttron Central Platform agent,
+use the auth remote sub-command's ``list`` to display the current pending certs.
 
 .. code-block:: console
 
@@ -226,7 +227,7 @@ Approve the pending CSR using the ``approve`` command.
 
     vctl auth remote approve central.central.platform.agent
 
-Run the list command again, and see that the CSR has been approved.
+Run the ``list`` command again, and see that the CSR has been approved.
 
 .. code-block:: console
 
@@ -330,7 +331,7 @@ Approve the pending ZMQ credential using the ``approve`` command.
 
     vctl auth remote approve 68ef33c4-97bc-4e1b-b5f6-2a6049993b65
 
-Run the list command again, and see that the credential has been approved.
+Run the ``list`` command again, and see that the credential has been approved.
 
 .. code-block:: console
 
@@ -371,6 +372,7 @@ Pending Authorization header.
 
 Accept this credential in the same method as before.
 
+
 To accept via the command line:
 
 .. code-block:: console
@@ -392,7 +394,7 @@ Approve the pending ZMQ credential using the ``approve`` command.
 
     vctl auth remote approve fb30249d-b267-4bdd-b29a-d9112e6a6082
 
-Run the list command again, and see that the credential has been approved.
+Run the ``list`` command again, and see that the credential has been approved.
 
 .. code-block:: console
 
@@ -538,7 +540,7 @@ Approve the pending CSR using the ``approve`` command.
 
     vctl auth remote approve central.collector2.forwarderagent-5.1_1
 
-Run the list command again, and see that the CSR has been approved.
+Run the ``list`` command again, and see that the CSR has been approved.
 
 .. code-block:: console
 
@@ -597,7 +599,7 @@ Approve the pending CSR using the ``approve`` command.
 
     vctl auth remote approve central.collector2.forwarderagent-5.1_1
 
-Run the list command again, and see that the CSR has been approved.
+Run the ``list`` command again, and see that the CSR has been approved.
 
 .. code-block:: console
 
