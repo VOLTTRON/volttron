@@ -213,7 +213,7 @@ upstream servers on the downstream server and make the VOLTTRON exchange
 
             vctl auth remote approve volttron2.volttron1.federation
 
-        Run the ``list`` command again, and see that the CSR has been approved.
+        Run the ``list`` command again to verify that the CSR has been approved.
 
         .. code-block:: console
 
@@ -490,7 +490,7 @@ Please note that each instance should have a unique instance name.
 
         vctl auth remote approve volttron2.volttron1.shovelvolttron2
 
-    Run the ``list`` command again, and see that the CSR has been approved.
+    Run the ``list`` command again to verify that the CSR has been approved.
 
     .. code-block:: console
 

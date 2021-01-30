@@ -227,7 +227,7 @@ Approve the pending CSR using the ``approve`` command.
 
     vctl auth remote approve central.central.platform.agent
 
-Run the ``list`` command again, and see that the CSR has been approved.
+Run the ``list`` command again to verify that the CSR has been approved.
 
 .. code-block:: console
 
@@ -331,7 +331,7 @@ Approve the pending ZMQ credential using the ``approve`` command.
 
     vctl auth remote approve 68ef33c4-97bc-4e1b-b5f6-2a6049993b65
 
-Run the ``list`` command again, and see that the credential has been approved.
+Run the ``list`` command again to verify that the credential has been approved.
 
 .. code-block:: console
 
@@ -394,7 +394,7 @@ Approve the pending ZMQ credential using the ``approve`` command.
 
     vctl auth remote approve fb30249d-b267-4bdd-b29a-d9112e6a6082
 
-Run the ``list`` command again, and see that the credential has been approved.
+Run the ``list`` command again to verify that the credential has been approved.
 
 .. code-block:: console
 
@@ -540,7 +540,7 @@ Approve the pending CSR using the ``approve`` command.
 
     vctl auth remote approve central.collector2.forwarderagent-5.1_1
 
-Run the ``list`` command again, and see that the CSR has been approved.
+Run the ``list`` command again to verify that the CSR has been approved.
 
 .. code-block:: console
 
@@ -599,7 +599,7 @@ Approve the pending CSR using the ``approve`` command.
 
     vctl auth remote approve central.collector2.forwarderagent-5.1_1
 
-Run the ``list`` command again, and see that the CSR has been approved.
+Run the ``list`` command again to verify that the CSR has been approved.
 
 .. code-block:: console
 
