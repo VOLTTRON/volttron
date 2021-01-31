@@ -300,6 +300,7 @@ connection. You will need to add the public key of VCP agent on the "central" in
 At this point, you can either accept the connection through the admin page or the command line.
 
 Using the admin page:
+^^^^^^^^^^^^^^^^^^^^
 
 Navigate back to the platform web admin authentication page. You should see a pending request under the ZMQ Keys Pending
 Authorization header.
@@ -310,6 +311,7 @@ Accept the credential in the same method as a CSR.
 
 
 Using the command line:
+^^^^^^^^^^^^^^^^^^^^^^
 
 As with the pending CSR, list the current pending certs and credentials.
 
