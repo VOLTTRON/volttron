@@ -165,6 +165,9 @@ Start VOLTTRON instance and check if the agents are installed.
   ./start-volttron
   vctl status
 
+Using the web interface:
+^^^^^^^^^^^^^^^^^^^^^^^^
+
 Open browser and go to the platform web admin authentication page `https://central:8443/index.html` to accept/reject
 incoming certificate signing request (CSR) from other platforms.
 
@@ -196,9 +199,6 @@ request to the web interface.
 .. code-block:: console
 
   vctl start --tag vcp
-
-Using the web interface:
-^^^^^^^^^^^^^^^^^^^^^^^^
 
 Now go to the platform web admin page to check if there is a new pending CSR request. You will see a "PENDING" request
 from "central.central.platform.agent"
