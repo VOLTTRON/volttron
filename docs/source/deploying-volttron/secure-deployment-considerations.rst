@@ -129,7 +129,7 @@ Limit Access to RPC Methods Using Capabilities
 RPC enabled methods provide convenient interfaces between agents.
 When they are unrestricted however, they open up the potential for malicious agents
 to cause harm to your system. The best way to prevent this is through the use of capabilities.
-A capability is a user defined arbitary string used by an agent to describe its exported RPC method.
+A capability is a user defined arbitrary string used by an agent to describe its exported RPC method.
 It is used to limit the access to that RPC method to only those agents who have that capability listed in
 their authentication record.
 

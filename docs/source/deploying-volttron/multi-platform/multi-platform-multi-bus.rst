@@ -9,7 +9,8 @@ This guide describes the setup process for a multi-platform connection that has 
 instance to a single "central" instance for storage.  It will also have a Volttron Central agent running on the
 "central" instance and Volttron Central Platform agents on all 3 instances and connected to "central" instance to
 provide operational status of it's instance to the "central" instance. For this document "node" will be used
-interchangeably with VOLTTRON instance.
+interchangeably with VOLTTRON instance. The authentication of remote connections can be performed either using 
+admin web interface or using command line interface. We will demonstrate both the approaches.
 
 Node Setup
 ----------
@@ -164,6 +165,9 @@ Start VOLTTRON instance and check if the agents are installed.
   ./start-volttron
   vctl status
 
+Using the web interface:
+^^^^^^^^^^^^^^^^^^^^^^^^
+
 Open browser and go to the platform web admin authentication page `https://central:8443/index.html` to accept/reject
 incoming certificate signing request (CSR) from other platforms.
 
@@ -205,6 +209,37 @@ Approve the CSR request to allow authenticated SSL based connection to the "cent
 
 Go back to the terminal and check the status of Volttron Central Platform agent. It should be set to "GOOD".
 
+Using command line:
+^^^^^^^^^^^^^^^^^^^
+
+Alternatively, you can also check the status of pending CSRs via the command line.
+
+After starting the Volttron Central Platform agent,
+use the auth remote sub-command's ``list`` to display the current pending certs.
+
+.. code-block:: console
+
+    vctl auth remote list
+
+You will see the pending CSR appear in the list.
+
+.. code-block:: console
+
+    USER_ID                              ADDRESS        STATUS
+    central.central.platform.agent       192.168.56.101 PENDING
+
+Approve the pending CSR using the ``approve`` command.
+
+.. code-block:: console
+
+    vctl auth remote approve central.central.platform.agent
+
+Run the ``list`` command again to verify that the CSR has been approved.
+
+.. code-block:: console
+
+    USER_ID                              ADDRESS        STATUS
+    central.central.platform.agent       192.168.56.101 APPROVED
 
 Node-ZMQ Instance Setup
 -----------------------
@@ -272,6 +307,7 @@ connection. You will need to add the public key of VCP agent on the "central" in
 At this point, you can either accept the connection through the admin page or the command line.
 
 Using the admin page:
+^^^^^^^^^^^^^^^^^^^^
 
 Navigate back to the platform web admin authentication page. You should see a pending request under the ZMQ Keys Pending
 Authorization header.
@@ -282,18 +318,35 @@ Accept the credential in the same method as a CSR.
 
 
 Using the command line:
+^^^^^^^^^^^^^^^^^^^^^^
 
-On the "node-zmq" box execute this command and grab the public key of the VCP agent.
-
-.. code-block:: console
-
-  vctl auth publickey
-
-Add auth entry corresponding to VCP agent on "central" instance using the below command. Replace the user id value and credentials value appropriately before running
+As with the pending CSR, list the current pending certs and credentials.
 
 .. code-block:: console
 
-  vctl auth add --user_id <any unique user id. for example zmq_node_vcp> --credentials <public key of vcp on zmq node>
+    vctl auth remote list
+
+You will see the pending ZMQ credential has been added to the list.
+
+.. code-block:: console
+
+    USER_ID                              ADDRESS        STATUS
+    central.central.platform.agent       192.168.56.101 APPROVED
+    68ef33c4-97bc-4e1b-b5f6-2a6049993b65 127.0.0.1      PENDING
+
+Approve the pending ZMQ credential using the ``approve`` command.
+
+.. code-block:: console
+
+    vctl auth remote approve 68ef33c4-97bc-4e1b-b5f6-2a6049993b65
+
+Run the ``list`` command again to verify that the credential has been approved.
+
+.. code-block:: console
+
+    USER_ID                              ADDRESS        STATUS
+    central.central.platform.agent       192.168.56.101 APPROVED
+    68ef33c4-97bc-4e1b-b5f6-2a6049993b65 127.0.0.1      APPROVED
 
 
 Complete similar steps to start a forwarder agent that connects to "central" instance. Modify the configuration in
@@ -319,9 +372,10 @@ Install and start forwarder agent.
   python scripts/install-agent.py -s services/core/ForwardHistorian -c services/core/ForwardHistorian/rmq_config.yml --start
 
 
-To accept the credential using the admin page:
+Using the admin page:
+^^^^^^^^^^^^^^^^^^^^^
 
-Navigate back to the platform web admin authentication page. You should see another pending request under the ZMQ Keys
+To accept the credential, navigate back to the platform web admin authentication page. You should see another pending request under the ZMQ Keys
 Pending Authorization header.
 
 .. image:: files/zmq_pending_credential_2.png
@@ -329,20 +383,38 @@ Pending Authorization header.
 Accept this credential in the same method as before.
 
 
-To accept the credential using the command line:
+Using the command line:
+^^^^^^^^^^^^^^^^^^^^^^^
 
-Grab the public key of the forwarder agent.
-
-.. code-block:: console
-
-  vctl auth publickey
-
-
-Add auth entry corresponding to VCP agent on **central** instance.
+To accept the credential via the command line,
 
 .. code-block:: console
 
-  vctl auth add --user_id <any unique user id. for example zmq_node_forwarder> --credentials <public key of forwarder on zmq node>
+    vctl auth remote list
+
+You will see the pending ZMQ credential has been added to the list.
+
+.. code-block:: console
+
+    USER_ID                              ADDRESS        STATUS
+    central.central.platform.agent       192.168.56.101 APPROVED
+    68ef33c4-97bc-4e1b-b5f6-2a6049993b65 127.0.0.1      APPROVED
+    fb30249d-b267-4bdd-b29a-d9112e6a6082 127.0.0.1      PENDING
+
+Approve the pending ZMQ credential using the ``approve`` command.
+
+.. code-block:: console
+
+    vctl auth remote approve fb30249d-b267-4bdd-b29a-d9112e6a6082
+
+Run the ``list`` command again to verify that the credential has been approved.
+
+.. code-block:: console
+
+    USER_ID                              ADDRESS        STATUS
+    central.central.platform.agent       192.168.56.101 APPROVED
+    68ef33c4-97bc-4e1b-b5f6-2a6049993b65 127.0.0.1      APPROVED
+    fb30249d-b267-4bdd-b29a-d9112e6a6082 127.0.0.1      APPROVED
 
 
 In either case, you should start seeing messages from "collector1" instance on the "central" instance's VOLTTRON log now.
@@ -452,13 +524,52 @@ Start Volttron Central Platform on this platform manually.
 
   vctl start --tag vcp
 
+Accept the pending CSR request.
+
+Using the admin page:
+^^^^^^^^^^^^^^^^^^^^^
+
 Go the master admin authentication page and check if there is a new pending CSR request from VCP agent of "collector2"
 instance.
 
 .. image:: files/remote_rmq_pending.png
 
-
 Approve the CSR request to allow authenticated SSL based connection to the "central" instance.
+
+
+Using the command line:
+^^^^^^^^^^^^^^^^^^^^^^^
+
+As before, this can be done via the command line as follows:
+
+.. code-block:: console
+
+    vctl auth remote list
+
+.. code-block:: console
+
+    USER_ID                                 ADDRESS        STATUS
+    central.central.platform.agent          192.168.56.101 APPROVED
+    central.collector2.forwarderagent-5.1_1 192.168.56.101 PENDING
+    68ef33c4-97bc-4e1b-b5f6-2a6049993b65    127.0.0.1      APPROVED
+    fb30249d-b267-4bdd-b29a-d9112e6a6082    127.0.0.1      APPROVED
+
+
+Approve the pending CSR using the ``approve`` command.
+
+.. code-block:: console
+
+    vctl auth remote approve central.collector2.forwarderagent-5.1_1
+
+Run the ``list`` command again to verify that the CSR has been approved.
+
+.. code-block:: console
+
+    USER_ID                                 ADDRESS        STATUS
+    central.central.platform.agent          192.168.56.101 APPROVED
+    central.collector2.forwarderagent-5.1_1 192.168.56.101 APPROVED
+    68ef33c4-97bc-4e1b-b5f6-2a6049993b65    127.0.0.1      APPROVED
+    fb30249d-b267-4bdd-b29a-d9112e6a6082    127.0.0.1      APPROVED
 
 Now go back to the terminal and check the status of Volttron Central Platform agent. It should be set to "GOOD".
 
@@ -478,6 +589,9 @@ Start forwarder agent.
 
   python scripts/install-agent.py -s services/core/ForwardHistorian -c services/core/ForwardHistorian/rmq_config.yml --start
 
+Using the admin page:
+^^^^^^^^^^^^^^^^^^^^
+
 Go the master admin authentication page and check if there is a new pending CSR request from forwarder agent of "collector2"
 instance.
 
@@ -486,6 +600,42 @@ instance.
 Approve the CSR request to allow authenticated SSL based connection to the "central" instance.
 
 .. image:: files/rmq_remote_forwarder_accepted.png
+
+Using the command line:
+^^^^^^^^^^^^^^^^^^^^^^^
+
+If using command line for this process:
+
+.. code-block:: console
+
+    vctl auth remote list
+
+.. code-block:: console
+
+    USER_ID                                 ADDRESS        STATUS
+    central.central.platform.agent          192.168.56.101 APPROVED
+    central.collector2.platform.agent       192.168.56.103 APPROVED
+    central.collector2.forwarderagent-5.1_1 192.168.56.103 PENDING
+    68ef33c4-97bc-4e1b-b5f6-2a6049993b65    127.0.0.1      APPROVED
+    fb30249d-b267-4bdd-b29a-d9112e6a6082    127.0.0.1      APPROVED
+
+
+Approve the pending CSR using the ``approve`` command.
+
+.. code-block:: console
+
+    vctl auth remote approve central.collector2.forwarderagent-5.1_1
+
+Run the ``list`` command again to verify that the CSR has been approved.
+
+.. code-block:: console
+
+    USER_ID                                 ADDRESS        STATUS
+    central.central.platform.agent          192.168.56.101 APPROVED
+    central.collector2.platform.agent       192.168.56.103 APPROVED
+    central.collector2.forwarderagent-5.1_1 192.168.56.103 APPROVED
+    68ef33c4-97bc-4e1b-b5f6-2a6049993b65    127.0.0.1      APPROVED
+    fb30249d-b267-4bdd-b29a-d9112e6a6082    127.0.0.1      APPROVED
 
 Now go back to the terminal and check the status of forwarder agent. It should be set to "GOOD".
 
