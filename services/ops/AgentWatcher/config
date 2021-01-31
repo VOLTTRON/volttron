@@ -1,6 +1,7 @@
 {
     "watchlist": [
-        "listener"
+        "platform.driver",
+        "platform.actuator"
     ],
     "check-period": 10
 }
