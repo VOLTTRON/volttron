@@ -9,7 +9,8 @@ This guide describes the setup process for a multi-platform connection that has 
 instance to a single "central" instance for storage.  It will also have a Volttron Central agent running on the
 "central" instance and Volttron Central Platform agents on all 3 instances and connected to "central" instance to
 provide operational status of it's instance to the "central" instance. For this document "node" will be used
-interchangeably with VOLTTRON instance.
+interchangeably with VOLTTRON instance. The authentication of remote connections can be performed either using 
+admin web interface or using command line interface. We will demonstrate both the approaches.
 
 Node Setup
 ----------
@@ -196,6 +197,9 @@ request to the web interface.
 
   vctl start --tag vcp
 
+Using the web interface:
+^^^^^^^^^^^^^^^^^^^^^^^^
+
 Now go to the platform web admin page to check if there is a new pending CSR request. You will see a "PENDING" request
 from "central.central.platform.agent"
 
@@ -205,7 +209,10 @@ Approve the CSR request to allow authenticated SSL based connection to the "cent
 
 Go back to the terminal and check the status of Volttron Central Platform agent. It should be set to "GOOD".
 
-You can also check the status of pending CSRs via the command line.
+Using command line:
+^^^^^^^^^^^^^^^^^^^
+
+Alternatively, you can also check the status of pending CSRs via the command line.
 
 After starting the Volttron Central Platform agent,
 use the auth remote sub-command's ``list`` to display the current pending certs.
@@ -365,9 +372,10 @@ Install and start forwarder agent.
   python scripts/install-agent.py -s services/core/ForwardHistorian -c services/core/ForwardHistorian/rmq_config.yml --start
 
 
-To accept the credential using the admin page:
+Using the admin page:
+^^^^^^^^^^^^^^^^^^^^^
 
-Navigate back to the platform web admin authentication page. You should see another pending request under the ZMQ Keys
+To accept the credential, navigate back to the platform web admin authentication page. You should see another pending request under the ZMQ Keys
 Pending Authorization header.
 
 .. image:: files/zmq_pending_credential_2.png
@@ -375,7 +383,10 @@ Pending Authorization header.
 Accept this credential in the same method as before.
 
 
-To accept via the command line:
+Using the command line:
+^^^^^^^^^^^^^^^^^^^^^^^
+
+To accept the credential via the command line,
 
 .. code-block:: console
 
@@ -513,6 +524,11 @@ Start Volttron Central Platform on this platform manually.
 
   vctl start --tag vcp
 
+Accept the pending CSR request.
+
+Using the admin page:
+^^^^^^^^^^^^^^^^^^^^^
+
 Go the master admin authentication page and check if there is a new pending CSR request from VCP agent of "collector2"
 instance.
 
@@ -520,6 +536,9 @@ instance.
 
 Approve the CSR request to allow authenticated SSL based connection to the "central" instance.
 
+
+Using the command line:
+^^^^^^^^^^^^^^^^^^^^^^^
 
 As before, this can be done via the command line as follows:
 
@@ -570,6 +589,9 @@ Start forwarder agent.
 
   python scripts/install-agent.py -s services/core/ForwardHistorian -c services/core/ForwardHistorian/rmq_config.yml --start
 
+Using the admin page:
+^^^^^^^^^^^^^^^^^^^^
+
 Go the master admin authentication page and check if there is a new pending CSR request from forwarder agent of "collector2"
 instance.
 
@@ -578,6 +600,9 @@ instance.
 Approve the CSR request to allow authenticated SSL based connection to the "central" instance.
 
 .. image:: files/rmq_remote_forwarder_accepted.png
+
+Using the command line:
+^^^^^^^^^^^^^^^^^^^^^^^
 
 If using command line for this process:
 
