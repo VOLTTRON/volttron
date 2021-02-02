@@ -1,0 +1,91 @@
+[tool.poetry]
+name = "volttron"
+version = "8.0"
+description = "Agent Execution Platform"
+authors = ["Volttron Team <volttron@pnnl.gov>"]
+readme = "README.md"
+homepage = "https://volttron.org/"
+repository = "https://github.com/VOLTTRON/volttron"
+documentation= "https://volttron.readthedocs.io/en/latest/"
+
+[tool.poetry.dependencies]
+python = ">=3.7.1,<4.0"
+gevent = "20.6.1"
+greenlet = "0.4.16"
+grequests = "^0.6.0"
+idna = "<3,>=2.5"
+requests = "2.23.0"
+ply = "^3.11"
+psutil = "^5.8.0"
+python-dateutil = "^2.8.1"
+pytz = "^2021.1"
+PyYAML = "^5.4.1"
+pyzmq = "^22.0.2"
+setuptools = "39.0.1"
+tzlocal = "^2.1"
+pyOpenSSL = "19.0.0"
+cryptography = "2.3"
+watchdog-gevent = "^0.1.1"
+#wheel = "0.30.0" # Since Poetry 1.1.x does not support pinning wheel,
+# we have to update wheel post-installation in the virtual environment
+# ideally, we should upgrade Volttron to use 0.3X to avoid this unnecessary post-installation step
+
+pymongo = {version = "^3.11.2", optional = true}
+influxdb = {version = "^5.3.1", optional = true}
+mysql-connector-python-rf = {version = "^2.2.2", optional = true}
+psycopg2-binary = {version = "^2.8.6", optional = true}
+crate = {version = "^0.26.0", optional = true}
+mock = {version = "^4.0.3", optional = true}
+Sphinx = {version = "3.3.0", optional = true}
+sphinx-rtd-theme = {version = "^0.5.1", optional = true}
+m2r2 = {version = "^0.2.7", optional = true}
+pymodbus = {version = "^2.4.0", optional = true}
+bacpypes = {version = "0.16.7", optional = true}
+modbus_tk = {version = "^1.1.2", optional = true}
+pyserial = {version = "^3.5", optional = true}
+ws4py = {version = "^0.5.1", optional = true}
+PyJWT = {version = "1.7.1", optional = true}
+Jinja2 = {version = "^2.11.3", optional = true}
+passlib = {version = "^1.7.4", optional = true}
+argon2-cffi = {version = "^20.1.0", optional = true}
+Werkzeug = {version = "^1.0.1", optional = true}
+Pint = {version = "^0.16.1", optional = true}
+
+numpy = {version = "^1.20.0", optional = true}
+pandas = {version = "^1.2.1", optional = true}
+transitions = {version = "^0.8.6", optional = true}
+
+[tool.poetry.extras]
+crate = ["crate"]
+databases = ["mysql-connector-python-rf", "pymongo", "crate", "influxdb", "psycopg2-binary" ]
+documentation = ["mock", "Sphinx", "sphinx-rtd-theme", "m2r2"]
+drivers = ["pymodbus", "bacpypes", "modbus-tk", "pyserial"]
+influxdb = ["influxdb"]
+market = ["numpy", "transitions"]
+mongo = ["pymongo"]
+mysql = ["mysql-connector-python-rf"]
+pandas = ["numpy", "pandas"]
+postgres = ["psycopg2-binary"]
+web = ["ws4py", "Jinja2", "passlib", "argon2-cffi", "Werkzeug"]
+weather = ["Pint"]
+
+[tool.poetry.dev-dependencies]
+pytest = "^6.2.2"
+mock = "^4.0.3"
+pytest-timeout = "^1.4.2"
+websocket_client = "^0.57.0"
+deepdiff = "^5.2.2"
+docker = "^4.4.1"
+
+[tool.poetry.scripts]
+volttron = 'volttron.platform.main:_main'
+volttron-ctl = 'volttron.platform.control:_main'
+vctl = 'volttron.platform.control:_main'
+volttron-pkg = 'volttron.platform.packaging:_main'
+vpkg = 'volttron.platform.packaging:_main'
+volttron-cfg = 'volttron.platform.config:_main'
+vcfg = 'volttron.platform.config:_main'
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
