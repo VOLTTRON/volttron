@@ -138,13 +138,22 @@ at our bi-weekly office-hours and on Slack. To be invited to office-hours or sla
    platform-features/security/volttron-security
 
 .. toctree::
-   :caption: VOLTTRON Core Agents
+   :caption: VOLTTRON Core Service Agents
    :hidden:
    :titlesonly:
    :maxdepth: 2
    :glob:
 
    volttron-api/services/*/modules
+
+.. toctree::
+   :caption: VOLTTRON Core Operations Agents
+   :hidden:
+   :titlesonly:
+   :maxdepth: 2
+   :glob:
+
+   volttron-api/ops/*/modules
 
 .. toctree::
    :caption: VOLTTRON Topics
