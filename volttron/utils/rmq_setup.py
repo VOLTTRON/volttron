@@ -1059,7 +1059,7 @@ def _prompt_csr_request(rmq_user, host, type, verbose=False):
 
         remote_addr = prompt_response(prompt, default=remote_https_address)
         parsed_address = urlparse(remote_addr)
-        if parsed_address.scheme in ('https',):
+        if parsed_address.scheme not in ('https',):
             raise IOError(f"Remote web interface is not valid: {parsed_address}. Please check and try again")
 
         # request CSR from remote host

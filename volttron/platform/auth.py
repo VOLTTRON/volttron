@@ -430,6 +430,9 @@ class AuthService(Agent):
             try:
                 self._certs.approve_csr(user_id)
                 permissions = self.core.rmq_mgmt.get_default_permissions(user_id)
+
+                if "federation" in user_id:  # federation needs more than the current default permissions # TODO: Fix authorization in rabbitmq
+                    permissions = dict(configure=".*", read=".*", write=".*")
                 self.core.rmq_mgmt.create_user_with_permissions(user_id, permissions, True)
                 _log.debug("Created cert and permissions for user: {}".format(user_id))
             # Stores error message in case it is caused by an unexpected failure
