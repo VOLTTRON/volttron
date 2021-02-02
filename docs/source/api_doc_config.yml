@@ -9,3 +9,6 @@ services:
         - IEEE2030_5Agent
     file_excludes:
         - CrateHistorian/scripts/*
+ops:
+    path: services/ops
+
