@@ -120,7 +120,6 @@ class RMQConfig(object):
         rmq_home = os.path.join(os.path.expanduser("~"),
                                 "rabbitmq_server/rabbitmq_server-3.7.7")
         self.config_opts.setdefault('rabbitmq-service', False)
-        self.config_opts.setdefault('monitor-delay', 60)
         self.config_opts.setdefault("rmq-home", rmq_home)
 
     def load_rmq_config(self, volttron_home=None):
@@ -225,10 +224,6 @@ class RMQConfig(object):
     def rabbitmq_as_service(self):
         return self.config_opts.get('rabbitmq-service', False)
 
-    @property
-    def monitor_delay(self):
-        return self.config_opts.get('monitor-delay', 60)
-
     def reconnect_delay(self):
         return self.config_opts.get('reconnect-delay')
 
@@ -284,9 +279,6 @@ class RMQConfig(object):
     def rabbitmq_as_service(self, service_flag):
         self.config_opts['rabbitmq-service'] = service_flag
 
-    @monitor_delay.setter
-    def monitor_delay(self, monitor_delay):
-        self.config_opts['monitor-delay'] = monitor_delay
 
 
 
