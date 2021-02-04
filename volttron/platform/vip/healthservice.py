@@ -54,14 +54,13 @@ _log = logging.getLogger(__name__)
 
 class HealthService(Agent):
 
-    def __init__(self, monitor_rabbit=False, monitor_delay=60, **kwargs):
+    def __init__(self, monitor_rabbit=False, **kwargs):
         super(HealthService, self).__init__(**kwargs)
 
         # Store the health stats for given peers in a dictionary with
         # keys being the identity of the connected agent.
         self._health_dict = defaultdict(dict)
         self._monitor_rabbit = monitor_rabbit
-        self._monitor_delay = monitor_delay
 
     def peer_added(self, peer):
         """
@@ -142,15 +141,15 @@ class HealthService(Agent):
         if get_messagebus() == 'rmq':
             rmq_config = RMQConfig()
             if self._monitor_rabbit and not rmq_config.rabbitmq_as_service:
-                _log.info(f"{self._monitor_rabbit}, {rmq_config.rabbitmq_as_service}")
-                delay = utils.get_aware_utc_now() + timedelta(seconds=self._monitor_delay)
+                _log.info(f"{self._monitor_rabbit}, {rmq_config.rabbitmq_as_service}, {rmq_config.monitor_delay}")
+                delay = utils.get_aware_utc_now() + timedelta(seconds=rmq_config.monitor_delay)
                 self.core.schedule(delay, self.__monitor_rabbit__)
 
     def __monitor_rabbit__(self):
         # Check if RabbitMQ is running. If not running, restart the server
+        rmq_config = RMQConfig()
         try:
             _log.info("Checking status of rabbitmq")
-            rmq_config = RMQConfig()
             # Check if RabbitMQ is running. If not running, restart the server
             start_rabbit(rmq_config.rmq_home)
         except RabbitMQStartError as e:
@@ -158,7 +157,7 @@ class HealthService(Agent):
             _log.exception(f"Unable to start RabbitMQ server: {e}")
             raise KeyboardInterrupt()
 
-        delay = utils.get_aware_utc_now() + timedelta(seconds=self._monitor_delay)
+        delay = utils.get_aware_utc_now() + timedelta(seconds=rmq_config.monitor_delay)
         self.core.schedule(delay, self.__monitor_rabbit__)
 
 

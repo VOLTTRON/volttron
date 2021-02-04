@@ -57,3 +57,5 @@ reconnect-delay: 30
 # Flag to indicate if RabbitMQ server is configured to run as a systemd service.
 rabbbitmq-service: false
 
+# RabbitMQ monitor frequency
+monitor-delay: 60
