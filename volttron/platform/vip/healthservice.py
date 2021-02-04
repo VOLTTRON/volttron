@@ -47,7 +47,6 @@ from volttron.platform.agent import utils
 from datetime import timedelta
 from volttron.utils.rmq_config_params import RMQConfig
 from volttron.utils.rmq_setup import start_rabbit, RabbitMQStartError
-from volttron.platform.agent.utils import get_messagebus
 
 _log = logging.getLogger(__name__)
 
