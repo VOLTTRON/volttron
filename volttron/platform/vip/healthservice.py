@@ -47,6 +47,7 @@ from volttron.platform.agent import utils
 from datetime import timedelta
 from volttron.utils.rmq_config_params import RMQConfig
 from volttron.utils.rmq_setup import start_rabbit, RabbitMQStartError
+from volttron.platform.agent.utils import get_messagebus
 
 _log = logging.getLogger(__name__)
 
@@ -60,7 +61,6 @@ class HealthService(Agent):
         # keys being the identity of the connected agent.
         self._health_dict = defaultdict(dict)
         self._monitor_rabbit = monitor_rabbit
-        self._rmq_config = RMQConfig()
         self._monitor_delay = monitor_delay
 
     def peer_added(self, peer):
@@ -139,18 +139,20 @@ class HealthService(Agent):
         self.vip.pubsub.subscribe('pubsub', 'heartbeat', callback=self._heartbeat_updates)
         # Schedule RabbitMQ Server monitoring. Do not monitor if RabbitMQ is running as service,
         # systemd will take care of monitoring, restart etc.
-
-        if self._monitor_rabbit and not self._rmq_config.rabbitmq_as_service:
-            _log.info(f"{self._monitor_rabbit}, {self._rmq_config.rabbitmq_as_service}")
-            delay = utils.get_aware_utc_now() + timedelta(seconds=self._monitor_delay)
-            self.core.schedule(delay, self.__monitor_rabbit__)
+        if get_messagebus() == 'rmq':
+            rmq_config = RMQConfig()
+            if self._monitor_rabbit and not rmq_config.rabbitmq_as_service:
+                _log.info(f"{self._monitor_rabbit}, {rmq_config.rabbitmq_as_service}")
+                delay = utils.get_aware_utc_now() + timedelta(seconds=self._monitor_delay)
+                self.core.schedule(delay, self.__monitor_rabbit__)
 
     def __monitor_rabbit__(self):
         # Check if RabbitMQ is running. If not running, restart the server
         try:
             _log.info("Checking status of rabbitmq")
+            rmq_config = RMQConfig()
             # Check if RabbitMQ is running. If not running, restart the server
-            start_rabbit(self._rmq_config.rmq_home)
+            start_rabbit(rmq_config.rmq_home)
         except RabbitMQStartError as e:
             # Raise KeyboardInterrupt error which will eventually shutdown platform
             _log.exception(f"Unable to start RabbitMQ server: {e}")
