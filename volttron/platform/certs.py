@@ -820,7 +820,7 @@ class Certs(object):
         """
         with open(self.cert_file(name, remote=remote), "wb") as f:
             f.write(cert.public_bytes(serialization.Encoding.PEM))
-        os.chmod(self.cert_file(name), 0o644)
+        os.chmod(self.cert_file(name, remote=remote), 0o644)
 
         if pk:
             encryption = serialization.NoEncryption()

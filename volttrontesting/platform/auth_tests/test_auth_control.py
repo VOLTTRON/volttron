@@ -110,10 +110,9 @@ def test_deny_approved_authorization(mock_auth_service, test_auth):
     assert len(mock_auth._auth_approved) == 1
 
     mock_auth.deny_authorization_failure(auth['user_id'])
+    mock_auth.read_auth_file()
     assert len(mock_auth._auth_denied) == 1
     assert len(mock_auth._auth_approved) == 0
-
-    mock_auth.read_auth_file()
     assert len(mock_auth.auth_entries) == 0
 
 
@@ -127,16 +126,15 @@ def test_delete_approved_authorization(mock_auth_service, test_auth):
     assert len(mock_auth._auth_approved) == 0
 
     mock_auth.approve_authorization_failure(auth['user_id'])
-    assert len(mock_auth._auth_approved) == 1
-    assert len(mock_auth._auth_pending) == 0
-
     assert len(mock_auth.auth_entries) == 0
     mock_auth.read_auth_file()
+    assert len(mock_auth._auth_approved) == 1
+    assert len(mock_auth._auth_pending) == 0
     assert len(mock_auth.auth_entries) == 1
 
     mock_auth.delete_authorization_failure(auth['user_id'])
-    assert len(mock_auth._auth_approved) == 0
     mock_auth.read_auth_file()
+    assert len(mock_auth._auth_approved) == 0
     assert len(mock_auth.auth_entries) == 0
 
 
@@ -150,13 +148,14 @@ def test_approve_denied_authorization(mock_auth_service, test_auth):
     assert len(mock_auth._auth_denied) == 0
 
     mock_auth.deny_authorization_failure(auth['user_id'])
+    mock_auth.read_auth_file()
     assert len(mock_auth._auth_denied) == 1
     assert len(mock_auth._auth_pending) == 0
 
     mock_auth.approve_authorization_failure(auth['user_id'])
     assert len(mock_auth.auth_entries) == 0
-    assert len(mock_auth._auth_approved) == 1
     mock_auth.read_auth_file()
+    assert len(mock_auth._auth_approved) == 1
     assert len(mock_auth.auth_entries) == 1
     assert len(mock_auth._auth_denied) == 0
 
@@ -171,6 +170,7 @@ def test_deny_authorization_failure(mock_auth_service, test_auth):
     assert len(mock_auth._auth_denied) == 0
 
     mock_auth.deny_authorization_failure(auth['user_id'])
+    mock_auth.read_auth_file()
     assert len(mock_auth._auth_denied) == 1
     assert len(mock_auth._auth_pending) == 0
 
@@ -184,6 +184,7 @@ def test_delete_authorization_failure(mock_auth_service, test_auth):
     assert len(mock_auth._auth_pending) == 1
     assert len(mock_auth._auth_denied) == 0
     mock_auth.delete_authorization_failure(auth['user_id'])
+
     assert len(mock_auth._auth_pending) == 0
     assert len(mock_auth._auth_denied) == 0
 
@@ -198,10 +199,12 @@ def test_delete_denied_authorization(mock_auth_service, test_auth):
     assert len(mock_auth._auth_denied) == 0
 
     mock_auth.deny_authorization_failure(auth['user_id'])
+    mock_auth.read_auth_file()
     assert len(mock_auth._auth_denied) == 1
     assert len(mock_auth._auth_pending) == 0
 
     mock_auth.delete_authorization_failure(auth['user_id'])
+    mock_auth.read_auth_file()
     assert len(mock_auth._auth_denied) == 0
 
 
