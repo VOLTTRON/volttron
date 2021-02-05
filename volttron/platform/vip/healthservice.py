@@ -53,15 +53,12 @@ _log = logging.getLogger(__name__)
 
 class HealthService(Agent):
 
-    def __init__(self, monitor_rabbit=False, monitor_delay=60, **kwargs):
+    def __init__(self, **kwargs):
         super(HealthService, self).__init__(**kwargs)
 
         # Store the health stats for given peers in a dictionary with
         # keys being the identity of the connected agent.
         self._health_dict = defaultdict(dict)
-        self._monitor_rabbit = monitor_rabbit
-        self._rmq_config = RMQConfig()
-        self._monitor_delay = monitor_delay
 
     def peer_added(self, peer):
         """
@@ -137,26 +134,6 @@ class HealthService(Agent):
     def onstart(self, sender, **kwargs):
         # Start subscribing to heartbeat topic to get updates from the health subsystem.
         self.vip.pubsub.subscribe('pubsub', 'heartbeat', callback=self._heartbeat_updates)
-        # Schedule RabbitMQ Server monitoring. Do not monitor if RabbitMQ is running as service,
-        # systemd will take care of monitoring, restart etc.
 
-        if self._monitor_rabbit and not self._rmq_config.rabbitmq_as_service:
-            _log.info(f"{self._monitor_rabbit}, {self._rmq_config.rabbitmq_as_service}")
-            delay = utils.get_aware_utc_now() + timedelta(seconds=self._monitor_delay)
-            self.core.schedule(delay, self.__monitor_rabbit__)
-
-    def __monitor_rabbit__(self):
-        # Check if RabbitMQ is running. If not running, restart the server
-        try:
-            _log.info("Checking status of rabbitmq")
-            # Check if RabbitMQ is running. If not running, restart the server
-            start_rabbit(self._rmq_config.rmq_home)
-        except RabbitMQStartError as e:
-            # Raise KeyboardInterrupt error which will eventually shutdown platform
-            _log.exception(f"Unable to start RabbitMQ server: {e}")
-            raise KeyboardInterrupt()
-
-        delay = utils.get_aware_utc_now() + timedelta(seconds=self._monitor_delay)
-        self.core.schedule(delay, self.__monitor_rabbit__)
 
 
