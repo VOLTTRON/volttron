@@ -44,17 +44,23 @@ from volttron.platform.agent.base_historian import (BaseHistorian,
                                                     STATUS_KEY_BACKLOGGED,
                                                     STATUS_KEY_CACHE_COUNT,
                                                     STATUS_KEY_PUBLISHING,
-                                                    STATUS_KEY_CACHE_FULL)
+                                                    STATUS_KEY_CACHE_FULL,
+                                                    STATUS_KEY_TIME_ERROR)
 import pytest
 
 from volttron.platform.agent import utils
 from volttron.platform.messaging import headers as headers_mod
 from volttron.platform.messaging.health import *
+from volttron.platform.messaging import topics
+
 from time import sleep
 from datetime import datetime
 import random
 import gevent
 import os
+import sqlite3
+
+from volttron.platform.agent.known_identities import CONFIGURATION_STORE
 
 
 class Historian(BaseHistorian):
@@ -264,6 +270,165 @@ def test_cache_backlog(request, volttron_instance, client_agent):
     finally:
         if historian:
             historian.core.stop()
+        # wait for cleanup to complete
+        gevent.sleep(2)
+
+
+@pytest.mark.historian
+def test_time_tolerance_check(request, volttron_instance, client_agent):
+    """
+    Test time_tolerance check
+    """
+    global alert_publishes
+    historian = None
+
+    alert_publishes = []
+    db_connection = None
+    try:
+        # subscribe to alerts
+        client_agent.vip.pubsub.subscribe("pubsub", "alerts/BasicHistorian", message_handler)
+
+        identity = 'platform.historian'
+        historian = volttron_instance.build_agent(agent_class=BasicHistorian,
+                                              identity=identity,
+                                              submit_size_limit=5,
+                                              max_time_publishing=5,
+                                              retry_period=1.0,
+                                              backup_storage_limit_gb=0.0001,
+                                              time_tolerance=5,
+                                              enable_store=True)
+        DEVICES_ALL_TOPIC = "devices/Building/LAB/Device/all"
+        gevent.sleep(5) #wait for historian to be fully up
+        historian.publish_sleep = 0
+        import pathlib
+        p = pathlib.Path(__file__).parent.parent.parent.parent.absolute()
+        print(f"Path to backupdb is {os.path.join(p,'backup.sqlite')}")
+        db_connection = sqlite3.connect(os.path.join(p,"backup.sqlite"))
+        c = db_connection.cursor()
+        try:
+            c.execute("DELETE FROM time_error")
+            db_connection.commit()
+        except:
+            pass # might fail with no such table. ignore
+
+        # Publish fake data. The format mimics the format used by VOLTTRON drivers.
+        # Make some random readings.  Randome readings are going to be
+        # within the tolerance here.
+        format_spec = "{0:.13f}"
+        oat_reading = random.uniform(30, 100)
+        mixed_reading = oat_reading + random.uniform(-5, 5)
+        damper_reading = random.uniform(0, 100)
+
+        float_meta = {'units': 'F', 'tz': 'UTC', 'type': 'float'}
+        percent_meta = {'units': '%', 'tz': 'UTC', 'type': 'float'}
+
+        # Create a message for all points.
+        all_message = [{'OutsideAirTemperature': oat_reading,
+                        'MixedAirTemperature': mixed_reading,
+                        'DamperSignal': damper_reading},
+                       {'OutsideAirTemperature': float_meta,
+                        'MixedAirTemperature': float_meta,
+                        'DamperSignal': percent_meta
+                        }]
+        from datetime import timedelta
+        d_now = datetime.utcnow() - timedelta(minutes=10)
+        # publish records with invalid timestamp
+        for i in range(2):
+            now = utils.format_timestamp(d_now)
+            headers = {
+                headers_mod.DATE: now, headers_mod.TIMESTAMP: now
+            }
+            client_agent.vip.pubsub.publish('pubsub',
+                                            DEVICES_ALL_TOPIC,
+                                            headers=headers,
+                                            message=all_message)
+            d_now = d_now + timedelta(seconds=1)
+
+        gevent.sleep(2)
+        status = client_agent.vip.rpc.call("platform.historian", "health.get_status").get(timeout=10)
+        print(f"STATUS: {status}")
+        assert status["status"] == STATUS_BAD
+        assert status["context"][STATUS_KEY_TIME_ERROR]
+
+        c.execute("SELECT count(ts) from time_error")
+        initial_count = c.fetchone()[0]
+        print(f" initial count is {initial_count} type {type(initial_count)}")
+        assert initial_count > 0
+
+        # Make cache full.. time_error records should get deleted to make space
+        # Test publish slow or backlogged
+        historian.publish_sleep = 2
+        d_now = datetime.utcnow()
+        from datetime import timedelta
+        for i in range(100):
+            now = utils.format_timestamp(d_now)
+            headers = {
+                headers_mod.DATE: now, headers_mod.TIMESTAMP: now
+            }
+            client_agent.vip.pubsub.publish('pubsub',
+                                            DEVICES_ALL_TOPIC,
+                                            headers=headers,
+                                            message=all_message)
+            d_now = d_now + timedelta(milliseconds=1)
+            if i % 10 == 0:
+                # So that we don't send a huge batch to only get deleted from cache right after
+                # inserting. Dumping a big batch in one go will make the the cache size to be
+                # over the limit so right after insert, cache size will be checked and cleanup
+                # will be delete records
+                gevent.sleep(0.5)
+            gevent.sleep(0.00001)  # yield to historian thread to do the publishing
+
+        gevent.sleep(4)
+        status = client_agent.vip.rpc.call("platform.historian", "health.get_status").get(timeout=10)
+        print(f"STATUS: {status}")
+        assert status["status"] == STATUS_BAD
+        assert status["context"][STATUS_KEY_CACHE_FULL]
+        assert status["context"][STATUS_KEY_BACKLOGGED]
+        # if cache got full, records from time_error should have got deleted before deleting valid records
+        # we inserted less than 100 records so all time_error records should have got deleted
+        # and time_error_stat should be false
+        assert not status["context"][STATUS_KEY_TIME_ERROR]
+        c.execute("SELECT count(ts) from time_error")
+        new_count = c.fetchone()[0]
+        assert new_count == 0
+
+        print("Updating time tolerance topics")
+
+        # Change config to modify topic for time tolerance check
+        historian.publish_sleep = 0
+        json_config = """{"time_tolerance_topics":["record"]}"""
+        historian.vip.rpc.call(CONFIGURATION_STORE, 'manage_store',
+                                               identity, "config", json_config, config_type="json").get()
+        gevent.sleep(2)
+
+        d_now = datetime.utcnow() - timedelta(minutes=10)
+        client_agent.vip.pubsub.publish('pubsub',
+                                        DEVICES_ALL_TOPIC,
+                                        headers=headers,
+                                        message=all_message)
+        gevent.sleep(5)
+        status = client_agent.vip.rpc.call("platform.historian", "health.get_status").get(timeout=10)
+        print(f"STATUS: {status}")
+        assert status["status"] == STATUS_GOOD
+        # publish records with invalid timestamp
+        now = utils.format_timestamp(d_now)
+        headers = {
+            headers_mod.DATE: now, headers_mod.TIMESTAMP: now
+        }
+        client_agent.vip.pubsub.publish('pubsub',
+                                        topics.RECORD(subtopic="test"),
+                                        headers=headers,
+                                        message="test")
+        gevent.sleep(5)
+        status = client_agent.vip.rpc.call("platform.historian", "health.get_status").get(timeout=10)
+        print(f"GOT STATUS {status}")
+        assert status["status"] == STATUS_BAD
+        assert status["context"][STATUS_KEY_TIME_ERROR]
+    finally:
+        if historian:
+            historian.core.stop()
+        if db_connection:
+            db_connection.close()
         # wait for cleanup to complete
         gevent.sleep(2)
 
