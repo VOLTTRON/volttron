@@ -14,19 +14,20 @@ However, VOLTTRON is deployed on top of a Linux-based operating system and evalu
 include the configuration of the host system itself, as well as any other applications deployed on the system, both of
 which provide additional attack surface and failure opportunities.
 
-There is no such thing as "a secure system," rather any computing system must be evaluated in the context of its
-deployment environment with considerations for assurance of confidentiality, integrity, and availability as well
-as the potential impact of a breach and costs assocated with risk mitigation.
+There is no such thing as "a secure system."
+Rather, any computing system must be evaluated in the context of its deployment environment with considerations for
+assurance of confidentiality, integrity, and availability.
+The impact of a compromised system must be considered, along with the costs assocated with risk mitigation.
 Threat profile analyses have been comleted for several VOLTTRON deployment configurations; the reports are available on
-the `volttron website's publications section<https://volttron.org/publications>`_.
+the `VOLTTRON website's publications section <https://volttron.org/publications>`_.
 
 
 Recommendations
 ===============
 
-The VOLTTRON  team recommends a risk-based cyber security approach that considers each risk, and the impact of an
-exploit or failure.
-After evaluating the potential impact of each risk, a suitable mitigation can be identified.
+The VOLTTRON  team recommends a risk-based cyber security approach that considers each risk, the impact of an
+exploit or failure, and the costs associated with the available mitigation strategies.
+Based on this evaluation, a set of mitigations can be identified to meet deployment requirements.
 
 In many cases, the first step is to coordinate with the cyber security team at your institution; they should be able
 to help you with risk assessment and mitigation strategies, as well s as understanding any relevant regulartory
