@@ -41,3 +41,8 @@ You are encouraged to select the operating system and profile corresponding to y
 The guides there provide instruction for compliance in regulated environments, but are also appropriate in less
 regulated environments where risk levels are equivalent.
 
+It is also important to evaluate any other applications running on the same system.
+In addtion to the potential for exploitation or failure of the individual application, it is important to consider
+the ways in which the risks associated with one application may expose new risks in another application.
+For example, if a system is running a webserver which is exploited in a way that provides unauthorized access to
+the host system, then the VOLTTRON system is now exposed to attack from local users.
