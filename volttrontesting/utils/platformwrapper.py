@@ -502,7 +502,7 @@ class PlatformWrapper:
             gevent.spawn(agent.core.run, event)
             event.wait(timeout=2)
             router_ping = agent.vip.ping("").get(timeout=30)
-            #assert len(router_ping) > 0
+            assert len(router_ping) > 0
 
         agent.publickey = publickey
         return agent
