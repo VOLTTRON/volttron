@@ -129,6 +129,13 @@ def test_default_config(volttron_instance):
         config_json = json.load(config_file)
     assert isinstance(config_json, dict)
 
+    assert 'watchlist' in config_json and 'check-period' in config_json
+    assert isinstance(config_json.get('watchlist'), list) and (
+            isinstance(config_json.get('check-period'), int) or isinstance(config_json.get('check-period'), float))
+    if len(config_json.get('watchlist')) > 0:
+        for watch in config_json.get('watchlist'):
+            assert isinstance(watch, str)
+
     volttron_instance.install_agent(
         agent_dir=get_ops("AgentWatcher"),
         config_file=config_json,
@@ -136,7 +143,11 @@ def test_default_config(volttron_instance):
         vip_identity="health_test")
 
     gevent.sleep(2)
-    assert not alert_messages
+
+    if len(config_json.get('watchlist')) > 0:
+        assert f"Agent(s) expected but but not running {config_json.get('watchlist')}" in alert_messages
+    else:
+        assert not alert_messages
 
     assert publish_agent.vip.rpc.call("health_test", "health.get_status").get(timeout=10).get('status') == STATUS_GOOD
 
