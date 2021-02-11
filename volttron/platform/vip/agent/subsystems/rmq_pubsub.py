@@ -249,9 +249,7 @@ class RMQPubSub(SubsystemBase):
         """
         connection = self.core().connection
         rkey = self.core().instance_name + '.proxy.router.pubsub'
-        sub_msg = jsonapi.dumps(
-            dict(prefix=prefix, bus=bus, all_platforms=True)
-        )
+        sub_msg = dict(prefix=prefix, bus=bus, all_platforms=True)
         # VIP format - [SENDER, RECIPIENT, PROTO, USER_ID, MSG_ID, SUBSYS, ARGS...]
         frames = [self.core().identity, '', 'VIP1', '', '', 'pubsub', 'subscribe', sub_msg]
         connection.channel.basic_publish(exchange=connection.exchange,
