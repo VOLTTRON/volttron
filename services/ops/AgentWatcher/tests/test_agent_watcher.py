@@ -117,11 +117,12 @@ def test_agent_watcher(platform):
     assert not alert_messages
 
 
-def test_default_config(volttron_instance):
+@pytest.mark.dev
+def test_default_config(platform):
     """
     Test the default configuration file included with the agent
     """
-    publish_agent = volttron_instance.build_agent(identity="test_agent")
+    publish_agent = platform.build_agent(identity="test_agent")
     gevent.sleep(1)
 
     config_path = os.path.join(get_ops("AgentWatcher"), "config")
@@ -136,7 +137,7 @@ def test_default_config(volttron_instance):
         for watch in config_json.get('watchlist'):
             assert isinstance(watch, str)
 
-    volttron_instance.install_agent(
+    platform.install_agent(
         agent_dir=get_ops("AgentWatcher"),
         config_file=config_json,
         start=True,
@@ -151,6 +152,7 @@ def test_default_config(volttron_instance):
 
     assert publish_agent.vip.rpc.call("health_test", "health.get_status").get(timeout=10).get('status') == STATUS_GOOD
 
-    volttron_instance.stop_agent(listener_uuid)
+    publish_agent.core.stop()
+
     gevent.sleep(2)
     assert alert_messages
