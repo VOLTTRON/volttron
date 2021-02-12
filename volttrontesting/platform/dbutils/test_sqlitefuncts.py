@@ -1,10 +1,16 @@
-from gevent import os, subprocess
 import pytest
-
+from gevent import os, subprocess
 from setuptools import glob
 
 from volttron.platform.dbutils.sqlitefuncts import SqlLiteFuncts
 
+try:
+    subprocess.run(["sqlite3", "--version"])
+except FileNotFoundError as e:
+    pytest.skip(
+        "Sqlite3 required for running tests. Please install sqlite3 on you system. For example, on Ubuntu, run 'sudo apt-get install sqlite3'",
+        allow_module_level=True,
+    )
 
 TOPICS_TABLE = "topics"
 DATA_TABLE = "data"
