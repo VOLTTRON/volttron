@@ -36,7 +36,7 @@ requirements.
 For continuously running and production-like systems, one common area of concern is hardening of the host operating
 system.
 Instructions are maintained by OpenSCAP for a large number of operating systems and guides are available for a
-`range of common linux distrobutions <https://static.open-scap.org>`_.
+`range of common linux distributions <https://static.open-scap.org>`_.
 You are encouraged to select the operating system and profile corresponding to your security requirements.
 The guides there provide instruction for compliance in regulated environments, but are also appropriate in less
 regulated environments where risk levels are equivalent.
