@@ -1,5 +1,4 @@
 import configparser as configparser
-from datetime import datetime
 import logging
 import os
 from pathlib import Path
@@ -261,7 +260,8 @@ class PlatformWrapper:
             # Elixir (rmq pre-req) requires locale to be utf-8
             'LANG': "en_US.UTF-8",
             'LC_ALL': "en_US.UTF-8",
-            'PYTHONDONTWRITEBYTECODE': '1'
+            'PYTHONDONTWRITEBYTECODE': '1',
+            'VOLTTRON_ROOT': VOLTTRON_ROOT
         }
         self.volttron_root = VOLTTRON_ROOT
 
@@ -1189,7 +1189,6 @@ class PlatformWrapper:
         with with_os_environ(self.env):
             _log.debug("REMOVING AGENT: {}".format(agent_uuid))
             self.__wait_for_control_connection_to_exit__()
-
             cmd = [self.vctl_exe]
             cmd.extend(['remove', agent_uuid])
             res = execute_command(cmd, env=self.env, logger=_log,
