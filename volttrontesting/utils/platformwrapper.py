@@ -626,14 +626,25 @@ class PlatformWrapper:
 
             if perform_preauth_service_agents:
                 authfile = AuthFile()
+                if not authfile.read_allow_entries():
+                    # if this is a brand new auth.json
+                    # pre-seed all of the volttron process identities before starting the platform
+                    for identity in PROCESS_IDENTITIES:
+                        if identity == PLATFORM_WEB:
+                            capabilities = dict(allow_auth_modifications=None)
+                        else:
+                            capabilities = dict(edit_config_store=dict(identity="/.*/"))
 
-                # pre-seed all of the volttron process identities before starting the platform
-                for identity in PROCESS_IDENTITIES:
-                    if identity == PLATFORM_WEB:
-                        capabilities = dict(allow_auth_modifications=None)
-                    else:
-                        capabilities = dict(edit_config_store=dict(identity="/.*/"))
+                        ks = KeyStore(KeyStore.get_agent_keystore_path(identity))
+                        entry = AuthEntry(credentials=encode_key(decode_key(ks.public)),
+                                          user_id=identity,
+                                          capabilities=capabilities,
+                                          comments='Added by pre-seeding.')
+                        authfile.add(entry)
 
+                    # Control connection needs to be added so that vctl can connect easily
+                    identity = CONTROL_CONNECTION
+                    capabilities = dict(edit_config_store=dict(identity="/.*/"))
                     ks = KeyStore(KeyStore.get_agent_keystore_path(identity))
                     entry = AuthEntry(credentials=encode_key(decode_key(ks.public)),
                                       user_id=identity,
@@ -641,25 +652,15 @@ class PlatformWrapper:
                                       comments='Added by pre-seeding.')
                     authfile.add(entry)
 
-                # Control connection needs to be added so that vctl can connect easily
-                identity = CONTROL_CONNECTION
-                capabilities = dict(edit_config_store=dict(identity="/.*/"))
-                ks = KeyStore(KeyStore.get_agent_keystore_path(identity))
-                entry = AuthEntry(credentials=encode_key(decode_key(ks.public)),
-                                  user_id=identity,
-                                  capabilities=capabilities,
-                                  comments='Added by pre-seeding.')
-                authfile.add(entry)
-
-                identity = "dynamic_agent"
-                capabilities = ['allow_auth_modifications']
-                # Lets cheat a little because this is a wrapper and add the dynamic agent in here as well
-                ks = KeyStore(KeyStore.get_agent_keystore_path(identity))
-                entry = AuthEntry(credentials=encode_key(decode_key(ks.public)),
-                                  user_id=identity,
-                                  capabilities=capabilities,
-                                  comments='Added by pre-seeding.')
-                authfile.add(entry)
+                    identity = "dynamic_agent"
+                    capabilities = ['allow_auth_modifications']
+                    # Lets cheat a little because this is a wrapper and add the dynamic agent in here as well
+                    ks = KeyStore(KeyStore.get_agent_keystore_path(identity))
+                    entry = AuthEntry(credentials=encode_key(decode_key(ks.public)),
+                                      user_id=identity,
+                                      capabilities=capabilities,
+                                      comments='Added by pre-seeding.')
+                    authfile.add(entry)
 
             # # Add platform key to known-hosts file:
             # known_hosts = KnownHostsStore()
