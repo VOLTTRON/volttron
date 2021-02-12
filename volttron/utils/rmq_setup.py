@@ -145,7 +145,7 @@ def write_env_file(rmq_config, conf_file, env=None):
     # If there is a custom node name then we need to write a env file, set amqp port in this env file, and
     # point to conf file path
     if rmq_config.node_name != 'rabbit':
-        nodebase = os.path.dirname(conf_file)
+        nodebase = os.path.dirname(os.path.dirname(conf_file))
         # Creating a custom node name with custome port. Create a env file and add entry to point to conf file in
         # the env file
         env_entries = """NODENAME={}

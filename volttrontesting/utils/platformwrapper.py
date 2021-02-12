@@ -311,7 +311,7 @@ class PlatformWrapper:
         self.ssl_auth = ssl_auth
         self.instance_name = instance_name
         if not self.instance_name:
-            self.instance_name = os.path.basename(self.volttron_home)
+            self.instance_name = os.path.basename(os.path.dirname(self.volttron_home))
 
         with with_os_environ(self.env):
 

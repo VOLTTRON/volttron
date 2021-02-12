@@ -211,7 +211,7 @@ class RMQRouter(object):
             # send welcome message back
             message.args = ['welcome', '1.0', self._identity, sender]
         elif subsystem == 'ping':
-            message.args = ['pong']
+            message.args[0] = 'pong'
         elif subsystem == 'peerlist':
             try:
                 op = message.args[0]
