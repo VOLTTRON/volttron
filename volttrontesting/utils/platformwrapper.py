@@ -1094,7 +1094,7 @@ class PlatformWrapper:
                 agent_uuid = resultobj['agent_uuid']
 
             assert agent_uuid is not None
-            gevent.sleep(1)
+            time.sleep(1)
             if start:
                 # call start after install for now. vctl install with start seem to have auth issues.
                 self.start_agent(agent_uuid)
