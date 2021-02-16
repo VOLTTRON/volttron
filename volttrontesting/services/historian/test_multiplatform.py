@@ -322,6 +322,8 @@ def test_all_platform_subscription_zmq(request, get_zmq_volttron_instances):
     downstream2.shutdown_platform()
 
 
+@pytest.mark.skip(message="How we set up ssl auth for federation has changed. "
+                           "federated_rmq_instance fixture needs to be fixed")
 @pytest.mark.historian
 @pytest.mark.multiplatform
 def test_all_platform_subscription_rmq(request, federated_rmq_instances):
@@ -383,7 +385,7 @@ def test_all_platform_subscription_rmq(request, federated_rmq_instances):
                                     DEVICES_ALL_TOPIC,
                                     headers=headers,
                                     message=all_message).get(timeout=10)
-        gevent.sleep(5)
+        gevent.sleep(10)
 
         ## Query from consumer to verify
 

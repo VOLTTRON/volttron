@@ -123,11 +123,11 @@ postgresql_aggregator = {
     'connection': {
         'type': 'postgresql',
         'params': {
-            'dbname': 'historian_test',
-            'port': 5433,
-            'host': '127.0.0.1',
+            'dbname': 'test_historian',
+            'port': 5432,
+            'host': 'localhost',
             'user' : 'historian',
-            'password': 'volttron'
+            'password': 'historian'
         },
     },
 }
