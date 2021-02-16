@@ -165,6 +165,7 @@ def test_instance_writes_to_instances_file(volttron_instance):
     assert the_instance_entry['volttron-home'] == vi.volttron_home
 
 
+@pytest.mark.dev
 @pytest.mark.wrapper
 def test_can_install_listener(volttron_instance):
     vi = volttron_instance
@@ -175,7 +176,7 @@ def test_can_install_listener(volttron_instance):
     auuid = vi.install_agent(agent_dir=get_examples("ListenerAgent"),
                              start=False)
     assert auuid is not None
-    gevent.sleep(1)
+    time.sleep(1)
     started = vi.start_agent(auuid)
 
     assert started
@@ -347,6 +348,7 @@ def test_can_publish(volttron_instance):
     assert messages['test/world']['message'] == 'got data'
 
 
+@pytest.mark.dev
 @pytest.mark.wrapper
 def test_can_install_multiple_listeners(volttron_instance):
     assert volttron_instance.is_running()
@@ -363,7 +365,7 @@ def test_can_install_multiple_listeners(volttron_instance):
                     "message": "So Happpy"})
             assert auuid
             uuids.append(auuid)
-            gevent.sleep(4)
+            time.sleep(4)
 
         for u in uuids:
             assert volttron_instance.is_agent_running(u)
