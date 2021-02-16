@@ -175,6 +175,7 @@ def test_can_install_listener(volttron_instance):
     auuid = vi.install_agent(agent_dir=get_examples("ListenerAgent"),
                              start=False)
     assert auuid is not None
+    time.sleep(1)
     started = vi.start_agent(auuid)
 
     assert started
@@ -362,7 +363,7 @@ def test_can_install_multiple_listeners(volttron_instance):
                     "message": "So Happpy"})
             assert auuid
             uuids.append(auuid)
-            gevent.sleep(4)
+            time.sleep(4)
 
         for u in uuids:
             assert volttron_instance.is_agent_running(u)

@@ -1020,7 +1020,7 @@ class PlatformWrapper:
                 assert not config_file
                 assert os.path.exists(agent_wheel)
                 wheel_file = agent_wheel
-                agent_uuid = self.__install_agent_wheel__(wheel_file, start, vip_identity)
+                agent_uuid = self.__install_agent_wheel__(wheel_file, False, vip_identity)
 
             # Now if the agent_dir is specified.
             temp_config = None
@@ -1056,8 +1056,9 @@ class PlatformWrapper:
                     cmd.extend(["--force"])
                 if vip_identity:
                     cmd.extend(["--vip-identity", vip_identity])
-                if start:
-                    cmd.extend(["--start"])
+                # vctl install with start seem to have a auth issue. For now start after install
+                # if start:
+                #     cmd.extend(["--start"])
 
                 stdout = execute_command(cmd, logger=_log, env=self.env,
                                          err_prefix="Error installing agent")
@@ -1088,13 +1089,15 @@ class PlatformWrapper:
 
                 resultobj = jsonapi.loads(str(results))
 
-                if start:
-                    assert resultobj['started']
+                # if start:
+                #     assert resultobj['started']
                 agent_uuid = resultobj['agent_uuid']
 
             assert agent_uuid is not None
-
+            time.sleep(5)
             if start:
+                # call start after install for now. vctl install with start seem to have auth issues.
+                self.start_agent(agent_uuid)
                 assert self.is_agent_running(agent_uuid)
 
             # remove temp config_file
