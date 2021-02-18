@@ -1,5 +1,4 @@
 import configparser as configparser
-from datetime import datetime
 import logging
 import os
 from pathlib import Path
@@ -261,7 +260,8 @@ class PlatformWrapper:
             # Elixir (rmq pre-req) requires locale to be utf-8
             'LANG': "en_US.UTF-8",
             'LC_ALL': "en_US.UTF-8",
-            'PYTHONDONTWRITEBYTECODE': '1'
+            'PYTHONDONTWRITEBYTECODE': '1',
+            'VOLTTRON_ROOT': VOLTTRON_ROOT
         }
         self.volttron_root = VOLTTRON_ROOT
 
@@ -1020,7 +1020,7 @@ class PlatformWrapper:
                 assert not config_file
                 assert os.path.exists(agent_wheel)
                 wheel_file = agent_wheel
-                agent_uuid = self.__install_agent_wheel__(wheel_file, start, vip_identity)
+                agent_uuid = self.__install_agent_wheel__(wheel_file, False, vip_identity)
 
             # Now if the agent_dir is specified.
             temp_config = None
@@ -1056,8 +1056,9 @@ class PlatformWrapper:
                     cmd.extend(["--force"])
                 if vip_identity:
                     cmd.extend(["--vip-identity", vip_identity])
-                if start:
-                    cmd.extend(["--start"])
+                # vctl install with start seem to have a auth issue. For now start after install
+                # if start:
+                #     cmd.extend(["--start"])
 
                 stdout = execute_command(cmd, logger=_log, env=self.env,
                                          err_prefix="Error installing agent")
@@ -1088,13 +1089,15 @@ class PlatformWrapper:
 
                 resultobj = jsonapi.loads(str(results))
 
-                if start:
-                    assert resultobj['started']
+                # if start:
+                #     assert resultobj['started']
                 agent_uuid = resultobj['agent_uuid']
 
             assert agent_uuid is not None
-
+            time.sleep(5)
             if start:
+                # call start after install for now. vctl install with start seem to have auth issues.
+                self.start_agent(agent_uuid)
                 assert self.is_agent_running(agent_uuid)
 
             # remove temp config_file
@@ -1189,7 +1192,6 @@ class PlatformWrapper:
         with with_os_environ(self.env):
             _log.debug("REMOVING AGENT: {}".format(agent_uuid))
             self.__wait_for_control_connection_to_exit__()
-
             cmd = [self.vctl_exe]
             cmd.extend(['remove', agent_uuid])
             res = execute_command(cmd, env=self.env, logger=_log,
