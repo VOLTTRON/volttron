@@ -209,9 +209,9 @@ mongo_platform = {
             "host": "localhost",
             "port": 27017,
             "database": "mongo_test",
-            "user": "test",
-            "passwd": "test",
-            "authSource": "admin"
+            "user": "historian",
+            "passwd": "historian",
+            "authSource": "test"
         }
     }
 }

@@ -57,8 +57,9 @@ try:
 except:
     HAS_PYMONGO = False
 
-from fixtures import (ALL_TOPIC, BASE_ANALYSIS_TOPIC, BASE_DEVICE_TOPIC, mongo_connection_params, mongo_agent_config,
-                      mongo_connection_string)
+from services.core.MongodbHistorian.tests.fixtures import (ALL_TOPIC, BASE_ANALYSIS_TOPIC, BASE_DEVICE_TOPIC,
+                                                           mongo_connection_params, mongo_agent_config,
+                                                           mongo_connection_string)
 
 query_points = {"oat_point": "Building/LAB/Device/OutsideAirTemperature",
                 "mixed_point": "Building/LAB/Device/MixedAirTemperature",
@@ -576,7 +577,7 @@ def test_default_config(volttron_instance, database_client):
         # Publish data to message bus that should be recorded in the mongo database.
         publish_fake_data(publish_agent)
         expected = publish_fake_data(publish_agent)
-        gevent.sleep(0.5)
+        gevent.sleep(2)
 
         # Query the historian
 
