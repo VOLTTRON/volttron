@@ -284,3 +284,19 @@ def build_vip_address_string(vip_root, serverkey, publickey, secretkey):
         raise ValueError('Invalid vip root specified!')
 
     return root
+
+
+def update_volttron_script_path(path: str) -> str:
+    """
+    Assumes that path's current working directory is in the root directory of the volttron codebase.
+
+    Prepend 'VOLTTRON_ROOT' to internal volttron script if 'VOLTTRON_ROOT' is set and return new path;
+    otherwise, return original path
+    :param path: relative path to the internal volttron script
+    :return: updated path to volttron script
+    """
+    if os.environ['VOLTTRON_ROOT']:
+        args = path.split("/")
+        path = f"{os.path.join(os.environ['VOLTTRON_ROOT'], *args)}"
+    _log.debug(f"Path to script: {path}")
+    return path
