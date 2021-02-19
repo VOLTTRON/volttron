@@ -1323,6 +1323,8 @@ class PlatformWrapper:
                                   volttron_central_address=self.volttron_central_address,
                                   volttron_central_serverkey=self.volttron_central_serverkey,
                                   perform_preauth_service_agents=False)
+            # we would need to reset shutdown flag so that platform is properly cleaned up on the next shutdown call
+            self._instance_shutdown = False
             gevent.sleep(1)
 
     def stop_platform(self):
@@ -1379,10 +1381,12 @@ class PlatformWrapper:
         with with_os_environ(self.env):
             # Handle cascading calls from multiple levels of fixtures.
             if self._instance_shutdown:
+                self.logit(f"Instance vhome: {self.volttron_home} has shutdown: {self._instance_shutdown}")
                 return
 
             if not self.is_running():
                 if not self.skip_cleanup:
+                    self.logit(f"Remove vhome directory: {self.volttron_home}")
                     self.__remove_home_directory__()
                 return
 
@@ -1393,6 +1397,7 @@ class PlatformWrapper:
                     if pid is not None and int(pid) > 0:
                         running_pids.append(int(pid))
                 if not self.skip_cleanup:
+                    self.logit(f"vhome: {self.volttron_home} Remove all agents: {running_pids}")
                     self.remove_all_agents()
                 # don't wait indefinetly as shutdown will not throw an error if RMQ is down/has cert errors
                 self.dynamic_agent.vip.rpc(CONTROL, 'shutdown').get(timeout=10)
@@ -1402,12 +1407,14 @@ class PlatformWrapper:
             if self.p_process is not None:
                 try:
                     gevent.sleep(0.2)
+                    self.logit(f"vhome: {self.volttron_home} process terminate: {self.p_process}")
                     self.p_process.terminate()
                     gevent.sleep(0.2)
                 except OSError:
-                    self.logit('Platform process was terminated.')
+                    self.logit('{self.volttron_home} Platform process was terminated.')
                 pid_file = "{vhome}/VOLTTRON_PID".format(vhome=self.volttron_home)
                 try:
+                    self.logit(f"Remove PID file: {pid_file}")
                     os.remove(pid_file)
                 except OSError:
                     self.logit('Error while removing VOLTTRON PID file {}'.format(pid_file))
@@ -1420,14 +1427,15 @@ class PlatformWrapper:
                     proc = psutil.Process(pid)
                     proc.terminate()
 
-            print(" Skip clean up flag is {}".format(self.skip_cleanup))
+            self.logit(f"vhome: {self.volttron_home} Skip clean up flag is {self.skip_cleanup}")
             if self.messagebus == 'rmq':
-                print("Calling rabbit shutdown")
+                self.logit("Calling rabbit shutdown")
                 stop_rabbit(rmq_home=self.rabbitmq_config_obj.rmq_home, env=self.env, quite=True)
             if not self.skip_cleanup:
                 self.__remove_home_directory__()
 
             self._instance_shutdown = True
+            self.logit(f"vhome: {self.volttron_home} has shutdown: {self._instance_shutdown}")
 
     def __repr__(self):
         return str(self)
