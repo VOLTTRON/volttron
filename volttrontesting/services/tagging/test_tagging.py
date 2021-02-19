@@ -132,8 +132,8 @@ mongo_historian = {
 
 crate_historian = {
     "source": get_services_core("CrateHistorian"),
-    "schema": "testing_historian",
     "connection": {
+        "schema": "testing_historian",
         "type": "crate",
         "params": {
             "host": "http://localhost:4200",
@@ -204,7 +204,7 @@ def cleanup_mongodb(db_connection, truncate_tables):
 
 
 def cleanup_crate(db_connection, truncate_tables):
-    crate_utils.drop_schema(db_connection, truncate_tables, schema=crate_historian["schema"])
+    crate_utils.drop_schema(db_connection, truncate_tables, schema=crate_historian['connection']["schema"])
 
 
 @pytest.fixture(scope="module")
