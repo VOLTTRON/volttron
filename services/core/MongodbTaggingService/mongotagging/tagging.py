@@ -316,17 +316,17 @@ class MongodbTaggingService(BaseTaggingService):
         else:
             cursor = db[self.categories_collection].find(
                 projection=['_id', 'description'], skip=skip_count,
-                limit=count, sort=[('_id',order_by)])
+                limit=count, sort=[('_id', order_by)])
 
         result_dict = list(cursor)
         results = OrderedDict()
         for r in  result_dict:
-            results[r['_id']] = r.get('description',"")
+            results[r['_id']] = r.get('description', "")
 
         if include_description:
-            return results.items()
+            return list(results.items())
         else:
-            return results.keys()
+            return list(results.keys())
 
     @doc_inherit
     def query_tags_by_category(self, category, include_kind=False,
@@ -377,7 +377,7 @@ class MongodbTaggingService(BaseTaggingService):
         execute = False
         for topic_pattern, topic_tags in tags.items():
             for tag_name, tag_value in topic_tags.items():
-                if not self.valid_tags.has_key(tag_name):
+                if tag_name not in self.valid_tags:
                     raise ValueError(
                         "Invalid tag name:{}".format(tag_name))
                 # TODO: Validate and convert values based on tag kind/type
@@ -454,7 +454,7 @@ class MongodbTaggingService(BaseTaggingService):
         meta = {}
         if include_description or include_kind:
             cursor = db[self.tags_collection].find(
-                {"_id":{"$in":d.keys()}})
+                {"_id":{"$in":list(d.keys())}})
             records = list(cursor)
             for r in records:
                 meta[r['_id']] = (r['kind'], r['description'])
