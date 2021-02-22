@@ -90,6 +90,7 @@ def config_store_connection(request, volttron_instance):
 
     # Start the platform driver agent which would in turn start the fake driver
     #  using the configs created above
+    global platform_uuid
     platform_uuid = volttron_instance.install_agent(
         agent_dir=get_services_core("PlatformDriverAgent"),
         config_file={},
@@ -652,26 +653,33 @@ def test_indefinite_override_on(config_store, test_agent):
     ).get(timeout=10)
 
 
+@pytest.mark.dev
 @pytest.mark.driver
 def test_indefinite_override_after_restart(config_store, test_agent, volttron_instance):
+
+    # previously platform UUID hadn't been set, so nothing was being restarted
+    assert isinstance(platform_uuid, str) and len(platform_uuid)
+    assert volttron_instance.is_agent_running(platform_uuid)
+
     for i in range(4):
         config_name = "devices/fakedriver{}".format(i)
         setup_config(config_store, config_name, fake_device_config)
-    device_path = 'fakedriver2'
+
+    # start up fake drivers
+    gevent.sleep(1)
 
     # Set override feature on device
     test_agent.vip.rpc.call(
         PLATFORM_DRIVER,  # Target agent
         'set_override_on',  # Method
-        device_path,  # Override Pattern
+        'fakedriver*',  # Override Pattern
         0.0,  # Indefinite override
         False,  # revert flag to True
         False
     ).get(timeout=10)
 
     # Give it enough time to set indefinite override.
-    gevent.sleep(0.5)
-    global platform_uuid
+    gevent.sleep(1)
     volttron_instance.stop_agent(platform_uuid)
     gevent.sleep(0.5)
     # Start the platform driver agent which would in turn start the fake driver
@@ -679,16 +687,18 @@ def test_indefinite_override_after_restart(config_store, test_agent, volttron_in
     volttron_instance.start_agent(platform_uuid)
     gevent.sleep(1)  # wait for the agent to start and start the devices
 
+    device = 'fakedriver1'
+    device_path = 'devices/' + device
     point = 'SampleWritableFloat1'
-    new_value = 65.5
+
     try:
         # Try to set a point on fakedriver1
         result = test_agent.vip.rpc.call(
             PLATFORM_DRIVER,  # Target agent
             'set_point',  # Method
-            device_path,  # device path
+            device,  # device path
             point,
-            new_value
+            65.5
         ).get(timeout=10)
         pytest.fail("Expecting Override Error. Code returned : {}".format(result))
     except RemoteError as e:
