@@ -653,7 +653,6 @@ def test_indefinite_override_on(config_store, test_agent):
     ).get(timeout=10)
 
 
-@pytest.mark.dev
 @pytest.mark.driver
 def test_indefinite_override_after_restart(config_store, test_agent, volttron_instance):
 
