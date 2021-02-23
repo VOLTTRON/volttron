@@ -46,7 +46,7 @@ Steps for ZMQ
 ::
 
     cd <volttron clone directory>
-    # VOLTTRON 7 required web packages by default so include --web
+    # VOLTTRON 7 requires web packages by default so include --web
     python3 bootstrap.py --web
     source env/bin/activate
 
@@ -125,11 +125,11 @@ Steps for RabbitMQ
       # installing required packages for volttron central or the platform agent.
       # In VOLTTRON 7 web packages are required so include --web in addition to --rabbitmq
 
-      python3 bootstrap.py --web --rabbitmq [optional install directory defaults to
+      python bootstrap.py --web --rabbitmq [optional install directory defaults to
        <user_home>/rabbitmq_server]
 
   .. note:: If your PYTHON_PATH is configured for Python 2.7, you'll need to use
-    ``python3 bootstrap.py ..``
+    ``python3 bootstrap.py`` instead of ``python bootstrap.py``
 
   This will build the platform and create a virtual Python environment and
   dependencies for RabbitMQ. It also installs RabbitMQ server as the current user.
