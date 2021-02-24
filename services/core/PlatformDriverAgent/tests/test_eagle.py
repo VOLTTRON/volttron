@@ -203,7 +203,7 @@ def agent(volttron_instance):
                        'manage_delete_store',
                        PLATFORM_DRIVER).get(timeout=10)
 
-    #Add test configurations.
+    # Add test configurations.
     agent.vip.rpc.call(CONFIGURATION_STORE,
                        'manage_store',
                        PLATFORM_DRIVER,
@@ -233,7 +233,6 @@ def agent(volttron_instance):
     volttron_instance.stop_agent(platform_uuid)
     agent.core.stop()
     server.stop()
-
 
 def test_NetworkStatus(agent):
     point = agent.vip.rpc.call(PLATFORM_DRIVER,
