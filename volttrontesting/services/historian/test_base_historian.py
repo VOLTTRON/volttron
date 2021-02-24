@@ -129,12 +129,12 @@ def test_cache_backlog(request, volttron_instance, client_agent):
 
         identity = 'platform.historian'
         historian = volttron_instance.build_agent(agent_class=BasicHistorian,
-                                              identity=identity,
-                                              submit_size_limit=2,
-                                              max_time_publishing=1,
-                                              retry_period=1.0,
-                                              backup_storage_limit_gb=0.0001,
-                                              enable_store=True)  # 100K
+                                                  identity=identity,
+                                                  submit_size_limit=2,
+                                                  max_time_publishing=1,
+                                                  retry_period=1.0,
+                                                  backup_storage_limit_gb=0.0001,
+                                                  enable_store=True)  # 100K
         # give it a second to finish setting up backup and finish subscribing
         gevent.sleep(0.5)
 
