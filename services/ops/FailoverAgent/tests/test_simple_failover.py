@@ -31,7 +31,7 @@ SLEEP_TIME = 3
 uuid_primary = None
 uuid_secondary = None
 listener_primary = None
-
+listener_secondary = None
 
 def all_agents_running(instance):
     agents = instance.list_agents()
@@ -46,6 +46,8 @@ def simple_failover(request, get_volttron_instances):
     global uuid_primary
     global uuid_secondary
     global listener_primary
+    global listener_secondary
+
 
     primary, secondary = get_volttron_instances(2)
 
@@ -79,8 +81,10 @@ def simple_failover(request, get_volttron_instances):
                                              config_file=simple_secondary_config)
 
     gevent.sleep(SLEEP_TIME)
+
     assert all_agents_running(primary)
     assert not all_agents_running(secondary)
+    assert not secondary.is_agent_running(listener_secondary)
 
     def cleanup():
         primary.stop_agent(uuid_primary)
@@ -97,6 +101,7 @@ def simple_failover(request, get_volttron_instances):
 
 def test_simple_failover(simple_failover):
     global uuid_primary
+    global listener_secondary
     alert_messages = {}
 
     primary, secondary = simple_failover
@@ -110,6 +115,7 @@ def test_simple_failover(simple_failover):
         except KeyError:
             alert_messages[alert] = 1
 
+    assert not secondary.is_agent_running(listener_secondary)
     listen1 = primary.build_agent()
     listen1.vip.pubsub.subscribe(peer='pubsub',
                                  prefix='alert',
@@ -120,6 +126,7 @@ def test_simple_failover(simple_failover):
                                  prefix='alert',
                                  callback=onmessage).get()
 
+    assert not secondary.is_agent_running(listener_secondary)
     # make sure the secondary will take over
     primary.stop_agent(uuid_primary)
     gevent.sleep(SLEEP_TIME)
@@ -180,7 +187,7 @@ def test_secondary_on_primary_crash(simple_failover):
 def test_can_handle_agent_upgrade(simple_failover):
     global listener_primary
     primary, secondary = simple_failover
-    
+
     primary.remove_agent(listener_primary)
     listener_primary = primary.install_agent(agent_dir=get_examples("ListenerAgent"),
                                              vip_identity="listener",
