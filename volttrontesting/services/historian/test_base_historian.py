@@ -68,60 +68,11 @@ class Historian(BaseHistorian):
         pass
 
 
-def prep_config(volttron_home):
-    src_driver = os.getcwd() + '/services/core/PlatformDriverAgent/example_configurations/test_fakedriver.config'
-    new_driver = volttron_home + '/test_fakedriver.config'
-    shutil.copy(src_driver, new_driver)
-
-    with open(new_driver, 'r+') as f:
-        config = jsonapi.load(f)
-        config['registry_config'] = os.getcwd() + '/services/core/PlatformDriverAgent/example_configurations/fake.csv'
-        f.seek(0)
-        f.truncate()
-        jsonapi.dump(config, f)
-
-    platform_config = {
-        "agentid": "platform_driver",
-        "driver_config_list": [new_driver]
-    }
-
-    return platform_config
-
-
 foundtopic = False
-
 
 def listener(peer, sender, bus, topic, headers, message):
     global foundtopic
     foundtopic = True
-
-
-@pytest.mark.xfail(reason="This won't work on all machines because of "
-                          "hardcoded paths.")
-def test_base_historian(volttron_instance):
-    global foundtopic
-    v1 = volttron_instance
-    assert v1.is_running()
-
-    platform_config = prep_config(v1.volttron_home)
-    platform_uuid = v1.install_agent(agent_dir=get_services_core("PlatformDriverAgent"),
-                                   config_file=platform_config)
-    gevent.sleep(2)
-    assert v1.is_agent_running(platform_uuid)
-    db = Historian(address=v1.vip_address[0],
-                   backup_storage_limit_gb=0.00002)
-    gevent.spawn(db.core.run).join(0)
-
-    agent = v1.dynamic_agent
-    gevent.sleep(2)
-    agent.vip.pubsub.subscribe('pubsub', 'backupdb/nomore', callback=listener)
-
-    for _ in range(0, 60):
-        gevent.sleep(1)
-        if foundtopic:
-            break
-
-    assert foundtopic
 
 
 class BasicHistorian(BaseHistorian):
@@ -156,7 +107,9 @@ def client_agent(request, volttron_instance):
     yield agent
     agent.core.stop()
 
+
 alert_publishes = []
+
 
 def message_handler(peer, sender, bus, topic, headers, message):
     alert_publishes.append(Status.from_json(message))
@@ -176,16 +129,16 @@ def test_cache_backlog(request, volttron_instance, client_agent):
 
         identity = 'platform.historian'
         historian = volttron_instance.build_agent(agent_class=BasicHistorian,
-                                              identity=identity,
-                                              submit_size_limit=2,
-                                              max_time_publishing=1,
-                                              retry_period=1.0,
-                                              backup_storage_limit_gb=0.0001)  # 100K
-        DEVICES_ALL_TOPIC = "devices/Building/LAB/Device/all"
-        gevent.sleep(5) #wait for historian to be fully up
-        print("\n** test_basic_function for {}**".format(
-            request.keywords.node.name))
+                                                  identity=identity,
+                                                  submit_size_limit=2,
+                                                  max_time_publishing=1,
+                                                  retry_period=1.0,
+                                                  backup_storage_limit_gb=0.0001,
+                                                  enable_store=True)  # 100K
+        # give it a second to finish setting up backup and finish subscribing
+        gevent.sleep(0.5)
 
+        DEVICES_ALL_TOPIC = "devices/Building/LAB/Device/all"
         # Publish fake data. The format mimics the format used by VOLTTRON drivers.
         # Make some random readings.  Randome readings are going to be
         # within the tolerance here.
@@ -236,7 +189,7 @@ def test_cache_backlog(request, volttron_instance, client_agent):
 
         # Cache count can be 0 even if we are backlogged and cache is full because
         # cache might have just got deleted
-        #assert status["context"][STATUS_KEY_CACHE_COUNT] > 0
+        # assert status["context"][STATUS_KEY_CACHE_COUNT] > 0
 
         # Cache need not be full if it is backlogged. but if cache is full backlogged should be true
         # and alert should be sent
@@ -282,11 +235,12 @@ def test_health_stuff(request, volttron_instance, client_agent):
                                               submit_size_limit=2,
                                               max_time_publishing=0.5,
                                               retry_period=1.0,
-                                              backup_storage_limit_gb=0.0001)  # 100K
-        DEVICES_ALL_TOPIC = "devices/Building/LAB/Device/all"
+                                              backup_storage_limit_gb=0.0001,
+                                              enable_store=True)  # 100K
+        # give it some time to finish setting up backup and finish subscribing
+        gevent.sleep(0.5)
 
-        print("\n** test_basic_function for {}**".format(
-            request.keywords.node.name))
+        DEVICES_ALL_TOPIC = "devices/Building/LAB/Device/all"
 
         # Publish fake data. The format mimics the format used by VOLTTRON drivers.
         # Make some random readings.  Randome readings are going to be
@@ -315,7 +269,6 @@ def test_health_stuff(request, volttron_instance, client_agent):
         headers = {
             headers_mod.DATE: now, headers_mod.TIMESTAMP: now
         }
-        print("Published time in header: " + now)
 
         for _ in range(10):
             client_agent.vip.pubsub.publish('pubsub',
@@ -440,7 +393,10 @@ def test_failing_historian(request, volttron_instance, client_agent):
                                               submit_size_limit=2,
                                               max_time_publishing=0.5,
                                               retry_period=1.0,
-                                              backup_storage_limit_gb=0.0001)  # 100K
+                                              backup_storage_limit_gb=0.0001,
+                                              enable_store=True)  # 100K
+        # give it some time to finish setting up backup and finish subscribing
+        gevent.sleep(0.5)
 
         assert fail_historian.setup_run
         assert not fail_historian.teardown_run
@@ -558,9 +514,6 @@ def test_failing_historian(request, volttron_instance, client_agent):
 
         DEVICES_ALL_TOPIC = "devices/Building/LAB/Device/all"
 
-        print("\n** test_basic_function for {}**".format(
-            request.keywords.node.name))
-
         float_meta = {'units': 'F', 'tz': 'UTC', 'type': 'float'}
 
         # Create a message for all points.
@@ -635,16 +588,13 @@ def test_additional_custom_topics(request, volttron_instance, client_agent):
 
         historian = volttron_instance.build_agent(agent_class=BasicHistorian,
                                               identity=identity,
-                                              submit_size_limit=2,
-                                              max_time_publishing=0.5,
-                                              retry_period=1.0,
-                                              backup_storage_limit_gb=0.0001,
-                                              custom_topics={'capture_device_data': [CUSTOM_TOPIC]})  # 100K
+                                              custom_topics={'capture_device_data': [CUSTOM_TOPIC]},
+                                              enable_store=True)  # 100K
 
+        # give it some time to finish setting up backup and finish subscribing
+        gevent.sleep(0.5)
 
-        print("\n** test_basic_function for {}**".format(
-            request.keywords.node.name))
-
+        #volttron_instance.dynamic_agent.vip.pubsub.subscribe('pubsub', 'devices', callback=listener)
         # Publish fake data. The format mimics the format used by VOLTTRON drivers.
         # Make some random readings.  Randome readings are going to be
         # within the tolerance here.
@@ -672,7 +622,6 @@ def test_additional_custom_topics(request, volttron_instance, client_agent):
         headers = {
             headers_mod.DATE: now, headers_mod.TIMESTAMP: now
         }
-        print("Published time in header: " + now)
 
         for _ in range(2):
             client_agent.vip.pubsub.publish('pubsub',
@@ -722,18 +671,14 @@ def test_restricting_topics(request, volttron_instance, client_agent):
 
         historian = volttron_instance.build_agent(agent_class=BasicHistorian,
                                               identity=identity,
-                                              submit_size_limit=2,
-                                              max_time_publishing=0.5,
-                                              retry_period=1.0,
-                                              backup_storage_limit_gb=0.0001,
                                               capture_device_data=False,
                                               capture_log_data=False,
                                               capture_analysis_data=False,
                                               capture_record_data=False,
-                                              custom_topics={'capture_device_data': [CUSTOM_TOPIC]})  # 100K
-
-        print("\n** test_basic_function for {}**".format(
-            request.keywords.node.name))
+                                              custom_topics={'capture_device_data': [CUSTOM_TOPIC]},
+                                              enable_store=True)  # 100K
+        # give it some time to finish setting up backup and finish subscribing
+        gevent.sleep(0.5)
 
         # Publish fake data. The format mimics the format used by VOLTTRON drivers.
         # Make some random readings.  Randome readings are going to be
@@ -762,7 +707,6 @@ def test_restricting_topics(request, volttron_instance, client_agent):
         headers = {
             headers_mod.DATE: now, headers_mod.TIMESTAMP: now
         }
-        print("Published time in header: " + now)
 
         for _ in range(2):
             client_agent.vip.pubsub.publish('pubsub',
@@ -775,7 +719,7 @@ def test_restricting_topics(request, volttron_instance, client_agent):
                                             headers=headers,
                                             message=all_message).get(timeout=10)
 
-        gevent.sleep(2.0)
+        gevent.sleep(1.0)
 
         assert len(historian.seen) == 6  # only records published to custom topic
         found_device_topic = 0

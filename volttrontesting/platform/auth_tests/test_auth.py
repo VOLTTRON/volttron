@@ -35,7 +35,9 @@ def build_two_test_agents(volttron_instance):
         auth_file = AuthFile(os.path.join(volttron_instance.volttron_home, 'auth.json'))
         allow_entries = auth_file.read_allow_entries()
         auth_file.remove_by_indices(list(range(3, len(allow_entries))))
-        gevent.sleep(0.5)
+        # TODO if we have to wait for auth propagation anyways why do we create new agents for each test case
+        #  we should just update capabilities, at least we will save on agent creation and tear down time
+        gevent.sleep(3)
 
 
 @pytest.fixture
@@ -87,11 +89,11 @@ def build_protected_pubsub(volttron_instance, build_two_agents_pubsub_agents):
         topic_file = os.path.join(volttron_instance.volttron_home, 'protected_topics.json')
         with open(topic_file, 'w') as f:
             jsonapi.dump(topic_dict, f)
-            gevent.sleep(.5)
+            gevent.sleep(1)
 
         if add_capabilities:
             volttron_instance.add_capabilities(agent2.publickey, capabilities)
-            gevent.sleep(.2)
+            gevent.sleep(2)
 
         return {'agent1': agent2, 'agent2': agent2, 'topic': topic,
                 'instance': volttron_instance, 'messages': msgs,
