@@ -117,7 +117,6 @@ def test_agent_watcher(platform):
     assert not alert_messages
 
 
-@pytest.mark.dev
 def test_default_config(platform):
     """
     Test the default configuration file included with the agent

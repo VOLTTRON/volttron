@@ -1,5 +1,4 @@
 import configparser as configparser
-from datetime import datetime
 import logging
 import os
 from pathlib import Path
@@ -261,7 +260,8 @@ class PlatformWrapper:
             # Elixir (rmq pre-req) requires locale to be utf-8
             'LANG': "en_US.UTF-8",
             'LC_ALL': "en_US.UTF-8",
-            'PYTHONDONTWRITEBYTECODE': '1'
+            'PYTHONDONTWRITEBYTECODE': '1',
+            'VOLTTRON_ROOT': VOLTTRON_ROOT
         }
         self.volttron_root = VOLTTRON_ROOT
 
@@ -1020,7 +1020,7 @@ class PlatformWrapper:
                 assert not config_file
                 assert os.path.exists(agent_wheel)
                 wheel_file = agent_wheel
-                agent_uuid = self.__install_agent_wheel__(wheel_file, start, vip_identity)
+                agent_uuid = self.__install_agent_wheel__(wheel_file, False, vip_identity)
 
             # Now if the agent_dir is specified.
             temp_config = None
@@ -1056,8 +1056,9 @@ class PlatformWrapper:
                     cmd.extend(["--force"])
                 if vip_identity:
                     cmd.extend(["--vip-identity", vip_identity])
-                if start:
-                    cmd.extend(["--start"])
+                # vctl install with start seem to have a auth issue. For now start after install
+                # if start:
+                #     cmd.extend(["--start"])
 
                 stdout = execute_command(cmd, logger=_log, env=self.env,
                                          err_prefix="Error installing agent")
@@ -1088,13 +1089,15 @@ class PlatformWrapper:
 
                 resultobj = jsonapi.loads(str(results))
 
-                if start:
-                    assert resultobj['started']
+                # if start:
+                #     assert resultobj['started']
                 agent_uuid = resultobj['agent_uuid']
 
             assert agent_uuid is not None
-
+            time.sleep(5)
             if start:
+                # call start after install for now. vctl install with start seem to have auth issues.
+                self.start_agent(agent_uuid)
                 assert self.is_agent_running(agent_uuid)
 
             # remove temp config_file
@@ -1189,7 +1192,6 @@ class PlatformWrapper:
         with with_os_environ(self.env):
             _log.debug("REMOVING AGENT: {}".format(agent_uuid))
             self.__wait_for_control_connection_to_exit__()
-
             cmd = [self.vctl_exe]
             cmd.extend(['remove', agent_uuid])
             res = execute_command(cmd, env=self.env, logger=_log,
@@ -1321,6 +1323,8 @@ class PlatformWrapper:
                                   volttron_central_address=self.volttron_central_address,
                                   volttron_central_serverkey=self.volttron_central_serverkey,
                                   perform_preauth_service_agents=False)
+            # we would need to reset shutdown flag so that platform is properly cleaned up on the next shutdown call
+            self._instance_shutdown = False
             gevent.sleep(1)
 
     def stop_platform(self):
@@ -1406,6 +1410,7 @@ class PlatformWrapper:
                     self.logit('Platform process was terminated.')
                 pid_file = "{vhome}/VOLTTRON_PID".format(vhome=self.volttron_home)
                 try:
+                    self.logit(f"Remove PID file: {pid_file}")
                     os.remove(pid_file)
                 except OSError:
                     self.logit('Error while removing VOLTTRON PID file {}'.format(pid_file))
@@ -1418,9 +1423,9 @@ class PlatformWrapper:
                     proc = psutil.Process(pid)
                     proc.terminate()
 
-            print(" Skip clean up flag is {}".format(self.skip_cleanup))
+            self.logit(f"Skip clean up flag is {self.skip_cleanup}")
             if self.messagebus == 'rmq':
-                print("Calling rabbit shutdown")
+                self.logit("Calling rabbit shutdown")
                 stop_rabbit(rmq_home=self.rabbitmq_config_obj.rmq_home, env=self.env, quite=True)
             if not self.skip_cleanup:
                 self.__remove_home_directory__()
