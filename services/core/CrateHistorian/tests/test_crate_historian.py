@@ -52,9 +52,9 @@ from volttron.platform.messaging.health import STATUS_GOOD
 
 
 crate_config = {
-    "schema": "testing",
     "connection": {
         "type": "crate",
+        "schema": "testing",
         "params": {
             "host": "localhost:4200"
         }

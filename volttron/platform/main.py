@@ -686,7 +686,7 @@ def start_volttron_process(opts):
     # and opts.web_ssl_cert
 
     os.environ['MESSAGEBUS'] = opts.message_bus
-    os.environ['SECURE_AGENT_USER'] = opts.secure_agent_users
+    os.environ['SECURE_AGENT_USERS'] = opts.secure_agent_users
     if opts.instance_name is None:
         if len(opts.vip_address) > 0:
             opts.instance_name = opts.vip_address[0]
@@ -700,6 +700,7 @@ def start_volttron_process(opts):
         get_platform_instance_name(vhome=opts.volttron_home, prompt=False)
 
     if opts.bind_web_address:
+        os.environ['BIND_WEB_ADDRESS'] = opts.bind_web_address
         parsed = urlparse(opts.bind_web_address)
         if parsed.scheme not in ('http', 'https'):
             raise Exception(
@@ -793,7 +794,8 @@ def start_volttron_process(opts):
     ks_control_conn = KeyStore(KeyStore.get_agent_keystore_path(CONTROL_CONNECTION))
     entry = AuthEntry(credentials=encode_key(decode_key(ks_control_conn.public)),
                       user_id=CONTROL_CONNECTION,
-                      capabilities=[{'edit_config_store': {'identity': '/.*/'}}],
+                      capabilities=[{'edit_config_store': {'identity': '/.*/'}},
+                                    "allow_auth_modifications"],
                       comments='Automatically added by platform on start')
     AuthFile().add(entry, overwrite=True)
 
@@ -917,15 +919,17 @@ def start_volttron_process(opts):
                 _log.error("DEBUG: Exiting due to error in rabbitmq config file. Please check.")
                 sys.exit()
 
-            try:
-                start_rabbit(rmq_config.rmq_home)
-            except AttributeError as exc:
-                _log.error("Exception while starting RabbitMQ. Check the path in the config file.")
-                sys.exit()
-            except subprocess.CalledProcessError as exc:
-                _log.error("Unable to start rabbitmq server. "
-                           "Check rabbitmq log for errors")
-                sys.exit()
+            # If RabbitMQ is started as service, don't start it through the code
+            if not rmq_config.rabbitmq_as_service:
+                try:
+                    start_rabbit(rmq_config.rmq_home)
+                except AttributeError as exc:
+                    _log.error("Exception while starting RabbitMQ. Check the path in the config file.")
+                    sys.exit()
+                except subprocess.CalledProcessError as exc:
+                    _log.error("Unable to start rabbitmq server. "
+                               "Check rabbitmq log for errors")
+                    sys.exit()
 
             # Start the config store before auth so we may one day have auth use it.
             config_store = ConfigStoreService(address=address,
@@ -1028,7 +1032,8 @@ def start_volttron_process(opts):
 
         entry = AuthEntry(credentials=services[0].core.publickey,
                           user_id=CONTROL,
-                          capabilities=[{'edit_config_store': {'identity': '/.*/'}}],
+                          capabilities=[{'edit_config_store': {'identity': '/.*/'}},
+                                        "allow_auth_modifications"],
                           comments='Automatically added by platform on start')
         AuthFile().add(entry, overwrite=True)
 

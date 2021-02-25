@@ -64,27 +64,27 @@ def test_auth():
     yield auth
 
 
-def test_get_authorization_failures(mock_auth_service, test_auth):
+def test_get_authorization_pending(mock_auth_service, test_auth):
     mock_auth = mock_auth_service
     auth = test_auth
-    mock_auth._update_auth_failures(
+    mock_auth._update_auth_pending(
         auth['domain'], auth['address'], auth['mechanism'], auth['credentials'], auth['user_id'])
-    auth_failure = mock_auth.get_authorization_failures()[0]
-    assert auth['domain'] == auth_failure['domain']
-    assert auth['address'] == auth_failure['address']
-    assert auth['mechanism'] == auth_failure['mechanism']
-    assert auth['credentials'] == auth_failure['credentials']
-    assert auth['user_id'] == auth_failure['user_id']
-    assert auth_failure['retries'] == 1
+    auth_pending = mock_auth.get_authorization_pending()[0]
+    assert auth['domain'] == auth_pending['domain']
+    assert auth['address'] == auth_pending['address']
+    assert auth['mechanism'] == auth_pending['mechanism']
+    assert auth['credentials'] == auth_pending['credentials']
+    assert auth['user_id'] == auth_pending['user_id']
+    assert auth_pending['retries'] == 1
 
 
 @pytest.mark.control
 def test_approve_authorization_failure(mock_auth_service, test_auth):
     mock_auth = mock_auth_service
     auth = test_auth
-    mock_auth._update_auth_failures(
+    mock_auth._update_auth_pending(
         auth['domain'], auth['address'], auth['mechanism'], auth['credentials'], auth['user_id'])
-    assert len(mock_auth._auth_failures) == 1
+    assert len(mock_auth._auth_pending) == 1
 
     mock_auth.approve_authorization_failure(auth['user_id'])
     assert len(mock_auth.auth_entries) == 0
@@ -92,16 +92,16 @@ def test_approve_authorization_failure(mock_auth_service, test_auth):
     mock_auth.read_auth_file()
     assert len(mock_auth.auth_entries) == 1
     assert len(mock_auth._auth_approved) == 1
-    assert len(mock_auth._auth_failures) == 0
+    assert len(mock_auth._auth_pending) == 0
 
 
 @pytest.mark.control
 def test_deny_approved_authorization(mock_auth_service, test_auth):
     mock_auth = mock_auth_service
     auth = test_auth
-    mock_auth._update_auth_failures(
+    mock_auth._update_auth_pending(
         auth['domain'], auth['address'], auth['mechanism'], auth['credentials'], auth['user_id'])
-    assert len(mock_auth._auth_failures) == 1
+    assert len(mock_auth._auth_pending) == 1
     assert len(mock_auth._auth_approved) == 0
 
     mock_auth.approve_authorization_failure(auth['user_id'])
@@ -110,10 +110,9 @@ def test_deny_approved_authorization(mock_auth_service, test_auth):
     assert len(mock_auth._auth_approved) == 1
 
     mock_auth.deny_authorization_failure(auth['user_id'])
+    mock_auth.read_auth_file()
     assert len(mock_auth._auth_denied) == 1
     assert len(mock_auth._auth_approved) == 0
-
-    mock_auth.read_auth_file()
     assert len(mock_auth.auth_entries) == 0
 
 
@@ -121,22 +120,21 @@ def test_deny_approved_authorization(mock_auth_service, test_auth):
 def test_delete_approved_authorization(mock_auth_service, test_auth):
     mock_auth = mock_auth_service
     auth = test_auth
-    mock_auth._update_auth_failures(
+    mock_auth._update_auth_pending(
         auth['domain'], auth['address'], auth['mechanism'], auth['credentials'], auth['user_id'])
-    assert len(mock_auth._auth_failures) == 1
+    assert len(mock_auth._auth_pending) == 1
     assert len(mock_auth._auth_approved) == 0
 
     mock_auth.approve_authorization_failure(auth['user_id'])
-    assert len(mock_auth._auth_approved) == 1
-    assert len(mock_auth._auth_failures) == 0
-
     assert len(mock_auth.auth_entries) == 0
     mock_auth.read_auth_file()
+    assert len(mock_auth._auth_approved) == 1
+    assert len(mock_auth._auth_pending) == 0
     assert len(mock_auth.auth_entries) == 1
 
     mock_auth.delete_authorization_failure(auth['user_id'])
-    assert len(mock_auth._auth_approved) == 0
     mock_auth.read_auth_file()
+    assert len(mock_auth._auth_approved) == 0
     assert len(mock_auth.auth_entries) == 0
 
 
@@ -144,19 +142,20 @@ def test_delete_approved_authorization(mock_auth_service, test_auth):
 def test_approve_denied_authorization(mock_auth_service, test_auth):
     mock_auth = mock_auth_service
     auth = test_auth
-    mock_auth._update_auth_failures(
+    mock_auth._update_auth_pending(
         auth['domain'], auth['address'], auth['mechanism'], auth['credentials'], auth['user_id'])
-    assert len(mock_auth._auth_failures) == 1
+    assert len(mock_auth._auth_pending) == 1
     assert len(mock_auth._auth_denied) == 0
 
     mock_auth.deny_authorization_failure(auth['user_id'])
+    mock_auth.read_auth_file()
     assert len(mock_auth._auth_denied) == 1
-    assert len(mock_auth._auth_failures) == 0
+    assert len(mock_auth._auth_pending) == 0
 
     mock_auth.approve_authorization_failure(auth['user_id'])
     assert len(mock_auth.auth_entries) == 0
-    assert len(mock_auth._auth_approved) == 1
     mock_auth.read_auth_file()
+    assert len(mock_auth._auth_approved) == 1
     assert len(mock_auth.auth_entries) == 1
     assert len(mock_auth._auth_denied) == 0
 
@@ -165,26 +164,28 @@ def test_approve_denied_authorization(mock_auth_service, test_auth):
 def test_deny_authorization_failure(mock_auth_service, test_auth):
     mock_auth = mock_auth_service
     auth = test_auth
-    mock_auth._update_auth_failures(
+    mock_auth._update_auth_pending(
         auth['domain'], auth['address'], auth['mechanism'], auth['credentials'], auth['user_id'])
-    assert len(mock_auth._auth_failures) == 1
+    assert len(mock_auth._auth_pending) == 1
     assert len(mock_auth._auth_denied) == 0
 
     mock_auth.deny_authorization_failure(auth['user_id'])
+    mock_auth.read_auth_file()
     assert len(mock_auth._auth_denied) == 1
-    assert len(mock_auth._auth_failures) == 0
+    assert len(mock_auth._auth_pending) == 0
 
 
 @pytest.mark.control
 def test_delete_authorization_failure(mock_auth_service, test_auth):
     mock_auth = mock_auth_service
     auth = test_auth
-    mock_auth._update_auth_failures(
+    mock_auth._update_auth_pending(
         auth['domain'], auth['address'], auth['mechanism'], auth['credentials'], auth['user_id'])
-    assert len(mock_auth._auth_failures) == 1
+    assert len(mock_auth._auth_pending) == 1
     assert len(mock_auth._auth_denied) == 0
     mock_auth.delete_authorization_failure(auth['user_id'])
-    assert len(mock_auth._auth_failures) == 0
+
+    assert len(mock_auth._auth_pending) == 0
     assert len(mock_auth._auth_denied) == 0
 
 
@@ -192,16 +193,18 @@ def test_delete_authorization_failure(mock_auth_service, test_auth):
 def test_delete_denied_authorization(mock_auth_service, test_auth):
     mock_auth = mock_auth_service
     auth = test_auth
-    mock_auth._update_auth_failures(
+    mock_auth._update_auth_pending(
         auth['domain'], auth['address'], auth['mechanism'], auth['credentials'], auth['user_id'])
-    assert len(mock_auth._auth_failures) == 1
+    assert len(mock_auth._auth_pending) == 1
     assert len(mock_auth._auth_denied) == 0
 
     mock_auth.deny_authorization_failure(auth['user_id'])
+    mock_auth.read_auth_file()
     assert len(mock_auth._auth_denied) == 1
-    assert len(mock_auth._auth_failures) == 0
+    assert len(mock_auth._auth_pending) == 0
 
     mock_auth.delete_authorization_failure(auth['user_id'])
+    mock_auth.read_auth_file()
     assert len(mock_auth._auth_denied) == 0
 
 

@@ -270,7 +270,7 @@ class RMQConnection(BaseConnection):
     def register(self, vip_handler, error_handler=None):
         """
         Register VIP handler to be invoked to handle incoming messages
-        :param handler: VIP handler callback method
+        :param vip_handler: VIP handler callback method
         :return:
         """
         self._vip_handler = vip_handler

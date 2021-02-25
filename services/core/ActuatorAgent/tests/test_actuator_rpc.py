@@ -80,7 +80,6 @@ def publish_agent(request, volttron_instance):
     # Reset platform driver config store
     cmd = ['volttron-ctl', 'config', 'delete', PLATFORM_DRIVER, '--all']
     process = Popen(cmd, env=volttron_instance.env,
-                    cwd='scripts/scalability-testing',
                     stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
     result = process.wait()
     print(result)
@@ -89,7 +88,7 @@ def publish_agent(request, volttron_instance):
     # Add platform driver configuration files to config store.
     cmd = ['volttron-ctl', 'config', 'store', PLATFORM_DRIVER, 'fake.csv', 'fake_unit_testing.csv', '--csv']
     process = Popen(cmd, env=volttron_instance.env,
-                    cwd='scripts/scalability-testing',
+                    cwd=f"{volttron_instance.volttron_root}/scripts/scalability-testing",
                     stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
     output, err = process.communicate()
     print(output)
@@ -100,7 +99,7 @@ def publish_agent(request, volttron_instance):
         config_name = "devices/fakedriver{}".format(i)
         cmd = ['volttron-ctl', 'config', 'store', PLATFORM_DRIVER, config_name, 'fake_unit_testing.config', '--json']
         process = Popen(cmd, env=volttron_instance.env,
-                        cwd='scripts/scalability-testing',
+                        cwd=f"{volttron_instance.volttron_root}/scripts/scalability-testing",
                         stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
         result = process.wait()
         print(result)
@@ -481,7 +480,7 @@ def test_schedule_error_malformed_request(publish_agent):
 
 
 @pytest.mark.actuator
-def test_schedule_premept_self(publish_agent, cancel_schedules):
+def test_schedule_preempt_self(publish_agent, cancel_schedules):
     """
     Test error response for schedule request through pubsub.
     Test schedule preemption by a higher priority task from the same agent.
@@ -491,7 +490,7 @@ def test_schedule_premept_self(publish_agent, cancel_schedules):
     :param cancel_schedules: fixture used to cancel the schedule at the end
     of test so that other tests can use the same device and time slot
     """
-    print("\n**** test_schedule_premept_self ****")
+    print("\n**** test_schedule_preempt_self ****")
     # used by cancel_schedules
     agentid = TEST_AGENT
     taskid = 'task_high_priority'
@@ -558,7 +557,7 @@ def test_schedule_premept_self(publish_agent, cancel_schedules):
 
 
 @pytest.mark.actuator
-def test_schedule_premept_active_task(publish_agent, cancel_schedules):
+def test_schedule_preempt_active_task(publish_agent, cancel_schedules):
     """
     Test error response for schedule request.
     Test schedule preemption of a actively running task with priority
@@ -569,7 +568,7 @@ def test_schedule_premept_active_task(publish_agent, cancel_schedules):
     :param cancel_schedules: fixture used to cancel the schedule at the end
     of test so that other tests can use the same device and time slot
     """
-    print ("\n**** test_schedule_premept_active_task ****")
+    print ("\n**** test_schedule_preempt_active_task ****")
     # used by cancel_schedules
     agentid = 'new_agent'
     taskid = 'task_high_priority2'
@@ -639,7 +638,7 @@ def test_schedule_premept_active_task(publish_agent, cancel_schedules):
 # This test checks to see if a requestid is no longer valid.
 # Since request ids are always vip identities and only one agent
 # is scheduling devices the expected lock error is not raised.
-def test_schedule_premept_active_task_gracetime(publish_agent, cancel_schedules):
+def test_schedule_preempt_active_task_gracetime(publish_agent, cancel_schedules):
     """
     Test error response for schedule request.
     Test schedule preemption of a actively running task with priority LOW by
@@ -652,7 +651,7 @@ def test_schedule_premept_active_task_gracetime(publish_agent, cancel_schedules)
     :param cancel_schedules: fixture used to cancel the schedule at the end
     of test so that other tests can use the same device and time slot
     """
-    print ("\n**** test_schedule_premept_active_task_gracetime ****")
+    print("\n**** test_schedule_preempt_active_task_gracetime ****")
     # used by cancel_schedules
     agentid = 'new_agent'
     taskid = 'task_high_priority3'
@@ -753,7 +752,7 @@ def test_schedule_premept_active_task_gracetime(publish_agent, cancel_schedules)
 
 
 @pytest.mark.actuator
-def test_schedule_premept_error_active_task(publish_agent, cancel_schedules):
+def test_schedule_preempt_error_active_task(publish_agent, cancel_schedules):
     """
     Test error response for schedule request.
     Test schedule preemption of a actively running task with priority LOW by
@@ -811,7 +810,7 @@ def test_schedule_premept_error_active_task(publish_agent, cancel_schedules):
 
 
 @pytest.mark.actuator
-def test_schedule_premept_future_task(publish_agent, cancel_schedules):
+def test_schedule_preempt_future_task(publish_agent, cancel_schedules):
     """
     Test error response for schedule request.
     Test schedule preemption of a future task with priority LOW by a higher
@@ -822,7 +821,7 @@ def test_schedule_premept_future_task(publish_agent, cancel_schedules):
     :param cancel_schedules: fixture used to cancel the schedule at the end
     of test so that other tests can use the same device and time slot
     """
-    print ("\n**** test_schedule_premept_future_task ****")
+    print ("\n**** test_schedule_preempt_future_task ****")
     # used by cancel_schedules
     agentid = 'new_agent'
     taskid = 'task_high_priority4'

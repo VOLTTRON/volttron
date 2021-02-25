@@ -76,7 +76,7 @@ and `nginx <https://docs.nginx.com/nginx/admin-guide/web-server/reverse-proxy/>`
 Monitor for Data Tampering
 ==========================
 
-One common indication of a potential problem, including tampering, would the the presense
+One common indication of a potential problem, including tampering, would be the presence
 of out of bounds values.
 The :ref:`Threshold-Agent` can be used leveraged to create alerts in the event that a
 topic has a value which is out of reasonable bounds.
@@ -91,4 +91,79 @@ This approach has some limitations, including:
   complex conditional logic would require a custom monitor.
 - There could be cases where tampering adjusts values to incorrect but in-bounds values
   which would not be detected.
+
+
+Limit Publishing on the Devices Topic to Platform Driver
+========================================================
+
+To further reduce the chances of malicious data disrupting your system, you can limit the
+ability to publish to the "devices" topic to the platform driver only.
+
+To accomplish this, you will need to modify protected_topics.json,
+found in your $VOLTTRON_HOME directory. In this specific case, you would need
+to add the topic "devices" and some capability, for example "can_publish_to_devices".
+
+.. code-block:: json
+
+    {
+       "write-protect": [
+          {"topic": "devices", "capabilities": ["can_publish_to_devices"]}
+       ]
+    }
+
+Next, using ``vctl auth list`` get the auth index for the platform.driver,
+and use the command ``vctl auth update <index of platform.driver>``.
+You will get a prompt to update the auth entry. Skip through the prompts until it prompts for
+capabilities, and add can_publish_to_devices.
+
+.. code-block:: console
+
+    capabilities (delimit multiple entries with comma) []: can_publish_to_devices
+
+For more information, refer to the section on :ref:`Protected-Topics`.
+
+
+Limit Access to RPC Methods Using Capabilities
+==============================================
+
+RPC enabled methods provide convenient interfaces between agents.
+When they are unrestricted however, they open up the potential for malicious agents
+to cause harm to your system. The best way to prevent this is through the use of capabilities.
+A capability is a user defined arbitrary string used by an agent to describe its exported RPC method.
+It is used to limit the access to that RPC method to only those agents who have that capability listed in
+their authentication record.
+
+To add a capability restriction to an RPC method, the ``RPC.allow`` decorator is used.
+For example, to limit those who can call the RPC enabled method "foo" to those with the capability "can_call_foo":
+
+.. code-block:: python
+
+    @RPC.export
+    @RPC.allow("can_call_foo")
+    def foo:
+        print("hello")
+
+To give an agent permission to access this method, the auth file must be updated.
+As in the above example for limiting publishing to the devices topic, vctl can be
+used to update the auth file and grant the specific agent permission to access the RPC enabled method.
+
+.. code-block:: console
+
+    capabilities (delimit multiple entries with comma) []: can_call_foo
+
+For a secure system, only add capabilties to the agents that will need to call a specific RPC enabled method,
+and apply the allow decorator to all RPC enabled methods.
+
+For more information, refer to the section on :ref:`VIP-Authorization`.
+
+
+Monitoring RabbitMQ Server
+==========================
+
+Monitoring of RabbitMQ server in deployment setup can be achieved by running RabbitMQ server as a systemd service.
+RabbitMQ server is configured to run as a systemd service and allow systemd to monitor the status of the service. It
+can be further configured to detect and restart the RabbitMQ service if it crashes. VOLTTRON agents have the ability
+to detect when the RabbitMQ server crashes/disconnects and reconnect when it becomes available. In this deployment
+setup, a VOLTTRON platform will not start/stop the RabbitMQ server.
+
 

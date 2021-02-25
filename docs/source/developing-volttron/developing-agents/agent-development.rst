@@ -629,6 +629,118 @@ The VOLTTRON team has come up with a number of methods to help users develop mor
    safely.
 
 
+Building a resilient API
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+Many agents export RPC calls or expose an API (application programming interface) which can be used by other agents
+on the platform.  The agent should include validation against input data for its API to ensure the agent is able to
+continue to operate even if asked to handle faulty or malicious requests.
+
+
+Type-hints
+""""""""""
+
+`Type-hints <https://docs.python.org/3/library/typing.html>`_ can be used in function definitions to help the user
+determine what the agent expects as input.
+
+.. warning::
+
+ Type-hints do not validate the type of data input to a function call, they are merely suggestions about what the
+ function is expecting.
+
+* To specify the type expected as input:
+
+.. code-block:: python
+
+   # When calling this RPC method, the user should supply a string as input
+   @RPC.export
+   def type_hint_rpc(input_string: str):
+
+* To specify the type of function output:
+
+.. code-block:: python
+
+   # This demonstrates a function that expects a string as input and that will return an integer value
+   @RPC.export
+   def type_hint_rpc(input_string: str) -> int:
+
+* Specifying multiple types:
+
+.. code-block:: python
+
+    # Here our function expects either a string or dictionary
+    @RPC.export
+    def type_hint_rpc(input_json: Union[str, dict]) -> str:
+
+* To specify an optional argument with None as the default value:
+
+.. code-block:: python
+
+    # 'Optional' is used to specify either a string should be passed or the default value 'None' will be used
+    @RPC.export
+    def type_hint_rpc(optional_input: Optional[str] = None) -> str:
+
+* These techniques can be combined:
+
+.. code-block:: python
+
+    # 'Optional' can be used in combination with 'Union' for optional arguments which expect one of multiple types and
+    # default to None
+    @RPC.export
+    def type_hint_rpc(optional_input: Optional[Union[str, dict]] = None) -> str:
+
+
+API Validation
+""""""""""""""
+
+Each function within an agent should validate its input parameters, especially with structured data.
+
+* Make use of isinstance to do type checking:
+
+    .. code-block:: python
+
+       @RPC.export
+       def type_checking_rpc(input_str: str) -> dict:
+           if not isinstance(input_str, str):
+               # Include a descriptive error message to help the user determine why input validation failed
+               # You can make use of 'f-strings' to help the user with debugging
+               raise ValueError(
+                   f'The expected input type for function "type_checking_rpc" is str, received {type(input_str)}')
+
+* Add logic to validate the range of values supplied as input with a valid type:
+
+    .. code-block:: python
+
+       @RPC.export
+       def value_checking_rpc(input_json: Union[str, dict]) -> dict:
+           if not isinstance(input_json, str) or not isinstance(input_json, dict):
+               # You can make use of 'f-strings' to help the user determine why input validation failed
+               raise ValueError(
+                   f'The expected input type for function "type_checking_rpc" is str or dict, received {type(input_str)}')
+           else:
+               # since we expected the input to be valid JSON, be sure that it can be correctly parsed
+               if isinstance(input_json, str):
+                   input_json = json.loads(input_json)
+               # for this example, we expect our JSON to include two fields: test1 and test2
+               # Use 'dict.get(<key>)' rather than 'dict[<key>]' to return None and avoid causing a KeyError if the key
+               #  is not present.  Optionally, a second argument can be added to specify a default value to use in
+               # place of None: 'dict.get(<key>, <default value>)'
+               test_1 = input_json.get("test1")
+               test_2 = input_json.get("test2")
+               # test 1 must be any string value
+               if not isinstance(test_1, str):
+                    raise ValueError('Input JSON should contain key "test1" with value of type str')
+               # test 2 must be an integer value with value between 0 and 100 inclusive
+               if not isinstance(test_2, int) and 0 <= test_2 <= 100:
+                    _log.warning(f'Field "test2" in input JSON was out of range (0 - 100): {test_2}, defaulting to 50')
+                    test_2 = 50
+
+.. note::
+
+   It is possible to restrict access to RPC functions using an :ref:`agent's authentication <Agent-Authentication>`
+   capabilities.
+
+
 Packaging Configuration
 =======================
 

@@ -265,7 +265,7 @@ def test_upgrade_file_verison_0_to_1_2(tmpdir_factory):
         fp.write(jsonapi.dumps(version0, indent=2))
 
     upgraded = AuthFile(filename)
-    entries, groups, roles = upgraded.read()
+    entries, denied_entries, groups, roles = upgraded.read()
     assert groups == version0['groups']
     assert roles == version0['roles']
     assert len(entries) == 1
