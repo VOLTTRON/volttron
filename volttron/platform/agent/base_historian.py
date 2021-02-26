@@ -420,8 +420,12 @@ class BaseHistorianAgent(Agent):
         }
         self._all_platforms = bool(all_platforms)
         self._time_tolerance = float(time_tolerance) if time_tolerance else None
-        if self._time_tolerance is not None and time_tolerance_topics is None:
-            time_tolerance_topics = ["devices"]
+        if self._time_tolerance is not None:
+            if time_tolerance_topics is None:
+                time_tolerance_topics = ["devices"]
+            elif not isinstance(time_tolerance_topics, list):
+                raise ValueError(f"time_tolerance_topic should a list of topics. Got value({time_tolerance_topics}) of "
+                                 f"type {type(time_tolerance_topics)}")
         self._time_tolerance_topics = time_tolerance_topics
 
         self._default_config = {
@@ -436,7 +440,7 @@ class BaseHistorianAgent(Agent):
                                 "capture_device_data": capture_device_data,
                                 "capture_log_data": capture_log_data,
                                 "capture_analysis_data": capture_analysis_data,
-                                "capture_record_data": capture_record_data,          
+                                "capture_record_data": capture_record_data,
                                 "message_publish_count": self._message_publish_count,
                                 "storage_limit_gb": storage_limit_gb,
                                 "history_limit_days": history_limit_days,
@@ -544,14 +548,19 @@ class BaseHistorianAgent(Agent):
 
             time_tolerance = config.get("time_tolerance")
             time_tolerance_topics = config.get("time_tolerance_topics")
-            self._time_tolerance = float(time_tolerance) if time_tolerance else None
-            if self._time_tolerance and not time_tolerance_topics:
-                time_tolerance_topics = ["devices"]
+            time_tolerance = float(time_tolerance) if time_tolerance else None
+            if time_tolerance is not None:
+                if time_tolerance_topics is None:
+                    time_tolerance_topics = ["devices"]
+                elif not isinstance(time_tolerance_topics, list):
+                    raise ValueError(
+                        f"time_tolerance_topic should a list of topics. Got value({time_tolerance_topics}) of "
+                        f"type {type(time_tolerance_topics)}")
             self._time_tolerance_topics = time_tolerance_topics
 
         except ValueError as e:
             self._backup_storage_report = 0.9
-            _log.error("Failed to load base historian settings. Settings not applied!")
+            _log.exception("Failed to load base historian settings. Settings not applied!")
             return
 
         query = Query(self.core)
@@ -576,6 +585,8 @@ class BaseHistorianAgent(Agent):
         self._all_platforms = all_platforms
         self._readonly = readonly
         self._message_publish_count = message_publish_count
+        self._time_tolerance = time_tolerance
+        self._time_tolerance_topics = time_tolerance_topics
 
         custom_topics_list = []
         for handler, topic_list in config.get("custom_topics", {}).items():
@@ -1590,13 +1601,13 @@ class BackupDatabase:
                                f" record count is {self._record_count} time_error record count is {error_record_count} "
                                f"page count is {p} freelist count is{f}")
 
-            except Exception as e:
-                _log.warning(f"Exception when check page count and deleting: {e}")
+            except Exception:
+                _log.exception(f"Exception when checking page count and deleting")
 
         try:
             self._connection.commit()
-        except Exception as e:
-            _log.warning(f"Exception in committing after back db storage {e}")
+        except Exception:
+            _log.exception(f"Exception in committing after back db storage")
 
         if time_tolerance_check and not self.time_error_records:
             # No time error records in this batch. Check if there are records from earlier inserts

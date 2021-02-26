@@ -242,6 +242,19 @@ def test_time_tolerance_check(request, volttron_instance, client_agent):
         client_agent.vip.pubsub.subscribe("pubsub", "alerts/BasicHistorian", message_handler)
 
         identity = 'platform.historian'
+        # agent install should fail if type of time_tolerance is bad
+        with pytest.raises(ValueError) as e:
+            historian = volttron_instance.build_agent(agent_class=BasicHistorian,
+                                                      identity=identity,
+                                                      submit_size_limit=5,
+                                                      max_time_publishing=5,
+                                                      retry_period=1.0,
+                                                      backup_storage_limit_gb=0.0001,
+                                                      time_tolerance="invalid",
+                                                      enable_store=True)
+        assert "could not convert string to float: 'invalid'" in str(e.value)
+        print(e)
+
         historian = volttron_instance.build_agent(agent_class=BasicHistorian,
                                               identity=identity,
                                               submit_size_limit=5,

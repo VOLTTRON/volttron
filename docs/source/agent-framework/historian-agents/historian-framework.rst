@@ -68,7 +68,9 @@ All Historians support the following settings:
         # Defaults to no limit.
         "backup_storage_limit_gb": 8.0,
 
-        # How full should the backup storage be for an alert to be raised
+        # How full should the backup storage be for an alert to be raised.
+        # percentage as decimal. For example set value as 0.9 to get alerted when cache becomes more than 90% configured
+        # size limit
         "backup_storage_report" : 0.9,
 
         # Do not actually gather any data. Historian is query only.
