@@ -51,7 +51,7 @@ def cleanup_wrapper(wrapper):
     # Shutdown handles case where the platform hasn't started.
     wrapper.shutdown_platform()
     if wrapper.p_process is not None:
-        if psutil.pid_exists(wrapper.p_process.pid):
+        while psutil.pid_exists(wrapper.p_process.pid):
             proc = psutil.Process(wrapper.p_process.pid)
             proc.terminate()
     if not wrapper.debug_mode:
@@ -240,7 +240,7 @@ def volttron_instance_rmq(request):
 
 @pytest.fixture(scope="module",
                 params=[
-                    dict(messagebus='zmq', ssl_auth=False),
+                    dict(messagebus='zmq', ssl_auth=True),
                     pytest.param(dict(messagebus='rmq', ssl_auth=True), marks=rmq_skipif),
                 ])
 def volttron_instance_web(request):
@@ -294,9 +294,10 @@ def volttron_multi_messagebus(request):
             messagebus = 'rmq'
             ssl_auth = True
         else:
-            web_address = "http://{}".format(get_rand_ip_and_port())
+            hostname, port = get_hostname_and_random_port()
+            web_address = 'https://{hostname}:{port}'.format(hostname=hostname, port=port)
             messagebus = 'zmq'
-            ssl_auth = False
+            ssl_auth = True
 
         sink = build_wrapper(sink_address,
                              ssl_auth=ssl_auth,
@@ -304,10 +305,11 @@ def volttron_multi_messagebus(request):
                              bind_web_address=web_address,
                              volttron_central_address=web_address,
                              instance_name="volttron1")
+        # sink.web_admin_api.create_web_admin("admin", "admin")
 
         source_address = get_rand_vip()
         messagebus = 'zmq'
-        ssl_auth = False
+        ssl_auth = True
 
         if request.param['source'] == 'rmq':
             messagebus = 'rmq'
@@ -333,9 +335,15 @@ def volttron_multi_messagebus(request):
         return source, sink
 
     def cleanup():
-        cleanup_wrapper(get_volttron_multi_msgbus_instances.source)
-        cleanup_wrapper(get_volttron_multi_msgbus_instances.sink)
-
+        # Handle the case where source or sink fail to be created
+        try:
+            cleanup_wrapper(get_volttron_multi_msgbus_instances.source)
+        except AttributeError as e:
+            print(e)
+        try:
+            cleanup_wrapper(get_volttron_multi_msgbus_instances.sink)
+        except AttributeError as e:
+            print(e)
     request.addfinalizer(cleanup)
 
     return get_volttron_multi_msgbus_instances

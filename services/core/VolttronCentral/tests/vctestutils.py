@@ -30,7 +30,7 @@ class APITester(object):
 
         print('Posting: {}'.format(data))
 
-        r = requests.post(self._url, json=data)
+        r = requests.post(self._url, json=data, verify=self._wrapper.certsobj.cert_file(self._wrapper.certsobj.root_ca_name))
         validate_response(r)
 
         rpcjson = r.json()
