@@ -301,8 +301,6 @@ def test_watch_topic_new_group(volttron_instance, agent, cleanup_db):
 
     assert "Topic(s) not published within time limit: ['fakedevice', " \
            "'fakedevice2/all', ('fakedevice2/all', 'point')]" in alert_messages or \
-           "Topic(s) not published within time limit: ['fakedevice', " \
-           "('fakedevice2/all', 'point')], 'fakedevice2/all'" in alert_messages or \
            "Topic(s) not published within time limit: ['fakedevice', ('fakedevice2/all', 'point'), " \
            "'fakedevice2/all']" in alert_messages
 
