@@ -313,7 +313,7 @@ class BACnetReader(object):
             key = '{}-{}'.format(index, 'stateText')
             query_map[key] = [object_type, index, "stateText"]
 
-            if object_type != 'multiSTateInput':
+            if object_type != 'multiStateInput':
                 key = '{}-{}'.format(index, "relinquishDefault")
                 query_map[key] = [object_type, index, "relinquishDefault"]
             elif object_type == 'loop':
