@@ -688,7 +688,7 @@ class PlatformWrapper:
                 self.env['REQUESTS_CA_BUNDLE'] = self.certsobj.cert_file(self.certsobj.root_ca_name)
 
             # Enable SSL for ZMQ
-            elif self.messagebus == 'zmq' and bind_web_address:
+            elif self.messagebus == 'zmq' and self.ssl_auth and bind_web_address:
                 web_certs = certs_profile_2(os.path.join(self.volttron_home, "certificates"))
                 web_ssl_cert = web_certs['server_certs'][0]['cert_file']
                 web_ssl_key = web_certs['server_certs'][0]['key_file']
