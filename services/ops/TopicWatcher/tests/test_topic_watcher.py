@@ -298,10 +298,12 @@ def test_watch_topic_new_group(volttron_instance, agent, cleanup_db):
     gevent.sleep(6)
 
     assert len(alert_messages) == 2
+
     assert "Topic(s) not published within time limit: ['fakedevice', " \
            "'fakedevice2/all', ('fakedevice2/all', 'point')]" in alert_messages or \
-           "Topic(s) not published within time limit: ['fakedevice', " \
-           "('fakedevice2/all', 'point')], 'fakedevice2/all'" in alert_messages
+           "Topic(s) not published within time limit: ['fakedevice', ('fakedevice2/all', 'point'), " \
+           "'fakedevice2/all']" in alert_messages
+
     assert "Topic(s) not published within time limit: ['newtopic']" in \
            alert_messages
 

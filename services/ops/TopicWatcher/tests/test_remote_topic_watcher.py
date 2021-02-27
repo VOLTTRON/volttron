@@ -108,6 +108,7 @@ def test_remote_alert_publish(get_volttron_instances):
     assert alert_messages
     alert_messages.clear()
 
+
 @pytest.mark.alert
 def test_alert_multi_messagebus_publish(volttron_multi_messagebus):
     """
@@ -168,7 +169,17 @@ def test_alert_multi_messagebus_publish(volttron_multi_messagebus):
     )
 
     gevent.sleep(6)
+
     assert u"Topic(s) not published within time limit: ['fakedevice', " \
            u"'fakedevice2/all', ('fakedevice2/all', 'point')]" in \
+           alert_messages or \
+           u"Topic(s) not published within time limit: ['fakedevice', " \
+           u"('fakedevice2/all', 'point'), 'fakedevice2/all']" in \
+            alert_messages or \
+           u"Topic(s) not published within time limit: ['fakedevice2/all', " \
+           u"('fakedevice2/all', 'point'), 'fakedevice']" in \
+            alert_messages or \
+           u"Topic(s) not published within time limit: [('fakedevice2/all', 'point'), " \
+           u"'fakedevice2/all', 'fakedevice']" in \
            alert_messages
     alert_messages.clear()

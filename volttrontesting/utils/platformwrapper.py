@@ -909,6 +909,9 @@ class PlatformWrapper:
                     raise Exception("Couldn't connect to discovery platform.")
 
 
+        if self.is_running():
+            self._instance_shutdown = False
+
     def is_running(self):
         with with_os_environ(self.env):
             return utils.is_volttron_running(self.volttron_home)
@@ -1395,9 +1398,11 @@ class PlatformWrapper:
         with with_os_environ(self.env):
             # Handle cascading calls from multiple levels of fixtures.
             if self._instance_shutdown:
+                self.logit(f"Instance already shutdown {self._instance_shutdown}")
                 return
 
             if not self.is_running():
+                self.logit(f"Instance not running {self.is_running()} and skip cleanup: {self.skip_cleanup}")
                 if not self.skip_cleanup:
                     self.__remove_home_directory__()
                 return
@@ -1437,7 +1442,7 @@ class PlatformWrapper:
                     proc = psutil.Process(pid)
                     proc.terminate()
 
-            self.logit(f"Skip clean up flag is {self.skip_cleanup}")
+            self.logit(f"VHOME: {self.volttron_home}, Skip clean up flag is {self.skip_cleanup}")
             if self.messagebus == 'rmq':
                 self.logit("Calling rabbit shutdown")
                 stop_rabbit(rmq_home=self.rabbitmq_config_obj.rmq_home, env=self.env, quite=True)
