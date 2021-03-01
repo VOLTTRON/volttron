@@ -68,6 +68,11 @@ All Historians support the following settings:
         # Defaults to no limit.
         "backup_storage_limit_gb": 8.0,
 
+        # How full should the backup storage be for an alert to be raised.
+        # percentage as decimal. For example set value as 0.9 to get alerted when cache becomes more than 90% configured
+        # size limit
+        "backup_storage_report" : 0.9,
+
         # Do not actually gather any data. Historian is query only.
         "readonly": false,
 
@@ -86,6 +91,14 @@ All Historians support the following settings:
         # capture_record_data
         #   Defaults to true. Capture data published on the `record/` topic.
         "capture_record_data": true,
+
+        # After publishing every "message_publish_count" number of records, historian writes
+        # INFO level log with total number of records published since start of historian
+        "message_publish_count": 10000,
+
+        # If historian should subscribe to the configured topics from all platform (instead of just local platform)
+        # by default subscription is only to local topics
+        "all_platforms": false,
 
         # Replace a one topic with another before saving to the database.
         "topic_replace_list": [
@@ -114,6 +127,7 @@ All Historians support the following settings:
             "capture_analysis_data": ["analysis/application_data/example"],
             "capture_record_data": ["example"]
         },
+
         # To restrict the points processed by a historian for a device or set of devices (i.e., this configuration
         # parameter only filters data on topics with base 'devices).  If the 'device' is in the
         # topic (e.g.,'devices/campus/building/device/all') then only points in the list will be passed to the
@@ -121,10 +135,20 @@ All Historians support the following settings:
         # remote platform (in the case of the ForwardHistorian).  The key in the device_data_filter dictionary can
         # be made more restrictive (e.g., "device/subdevice") to limit unnecessary searches through topics that may not
         # contain the point(s) of interest.
-        "device_data_filter":
-            {
+        "device_data_filter":{
                 "device": ["point_name1", "point_name2"]
-            }
+        },
+
+        # list of topics for which incoming record's timestamp should be compared with current timestamp to see if it
+        # within the configured tolerance limit. Default value: "devices"
+        "time_tolerance_topics": ["devices"],
+
+        # If this is set, timestamp of incoming records on time_tolerance_topics(by default, "devices" topics) are
+        # compared with current timestamp. If the difference between current timestamp and the record's timestamp
+        # exceeds the configured time_tolerance (seconds), then those records are added to a separate time_error table
+        # in cache and are not sent to concrete historian for publishing. An alert is raised when records are entered
+        # into the time_error table. Units: seconds
+        "time_tolerance": 5,
     }
 
 
