@@ -57,8 +57,9 @@ try:
 except:
     HAS_PYMONGO = False
 
-from fixtures import (ALL_TOPIC, BASE_ANALYSIS_TOPIC, BASE_DEVICE_TOPIC, mongo_connection_params, mongo_agent_config,
-                      mongo_connection_string)
+from services.core.MongodbHistorian.tests.fixtures import (ALL_TOPIC, BASE_ANALYSIS_TOPIC, BASE_DEVICE_TOPIC,
+                                                           mongo_connection_params, mongo_agent_config,
+                                                           mongo_connection_string)
 
 query_points = {"oat_point": "Building/LAB/Device/OutsideAirTemperature",
                 "mixed_point": "Building/LAB/Device/MixedAirTemperature",
@@ -547,47 +548,6 @@ def test_basic_function(volttron_instance, database_client):
     finally:
         volttron_instance.stop_agent(agent_uuid)
         volttron_instance.remove_agent(agent_uuid)
-
-
-@pytest.mark.historian
-@pytest.mark.mongodb
-@pytest.mark.skipif(not HAS_PYMONGO, reason='No pymongo driver')
-def test_default_config(volttron_instance, database_client):
-    """
-    Test config file included in historian's directory to ensure that the config included in the repository is fit
-    to serve as a jumping off point for deployments
-    :param database_client:
-    :param volttron_instance: The instance against which the test is run
-    """
-    global query_points
-
-    config_path = os.path.join(get_services_core("MongodbHistorian"), "config")
-    with open(config_path, "r") as config_file:
-        config_json = json.load(config_file)
-    assert isinstance(config_json, dict)
-
-    agent_uuid = install_historian_agent(volttron_instance, config_json)
-
-    try:
-        print("\n** test_basic_function **")
-
-        publish_agent = volttron_instance.build_agent()
-
-        # Publish data to message bus that should be recorded in the mongo database.
-        publish_fake_data(publish_agent)
-        expected = publish_fake_data(publish_agent)
-        gevent.sleep(0.5)
-
-        # Query the historian
-
-        result = publish_agent.vip.rpc.call('platform.historian', 'query', topic=query_points['oat_point'],
-                                            count=20, order="LAST_TO_FIRST").get(timeout=100)
-        assert expected['datetime'].isoformat()[:-3] + '000+00:00' == result['values'][0][0]
-        assert result['values'][0][1] == expected['oat_point']
-    finally:
-        volttron_instance.stop_agent(agent_uuid)
-        volttron_instance.remove_agent(agent_uuid)
-
 
 @pytest.mark.historian
 @pytest.mark.mongodb

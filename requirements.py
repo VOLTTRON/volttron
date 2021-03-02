@@ -72,7 +72,8 @@ extras_require = {
     ],
     'databases': [  # Support for all known databases
         'mysql-connector-python-rf',
-        'pymongo',
+        'bson==0.5.7',
+        'pymongo==3.7.2',
         'crate',
         'influxdb',
         'psycopg2-binary'
@@ -103,7 +104,8 @@ extras_require = {
         'transitions',
     ],
     'mongo': [  # mongo databases
-        'pymongo',
+        'bson==0.5.7'
+        'pymongo==3.7.2',
     ],
     'mysql': [  # mysql databases
         'mysql-connector-python-rf',

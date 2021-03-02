@@ -11,8 +11,9 @@ mongo_platform = {
             "host": "localhost",
             "port": 27017,
             "database": "mongo_test",
-            "user": "test",
-            "passwd": "test"
+            "user": "historian",
+            "passwd": "historian",
+            "authSource": "test"
         }
     }
 }
@@ -20,7 +21,10 @@ mongo_platform = {
 
 def mongo_connection_string():
     mongo_conn_str = 'mongodb://{user}:{passwd}@{host}:{port}/{database}'
+
     params = mongo_connection_params()
+    if params.get('authSource'):
+        mongo_conn_str = mongo_conn_str + '?authSource={authSource}'
     mongo_conn_str = mongo_conn_str.format(**params)
     return mongo_conn_str
 
