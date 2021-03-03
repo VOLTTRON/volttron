@@ -51,7 +51,7 @@ def cleanup_wrapper(wrapper):
     # Shutdown handles case where the platform hasn't started.
     wrapper.shutdown_platform()
     if wrapper.p_process is not None:
-        while psutil.pid_exists(wrapper.p_process.pid):
+        if psutil.pid_exists(wrapper.p_process.pid):
             proc = psutil.Process(wrapper.p_process.pid)
             proc.terminate()
     if not wrapper.debug_mode:
@@ -263,13 +263,17 @@ def volttron_instance_web(request):
 
     cleanup_wrapper(wrapper)
 
+#TODO: Add functionality for http use case for tests
 
 @pytest.fixture(scope="module",
                 params=[
-                    dict(sink='zmq_web', source='zmq'),
-                    pytest.param(dict(sink='rmq_web', source='zmq'), marks=rmq_skipif),
-                    pytest.param(dict(sink='rmq_web', source='rmq'), marks=rmq_skipif),
-                    pytest.param(dict(sink='zmq_web', source='rmq'), marks=rmq_skipif),
+                    # dict(sink='zmq_web', source='zmq', zmq_ssl=False),
+                    dict(sink='zmq_web', source='zmq', zmq_ssl=True),
+                    pytest.param(dict(sink='rmq_web', source='zmq', zmq_ssl=False), marks=rmq_skipif),
+                    pytest.param(dict(sink='rmq_web', source='rmq', zmq_ssl=False), marks=rmq_skipif),
+                    # pytest.param(dict(sink='zmq_web', source='rmq', zmq_ssl=False), marks=rmq_skipif),
+                    pytest.param(dict(sink='zmq_web', source='rmq', zmq_ssl=True), marks=rmq_skipif),
+
                 ])
 def volttron_multi_messagebus(request):
     """ This fixture allows multiple two message bus types to be configured to work together
@@ -293,11 +297,16 @@ def volttron_multi_messagebus(request):
             web_address = 'https://{hostname}:{port}'.format(hostname=hostname, port=port)
             messagebus = 'rmq'
             ssl_auth = True
-        else:
+        elif request.param['sink'] == 'zmq_web' and request.param['zmq_ssl'] is True:
             hostname, port = get_hostname_and_random_port()
             web_address = 'https://{hostname}:{port}'.format(hostname=hostname, port=port)
             messagebus = 'zmq'
             ssl_auth = True
+        else:
+            hostname, port = get_hostname_and_random_port()
+            web_address = "http://{}".format(get_rand_ip_and_port())
+            messagebus = 'zmq'
+            ssl_auth = False
 
         sink = build_wrapper(sink_address,
                              ssl_auth=ssl_auth,

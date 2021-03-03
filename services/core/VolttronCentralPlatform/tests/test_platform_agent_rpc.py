@@ -46,7 +46,7 @@ import gevent
 from volttron.platform import get_volttron_root, jsonapi, get_services_core
 from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM, CONFIGURATION_STORE
 from volttron.platform.messaging.health import STATUS_GOOD
-from volttrontesting.utils.agent_additions import add_volttron_central_platform, add_listener
+from volttrontesting.utils.agent_additions import add_volttron_central_platform, add_listener, add_volttron_central
 from volttrontesting.utils.platformwrapper import start_wrapper_platform, PlatformWrapper
 
 SQLITE_HISTORIAN_CONFIG = {
@@ -62,7 +62,7 @@ SQLITE_HISTORIAN_CONFIG = {
 STANDARD_GET_TIMEOUT = 30
 _log = logging.getLogger(__name__)
 
-pytest.skip("Needs to be updated based on 6.0 changes", allow_module_level=True)
+# pytest.skip("Needs to be updated based on 6.0 changes", allow_module_level=True)
 
 
 @pytest.fixture(scope="module",
@@ -121,9 +121,10 @@ def vc_agent(setup_platform):
     :return:
     """
     assert setup_platform.instance_name is not None
-    agent = setup_platform.build_agent(identity='volttron.central')
-    capabilities = [{'edit_config_store': {'identity': VOLTTRON_CENTRAL_PLATFORM}}]
-    setup_platform.add_capabilities(agent.core.publickey, capabilities=capabilities)
+    setup_platform.allow_all_connections()
+
+    add_volttron_central(setup_platform)
+    agent = setup_platform.dynamic_agent
     vcp_identity = None
 
     look_for_identity = setup_platform.instance_name + ".platform.agent"
@@ -147,14 +148,13 @@ def vc_agent(setup_platform):
 def test_list_agents(setup_platform, vc_agent, caplog):
     # split vc_agent into it's respective parts.
     vc, vcp_identity = vc_agent
-
     agent_list = vc.vip.rpc.call(vcp_identity, "list_agents").get(timeout=2)
-    assert agent_list and len(agent_list) == 3
+    assert agent_list and len(agent_list) == 2
     listener_uuid = None
     try:
         listener_uuid = add_listener(setup_platform)
         agent_list = vc.vip.rpc.call(vcp_identity, "list_agents").get(timeout=2)
-        assert agent_list and len(agent_list) == 4
+        assert agent_list and len(agent_list) == 3
     except Exception as e:
         _log.debug("EXCEPTION: {}".format(e.args))
     finally:

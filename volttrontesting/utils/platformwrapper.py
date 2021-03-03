@@ -876,9 +876,9 @@ class PlatformWrapper:
             if bind_web_address:
                 # Now that we know we have web and we are using ssl then we
                 # can enable the WebAdminApi.
-                if self.ssl_auth:
-                    self._web_admin_api = WebAdminApi(self)
-                    self._web_admin_api.create_web_admin("admin", "admin")
+                # if self.ssl_auth:
+                self._web_admin_api = WebAdminApi(self)
+                self._web_admin_api.create_web_admin("admin", "admin")
                 times = 0
                 has_discovery = False
                 error_was = None
@@ -1533,9 +1533,12 @@ class WebAdminApi(object):
         url = self.bind_web_address + "/admin/setpassword"
         # resp = requests.post(url, data=data,
         # verify=self.certsobj.remote_cert_bundle_file())
-        resp = requests.post(url, data=data,
-                             verify=self.certsobj.cert_file(
-                                 name=self.certsobj.root_ca_name))
+
+        if self._wrapper.ssl_auth:
+            resp = requests.post(url, data=data,
+                                 verify=self.certsobj.cert_file(self.certsobj.root_ca_name))
+        else:
+            resp = requests.post(url, data=data, verify=False)
         print(f"RESPONSE: {resp}")
         return resp
 
@@ -1546,6 +1549,9 @@ class WebAdminApi(object):
         # application/x-www-form-urlencoded to the request
         # resp = requests.post(url, data=data,
         # verify=self.certsobj.remote_cert_bundle_file())
-        resp = requests.post(url, data=data, verify=self.certsobj.cert_file(
-            self.certsobj.root_ca_name))
+        if self._wrapper.ssl_auth:
+            resp = requests.post(url, data=data,
+                                 verify=self.certsobj.cert_file(self.certsobj.root_ca_name))
+        else:
+            resp = requests.post(url, data=data, verify=False)
         return resp

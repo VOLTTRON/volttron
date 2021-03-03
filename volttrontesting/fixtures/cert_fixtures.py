@@ -4,7 +4,10 @@ import os
 from types import SimpleNamespace
 
 from volttron.platform.certs import CertWrapper
-from volttron.platform.certs import Certs
+from volttron.platform.certs import Certs, _load_key
+
+#TODO: Combine cert_profile_1 and cert_profile_2
+# Verify whether we need it as dictionary or SimpleNamespace
 
 
 @contextlib.contextmanager
@@ -51,6 +54,7 @@ def certs_profile_1(certificate_dir, fqdn=None, num_server_certs=1, num_client_c
 
     yield ns
 
+
 def certs_profile_2(certificate_dir, fqdn=None, num_server_certs=1, num_client_certs=3):
     """
     Profile 2 generates the specified number of server and client certificates
@@ -72,8 +76,15 @@ def certs_profile_2(certificate_dir, fqdn=None, num_server_certs=1, num_client_c
             'O': 'pnnl',
             'OU': 'volttron_test',
             'CN': "myca"}
-    ca_cert, ca_pk = certs.create_root_ca(**data)
-
+    if not certs.ca_exists():
+        ca_cert, ca_pk = certs.create_root_ca(**data)
+    # If the root ca already exists, get ca_cert and ca_pk from current root ca
+    else:
+        ca_cert = certs.cert(certs.root_ca_name)
+        ca_pk = _load_key(certs.private_key_file(certs.root_ca_name))
+    # print(f"ca_cert: {ca_cert}")
+    # print(f"ca_pk: {ca_pk}")
+    # print(f"ca_pk_bytes: {certs.get_pk_bytes(certs.root_ca_name)}")
     ns = dict(ca_cert=ca_cert, ca_key=ca_pk, ca_cert_file=certs.cert_file(certs.root_ca_name),
                          ca_key_file=certs.private_key_file(certs.root_ca_name), server_certs=[], client_certs=[])
 
