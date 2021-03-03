@@ -39,7 +39,8 @@ from volttron.platform.auth import (AuthFile, AuthEntry,
 from volttron.platform.keystore import KeyStore, KnownHostsStore
 from volttron.platform.vip.agent import Agent
 from volttron.platform.vip.agent.connection import Connection
-from volttrontesting.utils.utils import get_rand_http_address, get_rand_vip
+from volttrontesting.utils.utils import get_rand_http_address, get_rand_vip, get_hostname_and_random_port, \
+    get_rand_ip_and_port
 from volttrontesting.utils.utils import get_rand_tcp_address
 from volttrontesting.fixtures.rmq_test_setup import create_rmq_volttron_setup
 from volttron.utils.rmq_setup import start_rabbit, stop_rabbit
@@ -148,15 +149,22 @@ def start_wrapper_platform(wrapper, with_http=False, with_tcp=True,
     # Please note, if 'with_http'==True, then instance name needs to be provided
     assert not wrapper.is_running()
 
-    # Will returen https if messagebus rmq
-    bind_address = get_rand_http_address(wrapper.messagebus == 'rmq') if with_http else None
+    address = get_rand_vip()
+    if wrapper.ssl_auth and os.getenv("CI", False):
+        hostname, port = get_hostname_and_random_port()
+        bind_address = 'https://{hostname}:{port}'.format(hostname=hostname, port=port)
+    else:
+        bind_address = "http://{}".format(get_rand_ip_and_port())
+
+    # Will return https if messagebus rmq
+    # bind_address = get_rand_http_address(wrapper.messagebus == 'rmq') if with_http else None
     vc_http = bind_address
     vc_tcp = get_rand_tcp_address() if with_tcp else None
 
     if add_local_vc_address:
         ks = KeyStore(os.path.join(wrapper.volttron_home, 'keystore'))
         ks.generate()
-        if wrapper.messagebus == 'rmq':
+        if wrapper.ssl_auth is True and os.getenv("CI", False):
             volttron_central_address = vc_http
         else:
             volttron_central_address = vc_tcp
@@ -886,9 +894,9 @@ class PlatformWrapper:
                 while times < 10:
                     times += 1
                     try:
-                        if self.ssl_auth:
+                        if self.ssl_auth and os.getenv("CI", False):
                             resp = requests.get(self.discovery_address,
-                                                verify=False)
+                                                verify=self.certsobj.cert_file(self.certsobj.root_ca_name))
                         else:
                             resp = requests.get(self.discovery_address)
                         if resp.ok:
@@ -1534,11 +1542,11 @@ class WebAdminApi(object):
         # resp = requests.post(url, data=data,
         # verify=self.certsobj.remote_cert_bundle_file())
 
-        # if self._wrapper.ssl_auth:
-        #     resp = requests.post(url, data=data,
-        #                          verify=self.certsobj.cert_file(self.certsobj.root_ca_name))
-        # else:
-        resp = requests.post(url, data=data, verify=False)
+        if self._wrapper.ssl_auth and os.getenv("CI", False):
+            resp = requests.post(url, data=data,
+                                 verify=self.certsobj.cert_file(self.certsobj.root_ca_name))
+        else:
+            resp = requests.post(url, data=data, verify=False)
         print(f"RESPONSE: {resp}")
         return resp
 
@@ -1549,9 +1557,9 @@ class WebAdminApi(object):
         # application/x-www-form-urlencoded to the request
         # resp = requests.post(url, data=data,
         # verify=self.certsobj.remote_cert_bundle_file())
-        if self._wrapper.ssl_auth:
+        if self._wrapper.ssl_auth and os.getenv("CI", False):
             resp = requests.post(url, data=data,
-                                 verify=False)
+                                 verify=self.certsobj.cert_file(self.certsobj.root_ca_name))
         else:
             resp = requests.post(url, data=data, verify=False)
         return resp

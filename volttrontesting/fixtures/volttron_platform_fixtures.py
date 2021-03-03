@@ -240,14 +240,14 @@ def volttron_instance_rmq(request):
 
 @pytest.fixture(scope="module",
                 params=[
-                    dict(messagebus='zmq', ssl_auth=True),
+                    dict(messagebus='zmq', ssl_auth=False),
                     pytest.param(dict(messagebus='rmq', ssl_auth=True), marks=rmq_skipif),
                 ])
 def volttron_instance_web(request):
     print("volttron_instance_web (messagebus {messagebus} ssl_auth {ssl_auth})".format(**request.param))
     address = get_rand_vip()
 
-    if request.param['ssl_auth']:
+    if request.param['ssl_auth'] and os.getenv("CI", False):
         hostname, port = get_hostname_and_random_port()
         web_address = 'https://{hostname}:{port}'.format(hostname=hostname, port=port)
     else:
@@ -267,12 +267,12 @@ def volttron_instance_web(request):
 
 @pytest.fixture(scope="module",
                 params=[
-                    # dict(sink='zmq_web', source='zmq', zmq_ssl=False),
-                    dict(sink='zmq_web', source='zmq', zmq_ssl=True),
+                    dict(sink='zmq_web', source='zmq', zmq_ssl=False),
+                    # dict(sink='zmq_web', source='zmq', zmq_ssl=True),
                     pytest.param(dict(sink='rmq_web', source='zmq', zmq_ssl=False), marks=rmq_skipif),
                     pytest.param(dict(sink='rmq_web', source='rmq', zmq_ssl=False), marks=rmq_skipif),
-                    # pytest.param(dict(sink='zmq_web', source='rmq', zmq_ssl=False), marks=rmq_skipif),
-                    pytest.param(dict(sink='zmq_web', source='rmq', zmq_ssl=True), marks=rmq_skipif),
+                    pytest.param(dict(sink='zmq_web', source='rmq', zmq_ssl=False), marks=rmq_skipif),
+                    # pytest.param(dict(sink='zmq_web', source='rmq', zmq_ssl=True), marks=rmq_skipif),
 
                 ])
 def volttron_multi_messagebus(request):
@@ -318,7 +318,7 @@ def volttron_multi_messagebus(request):
 
         source_address = get_rand_vip()
         messagebus = 'zmq'
-        ssl_auth = True
+        ssl_auth = False
 
         if request.param['source'] == 'rmq':
             messagebus = 'rmq'
