@@ -125,6 +125,7 @@ def vc_agent(setup_platform):
 
     add_volttron_central(setup_platform)
     agent = setup_platform.dynamic_agent
+    setup_platform.add_capabilities(agent.publickey, dict(edit_config_store=dict(identity="/.*/")))
     vcp_identity = None
 
     look_for_identity = setup_platform.instance_name + ".platform.agent"

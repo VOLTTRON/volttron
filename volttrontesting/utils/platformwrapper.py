@@ -1534,11 +1534,11 @@ class WebAdminApi(object):
         # resp = requests.post(url, data=data,
         # verify=self.certsobj.remote_cert_bundle_file())
 
-        if self._wrapper.ssl_auth:
-            resp = requests.post(url, data=data,
-                                 verify=self.certsobj.cert_file(self.certsobj.root_ca_name))
-        else:
-            resp = requests.post(url, data=data, verify=False)
+        # if self._wrapper.ssl_auth:
+        #     resp = requests.post(url, data=data,
+        #                          verify=self.certsobj.cert_file(self.certsobj.root_ca_name))
+        # else:
+        resp = requests.post(url, data=data, verify=False)
         print(f"RESPONSE: {resp}")
         return resp
 
