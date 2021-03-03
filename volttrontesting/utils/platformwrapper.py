@@ -888,7 +888,7 @@ class PlatformWrapper:
                     try:
                         if self.ssl_auth:
                             resp = requests.get(self.discovery_address,
-                                                verify=self.certsobj.cert_file(self.certsobj.root_ca_name))
+                                                verify=False)
                         else:
                             resp = requests.get(self.discovery_address)
                         if resp.ok:
@@ -1551,7 +1551,7 @@ class WebAdminApi(object):
         # verify=self.certsobj.remote_cert_bundle_file())
         if self._wrapper.ssl_auth:
             resp = requests.post(url, data=data,
-                                 verify=self.certsobj.cert_file(self.certsobj.root_ca_name))
+                                 verify=False)
         else:
             resp = requests.post(url, data=data, verify=False)
         return resp
