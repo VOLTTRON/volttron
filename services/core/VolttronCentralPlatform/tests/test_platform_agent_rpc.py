@@ -65,19 +65,14 @@ _log = logging.getLogger(__name__)
 # pytest.skip("Needs to be updated based on 6.0 changes", allow_module_level=True)
 
 
-@pytest.fixture(scope="module",
-                params=[("zmq", False),
-                        ("rmq", True)]
-                )
-def setup_platform(request):
+@pytest.fixture(scope="module")
+def setup_platform(volttron_instance_web):
     """
     Creates a single instance of VOLTTRON with a VOLTTRON Central Platform, a listener agent, and a sqlite historian
     that is a platform.historian.
     The VOLTTRON Central Platform agent is not registered with a VOLTTRON Central Platform.
     """
-    vcp = PlatformWrapper(messagebus=request.param[0], ssl_auth=request.param[1])
-
-    start_wrapper_platform(vcp, with_http=True, add_local_vc_address=True)
+    vcp = volttron_instance_web
 
     assert vcp
     assert vcp.is_running()
@@ -100,11 +95,7 @@ def setup_platform(request):
 
     yield vcp
 
-    print('Shutting down instance: {}'.format(vcp.volttron_home))
-    if vcp.is_running():
-        vcp.remove_all_agents()
-        # Shutdown handles case where the platform hasn't started.
-        vcp.shutdown_platform()
+    vcp.remove_agent(vcp_uuid)
 
 
 @pytest.fixture(scope="module")
@@ -125,7 +116,6 @@ def vc_agent(setup_platform):
 
     add_volttron_central(setup_platform)
     agent = setup_platform.dynamic_agent
-    setup_platform.add_capabilities(agent.publickey, dict(edit_config_store=dict(identity="/.*/")))
     vcp_identity = None
 
     look_for_identity = setup_platform.instance_name + ".platform.agent"

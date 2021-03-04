@@ -17,7 +17,9 @@ from volttrontesting.utils.utils import get_hostname_and_random_port, get_rand_v
 
 PRINT_LOG_ON_SHUTDOWN = False
 HAS_RMQ = is_rabbitmq_available()
-rmq_skipif = pytest.mark.skipif(not HAS_RMQ, reason='RabbitMQ is not setup')
+ci_skipif = pytest.mark.skipif(os.getenv('CI', False) is True, reason='SSL does not work in CI')
+rmq_skipif = pytest.mark.skipif(not HAS_RMQ and os.getenv('CI', False) is True,
+                                reason='RabbitMQ is not setup and/or SSL does not work in CI')
 
 
 def print_log(volttron_home):
@@ -241,13 +243,14 @@ def volttron_instance_rmq(request):
 @pytest.fixture(scope="module",
                 params=[
                     dict(messagebus='zmq', ssl_auth=False),
+                    pytest.param(dict(messagebus='zmq', ssl_auth=True), marks=ci_skipif),
                     pytest.param(dict(messagebus='rmq', ssl_auth=True), marks=rmq_skipif),
                 ])
 def volttron_instance_web(request):
     print("volttron_instance_web (messagebus {messagebus} ssl_auth {ssl_auth})".format(**request.param))
     address = get_rand_vip()
 
-    if request.param['ssl_auth'] and os.getenv("CI", False):
+    if request.param['ssl_auth']:
         hostname, port = get_hostname_and_random_port()
         web_address = 'https://{hostname}:{port}'.format(hostname=hostname, port=port)
     else:
@@ -268,11 +271,11 @@ def volttron_instance_web(request):
 @pytest.fixture(scope="module",
                 params=[
                     dict(sink='zmq_web', source='zmq', zmq_ssl=False),
-                    # dict(sink='zmq_web', source='zmq', zmq_ssl=True),
+                    pytest.param(dict(sink='zmq_web', source='zmq', zmq_ssl=True), marks=ci_skipif),
                     pytest.param(dict(sink='rmq_web', source='zmq', zmq_ssl=False), marks=rmq_skipif),
                     pytest.param(dict(sink='rmq_web', source='rmq', zmq_ssl=False), marks=rmq_skipif),
                     pytest.param(dict(sink='zmq_web', source='rmq', zmq_ssl=False), marks=rmq_skipif),
-                    # pytest.param(dict(sink='zmq_web', source='rmq', zmq_ssl=True), marks=rmq_skipif),
+                    pytest.param(dict(sink='zmq_web', source='rmq', zmq_ssl=True), marks=rmq_skipif),
 
                 ])
 def volttron_multi_messagebus(request):

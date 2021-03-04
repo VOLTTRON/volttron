@@ -32,7 +32,7 @@ class APITester(object):
 
         if self._wrapper.ssl_auth:
             r = requests.post(self._url, json=data,
-                              verify=False)
+                              verify=self._wrapper.certsobj.cert_file(self._wrapper.certsobj.root_ca_name))
         else:
             r = requests.post(self._url, json=data,
                               verify=False)

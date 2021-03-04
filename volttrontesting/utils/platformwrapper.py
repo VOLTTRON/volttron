@@ -150,7 +150,7 @@ def start_wrapper_platform(wrapper, with_http=False, with_tcp=True,
     assert not wrapper.is_running()
 
     address = get_rand_vip()
-    if wrapper.ssl_auth and os.getenv("CI", False):
+    if wrapper.ssl_auth:
         hostname, port = get_hostname_and_random_port()
         bind_address = 'https://{hostname}:{port}'.format(hostname=hostname, port=port)
     else:
@@ -164,7 +164,7 @@ def start_wrapper_platform(wrapper, with_http=False, with_tcp=True,
     if add_local_vc_address:
         ks = KeyStore(os.path.join(wrapper.volttron_home, 'keystore'))
         ks.generate()
-        if wrapper.ssl_auth is True and os.getenv("CI", False):
+        if wrapper.ssl_auth is True:
             volttron_central_address = vc_http
         else:
             volttron_central_address = vc_tcp
@@ -662,7 +662,7 @@ class PlatformWrapper:
                     authfile.add(entry)
 
                     identity = "dynamic_agent"
-                    capabilities = ['allow_auth_modifications']
+                    capabilities = dict(edit_config_store=dict(identity="/.*/"), allow_auth_modifications=None)
                     # Lets cheat a little because this is a wrapper and add the dynamic agent in here as well
                     ks = KeyStore(KeyStore.get_agent_keystore_path(identity))
                     entry = AuthEntry(credentials=encode_key(decode_key(ks.public)),
@@ -894,7 +894,7 @@ class PlatformWrapper:
                 while times < 10:
                     times += 1
                     try:
-                        if self.ssl_auth and os.getenv("CI", False):
+                        if self.ssl_auth:
                             resp = requests.get(self.discovery_address,
                                                 verify=self.certsobj.cert_file(self.certsobj.root_ca_name))
                         else:
@@ -1542,7 +1542,7 @@ class WebAdminApi(object):
         # resp = requests.post(url, data=data,
         # verify=self.certsobj.remote_cert_bundle_file())
 
-        if self._wrapper.ssl_auth and os.getenv("CI", False):
+        if self._wrapper.ssl_auth:
             resp = requests.post(url, data=data,
                                  verify=self.certsobj.cert_file(self.certsobj.root_ca_name))
         else:
@@ -1557,7 +1557,7 @@ class WebAdminApi(object):
         # application/x-www-form-urlencoded to the request
         # resp = requests.post(url, data=data,
         # verify=self.certsobj.remote_cert_bundle_file())
-        if self._wrapper.ssl_auth and os.getenv("CI", False):
+        if self._wrapper.ssl_auth:
             resp = requests.post(url, data=data,
                                  verify=self.certsobj.cert_file(self.certsobj.root_ca_name))
         else:
