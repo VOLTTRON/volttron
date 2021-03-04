@@ -473,7 +473,7 @@ class VolttronCentralAgent(Agent):
         except Exception as e:
 
             return jsonrpc.json_error(
-                'NA', UNHANDLED_EXCEPTION, e
+                'NA', UNHANDLED_EXCEPTION, str(e)
             )
 
         return self._get_jsonrpc_response(rpcdata.id, result_or_error)
