@@ -31,7 +31,7 @@ Setup mongodb based on using one of the three installation scripts for the corre
 
     .. code-block:: bash
 
-        **sudo service mongod [start|stop|service]**
+        sudo service mongod [start|stop|service]
 
 2. Install as root on Ubuntu
 
@@ -44,7 +44,13 @@ Setup mongodb based on using one of the three installation scripts for the corre
 
     .. code-block:: bash
 
-        **sudo service mongod [start|stop|service]**
+        sudo service mongod [start|stop|service]
+
+    To check the status of the service, use the following command:
+
+    .. code-block:: bash
+
+        sudo service mongod status
 
 3. Install as non root user on any Linux machine
 

@@ -2,6 +2,7 @@
 BASE_DEVICE_TOPIC = "devices/Building/LAB/Device"
 BASE_ANALYSIS_TOPIC = "analysis/Economizer/Building/LAB/Device"
 ALL_TOPIC = "{}/all".format(BASE_DEVICE_TOPIC)
+DATABASE = "mongo_test"
 
 mongo_platform = {
     "agentid": "mongodb-historian",
@@ -10,10 +11,10 @@ mongo_platform = {
         "params": {
             "host": "localhost",
             "port": 27017,
-            "database": "mongo_test",
+            "database": f"{DATABASE}",
             "user": "historian",
             "passwd": "historian",
-            "authSource": "test"
+            "authSource": f"{DATABASE}"
         }
     }
 }
