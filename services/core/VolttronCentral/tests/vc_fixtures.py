@@ -58,7 +58,7 @@ VC_CONFIG = {
 
 @pytest.fixture(scope="module")
 def vc_and_vcp_together(volttron_instance_web):
-    if volttron_instance_web.messagebus == 'rmq':
+    if volttron_instance_web.ssl_auth is True:
         os.environ['REQUESTS_CA_BUNDLE'] = volttron_instance_web.requests_ca_bundle
     vc_uuid = volttron_instance_web.install_agent(
         agent_dir=get_services_core("VolttronCentral"),
@@ -71,6 +71,7 @@ def vc_and_vcp_together(volttron_instance_web):
     # Allow all rmq based csr connections.
     if volttron_instance_web.messagebus == 'rmq':
         volttron_instance_web.enable_auto_csr()
+    gevent.sleep(7)
 
     # vcp_config = PLATFORM_AGENT_CONFIG.copy()
     # vcp_config['volttron-central-address'] = volttron_instance_web.bind_web_address
@@ -79,7 +80,7 @@ def vc_and_vcp_together(volttron_instance_web):
         config_file=PLATFORM_AGENT_CONFIG,
         start=True
     )
-    gevent.sleep(10)
+    gevent.sleep(7)
 
     yield volttron_instance_web
 

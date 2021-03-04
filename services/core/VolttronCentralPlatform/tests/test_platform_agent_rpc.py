@@ -113,7 +113,7 @@ def vc_agent(setup_platform):
     """
     assert setup_platform.instance_name is not None
     setup_platform.allow_all_connections()
-
+    gevent.sleep(5)
     add_volttron_central(setup_platform)
     agent = setup_platform.dynamic_agent
     vcp_identity = None
@@ -129,10 +129,8 @@ def vc_agent(setup_platform):
             break
     if vcp_identity is None:
         pytest.fail("vcp_identity was not connected to the instance.")
-
+    gevent.sleep(5)
     yield agent, vcp_identity
-
-    agent.core.stop(timeout=STANDARD_GET_TIMEOUT)
 
 
 @pytest.mark.vcp
