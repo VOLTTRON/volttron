@@ -725,7 +725,7 @@ class PlatformWrapper:
             if self.remote_platform_ca:
                 ca_bundle_file = os.path.join(self.volttron_home, "cat_ca_certs")
                 with open(ca_bundle_file, 'w') as cf:
-                    if self.messagebus == 'rmq':
+                    if self.ssl_auth:
                         with open(self.certsobj.cert_file(self.certsobj.root_ca_name)) as f:
                             cf.write(f.read())
                     with open(self.remote_platform_ca) as f:

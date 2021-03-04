@@ -59,6 +59,8 @@ jobs:
           source env/bin/activate
           pip install -e .
           pytest volttrontesting/testutils -rf -o junit_family=xunit2 --junitxml=output/test-testutils-${{matrix.os}}-${{ matrix.python-version }}-results.xml
+        env:
+            CI: true
 
       # Archive the results from the pytest to storage.
       - name: Archive test results
