@@ -17,7 +17,6 @@ from volttrontesting.utils.utils import get_hostname_and_random_port, get_rand_v
 
 PRINT_LOG_ON_SHUTDOWN = False
 HAS_RMQ = is_rabbitmq_available()
-print(f"CI is: {os.getenv('CI', None)}")
 ci_skipif = pytest.mark.skipif(os.getenv('CI', False) is True, reason='SSL does not work in CI')
 rmq_skipif = pytest.mark.skipif(not HAS_RMQ,
                                 reason='RabbitMQ is not setup and/or SSL does not work in CI')
