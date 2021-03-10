@@ -1226,7 +1226,7 @@ class BaseHistorianAgent(Agent):
                     # if the success queue is empty then we need not remove
                     # them from the database and we are probably having connection problems.
                     # Update the status and send alert accordingly.
-                    if not self._successful_published:
+                    if not self._successful_published and not self.is_cache_only_enabled():
                         self._send_alert({STATUS_KEY_PUBLISHING: False}, "historian_not_publishing")
                         break
 

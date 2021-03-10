@@ -1,6 +1,10 @@
+from datetime import datetime
+
 import pytest
 import mock
 
+from volttron.platform.agent import utils
+from volttron.platform.messaging import headers as header_mod
 from volttron.platform.vip.agent import Agent
 from volttron.platform.agent.base_historian import BaseHistorianAgent, BaseQueryHistorianAgent, BackupDatabase
 from volttron.platform.vip.agent.results import AsyncResult
@@ -26,7 +30,26 @@ class QueryHelper:
 
 
 # Mock our base historian subsystems
-BaseHistorianAgent.__bases__ = (AgentMock.imitate(Agent, Agent()), )
+BaseHistorianAgent.__bases__ = (AgentMock.imitate(Agent, Agent()),)
+
+
+class ConcreteHistorianAgent(BaseHistorianAgent):
+    def __init__(self, **kwargs):
+        super(ConcreteHistorianAgent, self).__init__(**kwargs)
+        self._published_list_items = []
+        self.start_process_thread()
+
+    def publish_to_historian(self, to_publish_list):
+        self._published_list_items.append(to_publish_list)
+
+    def get_publish_list(self):
+        return self._published_list_items
+
+    def reset_publish_list_items(self):
+        self._published_list_items.clear()
+
+    def has_published_items(self):
+        return len(self._published_list_items) > 0
 
 
 def test_cache_only_default_and_invalid():
@@ -51,7 +74,7 @@ def test_cache_only_default_and_invalid():
 # mock MUST patch where the target is imported not the path to where the code lies.
 @mock.patch(target='volttron.platform.agent.base_historian.Query', new=QueryHelper)
 def test_enable_and_disable_cache_only_through_config_store():
-    agent = BaseHistorianAgent(cache_only_enabled=True)
+    agent = BaseHistorianAgent()
     agent._configure("config", "UPDATE", dict(cache_only_enabled=True))
     assert agent.is_cache_only_enabled()
 
@@ -65,4 +88,39 @@ def test_enable_and_disable_cache_only_through_config_store():
     assert not agent.is_cache_only_enabled()
 
 
+def test_cache_enable():
+    now = utils.format_timestamp(datetime.utcnow())
+    headers = {
+        header_mod.DATE: now,
+        header_mod.TIMESTAMP: now
+    }
+    agent = ConcreteHistorianAgent(cache_only_enabled=True)
+    assert agent is not None
+    device = "devices/testcampus/testbuilding/testdevice"
+    agent._capture_data(peer="foo",
+                        sender="test",
+                        bus="",
+                        topic=device,
+                        headers=headers,
+                        message={"OutsideAirTemperature": 52.5, "MixedAirTemperature": 58.5},
+                        device=device
+                        )
+    agent.start_process_thread()
+    sleep(1)
+    # Should not have published to the concrete historian because we are in cache_only
+    assert not agent.has_published_items()
 
+    agent = ConcreteHistorianAgent(cache_only_enabled=False)  # , process_loop_in_greenlet=False)
+    agent._capture_data(peer="foo",
+                        sender="test",
+                        bus="",
+                        topic=device,
+                        headers=headers,
+                        message={"OutsideAirTemperature ": 52.5, "MixedAirTemperature ": 58.5},
+                        device=device
+                        )
+    agent.start_process_thread()
+    sleep(1)
+    # give a small amount of time so that the queue can get empty
+    assert agent.has_published_items()
+    assert len(agent.get_publish_list()) == 2
