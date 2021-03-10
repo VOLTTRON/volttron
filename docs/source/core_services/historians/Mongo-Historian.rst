@@ -78,8 +78,8 @@ or
 
     ::
 
-        pip install pymongo
-
+        pip install pymongo==3.7.2
+        pip install bson
 
 3. Configuration Options
 ------------------------
