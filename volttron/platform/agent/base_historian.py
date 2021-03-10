@@ -371,6 +371,7 @@ class BaseHistorianAgent(Agent):
                  all_platforms=False,
                  time_tolerance=None,
                  time_tolerance_topics=None,
+                 cache_only_enabled=False,
                  **kwargs):
 
         super(BaseHistorianAgent, self).__init__(**kwargs)
@@ -427,6 +428,10 @@ class BaseHistorianAgent(Agent):
                 raise ValueError(f"time_tolerance_topic should a list of topics. Got value({time_tolerance_topics}) of "
                                  f"type {type(time_tolerance_topics)}")
         self._time_tolerance_topics = time_tolerance_topics
+        if str(cache_only_enabled) in ('True', 'False'):
+            self._cache_only_enabled = cache_only_enabled
+        else:
+            self._cache_only_enabled = False
 
         self._default_config = {
                                 "retry_period":self._retry_period,
@@ -448,7 +453,8 @@ class BaseHistorianAgent(Agent):
                                 "device_data_filter": device_data_filter,
                                 "all_platforms": self._all_platforms,
                                 "time_tolerance": self._time_tolerance,
-                                "time_tolerance_topics": self._time_tolerance_topics
+                                "time_tolerance_topics": self._time_tolerance_topics,
+                                "cache_only_enabled": self._cache_only_enabled
                                }
 
         self.vip.config.set_default("config", self._default_config)
@@ -780,6 +786,9 @@ class BaseHistorianAgent(Agent):
             if topic.startswith(tuple(self._time_tolerance_topics)):
                 return abs(get_aware_utc_now() - utc_timestamp).seconds > self._time_tolerance
         return False
+
+    def is_cache_only_enabled(self):
+        return self._cache_only_enabled
 
     def _capture_record_data(self, peer, sender, bus, topic, headers,
                              message):
