@@ -38,6 +38,7 @@ class ConcreteHistorianAgent(BaseHistorianAgent):
         super(ConcreteHistorianAgent, self).__init__(**kwargs)
         self._published_list_items = []
         self.start_process_thread()
+        sleep(0.5)
 
     def publish_to_historian(self, to_publish_list):
         self._published_list_items.append(to_publish_list)
@@ -105,8 +106,7 @@ def test_cache_enable():
                         message={"OutsideAirTemperature": 52.5, "MixedAirTemperature": 58.5},
                         device=device
                         )
-    agent.start_process_thread()
-    sleep(1)
+    sleep(0.1)
     # Should not have published to the concrete historian because we are in cache_only
     assert not agent.has_published_items()
 
@@ -116,11 +116,10 @@ def test_cache_enable():
                         bus="",
                         topic=device,
                         headers=headers,
-                        message={"OutsideAirTemperature ": 52.5, "MixedAirTemperature ": 58.5},
+                        message={"OutsideAirTemperature": 52.5, "MixedAirTemperature": 58.5},
                         device=device
                         )
-    agent.start_process_thread()
-    sleep(1)
+    sleep(0.1)
     # give a small amount of time so that the queue can get empty
     assert agent.has_published_items()
     assert len(agent.get_publish_list()) == 2

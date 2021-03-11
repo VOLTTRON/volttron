@@ -1216,7 +1216,7 @@ class BaseHistorianAgent(Agent):
                         history_limit_timestamp = last_time_stamp - self._history_limit_days
 
                     try:
-                        if not self.is_cache_only_enabled():
+                        if not cache_only_enabled:
                             self.publish_to_historian(to_publish_list)
                         self.manage_db_size(history_limit_timestamp, self._storage_limit_gb)
                     except:
@@ -1226,12 +1226,15 @@ class BaseHistorianAgent(Agent):
                     # if the success queue is empty then we need not remove
                     # them from the database and we are probably having connection problems.
                     # Update the status and send alert accordingly.
-                    if not self._successful_published and not self.is_cache_only_enabled():
+                    if not self._successful_published and not cache_only_enabled:
                         self._send_alert({STATUS_KEY_PUBLISHING: False}, "historian_not_publishing")
                         break
 
-                    if not cache_only_enabled:
-                        backupdb.remove_successfully_published(
+                    # _successful_published is set when publish_to_historian is called to the concrete
+                    # historian.  Because we don't call that function when cache_only_enabled is True
+                    # the _successful_published will be set().  Therefore we don't need to wrap
+                    # this call with check of cache_only_enabled
+                    backupdb.remove_successfully_published(
                             self._successful_published, self._submit_size_limit)
 
                     backlog_count = backupdb.get_backlog_count()
