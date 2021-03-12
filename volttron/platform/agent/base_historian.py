@@ -317,6 +317,7 @@ STATUS_KEY_CACHE_COUNT = "cache_count"
 STATUS_KEY_PUBLISHING = "publishing"
 STATUS_KEY_CACHE_FULL = "cache_full"
 STATUS_KEY_TIME_ERROR = "records_with_invalid_timestamp"
+STATUS_KEY_CACHE_ONLY = "cache_only_enabled"
 
 
 class BaseHistorianAgent(Agent):
@@ -371,6 +372,7 @@ class BaseHistorianAgent(Agent):
                  all_platforms=False,
                  time_tolerance=None,
                  time_tolerance_topics=None,
+                 cache_only_enabled=False,
                  **kwargs):
 
         super(BaseHistorianAgent, self).__init__(**kwargs)
@@ -416,7 +418,8 @@ class BaseHistorianAgent(Agent):
             STATUS_KEY_CACHE_COUNT: 0,
             STATUS_KEY_BACKLOGGED: False,
             STATUS_KEY_PUBLISHING: True,
-            STATUS_KEY_CACHE_FULL: False
+            STATUS_KEY_CACHE_FULL: False,
+            STATUS_KEY_CACHE_ONLY: False
         }
         self._all_platforms = bool(all_platforms)
         self._time_tolerance = float(time_tolerance) if time_tolerance else None
@@ -427,6 +430,11 @@ class BaseHistorianAgent(Agent):
                 raise ValueError(f"time_tolerance_topic should a list of topics. Got value({time_tolerance_topics}) of "
                                  f"type {type(time_tolerance_topics)}")
         self._time_tolerance_topics = time_tolerance_topics
+        if str(cache_only_enabled) in ('True', 'False'):
+            self._cache_only_enabled = cache_only_enabled
+            self._current_status_context[STATUS_KEY_CACHE_ONLY] = cache_only_enabled
+        else:
+            raise ValueError(f"cache_only_enabled should be either True or False")
 
         self._default_config = {
                                 "retry_period":self._retry_period,
@@ -448,7 +456,8 @@ class BaseHistorianAgent(Agent):
                                 "device_data_filter": device_data_filter,
                                 "all_platforms": self._all_platforms,
                                 "time_tolerance": self._time_tolerance,
-                                "time_tolerance_topics": self._time_tolerance_topics
+                                "time_tolerance_topics": self._time_tolerance_topics,
+                                "cache_only_enabled": self._cache_only_enabled
                                }
 
         self.vip.config.set_default("config", self._default_config)
@@ -556,6 +565,13 @@ class BaseHistorianAgent(Agent):
                     raise ValueError(
                         f"time_tolerance_topic should a list of topics. Got value({time_tolerance_topics}) of "
                         f"type {type(time_tolerance_topics)}")
+
+            cache_only_enabled = config.get("cache_only_enabled", False)
+            if str(cache_only_enabled) not in ('True', 'False'):
+                raise ValueError(f"cache_only_enabled should be either True or False")
+
+            self._cache_only_enabled = cache_only_enabled
+            self._current_status_context[STATUS_KEY_CACHE_ONLY] = cache_only_enabled
             self._time_tolerance_topics = time_tolerance_topics
 
         except ValueError as e:
@@ -780,6 +796,9 @@ class BaseHistorianAgent(Agent):
             if topic.startswith(tuple(self._time_tolerance_topics)):
                 return abs(get_aware_utc_now() - utc_timestamp).seconds > self._time_tolerance
         return False
+
+    def is_cache_only_enabled(self):
+        return self._cache_only_enabled
 
     def _capture_record_data(self, peer, sender, bus, topic, headers,
                              message):
@@ -1172,6 +1191,8 @@ class BaseHistorianAgent(Agent):
                 start_time = datetime.utcnow()
 
                 while True:
+                    # use local variable that will be written only one time during this loop
+                    cache_only_enabled = self.is_cache_only_enabled()
                     to_publish_list = backupdb.get_outstanding_to_publish(
                         self._submit_size_limit)
 
@@ -1195,7 +1216,8 @@ class BaseHistorianAgent(Agent):
                         history_limit_timestamp = last_time_stamp - self._history_limit_days
 
                     try:
-                        self.publish_to_historian(to_publish_list)
+                        if not cache_only_enabled:
+                            self.publish_to_historian(to_publish_list)
                         self.manage_db_size(history_limit_timestamp, self._storage_limit_gb)
                     except:
                         _log.exception(
@@ -1204,18 +1226,23 @@ class BaseHistorianAgent(Agent):
                     # if the success queue is empty then we need not remove
                     # them from the database and we are probably having connection problems.
                     # Update the status and send alert accordingly.
-                    if not self._successful_published:
+                    if not self._successful_published and not cache_only_enabled:
                         self._send_alert({STATUS_KEY_PUBLISHING: False}, "historian_not_publishing")
                         break
 
+                    # _successful_published is set when publish_to_historian is called to the concrete
+                    # historian.  Because we don't call that function when cache_only_enabled is True
+                    # the _successful_published will be set().  Therefore we don't need to wrap
+                    # this call with check of cache_only_enabled
                     backupdb.remove_successfully_published(
-                        self._successful_published, self._submit_size_limit)
+                            self._successful_published, self._submit_size_limit)
 
                     backlog_count = backupdb.get_backlog_count()
                     old_backlog_state = self._current_status_context[STATUS_KEY_BACKLOGGED]
                     self._update_status({STATUS_KEY_PUBLISHING: True,
                                          STATUS_KEY_BACKLOGGED: old_backlog_state and backlog_count > 0,
-                                         STATUS_KEY_CACHE_COUNT: backlog_count})
+                                         STATUS_KEY_CACHE_COUNT: backlog_count,
+                                         STATUS_KEY_CACHE_ONLY: cache_only_enabled})
 
                     if None in self._successful_published:
                         current_published_count += len(to_publish_list)
