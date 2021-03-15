@@ -17,7 +17,9 @@ from volttrontesting.utils.utils import get_hostname_and_random_port, get_rand_v
 
 PRINT_LOG_ON_SHUTDOWN = False
 HAS_RMQ = is_rabbitmq_available()
-rmq_skipif = pytest.mark.skipif(not HAS_RMQ, reason='RabbitMQ is not setup')
+ci_skipif = pytest.mark.skipif(os.getenv('CI', None) == 'true', reason='SSL does not work in CI')
+rmq_skipif = pytest.mark.skipif(not HAS_RMQ,
+                                reason='RabbitMQ is not setup and/or SSL does not work in CI')
 
 
 def print_log(volttron_home):
@@ -241,6 +243,7 @@ def volttron_instance_rmq(request):
 @pytest.fixture(scope="module",
                 params=[
                     dict(messagebus='zmq', ssl_auth=False),
+                    pytest.param(dict(messagebus='zmq', ssl_auth=True), marks=ci_skipif),
                     pytest.param(dict(messagebus='rmq', ssl_auth=True), marks=rmq_skipif),
                 ])
 def volttron_instance_web(request):
@@ -263,13 +266,17 @@ def volttron_instance_web(request):
 
     cleanup_wrapper(wrapper)
 
+#TODO: Add functionality for http use case for tests
 
 @pytest.fixture(scope="module",
                 params=[
-                    dict(sink='zmq_web', source='zmq'),
-                    pytest.param(dict(sink='rmq_web', source='zmq'), marks=rmq_skipif),
-                    pytest.param(dict(sink='rmq_web', source='rmq'), marks=rmq_skipif),
-                    pytest.param(dict(sink='zmq_web', source='rmq'), marks=rmq_skipif),
+                    dict(sink='zmq_web', source='zmq', zmq_ssl=False),
+                    pytest.param(dict(sink='zmq_web', source='zmq', zmq_ssl=True), marks=ci_skipif),
+                    pytest.param(dict(sink='rmq_web', source='zmq', zmq_ssl=False), marks=rmq_skipif),
+                    pytest.param(dict(sink='rmq_web', source='rmq', zmq_ssl=False), marks=rmq_skipif),
+                    pytest.param(dict(sink='zmq_web', source='rmq', zmq_ssl=False), marks=rmq_skipif),
+                    pytest.param(dict(sink='zmq_web', source='rmq', zmq_ssl=True), marks=rmq_skipif),
+
                 ])
 def volttron_multi_messagebus(request):
     """ This fixture allows multiple two message bus types to be configured to work together
@@ -293,7 +300,13 @@ def volttron_multi_messagebus(request):
             web_address = 'https://{hostname}:{port}'.format(hostname=hostname, port=port)
             messagebus = 'rmq'
             ssl_auth = True
+        elif request.param['sink'] == 'zmq_web' and request.param['zmq_ssl'] is True:
+            hostname, port = get_hostname_and_random_port()
+            web_address = 'https://{hostname}:{port}'.format(hostname=hostname, port=port)
+            messagebus = 'zmq'
+            ssl_auth = True
         else:
+            hostname, port = get_hostname_and_random_port()
             web_address = "http://{}".format(get_rand_ip_and_port())
             messagebus = 'zmq'
             ssl_auth = False
@@ -304,6 +317,7 @@ def volttron_multi_messagebus(request):
                              bind_web_address=web_address,
                              volttron_central_address=web_address,
                              instance_name="volttron1")
+        # sink.web_admin_api.create_web_admin("admin", "admin")
 
         source_address = get_rand_vip()
         messagebus = 'zmq'
@@ -322,6 +336,13 @@ def volttron_multi_messagebus(request):
                                    volttron_central_address=sink.bind_web_address,
                                    remote_platform_ca=sink.certsobj.cert_file(sink.certsobj.root_ca_name),
                                    instance_name='volttron2')
+        elif sink.messagebus == 'zmq' and sink.ssl_auth is True:
+            source = build_wrapper(source_address,
+                                   ssl_auth=ssl_auth,
+                                   messagebus=messagebus,
+                                   volttron_central_address=sink.bind_web_address,
+                                   remote_platform_ca=sink.certsobj.cert_file(sink.certsobj.root_ca_name),
+                                   instance_name='volttron2')
         else:
             source = build_wrapper(source_address,
                                    ssl_auth=ssl_auth,
@@ -333,9 +354,15 @@ def volttron_multi_messagebus(request):
         return source, sink
 
     def cleanup():
-        cleanup_wrapper(get_volttron_multi_msgbus_instances.source)
-        cleanup_wrapper(get_volttron_multi_msgbus_instances.sink)
-
+        # Handle the case where source or sink fail to be created
+        try:
+            cleanup_wrapper(get_volttron_multi_msgbus_instances.source)
+        except AttributeError as e:
+            print(e)
+        try:
+            cleanup_wrapper(get_volttron_multi_msgbus_instances.sink)
+        except AttributeError as e:
+            print(e)
     request.addfinalizer(cleanup)
 
     return get_volttron_multi_msgbus_instances

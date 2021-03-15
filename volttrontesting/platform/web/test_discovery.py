@@ -51,11 +51,11 @@ def test_discovery_endpoint(volttron_instance_web):
     :return:
         """
     wrapper = volttron_instance_web
+
+    # Both http and https start with http
+    assert wrapper.bind_web_address.startswith('http')
     if wrapper.messagebus == 'rmq':
-        assert wrapper.bind_web_address.startswith('https')
         os.environ['REQUESTS_CA_BUNDLE'] = wrapper.requests_ca_bundle
-    else:
-        assert wrapper.bind_web_address.startswith('http')
 
     info = DiscoveryInfo.request_discovery_info(wrapper.bind_web_address)
 
