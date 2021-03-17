@@ -70,7 +70,7 @@ def test_admin_unauthorized():
 
 
 @pytest.mark.web
-def test_set_master_password_setup():
+def test_set_platform_password_setup():
     with get_test_volttron_home(messagebus='zmq') as vhome:
         # Note these passwords are not right so we expect to be redirected back to the
         # first.html

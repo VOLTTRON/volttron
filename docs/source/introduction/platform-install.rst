@@ -101,6 +101,9 @@ On **Redhat or CentOS systems**, these can be installed from the Extra Packages 
 It may be possible to deploy VOLTTRON on a system not listed above but may involve some troubleshooting and dependency
 management on the part of the user.
 
+In order to support historians, the python installation must include the built-in sqlite3 support (a compile time option).
+This is included in all of the linux distribution packages referenced above, which is the recommended and supported way of running python.
+In cases where a user needs to compile their own python (not an officially supported configuration), make sure that the sqlite3 option is enabled.
 
 Step 2 - Clone VOLTTRON code
 ============================
@@ -114,9 +117,9 @@ Repository Structure
 There are several options for using the VOLTTRON code depending on whether you require the most stable version of the
 code or want the latest updates as they happen. In order of decreasing stability and increasing currency:
 
-* `Master` - Most stable release branch, current major release is 7.0.  This branch is default.
+* `Main` - Most stable release branch, current major release is 7.0.  This branch is default.
 * `develop` - contains the latest `finished` features as they are developed.  When all features are stable, this branch
-  will be merged into `Master`.
+  will be merged into `Main`.
 
   .. note::
 
@@ -178,8 +181,15 @@ Proceed to step 4.
 Steps for RabbitMQ
 ------------------
 
+Step 1 - Install Required Packages and Activate the Virtual Environment
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Step 1 - Install Erlang packages
+Setting up RabbmitMQ requires additional steps; but before running those steps we still need to install the required
+packages and activate the virtual environment just as we did in the Steps for ZeroMQ. To do so, see :ref:`ZeroMQ-Install`.
+Once finished, proceed to the next step.
+
+
+Step 2 - Install Erlang packages
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 For RabbitMQ based VOLTTRON, some of the RabbitMQ specific software packages have to be installed.
@@ -212,9 +222,9 @@ Example command:
 Alternatively
 """""""""""""
 
-You can download and install Erlang from [Erlang Solutions](https://www.erlang-solutions.com/resources/download.html).
+You can download and install Erlang from `Erlang Solutions <https://www.erlang-solutions.com/resources/download.html>`_.
 Please include OTP/components - ssl, public_key, asn1, and crypto.
-Also lock your version of Erlang using the [yum-plugin-versionlock](https://access.redhat.com/solutions/98873)
+Also lock your version of Erlang using the `yum-plugin-versionlock <https://access.redhat.com/solutions/98873>`_.
 
 .. note::
     Currently VOLTTRON only officially supports specific versions of Erlang for each operating system:
@@ -224,11 +234,11 @@ Also lock your version of Erlang using the [yum-plugin-versionlock](https://acce
             `here <https://dl.bintray.com/rabbitmq-erlang/rpm/erlang>`_
 
 
-Step 2 - Configure hostname
+Step 3 - Configure hostname
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Make sure that your hostname is correctly configured in /etc/hosts.
-See (<https://stackoverflow.com/questions/24797947/os-x-and-rabbitmq-error-epmd-error-for-host-xxx-address-cannot-connect-to-ho>).
+See this `StackOverflow post <https://stackoverflow.com/questions/24797947/os-x-and-rabbitmq-error-epmd-error-for-host-xxx-address-cannot-connect-to-ho>`_.
 If you are testing with VMs make please make sure to provide unique host names for each of the VMs you are using.
 
 The hostname should be resolvable to a valid IP when running on bridged mode. RabbitMQ checks for this during initial
@@ -241,7 +251,7 @@ to connect to empd (port 4369) on <hostname>."
     (/var/log/rabbitmq/rabbitmq@hostname.log)
 
 
-Step 3 - Bootstrap the environment
+Step 4 - Bootstrap the environment
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: bash
@@ -259,11 +269,12 @@ documentation refers to the directory `<install dir>/rabbitmq_server-3.7.7` as `
    There are many additional :ref:`options for bootstrap.py <Bootstrap-Process>` for including dependencies, altering
    the environment, etc.
 
-You can check if the RabbitMQ server is installed by checking its status:
+By bootstrapping the environment for RabbitMQ, an environmental variable $RABBITMQ_HOME is created for your convenience.
+Thus, you can use $RABBITMQ_HOME to see if the RabbitMQ server is installed by checking its status:
 
 .. code-block:: bash
 
-    service rabbitmq status
+    $RABBITMQ_HOME/sbin/rabbitmqctl status
 
 .. note::
 
@@ -277,18 +288,6 @@ You can check if the RabbitMQ server is installed by checking its status:
     $RABBITMQ_HOME/sbin/rabbitmqctl status
 
 
-Step 4 - Activate the environment
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-.. code-block:: bash
-
-    source env/bin/activate
-
-.. note::
-
-    You can deactivate the environment at any time by running :bash:`deactivate`.
-
-
 Step 5 - Configure RabbitMQ setup for VOLTTRON
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -296,9 +295,8 @@ Step 5 - Configure RabbitMQ setup for VOLTTRON
 
     vcfg --rabbitmq single [optional path to rabbitmq_config.yml]
 
-Refer to [examples/configurations/rabbitmq/rabbitmq_config.yml](examples/configurations/rabbitmq/rabbitmq_config.yml)
-for a sample configuration file.  At a minimum you will need to provide the host name and a unique common-name
-(under certificate-data) in the configuration file.
+A sample configuration file can be found in the VOLTTRON repository in **examples/configurations/rabbitmq/rabbitmq_config.yml**.
+At a minimum you will need to provide the host name and a unique common-name (under certificate-data) in the configuration file.
 
 .. note::
 
@@ -329,6 +327,10 @@ exchange to capture unrouteable messages.
     .. code-block:: bash
 
        vcfg --vhome /home/vdev/.new_vhome --rabbitmq single
+
+.. note::
+
+    The default behavior generates a certificate which is valid for a period of 1 year.
 
 The Following are the example inputs for `vcfg --rabbitmq single` command.  Since no config file is passed the script
 prompts for necessary details.
@@ -439,6 +441,8 @@ or use the included `stop-volttron` script:
         volttron -vv -l volttron.log > /dev/null 2>&1&
 
 
+.. _installing-and-running-agents:
+
 Installing and Running Agents
 -----------------------------
 
@@ -477,7 +481,7 @@ You can also use the `volttron-ctl` (or `vctl`) command to start, stop or check 
     (volttron)volttron@volttron1:~/git/rmq_volttron$ vctl status
       AGENT                  IDENTITY            TAG           STATUS          HEALTH
     6 listeneragent-3.2      listeneragent-3.2_1               running [13125] GOOD
-    f master_driveragent-3.2 platform.driver     master_driver
+    f platform_driveragent-3.2 platform.driver     platform_driver
 
 .. code-block:: bash
 

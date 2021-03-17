@@ -46,8 +46,8 @@ Parameters
     and daily totals (TDY).  Using the "track_totalizers" setting, the ted-meter driver will attempt to maintain
     monotonically increasing lifetime totalizers.  To do so, it must retain state regarding the running total and
     the last read value.  The driver makes use of the VOLTTRON Config subsystem to store this state.  To reset these
-    totals, delete the 1state/ted_meter/<device_path>1 config from the master driver config store and restart the
-    master driver.
+    totals, delete the 1state/ted_meter/<device_path>1 config from the platform driver config store and restart the
+    platform driver.
 
 .. note::
 
@@ -56,7 +56,7 @@ Parameters
 
 .. note::
 
-    This driver is internally aware of the appropriate HayStack Tags for its registers, however, the Master Driver makes
+    This driver is internally aware of the appropriate HayStack Tags for its registers, however, the Platform Driver makes
     no provision for publishing those tags during a scrape. Therefore, integration of the tagging data is left to the
     end user.
 

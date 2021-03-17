@@ -226,6 +226,7 @@ The following example uses the same filters as above, and then uses ``display_ex
 to display a single line for each message exchange, reducing the number of displayed rows from 6 to 2.
 Note that not all messages have a request ID; messages with no ID are absent from the responses to
 exchange queries.
+
 ::
 
     Viewer> list_filters
@@ -290,7 +291,7 @@ as in the following example:
     Viewer>
 
 Another filter type with special behavior is ``set_filter results_only 1``. In the JSON representation of a
-response to an RPC call, for example an RPC call to a Master Driver interface, the response to the
+response to an RPC call, for example an RPC call to a Platform Driver interface, the response to the
 RPC request typically appears as the value of a 'result' tag. The ``results_only`` filter matches
 only those messages that have a non-empty value for this tag.
 

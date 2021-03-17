@@ -149,10 +149,9 @@ def weather(request, volttron_instance):
     agent = volttron_instance.install_agent(
         vip_identity=identity,
         agent_dir=source,
-        start=False,
+        start=True,
         config_file=config)
 
-    volttron_instance.start_agent(agent)
     gevent.sleep(3)
 
     def stop_agent():
@@ -169,7 +168,7 @@ def weather(request, volttron_instance):
     [{"lat": 39.7555, "long": -105.2211}, {"lat": 46.2804, "long": -119.2752}]
 ])
 @pytest.mark.darksky
-def test_success_current(volttron_instance, cleanup_cache, weather, locations):
+def test_success_current(volttron_instance, cleanup_cache, query_agent, weather, locations):
     weather_uuid = weather[0]
     identity = weather[1]
     version = query_agent.vip.rpc.call(identity, 'get_version').get(timeout=3)
@@ -615,7 +614,6 @@ def test_forecast_fail(weather, query_agent, locations, service):
         assert record.get("weather_results") is None
 
 
-@pytest.mark.darksky
 @pytest.mark.parametrize('config, result_topics', [
     ({'poll_locations': [{"lat": 39.7555, "long": -105.2211},
                          {"lat": 46.2804, "long": 119.2752}],
@@ -631,17 +629,25 @@ def test_forecast_fail(weather, query_agent, locations, service):
       },
      ['weather/poll/current/test1', 'weather/poll/current/test2'])
 ])
+@pytest.mark.darksky
 def test_polling_locations_valid_config(volttron_instance, query_agent, config, result_topics):
     agent_uuid = None
-    query_agent.poll_callback.reset_mock()
     try:
         agent_uuid = volttron_instance.install_agent(
             vip_identity="poll.weather",
             agent_dir=get_services_core("Darksky"),
-            start=False,
+            start=True,
             config_file=config)
-        volttron_instance.start_agent(agent_uuid)
-        gevent.sleep(3)
+
+        # wait for the agent to start up
+        gevent.sleep(1)
+
+        # make sure we don't have any existing callback args
+        query_agent.poll_callback.reset_mock()
+
+        # wait for the duration of the update interval
+        gevent.sleep(config.get("poll_interval"))
+
         print(query_agent.poll_callback.call_args_list)
         assert len(result_topics) == query_agent.poll_callback.call_count
         assert "poll.weather" == query_agent.poll_callback.call_args[0][1]

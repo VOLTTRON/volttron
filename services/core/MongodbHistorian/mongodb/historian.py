@@ -65,13 +65,8 @@ from volttron.platform.scheduling import periodic
 from volttron.utils.docs import doc_inherit
 
 try:
-    import ujson
+    from ujson import  dumps, loads
 
-    def dumps(data):
-        return ujson.dumps(data, double_precision=15)
-
-    def loads(data_string):
-        return ujson.loads(data_string, precise_float=True)
 except ImportError:
     from volttron.platform.jsonapi import dumps, loads
 

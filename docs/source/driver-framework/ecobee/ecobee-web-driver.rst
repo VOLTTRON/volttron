@@ -5,7 +5,7 @@ Ecobee Driver
 =============
 
 The Ecobee driver is an implementation of a :ref:`VOLTTRON driver framework <Driver-Framework>` Interface.
-In this case, the Master Driver issues commands to the Ecobee driver to collect data from and send control signals to
+In this case, the Platform Driver issues commands to the Ecobee driver to collect data from and send control signals to
 `Ecobee's remote web API <https://www.ecobee.com/home/developer/api/introduction/index.shtml>`_
 
 .. note::
@@ -19,7 +19,7 @@ This guide covers:
 * Creating an Ecobee driver configuration file, including finding the user's Ecobee API key and Ecobee thermostat serial
   number
 * Creating an Ecobee registry configuration file
-* Installing the Master Driver and loading Ecobee driver and registry configurations
+* Installing the Platform Driver and loading Ecobee driver and registry configurations
 * Starting the driver and viewing Ecobee data publishes
 
 
@@ -81,7 +81,7 @@ The driver configuration works as follows:
     DEVICE_ID,This is the device number of the Ecobee thermostat the driver is responsible for operating. This must be obtained by the user from the Ecobee web UI. Notes on how to do this will be provided below
     driver_type,This value should match the name of the python file which contains the interface class implementation for the Ecobee driver and should not change
     registry_config,This should a user specified path of the form "config://<path>. It is recommended to use the device topic string following "devices" with the file extension ("config://<campus>/<building?/ecobee.csv") to help the user keep track of configuration pairs in the store.  This value must be used when storing the config (see installation step below)
-    interval,"This should specify the time in seconds between publishes to the message bus by the Master Driver for the Ecobee driver (Note: the user can specify an interval for the Ecobee driver which is shorter than 180 seconds, however Ecobee API data is only updated at 180 second intervals, so old data will be published if a scrape occurs between updates.)"
+    interval,"This should specify the time in seconds between publishes to the message bus by the Platform Driver for the Ecobee driver (Note: the user can specify an interval for the Ecobee driver which is shorter than 180 seconds, however Ecobee API data is only updated at 180 second intervals, so old data will be published if a scrape occurs between updates.)"
     timezone,Timezone to use for publishing timestamps. This value should match the `timezone from the Ecobee device <https://bit.ly/2Bvnols>`_
 
 .. note::
@@ -107,7 +107,7 @@ The driver configuration works as follows:
 Registry Configuration
 ----------------------
 
-This file specifies how data is read from Ecobee API response data as well as how points are set via the Master Driver
+This file specifies how data is read from Ecobee API response data as well as how points are set via the Platform Driver
 and actuator.
 
 It is likely that more points may be added to obtain additional data, but barring implementation changes by Ecobee it is
@@ -170,12 +170,12 @@ platform and connect it to the Ecobee remote API:
 
         source env/bin/activate
 
-#. Install a Master Driver if one is not yet installed
+#. Install a Platform Driver if one is not yet installed
 
     .. code-block:: Bash
 
-        python scripts/install-agent.py --agent-source services/core/MasterDriverAgent --config \
-        examples/configurations/drivers/master-driver.agent --tag platform.driver
+        python scripts/install-agent.py --agent-source services/core/PlatformDriverAgent --config \
+        examples/configurations/drivers/platform-driver.agent --tag platform.driver
 
 #. Load the driver configuration into the configuration store ("vctl config list platform.driver" can be used to show
    installed configurations)
@@ -190,13 +190,13 @@ platform and connect it to the Ecobee remote API:
 
         vctl config store platform.driver campus/building/ecobee.csv $VOLTTRON_ROOT/configs/ecobee.csv --csv
 
-#. Start the master driver
+#. Start the platform driver
 
     .. code-block:: Bash
 
         vctl start platform.driver
 
-At this point, the master driver will start, configure the driver agent, and data should start to publish on the publish
+At this point, the platform driver will start, configure the driver agent, and data should start to publish on the publish
 interval.
 
 .. note::
@@ -234,7 +234,7 @@ This will complete the pin verification step.
 Ecobee Driver Usage
 ===================
 
-At the configured interval, the master driver will publish a JSON object
+At the configured interval, the platform driver will publish a JSON object
 with data obtained from Ecobee based on the provided configuration files.
 
 To view the publishes in the `volttron.log` file, install and start a ListenerAgent:

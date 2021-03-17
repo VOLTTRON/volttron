@@ -458,7 +458,7 @@ class PlatformHandler(object):
         agent_identity = params.get("agent_identity")
         if config_name.startswith("devices"):
             # Since we start with devices, we assume that we are attempting
-            # to save a master driver config file.
+            # to save a platform driver config file.
             rawdict = jsonapi.loads(params['raw_contents'])
 
             # if this is not a bacnet device_type then we cannot do anything

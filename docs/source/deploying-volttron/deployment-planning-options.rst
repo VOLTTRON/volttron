@@ -181,6 +181,7 @@ This will start a rotate the log file at midnight and limit the total log data t
 The main downside to this approach is that the VOLTTRON platform will not automatically
 resume if the system is restarted. It will need to be restarted manually after reboot.
 
+.. _system service setup:
 
 Setting up VOLTTRON as a System Service
 ---------------------------------------

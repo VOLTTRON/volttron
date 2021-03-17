@@ -152,7 +152,7 @@ def create_rmq_volttron_setup(vhome=None, ssl_auth=False, env=None,
 
     # instance name is the basename of the volttron home now.
     rabbit_config_obj.instance_name = instance_name
-    rabbit_config_obj.node_name = os.path.basename(vhome)
+    rabbit_config_obj.node_name = os.path.basename(os.path.dirname(vhome))
 
     os.mkdir(os.path.join(vhome, "rmq_node_data"))
 
@@ -168,7 +168,8 @@ def create_rmq_volttron_setup(vhome=None, ssl_auth=False, env=None,
     host, rabbit_config_obj.rabbitmq_config['mgmt-port'] = get_hostname_and_random_port(10000, 20000)
     host, rabbit_config_obj.rabbitmq_config['mgmt-port-ssl'] = get_hostname_and_random_port(10000, 20000)
     rabbit_config_obj.rabbitmq_config['host'] = host
-    rabbit_config_obj.rabbitmq_config['certificate-data']['common-name'] = '{}_root_ca'.format(rabbit_config_obj.instance_name)
+    rabbit_config_obj.rabbitmq_config['certificate-data']['common-name'] = \
+        '{}_root_ca'.format(rabbit_config_obj.instance_name)
 
     from pprint import pprint
     print("RMQ Node Name: {} env: ".format(rabbit_config_obj.node_name))

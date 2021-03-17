@@ -54,7 +54,7 @@ utils.setup_logging()
 _log = logging.getLogger(__name__)
 
 # Ambient agent tests rely upon the configuration of devices operated
-# by the owner/operater of Ambient devices - To run the Ambient tests
+# by the owner/operator of Ambient devices - To run the Ambient tests
 # the test_data/test_ambient_data.json file should be populated:
 # api_key should be filled in with a valid Ambient API key, app_key
 # with an Ambient application key, and locations with a list of device
@@ -157,10 +157,9 @@ def weather(request, volttron_instance):
     agent = volttron_instance.install_agent(
         vip_identity=identity,
         agent_dir=source,
-        start=False,
+        start=True,
         config_file=config)
 
-    volttron_instance.start_agent(agent)
     gevent.sleep(3)
 
     def stop_agent():
@@ -307,15 +306,22 @@ def test_polling_locations_valid_config(volttron_instance, query_agent, config,
     :return:
     """
     agent_uuid = None
-    query_agent.poll_callback.reset_mock()
     try:
         agent_uuid = volttron_instance.install_agent(
             vip_identity="poll.weather",
             agent_dir=ambient_agent_path,
-            start=False,
+            start=True,
             config_file=config)
-        volttron_instance.start_agent(agent_uuid)
-        gevent.sleep(3)
+
+        # wait for the agent to start up
+        gevent.sleep(1)
+
+        # make sure we don't have any existing callback args
+        query_agent.poll_callback.reset_mock()
+
+        # wait for the update interval
+        gevent.sleep(config.get("poll_interval"))
+
         print(query_agent.poll_callback.call_args_list)
         assert len(result_topics) == query_agent.poll_callback.call_count
         assert "poll.weather" == query_agent.poll_callback.call_args[0][1]

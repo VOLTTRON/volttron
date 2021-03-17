@@ -41,9 +41,9 @@ import datetime
 import logging
 import sys
 import time
-import gevent
 
-from volttron.platform.agent.base_historian import BaseHistorian, add_timing_data_to_header
+from volttron.platform import jsonapi
+from volttron.platform.agent.base_historian import BaseHistorian
 from volttron.platform.agent import utils
 
 from paho.mqtt.client import MQTTv311, MQTTv31
@@ -55,28 +55,40 @@ _log = logging.getLogger(__name__)
 __version__ = '0.2'
 
 
+def historian(config_path, **kwargs):
+    if isinstance(config_path, dict):
+        config_dict = config_path
+    else:
+        config_dict = utils.load_config(config_path)
+
+    connection = config_dict.get('connection', None)
+    assert connection is not None
+
+    utils.update_kwargs_with_config(kwargs, config_dict)
+
+    return MQTTHistorian(**kwargs)
+
+
 class MQTTHistorian(BaseHistorian):
-    """This historian publishes data to MQTT.
+    """
+    This historian publishes data to a MQTT Broker.
     """
 
-    def __init__(self, config_path, **kwargs):
-        config = utils.load_config(config_path)
-
-
+    def __init__(self, connection, **kwargs):
         # We pass every optional parameter to the MQTT library functions so they
         # default to the same values that paho uses as defaults.
-        self.mqtt_qos = config.get('mqtt_qos', 0)
-        self.mqtt_retain = config.get('mqtt_retain', False)
+        self.mqtt_qos = connection.get('mqtt_qos', 0)
+        self.mqtt_retain = connection.get('mqtt_retain', False)
 
-        self.mqtt_hostname = config.get('mqtt_hostname', 'localhost')
-        self.mqtt_port = config.get('mqtt_port', 1883)
-        self.mqtt_client_id = config.get('mqtt_client_id', '')
-        self.mqtt_keepalive = config.get('mqtt_keepalive', 60)
-        self.mqtt_will = config.get('mqtt_will', None)
-        self.mqtt_auth = config.get('mqtt_auth', None)
-        self.mqtt_tls = config.get('mqtt_tls', None)
+        self.mqtt_hostname = connection.get('mqtt_hostname', 'localhost')
+        self.mqtt_port = connection.get('mqtt_port', 1883)
+        self.mqtt_client_id = connection.get('mqtt_client_id', '')
+        self.mqtt_keepalive = connection.get('mqtt_keepalive', 60)
+        self.mqtt_will = connection.get('mqtt_will', None)
+        self.mqtt_auth = connection.get('mqtt_auth', None)
+        self.mqtt_tls = connection.get('mqtt_tls', None)
 
-        protocol = config.get('mqtt_protocol', MQTTv311)
+        protocol = connection.get('mqtt_protocol', MQTTv311)
         if protocol == "MQTTv311":
             protocol = MQTTv311
         elif protocol == "MQTTv31":
@@ -96,10 +108,7 @@ class MQTTHistorian(BaseHistorian):
         return time.mktime(datetime.datetime.now().timetuple())
 
     def publish_to_historian(self, to_publish_list):
-        _log.debug("publish_to_historian number of items: {}"
-                   .format(len(to_publish_list)))
-        current_time = self.timestamp()
-
+        _log.debug("publish_to_historian number of items: {}".format(len(to_publish_list)))
         if self._last_error:
             # if we failed we need to wait 60 seconds before we go on.
             if self.timestamp() < self._last_error + 60:
@@ -112,7 +121,8 @@ class MQTTHistorian(BaseHistorian):
 
             # Construct payload from data in the publish item.
             # Available fields: 'value', 'headers', and 'meta'
-            payload = x['value']
+            payload = jsonapi.dumps(x['value'])
+            _log.debug(f'payload: {payload}, topic {topic}')
 
             to_send.append({'topic': topic,
                             'payload': payload,
@@ -131,14 +141,16 @@ class MQTTHistorian(BaseHistorian):
                              protocol=self.mqtt_protocol)
             self.report_all_handled()
         except Exception as e:
-            _log.warning("Exception ({}) raised by publish: {}".format(
-                e.__class__.__name__,
-                e))
+            _log.warning("Exception ({}) raised by publish: {}".format(e.__class__.__name__, e))
             self._last_error = self.timestamp()
 
 
 def main(argv=sys.argv):
-    utils.vip_main(MQTTHistorian)
+    try:
+        utils.vip_main(historian, version=__version__)
+    except Exception as e:
+        print(e)
+        _log.exception('unhandled exception')
 
 
 if __name__ == '__main__':

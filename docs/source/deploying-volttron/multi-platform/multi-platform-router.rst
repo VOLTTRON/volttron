@@ -16,7 +16,7 @@ subscribed to topic "devices".
 -  `Multi-Platform Configuration <#multi-platform-configuration>`__
 -  `Configuration and Authentication in Setup Mode <#configuration-and-authentication-in-setup-mode>`__
 -  `Setup Configuration and Authentication Manually <#setup-configuration-and-authentication-manually>`__
--  `Start Master driver on VOLTTRON instance 1 <#start-master-driver-on-volttron-instance-1>`__
+-  `Start Platform driver on VOLTTRON instance 1 <#start-platform-driver-on-volttron-instance-1>`__
 -  `Start Listener agents on VOLTTRON instance 2 and 3 <#start-listener-agents-on-volttron-instance-2-and-3>`__
 -  `Stopping All the Platforms <#stopping-all-the-platforms>`__
 
@@ -58,7 +58,7 @@ variable needs to be different for each instance.
 
 Run `vcfg` in all the three shells. This command will ask how the instance
 should be set up. Many of the options have defaults and that will be sufficient.  Enter a different VIP address for each
-platform.  Configure fake master driver in the first shell and listener agent in second and third shell.
+platform.  Configure fake platform driver in the first shell and listener agent in second and third shell.
 
 |Terminator Setup|
 
@@ -105,7 +105,7 @@ VOLTTRON to log to a file. The file name should be different for each instance.
 
 .. code-block:: console
 
-    $ ./start-volttron --setup-mode
+    $ volttron -vv -l volttron.log --setup-mode > volttron.log 2>&1 &
 
 A new auth entry is added for each new platform connection. This can be checked with below command in each terminal
 window.
@@ -195,15 +195,15 @@ Once the initial configuration are setup, you can start all the VOLTTRON instanc
 Next step is to start agents in each platform to observe the multi-platform PubSub communication behavior.
 
 
-Start Master driver on VOLTTRON instance 1
-------------------------------------------
+Start Platform driver on VOLTTRON instance 1
+--------------------------------------------
 
-If master driver is not configured to auto start when the instance starts up, we can start it explicitly with this
+If platform driver is not configured to auto start when the instance starts up, we can start it explicitly with this
 command.
 
 .. code-block:: console
 
-    $ vctl start --tag master_driver
+    $ vctl start --tag platform_driver
 
 
 Start Listener agents on VOLTTRON instance 2 and 3

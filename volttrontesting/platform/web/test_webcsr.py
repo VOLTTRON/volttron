@@ -7,7 +7,7 @@ def test_can_change_auto_allow_csr(volttron_instance_web):
     """ Test the functionality of the platform wrapper's enable_auto_csr
 
         This allows the turning on and off of the csr auto accept through
-        the master.web service.  The platform wrapper itself handles the
+        the platform.web service.  The platform wrapper itself handles the
         assertion that the changes were made correctly.
 
         note this will only work with an rmq instance.

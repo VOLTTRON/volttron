@@ -3,6 +3,7 @@ import pytest
 from volttron.platform import get_examples
 
 
+@pytest.mark.skip(reason="To test actions on github")
 @pytest.mark.wrapper
 def test_can_install_listeners_on_different_instances(get_volttron_instances):
 

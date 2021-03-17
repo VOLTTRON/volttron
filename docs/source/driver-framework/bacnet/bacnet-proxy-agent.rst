@@ -174,7 +174,7 @@ and a device on the second network:
 
 Notice that both configs use the same registry configuration (config://registry_configs/bacnet.csv). This is perfectly
 fine as long as the registry configuration is appropriate for both devices.  For scraping large numbers of points from
-a single BACnet device, there is an optional timeout parameter provided, to prevent the master driver  timing out while
+a single BACnet device, there is an optional timeout parameter provided, to prevent the platform driver  timing out while
 the BACnet Proxy Agent is collecting points.
 
 
@@ -183,7 +183,7 @@ BACnet Change of Value Services
 
 |BACnet Change of Value Communications|
 
-Change of Value Services added in version 0.5 of the BACnet Proxy and version 3.2 of the Master Driver.
+Change of Value Services added in version 0.5 of the BACnet Proxy and version 3.2 of the Platform Driver.
 
 There are a variety of scenarios in which a user may desire data from some BACnet device point values to be published
 independently of the regular scrape interval.  Bacpypes provides a "ChangeOfValueServices" (hereby referred to as 'COV')
