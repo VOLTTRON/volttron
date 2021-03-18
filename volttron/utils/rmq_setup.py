@@ -941,10 +941,15 @@ def prompt_shovels(vhome, verbose=False):
     shovel_config_file = os.path.join(vhome, 'rabbitmq_shovel_config.yml')
 
     if os.path.exists(shovel_config_file):
-        shovel_config = read_config_file(shovel_config_file)
-    else:
-        shovel_config = {}
+        prompt = "rabbitmq_shovel_config.yml exists in {} Do you wish to " \
+                 "use this file to configure shovels".format(shovel_config_file)
+        prompt = prompt_response(prompt,
+                                 valid_answers=y_or_n,
+                                 default='Y')
+        if prompt in y:
+            return
 
+    shovel_config = {}
     shovels = shovel_config.get('shovels', {})
     prompt = 'Number of destination hosts to configure:'
     count = prompt_response(prompt, default=1)
@@ -972,7 +977,6 @@ def prompt_shovels(vhome, verbose=False):
             time.sleep(2)
             shovels[host]['shovel-user'] = instance_name + "." + shovel_user
             #_log.debug("shovel_user: {}".format(shovel_user))
-
 
             certs_config = _prompt_csr_request(shovel_user, host, 'shovel', verbose)
             if not certs_config:
