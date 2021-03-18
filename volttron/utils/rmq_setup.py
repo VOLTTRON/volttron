@@ -948,7 +948,10 @@ def prompt_shovels(vhome, verbose=False):
                                  default='Y')
         if prompt in y:
             return
-
+        else:
+            _log.info("New input data will be used to overwrite existing "
+                      "{}".format(shovel_config_file))
+            
     shovel_config = {}
     shovels = shovel_config.get('shovels', {})
     prompt = 'Number of destination hosts to configure:'
