@@ -296,6 +296,10 @@ class PlatformWebService(Agent):
 
         compiled = re.compile(regex)
         self.pathroutes[identity].append(compiled)
+        assert Path(root_dir).exists()
+        # Make sure we resolve the root directory so its easier to check
+        # later on.
+        root_dir = str(Path(root_dir).resolve(root_dir))
         # in order for this agent to pass against the default route we want this
         # to be before the last route which will resolve to .*
         self.registeredroutes.insert(len(self.registeredroutes) - 1, (compiled, 'path', root_dir))
