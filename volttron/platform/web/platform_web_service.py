@@ -162,7 +162,6 @@ class PlatformWebService(Agent):
         # noinspection PyTypeChecker
         self._admin_endpoints: AdminEndpoints = None
 
-
     # pylint: disable=unused-argument
     @Core.receiver('onsetup')
     def onsetup(self, sender, **kwargs):
