@@ -40,6 +40,7 @@ import base64
 import logging
 import mimetypes
 import os
+from pathlib import Path
 import re
 from urllib.parse import urlparse, parse_qs
 import zlib
@@ -507,7 +508,12 @@ class PlatformWebService(Agent):
                     if path_info == '/':
                         return self._redirect_index(env, start_response)
                     server_path = v + path_info  # os.path.join(v, path_info)
+                    server_path = str(Path(server_path).resolve())
                     _log.debug('Serverpath: {}'.format(server_path))
+                    # protects against relative server traversal.
+                    if not server_path.startswith(v):
+                        start_response('403 Forbidden', [('Content-Type', 'text/html')])
+                        return [b'<h1>403 Forbidden</h1>']
                     return self._sendfile(env, start_response, server_path)
 
         start_response('404 Not Found', [('Content-Type', 'text/html')])
