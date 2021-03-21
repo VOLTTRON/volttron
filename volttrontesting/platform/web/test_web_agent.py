@@ -57,8 +57,8 @@ def test_register_routes(mock_platformweb_service):
         start_response.reset_mock()
         data = pws.app_routing(get_test_web_env("/../index.html"), start_response)
         data = "".join([x.decode("utf-8") for x in data])
-        assert "404 Not Found" in start_response.call_args[0]
-        assert data != file_contents_bad
+        assert "403 Forbidden" in start_response.call_args[0]
+        assert "403 Forbidden" in data
 
         # Test relative route to the index.html file above the html_root.
         start_response.reset_mock()
