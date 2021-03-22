@@ -46,7 +46,7 @@ def test_register_routes(mock_platformweb_service):
 
         pws.register_path_route(f"/.*", html_root)
         pws.register_path_route(f"/flubber", ".")
-        # Test to make sure the route is resolved to a full directory so esier
+        # Test to make sure the route is resolved to a full directory so easier
         # to detect chroot for html paths.
         assert len(pws.registeredroutes) == 2
         for x in pws.registeredroutes:
