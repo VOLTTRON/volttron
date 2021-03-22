@@ -40,6 +40,7 @@ import base64
 import logging
 import mimetypes
 import os
+from pathlib import Path
 import re
 from urllib.parse import urlparse, parse_qs
 import zlib
@@ -161,7 +162,6 @@ class PlatformWebService(Agent):
         self._server_greenlet: Greenlet = None
         # noinspection PyTypeChecker
         self._admin_endpoints: AdminEndpoints = None
-
 
     # pylint: disable=unused-argument
     @Core.receiver('onsetup')
@@ -296,6 +296,10 @@ class PlatformWebService(Agent):
 
         compiled = re.compile(regex)
         self.pathroutes[identity].append(compiled)
+        assert Path(root_dir).exists()
+        # Make sure we resolve the root directory so its easier to check
+        # later on.
+        root_dir = str(Path(root_dir).resolve(root_dir))
         # in order for this agent to pass against the default route we want this
         # to be before the last route which will resolve to .*
         self.registeredroutes.insert(len(self.registeredroutes) - 1, (compiled, 'path', root_dir))
@@ -508,7 +512,12 @@ class PlatformWebService(Agent):
                     if path_info == '/':
                         return self._redirect_index(env, start_response)
                     server_path = v + path_info  # os.path.join(v, path_info)
+                    server_path = str(Path(server_path).resolve())
                     _log.debug('Serverpath: {}'.format(server_path))
+                    # protects against relative server traversal.
+                    if not server_path.startswith(v):
+                        start_response('403 Forbidden', [('Content-Type', 'text/html')])
+                        return [b'<h1>403 Forbidden</h1>']
                     return self._sendfile(env, start_response, server_path)
 
         start_response('404 Not Found', [('Content-Type', 'text/html')])
