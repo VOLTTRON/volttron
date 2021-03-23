@@ -322,7 +322,7 @@ There are several options for VOLTTRONTM [support](https://volttron.readthedocs.
 -   The VOLTTRONTM contact email for being added to office hours, the mailing list, and for inquiries is: volttron@pnnl.gov
 -   The preferred method for questions is through [StackOverflow](https://stackoverflow.com/questions/tagged/volttron) since this is easily discoverable by others who may have the same issue.
 -   [GitHub issue tracker](https://github.com/VOLTTRON/volttron/issues) for feature requests, bug reports, and following development activities
--   VOLTTRON now has a [Slack channel](volttron-community.slack.com/signup)
+-   VOLTTRON now has a [Slack channel](https://volttron-community.slack.com/signup)
 
 ## License
 
