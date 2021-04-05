@@ -73,7 +73,7 @@ To configure the VOLTTRON instance to use RabbitMQ message bus, run the followin
 
 .. code-block:: bash
 
-    vcfg --rabbitmq single [optional path to rabbitmq_config.yml]
+    vcfg rabbitmq single --config [optional path to rabbitmq_config.yml]
 
 At the end of the setup process, a RabbitMQ broker is setup to use the configuration provided.  A new topic exchange for
 the VOLTTRON instance is created within the configured virtual host.

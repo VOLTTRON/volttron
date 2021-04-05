@@ -4,7 +4,6 @@ federation-upstream:
     port: '5671'
     virtual-host: volttron4
     certificates:
-        csr: true
         private_key: "path to private cert" # For example, /home/volttron/vhome/test_fed/certificates/private/volttron1.federation.pem
         public_cert: "path to public cert" # For example, /home/volttron/vhome/test_fed/certificates/federation/volttron2.volttron1.federation.crt
         remote_ca: "path to CA cert" # For example, /home/volttron/vhome/test_fed/certificates/federation/volttron2_ca.crt
@@ -13,7 +12,6 @@ federation-upstream:
     port: '5671'
     virtual-host: volttron5
     certificates:
-        csr: true
         private_key: "path to private cert"
         public_cert: "path to public cert"
         remote_ca: "path to CA cert"

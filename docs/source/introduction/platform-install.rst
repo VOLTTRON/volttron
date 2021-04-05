@@ -293,7 +293,7 @@ Step 5 - Configure RabbitMQ setup for VOLTTRON
 
 .. code-block:: bash
 
-    vcfg --rabbitmq single [optional path to rabbitmq_config.yml]
+    vcfg rabbitmq single --config [optional path to rabbitmq_config.yml]
 
 A sample configuration file can be found in the VOLTTRON repository in **examples/configurations/rabbitmq/rabbitmq_config.yml**.
 At a minimum you will need to provide the host name and a unique common-name (under certificate-data) in the configuration file.
@@ -332,7 +332,7 @@ exchange to capture unrouteable messages.
 
     The default behavior generates a certificate which is valid for a period of 1 year.
 
-The Following are the example inputs for `vcfg --rabbitmq single` command.  Since no config file is passed the script
+The Following are the example inputs for `vcfg rabbitmq single` command.  Since no config file is passed the script
 prompts for necessary details.
 
 .. code-block:: console

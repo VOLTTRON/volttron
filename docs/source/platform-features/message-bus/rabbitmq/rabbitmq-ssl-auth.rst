@@ -90,7 +90,7 @@ The parameters of interest for SSL based configuration are
 
 We can then configure the VOLTTRON instance to use SSL based authentication with the below command:
 
-    vcfg --rabbitmq single <optional path to rabbitmq_config.yml>
+    vcfg rabbitmq single --config [optional path to rabbitmq_config.yml]
 
 When one creates a single instance of RabbitMQ, the following is created / re-created in the VOLTTRON_HOME/certificates
 directory:

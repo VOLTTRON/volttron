@@ -186,10 +186,6 @@ def _create_federation_setup(admin_user, admin_password, is_ssl, vhost, vhome):
     federation = federation_config.get('federation-upstream')
 
     if federation:
-        #ssl_params = None
-        #if is_ssl:
-            # ssl_params = rmq_mgmt.get_ssl_url_params()
-
         for host, upstream in federation.items():
             try:
                 name = "upstream-{host}-{vhost}".format(vhost=upstream['virtual-host'],
@@ -209,7 +205,7 @@ def _create_federation_setup(admin_user, admin_password, is_ssl, vhost, vhome):
                         rmq_user = upstream['federation-user']
                 else:
                     # certificates key not found in upstream config
-                    _log.debug("ERROR: certificates key not found in federation config. Cannot make connection to remote server without remote certificates")
+                    _log.info("ERROR: certificates key not found in federation config. Cannot make connection to remote server without remote certificates")
                     continue
                 # Build destination address
                 address = rmq_mgmt.build_remote_plugin_connection(rmq_user,
@@ -253,11 +249,11 @@ def _create_shovel_setup(instance_name, local_host, port, vhost, vhome, is_ssl):
 
     ssl_params = None
     rmq_mgmt = RabbitMQMgmt()
-    _log.debug("shovel config: {}".format(shovel_config))
+
     try:
         for remote_host, shovel in shovels.items():
             pubsub_config = shovel.get("pubsub", {})
-            _log.debug("shovel parameters: {}".format(shovel))
+
             for identity, topics in pubsub_config.items():
                 # Build source address
                 rmq_user = instance_name + '.' + identity
@@ -266,7 +262,6 @@ def _create_shovel_setup(instance_name, local_host, port, vhost, vhome, is_ssl):
                                                            vhost, is_ssl)
                 certs_dict = None
                 if 'certificates' in shovel:
-                    _log.debug("shovel parameters under destination: {}".format(shovel))
                     is_csr = shovel['certificates'].get('csr', False)
                     if is_csr:
                         certs_dict = dict()
@@ -276,7 +271,7 @@ def _create_shovel_setup(instance_name, local_host, port, vhost, vhome, is_ssl):
                         rmq_user = shovel['shovel-user']
                 else:
                     # destination key not found in shovel config
-                    _log.debug("ERROR: certificates key not found in shovel config. Cannot make connection to remote server without remote certificates")
+                    _log.info("ERROR: certificates key not found in shovel config. Cannot make connection to remote server without remote certificates")
                     continue
                 # Build destination address
                 dest_uri = rmq_mgmt.build_remote_plugin_connection(rmq_user,
@@ -573,7 +568,7 @@ def _verify_and_save_instance_ca(rmq_config, instance_ca_path, instance_ca_key):
 
 
 def setup_rabbitmq_volttron(setup_type, verbose=False, prompt=False, instance_name=None,
-                            rmq_conf_file=None, env=None):
+                            rmq_conf_file=None, max_retries=12, env=None):
     """
     Setup VOLTTRON instance to run with RabbitMQ message bus.
     :param setup_type:
@@ -597,10 +592,10 @@ def setup_rabbitmq_volttron(setup_type, verbose=False, prompt=False, instance_na
     rmq_config = RMQConfig()
     success = True
     if prompt:
-        # ignore any existing rabbitmq_config.yml in vhome. Prompt user and
-        # generate a new rabbitmq_config.yml
+        # ignore any existing rabbitmq_config.yml|rabbitmq_federation_config.yml|rabbitmq_shovel_config.yml in vhome.
+        # Prompt user and generate a new rabbitmq_config.yml
         try:
-            success = _create_rabbitmq_config(rmq_config, setup_type, verbose)
+            success = _create_rabbitmq_config(rmq_config, setup_type, verbose, max_retries)
         except Exception as exc:
             _log.error(f"{exc}")
             return exc
@@ -706,10 +701,10 @@ def setup_rabbitmq_volttron(setup_type, verbose=False, prompt=False, instance_na
                              rmq_config.volttron_home,
                              rmq_config.is_ssl)
     if invalid:
-        _log.error("Unknown option. Exiting....")
+        _log.error("Unknown option. Exiting XXX....")
 
 
-def _create_rabbitmq_config(rmq_config, setup_type, verbose=False):
+def _create_rabbitmq_config(rmq_config, setup_type, verbose=False, max_retries=12):
     """
     Prompt user for required details and create a rabbitmq_config.yml file in
     volttron home
@@ -827,12 +822,12 @@ def _create_rabbitmq_config(rmq_config, setup_type, verbose=False):
         # if option was all then config_opts would be not null
         # if this was called with just setup_type = federation, load existing
         # config so that we don't overwrite existing federation configs
-        prompt_upstream_servers(rmq_config.volttron_home)
+        prompt_upstream_servers(rmq_config.volttron_home, verbose, max_retries)
     if setup_type in ['shovel', 'all']:
         # if option was all then config_opts would be not null
         # if this was called with just setup_type = shovel, load existing
         # config so that we don't overwrite existing list
-        success = prompt_shovels(rmq_config.volttron_home, verbose)
+        success = prompt_shovels(rmq_config.volttron_home, verbose, max_retries)
     return success
 
 
@@ -890,7 +885,7 @@ def _prompt_ssl():
         return False
 
 
-def prompt_upstream_servers(vhome):
+def prompt_upstream_servers(vhome, verbose=False, max_retries=12):
     """
     Prompt for upstream server configurations and save in
     rabbitmq_federation_config.yml
@@ -928,12 +923,15 @@ def prompt_upstream_servers(vhome):
         import time
         time.sleep(2)
         upstream_servers[host]['federation-user'] = instance_name + "." + upstream_user
-        upstream_servers[host]['certificates'] = _prompt_csr_request(upstream_user, host, 'federation')
+        upstream_servers[host]['certificates'] = _prompt_csr_request(upstream_user, host,
+                                                                     'federation',
+                                                                     verbose,
+                                                                     max_retries)
     federation_config['federation-upstream'] = upstream_servers
     write_to_config_file(federation_config_file, federation_config)
 
 
-def prompt_shovels(vhome, verbose=False):
+def prompt_shovels(vhome, verbose=False, max_retries=12):
     """
     Prompt for shovel configuration and save in rabbitmq_shovel_config.yml
     :return:
@@ -951,7 +949,7 @@ def prompt_shovels(vhome, verbose=False):
         else:
             _log.info("New input data will be used to overwrite existing "
                       "{}".format(shovel_config_file))
-            
+
     shovel_config = {}
     shovels = shovel_config.get('shovels', {})
     prompt = 'Number of destination hosts to configure:'
@@ -979,9 +977,8 @@ def prompt_shovels(vhome, verbose=False):
 
             time.sleep(2)
             shovels[host]['shovel-user'] = instance_name + "." + shovel_user
-            #_log.debug("shovel_user: {}".format(shovel_user))
 
-            certs_config = _prompt_csr_request(shovel_user, host, 'shovel', verbose)
+            certs_config = _prompt_csr_request(shovel_user, host, 'shovel', verbose, max_retries)
             if not certs_config:
                 # we did not get certificates - neither existing, nor through csr process
                 # exit
@@ -1031,11 +1028,10 @@ def prompt_shovels(vhome, verbose=False):
         return True
 
 
-def _prompt_csr_request(rmq_user, host, type, verbose=False):
+def _prompt_csr_request(rmq_user, host, type, verbose=False, max_retries=12):
     prompt = prompt_response('\nDo you have certificates signed by remote CA? ',
                              valid_answers=y_or_n,
                              default='N')
-
     csr_config = dict()
 
     if prompt in y:
@@ -1070,25 +1066,22 @@ def _prompt_csr_request(rmq_user, host, type, verbose=False):
             raise IOError(f"Remote web interface is not valid: {parsed_address}. Please check and try again")
 
         # request CSR from remote host
-        ca_file, cert_file, prvt_file = _request_csr(rmq_user, remote_addr, type,verbose)
+        ca_file, cert_file, prvt_file = _request_csr(rmq_user, remote_addr, type, verbose, max_retries)
         if ca_file is not None and cert_file is not None and prvt_file is not None:
             csr_config['csr'] = True
-            # _log.debug("CA file path: {}".format(ca_file))
             csr_config['remote_ca'] = ca_file
 
             # public cert
             csr_config['public_cert'] = cert_file
-            # _log.debug("Public cert path: {}".format(certfile))
 
             # private_key
             crts = certs.Certs()
-            # _log.debug("Private cert path: {}".format(prvtfile))
             csr_config['private_key'] = prvt_file
 
     return csr_config
 
 
-def _request_csr(rmq_user, remote_addr, type, verbose=False):
+def _request_csr(rmq_user, remote_addr, type, verbose=False, max_retries=12):
     ca_file = None
     certfile = None
     prvtfile = None
@@ -1101,7 +1094,6 @@ def _request_csr(rmq_user, remote_addr, type, verbose=False):
 
     success = False
     retry_attempt = 0
-    max_retries = 12
     denied = False
     if response is None:
         # Error /status is pending
@@ -1112,7 +1104,6 @@ def _request_csr(rmq_user, remote_addr, type, verbose=False):
             # Try for two minutes.
             # TODO make max attempts and/or sleep interval optional arg
             while not success and retry_attempt < max_retries:
-
                 if response is None:
                     break
                 elif response[0] == 'PENDING':

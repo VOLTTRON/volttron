@@ -65,7 +65,7 @@ To setup federation on the VOLTTRON instance, run the following command on the d
 
 .. code-block:: bash
 
-    vcfg --rabbitmq federation [optional path to rabbitmq_federation_config.yml]
+    vcfg rabbitmq federation --config [optional path to rabbitmq_federation_config.yml] --max-tries [optional maximum CSR retry attempt]
 
 
 This establishes federation links to upstream servers. Once a federation link to the upstream server is established on
@@ -165,8 +165,8 @@ upstream servers on the downstream server and make the VOLTTRON exchange
 
         .. code-block:: bash
 
-            vcfg --rabbitmq federation [optional path to rabbitmq_federation_config.yml
-            containing the details of the upstream hostname, port and vhost.]
+            vcfg rabbitmq federation --config [optional path to rabbitmq_federation_config.yml
+            containing the details of the upstream hostname, port and vhost.] --max-tries [optional maximum CSR retry attempt]
 
 
         Example configuration for federation is available
@@ -347,7 +347,7 @@ To configure the VOLTTRON instance to setup shovel, run the following command on
 
 .. code-block:: bash
 
-    vcfg --rabbitmq shovel [optional path to rabbitmq_shovel_config.yml]
+    vcfg rabbitmq shovel --config [optional path to rabbitmq_shovel_config.yml] --max-tries [optional maximum CSR retry attempt]
 
 This sets up a shovel that forwards messages (either PubSub or RPC) from a local exchange to a remote exchange.
 
@@ -424,7 +424,7 @@ creation process, a certificate signing request is made to the remote instance. 
 accept or reject such a request through VOLTTRON admin web interface. If accepted, a bundle containing a certificate
 signed by the remote CA is sent as a response back to the local instance. Subsequently, shovel connection is
 established with these certificates. If the user already has certificates signed by the remote CA, then that will be used for
-connection. Otherwise, the user can run the command ``vcfg --rabbitmq shovel`` and it will prompt the user to make a CSR request as part of shovel setup.
+connection. Otherwise, the user can run the command ``vcfg rabbitmq shovel`` and it will prompt the user to make a CSR request as part of shovel setup.
 
 1. Setup two VOLTTRON instances using the steps described in installation section.
 Please note that each instance should have a unique instance name.
@@ -438,7 +438,7 @@ Please note that each instance should have a unique instance name.
 
         .. code-block:: bash
 
-            vcfg --rabbitmq shovel [optional path to rabbitmq_shovel_config.yml]
+            vcfg rabbitmq shovel --config [optional path to rabbitmq_shovel_config.yml] --max-tries [optional maximum CSR retry attempt]
 
         rabbitmq_shovel_config.yml should contain the details of the remote hostname, port, vhost,
         certificates for connecting to remote instance and list of topics to forward.
@@ -592,7 +592,6 @@ agent. For such a request-response behavior, shovels need to be created on both 
        rabbit-2:
         port: 5671
         certificates:
-          csr: true
           private_cert: "path to private key" # For example, /home/volttron/vhome/test_shovel/certificates/private/volttron1.shovelvolttron2.pem
           public_cert: "path to public cert" # For example, /home/volttron/vhome/test_shovel/certificates/shovels/volttron2.volttron1.shovelvolttron2.crt
           remote_ca: "path to CA cert" # For example, /home/volttron/vhome/test_shovel/certificates/shovels/volttron2_ca.crt
@@ -607,7 +606,7 @@ agent. For such a request-response behavior, shovels need to be created on both 
 
   .. code-block:: bash
 
-    vcfg --rabbitmq shovel [optional path to rabbitmq_shovel_config.yml
+    vcfg rabbitmq shovel --config [optional path to rabbitmq_shovel_config.yml] --max-tries [optional maximum CSR retry attempt]
 
 
    Example of RabbitMQ shovel configuration on v2
@@ -625,13 +624,13 @@ agent. For such a request-response behavior, shovels need to be created on both 
       - [platform.historian, data.mover]
     virtual-host: v2
 
-   This says that Hplatform historian on v2 wants to make RPC call to DataMover agent on v1.
+   This says that platform historian on v2 wants to make RPC call to DataMover agent on v1.
 
    a. On v1, run below command to setup a shovel from v1 to v2.
 
   .. code-block:: bash
 
-     vcfg --rabbitmq shovel [optional path to rabbitmq_shovel_config.yml
+     vcfg rabbitmq shovel [optional path to rabbitmq_shovel_config.yml
 
    b. Create a user on v2 with username set to remote agent's username
       ( for example, v1.data.mover i.e., <instance_name>.<agent_identity>) and allow
@@ -646,16 +645,7 @@ agent. For such a request-response behavior, shovels need to be created on both 
 
   .. code-block:: bash
 
-      vcfg --rabbitmq shovel [optional path to rabbitmq_shovel_config.yml
-
-   d. Create a user on v1 with username set to remote agent's username
-     ( for example, v2.patform.historian i.e., <instance_name>.<agent_identity>) and allow
-     the shovel access to the virtual host of the v1.
-
-  .. code-block:: bash
-
-      cd $RABBITMQ_HOME
-      vctl rabbitmq add-user <username> <password>
+      vcfg rabbitmq shovel --config [optional path to rabbitmq_shovel_config.yml] --max-tries [optional maximum CSR retry attempt]
 
 3. Start Platform driver agent on v1
 
