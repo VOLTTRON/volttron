@@ -205,7 +205,7 @@ def _create_federation_setup(admin_user, admin_password, is_ssl, vhost, vhome):
                         rmq_user = upstream['federation-user']
                 else:
                     # certificates key not found in upstream config
-                    _log.info("ERROR: certificates key not found in federation config. Cannot make connection to remote server without remote certificates")
+                    _log.error("ERROR: certificates key not found in federation config. Cannot make connection to remote server without remote certificates")
                     continue
                 # Build destination address
                 address = rmq_mgmt.build_remote_plugin_connection(rmq_user,
@@ -271,7 +271,7 @@ def _create_shovel_setup(instance_name, local_host, port, vhost, vhome, is_ssl):
                         rmq_user = shovel['shovel-user']
                 else:
                     # destination key not found in shovel config
-                    _log.info("ERROR: certificates key not found in shovel config. Cannot make connection to remote server without remote certificates")
+                    _log.error("ERROR: certificates key not found in shovel config. Cannot make connection to remote server without remote certificates")
                     continue
                 # Build destination address
                 dest_uri = rmq_mgmt.build_remote_plugin_connection(rmq_user,
@@ -701,7 +701,7 @@ def setup_rabbitmq_volttron(setup_type, verbose=False, prompt=False, instance_na
                              rmq_config.volttron_home,
                              rmq_config.is_ssl)
     if invalid:
-        _log.error("Unknown option. Exiting XXX....")
+        _log.error("Unknown option. Exiting....")
 
 
 def _create_rabbitmq_config(rmq_config, setup_type, verbose=False, max_retries=12):
