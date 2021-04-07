@@ -315,9 +315,9 @@ class Router(BaseRouter):
 
             assert parsed.scheme in ('http', 'https', 'tcp', 'amqp'), \
                 "volttron central address must begin with http(s) or tcp found"
-            if parsed.scheme == 'tcp':
-                assert volttron_central_serverkey, \
-                    "volttron central serverkey must be set if address is tcp."
+            # if parsed.scheme == 'tcp':
+            #     assert volttron_central_serverkey, \
+            #         "volttron central serverkey must be set if address is tcp."
         self._volttron_central_serverkey = volttron_central_serverkey
         self._instance_name = instance_name
         self._bind_web_address = bind_web_address
@@ -457,14 +457,6 @@ class Router(BaseRouter):
                         value = [self.local_address.base]
                 elif name == 'local_address':
                     value = self.local_address.base
-                # Allow the agents to know the serverkey.
-                elif name == 'serverkey':
-                    keystore = KeyStore()
-                    value = keystore.public
-                elif name == 'volttron-central-address':
-                    value = self._volttron_central_address
-                elif name == 'volttron-central-serverkey':
-                    value = self._volttron_central_serverkey
                 elif name == 'instance-name':
                     value = self._instance_name
                 elif name == 'bind-web-address':
@@ -726,7 +718,7 @@ def start_volttron_process(opts):
                 'volttron-central-address must begin with tcp, amqp, amqps, http or https.')
         opts.volttron_central_address = config.expandall(
             opts.volttron_central_address)
-    opts.volttron_central_serverkey = opts.volttron_central_serverkey
+    #opts.volttron_central_serverkey = opts.volttron_central_serverkey
 
     # Log configuration options
     if getattr(opts, 'show_config', False):
@@ -833,7 +825,6 @@ def start_volttron_process(opts):
                    default_user_id='vip.service', monitor=opts.monitor,
                    tracker=tracker,
                    volttron_central_address=opts.volttron_central_address,
-                   volttron_central_serverkey=opts.volttron_central_serverkey,
                    instance_name=opts.instance_name,
                    bind_web_address=opts.bind_web_address,
                    protected_topics=protected_topics,
@@ -854,7 +845,6 @@ def start_volttron_process(opts):
         try:
             RMQRouter(opts.vip_address, opts.vip_local_address, opts.instance_name, opts.vip_address,
                       volttron_central_address=opts.volttron_central_address,
-                      volttron_central_serverkey=opts.volttron_central_serverkey,
                       bind_web_address=opts.bind_web_address,
                       service_notifier=notifier
                       ).run()
@@ -897,7 +887,7 @@ def start_volttron_process(opts):
             auth = AuthService(
                 auth_file, protected_topics_file, opts.setup_mode,
                 opts.aip, address=address, identity=AUTH,
-                enable_store=False, message_bus='zmq')
+                enable_store=False, message_bus='zmq', zap_required=False)
 
             event = gevent.event.Event()
             auth_task = gevent.spawn(auth.core.run, event)
@@ -973,7 +963,6 @@ def start_volttron_process(opts):
                                        default_user_id='vip.service', monitor=opts.monitor,
                                        tracker=tracker,
                                        volttron_central_address=opts.volttron_central_address,
-                                       volttron_central_serverkey=opts.volttron_central_serverkey,
                                        instance_name=opts.instance_name,
                                        bind_web_address=opts.bind_web_address,
                                        protected_topics=protected_topics,
@@ -1026,7 +1015,7 @@ def start_volttron_process(opts):
                            message_bus=opts.message_bus,
                            agent_monitor_frequency=opts.agent_monitor_frequency),
 
-            KeyDiscoveryAgent(address=address, serverkey=publickey,
+            KeyDiscoveryAgent(address=address,
                               identity=KEY_DISCOVERY,
                               external_address_config=external_address_file,
                               setup_mode=opts.setup_mode,
@@ -1064,20 +1053,20 @@ def start_volttron_process(opts):
                     certs.create_signed_cert_files(base_webserver_name, cert_type='server')
                     opts.web_ssl_key = certs.private_key_file(base_webserver_name)
                     opts.web_ssl_cert = certs.cert_file(base_webserver_name)
-
-            _log.info("Starting platform web service")
-            services.append(PlatformWebService(
-                serverkey=publickey, identity=PLATFORM_WEB,
-                address=address,
-                bind_web_address=opts.bind_web_address,
-                volttron_central_address=opts.volttron_central_address,
-                enable_store=False,
-                message_bus=opts.message_bus,
-                volttron_central_rmq_address=opts.volttron_central_rmq_address,
-                web_ssl_key=opts.web_ssl_key,
-                web_ssl_cert=opts.web_ssl_cert,
-                web_secret_key=opts.web_secret_key
-            ))
+            #
+            # _log.info("Starting platform web service")
+            # services.append(PlatformWebService(
+            #     identity=PLATFORM_WEB,
+            #     address=address,
+            #     bind_web_address=opts.bind_web_address,
+            #     volttron_central_address=opts.volttron_central_address,
+            #     enable_store=False,
+            #     message_bus=opts.message_bus,
+            #     volttron_central_rmq_address=opts.volttron_central_rmq_address,
+            #     web_ssl_key=opts.web_ssl_key,
+            #     web_ssl_cert=opts.web_ssl_cert,
+            #     web_secret_key=opts.web_secret_key
+            # ))
 
         #SN -- testing
         # ks_masterweb = KeyStore(KeyStore.get_agent_keystore_path(MASTER_WEB))
@@ -1255,9 +1244,6 @@ def main(argv=sys.argv):
         '--volttron-central-address', default=None,
         help='The web address of a volttron central install instance.')
     agents.add_argument(
-        '--volttron-central-serverkey', default=None,
-        help='The serverkey of volttron central.')
-    agents.add_argument(
         '--instance-name', default=None,
         help='The name of the instance that will be reported to '
              'VOLTTRON central.')
@@ -1355,7 +1341,6 @@ def main(argv=sys.argv):
         # Used to contact volttron central when registering volttron central
         # platform agent.
         volttron_central_address=None,
-        volttron_central_serverkey=None,
         instance_name=None,
         # allow_root=False,
         # allow_users=None,
@@ -1368,12 +1353,7 @@ def main(argv=sys.argv):
         # Type of underlying message bus to use - ZeroMQ or RabbitMQ
         message_bus='zmq',
         # Volttron Central in AMQP address format is needed if running on RabbitMQ message bus
-        volttron_central_rmq_address=None,
-        web_ssl_key=None,
-        web_ssl_cert=None,
-        web_ca_cert=None,
-        # If we aren't using ssl then we need a secret key available for us to use.
-        web_secret_key=None
+        volttron_central_rmq_address=None
     )
 
     # Parse and expand options

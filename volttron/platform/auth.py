@@ -90,6 +90,7 @@ class AuthException(Exception):
 class AuthService(Agent):
     def __init__(self, auth_file, protected_topics_file, setup_mode, aip, *args, **kwargs):
         self.allow_any = kwargs.pop('allow_any', False)
+        self.is_zap_required = kwargs.pop('zap_required', True)
         super(AuthService, self).__init__(*args, **kwargs)
 
         # This agent is started before the router so we need
@@ -120,8 +121,10 @@ class AuthService(Agent):
 
     @Core.receiver('onsetup')
     def setup_zap(self, sender, **kwargs):
-        self.zap_socket = zmq.Socket(zmq.Context.instance(), zmq.ROUTER)
-        self.zap_socket.bind('inproc://zeromq.zap.01')
+        if self.is_zap_required:
+            self.zap_socket = zmq.Socket(zmq.Context.instance(), zmq.ROUTER)
+            self.zap_socket.bind('inproc://zeromq.zap.01')
+
         if self.allow_any:
             _log.warning('insecure permissive authentication enabled')
         self.read_auth_file()
@@ -246,15 +249,19 @@ class AuthService(Agent):
 
     @Core.receiver('onstop')
     def stop_zap(self, sender, **kwargs):
-        if self._zap_greenlet is not None:
+        if self.is_zap_required and self._zap_greenlet is not None:
             self._zap_greenlet.kill()
 
     @Core.receiver('onfinish')
     def unbind_zap(self, sender, **kwargs):
-        if self.zap_socket is not None:
+        if self.is_zap_required and self.zap_socket is not None:
             self.zap_socket.unbind('inproc://zeromq.zap.01')
 
     @Core.receiver('onstart')
+    def start_zap(self, sender, **kwargs):
+        if self.is_zap_required:
+            self.zap_loop(sender, kwargs)
+
     def zap_loop(self, sender, **kwargs):
         """
         The zap loop is the starting of the authentication process for
