@@ -136,7 +136,7 @@ def parse_transform_arg(func, arg):
     """
     parse_arg = arg
     if func in (scale, scale_int, scale_decimal_int_signed):
-        if type(arg) not in (int, long, float):
+        if type(arg) not in (int, float):
             try:
                 parse_arg = int(arg, 10)
             except ValueError:

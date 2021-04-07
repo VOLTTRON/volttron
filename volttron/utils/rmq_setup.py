@@ -145,7 +145,7 @@ def write_env_file(rmq_config, conf_file, env=None):
     # If there is a custom node name then we need to write a env file, set amqp port in this env file, and
     # point to conf file path
     if rmq_config.node_name != 'rabbit':
-        nodebase = os.path.dirname(conf_file)
+        nodebase = os.path.dirname(os.path.dirname(conf_file))
         # Creating a custom node name with custome port. Create a env file and add entry to point to conf file in
         # the env file
         env_entries = """NODENAME={}
@@ -1059,7 +1059,7 @@ def _prompt_csr_request(rmq_user, host, type, verbose=False):
 
         remote_addr = prompt_response(prompt, default=remote_https_address)
         parsed_address = urlparse(remote_addr)
-        if parsed_address.scheme in ('https',):
+        if parsed_address.scheme not in ('https',):
             raise IOError(f"Remote web interface is not valid: {parsed_address}. Please check and try again")
 
         # request CSR from remote host
@@ -1145,7 +1145,7 @@ def _request_csr(rmq_user, remote_addr, type, verbose=False):
         local_keyfile = metadata['local_keyname']
         ca_name = metadata['remote_ca_name']
         # remote ca
-        ca_file = '/'.join((get_remote_certs_dir(rmq_user), ca_name + '.crt'))
+        ca_file = '/'.join((get_remote_certs_dir(type), ca_name + '.crt'))
 
         # private_key
         crts = certs.Certs()

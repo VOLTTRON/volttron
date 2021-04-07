@@ -56,10 +56,7 @@ from volttron.platform import get_volttron_root
 
 try:
     import pymongo
-
-    # Disabling mongo tagging service for now
-    # Need to fix mongo gevent loop error
-    HAS_PYMONGO = False
+    HAS_PYMONGO = True
 except:
     HAS_PYMONGO = False
 pymongo_skipif = pytest.mark.skipif(not HAS_PYMONGO,
@@ -96,11 +93,14 @@ sqlite_config = {"connection": {"type": "sqlite",
 
 mongodb_config = {"source": get_services_core("MongodbTaggingService"),
                   "connection": {"type": "mongodb",
-                                 "params": {"host": "localhost", "port": 27017,
-                                            "database": "mongo_test",
-                                            "user": "test",
-                                            "passwd": "test",
-                                            "authSource": "admin"}}}
+                                 "params": {
+                                    "host": "localhost",
+                                    "port": 27017,
+                                    "database": "mongo_test",
+                                    "user": "historian",
+                                    "passwd": "historian",
+                                    "authSource": "test"
+                                }}}
 
 sqlite_historian = {
     "source": get_services_core("SQLHistorian"),
@@ -124,16 +124,16 @@ mongo_historian = {
                    "params": {"host": "localhost",
                               "port": 27017,
                               "database": "mongo_test",
-                              "user": "test",
-                              "passwd": "test",
-                              "authSource": "admin"}
+                              "user": "historian",
+                              "passwd": "historian",
+                              "authSource": "test"}
                    }
 }
 
 crate_historian = {
     "source": get_services_core("CrateHistorian"),
-    "schema": "testing_historian",
     "connection": {
+        "schema": "testing_historian",
         "type": "crate",
         "params": {
             "host": "http://localhost:4200",
@@ -166,7 +166,9 @@ def setup_sqlite(config):
 def setup_mongodb(config):
     print("setup mongodb")
     connection_params = config['connection']['params']
-    mongo_conn_str = 'mongodb://{user}:{passwd}@{host}:{port}/{database}?authSource={authSource}'
+    mongo_conn_str = 'mongodb://{user}:{passwd}@{host}:{port}/{database}'
+    if "authSource" in connection_params:
+        mongo_conn_str = mongo_conn_str + "?authSource={authSource}"
     params = connection_params
     mongo_conn_str = mongo_conn_str.format(**params)
     mongo_client = pymongo.MongoClient(mongo_conn_str)
@@ -204,7 +206,7 @@ def cleanup_mongodb(db_connection, truncate_tables):
 
 
 def cleanup_crate(db_connection, truncate_tables):
-    crate_utils.drop_schema(db_connection, truncate_tables, schema=crate_historian["schema"])
+    crate_utils.drop_schema(db_connection, truncate_tables, schema=crate_historian['connection']["schema"])
 
 
 @pytest.fixture(scope="module")
@@ -226,7 +228,7 @@ def query_agent(request, volttron_instance):
 @pytest.fixture(scope="module",
                 params=[
                     sqlite_config,
-                    # pytest.param(mongodb_config, marks=pymongo_skipif)
+                    pytest.param(mongodb_config, marks=pymongo_skipif)
                 ])
 def tagging_service(request, volttron_instance):
     global connection_type, db_connection, tagging_service_id

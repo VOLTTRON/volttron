@@ -152,7 +152,7 @@ def create_rmq_volttron_setup(vhome=None, ssl_auth=False, env=None,
 
     # instance name is the basename of the volttron home now.
     rabbit_config_obj.instance_name = instance_name
-    rabbit_config_obj.node_name = os.path.basename(vhome)
+    rabbit_config_obj.node_name = os.path.basename(os.path.dirname(vhome))
 
     os.mkdir(os.path.join(vhome, "rmq_node_data"))
 

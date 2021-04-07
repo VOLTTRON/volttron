@@ -31,8 +31,8 @@ def multi_messagebus_vc_vcp(volttron_multi_messagebus):
     # Update vcp_config store to add the volttron-central-address from vc to the
     # config store
     config = jsonapi.dumps({'volttron-central-address': vc_instance.bind_web_address})
-    capabilities = {'edit_config_store': {'identity': VOLTTRON_CENTRAL_PLATFORM}}
-    vcp_instance.add_capabilities(vcp_instance.dynamic_agent.core.publickey, capabilities)
+    # capabilities = {'edit_config_store': {'identity': VOLTTRON_CENTRAL_PLATFORM}}
+    # vcp_instance.add_capabilities(vcp_instance.dynamic_agent.core.publickey, capabilities)
     vcp_instance.dynamic_agent.vip.rpc.call(CONFIGURATION_STORE,
                                             "manage_store",
                                             VOLTTRON_CENTRAL_PLATFORM,
@@ -48,7 +48,6 @@ def multi_messagebus_vc_vcp(volttron_multi_messagebus):
 
 @pytest.mark.timeout(360)
 def test_able_to_register_unregister(multi_messagebus_vc_vcp):
-    gevent.sleep(20)
     vcp_instance, vc_instance, vcp_uuid = multi_messagebus_vc_vcp
 
     apitester = APITester(vc_instance)
@@ -56,7 +55,7 @@ def test_able_to_register_unregister(multi_messagebus_vc_vcp):
     platforms = apitester.list_platforms()
     assert vc_instance.is_running()
     assert vcp_instance.is_running()
-    gevent.sleep(10)
+    gevent.sleep(7)
     assert len(platforms) == 1
     platform = platforms[0]
 
@@ -64,7 +63,7 @@ def test_able_to_register_unregister(multi_messagebus_vc_vcp):
 
     vcp_instance.stop_agent(vcp_uuid)
 
-    gevent.sleep(12)
+    gevent.sleep(7)
     assert not vcp_instance.is_agent_running(vcp_uuid)
 #    print(vc_instance.dynamic_agent.vip.peerlist().get(timeout=10))
     platforms = apitester.list_platforms()

@@ -94,7 +94,9 @@ or
 
 .. code-block:: bash
 
-    pip install pymongo
+    pip install pymongo==3.7.2
+    pip install bson
+    pip install ujson
 
 
 3. Configuration Options

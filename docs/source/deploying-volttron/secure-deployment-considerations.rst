@@ -129,7 +129,7 @@ Limit Access to RPC Methods Using Capabilities
 RPC enabled methods provide convenient interfaces between agents.
 When they are unrestricted however, they open up the potential for malicious agents
 to cause harm to your system. The best way to prevent this is through the use of capabilities.
-A capability is a user defined arbitary string used by an agent to describe its exported RPC method.
+A capability is a user defined arbitrary string used by an agent to describe its exported RPC method.
 It is used to limit the access to that RPC method to only those agents who have that capability listed in
 their authentication record.
 
@@ -160,21 +160,10 @@ For more information, refer to the section on :ref:`VIP-Authorization`.
 Monitoring RabbitMQ Server
 ==========================
 
-Monitoring of RabbitMQ server in deployment setup can be achieved in two ways.
+Monitoring of RabbitMQ server in deployment setup can be achieved by running RabbitMQ server as a systemd service.
+RabbitMQ server is configured to run as a systemd service and allow systemd to monitor the status of the service. It
+can be further configured to detect and restart the RabbitMQ service if it crashes. VOLTTRON agents have the ability
+to detect when the RabbitMQ server crashes/disconnects and reconnect when it becomes available. In this deployment
+setup, a VOLTTRON platform will not start/stop the RabbitMQ server.
 
-1. Running RabbitMQ server as a systemd service
-2. Configure VOLTTRON platform to monitor RabbitMQ server
 
-In the first case, RabbitMQ server is configured to run as a systemd service and allow systemd to
-monitor the status of the service. It can be further configured to detect and restart the RabbitMQ service
-if it crashes. VOLTTRON agents have the ability to detect when the RabbitMQ server crashes/disconnects
-and reconnect when it becomes available. In this deployment setup, a VOLTTRON platform will not
-start/stop the RabbitMQ server.
-
-In the second case, VOLTTRON is configured to monitor RabbitMQ server periodically and restart if a crash is detected.
-This action is performed by the HealthService Agent. This is an optional feature and can be enabled using
-'--monitor-rabbit' flag as part of VOLTTRON platform startup command.
-
-.. code-block:: console
-
-    $ volttron -vv -l volttron.log --monitor-rabbit > volttron.log 2>&1 &

@@ -440,16 +440,8 @@ or use the included `stop-volttron` script:
         #to /dev/null
         volttron -vv -l volttron.log > /dev/null 2>&1&
 
-.. note::
 
-    VOLTTRON also has mechanism to monitor RabbitMQ server periodically and restart if a crash is detected
-    through HealthService Agent. This is an optional feature and can be enabled using '--monitor-rabbit'
-    flag as part of VOLTTRON platform startup command.
-
-    .. code-block:: console
-
-        $ volttron -vv -l volttron.log --monitor-rabbit > volttron.log 2>&1 &
-
+.. _installing-and-running-agents:
 
 Installing and Running Agents
 -----------------------------

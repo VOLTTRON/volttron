@@ -234,8 +234,8 @@ class FailoverAgent(Agent):
                                       'agent_status',
                                       self.agent_uuid).get()
 
-        is_running = proc_info[0] > 0 and proc_info[1] == None
-        if not is_running:
+        is_not_running = proc_info[0] is None and proc_info[1] is None
+        if is_not_running:
             self._agent_control('start_agent')
 
     def simple_secondary_state_machine(self, current_state):
@@ -271,11 +271,22 @@ class FailoverAgent(Agent):
                 status = Status.build(STATUS_BAD, context=context)
                 self.vip.health.send_alert(alert_key, status)
 
+            agents = self.vip.rpc.call(CONTROL, 'list_agents').get()
+            _log.info(f"simple_secondary_state_machine List agents: {self.agent_uuid}, {agents}")
+
+            agents_stats = self.vip.rpc.call(CONTROL, 'status_agents').get()
+            _log.info(f"simple_secondary_state_machine Agent stats: {self.agent_uuid}, {agents_stats}")
+
             proc_info = self.vip.rpc.call(CONTROL,
                                           'agent_status',
                                           self.agent_uuid).get()
-            is_running = proc_info[0] > 0 and proc_info[1] == None
-            if not is_running:
+
+            _log.info(f"simple_secondary_state_machine: {self.agent_uuid}, {proc_info}")
+
+            is_not_running = proc_info[0] is None and proc_info[1] is None
+
+            if is_not_running:
+                _log.info(f"simple_secondary_state_machine, starting agent: {self.agent_uuid}")
                 self._agent_control('start_agent')
 
 

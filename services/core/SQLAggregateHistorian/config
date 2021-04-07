@@ -1,12 +1,9 @@
 {
     "connection": {
-        "type": "mysql",
+        "type": "sqlite",
         "params": {
-            "host": "localhost",
-            "port": 3306,
-            "database": "test_historian",
-            "user": "historian",
-            "passwd": "historian"
+            "database": "test.sqlite",
+            "timeout": 15
         }
     },
     "aggregations":[

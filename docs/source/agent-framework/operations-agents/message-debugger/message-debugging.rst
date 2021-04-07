@@ -226,6 +226,7 @@ The following example uses the same filters as above, and then uses ``display_ex
 to display a single line for each message exchange, reducing the number of displayed rows from 6 to 2.
 Note that not all messages have a request ID; messages with no ID are absent from the responses to
 exchange queries.
+
 ::
 
     Viewer> list_filters

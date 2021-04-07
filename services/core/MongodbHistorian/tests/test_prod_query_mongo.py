@@ -96,7 +96,7 @@ pymongo_mark = pytest.mark.skipif(not HAS_PYMONGO, reason='No pymongo client ava
 
 
 @pytest.fixture(scope="function", params=[pymongo_mark(mongo_agent_config)])
-def database_client(request):
+def database_client_prod(request):
     print('connecting to mongo database')
     client = pymongo.MongoClient(mongo_connection_string())
 
@@ -110,7 +110,7 @@ def database_client(request):
 
 @pytest.mark.timeout(180)
 @pytest.mark.skipif(not HAS_PYMONGO, reason='No pymongo driver')
-def test_basic_function_week_data(volttron_instance, database_client):
+def test_basic_function_week_data(volttron_instance, database_client_prod):
     """
     Test basic functionality of sql historian. Inserts three points as part of all topic and checks
     if all three got into the database
@@ -177,7 +177,7 @@ def test_basic_function_week_data(volttron_instance, database_client):
 
 @pytest.mark.timeout(180)
 @pytest.mark.skipif(not HAS_PYMONGO, reason='No pymongo driver')
-def test_basic_function_month_data(volttron_instance, database_client):
+def test_basic_function_month_data(volttron_instance, database_client_prod):
     """
     Test basic functionality of sql historian. Inserts three points as part of all topic and checks
     if all three got into the database
@@ -277,7 +277,7 @@ def test_basic_function_month_data(volttron_instance, database_client):
 
 @pytest.mark.timeout(180)
 @pytest.mark.skipif(not HAS_PYMONGO, reason='No pymongo driver')
-def test_basic_function_week_multi_topic(volttron_instance, database_client):
+def test_basic_function_week_multi_topic(volttron_instance, database_client_prod):
     """
     Test basic functionality of sql historian. Inserts three points as part of all topic and checks
     if all three got into the database
@@ -317,7 +317,7 @@ def test_basic_function_week_multi_topic(volttron_instance, database_client):
 
 @pytest.mark.timeout(180)
 @pytest.mark.skipif(not HAS_PYMONGO, reason='No pymongo driver')
-def test_basic_function_2week_multi_topic(volttron_instance, database_client):
+def test_basic_function_2week_multi_topic(volttron_instance, database_client_prod):
     """
     Test basic functionality of sql historian. Inserts three points as part of all topic and checks
     if all three got into the database

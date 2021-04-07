@@ -1113,8 +1113,7 @@ def start_volttron_process(opts):
         health_service = HealthService(address=address,
                                        identity=PLATFORM_HEALTH, heartbeat_autostart=True,
                                        enable_store=False,
-                                       message_bus=opts.message_bus,
-                                       monitor_rabbit=opts.monitor_rabbit)
+                                       message_bus=opts.message_bus)
         notifier.register_peer_callback(health_service.peer_added, health_service.peer_dropped)
         services.append(health_service)
         events = [gevent.event.Event() for service in services]
@@ -1294,9 +1293,6 @@ def main(argv=sys.argv):
         '--secure-agent-users', default=False,
         help='Require that agents run with their own users (this requires '
              'running scripts/secure_user_permissions.sh as sudo)')
-    agents.add_argument(
-        '--monitor-rabbit', action='store_true',
-        help='Monitor RabbitMQ broker and restart if necessary')
 
     # XXX: re-implement control options
     # on
@@ -1389,8 +1385,7 @@ def main(argv=sys.argv):
         web_ssl_cert=None,
         web_ca_cert=None,
         # If we aren't using ssl then we need a secret key available for us to use.
-        web_secret_key=None,
-        monitor_rabbit=False
+        web_secret_key=None
     )
 
     # Parse and expand options

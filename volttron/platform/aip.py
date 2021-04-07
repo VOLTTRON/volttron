@@ -74,6 +74,7 @@ from .packages import UnpackedPackage
 from .vip.agent import Agent
 from .auth import AuthFile, AuthEntry, AuthFileEntryAlreadyExists
 from volttron.utils.rmq_mgmt import RabbitMQMgmt
+from volttron.platform import update_volttron_script_path
 
 try:
     from volttron.restricted import auth
@@ -236,7 +237,7 @@ class SecureExecutionEnvironment(object):
 
     def stop(self):
         if self.process.poll() is None:
-            cmd = ["sudo", "scripts/secure_stop_agent.sh", self.agent_user, str(self.process.pid)]
+            cmd = ["sudo", update_volttron_script_path("scripts/secure_stop_agent.sh"), self.agent_user, str(self.process.pid)]
             _log.debug("In aip secureexecutionenv {}".format(cmd))
             process = subprocess.Popen(cmd, stdout=PIPE, stderr=PIPE)
             stdout, stderr = process.communicate()

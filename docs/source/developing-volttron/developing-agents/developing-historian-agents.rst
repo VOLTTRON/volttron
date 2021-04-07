@@ -4,8 +4,10 @@
 Developing Historian Agents
 ===========================
 
-VOLTTRON provides a convenient base class for developing new historian agents. The base class automatically performs
-a number of important functions:
+Developing custom historians is considered an advanced development topic. If this is your first time developing
+a custom agent, consider starting with the general :ref:`agent-development` page first.
+VOLTTRON provides a convenient base class for developing new historian agents.  The base class automatically
+performs a number of important functions:
 
 * subscribes to all pertinent topics
 * caches published data to disk until it is successfully recorded to a historian
@@ -103,6 +105,8 @@ startup. It is meant for connection setup.
 Example Historian
 -----------------
 
-An example historian can be found in the `examples/CSVHistorian` directory in the VOLTTRON repository.  This example
+An example historian can be found in the `examples/CSVHistorian` directory in the VOLTTRON repository. This example
 historian uses a CSV file as the persistent data store.  It is recommended to use this agent as a reference for
-developing new historian agents.
+developing new historian agents. The example is described in more detail
+:ref:`under the Example Agents subsection <CSV-Historian>`.
+

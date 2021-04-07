@@ -542,12 +542,16 @@ class AuthService(Agent):
             try:
                 self._certs.approve_csr(user_id)
                 permissions = self.core.rmq_mgmt.get_default_permissions(user_id)
+
+                if "federation" in user_id:  # federation needs more than the current default permissions # TODO: Fix authorization in rabbitmq
+                    permissions = dict(configure=".*", read=".*", write=".*")
                 self.core.rmq_mgmt.create_user_with_permissions(user_id, permissions, True)
                 _log.debug("Created cert and permissions for user: {}".format(user_id))
             # Stores error message in case it is caused by an unexpected failure
             except ValueError as e:
                 val_err = e
-
+        index = 0
+        matched_index = -1
         for pending in self._auth_pending:
             if user_id == pending['user_id']:
                 self._update_auth_entry(
@@ -557,8 +561,12 @@ class AuthService(Agent):
                     pending['credentials'],
                     pending['user_id']
                     )
-                del self._auth_pending[self._auth_pending.index(pending)]
+                matched_index = index
                 val_err = None
+                break
+            index = index + 1
+        if matched_index >= 0:
+            del self._auth_pending[matched_index]
 
         for pending in self._auth_denied:
             if user_id == pending['user_id']:
@@ -574,7 +582,7 @@ class AuthService(Agent):
         # If the user_id supplied was not for a ZMQ credential, and the pending_csr check failed,
         # output the ValueError message to the error log.
         if val_err:
-            _log.error(f"{e}")
+            _log.error(f"{val_err}")
 
     @RPC.export
     @RPC.allow(capabilities="allow_auth_modifications")
@@ -599,6 +607,8 @@ class AuthService(Agent):
             except ValueError as e:
                 val_err = e
 
+        index = 0
+        matched_index = -1
         for pending in self._auth_pending:
             if user_id == pending['user_id']:
                 self._update_auth_entry(
@@ -609,8 +619,12 @@ class AuthService(Agent):
                     pending['user_id'],
                     is_allow=False
                     )
-                del self._auth_pending[self._auth_pending.index(pending)]
+                matched_index = index
                 val_err = None
+                break
+            index = index + 1
+        if matched_index >= 0:
+            del self._auth_pending[matched_index]
 
         for pending in self._auth_approved:
             if user_id == pending['user_id']:
@@ -653,22 +667,45 @@ class AuthService(Agent):
             except ValueError as e:
                 val_err = e
 
+        index = 0
+        matched_index = -1
         for pending in self._auth_pending:
             if user_id == pending['user_id']:
-                del self._auth_pending[self._auth_pending.index(pending)]
+                self._update_auth_entry(
+                    pending['domain'],
+                    pending['address'],
+                    pending['mechanism'],
+                    pending['credentials'],
+                    pending['user_id']
+                    )
+                matched_index = index
                 val_err = None
+                break
+            index = index + 1
+        if matched_index >= 0:
+            del self._auth_pending[matched_index]
+
+        index = 0
+        matched_index = -1
+        for pending in self._auth_pending:
+            if user_id == pending['user_id']:
+                matched_index = index
+                val_err = None
+                break
+            index = index + 1
+        if matched_index >= 0:
+            del self._auth_pending[matched_index]
 
         for pending in self._auth_approved:
             if user_id == pending['user_id']:
                 self._remove_auth_entry(pending['credentials'])
-                del self._auth_approved[self._auth_approved.index(pending)]
                 val_err = None
 
         for pending in self._auth_denied:
             if user_id == pending['user_id']:
                 self._remove_auth_entry(pending['credentials'], is_allow=False)
-                del self._auth_denied[self._auth_denied.index(pending)]
                 val_err = None
+
         # If the user_id supplied was not for a ZMQ credential, and the pending_csr check failed,
         # output the ValueError message to the error log.
         if val_err:
