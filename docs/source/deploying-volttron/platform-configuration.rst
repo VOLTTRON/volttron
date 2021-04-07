@@ -180,7 +180,7 @@ vcfg command to configure a federation instance of RabbitMQ VOLTTRON.
 
         .. code-block:: bash
 
-            vcfg rabbitmq single --config [Optional path to rabbitmq federation config file] --max-retries [Optional maximum CSR retry attempt]``
+            vcfg rabbitmq federation --config [Optional path to rabbitmq federation config file] --max-retries [Optional maximum CSR retry attempt]``
 
 vcfg command to create shovel to send messages from one RabbitMQ instance of VOLTTRON to another.
 
@@ -188,4 +188,4 @@ vcfg command to create shovel to send messages from one RabbitMQ instance of VOL
 
         .. code-block:: bash
 
-            vcfg rabbitmq single --config [Optional path to shovel config file] --max-retries [Optional maximum CSR retry attempt]``
+            vcfg rabbitmq shovel --config [Optional path to shovel config file] --max-retries [Optional maximum CSR retry attempt]``
