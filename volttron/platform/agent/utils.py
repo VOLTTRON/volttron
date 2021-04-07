@@ -43,9 +43,9 @@ import argparse
 import calendar
 import errno
 import logging
+import warnings
 import os
-import re
-import stat
+
 import subprocess
 import sys
 try:
@@ -234,8 +234,22 @@ def get_messagebus():
     return message_bus
 
 
+def is_web_enabled():
+    """Returns True if web enabled, False otherwise"""
+    is_web = os.environ.get('BIND_WEB_ADDRESS')
+    _log.debug("value from env {}".format(is_web))
+    if not is_web:
+        config = load_platform_config()
+        is_web = config.get('bind-web-address')
+        _log.debug("value from config {}".format(is_web))
+        if not is_web:
+            return False
+        return True
+    return True
+
+
 def is_secure_mode():
-    """Get type of message bus - zeromq or rabbbitmq."""
+    """Returns True if running in secure mode, False otherwise"""
     string_value = os.environ.get('SECURE_AGENT_USERS')
     _log.debug("value from env {}".format(string_value))
     if not string_value:
@@ -509,16 +523,25 @@ class AgentFormatter(logging.Formatter):
         return super(AgentFormatter, self).format(record)
 
 
-def setup_logging(level=logging.DEBUG):
+def setup_logging(level=logging.DEBUG, console=False):
     root = logging.getLogger()
     if not root.handlers:
         handler = logging.StreamHandler()
+
         if isapipe(sys.stderr) and '_LAUNCHED_BY_PLATFORM' in os.environ:
             handler.setFormatter(JsonFormatter())
+        elif console:
+            # Below format is more readable for console
+            handler.setFormatter(logging.Formatter('%(levelname)s: %(message)s'))
         else:
             fmt = '%(asctime)s %(name)s %(levelname)s: %(message)s'
             handler.setFormatter(logging.Formatter(fmt))
-
+        if level != logging.DEBUG:
+            # import it here so that when urllib3 imports the requests package, ssl would already got
+            # monkey patched by gevent.
+            # and this warning is needed only when log level is not debug
+            from urllib3.exceptions import InsecureRequestWarning
+            warnings.filterwarnings("ignore", category=InsecureRequestWarning)
         root.addHandler(handler)
     root.setLevel(level)
 

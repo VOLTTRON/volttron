@@ -120,10 +120,9 @@ def weather(request, volttron_instance):
     agent = volttron_instance.install_agent(
         vip_identity=identity,
         agent_dir=source,
-        start=False,
+        start=True,
         config_file=config)
 
-    volttron_instance.start_agent(agent)
     gevent.sleep(3)
 
     def stop_agent():
@@ -300,17 +299,24 @@ def test_hourly_forecast_fail(weather, query_agent, locations):
      ['weather/poll/current/KLAX', 'weather/poll/current/KABQ']),
 
 ])
-def test_polling_locations_valid_config(volttron_instance, query_agent, config, result_topics):
+def test_polling_locations_valid_config(volttron_instance, query_agent, cleanup_cache, config, result_topics):
     agent_uuid = None
-    query_agent.poll_callback.reset_mock()
     try:
         agent_uuid = volttron_instance.install_agent(
             vip_identity="poll.weather",
             agent_dir=get_services_core("WeatherDotGov"),
-            start=False,
+            start=True,
             config_file=config)
-        volttron_instance.start_agent(agent_uuid)
-        gevent.sleep(3)
+
+        # wait for the agent to start up
+        gevent.sleep(1)
+
+        # make sure we don't have any existing callback args
+        query_agent.poll_callback.reset_mock()
+
+        # wait for the duration of the update interval
+        gevent.sleep(config.get("poll_interval"))
+
         print(query_agent.poll_callback.call_args_list)
         assert len(result_topics) == query_agent.poll_callback.call_count
         assert "poll.weather" == query_agent.poll_callback.call_args[0][1]

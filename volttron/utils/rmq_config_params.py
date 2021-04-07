@@ -119,6 +119,7 @@ class RMQConfig(object):
         self.config_opts.setdefault('user', self.instance_name + '-admin')
         rmq_home = os.path.join(os.path.expanduser("~"),
                                 "rabbitmq_server/rabbitmq_server-3.7.7")
+        self.config_opts.setdefault('rabbitmq-service', False)
         self.config_opts.setdefault("rmq-home", rmq_home)
 
     def load_rmq_config(self, volttron_home=None):
@@ -219,6 +220,10 @@ class RMQConfig(object):
     def node_name(self):
         return self.config_opts.get('node-name', 'rabbit')
 
+    @property
+    def rabbitmq_as_service(self):
+        return self.config_opts.get('rabbitmq-service', False)
+
     def reconnect_delay(self):
         return self.config_opts.get('reconnect-delay')
 
@@ -269,5 +274,11 @@ class RMQConfig(object):
     @node_name.setter
     def node_name(self, name):
         self.config_opts['node-name'] = name
+
+    @rabbitmq_as_service.setter
+    def rabbitmq_as_service(self, service_flag):
+        self.config_opts['rabbitmq-service'] = service_flag
+
+
 
 

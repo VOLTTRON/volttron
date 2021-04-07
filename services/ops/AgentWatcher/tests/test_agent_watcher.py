@@ -117,11 +117,11 @@ def test_agent_watcher(platform):
     assert not alert_messages
 
 
-def test_default_config(volttron_instance):
+def test_default_config(platform):
     """
     Test the default configuration file included with the agent
     """
-    publish_agent = volttron_instance.build_agent(identity="test_agent")
+    publish_agent = platform.build_agent(identity="test_agent")
     gevent.sleep(1)
 
     config_path = os.path.join(get_ops("AgentWatcher"), "config")
@@ -129,17 +129,29 @@ def test_default_config(volttron_instance):
         config_json = json.load(config_file)
     assert isinstance(config_json, dict)
 
-    volttron_instance.install_agent(
+    assert 'watchlist' in config_json and 'check-period' in config_json
+    assert isinstance(config_json.get('watchlist'), list) and (
+            isinstance(config_json.get('check-period'), int) or isinstance(config_json.get('check-period'), float))
+    if len(config_json.get('watchlist')) > 0:
+        for watch in config_json.get('watchlist'):
+            assert isinstance(watch, str)
+
+    platform.install_agent(
         agent_dir=get_ops("AgentWatcher"),
         config_file=config_json,
         start=True,
         vip_identity="health_test")
 
     gevent.sleep(2)
-    assert not alert_messages
+
+    if len(config_json.get('watchlist')) > 0:
+        assert f"Agent(s) expected but but not running {config_json.get('watchlist')}" in alert_messages
+    else:
+        assert not alert_messages
 
     assert publish_agent.vip.rpc.call("health_test", "health.get_status").get(timeout=10).get('status') == STATUS_GOOD
 
-    volttron_instance.stop_agent(listener_uuid)
+    publish_agent.core.stop()
+
     gevent.sleep(2)
     assert alert_messages

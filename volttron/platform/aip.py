@@ -74,6 +74,7 @@ from .packages import UnpackedPackage
 from .vip.agent import Agent
 from .auth import AuthFile, AuthEntry, AuthFileEntryAlreadyExists
 from volttron.utils.rmq_mgmt import RabbitMQMgmt
+from volttron.platform import update_volttron_script_path
 
 try:
     from volttron.restricted import auth
@@ -197,12 +198,12 @@ class ExecutionEnvironment(object):
             try:
                 return gevent.with_timeout(60, process_wait, self.process)
             except gevent.Timeout:
-                _log.warn("First timeout")
+                _log.warning("First timeout")
                 self.process.terminate()
             try:
                 return gevent.with_timeout(30, process_wait, self.process)
             except gevent.Timeout:
-                _log.warn("2nd timeout")
+                _log.warning("2nd timeout")
                 self.process.kill()
             try:
                 return gevent.with_timeout(30, process_wait, self.process)
@@ -236,7 +237,7 @@ class SecureExecutionEnvironment(object):
 
     def stop(self):
         if self.process.poll() is None:
-            cmd = ["sudo", "scripts/secure_stop_agent.sh", self.agent_user, str(self.process.pid)]
+            cmd = ["sudo", update_volttron_script_path("scripts/secure_stop_agent.sh"), self.agent_user, str(self.process.pid)]
             _log.debug("In aip secureexecutionenv {}".format(cmd))
             process = subprocess.Popen(cmd, stdout=PIPE, stderr=PIPE)
             stdout, stderr = process.communicate()
@@ -695,9 +696,9 @@ class AIPplatform(object):
                 with open(user_id_path, 'r') as user_id_file:
                     volttron_agent_user = user_id_file.readline()
             except (KeyError, IOError) as user_id_err:
-                _log.warn("Volttron agent user not found at {}".format(
+                _log.warning("Volttron agent user not found at {}".format(
                     user_id_path))
-                _log.warn(user_id_err)
+                _log.warning(user_id_err)
         if remove_auth:
             self._unauthorize_agent_keys(agent_uuid)
         shutil.rmtree(agent_directory)

@@ -37,7 +37,7 @@
 # }}}
 
 import os
-from master_driver.interfaces import BaseInterface, BaseRegister, BasicRevert
+from platform_driver.interfaces import BaseInterface, BaseRegister, BasicRevert
 from csv import DictReader, DictWriter
 import logging
 
@@ -155,10 +155,10 @@ class Interface(BasicRevert, BaseInterface):
 
     def configure(self, config_dict, registry_config_str):
         """
-        Set the Interface attributes from the configurations provided by the Master Driver, and create the "device" if
+        Set the Interface attributes from the configurations provided by the Platform Driver, and create the "device" if
         it doesn't already exist
-        :param config_dict: Dictionary of configuration values passed from the Master Driver
-        :param registry_config_str: String representation of the registry configuration passed from the Master Driver
+        :param config_dict: Dictionary of configuration values passed from the Platform Driver
+        :param registry_config_str: String representation of the registry configuration passed from the Platform Driver
         """
         # Set the CSV interface's necessary attributes from the configuration
         self.csv_path = config_dict.get("csv_path", "csv_device.csv")

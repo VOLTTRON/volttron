@@ -5,7 +5,7 @@ Contributing Code
 =================
 
 As an open source project VOLTTRON requires input from the community to keep development focused on new and useful
-features.  To that end we are revising our commit process to hopefully allow more contributors to be apart of the
+features.  To that end we are revising our commit process to hopefully allow more contributors to be a part of the
 community.  The following document outlines the process for source code and documentation to be submitted.
 There are GUI tools that may make this process easier, however this document will focus on what is required from the
 command line.
@@ -101,11 +101,11 @@ For agents:
     └── tests
         └── test_agent.py
 
-For drivers, the interface should be a file named after the driver in the Master Driver's interfaces directory:
+For drivers, the interface should be a file named after the driver in the Platform Driver's interfaces directory:
 
 ::
 
-    ├── master_driver
+    ├── platform_driver
     │         ├── agent.py
     │         ├── driver.py
     │         ├── __init__.py
@@ -115,11 +115,11 @@ For drivers, the interface should be a file named after the driver in the Master
     |         |         ├── csvdriver.py
     │         │         └── new_driver.py
 
-Or in the `__init__.py` file in a directory named after the driver in the Master Driver's interfaces directory:
+Or in the `__init__.py` file in a directory named after the driver in the Platform Driver's interfaces directory:
 
 ::
 
-    ├── master_driver
+    ├── platform_driver
     │         ├── agent.py
     │         ├── driver.py
     │         ├── __init__.py

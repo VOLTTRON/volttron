@@ -22,7 +22,7 @@ The IEEE2030_5 Agent exposes RPC calls for getting and setting EndDevice data.
 VOLTTRON IEEE 2030.5 Device Driver
 ----------------------------------
 
-The :ref:`IEEE 2030.5 device driver <IEEE-2030_5-Driver>` is a new addition to VOLTTRON Master Driver Agent's
+The :ref:`IEEE 2030.5 device driver <IEEE-2030_5-Driver>` is a new addition to VOLTTRON Platform Driver Agent's
 family of standard device drivers.  It exposes ``get_point``/``set_point calls`` for IEEE 2030.5 EndDevice fields.
 
 The IEEE 2030.5 device driver periodically issues IEEE2030_5 Agent RPC calls to refresh its cached representation of
@@ -102,7 +102,7 @@ field definitions. Developers are encouraged to expand the definitions.
 
 The procedure for expanding the field mappings requires you to make changes in two places:
 
-1. Update the driver's point definitions in ``services/core/MasterDriverAgent/master_driver/ieee2030_5.csv``
+1. Update the driver's point definitions in ``services/core/PlatformDriverAgent/platform_driver/ieee2030_5.csv``
 2. Update the IEEE 2030.5-to-SunSpec field mappings in ``services/core/IEEE2030_5Agent/ieee2030_5/end_device.py`` and
    ``__init__.py``
 

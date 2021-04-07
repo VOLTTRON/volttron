@@ -10,7 +10,7 @@ refer to the corresponding documents.
 .. toctree::
    :maxdepth: 1
 
-   master-driver/master-driver-agent
+   platform-driver/platform-driver-agent
    market-service/market-service-agent
    dnp3-and-mesa/dnp3-agent
    dnp3-and-mesa/mesa-agent

@@ -265,7 +265,7 @@ class VolttronCentralAgent(Agent):
         platform = self._platforms.add_platform(platform_vip_identity)
 
     def _handle_platform_disconnect(self, platform_vip_identity):
-        _log.warn("Handling disconnection of connection from identity: {}".format(
+        _log.warning("Handling disconnection of connection from identity: {}".format(
             platform_vip_identity
         ))
         # TODO send alert that there was a platform disconnect.
@@ -473,7 +473,7 @@ class VolttronCentralAgent(Agent):
         except Exception as e:
 
             return jsonrpc.json_error(
-                'NA', UNHANDLED_EXCEPTION, e
+                'NA', UNHANDLED_EXCEPTION, str(e)
             )
 
         return self._get_jsonrpc_response(rpcdata.id, result_or_error)

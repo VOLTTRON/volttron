@@ -319,8 +319,7 @@ class EmailerAgent(Agent):
         :param message:
         """
         if not self.current_config.get('send_alerts_enabled'):
-            _log.warn('Alert message found but not sent enable alerts '
-                      'enable by setting send_alerts_enabled to True')
+            _log.warning('Alert message found but not sent enable alerts enable by setting send_alerts_enabled to True')
             return
         mailkey = headers.get(ALERT_KEY, None)
 

@@ -50,8 +50,8 @@ The following is a simple  example `config` for a multi-platform deployment:
     message-bus = zmq
     vip-address = tcp://127.0.0.1:22916
     bind-web-address = <web service bind address>
-    web-ssl-cert = <VOLTTRON_HOME>/certificates/certs/master_web-server.crt
-    web-ssl-key = <VOLTTRON_HOME>/certificates/private/master_web-server.pem
+    web-ssl-cert = <VOLTTRON_HOME>/certificates/certs/platform_web-server.crt
+    web-ssl-key = <VOLTTRON_HOME>/certificates/private/platform_web-server.pem
     instance-name = volttron1
     volttron-central-address = <VC address>
 
@@ -133,10 +133,10 @@ A set of example responses are included here (`username` is ``user``, `localhost
         Configuring /home/user/volttron/services/core/SQLHistorian.
         ['volttron', '-vv', '-l', '/home/user/.volttron/volttron.cfg.log']
         Should the agent autostart? [N]: y
-        Would you like to install a master driver? [N]: y
-        Configuring /home/user/volttron/services/core/MasterDriverAgent.
+        Would you like to install a platform driver? [N]: y
+        Configuring /home/user/volttron/services/core/PlatformDriverAgent.
         ['volttron', '-vv', '-l', '/home/user/.volttron/volttron.cfg.log']
-        Would you like to**install a fake device on the master driver? [N]: y
+        Would you like to**install a fake device on the platform driver? [N]: y
         Should the agent autostart? [N]: y
         Would you like to install a listener agent? [N]: y
         Configuring examples/ListenerAgent.
@@ -158,7 +158,7 @@ Optional Arguments
   - **-v, --verbose** - Enables verbose output in standard-output (PIP output, etc.)
   - **--vhome VHOME** - Provide a path to set `VOLTTRON_HOME` for this instance
   - **--instance-name INSTANCE_NAME** - Provide a name for this instance.  Required for running secure agents mode
-  - **--list-agents** - Display a list of configurable agents (Listener, Master Driver, Platform Historian, VOLTTRON
+  - **--list-agents** - Display a list of configurable agents (Listener, Platform Driver, Platform Historian, VOLTTRON
     Central, VOLTTRON Central Platform)
   - **--agent AGENT [AGENT ...]** - Configure listed agents
   - **--rabbitmq RABBITMQ [RABBITMQ ...]** - Configure rabbitmq for single instance, federation, or shovel either based

@@ -19,7 +19,7 @@ jobs:
       matrix:
         # Each entry in the os and python-version matrix will be run so for the 3 x 4 there will be 12 jobs run
         os: [ ubuntu-16.04, ubuntu-18.04, ubuntu-20.04 ]
-        python-version: [ 3.6, 3.7, 3.8, 3.9 ]
+        python-version: [ 3.6, 3.7] # , 3.8, 3.9 ]
 
     runs-on: ${{ matrix.os }}
 
@@ -58,7 +58,7 @@ jobs:
         run: |
           source env/bin/activate
           pip install -e .
-          pytest volttrontesting/testutils -o junit_family=xunit2 --junitxml=output/test-testutils-${{matrix.os}}-${{ matrix.python-version }}-results.xml
+          pytest volttrontesting/testutils -rf -o junit_family=xunit2 --junitxml=output/test-testutils-${{matrix.os}}-${{ matrix.python-version }}-results.xml
 
       # Archive the results from the pytest to storage.
       - name: Archive test results

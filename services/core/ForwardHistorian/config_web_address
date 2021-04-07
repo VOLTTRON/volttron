@@ -1,0 +1,4 @@
+{
+    "destination-address": "https://centvolttron2:8443",
+    "custom_topic_list": ["heartbeat"]
+}

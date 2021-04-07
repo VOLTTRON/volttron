@@ -10,9 +10,9 @@ Goals
    with via a single Volttron platform.
 -  Determine how scaling out affects the rate at which devices are
    scraped. i.e. How long from the first device scrape to the last?
--  Determine the effects of socket throttling in the master driver on
+-  Determine the effects of socket throttling in the platform driver on
    the performance of Modbus device scraping.
--  Measure total memory consumption of the Master Driver Agent at scale.
+-  Measure total memory consumption of the Platform Driver Agent at scale.
 -  Measure how well the base history agent and one or more of the
    concrete agents handle a large amount of data.
 -  Determine the volume of messages that can be achieved on the pubsub
@@ -42,9 +42,9 @@ Launcher Script
 -  The script (probably a fabric script) will push out code for and
    launch one or more test devices on one or more machines for the
    platform to scrape.
--  The script will generate all of the master driver configuration files
-   to launch the master driver.
--  The script may launch the master driver.
+-  The script will generate all of the platform driver configuration files
+   to launch the platform driver.
+-  The script may launch the platform driver.
 -  The script may launch any other agents used to measure performance.
 
 Shutdown Script
@@ -52,7 +52,7 @@ Shutdown Script
 
 -  The script (probably the same fabric script run with different
    options) will shutdown all virtual drivers on the network.
--  The script may shutdown the master driver.
+-  The script may shutdown the platform driver.
 -  The script may shutdown any related agents.
 
 Performance Metrics Agent
@@ -69,7 +69,7 @@ Additional Benefits
 ~~~~~~~~~~~~~~~~~~~
 
 Most parts of a test bed run should be configurable. If a user wanted to
-verify that the Master Driver worked, for instance, they could run the
+verify that the Platform Driver worked, for instance, they could run the
 test bed with only a few virtual device to confirm that the platform is
 working correctly.
 
@@ -134,7 +134,7 @@ Real Driver Benchmarking
 Scalability testing using actual MODBUS or BACnet drivers can be done
 using the virtual device applications in the
 scripts/scalability-testing/virtual-drivers/ directory. The
-configuration of the master driver and launching of these virtual
+configuration of the platform driver and launching of these virtual
 devices on a target machine can be done automatically with fabric.
 
 Setup
@@ -181,7 +181,7 @@ on the target run
 
 When prompted enter the password for the target machine. Upon completion
 virtual devices will be running on the target and configuration files
-written for the master driver.
+written for the platform driver.
 
 Launch Test
 ^^^^^^^^^^^

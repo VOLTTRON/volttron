@@ -111,8 +111,9 @@ mongo_aggregator = {
             "host": "localhost",
             "port": 27017,
             "database": "mongo_test",
-            "user": "test",
-            "passwd": "test"
+            "user": "historian",
+            "passwd": "historian",
+            "authSource": "test"
         }
     }
 }
@@ -123,11 +124,11 @@ postgresql_aggregator = {
     'connection': {
         'type': 'postgresql',
         'params': {
-            'dbname': 'historian_test',
-            'port': 5433,
-            'host': '127.0.0.1',
+            'dbname': 'test_historian',
+            'port': 5432,
+            'host': 'localhost',
             'user' : 'historian',
-            'password': 'volttron'
+            'password': 'historian'
         },
     },
 }
@@ -177,8 +178,10 @@ def setup_sqlite(connection_params, table_names):
 
 
 def setup_mongodb(connection_params, table_names):
-    print ("setup mongodb")
+    print("setup mongodb")
     mongo_conn_str = 'mongodb://{user}:{passwd}@{host}:{port}/{database}'
+    if "authSource" in connection_params:
+        mongo_conn_str = mongo_conn_str + "?authSource={authSource}"
     params = connection_params
     mongo_conn_str = mongo_conn_str.format(**params)
     mongo_client = pymongo.MongoClient(mongo_conn_str)

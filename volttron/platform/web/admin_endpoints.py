@@ -41,17 +41,17 @@ import os
 import re
 from urllib.parse import parse_qs
 
-from volttron.platform.agent.known_identities import MASTER_WEB, AUTH
+from volttron.platform.agent.known_identities import PLATFORM_WEB, AUTH
 
 try:
     from jinja2 import Environment, FileSystemLoader, select_autoescape, TemplateNotFound
 except ImportError:
-    logging.getLogger().warning("Missing jinja2 libaray in admin_endpoints.py")
+    logging.getLogger().warning("Missing jinja2 library in admin_endpoints.py")
 
 try:
     from passlib.hash import argon2
 except ImportError:
-    logging.getLogger().warning("Missing passlib libaray in admin_endpoints.py")
+    logging.getLogger().warning("Missing passlib library in admin_endpoints.py")
 
 from watchdog_gevent import Observer
 from volttron.platform.agent.web import Response
@@ -76,10 +76,6 @@ class AdminEndpoints(object):
 
         self._rpc_caller = rpc_caller
         self._rmq_mgmt = rmq_mgmt
-        self._certs = None
-
-        if rmq_mgmt is not None:
-            self._certs = Certs()
 
         self._pending_auths = None
         self._denied_auths = None
@@ -111,8 +107,6 @@ class AdminEndpoints(object):
             get_home()
         )
         self._observer.start()
-        if ssl_public_key is not None:
-            self._certs = Certs()
 
     def reload_userdict(self):
         webuserpath = os.path.join(get_home(), 'web-users.json')
@@ -120,7 +114,7 @@ class AdminEndpoints(object):
 
     def get_routes(self):
         """
-        Returns a list of tuples with the routes for the adminstration endpoints
+        Returns a list of tuples with the routes for the administration endpoints
         available in it.
 
         :return:
@@ -139,7 +133,7 @@ class AdminEndpoints(object):
                 pass2 = decoded.get('password2')
 
                 if pass1 == pass2 and pass1 is not None:
-                    _log.debug("Setting master password")
+                    _log.debug("Setting administrator password")
                     self.add_user(username, pass1, groups=['admin'])
                     return Response('', status='302', headers={'Location': '/admin/login.html'})
 
@@ -162,7 +156,7 @@ class AdminEndpoints(object):
         """
         from volttron.platform.web import get_bearer, NotAuthorized
         try:
-            claims = self._rpc_caller(MASTER_WEB, 'get_user_claims', get_bearer(env)).get()
+            claims = self._rpc_caller(PLATFORM_WEB, 'get_user_claims', get_bearer(env)).get()
         except NotAuthorized:
             _log.error("Unauthorized user attempted to connect to {}".format(env.get('PATH_INFO')))
             return Response('<h1>Unauthorized User</h1>', status="401 Unauthorized")
@@ -182,14 +176,18 @@ class AdminEndpoints(object):
             except TemplateNotFound:
                 return Response("<h1>404 Not Found</h1>", status="404 Not Found")
 
-            # if page == 'list_certs.html':
-            #     html = template.render(certs=self._certs.get_all_cert_subjects())
             if page == 'pending_auth_reqs.html':
-                self._pending_auths = self._rpc_caller.call(AUTH, 'get_authorization_failures').get()
-                self._denied_auths = self._rpc_caller.call(AUTH, 'get_authorization_denied').get()
-                self._approved_auths = self._rpc_caller.call(AUTH, 'get_authorization_approved').get()
-                if self._certs:
-                    html = template.render(csrs=self._certs.get_pending_csr_requests(),
+                try:
+                    self._pending_auths = self._rpc_caller.call(AUTH, 'get_authorization_pending').get(timeout=2)
+                    self._denied_auths = self._rpc_caller.call(AUTH, 'get_authorization_denied').get(timeout=2)
+                    self._approved_auths = self._rpc_caller.call(AUTH, 'get_authorization_approved').get(timeout=2)
+                except TimeoutError:
+                    self._pending_auths = []
+                    self._denied_auths = []
+                    self._approved_auths = []
+                # When messagebus is rmq, include pending csrs in the output pending_auth_reqs.html page
+                if self._rmq_mgmt is not None:
+                    html = template.render(csrs=self._rpc_caller.call(AUTH, 'get_pending_csrs').get(timeout=4),
                                            auths=self._pending_auths,
                                            denied_auths=self._denied_auths,
                                            approved_auths=self._approved_auths)
@@ -233,76 +231,99 @@ class AdminEndpoints(object):
     def __approve_csr_api(self, common_name):
         try:
             _log.debug("Creating cert and permissions for user: {}".format(common_name))
-            self._certs.approve_csr(common_name)
-            permissions = self._rmq_mgmt.get_default_permissions(common_name)
-            self._rmq_mgmt.create_user_with_permissions(common_name,
-                                                        permissions,
-                                                        True)
-            data = dict(status=self._certs.get_csr_status(common_name),
-                        cert=self._certs.get_cert_from_csr(common_name))
-            data['cert'] = data['cert'].decode('utf-8')
+            self._rpc_caller.call(AUTH, 'approve_authorization_failure', common_name).wait(timeout=4)
+            data = dict(status=self._rpc_caller.call(AUTH, "get_pending_csr_status", common_name).get(timeout=2),
+                        cert=self._rpc_caller.call(AUTH, "get_pending_csr_cert", common_name).get(timeout=2))
         except ValueError as e:
+            data = dict(status="ERROR", message=e.message)
+
+        except TimeoutError as e:
             data = dict(status="ERROR", message=e.message)
 
         return Response(jsonapi.dumps(data), content_type="application/json")
 
     def __deny_csr_api(self, common_name):
         try:
-            self._certs.deny_csr(common_name)
+            self._rpc_caller.call(AUTH, 'deny_authorization_failure', common_name).wait(timeout=2)
             data = dict(status="DENIED",
                         message="The administrator has denied the request")
         except ValueError as e:
+            data = dict(status="ERROR", message=e.message)
+
+        except TimeoutError as e:
             data = dict(status="ERROR", message=e.message)
 
         return Response(jsonapi.dumps(data), content_type="application/json")
 
     def __delete_csr_api(self, common_name):
         try:
-            self._certs.delete_csr(common_name)
+            self._rpc_caller.call(AUTH, 'delete_authorization_failure', common_name).wait(timeout=2)
             data = dict(status="DELETED",
                         message="The administrator has denied the request")
         except ValueError as e:
             data = dict(status="ERROR", message=e.message)
 
+        except TimeoutError as e:
+            data = dict(status="ERROR", message=e.message)
+
         return Response(jsonapi.dumps(data), content_type="application/json")
 
     def __pending_csrs_api(self):
-        csrs = [c for c in self._certs.get_pending_csr_requests()]
-        return Response(jsonapi.dumps(csrs), content_type="application/json")
+        try:
+            data = self._rpc_caller.call(AUTH, 'get_pending_csrs').get(timeout=4)
+
+        except TimeoutError as e:
+            data = dict(status="ERROR", message=e.message)
+
+        return Response(jsonapi.dumps(data), content_type="application/json")
 
     def __cert_list_api(self):
 
-        subjects = [dict(common_name=x.common_name)
-                    for x in self._certs.get_all_cert_subjects()]
-        return Response(jsonapi.dumps(subjects), content_type="application/json")
+        try:
+            data = [dict(common_name=x.common_name) for x in
+                    self._rpc_caller.call(AUTH, "get_all_pending_csr_subjects").get(timeout=2)]
+
+        except TimeoutError as e:
+            data = dict(status="ERROR", message=e.message)
+
+        return Response(jsonapi.dumps(data), content_type="application/json")
 
     def __approve_credential_api(self, user_id):
         try:
             _log.debug("Creating credential and permissions for user: {}".format(user_id))
-            self._rpc_caller.call(AUTH, 'approve_authorization_failure', user_id).wait()
+            self._rpc_caller.call(AUTH, 'approve_authorization_failure', user_id).wait(timeout=4)
             data = dict(status='APPROVED',
                         message="The administrator has approved the request")
         except ValueError as e:
+            data = dict(status="ERROR", message=e.message)
+
+        except TimeoutError as e:
             data = dict(status="ERROR", message=e.message)
 
         return Response(jsonapi.dumps(data), content_type="application/json")
 
     def __deny_credential_api(self, user_id):
         try:
-            self._rpc_caller.call(AUTH, 'deny_authorization_failure', user_id)
+            self._rpc_caller.call(AUTH, 'deny_authorization_failure', user_id).wait(timeout=2)
             data = dict(status="DENIED",
                         message="The administrator has denied the request")
         except ValueError as e:
+            data = dict(status="ERROR", message=e.message)
+
+        except TimeoutError as e:
             data = dict(status="ERROR", message=e.message)
 
         return Response(jsonapi.dumps(data), content_type="application/json")
 
     def __delete_credential_api(self, user_id):
         try:
-            self._rpc_caller.call(AUTH, 'delete_authorization_failure', user_id)
+            self._rpc_caller.call(AUTH, 'delete_authorization_failure', user_id).wait(timeout=2)
             data = dict(status="DELETED",
                         message="The administrator has denied the request")
         except ValueError as e:
+            data = dict(status="ERROR", message=e.message)
+
+        except TimeoutError as e:
             data = dict(status="ERROR", message=e.message)
 
         return Response(jsonapi.dumps(data), content_type="application/json")
