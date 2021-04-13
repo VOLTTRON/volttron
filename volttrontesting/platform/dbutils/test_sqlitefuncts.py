@@ -1,16 +1,9 @@
+import shutil
+import os
+import docker
 import pytest
-from gevent import os, subprocess
-from setuptools import glob
 
 from volttron.platform.dbutils.sqlitefuncts import SqlLiteFuncts
-
-try:
-    subprocess.run(["sqlite3", "--version"])
-except FileNotFoundError as e:
-    pytest.skip(
-        "Sqlite3 required for running tests. Please install sqlite3 on you system. For example, on Ubuntu, run 'sudo apt-get install sqlite3'",
-        allow_module_level=True,
-    )
 
 TOPICS_TABLE = "topics"
 DATA_TABLE = "data"
@@ -19,45 +12,33 @@ METAMETA_TABLE = "metameta"
 AGG_TOPICS_TABLE = "aggregate_topics"
 AGG_META_TABLE = "aggregate_meta"
 TABLE_PREFIX = ""
+IMAGE = "nouchka/sqlite3:latest"
+DATABASE = "historian.sqlite"
+DATABASE_PATH = os.path.join(os.getcwd(), "data")
+CONTAINER_VOLUME_PATH = '/root/db'
 
 
 @pytest.mark.sqlitefuncts
 @pytest.mark.dbutils
-def test_setup_historian_tables(sqlitefuncts_db_not_initialized):
+def test_setup_historian_tables(sqlite_container, sqlitefuncts):
     expected_tables = {"data", "meta", "topics"}
-
-    sqlitefuncts_db_not_initialized.setup_historian_tables()
-
-    actual_tables = get_tables()
-
-    assert actual_tables == expected_tables
+    actual_tables = get_tables(sqlite_container)
+    for expected_table in expected_tables:
+        assert expected_table in actual_tables
 
 
 @pytest.mark.sqlitefuncts
 @pytest.mark.dbutils
-def test_record_table_definitions(sqlitefuncts_db_not_initialized):
-    table_defs = {
-        "table_prefix": "prefixtab",
-        "data_table": "data",
-        "topics_table": "topics",
-        "meta_table": "meta",
-    }
-    meta_table_name = "metameta"
-    init_historian_tables(sqlitefuncts_db_not_initialized)
+def test_record_table_definitions(sqlite_container, sqlitefuncts):
     expected_tables = {"data", "meta", "metameta", "topics"}
-
-    sqlitefuncts_db_not_initialized.record_table_definitions(
-        table_defs, meta_table_name
-    )
-
-    actual_tables = get_tables()
-    assert actual_tables == expected_tables
+    actual_tables = get_tables(sqlite_container)
+    for expected_table in expected_tables:
+        assert expected_table in actual_tables
 
 
 @pytest.mark.sqlitefuncts
 @pytest.mark.dbutils
-def test_setup_aggregate_historian_tables(sqlitefuncts):
-    meta_table_name = "metameta"
+def test_setup_aggregate_historian_tables(sqlite_container, sqlitefuncts):
     expected_tables = {
         "data",
         "aggregate_meta",
@@ -66,11 +47,9 @@ def test_setup_aggregate_historian_tables(sqlitefuncts):
         "topics",
         "metameta",
     }
-
-    sqlitefuncts.setup_aggregate_historian_tables(meta_table_name)
-
-    actual_tables = get_tables()
-    assert actual_tables == expected_tables
+    actual_tables = get_tables(sqlite_container)
+    for expected_table in expected_tables:
+        assert expected_table in actual_tables
 
 
 @pytest.mark.sqlitefuncts
@@ -82,10 +61,9 @@ def test_setup_aggregate_historian_tables(sqlitefuncts):
         ([43], {43: "topic43"}, {"topic43": [("2020-06-01T12:30:59.000000", [2, 3])]}),
     ],
 )
-def test_query(sqlitefuncts, topic_ids, id_name_map, expected_values):
-    init_database(sqlitefuncts)
+def test_query(sqlite_container, sqlitefuncts, topic_ids, id_name_map, expected_values):
     query = """INSERT OR REPLACE INTO data VALUES('2020-06-01 12:30:59',43,'[2,3]')"""
-    query_db(query)
+    query_db(query, sqlite_container)
 
     actual_results = sqlitefuncts.query(topic_ids, id_name_map)
 
@@ -98,34 +76,32 @@ def test_query(sqlitefuncts, topic_ids, id_name_map, expected_values):
     "history_limit_timestamp, storage_limit_gb, expected_data",
     [
         ("2020-06-01 12:30:59", None, []),
-        (None, 10, ["2000-06-01 12:30:59|43|[2,3]", "2000-06-01 12:30:58|42|[2,3]"]),
+        (None, 10, ["2000-06-01", "12:30:59|43|[2,3]", "2000-06-01", "12:30:58|42|[2,3]"]),
         ("2020-06-01 12:30:59", 10, []),
     ],
 )
-def test_manage_db_size(
-    sqlitefuncts, history_limit_timestamp, storage_limit_gb, expected_data
-):
+def test_manage_db_size(sqlite_container, sqlitefuncts, history_limit_timestamp, storage_limit_gb, expected_data):
     query = (
         "INSERT OR REPLACE INTO data VALUES('2000-06-01 12:30:59',43,'[2,3]'); "
         "INSERT OR REPLACE INTO data VALUES('2000-06-01 12:30:58',42,'[2,3]')"
     )
 
-    query_db(query)
+    query_db(query, sqlite_container)
     data_before_resize = [
-        "2000-06-01 12:30:59|43|[2,3]",
-        "2000-06-01 12:30:58|42|[2,3]",
+        "2000-06-01", "12:30:59|43|[2,3]",
+        "2000-06-01", "12:30:58|42|[2,3]",
     ]
-    assert get_all_data(DATA_TABLE) == data_before_resize
+    assert get_all_data(DATA_TABLE, sqlite_container) == data_before_resize
 
     sqlitefuncts.manage_db_size(history_limit_timestamp, storage_limit_gb)
 
-    assert get_all_data(DATA_TABLE) == expected_data
+    assert get_all_data(DATA_TABLE, sqlite_container) == expected_data
 
 
 @pytest.mark.sqlitefuncts
 @pytest.mark.dbutils
-def test_insert_meta(sqlitefuncts):
-    assert get_all_data(META_TABLE) == []
+def test_insert_meta(sqlitefuncts, sqlite_container):
+    assert get_all_data(META_TABLE, sqlite_container) == []
 
     topic_id = "44"
     metadata = "foobar44"
@@ -135,30 +111,30 @@ def test_insert_meta(sqlitefuncts):
     sqlitefuncts.commit()
 
     assert res is True
-    assert get_all_data(META_TABLE) == expected_data
+    assert get_all_data(META_TABLE, sqlite_container) == expected_data
 
 
 @pytest.mark.sqlitefuncts
 @pytest.mark.dbutils
-def test_insert_data(sqlitefuncts):
-    assert get_all_data(DATA_TABLE) == []
+def test_insert_data(sqlitefuncts, sqlite_container):
+    assert get_all_data(DATA_TABLE, sqlite_container) == []
 
     ts = "2001-09-11 08:46:00"
     topic_id = "11"
     data = "1wtc"
-    expected_data = ['2001-09-11 08:46:00|11|"1wtc"']
+    expected_data = ['2001-09-11', '08:46:00|11|"1wtc"']
 
     res = sqlitefuncts.insert_data(ts, topic_id, data)
     sqlitefuncts.commit()
 
     assert res is True
-    assert get_all_data(DATA_TABLE) == expected_data
+    assert get_all_data(DATA_TABLE, sqlite_container) == expected_data
 
 
 @pytest.mark.sqlitefuncts
 @pytest.mark.dbutils
-def test_insert_topic(sqlitefuncts):
-    assert get_all_data(TOPICS_TABLE) == []
+def test_insert_topic(sqlitefuncts, sqlite_container):
+    assert get_all_data(TOPICS_TABLE, sqlite_container) == []
 
     topic = "football"
     expected_data = ["1|football"]
@@ -167,22 +143,22 @@ def test_insert_topic(sqlitefuncts):
     sqlitefuncts.commit()
 
     assert res == 1
-    assert get_all_data(TOPICS_TABLE) == expected_data
+    assert get_all_data(TOPICS_TABLE, sqlite_container) == expected_data
 
 
 @pytest.mark.sqlitefuncts
 @pytest.mark.dbutils
-def test_update_topic(sqlitefuncts):
+def test_update_topic(sqlitefuncts, sqlite_container):
     query = "INSERT INTO topics (topic_name) values ('football')"
-    query_db(query)
+    query_db(query, sqlite_container)
 
-    assert get_all_data(TOPICS_TABLE) == ["1|football"]
+    assert get_all_data(TOPICS_TABLE, sqlite_container) == ["1|football"]
 
     res = sqlitefuncts.update_topic("basketball", 1)
     sqlitefuncts.commit()
 
     assert res is True
-    assert get_all_data("topics") == ["1|basketball"]
+    assert get_all_data("topics", sqlite_container) == ["1|basketball"]
 
 
 @pytest.mark.sqlitefuncts
@@ -201,8 +177,8 @@ def test_get_aggregation_list(sqlitefuncts):
 
 @pytest.mark.sqlitefuncts
 @pytest.mark.dbutils
-def test_insert_agg_topic(sqlitefuncts):
-    assert get_all_data(AGG_TOPICS_TABLE) == []
+def test_insert_agg_topic(sqlitefuncts, sqlite_container):
+    assert get_all_data(AGG_TOPICS_TABLE, sqlite_container) == []
 
     topic = "agg_topics"
     agg_type = "AVG"
@@ -212,16 +188,16 @@ def test_insert_agg_topic(sqlitefuncts):
     sqlitefuncts.insert_agg_topic(topic, agg_type, agg_time_period)
     sqlitefuncts.commit()
 
-    assert get_all_data(AGG_TOPICS_TABLE) == expected_data
+    assert get_all_data(AGG_TOPICS_TABLE, sqlite_container) == expected_data
 
 
 @pytest.mark.sqlitefuncts
 @pytest.mark.dbutils
-def test_update_agg_topic(sqlitefuncts):
+def test_update_agg_topic(sqlitefuncts, sqlite_container):
     query = "INSERT INTO aggregate_topics (agg_topic_name, agg_type, agg_time_period) values ('cars', 'SUM', '2100ZULU')"
-    query_db(query)
+    query_db(query, sqlite_container)
 
-    assert get_all_data(AGG_TOPICS_TABLE) == ["1|cars|SUM|2100ZULU"]
+    assert get_all_data(AGG_TOPICS_TABLE, sqlite_container) == ["1|cars|SUM|2100ZULU"]
 
     new_agg_topic_name = "boats"
     expected_data = ["1|cars|SUM|2100ZULU"]
@@ -229,13 +205,13 @@ def test_update_agg_topic(sqlitefuncts):
     res = sqlitefuncts.update_agg_topic(1, new_agg_topic_name)
 
     assert res is True
-    assert get_all_data(AGG_TOPICS_TABLE) == expected_data
+    assert get_all_data(AGG_TOPICS_TABLE, sqlite_container) == expected_data
 
 
 @pytest.mark.sqlitefuncts
 @pytest.mark.dbutils
-def test_insert_agg_meta(sqlitefuncts):
-    assert get_all_data(AGG_META_TABLE) == []
+def test_insert_agg_meta(sqlitefuncts, sqlite_container):
+    assert get_all_data(AGG_META_TABLE, sqlite_container) == []
 
     topic_id = 42
     metadata = "meaning of life"
@@ -244,20 +220,21 @@ def test_insert_agg_meta(sqlitefuncts):
     sqlitefuncts.commit()
 
     assert res is True
-    assert get_all_data(AGG_META_TABLE) == expected_data
+    actual_data = [(" ".join(get_all_data(AGG_META_TABLE, sqlite_container)))]
 
+    assert actual_data == expected_data
 
 @pytest.mark.sqlitefuncts
 @pytest.mark.dbutils
-def test_get_topic_map(sqlitefuncts):
+def test_get_topic_map(sqlitefuncts, sqlite_container):
     query = "INSERT INTO topics (topic_name) values ('football');INSERT INTO topics (topic_name) values ('netball');"
-    query_db(query)
+    query_db(query, sqlite_container)
     expected_topic_map = (
         {"football": 1, "netball": 2},
         {"football": "football", "netball": "netball"},
     )
 
-    assert get_all_data(TOPICS_TABLE) == ["1|football", "2|netball"]
+    assert get_all_data(TOPICS_TABLE, sqlite_container) == ["1|football", "2|netball"]
 
     actual_topic_map = sqlitefuncts.get_topic_map()
 
@@ -266,12 +243,12 @@ def test_get_topic_map(sqlitefuncts):
 
 @pytest.mark.sqlitefuncts
 @pytest.mark.dbutils
-def test_get_agg_topics(sqlitefuncts):
+def test_get_agg_topics(sqlitefuncts, sqlite_container):
     query = (
         "INSERT INTO aggregate_topics (agg_topic_name, agg_type, agg_time_period ) "
         "values('topic_name', 'AVG', '2001');"
     )
-    query_db(query)
+    query_db(query, sqlite_container)
     sqlitefuncts.insert_agg_meta(1, {"configured_topics": "great books"})
     sqlitefuncts.commit()
     expected_topics = [("topic_name", "AVG", "2001", "great books")]
@@ -283,24 +260,19 @@ def test_get_agg_topics(sqlitefuncts):
 
 @pytest.mark.sqlitefuncts
 @pytest.mark.dbutils
-def test_agg_topics_should_return_empty_on_nonexistent_table(
-    sqlitefuncts_db_not_initialized,
-):
-    init_historian_tables(sqlitefuncts_db_not_initialized)
-
-    actual_topic_map = sqlitefuncts_db_not_initialized.get_agg_topics()
-
+def test_agg_topics_should_return_empty_on_nonexistent_table(sqlitefuncts):
+    actual_topic_map = sqlitefuncts.get_agg_topics()
     assert actual_topic_map == []
 
 
 @pytest.mark.sqlitefuncts
 @pytest.mark.dbutils
-def test_get_agg_topic_map(sqlitefuncts):
+def test_get_agg_topic_map(sqlitefuncts, sqlite_container):
     query = (
         "INSERT INTO aggregate_topics (agg_topic_name, agg_type, agg_time_period ) "
         "values('topic_name', 'AVG', '2001');"
     )
-    query_db(query)
+    query_db(query, sqlite_container)
     expected_acutal_topic_map = {("topic_name", "AVG", "2001"): 1}
 
     actual_topic_map = sqlitefuncts.get_agg_topic_map()
@@ -310,13 +282,8 @@ def test_get_agg_topic_map(sqlitefuncts):
 
 @pytest.mark.sqlitefuncts
 @pytest.mark.dbutils
-def test_agg_topic_map_should_return_empty_on_nonexistent_table(
-    sqlitefuncts_db_not_initialized,
-):
-    init_historian_tables(sqlitefuncts_db_not_initialized)
-
-    actual_topic_map = sqlitefuncts_db_not_initialized.get_agg_topic_map()
-
+def test_agg_topic_map_should_return_empty_on_nonexistent_table(sqlitefuncts):
+    actual_topic_map = sqlitefuncts.get_agg_topic_map()
     assert actual_topic_map == {}
 
 
@@ -340,14 +307,14 @@ def test_agg_topic_map_should_return_empty_on_nonexistent_table(
     ],
 )
 def test_query_topics_by_pattern(
-    sqlitefuncts, topic_1, topic_2, topic_3, topic_pattern, expected_topics
+    sqlitefuncts, sqlite_container, topic_1, topic_2, topic_3, topic_pattern, expected_topics
 ):
     query = (
         f"INSERT INTO topics (topic_name) values ({topic_1});"
         f"INSERT INTO topics (topic_name) values ({topic_2});"
         f"INSERT INTO topics (topic_name) values ({topic_3});"
     )
-    query_db(query)
+    query_db(query, sqlite_container)
 
     actual_topics = sqlitefuncts.query_topics_by_pattern(topic_pattern)
 
@@ -356,7 +323,7 @@ def test_query_topics_by_pattern(
 
 @pytest.mark.sqlitefuncts
 @pytest.mark.dbutils
-def test_create_aggregate_store(sqlitefuncts):
+def test_create_aggregate_store(sqlitefuncts, sqlite_container):
     agg_type = "AVG"
     agg_time_period = "1984"
     expected_new_agg_table = "AVG_1984"
@@ -365,20 +332,20 @@ def test_create_aggregate_store(sqlitefuncts):
     result = sqlitefuncts.create_aggregate_store(agg_type, agg_time_period)
 
     assert result is True
-    assert expected_new_agg_table in get_tables()
+    assert expected_new_agg_table in get_tables(sqlite_container)
 
-    actual_indexes = get_indexes(expected_new_agg_table)
+    actual_indexes = get_indexes(expected_new_agg_table, sqlite_container)
     assert actual_indexes == expected_indexes
 
 
 @pytest.mark.sqlitefuncts
 @pytest.mark.dbutils
-def test_collect_aggregate(sqlitefuncts):
+def test_collect_aggregate(sqlitefuncts, sqlite_container):
     query = (
         "INSERT OR REPLACE INTO data values('2020-06-01 12:30:59', 42, '2');"
         "INSERT OR REPLACE INTO data values('2020-06-01 12:31:59', 43, '8');"
     )
-    query_db(query)
+    query_db(query, sqlite_container)
 
     topic_ids = [42, 43]
     agg_type = "avg"
@@ -389,37 +356,41 @@ def test_collect_aggregate(sqlitefuncts):
     assert actual_aggregate == expected_aggregate
 
 
-def get_indexes(table):
-    res = query_db(f"""PRAGMA index_list({table})""")
-    return res.splitlines()
+def get_indexes(table, container):
+    q = f"""PRAGMA index_list({table})"""
+    return query_db(q, container)
 
 
-def get_tables():
-    result = query_db(""".tables""")
-    res = set(result.replace("\n", "").split())
-    return res
+def get_tables(container):
+    return query_db(".tables", container)
 
 
-def get_all_data(table):
+def get_all_data(table, container):
     q = f"""SELECT * FROM {table}"""
-    res = query_db(q)
-    return res.splitlines()
+    return query_db(q, container)
 
 
-def query_db(query):
-    output = subprocess.run(
-        ["sqlite3", "data/historian.sqlite", query], text=True, capture_output=True
-    )
-    # check_returncode() will raise a CalledProcessError if the query fails
-    # see https://docs.python.org/3/library/subprocess.html#subprocess.CompletedProcess.returncode
-    output.check_returncode()
-
-    return output.stdout
+def query_db(query, container):
+    cmd = ["sqlite3", DATABASE]
+    cmd.append(query)
+    exit_code, output = container.exec_run(cmd)
+    return output.decode().split()
 
 
 @pytest.fixture()
-def sqlitefuncts_db_not_initialized():
-    connect_params = {"database": "data/historian.sqlite"}
+def sqlite_container():
+    os.mkdir(DATABASE_PATH)
+    volumes = {DATABASE_PATH: {'bind': CONTAINER_VOLUME_PATH, 'mode': 'rw'}}
+    client = docker.from_env(version="auto")
+    container = client.containers.run(IMAGE, detach=True, volumes=volumes, tty=True)
+    yield container
+    shutil.rmtree(DATABASE_PATH)
+    container.remove(force=True)
+
+
+@pytest.fixture()
+def sqlitefuncts(sqlite_container):
+    connect_params = {"database": os.path.join(DATABASE_PATH, f"{DATABASE}")}
     table_names = {
         "data_table": DATA_TABLE,
         "topics_table": TOPICS_TABLE,
@@ -427,24 +398,8 @@ def sqlitefuncts_db_not_initialized():
         "agg_topics_table": AGG_TOPICS_TABLE,
         "agg_meta_table": AGG_META_TABLE,
     }
-    client = SqlLiteFuncts(connect_params, table_names)
-    yield client
+    sqlitefuncts_client = SqlLiteFuncts(connect_params, table_names)
 
-    # Teardown
-    if os.path.isdir("./data"):
-        files = glob.glob("./data/*", recursive=True)
-        for f in files:
-            os.remove(f)
-        os.rmdir("./data/")
-
-
-@pytest.fixture()
-def sqlitefuncts(sqlitefuncts_db_not_initialized):
-    init_database(sqlitefuncts_db_not_initialized)
-    yield sqlitefuncts_db_not_initialized
-
-
-def init_database(sqlitefuncts_client):
     sqlitefuncts_client.setup_historian_tables()
     table_defs = {
         "table_prefix": TABLE_PREFIX,
@@ -455,7 +410,4 @@ def init_database(sqlitefuncts_client):
     meta_table_name = METAMETA_TABLE
     sqlitefuncts_client.record_table_definitions(table_defs, meta_table_name)
     sqlitefuncts_client.setup_aggregate_historian_tables(meta_table_name)
-
-
-def init_historian_tables(sqlitefuncts_client):
-    sqlitefuncts_client.setup_historian_tables()
+    yield sqlitefuncts_client

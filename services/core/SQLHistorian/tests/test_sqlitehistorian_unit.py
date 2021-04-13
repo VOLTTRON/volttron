@@ -7,14 +7,6 @@ from gevent import sleep
 from datetime import timedelta
 from services.core.SQLHistorian.sqlhistorian import historian
 
-try:
-    subprocess.run(["sqlite3", "--version"])
-except FileNotFoundError as e:
-    pytest.skip(
-        "Sqlite3 required for running tests. Please install sqlite3 on you system. For example, on Ubuntu, run 'sudo apt-get install sqlite3'",
-        allow_module_level=True,
-    )
-
 CACHE_NAME = "backup.sqlite"
 HISTORIAN_DB = "./data/historian.sqlite"
 
