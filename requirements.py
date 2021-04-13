@@ -73,7 +73,9 @@ extras_require = {   'crate': ['crate==0.26.0'],
                'argon2-cffi==20.1.0',
                'Werkzeug==1.0.1']}
 
-install_requires = [   'gevent==20.6.1',
+
+install_requires = [
+    'gevent==20.6.1',
     'greenlet==0.4.16',
     'grequests==0.6.0',
     'idna<3,>=2.5',
