@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -52,6 +52,7 @@ from services.core.ActuatorAgent.tests.actuator_fixtures import MockedAsyncResul
 from volttrontesting.utils.utils import AgentMock
 from volttron.platform.vip.agent import Agent
 
+pytestmark = [pytest.mark.actuator_unit, pytest.mark.unit]
 
 PRIORITY_LOW = "LOW"
 SUCCESS = "SUCCESS"
@@ -66,7 +67,6 @@ agent._log = logging.getLogger("test_logger")
 ActuatorAgent.__bases__ = (AgentMock.imitate(Agent, Agent()),)
 
 
-@pytest.mark.actuator_unit
 @pytest.mark.parametrize("topic, point", [("path/topic", None), ("another/path/to/topic", 42)])
 def test_get_point_should_succeed(topic, point):
     with get_actuator_agent(vip_rpc_call_res=MockedAsyncResult(10.0)) as actuator_agent:
@@ -76,7 +76,6 @@ def test_get_point_should_succeed(topic, point):
         assert result is not None
 
 
-@pytest.mark.actuator_unit
 @pytest.mark.parametrize(
     "point, device_state",
     [
@@ -101,7 +100,6 @@ def test_set_point_should_succeed(point, device_state):
         assert result is not None
 
 
-@pytest.mark.actuator_unit
 @pytest.mark.parametrize("rpc_peer", [None, 42, []])
 def test_set_point_should_raise_type_error(rpc_peer):
     with pytest.raises(TypeError, match="Agent id must be a nonempty string"):
@@ -114,7 +112,6 @@ def test_set_point_should_raise_type_error(rpc_peer):
             actuator_agent.set_point(requester_id, topic, value, point=point)
 
 
-@pytest.mark.actuator_unit
 def test_set_point_should_raise_lock_error_on_non_matching_device():
     with pytest.raises(LockError):
         requester_id = "requester-id-1"
@@ -125,7 +122,6 @@ def test_set_point_should_raise_lock_error_on_non_matching_device():
             actuator_agent.set_point(requester_id, topic, value)
 
 
-@pytest.mark.actuator_unit
 def test_scrape_all_should_succeed():
     with get_actuator_agent(vip_rpc_call_res=MockedAsyncResult({})) as actuator_agent:
         topic = "whan/that/aprille"
@@ -136,7 +132,6 @@ def test_scrape_all_should_succeed():
 
 
 
-@pytest.mark.actuator_unit
 @pytest.mark.parametrize(
     "topics",
     [
@@ -156,7 +151,6 @@ def test_get_multiple_points_should_succeed(topics):
         assert len(errors) == 0
 
 
-@pytest.mark.actuator_unit
 @pytest.mark.parametrize("invalid_topics", [[(123,)], [(None)], [[123]], [[None]]])
 def test_get_multiple_points_should_return_errors(invalid_topics):
     with get_actuator_agent() as actuator_agent:
@@ -168,7 +162,6 @@ def test_get_multiple_points_should_return_errors(invalid_topics):
         assert len(errors) == 1
 
 
-@pytest.mark.actuator_unit
 @pytest.mark.parametrize(
     "topic_values, device_state",
     [
@@ -186,7 +179,6 @@ def test_get_multiple_points_should_return_errors(invalid_topics):
         ),
     ],
 )
-@pytest.mark.actuator_unit
 def test_set_multiple_points_should_succeed(topic_values, device_state):
     requester_id = "requester-id-1"
     mocked_rpc_call_res = MockedAsyncResult(({}))
@@ -197,7 +189,6 @@ def test_set_multiple_points_should_succeed(topic_values, device_state):
         assert result == {}
 
 
-@pytest.mark.actuator_unit
 @pytest.mark.parametrize("invalid_topic_values", [[(None,)], [(1234,)]])
 def test_set_multiple_points_should_raise_value_error(invalid_topic_values):
     with pytest.raises(ValueError):
@@ -207,7 +198,6 @@ def test_set_multiple_points_should_raise_value_error(invalid_topic_values):
             actuator_agent.set_multiple_points("request-id-1", invalid_topic_values)
 
 
-@pytest.mark.actuator_unit
 def test_set_multiple_points_should_raise_lock_error_on_empty_devices():
     with pytest.raises(LockError):
         requester_id = "requester-id-1"
@@ -217,7 +207,6 @@ def test_set_multiple_points_should_raise_lock_error_on_empty_devices():
             actuator_agent.set_multiple_points("request-id-1", topic_values)
 
 
-@pytest.mark.actuator_unit
 def test_set_multiple_points_should_raise_lock_error_on_non_matching_requester():
     with pytest.raises(LockError):
         requester_id = "wrong-requester"
@@ -231,7 +220,6 @@ def test_set_multiple_points_should_raise_lock_error_on_non_matching_requester()
             actuator_agent.set_multiple_points("request-id-1", topic_values)
 
 
-@pytest.mark.actuator_unit
 @pytest.mark.parametrize("point", [None, "foobarpoint"])
 def test_revert_point_should_raise_lock_error_on_empty_devices(point):
     with pytest.raises(LockError):
@@ -242,7 +230,6 @@ def test_revert_point_should_raise_lock_error_on_empty_devices(point):
             actuator_agent.revert_point(requester_id, topic, point=point)
 
 
-@pytest.mark.actuator_unit
 @pytest.mark.parametrize("point", [None, "foobarpoint"])
 def test_revert_point_should_raise_lock_error_on_non_matching_requester(point):
     with pytest.raises(LockError):
@@ -257,7 +244,6 @@ def test_revert_point_should_raise_lock_error_on_non_matching_requester(point):
             actuator_agent.revert_point(requester_id, topic, point=point)
 
 
-@pytest.mark.actuator_unit
 def test_revert_device_should_raise_lock_error_on_empty_devices():
     with pytest.raises(LockError):
         requester_id = "request-id-1"
@@ -267,7 +253,6 @@ def test_revert_device_should_raise_lock_error_on_empty_devices():
             actuator_agent.revert_device(requester_id, topic)
 
 
-@pytest.mark.actuator_unit
 def test_revert_device_should_raise_lock_error_on_non_matching_requester():
     with pytest.raises(LockError):
         device_state = {
@@ -281,7 +266,6 @@ def test_revert_device_should_raise_lock_error_on_non_matching_requester():
             actuator_agent.revert_device(requester_id, topic)
 
 
-@pytest.mark.actuator_unit
 def test_request_new_schedule_should_succeed():
     with get_actuator_agent() as actuator_agent:
         result = actuator_agent.request_new_schedule(REQUESTER_ID, TASK_ID,
@@ -290,7 +274,6 @@ def test_request_new_schedule_should_succeed():
         assert result["result"] == SUCCESS
 
 
-@pytest.mark.actuator_unit
 def test_request_new_schedule_should_succeed_when_stop_start_times_overlap():
     start = str(datetime.now())
     end = str(datetime.now() + timedelta(seconds=1))
@@ -304,7 +287,6 @@ def test_request_new_schedule_should_succeed_when_stop_start_times_overlap():
         assert result["result"] == SUCCESS
 
 
-@pytest.mark.actuator_unit
 @pytest.mark.parametrize(
     "task_id, expected_info",
     [
@@ -325,7 +307,6 @@ def test_request_new_schedule_should_fail_on_invalid_taskid(task_id, expected_in
         assert result["info"] == expected_info
 
 
-@pytest.mark.actuator_unit
 @pytest.mark.parametrize(
     "invalid_priority, expected_info",
     [("LOW2", "INVALID_PRIORITY"), (None, "MISSING_PRIORITY")],
@@ -341,7 +322,6 @@ def test_request_new_schedule_should_fail_on_invalid_priority(invalid_priority, 
         assert result["info"] == expected_info
 
 
-@pytest.mark.actuator_unit
 @pytest.mark.parametrize(
     "time_slot_request, expected_info",
     [
@@ -372,7 +352,6 @@ def test_request_new_schedule_should_fail_invalid_time_slot_requests(time_slot_r
         assert result["info"] == expected_info
 
 
-@pytest.mark.actuator_unit
 def test_request_cancel_schedule_should_succeed_happy_path():
     true_request_result = RequestResult(
         True, {}, ""
@@ -384,7 +363,6 @@ def test_request_cancel_schedule_should_succeed_happy_path():
         assert result["result"] == SUCCESS
 
 
-@pytest.mark.actuator_unit
 def test_request_cancel_schedule_should_fail_on_invalid_task_id():
     false_request_result = RequestResult(
         False, {}, "TASK_ID_DOES_NOT_EXIST"

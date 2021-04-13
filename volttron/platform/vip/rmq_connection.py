@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -270,7 +270,7 @@ class RMQConnection(BaseConnection):
     def register(self, vip_handler, error_handler=None):
         """
         Register VIP handler to be invoked to handle incoming messages
-        :param handler: VIP handler callback method
+        :param vip_handler: VIP handler callback method
         :return:
         """
         self._vip_handler = vip_handler

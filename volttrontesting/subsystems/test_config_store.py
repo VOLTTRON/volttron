@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -64,7 +64,8 @@ class _config_test_agent(Agent):
 def _module_config_test_agent(request, volttron_instance):
 
     agent = volttron_instance.build_agent(identity='config_test_agent',
-                                          agent_class=_config_test_agent)
+                                          agent_class=_config_test_agent,
+                                          enable_store=True)
 
     def cleanup():
         agent.core.stop()
@@ -371,7 +372,8 @@ def test_agent_default_config(request, volttron_instance):
             self.setup_callback()
 
     agent = volttron_instance.build_agent(identity='test_default_agent',
-                                          agent_class=test_default_agent)
+                                          agent_class=test_default_agent,
+                                          enable_store=True)
 
     # Give the agent a chance to process it's configurations.
     gevent.sleep(1.0)
@@ -412,7 +414,8 @@ def test_agent_sub_options(request, volttron_instance):
             self.setup_callback(actions="DELETE", pattern="delete/*")
 
     agent = volttron_instance.build_agent(identity='test_agent_sub_options',
-                                          agent_class=test_sub_pattern_agent)
+                                          agent_class=test_sub_pattern_agent,
+                                          enable_store=True)
 
     # Give the agent a chance to process it's configurations.
     gevent.sleep(1.0)

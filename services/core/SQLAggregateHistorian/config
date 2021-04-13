@@ -1,17 +1,11 @@
 {
-    # configuration from historian. given example is for mysql - START
     "connection": {
-        "type": "mysql",
+        "type": "sqlite",
         "params": {
-            "host": "localhost",
-            "port": 3306,
-            "database": "test_historian",
-            "user": "historian",
-            "passwd": "historian"
+            "database": "test.sqlite",
+            "timeout": 15
         }
     },
-    # configuration from historian. given example is for mysql - END
-
     "aggregations":[
         {
         "aggregation_period": "1m",

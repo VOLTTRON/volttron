@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -43,6 +43,7 @@ import os
 import random
 import re
 import shutil
+from typing import Optional
 import uuid
 from collections import defaultdict
 
@@ -51,11 +52,12 @@ import gevent.core
 from gevent.fileobject import FileObject
 from zmq import green as zmq
 
-from volttron.platform import jsonapi
-from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM, CONTROL, MASTER_WEB
+from volttron.platform import jsonapi, get_home
+from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM, CONTROL, PLATFORM_WEB, CONTROL_CONNECTION
+from volttron.platform.certs import Certs
 from volttron.platform.vip.agent.errors import VIPError
 from volttron.platform.vip.pubsubservice import ProtectedPubSubTopics
-from .agent.utils import strip_comments, create_file_if_missing, watch_file
+from .agent.utils import strip_comments, create_file_if_missing, watch_file, get_messagebus
 from .vip.agent import Agent, Core, RPC
 from .vip.socket import encode_key, BASE64_ENCODED_CURVE_KEY_LEN
 
@@ -93,7 +95,9 @@ class AuthService(Agent):
         # This agent is started before the router so we need
         # to keep it from blocking.
         self.core.delay_running_event_set = False
-
+        self._certs = None
+        if get_messagebus() == "rmq":
+            self._certs = Certs()
         self.auth_file_path = os.path.abspath(auth_file)
         self.auth_file = AuthFile(self.auth_file_path)
         self.aip = aip
@@ -105,7 +109,7 @@ class AuthService(Agent):
         self._protected_topics_file_path = os.path.abspath(protected_topics_file)
         self._protected_topics_for_rmq = ProtectedPubSubTopics()
         self._setup_mode = setup_mode
-        self._auth_failures = []
+        self._auth_pending = []
         self._auth_denied = []
         self._auth_approved = []
 
@@ -127,9 +131,31 @@ class AuthService(Agent):
         if self.core.messagebus == 'rmq':
             self.vip.peerlist.onadd.connect(self._check_topic_rules)
 
+    def _update_auth_lists(self, entries, is_allow=True):
+        auth_list = []
+        for entry in entries:
+            auth_list.append({'domain': entry.domain,
+                              'address': entry.address,
+                              'mechanism': entry.mechanism,
+                              'credentials': entry.credentials,
+                              'user_id': entry.user_id,
+                              'retries': 0
+                              }
+                             )
+        if is_allow:
+            self._auth_approved = [entry for entry in auth_list if entry["address"] is not None]
+        else:
+            self._auth_denied = [entry for entry in auth_list if entry["address"] is not None]
+
+
     def read_auth_file(self):
         _log.info('loading auth file %s', self.auth_file_path)
         entries = self.auth_file.read_allow_entries()
+        denied_entries = self.auth_file.read_deny_entries()
+        # Populate auth lists with current entries
+        self._update_auth_lists(entries)
+        self._update_auth_lists(denied_entries, is_allow=False)
+
         entries = [entry for entry in entries if entry.enabled]
         # sort the entries so the regex credentails follow the concrete creds
         entries.sort()
@@ -184,12 +210,13 @@ class AuthService(Agent):
                 exception = e
 
         if not peers:
-            raise exception
+            raise BaseException("No peers connected to the platform")
 
         _log.debug("after getting peerlist to send auth updates")
 
         for peer in peers:
-            if peer not in [self.core.identity]:
+            if peer not in [self.core.identity, CONTROL_CONNECTION]:
+                _log.debug(f"Sending auth update to peers {peer}")
                 self.vip.rpc.call(peer, 'auth.update', user_to_caps)
         if self.core.messagebus == 'rmq':
             self._check_rmq_topic_permissions()
@@ -299,7 +326,7 @@ class AuthService(Agent):
                     else:
                         if type(userid) == bytes:
                             userid = userid.decode("utf-8")
-                        self._update_auth_failures(domain, address, kind, credentials[0], userid)
+                        self._update_auth_pending(domain, address, kind, credentials[0], userid)
 
                     try:
                         expire, delay = blocked[address]
@@ -389,12 +416,31 @@ class AuthService(Agent):
     def approve_authorization_failure(self, user_id):
         """RPC method
 
-        Approves a previously failed authorization
+        Approves a pending CSR or credential, based on provided identity.
+        The approved CSR or credential can be deleted or denied later.
+        An approved credential is stored in the allow list in auth.json.
 
-        :param user_id: user id field from VOLTTRON Interconnect Protocol
+        :param user_id: user id field from VOLTTRON Interconnect Protocol or common name for CSR
         :type user_id: str
         """
-        for pending in self._auth_failures:
+
+        val_err = None
+        if self._certs:
+            # Will fail with ValueError when a zmq credential user_id is passed.
+            try:
+                self._certs.approve_csr(user_id)
+                permissions = self.core.rmq_mgmt.get_default_permissions(user_id)
+
+                if "federation" in user_id:  # federation needs more than the current default permissions # TODO: Fix authorization in rabbitmq
+                    permissions = dict(configure=".*", read=".*", write=".*")
+                self.core.rmq_mgmt.create_user_with_permissions(user_id, permissions, True)
+                _log.debug("Created cert and permissions for user: {}".format(user_id))
+            # Stores error message in case it is caused by an unexpected failure
+            except ValueError as e:
+                val_err = e
+        index = 0
+        matched_index = -1
+        for pending in self._auth_pending:
             if user_id == pending['user_id']:
                 self._update_auth_entry(
                     pending['domain'],
@@ -403,8 +449,12 @@ class AuthService(Agent):
                     pending['credentials'],
                     pending['user_id']
                     )
-                self._auth_approved.append(pending)
-                del self._auth_failures[self._auth_failures.index(pending)]
+                matched_index = index
+                val_err = None
+                break
+            index = index + 1
+        if matched_index >= 0:
+            del self._auth_pending[matched_index]
 
         for pending in self._auth_denied:
             if user_id == pending['user_id']:
@@ -415,29 +465,71 @@ class AuthService(Agent):
                     pending['credentials'],
                     pending['user_id']
                     )
-                self._auth_approved.append(pending)
-                del self._auth_denied[self._auth_denied.index(pending)]
+                self._remove_auth_entry(pending['credentials'], is_allow=False)
+                val_err = None
+        # If the user_id supplied was not for a ZMQ credential, and the pending_csr check failed,
+        # output the ValueError message to the error log.
+        if val_err:
+            _log.error(f"{val_err}")
 
     @RPC.export
     @RPC.allow(capabilities="allow_auth_modifications")
     def deny_authorization_failure(self, user_id):
         """RPC method
 
-        Denies a previously failed authorization
+        Denies a pending CSR or credential, based on provided identity.
+        The denied CSR or credential can be deleted or accepted later.
+        A denied credential is stored in the deny list in auth.json.
 
-        :param user_id: user id field from VOLTTRON Interconnect Protocol
+        :param user_id: user id field from VOLTTRON Interconnect Protocol or common name for CSR
         :type user_id: str
         """
-        for pending in self._auth_failures:
+
+        val_err = None
+        if self._certs:
+            # Will fail with ValueError when a zmq credential user_id is passed.
+            try:
+                self._certs.deny_csr(user_id)
+                _log.debug("Denied cert for user: {}".format(user_id))
+            # Stores error message in case it is caused by an unexpected failure
+            except ValueError as e:
+                val_err = e
+
+        index = 0
+        matched_index = -1
+        for pending in self._auth_pending:
             if user_id == pending['user_id']:
-                self._auth_denied.append(pending)
-                del self._auth_failures[self._auth_failures.index(pending)]
+                self._update_auth_entry(
+                    pending['domain'],
+                    pending['address'],
+                    pending['mechanism'],
+                    pending['credentials'],
+                    pending['user_id'],
+                    is_allow=False
+                    )
+                matched_index = index
+                val_err = None
+                break
+            index = index + 1
+        if matched_index >= 0:
+            del self._auth_pending[matched_index]
 
         for pending in self._auth_approved:
             if user_id == pending['user_id']:
+                self._update_auth_entry(
+                    pending['domain'],
+                    pending['address'],
+                    pending['mechanism'],
+                    pending['credentials'],
+                    pending['user_id'],
+                    is_allow=False
+                    )
                 self._remove_auth_entry(pending['credentials'])
-                self._auth_denied.append(pending)
-                del self._auth_approved[self._auth_approved.index(pending)]
+                val_err = None
+        # If the user_id supplied was not for a ZMQ credential, and the pending_csr check failed,
+        # output the ValueError message to the error log.
+        if val_err:
+            _log.error(f"{val_err}")
 
 
     @RPC.export
@@ -445,35 +537,173 @@ class AuthService(Agent):
     def delete_authorization_failure(self, user_id):
         """RPC method
 
-        Denies a previously failed authorization
+        Deletes a pending CSR or credential, based on provided identity.
+        To approve or deny a deleted pending CSR or credential,
+        the request must be resent by the remote platform or agent.
 
-        :param user_id: user id field from VOLTTRON Interconnect Protocol
+        :param user_id: user id field from VOLTTRON Interconnect Protocol or common name for CSR
         :type user_id: str
         """
-        for pending in self._auth_failures:
+
+        val_err = None
+        if self._certs:
+            # Will fail with ValueError when a zmq credential user_id is passed.
+            try:
+                self._certs.delete_csr(user_id)
+                _log.debug("Denied cert for user: {}".format(user_id))
+            # Stores error message in case it is caused by an unexpected failure
+            except ValueError as e:
+                val_err = e
+
+        index = 0
+        matched_index = -1
+        for pending in self._auth_pending:
             if user_id == pending['user_id']:
-                del self._auth_failures[self._auth_failures.index(pending)]
+                self._update_auth_entry(
+                    pending['domain'],
+                    pending['address'],
+                    pending['mechanism'],
+                    pending['credentials'],
+                    pending['user_id']
+                    )
+                matched_index = index
+                val_err = None
+                break
+            index = index + 1
+        if matched_index >= 0:
+            del self._auth_pending[matched_index]
+
+        index = 0
+        matched_index = -1
+        for pending in self._auth_pending:
+            if user_id == pending['user_id']:
+                matched_index = index
+                val_err = None
+                break
+            index = index + 1
+        if matched_index >= 0:
+            del self._auth_pending[matched_index]
 
         for pending in self._auth_approved:
             if user_id == pending['user_id']:
                 self._remove_auth_entry(pending['credentials'])
-                del self._auth_approved[self._auth_approved.index(pending)]
+                val_err = None
 
         for pending in self._auth_denied:
             if user_id == pending['user_id']:
-                del self._auth_denied[self._auth_denied.index(pending)]
+                self._remove_auth_entry(pending['credentials'], is_allow=False)
+                val_err = None
+
+        # If the user_id supplied was not for a ZMQ credential, and the pending_csr check failed,
+        # output the ValueError message to the error log.
+        if val_err:
+            _log.error(f"{val_err}")
 
     @RPC.export
-    def get_authorization_failures(self):
-        return list(self._auth_failures)
+    def get_authorization_pending(self):
+        """RPC method
+
+        Returns a list of failed (pending) ZMQ credentials.
+
+        :rtype: list
+        """
+        return list(self._auth_pending)
 
     @RPC.export
     def get_authorization_approved(self):
+        """RPC method
+
+        Returns a list of approved ZMQ credentials.
+        This list is updated whenever the auth file is read.
+        It includes all allow entries from the auth file that contain a populated address field.
+
+        :rtype: list
+        """
         return list(self._auth_approved)
 
     @RPC.export
     def get_authorization_denied(self):
+        """RPC method
+
+        Returns a list of denied ZMQ credentials.
+        This list is updated whenever the auth file is read.
+        It includes all deny entries from the auth file that contain a populated address field.
+
+        :rtype: list
+        """
         return list(self._auth_denied)
+
+    @RPC.export
+    @RPC.allow(capabilities="allow_auth_modifications")
+    def get_pending_csrs(self):
+        """RPC method
+
+        Returns a list of pending CSRs.
+        This method provides RPC access to the Certs class's get_pending_csr_requests method.
+        This method is only applicable for web-enabled, RMQ instances.
+
+        :rtype: list
+        """
+        if self._certs:
+            csrs = [c for c in self._certs.get_pending_csr_requests()]
+            return csrs
+        else:
+            return []
+
+    @RPC.export
+    @RPC.allow(capabilities="allow_auth_modifications")
+    def get_pending_csr_status(self, common_name):
+        """RPC method
+
+        Returns the status of a pending CSRs.
+        This method provides RPC access to the Certs class's get_csr_status method.
+        This method is only applicable for web-enabled, RMQ instances.
+        Currently, this method is only used by admin_endpoints.
+
+        :param common_name: Common name for CSR
+        :type common_name: str
+        :rtype: str
+        """
+        if self._certs:
+            return self._certs.get_csr_status(common_name)
+        else:
+            return ""
+
+    @RPC.export
+    @RPC.allow(capabilities="allow_auth_modifications")
+    def get_pending_csr_cert(self, common_name):
+        """RPC method
+
+        Returns the cert of a pending CSRs.
+        This method provides RPC access to the Certs class's get_cert_from_csr method.
+        This method is only applicable for web-enabled, RMQ instances.
+        Currently, this method is only used by admin_endpoints.
+
+        :param common_name: Common name for CSR
+        :type common_name: str
+        :rtype: str
+        """
+        if self._certs:
+            return self._certs.get_cert_from_csr(common_name).decode('utf-8')
+        else:
+            return ""
+
+    @RPC.export
+    @RPC.allow(capabilities="allow_auth_modifications")
+    def get_all_pending_csr_subjects(self):
+        """RPC method
+
+        Returns a list of all certs subjects.
+        This method provides RPC access to the Certs class's get_all_cert_subjects method.
+        This method is only applicable for web-enabled, RMQ instances.
+        Currently, this method is only used by admin_endpoints.
+
+        :rtype: list
+        """
+        if self._certs:
+            return self._certs.get_all_cert_subjects()
+        else:
+            return []
 
     def _get_authorizations(self, user_id, index):
         """Convenience method for getting authorization component by index"""
@@ -521,7 +751,7 @@ class AuthService(Agent):
         """
         return self._get_authorizations(user_id, 2)
 
-    def _update_auth_entry(self, domain, address, mechanism, credential, user_id):
+    def _update_auth_entry(self, domain, address, mechanism, credential, user_id, is_allow=True):
         # Make a new entry
         fields = {
             "domain": domain,
@@ -537,17 +767,17 @@ class AuthService(Agent):
         new_entry = AuthEntry(**fields)
 
         try:
-            self.auth_file.add(new_entry, overwrite=False)
+            self.auth_file.add(new_entry, overwrite=False, is_allow=is_allow)
         except AuthException as err:
             _log.error('ERROR: %s\n' % str(err))
 
-    def _remove_auth_entry(self, credential):
+    def _remove_auth_entry(self, credential, is_allow=True):
         try:
-            self.auth_file.remove_by_credentials(credential)
+            self.auth_file.remove_by_credentials(credential, is_allow=is_allow)
         except AuthException as err:
             _log.error('ERROR: %s\n' % str(err))
 
-    def _update_auth_failures(self, domain, address, mechanism, credential, user_id):
+    def _update_auth_pending(self, domain, address, mechanism, credential, user_id):
         for entry in self._auth_denied:
             # Check if failure entry has been denied. If so, increment the failure's denied count
             if ((entry['domain'] == domain) and
@@ -557,7 +787,7 @@ class AuthService(Agent):
                 entry['retries'] += 1
                 return
 
-        for entry in self._auth_failures:
+        for entry in self._auth_pending:
             # Check if failure entry exists. If so, increment the failure count
             if ((entry['domain'] == domain) and
                     (entry['address'] == address) and
@@ -574,7 +804,7 @@ class AuthService(Agent):
             "user_id": user_id,
             "retries": 1
         }
-        self._auth_failures.append(dict(fields))
+        self._auth_pending.append(dict(fields))
         return
 
     def _load_protected_topics_for_rmq(self):
@@ -748,7 +978,7 @@ class AuthEntry(object):
 
     def __init__(self, domain=None, address=None, mechanism='CURVE',
                  credentials=None, user_id=None, groups=None, roles=None,
-                 capabilities=None, comments=None, enabled=True, **kwargs):
+                 capabilities: Optional[dict] = None, comments=None, enabled=True, **kwargs):
 
         self.domain = AuthEntry._build_field(domain)
         self.address = AuthEntry._build_field(address)
@@ -786,7 +1016,7 @@ class AuthEntry(object):
         return List(String(elem) for elem in value)
 
     @staticmethod
-    def build_capabilities_field(value):
+    def build_capabilities_field(value: Optional[dict]):
         #_log.debug("_build_capabilities {}".format(value))
 
         if not value:
@@ -870,8 +1100,7 @@ class AuthEntry(object):
 class AuthFile(object):
     def __init__(self, auth_file=None):
         if auth_file is None:
-            auth_file_dir = os.path.expanduser(
-                os.environ.get('VOLTTRON_HOME', '~/.volttron'))
+            auth_file_dir = get_home()
             auth_file = os.path.join(auth_file_dir, 'auth.json')
         self.auth_file = auth_file
         self._check_for_upgrade()
@@ -881,10 +1110,10 @@ class AuthFile(object):
         return {'major': 1, 'minor': 2}
 
     def _check_for_upgrade(self):
-        allow_list, groups, roles, version = self._read()
+        allow_list, deny_list, groups, roles, version = self._read()
         if version != self.version:
             if version['major'] <= self.version['major']:
-                self._upgrade(allow_list, groups, roles, version)
+                self._upgrade(allow_list, deny_list, groups, roles, version)
             else:
                 _log.error('This version of VOLTTRON cannot parse {}. '
                            'Please upgrade VOLTTRON or move or delete '
@@ -906,10 +1135,11 @@ class AuthFile(object):
             _log.exception('error loading %s', self.auth_file)
 
         allow_list = auth_data.get('allow', [])
+        deny_list = auth_data.get('deny', [])
         groups = auth_data.get('groups', {})
         roles = auth_data.get('roles', {})
         version = auth_data.get('version', {'major': 0, 'minor': 0})
-        return allow_list, groups, roles, version
+        return allow_list, deny_list, groups, roles, version
 
     def read(self):
         """Gets the allowed entries, groups, and roles from the auth
@@ -918,19 +1148,18 @@ class AuthFile(object):
         :returns: tuple of allow-entries-list, groups-dict, roles-dict
         :rtype: tuple
         """
-        allow_list, groups, roles, _ = self._read()
-        entries = self._get_entries(allow_list)
-        self._use_groups_and_roles(entries, groups, roles)
-        return entries, groups, roles
+        allow_list, deny_list, groups, roles, _ = self._read()
+        allow_entries, deny_entries = self._get_entries(allow_list, deny_list)
+        self._use_groups_and_roles(allow_entries, groups, roles)
+        return allow_entries, deny_entries, groups, roles
 
-    def _upgrade(self, allow_list, groups, roles, version):
+    def _upgrade(self, allow_list, deny_list, groups, roles, version):
         backup = self.auth_file + '.' + str(uuid.uuid4()) + '.bak'
         shutil.copy(self.auth_file, backup)
         _log.info('Created backup of {} at {}'.format(self.auth_file, backup))
 
         def warn_invalid(entry, msg=''):
-            _log.warn('Invalid entry {} in auth file {}. {}'
-                      .format(entry, self.auth_file, msg))
+            _log.warning('Invalid entry {} in auth file {}. {}'.format(entry, self.auth_file, msg))
 
         def upgrade_0_to_1(allow_list):
             new_allow_list = []
@@ -984,7 +1213,7 @@ class AuthFile(object):
                         msg = ('user_id {} is already present in '
                                'authentication entry. Changed to user_id to '
                                '{}').format(user_id, new_user_id)
-                        _log.warn(msg)
+                        _log.warning(msg)
                         user_id_ = new_user_id
                 else:
                     user_id = str(uuid.uuid4())
@@ -1015,8 +1244,8 @@ class AuthFile(object):
         if version['major'] == 1 and version['minor'] == 1:
             allow_list = upgrade_1_1_to_1_2(allow_list)
 
-        entries = self._get_entries(allow_list)
-        self._write(entries, groups, roles)
+        allow_entries, deny_entries = self._get_entries(allow_list, deny_list)
+        self._write(allow_entries, deny_entries, groups, roles)
 
     def read_allow_entries(self):
         """Gets the allowed entries from the auth file.
@@ -1026,19 +1255,43 @@ class AuthFile(object):
         """
         return self.read()[0]
 
-    def find_by_credentials(self, credentials):
+    def read_deny_entries(self):
+        """Gets the denied entries from the auth file.
+
+        :returns: list of deny-entries
+        :rtype: list
+        """
+        return self.read()[1]
+
+    def find_by_credentials(self, credentials, is_allow=True):
         """Find all entries that have the given credentials
 
         :param str credentials: The credentials to search for
         :return: list of entries
         :rtype: list
         """
-        return [entry for entry in self.read_allow_entries()
-                if str(entry.credentials) == credentials]
 
-    def _get_entries(self, allow_list):
-        entries = []
+        if is_allow:
+            return [entry for entry in self.read_allow_entries()
+                    if str(entry.credentials) == credentials]
+        else:
+            return [entry for entry in self.read_deny_entries()
+                    if str(entry.credentials) == credentials]
+
+    def _get_entries(self, allow_list, deny_list):
+        allow_entries = []
         for file_entry in allow_list:
+            try:
+                entry = AuthEntry(**file_entry)
+            except TypeError:
+                _log.warning('invalid entry %r in auth file %s', file_entry, self.auth_file)
+            except AuthEntryInvalid as e:
+                _log.warning('invalid entry %r in auth file %s (%s)', file_entry, self.auth_file, str(e))
+            else:
+                allow_entries.append(entry)
+
+        deny_entries = []
+        for file_entry in deny_list:
             try:
                 entry = AuthEntry(**file_entry)
             except TypeError:
@@ -1048,8 +1301,8 @@ class AuthFile(object):
                 _log.warn('invalid entry %r in auth file %s (%s)',
                           file_entry, self.auth_file, str(e))
             else:
-                entries.append(entry)
-        return entries
+                deny_entries.append(entry)
+        return allow_entries, deny_entries
 
     def _use_groups_and_roles(self, entries, groups, roles):
         """Add capabilities to each entry based on groups and roles"""
@@ -1064,64 +1317,92 @@ class AuthFile(object):
                 capabilities += roles.get(role, [])
             entry.add_capabilities(list(set(capabilities)))
 
-    def _check_if_exists(self, entry):
+    def _check_if_exists(self, entry, is_allow=True):
         """Raises AuthFileEntryAlreadyExists if entry is already in file"""
-        for index, prev_entry in enumerate(self.read_allow_entries()):
-            if entry.user_id == prev_entry.user_id:
-                raise AuthFileUserIdAlreadyExists(entry.user_id, [index])
+        if is_allow:
+            for index, prev_entry in enumerate(self.read_allow_entries()):
+                if entry.user_id == prev_entry.user_id:
+                    raise AuthFileUserIdAlreadyExists(entry.user_id, [index])
 
-            # Compare AuthEntry objects component-wise, rather than
-            # using match, because match will evaluate regex.
-            if (prev_entry.domain == entry.domain and
+                # Compare AuthEntry objects component-wise, rather than
+                # using match, because match will evaluate regex.
+                if (prev_entry.domain == entry.domain and
+                        prev_entry.address == entry.address and
+                        prev_entry.mechanism == entry.mechanism and
+                        prev_entry.credentials == entry.credentials):
+                    raise AuthFileEntryAlreadyExists([index])
+        else:
+            for index, prev_entry in enumerate(self.read_deny_entries()):
+                if entry.user_id == prev_entry.user_id:
+                    raise AuthFileUserIdAlreadyExists(entry.user_id, [index])
+
+                # Compare AuthEntry objects component-wise, rather than
+                # using match, because match will evaluate regex.
+                if (prev_entry.domain == entry.domain and
                     prev_entry.address == entry.address and
                     prev_entry.mechanism == entry.mechanism and
                     prev_entry.credentials == entry.credentials):
-                raise AuthFileEntryAlreadyExists([index])
+                    raise AuthFileEntryAlreadyExists([index])
 
-    def _update_by_indices(self, auth_entry, indices):
+    def _update_by_indices(self, auth_entry, indices, is_allow=True):
         """Updates all entries at given indices with auth_entry"""
         for index in indices:
-            self.update_by_index(auth_entry, index)
+            self.update_by_index(auth_entry, index, is_allow)
 
-    def add(self, auth_entry, overwrite=False):
+    def add(self, auth_entry, overwrite=False, no_error=False, is_allow=True):
         """Adds an AuthEntry to the auth file
 
         :param auth_entry: authentication entry
         :param overwrite: set to true to overwrite matching entries
+        :param no_error:
+            set to True to not throw an AuthFileEntryAlreadyExists when attempting to add an exiting entry.
+
         :type auth_entry: AuthEntry
         :type overwrite: bool
+        :type no_error: bool
 
         .. warning:: If overwrite is set to False and if auth_entry matches an
                      existing entry then this method will raise
-                     AuthFileEntryAlreadyExists
+                     AuthFileEntryAlreadyExists unless no_error is set to true
         """
         try:
-            self._check_if_exists(auth_entry)
+            self._check_if_exists(auth_entry, is_allow)
         except AuthFileEntryAlreadyExists as err:
             if overwrite:
                 _log.debug("Updating existing auth entry with {} ".format(auth_entry))
-                self._update_by_indices(auth_entry, err.indices)
+                self._update_by_indices(auth_entry, err.indices, is_allow)
             else:
-                raise err
+                if not no_error:
+                    raise err
         else:
-            entries, groups, roles = self.read()
-            entries.append(auth_entry)
-            self._write(entries, groups, roles)
+            allow_entries, deny_entries, groups, roles = self.read()
+            if is_allow:
+                allow_entries.append(auth_entry)
+            else:
+                deny_entries.append(auth_entry)
+            self._write(allow_entries, deny_entries, groups, roles)
             _log.debug("Added auth entry {} ".format(auth_entry))
         gevent.sleep(1)
 
-    def remove_by_credentials(self, credentials):
+    def remove_by_credentials(self, credentials, is_allow=True):
         """Removes entry from auth file by credential
 
         :para credential: entries will this credential will be
             removed
         :type credential: str
         """
-        entries, groups, roles = self.read()
+        allow_entries, deny_entries, groups, roles = self.read()
+        if is_allow:
+            entries = allow_entries
+        else:
+            entries = deny_entries
         entries = [e for e in entries if e.credentials != credentials]
-        self._write(entries, groups, roles)
+        if is_allow:
+            self._write(entries, deny_entries, groups, roles)
+        else:
+            self._write(allow_entries, entries, groups, roles)
 
-    def remove_by_index(self, index):
+    def remove_by_index(self, index, is_allow=True):
         """Removes entry from auth file by index
 
         :param index: index of entry to remove
@@ -1130,9 +1411,9 @@ class AuthFile(object):
         .. warning:: Calling with out-of-range index will raise
                      AuthFileIndexError
         """
-        self.remove_by_indices([index])
+        self.remove_by_indices([index], is_allow)
 
-    def remove_by_indices(self, indices):
+    def remove_by_indices(self, indices, is_allow=True):
         """Removes entry from auth file by indices
 
         :param indices: list of indicies of entries to remove
@@ -1143,13 +1424,20 @@ class AuthFile(object):
         """
         indices = list(set(indices))
         indices.sort(reverse=True)
-        entries, groups, roles = self.read()
+        allow_entries, deny_entries, groups, roles = self.read()
+        if is_allow:
+            entries = allow_entries
+        else:
+            entries = deny_entries
         for index in indices:
             try:
                 del entries[index]
             except IndexError:
                 raise AuthFileIndexError(index)
-        self._write(entries, groups, roles)
+        if is_allow:
+            self._write(entries, deny_entries, groups, roles)
+        else:
+            self._write(allow_entries, entries, groups, roles)
 
     def _set_groups_or_roles(self, groups_or_roles, is_group=True):
         param_name = 'groups' if is_group else 'roles'
@@ -1159,12 +1447,12 @@ class AuthFile(object):
             if not isinstance(value, list):
                 raise ValueError('each value of the {} dict must be '
                                  'a list'.format(param_name))
-        entries, groups, roles = self.read()
+        allow_entries, deny_entries, groups, roles = self.read()
         if is_group:
             groups = groups_or_roles
         else:
             roles = groups_or_roles
-        self._write(entries, groups, roles)
+        self._write(allow_entries, deny_entries, groups, roles)
 
     def set_groups(self, groups):
         """Define the mapping of group names to role lists
@@ -1188,7 +1476,7 @@ class AuthFile(object):
         """
         self._set_groups_or_roles(roles, is_group=False)
 
-    def update_by_index(self, auth_entry, index):
+    def update_by_index(self, auth_entry, index, is_allow=True):
         """Updates entry will given auth entry at given index
 
         :param auth_entry: new authorization entry
@@ -1199,16 +1487,24 @@ class AuthFile(object):
         .. warning:: Calling with out-of-range index will raise
                      AuthFileIndexError
         """
-        entries, groups, roles = self.read()
+        allow_entries, deny_entries, groups, roles = self.read()
+        if is_allow:
+            entries = allow_entries
+        else:
+            entries = deny_entries
         try:
             entries[index] = auth_entry
         except IndexError:
             raise AuthFileIndexError(index)
-        self._write(entries, groups, roles)
+        if is_allow:
+            self._write(entries, deny_entries, groups, roles)
+        else:
+            self._write(allow_entries, entries, groups, roles)
 
-    def _write(self, entries, groups, roles):
-        auth = {'allow': [vars(x) for x in entries], 'groups': groups,
-                'roles': roles, 'version': self.version}
+    def _write(self, allow_entries, deny_entries, groups, roles):
+        auth = {'allow': [vars(x) for x in allow_entries],
+                'deny': [vars(x) for x in deny_entries],
+                'groups': groups, 'roles': roles, 'version': self.version}
 
         with open(self.auth_file, 'w') as fp:
             jsonapi.dump(auth, fp, indent=2)

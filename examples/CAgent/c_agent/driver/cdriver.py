@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -39,16 +39,16 @@
 __docformat__ = 'reStructuredText'
 
 """The cdriver is an example implementation of an interface that
-allows the master driver to transparently call C code.
+allows the platform driver to transparently call C code.
 This file is an `interface` and will only be usable in the
-master_driver/interfaces directory. The shared object will
+platform_driver/interfaces directory. The shared object will
 need to be somewhere it can be found by this file.
 """
 
 from io import StringIO
 from csv import DictReader
 
-from master_driver.interfaces import BasicRevert, BaseInterface, BaseRegister
+from platform_driver.interfaces import BasicRevert, BaseInterface, BaseRegister
 
 from ctypes import *
 

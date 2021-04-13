@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -49,6 +49,7 @@ import signal
 import sys
 import uuid
 
+import requests
 import gevent
 import gevent.event
 from gevent import subprocess
@@ -73,6 +74,7 @@ from .packages import UnpackedPackage
 from .vip.agent import Agent
 from .auth import AuthFile, AuthEntry, AuthFileEntryAlreadyExists
 from volttron.utils.rmq_mgmt import RabbitMQMgmt
+from volttron.platform import update_volttron_script_path
 
 try:
     from volttron.restricted import auth
@@ -196,12 +198,12 @@ class ExecutionEnvironment(object):
             try:
                 return gevent.with_timeout(60, process_wait, self.process)
             except gevent.Timeout:
-                _log.warn("First timeout")
+                _log.warning("First timeout")
                 self.process.terminate()
             try:
                 return gevent.with_timeout(30, process_wait, self.process)
             except gevent.Timeout:
-                _log.warn("2nd timeout")
+                _log.warning("2nd timeout")
                 self.process.kill()
             try:
                 return gevent.with_timeout(30, process_wait, self.process)
@@ -235,7 +237,7 @@ class SecureExecutionEnvironment(object):
 
     def stop(self):
         if self.process.poll() is None:
-            cmd = ["sudo", "scripts/secure_stop_agent.sh", self.agent_user, str(self.process.pid)]
+            cmd = ["sudo", update_volttron_script_path("scripts/secure_stop_agent.sh"), self.agent_user, str(self.process.pid)]
             _log.debug("In aip secureexecutionenv {}".format(cmd))
             process = subprocess.Popen(cmd, stdout=PIPE, stderr=PIPE)
             stdout, stderr = process.communicate()
@@ -681,7 +683,10 @@ class AIPplatform(object):
             # Delete RabbitMQ user for the agent
             instance_name = self.instance_name
             rmq_user = instance_name + '.' + identity
-            self.rmq_mgmt.delete_user(rmq_user)
+            try:
+                self.rmq_mgmt.delete_user(rmq_user)
+            except requests.exceptions.HTTPError as e:
+                _log.error(f"RabbitMQ user {rmq_user} is not available to delete. Going ahead and removing agent directory")
         self.agents.pop(agent_uuid, None)
         agent_directory = os.path.join(self.install_dir, agent_uuid)
         volttron_agent_user = None
@@ -691,9 +696,9 @@ class AIPplatform(object):
                 with open(user_id_path, 'r') as user_id_file:
                     volttron_agent_user = user_id_file.readline()
             except (KeyError, IOError) as user_id_err:
-                _log.warn("Volttron agent user not found at {}".format(
+                _log.warning("Volttron agent user not found at {}".format(
                     user_id_path))
-                _log.warn(user_id_err)
+                _log.warning(user_id_err)
         if remove_auth:
             self._unauthorize_agent_keys(agent_uuid)
         shutil.rmtree(agent_directory)

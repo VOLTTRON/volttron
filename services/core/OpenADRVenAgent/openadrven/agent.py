@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -272,7 +272,7 @@ class OpenADRVenAgent(Agent):
         """
             Initialize the agent's configuration.
 
-            Configuration parameters (see openadrven.config for a sample config file):
+            Configuration parameters (see config for a sample config file):
 
                 db_path:                Pathname of the agent's sqlite database.
                                         ~ and shell variables will be expanded if present.

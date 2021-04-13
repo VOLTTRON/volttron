@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -61,7 +61,7 @@ DEBUGGER_CONFIG = {
 
 @pytest.fixture(scope='module')
 def agent(request, volttron_instance_msgdebug):
-    master_uuid = volttron_instance_msgdebug.install_agent(agent_dir=get_ops("MessageDebuggerAgent"),
+    platform_uuid = volttron_instance_msgdebug.install_agent(agent_dir=get_ops("MessageDebuggerAgent"),
                                                            config_file=DEBUGGER_CONFIG,
                                                            start=True)
     gevent.sleep(2)
@@ -69,7 +69,7 @@ def agent(request, volttron_instance_msgdebug):
     gevent.sleep(20)  # wait for the agent to start
 
     def stop():
-        volttron_instance_msgdebug.stop_agent(master_uuid)
+        volttron_instance_msgdebug.stop_agent(platform_uuid)
         msg_debugger_agent.core.stop()
 
     request.addfinalizer(stop)

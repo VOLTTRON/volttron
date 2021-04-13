@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -245,10 +245,6 @@ class VolttronCentralAgent(Agent):
 
         self.vip.web.register_endpoint(r'/vc/jsonrpc', self.jsonrpc)
 
-        self.vip.web.register_websocket(r'/vc/ws',
-                                        self.open_authenticate_ws_endpoint,
-                                        self._ws_closed,
-                                        self._ws_received)
         self.vip.web.register_path(r'^/vc/.*',
                                    config.get('webroot'))
 
@@ -269,7 +265,7 @@ class VolttronCentralAgent(Agent):
         platform = self._platforms.add_platform(platform_vip_identity)
 
     def _handle_platform_disconnect(self, platform_vip_identity):
-        _log.warn("Handling disconnection of connection from identity: {}".format(
+        _log.warning("Handling disconnection of connection from identity: {}".format(
             platform_vip_identity
         ))
         # TODO send alert that there was a platform disconnect.
@@ -312,7 +308,7 @@ class VolttronCentralAgent(Agent):
 
     def open_authenticate_ws_endpoint(self, fromip, endpoint):
         """
-        Callback method from when websockets are opened.  The endpoine must
+        Callback method from when websockets are opened.  The endpoint must
         be '/' delimited with the second to last section being the session
         of a logged in user to volttron central itself.
 
@@ -477,7 +473,7 @@ class VolttronCentralAgent(Agent):
         except Exception as e:
 
             return jsonrpc.json_error(
-                'NA', UNHANDLED_EXCEPTION, e
+                'NA', UNHANDLED_EXCEPTION, str(e)
             )
 
         return self._get_jsonrpc_response(rpcdata.id, result_or_error)

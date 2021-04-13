@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -41,13 +41,15 @@
 
 import logging
 import os
+import traceback
+
 import psutil
 import sys
 from configparser import ConfigParser
-from ..utils.frozendict import FrozenDict
 from urllib.parse import urlparse
 
-__version__ = '7.0'
+from ..utils.frozendict import FrozenDict
+__version__ = '8.0'
 
 _log = logging.getLogger(__name__)
 
@@ -77,7 +79,7 @@ def get_home():
         vhome = vhome[:-1]
         if os.environ.get('VOLTTRON_HOME') is not None:
             log = logging.getLogger('volttron')
-            log.warn("Removing / from the end of VOLTTRON_HOME")
+            log.warning("Removing / from the end of VOLTTRON_HOME")
             os.environ['VOLTTRON_HOME'] = vhome
     return vhome
 
@@ -91,14 +93,42 @@ def get_config_path() -> str:
     return os.path.join(get_home(), "config")
 
 
-def get_address():
+def get_address(verify_listening=False):
     """Return the VIP address of the platform
-    If the VOLTTRON_VIP_ADDR environment variable is set, it used.
+    If the VOLTTRON_VIP_ADDR environment variable is set, it is used to connect to.
     Otherwise, it is derived from get_home()."""
     address = os.environ.get('VOLTTRON_VIP_ADDR')
     if not address:
+        # Connect via virtual unix socket if linux platform (mac doesn't have @ in it)
         abstract = '@' if sys.platform.startswith('linux') else ''
         address = 'ipc://%s%s/run/vip.socket' % (abstract, get_home())
+
+    import zmq.green as zmqgreen
+    import zmq
+    # The following block checks to make sure that we can
+    # connect to the zmq based upon the ipc address.
+    #
+    # The zmq.sock.bind() will raise an error because the
+    # address is already bound (therefore volttron is running there)
+    sock = None
+    try:
+        # TODO: We should not just do the connection test when verfiy_listening is True but always
+        # Though we leave this here because we have backward compatible unit tests that require
+        # the get_address to not have somethiing bound to the address.
+        if verify_listening:
+            ctx = zmqgreen.Context.instance()
+            sock = ctx.socket(zmq.PUB)  # or SUB - does not make any difference
+            sock.bind(address)
+            raise ValueError("Unable to connect to vip address "
+                             f"make sure VOLTTRON_HOME: {get_home()} "
+                             "is set properly")
+    except zmq.error.ZMQError as e:
+         print(f"Zmq error was {e}\n{traceback.format_exc()}")
+    finally:
+        try:
+            sock.close()
+        except AttributeError as e:  # Raised when sock is None type
+            pass
 
     return address
 
@@ -254,3 +284,19 @@ def build_vip_address_string(vip_root, serverkey, publickey, secretkey):
         raise ValueError('Invalid vip root specified!')
 
     return root
+
+
+def update_volttron_script_path(path: str) -> str:
+    """
+    Assumes that path's current working directory is in the root directory of the volttron codebase.
+
+    Prepend 'VOLTTRON_ROOT' to internal volttron script if 'VOLTTRON_ROOT' is set and return new path;
+    otherwise, return original path
+    :param path: relative path to the internal volttron script
+    :return: updated path to volttron script
+    """
+    if os.environ['VOLTTRON_ROOT']:
+        args = path.split("/")
+        path = f"{os.path.join(os.environ['VOLTTRON_ROOT'], *args)}"
+    _log.debug(f"Path to script: {path}")
+    return path

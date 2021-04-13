@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -51,7 +51,7 @@ import tarfile
 import tempfile
 import traceback
 import uuid
-from datetime import timedelta
+from datetime import timedelta, datetime
 
 import gevent
 import gevent.event
@@ -64,9 +64,10 @@ from volttron.platform import aip as aipmod
 from volttron.platform import config
 from volttron.platform import get_home, get_address
 from volttron.platform import jsonapi
+from volttron.platform.jsonrpc import MethodNotFound
 from volttron.platform.agent import utils
 from volttron.platform.agent.known_identities import CONTROL_CONNECTION, \
-    CONFIGURATION_STORE
+    CONFIGURATION_STORE, PLATFORM_HEALTH, AUTH
 from volttron.platform.auth import AuthEntry, AuthFile, AuthException
 from volttron.platform.certs import Certs
 from volttron.platform.jsonrpc import RemoteError
@@ -74,12 +75,13 @@ from volttron.platform.keystore import KeyStore, KnownHostsStore
 from volttron.platform.messaging.health import Status, STATUS_BAD
 from volttron.platform.scheduling import periodic
 from volttron.platform.vip.agent import Agent as BaseAgent, Core, RPC
-from volttron.platform.vip.agent.errors import VIPError
+from volttron.platform.vip.agent.errors import VIPError, Unreachable
 from volttron.platform.vip.agent.subsystems.query import Query
 from volttron.utils.rmq_config_params import RMQConfig
 from volttron.utils.rmq_mgmt import RabbitMQMgmt
 from volttron.utils.rmq_setup import check_rabbit_status
 from volttron.platform.agent.utils import is_secure_mode, wait_for_volttron_shutdown
+from . install_agents import add_install_agent_parser, install_agent
 
 try:
     import volttron.restricted
@@ -293,6 +295,12 @@ class ControlService(BaseAgent):
                  'tag': tag(uuid), 'priority': priority(uuid),
                  'identity': self.agent_vip_identity(uuid)}
                 for uuid, name in self._aip.list_agents().items()]
+
+    @RPC.export
+    def list_agents_rpc(self):
+        pass
+        # agents = self.list_agents()
+        # return [jsonapi.dumps(self.vip.rpc.call(agent.vip_identity, 'inspect').get(timeout=4)) for agent in agents]
 
     @RPC.export
     def tag_agent(self, uuid, tag):
@@ -523,11 +531,18 @@ def filter_agents(agents, patterns, opts):
     for pattern in patterns:
         regex, _ = escape(pattern)
         result = set()
+
+        # if no option is selected, try matching based on uuid
         if not (by_uuid or by_name or by_tag):
             reobj = re.compile(regex)
             matches = [agent for agent in agents if reobj.match(agent.uuid)]
             if len(matches) == 1:
                 result.update(matches)
+            # if no match is found based on uuid, try matching on agent name
+            elif len(matches) == 0:
+                matches = [agent for agent in agents if reobj.match(agent.name)]
+                if len(matches) >= 1:
+                    result.update(matches)
         else:
             reobj = re.compile(regex + '$')
             if by_uuid:
@@ -605,85 +620,6 @@ def upgrade_agent(opts):
                   callback=restore_agents_data)
 
 
-def install_agent(opts, publickey=None, secretkey=None, callback=None):
-    aip = opts.aip
-    filename = opts.wheel
-    tag = opts.tag
-    vip_identity = opts.vip_identity
-    if opts.vip_address.startswith('ipc://'):
-        _log.info("Installing wheel locally without channel subsystem")
-        filename = config.expandall(filename)
-        agent_uuid = opts.connection.call('install_agent_local',
-                                          filename,
-                                          vip_identity=vip_identity,
-                                          publickey=publickey,
-                                          secretkey=secretkey)
-
-        if tag:
-            opts.connection.call('tag_agent', agent_uuid, tag)
-
-    else:
-        try:
-            _log.debug('Creating channel for sending the agent.')
-            channel_name = str(uuid.uuid4())
-            channel = opts.connection.server.vip.channel('control',
-                                                         channel_name)
-            _log.debug('calling control install agent.')
-            agent_uuid = opts.connection.call_no_get('install_agent',
-                                                     filename,
-                                                     channel_name,
-                                                     vip_identity=vip_identity,
-                                                     publickey=publickey,
-                                                     secretkey=secretkey)
-
-            _log.debug('Sending wheel to control')
-            sha512 = hashlib.sha512()
-            with open(filename, 'rb') as wheel_file_data:
-                while True:
-                    # get a request
-                    with gevent.Timeout(60):
-                        request, file_offset, chunk_size = channel.recv_multipart()
-                    if request == 'checksum':
-                        channel.send(sha512.digest())
-                        break
-
-                    assert request == 'fetch'
-
-                    # send a chunk of the file
-                    file_offset = int(file_offset)
-                    chunk_size = int(chunk_size)
-                    wheel_file_data.seek(file_offset)
-                    data = wheel_file_data.read(chunk_size)
-                    sha512.update(data)
-                    channel.send(data)
-
-            agent_uuid = agent_uuid.get(timeout=10)
-
-        except Exception as exc:
-            if opts.debug:
-                traceback.print_exc()
-            _stderr.write(
-                '{}: error: {}: {}\n'.format(opts.command, exc, filename))
-            return 10
-        else:
-            if tag:
-                opts.connection.call('tag_agent',
-                                     agent_uuid,
-                                     tag)
-        finally:
-            _log.debug('closing channel')
-            channel.close(linger=0)
-            del channel
-
-    name = opts.connection.call('agent_name', agent_uuid)
-    _stdout.write('Installed {} as {} {}\n'.format(filename, agent_uuid, name))
-
-    # Need to use a callback here rather than a return value.  I am not 100%
-    # sure why this is the reason for allowing our tests to pass.
-    if callback:
-        callback(agent_uuid)
-
-
 def tag_agent(opts):
     agents = filter_agent(_list_agents(opts.aip), opts.agent, opts)
     if len(agents) != 1:
@@ -754,6 +690,304 @@ def list_peers(opts):
         sys.stdout.write("{}\n".format(peer))
 
 
+def print_rpc_list(peers, code=False):
+    for peer in peers:
+        print(f'{peer}')
+        for method in peers[peer]:
+            if code:
+                print(f"\tself.vip.rpc.call({peer}, {method}).get()")
+            else:
+                print(f'\t{method}')
+
+
+def print_rpc_methods(opts, peer_method_metadata, code=False):
+    for peer in peer_method_metadata:
+        if code is True:
+            pass
+        else:
+            print(f'{peer}')
+        for method in peer_method_metadata[peer]:
+            params = peer_method_metadata[peer][method].get('params', "No parameters for this method.")
+            if code is True:
+                if len(params) == 0:
+                    print(f"self.vip.rpc.call({peer}, {method}).get()")
+                else:
+                    print(f"self.vip.rpc.call({peer}, {method}, {[param for param in params]}).get()")
+                continue
+            else:
+                print(f'\t{method}')
+                if opts.verbose == True:
+                    print("\tDocumentation:")
+                    doc = peer_method_metadata[peer][method]\
+                        .get('doc', "No documentation for this method.")\
+                        .replace("\n", "\n\t\t")
+                    print(f'\t\t{doc}\n')
+            print("\tParameters:")
+            if type(params) is str:
+                print(f'\t\t{params}')
+            else:
+                for param in params:
+                    print(f'\t\t{param}:\n\t\t\t{params[param]}')
+
+
+def list_agents_rpc(opts):
+    conn = opts.connection
+    try:
+        peers = sorted(conn.call('peerlist'))
+    except Exception as e:
+        print(e)
+    if opts.by_vip == True or len(opts.pattern) == 1:
+        peers = [peer for peer in peers if peer in opts.pattern]
+    elif len(opts.pattern) > 1:
+        peer = opts.pattern[0]
+        methods = opts.pattern[1:]
+        peer_method_metadata = {peer: {}}
+        for method in methods:
+            try:
+                peer_method_metadata[peer][method] = conn.server.vip.rpc.call(
+                    peer, f'{method}.inspect').get(timeout=4)
+            except gevent.Timeout:
+                print(f'{peer} has timed out.')
+            except Unreachable:
+                print(f'{peer} is unreachable')
+            except MethodNotFound as e:
+                print(e)
+
+        # _stdout.write(f"{peer_method_metadata}\n")
+        print_rpc_methods(opts, peer_method_metadata)
+        return
+    peer_methods = {}
+    for peer in peers:
+        try:
+            peer_methods[peer] = conn.server.vip.rpc.call(
+                peer, 'inspect').get(timeout=4)["methods"]
+        except gevent.Timeout:
+            print(f'{peer} has timed out')
+        except Unreachable:
+                print(f'{peer} is unreachable')
+        except MethodNotFound as e:
+            print(e)
+
+    if opts.verbose is True:
+        print_rpc_list(peer_methods)
+        # for peer in peer_methods:
+        #     _stdout.write(f"{peer}:{peer_methods[peer]}\n")
+    else:
+        for peer in peer_methods:
+            peer_methods[peer] = [method for method in peer_methods[peer] if "." not in method]
+            # _stdout.write(f"{peer}:{peer_methods[peer]}\n")
+        print_rpc_list(peer_methods)
+
+
+def list_agent_rpc_code(opts):
+    conn = opts.connection
+    try:
+        peers = sorted(conn.call('peerlist'))
+    except Exception as e:
+        print(e)
+    if len(opts.pattern) == 1:
+        peers = [peer for peer in peers if peer in opts.pattern]
+    elif len(opts.pattern) > 1:
+        peer = opts.pattern[0]
+        methods = opts.pattern[1:]
+        peer_method_metadata = {peer: {}}
+        for method in methods:
+            try:
+                peer_method_metadata[peer][method] = conn.server.vip.rpc.call(
+                    peer, f'{method}.inspect').get(timeout=4)
+            except gevent.Timeout:
+                print(f'{peer} has timed out.')
+            except Unreachable:
+                print(f'{peer} is unreachable')
+            except MethodNotFound as e:
+                print(e)
+
+        # _stdout.write(f"{peer_method_metadata}\n")
+        print_rpc_methods(opts, peer_method_metadata, code=True)
+        return
+
+    peer_methods = {}
+    for peer in peers:
+        try:
+            peer_methods[peer] = conn.server.vip.rpc.call(
+                peer, 'inspect').get(timeout=4)["methods"]
+        except gevent.Timeout:
+            print(f'{peer} has timed out.')
+        except Unreachable:
+                print(f'{peer} is unreachable')
+        except MethodNotFound as e:
+            print(e)
+
+    if opts.verbose is True:
+        pass
+    else:
+        for peer in peer_methods:
+            peer_methods[peer] = [method for method in peer_methods[peer] if "." not in method]
+
+    peer_method_metadata = {}
+    for peer in peer_methods:
+        peer_method_metadata[peer] = {}
+        for method in peer_methods[peer]:
+            try:
+                peer_method_metadata[peer][method] = conn.server.vip.rpc.call(
+                    peer, f'{method}.inspect').get(timeout=4)
+            except gevent.Timeout:
+                print(f'{peer} has timed out')
+            except Unreachable:
+                print(f'{peer} is unreachable')
+            except MethodNotFound as e:
+                print(e)
+    print_rpc_methods(opts, peer_method_metadata, code=True)
+
+
+def list_remotes(opts):
+    """ Lists remote certs and credentials.
+    Can be filters using the '--status' option, specifying
+    pending, approved, or denied.
+    The output printed includes:
+        user id of a ZMQ credential, or the common name of a CSR
+        remote address of the credential or csr
+        status of the credential or cert (either APPROVED, DENIED, or PENDING)
+
+     """
+    conn = opts.connection
+    if not conn:
+        _stderr.write("VOLTTRON is not running. This command "
+                      "requires VOLTTRON platform to be running\n")
+        return
+
+    output_view = []
+    try:
+        pending_csrs = conn.server.vip.rpc.call(AUTH, "get_pending_csrs").get(timeout=4)
+        for csr in pending_csrs:
+            output_view.append({"entry": {"user_id": csr["identity"],
+                                          "address": csr["remote_ip_address"]},
+                                "status": csr["status"]
+                                })
+    except TimeoutError:
+        print("Certs timed out")
+    try:
+        approved_certs = conn.server.vip.rpc.call(AUTH, "get_authorization_approved").get(timeout=4)
+        for value in approved_certs:
+            output_view.append({"entry": value, "status": "APPROVED"})
+    except TimeoutError:
+        print("Approved credentials timed out")
+    try:
+        denied_certs = conn.server.vip.rpc.call(AUTH, "get_authorization_denied").get(timeout=4)
+        for value in denied_certs:
+            output_view.append({"entry": value, "status": "DENIED"})
+    except TimeoutError:
+        print("Denied credentials timed out")
+    try:
+        pending_certs = conn.server.vip.rpc.call(AUTH, "get_authorization_pending").get(timeout=4)
+        for value in pending_certs:
+            output_view.append({"entry": value, "status": "PENDING"})
+    except TimeoutError:
+        print("Pending credentials timed out")
+
+    if not output_view:
+        print("No remote certificates or credentials")
+        return
+
+    if opts.status == "approved":
+        output_view = [output for output in output_view if output["status"] == "APPROVED"]
+
+    elif opts.status == "denied":
+        output_view = [output for output in output_view if output["status"] == "DENIED"]
+
+    elif opts.status == "pending":
+        output_view = [output for output in output_view if output["status"] == "PENDING"]
+
+    elif opts.status is not None:
+        _stdout.write("Invalid parameter. Please use 'approved', 'denied', 'pending', or leave blank to list all.\n")
+        return
+
+    if len(output_view) == 0:
+        print(f"No {opts.status} remote certificates or credentials")
+        return
+
+    for output in output_view:
+        for value in output["entry"]:
+            if not output["entry"][value]:
+                output["entry"][value] = "-"
+
+    userid_width = max(5, max(len(str(output["entry"]["user_id"])) for output in output_view))
+    address_width = max(5, max(len(str(output["entry"]["address"])) for output in output_view))
+    status_width = max(5, max(len(str(output["status"])) for output in output_view))
+    fmt = '{:{}} {:{}} {:{}}\n'
+    _stderr.write(
+        fmt.format('USER_ID', userid_width,
+                   'ADDRESS', address_width,
+                   'STATUS', status_width))
+    fmt = '{:{}} {:{}} {:{}}\n'
+    for output in output_view:
+        _stdout.write(fmt.format(output["entry"]["user_id"], userid_width,
+                                 output["entry"]["address"], address_width,
+                                 output["status"], status_width))
+
+def approve_remote(opts):
+    """Approves either a pending CSR or ZMQ credential.
+    The platform must be running for this command to succeed.
+    :param opts.user_id: The ZMQ credential user_id or pending CSR common name
+    :type opts.user_id: str
+    """
+    conn = opts.connection
+    if not conn:
+        _stderr.write("VOLTTRON is not running. This command "
+                      "requires VOLTTRON platform to be running\n")
+        return
+    conn.server.vip.rpc.call(AUTH, "approve_authorization_failure", opts.user_id).get(timeout=4)
+
+def deny_remote(opts):
+    """Denies either a pending CSR or ZMQ credential.
+        The platform must be running for this command to succeed.
+        :param opts.user_id: The ZMQ credential user_id or pending CSR common name
+        :type opts.user_id: str
+    """
+    conn = opts.connection
+    if not conn:
+        _stderr.write("VOLTTRON is not running. This command "
+                      "requires VOLTTRON platform to be running\n")
+        return
+    conn.server.vip.rpc.call(AUTH, "deny_authorization_failure", opts.user_id).get(timeout=4)
+
+
+def delete_remote(opts):
+    """Deletes either a pending CSR or ZMQ credential.
+        The platform must be running for this command to succeed.
+        :param opts.user_id: The ZMQ credential user_id or pending CSR common name
+        :type opts.user_id: str
+    """
+    conn = opts.connection
+    if not conn:
+        _stderr.write("VOLTTRON is not running. This command "
+                      "requires VOLTTRON platform to be running\n")
+        return
+    conn.server.vip.rpc.call(AUTH, "delete_authorization_failure", opts.user_id).get(timeout=4)
+
+# the following global variables are used to update the cache so
+# that we don't ask the platform too many times for the data
+# associated with health.
+health_cache_timeout_date = None
+health_cache_timeout = 5
+health_cache = {}
+
+
+def update_health_cache(opts):
+    global health_cache_timeout_date
+
+    t_now = datetime.now()
+    do_update = True
+    # Make sure we update if we don't have any health dicts, or if the cache has timed out.
+    if health_cache_timeout_date is not None and t_now < health_cache_timeout_date and health_cache:
+        do_update = False
+
+    if do_update:
+        health_cache.clear()
+        health_cache.update(opts.connection.server.vip.rpc.call(PLATFORM_HEALTH, 'get_platform_health').get(timeout=4))
+        health_cache_timeout_date = datetime.now() + timedelta(seconds=health_cache_timeout)
+
+
 def status_agents(opts):
     agents = {agent.uuid: agent for agent in _list_agents(opts.aip)}
     status = {}
@@ -784,11 +1018,16 @@ def status_agents(opts):
         return ''
 
     def get_health(agent):
+        update_health_cache(opts)
+
         try:
-            # TODO Modify this later so that we aren't calling peerlist before we call the status of the agent.
-            if agent.vip_identity in opts.connection.server.vip.peerlist().get(timeout=4):
-                return opts.connection.server.vip.rpc.call(agent.vip_identity,
-                                                           'health.get_status_json').get(timeout=4)['status']
+            health_dict = health_cache.get(agent.vip_identity)
+
+            if health_dict:
+                if opts.json:
+                    return health_dict
+                else:
+                    return health_dict.get('message', '')
             else:
                 return ''
         except (VIPError, gevent.Timeout):
@@ -801,16 +1040,23 @@ def agent_health(opts):
     agents = {agent.uuid: agent for agent in _list_agents(opts.aip)}.values()
     agents = get_filtered_agents(opts, agents)
     if not agents:
-        _stderr.write('No installed Agents found\n')
+        if not opts.json:
+            _stderr.write('No installed Agents found\n')
+        else:
+            _stdout.write(f'{jsonapi.dumps({}, indent=2)}\n')
         return
     agent = agents.pop()
-    try:
-        _stderr.write(jsonapi.dumps(
-            opts.connection.server.vip.rpc.call(agent.vip_identity, 'health.get_status_json').get(timeout=4),
-            indent=4) + '\n'
-                      )
-    except VIPError:
-        print("Agent {} is not running on the Volttron platform.".format(agent.uuid))
+    update_health_cache(opts)
+
+    data = health_cache.get(agent.vip_identity)
+
+    if not data:
+        if not opts.json:
+            _stdout.write(f'No health associated with {agent.vip_identity}\n')
+        else:
+            _stdout.write(f'{jsonapi.dumps({}, indent=2)}\n')
+    else:
+        _stdout.write(f'{jsonapi.dumps(data, indent=4)}\n')
 
 
 def clear_status(opts):
@@ -1267,7 +1513,7 @@ def update_auth(opts):
 
 def add_role(opts):
     auth_file = _get_auth_file(opts.volttron_home)
-    roles = auth_file.read()[2]
+    roles = auth_file.read()[3]
     if opts.role in roles:
         _stderr.write('role "{}" already exists\n'.format(opts.role))
         return
@@ -1278,13 +1524,13 @@ def add_role(opts):
 
 def list_roles(opts):
     auth_file = _get_auth_file(opts.volttron_home)
-    roles = auth_file.read()[2]
+    roles = auth_file.read()[3]
     _print_two_columns(roles, 'ROLE', 'CAPABILITIES')
 
 
 def update_role(opts):
     auth_file = _get_auth_file(opts.volttron_home)
-    roles = auth_file.read()[2]
+    roles = auth_file.read()[3]
     if opts.role not in roles:
         _stderr.write('role "{}" does not exist\n'.format(opts.role))
         return
@@ -1299,7 +1545,7 @@ def update_role(opts):
 
 def remove_role(opts):
     auth_file = _get_auth_file(opts.volttron_home)
-    roles = auth_file.read()[2]
+    roles = auth_file.read()[3]
     if opts.role not in roles:
         _stderr.write('role "{}" does not exist\n'.format(opts.role))
         return
@@ -1310,7 +1556,7 @@ def remove_role(opts):
 
 def add_group(opts):
     auth_file = _get_auth_file(opts.volttron_home)
-    groups = auth_file.read()[1]
+    groups = auth_file.read()[2]
     if opts.group in groups:
         _stderr.write('group "{}" already exists\n'.format(opts.group))
         return
@@ -1321,13 +1567,13 @@ def add_group(opts):
 
 def list_groups(opts):
     auth_file = _get_auth_file(opts.volttron_home)
-    groups = auth_file.read()[1]
+    groups = auth_file.read()[2]
     _print_two_columns(groups, 'GROUPS', 'ROLES')
 
 
 def update_group(opts):
     auth_file = _get_auth_file(opts.volttron_home)
-    groups = auth_file.read()[1]
+    groups = auth_file.read()[2]
     if opts.group not in groups:
         _stderr.write('group "{}" does not exist\n'.format(opts.group))
         return
@@ -1342,7 +1588,7 @@ def update_group(opts):
 
 def remove_group(opts):
     auth_file = _get_auth_file(opts.volttron_home)
-    groups = auth_file.read()[1]
+    groups = auth_file.read()[2]
     if opts.group not in groups:
         _stderr.write('group "{}" does not exist\n'.format(opts.group))
         return
@@ -1389,7 +1635,10 @@ def _show_filtered_agents(opts, field_name, field_callback, agents=None):
     agents = get_filtered_agents(opts, agents)
 
     if not agents:
-        _stderr.write('No installed Agents found\n')
+        if not opts.json:
+            _stderr.write('No installed Agents found\n')
+        else:
+            _stdout.write(f'{jsonapi.dumps({}, indent=2)}\n')
         return
     agents = sorted(agents, key=lambda x: x.name)
     if not opts.min_uuid_len:
@@ -1400,14 +1649,27 @@ def _show_filtered_agents(opts, field_name, field_callback, agents=None):
     tag_width = max(3, max(len(agent.tag or '') for agent in agents))
     identity_width = max(3, max(len(agent.vip_identity or '') for agent in agents))
     fmt = '{} {:{}} {:{}} {:{}} {:>6}\n'
-    _stderr.write(
-        fmt.format(' ' * n, 'AGENT', name_width, 'IDENTITY', identity_width,
-                   'TAG', tag_width, field_name))
-    for agent in agents:
-        _stdout.write(fmt.format(agent.uuid[:n], agent.name, name_width,
-                                 agent.vip_identity, identity_width,
-                                 agent.tag or '', tag_width,
-                                 field_callback(agent)))
+
+    if not opts.json:
+        _stderr.write(
+            fmt.format(' ' * n, 'AGENT', name_width, 'IDENTITY', identity_width,
+                       'TAG', tag_width, field_name))
+        for agent in agents:
+            _stdout.write(fmt.format(agent.uuid[:n], agent.name, name_width,
+                                     agent.vip_identity, identity_width,
+                                     agent.tag or '', tag_width,
+                                     field_callback(agent)))
+    else:
+        json_obj = {}
+        for agent in agents:
+            json_obj[agent.vip_identity] = {
+                'agent_uuid': agent.uuid,
+                'name': agent.name,
+                'identity': agent.vip_identity,
+                'agent_tag': agent.tag or '',
+                field_name: field_callback(agent),
+            }
+        _stdout.write(f'{jsonapi.dumps(json_obj, indent=2)}\n')
 
 
 def _show_filtered_agents_status(opts, status_callback, health_callback, agents=None):
@@ -1434,45 +1696,69 @@ def _show_filtered_agents_status(opts, status_callback, health_callback, agents=
     if not agents:
         agents = _list_agents(opts.aip)
 
-    agents = get_filtered_agents(opts, agents)
-
-    if not agents:
-        _stderr.write('No installed Agents found\n')
-        return
-
-    agents = sorted(agents, key=lambda x: x.name)
+    # Find max before so the uuid of the agent is available
+    # when a usre has filtered the list.
     if not opts.min_uuid_len:
         n = 36
     else:
         n = max(_calc_min_uuid_length(agents), opts.min_uuid_len)
-    name_width = max(5, max(len(agent.name) for agent in agents))
-    tag_width = max(3, max(len(agent.tag or '') for agent in agents))
-    identity_width = max(3, max(len(agent.vip_identity or '') for agent in agents))
-    if is_secure_mode():
-        user_width = max(3, max(len(agent.agent_user or '') for agent in agents))
-        fmt = '{} {:{}} {:{}} {:{}} {:{}} {:>6} {:>15}\n'
-        _stderr.write(
-            fmt.format(' ' * n, 'AGENT', name_width, 'IDENTITY', identity_width,
-                       'TAG', tag_width, 'AGENT_USER', user_width, 'STATUS', 'HEALTH'))
-        fmt = '{} {:{}} {:{}} {:{}} {:{}} {:<15} {:<}\n'
-        for agent in agents:
-            status_str = status_callback(agent)
-            _stdout.write(fmt.format(agent.uuid[:n], agent.name, name_width,
-                                     agent.vip_identity, identity_width,
-                                     agent.tag or '', tag_width,
-                                     agent.agent_user if status_str.startswith("running") else "", user_width,
-                                     status_str, health_callback(agent)))
+
+    agents = get_filtered_agents(opts, agents)
+
+    if not agents:
+        if not opts.json:
+            _stderr.write('No installed Agents found\n')
+        else:
+            _stdout.write(f'{jsonapi.dumps({}, indent=2)}\n')
+        return
+
+    agents = sorted(agents, key=lambda x: x.name)
+    if not opts.json:
+        name_width = max(5, max(len(agent.name) for agent in agents))
+        tag_width = max(3, max(len(agent.tag or '') for agent in agents))
+        identity_width = max(3, max(len(agent.vip_identity or '') for agent in agents))
+        if is_secure_mode():
+            user_width = max(3, max(len(agent.agent_user or '') for agent in agents))
+            fmt = '{} {:{}} {:{}} {:{}} {:{}} {:>6} {:>15}\n'
+            _stderr.write(
+                fmt.format(' ' * n, 'AGENT', name_width, 'IDENTITY', identity_width,
+                           'TAG', tag_width, 'AGENT_USER', user_width, 'STATUS', 'HEALTH'))
+            fmt = '{} {:{}} {:{}} {:{}} {:{}} {:<15} {:<}\n'
+            for agent in agents:
+                status_str = status_callback(agent)
+                agent_health_dict = health_callback(agent)
+                _stdout.write(fmt.format(agent.uuid[:n], agent.name, name_width,
+                                         agent.vip_identity, identity_width,
+                                         agent.tag or '', tag_width,
+                                         agent.agent_user if status_str.startswith("running") else "", user_width,
+                                         status_str, health_callback(agent)))
+        else:
+            fmt = '{} {:{}} {:{}} {:{}} {:>6} {:>15}\n'
+            _stderr.write(
+                fmt.format(' ' * n, 'AGENT', name_width, 'IDENTITY', identity_width,
+                           'TAG', tag_width, 'STATUS', 'HEALTH'))
+            fmt = '{} {:{}} {:{}} {:{}} {:<15} {:<}\n'
+            for agent in agents:
+                _stdout.write(fmt.format(agent.uuid[:n], agent.name, name_width,
+                                         agent.vip_identity, identity_width,
+                                         agent.tag or '', tag_width,
+                                         status_callback(agent), health_callback(agent)))
     else:
-        fmt = '{} {:{}} {:{}} {:{}} {:>6} {:>15}\n'
-        _stderr.write(
-            fmt.format(' ' * n, 'AGENT', name_width, 'IDENTITY', identity_width,
-                       'TAG', tag_width, 'STATUS', 'HEALTH'))
-        fmt = '{} {:{}} {:{}} {:{}} {:<15} {:<}\n'
+        json_obj = {}
         for agent in agents:
-            _stdout.write(fmt.format(agent.uuid[:n], agent.name, name_width,
-                                     agent.vip_identity, identity_width,
-                                     agent.tag or '', tag_width,
-                                     status_callback(agent), health_callback(agent)))
+            json_obj[agent.vip_identity] = {
+                'agent_uuid': agent.uuid,
+                'name': agent.name,
+                'identity': agent.vip_identity,
+                'agent_tag': agent.tag or '',
+                'status': status_callback(agent),
+                'health': health_callback(agent),
+            }
+            if is_secure_mode():
+                json_obj[agent.vip_identity]['agent_user'] = agent.agent_user if \
+                    json_obj[agent.vip_identity]['status'].startswith('running') else ''
+        _stdout.write(f'{jsonapi.dumps(json_obj, indent=2)}\n')
+
 
 
 def get_agent_publickey(opts):
@@ -2139,6 +2425,7 @@ def main(argv=sys.argv):
     parser.add_argument(
         '--show-config', action='store_true',
         help=argparse.SUPPRESS)
+    parser.add_argument("--json", action="store_true", default=False, help="format output to json")
 
     parser.add_help_argument()
     parser.set_defaults(
@@ -2149,29 +2436,14 @@ def main(argv=sys.argv):
     top_level_subparsers = parser.add_subparsers(title='commands', metavar='',
                                                  dest='command')
 
-    def add_parser(*args, **kwargs):
+    def add_parser(*args, **kwargs) -> argparse.ArgumentParser:
         parents = kwargs.get('parents', [])
         parents.append(global_args)
         kwargs['parents'] = parents
         subparser = kwargs.pop("subparser", top_level_subparsers)
         return subparser.add_parser(*args, **kwargs)
 
-    install = add_parser('install', help='install agent from wheel',
-                         epilog='Optionally you may specify the --tag argument to tag the '
-                                'agent during install without requiring a separate call to '
-                                'the tag command. ')
-    install.add_argument('wheel', help='path to agent wheel')
-    install.add_argument('--tag', help='tag for the installed agent')
-    install.add_argument('--vip-identity', help='VIP IDENTITY for the installed agent. '
-                                                'Overrides any previously configured VIP IDENTITY.')
-    if HAVE_RESTRICTED:
-        install.add_argument('--verify', action='store_true',
-                             dest='verify_agents',
-                             help='verify agent integrity during install')
-        install.add_argument('--no-verify', action='store_false',
-                             dest='verify_agents',
-                             help=argparse.SUPPRESS)
-    install.set_defaults(func=install_agent, verify_agents=True)
+    add_install_agent_parser(add_parser, HAVE_RESTRICTED)
 
     tag = add_parser('tag', parents=[filterable],
                      help='set, show, or remove agent tag')
@@ -2280,6 +2552,38 @@ def main(argv=sys.argv):
                              dest='verify_agents',
                              help=argparse.SUPPRESS)
     upgrade.set_defaults(func=upgrade_agent, verify_agents=True)
+
+    # ====================================================
+    # rpc commands
+    # ====================================================
+    rpc_ctl = add_parser('rpc',
+                       help='rpc controls')
+
+    rpc_subparsers = rpc_ctl.add_subparsers(title='subcommands', metavar='', dest='store_commands')
+
+    rpc_code = add_parser("code", subparser=rpc_subparsers, help="shows how to use rpc call in other agents")
+
+    rpc_code.add_argument('pattern', nargs='*',
+                       help='Identity of agent, followed by method(s)'
+                            '')
+    rpc_code.add_argument('-v', '--verbose', action='store_true',
+                          help="list all subsystem rpc methods in addition to the agent's rpc methods")
+
+    rpc_code.set_defaults(func=list_agent_rpc_code, min_uuid_len=1)
+
+    rpc_list = add_parser("list", subparser=rpc_subparsers, help="lists all agents and their rpc methods")
+
+    rpc_list.add_argument('-i', '--vip', dest='by_vip', action='store_true',
+                            help='filter by vip identity')
+
+    rpc_list.add_argument('pattern', nargs='*',
+                       help='UUID or name of agent')
+
+    rpc_list.add_argument('-v', '--verbose', action='store_true',
+                          help="list all subsystem rpc methods in addition to the agent's rpc methods. If a method "
+                               "is specified, display the doc-string associated with the method.")
+
+    rpc_list.set_defaults(func=list_agents_rpc, min_uuid_len=1)
 
     # ====================================================
     # certs commands
@@ -2444,6 +2748,34 @@ def main(argv=sys.argv):
     auth_update_role.add_argument('--remove', action='store_true',
                                   help='remove (rather than append) given capabilities')
     auth_update_role.set_defaults(func=update_role)
+
+    auth_remote = add_parser('remote', subparser=auth_subparsers,
+                             help="manage pending RMQ certs and ZMQ credentials")
+    auth_remote_subparsers = auth_remote.add_subparsers(title='remote subcommands', metavar='', dest='store_commands')
+
+    auth_remote_list_cmd = add_parser("list", subparser=auth_remote_subparsers,
+                                      help="lists approved, denied, and pending certs and credentials"
+                            )
+    auth_remote_list_cmd.add_argument("--status", help="Specify approved, denied, or pending")
+    auth_remote_list_cmd.set_defaults(func=list_remotes)
+
+    auth_remote_approve_cmd = add_parser("approve", subparser=auth_remote_subparsers,
+                                         help="approves pending or denied remote connection")
+    auth_remote_approve_cmd.add_argument("user_id", help="user_id or identity of pending credential or cert to approve")
+    auth_remote_approve_cmd.set_defaults(func=approve_remote)
+
+    auth_remote_deny_cmd = add_parser("deny", subparser=auth_remote_subparsers,
+                                      help="denies pending or denied remote connection")
+    auth_remote_deny_cmd.add_argument("user_id",
+                                      help="user_id or identity of pending credential or cert to deny")
+    auth_remote_deny_cmd.set_defaults(func=deny_remote)
+
+    auth_remote_delete_cmd = add_parser("delete", subparser=auth_remote_subparsers,
+                                         help="approves pending or denied remote connection")
+    auth_remote_delete_cmd.add_argument("user_id",
+                                         help="user_id or identity of pending credential or cert to delete")
+    auth_remote_delete_cmd.set_defaults(func=delete_remote)
+
 
     # ====================================================
     # config commands
@@ -2728,7 +3060,10 @@ def main(argv=sys.argv):
 
     opts.aip = aipmod.AIPplatform(opts)
     opts.aip.setup()
-    opts.connection = ControlConnection(opts.vip_address)
+
+    opts.connection = None
+    if utils.is_volttron_running(volttron_home):
+        opts.connection = ControlConnection(opts.vip_address)
 
     try:
         with gevent.Timeout(opts.timeout):
@@ -2743,11 +3078,27 @@ def main(argv=sys.argv):
         _stderr.write("Invalid command: '{}' or command requires additional arguments\n".format(opts.command))
         parser.print_help()
         return 1
-    # except Exception as exc:
-    #     print_tb = traceback.print_exc
-    #     error = str(exc)
-    else:
-        return 0
+    except SystemExit as exc:
+        # Handles if sys.exit is called from within a function if not 0
+        # then we know there was an error and processing will continue
+        # else we return 0 from here.  This has the added effect of
+        # allowing us to cascade short circuit calls.
+        if exc.args[0] != 0:
+            print_tb = exc.print_tb
+            error = exc.message
+        else:
+            return 0
+    finally:
+        # make sure the connection to the server is closed when this scriopt is about to exit.
+        if opts.connection:
+            try:
+                opts.connection.server.core.stop()
+            except Unreachable:
+                # its ok for this to fail at this point it might not even be valid.
+                pass
+            finally:
+                opts.connection = None
+
     if opts.debug:
         print_tb()
     _stderr.write('{}: error: {}\n'.format(opts.command, error))

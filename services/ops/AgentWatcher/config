@@ -1,12 +1,7 @@
 {
-    # AgentWatcher will send an alert if any of the following
-    # VIP identities are not running on the platform
     "watchlist": [
         "platform.driver",
-        "platform.historian"
-    ]
-
-    # Time to wait between agent running checks
-    # defaults to 10 seconds.
-    # "check-period": 10
+        "platform.actuator"
+    ],
+    "check-period": 10
 }

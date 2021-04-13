@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -322,7 +322,7 @@ class InfluxdbHistorian(BaseHistorian):
                                                                self._use_calendar_time_periods)
                         values[topic_name] = value
                     else:
-                        _log.warn('No such topic {}'.format(topic_name))
+                        _log.warning('No such topic {}'.format(topic_name))
 
                 results = {
                     "values": values,

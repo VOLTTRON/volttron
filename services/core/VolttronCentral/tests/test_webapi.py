@@ -3,17 +3,16 @@ import os
 import gevent
 import pytest
 
-from volttron.platform import get_examples
+from volttron.platform import get_examples, jsonapi
 from volttrontesting.utils.agent_additions import \
     add_volttron_central_platform, add_volttron_central, add_listener
 
 from volttrontesting.utils.platformwrapper import PlatformWrapper, \
     start_wrapper_platform
 
-from zmq.utils import jsonapi
 from vctestutils import APITester
-
-from vc_fixtures import vc_and_vcp_together, vc_instance, vcp_instance
+from services.core.VolttronCentral.tests.vc_fixtures import \
+    vc_and_vcp_together, vc_instance, vcp_instance
 
 
 @pytest.fixture(scope="module")
@@ -25,12 +24,13 @@ def auto_registered_local(vc_and_vcp_together):
 
 def test_platform_list(auto_registered_local):
     webapi = auto_registered_local
-
+    gevent.sleep(5)
     assert len(webapi.list_platforms()) == 1
 
 
 def test_platform_inspect(auto_registered_local):
     webapi = auto_registered_local
+    gevent.sleep(5)
     platforms = webapi.list_platforms()
     platform_uuid = platforms[0]["uuid"]
 
@@ -65,10 +65,10 @@ def vc_vcp_platforms():
                            volttron_central_serverkey=vc.serverkey)
 
     vc_uuid = add_volttron_central(vc)
+    gevent.sleep(5)
     vcp_uuid = add_volttron_central_platform(vcp)
-
+    gevent.sleep(5)
     # Sleep so we know we are registered
-    gevent.sleep(15)
     yield vc, vcp
 
     vc.shutdown_platform()
@@ -135,12 +135,12 @@ def test_store_list_get_configuration(auto_registered_local):
     config_name = "fuzzywidgets"
 
     webapi = auto_registered_local
-
+    gevent.sleep(5)
     platforms = webapi.list_platforms()
     platform_uuid = platforms[0]["uuid"]
 
     resp = webapi.store_agent_config(platform_uuid, identity, config_name,
-                                  str_data)
+                                     str_data)
     assert resp is None
 
     resp = webapi.list_agent_configs(platform_uuid, identity)
@@ -163,7 +163,7 @@ def test_store_delete_configuration(auto_registered_local):
     config_name = "fuzzywidgets"
 
     webapi = auto_registered_local
-
+    gevent.sleep(5)
     platforms = webapi.list_platforms()
     platform_uuid = platforms[0]["uuid"]
 
@@ -191,7 +191,7 @@ def test_correct_reader_permissions_on_vcp_vc_and_listener_agent(vc_vcp_platform
     vc, vcp = vc_vcp_platforms
 
     api = APITester(vc, username="reader", password="reader")
-
+    gevent.sleep(5)
     platform = api.list_platforms()[0]
     print('The platform is {}'.format(platform))
 
@@ -217,7 +217,7 @@ def test_correct_reader_permissions_on_vcp_vc_and_listener_agent(vc_vcp_platform
 def test_correct_admin_permissions_on_vcp_vc_and_listener_agent(auto_registered_local):
 
     apitester = auto_registered_local
-
+    gevent.sleep(5)
     platform = apitester.list_platforms()[0]
     print('The platform is {}'.format(platform))
 
@@ -253,7 +253,7 @@ def test_correct_admin_permissions_on_vcp_vc_and_listener_agent(auto_registered_
 def test_listagent(auto_registered_local):
 
     webapi = auto_registered_local
-
+    gevent.sleep(5)
     platform = webapi.list_platforms()[0]
     print('The platform is {}'.format(platform))
 
@@ -285,16 +285,26 @@ def test_installagent(auto_registered_local):
     import base64
     import random
 
+    # with open(agent_wheel, 'r+b') as f:
+    #     hold = f.read()
+    #     file_str = str(hold).encode('utf-8')
+    #     decoded_str = str(base64.decodestring(hold))
+    #     # From the web this is what is added to the file.
+    #     filestr = "base64," + file_str
+    #     # filestr = "base64,"+str(base64.b64encode(hold))
+
     with open(agent_wheel, 'r+b') as f:
         # From the web this is what is added to the file.
-        filestr = "base64,"+base64.b64encode(f.read())
-
+        hold = f.read()
+        print(f"Package is {hold}")
+        filestr = "base64,"+base64.b64encode(hold).decode('utf-8')
+        print(f"file string is {filestr}")
     file_props = dict(
         file_name=os.path.basename(agent_wheel),
         file=filestr,
         vip_identity='bar.full.{}'.format(random.randint(1, 100000))
     )
-
+    gevent.sleep(5)
     platform = webapi.list_platforms()[0]
 
     agents = webapi.list_agents(platform['uuid'])

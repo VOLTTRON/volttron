@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -173,9 +173,9 @@ sqlite_platform = {
 
 crate_platform = {
     "source_historian": get_services_core("CrateHistorian"),
-    "schema": "test",
     "connection": {
         "type": "crate",
+        "schema": "test",
         "params": {
             "host": "http://localhost:4200",
             "debug": False
@@ -209,9 +209,9 @@ mongo_platform = {
             "host": "localhost",
             "port": 27017,
             "database": "mongo_test",
-            "user": "test",
-            "passwd": "test",
-            "authSource": "admin"
+            "user": "historian",
+            "passwd": "historian",
+            "authSource": "test"
         }
     }
 }
@@ -221,11 +221,11 @@ postgresql_platform = {
     'connection': {
         'type': 'postgresql',
         'params': {
-            'dbname': 'historian_test',
+            'dbname': 'test_historian',
             'port': 5432,
             'host': 'localhost',
             'user' : 'historian',
-            'password': 'volttron'
+            'password': 'historian'
         },
     },
 }
@@ -355,7 +355,8 @@ def cleanup_mongodb(db_connection, truncate_tables):
 
 def cleanup_crate(db_connection, truncate_tables):
     crate_utils.drop_schema(db_connection, truncate_tables,
-                            schema=crate_platform['schema'])
+                            schema=crate_platform['connection']['schema'])
+
 
 def cleanup_postgresql(connection, truncate_tables):
     print('cleanup_postgreql({!r}, {!r})'.format(connection, truncate_tables))

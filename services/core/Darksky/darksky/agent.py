@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -301,6 +301,8 @@ class Darksky(BaseWeatherAgent):
         """
         darksky_response = self.get_darksky_data(
             'get_current_weather', location)
+        if 'currently' not in darksky_response:
+            _log.error("Current data not found in Dark Sky response: {}".format(darksky_response))
         current_response = darksky_response.pop('currently')
         # Darksky required attribution
         current_response["attribution"] = "Powered by Dark Sky"

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -319,8 +319,7 @@ class EmailerAgent(Agent):
         :param message:
         """
         if not self.current_config.get('send_alerts_enabled'):
-            _log.warn('Alert message found but not sent enable alerts '
-                      'enable by setting send_alerts_enabled to True')
+            _log.warning('Alert message found but not sent enable alerts enable by setting send_alerts_enabled to True')
             return
         mailkey = headers.get(ALERT_KEY, None)
 

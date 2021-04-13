@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -226,7 +226,7 @@ class FailoverAgent(Agent):
         if current_state != self._state:
             context = 'Starting agent {}'.format(self.agent_vip_identity)
             self._state = current_state
-            _log.warn(context)
+            _log.warning(context)
             status = Status.build(STATUS_GOOD, context=context)
             self.vip.health.send_alert(alert_key, status)
 
@@ -234,8 +234,8 @@ class FailoverAgent(Agent):
                                       'agent_status',
                                       self.agent_uuid).get()
 
-        is_running = proc_info[0] > 0 and proc_info[1] == None
-        if not is_running:
+        is_not_running = proc_info[0] is None and proc_info[1] is None
+        if is_not_running:
             self._agent_control('start_agent')
 
     def simple_secondary_state_machine(self, current_state):
@@ -256,7 +256,7 @@ class FailoverAgent(Agent):
                 self.agent_vip_identity)
             if current_state != self._state:
                 self._state = current_state
-                _log.warn(context)
+                _log.warning(context)
                 status = Status.build(STATUS_GOOD, context=context)
                 self.vip.health.send_alert(alert_key, status)
 
@@ -267,15 +267,26 @@ class FailoverAgent(Agent):
                 self.agent_vip_identity)
             if current_state != self._state:
                 self._state = current_state
-                _log.warn(context)
+                _log.warning(context)
                 status = Status.build(STATUS_BAD, context=context)
                 self.vip.health.send_alert(alert_key, status)
+
+            agents = self.vip.rpc.call(CONTROL, 'list_agents').get()
+            _log.info(f"simple_secondary_state_machine List agents: {self.agent_uuid}, {agents}")
+
+            agents_stats = self.vip.rpc.call(CONTROL, 'status_agents').get()
+            _log.info(f"simple_secondary_state_machine Agent stats: {self.agent_uuid}, {agents_stats}")
 
             proc_info = self.vip.rpc.call(CONTROL,
                                           'agent_status',
                                           self.agent_uuid).get()
-            is_running = proc_info[0] > 0 and proc_info[1] == None
-            if not is_running:
+
+            _log.info(f"simple_secondary_state_machine: {self.agent_uuid}, {proc_info}")
+
+            is_not_running = proc_info[0] is None and proc_info[1] is None
+
+            if is_not_running:
+                _log.info(f"simple_secondary_state_machine, starting agent: {self.agent_uuid}")
                 self._agent_control('start_agent')
 
 

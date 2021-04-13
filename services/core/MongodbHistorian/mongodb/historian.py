@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -65,13 +65,8 @@ from volttron.platform.scheduling import periodic
 from volttron.utils.docs import doc_inherit
 
 try:
-    import ujson
+    from ujson import  dumps, loads
 
-    def dumps(data):
-        return ujson.dumps(data, double_precision=15)
-
-    def loads(data_string):
-        return ujson.loads(data_string, precise_float=True)
 except ImportError:
     from volttron.platform.jsonapi import dumps, loads
 
@@ -335,10 +330,10 @@ class MongodbHistorian(BaseHistorian):
             if d_errors or h_errors:
                 # something failed in bulk write. try from last err
                 # row during the next periodic call
-                _log.warn("bulk publish errors. last_processed_data would "
-                          "have got recorded in collection. returning from "
-                          "periodic call to try again during next scheduled "
-                          "call")
+                _log.warning("bulk publish errors. last_processed_data would "
+                             "have got recorded in collection. returning from "
+                             "periodic call to try again during next scheduled "
+                             "call")
                 return
             gevent.sleep(0.2)
 
@@ -587,7 +582,7 @@ class MongodbHistorian(BaseHistorian):
                 topic_ids.append(topic_id)
                 id_name_map[ObjectId(topic_id)] = topic
             else:
-                _log.warn('No such topic {}'.format(topic))
+                _log.warning('No such topic {}'.format(topic))
 
         if not topic_ids:
             return {}

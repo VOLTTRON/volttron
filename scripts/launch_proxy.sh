@@ -4,7 +4,7 @@ pushd ../services/core/BACnetProxy
 if [ -z "$VOLTTRON_HOME" ]; then
     export VOLTTRON_HOME=~/.volttron
 fi
-export AGENT_CONFIG=bacnet-proxy.agent
+export AGENT_CONFIG=config
 python -m bacnet_proxy.agent
 popd
 

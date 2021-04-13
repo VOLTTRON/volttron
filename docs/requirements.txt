@@ -1,7 +1,7 @@
 sphinx_rtd_theme
 sphinx-autobuild
-sphinx
-recommonmark
+sphinx==3.3.0
+m2r2
 bacpypes
 enum34
 funcsigs
@@ -13,6 +13,7 @@ python-dateutil
 pytz
 pyzmq
 grequests
+requests
 simplejson
 six
 Twisted
@@ -25,7 +26,4 @@ greenlet
 zmq
 ply
 psutil
-pymongo
-mysql-connector-python-rf
 ws4py
-paho-mqtt

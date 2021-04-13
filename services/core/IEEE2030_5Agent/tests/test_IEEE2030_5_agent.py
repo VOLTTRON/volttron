@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -105,7 +105,7 @@ def agent(request, volttron_instance_module_web):
     test_agent = volttron_instance_module_web.build_agent(identity="test_agent")
     capabilities = {'edit_config_store': {'identity': PLATFORM_DRIVER}}
     volttron_instance_module_web.add_capabilities(test_agent.core.publickey, capabilities)
-    # Configure a IEEE 2030.5 device in the Master Driver
+    # Configure a IEEE 2030.5 device in the Platform Driver
     test_agent.vip.rpc.call('config.store', 'manage_delete_store', PLATFORM_DRIVER).get(timeout=10)
     test_agent.vip.rpc.call('config.store', 'manage_store', PLATFORM_DRIVER,
                             'devices/{}'.format(DRIVER_NAME),
@@ -136,11 +136,11 @@ def agent(request, volttron_instance_module_web):
                                                                start=True)
     print('IEEE2030_5 agent id: ', IEEE2030_5_id)
 
-    # Install and start a MasterDriverAgent
-    md_id = volttron_instance_module_web.install_agent(agent_dir=get_services_core("MasterDriverAgent"),
+    # Install and start a PlatformDriverAgent
+    md_id = volttron_instance_module_web.install_agent(agent_dir=get_services_core("PlatformDriverAgent"),
                                                        config_file={},
                                                        start=True)
-    print('master driver agent id: ', md_id)
+    print('platform driver agent id: ', md_id)
 
     global web_address
     web_address = volttron_instance_module_web.bind_web_address

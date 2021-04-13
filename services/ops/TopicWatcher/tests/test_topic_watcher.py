@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -298,10 +298,12 @@ def test_watch_topic_new_group(volttron_instance, agent, cleanup_db):
     gevent.sleep(6)
 
     assert len(alert_messages) == 2
+
     assert "Topic(s) not published within time limit: ['fakedevice', " \
            "'fakedevice2/all', ('fakedevice2/all', 'point')]" in alert_messages or \
-           "Topic(s) not published within time limit: ['fakedevice', " \
-           "('fakedevice2/all', 'point')], 'fakedevice2/all'" in alert_messages
+           "Topic(s) not published within time limit: ['fakedevice', ('fakedevice2/all', 'point'), " \
+           "'fakedevice2/all']" in alert_messages
+
     assert "Topic(s) not published within time limit: ['newtopic']" in \
            alert_messages
 

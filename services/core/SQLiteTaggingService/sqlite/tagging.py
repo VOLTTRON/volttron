@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -309,8 +309,7 @@ class SQLiteTaggingService(BaseTaggingService):
                 "VALUES (?, ?);".format(self.category_tags_table), to_db)
             self.sqlite_utils.commit()
         else:
-            _log.warn("No category to tags mapping to initialize. No such "
-                      "file " + file_path)
+            _log.warning("No category to tags mapping to initialize. No such file " + file_path)
 
     def _init_topic_tags(self):
         self.sqlite_utils.execute_stmt(

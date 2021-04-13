@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -45,6 +45,7 @@ try:
 except ImportError:
     pytest.skip("Market service requirements not installed.", allow_module_level=True)
 
+
 @pytest.mark.market
 def test_offer_settle_no_intersection():
     demand1 = create_demand_curve()
@@ -59,8 +60,8 @@ def create_demand_curve():
     demand_curve = PolyLine()
     price = 0
     quantity = 1000
-    demand_curve.add(Point(price,quantity))
+    demand_curve.add(Point(price, quantity))
     price = 1000
     quantity = 0
-    demand_curve.add(Point(price,quantity))
+    demand_curve.add(Point(price, quantity))
     return demand_curve

@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -108,6 +108,7 @@ def test_remote_alert_publish(get_volttron_instances):
     assert alert_messages
     alert_messages.clear()
 
+
 @pytest.mark.alert
 def test_alert_multi_messagebus_publish(volttron_multi_messagebus):
     """
@@ -168,7 +169,17 @@ def test_alert_multi_messagebus_publish(volttron_multi_messagebus):
     )
 
     gevent.sleep(6)
+
     assert u"Topic(s) not published within time limit: ['fakedevice', " \
            u"'fakedevice2/all', ('fakedevice2/all', 'point')]" in \
+           alert_messages or \
+           u"Topic(s) not published within time limit: ['fakedevice', " \
+           u"('fakedevice2/all', 'point'), 'fakedevice2/all']" in \
+            alert_messages or \
+           u"Topic(s) not published within time limit: ['fakedevice2/all', " \
+           u"('fakedevice2/all', 'point'), 'fakedevice']" in \
+            alert_messages or \
+           u"Topic(s) not published within time limit: [('fakedevice2/all', 'point'), " \
+           u"'fakedevice2/all', 'fakedevice']" in \
            alert_messages
     alert_messages.clear()

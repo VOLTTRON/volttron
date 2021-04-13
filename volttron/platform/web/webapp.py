@@ -9,11 +9,11 @@ _log = logging.getLogger(__name__)
 
 class WebApplicationWrapper(object):
     """ A container class that will hold all of the applications registered
-    with it.  The class provides a contianer for managing the routing of
+    with it.  The class provides a container for managing the routing of
     websocket, static content, and rpc function calls.
     """
-    def __init__(self, masterweb, host, port):
-        self.masterweb = masterweb
+    def __init__(self, platformweb, host, port):
+        self.platformweb = platformweb
         self.port = port
         self.host = host
         self.ws = WebSocketWSGIApplication(handler_cls=VolttronWebSocket)
@@ -35,7 +35,7 @@ class WebApplicationWrapper(object):
             environ['identity'] = self._wsregistry[environ['PATH_INFO']]
             return self.ws(environ, start_response)
 
-        return self.masterweb.app_routing(environ, start_response)
+        return self.platformweb.app_routing(environ, start_response)
 
     def favicon(self, environ, start_response):
         """
@@ -49,7 +49,7 @@ class WebApplicationWrapper(object):
     def client_opened(self, client, endpoint, identity):
 
         ip = client.environ['REMOTE_ADDR']
-        should_open = self.masterweb.vip.rpc.call(identity, 'client.opened',
+        should_open = self.platformweb.vip.rpc.call(identity, 'client.opened',
                                                   ip, endpoint)
         if not should_open:
             _log.error("Authentication failure, closing websocket.")
@@ -71,11 +71,11 @@ class WebApplicationWrapper(object):
     def client_received(self, endpoint, message):
         clients = self.endpoint_clients.get(endpoint, [])
         for identity, _ in clients:
-            self.masterweb.vip.rpc.call(identity, 'client.message',
+            self.platformweb.vip.rpc.call(identity, 'client.message',
                                         str(endpoint), str(message))
 
     def client_closed(self, client, endpoint, identity,
-                      reason="Client left without proper explaination"):
+                      reason="Client left without proper explanation"):
 
         client_set = self.endpoint_clients.get(endpoint, set())
 
@@ -85,7 +85,7 @@ class WebApplicationWrapper(object):
         except KeyError:
             pass
         else:
-            self.masterweb.vip.rpc.call(identity, 'client.closed', endpoint)
+            self.platformweb.vip.rpc.call(identity, 'client.closed', endpoint)
 
     def create_ws_endpoint(self, endpoint, identity):
         if endpoint not in self.endpoint_clients:
@@ -105,8 +105,7 @@ class WebApplicationWrapper(object):
         _log.debug('Sending message to clients!')
         clients = self.endpoint_clients.get(endpoint, [])
         if not clients:
-            _log.warn("There were no clients for endpoint {}".format(
-                endpoint))
+            _log.warning("There were no clients for endpoint {}".format(endpoint))
         for c in clients:
             identity, client = c
             _log.debug('Sending endpoint&&message {}&&{}'.format(
