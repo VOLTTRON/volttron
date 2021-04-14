@@ -293,7 +293,7 @@ Step 5 - Configure RabbitMQ setup for VOLTTRON
 
 .. code-block:: bash
 
-    vcfg rabbitmq single --config [optional path to rabbitmq_config.yml]
+    vcfg rabbitmq single [--config optional path to rabbitmq_config.yml]
 
 A sample configuration file can be found in the VOLTTRON repository in **examples/configurations/rabbitmq/rabbitmq_config.yml**.
 At a minimum you will need to provide the host name and a unique common-name (under certificate-data) in the configuration file.
