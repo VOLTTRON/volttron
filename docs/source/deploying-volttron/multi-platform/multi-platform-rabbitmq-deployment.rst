@@ -65,7 +65,7 @@ To setup federation on the VOLTTRON instance, run the following command on the d
 
 .. code-block:: bash
 
-    vcfg rabbitmq federation --config [optional path to rabbitmq_federation_config.yml] --max-retries [optional maximum CSR retry attempt]
+    vcfg rabbitmq federation [--config optional path to rabbitmq_federation_config.yml] [--max-retries optional maximum CSR retry attempt]
 
 
 This establishes federation links to upstream servers. Once a federation link to the upstream server is established on
