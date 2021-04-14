@@ -36,6 +36,7 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 import ast
+import contextlib
 import logging
 from collections import defaultdict
 
@@ -299,6 +300,56 @@ class MySqlFuncts(DbDriver):
             if cursor is not None:
                 cursor.close()
         return values
+
+    @contextlib.contextmanager
+    def bulk_insert(self):
+        """
+        This function implements the bulk insert requirements for Redshift historian by overriding the
+        DbDriver::bulk_insert() in basedb.py and yields nescessary data insertion method needed for bulk inserts
+        :yields: insert method
+        """
+        records = []
+
+        def insert_data(ts, topic_id, data):
+            """
+            Inserts data records to the list
+            :param ts: time stamp
+            :type string
+            :param topic_id: topic ID
+            :type string
+            :param data: data value
+            :type any valid JSON serializable value
+            :return: Returns True after insert
+            :rtype: bool
+            """
+#            _log.info("appended record")
+            value = jsonapi.dumps(data)
+            records.append((ts, topic_id, value))
+#            records.append(SQL('({}, {}, {})').format(Literal(ts), Literal(topic_id), Literal(value)))
+            return True
+
+        yield insert_data
+
+        if records:
+            query = f"""
+INSERT INTO {self.data_table} (ts, topic_id, value_string) VALUES(%s, %s, %s)
+ON DUPLICATE KEY UPDATE value_string=VALUES(value_string);
+"""
+
+#            query = SQL('INSERT INTO {} VALUES {} '
+#                        'ON CONFLICT (ts, topic_id) DO UPDATE '
+#                        'SET value_string = EXCLUDED.value_string').format(
+#                            Identifier(self.data_table), SQL(', ').join(records))
+            _log.info(f"calling execute meny with records {len(records)}")
+            self.execute_many(query, records)
+
+#    def execute_many(self, query, args, commit=False):
+#        _log.info("Execute many here")
+#        _log.info(f"args is {args[0]}")
+#        cursor = self.cursor()
+#        cursor.executemany(query, args)
+
+
 
     def insert_meta_query(self):
         return '''REPLACE INTO ''' + self.meta_table + ''' values(%s, %s)'''

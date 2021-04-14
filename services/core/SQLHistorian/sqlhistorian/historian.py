@@ -190,7 +190,7 @@ class SQLHistorian(BaseHistorian):
                         self.topic_name_map[lowercase_name] = topic
 
                     old_meta = self.topic_meta.get(topic_id, {})
-                    if set(old_meta.items()) != set(meta.items()):
+                    if old_meta != meta:
                         self.bg_thread_dbutils.insert_meta(topic_id, meta)
                         self.topic_meta[topic_id] = meta
 
@@ -199,12 +199,13 @@ class SQLHistorian(BaseHistorian):
 
             if published:
                 if self.bg_thread_dbutils.commit():
+                    _log.debug("Reporting all handled")
                     self.report_all_handled()
                 else:
-                    _log.debug('Commit error. Rolling back {} values.'.format(published))
+                    _log.warning('Commit error. Rolling back {} values.'.format(published))
                     self.bg_thread_dbutils.rollback()
             else:
-                _log.debug('Unable to publish {}'.format(len(to_publish_list)))
+                _log.warning('Unable to publish {}'.format(len(to_publish_list)))
         except Exception as e:
             # TODO Unable to send alert from here
             # if isinstance(e, ConnectionError):
@@ -319,7 +320,7 @@ class SQLHistorian(BaseHistorian):
     @doc_inherit
     def historian_setup(self):
         thread_name = threading.currentThread().getName()
-        _log.debug("historian_setup on Thread: {}".format(thread_name))
+        _log.info("historian_setup on Thread: {}".format(thread_name))
         self.bg_thread_dbutils = self.db_functs_class(self.connection['params'], self.table_names)
 
         if not self._readonly:
