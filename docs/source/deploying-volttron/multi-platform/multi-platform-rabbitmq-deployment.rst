@@ -165,8 +165,8 @@ upstream servers on the downstream server and make the VOLTTRON exchange
 
         .. code-block:: bash
 
-            vcfg rabbitmq federation --config [optional path to rabbitmq_federation_config.yml
-            containing the details of the upstream hostname, port and vhost.] --max-retries [optional maximum CSR retry attempt]
+            vcfg rabbitmq federation [--config optional path to rabbitmq_federation_config.yml
+            containing the details of the upstream hostname, port and vhost.] [--max-retries optional maximum CSR retry attempt]
 
 
         Example configuration for federation is available
@@ -347,7 +347,7 @@ To configure the VOLTTRON instance to setup shovel, run the following command on
 
 .. code-block:: bash
 
-    vcfg rabbitmq shovel --config [optional path to rabbitmq_shovel_config.yml] --max-retries [optional maximum CSR retry attempt]
+    vcfg rabbitmq shovel [--config optional path to rabbitmq_shovel_config.yml] [--max-retries optional maximum CSR retry attempt]
 
 This sets up a shovel that forwards messages (either PubSub or RPC) from a local exchange to a remote exchange.
 
@@ -438,7 +438,7 @@ Please note that each instance should have a unique instance name.
 
         .. code-block:: bash
 
-            vcfg rabbitmq shovel --config [optional path to rabbitmq_shovel_config.yml] --max-retries [optional maximum CSR retry attempt]
+            vcfg rabbitmq shovel [--config optional path to rabbitmq_shovel_config.yml] [--max-retries optional maximum CSR retry attempt]
 
         rabbitmq_shovel_config.yml should contain the details of the remote hostname, port, vhost,
         certificates for connecting to remote instance and list of topics to forward.
@@ -606,7 +606,7 @@ agent. For such a request-response behavior, shovels need to be created on both 
 
   .. code-block:: bash
 
-    vcfg rabbitmq shovel --config [optional path to rabbitmq_shovel_config.yml] --max-retries [optional maximum CSR retry attempt]
+    vcfg rabbitmq shovel [--config optional path to rabbitmq_shovel_config.yml] [--max-retries optional maximum CSR retry attempt]
 
 
    Example of RabbitMQ shovel configuration on v2
@@ -630,7 +630,7 @@ agent. For such a request-response behavior, shovels need to be created on both 
 
   .. code-block:: bash
 
-     vcfg rabbitmq shovel --config [optional path to rabbitmq_shovel_config.yml] --max-retries [optional maximum CSR retry attempt]
+     vcfg rabbitmq shovel [--config optional path to rabbitmq_shovel_config.yml] [--max-retries optional maximum CSR retry attempt]
 
    b. Create a user on v2 with username set to remote agent's username
       ( for example, v1.data.mover i.e., <instance_name>.<agent_identity>) and allow
@@ -645,7 +645,7 @@ agent. For such a request-response behavior, shovels need to be created on both 
 
   .. code-block:: bash
 
-      vcfg rabbitmq shovel --config [optional path to rabbitmq_shovel_config.yml] --max-retries [optional maximum CSR retry attempt]
+      vcfg rabbitmq shovel [--config optional path to rabbitmq_shovel_config.yml] [--max-retries optional maximum CSR retry attempt]
 
 3. Start Platform driver agent on v1
 
