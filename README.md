@@ -150,7 +150,7 @@ You can deactivate the environment at any time by running `deactivate`.
 ##### 5. Create RabbitMQ setup for VOLTTRON:
 
 ```sh
-vcfg rabbitmq single --config [optional path to rabbitmq_config.yml]
+vcfg rabbitmq single [--config optional path to rabbitmq_config.yml]
 ```
 
 Refer to [examples/configurations/rabbitmq/rabbitmq_config.yml](examples/configurations/rabbitmq/rabbitmq_config.yml)
