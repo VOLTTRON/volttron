@@ -27,8 +27,7 @@ HAS_RMQ = is_rabbitmq_available()
 ci_skipif = pytest.mark.skipif(os.getenv('CI', None) == 'true', reason='SSL does not work in CI')
 rmq_skipif = pytest.mark.skipif(not HAS_RMQ,
                                 reason='RabbitMQ is not setup and/or SSL does not work in CI')
-web_skipif = pytest.mark.skipif(not HAS_RMQ,
-                                reason='RabbitMQ is not setup and/or SSL does not work in CI')
+
 
 @pytest.mark.parametrize("encryption_type", ("private_key", "tls"))
 def test_jwt_encode(encryption_type):
