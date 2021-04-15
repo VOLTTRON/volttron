@@ -185,35 +185,39 @@ def _create_federation_setup(admin_user, admin_password, is_ssl, vhost, vhome):
     federation_config = read_config_file(federation_config_file)
     federation = federation_config.get('federation-upstream')
 
+    update_needed = False
     if federation:
         for host, upstream in federation.items():
             try:
                 name = "upstream-{host}-{vhost}".format(vhost=upstream['virtual-host'],
                                                         host=host)
                 _log.debug("Upstream Server: {name} ".format(name=name))
-
-                certs_dict = None
                 rmq_user = None
-                if 'certificates' in upstream:
-                    _log.debug("upstream parameters under destination: {}".format(upstream))
-                    is_csr = upstream['certificates'].get('csr', False)
-                    if is_csr:
-                        certs_dict = dict()
-                        certs_dict['ca_file'] = upstream['certificates']['remote_ca']
-                        certs_dict['cert_file'] = upstream['certificates']['public_cert']
-                        certs_dict['key_file'] = upstream['certificates']['private_key']
-                        rmq_user = upstream['federation-user']
-                else:
-                    # certificates key not found in upstream config
-                    _log.error("ERROR: certificates key not found in federation config. Cannot make connection to remote server without remote certificates")
-                    continue
+                if 'certificates' not in upstream:
+                    # certificates key not found in shovel config
+                    remote_addr = 'https://{}:{}'.format(host, upstream['https_port'])
+                    # request CSR from remote host
+                    ca_file, cert_file, prvt_file = _request_csr(rmq_user, remote_addr, 'shovel')
+                    if ca_file is not None and cert_file is not None and prvt_file is not None:
+                        # root CA
+                        federation[host]['certificates']['remote_ca'] = ca_file
+                        # public cert
+                        federation[host]['certificates']['public_cert'] = cert_file
+                        # private_key
+                        federation[host]['certificates']['private_key'] = prvt_file
+                        update_needed = True
+                    else:
+                        _log.error("ERROR: Couldn't get CSR certificates from remote server. Continuing..")
+                        continue
+
+                rmq_user = upstream['federation-user']
                 # Build destination address
                 address = rmq_mgmt.build_remote_plugin_connection(rmq_user,
                                                                   host,
                                                                   upstream['port'],
                                                                   upstream['virtual-host'],
                                                                   is_ssl,
-                                                                  certs_dict=certs_dict)
+                                                                  certs_dict=federation[host]['certificates'])
                 prop = dict(vhost=vhost,
                             component="federation-upstream",
                             name=name,
@@ -231,10 +235,14 @@ def _create_federation_setup(admin_user, admin_password, is_ssl, vhost, vhome):
                 rmq_mgmt.set_policy(policy_name,
                                     policy_value,
                                     vhost)
+
             except KeyError as ex:
                 _log.error("Federation setup  did not complete. "
                            "Missing Key {key} in upstream config "
                            "{upstream}".format(key=ex, upstream=upstream))
+        if update_needed:
+            federation_config['federation-upstream'] = federation
+            write_to_config_file(federation_config_file, federation_config)
 
 
 def _create_shovel_setup(instance_name, local_host, port, vhost, vhome, is_ssl):
@@ -249,6 +257,7 @@ def _create_shovel_setup(instance_name, local_host, port, vhost, vhome, is_ssl):
 
     ssl_params = None
     rmq_mgmt = RabbitMQMgmt()
+    update_needed = False
 
     try:
         for remote_host, shovel in shovels.items():
@@ -258,26 +267,32 @@ def _create_shovel_setup(instance_name, local_host, port, vhost, vhome, is_ssl):
                 # Build source address
                 rmq_user = instance_name + '.' + identity
                 src_uri = rmq_mgmt.build_remote_plugin_connection(rmq_user,
-                                                           local_host, port,
-                                                           vhost, is_ssl)
-                certs_dict = None
-                if 'certificates' in shovel:
-                    is_csr = shovel['certificates'].get('csr', False)
-                    if is_csr:
-                        certs_dict = dict()
-                        certs_dict['ca_file'] = shovel['certificates']['remote_ca']
-                        certs_dict['cert_file'] = shovel['certificates']['public_cert']
-                        certs_dict['key_file'] = shovel['certificates']['private_key']
-                        rmq_user = shovel['shovel-user']
-                else:
-                    # destination key not found in shovel config
-                    _log.error("ERROR: certificates key not found in shovel config. Cannot make connection to remote server without remote certificates")
-                    continue
+                                                                  local_host, port,
+                                                                  vhost, is_ssl)
+
+                if 'certificates' not in shovel:
+                    # certificates key not found in shovel config
+                    remote_addr = 'https://{}:{}'.format(remote_host, shovel['https_port'])
+                    # request CSR from remote host
+                    ca_file, cert_file, prvt_file = _request_csr(rmq_user, remote_addr, 'shovel')
+                    if ca_file is not None and cert_file is not None and prvt_file is not None:
+                        # root CA
+                        shovels[remote_host]['certificates']['remote_ca'] = ca_file
+                        # public cert
+                        shovels[remote_host]['certificates']['public_cert'] = cert_file
+                        # private_key
+                        shovels[remote_host]['certificates']['private_key'] = prvt_file
+                        update_needed = True
+                    else:
+                        _log.error("ERROR: Couldn't get CSR certificates from remote server. Continuing..")
+                        continue
+                rmq_user = shovel['shovel-user']
                 # Build destination address
                 dest_uri = rmq_mgmt.build_remote_plugin_connection(rmq_user,
-                                                            remote_host, shovel['port'],
-                                                            shovel['virtual-host'],
-                                                            is_ssl, certs_dict=certs_dict)
+                                                                   remote_host, shovel['port'],
+                                                                   shovel['virtual-host'],
+                                                                   is_ssl,
+                                                                   certs_dict=shovels[remote_host]['certificates'])
 
                 if not isinstance(topics, list):
                     topics = [topics]
@@ -286,9 +301,8 @@ def _create_shovel_setup(instance_name, local_host, port, vhost, vhome, is_ssl):
                         topic))
                     name = "shovel-{host}-{topic}".format(host=remote_host,
                                                           topic=topic)
-                    routing_key = "__pubsub__.{instance}.{topic}.#".format(
-                        instance=instance_name,
-                        topic=topic)
+                    routing_key = "__pubsub__.{instance}.{topic}.#".format(instance=instance_name,
+                                                                           topic=topic)
                     prop = dict(vhost=vhost,
                                 component="shovel",
                                 name=name,
@@ -312,23 +326,29 @@ def _create_shovel_setup(instance_name, local_host, port, vhost, vhome, is_ssl):
                                                                local_host, port,
                                                                vhost, is_ssl)
 
-                    certs_dict = None
-                    if 'certificates' in shovel:
-                        _log.debug("shovel parameters under destination: {}".format(shovel))
-                        is_csr = shovel['certificates'].get('csr', False)
-                        if is_csr:
-                            certs_dict = dict()
-                            certs_dict['ca_file'] = shovel['certificates']['remote_ca']
-                            certs_dict['cert_file'] = shovel['certificates']['public_cert']
-                            certs_dict['key_file'] = shovel['certificates']['private_key']
-                            rmq_user = shovel['shovel-user']
-                            _log.debug(f"certs parameters: {certs_dict}")
+                    if 'certificates' not in shovel:
+                        # certificates key not found in shovel config
+                        remote_addr = 'https://{}:{}'.format(remote_host, shovel['https_port'])
+                        # request CSR from remote host
+                        ca_file, cert_file, prvt_file = _request_csr(rmq_user, remote_addr, 'shovel')
+                        if ca_file is not None and cert_file is not None and prvt_file is not None:
+                            # root CA
+                            shovels[remote_host]['certificates']['remote_ca'] = ca_file
+                            # public cert
+                            shovels[remote_host]['certificates']['public_cert'] = cert_file
+                            # private_key
+                            shovels[remote_host]['certificates']['private_key'] = prvt_file
+                            update_needed = True
+                        else:
+                            _log.error("ERROR: Couldn't get CSR certificates from remote server. Continuing..")
+                            continue
 
                     # Build destination address
                     dest_uri = rmq_mgmt.build_shovel_connection(rmq_user,
                                                                 remote_host, shovel['port'],
                                                                 shovel['virtual-host'],
-                                                                is_ssl, certs_dict=certs_dict)
+                                                                is_ssl,
+                                                                certs_dict=shovels[remote_host]['certificates'])
                     _log.info("Creating shovel to make RPC call to remote Agent"
                               ": {}".format(remote_identity))
 
@@ -348,8 +368,11 @@ def _create_shovel_setup(instance_name, local_host, port, vhost, vhome, is_ssl):
                                 )
 
                     rmq_mgmt.set_parameter("shovel",
-                                            name,
-                                            prop)
+                                           name,
+                                           prop)
+        if update_needed:
+            shovel_config['shovel'] = shovels
+            write_to_config_file(shovel_config_file, shovel_config)
     except KeyError as exc:
         _log.error("Shovel setup  did not complete. Missing Key: {}".format(
             exc))
@@ -923,10 +946,13 @@ def prompt_upstream_servers(vhome, verbose=False, max_retries=12):
         import time
         time.sleep(2)
         upstream_servers[host]['federation-user'] = instance_name + "." + upstream_user
-        upstream_servers[host]['certificates'] = _prompt_csr_request(upstream_user, host,
-                                                                     'federation',
-                                                                     verbose,
-                                                                     max_retries)
+        cert_config, https_port = _prompt_csr_request(upstream_user,
+                                                      host,
+                                                      'federation',
+                                                      verbose,
+                                                      max_retries)
+        upstream_servers[host]['certificates'] = cert_config
+        upstream_servers[host]['https_port'] = https_port
     federation_config['federation-upstream'] = upstream_servers
     write_to_config_file(federation_config_file, federation_config)
 
@@ -978,12 +1004,13 @@ def prompt_shovels(vhome, verbose=False, max_retries=12):
             time.sleep(2)
             shovels[host]['shovel-user'] = instance_name + "." + shovel_user
 
-            certs_config = _prompt_csr_request(shovel_user, host, 'shovel', verbose, max_retries)
+            certs_config, https_port = _prompt_csr_request(shovel_user, host, 'shovel', verbose, max_retries)
             if not certs_config:
                 # we did not get certificates - neither existing, nor through csr process
                 # exit
                 return False
             shovels[host]['certificates'] = certs_config
+            shovels[host]['https_port'] = https_port
 
             prompt = prompt_response('\nDo you want shovels for '
                                      'PUBSUB communication? ',
@@ -1034,10 +1061,11 @@ def _prompt_csr_request(rmq_user, host, type, verbose=False, max_retries=12):
                              default='N')
     csr_config = dict()
 
+    https_port = None
     if prompt in y:
         prompt = 'Full path to remote CA certificate: '
         ca_file = prompt_response(prompt, default='')
-        csr_config['csr'] = True
+
         if not os.path.exists(ca_file):
             raise IOError(f"Path does not exist: {ca_file}. Please check the path and try again")
         # ca cert
@@ -1062,23 +1090,24 @@ def _prompt_csr_request(rmq_user, host, type, verbose=False, max_retries=12):
 
         remote_addr = prompt_response(prompt, default=remote_https_address)
         parsed_address = urlparse(remote_addr)
+        https_port = parsed_address.port
+        print(f"PARSED address: {parsed_address}, {https_port}")
         if parsed_address.scheme not in ('https',):
             raise IOError(f"Remote web interface is not valid: {parsed_address}. Please check and try again")
 
         # request CSR from remote host
         ca_file, cert_file, prvt_file = _request_csr(rmq_user, remote_addr, type, verbose, max_retries)
         if ca_file is not None and cert_file is not None and prvt_file is not None:
-            csr_config['csr'] = True
+            # ca cert
             csr_config['remote_ca'] = ca_file
 
             # public cert
             csr_config['public_cert'] = cert_file
 
             # private_key
-            crts = certs.Certs()
             csr_config['private_key'] = prvt_file
 
-    return csr_config
+    return csr_config, https_port
 
 
 def _request_csr(rmq_user, remote_addr, type, verbose=False, max_retries=12):

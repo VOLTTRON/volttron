@@ -1066,9 +1066,9 @@ class RabbitMQMgmt(object):
             cert_file = self.rmq_config.crts.cert_file(user)
             key_file = self.rmq_config.crts.private_key_file(user)
         else:
-            ca_file = certs_dict['ca_file']
-            cert_file = certs_dict['cert_file']
-            key_file = certs_dict['key_file']
+            ca_file = certs_dict['remote_ca']
+            cert_file = certs_dict['public_cert']
+            key_file = certs_dict['private_key']
         return "cacertfile={ca}&certfile={cert}&keyfile={key}" \
                "&verify=verify_peer&fail_if_no_peer_cert=true" \
                "&auth_mechanism=external".format(ca=ca_file,
