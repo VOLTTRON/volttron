@@ -23,8 +23,7 @@ CONTAINER_VOLUME_PATH = '/root/db'
 def test_setup_historian_tables(sqlite_container, sqlitefuncts):
     expected_tables = {"data", "meta", "topics"}
     actual_tables = get_tables(sqlite_container)
-    for expected_table in expected_tables:
-        assert expected_table in actual_tables
+    assert set(expected_tables).issubset(actual_tables)
 
 
 @pytest.mark.sqlitefuncts
@@ -32,8 +31,7 @@ def test_setup_historian_tables(sqlite_container, sqlitefuncts):
 def test_record_table_definitions(sqlite_container, sqlitefuncts):
     expected_tables = {"data", "meta", "metameta", "topics"}
     actual_tables = get_tables(sqlite_container)
-    for expected_table in expected_tables:
-        assert expected_table in actual_tables
+    assert set(expected_tables).issubset(actual_tables)
 
 
 @pytest.mark.sqlitefuncts
@@ -48,8 +46,7 @@ def test_setup_aggregate_historian_tables(sqlite_container, sqlitefuncts):
         "metameta",
     }
     actual_tables = get_tables(sqlite_container)
-    for expected_table in expected_tables:
-        assert expected_table in actual_tables
+    assert expected_tables.issubset(actual_tables)
 
 
 @pytest.mark.sqlitefuncts
@@ -119,12 +116,12 @@ def test_insert_meta(sqlitefuncts, sqlite_container):
 def test_insert_data(sqlitefuncts, sqlite_container):
     assert get_all_data(DATA_TABLE, sqlite_container) == []
 
-    ts = "2001-09-11 08:46:00"
+    time_stamp = "2001-09-11 08:46:00"
     topic_id = "11"
     data = "1wtc"
     expected_data = ['2001-09-11', '08:46:00|11|"1wtc"']
 
-    res = sqlitefuncts.insert_data(ts, topic_id, data)
+    res = sqlitefuncts.insert_data(time_stamp, topic_id, data)
     sqlitefuncts.commit()
 
     assert res is True
@@ -224,6 +221,7 @@ def test_insert_agg_meta(sqlitefuncts, sqlite_container):
 
     assert actual_data == expected_data
 
+
 @pytest.mark.sqlitefuncts
 @pytest.mark.dbutils
 def test_get_topic_map(sqlitefuncts, sqlite_container):
@@ -298,16 +296,16 @@ def test_agg_topic_map_should_return_empty_on_nonexistent_table(sqlitefuncts):
         ("'fotball'", "'foobar'", "'xzxzxccx'", "foo", {"foobar": 2}),
         ("'football'", "'foooobar'", "'xzxzxccx'", "foooo", {"foooobar": 2}),
         (
-            "'FOOtball'",
-            "'ABCFOOoXYZ'",
-            "'XXXfOoOo'",
-            "foo",
-            {"FOOtball": 1, "ABCFOOoXYZ": 2, "XXXfOoOo": 3},
+                "'FOOtball'",
+                "'ABCFOOoXYZ'",
+                "'XXXfOoOo'",
+                "foo",
+                {"FOOtball": 1, "ABCFOOoXYZ": 2, "XXXfOoOo": 3},
         ),
     ],
 )
 def test_query_topics_by_pattern(
-    sqlitefuncts, sqlite_container, topic_1, topic_2, topic_3, topic_pattern, expected_topics
+        sqlitefuncts, sqlite_container, topic_1, topic_2, topic_3, topic_pattern, expected_topics
 ):
     query = (
         f"INSERT INTO topics (topic_name) values ({topic_1});"
@@ -357,8 +355,8 @@ def test_collect_aggregate(sqlitefuncts, sqlite_container):
 
 
 def get_indexes(table, container):
-    q = f"""PRAGMA index_list({table})"""
-    return query_db(q, container)
+    query = f"""PRAGMA index_list({table})"""
+    return query_db(query, container)
 
 
 def get_tables(container):
@@ -366,26 +364,41 @@ def get_tables(container):
 
 
 def get_all_data(table, container):
-    q = f"""SELECT * FROM {table}"""
-    return query_db(q, container)
+    query = f"""SELECT * FROM {table}"""
+    return query_db(query, container)
 
 
 def query_db(query, container):
-    cmd = ["sqlite3", DATABASE]
-    cmd.append(query)
-    exit_code, output = container.exec_run(cmd)
+    cmd = ["sqlite3", DATABASE, query]
+    _, output = container.exec_run(cmd)
     return output.decode().split()
 
 
 @pytest.fixture()
-def sqlite_container():
-    os.mkdir(DATABASE_PATH)
+def volume_container():
+    os.makedirs(DATABASE_PATH, exist_ok=True)
     volumes = {DATABASE_PATH: {'bind': CONTAINER_VOLUME_PATH, 'mode': 'rw'}}
-    client = docker.from_env(version="auto")
-    container = client.containers.run(IMAGE, detach=True, volumes=volumes, tty=True)
-    yield container
+    client = docker.from_env()
+    container = client.containers.run('alpine',
+                                      detach=True,
+                                      entrypoint=["tail", "-f", "/dev/null"],
+                                      remove=True,
+                                      volumes=volumes)
+    yield [container.id]
     shutil.rmtree(DATABASE_PATH)
-    container.remove(force=True)
+    container.stop()
+
+
+@pytest.fixture()
+def sqlite_container(volume_container):
+    client = docker.from_env()
+    container = client.containers.run(IMAGE,
+                                      detach=True,
+                                      entrypoint=["tail", "-f", "/dev/null"],
+                                      remove=True,
+                                      volumes_from=volume_container)
+    yield container
+    container.stop()
 
 
 @pytest.fixture()
