@@ -168,6 +168,40 @@ RABBITMQ_GENERATED_CONFIG_DIR={}""".format(rmq_config.node_name,
             env_conf.write(env_entries)
 
 
+def _get_federation_certs(vhome):
+    federation_config_file = os.path.join(vhome,
+                                          'rabbitmq_federation_config.yml')
+    federation_config = read_config_file(federation_config_file)
+    federation = federation_config.get('federation-upstream', {})
+    success = True
+    try:
+        for host, upstream in federation.items():
+            rmq_user = upstream['federation-user']
+            if 'certificates' not in upstream:
+                # certificates key not found in shovel config
+                https_port = upstream.get('https_port', 8443)
+                remote_addr = 'https://{}:{}'.format(host, https_port)
+                print(f"Certificates not found. Requesting CSR from {remote_addr}")
+                # request CSR from remote host
+                ca_file, cert_file, prvt_file = _request_csr(rmq_user, remote_addr, 'federation')
+                if ca_file is not None and cert_file is not None and prvt_file is not None:
+                    # root CA
+                    federation[host]['certificates']['remote_ca'] = ca_file
+                    # public cert
+                    federation[host]['certificates']['public_cert'] = cert_file
+                    # private_key
+                    federation[host]['certificates']['private_key'] = prvt_file
+                    update_needed = True
+                else:
+                    _log.error(
+                        f"ERROR: Couldn't get CSR certificates from remote server. Check with admin of remote instance.\nContinuing with other configurations")
+                    continue
+    except KeyError as ex:
+        _log.error(f"Federation config has missing key: {ex} in {upstream}".format(key=ex, upstream=upstream))
+        success = False
+    return success
+
+
 def _create_federation_setup(is_ssl, vhost, vhome):
     """
     Creates a RabbitMQ federation of multiple VOLTTRON instances based on
@@ -183,67 +217,92 @@ def _create_federation_setup(is_ssl, vhost, vhome):
     federation_config_file = os.path.join(vhome,
                                           'rabbitmq_federation_config.yml')
     federation_config = read_config_file(federation_config_file)
-    federation = federation_config.get('federation-upstream')
+    federation = federation_config.get('federation-upstream', {})
 
+    for host, upstream in federation.items():
+        try:
+            name = "upstream-{host}-{vhost}".format(vhost=upstream['virtual-host'],
+                                                    host=host)
+            _log.debug("Upstream Server: {name} ".format(name=name))
+            if 'certificates' not in upstream:
+                _log.error(f"ERROR: Certificates key missing in config.\nContinuing with other configurations")
+                continue
+
+            rmq_user = upstream['federation-user']
+            # Build destination address
+            address = rmq_mgmt.build_remote_plugin_connection(rmq_user,
+                                                              host,
+                                                              upstream['port'],
+                                                              upstream['virtual-host'],
+                                                              is_ssl,
+                                                              certs_dict=federation[host]['certificates'])
+            prop = dict(vhost=vhost,
+                        component="federation-upstream",
+                        name=name,
+                        value={"uri": address})
+            rmq_mgmt.set_parameter('federation-upstream',
+                                   name,
+                                   prop,
+                                   vhost)
+
+            policy_name = 'volttron-federation'
+            policy_value = {"pattern": "^volttron",
+                            "definition": {"federation-upstream-set": "all"},
+                            "priority": 0,
+                            "apply-to": "exchanges"}
+            rmq_mgmt.set_policy(policy_name,
+                                policy_value,
+                                vhost)
+
+        except KeyError as ex:
+            _log.error("Federation setup  did not complete. "
+                       "Missing Key {key} in upstream config "
+                       "{upstream}".format(key=ex, upstream=upstream))
+
+
+def _get_certs_for_shovel(instance_name, vhome):
+    shovel_config_file = os.path.join(vhome,
+                                      'rabbitmq_shovel_config.yml')
+    shovel_config = read_config_file(shovel_config_file)
+    shovels = shovel_config.get('shovel', {})
+
+    rmq_mgmt = RabbitMQMgmt()
     update_needed = False
-    if federation:
-        for host, upstream in federation.items():
-            try:
-                name = "upstream-{host}-{vhost}".format(vhost=upstream['virtual-host'],
-                                                        host=host)
-                _log.debug("Upstream Server: {name} ".format(name=name))
-                rmq_user = None
-                if 'certificates' not in upstream:
-                    # certificates key not found in shovel config
-                    https_port = upstream.get('https_port', 8443)
-                    remote_addr = 'https://{}:{}'.format(host, https_port)
-                    # request CSR from remote host
-                    ca_file, cert_file, prvt_file = _request_csr(rmq_user, remote_addr, 'shovel')
-                    if ca_file is not None and cert_file is not None and prvt_file is not None:
-                        # root CA
-                        federation[host]['certificates']['remote_ca'] = ca_file
-                        # public cert
-                        federation[host]['certificates']['public_cert'] = cert_file
-                        # private_key
-                        federation[host]['certificates']['private_key'] = prvt_file
-                        update_needed = True
-                    else:
-                        _log.error(f"ERROR: Couldn't get CSR certificates from remote server. Check the web address: {remote_addr}.\nContinuing with other configurations")
-                        continue
+    success = True
+    try:
+        for remote_host, shovel in shovels.items():
+            if 'certificates' not in shovel:
+                shovel_user = shovel['shovel-user']
+                rmq_mgmt.build_agent_connection(shovel_user, instance_name)
+                import time
+                time.sleep(2)
+                https_port = shovel.get('https_port', 8443)
 
-                rmq_user = upstream['federation-user']
-                # Build destination address
-                address = rmq_mgmt.build_remote_plugin_connection(rmq_user,
-                                                                  host,
-                                                                  upstream['port'],
-                                                                  upstream['virtual-host'],
-                                                                  is_ssl,
-                                                                  certs_dict=federation[host]['certificates'])
-                prop = dict(vhost=vhost,
-                            component="federation-upstream",
-                            name=name,
-                            value={"uri": address})
-                rmq_mgmt.set_parameter('federation-upstream',
-                                       name,
-                                       prop,
-                                       vhost)
-
-                policy_name = 'volttron-federation'
-                policy_value = {"pattern": "^volttron",
-                                "definition": {"federation-upstream-set": "all"},
-                                "priority": 0,
-                                "apply-to": "exchanges"}
-                rmq_mgmt.set_policy(policy_name,
-                                    policy_value,
-                                    vhost)
-
-            except KeyError as ex:
-                _log.error("Federation setup  did not complete. "
-                           "Missing Key {key} in upstream config "
-                           "{upstream}".format(key=ex, upstream=upstream))
+                # certificates key not found in shovel config
+                remote_addr = 'https://{}:{}'.format(remote_host, https_port)
+                print(f"Certificates not found. Requesting CSR from {remote_addr}")
+                # request CSR from remote host
+                ca_file, cert_file, prvt_file = _request_csr(shovel_user, remote_addr, 'shovel')
+                if ca_file is not None and cert_file is not None and prvt_file is not None:
+                    # root CA
+                    shovels[remote_host]['certificates']['remote_ca'] = ca_file
+                    # public cert
+                    shovels[remote_host]['certificates']['public_cert'] = cert_file
+                    # private_key
+                    shovels[remote_host]['certificates']['private_key'] = prvt_file
+                    update_needed = True
+                else:
+                    _log.error(
+                        f"ERROR: Couldn't get CSR certificates from remote server. Check with admin of remote instance.\nContinuing with other configurations")
+                    continue
         if update_needed:
-            federation_config['federation-upstream'] = federation
-            write_to_config_file(federation_config_file, federation_config)
+            shovel_config['shovel'] = shovels
+            write_to_config_file(shovel_config_file, shovel_config)
+    except KeyError as exc:
+        _log.error("Shovel config has missing Key: {}".format(exc))
+        success = False
+
+    return success
 
 
 def _create_shovel_setup(instance_name, local_host, port, vhost, vhome, is_ssl):
@@ -256,10 +315,9 @@ def _create_shovel_setup(instance_name, local_host, port, vhost, vhome, is_ssl):
     shovel_config = read_config_file(shovel_config_file)
     shovels = shovel_config.get('shovel', {})
 
-    ssl_params = None
     rmq_mgmt = RabbitMQMgmt()
-    update_needed = False
 
+    print(f"New shovel config: {shovel_config}")
     try:
         for remote_host, shovel in shovels.items():
             pubsub_config = shovel.get("pubsub", {})
@@ -272,22 +330,8 @@ def _create_shovel_setup(instance_name, local_host, port, vhost, vhome, is_ssl):
                                                                   vhost, is_ssl)
 
                 if 'certificates' not in shovel:
-                    https_port = shovel.get('https_port', 8443)
-                    # certificates key not found in shovel config
-                    remote_addr = 'https://{}:{}'.format(remote_host, https_port)
-                    # request CSR from remote host
-                    ca_file, cert_file, prvt_file = _request_csr(rmq_user, remote_addr, 'shovel')
-                    if ca_file is not None and cert_file is not None and prvt_file is not None:
-                        # root CA
-                        shovels[remote_host]['certificates']['remote_ca'] = ca_file
-                        # public cert
-                        shovels[remote_host]['certificates']['public_cert'] = cert_file
-                        # private_key
-                        shovels[remote_host]['certificates']['private_key'] = prvt_file
-                        update_needed = True
-                    else:
-                        _log.error(f"ERROR: Couldn't get CSR certificates from remote server. Check the web address {remote_addr}. \nContinuing with other configurations")
-                        continue
+                    _log.error(f"ERROR: Certificates not found.\nContinuing with other configurations")
+                    continue
                 rmq_user = shovel['shovel-user']
                 # Build destination address
                 dest_uri = rmq_mgmt.build_remote_plugin_connection(rmq_user,
@@ -330,22 +374,8 @@ def _create_shovel_setup(instance_name, local_host, port, vhost, vhome, is_ssl):
                                                                vhost, is_ssl)
 
                     if 'certificates' not in shovel:
-                        https_port = shovel.get('https_port', 8443)
-                        # certificates key not found in shovel config
-                        remote_addr = 'https://{}:{}'.format(remote_host, https_port)
-                        # request CSR from remote host
-                        ca_file, cert_file, prvt_file = _request_csr(rmq_user, remote_addr, 'shovel')
-                        if ca_file is not None and cert_file is not None and prvt_file is not None:
-                            # root CA
-                            shovels[remote_host]['certificates']['remote_ca'] = ca_file
-                            # public cert
-                            shovels[remote_host]['certificates']['public_cert'] = cert_file
-                            # private_key
-                            shovels[remote_host]['certificates']['private_key'] = prvt_file
-                            update_needed = True
-                        else:
-                            _log.error("ERROR: Couldn't get CSR certificates from remote server. Check the web address {remote_addr}.\nContinuing with other configurations")
-                            continue
+                        _log.error("ERROR: Certificates not found.\nContinuing with other configurations")
+                        continue
 
                     # Build destination address
                     dest_uri = rmq_mgmt.build_shovel_connection(rmq_user,
@@ -375,12 +405,8 @@ def _create_shovel_setup(instance_name, local_host, port, vhost, vhome, is_ssl):
                     rmq_mgmt.set_parameter("shovel",
                                            name,
                                            prop)
-        if update_needed:
-            shovel_config['shovel'] = shovels
-            write_to_config_file(shovel_config_file, shovel_config)
     except KeyError as exc:
-        _log.error("Shovel setup  did not complete. Missing Key: {}".format(
-            exc))
+        _log.error("Shovel setup  did not complete. Missing Key: {}".format(exc))
 
 
 def _setup_for_ssl_auth(rmq_config, rmq_conf_file, env=None):
@@ -627,6 +653,7 @@ def setup_rabbitmq_volttron(setup_type, verbose=False, prompt=False, instance_na
         except Exception as exc:
             _log.error(f"{exc}")
             return exc
+
     if not success:
         # something went wrong when creating rmq config
         # do not create anything. return
@@ -710,9 +737,11 @@ def setup_rabbitmq_volttron(setup_type, verbose=False, prompt=False, instance_na
     if setup_type in ["all", "federation"]:
         # Create a multi-platform federation setup
         invalid = False
-        _create_federation_setup(rmq_config.is_ssl,
-                                 rmq_config.virtual_host,
-                                 rmq_config.volttron_home)
+        success = _get_federation_certs(rmq_config.volttron_home)
+        if success:
+            _create_federation_setup(rmq_config.is_ssl,
+                                     rmq_config.virtual_host,
+                                     rmq_config.volttron_home)
     if setup_type in ["all", "shovel"]:
         # Create shovel setup
         invalid = False
@@ -720,12 +749,16 @@ def setup_rabbitmq_volttron(setup_type, verbose=False, prompt=False, instance_na
             port = rmq_config.amqp_port_ssl
         else:
             port = rmq_config.amqp_port
-        _create_shovel_setup(rmq_config.instance_name,
-                             rmq_config.hostname,
-                             port,
-                             rmq_config.virtual_host,
-                             rmq_config.volttron_home,
-                             rmq_config.is_ssl)
+        # Check if certs are available in shovel config. If missing, request CSR
+        success = _get_certs_for_shovel(rmq_config.instance_name, rmq_config.volttron_home)
+
+        if success:
+            _create_shovel_setup(rmq_config.instance_name,
+                                 rmq_config.hostname,
+                                 port,
+                                 rmq_config.virtual_host,
+                                 rmq_config.volttron_home,
+                                 rmq_config.is_ssl)
     if invalid:
         _log.error("Unknown option. Exiting....")
 
@@ -974,7 +1007,7 @@ def prompt_shovels(vhome, verbose=False, max_retries=12):
                                  valid_answers=y_or_n,
                                  default='Y')
         if prompt in y:
-            return
+            return True
         else:
             _log.info("New input data will be used to overwrite existing "
                       "{}".format(shovel_config_file))

@@ -1,8 +1,9 @@
 # Mandatory parameters for shovel setup
 shovel:
-    rabbit-2:
-        port: '5671'
-        https_port: '8443'
+    volttron2: # remote hostname
+        https_port: 8443
+        port: 5671
+        shovel-user: volttron1.shovelvolttron2 #<instance_name>.shovel<remote_host>
         virtual-host: volttron
         certificates:
             private_cert: "path to private cert" # For example, /home/volttron/vhome/test_shovel/certificates/private/volttron1.shovelvolttron2.pem
@@ -13,10 +14,11 @@ shovel:
             # Identity of agent that is publishing the topic
             platform.driver:
                 # Topic pattern to be forwarded
-        - devices
-    # Configuration to make remote RPC calls
-    rpc:
-      # Remote instance name
-      volttron2:
-        # List of pair of agent identities (local caller, remote callee)
-        - [scheduler, platform.actuator]
+                - devices
+
+        # Configuration to make remote RPC calls
+        rpc:
+          # Remote instance name
+          volttron2:
+            # List of pair of agent identities (local caller, remote callee)
+            - [scheduler, platform.actuator]
