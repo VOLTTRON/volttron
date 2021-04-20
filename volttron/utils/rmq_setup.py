@@ -168,7 +168,7 @@ RABBITMQ_GENERATED_CONFIG_DIR={}""".format(rmq_config.node_name,
             env_conf.write(env_entries)
 
 
-def _create_federation_setup(admin_user, admin_password, is_ssl, vhost, vhome):
+def _create_federation_setup(is_ssl, vhost, vhome):
     """
     Creates a RabbitMQ federation of multiple VOLTTRON instances based on
     rabbitmq config.
@@ -195,7 +195,8 @@ def _create_federation_setup(admin_user, admin_password, is_ssl, vhost, vhome):
                 rmq_user = None
                 if 'certificates' not in upstream:
                     # certificates key not found in shovel config
-                    remote_addr = 'https://{}:{}'.format(host, upstream['https_port'])
+                    https_port = upstream.get('https_port', 8443)
+                    remote_addr = 'https://{}:{}'.format(host, https_port)
                     # request CSR from remote host
                     ca_file, cert_file, prvt_file = _request_csr(rmq_user, remote_addr, 'shovel')
                     if ca_file is not None and cert_file is not None and prvt_file is not None:
@@ -207,7 +208,7 @@ def _create_federation_setup(admin_user, admin_password, is_ssl, vhost, vhome):
                         federation[host]['certificates']['private_key'] = prvt_file
                         update_needed = True
                     else:
-                        _log.error("ERROR: Couldn't get CSR certificates from remote server. Continuing..")
+                        _log.error(f"ERROR: Couldn't get CSR certificates from remote server. Check the web address: {remote_addr}.\nContinuing with other configurations")
                         continue
 
                 rmq_user = upstream['federation-user']
@@ -271,8 +272,9 @@ def _create_shovel_setup(instance_name, local_host, port, vhost, vhome, is_ssl):
                                                                   vhost, is_ssl)
 
                 if 'certificates' not in shovel:
+                    https_port = shovel.get('https_port', 8443)
                     # certificates key not found in shovel config
-                    remote_addr = 'https://{}:{}'.format(remote_host, shovel['https_port'])
+                    remote_addr = 'https://{}:{}'.format(remote_host, https_port)
                     # request CSR from remote host
                     ca_file, cert_file, prvt_file = _request_csr(rmq_user, remote_addr, 'shovel')
                     if ca_file is not None and cert_file is not None and prvt_file is not None:
@@ -284,12 +286,13 @@ def _create_shovel_setup(instance_name, local_host, port, vhost, vhome, is_ssl):
                         shovels[remote_host]['certificates']['private_key'] = prvt_file
                         update_needed = True
                     else:
-                        _log.error("ERROR: Couldn't get CSR certificates from remote server. Continuing..")
+                        _log.error(f"ERROR: Couldn't get CSR certificates from remote server. Check the web address {remote_addr}. \nContinuing with other configurations")
                         continue
                 rmq_user = shovel['shovel-user']
                 # Build destination address
                 dest_uri = rmq_mgmt.build_remote_plugin_connection(rmq_user,
-                                                                   remote_host, shovel['port'],
+                                                                   remote_host,
+                                                                   shovel['port'],
                                                                    shovel['virtual-host'],
                                                                    is_ssl,
                                                                    certs_dict=shovels[remote_host]['certificates'])
@@ -327,8 +330,9 @@ def _create_shovel_setup(instance_name, local_host, port, vhost, vhome, is_ssl):
                                                                vhost, is_ssl)
 
                     if 'certificates' not in shovel:
+                        https_port = shovel.get('https_port', 8443)
                         # certificates key not found in shovel config
-                        remote_addr = 'https://{}:{}'.format(remote_host, shovel['https_port'])
+                        remote_addr = 'https://{}:{}'.format(remote_host, https_port)
                         # request CSR from remote host
                         ca_file, cert_file, prvt_file = _request_csr(rmq_user, remote_addr, 'shovel')
                         if ca_file is not None and cert_file is not None and prvt_file is not None:
@@ -340,12 +344,13 @@ def _create_shovel_setup(instance_name, local_host, port, vhost, vhome, is_ssl):
                             shovels[remote_host]['certificates']['private_key'] = prvt_file
                             update_needed = True
                         else:
-                            _log.error("ERROR: Couldn't get CSR certificates from remote server. Continuing..")
+                            _log.error("ERROR: Couldn't get CSR certificates from remote server. Check the web address {remote_addr}.\nContinuing with other configurations")
                             continue
 
                     # Build destination address
                     dest_uri = rmq_mgmt.build_shovel_connection(rmq_user,
-                                                                remote_host, shovel['port'],
+                                                                remote_host,
+                                                                shovel['port'],
                                                                 shovel['virtual-host'],
                                                                 is_ssl,
                                                                 certs_dict=shovels[remote_host]['certificates'])
@@ -705,9 +710,7 @@ def setup_rabbitmq_volttron(setup_type, verbose=False, prompt=False, instance_na
     if setup_type in ["all", "federation"]:
         # Create a multi-platform federation setup
         invalid = False
-        _create_federation_setup(rmq_config.admin_user,
-                                 rmq_config.admin_pwd,
-                                 rmq_config.is_ssl,
+        _create_federation_setup(rmq_config.is_ssl,
                                  rmq_config.virtual_host,
                                  rmq_config.volttron_home)
     if setup_type in ["all", "shovel"]:
