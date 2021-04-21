@@ -174,9 +174,10 @@ def _get_federation_certs(vhome):
     federation_config = read_config_file(federation_config_file)
     federation = federation_config.get('federation-upstream', {})
     success = True
+    update_needed = False
     try:
         for host, upstream in federation.items():
-            rmq_user = upstream['federation-user']
+            rmq_user = 'federation' #upstream['federation-user']
             if 'certificates' not in upstream:
                 # certificates key not found in shovel config
                 https_port = upstream.get('https_port', 8443)
@@ -185,19 +186,25 @@ def _get_federation_certs(vhome):
                 # request CSR from remote host
                 ca_file, cert_file, prvt_file = _request_csr(rmq_user, remote_addr, 'federation')
                 if ca_file is not None and cert_file is not None and prvt_file is not None:
+                    upstream['certificates'] = {}
                     # root CA
-                    federation[host]['certificates']['remote_ca'] = ca_file
+                    upstream['certificates']['remote_ca'] = ca_file
                     # public cert
-                    federation[host]['certificates']['public_cert'] = cert_file
+                    upstream['certificates']['public_cert'] = cert_file
                     # private_key
-                    federation[host]['certificates']['private_key'] = prvt_file
+                    upstream['certificates']['private_key'] = prvt_file
                     update_needed = True
                 else:
                     _log.error(
-                        f"ERROR: Couldn't get CSR certificates from remote server. Check with admin of remote instance.\nContinuing with other configurations")
+                        f"ERROR: Couldn't get CSR certificates from remote server. Check with admin of remote instance."
+                        "\nContinuing with other configurations")
                     continue
+        if update_needed:
+            federation_config['federation-upstream'] = federation
+            write_to_config_file(federation_config_file, federation_config)
+
     except KeyError as ex:
-        _log.error(f"Federation config has missing key: {ex} in {upstream}".format(key=ex, upstream=upstream))
+        _log.error(f"Federation config has missing key: {ex}")
         success = False
     return success
 
@@ -284,16 +291,18 @@ def _get_certs_for_shovel(instance_name, vhome):
                 # request CSR from remote host
                 ca_file, cert_file, prvt_file = _request_csr(shovel_user, remote_addr, 'shovel')
                 if ca_file is not None and cert_file is not None and prvt_file is not None:
+                    shovel['certificates'] = {}
                     # root CA
-                    shovels[remote_host]['certificates']['remote_ca'] = ca_file
+                    shovel['certificates']['remote_ca'] = ca_file
                     # public cert
-                    shovels[remote_host]['certificates']['public_cert'] = cert_file
+                    shovel['certificates']['public_cert'] = cert_file
                     # private_key
-                    shovels[remote_host]['certificates']['private_key'] = prvt_file
+                    shovel['certificates']['private_key'] = prvt_file
                     update_needed = True
                 else:
                     _log.error(
-                        f"ERROR: Couldn't get CSR certificates from remote server. Check with admin of remote instance.\nContinuing with other configurations")
+                        f"ERROR: Couldn't get CSR certificates from remote server. Check with admin of remote instance."
+                        "\nContinuing with other configurations")
                     continue
         if update_needed:
             shovel_config['shovel'] = shovels
@@ -317,7 +326,6 @@ def _create_shovel_setup(instance_name, local_host, port, vhost, vhome, is_ssl):
 
     rmq_mgmt = RabbitMQMgmt()
 
-    print(f"New shovel config: {shovel_config}")
     try:
         for remote_host, shovel in shovels.items():
             pubsub_config = shovel.get("pubsub", {})
@@ -738,6 +746,7 @@ def setup_rabbitmq_volttron(setup_type, verbose=False, prompt=False, instance_na
         # Create a multi-platform federation setup
         invalid = False
         success = _get_federation_certs(rmq_config.volttron_home)
+        
         if success:
             _create_federation_setup(rmq_config.is_ssl,
                                      rmq_config.virtual_host,
@@ -749,6 +758,7 @@ def setup_rabbitmq_volttron(setup_type, verbose=False, prompt=False, instance_na
             port = rmq_config.amqp_port_ssl
         else:
             port = rmq_config.amqp_port
+
         # Check if certs are available in shovel config. If missing, request CSR
         success = _get_certs_for_shovel(rmq_config.instance_name, rmq_config.volttron_home)
 
@@ -881,7 +891,7 @@ def _create_rabbitmq_config(rmq_config, setup_type, verbose=False, max_retries=1
         # if option was all then config_opts would be not null
         # if this was called with just setup_type = federation, load existing
         # config so that we don't overwrite existing federation configs
-        prompt_upstream_servers(rmq_config.volttron_home, verbose, max_retries)
+        success = prompt_upstream_servers(rmq_config.volttron_home, verbose, max_retries)
     if setup_type in ['shovel', 'all']:
         # if option was all then config_opts would be not null
         # if this was called with just setup_type = shovel, load existing
@@ -954,43 +964,62 @@ def prompt_upstream_servers(vhome, verbose=False, max_retries=12):
                                           'rabbitmq_federation_config.yml')
 
     if os.path.exists(federation_config_file):
-        federation_config = read_config_file(federation_config_file)
-    else:
-        federation_config = {}
+        prompt = "rabbitmq_federation_config.yml exists in {} Do you wish to " \
+                 "use this file to configure federation".format(federation_config_file)
+        prompt = prompt_response(prompt,
+                                 valid_answers=y_or_n,
+                                 default='Y')
+        if prompt in y:
+            return True
+        else:
+            _log.info("New input data will be used to overwrite existing "
+                      "{}".format(federation_config_file))
 
+    federation_config = {}
     upstream_servers = federation_config.get('federation-upstream', {})
     prompt = 'Number of upstream servers to configure:'
     count = prompt_response(prompt, default=1)
     count = int(count)
     i = 0
 
-    for i in range(0, count):
-        prompt = 'Hostname of the upstream server: '
-        host = prompt_response(prompt, mandatory=True)
-        prompt = 'Port of the upstream server: '
-        port = prompt_response(prompt, default=5671)
-        prompt = 'Virtual host of the upstream server: '
-        vhost = prompt_response(prompt, default='volttron')
+    try:
+        for i in range(0, count):
+            prompt = 'Hostname of the upstream server: '
+            host = prompt_response(prompt, mandatory=True)
+            prompt = 'Port of the upstream server: '
+            port = prompt_response(prompt, default=5671)
+            prompt = 'Virtual host of the upstream server: '
+            vhost = prompt_response(prompt, default='volttron')
 
-        upstream_servers[host] = {'port': port,
-                                  'virtual-host': vhost}
+            upstream_servers[host] = {'port': port,
+                                      'virtual-host': vhost}
 
-        rmq_mgmt = RabbitMQMgmt()
-        instance_name = get_platform_instance_name()
-        upstream_user = 'federation'
-        rmq_mgmt.build_agent_connection(upstream_user, instance_name)
-        import time
-        time.sleep(2)
-        upstream_servers[host]['federation-user'] = instance_name + "." + upstream_user
-        cert_config, https_port = _prompt_csr_request(upstream_user,
-                                                      host,
-                                                      'federation',
-                                                      verbose,
-                                                      max_retries)
-        upstream_servers[host]['certificates'] = cert_config
-        upstream_servers[host]['https_port'] = https_port
-    federation_config['federation-upstream'] = upstream_servers
-    write_to_config_file(federation_config_file, federation_config)
+            rmq_mgmt = RabbitMQMgmt()
+            instance_name = get_platform_instance_name()
+            upstream_user = 'federation'
+            rmq_mgmt.build_agent_connection(upstream_user, instance_name)
+            import time
+            time.sleep(2)
+            upstream_servers[host]['federation-user'] = instance_name + "." + upstream_user
+            certs_config, https_port = _prompt_csr_request(upstream_user,
+                                                          host,
+                                                          'federation',
+                                                          verbose,
+                                                          max_retries)
+            if not certs_config:
+                # we did not get certificates - neither existing, nor through csr process
+                # exit
+                return False
+            upstream_servers[host]['certificates'] = certs_config
+            upstream_servers[host]['https_port'] = https_port
+    except (IOError, TimeoutError, ConnectionError) as e:
+        raise e
+    except ValueError as e:
+        _log.error("Invalid choice in the configuration: {}".format(e))
+    else:
+        federation_config['federation-upstream'] = upstream_servers
+        write_to_config_file(federation_config_file, federation_config)
+        return True
 
 
 def prompt_shovels(vhome, verbose=False, max_retries=12):
@@ -1127,7 +1156,7 @@ def _prompt_csr_request(rmq_user, host, type, verbose=False, max_retries=12):
         remote_addr = prompt_response(prompt, default=remote_https_address)
         parsed_address = urlparse(remote_addr)
         https_port = parsed_address.port
-        print(f"PARSED address: {parsed_address}, {https_port}")
+
         if parsed_address.scheme not in ('https',):
             raise IOError(f"Remote web interface is not valid: {parsed_address}. Please check and try again")
 

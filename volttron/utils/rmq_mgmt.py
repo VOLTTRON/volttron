@@ -766,7 +766,7 @@ class RabbitMQMgmt(object):
             config_file = os.path.join(vhome, 'rabbitmq_federation_config.yml')
             key = 'federation-upstream'
         config = read_config_file(config_file)
-        print("Removing certificate paths from the shovel config file. Please remove remote certificates manually "
+        print(f"Removing certificate paths from the {component} config file. Please remove remote certificates manually "
               "from the VOLTTRON_HOME folder if needed")
 
         names = parameter_name.split("-")
