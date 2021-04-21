@@ -9,17 +9,18 @@ from volttrontesting.utils.platformwrapper import create_volttron_home
 
 
 def get_test_web_env(path, input_data: bytes = None, query_string='', url_scheme='http', method='GET',
-                     **kwargs):
+                     **kwargs) -> dict:
     """
     Constructs the environment that gets passed to a wsgi application during a request
     from client to server.  The response will return a valid env that can be passed
     into the applications "run" path.
 
     :param path: the endpoint/file/websocket to call
-    :param input_data:  input data to be passed into the request (must be a ByteIO object
+    :param input_data:  input data to be passed into the request (must be a ByteIO object)
     :param query_string: form or other data to be used as input to the environment.
     :param url_scheme: the scheme used to set the environment (http, https, ws, wss)
     :param method: REQUEST_METHOD used for this request (GET, POST, PUT etc)
+
     :return: A dictionary to be passed to the app_routing function in the platformwebservice
     """
     if path is None:
