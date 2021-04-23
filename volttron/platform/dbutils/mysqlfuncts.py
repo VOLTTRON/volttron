@@ -86,14 +86,18 @@ class MySqlFuncts(DbDriver):
         rows = self.select("SELECT version()", None)
         p = re.compile('(\d+)\D+(\d+)\D+(\d+)\D*')
         version_nums = p.match(rows[0][0]).groups()
+        _log.debug(f"MYSQL version number components {version_nums}")
+        self.MICROSECOND_SUPPORT = True
         if int(version_nums[0]) < 5:
             self.MICROSECOND_SUPPORT = False
-        elif int(version_nums[1]) < 6:
-            self.MICROSECOND_SUPPORT = False
-        elif int(version_nums[2]) < 4:
-            self.MICROSECOND_SUPPORT = False
-        else:
-            self.MICROSECOND_SUPPORT = True
+        elif int(version_nums[0]) == 5:
+            if int(version_nums[1]) < 6:
+                self.MICROSECOND_SUPPORT = False
+            elif int(version_nums[1]) == 6:
+                if int(version_nums[2]) < 4:
+                    self.MICROSECOND_SUPPORT = False
+
+
 
     def setup_historian_tables(self):
         if self.MICROSECOND_SUPPORT is None:

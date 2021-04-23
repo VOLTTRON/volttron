@@ -259,6 +259,7 @@ def setup_crate(connection_params, table_names):
 
 
 def setup_mysql(connection_params, table_names):
+    global MICROSECOND_PRECISION
     print ("setup mysql")
     db_connection = mysql.connect(**connection_params)
     # clean_db_rows up any rows from older runs if exists
@@ -279,14 +280,15 @@ def setup_mysql(connection_params, table_names):
     version_nums = p.match(version[0]).groups()
 
     print (version)
+    MICROSECOND_PRECISION = 6
     if int(version_nums[0]) < 5:
         MICROSECOND_PRECISION = 0
-    elif int(version_nums[1]) < 6:
-        MICROSECOND_PRECISION = 0
-    elif int(version_nums[2]) < 4:
-        MICROSECOND_PRECISION = 0
-    else:
-        MICROSECOND_PRECISION = 6
+    elif int(version_nums[0]) == 5:
+        if int(version_nums[1]) < 6:
+            MICROSECOND_PRECISION = 0
+        elif int(version_nums[1]) == 6:
+            if int(version_nums[2]) < 4:
+                MICROSECOND_PRECISION = 0
 
     return db_connection, MICROSECOND_PRECISION
 
