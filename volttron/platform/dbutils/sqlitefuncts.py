@@ -377,6 +377,15 @@ class SqlLiteFuncts(DbDriver):
             name_map[n.lower()] = n
         return id_map, name_map
 
+    def get_topic_meta_map(self):
+        q = "SELECT topic_id, metadata FROM " + self.meta_table + ";"
+        rows = self.select(q, None)
+        _log.debug("loading metadata from db")
+        topic_meta_map = dict()
+        for id, meta in rows:
+            topic_meta_map[id] = jsonapi.loads(meta)
+        return topic_meta_map
+
     def get_agg_topics(self):
         try:
             _log.debug("in get_agg_topics")

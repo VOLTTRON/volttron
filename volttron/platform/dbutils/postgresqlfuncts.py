@@ -65,11 +65,24 @@ class PostgreSqlFuncts(DbDriver):
         connect.__name__ = 'psycopg2'
         super(self.__class__, self).__init__(connect)
 
+    def get_max_topic_id(self):
+
+        query = SQL(
+            'SELECT MAX(topic_id) '
+            'FROM {}').format(Identifier(self.topics_table))
+        rows = self.select(query)
+        if rows[0][0]:
+            _log.debug(f"###DEBUG max topic id {rows}")
+            return rows[0][0]
+        else:
+            return 0
+
+
     @contextlib.contextmanager
-    def bulk_insert(self):
+    def bulk_insert_data(self):
         """
         This function implements the bulk insert requirements for Redshift historian by overriding the
-        DbDriver::bulk_insert() in basedb.py and yields nescessary data insertion method needed for bulk inserts
+        DbDriver::bulk_insert_data() in basedb.py and yields nescessary data insertion method needed for bulk inserts
 
         :yields: insert method
         """
@@ -100,6 +113,80 @@ class PostgreSqlFuncts(DbDriver):
                         'SET value_string = EXCLUDED.value_string').format(
                             Identifier(self.data_table), SQL(', ').join(records))
             self.execute_stmt(query)
+
+
+    @contextlib.contextmanager
+    def bulk_insert_topic(self):
+        """
+        This function implements the bulk insert requirements for Redshift historian by overriding the
+        DbDriver::bulk_insert_topic() in basedb.py and yields necessary data insertion method needed for bulk inserts
+
+        :yields: insert method
+        """
+        topics = []
+
+        def insert_topic(topic):
+            """
+            Inserts topic records to the list
+
+            :param topic: topic name
+            :type string
+            :return: Returns topic_id
+            :rtype: int
+            """
+            self.max_topic_id = self.max_topic_id + 1
+            topics.append(SQL('({}, {})').format(Literal(self.max_topic_id), Literal(topic)))
+            return self.max_topic_id
+
+        yield insert_topic
+
+        if topics:
+            _log.debug(f"###DEBUG bulk inserting topics of len {len(topics)}")
+            query = SQL('INSERT INTO {} VALUES {} '
+                        'ON CONFLICT (topic_id) DO UPDATE '
+                        'SET topic_name = EXCLUDED.topic_name').format(
+                            Identifier(self.topics_table), SQL(', ').join(topics))
+            self.execute_stmt(query)
+
+
+
+    # @contextlib.contextmanager
+    # def bulk_insert_meta(self):
+    #     """
+    #     This function implements the bulk insert requirements for Redshift historian by overriding the
+    #     DbDriver::bulk_insert_meta() in basedb.py and yields necessary data insertion method needed for bulk inserts
+    #
+    #     :yields: insert method
+    #     """
+    #     records = []
+    #
+    #     def insert_meta(topic_id, metadata):
+    #         """
+    #         Inserts metadata records to the list
+    #
+    #         :param topic_id: topic ID
+    #         :type string
+    #         :param metadata: metadata dictionary
+    #         :type dict
+    #         :return: Returns True after insert
+    #         :rtype: bool
+    #         """
+    #         value = jsonapi.dumps(metadata)
+    #         records.append(SQL('({}, {})').format(Literal(topic_id), Literal(value)))
+    #         return True
+    #
+    #     yield insert_meta
+    #
+    #     if records:
+    #         _log.debug(f"###DEBUG bulk inserting meta of len {len(records)}")
+    #         _log.debug(f"###DEBUG bulk inserting meta of len {records}")
+    #
+    #         query = SQL('INSERT INTO {} VALUES {} '
+    #                     'ON CONFLICT (topic_id) DO UPDATE '
+    #                     'SET metadata = EXCLUDED.metadata').format(
+    #                         Identifier(self.meta_table), SQL(', ').join(records))
+    #         self.execute_stmt(query)
+
 
     def rollback(self):
         try:
@@ -299,6 +386,14 @@ class PostgreSqlFuncts(DbDriver):
         id_map = {key: tid for tid, _, key in rows}
         name_map = {key: name for _, name, key in rows}
         return id_map, name_map
+
+    def get_topic_meta_map(self):
+        query = SQL(
+            'SELECT topic_id, metadata '
+            'FROM {}').format(Identifier(self.meta_table))
+        rows = self.select(query)
+        meta_map = {tid: jsonapi.loads(meta) for tid, meta in rows}
+        return meta_map
 
     def get_agg_topics(self):
         query = SQL(

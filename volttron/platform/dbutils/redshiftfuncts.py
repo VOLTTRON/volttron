@@ -66,10 +66,10 @@ class RedshiftFuncts(DbDriver):
         super(self.__class__, self).__init__(connect)
 
     @contextlib.contextmanager
-    def bulk_insert(self):
+    def bulk_insert_data(self):
         """
         This function implements the bulk insert requirements for Redshift historian by overriding the
-        DbDriver::bulk_insert() in basedb.py and yields nescessary data insertion method needed for bulk inserts
+        DbDriver::bulk_insert_data() in basedb.py and yields nescessary data insertion method needed for bulk inserts
 
         :yields: insert method
         """
@@ -286,6 +286,14 @@ class RedshiftFuncts(DbDriver):
         id_map = {key: tid for tid, _, key in rows}
         name_map = {key: name for _, name, key in rows}
         return id_map, name_map
+
+    def get_topic_meta_map(self):
+        query = SQL(
+            'SELECT topic_id, metadata '
+            'FROM {}').format(Identifier(self.meta_table))
+        rows = self.select(query)
+        meta_map = {tid: jsonapi.loads(meta) for tid, meta in rows}
+        return meta_map
 
     def get_agg_topics(self):
         query = SQL(
