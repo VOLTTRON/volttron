@@ -399,7 +399,6 @@ ON DUPLICATE KEY UPDATE value_string=VALUES(value_string);
             INSERT INTO {self.meta_table} (topic_id, metadata) VALUES(%s, %s)
             ON DUPLICATE KEY UPDATE metadata=VALUES(metadata);
             """
-            _log.info(f"calling execute many with meta len {len(meta)}")
             _log.debug(f"###DEBUG calling execute many with meta len {len(meta)}")
             self.execute_many(query, meta)
 
