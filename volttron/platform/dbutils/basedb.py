@@ -96,9 +96,19 @@ class DbDriver(object):
         self.__connect = connect
         self.__connection = None
         self.stash = local()
+        self.max_topic_id = None
+
+    def get_max_topic_id(self):
+        """
+        Function to return max topic id in the database. This can be used to return last inserted topic_id so that
+        concrete classes can generate topic_ids locally and bulk insert topics. Base class returns None
+        :returns: max topic id in database
+        :rtype: int
+        """
+        return None
 
     @contextlib.contextmanager
-    def bulk_insert(self):
+    def bulk_insert_data(self):
         """
         Function to meet bulk insert requirements. This function can be overridden by historian drivers to yield the
         required method for data insertion during bulk inserts in the respective historians. In this generic case it
@@ -106,6 +116,26 @@ class DbDriver(object):
         :yields: insert method
         """
         yield self.insert_data
+
+    @contextlib.contextmanager
+    def bulk_insert_topic(self):
+        """
+        Function to meet bulk insert requirements. This function can be overridden by historian drivers to yield the
+        required method for topic insertion during bulk inserts in the respective historians. In this generic case it
+        will yield the single insert method
+        :yields: insert method
+        """
+        yield self.insert_topic
+
+    @contextlib.contextmanager
+    def bulk_insert_meta(self):
+        """
+        Function to meet bulk insert requirements. This function can be overridden by historian drivers to yield the
+        required method for meta insertion during bulk inserts in the respective historians. In this generic case it
+        will yield the single insert method
+        :yields: insert method
+        """
+        yield self.insert_meta
 
     def cursor(self):
 
@@ -203,6 +233,13 @@ class DbDriver(object):
         :return:
         """
         pass
+
+    @abstractmethod
+    def get_topic_meta_map(self):
+        """
+        Returns details of metadata in the database
+        :return: dictionary of format {topic_id:{metadata}}
+        """
 
     @abstractmethod
     def insert_data_query(self):
