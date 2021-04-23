@@ -302,10 +302,10 @@ class MySqlFuncts(DbDriver):
         return values
 
     @contextlib.contextmanager
-    def bulk_insert(self):
+    def bulk_insert_data(self):
         """
         This function implements the bulk insert requirements for Redshift historian by overriding the
-        DbDriver::bulk_insert() in basedb.py and yields nescessary data insertion method needed for bulk inserts
+        DbDriver::bulk_insert_data() in basedb.py and yields necessary data insertion method needed for bulk inserts
         :yields: insert method
         """
         records = []
@@ -335,21 +335,69 @@ class MySqlFuncts(DbDriver):
 INSERT INTO {self.data_table} (ts, topic_id, value_string) VALUES(%s, %s, %s)
 ON DUPLICATE KEY UPDATE value_string=VALUES(value_string);
 """
-
-#            query = SQL('INSERT INTO {} VALUES {} '
-#                        'ON CONFLICT (ts, topic_id) DO UPDATE '
-#                        'SET value_string = EXCLUDED.value_string').format(
-#                            Identifier(self.data_table), SQL(', ').join(records))
-            _log.info(f"calling execute meny with records {len(records)}")
+            _log.debug(f"calling execute many with records {len(records)}")
             self.execute_many(query, records)
 
-#    def execute_many(self, query, args, commit=False):
-#        _log.info("Execute many here")
-#        _log.info(f"args is {args[0]}")
-#        cursor = self.cursor()
-#        cursor.executemany(query, args)
+    @contextlib.contextmanager
+    def bulk_insert_topic(self):
+        """
+        This function implements the bulk insert requirements for Redshift historian by overriding the
+        DbDriver::bulk_insert_topic() in basedb.py and yields necessary data insertion method needed for bulk inserts
+        :yields: insert method
+        """
+        topics = []
 
+        def insert_topic(topic):
+            """
+            Inserts topic records to the list
+            :param topic: topic name
+            :type string
+            :return: Returns topic_id
+            :rtype: int
+            """
+            self.max_topic_id = self.max_topic_id + 1
+            topics.append((self.max_topic_id, topic))
+            return self.max_topic_id
 
+        yield insert_topic
+
+        if topics:
+            query = f"INSERT INTO {self.topics_table} (topic_id, topic_name) VALUES(%s, %s);"
+            _log.debug(f"###DEBUG calling execute many with topics len {len(topics)}")
+            self.execute_many(query, topics)
+
+    @contextlib.contextmanager
+    def bulk_insert_meta(self):
+        """
+        This function implements the bulk insert requirements for Redshift historian by overriding the
+        DbDriver::bulk_insert_meta() in basedb.py and yields necessary data insertion method needed for bulk inserts
+        :yields: insert method
+        """
+        meta = []
+
+        def insert_meta(topic_id, metadata):
+            """
+            Inserts metadata records to the list
+            :param topic_id: topic name
+            :type int
+            :param metadata: dictionary of metadata
+            :type dict
+            :return: Returns True after insert
+            :rtype: bool
+            """
+            meta.append((topic_id, jsonapi.dumps(metadata)))
+            return True
+
+        yield insert_meta
+
+        if meta:
+            query = f"""
+            INSERT INTO {self.meta_table} (topic_id, metadata) VALUES(%s, %s)
+            ON DUPLICATE KEY UPDATE metadata=VALUES(metadata);
+            """
+            _log.info(f"calling execute many with meta len {len(meta)}")
+            _log.debug(f"###DEBUG calling execute many with meta len {len(meta)}")
+            self.execute_many(query, meta)
 
     def insert_meta_query(self):
         return '''REPLACE INTO ''' + self.meta_table + ''' values(%s, %s)'''
@@ -388,6 +436,15 @@ ON DUPLICATE KEY UPDATE value_string=VALUES(value_string);
         return '''REPLACE INTO ''' + self.agg_meta_table + ''' values(%s,
         %s)'''
 
+    def get_topic_meta_map(self):
+        q = "SELECT topic_id, metadata FROM " + self.meta_table + ";"
+        rows = self.select(q, None)
+        _log.debug("loading metadata from db")
+        topic_meta_map = dict()
+        for id, meta in rows:
+            topic_meta_map[id] = jsonapi.loads(meta)
+        return topic_meta_map
+
     def get_topic_map(self):
         q = "SELECT topic_id, topic_name FROM " + self.topics_table + ";"
         rows = self.select(q, None)
@@ -397,9 +454,16 @@ ON DUPLICATE KEY UPDATE value_string=VALUES(value_string);
         for t, n in rows:
             id_map[n.lower()] = t
             name_map[n.lower()] = n
-        _log.debug(id_map)
-        _log.debug(name_map)
         return id_map, name_map
+
+    def get_max_topic_id(self):
+        q = "SELECT max(topic_id) from " + self.topics_table + ";"
+        rows = self.select(q)
+        if rows[0][0]:
+            _log.debug(f"###DEBUG max topic id {rows}")
+            return rows[0][0]
+        else:
+            return 0
 
     def get_agg_topics(self):
         _log.debug("in get_agg_topics")
