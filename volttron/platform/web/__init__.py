@@ -39,6 +39,7 @@
 from http.cookies import SimpleCookie
 import logging
 
+from datetime import datetime
 from volttron.platform import get_platform_config
 
 try:
@@ -123,7 +124,7 @@ def get_user_claim_from_bearer(bearer, web_secret_key=None, tls_public_key=None)
         pubkey = tls_public_key
         # if isinstance(tls_public_key, str):
         #     pubkey = CertWrapper.load_cert(tls_public_key)
-    return jwt.decode(bearer, pubkey, algorithms=algorithm)
-
-
-
+    claims = jwt.decode(bearer, pubkey, algorithms=algorithm)
+    exp = datetime.utcfromtimestamp(claims['exp'])
+    nbf = datetime.utcfromtimestamp(claims['nbf'])
+    return claims if not (exp < datetime.utcnow() <= nbf) else {}

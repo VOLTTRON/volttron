@@ -186,17 +186,19 @@ class PlatformWebService(Agent):
     def get_user_claims(self, bearer):
         from volttron.platform.web import get_user_claim_from_bearer
         if self.core.messagebus == 'rmq':
-            return get_user_claim_from_bearer(bearer,
-                                              tls_public_key=self._certs.get_cert_public_key(
-                                                           get_fq_identity(self.core.identity)))
-        if self.web_ssl_cert is not None:
-            return get_user_claim_from_bearer(bearer,
-                                              tls_public_key=CertWrapper.get_cert_public_key(self.web_ssl_cert))
+            claims = get_user_claim_from_bearer(bearer,
+                                                tls_public_key=self._certs.get_cert_public_key(
+                                                    get_fq_identity(self.core.identity)))
+        elif self.web_ssl_cert is not None:
+            claims = get_user_claim_from_bearer(bearer,
+                                                tls_public_key=CertWrapper.get_cert_public_key(self.web_ssl_cert))
         elif self._web_secret_key is not None:
-            return get_user_claim_from_bearer(bearer, web_secret_key=self._web_secret_key)
+            claims = get_user_claim_from_bearer(bearer, web_secret_key=self._web_secret_key)
 
         else:
             raise ValueError("Configuration error secret key or web ssl cert must be not None.")
+
+        return claims if claims.get('grant_type') == 'access_token' else {}
 
     @RPC.export
     def websocket_send(self, endpoint, message):
@@ -798,9 +800,11 @@ class PlatformWebService(Agent):
         if parsed.scheme == 'https':
             if self.core.messagebus == 'rmq':
                 ssl_private_key = self._certs.get_pk_bytes(get_fq_identity(self.core.identity))
+                ssl_public_key = self._certs.get_cert_public_key(get_fq_identity(self.core.identity))
             else:
                 ssl_private_key = CertWrapper.get_private_key(ssl_key)
-            for rt in AuthenticateEndpoints(tls_private_key=ssl_private_key).get_routes():
+                ssl_public_key = CertWrapper.get_cert_public_key(self.web_ssl_cert)
+            for rt in AuthenticateEndpoints(tls_private_key=ssl_private_key, tls_public_key=ssl_public_key).get_routes():
                 self.registeredroutes.append(rt)
         else:
             # We don't have a private ssl key if we aren't using ssl.
