@@ -290,10 +290,10 @@ To top the platform run the following command:
 
 There are several [walkthroughs](https://volttron.readthedocs.io/en/latest/devguides/index.html#devguides-index) to explore additional aspects of the platform:
 
--   [Agent Development Walkthrough](https://volttron.readthedocs.io/en/latest/devguides/agent_development/Agent-Development.html#agent-development)
--   Demonstration of the [management UI](https://volttron.readthedocs.io/en/latest/devguides/walkthroughs/VOLTTRON-Central-Demo.html#volttron-central-demo)
--   RabbitMQ setup with Federation and Shovel plugins
--   Backward compatibility with the RabbitMQ message bus
+-   [Agent Development Walkthrough](https://volttron.readthedocs.io/en/latest/developing-volttron/developing-agents/agent-development.html)
+-   Demonstration of the [management UI](https://volttron.readthedocs.io/en/latest/deploying-volttron/multi-platform/volttron-central-deployment.html#volttron-central-deployment)
+-   [RabbitMQ setup with Federation and Shovel plugins](https://volttron.readthedocs.io/en/latest/deploying-volttron/multi-platform/multi-platform-rabbitmq-deployment.html#multi-platform-rabbitmq-deployment)
+-   [Backward compatibility with the RabbitMQ message bus](https://volttron.readthedocs.io/en/latest/platform-features/message-bus/rabbitmq/message-bus-plugin.html?highlight=backward%20compatibility#compatibility-between-volttron-instances-running-on-different-message-buses)
 
 ## Acquiring Third Party Agent Code
 
