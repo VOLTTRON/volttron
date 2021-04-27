@@ -166,7 +166,7 @@ class SQLHistorian(BaseHistorian):
     def publish_to_historian(self, to_publish_list):
         try:
             published = 0
-            with self.bg_thread_dbutils.bulk_insert_data() as insert_data, \
+            with self.bg_thread_dbutils.bulk_insert() as insert_data, \
                 self.bg_thread_dbutils.bulk_insert_topic() as insert_topic, \
                 self.bg_thread_dbutils.bulk_insert_meta() as insert_meta:
 

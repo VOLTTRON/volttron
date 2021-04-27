@@ -108,7 +108,7 @@ class DbDriver(object):
         return None
 
     @contextlib.contextmanager
-    def bulk_insert_data(self):
+    def bulk_insert(self):
         """
         Function to meet bulk insert requirements. This function can be overridden by historian drivers to yield the
         required method for data insertion during bulk inserts in the respective historians. In this generic case it

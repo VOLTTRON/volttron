@@ -306,10 +306,10 @@ class MySqlFuncts(DbDriver):
         return values
 
     @contextlib.contextmanager
-    def bulk_insert_data(self):
+    def bulk_insert(self):
         """
-        This function implements the bulk insert requirements for Redshift historian by overriding the
-        DbDriver::bulk_insert_data() in basedb.py and yields necessary data insertion method needed for bulk inserts
+        This function implements the bulk insert requirements for Mysql historian by overriding the
+        DbDriver::bulk_insert() in basedb.py and yields necessary data insertion method needed for bulk inserts
         :yields: insert method
         """
         records = []
