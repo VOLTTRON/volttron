@@ -108,8 +108,8 @@ to the upstream server.  In case of bi-directional data flow, two links have to 
 
 .. image:: files/multiplatform_pubsub.png
 
-Consider Agent B on VOLTTRON instance "volttron2" on host "host_B" which wants to subscribe to messages from
-VOLTTRON instance "volttron2" on host "host_B".  First, a federation link needs to be established from
+Consider the use case where Agent B on VOLTTRON instance "volttron2" on host "host_B" wants to subscribe to messages from
+VOLTTRON instance "volttron1" on host "host_A".  To enable data flow from "volttron1" to "volttron2", a federation link needs to be established from
 "volttron2" to "volttron1".
 
 1. Agent B makes a subscribe call:
@@ -129,7 +129,7 @@ VOLTTRON instance "volttron2" on host "host_B".  First, a federation link needs 
 
 5. The PubSub subsystem publishes this message on its VOLTTRON exchange.
 
-6. The message is received by the Pubsub subsystem of Agent A via the federation link.
+6. The message is received by the Pubsub subsystem of Agent B via the federation link.
 
 .. _RabbitMQ-Multi-platform-SSL:
 
