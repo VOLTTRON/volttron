@@ -54,7 +54,7 @@ from gevent.fileobject import FileObject
 from zmq import green as zmq
 
 from volttron.platform import jsonapi, get_home
-from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM, CONTROL, PLATFORM_WEB, CONTROL_CONNECTION
+from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM, CONTROL, PLATFORM_WEB, CONTROL_CONNECTION, PROCESS_IDENTITIES
 from volttron.platform.certs import Certs
 from volttron.platform.vip.agent.errors import VIPError
 from volttron.platform.jsonrpc import MethodNotFound, RemoteError
@@ -129,12 +129,12 @@ class AuthService(Agent):
         self.zap_socket.bind('inproc://zeromq.zap.01')
         if self.allow_any:
             _log.warning('insecure permissive authentication enabled')
-        self.read_auth_file(skip_update=True)
+        self.read_auth_file()
         self._read_protected_topics_file()
-        gevent.spawn_later(10, self.update_auth_file)
+        # gevent.spawn_later(10, self.update_auth_file)
         self.core.spawn(watch_file, self.auth_file_path, self.read_auth_file)
         self.core.spawn(watch_file, self._protected_topics_file_path, self._read_protected_topics_file)
-        self.core.periodic(1, self.update_if_needed)
+        # self.core.periodic(1, self.update_if_needed)
         # self.core.spawn(watch_file, os.path.join(get_home(), "VOLTTRON_PID"), self.update_auth_file)
         if self.core.messagebus == 'rmq':
             self.vip.peerlist.onadd.connect(self._check_topic_rules)
@@ -157,11 +157,11 @@ class AuthService(Agent):
                 rpc_method_authorizations[method] = \
                     self.vip.rpc.call(peer_id, 'get_rpc_authorizations', method).get(timeout=4)
             except gevent.Timeout:
-                rpc_method_authorizations[method] = []
+                rpc_method_authorizations[method] = None
                 _log.warn(f'{peer_id} has timed out while attempting to get rpc method authorizations')
             except Unreachable:
                 _log.warn(f'{peer_id} is unreachable while attempting to get rpc method authorizations')
-                rpc_method_authorizations[method] = []
+                rpc_method_authorizations[method] = None
             except MethodNotFound as e:
                 _log.error(e)
                 rpc_method_authorizations[method] = []
@@ -170,29 +170,59 @@ class AuthService(Agent):
 
     @RPC.export
     def update_auth_entry_rpc_method_authorizations(self, identity, rpc_methods):
-        methods = copy.deepcopy(rpc_methods)
+        """
+        Update RPC methods for an auth entry. This is called by the subsystem on
+        agent start-up to ensure that the agent's current rpc allowances are recorded
+        with it's auth entry.
+        :param identity: The agent's identity in the auth entry
+        :param rpc_methods: The rpc methods to update, in the format {rpc_method_name: [allowed_rpc_capability_1, ...]}
+        :return: updated_rpc_methods or None
+        """
         entries = self.auth_file.read_allow_entries()
         for entry in entries:
             if entry.identity == identity:
-                for method in methods:
+                updated_rpc_methods = {}
+                for method in rpc_methods:
+                    updated_rpc_methods[method] = rpc_methods[method]
+                    # Check if the rpc method exists in the auth file entry
                     if method not in entry.rpc_method_authorizations:
-                        entry.rpc_method_authorizations[method] = methods[method]
+                        # Create it and set it to have the provided rpc capabilities
+                        entry.rpc_method_authorizations[method] = rpc_methods[method]
+                    # Check if the rpc method does not have any rpc capabilities
                     if not entry.rpc_method_authorizations[method]:
-                        entry.rpc_method_authorizations[method] = methods[method]
-                    if entry.rpc_method_authorizations[method] != methods[method]:
-                        methods[method] = entry.rpc_method_authorizations[method]
+                        # Set it to have the provided rpc capabilities
+                        entry.rpc_method_authorizations[method] = rpc_methods[method]
+                    # Check if the rpc method's capabilities match what have been provided
+                    if entry.rpc_method_authorizations[method] != rpc_methods[method]:
+                        # Update rpc_methods based on auth entries
+                        updated_rpc_methods[method] = entry.rpc_method_authorizations[method]
+                # Update auth file and return rpc_methods
                 self.auth_file.update_by_index(entry, entries.index(entry))
+                return updated_rpc_methods
+        return None
 
     def update_rpc_method_authorizations(self, entries):
+        """
+        Update allowed capabilities for an rpc method if it doesn't match what is in the auth file.
+        :param entries: Entries read in from the auth file
+        :return: None
+        """
         for entry in entries:
-            if entry.identity is not None:
+            if entry.identity is not None and \
+                entry.identity not in PROCESS_IDENTITIES and \
+                entry.identity is not CONTROL_CONNECTION:
                 rpc_method_authorizations = self.get_entry_rpc_method_authorizations(entry.identity)
-                for method in rpc_method_authorizations:
+                for method in entry.rpc_method_authorizations:
+                    # Check if the rpc method exists in the auth file entry
                     if method not in entry.rpc_method_authorizations:
-                        entry.rpc_method_authorizations[method] = rpc_method_authorizations[method]
+                        # Do not need to update agent capabilities if it is not in auth file
+                        continue
+                    # Check if the rpc method does not have any rpc capabilities
                     if not entry.rpc_method_authorizations[method]:
-                        entry.rpc_method_authorizations[method] = rpc_method_authorizations[method]
-                    if entry.rpc_method_authorizations[method] != rpc_method_authorizations[method]:
+                        # Do not need to update agent capabilities if no capabilities in auth file
+                        continue
+                    # Check if the rpc method's capabilities match what have been provided and the agent was reachable
+                    if entry.rpc_method_authorizations[method] != rpc_method_authorizations[method] and rpc_method_authorizations[method] is not None:
                         try:
                             self.vip.rpc.call(
                                 entry.identity, "set_rpc_authorizations",
@@ -204,16 +234,35 @@ class AuthService(Agent):
                             _log.error(f"Method {method} does not exist.")
 
     def update_auth_file_rpc_method_authorizations(self, entries):
+        """
+        Update rpc_method_authorizations field for each auth entry in the auth file.
+        :param entries: Entries read in from the auth file
+        :return: An updated list of entries to update the auth file
+        """
         new_entries = copy.deepcopy(entries)
         for entry in new_entries:
-            if entry.identity is not None:
+            if entry.identity is not None and \
+                entry.identity not in PROCESS_IDENTITIES and \
+                entry.identity is not CONTROL_CONNECTION:
                 rpc_method_authorizations = self.get_entry_rpc_method_authorizations(entry.identity)
                 for method in rpc_method_authorizations:
+                    # Check if the rpc method exists in the auth file entry
                     if method not in entry.rpc_method_authorizations:
-                        entry.rpc_method_authorizations[method] = rpc_method_authorizations[method]
+                        if rpc_method_authorizations[method] is not None:
+                            # Create it and set it to have the rpc capabilities provided by the agent if it is available
+                            # If it is not available, this will be set when the agent starts/connects to the platform
+                            entry.rpc_method_authorizations[method] = rpc_method_authorizations[method]
+                        else:
+                            entry.rpc_method_authorizations[method] = []
+                    # Check if the rpc method does not have any rpc capabilities
                     if not entry.rpc_method_authorizations[method]:
-                        entry.rpc_method_authorizations[method] = rpc_method_authorizations[method]
-                    if entry.rpc_method_authorizations[method] != rpc_method_authorizations[method]:
+                        if rpc_method_authorizations[method] is not None:
+                            # Set it to have the rpc capabilities provided by the agent if it is available
+                            entry.rpc_method_authorizations[method] = rpc_method_authorizations[method]
+                        else:
+                            entry.rpc_method_authorizations[method] = []
+                    # Check if the rpc method's capabilities match what have been provided and the agent was reachable
+                    if entry.rpc_method_authorizations[method] != rpc_method_authorizations[method] and rpc_method_authorizations[method] is not None:
                         try:
                             self.vip.rpc.call(
                                 entry.identity, "set_rpc_authorizations",
@@ -224,6 +273,60 @@ class AuthService(Agent):
                         except RemoteError:
                             _log.error(f"Method {method} does not exist.")
         return new_entries
+
+    @RPC.export
+    def add_rpc_method_authorizations(self, identity, method, authorizations):
+        if identity in PROCESS_IDENTITIES or identity is CONTROL_CONNECTION:
+            _log.error(f"{identity} cannot be modified using this command!")
+            return
+        entries = self.auth_file.read_allow_entries()
+        for entry in entries:
+            if entry.identity == identity:
+                if method not in entry.rpc_method_authorizations:
+                    entry.rpc_method_authorizations[method] = authorizations
+                elif not entry.rpc_method_authorizations[method]:
+                    entry.rpc_method_authorizations[method] = authorizations
+                else:
+                    entry.rpc_method_authorizations[method].extend(
+                        [rpc_auth for rpc_auth in authorizations
+                         if rpc_auth in authorizations and
+                         rpc_auth not in entry.rpc_method_authorizations[method]])
+                self.auth_file.update_by_index(entry, entries.index(entry))
+                return
+        _log.error(f"Agent identity not found in auth file!")
+        return
+
+    @RPC.export
+    def delete_rpc_method_authorizations(self, identity, method, denied_authorizations):
+        if identity in PROCESS_IDENTITIES or identity is CONTROL_CONNECTION:
+            _log.error(f"{identity} cannot be modified using this command!")
+            return
+        entries = self.auth_file.read_allow_entries()
+        for entry in entries:
+            if entry.identity == identity:
+                if method not in entry.rpc_method_authorizations:
+                    _log.error(f"{entry.identity} does not have a method called {method}")
+                elif not entry.rpc_method_authorizations[method]:
+                    _log.error(f"{entry.identity}.{method} does not have any authorized capabilities.")
+                else:
+                    any_match = False
+                    for rpc_auth in denied_authorizations:
+                        if rpc_auth not in entry.rpc_method_authorizations[method]:
+                            _log.error(f"{rpc_auth} is not an authorized capability for {method}")
+                        else:
+                            any_match = True
+                    if any_match:
+                        entry.rpc_method_authorizations[method] = \
+                            [rpc_auth for rpc_auth in entry.rpc_method_authorizations[method]
+                             if rpc_auth not in denied_authorizations]
+                        if not entry.rpc_method_authorizations[method]:
+                            entry.rpc_method_authorizations[method] = [""]
+                        self.auth_file.update_by_index(entry, entries.index(entry))
+                    else:
+                        _log.error(f"No matching authorized capabilities provided for {method}")
+                return
+        _log.error(f"Agent identity not found in auth file!")
+        return
 
     def update_auth_file(self):
         entries = self.auth_file.read_allow_entries()
@@ -240,7 +343,6 @@ class AuthService(Agent):
             self.update_rpc_method_authorizations(entries)
             self.needs_rpc_update = False
 
-    def read_auth_file(self, skip_update=False):
     def _update_auth_lists(self, entries, is_allow=True):
         auth_list = []
         for entry in entries:
@@ -270,8 +372,8 @@ class AuthService(Agent):
         # sort the entries so the regex credentails follow the concrete creds
         entries.sort()
         self.auth_entries = entries
-        if not skip_update and self.can_update:
-            self.needs_rpc_update = True
+        # if not skip_update and self.can_update:
+        #     self.needs_rpc_update = True
         if self._is_connected:
             try:
                 _log.debug("Sending auth updates to peers")
@@ -330,6 +432,9 @@ class AuthService(Agent):
             if peer not in [self.core.identity, CONTROL_CONNECTION]:
                 _log.debug(f"Sending auth update to peers {peer}")
                 self.vip.rpc.call(peer, 'auth.update', user_to_caps)
+        # Update RPC method authorizations on agents
+        entries = self.auth_file.read_allow_entries()
+        self.update_rpc_method_authorizations(entries)
         if self.core.messagebus == 'rmq':
             self._check_rmq_topic_permissions()
         else:

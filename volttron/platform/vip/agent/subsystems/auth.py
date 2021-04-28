@@ -446,11 +446,21 @@ class Auth(SubsystemBase):
         _log.debug(f"Authorized capabilities: {capabilities} for method: {method_str} set")
 
     def update_rpc_method_capabilities(self):
-        """Updates the rpc_method_authorizations field in the auth entry for this agent.
+        """
+        Updates the rpc_method_authorizations field in the auth entry
+        for this agent by sending rpc_method_authorizations to AuthService on startup.
+        If there are any modifications to the agent from the auth entry, it will update
+        the agent's rpc_method_authorizations.
+        :return: None
         """
         rpc_method_authorizations = {}
         rpc_methods = self.get_rpc_exports()
         for method in rpc_methods:
             rpc_method_authorizations[method] = self.get_rpc_authorizations(method)
-        self._rpc().call(AUTH, 'update_auth_entry_rpc_method_authorizations',
-                         self._core().identity, rpc_method_authorizations)
+        updated_rpc_method_authorizations = self._rpc().call(AUTH, 'update_auth_entry_rpc_method_authorizations',
+                         self._core().identity, rpc_method_authorizations).get(timeout=4)
+        if updated_rpc_method_authorizations is None:
+            _log.error(f"Auth entry not found for {self._core().identity}: rpc_method_authorizations not updated.")
+        if rpc_method_authorizations != updated_rpc_method_authorizations:
+            for method in updated_rpc_method_authorizations:
+                self.set_rpc_authorizations(method, updated_rpc_method_authorizations[method])
