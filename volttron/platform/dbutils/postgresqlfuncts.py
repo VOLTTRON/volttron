@@ -25,6 +25,7 @@ import pytz
 import psycopg2
 from psycopg2 import InterfaceError, ProgrammingError, errorcodes
 from psycopg2.sql import Identifier, Literal, SQL
+from psycopg2.extras import execute_values
 
 from volttron.platform.agent import utils
 from volttron.platform import jsonapi
@@ -89,56 +90,54 @@ class PostgreSqlFuncts(DbDriver):
             :rtype: bool
             """
             value = jsonapi.dumps(data)
-            records.append(SQL('({}, {}, {})').format(Literal(ts), Literal(topic_id), Literal(value)))
+            records.append((ts, topic_id, value))
             return True
 
         yield insert_data
 
         if records:
-            query = SQL('INSERT INTO {} VALUES {} '
+            query = SQL('INSERT INTO {} VALUES %s '
                         'ON CONFLICT (ts, topic_id) DO UPDATE '
                         'SET value_string = EXCLUDED.value_string').format(
-                            Identifier(self.data_table), SQL(', ').join(records))
-            self.execute_stmt(query)
+                            Identifier(self.data_table))
+            execute_values(self.cursor(), query, records)
 
-    # @contextlib.contextmanager
-    # def bulk_insert_meta(self):
-    #     """
-    #     This function implements the bulk insert requirements for Redshift historian by overriding the
-    #     DbDriver::bulk_insert_meta() in basedb.py and yields necessary data insertion method needed for bulk inserts
-    #
-    #     :yields: insert method
-    #     """
-    #     records = []
-    #
-    #     def insert_meta(topic_id, metadata):
-    #         """
-    #         Inserts metadata records to the list
-    #
-    #         :param topic_id: topic ID
-    #         :type string
-    #         :param metadata: metadata dictionary
-    #         :type dict
-    #         :return: Returns True after insert
-    #         :rtype: bool
-    #         """
-    #         value = jsonapi.dumps(metadata)
-    #         records.append(SQL('({}, {})').format(Literal(topic_id), Literal(value)))
-    #         return True
-    #
-    #     yield insert_meta
-    #
-    #     if records:
-    #         _log.debug(f"###DEBUG bulk inserting meta of len {len(records)}")
-    #         _log.debug(f"###DEBUG bulk inserting meta of len {records}")
-    #
-    #         query = SQL('INSERT INTO {} VALUES {} '
-    #                     'ON CONFLICT (topic_id) DO UPDATE '
-    #                     'SET metadata = EXCLUDED.metadata').format(
-    #                         Identifier(self.meta_table), SQL(', ').join(records))
-    #         _log.debug(f"###DEBUG query is {query}")
-    #         self.execute_stmt(query)
+    @contextlib.contextmanager
+    def bulk_insert_meta(self):
+        """
+        This function implements the bulk insert requirements for Redshift historian by overriding the
+        DbDriver::bulk_insert_meta() in basedb.py and yields necessary data insertion method needed for bulk inserts
 
+        :yields: insert method
+        """
+        records = []
+
+        def insert_meta(topic_id, metadata):
+            """
+            Inserts metadata records to the list
+
+            :param topic_id: topic ID
+            :type string
+            :param metadata: metadata dictionary
+            :type dict
+            :return: Returns True after insert
+            :rtype: bool
+            """
+            value = jsonapi.dumps(metadata)
+            records.append((topic_id, value))
+            return True
+
+        yield insert_meta
+
+        if records:
+            _log.debug(f"###DEBUG bulk inserting meta of len {len(records)}")
+            _log.debug(f"###DEBUG bulk inserting meta of len {records}")
+
+            query = SQL('INSERT INTO {} VALUES %s'
+                        'ON CONFLICT (topic_id) DO UPDATE '
+                        'SET metadata = EXCLUDED.metadata').format(
+                            Identifier(self.meta_table))
+            execute_values(self.cursor(), query, records)
 
     def rollback(self):
         try:
