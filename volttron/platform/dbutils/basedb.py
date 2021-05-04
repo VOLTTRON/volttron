@@ -118,16 +118,6 @@ class DbDriver(object):
         yield self.insert_data
 
     @contextlib.contextmanager
-    def bulk_insert_topic(self):
-        """
-        Function to meet bulk insert requirements. This function can be overridden by historian drivers to yield the
-        required method for topic insertion during bulk inserts in the respective historians. In this generic case it
-        will yield the single insert method
-        :yields: insert method
-        """
-        yield self.insert_topic
-
-    @contextlib.contextmanager
     def bulk_insert_meta(self):
         """
         Function to meet bulk insert requirements. This function can be overridden by historian drivers to yield the

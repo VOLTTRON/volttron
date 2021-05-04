@@ -114,42 +114,6 @@ class PostgreSqlFuncts(DbDriver):
                             Identifier(self.data_table), SQL(', ').join(records))
             self.execute_stmt(query)
 
-
-    @contextlib.contextmanager
-    def bulk_insert_topic(self):
-        """
-        This function implements the bulk insert requirements for Redshift historian by overriding the
-        DbDriver::bulk_insert_topic() in basedb.py and yields necessary data insertion method needed for bulk inserts
-
-        :yields: insert method
-        """
-        topics = []
-
-        def insert_topic(topic):
-            """
-            Inserts topic records to the list
-
-            :param topic: topic name
-            :type string
-            :return: Returns topic_id
-            :rtype: int
-            """
-            self.max_topic_id = self.max_topic_id + 1
-            topics.append(SQL('({}, {})').format(Literal(self.max_topic_id), Literal(topic)))
-            return self.max_topic_id
-
-        yield insert_topic
-
-        if topics:
-            _log.debug(f"###DEBUG bulk inserting topics of len {len(topics)}")
-            query = SQL('INSERT INTO {} VALUES {} '
-                        'ON CONFLICT (topic_id) DO UPDATE '
-                        'SET topic_name = EXCLUDED.topic_name').format(
-                            Identifier(self.topics_table), SQL(', ').join(topics))
-            self.execute_stmt(query)
-
-
-
     # @contextlib.contextmanager
     # def bulk_insert_meta(self):
     #     """
@@ -185,6 +149,7 @@ class PostgreSqlFuncts(DbDriver):
     #                     'ON CONFLICT (topic_id) DO UPDATE '
     #                     'SET metadata = EXCLUDED.metadata').format(
     #                         Identifier(self.meta_table), SQL(', ').join(records))
+    #         _log.debug(f"###DEBUG query is {query}")
     #         self.execute_stmt(query)
 
 

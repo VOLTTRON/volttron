@@ -224,7 +224,7 @@ postgresql_platform = {
             'dbname': 'test_historian',
             'port': 5432,
             'host': 'localhost',
-            'user' : 'historian',
+            'user': 'historian',
             'password': 'historian'
         },
     },

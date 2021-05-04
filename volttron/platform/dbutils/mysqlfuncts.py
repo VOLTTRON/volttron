@@ -343,34 +343,6 @@ ON DUPLICATE KEY UPDATE value_string=VALUES(value_string);
             self.execute_many(query, records)
 
     @contextlib.contextmanager
-    def bulk_insert_topic(self):
-        """
-        This function implements the bulk insert requirements for Redshift historian by overriding the
-        DbDriver::bulk_insert_topic() in basedb.py and yields necessary data insertion method needed for bulk inserts
-        :yields: insert method
-        """
-        topics = []
-
-        def insert_topic(topic):
-            """
-            Inserts topic records to the list
-            :param topic: topic name
-            :type string
-            :return: Returns topic_id
-            :rtype: int
-            """
-            self.max_topic_id = self.max_topic_id + 1
-            topics.append((self.max_topic_id, topic))
-            return self.max_topic_id
-
-        yield insert_topic
-
-        if topics:
-            query = f"INSERT INTO {self.topics_table} (topic_id, topic_name) VALUES(%s, %s);"
-            _log.debug(f"###DEBUG calling execute many with topics len {len(topics)}")
-            self.execute_many(query, topics)
-
-    @contextlib.contextmanager
     def bulk_insert_meta(self):
         """
         This function implements the bulk insert requirements for Redshift historian by overriding the

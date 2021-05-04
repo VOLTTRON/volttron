@@ -167,7 +167,6 @@ class SQLHistorian(BaseHistorian):
         try:
             published = 0
             with self.bg_thread_dbutils.bulk_insert() as insert_data, \
-                self.bg_thread_dbutils.bulk_insert_topic() as insert_topic, \
                 self.bg_thread_dbutils.bulk_insert_meta() as insert_meta:
 
                 for x in to_publish_list:
@@ -184,7 +183,7 @@ class SQLHistorian(BaseHistorian):
                     if topic_id is None:
                         # _log.debug('Inserting topic: {}'.format(topic))
                         # Insert topic name as is in db
-                        topic_id = insert_topic(topic)
+                        topic_id = self.bg_thread_dbutils.insert_topic(topic)
                         # user lower case topic name when storing in map for case insensitive comparison
                         self.topic_id_map[lowercase_name] = topic_id
                         self.topic_name_map[lowercase_name] = topic
