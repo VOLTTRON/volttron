@@ -96,7 +96,6 @@ class DbDriver(object):
         self.__connect = connect
         self.__connection = None
         self.stash = local()
-        self.max_topic_id = None
 
     @contextlib.contextmanager
     def bulk_insert(self):
