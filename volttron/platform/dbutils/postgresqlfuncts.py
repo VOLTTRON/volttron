@@ -65,19 +65,6 @@ class PostgreSqlFuncts(DbDriver):
         connect.__name__ = 'psycopg2'
         super(self.__class__, self).__init__(connect)
 
-    def get_max_topic_id(self):
-
-        query = SQL(
-            'SELECT MAX(topic_id) '
-            'FROM {}').format(Identifier(self.topics_table))
-        rows = self.select(query)
-        if rows[0][0]:
-            _log.debug(f"###DEBUG max topic id {rows}")
-            return rows[0][0]
-        else:
-            return 0
-
-
     @contextlib.contextmanager
     def bulk_insert(self):
         """

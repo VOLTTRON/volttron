@@ -98,15 +98,6 @@ class DbDriver(object):
         self.stash = local()
         self.max_topic_id = None
 
-    def get_max_topic_id(self):
-        """
-        Function to return max topic id in the database. This can be used to return last inserted topic_id so that
-        concrete classes can generate topic_ids locally and bulk insert topics. Base class returns None
-        :returns: max topic id in database
-        :rtype: int
-        """
-        return None
-
     @contextlib.contextmanager
     def bulk_insert(self):
         """

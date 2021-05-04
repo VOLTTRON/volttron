@@ -431,15 +431,6 @@ ON DUPLICATE KEY UPDATE value_string=VALUES(value_string);
             name_map[n.lower()] = n
         return id_map, name_map
 
-    def get_max_topic_id(self):
-        q = "SELECT max(topic_id) from " + self.topics_table + ";"
-        rows = self.select(q)
-        if rows[0][0]:
-            _log.debug(f"###DEBUG max topic id {rows}")
-            return rows[0][0]
-        else:
-            return 0
-
     def get_agg_topics(self):
         _log.debug("in get_agg_topics")
         try:
