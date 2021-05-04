@@ -56,6 +56,7 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 from ws4py.server.geventserver import WSGIServer
 
 from .admin_endpoints import AdminEndpoints
+from .vui_endpoints import VUIEndpoints
 from .authenticate_endpoint import AuthenticateEndpoints
 from .csr_endpoints import CSREndpoints
 from .webapp import WebApplicationWrapper
@@ -164,6 +165,8 @@ class PlatformWebService(Agent):
         self._server_greenlet: Greenlet = None
         # noinspection PyTypeChecker
         self._admin_endpoints: AdminEndpoints = None
+
+        self._vui_endpoints: VUIEndpoints = None
 
     # pylint: disable=unused-argument
     @Core.receiver('onsetup')
@@ -488,6 +491,7 @@ class PlatformWebService(Agent):
                         retvalue = v(env, start_response, data)
                     except TypeError:
                         response = v(env, data)
+                        _log.debug(f'VUI:  Response at app_routing is: {response.response}')
                         return response(env, start_response)
                         # retvalue = self.process_response(start_response, v(env, data))
 
@@ -799,6 +803,11 @@ class PlatformWebService(Agent):
         # or not.
         for rt in self._admin_endpoints.get_routes():
             self.registeredroutes.append(rt)
+
+        # Register VUI endpoints:
+        self._vui_endpoints = VUIEndpoints(self)
+        _log.debug(f'VUI: adding routes - {self._vui_endpoints.get_routes()}')
+        self.registeredroutes.extend(self._vui_endpoints.get_routes())
 
         # Allow authentication endpoint from any https connection
         if parsed.scheme == 'https':
