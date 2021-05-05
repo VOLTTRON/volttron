@@ -5,6 +5,9 @@ devices.
 
 Agents may interact with the ActuatorAgent via either PUB/SUB or RPC, 
 but it is recommended agents use RPC to interact with the ActuatorAgent.
+For an example of an agent using RPC to interact with the ActuatorAgent, see the 
+`SchedulerExample agent <https://github.com/VOLTTRON/volttron/blob/main/examples/SchedulerExample/schedule_example/agent.py>`__ 
+from the Volttron repository.
 
 The PUB/SUB interface remains primarily for VOLTTRON 2.0 agents. 
 
