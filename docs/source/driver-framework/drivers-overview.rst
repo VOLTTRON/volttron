@@ -75,9 +75,9 @@ Connectivity of the platform follows the following paradigm:
 * Platform agents (including the Platform Driver and Actuator), subsystems, and user agents communicate with the message
   bus via a publish/subscribe system.
 * Agents can communicate "directly" to each other via JSONRPC (RPC). A JSONRPC call uses the VOLTTRON message bus router
-  to "direct" messages to an intended recipient. For example, suppose Agent B has a function called `do_task(x)` which
-  takes an `x` as an input parameter and returns an output. Using an RPC call, Agent A can specify the input parameter and
-  call Agent B's `do_task(x)` function. Agent B would receive the call, execute the task, and return the required output to Agent A.
+  to "direct" messages to an intended recipient. RPC calls from an agent specify a function for the recipient to
+  perform including input parameters; the response to the sender should contain the value output by the specified
+  function.
 * The Platform Driver will periodically poll device drivers. This functionality is intentionally not user-facing. The
   Platform Driver iterates over the configured drivers and calls their respective "scrape_all" methods. This will trigger
   the drivers to collect point values.
