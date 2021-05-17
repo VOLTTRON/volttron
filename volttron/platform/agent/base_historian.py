@@ -741,6 +741,10 @@ class BaseHistorianAgent(Agent):
                              "meta_table": "meta"}
         if not tables_def:
             tables_def = default_table_def
+        else:
+            default_table_def.update(tables_def)
+            tables_def = default_table_def
+
         table_names = dict(tables_def)
 
         table_prefix = tables_def.get('table_prefix', None)
