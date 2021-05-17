@@ -219,7 +219,7 @@ class RedshiftFuncts(DbDriver):
                                 for ts, value in cursor]
         return values
 
-    def insert_topic(self, topic):
+    def insert_topic(self, topic, **kwargs):
         with self.cursor() as cursor:
             cursor.execute(self.insert_topic_query(), {'topic': topic})
             return cursor.fetchone()[0]
@@ -251,6 +251,16 @@ class RedshiftFuncts(DbDriver):
         return SQL(
             'UPDATE {} SET topic_name = %s '
             'WHERE topic_id = %s').format(Identifier(self.topics_table))
+
+    def update_topic_and_meta_query(self):
+        return SQL(
+            'UPDATE {} SET topic_name = %s , metadata= %s '
+            'WHERE topic_id = %s').format(Identifier(self.topics_table))
+
+    def update_meta_query(self):
+        return SQL(
+            'UPDATE {} SET metadata= %s '
+            'WHERE topic_id = %s').format(Identifier(self.meta_table))
 
     def get_aggregation_list(self):
         return ['AVG', 'MIN', 'MAX', 'COUNT', 'SUM', 'BIT_AND', 'BIT_OR',

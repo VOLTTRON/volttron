@@ -72,6 +72,7 @@ following
 import ast
 import copy
 from datetime import datetime, timedelta
+import itertools
 import random
 import sqlite3
 import sys
@@ -121,6 +122,7 @@ try:
     import psycopg2
     import psycopg2.errorcodes
     from psycopg2 import sql as pgsql
+    from psycopg2.sql import Identifier, Literal, SQL
 
     HAS_POSTGRESQL = True
 except:
@@ -150,6 +152,7 @@ redshift_skipif = pytest.mark.skipif(
 DEVICES_ALL_TOPIC = "devices/Building/LAB/Device/all"
 MICROSECOND_PRECISION = 0
 table_names = dict()
+historian_version = ""
 connection_type = ""
 query_points = {
     "oat_point": "Building/LAB/Device/OutsideAirTemperature",
@@ -249,29 +252,24 @@ topics_table = 'topics'
 meta_table = 'meta'
 
 
-def setup_crate(connection_params, table_names):
+def setup_crate(connection_params, table_names, historian_version):
+    if historian_version == "<4.0.0":
+        return None, None
     print("setup crate")
     conn = client.connect(connection_params['host'],
                           error_trace=True)
     cursor = conn.cursor()
+    # Test if connection was successful
+    rows = cursor.execute("SHOW TABLES")
+    rows.fetchall()
     MICROSECOND_PRECISION = 3
     return conn, MICROSECOND_PRECISION
 
 
-def setup_mysql(connection_params, table_names):
+def setup_mysql(connection_params, table_names, historian_version):
     global MICROSECOND_PRECISION
-    print ("setup mysql")
+    print("setup mysql")
     db_connection = mysql.connect(**connection_params)
-    # clean_db_rows up any rows from older runs if exists
-    try:
-        cursor = db_connection.cursor()
-        cursor.execute("DELETE FROM " + table_names['data_table'])
-        cursor.execute("DELETE FROM " + table_names['topics_table'])
-        cursor.execute("DELETE FROM " + table_names['meta_table'])
-        cursor.execute("DELETE FROM " + "volttron_table_definitions")
-        db_connection.commit()
-    except Exception as e:
-        print ("Error cleaning existing table from last runs {}".format(e))
 
     cursor = db_connection.cursor()
     cursor.execute("SELECT version()")
@@ -279,7 +277,7 @@ def setup_mysql(connection_params, table_names):
     p = re.compile('(\d+)\D+(\d+)\D+(\d+)\D*')
     version_nums = p.match(version[0]).groups()
 
-    print (version)
+    print(version)
     MICROSECOND_PRECISION = 6
     if int(version_nums[0]) < 5:
         MICROSECOND_PRECISION = 0
@@ -290,21 +288,136 @@ def setup_mysql(connection_params, table_names):
             if int(version_nums[2]) < 4:
                 MICROSECOND_PRECISION = 0
 
+    # clean_db_rows up any rows from older runs if exists
+    cleanup_mysql(db_connection, table_names.values(), drop_tables=True)
+    if historian_version == "<4.0.0":
+        # test for backward compatibility
+        # explicitly create tables based on old schema - i.e separate topics and meta table - so that historian
+        # does not create tables with new schema on startup
+        print("Setting up for version <4.0.0")
+        cursor = db_connection.cursor()
+        cursor.execute('''CREATE TABLE  ''' +
+                       table_names['topics_table'] +
+                       ''' (topic_id INTEGER NOT NULL AUTO_INCREMENT,
+                       topic_name varchar(512) NOT NULL,
+                       PRIMARY KEY (topic_id),
+                       UNIQUE(topic_name))''')
+        cursor.execute('''CREATE TABLE  '''
+                       + table_names['meta_table'] +
+                       '''(topic_id INTEGER NOT NULL,
+                       metadata TEXT NOT NULL,
+                       PRIMARY KEY(topic_id))''')
+        if MICROSECOND_PRECISION == 6:
+            cursor.execute(
+                'CREATE TABLE ' + table_names['data_table'] +
+                ' (ts timestamp(6) NOT NULL,\
+                 topic_id INTEGER NOT NULL, \
+                 value_string TEXT NOT NULL, \
+                 UNIQUE(topic_id, ts))')
+        else:
+            cursor.execute(
+                'CREATE TABLE ' + table_names['data_table'] +
+                ' (ts timestamp NOT NULL,\
+                 topic_id INTEGER NOT NULL, \
+                 value_string TEXT NOT NULL, \
+                 UNIQUE(topic_id, ts))')
+
+        cursor.execute('''CREATE INDEX data_idx
+                                ON ''' + table_names['data_table'] + ''' (ts ASC)''')
+        cursor.close()
+
+    db_connection.commit()
     return db_connection, MICROSECOND_PRECISION
 
 
-def setup_sqlite(connection_params, table_names):
-    print ("setup sqlite")
+def select_all_sqlite_tables(db_connection):
+
+    cursor = db_connection.cursor()
+    query = f".tables"
+    print(f"query {query}")
+    tables = []
+    try:
+        cursor.execute(query)
+        rows = cursor.fetchall()
+        print(f"table names {rows}")
+        tables = [columns[0] for columns in rows]
+    except Exception as e:
+        print("Error getting list of {}".format(e))
+    finally:
+        if cursor:
+            cursor.close()
+    return tables
+
+
+def select_all_mysql_tables(db_connection):
+    cursor = db_connection.cursor()
+    query = f"SHOW TABLES"
+    print(f"query {query}")
+    tables = []
+    try:
+        cursor.execute(query)
+        rows = cursor.fetchall()
+        print(f"table names {rows}")
+        tables = [columns[0] for columns in rows]
+    except Exception as e:
+        print("Error getting list of {}".format(e))
+    finally:
+        if cursor:
+            cursor.close()
+    return tables
+
+
+def setup_sqlite(connection_params, table_names, historian_version):
+    print("setup sqlite")
     database_path = connection_params['database']
-    print ("connecting to sqlite path " + database_path)
+    print("connecting to sqlite path " + database_path)
     db_connection = sqlite3.connect(database_path)
     print ("successfully connected to sqlite")
+
+    # clean_db_rows up any rows from older runs if exists
+    cursor = db_connection.cursor()
+    for table in table_names.values():
+        if table:
+            cursor.execute(f"DROP TABLE IF EXISTS {table}")
+    db_connection.commit()
+
+    if historian_version == "<4.0.0":
+        # test for backward compatibility
+        # explicitly create tables based on old schema - i.e separate topics and meta table - so that historian
+        # does not create tables with new schema on startup
+        print("Setting up for version <4.0.0")
+        cursor = db_connection.cursor()
+        cursor.execute(
+            '''CREATE TABLE ''' + table_names['topics_table'] +
+            ''' (topic_id INTEGER PRIMARY KEY,
+                 topic_name TEXT NOT NULL,
+                 UNIQUE(topic_name))'''
+        )
+        cursor.execute(
+            '''CREATE TABLE ''' + table_names['meta_table'] +
+            '''(topic_id INTEGER PRIMARY KEY,
+                metadata TEXT NOT NULL)'''
+        )
+        cursor.execute(
+            '''CREATE TABLE IF NOT EXISTS ''' + table_names['data_table'] +
+            ''' (ts timestamp NOT NULL,
+                 topic_id INTEGER NOT NULL,
+                 value_string TEXT NOT NULL,
+                 UNIQUE(topic_id, ts))'''
+        )
+        cursor.execute(
+            '''CREATE INDEX IF NOT EXISTS data_idx 
+            ON ''' + table_names['data_table'] + ''' (ts ASC)'''
+        )
     db_connection.commit()
     return db_connection, 6
 
 
-def setup_mongodb(connection_params, table_names):
-    print ("setup mongodb")
+def setup_mongodb(connection_params, table_names, historian_version):
+    print("setup mongodb")
+    if historian_version == "<4.0.0":
+        return None, None
+
     mongo_conn_str = 'mongodb://{user}:{passwd}@{host}:{port}/{database}'
     params = connection_params
     if "authSource" in connection_params:
@@ -318,59 +431,106 @@ def setup_mongodb(connection_params, table_names):
     db["volttron_table_definitions"].remove()
     return db, 3
 
-def setup_postgresql(connection_params, table_names):
+def setup_postgresql(connection_params, table_names, historian_version):
+
     print("setup postgresql", connection_params, table_names)
     connection = psycopg2.connect(**connection_params)
     connection.autocommit = True
-    prefix = table_names.get('table_prefix')
-    fmt = (prefix + '_{}' if prefix else '{}').format
-    truncate_tables = [fmt(name) for id_, name in table_names.items()
-                       if id_ != 'table_prefix' and name]
-    truncate_tables.append(fmt('volttron_table_definitions'))
     try:
-        cleanup_postgresql(connection, truncate_tables)
+        cleanup_postgresql(connection, table_names.values(), drop_tables=True)
     except Exception as exc:
         print('Error truncating existing tables: {}'.format(exc))
+    if historian_version == "<4.0.0":
+        # test for backward compatibility
+        # explicitly create tables based on old schema - i.e separate topics and meta table - so that historian
+        # does not create tables with new schema on startup
+        print("Setting up for version <4.0.0")
+        cursor = connection.cursor()
+        cursor.execute(SQL(
+            'CREATE TABLE IF NOT EXISTS {} ('
+            'ts TIMESTAMP NOT NULL, '
+            'topic_id INTEGER NOT NULL, '
+            'value_string TEXT NOT NULL, '
+            'UNIQUE (topic_id, ts)'
+            ')').format(Identifier(table_names['data_table'])))
+        cursor.execute(SQL(
+            'CREATE INDEX IF NOT EXISTS {} ON {} (ts ASC)').format(
+            Identifier('idx_' + table_names['data_table']),
+            Identifier(table_names['data_table'])))
+        cursor.execute(SQL(
+            'CREATE TABLE IF NOT EXISTS {} ('
+            'topic_id SERIAL PRIMARY KEY NOT NULL, '
+            'topic_name VARCHAR(512) NOT NULL, '
+            'UNIQUE (topic_name)'
+            ')').format(Identifier(table_names['topics_table'])))
+        cursor.execute(SQL(
+            'CREATE TABLE IF NOT EXISTS {} ('
+                'topic_id INTEGER PRIMARY KEY NOT NULL, '
+                'metadata TEXT NOT NULL'
+            ')').format(Identifier(table_names['meta_table'])))
+        connection.commit()
+
     return connection, 6
 
 setup_redshift = setup_postgresql
 
-def cleanup_sql(db_connection, truncate_tables):
+
+def cleanup_sql(db_connection, truncate_tables, select_fn, drop_tables=False):
     cursor = db_connection.cursor()
-    for table in truncate_tables:
-        cursor.execute("DELETE FROM " + table)
+    if truncate_tables is None:
+        truncate_tables = select_fn(db_connection)
+
+    if drop_tables:
+        for table in truncate_tables:
+            if table:
+                cursor.execute("DROP TABLE IF EXISTS " + table)
+    else:
+        for table in truncate_tables:
+            cursor.execute("DELETE FROM " + table)
     db_connection.commit()
     cursor.close()
 
-def cleanup_sqlite(db_connection, truncate_tables):
-    cleanup_sql(db_connection, truncate_tables)
+
+def cleanup_sqlite(db_connection, truncate_tables, drop_tables=False):
+    cleanup_sql(db_connection, truncate_tables, select_all_sqlite_tables, drop_tables)
 
 
-def cleanup_mysql(db_connection, truncate_tables):
-    cleanup_sql(db_connection, truncate_tables)
+def cleanup_mysql(db_connection, truncate_tables, drop_tables=False):
+    cleanup_sql(db_connection, truncate_tables, select_all_mysql_tables, drop_tables)
 
 
-def cleanup_mongodb(db_connection, truncate_tables):
+def cleanup_mongodb(db_connection, truncate_tables, drop_tables=True):
     for collection in truncate_tables:
         db_connection[collection].remove()
 
 
-def cleanup_crate(db_connection, truncate_tables):
+def cleanup_crate(db_connection, truncate_tables, drop_tables=True):
     crate_utils.drop_schema(db_connection, truncate_tables,
                             schema=crate_platform['connection']['schema'])
 
 
-def cleanup_postgresql(connection, truncate_tables):
+def cleanup_postgresql(connection, truncate_tables, drop_tables=False):
     print('cleanup_postgreql({!r}, {!r})'.format(connection, truncate_tables))
+    if truncate_tables is None:
+        cursor = connection.cursor()
+        cursor.execute(f"""SELECT table_name FROM information_schema.tables
+                        WHERE table_catalog = 'test_historian' and table_schema = 'public'""")
+        rows = cursor.fetchall()
+        truncate_tables = [columns[0] for columns in rows]
     for table in truncate_tables:
-        with connection.cursor() as cursor:
-            try:
-                cursor.execute(pgsql.SQL('TRUNCATE TABLE {}').format(
-                    pgsql.Identifier(table)))
-            except psycopg2.ProgrammingError as exc:
-                if exc.pgcode != psycopg2.errorcodes.UNDEFINED_TABLE:
-                    raise
-                print("Error truncating {!r} table: {}".format(table, exc))
+        if table:
+            with connection.cursor() as cursor:
+                try:
+                    if drop_tables:
+                        cursor.execute(pgsql.SQL('DROP TABLE IF EXISTS {}').format(
+                            pgsql.Identifier(table)))
+                    else:
+                        cursor.execute(pgsql.SQL('TRUNCATE TABLE {}').format(
+                          pgsql.Identifier(table)))
+                except psycopg2.ProgrammingError as exc:
+                    if exc.pgcode != psycopg2.errorcodes.UNDEFINED_TABLE:
+                        raise
+                    print("Error truncating {!r} table: {}".format(table, exc))
 
 cleanup_redshift = cleanup_postgresql
 
@@ -450,27 +610,41 @@ def query_agent(request, volttron_instance):
 
 # Fixtures for setup and teardown of historian agent
 @pytest.fixture(scope="module",
-                params=[
+                params=itertools.product(
+                    [
                     pytest.param(crate_platform, marks=crate_skipif),
                     pytest.param(mysql_platform, marks=mysql_skipif),
                     sqlite_platform,
                     pytest.param(mongo_platform, marks=pymongo_skipif),
                     pytest.param(postgresql_platform, marks=postgresql_skipif),
                     pytest.param(redshift_platform, marks=redshift_skipif)
-                ])
+                    ],
+                    ["<4.0.0",
+                     ">=4.0.0"
+                    ]
+                ))
 def historian(request, volttron_instance, query_agent):
     global db_connection, MICROSECOND_PRECISION, table_names, \
-        connection_type, identity
+        connection_type, identity, historian_version
 
     print("** Setting up test_historian module **")
     # Make database connection
-    print("request param", request.param)
-    connection_type = request.param['connection']['type']
+
+    if isinstance(request.param[0], dict):
+        db_params = request.param[0]
+    else:
+        # It is a pytest ParameterSet instance (because param is enclosed in pytest.param)
+        db_params = request.param[0].values[0]
+
+    print("request param", db_params, request.param[1], type(db_params), type(request.param[1]))
+    print("historian version ", request.param[1])
+    connection_type = db_params['connection']['type']
     if connection_type == 'sqlite':
-        request.param['connection']['params']['database'] = \
+        db_params['connection']['params']['database'] = \
             volttron_instance.volttron_home + "/historian.sqlite"
 
-    table_names = get_table_names(request.param)
+    table_names = get_table_names(db_params)
+    historian_version = request.param[1]
 
     # 2: Open db connection that can be used for row deletes after
     # each test method. Create tables
@@ -478,16 +652,24 @@ def historian(request, volttron_instance, query_agent):
     try:
         setup_function = globals()[function_name]
         print(table_names)
-        db_connection, MICROSECOND_PRECISION = \
-            setup_function(request.param['connection']['params'], table_names)
+        try:
+            db_connection, MICROSECOND_PRECISION = setup_function(db_params['connection']['params'],
+                                                                  table_names, historian_version)
+        except Exception as e:
+            pytest.skip(msg=f"Exception setting up database: {e} Skipping tests for this historian",
+                        allow_module_level=True)
+
+        if db_connection is None:
+            pytest.skip(msg="Test case not valid for current request parameter", allow_module_level=True)
+        gevent.sleep(2)
     except NameError:
         pytest.fail(
             msg="No setup method({}) found for connection type {} ".format(
                 function_name, connection_type))
 
-    print ("request.param -- {}".format(request.param))
+    print("request.param -- {}".format(db_params))
     # 2. Install agent - historian
-    temp_config = copy.copy(request.param)
+    temp_config = copy.copy(db_params)
     source = temp_config.pop('source_historian')
     historian_uuid = volttron_instance.install_agent(
         vip_identity='platform.historian',
@@ -503,12 +685,17 @@ def historian(request, volttron_instance, query_agent):
         if volttron_instance.is_running() and volttron_instance.is_agent_running(historian_uuid):
             volttron_instance.stop_agent(historian_uuid)
         volttron_instance.remove_agent(historian_uuid)
+        cleanup_function = globals()["cleanup_" + connection_type]
+        import inspect
+        inspect.getargspec(cleanup_function)[0]
+        cleanup_function(db_connection, None, drop_tables=True)
+        gevent.sleep(1)
 
     request.addfinalizer(stop_agent)
     # put source info back as test cases might use it to installer more
     # instances of historian
-    request.param['source_historian'] = source
-    return request.param
+    db_params['source_historian'] = source
+    return db_params
 
 
 @pytest.fixture()
@@ -520,7 +707,7 @@ def clean_db_rows(request):
     inspect.getargspec(cleanup_function)[0]
     # do not clean topics table here as we are not restarting historian
     # for each test case and topics table is loaded in memory only on start
-    cleanup_function(db_connection, [table_names['data_table'], table_names['meta_table']])
+    cleanup_function(db_connection, [table_names['data_table']])
 
 
 def publish(publish_agent, topic, header, message):
@@ -649,7 +836,7 @@ def test_basic_function(request, historian, publish_agent, query_agent,
     assert (result['values'][0][1] == damper_reading)
     assert set(result['metadata'].items()) == set(percent_meta.items())
 
-
+@pytest.mark.timeout(1000)
 @pytest.mark.historian
 def test_basic_function_optional_config(request, historian, publish_agent,
                                         query_agent, clean_db_rows,
@@ -669,7 +856,7 @@ def test_basic_function_optional_config(request, historian, publish_agent,
     instance in which agents are tested
     """
     global query_points, DEVICES_ALL_TOPIC, db_connection, topics_table, \
-        connection_type
+        connection_type, historian_version
 
     # print('HOME', volttron_instance.volttron_home)
     print("\n** test_basic_function_optional_config for {}**".format(
@@ -680,6 +867,14 @@ def test_basic_function_optional_config(request, historian, publish_agent,
         new_historian["tables_def"] = {"table_prefix": "",
             "data_table": "data_table", "topics_table": "topics_table",
             "meta_table": "meta_table"}
+
+        setup_function = globals()["setup_" + connection_type]
+        db_connection_params = historian['connection']['params']
+
+        # Handle table creation before starting agent based on historian version
+        setup_function(db_connection_params,
+                       {"data_table": "data_table", "topics_table": "topics_table", "meta_table": "meta_table"},
+                       historian_version)
 
         # 1: Install historian agent
         # Install and start historian agent
@@ -709,7 +904,11 @@ def test_basic_function_optional_config(request, historian, publish_agent,
 
         volttron_instance.remove_agent(agent_uuid)
 
-        # reinstall agent this time with readonly=True
+        # reinstall agent this time with table prefix
+        setup_function(db_connection_params,
+                       {"data_table": "prefix_data_table",
+                        "topics_table": "prefix_topics_table", "meta_table": "prefix_meta_table"},
+                       historian_version)
 
         new_historian["tables_def"] = {"table_prefix": "prefix",
                                        "data_table": "data_table",
@@ -722,7 +921,48 @@ def test_basic_function_optional_config(request, historian, publish_agent,
 
         # Publish messages
         publish(publish_agent, topics.RECORD(subtopic="test"), None, 2)
+        oat_reading = random_uniform(30, 100)
+        mixed_reading = oat_reading + random_uniform(-5, 5)
+        damper_reading = random_uniform(0, 100)
+
+        float_meta = {'units': 'F', 'tz': 'UTC', 'type': 'float'}
+        percent_meta = {'units': '%', 'tz': 'UTC', 'type': 'float'}
+
+        # Create a message for all points.
+        all_message = [{'OutsideAirTemperature': oat_reading,
+                        'MixedAirTemperature': mixed_reading,
+                        'DamperSignal': damper_reading},
+                       {'OutsideAirTemperature': float_meta,
+                        'MixedAirTemperature': float_meta,
+                        'DamperSignal': percent_meta
+                        }]
+
+        # Create timestamp
+        now = utils.format_timestamp(datetime.utcnow())
+
+        # now = '2015-12-02T00:00:00'
+        headers = {
+            headers_mod.DATE: now,
+            headers_mod.TIMESTAMP: now
+        }
+        print("Published time in header: " + now)
+        # Publish messages
+        publish(publish_agent, DEVICES_ALL_TOPIC, headers, all_message)
+
         gevent.sleep(2)
+
+        # Query the historian
+        result = query_agent.vip.rpc.call('hist2',
+                                          'query',
+                                          topic=query_points['oat_point'],
+                                          count=20,
+                                          order="LAST_TO_FIRST").get(timeout=100)
+        print('Query Result', result)
+        assert (len(result['values']) == 1)
+        (now_date, now_time) = now.split("T")
+        assert_timestamp(result['values'][0][0], now_date, now_time)
+        assert (result['values'][0][1] == oat_reading)
+        assert set(result['metadata'].items()) == set(float_meta.items())
 
         # Query the historian
         result = query_agent.vip.rpc.call('hist2', 'query',
@@ -734,11 +974,6 @@ def test_basic_function_optional_config(request, historian, publish_agent,
 
     finally:
         if agent_uuid:
-            cleanup_function = globals()["cleanup_" + connection_type]
-            cleanup_function(db_connection,
-                             ['data_table', 'topics_table',
-                              'meta_table', 'prefix_data_table',
-                              'prefix_topics_table', 'prefix_meta_table'])
             volttron_instance.stop_agent(agent_uuid)
             volttron_instance.remove_agent(agent_uuid)
 
@@ -1139,7 +1374,7 @@ def test_topic_name_case_change(request, historian, publish_agent,
     # Create a message for all points.
     all_message = [{'Outsideairtemperature': oat_reading,
                     'MixedAirTemperature': mixed_reading},
-                   {'Outsideairtemperature': {'units': 'F', 'tz': 'UTC',
+                   {'Outsideairtemperature': {'units': 'c', 'tz': 'UTC',
                                               'type': 'float'},
                     'MixedAirTemperature': {'units': 'F', 'tz': 'UTC',
                                             'type': 'float'}
@@ -1419,8 +1654,7 @@ def test_analysis_topic_replacement(request, historian, publish_agent,
         if agent_uuid:
             cleanup_function = globals()["cleanup_" + connection_type]
             cleanup_function(db_connection, ['readonly_data',
-                                             'readonly_topics',
-                                             'readonly_meta'])
+                                             'readonly_topics'])
             volttron_instance.stop_agent(agent_uuid)
             volttron_instance.remove_agent(agent_uuid)
 
@@ -1877,7 +2111,7 @@ def test_get_topic_metadata(request, historian, publish_agent,
     :param query_agent: instance of fake volttron 3.0 agent used to query
     using rpc
     :param historian: instance of the historian tested
-    :param clean_db_rows: fixture to clear data table 
+    :param clean_db_rows: fixture to clear data table
     """
 
     global query_points
@@ -2058,6 +2292,98 @@ def test_metadata_update(request, historian, volttron_instance, publish_agent, q
             volttron_instance.remove_agent(agent_uuid)
 
 
+
+@pytest.mark.historian
+def test_topic_and_metadata_update(request, historian, volttron_instance, publish_agent, query_agent, clean_db_rows):
+    """
+    Test  metadata update
+    Expected result:
+     Should return a map of {topic_name:metadata}
+     Should work for a single topic string and list of topics
+     Should throw ValueError when input is not string or list
+
+
+    :param request: pytest request object
+    :param publish_agent: instance of volttron 2.0/3.0agent used to publish
+    :param query_agent: instance of fake volttron 3.0 agent used to query
+    using rpc
+    :param historian: instance of the historian tested
+    :param clean_db_rows: fixture to clear data table
+    """
+
+    global query_points
+    oat_reading = random_uniform(30, 100)
+    float_meta_new = {'units': 'F', 'tz': 'UTC', 'type': 'float1'}
+    # Create a message for all points.
+    all_message = [{'OutsideAirTemperature': oat_reading},  {'OutsideAirTemperature': float_meta_new}]
+
+    # Create timestamp
+    now = utils.format_timestamp(datetime.utcnow())
+
+    headers = {
+        headers_mod.DATE: now,
+        headers_mod.TIMESTAMP: now
+    }
+    print("Published time in header: " + now)
+    # Publish messages
+    publish(publish_agent, DEVICES_ALL_TOPIC, headers, all_message)
+
+    gevent.sleep(2)
+
+    # Query the historian
+    result = query_agent.vip.rpc.call(identity,
+                                      'query',
+                                      topic=query_points['oat_point'],
+                                      count=20,
+                                      order="LAST_TO_FIRST").get(timeout=100)
+    print('Query Result 1', result)
+    assert (len(result['values']) == 1)
+    (now_date, now_time) = now.split("T")
+    assert_timestamp(result['values'][0][0], now_date, now_time)
+    assert (result['values'][0][1] == oat_reading)
+    assert result['metadata'] == float_meta_new
+
+    # Now publish with metadata and topic name case change
+    float_meta = {'units': 'F', 'tz': 'UTC', 'type': 'float'}
+    oat_reading = random_uniform(30, 100)
+    mixed_reading = random_uniform(30, 100)
+    # Create a message for all points.
+    all_message = [{'outsideairtemperature': oat_reading,
+                    'MixedAirTemperature': mixed_reading},
+                   {'outsideairtemperature': float_meta,
+                    'MixedAirTemperature': float_meta}]
+
+    # Create timestamp
+    now = utils.format_timestamp(datetime.utcnow())
+
+    headers = {
+        headers_mod.DATE: now,
+        headers_mod.TIMESTAMP: now
+    }
+    print("Published time in header: " + now)
+    # Publish messages
+    publish(publish_agent, DEVICES_ALL_TOPIC, headers, all_message)
+
+    gevent.sleep(3)
+
+    # Query the historian
+    result = query_agent.vip.rpc.call(identity,
+                                      'query',
+                                      topic=query_points['oat_point'],
+                                      count=20,
+                                      order="LAST_TO_FIRST").get(timeout=100)
+
+    assert set(result['metadata'].items()) == set(float_meta.items())
+
+    result = query_agent.vip.rpc.call(identity,
+                                      'query',
+                                      topic=query_points['mixed_point'],
+                                      count=20,
+                                      order="LAST_TO_FIRST").get(timeout=100)
+
+    assert set(result['metadata'].items()) == set(float_meta.items())
+
+
 @pytest.mark.historian
 def test_insert_duplicate(request, historian, publish_agent, query_agent,
                         clean_db_rows):
@@ -2070,7 +2396,7 @@ def test_insert_duplicate(request, historian, publish_agent, query_agent,
     :param query_agent: instance of fake volttron 3.0 agent used to query
     using rpc
     :param historian: instance of the historian tested
-    :param clean_db_rows: fixture to clear data table 
+    :param clean_db_rows: fixture to clear data table
     """
     global query_points, DEVICES_ALL_TOPIC, db_connection
 
@@ -2149,7 +2475,7 @@ def test_multi_topic_query(request, historian, publish_agent, query_agent,
     :param query_agent: instance of fake volttron 3.0 agent used to query
     using rpc
     :param historian: instance of the historian tested
-    :param clean_db_rows: fixture to clear data table 
+    :param clean_db_rows: fixture to clear data table
     """
 
     global query_points, DEVICES_ALL_TOPIC, db_connection
@@ -2307,7 +2633,7 @@ def test_query_with_naive_timestamp(request, historian, publish_agent,
     :param query_agent: instance of fake volttron 3.0 agent used to query
     using rpc
     :param historian: instance of the historian tested
-    :param clean_db_rows: fixture to clear data table 
+    :param clean_db_rows: fixture to clear data table
     """
 
     global query_points, DEVICES_ALL_TOPIC, db_connection
@@ -2377,7 +2703,7 @@ def test_query_with_start_end_count(request, historian, publish_agent,
     :param query_agent: instance of fake volttron 3.0 agent used to query
     using rpc
     :param historian: instance of the historian tested
-    :param clean_db_rows: fixture to clear data table 
+    :param clean_db_rows: fixture to clear data table
     """
 
     global query_points, DEVICES_ALL_TOPIC, db_connection
@@ -2452,7 +2778,7 @@ def test_get_topic_list(request, historian, publish_agent, query_agent,
     :param query_agent: instance of fake volttron 3.0 agent used to query
     using rpc
     :param historian: instance of the historian tested
-    :param clean_db_rows: fixture to clear data table 
+    :param clean_db_rows: fixture to clear data table
     :param volttron_instance: instance of PlatformWrapper. Volttron
     instance in which agents are tested
     """
@@ -2461,25 +2787,22 @@ def test_get_topic_list(request, historian, publish_agent, query_agent,
         connection_type
 
     # print('HOME', volttron_instance.volttron_home)
-    print("\n** test_basic_function for {}**".format(
+    print("\n** test_basic_function_optional_config for {}**".format(
         request.keywords.node.name))
     agent_uuid = None
     try:
         new_historian = copy.copy(historian)
-        new_historian["tables_def"] = {
-            "table_prefix": "topic_list_test",
-            "data_table":"data",
-            "topics_table": "topics",
-            "meta_table": "meta"}
+        new_historian["tables_def"] = {"table_prefix": "topic_list"}
 
         # 1: Install historian agent
         # Install and start historian agent
         source = new_historian.pop('source_historian')
-        agent_uuid = volttron_instance.install_agent(
-            agent_dir=source,
-            config_file=new_historian,
-            start=True, vip_identity='topic_list.historian')
+        agent_uuid = volttron_instance.install_agent(agent_dir=source,
+                                                     config_file=new_historian, start=True,
+                                                     vip_identity='hist2')
         print("agent id: ", agent_uuid)
+
+
 
         # Publish fake data. The format mimics the format used by VOLTTRON drivers.
         # Make some random readings
@@ -2491,10 +2814,17 @@ def test_get_topic_list(request, historian, publish_agent, query_agent,
         percent_meta = {'units': '%', 'tz': 'UTC', 'type': 'float'}
 
         # Create a message for all points.
+        # Add a new topic to the standard 3 topics that might have already got published due to other tests run within
+        # this session. Since we don't restart historian the topic list is from memory. SO add new topic and see
+        # if get list gets all topics
         all_message = [{'OutsideAirTemperature': oat_reading,
-                        'MixedAirTemperature': mixed_reading},
+                        'MixedAirTemperature': mixed_reading,
+                        'DamperSignal': damper_reading,
+                        'newtopic': oat_reading},
                        {'OutsideAirTemperature': float_meta,
-                        'MixedAirTemperature': float_meta}]
+                        'MixedAirTemperature': float_meta,
+                        'DamperSignal': percent_meta
+                        }]
 
         # Create timestamp
         now = utils.format_timestamp(datetime.utcnow())
@@ -2511,25 +2841,26 @@ def test_get_topic_list(request, historian, publish_agent, query_agent,
         gevent.sleep(2)
 
         # Query the historian
-        topic_list = query_agent.vip.rpc.call('topic_list.historian',
-                                          'get_topic_list').get(timeout=100)
+        topic_list = query_agent.vip.rpc.call('hist2', 'get_topic_list').get(timeout=100)
         print('Query Result', topic_list)
-        assert len(topic_list) == 2
-        expected = [query_points['oat_point'], query_points['mixed_point']]
-        assert set(topic_list) ==  set(expected)
+        assert len(topic_list) == 4
+        expected = [query_points['oat_point'], query_points['mixed_point'], query_points['damper_point'],
+                    "Building/LAB/Device/newtopic"]
+        assert set(topic_list) == set(expected)
     finally:
         if agent_uuid:
             cleanup_function = globals()["cleanup_" + connection_type]
-            cleanup_function(db_connection, ['topic_list_test_data',
-                                             'topic_list_test_topics',
-                                             'topic_list_test_meta'])
+            # Not removing meta table as for historian >= 4.0 there will be no separate meta table.
+            # All tables are cleaned at the end of test session
+            cleanup_function(db_connection,
+                             ['topic_list_data', 'topic_list_topics'])
             volttron_instance.stop_agent(agent_uuid)
             volttron_instance.remove_agent(agent_uuid)
-
 
 @pytest.mark.historian
 def test_readonly_mode(request, historian, publish_agent, query_agent,
                        clean_db_rows, volttron_instance):
+
     """
     Test the readonly mode of historian where historian is only used to query
     and not insert anything into the database.
@@ -2540,7 +2871,7 @@ def test_readonly_mode(request, historian, publish_agent, query_agent,
     :param query_agent: instance of fake volttron 3.0 agent used to query
     using rpc
     :param historian: instance of the historian tested
-    :param clean_db_rows: fixture to clear data table 
+    :param clean_db_rows: fixture to clear data table
     :param volttron_instance: instance of PlatformWrapper. Volttron
     instance in which agents are tested
     """
@@ -2554,12 +2885,7 @@ def test_readonly_mode(request, historian, publish_agent, query_agent,
     agent_uuid = None
     try:
         new_historian = copy.copy(historian)
-        new_historian["tables_def"] = {
-            "table_prefix": "readonly",
-            "data_table":"data",
-            "topics_table": "topics",
-            "meta_table": "meta"}
-
+        new_historian["tables_def"] = {"table_prefix": "readonly"}
         # 1: Install historian agent
         # Install and start historian agent
         source = new_historian.pop('source_historian')
@@ -2617,9 +2943,10 @@ def test_readonly_mode(request, historian, publish_agent, query_agent,
     finally:
         if agent_uuid:
             cleanup_function = globals()["cleanup_" + connection_type]
-            cleanup_function(db_connection, ['readonly_data',
-                                             'readonly_topics',
-                                             'readonly_meta'])
+            # Not removing meta table as for historian >= 4.0 there will be no separate meta table.
+            # All tables are cleaned at the end of test session
+            cleanup_function(db_connection,
+                             ['readonly_data', 'readonly_topics'])
             volttron_instance.stop_agent(agent_uuid)
             volttron_instance.remove_agent(agent_uuid)
 

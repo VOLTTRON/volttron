@@ -46,7 +46,7 @@ from volttron.platform.agent.base_historian import BaseHistorian
 from volttron.platform.dbutils import sqlutils
 from volttron.utils.docs import doc_inherit
 
-__version__ = "3.7.0"
+__version__ = "4.0.0"
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -180,20 +180,38 @@ class SQLHistorian(BaseHistorian):
                     topic_id = self.topic_id_map.get(lowercase_name, None)
                     db_topic_name = self.topic_name_map.get(lowercase_name,
                                                             None)
+                    old_meta = self.topic_meta.get(topic_id, {})
+                    update_topic_meta = True
                     if topic_id is None:
-                        # _log.debug('Inserting topic: {}'.format(topic))
-                        # Insert topic name as is in db
-                        topic_id = self.bg_thread_dbutils.insert_topic(topic)
+                        # send metadata data too. If topics table contains metadata column too it will get inserted
+                        topic_id = self.bg_thread_dbutils.insert_topic(topic, metadata=meta)
                         # user lower case topic name when storing in map for case insensitive comparison
-                        self.topic_id_map[lowercase_name] = topic_id
                         self.topic_name_map[lowercase_name] = topic
+                        self.topic_id_map[lowercase_name] = topic_id
+                        update_topic_meta = False
                     elif db_topic_name != topic:
-                        self.bg_thread_dbutils.update_topic(topic, topic_id)
+                        if old_meta != meta:
+                            _log.debug(f"META HAS CHANGED TOO. old:{old_meta} new:{meta}")
+                            # pass metadata if metadata is stored in topics table metadata will get updated too
+                            # if not will get ignored
+                            self.bg_thread_dbutils.update_topic(topic, topic_id, metadata=meta)
+                            update_topic_meta = False
+                        else:
+                            self.bg_thread_dbutils.update_topic(topic, topic_id)
                         self.topic_name_map[lowercase_name] = topic
 
-                    old_meta = self.topic_meta.get(topic_id, {})
                     if old_meta != meta:
-                        insert_meta(topic_id, meta)
+                        if self.bg_thread_dbutils.topics_table != self.bg_thread_dbutils.meta_table:
+                            # there is a separate metadata table. do bulk insert
+                            _log.debug("meta in separate table")
+                            insert_meta(topic_id, meta)
+                        elif update_topic_meta:
+                            _log.debug(" meta in same table. no topic change only meta changed")
+                            # topic name and metadata are in same table, and metadata has not got into db during insert
+                            # or update of topic so update meta alone in topics table
+                            self.bg_thread_dbutils.update_meta(metadata=meta, topic_id=topic_id)
+
+                        # either way update cache
                         self.topic_meta[topic_id] = meta
 
                     if insert_data(ts, topic_id, value):

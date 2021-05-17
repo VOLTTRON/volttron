@@ -62,6 +62,7 @@ class MySqlFuncts(DbDriver):
     def __init__(self, connect_params, table_names):
         # kwargs['dbapimodule'] = 'mysql.connector'
         self.MICROSECOND_SUPPORT = None
+        self.db_name = connect_params.get('database')
 
         self.data_table = None
         self.topics_table = None
@@ -97,16 +98,23 @@ class MySqlFuncts(DbDriver):
                 if int(version_nums[2]) < 4:
                     self.MICROSECOND_SUPPORT = False
 
-
-
     def setup_historian_tables(self):
         if self.MICROSECOND_SUPPORT is None:
             self.init_microsecond_support()
 
         rows = self.select("show tables like %s", [self.data_table])
+        _log.debug(f"Checking if data table {self.data_table} exists. Got rows as {rows}")
         if rows:
             _log.debug("Found table {}. Historian table exists".format(
                 self.data_table))
+            rows = self.select(f"""SELECT 1 FROM information_schema.COLUMNS 
+            WHERE TABLE_SCHEMA = '{self.db_name}' AND 
+            TABLE_NAME = '{self.topics_table}' AND 
+            COLUMN_NAME = 'metadata'""")
+            if rows:
+                # metadata is now in topics table
+                _log.debug("Found new schema. topics table contains metadata")
+                self.meta_table = self.topics_table
             return
 
         try:
@@ -131,15 +139,13 @@ class MySqlFuncts(DbDriver):
                               self.topics_table +
                               ''' (topic_id INTEGER NOT NULL AUTO_INCREMENT,
                                    topic_name varchar(512) NOT NULL,
+                                   metadata TEXT,
                                    PRIMARY KEY (topic_id),
                                    UNIQUE(topic_name))''')
-            self.execute_stmt('''CREATE TABLE  '''
-                              + self.meta_table +
-                              '''(topic_id INTEGER NOT NULL,
-                               metadata TEXT NOT NULL,
-                               PRIMARY KEY(topic_id))''')
+            _log.debug("Created new schema. topics table contains metadata")
+            self.meta_table = self.topics_table
             self.commit()
-            _log.debug("Created data topics and meta tables")
+            _log.debug("Created data and topics tables")
         except MysqlError as err:
             err_msg = "Error creating " \
                       "historian tables as the configured user. " \
@@ -387,9 +393,29 @@ ON DUPLICATE KEY UPDATE value_string=VALUES(value_string);
         return '''INSERT INTO ''' + self.topics_table + ''' (topic_name)
             values (%s)'''
 
+    def insert_topic_and_meta_query(self):
+        return '''INSERT INTO  ''' + self.topics_table + ''' (topic_name, metadata)
+                        values(%s, %s)'''
+
     def update_topic_query(self):
         return '''UPDATE ''' + self.topics_table + ''' SET topic_name = %s
             WHERE topic_id = %s'''
+
+    def update_topic_and_meta_query(self):
+        """
+        :return: query string to update both metadata and topic_name field in self.topics_table. This is used from
+         SQLHistorian version 4.0.0
+        """
+        return '''UPDATE ''' + self.topics_table + ''' SET topic_name = %s , metadata = %s 
+                    WHERE topic_id = %s'''
+
+    def update_meta_query(self):
+        """
+        :return: query string to update metadata field in self.topics_table. This is used from
+         SQLHistorian version 4.0.0
+        """
+        return '''UPDATE ''' + self.meta_table + ''' SET metadata = %s 
+                    WHERE topic_id = %s'''
 
     def get_aggregation_list(self):
         return ['AVG', 'MIN', 'MAX', 'COUNT', 'SUM', 'BIT_AND', 'BIT_OR',

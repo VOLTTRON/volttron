@@ -146,38 +146,47 @@ class PostgreSqlFuncts(DbDriver):
             return False
 
     def setup_historian_tables(self):
-        self.execute_stmt(SQL(
-            'CREATE TABLE IF NOT EXISTS {} ('
-                'ts TIMESTAMP NOT NULL, '
-                'topic_id INTEGER NOT NULL, '
-                'value_string TEXT NOT NULL, '
-                'UNIQUE (topic_id, ts)'
-            ')').format(Identifier(self.data_table)))
-        if self.timescale_dialect:
-            _log.debug("trying to create hypertable")
-            self.execute_stmt(SQL(
-                "SELECT create_hypertable({}, 'ts', if_not_exists => true)").format(
-                Literal(self.data_table)))
-            self.execute_stmt(SQL(
-                'CREATE INDEX ON {} (topic_id, ts)').format(
-                Identifier(self.data_table)))
+        rows = self.select(f"""SELECT table_name FROM information_schema.tables
+                            WHERE table_catalog = 'test_historian' and table_schema = 'public' 
+                            AND table_name = '{self.data_table}'""")
+        if rows:
+            _log.debug("Found table {}. Historian table exists".format(
+                self.data_table))
+            rows = self.select(f"""SELECT column_name FROM information_schema.columns
+                                WHERE table_name = '{self.topics_table}' and column_name = 'metadata'""")
+            if rows:
+                # metadata is in topics table
+                self.meta_table = self.topics_table
         else:
             self.execute_stmt(SQL(
-                'CREATE INDEX IF NOT EXISTS {} ON {} (ts ASC)').format(
-                Identifier('idx_' + self.data_table),
-                Identifier(self.data_table)))
-        self.execute_stmt(SQL(
-            'CREATE TABLE IF NOT EXISTS {} ('
-                'topic_id SERIAL PRIMARY KEY NOT NULL, '
-                'topic_name VARCHAR(512) NOT NULL, '
-                'UNIQUE (topic_name)'
-            ')').format(Identifier(self.topics_table)))
-        self.execute_stmt(SQL(
-            'CREATE TABLE IF NOT EXISTS {} ('
-                'topic_id INTEGER PRIMARY KEY NOT NULL, '
-                'metadata TEXT NOT NULL'
-            ')').format(Identifier(self.meta_table)))
-        self.commit()
+                'CREATE TABLE IF NOT EXISTS {} ('
+                    'ts TIMESTAMP NOT NULL, '
+                    'topic_id INTEGER NOT NULL, '
+                    'value_string TEXT NOT NULL, '
+                    'UNIQUE (topic_id, ts)'
+                ')').format(Identifier(self.data_table)))
+            if self.timescale_dialect:
+                _log.debug("trying to create hypertable")
+                self.execute_stmt(SQL(
+                    "SELECT create_hypertable({}, 'ts', if_not_exists => true)").format(
+                    Literal(self.data_table)))
+                self.execute_stmt(SQL(
+                    'CREATE INDEX ON {} (topic_id, ts)').format(
+                    Identifier(self.data_table)))
+            else:
+                self.execute_stmt(SQL(
+                    'CREATE INDEX IF NOT EXISTS {} ON {} (ts ASC)').format(
+                    Identifier('idx_' + self.data_table),
+                    Identifier(self.data_table)))
+
+            self.execute_stmt(SQL(
+                'CREATE TABLE IF NOT EXISTS {} ('
+                    'topic_id SERIAL PRIMARY KEY NOT NULL, '
+                    'topic_name VARCHAR(512) NOT NULL, '
+                    'metadata TEXT, '
+                    'UNIQUE (topic_name)'
+                ')').format(Identifier(self.topics_table)))
+            self.commit()
 
     def record_table_definitions(self, tables_def, meta_table_name):
         meta_table = Identifier(meta_table_name)
@@ -270,7 +279,7 @@ class PostgreSqlFuncts(DbDriver):
                                 for ts, value in cursor]
         return values
 
-    def insert_topic(self, topic):
+    def insert_topic(self, topic, **kwargs):
         with self.cursor() as cursor:
             cursor.execute(self.insert_topic_query(), {'topic': topic})
             return cursor.fetchone()[0]
@@ -300,10 +309,26 @@ class PostgreSqlFuncts(DbDriver):
             'INSERT INTO {} (topic_name) VALUES (%(topic)s) '
             'RETURNING topic_id').format(Identifier(self.topics_table))
 
+    def insert_topic_and_meta_query(self):
+        return SQL(
+            'INSERT INTO {} (topic_name, metadata) VALUES (%s, %s) '
+            'RETURNING topic_id').format(Identifier(self.topics_table))
+
+
     def update_topic_query(self):
         return SQL(
             'UPDATE {} SET topic_name = %s '
             'WHERE topic_id = %s').format(Identifier(self.topics_table))
+
+    def update_topic_and_meta_query(self):
+        return SQL(
+            'UPDATE {} SET topic_name = %s , metadata= %s '
+            'WHERE topic_id = %s').format(Identifier(self.topics_table))
+
+    def update_meta_query(self):
+        return SQL(
+            'UPDATE {} SET metadata= %s '
+            'WHERE topic_id = %s').format(Identifier(self.meta_table))
 
     def get_aggregation_list(self):
         return ['AVG', 'MIN', 'MAX', 'COUNT', 'SUM', 'BIT_AND', 'BIT_OR',

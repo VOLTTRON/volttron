@@ -236,6 +236,14 @@ class DbDriver(object):
         pass
 
     @abstractmethod
+    def insert_topic_and_meta_query(self):
+        """
+        Return insert statement to insert both topic and meta data into the same table.
+        This is used if topic table contains metadata column instead of storing metadata in a separate table
+        """
+        pass
+
+    @abstractmethod
     def update_topic_query(self):
         """
         :return: query string to update a topic in database
@@ -248,6 +256,20 @@ class DbDriver(object):
         :return: query string to insert metadata for a topic into database
         """
         pass
+
+    @abstractmethod
+    def update_topic_and_meta_query(self):
+        """
+        :return: query string to update both metadata and topic_name field in self.topics_table. This is used from
+         SQLHistorian version 4.0.0
+        """
+
+    @abstractmethod
+    def update_meta_query(self):
+        """
+        :return: query string to update metadata field in self.topics_table. This is used from
+         SQLHistorian version 4.0.0
+        """
 
     @abstractmethod
     def get_aggregation_list(self):
@@ -297,6 +319,16 @@ class DbDriver(object):
         self.execute_stmt(self.insert_meta_query(), (topic_id, jsonapi.dumps(metadata)), commit=False)
         return True
 
+    def update_meta(self, topic_id, metadata):
+        """
+        Inserts metadata for topic
+        :param topic_id: topic id for which metadata is inserted
+        :param metadata: metadata
+        :return: True if execution completes. Raises exception if unable to connect to database
+        """
+        self.execute_stmt(self.update_meta_query(), (jsonapi.dumps(metadata), topic_id), commit=False)
+        return True
+
     def insert_data(self, ts, topic_id, data):
         """
         Inserts data for topic
@@ -308,24 +340,40 @@ class DbDriver(object):
         self.execute_stmt(self.insert_data_query(), (ts, topic_id, jsonapi.dumps(data)), commit=False)
         return True
 
-    def insert_topic(self, topic):
+    def insert_topic(self, topic, **kwargs):
         """
         Insert a new topic
         :param topic: topic to insert
         :return: id of the topic inserted if insert was successful. Raises exception if unable to connect to database
         """
+        meta = kwargs.get('metadata')
+        insert_topic_only = True
+        if self.meta_table == self.topics_table and topic and meta:
+            value = (topic, jsonapi.dumps(kwargs.get("metadata")))
+            query = self.insert_topic_and_meta_query()
+        else:
+            value = (topic,)
+            query = self.insert_topic_query()
+
         with closing(self.cursor()) as cursor:
-            cursor.execute(self.insert_topic_query(), (topic,))
+            _log.debug(f"Inserting topic {query} {value}")
+            cursor.execute(query, value)
             return cursor.lastrowid
 
-    def update_topic(self, topic, topic_id):
+    def update_topic(self, topic, topic_id, **kwargs):
         """
         Update a topic name
         :param topic: new topic name
         :param topic_id: topic id for which update is done
         :return: True if execution is complete. Raises exception if unable to connect to database
         """
-        self.execute_stmt(self.update_topic_query(), (topic, topic_id), commit=False)
+        meta = kwargs.get('metadata')
+        if self.meta_table == self.topics_table and topic and meta:
+                self.execute_stmt(self.update_topic_and_meta_query(), (topic, jsonapi.dumps(meta), topic_id),
+                                  commit=False)
+        else:
+            # either topic and meta table are separate or no meta was sent
+            self.execute_stmt(self.update_topic_query(), (topic, topic_id), commit=False)
         return True
 
     def insert_agg_meta(self, topic_id, metadata):

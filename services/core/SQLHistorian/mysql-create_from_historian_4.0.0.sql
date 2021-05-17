@@ -14,14 +14,13 @@ CREATE TABLE data (ts timestamp(6) NOT NULL,
 
 CREATE INDEX data_idx ON data (ts ASC);
 
+# From SQLHistorian 4.0.0 metadata is by default stored in topics
+
 CREATE TABLE topics (topic_id INTEGER NOT NULL AUTO_INCREMENT,
                      topic_name varchar(512) NOT NULL,
+                     metadata TEXT NOT NULL,
                      PRIMARY KEY (topic_id),
                      UNIQUE(topic_name));
-
-CREATE TABLE meta(topic_id INTEGER NOT NULL,
-                  metadata TEXT NOT NULL,
-                  PRIMARY KEY(topic_id));
 
 CREATE TABLE volttron_table_definitions(
     table_id varchar(512) PRIMARY KEY,
@@ -40,11 +39,21 @@ GRANT SELECT, INSERT, DELETE ON test_historian.* TO 'historian'@'localhost';
 # GRANT UPDATE ON <dbname>.<topics_table> TO 'username'@'localhost';
 GRANT UPDATE ON test_historian.topics TO 'historian'@'localhost';
 
+#######
 # TO Run test_historian.py you need additional create and index privileges
-GRANT CREATE, INDEX ON test_historian.* TO 'historian'@'localhost';
+#######
+GRANT CREATE, INDEX, DROP ON test_historian.* TO 'historian'@'localhost';
 
+#######
+# Run the below commands if you want to update your existing schema (separate topics and meta table) to have metadata
+# included in topics table
+#######
+ALTER table topics ADD COLUMN metadata TEXT;
+UPDATE topics t SET metadata = (SELECT metadata from meta where topic_id = t.topic_id);
+
+########
 # If you are using aggregate historians with mysql create and grant access to additional tables
-
+########
 CREATE TABLE aggregate_topics
       (agg_topic_id INTEGER NOT NULL AUTO_INCREMENT,
        agg_topic_name varchar(512) NOT NULL,

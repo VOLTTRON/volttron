@@ -129,25 +129,33 @@ class SqlLiteFuncts(DbDriver):
             self.select('''PRAGMA auto_vacuum=1''')
             self.select('''VACUUM;''')
 
-        self.execute_stmt(
-            '''CREATE TABLE IF NOT EXISTS ''' + self.data_table +
-            ''' (ts timestamp NOT NULL,
-                 topic_id INTEGER NOT NULL,
-                 value_string TEXT NOT NULL,
-                 UNIQUE(topic_id, ts))''', commit=False)
-        self.execute_stmt(
-            '''CREATE INDEX IF NOT EXISTS data_idx 
-            ON ''' + self.data_table + ''' (ts ASC)''', commit=False)
-        self.execute_stmt(
-            '''CREATE TABLE IF NOT EXISTS ''' + self.topics_table +
-            ''' (topic_id INTEGER PRIMARY KEY,
-                 topic_name TEXT NOT NULL,
-                 UNIQUE(topic_name))''', commit=False)
-        self.execute_stmt(
-            '''CREATE TABLE IF NOT EXISTS ''' + self.meta_table +
-            '''(topic_id INTEGER PRIMARY KEY,
-                metadata TEXT NOT NULL)''', commit=True)
-        _log.debug("Created data topics and meta tables")
+        rows = self.select(f"SELECT name FROM sqlite_master WHERE type='table' AND name='{self.data_table}';")
+        if rows:
+            _log.debug("Tables already exists")
+            rows = self.select(f"PRAGMA table_info({self.topics_table})")
+            for row in rows:
+                if row[1] == "metadata":
+                    _log.debug("Existing topics table contains metadata column")
+                    self.meta_table = self.topics_table
+        else:
+            self.meta_table = self.topics_table
+            self.execute_stmt(
+                '''CREATE TABLE IF NOT EXISTS ''' + self.data_table +
+                ''' (ts timestamp NOT NULL,
+                     topic_id INTEGER NOT NULL,
+                     value_string TEXT NOT NULL,
+                     UNIQUE(topic_id, ts))''', commit=False)
+            self.execute_stmt(
+                '''CREATE INDEX IF NOT EXISTS data_idx 
+                ON ''' + self.data_table + ''' (ts ASC)''', commit=False)
+            self.execute_stmt(
+                '''CREATE TABLE IF NOT EXISTS ''' + self.topics_table +
+                ''' (topic_id INTEGER PRIMARY KEY,
+                     topic_name TEXT NOT NULL,
+                     metadata TEXT,
+                     UNIQUE(topic_name))''', commit=False)
+            self.commit()
+            _log.debug("Created new schema. data and topics tables")
 
     def record_table_definitions(self, table_defs, meta_table_name):
         _log.debug("In record_table_def {} {}".format(table_defs, meta_table_name))
@@ -337,6 +345,10 @@ class SqlLiteFuncts(DbDriver):
         return '''INSERT OR REPLACE INTO ''' + self.meta_table + \
                ''' values(?, ?)'''
 
+    def update_meta_query(self):
+        return '''UPDATE ''' + self.meta_table + ''' SET metadata = ?
+            WHERE topic_id = ?'''
+
     def insert_data_query(self):
         return '''INSERT OR REPLACE INTO ''' + self.data_table + \
                ''' values(?, ?, ?)'''
@@ -345,8 +357,16 @@ class SqlLiteFuncts(DbDriver):
         return '''INSERT INTO ''' + self.topics_table + \
                ''' (topic_name) values (?)'''
 
+    def insert_topic_and_meta_query(self):
+        return '''INSERT INTO ''' + self.topics_table + \
+               ''' (topic_name, metadata) values (?, ?)'''
+
     def update_topic_query(self):
         return '''UPDATE ''' + self.topics_table + ''' SET topic_name = ?
+            WHERE topic_id = ?'''
+
+    def update_topic_and_meta_query(self):
+        return '''UPDATE ''' + self.topics_table + ''' SET topic_name = ?, metadata = ?
             WHERE topic_id = ?'''
 
     def get_aggregation_list(self):
