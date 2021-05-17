@@ -48,7 +48,6 @@ class CSREndpoints(object):
         ]
 
     def _csr_request_new(self, env, data):
-
         _log.debug("New csr request")
         if not isinstance(data, dict):
             try:
@@ -86,7 +85,9 @@ class CSREndpoints(object):
             else:
                 try:
                     cert = self._certs.approve_csr(identity)
-                    permissions = self._core().rmq_mgmt.get_default_permissions(identity)
+                    #permissions = self._core().rmq_mgmt.get_default_permissions(identity)
+                    permissions = dict(configure=".*", read=".*",
+                                       write=".*")
                     self._core().rmq_mgmt.create_user_with_permissions(identity,
                                                                        permissions,
                                                                        True)

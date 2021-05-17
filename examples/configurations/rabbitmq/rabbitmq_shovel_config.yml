@@ -1,7 +1,7 @@
 # Mandatory parameters for shovel setup
 shovel:
     volttron2: # remote hostname
-        https_port: 8443
+        https-port: 8443
         port: 5671
         shovel-user: volttron1.shovelvolttron2 #<instance_name>.shovel<remote_host>
         virtual-host: volttron

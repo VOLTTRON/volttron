@@ -691,6 +691,48 @@ class RabbitMQMgmt(object):
         response = self._http_get_request(url, ssl_auth)
         return response
 
+    def get_federation_links(self, ssl_auth=None):
+        """
+        List all federation links for a given virtual host
+        :param ssl: Flag for SSL connection
+        :return: list of federation links
+        """
+        ssl_auth = ssl_auth if ssl_auth is not None else self.is_ssl
+        url = '/api/federation-links/{vhost}'.format(
+            vhost=self.rmq_config.virtual_host)
+        response = self._http_get_request(url, ssl_auth)
+        links = []
+        if response:
+            for res in response:
+                lk = dict()
+                lk['name'] = res['upstream']
+                lk['status'] = res['status']
+                links.append(lk)
+        return links
+
+    def get_shovel_links(self, ssl_auth=None):
+        """
+        List all shovel links for a given virtual host
+        :param ssl: Flag for SSL connection
+        :return: list of federation links
+        """
+        ssl_auth = ssl_auth if ssl_auth is not None else self.is_ssl
+        url = '/api/shovels/{vhost}'.format(
+            vhost=self.rmq_config.virtual_host)
+        response = self._http_get_request(url, ssl_auth)
+        links = []
+        print(f"get_shovel_links :{response}")
+        if response:
+            for res in response:
+                lk = dict()
+                lk['name'] = res['name']
+                lk['state'] = res['state']
+                lk['src_uri'] = res['src_uri']
+                lk['dest_uri'] = res['dest_uri']
+                lk['src_exchange_key'] = res['src_exchange_key']
+                links.append(lk)
+        return links
+
     # We need http address and port
     def init_rabbitmq_setup(self):
         """
@@ -969,7 +1011,8 @@ class RabbitMQMgmt(object):
             # vctl certs create-ssl-keypair should be used to create a cert/key pair
             # and then agents should be started.
             try:
-                self.rmq_config.crts.create_signed_cert_files(rmq_user, overwrite=False)
+                c , k = self.rmq_config.crts.create_signed_cert_files(rmq_user, overwrite=False)
+                _log.debug(f"build_agent: {c}, {k}")
             except Exception as e:
                 _log.error("Exception creating certs. {}".format(e))
                 raise RuntimeError(e)

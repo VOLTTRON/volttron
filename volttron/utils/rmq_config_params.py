@@ -129,7 +129,7 @@ class RMQConfig(object):
         :return:
         """
         """Loads the config file if the path exists."""
-        
+        _log.debug(f"RMQConfig: {self.volttron_rmq_config}")
         with open(self.volttron_rmq_config, 'r') as yaml_file:
             self.config_opts = yaml.safe_load(yaml_file)
             if self.config_opts.get('rmq-home'):

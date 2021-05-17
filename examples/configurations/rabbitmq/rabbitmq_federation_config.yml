@@ -2,7 +2,7 @@
 federation-upstream:
   volttron4: # hostname of upstream server
     port: '5671'
-    https_port: '8443'
+    https-port: '8443'
     virtual-host: volttron4
     certificates:
         private_key: "path to private cert" # For example, /home/volttron/vhome/test_fed/certificates/private/volttron1.federation.pem
@@ -11,7 +11,7 @@ federation-upstream:
     federation-user: volttron4.federation #<local instance name>.federation
   volttron5: # hostname of upstream server
     port: '5671'
-    https_port: '8443'
+    https-port: '8443'
     virtual-host: volttron5
     certificates:
         private_key: "path to private cert"

@@ -168,21 +168,27 @@ RABBITMQ_GENERATED_CONFIG_DIR={}""".format(rmq_config.node_name,
             env_conf.write(env_entries)
 
 
-def _get_federation_certs(vhome):
+def _get_federation_certs(instance_name, vhome):
     federation_config_file = os.path.join(vhome,
                                           'rabbitmq_federation_config.yml')
     federation_config = read_config_file(federation_config_file)
     federation = federation_config.get('federation-upstream', {})
     success = True
     update_needed = False
+    rmq_mgmt = RabbitMQMgmt()
+
+    print(f"_get_federation_certs: {federation_config}, vhome: {federation_config_file}")
     try:
         for host, upstream in federation.items():
             rmq_user = 'federation' #upstream['federation-user']
             if 'certificates' not in upstream:
+                print(f"_get_federation_certs: certificates not found:")
+                rmq_mgmt.build_agent_connection(rmq_user, instance_name)
                 # certificates key not found in shovel config
-                https_port = upstream.get('https_port', 8443)
+                https_port = upstream.get('https-port', 8443)
                 remote_addr = 'https://{}:{}'.format(host, https_port)
                 print(f"Certificates not found. Requesting CSR from {remote_addr}")
+                _log.debug(f"Certificates not found. Requesting CSR from {remote_addr}")
                 # request CSR from remote host
                 ca_file, cert_file, prvt_file = _request_csr(rmq_user, remote_addr, 'federation')
                 if ca_file is not None and cert_file is not None and prvt_file is not None:
@@ -201,6 +207,7 @@ def _get_federation_certs(vhome):
                     continue
         if update_needed:
             federation_config['federation-upstream'] = federation
+            print(f"write_to_config_file: {federation_config_file}, {federation_config}")
             write_to_config_file(federation_config_file, federation_config)
 
     except KeyError as ex:
@@ -283,7 +290,7 @@ def _get_certs_for_shovel(instance_name, vhome):
                 rmq_mgmt.build_agent_connection(shovel_user, instance_name)
                 import time
                 time.sleep(2)
-                https_port = shovel.get('https_port', 8443)
+                https_port = shovel.get('https-port', 8443)
 
                 # certificates key not found in shovel config
                 remote_addr = 'https://{}:{}'.format(remote_host, https_port)
@@ -373,25 +380,27 @@ def _create_shovel_setup(instance_name, local_host, port, vhost, vhome, is_ssl):
             rpc_config = shovel.get("rpc", {})
             _log.debug("RPC config: {}".format(rpc_config))
             for remote_instance, agent_ids in rpc_config.items():
+                _log.debug("RPC config: {}".format(rpc_config))
                 for ids in agent_ids:
                     local_identity = ids[0]
                     remote_identity = ids[1]
                     rmq_user = instance_name + '.' + local_identity
-                    src_uri = rmq_mgmt.build_shovel_connection(rmq_user,
-                                                               local_host, port,
-                                                               vhost, is_ssl)
+                    src_uri = rmq_mgmt.build_remote_plugin_connection(rmq_user,
+                                                                      local_host, port,
+                                                                      vhost, is_ssl)
 
                     if 'certificates' not in shovel:
                         _log.error("ERROR: Certificates not found.\nContinuing with other configurations")
                         continue
 
+                    rmq_user = shovel['shovel-user']
                     # Build destination address
-                    dest_uri = rmq_mgmt.build_shovel_connection(rmq_user,
-                                                                remote_host,
-                                                                shovel['port'],
-                                                                shovel['virtual-host'],
-                                                                is_ssl,
-                                                                certs_dict=shovels[remote_host]['certificates'])
+                    dest_uri = rmq_mgmt.build_remote_plugin_connection(rmq_user,
+                                                                       remote_host,
+                                                                       shovel['port'],
+                                                                       shovel['virtual-host'],
+                                                                       is_ssl,
+                                                                       certs_dict=shovels[remote_host]['certificates'])
                     _log.info("Creating shovel to make RPC call to remote Agent"
                               ": {}".format(remote_identity))
 
@@ -652,6 +661,7 @@ def setup_rabbitmq_volttron(setup_type, verbose=False, prompt=False, instance_na
     store_message_bus_config(message_bus='rmq', instance_name=instance_name)
 
     rmq_config = RMQConfig()
+
     success = True
     if prompt:
         # ignore any existing rabbitmq_config.yml|rabbitmq_federation_config.yml|rabbitmq_shovel_config.yml in vhome.
@@ -669,6 +679,7 @@ def setup_rabbitmq_volttron(setup_type, verbose=False, prompt=False, instance_na
     # Load either the newly created config or config passed
     try:
         rmq_config.load_rmq_config()
+        _log.debug(f"RMQConfig 2: {setup_type}, {rmq_config.volttron_home}, os env: {os.environ['VOLTTRON_HOME']}")
 
     except (yaml.parser.ParserError, yaml.scanner.ScannerError, yaml.YAMLError) as exc:
         _log.error("Error: YAML file cannot parsed properly. Check the contents of the file")
@@ -745,9 +756,9 @@ def setup_rabbitmq_volttron(setup_type, verbose=False, prompt=False, instance_na
     if setup_type in ["all", "federation"]:
         # Create a multi-platform federation setup
         invalid = False
-        success = _get_federation_certs(rmq_config.volttron_home)
-        
-        if success:
+        s = _get_federation_certs(rmq_config.instance_name, rmq_config.volttron_home)
+
+        if s:
             _create_federation_setup(rmq_config.is_ssl,
                                      rmq_config.virtual_host,
                                      rmq_config.volttron_home)
@@ -760,9 +771,9 @@ def setup_rabbitmq_volttron(setup_type, verbose=False, prompt=False, instance_na
             port = rmq_config.amqp_port
 
         # Check if certs are available in shovel config. If missing, request CSR
-        success = _get_certs_for_shovel(rmq_config.instance_name, rmq_config.volttron_home)
+        s = _get_certs_for_shovel(rmq_config.instance_name, rmq_config.volttron_home)
 
-        if success:
+        if s:
             _create_shovel_setup(rmq_config.instance_name,
                                  rmq_config.hostname,
                                  port,
@@ -1011,7 +1022,7 @@ def prompt_upstream_servers(vhome, verbose=False, max_retries=12):
                 # exit
                 return False
             upstream_servers[host]['certificates'] = certs_config
-            upstream_servers[host]['https_port'] = https_port
+            upstream_servers[host]['https-port'] = https_port
     except (IOError, TimeoutError, ConnectionError) as e:
         raise e
     except ValueError as e:
@@ -1075,7 +1086,7 @@ def prompt_shovels(vhome, verbose=False, max_retries=12):
                 # exit
                 return False
             shovels[host]['certificates'] = certs_config
-            shovels[host]['https_port'] = https_port
+            shovels[host]['https-port'] = https_port
 
             prompt = prompt_response('\nDo you want shovels for '
                                      'PUBSUB communication? ',
@@ -1299,7 +1310,9 @@ def request_plugin_cert(csr_server, fully_qualified_local_identity, discovery_in
         raise ValueError("Only can create csr for rabbitmq based platform in ssl mode.")
 
     crts = certs.Certs()
+    _log.debug(f"request_plugin_cert: before create_csr")
     csr_request = crts.create_csr(fully_qualified_local_identity, discovery_info.instance_name)
+    _log.debug(f"request_plugin_cert: after create_csr: {csr_request}")
     # The csr request requires the fully qualified identity that is
     # going to be connected to the external instance.
     #
@@ -1319,6 +1332,7 @@ def request_plugin_cert(csr_server, fully_qualified_local_identity, discovery_in
                              verify=False)
     response = grequests.map([request])
 
+    _log.debug(f"request_plugin_cert: grequest response: {response}")
     if response and isinstance(response, list):
         response[0].raise_for_status()
     response = response[0]
@@ -1358,20 +1372,22 @@ def request_plugin_cert(csr_server, fully_qualified_local_identity, discovery_in
 def request_cert_for_plugin(rmq_user, https_address, type):
     value = None
     parsed_address = urlparse(https_address)
+    _log.debug(f"request_cert_for_plugin: {https_address}")
     if parsed_address.scheme in ('https',):
         from volttron.platform.web import DiscoveryInfo
         from volttron.platform.agent.utils import get_platform_instance_name, get_fq_identity
         info = DiscoveryInfo.request_discovery_info(https_address)
-
+        _log.debug(f"DiscoveryInfo: {info}")
         # This is if both remote and local are rmq message buses.
         if info.messagebus_type == 'rmq':
             fqid_local = get_fq_identity(rmq_user)
-
+            _log.debug(f"request_cert_for_plugin:{type}, {rmq_user}")
             # Check if we already have the cert, if so use it instead of requesting cert again
             remote_certs_dir = get_remote_certs_dir(type)
             remote_cert_name = "{}.{}".format(info.instance_name, fqid_local)
             certfile = os.path.join(remote_certs_dir, remote_cert_name + ".crt")
 
+            _log.debug(f"request_cert_for_plugin:{certfile}")
             if os.path.exists(certfile):
                 value = certfile
             else:
