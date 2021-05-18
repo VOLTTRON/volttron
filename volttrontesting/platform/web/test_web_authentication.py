@@ -1,6 +1,8 @@
-
+import json
 from urllib.parse import urlencode
 
+import gevent
+from datetime import datetime, timedelta
 from mock import MagicMock
 from deepdiff import DeepDiff
 import jwt
@@ -40,16 +42,116 @@ def test_jwt_encode(encryption_type):
 
         assert not DeepDiff(claims, new_claimes)
 
+# Child of AuthenticateEndpoints.
+# Exactly the same but includes helper methods to set access and refresh token timeouts
+class MockAuthenticateEndpoints(AuthenticateEndpoints):
+    def set_refresh_token_timeout(self, timeout):
+        self.refresh_token_timeout = timeout
+    def set_access_token_timeout(self, timeout):
+        self.access_token_timeout = timeout
 
-def test_authenticate_must_use_post_request():
+# Setup test values for authenticate tests
+def set_test_admin():
+    authorize_ep = MockAuthenticateEndpoints(web_secret_key=get_random_key())
+    authorize_ep.set_access_token_timeout(0.1)
+    authorize_ep.set_refresh_token_timeout(0.2)
+    AdminEndpoints().add_user("test_admin", "Pass123", groups=['admin'])
+    test_user = {"username": "test_admin", "password": "Pass123"}
+    gevent.sleep(1)
+    return authorize_ep, test_user
+
+def test_authenticate_get_request_fails():
+    with get_test_volttron_home(messagebus='zmq'):
+        authorize_ep, test_user = set_test_admin()
+        env = get_test_web_env('/authenticate', method='GET')
+        response = authorize_ep.handle_authenticate(env, test_user)
+        assert ('Content-Type', 'text/plain') in response.headers.items()
+        assert '405 Method Not Allowed' in response.status
+
+def test_authenticate_post_request():
+    with get_test_volttron_home(messagebus='zmq'):
+        authorize_ep, test_user = set_test_admin()
+        env = get_test_web_env('/authenticate', method='POST')
+        response = authorize_ep.handle_authenticate(env, test_user)
+        assert ('Content-Type', 'application/json') in response.headers.items()
+        assert '200 OK' in response.status
+        response_token = json.loads(response.response[0].decode('utf-8'))
+        refresh_token = response_token['refresh_token']
+        access_token = response_token["access_token"]
+        assert 3 == len(refresh_token.split('.'))
+        assert 3 == len(access_token.split("."))
+
+
+def test_authenticate_put_request():
     with get_test_volttron_home(messagebus='zmq'):
 
-        env = get_test_web_env('/authenticate', method='GET')
+        authorize_ep, test_user = set_test_admin()
+        # Get tokens for test
+        env = get_test_web_env('/authenticate', method='POST')
+        response = authorize_ep.handle_authenticate(env, test_user)
+        response_token = json.loads(response.response[0].decode('utf-8'))
+        refresh_token = response_token['refresh_token']
+        access_token = response_token["access_token"]
 
-        authorize_ep = AuthenticateEndpoints(web_secret_key=get_random_key())
-        response = authorize_ep.get_auth_token(env, {})
+        # Test PUT Request
+        env = get_test_web_env('/authenticate', method='PUT')
+        env["HTTP_AUTHORIZATION"] = "BEARER " + refresh_token
+        response = authorize_ep.handle_authenticate(env, data={})
+        assert ('Content-Type', 'application/json') in response.headers.items()
+        assert '200 OK' in response.status
+
+
+def test_authenticate_put_request_access_expires():
+    with get_test_volttron_home(messagebus='zmq'):
+
+        authorize_ep, test_user = set_test_admin()
+        # Get tokens for test
+        env = get_test_web_env('/authenticate', method='POST')
+        response = authorize_ep.handle_authenticate(env, test_user)
+        response_token = json.loads(response.response[0].decode('utf-8'))
+        refresh_token = response_token['refresh_token']
+        access_token = response_token["access_token"]
+
+        # Get access token after previous token expires. Verify they are different
+        gevent.sleep(7)
+        env = get_test_web_env('/authenticate', method='PUT')
+        env["HTTP_AUTHORIZATION"] = "BEARER " + refresh_token
+        response = authorize_ep.handle_authenticate(env, data={})
+        assert ('Content-Type', 'application/json') in response.headers.items()
+        assert '200 OK' in response.status
+        assert access_token != json.loads(response.response[0].decode('utf-8'))["access_token"]
+
+def test_authenticate_put_request_refresh_expires():
+    with get_test_volttron_home(messagebus='zmq'):
+
+        authorize_ep, test_user = set_test_admin()
+        # Get tokens for test
+        env = get_test_web_env('/authenticate', method='POST')
+        response = authorize_ep.handle_authenticate(env, test_user)
+        response_token = json.loads(response.response[0].decode('utf-8'))
+        refresh_token = response_token['refresh_token']
+        access_token = response_token["access_token"]
+
+        # Wait for refresh token to expire
+        gevent.sleep(20)
+        env = get_test_web_env('/authenticate', method='PUT')
+        env["HTTP_AUTHORIZATION"] = "BEARER " + refresh_token
+        response = authorize_ep.handle_authenticate(env, data={})
         assert ('Content-Type', 'text/html') in response.headers.items()
-        assert '401 Unauthorized' in response.status
+        assert "401 Unauthorized" in response.status
+
+def test_authenticate_delete_request():
+    with get_test_volttron_home(messagebus='zmq'):
+        authorize_ep, test_user = set_test_admin()
+        # Get tokens for test
+        env = get_test_web_env('/authenticate', method='POST')
+        response = authorize_ep.handle_authenticate(env, test_user)
+
+        # Touch Delete endpoint
+        env = get_test_web_env('/authenticate', method='DELETE')
+        response = authorize_ep.handle_authenticate(env, test_user)
+        assert ('Content-Type', 'text/plain') in response.headers.items()
+        assert '501 Not Implemented' in response.status
 
 
 def test_no_private_key_or_passphrase():
@@ -67,54 +169,6 @@ def test_both_private_key_and_passphrase():
                                                     tls_private_key=certs.server_certs[0].key)
 
 
-@pytest.mark.parametrize("scheme", ("http", "https"))
-def test_authenticate_endpoint(scheme):
-    kwargs = {}
-
-    # Note this is not a context wrapper, it just does the creation for us
-    vhome = create_volttron_home()
-
-    if scheme == 'https':
-        with certs_profile_1(vhome) as certs:
-            kwargs['web_ssl_key'] = certs.server_certs[0].key_file
-            kwargs['web_ssl_cert'] = certs.server_certs[0].cert_file
-    else:
-        kwargs['web_secret_key'] = get_random_key()
-
-    # We are specifying the volttron_home here so we don't create an additional one.
-    with get_test_volttron_home(messagebus='zmq', config_params=kwargs, volttron_home=vhome):
-
-        user = 'bogart'
-        passwd = 'cat'
-        adminep = AdminEndpoints()
-        adminep.add_user(user, passwd)
-
-        env = get_test_web_env('/authenticate', method='POST')
-
-        if scheme == 'http':
-            authorizeep = AuthenticateEndpoints(web_secret_key=kwargs.get('web_secret_key'))
-        else:
-            authorizeep = AuthenticateEndpoints(tls_private_key=CertWrapper.load_key(kwargs.get('web_ssl_key')))
-
-        invalid_login_username_params = dict(username='fooey', password=passwd)
-
-        response = authorizeep.get_auth_token(env, invalid_login_username_params)
-
-        assert '401' == response.status
-        # TODO: Get the actual response content here
-        # assert '401 Unauthorized' in response.content
-
-        invalid_login_password_params = dict(username=user, password='hazzah')
-        response = authorizeep.get_auth_token(env, invalid_login_password_params)
-
-        assert '401' == response.status
-        valid_login_params = urlencode(dict(username=user, password=passwd))
-        response = authorizeep.get_auth_token(env, valid_login_params)
-        assert '200 OK' == response.status
-        assert "text/plain" in response.content_type
-        assert 3 == len(response.response[0].decode('utf-8').split('.'))
-
-
 @pytest.fixture()
 def mock_platformweb_service():
     PlatformWebService.__bases__ = (AgentMock.imitate(Agent, Agent()),)
@@ -123,26 +177,27 @@ def mock_platformweb_service():
     platformweb._admin_endpoints = AdminEndpoints(rpc_caller=rpc_caller)
     yield platformweb
 
+# TODO: These tests are updated in PR#2650
 
-@pytest.mark.web
-def test_get_credentials(mock_platformweb_service):
-    mock_platformweb_service._admin_endpoints._pending_auths = mock_platformweb_service._admin_endpoints._rpc_caller.call(AUTH, 'get_authorization_pending')
-    mock_platformweb_service._admin_endpoints._denied_auths = mock_platformweb_service._admin_endpoints._rpc_caller.call(AUTH, 'get_authorization_denied')
-    pass
-
-
-@pytest.mark.web
-def test_accept_credential(mock_platformweb_service):
-    mock_platformweb_service._admin_endpoints._pending_auths = mock_platformweb_service._admin_endpoints._rpc_caller.call(AUTH, 'get_authorization_pending').get()
-    mock_platformweb_service._admin_endpoints._denied_auths = mock_platformweb_service._admin_endpoints._rpc_caller.call(AUTH, 'get_authorization_denied').get()
-    pass
-
-
-@pytest.mark.web
-def test_deny_credential():
-    pass
-
-
-@pytest.mark.web
-def test_delete_credential():
-    pass
+# @pytest.mark.web
+# def test_get_credentials(mock_platformweb_service):
+#     mock_platformweb_service._admin_endpoints._pending_auths = mock_platformweb_service._admin_endpoints._rpc_caller.call(AUTH, 'get_authorization_pending')
+#     mock_platformweb_service._admin_endpoints._denied_auths = mock_platformweb_service._admin_endpoints._rpc_caller.call(AUTH, 'get_authorization_denied')
+#     pass
+#
+#
+# @pytest.mark.web
+# def test_accept_credential(mock_platformweb_service):
+#     mock_platformweb_service._admin_endpoints._pending_auths = mock_platformweb_service._admin_endpoints._rpc_caller.call(AUTH, 'get_authorization_pending').get()
+#     mock_platformweb_service._admin_endpoints._denied_auths = mock_platformweb_service._admin_endpoints._rpc_caller.call(AUTH, 'get_authorization_denied').get()
+#     pass
+#
+#
+# @pytest.mark.web
+# def test_deny_credential():
+#     pass
+#
+#
+# @pytest.mark.web
+# def test_delete_credential():
+#     pass
