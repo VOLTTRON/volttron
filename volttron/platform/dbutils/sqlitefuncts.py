@@ -223,10 +223,12 @@ class SqlLiteFuncts(DbDriver):
         @param order:
         """
         table_name = self.data_table
+        value_col = 'value_string'
         if agg_type and agg_period:
             table_name = agg_type + "_" + agg_period
+            value_col = 'agg_value'
 
-        query = '''SELECT topic_id, ts, value_string
+        query = '''SELECT topic_id, ts, ''' + value_col + '''
                    FROM ''' + table_name + '''
                    {where}
                    {order_by}
@@ -287,9 +289,14 @@ class SqlLiteFuncts(DbDriver):
             values[id_name_map[topic_id]] = []
             cursor = self.select(real_query, args, fetch_all=False)
             if cursor:
-                for _id, ts, value in cursor:
-                    values[id_name_map[topic_id]].append((utils.format_timestamp(ts), jsonapi.loads(value)))
-                cursor.close()
+                if value_col == 'agg_value':
+                    for _id, ts, value in cursor:
+                        values[id_name_map[topic_id]].append((utils.format_timestamp(ts), value))
+                    cursor.close()
+                else:
+                    for _id, ts, value in cursor:
+                        values[id_name_map[topic_id]].append((utils.format_timestamp(ts), jsonapi.loads(value)))
+                    cursor.close()
 
         _log.debug("Time taken to load results from db:{}".format(datetime.utcnow()-start_t))
         return values
@@ -370,7 +377,7 @@ class SqlLiteFuncts(DbDriver):
             WHERE topic_id = ?'''
 
     def get_aggregation_list(self):
-        return ['AVG', 'MIN', 'MAX', 'COUNT', 'SUM', 'TOTAL', 'GROUP_CONCAT']
+        return ['AVG', 'MIN', 'MAX', 'COUNT', 'SUM', 'TOTAL']
 
     def insert_agg_topic_stmt(self):
         return '''INSERT INTO ''' + self.agg_topics_table + '''
@@ -504,7 +511,7 @@ class SqlLiteFuncts(DbDriver):
 
         stmt = "CREATE TABLE IF NOT EXISTS " + table_name + \
                " (ts timestamp NOT NULL, topic_id INTEGER NOT NULL, " \
-               "value_string TEXT NOT NULL, topics TEXT, " \
+               "agg_value REAL NOT NULL, topics TEXT, " \
                "UNIQUE(topic_id, ts)); "
         self.execute_stmt(stmt)
 

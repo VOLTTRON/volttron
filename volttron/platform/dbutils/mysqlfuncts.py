@@ -209,8 +209,8 @@ class MySqlFuncts(DbDriver):
                 'CREATE TABLE ' + self.agg_topics_table +
                 ' (agg_topic_id INTEGER NOT NULL AUTO_INCREMENT, \
                    agg_topic_name varchar(512) NOT NULL, \
-                   agg_type varchar(512) NOT NULL, \
-                   agg_time_period varchar(512) NOT NULL, \
+                   agg_type varchar(20) NOT NULL, \
+                   agg_time_period varchar(20) NOT NULL, \
                    PRIMARY KEY (agg_topic_id), \
                    UNIQUE(agg_topic_name, agg_type, agg_time_period));')
 
@@ -227,11 +227,12 @@ class MySqlFuncts(DbDriver):
               order="FIRST_TO_LAST"):
 
         table_name = self.data_table
+        value_col = 'value_string'
         if agg_type and agg_period:
             table_name = agg_type + "_" + agg_period
+            value_col = 'agg_value'
 
-        query = '''SELECT topic_id, ts, value_string
-                FROM ''' + table_name + '''
+        query = '''SELECT topic_id, ts, ''' + value_col + ''' FROM ''' + table_name + '''
                 {where}
                 {order_by}
                 {limit}
@@ -302,10 +303,16 @@ class MySqlFuncts(DbDriver):
 
             cursor = self.select(real_query, args, fetch_all=False)
             if cursor:
-                for _id, ts, value in cursor:
-                    values[id_name_map[topic_id]].append(
-                        (utils.format_timestamp(ts.replace(tzinfo=pytz.UTC)),
-                         jsonapi.loads(value)))
+                if value_col == 'agg_value':
+                    for _id, ts, value in cursor:
+                        values[id_name_map[topic_id]].append(
+                            (utils.format_timestamp(ts.replace(tzinfo=pytz.UTC)),
+                             value))
+                else:
+                    for _id, ts, value in cursor:
+                        values[id_name_map[topic_id]].append(
+                            (utils.format_timestamp(ts.replace(tzinfo=pytz.UTC)),
+                             jsonapi.loads(value)))
 
             if cursor is not None:
                 cursor.close()
@@ -419,7 +426,7 @@ ON DUPLICATE KEY UPDATE value_string=VALUES(value_string);
 
     def get_aggregation_list(self):
         return ['AVG', 'MIN', 'MAX', 'COUNT', 'SUM', 'BIT_AND', 'BIT_OR',
-                'BIT_XOR', 'GROUP_CONCAT', 'STD', 'STDDEV', 'STDDEV_POP',
+                'BIT_XOR', 'STD', 'STDDEV', 'STDDEV_POP',
                 'STDDEV_SAMP', 'VAR_POP', 'VAR_SAMP', 'VARIANCE']
 
     def insert_agg_topic_stmt(self):
@@ -519,13 +526,13 @@ ON DUPLICATE KEY UPDATE value_string=VALUES(value_string);
         else:
             stmt = "CREATE TABLE " + table_name + \
                    " (ts timestamp(6) NOT NULL, topic_id INTEGER NOT NULL, " \
-                   "value_string TEXT NOT NULL, topics_list TEXT," \
+                   "agg_value DOUBLE NOT NULL, topics_list TEXT," \
                    " UNIQUE(topic_id, ts)," \
                    "INDEX (ts ASC))"
             if not self.MICROSECOND_SUPPORT:
                 stmt = "CREATE TABLE " + table_name + \
                        " (ts timestamp NOT NULL, topic_id INTEGER NOT NULL, " \
-                       "value_string TEXT NOT NULL, topics_list TEXT," \
+                       "agg_value DOUBLE NOT NULL, topics_list TEXT," \
                        " UNIQUE(topic_id, ts)," \
                        "INDEX (ts ASC))"
             return self.execute_stmt(stmt, commit=True)
@@ -555,6 +562,9 @@ ON DUPLICATE KEY UPDATE value_string=VALUES(value_string);
 
         if start is not None:
             where_clauses.append("ts >= %s")
+            if self.MICROSECOND_SUPPORT is None:
+                self.init_microsecond_support()
+
             if self.MICROSECOND_SUPPORT:
                 args.append(start)
             else:

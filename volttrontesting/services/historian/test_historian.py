@@ -333,11 +333,9 @@ def setup_mysql(connection_params, table_names, historian_version):
 def select_all_sqlite_tables(db_connection):
 
     cursor = db_connection.cursor()
-    query = f".tables"
-    print(f"query {query}")
     tables = []
     try:
-        cursor.execute(query)
+        cursor.execute("SELECT name FROM sqlite_master WHERE type ='table' AND name NOT LIKE 'sqlite_%';")
         rows = cursor.fetchall()
         print(f"table names {rows}")
         tables = [columns[0] for columns in rows]

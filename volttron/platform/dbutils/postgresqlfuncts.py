@@ -171,7 +171,7 @@ class PostgreSqlFuncts(DbDriver):
                     "SELECT create_hypertable({}, 'ts', if_not_exists => true)").format(
                     Literal(self.data_table)))
                 self.execute_stmt(SQL(
-                    'CREATE INDEX ON {} (topic_id, ts)').format(
+                    'CREATE INDEX IF NOT EXISTS ON {} (topic_id, ts)').format(
                     Identifier(self.data_table)))
             else:
                 self.execute_stmt(SQL(
@@ -228,8 +228,8 @@ class PostgreSqlFuncts(DbDriver):
             'CREATE TABLE IF NOT EXISTS {} ('
                 'agg_topic_id SERIAL PRIMARY KEY NOT NULL, '
                 'agg_topic_name VARCHAR(512) NOT NULL, '
-                'agg_type VARCHAR(512) NOT NULL, '
-                'agg_time_period VARCHAR(512) NOT NULL, '
+                'agg_type VARCHAR(20) NOT NULL, '
+                'agg_time_period VARCHAR(20) NOT NULL, '
                 'UNIQUE (agg_topic_name, agg_type, agg_time_period)'
             ')').format(Identifier(self.agg_topics_table)))
         self.execute_stmt(SQL(
@@ -244,12 +244,14 @@ class PostgreSqlFuncts(DbDriver):
               order='FIRST_TO_LAST'):
         if agg_type and agg_period:
             table_name = agg_type + '_' + agg_period
+            value_col = 'agg_value'
         else:
             table_name = self.data_table
+            value_col = 'value_string'
+
         topic_id = Literal(0)
         query = [SQL(
-            '''SELECT to_char(ts, 'YYYY-MM-DD"T"HH24:MI:SS.USOF:00'), '''
-                'value_string\n'
+            '''SELECT to_char(ts, 'YYYY-MM-DD"T"HH24:MI:SS.USOF:00'), ''' + value_col + ' \n'
             'FROM {}\n'
             'WHERE topic_id = {}'
         ).format(Identifier(table_name), topic_id)]
@@ -272,11 +274,18 @@ class PostgreSqlFuncts(DbDriver):
                 Literal(None if not skip or skip < 0 else skip)))
         query = SQL('\n').join(query)
         values = {}
-        for topic_id._wrapped in topic_ids:
-            name = id_name_map[topic_id.wrapped]
-            with self.select(query, fetch_all=False) as cursor:
-                values[name] = [(ts, jsonapi.loads(value))
-                                for ts, value in cursor]
+        if value_col == 'agg_value':
+            for topic_id._wrapped in topic_ids:
+                name = id_name_map[topic_id.wrapped]
+                with self.select(query, fetch_all=False) as cursor:
+                    values[name] = [(ts, value)
+                                    for ts, value in cursor]
+        else:
+            for topic_id._wrapped in topic_ids:
+                name = id_name_map[topic_id.wrapped]
+                with self.select(query, fetch_all=False) as cursor:
+                    values[name] = [(ts, jsonapi.loads(value))
+                                    for ts, value in cursor]
         return values
 
     def insert_topic(self, topic, **kwargs):
@@ -313,7 +322,6 @@ class PostgreSqlFuncts(DbDriver):
         return SQL(
             'INSERT INTO {} (topic_name, metadata) VALUES (%s, %s) '
             'RETURNING topic_id').format(Identifier(self.topics_table))
-
 
     def update_topic_query(self):
         return SQL(
@@ -412,7 +420,7 @@ class PostgreSqlFuncts(DbDriver):
             'CREATE TABLE IF NOT EXISTS {} ('
                 'ts TIMESTAMP NOT NULL, '
                 'topic_id INTEGER NOT NULL, '
-                'value_string TEXT NOT NULL, '
+                'agg_value DOUBLE PRECISION NOT NULL, '
                 'topics_list TEXT, '
                 'UNIQUE (ts, topic_id)'
             ')').format(Identifier(table_name)))
@@ -426,7 +434,7 @@ class PostgreSqlFuncts(DbDriver):
         return SQL(
             'INSERT INTO {} VALUES (%s, %s, %s, %s) '
             'ON CONFLICT (ts, topic_id) DO UPDATE '
-            'SET value_string = EXCLUDED.value_string, '
+            'SET agg_value = EXCLUDED.agg_value, '
                 'topics_list = EXCLUDED.topics_list').format(
             Identifier(table_name))
 
