@@ -80,16 +80,16 @@ follows the following pattern:
     # points.  For example devices/pnnl/building/OutsideAirTemperature and
     # devices/pnnl/building/MixedAirTemperature ALL message would be created as:
     [
-        {"OutsideAirTemperature ": 52.5, "MixedAirTemperature ": 58.5},
+        {"OutsideAirTemperature": 52.5, "MixedAirTemperature": 58.5},
         {
-           "OutsideAirTemperature ": {'units': 'F', 'tz': 'UTC', 'type': 'float'},
-           "MixedAirTemperature ": {'units': 'F', 'tz': 'UTC', 'type': 'float'}
+           "OutsideAirTemperature": {'units': 'F', 'tz': 'UTC', 'type': 'float'},
+           "MixedAirTemperature": {'units': 'F', 'tz': 'UTC', 'type': 'float'}
         }
     ]
 
     #WITHOUT METADATA
     # Message contains a dictionary of all points under a specific parent
-    {"OutsideAirTemperature ": 52.5, "MixedAirTemperature ": 58.5}
+    {"OutsideAirTemperature": 52.5, "MixedAirTemperature": 58.5}
 
 
 analysis/\*
