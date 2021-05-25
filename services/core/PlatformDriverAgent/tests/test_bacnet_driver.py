@@ -12,7 +12,7 @@ from volttron.platform.agent.known_identities import (
     PLATFORM_DRIVER,
     CONFIGURATION_STORE,
 )
-from volttron.platform import get_services_core, get_examples
+from volttron.platform import get_services_core
 from volttron.platform.agent import utils
 from bacnet_device_fixture import BACNET_DEVICE_IP_ADDR, BACNET_SUBNET, COOLING_VALVE_OUTPUT_COMMAND_OBJECT_ID, GENERAL_EXHAUST_FAN_COMMAND_OBJECT_ID
 
