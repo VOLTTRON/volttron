@@ -14,6 +14,8 @@ _log = ModuleLogger(globals())
 test_av = None
 test_bv = None
 test_app = None
+BACNET_SUBNET = '172.28.0.0/16'
+BACNET_DEVICE_IP_ADDR = "172.28.5.1"
 
 
 @bacpypes_debugging
@@ -78,7 +80,7 @@ def main():
         _log.debug("    - this_device: %r", this_device)
 
     # add device to an Application
-    address = "172.28.5.1"  # comes from hostname -I, this address is used to connect the Driver to the Device
+    address = BACNET_DEVICE_IP_ADDR  # comes from hostname -I, this address is used to connect the Driver to the Device
     testapp = BacnetTestApplication(this_device, address)
 
     # the objectIdentifier comes from the Index in the bacnet.csv for the corresponding Driver on the Volttron platform
