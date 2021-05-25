@@ -3,6 +3,7 @@ import pytest
 import gevent
 import math
 import socket
+import docker
 
 from mock import MagicMock
 from volttron.platform.agent.known_identities import (
@@ -19,7 +20,7 @@ BACNET_DEVICE_TOPIC = "devices/bacnet"
 
 
 def test_set_and_get(
-    query_agent, platform_driver, bacnet_proxy_agent, volttron_instance
+    bacnet_device, query_agent, platform_driver, bacnet_proxy_agent, volttron_instance
 ):
     query_agent.poll_callback.reset_mock()
     assert volttron_instance.is_agent_running(bacnet_proxy_agent)
@@ -127,7 +128,7 @@ def platform_driver(volttron_instance, query_agent):
 
     # store bacnet driver configuration
     # TODO: Get docker IP address
-    ip_addr = "192.168.0.129"  # This should come from docker ip address, <address:port>
+    ip_addr = "172.28.5.1"  # This should come from docker ip address, <address:port>
     driver_config = {
         "driver_config": {"device_address": ip_addr,
                           "device_id": 599},
@@ -169,3 +170,27 @@ def platform_driver(volttron_instance, query_agent):
 
     print("In teardown method of Platform Driver")
     volttron_instance.stop_agent(platform_driver)
+
+
+@pytest.fixture()
+def bacnet_device():
+    pass
+    # TODO: add docker specific commands for setup adn teardown
+    """
+    # setup
+    docker build -t bacnet_device -f Dockerfile.test.bacnet_device --no-cache --force-rm .
+    dk network create --subnet=172.28.0.0/16 --driver=bridge bacnet_network
+    dk run --network bacnet_network --ip 172.28.5.1 -it --name bacnet_test bacnet_device
+    
+    # cleanup
+    dk rm --force bacnet_test
+    dk network rm bacnet_network
+    dk rmi bacnet_device
+    """
+    client = docker.from_env()
+
+    yield client
+
+    print("Teardown for bacnet device on Docker")
+    # client.images.build()
+    # # container =

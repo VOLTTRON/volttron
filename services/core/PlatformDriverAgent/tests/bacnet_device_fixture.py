@@ -78,7 +78,7 @@ def main():
         _log.debug("    - this_device: %r", this_device)
 
     # add device to an Application
-    address = "192.168.0.129"  # comes from hostname -I, this address is used to connect the Driver to the Device
+    address = "172.28.5.1"  # comes from hostname -I, this address is used to connect the Driver to the Device
     testapp = BacnetTestApplication(this_device, address)
 
     # the objectIdentifier comes from the Index in the bacnet.csv for the corresponding Driver on the Volttron platform

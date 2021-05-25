@@ -1,0 +1,23 @@
+ARG image_user=amd64
+ARG image_repo=ubuntu
+ARG image_tag=focal
+
+FROM ${image_user}/${image_repo}:${image_tag}
+
+SHELL [ "bash", "-c" ]
+
+USER root
+
+RUN set -eux; apt-get update --fix-missing; apt-get install -y --no-install-recommends \
+    vim \
+    tree \
+    python3-dev \
+    python3-pip \
+    python3-setuptools \
+    python3-wheel
+
+RUN pip3 install 'bacpypes==0.16.7'
+
+COPY ./bacnet_device_fixture.py /code/bacnet_device_fixture.py
+
+CMD ["python3", "/code/bacnet_device_fixture.py"]
