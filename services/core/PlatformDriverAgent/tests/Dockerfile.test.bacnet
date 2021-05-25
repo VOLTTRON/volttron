@@ -1,7 +1,5 @@
 FROM amd64/ubuntu:focal
 
-SHELL [ "bash", "-c" ]
-
 USER root
 RUN set -eux; apt-get update --fix-missing; apt-get install -y --no-install-recommends \
     python3-dev \

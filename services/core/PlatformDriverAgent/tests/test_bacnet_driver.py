@@ -14,7 +14,12 @@ from volttron.platform.agent.known_identities import (
 )
 from volttron.platform import get_services_core
 from volttron.platform.agent import utils
-from bacnet_device_fixture import BACNET_DEVICE_IP_ADDR, BACNET_SUBNET, COOLING_VALVE_OUTPUT_COMMAND_OBJECT_ID, GENERAL_EXHAUST_FAN_COMMAND_OBJECT_ID
+from bacnet_device_fixture import (
+    BACNET_DEVICE_IP_ADDR,
+    BACNET_SUBNET,
+    COOLING_VALVE_OUTPUT_COMMAND_OBJECT_ID,
+    GENERAL_EXHAUST_FAN_COMMAND_OBJECT_ID,
+)
 
 utils.setup_logging()
 logger = logging.getLogger(__name__)
@@ -28,21 +33,24 @@ def test_set_and_get(
     query_agent.poll_callback.reset_mock()
     assert volttron_instance.is_agent_running(bacnet_proxy_agent)
 
-    register_values = {"CoolingValveOutputCommand": 42.42,
-                       "GeneralExhaustFanCommand": 1}
+    register_values = {
+        "CoolingValveOutputCommand": 42.42,
+        "GeneralExhaustFanCommand": 1,
+    }
     for k, v in register_values.items():
-        print(f"Setting and getting point: {k} with value: {v}")
+        logger.info(f"Setting and getting point: {k} with value: {v}")
         query_agent.vip.rpc.call(PLATFORM_DRIVER, "set_point", "bacnet", k, v).get(
             timeout=10
         )
-        async_res = query_agent.vip.rpc.call(PLATFORM_DRIVER, 'get_point', 'bacnet', k)
+        async_res = query_agent.vip.rpc.call(PLATFORM_DRIVER, "get_point", "bacnet", k)
         updated_v = async_res.get()
-        print(f"Updated value: {updated_v}")
+        logger.info(f"Updated value: {updated_v}")
 
         if isinstance(updated_v, float):
-            assert(math.isclose(v, updated_v, rel_tol=0.05))
+            assert math.isclose(v, updated_v, rel_tol=0.05)
         else:
             assert updated_v == v
+
 
 # TODO: add test for "scrape_all"
 # p = query_agent.vip.rpc.call(PLATFORM_DRIVER, "scrape_all", "bacnet").get(timeout=10)
@@ -56,7 +64,7 @@ def bacnet_proxy_agent(volttron_instance):
     device_address = socket.gethostbyname(socket.gethostname() + ".local")
     bacnet_proxy_agent_config = {
         "device_address": device_address,
-        # below are optional; values use the default values
+        # below are optional; values are set to show configuration options; values use the default values
         "max_apdu_length": 1024,
         "object_id": 599,
         "object_name": "Volttron BACnet driver",
@@ -119,8 +127,7 @@ def platform_driver(volttron_instance, query_agent):
 
     # store bacnet driver configuration
     driver_config = {
-        "driver_config": {"device_address": BACNET_DEVICE_IP_ADDR,
-                          "device_id": 599},
+        "driver_config": {"device_address": BACNET_DEVICE_IP_ADDR, "device_id": 599},
         "driver_type": "bacnet",
         "registry_config": "config://bacnet.csv",
         "timezone": "US/Pacific",
@@ -147,7 +154,7 @@ def platform_driver(volttron_instance, query_agent):
         config_type="csv",
     ).get(timeout=3)
 
-    # now start the platform driver
+    # start the platform driver
     volttron_instance.start_agent(platform_driver)
 
     # Wait for the agent to start and start the devices
@@ -168,29 +175,40 @@ def bacnet_device():
     network_name = "bacnet_network"
 
     # build the test image
-    client.images.build(path=os.getcwd(),
-                        nocache=True,
-                        rm=True,
-                        forcerm=True,
-                        dockerfile="Dockerfile.test.bacnet",
-                        tag=image_name)
+    client.images.build(
+        path=os.getcwd(),
+        nocache=True,
+        rm=True,
+        forcerm=True,
+        dockerfile="Dockerfile.test.bacnet",
+        tag=image_name,
+    )
 
-    # create the test network
+    # create a custom docker network
     ipam_pool = docker.types.IPAMPool(subnet=BACNET_SUBNET)
     ipam_config = docker.types.IPAMConfig(pool_configs=[ipam_pool])
-    bacnet_network = client.networks.create(network_name, driver="bridge", ipam=ipam_config)
+    bacnet_network = client.networks.create(
+        network_name, driver="bridge", ipam=ipam_config
+    )
 
-    # run the container and assign it a static IP to test network
-    bacnet_container = client.containers.create(image_name, name='bacnet_test', detach=True,)
-    client.networks.get(network_name).connect(bacnet_container, ipv4_address=BACNET_DEVICE_IP_ADDR)
+    # run the container and assign it a static IP from custom docker network
+    bacnet_container = client.containers.create(
+        image_name,
+        name="bacnet_test",
+        detach=True,
+    )
+    client.networks.get(network_name).connect(
+        bacnet_container, ipv4_address=BACNET_DEVICE_IP_ADDR
+    )
     bacnet_container.start()
 
     error_time = time.time() + 10
-    while bacnet_container.status != 'running':
+    while bacnet_container.status != "running":
         if time.time() > error_time:
             raise RuntimeError("Bacnet_device container timeout during fixture setup")
         time.sleep(0.1)
         bacnet_container.reload()
+
     yield bacnet_container
 
     print("Teardown for bacnet device on Docker")
