@@ -188,9 +188,7 @@ def bacnet_device():
     error_time = time.time() + 10
     while bacnet_container.status != 'running':
         if time.time() > error_time:
-            print("Bacnet_device container timeout during fixture setup")
-            exit(2)
-            break
+            raise RuntimeError("Bacnet_device container timeout during fixture setup")
         time.sleep(0.1)
         bacnet_container.reload()
     yield bacnet_container
