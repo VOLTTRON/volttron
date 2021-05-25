@@ -14,8 +14,11 @@ _log = ModuleLogger(globals())
 test_av = None
 test_bv = None
 test_app = None
+
 BACNET_SUBNET = '172.28.0.0/16'
 BACNET_DEVICE_IP_ADDR = "172.28.5.1"
+COOLING_VALVE_OUTPUT_COMMAND_OBJECT_ID = 3000107
+GENERAL_EXHAUST_FAN_COMMAND_OBJECT_ID = 3000114
 
 
 @bacpypes_debugging
@@ -80,14 +83,13 @@ def main():
         _log.debug("    - this_device: %r", this_device)
 
     # add device to an Application
-    address = BACNET_DEVICE_IP_ADDR  # comes from hostname -I, this address is used to connect the Driver to the Device
+    address = BACNET_DEVICE_IP_ADDR
     testapp = BacnetTestApplication(this_device, address)
 
     # the objectIdentifier comes from the Index in the bacnet.csv for the corresponding Driver on the Volttron platform
     test_av = AnalogOutputObject(
-        objectIdentifier=("analogOutput", 3000107),  # the objectIdentifier maps to Index on the bacnet.csv
+        objectIdentifier=("analogOutput", COOLING_VALVE_OUTPUT_COMMAND_OBJECT_ID),
         objectName="Building/FCB.Local Application.CLG-O",
-        # should match the Point Name "red one", not a protocol requirement
         presentValue=1.0,
         statusFlags=[0, 0, 0, 0],
     )
@@ -95,7 +97,7 @@ def main():
     testapp.add_object(test_av)
 
     test_bv = BinaryOutputObject(
-        objectIdentifier=("binaryOutput", 3000114),
+        objectIdentifier=("binaryOutput", GENERAL_EXHAUST_FAN_COMMAND_OBJECT_ID),
         objectName="Building/FCB.Local Application.GEF-C",
         presentValue="inactive",
         statusFlags=[0, 0, 0, 0],
@@ -103,7 +105,7 @@ def main():
     _log.debug("    - test_bv: %r", test_bv)
     testapp.add_object(test_bv)
 
-    # make a third object that supports COV
+    # TODO: make a third object that supports COV
 
     # run tasks
     test_av_task = TestAnalogOutputValueTask(5)

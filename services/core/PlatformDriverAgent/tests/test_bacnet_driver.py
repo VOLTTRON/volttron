@@ -1,7 +1,6 @@
 import logging
 import os
 import time
-
 import pytest
 import gevent
 import math
@@ -15,7 +14,7 @@ from volttron.platform.agent.known_identities import (
 )
 from volttron.platform import get_services_core, get_examples
 from volttron.platform.agent import utils
-from bacnet_device_fixture import BACNET_DEVICE_IP_ADDR, BACNET_SUBNET
+from bacnet_device_fixture import BACNET_DEVICE_IP_ADDR, BACNET_SUBNET, COOLING_VALVE_OUTPUT_COMMAND_OBJECT_ID, GENERAL_EXHAUST_FAN_COMMAND_OBJECT_ID
 
 utils.setup_logging()
 logger = logging.getLogger(__name__)
@@ -28,6 +27,7 @@ def test_set_and_get(
 ):
     query_agent.poll_callback.reset_mock()
     assert volttron_instance.is_agent_running(bacnet_proxy_agent)
+
     register_values = {"CoolingValveOutputCommand": 42.42,
                        "GeneralExhaustFanCommand": 1}
     for k, v in register_values.items():
@@ -44,24 +44,11 @@ def test_set_and_get(
         else:
             assert updated_v == v
 
-    # check read multiple points
-    # p = query_agent.vip.rpc.call(PLATFORM_DRIVER, "scrape_all", "bacnet").get(
-    #     timeout=10
-    # )
-    # print(f"The RESULT: {p}")
-    #
-    
-    # print(f"This is the CALLBACK count: {query_agent.poll_callback.call_count}")
-    # print(f"This is the args: {query_agent.poll_callback.call_args_list}")
-    # 
-    # assert query_agent.poll_callback.call_count == 1
-    # args = query_agent.poll_callback.call_args_list
-    # print(args)
+# TODO: add test for "scrape_all"
+# p = query_agent.vip.rpc.call(PLATFORM_DRIVER, "scrape_all", "bacnet").get(timeout=10)
 
-    # TODO: add another test on COV
-    # have a COV f0lag column, set to true
-    # subscrive to point on volt msg
-    # bacnet server
+# TODO: add another test on COV
+# have a COV flag column on registry config and set to true
 
 
 @pytest.fixture(scope="module")
@@ -131,9 +118,8 @@ def platform_driver(volttron_instance, query_agent):
     )
 
     # store bacnet driver configuration
-    ip_addr = BACNET_DEVICE_IP_ADDR  # This should come from docker ip address, <address:port>
     driver_config = {
-        "driver_config": {"device_address": ip_addr,
+        "driver_config": {"device_address": BACNET_DEVICE_IP_ADDR,
                           "device_id": 599},
         "driver_type": "bacnet",
         "registry_config": "config://bacnet.csv",
@@ -148,9 +134,9 @@ def platform_driver(volttron_instance, query_agent):
         driver_config,
     ).get(timeout=3)
 
-    registry_string = """Point Name,Volttron Point Name,Units,Unit Details,BACnet Object Type,Property,Writable,Index,Notes
-    Building/FCB.Local Application.CLG-O,CoolingValveOutputCommand,percent,0.00 to 100.00 (default 0.0),analogOutput,presentValue,TRUE,3000107,Resolution: 0.1
-    Building/FCB.Local Application.GEF-C,GeneralExhaustFanCommand,Enum,0-1 (default 0),binaryOutput,presentValue,TRUE,3000114,"BinaryPV: 0=inactive, 1=active"""
+    registry_string = f"""Point Name,Volttron Point Name,Units,Unit Details,BACnet Object Type,Property,Writable,Index,Notes
+    Building/FCB.Local Application.CLG-O,CoolingValveOutputCommand,percent,0.00 to 100.00 (default 0.0),analogOutput,presentValue,TRUE,{str(COOLING_VALVE_OUTPUT_COMMAND_OBJECT_ID)},Resolution: 0.1
+    Building/FCB.Local Application.GEF-C,GeneralExhaustFanCommand,Enum,0-1 (default 0),binaryOutput,presentValue,TRUE,{str(GENERAL_EXHAUST_FAN_COMMAND_OBJECT_ID)},"BinaryPV: 0=inactive, 1=active"""
 
     query_agent.vip.rpc.call(
         CONFIGURATION_STORE,
