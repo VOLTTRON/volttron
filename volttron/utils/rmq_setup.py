@@ -1145,7 +1145,7 @@ def _request_csr(rmq_user, remote_addr, type, verbose=False):
         local_keyfile = metadata['local_keyname']
         ca_name = metadata['remote_ca_name']
         # remote ca
-        ca_file = '/'.join((get_remote_certs_dir(rmq_user), ca_name + '.crt'))
+        ca_file = '/'.join((get_remote_certs_dir(type), ca_name + '.crt'))
 
         # private_key
         crts = certs.Certs()

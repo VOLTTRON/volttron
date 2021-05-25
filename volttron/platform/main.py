@@ -910,7 +910,7 @@ def start_volttron_process(opts):
             thread.start()
 
             gevent.sleep(0.1)
-            if not thread.isAlive():
+            if not thread.is_alive():
                 sys.exit()
         else:
             # Start RabbitMQ server if not running
@@ -941,7 +941,7 @@ def start_volttron_process(opts):
             thread.start()
 
             gevent.sleep(0.1)
-            if not thread.isAlive():
+            if not thread.is_alive():
                 sys.exit()
 
             gevent.sleep(1)

@@ -441,6 +441,8 @@ or use the included `stop-volttron` script:
         volttron -vv -l volttron.log > /dev/null 2>&1&
 
 
+.. _installing-and-running-agents:
+
 Installing and Running Agents
 -----------------------------
 

@@ -72,6 +72,8 @@ class GridAPPSDSimIntegration(BaseSimIntegration):
         self.event_callbacks = {}
         self.topic_callbacks = {}
         self.sim_id = None
+        self.username = None
+        self.password = None
 
     def register_inputs(self, config=None, callback=None, **kwargs):
         """
@@ -86,6 +88,8 @@ class GridAPPSDSimIntegration(BaseSimIntegration):
         :return:
         """
         self.config = config
+        self.username = self.config.pop('username', 'system')
+        self.password = self.config.pop('password', 'manager')
         self._work_callback = callback
 
     def register_event_callbacks(self, callbacks={}):
@@ -115,7 +119,9 @@ class GridAPPSDSimIntegration(BaseSimIntegration):
         :return:
         """
         try:
-            self.gridappsd = GridAPPSD(override_threading=self.receiver_thread)
+            self.gridappsd = GridAPPSD(override_threading=self.receiver_thread,
+                                       username=self.username,
+                                       password=self.password)
 
             _log.debug('Gridappsd connected')
 

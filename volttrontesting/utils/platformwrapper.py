@@ -21,6 +21,7 @@ import gevent.subprocess as subprocess
 import requests
 
 from volttron.platform.vip.socket import encode_key, decode_key
+from volttrontesting.fixtures.cert_fixtures import certs_profile_2
 from .agent_additions import (add_volttron_central,
                               add_volttron_central_platform)
 from gevent.fileobject import FileObject
@@ -38,7 +39,8 @@ from volttron.platform.auth import (AuthFile, AuthEntry,
 from volttron.platform.keystore import KeyStore, KnownHostsStore
 from volttron.platform.vip.agent import Agent
 from volttron.platform.vip.agent.connection import Connection
-from volttrontesting.utils.utils import get_rand_http_address, get_rand_vip
+from volttrontesting.utils.utils import get_rand_http_address, get_rand_vip, get_hostname_and_random_port, \
+    get_rand_ip_and_port
 from volttrontesting.utils.utils import get_rand_tcp_address
 from volttrontesting.fixtures.rmq_test_setup import create_rmq_volttron_setup
 from volttron.utils.rmq_setup import start_rabbit, stop_rabbit
@@ -147,15 +149,22 @@ def start_wrapper_platform(wrapper, with_http=False, with_tcp=True,
     # Please note, if 'with_http'==True, then instance name needs to be provided
     assert not wrapper.is_running()
 
-    # Will returen https if messagebus rmq
-    bind_address = get_rand_http_address(wrapper.messagebus == 'rmq') if with_http else None
+    address = get_rand_vip()
+    if wrapper.ssl_auth:
+        hostname, port = get_hostname_and_random_port()
+        bind_address = 'https://{hostname}:{port}'.format(hostname=hostname, port=port)
+    else:
+        bind_address = "http://{}".format(get_rand_ip_and_port())
+
+    # Will return https if messagebus rmq
+    # bind_address = get_rand_http_address(wrapper.messagebus == 'rmq') if with_http else None
     vc_http = bind_address
     vc_tcp = get_rand_tcp_address() if with_tcp else None
 
     if add_local_vc_address:
         ks = KeyStore(os.path.join(wrapper.volttron_home, 'keystore'))
         ks.generate()
-        if wrapper.messagebus == 'rmq':
+        if wrapper.ssl_auth is True:
             volttron_central_address = vc_http
         else:
             volttron_central_address = vc_tcp
@@ -329,7 +338,7 @@ class PlatformWrapper:
                                                                      instance_name=self.instance_name,
                                                                      secure_agent_users=secure_agent_users)
 
-                self.certsobj = Certs(os.path.join(self.volttron_home, "certificates"))
+            self.certsobj = Certs(os.path.join(self.volttron_home, "certificates"))
 
             self.debug_mode = self.env.get('DEBUG_MODE', False)
             if not self.debug_mode:
@@ -366,8 +375,8 @@ class PlatformWrapper:
 
             if self.messagebus == 'rmq' and self.bind_web_address is not None:
                 self.enable_auto_csr()
-            if self.bind_web_address is not None:
-                self.web_admin_api.create_web_admin('admin', 'admin', self.messagebus)
+            # if self.bind_web_address is not None:
+            #     self.web_admin_api.create_web_admin('admin', 'admin', self.messagebus)
 
     def get_agent_identity(self, agent_uuid):
         identity = None
@@ -653,7 +662,7 @@ class PlatformWrapper:
                     authfile.add(entry)
 
                     identity = "dynamic_agent"
-                    capabilities = ['allow_auth_modifications']
+                    capabilities = dict(edit_config_store=dict(identity="/.*/"), allow_auth_modifications=None)
                     # Lets cheat a little because this is a wrapper and add the dynamic agent in here as well
                     ks = KeyStore(KeyStore.get_agent_keystore_path(identity))
                     entry = AuthEntry(credentials=encode_key(decode_key(ks.public)),
@@ -661,27 +670,6 @@ class PlatformWrapper:
                                       capabilities=capabilities,
                                       comments='Added by pre-seeding.')
                     authfile.add(entry)
-
-            # # Add platform key to known-hosts file:
-            # known_hosts = KnownHostsStore()
-            # known_hosts.add(opts.vip_local_address, encode_key(publickey))
-            # for addr in opts.vip_address:
-            #     known_hosts.add(addr, encode_key(publickey))
-            if self.bind_web_address:
-                # Create web users for platform web authentication
-                from volttron.platform.web.admin_endpoints import AdminEndpoints
-                from volttrontesting.utils.web_utils import get_test_web_env
-                adminep = AdminEndpoints()
-                params = urlencode(dict(username='admin', password1='admin', password2='admin'))
-                env = get_test_web_env("/admin/setpassword", method='POST')  # , input_data=input)
-                response = adminep.admin(env, params)
-
-                self.discovery_address = "{}/discovery/".format(
-                    self.bind_web_address)
-
-                # Only available if vc is installed!
-                self.jsonrpc_endpoint = "{}/vc/jsonrpc".format(
-                    self.bind_web_address)
 
             msgdebug = self.env.get('MSG_DEBUG', False)
             enable_logging = self.env.get('ENABLE_LOGGING', False)
@@ -702,13 +690,42 @@ class PlatformWrapper:
             self.local_vip_address = ipc + 'vip.socket'
             self.set_auth_dict(auth_dict)
 
+            web_ssl_cert = None
+            web_ssl_key = None
             if self.messagebus == 'rmq' and bind_web_address:
                 self.env['REQUESTS_CA_BUNDLE'] = self.certsobj.cert_file(self.certsobj.root_ca_name)
+
+            # Enable SSL for ZMQ
+            elif self.messagebus == 'zmq' and self.ssl_auth and bind_web_address:
+                web_certs = certs_profile_2(os.path.join(self.volttron_home, "certificates"))
+                web_ssl_cert = web_certs['server_certs'][0]['cert_file']
+                web_ssl_key = web_certs['server_certs'][0]['key_file']
+            # # Add platform key to known-hosts file:
+            # known_hosts = KnownHostsStore()
+            # known_hosts.add(opts.vip_local_address, encode_key(publickey))
+            # for addr in opts.vip_address:
+            #     known_hosts.add(addr, encode_key(publickey))
+
+            if self.bind_web_address:
+                # Create web users for platform web authentication
+                # from volttron.platform.web.admin_endpoints import AdminEndpoints
+                # from volttrontesting.utils.web_utils import get_test_web_env
+                # adminep = AdminEndpoints()
+                # params = urlencode(dict(username='admin', password1='admin', password2='admin'))
+                # env = get_test_web_env("/admin/setpassword", method='POST')  # , input_data=input)
+                # response = adminep.admin(env, params)
+                # print(f"RESPONSE 1: {response}")
+                self.discovery_address = "{}/discovery/".format(
+                    self.bind_web_address)
+
+                # Only available if vc is installed!
+                self.jsonrpc_endpoint = "{}/vc/jsonrpc".format(
+                    self.bind_web_address)
 
             if self.remote_platform_ca:
                 ca_bundle_file = os.path.join(self.volttron_home, "cat_ca_certs")
                 with open(ca_bundle_file, 'w') as cf:
-                    if self.messagebus == 'rmq':
+                    if self.ssl_auth:
                         with open(self.certsobj.cert_file(self.certsobj.root_ca_name)) as f:
                             cf.write(f.read())
                     with open(self.remote_platform_ca) as f:
@@ -755,6 +772,10 @@ class PlatformWrapper:
             parser.set('volttron', 'vip-address', vip_address)
             if bind_web_address:
                 parser.set('volttron', 'bind-web-address', bind_web_address)
+            if web_ssl_cert:
+                parser.set('volttron', 'web-ssl-cert', web_ssl_cert)
+            if web_ssl_key:
+                parser.set('volttron', 'web-ssl-key', web_ssl_key)
             if volttron_central_address:
                 parser.set('volttron', 'volttron-central-address',
                            volttron_central_address)
@@ -861,6 +882,11 @@ class PlatformWrapper:
                 # self.dynamic_agent.vip.pubsub.subscribe('pubsub', '', subscribe_to_all).get()
 
             if bind_web_address:
+                # Now that we know we have web and we are using ssl then we
+                # can enable the WebAdminApi.
+                # if self.ssl_auth:
+                self._web_admin_api = WebAdminApi(self)
+                self._web_admin_api.create_web_admin("admin", "admin")
                 times = 0
                 has_discovery = False
                 error_was = None
@@ -890,10 +916,6 @@ class PlatformWrapper:
                         raise error_was
                     raise Exception("Couldn't connect to discovery platform.")
 
-                # Now that we know we have web and we are using ssl then we
-                # can enable the WebAdminApi.
-                # if self.ssl_auth:
-                self._web_admin_api = WebAdminApi(self)
 
         if self.is_running():
             self._instance_shutdown = False
@@ -1507,25 +1529,26 @@ class WebAdminApi(object):
         :param password:
         :return:
         """
-        #     from volttron.platform.web.admin_endpoints import AdminEndpoints
-        #     from volttrontesting.utils.web_utils import get_test_web_env
-        #
-        #     params = urlencode(dict(username='admin', password1='admin', password2='admin'))
-        #     env = get_test_web_env("/admin/setpassword", method='POST')  # , input_data=input)
-        #     adminep = AdminEndpoints()
-        #     resp = adminep.admin(env, params)
-        # else:
-        if messagebus == 'rmq':
-            data = dict(username=username, password1=password, password2=password)
-            url = self.bind_web_address + "/admin/setpassword"
-            # resp = requests.post(url, data=data,
-            # verify=self.certsobj.remote_cert_bundle_file())
+        from volttron.platform.web.admin_endpoints import AdminEndpoints
+        from volttrontesting.utils.web_utils import get_test_web_env
+
+        # params = urlencode(dict(username='admin', password1='admin', password2='admin'))
+        # env = get_test_web_env("/admin/setpassword", method='POST')  # , input_data=input)
+        # adminep = AdminEndpoints()
+        # resp = adminep.admin(env, params)
+        # # else:
+        data = dict(username=username, password1=password, password2=password)
+        url = self.bind_web_address + "/admin/setpassword"
+        # resp = requests.post(url, data=data,
+        # verify=self.certsobj.remote_cert_bundle_file())
+
+        if self._wrapper.ssl_auth:
             resp = requests.post(url, data=data,
-                                 verify=self.certsobj.cert_file(
-                                     name=self.certsobj.root_ca_name))
-            return resp
+                                 verify=self.certsobj.cert_file(self.certsobj.root_ca_name))
         else:
-            return None
+            resp = requests.post(url, data=data, verify=False)
+        print(f"RESPONSE: {resp}")
+        return resp
 
     def authenticate(self, username, password):
         data = dict(username=username, password=password)
@@ -1534,6 +1557,9 @@ class WebAdminApi(object):
         # application/x-www-form-urlencoded to the request
         # resp = requests.post(url, data=data,
         # verify=self.certsobj.remote_cert_bundle_file())
-        resp = requests.post(url, data=data, verify=self.certsobj.cert_file(
-            self.certsobj.root_ca_name))
+        if self._wrapper.ssl_auth:
+            resp = requests.post(url, data=data,
+                                 verify=self.certsobj.cert_file(self.certsobj.root_ca_name))
+        else:
+            resp = requests.post(url, data=data, verify=False)
         return resp
