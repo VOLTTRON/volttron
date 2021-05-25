@@ -1,6 +1,8 @@
 import logging
 import pytest
 import gevent
+import math
+import socket
 
 from mock import MagicMock
 from volttron.platform.agent.known_identities import (
@@ -13,27 +15,7 @@ from volttron.platform.agent import utils
 utils.setup_logging()
 logger = logging.getLogger(__name__)
 
-POLL_INTERVAL = 3
-BACNET_PROXY_AGENT_ID = "bacnet_proxy_agent"
 BACNET_DEVICE_TOPIC = "devices/bacnet"
-IP_ADDR = "10.0.2.15" # This should come from docker ip address, <address:port>
-DRIVER_CONFIG = {
-    "driver_config": {"device_address": IP_ADDR, "device_id": 500},
-    "driver_type": "bacnet",
-    "registry_config": "config://bacnet.csv",
-    "timezone": "US/Pacific",
-    "interval": 15,
-}
-BACNET_PROXY_AGENT_CONFIG = {
-    "device_address": IP_ADDR, # Host
-    "max_apdu_length": 1024,
-    "object_id": 599,
-    "object_name": "Volttron BACnet driver",
-    "vendor_id": 5,
-    "segmentation_supported": "segmentedBoth",
-}
-# these are hand-picked values to be used for testing; they come from examples/configurations/drivers/bacnet.csv
-REGISTER_VALUES = {"CoolingValveOutputCommand": 10.1}
 
 
 def test_set_and_get(
@@ -41,35 +23,57 @@ def test_set_and_get(
 ):
     query_agent.poll_callback.reset_mock()
     assert volttron_instance.is_agent_running(bacnet_proxy_agent)
-    for k, v in REGISTER_VALUES.items():
+    register_values = {"CoolingValveOutputCommand": 42.42,
+                       "GeneralExhaustFanCommand": 1}
+    for k, v in register_values.items():
+        print(f"Setting and getting point: {k} with value: {v}")
         query_agent.vip.rpc.call(PLATFORM_DRIVER, "set_point", "bacnet", k, v).get(
             timeout=10
         )
-        print(
-            f"This is the POINT: {query_agent.vip.rpc.call(PLATFORM_DRIVER, 'get_point', 'bacnet', k)}"
-        )
-    #
-    # gevent.sleep(POLL_INTERVAL)
-    #
-    # query_agent.vip.rpc.call(PLATFORM_DRIVER, "heart_beat").get(timeout=10)
+        async_res = query_agent.vip.rpc.call(PLATFORM_DRIVER, 'get_point', 'bacnet', k)
+        updated_v = async_res.get()
+        print(f"Updated value: {updated_v}")
 
+        if isinstance(updated_v, float):
+            assert(math.isclose(v, updated_v, rel_tol=0.05))
+        else:
+            assert updated_v == v
+
+    # check read multiple points
     # p = query_agent.vip.rpc.call(PLATFORM_DRIVER, "scrape_all", "bacnet").get(
     #     timeout=10
     # )
     # print(f"The RESULT: {p}")
     #
+    
     # print(f"This is the CALLBACK count: {query_agent.poll_callback.call_count}")
     # print(f"This is the args: {query_agent.poll_callback.call_args_list}")
-    #
+    # 
     # assert query_agent.poll_callback.call_count == 1
     # args = query_agent.poll_callback.call_args_list
+    # print(args)
+
+    # TODO: add another test on COV
+    # have a COV f0lag column, set to true
+    # subscrive to point on volt msg
+    # bacnet server
 
 
 @pytest.fixture(scope="module")
 def bacnet_proxy_agent(volttron_instance):
+    device_address = socket.gethostbyname(socket.gethostname() + ".local")
+    bacnet_proxy_agent_config = {
+        "device_address": device_address,
+        # below are optional; values use the default values
+        "max_apdu_length": 1024,
+        "object_id": 599,
+        "object_name": "Volttron BACnet driver",
+        "vendor_id": 15,
+        "segmentation_supported": "segmentedBoth",
+    }
     bacnet_proxy_agent_uuid = volttron_instance.install_agent(
         agent_dir=get_services_core("BACnetProxy"),
-        config_file=BACNET_PROXY_AGENT_CONFIG,
+        config_file=bacnet_proxy_agent_config,
     )
     gevent.sleep(1)
     volttron_instance.start_agent(bacnet_proxy_agent_uuid)
@@ -122,23 +126,36 @@ def platform_driver(volttron_instance, query_agent):
     )
 
     # store bacnet driver configuration
+    # TODO: Get docker IP address
+    ip_addr = "192.168.0.129"  # This should come from docker ip address, <address:port>
+    driver_config = {
+        "driver_config": {"device_address": ip_addr,
+                          "device_id": 599},
+        "driver_type": "bacnet",
+        "registry_config": "config://bacnet.csv",
+        "timezone": "US/Pacific",
+        "interval": 15,
+    }
     query_agent.vip.rpc.call(
         CONFIGURATION_STORE,
         "manage_store",
         PLATFORM_DRIVER,
         BACNET_DEVICE_TOPIC,
-        DRIVER_CONFIG,
+        driver_config,
     ).get(timeout=3)
-    with open(get_examples("configurations/drivers/bacnet.csv")) as registry_file:
-        registry_string = registry_file.read()
-        query_agent.vip.rpc.call(
-            CONFIGURATION_STORE,
-            "manage_store",
-            PLATFORM_DRIVER,
-            "bacnet.csv",
-            registry_string,
-            config_type="csv",
-        ).get(timeout=3)
+
+    registry_string = """Point Name,Volttron Point Name,Units,Unit Details,BACnet Object Type,Property,Writable,Index,Notes
+    Building/FCB.Local Application.CLG-O,CoolingValveOutputCommand,percent,0.00 to 100.00 (default 0.0),analogOutput,presentValue,TRUE,3000107,Resolution: 0.1
+    Building/FCB.Local Application.GEF-C,GeneralExhaustFanCommand,Enum,0-1 (default 0),binaryOutput,presentValue,TRUE,3000114,"BinaryPV: 0=inactive, 1=active"""
+
+    query_agent.vip.rpc.call(
+        CONFIGURATION_STORE,
+        "manage_store",
+        PLATFORM_DRIVER,
+        "bacnet.csv",
+        registry_string,
+        config_type="csv",
+    ).get(timeout=3)
 
     # now start the platform driver
     volttron_instance.start_agent(platform_driver)
@@ -152,53 +169,3 @@ def platform_driver(volttron_instance, query_agent):
 
     print("In teardown method of Platform Driver")
     volttron_instance.stop_agent(platform_driver)
-
-
-#
-#
-# @pytest.fixture(scope="module")
-# def bacnet_server():
-#     from bacpypes.service.device import LocalDeviceObject
-#     args = {"objectname": "Volttron BACnet driver",
-#             "address": "172.28.5.0", #IP_ADDR,
-#             "objectidentifier": "599",
-#             "maxapdulengthaccepted": "1024",
-#             "segmentationsupported": "segmentedBoth",
-#             "vendoridentifier": "5"}
-#
-#     mock_device = LocalDeviceObject(
-#         objectName=args["objectname"],
-#         objectIdentifier=int(args["objectidentifier"]),
-#         maxApduLengthAccepted=int(args["maxapdulengthaccepted"]),
-#         segmentationSupported=args["segmentationsupported"],
-#         vendorIdentifier=int(args["vendoridentifier"]))
-#
-#     from bacpypes.service.cov import ChangeOfValueServices
-#     from bacpypes.app import BIPSimpleApplication
-#     class BacServer(BIPSimpleApplication, ChangeOfValueServices):
-#         pass
-#
-#     app = BacServer(mock_device, args["address"])
-#
-#     assert app
-#     from bacpypes.object import (
-#         WritableProperty,
-#         AnalogValueObject,
-#         BinaryValueObject,
-#         register_object_type,
-#     )
-#     from bacpypes.primitivedata import Real
-#     class WritableAnalogValueObject(AnalogValueObject):
-#         properties = [WritableProperty("presentValue", Real)]
-#
-#     val_obj = WritableAnalogValueObject(
-#         objectIdentifier=("analogValue", 1),
-#         objectName="av",
-#         presentValue=0.0,
-#         statusFlags=[0, 0, 0, 0],
-#         covIncrement=1.0,
-#     )
-#     app.add_object(val_obj)
-#
-#     yield app
-#
