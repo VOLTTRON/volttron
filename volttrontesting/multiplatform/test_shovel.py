@@ -169,42 +169,75 @@ def xxx(request, **kwargs):
     sink_vip = get_rand_vip()
     sink_hostname, sink_https_port = get_hostname_and_random_port()
     sink_web_address = 'https://{hostname}:{port}'.format(hostname=sink_hostname, port=sink_https_port)
+    sink_instance_name = 'volttron2'
     sink = build_wrapper(sink_vip,
                          ssl_auth=True,
                          messagebus='rmq',
                          should_start=True,
                          bind_web_address=sink_web_address,
-                         instance_name='volttron2',
+                         instance_name=sink_instance_name,
                          **kwargs)
 
     sink.enable_auto_csr()
-    link_name = None
+    source_link_name = None
     try:
         # create shovel config and save in volttron home of 'source' instance
-        # pubsub_config = dict()
-        # pubsub_config['dynamic_agent'] = 'test'
-        shovel_user = '{source_instance}.shovel{sink_host}'.format(source_instance=source_instance_name,
-                                                                   sink_host=sink_hostname)
+        source_shovel_user = '{source_instance}.shovel{sink_host}'.format(source_instance=source_instance_name,
+                                                                          sink_host=sink_hostname)
         rpc_config = dict()
-        rpc_config[source_instance_name] = [['test', CONTROL]]
-        # instance_1_shovel_user = '{source_instance}.shovel{sink_host}'.format(source_instance=instance_1_name,
-        #                                                                       sink_host=instance_2_hostname)
+        rpc_config[sink_instance_name] = [['dynamic_agent', CONTROL]]
         config_path = create_shovel_config(source.volttron_home,
                                            sink.rabbitmq_config_obj.rabbitmq_config["host"],
                                            sink.rabbitmq_config_obj.rabbitmq_config["amqp-port-ssl"],
                                            sink_https_port,
                                            sink.rabbitmq_config_obj.rabbitmq_config["virtual-host"],
-                                           shovel_user,
+                                           source_shovel_user,
                                            rpc_config=rpc_config)
 
         # setup shovel from 'source' to 'sink'
         source.setup_shovel(config_path)
         source.startup_platform(vip_address=source_vip, bind_web_address=source_web_address)
+        source.enable_auto_csr()
+
+        # Check shovel link status
         with with_os_environ(source.env):
             rmq_mgmt = RabbitMQMgmt()
             links = rmq_mgmt.get_shovel_links()
             assert links and links[0]['state'] == 'running'
-            link_name = links[0]['name']
+            source_link_name = links[0]['name']
+
+        sink.skip_cleanup = True
+        sink.shutdown_platform()
+        sink.skip_cleanup = False
+
+        # Start RabbitMQ broker to establish shovel link
+        start_rabbit(rmq_home=sink.rabbitmq_config_obj.rmq_home, env=sink.env)
+
+        rpc_config = dict()
+        rpc_config[source_instance_name] = [[CONTROL, 'dynamic_agent']]
+        sink_shovel_user = '{source_instance}.shovel{sink_host}'.format(source_instance=sink_instance_name,
+                                                                        sink_host=source_hostname)
+
+        config_path = create_shovel_config(sink.volttron_home,
+                                           source.rabbitmq_config_obj.rabbitmq_config["host"],
+                                           source.rabbitmq_config_obj.rabbitmq_config["amqp-port-ssl"],
+                                           source_https_port,
+                                           source.rabbitmq_config_obj.rabbitmq_config["virtual-host"],
+                                           sink_shovel_user,
+                                           rpc_config=rpc_config)
+
+        print(f"instance 2 shovel config path:{config_path}")
+
+        sink.setup_shovel(config_path)
+        sink.startup_platform(vip_address=sink_vip, bind_web_address=sink_web_address)
+
+        # Check shovel link status
+        with with_os_environ(sink.env):
+            rmq_mgmt = RabbitMQMgmt()
+            links = rmq_mgmt.get_shovel_links()
+            print(f"instance 2 shovel links: {links}, state: {links[0]['state']}")
+            assert links and links[0]['state'] == 'running'
+            sink_link_name = links[0]['name']
 
     except Exception as e:
         print("Exception setting up shovel: {}".format(e))
@@ -213,137 +246,16 @@ def xxx(request, **kwargs):
         raise e
 
     yield source, sink
-    if link_name:
-        rmq_mgmt.delete_multiplatform_parameter('shovel', link_name)
+    if source_link_name:
+        with with_os_environ(source.env):
+            rmq_mgmt = RabbitMQMgmt()
+            rmq_mgmt.delete_multiplatform_parameter('shovel', source_link_name)
+    if sink_link_name:
+        with with_os_environ(sink.env):
+            rmq_mgmt = RabbitMQMgmt()
+            rmq_mgmt.delete_multiplatform_parameter('shovel', sink_link_name)
     source.shutdown_platform()
     sink.shutdown_platform()
-
-@pytest.fixture(scope="module")
-def two_way_shovel_rmq_instances(request, **kwargs):
-    """
-    Create two rmq based volttron instance and setup shovel connections between the two
-    for bi-directional data flow
-
-    :return: 2 volttron instances that are connected with shovels
-    """
-    instance_1_vip = get_rand_vip()
-    instance_1_hostname, instance_1_https_port = get_hostname_and_random_port()
-    instance_1_web_address = 'https://{hostname}:{port}'.format(hostname=instance_1_hostname,
-                                                                port=instance_1_https_port)
-    instance_1_name = 'volttron1'
-    print(f"instance_1 WEB ADDR: {instance_1_web_address}")
-    instance_1 = build_wrapper(instance_1_vip,
-                               ssl_auth=True,
-                               messagebus='rmq',
-                               should_start=False,
-                               bind_web_address=instance_1_web_address,
-                               instance_name=instance_1_name,
-                               **kwargs)
-    print(f"instance_1 VHOME: {instance_1.volttron_home}, WEB ADDR: {instance_1.bind_web_address}")
-
-    instance_2_vip = get_rand_vip()
-    instance_2_hostname, instance_2_https_port = get_hostname_and_random_port()
-    instance_2_web_address = 'https://{hostname}:{port}'.format(hostname=instance_2_hostname,
-                                                                port=instance_2_https_port)
-    instance_2_name = 'volttron2'
-    instance_2 = build_wrapper(instance_2_vip,
-                               ssl_auth=True,
-                               messagebus='rmq',
-                               should_start=True,
-                               bind_web_address=instance_2_web_address,
-                               instance_name=instance_2_name,
-                               **kwargs)
-    print(f"instance_2 VHOME: {instance_2.volttron_home}, WEB ADDR: {instance_2.bind_web_address}")
-    instance_2.enable_auto_csr()
-
-    instance_2_link_name = None
-    instance_1_link_name = None
-
-    try:
-        rpc_config = dict()
-        rpc_config[instance_1_name] = [['test', CONTROL]]
-        instance_1_shovel_user = '{source_instance}.shovel{sink_host}'.format(source_instance=instance_1_name,
-                                                                              sink_host=instance_2_hostname)
-        print(f"shovel user: {instance_1_shovel_user}")
-        config_path = create_shovel_config(instance_1.volttron_home,
-                                           instance_2.rabbitmq_config_obj.rabbitmq_config["host"],
-                                           instance_2.rabbitmq_config_obj.rabbitmq_config["amqp-port-ssl"],
-                                           instance_2_https_port,
-                                           instance_2.rabbitmq_config_obj.rabbitmq_config["virtual-host"],
-                                           instance_1_shovel_user,
-                                           rpc_config=rpc_config)
-
-        print(f"instance 1 shovel config path:{config_path}")
-
-        instance_1.setup_shovel(config_path)
-        instance_1.startup_platform(vip_address=instance_1_vip, bind_web_address=instance_1_web_address)
-        instance_1.enable_auto_csr()
-
-        # Check shovel link status
-        with with_os_environ(instance_1.env):
-            rmq_mgmt = RabbitMQMgmt()
-            links = rmq_mgmt.get_shovel_links()
-            users = rmq_mgmt.get_users()
-            print(f"USERS: {users}")
-            print(f"instance 1 shovel links: {links}, state: {links[0]['state']}")
-            assert links and links[0]['state'] == 'running'
-            instance_1_link_name = links[0]['name']
-
-        instance_2.skip_cleanup = True
-        instance_2.shutdown_platform()
-        instance_2.skip_cleanup = False
-
-        # Start RabbitMQ broker to establish shovel link
-        start_rabbit(rmq_home=instance_2.rabbitmq_config_obj.rmq_home, env=instance_2.env)
-
-        rpc_config = dict()
-        rpc_config[instance_2_name] = [[CONTROL, 'dynamic_agent']]
-        instance_2_shovel_user = '{source_instance}.shovel{sink_host}'.format(source_instance=instance_2_name,
-                                                                              sink_host=instance_1_hostname)
-
-        config_path = create_shovel_config(instance_2.volttron_home,
-                                           instance_1.rabbitmq_config_obj.rabbitmq_config["host"],
-                                           instance_1.rabbitmq_config_obj.rabbitmq_config["amqp-port-ssl"],
-                                           instance_1_https_port,
-                                           instance_1.rabbitmq_config_obj.rabbitmq_config["virtual-host"],
-                                           instance_2_shovel_user,
-                                           rpc_config=rpc_config)
-
-        print(f"instance 2 shovel config path:{config_path}")
-
-        instance_2.setup_shovel(config_path)
-        instance_2.startup_platform(vip_address=instance_2_vip, bind_web_address=instance_2_web_address)
-
-        # Check shovel link status
-        with with_os_environ(instance_2.env):
-            rmq_mgmt = RabbitMQMgmt()
-            links = rmq_mgmt.get_shovel_links()
-            qs = rmq_mgmt.get_queues()
-            print(f"instance 2 Queues: {qs}")
-            print(f"instance 2 shovel links: {links}, state: {links[0]['state']}")
-            assert links and links[0]['state'] == 'running'
-            instance_2_link_name = links[0]['name']
-
-    except Exception as e:
-        print(f"Exception setting up shovel: {e}")
-        instance_1.shutdown_platform()
-        instance_2.shutdown_platform()
-        raise e
-
-    yield instance_1, instance_2
-
-    if instance_1_link_name:
-        with with_os_environ(instance_1.env):
-            rmq_mgmt = RabbitMQMgmt()
-            rmq_mgmt.delete_multiplatform_parameter('shovel',
-                                                    instance_1_link_name)
-    if instance_2_link_name:
-        with with_os_environ(instance_2.env):
-            rmq_mgmt = RabbitMQMgmt()
-            rmq_mgmt.delete_multiplatform_parameter('shovel',
-                                                    instance_2_link_name)
-    instance_1.shutdown_platform()
-    instance_2.shutdown_platform()
 
 
 @pytest.mark.shovel
@@ -379,28 +291,28 @@ def test_shovel_rpc(xxx):
     assert instance_1.is_running()
     assert instance_2.is_running()
 
-    # auuid = None
-    # try:
-    #     auuid = instance_2.install_agent(
-    #         agent_dir=get_examples("ListenerAgent"), start=True)
-    #     assert auuid is not None
-    #     test_agent = instance_1.dynamic_agent
-    #     kwargs = {"external_platform": instance_2.instance_name}
-    #     agts = test_agent.vip.rpc.call(CONTROL,
-    #                                    'list_agents',
-    #                                    **kwargs).get(timeout=10)
-    #
-    #     assert agts[0]['identity'].startswith('listener')
-    #     listener_uuid = agts[0]['uuid']
-    #     test_agent.vip.rpc.call(CONTROL,
-    #                             'stop_agent',
-    #                             listener_uuid,
-    #                             **kwargs).get(timeout=10)
-    #     agt_status = test_agent.vip.rpc.call(CONTROL,
-    #                             'agent_status',
-    #                             listener_uuid,
-    #                             **kwargs).get(timeout=10)
-    #     assert agt_status[1] == 0
-    # finally:
-    #     if instance_2:
-    #         instance_2.remove_agent(auuid)
+    auuid = None
+    try:
+        auuid = instance_2.install_agent(vip_identity='listener',
+            agent_dir=get_examples("ListenerAgent"), start=True)
+        assert auuid is not None
+        test_agent = instance_1.dynamic_agent
+        kwargs = {"external_platform": instance_2.instance_name}
+        agts = test_agent.vip.rpc.call(CONTROL,
+                                       'list_agents',
+                                       **kwargs).get(timeout=10)
+
+        assert agts[0]['identity'].startswith('listener')
+        listener_uuid = agts[0]['uuid']
+        test_agent.vip.rpc.call(CONTROL,
+                                'stop_agent',
+                                listener_uuid,
+                                **kwargs).get(timeout=10)
+        agt_status = test_agent.vip.rpc.call(CONTROL,
+                                'agent_status',
+                                listener_uuid,
+                                **kwargs).get(timeout=10)
+        assert agt_status[1] == 0
+    finally:
+        if instance_2:
+            instance_2.remove_agent(auuid)

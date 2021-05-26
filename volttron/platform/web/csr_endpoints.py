@@ -86,6 +86,7 @@ class CSREndpoints(object):
                 try:
                     cert = self._certs.approve_csr(identity)
                     #permissions = self._core().rmq_mgmt.get_default_permissions(identity)
+                    _log.debug(f"CREATING NEW RMQ USER: {identity}")
                     permissions = dict(configure=".*", read=".*",
                                        write=".*")
                     self._core().rmq_mgmt.create_user_with_permissions(identity,

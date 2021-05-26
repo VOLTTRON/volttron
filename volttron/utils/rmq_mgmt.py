@@ -721,7 +721,7 @@ class RabbitMQMgmt(object):
             vhost=self.rmq_config.virtual_host)
         response = self._http_get_request(url, ssl_auth)
         links = []
-        print(f"get_shovel_links :{response}")
+
         if response:
             for res in response:
                 lk = dict()
@@ -1011,8 +1011,7 @@ class RabbitMQMgmt(object):
             # vctl certs create-ssl-keypair should be used to create a cert/key pair
             # and then agents should be started.
             try:
-                c , k = self.rmq_config.crts.create_signed_cert_files(rmq_user, overwrite=False)
-                _log.debug(f"build_agent: {c}, {k}")
+                c, k = self.rmq_config.crts.create_signed_cert_files(rmq_user, overwrite=False)
             except Exception as e:
                 _log.error("Exception creating certs. {}".format(e))
                 raise RuntimeError(e)
@@ -1030,6 +1029,13 @@ class RabbitMQMgmt(object):
             _log.error("Unable to create RabbitMQ user for the agent. Check if RabbitMQ broker is running")
 
         return param
+
+    def create_signed_certs(self, rmq_user):
+        try:
+            c, k = self.rmq_config.crts.create_signed_cert_files(rmq_user, overwrite=False)
+        except Exception as e:
+            _log.error("Exception creating certs. {}".format(e))
+            raise RuntimeError(e)
 
     def build_remote_plugin_connection(self, rmq_user, host, port, vhost, is_ssl, certs_dict=None):
         """
