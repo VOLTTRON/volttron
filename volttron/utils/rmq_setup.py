@@ -60,9 +60,10 @@ from volttron.platform import get_home
 from volttron.platform.agent.utils import (store_message_bus_config,
                                            execute_command)
 from volttron.utils.prompt import prompt_response, y, y_or_n
-from volttron.platform.agent.utils import get_platform_instance_name
 from volttron.platform import jsonapi
 from urllib.parse import urlparse
+from volttron.platform.web import DiscoveryInfo
+from volttron.platform.agent.utils import get_platform_instance_name, get_fq_identity
 
 _log = logging.getLogger(os.path.basename(__file__))
 
@@ -1072,12 +1073,14 @@ def prompt_shovels(vhome, verbose=False, max_retries=12):
                              'virtual-host': vhost}
             rmq_mgmt = RabbitMQMgmt()
             instance_name = get_platform_instance_name()
-            shovel_user = 'shovel{}'.format(host)
+            prompt = 'Name for the shovel user: '
+            shovel_user = prompt_response(prompt, mandatory=True)
 
-            rmq_mgmt.build_agent_connection(shovel_user, instance_name)
-            import time
+            #rmq_mgmt.build_agent_connection(shovel_user, instance_name)
+            #import time
 
-            time.sleep(2)
+            #time.sleep(2)
+            #shovels[host]['shovel-user'] = instance_name + "." + shovel_user
             shovels[host]['shovel-user'] = instance_name + "." + shovel_user
 
             certs_config, https_port = _prompt_csr_request(shovel_user, host, 'shovel', verbose, max_retries)
@@ -1161,6 +1164,10 @@ def _prompt_csr_request(rmq_user, host, type, verbose=False, max_retries=12):
         # private_key
         csr_config['private_key'] = private_cert
     else:
+        rmqmgmt = RabbitMQMgmt()
+        fqid_local = get_fq_identity(rmq_user)
+        rmqmgmt.create_signed_certs(fqid_local)
+
         remote_https_address = "https://{}:8443".format(host)
         prompt = 'Path to remote web interface: '
 
@@ -1310,9 +1317,9 @@ def request_plugin_cert(csr_server, fully_qualified_local_identity, discovery_in
         raise ValueError("Only can create csr for rabbitmq based platform in ssl mode.")
 
     crts = certs.Certs()
-    _log.debug(f"request_plugin_cert: before create_csr")
+
     csr_request = crts.create_csr(fully_qualified_local_identity, discovery_info.instance_name)
-    _log.debug(f"request_plugin_cert: after create_csr: {csr_request}")
+
     # The csr request requires the fully qualified identity that is
     # going to be connected to the external instance.
     #
@@ -1320,6 +1327,7 @@ def request_plugin_cert(csr_server, fully_qualified_local_identity, discovery_in
     # concatenated with the identity of the local fully qualified identity.
     remote_cert_name = "{}.{}".format(discovery_info.instance_name,
                                       fully_qualified_local_identity)
+    _log.debug(f"Remote cert name: {remote_cert_name}, fqid: {fully_qualified_local_identity}")
     remote_ca_name = discovery_info.instance_name + "_ca"
 
     json_request = dict(
@@ -1372,19 +1380,18 @@ def request_plugin_cert(csr_server, fully_qualified_local_identity, discovery_in
 def request_cert_for_plugin(rmq_user, https_address, type):
     value = None
     parsed_address = urlparse(https_address)
-    _log.debug(f"request_cert_for_plugin: {https_address}")
+
     if parsed_address.scheme in ('https',):
-        from volttron.platform.web import DiscoveryInfo
-        from volttron.platform.agent.utils import get_platform_instance_name, get_fq_identity
         info = DiscoveryInfo.request_discovery_info(https_address)
-        _log.debug(f"DiscoveryInfo: {info}")
+
         # This is if both remote and local are rmq message buses.
         if info.messagebus_type == 'rmq':
             fqid_local = get_fq_identity(rmq_user)
-            _log.debug(f"request_cert_for_plugin:{type}, {rmq_user}")
+
             # Check if we already have the cert, if so use it instead of requesting cert again
             remote_certs_dir = get_remote_certs_dir(type)
             remote_cert_name = "{}.{}".format(info.instance_name, fqid_local)
+            _log.debug(f"Remote cert name: {remote_cert_name}")
             certfile = os.path.join(remote_certs_dir, remote_cert_name + ".crt")
 
             _log.debug(f"request_cert_for_plugin:{certfile}")
@@ -1474,8 +1481,7 @@ def start_rabbit(rmq_home, env=None):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        formatter_class=argparse.RawTextHelpFormatter)
+    parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('setup_type',
                         help='Instance type: all, single, federation or shovel')
     parser.add_argument('prompt', default=False,
