@@ -28,33 +28,39 @@ Valid centos versions: 6, 7, 8
 function install_on_centos {
 
    if [[ "$DIST" == "6" ]]; then
-       erlang_url='https://dl.bintray.com/rabbitmq-erlang/rpm/erlang/21/el/6'
+       erlang_url='https://packagecloud.io/rabbitmq/erlang/el/6/$basearch'
+       erlang_package_name='erlang-21.3.8.21-1.el6.x86_64'
    elif [[ "$DIST" == "7" ]]; then
-       erlang_url='https://dl.bintray.com/rabbitmq-erlang/rpm/erlang/21/el/7'
+       erlang_url='https://packagecloud.io/rabbitmq/erlang/el/7/$basearch'
+       erlang_package_name='erlang-21.3.8.21-1.el7.x86_64'
    elif [[ "$DIST" == "8" ]]; then
-       erlang_url='https://dl.bintray.com/rabbitmq-erlang/rpm/erlang/21/el/8'
+       erlang_url='https://packagecloud.io/rabbitmq/erlang/el/8/$basearch'
+       erlang_package_name='erlang-21.3.8.21-1.el8.x86_64'
    else
        printf "Invalid centos version. 6, 7, and 8 are the only compatible versions\n"
        print_usage
    fi
 
    repo="## In /etc/yum.repos.d/rabbitmq-erlang.repo
-[rabbitmq-erlang]
-name=rabbitmq-erlang
+[rabbitmq_erlang]
+name=rabbitmq_erlang
 baseurl=$erlang_url
-gpgcheck=1
-gpgkey=https://dl.bintray.com/rabbitmq/Keys/rabbitmq-release-signing-key.asc
-repo_gpgcheck=0
-enabled=1"
-
-    if [[ ! -f "/etc/yum.repos.d/rabbitmq-erlang.repo" ]]; then
-      echo "$repo" | ${prefix} tee -a /etc/yum.repos.d/rabbitmq-erlang.repo
+repo_gpgcheck=1
+gpgcheck=0
+enabled=1
+gpgkey=https://packagecloud.io/rabbitmq/erlang/gpgkey
+sslverify=1
+sslcacert=/etc/pki/tls/certs/ca-bundle.crt
+metadata_expire=300
+"
+   if [[ -f "/etc/yum.repos.d/rabbitmq-erlang.repo" ]]; then
+      echo "\n/etc/yum.repos.d/rabbitmq-erlang.repo exists. renaming current file to rabbitmq-erlang.repo.old\n"
+      mv /etc/yum.repos.d/rabbitmq-erlang.repo /etc/yum.repos.d/rabbitmq-erlang.repo.old
       exit_on_error
-    else
-      echo "\nrepo file /etc/yum.repos.d/rabbitmq-erlang.repo already exists\n"
-    fi
-    ${prefix} yum install erlang
-    exit_on_error
+   fi
+   echo "$repo" | ${prefix} tee -a /etc/yum.repos.d/rabbitmq-erlang.repo
+   ${prefix} yum install $erlang_package_name
+   exit_on_error
 }
 
 function install_on_debian {
