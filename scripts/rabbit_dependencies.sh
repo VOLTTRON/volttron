@@ -53,15 +53,14 @@ sslverify=1
 sslcacert=/etc/pki/tls/certs/ca-bundle.crt
 metadata_expire=300
 "
-
-    if [[ ! -f "/etc/yum.repos.d/rabbitmq-erlang.repo" ]]; then
-      echo "$repo" | ${prefix} tee -a /etc/yum.repos.d/rabbitmq-erlang.repo
+   if [[ -f "/etc/yum.repos.d/rabbitmq-erlang.repo" ]]; then
+      echo "\n/etc/yum.repos.d/rabbitmq-erlang.repo exists. renaming current file to rabbitmq-erlang.repo.old\n"
+      mv /etc/yum.repos.d/rabbitmq-erlang.repo /etc/yum.repos.d/rabbitmq-erlang.repo.old
       exit_on_error
-    else
-      echo "\nrepo file /etc/yum.repos.d/rabbitmq-erlang.repo already exists\n"
-    fi
-    ${prefix} yum install $erlang_package_name
-    exit_on_error
+   fi
+   echo "$repo" | ${prefix} tee -a /etc/yum.repos.d/rabbitmq-erlang.repo
+   ${prefix} yum install $erlang_package_name
+   exit_on_error
 }
 
 function install_on_debian {
