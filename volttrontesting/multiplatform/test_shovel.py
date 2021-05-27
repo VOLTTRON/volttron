@@ -56,6 +56,7 @@ from volttrontesting.utils.platformwrapper import with_os_environ
 from volttron.utils.rmq_mgmt import RabbitMQMgmt
 from volttron.utils.rmq_setup import start_rabbit
 
+
 @pytest.fixture(scope="module")
 def shovel_pubsub_rmq_instances(request, **kwargs):
     """
@@ -141,18 +142,19 @@ def create_shovel_config(vhome, host, port, https_port, vhost, shover_user, pubs
 
     import yaml
     config_path = os.path.join(vhome, "rabbitmq_shovel_config.yml")
+    print(f"config_path: {config_path}")
     with open(config_path, 'w') as yaml_file:
         yaml.dump(content, yaml_file, default_flow_style=False)
     return config_path
 
 
 @pytest.fixture(scope="module")
-def xxx(request, **kwargs):
+def two_way_shovel_connection(request, **kwargs):
     """
-    Create two rmq based volttron instances. One to act as producer of data and one to act as consumer of data
-    Create a shovel to forward data from producer to consumer
+    Create two rmq based volttron instances. Create bi-directional data flow channel
+    by adding 2 shovel connections
 
-    :return: 2 volttron instances - (producer, consumer) that have a shovel connection between them
+    :return: 2 volttron instances - connected through shovels
     """
     source_vip = get_rand_vip()
     source_hostname, source_https_port = get_hostname_and_random_port()
@@ -226,8 +228,6 @@ def xxx(request, **kwargs):
                                            sink_shovel_user,
                                            rpc_config=rpc_config)
 
-        print(f"instance 2 shovel config path:{config_path}")
-
         sink.setup_shovel(config_path)
         sink.startup_platform(vip_address=sink_vip, bind_web_address=sink_web_address)
 
@@ -235,7 +235,6 @@ def xxx(request, **kwargs):
         with with_os_environ(sink.env):
             rmq_mgmt = RabbitMQMgmt()
             links = rmq_mgmt.get_shovel_links()
-            print(f"instance 2 shovel links: {links}, state: {links[0]['state']}")
             assert links and links[0]['state'] == 'running'
             sink_link_name = links[0]['name']
 
@@ -285,16 +284,18 @@ def test_shovel_pubsub(shovel_pubsub_rmq_instances):
         assert message == [{'point': 'value'}]
 
 
-@pytest.mark.dev
-def test_shovel_rpc(xxx):
-    instance_1, instance_2 = xxx
+@pytest.mark.shovel
+def test_shovel_rpc(two_way_shovel_connection):
+    instance_1, instance_2 = two_way_shovel_connection
     assert instance_1.is_running()
     assert instance_2.is_running()
 
     auuid = None
     try:
         auuid = instance_2.install_agent(vip_identity='listener',
-            agent_dir=get_examples("ListenerAgent"), start=True)
+                                         agent_dir=get_examples("ListenerAgent"),
+                                         start=True)
+
         assert auuid is not None
         test_agent = instance_1.dynamic_agent
         kwargs = {"external_platform": instance_2.instance_name}
@@ -314,5 +315,5 @@ def test_shovel_rpc(xxx):
                                 **kwargs).get(timeout=10)
         assert agt_status[1] == 0
     finally:
-        if instance_2:
+        if instance_2 and auuid:
             instance_2.remove_agent(auuid)

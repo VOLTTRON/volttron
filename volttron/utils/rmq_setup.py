@@ -178,13 +178,10 @@ def _get_federation_certs(instance_name, vhome):
     update_needed = False
     rmq_mgmt = RabbitMQMgmt()
 
-    print(f"_get_federation_certs: {federation_config}, vhome: {federation_config_file}")
     try:
         for host, upstream in federation.items():
-            rmq_user = 'federation' #upstream['federation-user']
+            rmq_user = 'federation'
             if 'certificates' not in upstream:
-                print(f"_get_federation_certs: certificates not found:")
-                rmq_mgmt.build_agent_connection(rmq_user, instance_name)
                 # certificates key not found in shovel config
                 https_port = upstream.get('https-port', 8443)
                 remote_addr = 'https://{}:{}'.format(host, https_port)
@@ -208,7 +205,6 @@ def _get_federation_certs(instance_name, vhome):
                     continue
         if update_needed:
             federation_config['federation-upstream'] = federation
-            print(f"write_to_config_file: {federation_config_file}, {federation_config}")
             write_to_config_file(federation_config_file, federation_config)
 
     except KeyError as ex:
@@ -288,9 +284,6 @@ def _get_certs_for_shovel(instance_name, vhome):
         for remote_host, shovel in shovels.items():
             if 'certificates' not in shovel:
                 shovel_user = shovel['shovel-user']
-                rmq_mgmt.build_agent_connection(shovel_user, instance_name)
-                import time
-                time.sleep(2)
                 https_port = shovel.get('https-port', 8443)
 
                 # certificates key not found in shovel config
@@ -1009,9 +1002,7 @@ def prompt_upstream_servers(vhome, verbose=False, max_retries=12):
             rmq_mgmt = RabbitMQMgmt()
             instance_name = get_platform_instance_name()
             upstream_user = 'federation'
-            rmq_mgmt.build_agent_connection(upstream_user, instance_name)
-            import time
-            time.sleep(2)
+
             upstream_servers[host]['federation-user'] = instance_name + "." + upstream_user
             certs_config, https_port = _prompt_csr_request(upstream_user,
                                                           host,
@@ -1076,11 +1067,6 @@ def prompt_shovels(vhome, verbose=False, max_retries=12):
             prompt = 'Name for the shovel user: '
             shovel_user = prompt_response(prompt, mandatory=True)
 
-            #rmq_mgmt.build_agent_connection(shovel_user, instance_name)
-            #import time
-
-            #time.sleep(2)
-            #shovels[host]['shovel-user'] = instance_name + "." + shovel_user
             shovels[host]['shovel-user'] = instance_name + "." + shovel_user
 
             certs_config, https_port = _prompt_csr_request(shovel_user, host, 'shovel', verbose, max_retries)
@@ -1164,10 +1150,6 @@ def _prompt_csr_request(rmq_user, host, type, verbose=False, max_retries=12):
         # private_key
         csr_config['private_key'] = private_cert
     else:
-        rmqmgmt = RabbitMQMgmt()
-        fqid_local = get_fq_identity(rmq_user)
-        rmqmgmt.create_signed_certs(fqid_local)
-
         remote_https_address = "https://{}:8443".format(host)
         prompt = 'Path to remote web interface: '
 
@@ -1193,7 +1175,7 @@ def _prompt_csr_request(rmq_user, host, type, verbose=False, max_retries=12):
     return csr_config, https_port
 
 
-def _request_csr(rmq_user, remote_addr, type, verbose=False, max_retries=12):
+def _request_csr(rmq_user, remote_addr, type, verbose=False, cert_exists=True, max_retries=12):
     ca_file = None
     certfile = None
     prvtfile = None
@@ -1201,6 +1183,10 @@ def _request_csr(rmq_user, remote_addr, type, verbose=False, max_retries=12):
     if not verbose:
         # so that we don't get info level logs showing up during our multiple csr requests
         logging.getLogger("volttron.platform.web.discovery").setLevel(logging.WARNING)
+
+    rmqmgmt = RabbitMQMgmt()
+    fqid_local = get_fq_identity(rmq_user)
+    rmqmgmt.create_signed_certs(fqid_local)
 
     response = request_cert_for_plugin(rmq_user, remote_addr, type)
 
