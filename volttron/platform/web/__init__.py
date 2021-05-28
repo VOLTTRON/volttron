@@ -125,14 +125,5 @@ def get_user_claim_from_bearer(bearer, web_secret_key=None, tls_public_key=None)
         # if isinstance(tls_public_key, str):
         #     pubkey = CertWrapper.load_cert(tls_public_key)
 
-    claims = jwt.decode(bearer, pubkey, algorithms=algorithm, options={"verify_exp": False})
-
-    exp = datetime.utcfromtimestamp(claims['exp'])
-    nbf = datetime.utcfromtimestamp(claims['nbf'])
-    now = datetime.utcnow()
-    # Now must be before expiration time and after Not Before time
-
-    if nbf <= now < exp:
-        return claims
-    else:
-        raise NotAuthorized
+    claims = jwt.decode(bearer, pubkey, algorithms=algorithm)
+    return claims

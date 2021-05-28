@@ -190,6 +190,10 @@ class AuthenticateEndpoints(object):
             _log.error("Unauthorized user attempted to connect to {}".format(env.get('PATH_INFO')))
             return Response('Unauthorized User', status="401 Unauthorized")
 
+        except jwt.ExpiredSignatureError:
+            _log.error("User attempted to connect to {} with an expired signature".format(env.get('PATH_INFO')))
+            return Response('Unauthorized User', status="401 Unauthorized")
+
         if claims.get('grant_type') != 'refresh_token' or not claims.get('groups'):
             return Response('Invalid refresh token.', status="401 Unauthorized")
         else:
