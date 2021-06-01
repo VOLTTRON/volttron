@@ -37,24 +37,32 @@
 # }}}
 
 
-
 import functools
 import logging
 import random
 import string
+from typing import Type
 import weakref
 
 import gevent
 from zmq import green as zmq
 from zmq import ZMQError
 
+from volttron.utils.frame_serialization import serialize_frames
 from .base import SubsystemBase
+
+_log = logging.getLogger(__name__)
 
 
 __all__ = ['Channel']
 
 
 class Channel(SubsystemBase):
+    """
+    A low level interface for handling a protocol that is not based upon vip.  This system
+    will setup a channel between itself and a peer.  The socket will be handed back to the
+    creator and can be used to send messages via the zmq.Socket interface.
+    """
     ADDRESS = 'inproc://subsystem/channel'
 
     def __init__(self, core):
@@ -100,21 +108,37 @@ class Channel(SubsystemBase):
         core.onstop.connect(stop, self)
 
     def _handle_subsystem(self, message):
+        """
+        Handle the channel subsystem sending multipart data through the socket.
+        """
+        _log.debug(f"Message received: {message}")
         frames = message.args
         try:
             name = frames[0]
         except IndexError:
             return
-        channel = (bytes(message.peer), bytes(name))
+        channel = (message.peer, name)
         try:
             ident = self._channels[channel]
         except KeyError:
             # XXX: Handle channel not found
             return
         frames[0] = ident
+
+        try:
+            memoryview(frames)
+        except TypeError:
+            frames = serialize_frames(frames)
+
         self.socket.send_multipart(frames, copy=False)
 
-    def create(self, peer, name=None):
+    def create(self, peer, name=None) -> zmq.Socket:
+        """
+        Create a zmq socket between the caller agent and a peer.  This channel allows a protocol
+        to be set up to pass binary data back and forth between the two agent instances without
+        having to deal with the vip protocol itself.
+        """
+
         if name is None:
             while True:
                 name = ''.join(random.choice(string.printable[:-5])
@@ -128,7 +152,7 @@ class Channel(SubsystemBase):
                 raise ValueError('channel %r is unavailable' % (name,))
         sock = self.context.socket(zmq.DEALER)
         sock.hwm = 1
-        sock.identity = ident = ('%s.%s' % (hash(channel), hash(sock)))
+        sock.identity = ident = f'{hash(channel)}s.{hash(sock)}s'.encode('utf-8')
         sockref = weakref.ref(sock, self._destroy)
         object.__setattr__(sock, 'peer', peer)
         object.__setattr__(sock, 'name', name)
