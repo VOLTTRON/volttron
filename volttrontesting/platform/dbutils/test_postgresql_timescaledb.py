@@ -1,5 +1,6 @@
 import contextlib
 import datetime
+import itertools
 import os
 import logging
 
@@ -692,7 +693,12 @@ def get_postgresqlfuncts(port):
     yield postgresqlfuncts
 
 
-@pytest.fixture(params=IMAGES)
+@pytest.fixture(
+    params=itertools.product(
+        IMAGES,
+        ["<4.0.0", "4.0.0"]
+    )
+)
 def get_container_func(request):
     return create_container, request.param
 

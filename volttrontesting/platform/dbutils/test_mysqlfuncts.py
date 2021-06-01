@@ -1,5 +1,6 @@
 import contextlib
 import datetime
+import itertools
 import os
 import logging
 
@@ -24,18 +25,17 @@ from volttrontesting.utils.utils import get_rand_port
 
 pytestmark = [pytest.mark.mysqlfuncts, pytest.mark.dbutils, pytest.mark.unit]
 
-# mysqlfuncts was written for MYSQL 5.7; however, the latest version is 8.0
-# these tests cannot use latest or anything 8.0 and above and will fail if the latest image/8.0 is used
-# for example, latest/8.0 will throw a "specified key was too long; max key length is 3072 bytes" error
-IMAGES = ["mysql:5.6.49"]
+IMAGES = [
+    "mysql:5.6.49",
+    "mysql:8.0.25"]
 
-if "CI" not in os.environ:
+if "CI" in os.environ:
     IMAGES.extend(["mysql:5.7.31", "mysql:5", "mysql:5.6", "mysql:5.7"])
 
 TEST_DATABASE = "test_historian"
 ROOT_PASSWORD = "12345"
 ENV_MYSQL = {"MYSQL_ROOT_PASSWORD": ROOT_PASSWORD, "MYSQL_DATABASE": TEST_DATABASE}
-ALLOW_CONNECTION_TIME = 30
+ALLOW_CONNECTION_TIME = 100
 DATA_TABLE = "data"
 TOPICS_TABLE = "topics"
 META_TABLE = "meta"
@@ -44,56 +44,45 @@ AGG_META_TABLE = "p_aggregate_meta"
 
 
 @pytest.mark.mysqlfuncts
-def test_setup_historian_tables_should_create_tables(get_container_func, ports_config):
-    get_container, image = get_container_func
-    with get_container(image, ports=ports_config["ports"], env=ENV_MYSQL) as container:
-        wait_for_connection(container)
+def test_setup_historian_tables_should_create_tables(get_container_func):
+    mysqlfuncts, port_on_host, historian_version = get_container_func
+    tables = get_tables(port_on_host)
+    mysqlfuncts.setup_historian_tables()
 
-        port_on_host = ports_config["port_on_host"]
-        with get_mysqlfuncts(port_on_host) as mysqlfuncts:
-            tables = get_tables(port_on_host)
-            assert tables == set()
-
-            mysqlfuncts.setup_historian_tables()
-
-            tables = get_tables(port_on_host)
-            assert "data" in tables
-            assert "topics" in tables
-            assert "meta" in tables
+    tables = get_tables(port_on_host)
+    assert "data" in tables
+    assert "topics" in tables
+    if historian_version == '<4.0.0':
+        assert "meta" in tables
 
 
 @pytest.mark.mysqlfuncts
-def test_record_table_definitions_should_succeed(get_container_func, ports_config):
-    get_container, image = get_container_func
-    with get_container(image, ports=ports_config["ports"], env=ENV_MYSQL) as container:
-        wait_for_connection(container)
+def test_record_table_definitions_should_succeed(get_container_func):
+    mysqlfuncts, port_on_host, historian_version = get_container_func
+    tables_def = {
+        "table_prefix": "prefix",
+        "data_table": "data",
+        "topics_table": "topics",
+        "meta_table": "meta",
+    }
+    meta_table_name = "meta_other"
+    expected_data = {
+        ("data_table", "data", "prefix"),
+        ("topics_table", "topics", "prefix"),
+        ("meta_table", "meta", "prefix"),
+    }
 
-        port_on_host = ports_config["port_on_host"]
-        with get_mysqlfuncts(port_on_host) as mysqlfuncts:
-            tables_def = {
-                "table_prefix": "prefix",
-                "data_table": "data",
-                "topics_table": "topics",
-                "meta_table": "meta",
-            }
-            meta_table_name = "meta_other"
-            expected_data = {
-                ("data_table", "data", "prefix"),
-                ("topics_table", "topics", "prefix"),
-                ("meta_table", "meta", "prefix"),
-            }
+    tables = get_tables(port_on_host)
+    assert meta_table_name not in tables
 
-            tables = get_tables(port_on_host)
-            assert meta_table_name not in tables
+    mysqlfuncts.record_table_definitions(tables_def, meta_table_name)
 
-            mysqlfuncts.record_table_definitions(tables_def, meta_table_name)
+    tables = get_tables(port_on_host)
+    assert meta_table_name in tables
 
-            tables = get_tables(port_on_host)
-            assert meta_table_name in tables
-
-            data = get_data_in_table(port_on_host, meta_table_name)
-            for val in data:
-                assert val in expected_data
+    data = get_data_in_table(port_on_host, meta_table_name)
+    for val in data:
+        assert val in expected_data
 
 
 @pytest.mark.mysqlfuncts
@@ -478,7 +467,6 @@ def test_collect_aggregate_should_raise_value_error(get_container_func, ports_co
                 mysqlfuncts.collect_aggregate("dfd", "Invalid agg type")
 
 
-@contextlib.contextmanager
 def get_mysqlfuncts(port):
     connect_params = {
         "host": "localhost",
@@ -497,17 +485,32 @@ def get_mysqlfuncts(port):
         "agg_meta_table": AGG_META_TABLE,
     }
 
-    mysqlfuncts = MySqlFuncts(connect_params, table_names)
-
-    yield mysqlfuncts
+    return MySqlFuncts(connect_params, table_names)
 
 
-@pytest.fixture(params=IMAGES)
+@pytest.fixture(params=itertools.product(
+    IMAGES,
+    ['<4.0.0',
+     '>=4.0.0'
+     ]))
 def get_container_func(request):
-    return create_container, request.param
+    print(f"image:{request.param[0]} historian schema "
+          f"version {request.param[1]}")
+    if request.param[1] == '<4.0.0' and request.param[0].startswith("mysql:8"):
+        pytest.skip(msg=f"Default schema of historian version <4.0.0 "
+                        f"will not work in mysql version > 5. Skipping tests "
+                        f"for this parameter combination ",
+                        allow_module_level=True)
+    ports_dict = ports_config()
+    with create_container(request.param[0], ports=ports_dict["ports"],
+                       env=ENV_MYSQL) as container:
+        wait_for_connection(container)
+        if request.param[1] == '<4.0.0':
+            create_all_tables(container, request.param[1])
+        yield get_mysqlfuncts(ports_dict["port_on_host"]), ports_dict[
+            "port_on_host"], request.param[1]
 
 
-@pytest.fixture()
 def ports_config():
     port_on_host = get_rand_port(ip="3306")
     return {"port_on_host": port_on_host, "ports": {"3306/tcp": port_on_host}}
@@ -531,23 +534,39 @@ def wait_for_connection(container):
     raise RuntimeError(f"Failed to make connection within allowed time {response}")
 
 
-def create_historian_tables(container):
-    query = """
-               CREATE TABLE IF NOT EXISTS data
-               (ts timestamp NOT NULL,
-               topic_id INTEGER NOT NULL,
-               value_string TEXT NOT NULL,
-               UNIQUE(topic_id, ts));
-               CREATE TABLE IF NOT EXISTS topics
-               (topic_id INTEGER NOT NULL AUTO_INCREMENT,
-               topic_name varchar(512) NOT NULL,
-               PRIMARY KEY (topic_id),
-               UNIQUE(topic_name));
-               CREATE TABLE IF NOT EXISTS meta
-               (topic_id INTEGER NOT NULL,
-               metadata TEXT NOT NULL,
-               PRIMARY KEY(topic_id));
+def create_historian_tables(container, historian_version):
+    if historian_version == "<4.0.0":
+        query = """
+                   CREATE TABLE IF NOT EXISTS data
+                   (ts timestamp NOT NULL,
+                   topic_id INTEGER NOT NULL,
+                   value_string TEXT NOT NULL,
+                   UNIQUE(topic_id, ts));
+                   CREATE TABLE IF NOT EXISTS topics
+                   (topic_id INTEGER NOT NULL AUTO_INCREMENT,
+                   topic_name varchar(512) NOT NULL,
+                   PRIMARY KEY (topic_id),
+                   UNIQUE(topic_name));
+                   CREATE TABLE IF NOT EXISTS meta
+                   (topic_id INTEGER NOT NULL,
+                   metadata TEXT NOT NULL,
+                   PRIMARY KEY(topic_id));
             """
+    else:
+        query = """
+                   CREATE TABLE IF NOT EXISTS data
+                   (ts timestamp NOT NULL,
+                   topic_id INTEGER NOT NULL,
+                   value_string TEXT NOT NULL,
+                   UNIQUE(topic_id, ts));
+                   CREATE TABLE IF NOT EXISTS topics
+                   (topic_id INTEGER NOT NULL AUTO_INCREMENT,
+                   topic_name varchar(512) NOT NULL,
+                    metadata TEXT,
+                   PRIMARY KEY (topic_id),
+                   UNIQUE(topic_name));
+            """
+
     command = f'mysql --user="root" --password="{ROOT_PASSWORD}" {TEST_DATABASE} --execute="{query}"'
     container.exec_run(cmd=command, tty=True)
     return
@@ -571,29 +590,44 @@ def create_metadata_table(container):
     return
 
 
-def create_aggregate_tables(container):
-    query = """
-                CREATE TABLE IF NOT EXISTS p_aggregate_topics
-                (agg_topic_id INTEGER NOT NULL AUTO_INCREMENT, 
-                agg_topic_name varchar(512) NOT NULL, 
-                agg_type varchar(512) NOT NULL, 
-                agg_time_period varchar(512) NOT NULL, 
-                PRIMARY KEY (agg_topic_id), 
-                UNIQUE(agg_topic_name, agg_type, agg_time_period));
-                CREATE TABLE IF NOT EXISTS p_aggregate_meta
-                (agg_topic_id INTEGER NOT NULL, 
-                metadata TEXT NOT NULL,
-                PRIMARY KEY(agg_topic_id));
-            """
+def create_aggregate_tables(container, historian_version):
+    if historian_version == "<4.0.0":
+        query = """
+                    CREATE TABLE IF NOT EXISTS p_aggregate_topics
+                    (agg_topic_id INTEGER NOT NULL AUTO_INCREMENT, 
+                    agg_topic_name varchar(512) NOT NULL, 
+                    agg_type varchar(512) NOT NULL, 
+                    agg_time_period varchar(512) NOT NULL, 
+                    PRIMARY KEY (agg_topic_id), 
+                    UNIQUE(agg_topic_name, agg_type, agg_time_period));
+                    CREATE TABLE IF NOT EXISTS p_aggregate_meta
+                    (agg_topic_id INTEGER NOT NULL, 
+                    metadata TEXT NOT NULL,
+                    PRIMARY KEY(agg_topic_id));
+                """
+    else:
+        query = """
+                    CREATE TABLE IF NOT EXISTS p_aggregate_topics
+                    (agg_topic_id INTEGER NOT NULL AUTO_INCREMENT, 
+                    agg_topic_name varchar(512) NOT NULL, 
+                    agg_type varchar(20) NOT NULL, 
+                    agg_time_period varchar(20) NOT NULL, 
+                    PRIMARY KEY (agg_topic_id), 
+                    UNIQUE(agg_topic_name, agg_type, agg_time_period));
+                    CREATE TABLE IF NOT EXISTS p_aggregate_meta
+                    (agg_topic_id INTEGER NOT NULL, 
+                    metadata TEXT NOT NULL,
+                    PRIMARY KEY(agg_topic_id));
+                """
     command = f'mysql --user="root" --password="{ROOT_PASSWORD}" {TEST_DATABASE} --execute="{query}"'
     container.exec_run(cmd=command, tty=True)
     return
 
 
-def create_all_tables(container):
-    create_historian_tables(container)
+def create_all_tables(container, historian_version):
+    create_historian_tables(container, historian_version)
     create_metadata_table(container)
-    create_aggregate_tables(container)
+    create_aggregate_tables(container, historian_version)
     return
 
 
@@ -657,13 +691,14 @@ def get_data_in_table(port, table):
 
 
 def get_cnx_cursor(port):
-    sleep(3)
+    sleep(4)
     connect_params = {
         "host": "localhost",
         "port": port,
         "database": TEST_DATABASE,
         "user": "root",
         "passwd": ROOT_PASSWORD,
+        "auth_plugin": "mysql_native_password"
     }
     cnx = mysql.connector.connect(**connect_params)
     cursor = cnx.cursor()
