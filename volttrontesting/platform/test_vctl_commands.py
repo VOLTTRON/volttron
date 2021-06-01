@@ -15,7 +15,7 @@ from volttrontesting.utils.platformwrapper import with_os_environ
 
 
 @pytest.mark.control
-def test_install_agent_config_not_empty(volttron_instance):
+def test_install_agent_config_json_not_empty(volttron_instance):
     listener_agent_dir = get_examples("ListenerAgent")
     listener_agent_config = Path(listener_agent_dir).joinpath("config")
     with with_os_environ(volttron_instance.env):
@@ -30,7 +30,37 @@ def test_install_agent_config_not_empty(volttron_instance):
             f'agents/{agent_uuid}/listeneragent-3.3/listeneragent-3.3.dist-info/config')
         with open(config_path) as fp:
             with open(listener_agent_config) as fp2:
-                assert fp2.read() == fp.read()
+                f1 = fp.read()
+                f2 = fp2.read()
+                assert f1
+                assert f2 == f2
+
+        volttron_instance.remove_all_agents()
+
+
+@pytest.mark.control
+def test_install_agent_config_not_empty(volttron_instance):
+    listener_agent_dir = get_examples("ListenerAgent")
+    listener_agent_config = Path(listener_agent_dir).joinpath("config")
+    with with_os_environ(volttron_instance.env):
+        cmds = ["vctl", 'install', listener_agent_dir, '--agent-config',
+                listener_agent_config]
+        response = execute_command(cmds, volttron_instance.env)
+
+        cmds = ["vctl", "--json", "list"]
+        response = execute_command(cmds, volttron_instance.env)
+        json_response = jsonapi.loads(response)
+        for k, v in json_response.items():
+            config_path = Path(volttron_instance.volttron_home).joinpath(
+                f'agents/{v["agent_uuid"]}/listeneragent-3.3/listeneragent-3.3.dist-info/config')
+            with open(config_path) as fp:
+                with open(listener_agent_config) as fp2:
+                    f1 = fp.read()
+                    f2 = fp2.read()
+                    assert f1
+                    assert f2 == f2
+
+        # agent_uuid = json_response['agent_uuid']
 
         volttron_instance.remove_all_agents()
 
