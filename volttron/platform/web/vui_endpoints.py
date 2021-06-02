@@ -4,10 +4,10 @@ import json
 from os import environ
 from os.path import normpath, join
 from gevent.timeout import Timeout
-from urllib.parse import parse_qs
 
-from volttron.platform.agent.known_identities import PLATFORM_WEB, AUTH, CONFIGURATION_STORE
+from volttron.platform.agent.known_identities import CONFIGURATION_STORE
 from werkzeug import Response
+from werkzeug.urls import url_decode
 from volttron.platform.vip.agent.subsystems.query import Query
 from volttron.platform.jsonrpc import MethodNotFound
 from volttron.platform.web.topic_tree import TopicTree
@@ -313,6 +313,15 @@ class VUIEndpoints(object):
         _log.debug("VUI: in handle_platform_devices")
         path_info = env.get('PATH_INFO')
         request_method = env.get("REQUEST_METHOD")
+        query_params = url_decode(env['QUERY_STRING'])
+        tag = query_params.get('tag')
+        regex = query_params.get('regex')
+        # TODO: Should "include-points" be "read-all" to match PUT's "write-all"?
+        include_points = query_params.get('include-points', False)
+        return_routes = query_params.get('routes', True)
+        return_writability = query_params.get('writability', True)
+        return_values = query_params.get('values', True)
+
         no_topic = re.match('^/vui/platforms/([^/]+)/devices/?$', path_info)
         if no_topic:
             platform, topic = no_topic.groups()[0], ''
@@ -321,51 +330,42 @@ class VUIEndpoints(object):
             topic = topic[:-1] if topic[-1] == '/' else topic
         _log.debug(f'VUI: Parsed - platform: {platform}, topic: {topic}')
 
+        try:
+            device_tree = self._build_device_tree(platform).prune_to_topic(topic)
+            # TODO: Handle tag query parameter.
+            # TODO: Handle regex query parameter.
+            topic_nodes = device_tree.get_matches(f'devices/{topic}' if topic else 'devices')
+            if not topic_nodes:
+                return Response(json.dumps({f'error': f'Device topic {topic} not found on platform: {platform}.'}),
+                                400, content_type='application/json')
+        # TODO: Move this exception handling up to a wrapper.
+        except Timeout as e:
+            return Response(json.dumps({'error': f'RPC Timed Out: {e}'}), 408, content_type='application/json')
+        except Exception as e:
+            return Response(json.dumps({f'error': f'Error querying device topic {topic}: {e}'}),
+                            400, content_type='application/json')
+
         if request_method == 'GET':
             try:
-                devices = self._rpc(CONFIGURATION_STORE, 'manage_list_configs', 'platform.driver', on_platform=platform)
-                devices = [d for d in devices if re.match('^devices/.*', d)]
-                _log.debug(f'Devices from rpc: {devices}')
-                # TODO: Should we be storing this tree to use for faster requests later? How to keep it updated?
-                device_tree = TopicTree(devices, 'devices')
-                for d in devices:
-                    # TODO: Getting points requires getting device config, using it to find the registry config,
-                    #  and then parsing that. There is not a method in config.store, nor in the platform.driver for
-                    #  getting a completed configuration. The configuration is only fully assembled in the subsystem's
-                    #  _intial_update method called when the agent itself calls get_configs at startup. There does not
-                    #  seem to be an equivalent management method, and the code for this is in the agent subsystem
-                    #  rather than the service (though it is reached through the service, oddly...
-                    dev_config = json.loads(
-                        self._rpc('config.store', 'manage_get', 'platform.driver', d, on_platform=platform))
-                    reg_cfg_name = dev_config.get('registry_config')[len('config://'):]
-                    _log.debug(f'Fetching registry for: {reg_cfg_name}')
-                    registry_config = self._rpc('config.store', 'manage_get', 'platform.driver',
-                                                f'registry_configs/{reg_cfg_name}', raw=False, on_platform=platform)
-                    for pnt in registry_config:
-                        point_name = pnt['Volttron Point Name']
-                        device_tree.create_node(point_name, f"{d}/{point_name}", parent=d)
-                # TODO: Handle query parameters for changing the output.
-                # TODO: We should have a query parameter for returning partial vs full topics as the key.
-                # TODO: We should have a query parameter for returning one level vs full tree.
-                _log.debug(device_tree.to_json(with_data=True))
-                topic_node_id = f'devices/{topic}' if topic else 'devices'
-                topic_node = device_tree.get_node(topic_node_id)
-                if topic_node and topic_node.is_leaf():
-                    # TODO: Handle case of this being a leaf node (should that be device or point?)
+                if include_points or all([n.is_leaf() for n in topic_nodes]):
+                    # Either leaf values are explicitly requested, or all nodes are already leaves -- Return points.
+                    leaves = device_tree.leaves()
+                    ret_values = self._rpc('platform.actuator', 'get_multiple_points', [d.identifier for d in leaves],
+                                           on_platform=platform) if return_values else {}
+                    ret_routes = {n.identifier[len('devices/'):]: f'/vui/platforms/{platform}/{n.identifier}'
+                                  for n in leaves} if return_routes else {}
+                    # TODO: Add writability to data property of nodes in device_tree when it is created.
+                    ret_writability = {n.identifier[len('devices/'):]: n.data.get('writability') for n in leaves} if\
+                        return_writability else {}
 
-                    return Response(f'Endpoint {request_method} {path_info} does not yet implement leaf behavior.',
-                                    status='501 Not Implemented', content_type='text/plain')
+                    # TODO: Logic needed to combine various possible pieces of ret_dict.
+                    ret_dict = {'error': 'Leaf behavior not fully implemented yet.'}
+                    return Response(json.dumps(ret_dict), 200, content_type='application/json')
                 else:
-                    route_dict = device_tree.get_children_dict(topic_node_id, prefix=f'/vui/platforms/{platform}')
-                    if route_dict:
-                        return Response(json.dumps(route_dict), 200, content_type='application/json')
-                    elif topic:
-                        return Response(
-                            json.dumps({f'error': f'Device topic {topic} not found on platform: {platform}.'}),
-                            400, content_type='application/json')
-                    else:
-                        return Response(json.dumps({f'error': f'Unable to retrieve devices for platform: {platform}.'}),
-                                        400, content_type='application/json')
+                    # All topics are not complete to points and include_points=False -- return route to next segments.
+                    ret_dict = device_tree.get_children_dict([n.identifier for n in topic_nodes], replace_topic=topic,
+                                                             prefix=f'/vui/platforms/{platform}')
+                    return Response(json.dumps(ret_dict), 200, content_type='application/json')
 
             # TODO: Move this exception handling up to a wrapper.
             except Timeout as e:
@@ -388,7 +388,29 @@ class VUIEndpoints(object):
             return Response(f'Endpoint {request_method} {path_info} is not implemented.',
                             status='501 Not Implemented', content_type='text/plain')
 
-    # TODO: Will _find_segments() be needed? This may be superceded by the TopicTree, (at least for topic uses)?
+    def _build_device_tree(self, platform):
+        devices = self._rpc(CONFIGURATION_STORE, 'manage_list_configs', 'platform.driver', on_platform=platform)
+        devices = [d for d in devices if re.match('^devices/.*', d)]
+        # TODO: Should we be storing this tree to use for faster requests later? How to keep it updated?
+        device_tree = TopicTree(devices, 'devices')
+        for d in devices:
+            # TODO: Getting points requires getting device config, using it to find the registry config,
+            #  and then parsing that. There is not a method in config.store, nor in the platform.driver for
+            #  getting a completed configuration. The configuration is only fully assembled in the subsystem's
+            #  _initial_update method called when the agent itself calls get_configs at startup. There does not
+            #  seem to be an equivalent management method, and the code for this is in the agent subsystem
+            #  rather than the service (though it is reached through the service, oddly...
+            dev_config = json.loads(
+                self._rpc('config.store', 'manage_get', 'platform.driver', d, on_platform=platform))
+            reg_cfg_name = dev_config.get('registry_config')[len('config://'):]
+            registry_config = self._rpc('config.store', 'manage_get', 'platform.driver',
+                                        f'registry_configs/{reg_cfg_name}', raw=False, on_platform=platform)
+            for pnt in registry_config:
+                point_name = pnt['Volttron Point Name']
+                device_tree.create_node(point_name, f"{d}/{point_name}", parent=d)
+        return device_tree
+
+    # TODO: Will _find_segments() be needed? This may be superseded by the TopicTree, (at least for topic uses)?
     @staticmethod
     def _find_segments(path_info):
         match = re.match('/([^/]+)/?', path_info)
@@ -437,10 +459,10 @@ class VUIEndpoints(object):
             agent_dict[agent_id] = agent
         return agent_dict
 
-    def _rpc(self, agent, method, *args, on_platform=None, **kwargs):
+    def _rpc(self, vip_identity, method, *args, on_platform=None, **kwargs):
         external_platform = {'external_platform': on_platform}\
             if on_platform != self.local_instance_name else {}
-        result = self._agent.vip.rpc.call(agent, method, *args, **external_platform, **kwargs).get(timeout=5)
+        result = self._agent.vip.rpc.call(vip_identity, method, *args, **external_platform, **kwargs).get(timeout=5)
         return result
 
     # def admin(self, env, data):
