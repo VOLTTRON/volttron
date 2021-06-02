@@ -31,7 +31,6 @@ class TopicTree(Tree):
                     pass
                 parent = nid
 
-    # TODO: Handle multiple sub_root_node_ids.
     def get_children_dict(self, sub_root_node_id: Union[list, str], include_root: bool = True,
                           prefix: str = '', replace_topic: str = None) -> dict:
         _log.debug(f'VUI TopicTree; In get_children_dict, sub_root_node_id: {sub_root_node_id},'
@@ -75,16 +74,18 @@ class TopicTree(Tree):
                         tree.remove_node(s.identifier)
                 else:
                     topic_parts = topic.split('-/', 1)
+                    was_leaf = tree.get_node(nid).is_leaf()
                     for successor in tree.children(nid):
                         subtopic = topic_parts[1] if len(topic_parts) > 1 else ''
                         tree.paste(tree.parent(successor.identifier).identifier,
                                    self.prune_to_topic(subtopic, tree.remove_subtree(successor.identifier)))
+                    if was_leaf == bool(tree.children(nid)):
+                        tree.remove_node(nid)
                     return tree
         except NodeIDAbsentError:
             return TopicTree()
         return tree
 
-    # TODO: Does not seem to work when last segment is /- nor /-/'
     def get_matches(self, topic, return_nodes=True):
         _log.debug('VUI TopicTree: in get_matches()')
         pattern = topic.replace('-', '[^/]+') + '$'
