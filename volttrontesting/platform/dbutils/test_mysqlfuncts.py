@@ -26,8 +26,9 @@ from volttrontesting.utils.utils import get_rand_port
 pytestmark = [pytest.mark.mysqlfuncts, pytest.mark.dbutils, pytest.mark.unit]
 
 IMAGES = [
-    "mysql:5.6.49",
-    "mysql:8.0.25"]
+    #"mysql:5.6.49",
+    "mysql:8.0.25"
+ ]
 
 if "CI" in os.environ:
     IMAGES.extend(["mysql:5.7.31", "mysql:5", "mysql:5.6", "mysql:5.7"])
@@ -45,7 +46,7 @@ AGG_META_TABLE = "p_aggregate_meta"
 
 @pytest.mark.mysqlfuncts
 def test_setup_historian_tables_should_create_tables(get_container_func):
-    mysqlfuncts, port_on_host, historian_version = get_container_func
+    _, mysqlfuncts, port_on_host, historian_version = get_container_func
     tables = get_tables(port_on_host)
     mysqlfuncts.setup_historian_tables()
 
@@ -58,7 +59,7 @@ def test_setup_historian_tables_should_create_tables(get_container_func):
 
 @pytest.mark.mysqlfuncts
 def test_record_table_definitions_should_succeed(get_container_func):
-    mysqlfuncts, port_on_host, historian_version = get_container_func
+    _, mysqlfuncts, port_on_host, historian_version = get_container_func
     tables_def = {
         "table_prefix": "prefix",
         "data_table": "data",
@@ -86,26 +87,20 @@ def test_record_table_definitions_should_succeed(get_container_func):
 
 
 @pytest.mark.mysqlfuncts
-def test_setup_aggregate_historian_tables_should_succeed(
-    get_container_func, ports_config
-):
-    get_container, image = get_container_func
-    with get_container(image, ports=ports_config["ports"], env=ENV_MYSQL) as container:
-        wait_for_connection(container)
-        create_historian_tables(container)
-        create_metadata_table(container)
+def test_setup_aggregate_historian_tables_should_succeed(get_container_func):
+    container, mysqlfuncts, port_on_host, historian_version = get_container_func
 
-        port_on_host = ports_config["port_on_host"]
-        with get_mysqlfuncts(port_on_host) as mysqlfuncts:
-            tables = get_tables(port_on_host)
-            assert AGG_TOPICS_TABLE not in tables
-            assert AGG_META_TABLE not in tables
+    create_historian_tables(container, historian_version)
+    create_metadata_table(container)
+    tables = get_tables(port_on_host)
+    assert AGG_TOPICS_TABLE not in tables
+    assert AGG_META_TABLE not in tables
 
-            mysqlfuncts.setup_aggregate_historian_tables("metadata")
+    mysqlfuncts.setup_aggregate_historian_tables("metadata")
 
-            tables = get_tables(port_on_host)
-            assert AGG_TOPICS_TABLE in tables
-            assert AGG_META_TABLE in tables
+    tables = get_tables(port_on_host)
+    assert AGG_TOPICS_TABLE in tables
+    assert AGG_META_TABLE in tables
 
 
 @pytest.mark.mysqlfuncts
@@ -121,47 +116,35 @@ def test_setup_aggregate_historian_tables_should_succeed(
     ],
 )
 def test_query_should_return_data(
-    get_container_func, ports_config, topic_ids, id_name_map, expected_values
-):
-    get_container, image = get_container_func
-    with get_container(image, ports=ports_config["ports"], env=ENV_MYSQL) as container:
-        wait_for_connection(container)
+    get_container_func, topic_ids, id_name_map, expected_values):
+    container, mysqlfuncts, port_on_host, historian_version = get_container_func
+    query = f"""
+               CREATE TABLE IF NOT EXISTS {DATA_TABLE}
+               (ts timestamp NOT NULL,
+               topic_id INTEGER NOT NULL,
+               value_string TEXT NOT NULL,
+               UNIQUE(topic_id, ts));
+               REPLACE INTO {DATA_TABLE}
+               VALUES ('2020-06-01 12:30:59', 43, '[2,3]')                     
+            """
+    seed_database(container, query)
 
-        port_on_host = ports_config["port_on_host"]
-        with get_mysqlfuncts(port_on_host) as mysqlfuncts:
-            query = f"""
-                       CREATE TABLE IF NOT EXISTS {DATA_TABLE}
-                       (ts timestamp NOT NULL,
-                       topic_id INTEGER NOT NULL,
-                       value_string TEXT NOT NULL,
-                       UNIQUE(topic_id, ts));
-                       REPLACE INTO {DATA_TABLE}
-                       VALUES ('2020-06-01 12:30:59', 43, '[2,3]')                     
-                    """
-            seed_database(container, query)
+    actual_values = mysqlfuncts.query(topic_ids, id_name_map)
 
-            actual_values = mysqlfuncts.query(topic_ids, id_name_map)
-
-            assert actual_values == expected_values
+    assert actual_values == expected_values
 
 
 @pytest.mark.mysqlfuncts
-def test_insert_meta_query_should_succeed(get_container_func, ports_config):
-    get_container, image = get_container_func
-    with get_container(image, ports=ports_config["ports"], env=ENV_MYSQL) as container:
-        wait_for_connection(container)
-        create_historian_tables(container)
+def test_insert_meta_query_should_succeed(get_container_func):
+    container, mysqlfuncts, port_on_host, historian_version = get_container_func
+    topic_id = "44"
+    metadata = "foobar44"
+    expected_data = (44, '"foobar44"')
 
-        port_on_host = ports_config["port_on_host"]
-        with get_mysqlfuncts(port_on_host) as mysqlfuncts:
-            topic_id = "44"
-            metadata = "foobar44"
-            expected_data = (44, '"foobar44"')
+    res = mysqlfuncts.insert_meta(topic_id, metadata)
 
-            res = mysqlfuncts.insert_meta(topic_id, metadata)
-
-            assert res is True
-            assert get_data_in_table(port_on_host, "meta")[0] == expected_data
+    assert res is True
+    assert get_data_in_table(port_on_host, "meta")[0] == expected_data
 
 
 @pytest.mark.mysqlfuncts
@@ -507,8 +490,8 @@ def get_container_func(request):
         wait_for_connection(container)
         if request.param[1] == '<4.0.0':
             create_all_tables(container, request.param[1])
-        yield get_mysqlfuncts(ports_dict["port_on_host"]), ports_dict[
-            "port_on_host"], request.param[1]
+        yield container, get_mysqlfuncts(ports_dict["port_on_host"]), \
+              ports_dict["port_on_host"], request.param[1]
 
 
 def ports_config():
