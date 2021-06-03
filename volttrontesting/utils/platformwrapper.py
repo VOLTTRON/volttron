@@ -436,7 +436,7 @@ class PlatformWrapper:
 
     def build_agent(self, address=None, should_spawn=True, identity=None,
                     publickey=None, secretkey=None, serverkey=None,
-                    agent_class=Agent, capabilities: Optional[dict] = None, **kwargs):
+                    agent_class=Agent, capabilities: Optional[dict] = None, **kwargs) -> Agent:
         """ Build an agent connnected to the passed bus.
 
         By default the current instance that this class wraps will be the

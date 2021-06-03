@@ -52,6 +52,7 @@ from volttron.utils.frame_serialization import serialize_frames
 from .base import SubsystemBase
 
 _log = logging.getLogger(__name__)
+_log.setLevel(logging.WARN)
 
 
 __all__ = ['Channel']
@@ -94,6 +95,7 @@ class Channel(SubsystemBase):
                     # XXX: Handle channel not found
                     continue
                 message[0] = name
+                _log.debug(f"Sending vip through channel {message}")
                 vip_sock.send_vip(peer, 'channel', message, copy=False)
         core.onstart.connect(start, self)
 
@@ -122,13 +124,18 @@ class Channel(SubsystemBase):
             ident = self._channels[channel]
         except KeyError:
             # XXX: Handle channel not found
+            _log.error(f"Channel {channel} not found!")
             return
         frames[0] = ident
 
         try:
             memoryview(frames)
+            _log.debug("Serializing frames not necessary")
         except TypeError:
+            _log.debug("Serializing frames necessary")
             frames = serialize_frames(frames)
+        
+        _log.debug(f"frames are before send_multipart: {frames}")
 
         self.socket.send_multipart(frames, copy=False)
 
@@ -150,6 +157,7 @@ class Channel(SubsystemBase):
             channel = (peer, name)
             if channel in self._channels:
                 raise ValueError('channel %r is unavailable' % (name,))
+        _log.debug(f"Connecting to channel {channel}")
         sock = self.context.socket(zmq.DEALER)
         sock.hwm = 1
         sock.identity = ident = f'{hash(channel)}s.{hash(sock)}s'.encode('utf-8')
