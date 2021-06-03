@@ -710,6 +710,30 @@ class RabbitMQMgmt(object):
                 links.append(lk)
         return links
 
+    def get_shovel_link_status(self, name, ssl_auth=None):
+        state = 'error'
+        links = self.get_shovel_links(ssl_auth=ssl_auth)
+        for link in links:
+            if link['name'] == name:
+                if 'state' in [link.keys()]:
+                    state = link['state']
+                elif 'error' in [link.keys()]:
+                    state = link['error']
+                break
+        return state
+
+    def get_federation_link_status(self, name, ssl_auth=None):
+        state = 'error'
+        links = self.get_federation_links(ssl_auth=ssl_auth)
+        for link in links:
+            if link['name'] == name:
+                if 'state' in [link.keys()]:
+                    state = link['state']
+                elif 'error' in [link.keys()]:
+                    state = link['error']
+                break
+        return state
+
     def get_shovel_links(self, ssl_auth=None):
         """
         List all shovel links for a given virtual host
@@ -726,10 +750,13 @@ class RabbitMQMgmt(object):
             for res in response:
                 lk = dict()
                 lk['name'] = res['name']
-                lk['state'] = res['state']
-                lk['src_uri'] = res['src_uri']
-                lk['dest_uri'] = res['dest_uri']
-                lk['src_exchange_key'] = res['src_exchange_key']
+                try:
+                    lk['state'] = res['state']
+                    lk['src_uri'] = res['src_uri']
+                    lk['dest_uri'] = res['dest_uri']
+                    lk['src_exchange_key'] = res['src_exchange_key']
+                except KeyError as e:
+                    lk['error'] = 'Error in link'
                 links.append(lk)
         return links
 
@@ -792,7 +819,7 @@ class RabbitMQMgmt(object):
 
         return port == 15672 or port == 15671
 
-    def delete_multiplatform_parameter(self, component, parameter_name, vhost=None):
+    def delete_multiplatform_parameter(self, component, parameter_name, vhost=None, delete_certs=False):
         """
         Delete a component parameter
         :param component: component name
@@ -800,6 +827,11 @@ class RabbitMQMgmt(object):
         :param vhost: virtual host
         :return:
         """
+        print(delete_certs)
+        #self.delete_parameter(component, parameter_name, vhost,
+        #                      ssl_auth=self.rmq_config.is_ssl)
+
+        import os
         vhome = get_home()
         if component == 'shovel':
             config_file = os.path.join(vhome, 'rabbitmq_shovel_config.yml')
@@ -808,19 +840,42 @@ class RabbitMQMgmt(object):
             config_file = os.path.join(vhome, 'rabbitmq_federation_config.yml')
             key = 'federation-upstream'
         config = read_config_file(config_file)
-        print(f"Removing certificate paths from the {component} config file. Please remove remote certificates manually "
-              "from the VOLTTRON_HOME folder if needed")
+
+        print(f"Removing certificate paths from VOLTTRON_HOME and from the config file")
 
         names = parameter_name.split("-")
 
+        certs_config = None
         try:
+            certs_config = config[key][names[1]]['certificates']
             del config[key][names[1]]['certificates']
             write_to_config_file(config_file, config)
         except (KeyError, IndexError) as e:
-            print(f"names:{e}")
+            print(f"Missing key:{e}")
             pass
-        self.delete_parameter(component, parameter_name, vhost,
-                              ssl_auth=self.rmq_config.is_ssl)
+
+        print(f"certs_config:{certs_config}, type:{type(certs_config)}")
+        if delete_certs and certs_config:
+            try:
+                private_key = certs_config['private_key']
+                public_cert = certs_config['public_cert']
+                remote_ca = certs_config['remote_ca']
+                if os.path.exists(private_key):
+                    os.remove(private_key)
+                private_dir, filename = os.path.split(private_key)
+                cert_name = filename[:-4] + '.crt'
+                cert_path = private_dir.replace('private', 'certs')+'/' + cert_name
+                print(cert_path)
+                if os.path.exists(cert_path):
+                    os.remove(cert_path)
+                if os.path.exists(public_cert):
+                    os.remove(public_cert)
+                if os.path.exists(remote_ca):
+                    os.remove(remote_ca)
+            except KeyError as e:
+                print("Missing Key: {e}")
+                pass
+
 
     def build_connection_param(self, rmq_user, ssl_auth=None, retry_attempt=30, retry_delay=2):
         """

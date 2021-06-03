@@ -571,16 +571,16 @@ def federated_rmq_instances(request, **kwargs):
 @pytest.fixture(scope="module")
 def two_way_federated_rmq_instances(request, **kwargs):
     """
-    Create two rmq based volttron instances. One to act as producer of data and one to act as consumer of data
-    producer is upstream instance and consumer is the downstream instance
+    Create two rmq based volttron instances. Create bi-directional data flow channel
+    by creating 2 federation links
 
-    :return: 2 volttron instances - (producer, consumer) that are federated
+    :return: 2 volttron instances - that are connected through federation
     """
     instance_1_vip = get_rand_vip()
     instance_1_hostname, instance_1_https_port = get_hostname_and_random_port()
     instance_1_web_address = 'https://{hostname}:{port}'.format(hostname=instance_1_hostname,
                                                      port=instance_1_https_port)
-    print(f"instance_1 WEB ADDR: {instance_1_web_address}")
+
     instance_1 = build_wrapper(instance_1_vip,
                                ssl_auth=True,
                                messagebus='rmq',
@@ -588,7 +588,7 @@ def two_way_federated_rmq_instances(request, **kwargs):
                                bind_web_address=instance_1_web_address,
                                instance_name='volttron1',
                                **kwargs)
-    print(f"instance_1 VHOME: {instance_1.volttron_home}, WEB ADDR: {instance_1.bind_web_address}")
+
     instance_1.enable_auto_csr()
 
     instance_2_vip = get_rand_vip()
@@ -603,8 +603,6 @@ def two_way_federated_rmq_instances(request, **kwargs):
                                bind_web_address=instance_2_webaddress,
                                instance_name='volttron2',
                                **kwargs)
-    print(f"instance_2 VHOME: {instance_2.volttron_home}, WEB ADDR: {instance_2.bind_web_address}")
-
 
     instance_2_link_name = None
     instance_1_link_name = None
