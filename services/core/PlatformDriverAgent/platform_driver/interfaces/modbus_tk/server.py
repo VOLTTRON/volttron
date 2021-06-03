@@ -192,7 +192,7 @@ class Server (object):
         self._server.stop()
 
     def is_alive(self):
-        return self._server._thread.isAlive()
+        return self._server._thread.is_alive()
 
     def set_verbose(self, on=True):
         self._server.set_verbose(on)
