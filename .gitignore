@@ -23,6 +23,7 @@ applications
 /docs/source/volttron-api
 volttron.log
 __pycache__
+.vscode/
 .python-version
 .pytest_cache
 start-rabbitmq
