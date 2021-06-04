@@ -706,7 +706,7 @@ class RabbitMQMgmt(object):
             for res in response:
                 lk = dict()
                 lk['name'] = res['upstream']
-                lk['status'] = res['status']
+                lk['status'] = res.get('status', 'Error in link')
                 links.append(lk)
         return links
 
@@ -715,10 +715,7 @@ class RabbitMQMgmt(object):
         links = self.get_shovel_links(ssl_auth=ssl_auth)
         for link in links:
             if link['name'] == name:
-                if 'state' in [link.keys()]:
-                    state = link['state']
-                elif 'error' in [link.keys()]:
-                    state = link['error']
+                state = link['status']
                 break
         return state
 
@@ -727,10 +724,7 @@ class RabbitMQMgmt(object):
         links = self.get_federation_links(ssl_auth=ssl_auth)
         for link in links:
             if link['name'] == name:
-                if 'state' in [link.keys()]:
-                    state = link['state']
-                elif 'error' in [link.keys()]:
-                    state = link['error']
+                state = link['status']
                 break
         return state
 
@@ -745,18 +739,14 @@ class RabbitMQMgmt(object):
             vhost=self.rmq_config.virtual_host)
         response = self._http_get_request(url, ssl_auth)
         links = []
-
         if response:
             for res in response:
                 lk = dict()
                 lk['name'] = res['name']
-                try:
-                    lk['state'] = res['state']
-                    lk['src_uri'] = res['src_uri']
-                    lk['dest_uri'] = res['dest_uri']
-                    lk['src_exchange_key'] = res['src_exchange_key']
-                except KeyError as e:
-                    lk['error'] = 'Error in link'
+                lk['status'] = res.get('state', 'Error in link')
+                lk['src_uri'] = res.get('src_uri', '')
+                lk['dest_uri'] = res.get('dest_uri', '')
+                lk['src_exchange_key'] = res.get('src_exchange_key', '')
                 links.append(lk)
         return links
 
@@ -827,9 +817,8 @@ class RabbitMQMgmt(object):
         :param vhost: virtual host
         :return:
         """
-        print(delete_certs)
-        #self.delete_parameter(component, parameter_name, vhost,
-        #                      ssl_auth=self.rmq_config.is_ssl)
+        self.delete_parameter(component, parameter_name, vhost,
+                              ssl_auth=self.rmq_config.is_ssl)
 
         import os
         vhome = get_home()
@@ -854,7 +843,6 @@ class RabbitMQMgmt(object):
             print(f"Missing key:{e}")
             pass
 
-        print(f"certs_config:{certs_config}, type:{type(certs_config)}")
         if delete_certs and certs_config:
             try:
                 private_key = certs_config['private_key']
@@ -865,7 +853,7 @@ class RabbitMQMgmt(object):
                 private_dir, filename = os.path.split(private_key)
                 cert_name = filename[:-4] + '.crt'
                 cert_path = private_dir.replace('private', 'certs')+'/' + cert_name
-                print(cert_path)
+
                 if os.path.exists(cert_path):
                     os.remove(cert_path)
                 if os.path.exists(public_cert):

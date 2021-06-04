@@ -110,7 +110,7 @@ def shovel_pubsub_rmq_instances(request, **kwargs):
         with with_os_environ(source.env):
             rmq_mgmt = RabbitMQMgmt()
             links = rmq_mgmt.get_shovel_links()
-            assert links and links[0]['state'] == 'running'
+            assert links and links[0]['status'] == 'running'
             link_name = links[0]['name']
 
     except Exception as e:
@@ -205,7 +205,7 @@ def two_way_shovel_connection(request, **kwargs):
         with with_os_environ(source.env):
             rmq_mgmt = RabbitMQMgmt()
             links = rmq_mgmt.get_shovel_links()
-            assert links and links[0]['state'] == 'running'
+            assert links and links[0]['status'] == 'running'
             source_link_name = links[0]['name']
 
         sink.skip_cleanup = True
@@ -235,7 +235,7 @@ def two_way_shovel_connection(request, **kwargs):
         with with_os_environ(sink.env):
             rmq_mgmt = RabbitMQMgmt()
             links = rmq_mgmt.get_shovel_links()
-            assert links and links[0]['state'] == 'running'
+            assert links and links[0]['status'] == 'running'
             sink_link_name = links[0]['name']
 
     except Exception as e:

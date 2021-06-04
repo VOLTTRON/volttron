@@ -949,22 +949,41 @@ def process_rmq_inputs(args_dict, instance_name=None):
     vhome = get_home()
 
     if args_dict['config'] is not None:
+        if not os.path.exists(vhome):
+            os.makedirs(vhome, 0o755)
         if args_dict['installation-type'] == 'single':
             vhome_config = os.path.join(vhome, 'rabbitmq_config.yml')
+            if args_dict['config'] != vhome_config:
+                copy(args_dict['config'], vhome_config)
         elif args_dict['installation-type'] == 'federation':
             vhome_config = os.path.join(vhome, 'rabbitmq_federation_config.yml')
+            if os.path.exists(vhome_config):
+                prompt = f"rabbitmq_federation_config.yml already exists in VOLTTRON_HOME: {vhome}.\n" \
+                         "Do you wish to use this config file? If no, rabbitmq_federation_config.yml \n" \
+                         "will be replaced with new config file"
+                prompt = prompt_response(prompt,
+                                         valid_answers=y_or_n,
+                                         default='N')
+                if prompt in n:
+                    copy(args_dict['config'], vhome_config)
         elif args_dict['installation-type'] == 'shovel':
             vhome_config = os.path.join(vhome, 'rabbitmq_shovel_config.yml')
+            if os.path.exists(vhome_config):
+                prompt = f"rabbitmq_shovel_config.yml already exists in VOLTTRON_HOME: {vhome}.\n" \
+                         "Do you wish to use this config file? If no, rabbitmq_shovel_config.yml \n" \
+                         "will be replaced with new config file"
+                prompt = prompt_response(prompt,
+                                         valid_answers=y_or_n,
+                                         default='N')
+                if prompt in n:
+                    copy(args_dict['config'], vhome_config)
         else:
             print("Invalid installation type. Acceptable values single|federation|shovel")
             sys.exit(1)
-        if args_dict['config'] != vhome_config:
-            if not os.path.exists(vhome):
-                os.makedirs(vhome, 0o755)
-            copy(args_dict['config'], vhome_config)
         setup_rabbitmq_volttron(args_dict['installation-type'], verbose, instance_name=instance_name, max_retries=args_dict['max_retries'])
     else:
         setup_rabbitmq_volttron(args_dict['installation-type'], verbose, prompt=True, instance_name=instance_name, max_retries=args_dict['max_retries'])
+
 
 def main():
     global verbose, prompt_vhome

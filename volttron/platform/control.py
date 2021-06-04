@@ -2255,7 +2255,7 @@ def list_shovel_links(opts):
     try:
         if links:
             name_width = max(5, max(len(lk['name']) for lk in links))
-            status_width = max(3, max(len(lk['state']) for lk in links))
+            status_width = max(3, max(len(lk['status']) for lk in links))
             src_exchange_key_width = max(3, max(len(lk['src_exchange_key']) for lk in links))
             src_uri_width = max(3, max(len(lk['src_uri']) for lk in links))
             dest_uri_width = max(3, max(len(lk['dest_uri']) for lk in links))
@@ -2266,12 +2266,12 @@ def list_shovel_links(opts):
                            'SRC_EXCHANGE_KEY', src_exchange_key_width))
             for link in links:
                 _stdout.write(fmt.format(link['name'], name_width,
-                                         link['state'], status_width,
+                                         link['status'], status_width,
                                          link['src_uri'], src_uri_width,
                                          link['dest_uri'], dest_uri_width,
                                          link['src_exchange_key'], src_exchange_key_width))
     except (AttributeError, KeyError) as ex:
-        _stdout.write("Error in shovel links")
+        _stdout.write(f"Error in shovel links as {ex}")
 
 
 def list_bindings(opts):
