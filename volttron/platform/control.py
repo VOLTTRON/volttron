@@ -81,7 +81,7 @@ from volttron.utils.rmq_config_params import RMQConfig
 from volttron.utils.rmq_mgmt import RabbitMQMgmt
 from volttron.utils.rmq_setup import check_rabbit_status
 from volttron.platform.agent.utils import is_secure_mode, wait_for_volttron_shutdown
-from . install_agents import add_install_agent_parser, install_agent
+from . install_agents import add_install_agent_parser
 
 try:
     import volttron.restricted
@@ -95,8 +95,11 @@ else:
 _stdout = sys.stdout
 _stderr = sys.stderr
 
+# will be volttron.platform.main or main.py instead of __main__
 _log = logging.getLogger(os.path.basename(sys.argv[0])
                          if __name__ == '__main__' else __name__)
+# Allows server side logging.
+# _log.setLevel(logging.DEBUG)
 
 message_bus = utils.get_messagebus()
 rmq_mgmt = None
@@ -105,10 +108,12 @@ CHUNK_SIZE = 4096
 
 
 class ControlService(BaseAgent):
-    def __init__(self, aip, agent_monitor_frequency, *args, **kwargs):
+    def __init__(self, aip: aipmod.AIPplatform, agent_monitor_frequency, *args, **kwargs):
 
         tracker = kwargs.pop('tracker', None)
+        # Control config store not necessary right now
         kwargs["enable_store"] = False
+        kwargs["enable_channel"] = True
         super(ControlService, self).__init__(*args, **kwargs)
         self._aip = aip
         self._tracker = tracker
@@ -297,12 +302,6 @@ class ControlService(BaseAgent):
                 for uuid, name in self._aip.list_agents().items()]
 
     @RPC.export
-    def list_agents_rpc(self):
-        pass
-        # agents = self.list_agents()
-        # return [jsonapi.dumps(self.vip.rpc.call(agent.vip_identity, 'inspect').get(timeout=4)) for agent in agents]
-
-    @RPC.export
     def tag_agent(self, uuid, tag):
         if not isinstance(uuid, str):
             identity = bytes(self.vip.rpc.context.vip_message.peer).decode("utf-8")
@@ -314,7 +313,7 @@ class ControlService(BaseAgent):
             raise TypeError("expected a string for 'tag';"
                             "got {!r} from identity: {}".format(
                 type(uuid).__name__, identity))
-        return self._aip.tag_agent(uuid, tag)
+        self._aip.tag_agent(uuid, tag)
 
     @RPC.export
     def remove_agent(self, uuid, remove_auth=True):
@@ -385,15 +384,8 @@ class ControlService(BaseAgent):
         return retmap
 
     @RPC.export
-    def install_agent_local(self, filename, vip_identity=None, publickey=None,
-                            secretkey=None):
-        return self._aip.install_agent(filename, vip_identity=vip_identity,
-                                       publickey=publickey,
-                                       secretkey=secretkey)
-
-    @RPC.export
     def install_agent(self, filename, channel_name, vip_identity=None,
-                      publickey=None, secretkey=None):
+                      publickey=None, secretkey=None, force=False):
         """
         Installs an agent on the instance instance.
 
@@ -439,42 +431,58 @@ class ControlService(BaseAgent):
             Encoded public key the installed agent will use
         :param:string:secretkey:
             Encoded secret key the installed agent will use
+        :param:string:force:
+            Boolean value specifying whether the existence of an identity should
+            reinstall or cause an error.
         """
 
-        peer = bytes(self.vip.rpc.context.vip_message.peer).decode("utf-8")
+        # at this point if agent_uuid is populated then there is an
+        # identity of that already available.
+        agent_uuid = None
+        if vip_identity:
+            agent_uuid = self._identity_exists(vip_identity)
+        agent_existed_before = False
+        if agent_uuid:
+            agent_existed_before = True
+            if not force:
+                raise ValueError("Identity already exists, but not forced!")
+        _log.debug(f"rpc: install_agent {agent_uuid}")
+        # Prepare to install agent that is passed over to us.
+        peer = self.vip.rpc.context.vip_message.peer
         channel = self.vip.channel(peer, channel_name)
-
         try:
             tmpdir = tempfile.mkdtemp()
             path = os.path.join(tmpdir, os.path.basename(filename))
             store = open(path, 'wb')
-            file_offset = 0
             sha512 = hashlib.sha512()
 
             try:
+                request_checksum = jsonapi.dumpb(['checksum'])
+                request_fetch = jsonapi.dumpb(['fetch', 1024])
                 while True:
+                    
                     # request a chunk of the file
-                    channel.send_multipart([
-                        'fetch',
-                        bytes(file_offset),
-                        bytes(CHUNK_SIZE)
-                    ])
+                    channel.send(request_fetch)
 
-                    # get the requested data
+                    # chunk binary representation of the bytes read from
+                    # the other side of the connectoin
                     with gevent.Timeout(30):
-                        data = channel.recv()
-                    sha512.update(data)
-                    store.write(data)
-                    size = len(data)
-                    file_offset += size
+                        _log.debug("Waiting for chunk")
+                        chunk = channel.recv()
+                        _log.debug(f"chunk is {chunk}")
+                        if chunk == b'complete':
+                            _log.debug(f"File transfer complete!")
+                            break
 
-                    # let volttron-ctl know that we have everything
-                    if size < CHUNK_SIZE:
-                        channel.send_multipart(['checksum', '', ''])
-                        with gevent.Timeout(30):
-                            checksum = channel.recv()
+                    sha512.update(chunk)
+                    store.write(chunk)
+
+                    with gevent.Timeout(30):
+                        channel.send(request_checksum)
+                        checksum = channel.recv()
+
                         assert checksum == sha512.digest()
-                        break
+                _log.debug("Outside of while loop in install agent service.")
 
             except AssertionError:
                 _log.warning("Checksum mismatch on received file")
@@ -488,13 +496,59 @@ class ControlService(BaseAgent):
                 channel.close(linger=0)
                 del channel
 
+            _log.debug("After transfering wheel to us now to do stuff.")
+            agent_data_dir = None
+            backup_agent_file = None
+            # Note if this is anything then we know we have already got an agent
+            # mapped to the identity.
+            if agent_uuid:
+                _log.debug(f"There is an existing agent {agent_uuid}")
+                backup_agent_file = "/tmp/{}.tar.gz".format(agent_uuid)
+                if agent_uuid:
+                    agent_data_dir = self._aip.create_agent_data_dir_if_missing(agent_uuid)
+
+                    if agent_data_dir:
+                        backup_agent_data(backup_agent_file, agent_data_dir)
+
+                    keystore = self._aip.get_agent_keystore(agent_uuid)
+                    publickey = keystore.public
+                    secretkey = keystore.secret
+                    _log.info('Removing previous version of agent "{}"\n'
+                              .format(vip_identity))
+                    self.remove_agent(agent_uuid)
+            _log.debug("Calling aip install_agent.")
             agent_uuid = self._aip.install_agent(path,
                                                  vip_identity=vip_identity,
                                                  publickey=publickey,
                                                  secretkey=secretkey)
+
+            if agent_existed_before and backup_agent_file is not None:
+                restore_agent_data_from_tgz(backup_agent_file,
+                                            self._aip.create_agent_data_dir_if_missing(agent_uuid))
+            _log.debug(f"Returning {agent_uuid}")
             return agent_uuid
         finally:
             shutil.rmtree(tmpdir, ignore_errors=True)
+
+    def _identity_exists(self, identity):
+        """
+        Uses connection to call the rpc function status_agents to determine
+        if an identity is already on the platform.  If the identity exists then
+        the agent_uuid will be return.  This is the most useful piece of informaiton
+        because all of the specific lookup methods are tied to the agent_uuid.
+        """
+        results = self.status_agents()
+        if not results:
+            return None
+        
+        for x in results:
+            if x[3]:
+                return x[0]
+        # dict_results = dict((k, v) for k, v in results)
+        # #json_results = jsonapi.loads(results)
+        # agent_ctx = dict_results.get(identity)
+        # if agent_ctx:
+        #     return agent_ctx['agent_uuid']
 
 
 def log_to_file(file, level=logging.WARNING,
@@ -1186,6 +1240,7 @@ def _send_agent(connection, peer, path):
         peer, 'install_agent', os.path.basename(path), channel.name)
     task = gevent.spawn(send)
     result.rawlink(lambda glt: task.kill(block=False))
+    _log.debug(f"Result is {result}")
     return result
 
 
@@ -1193,8 +1248,7 @@ def send_agent(opts):
     connection = opts.connection
     for wheel in opts.wheel:
         uuid = _send_agent(connection.server, connection.peer, wheel).get()
-        connection.call('start_agent', uuid)
-        _stdout.write('Agent {} started as {}\n'.format(wheel, uuid))
+        return uuid
 
 
 def gen_keypair(opts):
@@ -2361,7 +2415,7 @@ def export_pkcs12_from_identity(opts):
     certs.export_pkcs12(fq_identity, opts.outfile)
 
 
-def main(argv=sys.argv):
+def main():
     # Refuse to run as root
     if not getattr(os, 'getuid', lambda: -1)():
         sys.stderr.write('%s: error: refusing to run as root to prevent '
@@ -2403,7 +2457,7 @@ def main(argv=sys.argv):
     filterable.set_defaults(by_name=False, by_tag=False, by_uuid=False)
 
     parser = config.ArgumentParser(
-        prog=os.path.basename(argv[0]), add_help=False,
+        prog=os.path.basename('volttron-vctl'), add_help=False,
         description='Manage and control VOLTTRON agents.',
         usage='%(prog)s command [OPTIONS] ...',
         argument_default=argparse.SUPPRESS,
@@ -3013,7 +3067,7 @@ def main(argv=sys.argv):
         cgroup.set_defaults(func=create_cgroups, user=None, group=None)
 
     # Parse and expand options
-    args = argv[1:]
+    args = sys.argv[1:]
 
     # TODO: for auth some of the commands will work when volttron is down and
     # some will error (example vctl auth serverkey). Do check inside auth
@@ -3064,7 +3118,7 @@ def main(argv=sys.argv):
     opts.connection = None
     if utils.is_volttron_running(volttron_home):
         opts.connection = ControlConnection(opts.vip_address)
-
+    
     try:
         with gevent.Timeout(opts.timeout):
             return opts.func(opts)

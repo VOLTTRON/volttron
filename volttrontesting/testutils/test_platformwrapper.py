@@ -167,7 +167,7 @@ def test_instance_writes_to_instances_file(volttron_instance):
 
 @pytest.mark.skip(reason="To test actions on github")
 @pytest.mark.wrapper
-def test_can_install_listener(volttron_instance):
+def test_can_install_listener(volttron_instance: PlatformWrapper):
     vi = volttron_instance
     assert vi is not None
     assert vi.is_running()

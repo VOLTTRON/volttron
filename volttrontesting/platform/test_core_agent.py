@@ -189,6 +189,8 @@ def test_channel_send_data(volttron_instance: PlatformWrapper):
     assert sender.responses
     assert receiver.the_data
     assert receiver.the_data == data.encode('utf-8')
+    sender.core.stop()
+    receiver.core.stop()
 
 
 @pytest.mark.agent
@@ -219,11 +221,8 @@ def test_channel_send_file(volttron_instance: PlatformWrapper):
 
     assert hashlib.sha256(open("/tmp/tmptar.tar", 'rb').read()).hexdigest() == hashlib.sha256(open(receiver.receiver_file_path, 'rb').read()).hexdigest() 
 
-    
-    # assert os.path.exists(receiver.reciever_file_path)
-
-    # assert hashlib.sha256(open("/tmp/tmptar.tar").read()).hexdigest() == hashlib.sha256(open(receiver.receiver_file_path).read()).hexdigest()
-
+    sender.core.stop()
+    receiver.core.stop()
 
 @pytest.mark.agent
 def test_agent_can_get_platform_version(volttron_instance):
@@ -235,7 +234,7 @@ def test_agent_can_get_platform_version(volttron_instance):
     _, version = response.strip().split(" ")
 
     platform_version = query.query("platform-version").get(timeout=2)
-    assert version == platform_version
+    assert str(version) == str(platform_version)
 
 
 @pytest.mark.agent
@@ -272,7 +271,7 @@ def test_agent_status_changes(volttron_instance):
 
 
 @pytest.mark.agent
-def test_agent_last_update_increases(volttron_instance):
+def test_agent_health_last_update_increases(volttron_instance):
     agent = volttron_instance.build_agent()
     s = agent.vip.health.get_status()
     dt = dateparse(s['last_updated'], fuzzy=True)

@@ -40,6 +40,7 @@ import argparse
 import hashlib
 import logging
 import os
+from pathlib import Path
 import sys
 import tempfile
 import traceback
@@ -48,7 +49,8 @@ import uuid
 import gevent
 import yaml
 
-from volttron.platform import config, jsonapi, get_volttron_root, get_home
+from volttron.platform.vip.agent.results import AsyncResult
+from volttron.platform import agent, config, jsonapi, get_home
 from volttron.platform.agent.utils import execute_command
 from volttron.platform.packaging import add_files_to_package, create_package
 
@@ -58,18 +60,7 @@ _stdout = sys.stdout
 _stderr = sys.stderr
 
 
-def identity_exists(volttron_control, identity):
-    env = os.environ.copy()
-    cmds = [volttron_control, "status"]
 
-    data = execute_command(cmds, env=env, logger=_log,
-                           err_prefix="Error checking identity")
-    for x in data.split("\n"):
-        if x:
-            line_split = x.split()
-            if identity == line_split[2]:
-                return line_split[0]
-    return False
 
 
 def install_requirements(agent_source):
@@ -85,7 +76,7 @@ def install_requirements(agent_source):
             sys.exit(1)
 
 
-def install_agent_directory(opts):
+def install_agent_directory(opts, publickey=None, secretkey=None):
     """
     The main installation method for installing the agent on the correct local
     platform instance.
@@ -98,7 +89,9 @@ def install_agent_directory(opts):
         _log.error("Agent source must contain a setup.py file.")
         sys.exit(-10)
 
-    install_requirements(opts.install_path)
+    assert opts.connection, "Connection must have been created to access this feature."
+
+    # install_requirements(opts.install_path)
 
     wheelhouse = os.path.join(get_home(), "packaged")
     opts.package = create_package(opts.install_path, wheelhouse, opts.vip_identity)
@@ -107,19 +100,16 @@ def install_agent_directory(opts):
         _log.error("The wheel file for the agent was unable to be created.")
         sys.exit(-10)
 
-    agent_exists = False
-    volttron_control = os.path.join(get_volttron_root(), "env/bin/vctl")
-    if opts.vip_identity is not None:
-        # if the identity exists the variable will have the agent uuid in it.
-        agent_exists = identity_exists(volttron_control, opts.vip_identity)
-        if agent_exists:
-            if not opts.force:
-                _log.error(
-                    "identity already exists, but force wasn't specified.")
-                sys.exit(-10)
-            # Note we don't remove the agent here because if we do that will
-            # not allow us to update without losing the keys.  The
-            # install_agent method either installs or upgrades the agent.
+    agent_uuid = None
+    if not opts.vip_identity:
+        agent_default_id_file = Path(opts.install_path).joinpath("IDENTITY")
+        if agent_default_id_file.is_file():
+            with open(str(agent_default_id_file)) as fin:
+                opts.vip_identity = fin.read().strip()
+    agent_uuid = None
+
+    # Verify and load agent_config up from the opts.  agent_config will
+    # be a yaml config file.
     agent_config = opts.agent_config
 
     if agent_config is None:
@@ -143,84 +133,57 @@ def install_agent_directory(opts):
 
     # Configure the whl file before installing.
     add_files_to_package(opts.package, {'config_file': config_file})
-    env = os.environ.copy()
 
+    _send_and_intialize_agent(opts, publickey, secretkey)
+    
 
-    if agent_exists:
-        cmds = [volttron_control, "--json", "upgrade", opts.vip_identity, opts.package]
-    else:
-        cmds = [volttron_control, "--json", "install", opts.package]
+def _send_and_intialize_agent(opts, publickey, secretkey):
+    
+    agent_uuid = send_agent(opts, opts.package, opts.vip_identity,
+                            publickey, secretkey, opts.force)
 
-    if opts.tag:
-        cmds.extend(["--tag", opts.tag])
-
-    out = execute_command(cmds, env=env, logger=_log,
-                          err_prefix="Error installing agent")
-
-    parsed = out.split("\n")
-
-    # If there is not an agent with that identity:
-    # 'Could not find agent with VIP IDENTITY "BOO". Installing as new agent
-    # Installed /home/volttron/.volttron/packaged/listeneragent-3.2-py2-none-any.whl as 6ccbf8dc-4929-4794-9c8e-3d8c6a121776 listeneragent-3.2'
-
-    # The following is standard output of an agent that was previously installed
-    # If the agent was not previously installed then only the second line
-    # would have been output to standard out.
-    #
-    # Removing previous version of agent "foo"
-    # Installed /home/volttron/.volttron/packaged/listeneragent-3.2-py2-none-any.whl as 81b811ff-02b5-482e-af01-63d2fd95195a listeneragent-3.2
-
-    agent_uuid = None
-    for l in parsed:
-        if l.startswith('Installed'):
-            agent_uuid = l.split(' ')[-2:-1][0]
-    # if 'Could not' in parsed[0]:
-    #     agent_uuid = parsed[1].split()[-2]
-    # elif 'Removing' in parsed[0]:
-    #     agent_uuid = parsed[1].split()[-2]
-    # else:
-    #     agent_uuid = parsed[0].split()[-2]
-
+    if not agent_uuid:
+        raise ValueError(f"Agent was not installed properly.")
+    
+    if isinstance(agent_uuid, AsyncResult):
+        agent_uuid = agent_uuid.get()
+    
     output_dict = dict(agent_uuid=agent_uuid)
+    
+    if opts.tag:
+        _log.debug(f"Tagging agent {agent_uuid}, {opts.tag}")
+        opts.connection.call('tag_agent', agent_uuid, opts.tag)
+        output_dict['tag'] = opts.tag
 
-    if opts.start:
-        cmds = [volttron_control, "start", agent_uuid]
-        outputdata = execute_command(cmds, env=env, logger=_log,
-                                     err_prefix="Error starting agent")
+    if opts.enable or opts.priority != -1:        
+        output_dict['enabling'] = True
+        if opts.priority == -1:
+            opts.priority = '50'
+        _log.debug(f"Prioritinzing agent {agent_uuid},{opts.priority}")
+        output_dict['priority'] = opts.priority
+        
+        opts.connection.call('prioritize_agent', agent_uuid, str(opts.priority))
 
-        # Expected output on standard out
-        # Starting 83856b74-76dc-4bd9-8480-f62bd508aa9c listeneragent-3.2
-        if 'Starting' in outputdata:
+    
+    try: 
+
+        if opts.start:
+            _log.debug(f"Staring agent {agent_uuid}")
+            opts.connection.call('start_agent', agent_uuid)
             output_dict['starting'] = True
+            
+            _log.debug(f"Getting agent status {agent_uuid}")
+            gevent.sleep(opts.agent_start_time)
+            status = opts.connection.call('agent_status', agent_uuid)
+            if status[0] is not None and status[1] is None:
+                output_dict['started'] = True
+                output_dict['pid'] = status[0]
+            else:
+                output_dict['started'] = False
+            _log.debug(f"Status returned {status}")
+    except Exception as e:
+        _log.error(e)
 
-    if opts.enable:
-        cmds = [volttron_control, "enable", agent_uuid]
-
-        if opts.priority != -1:
-            cmds.extend(["--priority", str(opts.priority)])
-
-        outputdata = execute_command(cmds, env=env, logger=_log,
-                                     err_prefix="Error enabling agent")
-        # Expected output from standard out
-        # Enabling 6bcee29b-7af3-4361-a67f-7d3c9e986419 listeneragent-3.2 with priority 50
-        if "Enabling" in outputdata:
-            output_dict['enabling'] = True
-            output_dict['priority'] = outputdata.split("\n")[0].split()[-1]
-
-    if opts.start:
-        # Pause for agent_start_time seconds before verifying that the agent
-        gevent.sleep(opts.agent_start_time)
-
-        cmds = [volttron_control, "status", agent_uuid]
-        outputdata = execute_command(cmds, env=env, logger=_log,
-                                     err_prefix="Error finding agent status")
-
-        # 5 listeneragent-3.2 foo     running [10737]
-        output_dict["started"] = "running" in outputdata
-        if output_dict["started"]:
-            pidpos = outputdata.index('[') + 1
-            pidend = outputdata.index(']')
-            output_dict['agent_pid'] = int(outputdata[pidpos: pidend])
 
     if opts.json:
         sys.stdout.write("%s\n" % jsonapi.dumps(output_dict, indent=4))
@@ -239,86 +202,82 @@ def install_agent_directory(opts):
         sys.stdout.write("%s\n%s\n" % (keyline, valueline))
 
 
-def install_agent(opts, publickey=None, secretkey=None, callback=None):
+def install_agent_vctl(opts, publickey=None, secretkey=None, callback=None):
+    """
+    The `install_agent` function is called from the volttron-ctl or vctl install
+    sub-parser.
+    """
+
     try:
         install_path = opts.install_path
     except AttributeError:
         install_path = opts.wheel
 
     if os.path.isdir(install_path):
-        install_agent_directory(opts)
+        install_agent_directory(opts, publickey, secretkey)
         if opts.connection is not None:
             opts.connection.server.core.stop()
         sys.exit(0)
     filename = install_path
     tag = opts.tag
     vip_identity = opts.vip_identity
-    if opts.vip_address.startswith('ipc://'):
-        _log.info("Installing wheel locally without channel subsystem")
-        filename = config.expandall(filename)
-        agent_uuid = opts.connection.call('install_agent_local',
-                                          filename,
-                                          vip_identity=vip_identity,
-                                          publickey=publickey,
-                                          secretkey=secretkey)
 
-        if tag:
-            opts.connection.call('tag_agent', agent_uuid, tag)
+    channel = None
+    try:
+        _log.debug('Creating channel for sending the agent.')
+        channel_name = str(uuid.uuid4())
+        channel = opts.connection.server.vip.channel('control',
+                                                     channel_name)
+        _log.debug('calling control install agent.')
+        agent_uuid = opts.connection.call_no_get('install_agent',
+                                                 filename,
+                                                 channel_name,
+                                                 vip_identity=vip_identity,
+                                                 publickey=publickey,
+                                                 secretkey=secretkey)
 
+        _log.debug('Sending wheel to control')
+        sha512 = hashlib.sha512()
+        with open(filename, 'rb') as wheel_file_data:
+            while True:
+                # get a request
+                with gevent.Timeout(60):
+                    request, file_offset, chunk_size = channel.recv_multipart()
+                if request == b'checksum':
+                    channel.send(sha512.digest())
+                    break
+
+                assert request == b'fetch'
+
+                # send a chunk of the file
+                file_offset = int(file_offset)
+                chunk_size = int(chunk_size)
+                wheel_file_data.seek(file_offset)
+                data = wheel_file_data.read(chunk_size)
+                if not data:
+                    channel.send(b'complete')
+                    break
+                sha512.update(data)
+                channel.send(data)
+
+        agent_uuid = agent_uuid.get(timeout=10)
+
+    except Exception as exc:
+        if opts.debug:
+            traceback.print_exc()
+        _stderr.write(
+            '{}: error: {}: {}\n'.format(opts.command, exc, filename))
+        return 10
     else:
-        channel = None
-        try:
-            _log.debug('Creating channel for sending the agent.')
-            channel_name = str(uuid.uuid4())
-            channel = opts.connection.server.vip.channel('control',
-                                                         channel_name)
-            _log.debug('calling control install agent.')
-            agent_uuid = opts.connection.call_no_get('install_agent',
-                                                     filename,
-                                                     channel_name,
-                                                     vip_identity=vip_identity,
-                                                     publickey=publickey,
-                                                     secretkey=secretkey)
-
-            _log.debug('Sending wheel to control')
-            sha512 = hashlib.sha512()
-            with open(filename, 'rb') as wheel_file_data:
-                while True:
-                    # get a request
-                    with gevent.Timeout(60):
-                        request, file_offset, chunk_size = channel.recv_multipart()
-                    if request == b'checksum':
-                        channel.send(sha512.digest())
-                        break
-
-                    assert request == b'fetch'
-
-                    # send a chunk of the file
-                    file_offset = int(file_offset)
-                    chunk_size = int(chunk_size)
-                    wheel_file_data.seek(file_offset)
-                    data = wheel_file_data.read(chunk_size)
-                    sha512.update(data)
-                    channel.send(data)
-
-            agent_uuid = agent_uuid.get(timeout=10)
-
-        except Exception as exc:
-            if opts.debug:
-                traceback.print_exc()
-            _stderr.write(
-                '{}: error: {}: {}\n'.format(opts.command, exc, filename))
-            return 10
-        else:
-            if tag:
-                opts.connection.call('tag_agent',
-                                     agent_uuid,
-                                     tag)
-        finally:
-            _log.debug('closing channel')
-            if channel:
-                channel.close(linger=0)
-                del channel
+        if tag:
+            opts.connection.call('tag_agent',
+                                 agent_uuid,
+                                 tag)
+    finally:
+        _log.debug('closing channel')
+        if channel:
+            channel.close(linger=0)
+            del channel
 
     name = opts.connection.call('agent_name', agent_uuid)
     _stdout.write('Installed {} as {} {}\n'.format(filename, agent_uuid, name))
@@ -328,6 +287,93 @@ def install_agent(opts, publickey=None, secretkey=None, callback=None):
     # This is where we need to exit so the script doesn't continue after installation.
     sys.exit(0)
 
+
+def _send_agent(connection, peer, path,
+                vip_identity, publickey, secretkey, force):
+    wheel = open(path, 'rb')
+    _log.debug(f"Connecting to {peer} to install {path}")
+    channel = connection.vip.channel(peer, 'agent_sender')
+
+    def send():
+        nonlocal wheel, channel
+        sha512 = hashlib.sha512()
+        try:
+            # TODO: RMQ channel???
+            # Note sending and receiving through a channel all communication
+            # is binary for zmq (RMQ may be different for this functionality)
+            #
+            
+            first = True
+            op = None
+            size = None
+            while True:
+                if first:
+                    first = False
+                    # Wait for peer to open compliment channel
+                    resp = jsonapi.loadb(channel.recv())
+                    _log.debug(f"Got first response {resp}")
+
+                    if len(resp) > 1:
+                        op, size = resp
+                    else:
+                        op = resp[0]
+                    
+                    if op != 'fetch':
+                        raise ValueError(f'First channel response must be fetch but was {fetch}')
+
+                if op == 'fetch':
+                    chunk = wheel.read(size)
+                    if chunk:
+                        _log.debug(f"Op was fetch sending {size}")
+                        sha512.update(chunk)
+                        channel.send(chunk)
+                    else:
+                        _log.debug(f"Op was fetch sending complete")
+                        channel.send(b'complete')
+                        gevent.sleep(10)
+                        break
+                elif op == 'checksum':
+                    _log.debug(f"sending checksum {sha512.hexdigest()}")
+                    channel.send(sha512.digest())
+
+                _log.debug("Waiting for next response")
+                # wait for next response
+                resp = jsonapi.loadb(channel.recv())
+
+                if len(resp) > 1:
+                    op, size = resp
+                else:
+                    op = resp[0]
+
+        finally:
+            _log.debug("Closing wheel and channel.")
+            wheel.close()
+            channel.close(linger=0)
+            del channel
+
+    _log.debug(f"calling install_agent on {peer} using channel {channel.name}")
+    result = connection.vip.rpc.call(
+        peer, 'install_agent', os.path.basename(path), channel.name,
+        vip_identity, publickey, secretkey, force)
+    
+    task = gevent.spawn(send)
+    result.rawlink(lambda glt: task.kill(block=False))
+    _log.debug("Completed sending of agent across.")
+    gevent.wait([result])
+    _log.debug(f"After wait result is {result}")
+    return result
+
+
+def send_agent(opts, wheel_file, vip_identity, publickey, secretkey, force):
+    connection = opts.connection
+    #for wheel in opts.wheel:
+    #uuid = _send_agent(connection.server, connection.peer, wheel_file).get()
+    result = _send_agent(connection.server, connection.peer, wheel_file,
+                         vip_identity, publickey, secretkey, force)
+
+    _log.debug(f"Returning {result} from send_agent")
+    return result
+    
 
 def add_install_agent_parser(add_parser_fn, has_restricted):
     install = add_parser_fn('install', help='install agent from wheel',
@@ -360,4 +406,4 @@ def add_install_agent_parser(add_parser_fn, has_restricted):
         install.add_argument('--no-verify', action='store_false',
                              dest='verify_agents',
                              help=argparse.SUPPRESS)
-    install.set_defaults(func=install_agent, verify_agents=True)
+    install.set_defaults(func=install_agent_vctl, verify_agents=True)
