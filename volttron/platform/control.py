@@ -3055,13 +3055,13 @@ def main(argv=sys.argv):
         rabbitmq_remove_queues.add_argument('queues', nargs='+', help='Queue')
         rabbitmq_remove_queues.set_defaults(func=remove_queues)
 
-        rabbitmq_remove_fed_parameters = add_parser('remove-federation-parameters',
+        rabbitmq_remove_fed_parameters = add_parser('remove-federation-links',
                                                     help='Remove federation parameter',
                                                     subparser=rabbitmq_subparsers)
         rabbitmq_remove_fed_parameters.add_argument('parameters', nargs='+', help='parameter name/s')
         rabbitmq_remove_fed_parameters.set_defaults(func=remove_fed_parameters)
 
-        rabbitmq_remove_shovel_parameters = add_parser('remove-shovel-parameters',
+        rabbitmq_remove_shovel_parameters = add_parser('remove-shovel-links',
                                                        help='Remove shovel parameter',
                                                        subparser=rabbitmq_subparsers)
         rabbitmq_remove_shovel_parameters.add_argument('parameters', nargs='+', help='parameter name/s')
