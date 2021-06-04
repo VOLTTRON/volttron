@@ -3,7 +3,7 @@ shovel:
     volttron2: # remote hostname
         https-port: 8443
         port: 5671
-        shovel-user: volttron1.shovelvolttron2 #<instance_name>.shovel<remote_host>
+        shovel-user: volttron1.shovelvolttron2 #<instance_name>.<unique name>
         virtual-host: volttron
         certificates:
             private_cert: "path to private cert" # For example, /home/volttron/vhome/test_shovel/certificates/private/volttron1.shovelvolttron2.pem
