@@ -1047,9 +1047,9 @@ def status_agents(opts):
     status = {}
     for details in opts.connection.call('status_agents', get_agent_user=True):
         if is_secure_mode():
-            (uuid, name, agent_user, stat) = details
+            (uuid, name, agent_user, identity, stat) = details
         else:
-            (uuid, name, stat) = details
+            (uuid, name, stat, identity) = details
             agent_user = ''
         try:
             agent = agents[uuid]

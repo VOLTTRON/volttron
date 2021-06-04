@@ -1,87 +1,138 @@
 from pathlib import Path
 import tempfile
+from typing import List
 
 import gevent
 import os
 import pytest
 from gevent import subprocess
+import yaml
 
 from volttron.platform import get_examples
 import sys
 
 from volttron.platform import jsonapi
 from volttron.platform.agent.utils import execute_command
-from volttrontesting.utils.platformwrapper import with_os_environ
+from volttrontesting.utils.platformwrapper import with_os_environ, PlatformWrapper
 
 
 @pytest.mark.control
-def test_install_agent_config_json_not_empty(volttron_instance):
+def test_install_same_identity(volttron_instance: PlatformWrapper):
     listener_agent_dir = get_examples("ListenerAgent")
-    listener_agent_config = Path(listener_agent_dir).joinpath("config")
+
     with with_os_environ(volttron_instance.env):
-        cmds = ["vctl", '--json', 'install', listener_agent_dir, '--agent-config',
-                listener_agent_config]
-        response = execute_command(cmds, volttron_instance.env)
+        expected_identity = "listener.1"
+        args = ["volttron-ctl", "--json", "install", listener_agent_dir, "--vip-identity", 
+                expected_identity, "--start"]
+                
+        response = execute_command(args, volttron_instance.env)
+        json_response = jsonapi.loads(response)
+        agent_uuid = json_response['agent_uuid']
+        
+        response = execute_command(["vctl", "--json", "status", agent_uuid])
+        json_response = jsonapi.loads(response)
+        identity = list(json_response.keys())[0]
+        agent_status_dict = json_response[identity]
+
+        assert 'running [' in  agent_status_dict.get('status')
+
+        expected_status = agent_status_dict.get('status')
+        expected_auuid = agent_status_dict.get('agent_uuid')
+        
+        # Attempt to install without force.
+        with pytest.raises(RuntimeError):
+            execute_command(args, volttron_instance.env)
+        
+        # Nothing should have changed the pid should be the same
+        response = execute_command(["vctl", "--json", "status", agent_uuid])
+        json_response = jsonapi.loads(response)
+        identity = list(json_response.keys())[0]
+        agent_status_dict = json_response[identity]
+        assert expected_status == agent_status_dict.get('status')
+        assert expected_auuid == agent_status_dict.get('agent_uuid')
+
+        args = ["volttron-ctl", "--json", "install", listener_agent_dir, "--vip-identity", 
+                expected_identity, "--start", "--force"]
+
+        # Install with force.
+        response = execute_command(args, volttron_instance.env)
+        json_response = jsonapi.loads(response)
+        agent_uuid = json_response['agent_uuid']
+        
+        response = execute_command(["vctl", "--json", "status", agent_uuid])
+        json_response = jsonapi.loads(response)
+        identity = list(json_response.keys())[0]
+        agent_status_dict = json_response[identity]
+
+        assert 'running [' in agent_status_dict.get('status')
+        assert expected_status != agent_status_dict.get('status')
+        assert expected_auuid != agent_status_dict.get('agent_uuid')
+        
+
+@pytest.mark.parametrize(
+    "use_config,args", (
+        (True, ["install", "examples/ListenerAgent", "--tag", "brewster", "--priority", "1"]),
+        (True, ["install", "examples/ListenerAgent", "--tag", "brewster", "--start", "--priority", "1"]),
+        (True, ["install", "examples/ListenerAgent", "--tag", "brewster", "--start", "--priority", "20"]),
+        (True, ["install", "examples/ListenerAgent", "--tag", "brewster", "--priority", "1"]),
+        (True, ["install", "examples/ListenerAgent", "--tag", "hoppy", "--start", "--priority", "1"]),
+        (True, ["install", "examples/ListenerAgent", "--tag", "brewster", "--priority", "1"]),
+        (True, ["install", "examples/ListenerAgent"]),
+
+        (False, ["install", "examples/ListenerAgent", "--tag", "brewster", "--start", "--priority", "1"]),
+        (False, ["install", "examples/ListenerAgent", "--tag", "brewster", "--start", "--priority", "20"]),
+        (False, ["install", "examples/ListenerAgent", "--tag", "brewster", "--priority", "1"]),
+        (False, ["install", "examples/ListenerAgent", "--tag", "hoppy", "--start", "--priority", "1"]),
+        (True, ["install", "examples/ListenerAgent"]),
+        (True, ["install", "examples/ListenerAgent", "--vip-identity", "ralph"])
+    )
+)
+def test_install_arg_matrix(volttron_instance:PlatformWrapper, args: List, use_config: bool):
+    
+    listener_config_file = get_examples("ListenerAgent/config")
+
+    with with_os_environ(volttron_instance.env):
+
+        args.insert(0, "--json")
+        args.insert(0, "volttron-ctl")
+
+        if use_config:
+            args.extend(["--agent-config", listener_config_file])
+        
+        response = execute_command(args, volttron_instance.env)
 
         json_response = jsonapi.loads(response)
 
         agent_uuid = json_response['agent_uuid']
-        config_path = Path(volttron_instance.volttron_home).joinpath(
-            f'agents/{agent_uuid}/listeneragent-3.3/listeneragent-3.3.dist-info/config')
-        with open(config_path) as fp:
-            with open(listener_agent_config) as fp2:
-                f1 = fp.read()
-                f2 = fp2.read()
-                assert f1
-                assert f2 == f2
+        gevent.sleep(1)
 
-        volttron_instance.remove_all_agents()
-
-
-@pytest.mark.control
-def test_install_agent_config_not_empty(volttron_instance):
-    listener_agent_dir = get_examples("ListenerAgent")
-    listener_agent_config = Path(listener_agent_dir).joinpath("config")
-    with with_os_environ(volttron_instance.env):
-        cmds = ["vctl", 'install', listener_agent_dir, '--agent-config',
-                listener_agent_config]
-        response = execute_command(cmds, volttron_instance.env)
-
-        cmds = ["vctl", "--json", "list"]
-        response = execute_command(cmds, volttron_instance.env)
+        response = execute_command(["vctl", "--json", "status", agent_uuid])
         json_response = jsonapi.loads(response)
-        for k, v in json_response.items():
+
+        identity = list(json_response.keys())[0]
+        agent_status_dict = json_response[identity]
+
+        if "--start" in args:
+            assert agent_status_dict["status"]
+
+        if "--tag" in args:
+            assert agent_status_dict["agent_tag"]
+            tag_name = args[args.index("--tag")+1]
+            assert tag_name == agent_status_dict["agent_tag"]
+
+        if "--vip-identity" in args:
+            assert agent_status_dict["identity"]
+            expected_identity = args[args.index("--vip-identity")+1]
+            assert expected_identity == agent_status_dict["identity"]
+        
+        if use_config:
+            with open(listener_config_file) as fp:
+                expected_config = yaml.safe_load(fp.read())
             config_path = Path(volttron_instance.volttron_home).joinpath(
-                f'agents/{v["agent_uuid"]}/listeneragent-3.3/listeneragent-3.3.dist-info/config')
+                f'agents/{agent_uuid}/listeneragent-3.3/listeneragent-3.3.dist-info/config')
             with open(config_path) as fp:
-                with open(listener_agent_config) as fp2:
-                    f1 = fp.read()
-                    f2 = fp2.read()
-                    assert f1
-                    assert f2 == f2
-
-        # agent_uuid = json_response['agent_uuid']
-
-        volttron_instance.remove_all_agents()
-
-
-@pytest.mark.control
-def test_install_agent_config_empty(volttron_instance):
-    listener_agent_dir = get_examples("ListenerAgent")
-
-    with with_os_environ(volttron_instance.env):
-        cmds = ["vctl", '--json', 'install', listener_agent_dir]
-
-        response = execute_command(cmds, volttron_instance.env)
-
-        json_response = jsonapi.loads(response)
-
-        agent_uuid = json_response['agent_uuid']
-        config_path = Path(volttron_instance.volttron_home).joinpath(
-            f'agents/{agent_uuid}/listeneragent-3.3/listeneragent-3.3.dist-info/config')
-        with open(config_path) as fp:
-            config_data = jsonapi.loads(fp.read())
-            assert {} == config_data
+                config_data = yaml.safe_load(fp.read())
+                assert expected_config == config_data
 
         volttron_instance.remove_all_agents()
 
