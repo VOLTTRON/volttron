@@ -68,9 +68,8 @@ To setup federation on the VOLTTRON instance, run the following command on the d
     vcfg rabbitmq federation [--config optional path to rabbitmq_federation_config.yml] [--max-retries optional maximum CSR retry attempt]
 
 
-This establishes federation links to upstream servers. Once a federation link to the upstream server is established on
-the downstream server, the messages published on the upstream server become available to the downstream server as if
-it were published locally.
+This establishes federation links to upstream servers. Here the default maximum retry attempt is set to 15. Once a federation link to the upstream server is established on
+the downstream server, the messages published on the upstream server become available to the downstream server as if it were published locally.
 
 
 Multi-Platform RPC With Federation
@@ -280,28 +279,25 @@ upstream servers on the downstream server and make the VOLTTRON exchange
 
        .. code-block:: bash
 
-           vctl rabbitmq list-federation-parameters
-           NAME                         URI
-           upstream-volttron2-volttron amqps://volttron2:5671/volttron?cacertfile=/home/volttron/vhome/test_fed/certificates/federation/volttron2_ca.crt&certfile=/home/volttron/vhome/test_fed/certificates/federation/volttron2.volttron1.federation.crt&keyfile=/home/volttron/vhome/test_fed/certificates/private/volttron1.federation.pem&verify=verify_peer&fail_if_no_peer_cert=true&auth_mechanism=external&server_name_indication=volttron2
+           vctl rabbitmq list-federation-links
+           NAME                         STATUS
+           upstream-volttron2-volttron  running
 
 
      Copy the upstream link name and run the below command to remove it.
 
        .. code-block:: bash
 
-         vctl rabbitmq remove-federation-parameters upstream-volttron2-volttron
+         vctl rabbitmq remove-federation-links upstream-volttron2-volttron
+         Do you wish to delete certificates as well? [Y/n] y
+         Removing certificate paths from VOLTTRON_HOME and from the config file
 
 .. note::
 
-    These commands only remove the federation parameter from RabbitMQ and certificate entries from rabbitmq_federation_config.yml on the publisher node.
-    `It does not remove the actual certificates.` Rerunning the federation command for same setup will reuse the existing certificates.
-    If you need to rerun the federation command again for the same setup
-    and need to create fresh certificates, then you will need to manually remove public and private certificates.
-    Private certificates will be in
-    $VOLTTRON_HOME/certificates/private. Public certificates will be in two directories:
-    $VOLTTRON_HOME/certificates/federation and $VOLTTRON_HOME/certificates/certs.
-    Further, you should request the remote instance admin to delete earlier generated certificates through admin web
-    interface  before a new CSR is sent for approval.
+    These commands removes the federation parameter from RabbitMQ, deletes the certificates from VOLTTRON_HOME and certificate entries from 
+    rabbitmq_federation_config.yml on the publisher node. The remote admin must delete the remote certificates through admin web
+    interface. If you need to rerun the federation command again for the same setup, then a fresh CSR request is made to the remote instance.
+    The remote admin has to approve the new request as before. 
 
 
 
@@ -319,26 +315,28 @@ Path: `$VOLTTRON_HOME/rabbitmq_shovel_config.yml`
 
     # Mandatory parameters for shovel setup
     shovel:
-      rabbit-2:
-        port: '5671'
-        virtual-host: volttron
-        certificates:
-          csr: true
-          private_cert: "path to private key" # For example, /home/volttron/vhome/test_shovel/certificates/private/volttron1.shovelvolttron2.pem
-          public_cert: "path to public cert" # For example, /home/volttron/vhome/test_shovel/certificates/shovels/volttron2.volttron1.shovelvolttron2.crt
-          remote_ca: "path to CA cert" # For example, /home/volttron/vhome/test_shovel/certificates/shovels/volttron2_ca.crt
+        volttron2: # remote hostname
+            https-port: 8443
+            port: 5671
+            shovel-user: volttron1.shovelvolttron2 #<instance_name>.<unique name>
+            virtual-host: volttron
+            certificates:
+                private_cert: "path to private cert" # For example, /home/volttron/vhome/test_shovel/certificates/private/volttron1.shovelvolttron2.pem
+                public_cert: "path to public cert" # For example, /home/volttron/vhome/test_shovel/certificates/shovels/volttron2.volttron1.shovelvolttron2.crt
+                remote_ca: "path to CA cert" # For example, /home/volttron/vhome/test_shovel/certificates/shovels/volttron2_ca.crt
+            # Configuration to forward pubsub topics
+            pubsub:
+                # Identity of agent that is publishing the topic
+                platform.driver:
+                    # Topic pattern to be forwarded
+                    - devices
 
-        # Configuration to forward pubsub topics
-        pubsub:
-          # Identity of agent that is publishing the topic
-          platform.driver:
-            - devices
-        # Configuration to make remote RPC calls
-        rpc:
-          # Remote instance name
-          volttron2:
-            # List of pair of agent identities (local caller, remote callee)
-            - [scheduler, platform.actuator]
+            # Configuration to make remote RPC calls
+            rpc:
+              # Remote instance name
+              volttron2:
+                # List of pair of agent identities (local caller, remote callee)
+                - [scheduler, platform.actuator]
 
 To forward PubSub messages, the topic and agent identity of the publisher agent is needed.  To perform RPC, the instance
 name of the remote instance and agent identities of the local agent and remote agent are needed.
@@ -547,27 +545,26 @@ Please note that each instance should have a unique instance name.
 
     .. code-block:: bash
 
-     vctl rabbitmq list-shovel-parameters
-     NAME                     SOURCE ADDRESS                                                 DESTINATION ADDRESS                                            BINDING KEY
-     shovel-volttron2-devices  amqps://volttron1:5671/volttron?cacertfile=/home/volttron/vhome/test_shovel/certificates/certs/volttron1-trusted-cas.crt&certfile=/home/volttron/vhome/test_shovel/certificates/certs/volttron1.platform.driver.crt&keyfile=/home/volttron/vhome/test_shovel/certificates/private/volttron1.platform.driver.pem&verify=verify_peer&fail_if_no_peer_cert=true&auth_mechanism=external&server_name_indication=volttron1  amqps://volttron2:5671/volttron?cacertfile=/home/volttron/vhome/test_shovel/certificates/shovels/volttron2_ca.crt&certfile=/home/volttron/vhome/test_shovel/certificates/shovels/volttron2.volttron1.shovelvolttron2.crt&keyfile=/home/volttron/vhome/test_shovel/certificates/private/volttron1.shovelvolttron2.pem&verify=verify_peer&fail_if_no_peer_cert=true&auth_mechanism=external&server_name_indication=volttron2  __pubsub__.volttron1.devices.#
+     vctl rabbitmq list-shovel-links
+     NAME                      STATUS   SRC_URI                          DEST_URI                         SRC_EXCHANGE_KEY
+
+     shovel-volttron2-devices  running  amqps://volttron1:5671/volttron  amqps://volttron2:5671/volttron  __pubsub__.volttron1.devices.#
 
 
     Copy the shovel name and run following command to remove it.
 
     .. code-block:: bash
 
-        vctl rabbitmq remove-shovel-parameters shovel-volttron2-devices
-
+        vctl rabbitmq remove-shovel-links shovel-volttron2-devices
+        Do you wish to delete certificates as well? [Y/n] y                   
+        Removing certificate paths from VOLTTRON_HOME and from the config file
+        
 .. note::
 
-    These commands only remove the shovel parameter from RabbitMQ and certificate entries from rabbitmq_shovel_config.yml on the publisher node.
-    `It does not remove the actual certificates.` Rerunning the shovel command for same setup will reuse the existing certificates.
-    But if you need to rerun the shovel command again for the same setup and need to create fresh certificates, then you will
-    need to manually remove public and private certificates. Private certificates will be in
-    $VOLTTRON_HOME/certificates/private. Public certificates will be in two directories:
-    $VOLTTRON_HOME/certificates/shovel and $VOLTTRON_HOME/certificates/certs.
-    Further, you should request the remote instance admin to delete earlier generated cert through the admin web
-    interface before a new CSR is sent for approval.
+    These commands removes the shovel parameter from RabbitMQ, deletes the certificates from VOLTTRON_HOME and certificate entries from 
+    rabbitmq_shovel_config.yml on the publisher node. The remote admin must delete the remote certificates through admin web
+    interface. If you need to rerun the federation command again for the same setup, then a fresh CSR request is made to the remote instance.
+    The remote admin has to approve the new request as before. 
 
 
 DataMover Communication
