@@ -204,7 +204,7 @@ def _send_and_intialize_agent(opts, publickey, secretkey):
 
 def install_agent_vctl(opts, publickey=None, secretkey=None, callback=None):
     """
-    The `install_agent` function is called from the volttron-ctl or vctl install
+    The `install_agent_vctl` function is called from the volttron-ctl or vctl install
     sub-parser.
     """
 
@@ -217,73 +217,12 @@ def install_agent_vctl(opts, publickey=None, secretkey=None, callback=None):
         install_agent_directory(opts, publickey, secretkey)
         if opts.connection is not None:
             opts.connection.server.core.stop()
-        sys.exit(0)
-    filename = install_path
-    tag = opts.tag
-    vip_identity = opts.vip_identity
-
-    channel = None
-    try:
-        _log.debug('Creating channel for sending the agent.')
-        channel_name = str(uuid.uuid4())
-        channel = opts.connection.server.vip.channel('control',
-                                                     channel_name)
-        _log.debug('calling control install agent.')
-        agent_uuid = opts.connection.call_no_get('install_agent',
-                                                 filename,
-                                                 channel_name,
-                                                 vip_identity=vip_identity,
-                                                 publickey=publickey,
-                                                 secretkey=secretkey)
-
-        _log.debug('Sending wheel to control')
-        sha512 = hashlib.sha512()
-        with open(filename, 'rb') as wheel_file_data:
-            while True:
-                # get a request
-                with gevent.Timeout(60):
-                    request, file_offset, chunk_size = channel.recv_multipart()
-                if request == b'checksum':
-                    channel.send(sha512.digest())
-                    break
-
-                assert request == b'fetch'
-
-                # send a chunk of the file
-                file_offset = int(file_offset)
-                chunk_size = int(chunk_size)
-                wheel_file_data.seek(file_offset)
-                data = wheel_file_data.read(chunk_size)
-                if not data:
-                    channel.send(b'complete')
-                    break
-                sha512.update(data)
-                channel.send(data)
-
-        agent_uuid = agent_uuid.get(timeout=10)
-
-    except Exception as exc:
-        if opts.debug:
-            traceback.print_exc()
-        _stderr.write(
-            '{}: error: {}: {}\n'.format(opts.command, exc, filename))
-        return 10
     else:
-        if tag:
-            opts.connection.call('tag_agent',
-                                 agent_uuid,
-                                 tag)
-    finally:
-        _log.debug('closing channel')
-        if channel:
-            channel.close(linger=0)
-            del channel
-
-    name = opts.connection.call('agent_name', agent_uuid)
-    _stdout.write('Installed {} as {} {}\n'.format(filename, agent_uuid, name))
-
-    opts.connection.server.core.stop()
-
+        opts.package = opts.install_path
+        if not os.path.exists(opts.package):
+            raise FileNotFoundError(f"Invalid file {opts.package}")
+        _send_and_intialize_agent(opts, publickey, secretkey)
+        
     # This is where we need to exit so the script doesn't continue after installation.
     sys.exit(0)
 

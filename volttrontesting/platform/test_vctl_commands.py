@@ -67,8 +67,40 @@ def test_install_same_identity(volttron_instance: PlatformWrapper):
         assert 'running [' in agent_status_dict.get('status')
         assert expected_status != agent_status_dict.get('status')
         assert expected_auuid != agent_status_dict.get('agent_uuid')
+
+
+@pytest.mark.control
+def test_install_with_wheel(volttron_instance:PlatformWrapper):
+
+    with with_os_environ(volttron_instance.env):
+        listener_path = "examples/ListenerAgent"
+
+        args = ["volttron-pkg", "package", listener_path]
+        response = execute_command(args, volttron_instance.env)
+        assert response.startswith("Package created at: ")
+        path = response[len("Package created at: "):]
+        assert os.path.exists(path.strip())
+        args = ["volttron-ctl", "--json", "install", path.strip()]
+        response = execute_command(args)
+        response_dict = jsonapi.loads(response)
+        assert response_dict.get('agent_uuid')
+        volttron_instance.remove_all_agents()
+
+
+
+@pytest.mark.control
+def test_install_with_wheel_bad_path(volttron_instance:PlatformWrapper):
+
+    with with_os_environ(volttron_instance.env):
+        bad_wheel_path = "foo/wheel.whl"
+        args = ["volttron-ctl", "--json", "install", bad_wheel_path]
+        try:
+            response = execute_command(args)
+        except RuntimeError as exc:          
+            assert f'Invalid file {bad_wheel_path}' in exc.args[0]
         
 
+@pytest.mark.control
 @pytest.mark.parametrize(
     "use_config,args", (
         (True, ["install", "examples/ListenerAgent", "--tag", "brewster", "--priority", "1"]),

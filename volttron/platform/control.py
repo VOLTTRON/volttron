@@ -3132,6 +3132,10 @@ def main():
         _stderr.write("Invalid command: '{}' or command requires additional arguments\n".format(opts.command))
         parser.print_help()
         return 1
+    # raised during install if wheel not found.
+    except FileNotFoundError as exc:
+        _stderr.write(f"{exc.args[0]}\n")
+        return 1
     except SystemExit as exc:
         # Handles if sys.exit is called from within a function if not 0
         # then we know there was an error and processing will continue
