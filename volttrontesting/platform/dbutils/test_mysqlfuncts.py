@@ -26,17 +26,18 @@ from volttrontesting.utils.utils import get_rand_port
 pytestmark = [pytest.mark.mysqlfuncts, pytest.mark.dbutils, pytest.mark.unit]
 
 IMAGES = [
-    #"mysql:5.6.49",
+    "mysql:5.6.49",
     "mysql:8.0.25"
  ]
 
 if "CI" in os.environ:
     IMAGES.extend(["mysql:5.7.31", "mysql:5", "mysql:5.6", "mysql:5.7"])
 
+MYSQL_CONNECTION_HOST = "localhost"
 TEST_DATABASE = "test_historian"
 ROOT_PASSWORD = "12345"
 ENV_MYSQL = {"MYSQL_ROOT_PASSWORD": ROOT_PASSWORD, "MYSQL_DATABASE": TEST_DATABASE}
-ALLOW_CONNECTION_TIME = 100
+ALLOW_CONNECTION_TIME = 30
 DATA_TABLE = "data"
 TOPICS_TABLE = "topics"
 META_TABLE = "meta"
@@ -46,11 +47,11 @@ AGG_META_TABLE = "p_aggregate_meta"
 
 @pytest.mark.mysqlfuncts
 def test_setup_historian_tables_should_create_tables(get_container_func):
-    _, mysqlfuncts, port_on_host, historian_version = get_container_func
-    tables = get_tables(port_on_host)
+    _, mysqlfuncts, mysql_conn_port, historian_version = get_container_func
+    tables = get_tables(mysql_conn_port)
     mysqlfuncts.setup_historian_tables()
 
-    tables = get_tables(port_on_host)
+    tables = get_tables(mysql_conn_port)
     assert "data" in tables
     assert "topics" in tables
     if historian_version == '<4.0.0':
@@ -59,7 +60,7 @@ def test_setup_historian_tables_should_create_tables(get_container_func):
 
 @pytest.mark.mysqlfuncts
 def test_record_table_definitions_should_succeed(get_container_func):
-    _, mysqlfuncts, port_on_host, historian_version = get_container_func
+    _, mysqlfuncts, mysql_conn_port, historian_version = get_container_func
     tables_def = {
         "table_prefix": "prefix",
         "data_table": "data",
@@ -73,15 +74,15 @@ def test_record_table_definitions_should_succeed(get_container_func):
         ("meta_table", "meta", "prefix"),
     }
 
-    tables = get_tables(port_on_host)
+    tables = get_tables(mysql_conn_port)
     assert meta_table_name not in tables
 
     mysqlfuncts.record_table_definitions(tables_def, meta_table_name)
 
-    tables = get_tables(port_on_host)
+    tables = get_tables(mysql_conn_port)
     assert meta_table_name in tables
 
-    data = get_data_in_table(port_on_host, meta_table_name)
+    data = get_data_in_table(mysql_conn_port, meta_table_name)
     for val in data:
         assert val in expected_data
 
@@ -452,7 +453,7 @@ def test_collect_aggregate_should_raise_value_error(get_container_func, ports_co
 
 def get_mysqlfuncts(port):
     connect_params = {
-        "host": "localhost",
+        "host": MYSQL_CONNECTION_HOST,
         "port": port,
         "database": TEST_DATABASE,
         "user": "root",
@@ -477,6 +478,7 @@ def get_mysqlfuncts(port):
      '>=4.0.0'
      ]))
 def get_container_func(request):
+    global MYSQL_CONNECTION_HOST
     print(f"image:{request.param[0]} historian schema "
           f"version {request.param[1]}")
     if request.param[1] == '<4.0.0' and request.param[0].startswith("mysql:8"):
@@ -484,14 +486,25 @@ def get_container_func(request):
                         f"will not work in mysql version > 5. Skipping tests "
                         f"for this parameter combination ",
                         allow_module_level=True)
-    ports_dict = ports_config()
-    with create_container(request.param[0], ports=ports_dict["ports"],
-                       env=ENV_MYSQL) as container:
+    kwargs = {'env': ENV_MYSQL}
+    if os.path.exists("/.dockerenv"):
+        print("Running test within docker container.")
+        mysql_connection_port = 3306
+        MYSQL_CONNECTION_HOST = 'mysql_test'
+        kwargs['hostname'] = MYSQL_CONNECTION_HOST
+    else:
+        ports_dict = ports_config()
+        kwargs['ports'] = ports_dict["ports"]
+        mysql_connection_port = ports_dict["port_on_host"]
+        MYSQL_CONNECTION_HOST = 'localhost'
+
+    with create_container(request.param[0], **kwargs) as container:
+
         wait_for_connection(container)
         if request.param[1] == '<4.0.0':
             create_all_tables(container, request.param[1])
-        yield container, get_mysqlfuncts(ports_dict["port_on_host"]), \
-              ports_dict["port_on_host"], request.param[1]
+
+        yield container, get_mysqlfuncts(mysql_connection_port), mysql_connection_port, request.param[1]
 
 
 def ports_config():
@@ -674,9 +687,10 @@ def get_data_in_table(port, table):
 
 
 def get_cnx_cursor(port):
+    global MYSQL_CONNECTION_HOST
     sleep(4)
     connect_params = {
-        "host": "localhost",
+        "host": MYSQL_CONNECTION_HOST,
         "port": port,
         "database": TEST_DATABASE,
         "user": "root",

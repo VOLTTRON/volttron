@@ -1,3 +1,5 @@
+import os
+
 try:
     import docker
     from docker.errors import APIError, ImageNotFound
@@ -13,7 +15,7 @@ if HAS_DOCKER:
 
     @contextlib.contextmanager
     def create_container(image_name: str, ports: dict = None, env: dict = None, command: (list, str) = None,
-                         startup_time_seconds: int = 30) -> \
+                         startup_time_seconds: int = 30, hostname: str = 'mysql_test') -> \
             (docker.models.containers.Container, None):
         """ Creates a container instance in a context that will clean up after itself.
 
@@ -29,6 +31,9 @@ if HAS_DOCKER:
             with create_container("mysql", {"3306/tcp": 3306}):
                 # connect to localhost:3306 with mysql using connector
 
+        :param hostname: Optional hostname for the container. If tests are run within a docker container,
+         this code will automatically detect the test container's network and attache the mysql container to the
+         same network.
         :param image_name: The image name (from dockerhub) that is to be instantiated
         :param ports:
             a dictionary following the convention {'portincontainer/protocol': portonhost}
@@ -47,14 +52,21 @@ if HAS_DOCKER:
 
         # Create docker client (Uses localhost as agent connection.
         client = docker.from_env(version="auto")
-
+        network_name = None
+        if os.path.exists("/.dockerenv"):
+            network_name = list(client.api.inspect_container(os.environ["HOSTNAME"])['NetworkSettings']['Networks'])[0]
         try:
             full_docker_image = image_name
             if ":" not in full_docker_image:
                 # So all tags aren't pulled. According to docs https://docker-py.readthedocs.io/en/stable/images.html.
                 full_docker_image = full_docker_image + ":latest"
             client.images.pull(full_docker_image)
-            container = client.containers.run(image_name, ports=ports, environment=env, auto_remove=True, detach=True)
+            if network_name:
+                container = client.containers.run(image_name, ports=ports, environment=env, auto_remove=True,
+                                                  detach=True, network=network_name, hostname=hostname)
+            else:
+                container = client.containers.run(image_name, ports=ports, environment=env, auto_remove=True,
+                                                  detach=True, hostname=hostname)
         except (ImageNotFound, APIError, RuntimeError) as e:
             raise RuntimeError(e)
 
