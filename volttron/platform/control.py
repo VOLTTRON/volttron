@@ -1784,7 +1784,7 @@ def _show_filtered_agents_status(opts, status_callback, health_callback, agents=
             user_width = max(3, max(len(agent.agent_user or '') for agent in agents))
             fmt = '{} {:{}} {:{}} {:{}} {:{}} {:>6} {:>15}\n'
             _stderr.write(
-                fmt.format(' ' * n, 'AGENT', name_width, 'IDENTITY', identity_width,
+                fmt.format('UUID', 'AGENT', name_width, 'IDENTITY', identity_width,
                            'TAG', tag_width, 'AGENT_USER', user_width, 'STATUS', 'HEALTH'))
             fmt = '{} {:{}} {:{}} {:{}} {:{}} {:<15} {:<}\n'
             for agent in agents:
@@ -1798,7 +1798,7 @@ def _show_filtered_agents_status(opts, status_callback, health_callback, agents=
         else:
             fmt = '{} {:{}} {:{}} {:{}} {:>6} {:>15}\n'
             _stderr.write(
-                fmt.format(' ' * n, 'AGENT', name_width, 'IDENTITY', identity_width,
+                fmt.format('UUID', 'AGENT', name_width, 'IDENTITY', identity_width,
                            'TAG', tag_width, 'STATUS', 'HEALTH'))
             fmt = '{} {:{}} {:{}} {:{}} {:<15} {:<}\n'
             for agent in agents:
