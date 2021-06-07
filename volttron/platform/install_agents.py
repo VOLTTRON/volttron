@@ -60,9 +60,6 @@ _stdout = sys.stdout
 _stderr = sys.stderr
 
 
-
-
-
 def install_requirements(agent_source):
     req_file = os.path.join(agent_source, "requirements.txt")
 
@@ -91,7 +88,8 @@ def install_agent_directory(opts, publickey=None, secretkey=None):
 
     assert opts.connection, "Connection must have been created to access this feature."
 
-    # install_requirements(opts.install_path)
+    if not opts.skip_requirements:
+        install_requirements(opts.install_path)
 
     wheelhouse = os.path.join(get_home(), "packaged")
     opts.package = create_package(opts.install_path, wheelhouse, opts.vip_identity)
@@ -139,7 +137,7 @@ def install_agent_directory(opts, publickey=None, secretkey=None):
 
 def _send_and_intialize_agent(opts, publickey, secretkey):
     
-    agent_uuid = send_agent(opts, opts.package, opts.vip_identity,
+    agent_uuid = send_agent(opts.connection, opts.package, opts.vip_identity,
                             publickey, secretkey, opts.force)
 
     if not agent_uuid:
@@ -212,6 +210,15 @@ def install_agent_vctl(opts, publickey=None, secretkey=None, callback=None):
         install_path = opts.install_path
     except AttributeError:
         install_path = opts.wheel
+
+    if opts.vip_identity:
+        # First check to see if we have an identity already if it does and force is specified
+        # then we can send things across and it will be handled on the server side.
+        if opts.connection.call("identity_exists", opts.vip_identity):
+            if not opts.force:
+                # sys.stderr.write("Identity already exists.  Pass --force option to re-install.\n")
+                raise RuntimeError("Identity already exists.  Pass --force option to re-install.")
+                sys.exit(0)
 
     if os.path.isdir(install_path):
         install_agent_directory(opts, publickey, secretkey)
@@ -303,8 +310,8 @@ def _send_agent(connection, peer, path,
     return result
 
 
-def send_agent(opts, wheel_file, vip_identity, publickey, secretkey, force):
-    connection = opts.connection
+def send_agent(connection, wheel_file, vip_identity, publickey, secretkey, force):
+    
     #for wheel in opts.wheel:
     #uuid = _send_agent(connection.server, connection.peer, wheel_file).get()
     result = _send_agent(connection.server, connection.peer, wheel_file,
@@ -319,6 +326,8 @@ def add_install_agent_parser(add_parser_fn, has_restricted):
                             epilog='Optionally you may specify the --tag argument to tag the '
                                    'agent during install without requiring a separate call to '
                                    'the tag command. ')
+    install.add_argument("--skip-requirements", 
+                         help="Skip installing requirements from a requirements.txt if present in the agent directory.")
     install.add_argument('install_path', help='path to agent wheel or directory for agent installation')
     install.add_argument('--tag', help='tag for the installed agent')
     install.add_argument('--vip-identity', help='VIP IDENTITY for the installed agent. '

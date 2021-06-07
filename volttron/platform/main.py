@@ -101,7 +101,7 @@ from .vip.routingservice import RoutingService
 from .vip.externalrpcservice import ExternalRPCService
 from .vip.keydiscovery import KeyDiscoveryAgent
 from ..utils.persistance import load_create_store
-from .vip.rmq_router import RMQRouter
+# from .vip.rmq_router import RMQRouter
 from volttron.platform.agent.utils import store_message_bus_config
 from zmq import green as _green
 from volttron.platform.vip.proxy_zmq_router import ZMQProxyRouter

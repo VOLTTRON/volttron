@@ -50,6 +50,7 @@ import sys
 import tarfile
 import tempfile
 import traceback
+from typing import Optional
 import uuid
 from datetime import timedelta, datetime
 
@@ -384,6 +385,13 @@ class ControlService(BaseAgent):
         return retmap
 
     @RPC.export
+    def identity_exists(self, identity):
+        if not identity:
+            raise ValueError("Attribute identity cannot be None or empty")
+        
+        return self._identity_exists(identity)
+
+    @RPC.export
     def install_agent(self, filename, channel_name, vip_identity=None,
                       publickey=None, secretkey=None, force=False):
         """
@@ -530,20 +538,21 @@ class ControlService(BaseAgent):
         finally:
             shutil.rmtree(tmpdir, ignore_errors=True)
 
-    def _identity_exists(self, identity):
+    def _identity_exists(self, identity:str) -> Optional[str]:
         """
-        Uses connection to call the rpc function status_agents to determine
-        if an identity is already on the platform.  If the identity exists then
-        the agent_uuid will be return.  This is the most useful piece of informaiton
-        because all of the specific lookup methods are tied to the agent_uuid.
+        Determines if an agent identity is already installed.  This
+        function returns the agent uuid of the agent with the passed identity.  If the identity
+        doesn't exist then returns None.
         """
-        results = self.status_agents()
+        results = self.list_agents()
         if not results:
             return None
         
         for x in results:
-            if x[3]:
-                return x[0]
+            if x['identity'] == identity:
+                return x['uuid']
+        return None
+
         # dict_results = dict((k, v) for k, v in results)
         # #json_results = jsonapi.loads(results)
         # agent_ctx = dict_results.get(identity)
@@ -1047,7 +1056,7 @@ def status_agents(opts):
     status = {}
     for details in opts.connection.call('status_agents', get_agent_user=True):
         if is_secure_mode():
-            (uuid, name, agent_user, identity, stat) = details
+            (uuid, name, agent_user, stat, identity) = details
         else:
             (uuid, name, stat, identity) = details
             agent_user = ''
@@ -1055,7 +1064,7 @@ def status_agents(opts):
             agent = agents[uuid]
             agents[uuid] = agent._replace(agent_user=agent_user)
         except KeyError:
-            agents[uuid] = agent = Agent(name, None, uuid, vip_identity=None, agent_user=agent_user)
+            agents[uuid] = agent = Agent(name, None, uuid, vip_identity=identity, agent_user=agent_user)
         status[uuid] = stat
     agents = list(agents.values())
 
@@ -2457,7 +2466,7 @@ def main():
     filterable.set_defaults(by_name=False, by_tag=False, by_uuid=False)
 
     parser = config.ArgumentParser(
-        prog=os.path.basename('volttron-vctl'), add_help=False,
+        prog=os.path.basename(sys.argv[0]), add_help=False,
         description='Manage and control VOLTTRON agents.',
         usage='%(prog)s command [OPTIONS] ...',
         argument_default=argparse.SUPPRESS,
