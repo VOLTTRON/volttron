@@ -39,12 +39,12 @@
                         },
                         200: function(response){
                             if(location.protocol != 'https:'){
-                                console.log("HTTP")
-                                document.cookie = "Bearer="+response.responseText+"; path=/";
+                                console.log("HTTP");
+                                document.cookie = "Bearer="+response.access_token+"; path=/";
                             }
                             else{
-                                console.log("HTTPS")
-                                document.cookie = "Bearer="+response.responseText+"; secure=True; path=/";
+                                console.log("HTTPS");
+                                document.cookie = "Bearer="+response.access_token+"; secure=True; path=/";
                             }
 
                             window.location=window.location.origin + "/admin/pending_auth_reqs.html";
