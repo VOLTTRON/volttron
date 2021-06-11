@@ -1,16 +1,20 @@
-
 import re
 import json
 from os import environ
 from os.path import normpath, join
 from gevent.timeout import Timeout
+from collections import defaultdict
 
 from volttron.platform.agent.known_identities import CONFIGURATION_STORE
 from werkzeug import Response
 from werkzeug.urls import url_decode
 from volttron.platform.vip.agent.subsystems.query import Query
 from volttron.platform.jsonrpc import MethodNotFound
-from volttron.platform.web.topic_tree import TopicTree
+from services.core.PlatformDriverAgent.platform_driver.agent import OverrideError
+# TODO: How to get this without modifiying the actuator.py import of ScheduleManager from scheduler?
+from services.core.ActuatorAgent.actuator.agent import LockError
+
+from volttron.platform.web.topic_tree import DeviceTree
 
 
 import logging
@@ -244,7 +248,7 @@ class VUIEndpoints(object):
                 method_dict = self._rpc(vip_identity, 'inspect', on_platform=platform)
             # TODO: Move this exception handling up to a wrapper.
             except TimeoutError as e:
-                return Response(json.dumps({'error': f'Request Timed Out: {e}'}), 408, content_type='application/json')
+                return Response(json.dumps({'error': f'Request Timed Out: {e}'}), 504, content_type='application/json')
             except Exception as e:
                 return Response(json.dumps({'error' f'Unexpected Error: {e}'}), 500, content_type='application/json')
 
@@ -274,7 +278,7 @@ class VUIEndpoints(object):
                 _log.debug(f'VUI: method_dict is: {method_dict}')
             # TODO: Move this exception handling up to a wrapper.
             except Timeout as e:
-                return Response(json.dumps({'error': f'RPC Timed Out: {e}'}), 408, content_type='application/json')
+                return Response(json.dumps({'error': f'RPC Timed Out: {e}'}), 504, content_type='application/json')
             except MethodNotFound as e:
                 return Response(json.dumps({f'error': f'for agent {vip_identity}: {e}'}),
                                 400, content_type='application/json')
@@ -291,7 +295,7 @@ class VUIEndpoints(object):
                 _log.debug(f'VUI: data has type: {type(data)}, value: {data}')
                 result = self._rpc(vip_identity, method_name, **data, on_platform=platform)
             except Timeout as e:
-                return Response(json.dumps({'error': f'RPC Timed Out: {e}'}), 408, content_type='application/json')
+                return Response(json.dumps({'error': f'RPC Timed Out: {e}'}), 504, content_type='application/json')
             except MethodNotFound as e:
                 return Response(json.dumps({f'error': f'for agent {vip_identity}: {e}'}),
                                 400, content_type='application/json')
@@ -310,17 +314,38 @@ class VUIEndpoints(object):
         :param data:
         :return:
         """
-        _log.debug("VUI: in handle_platform_devices")
+        def _get_allowed_write_selection(points, topic, regex, tag):
+            # Query parameters:
+            write_all = self._to_bool(query_params.get('write-all', 'false'))
+            confirm_values = self._to_bool(query_params.get('confirm-values', False))
+            # Map of selected topics to routes:
+            selection = {p.topic: f'/vui/platforms/{platform}/{p.identifier}' for p in points}
+            unwritables = [p.topic for p in points if not self._to_bool(p.data['Writable'])]
+
+            if (regex or tag or '/-' in topic or len(points) > 1) and not write_all:
+                # Disallow potential use of multiple writes without explicit write-all flag:
+                error_message = {
+                    'error': f"Use of wildcard expressions, regex, or tags may set multiple points. "
+                             f"Query must include 'write-all=true'.",
+                    'requested_topic': topic,
+                    'regex': regex,
+                    'tag': tag,
+                    'selected_points': selection
+                }
+
+                raise ValueError(json.dumps(error_message))
+            elif len(unwritables) == len(points):
+                raise ValueError(json.dumps({'error': 'No selected points are writable.',
+                                             'unwritable_points': unwritables}))
+            else:
+                return confirm_values, selection, unwritables
+
         path_info = env.get('PATH_INFO')
         request_method = env.get("REQUEST_METHOD")
         query_params = url_decode(env['QUERY_STRING'])
+
         tag = query_params.get('tag')
         regex = query_params.get('regex')
-        # TODO: Should "include-points" be "read-all" to match PUT's "write-all"?
-        include_points = query_params.get('include-points', False)
-        return_routes = query_params.get('routes', True)
-        return_writability = query_params.get('writability', True)
-        return_values = query_params.get('values', True)
 
         no_topic = re.match('^/vui/platforms/([^/]+)/devices/?$', path_info)
         if no_topic:
@@ -328,96 +353,150 @@ class VUIEndpoints(object):
         else:
             platform, topic = re.match('^/vui/platforms/([^/]+)/devices/(.*)/?$', path_info).groups()
             topic = topic[:-1] if topic[-1] == '/' else topic
-        _log.debug(f'VUI: Parsed - platform: {platform}, topic: {topic}')
 
+        # Resolve tags if the tag query parameter is set:
+        if tag:
+            try:
+                tag_list = self._rpc('platform.tagging', 'get_topics_by_tags', tag, on_platform=platform).get(timeout=5)
+            except Timeout as e:
+                return Response(json.dumps({'error': f'Tagging Service timed out: {e}'}),
+                                504, content_type='application/json')
+        else:
+            tag_list = None
+        # Prune device tree and get nodes matching topic:
         try:
-            device_tree = self._build_device_tree(platform).prune_to_topic(topic)
-            # TODO: Handle tag query parameter.
-            # TODO: Handle regex query parameter.
+            # TODO: Should we be storing this tree to use for faster requests later? How to keep it updated?
+            device_tree = DeviceTree.from_store(platform, self._rpc).prune(topic, regex, tag_list)
             topic_nodes = device_tree.get_matches(f'devices/{topic}' if topic else 'devices')
             if not topic_nodes:
                 return Response(json.dumps({f'error': f'Device topic {topic} not found on platform: {platform}.'}),
                                 400, content_type='application/json')
+            points = device_tree.points()
         # TODO: Move this exception handling up to a wrapper.
         except Timeout as e:
-            return Response(json.dumps({'error': f'RPC Timed Out: {e}'}), 408, content_type='application/json')
+            return Response(json.dumps({'error': f'RPC Timed Out: {e}'}), 504, content_type='application/json')
         except Exception as e:
             return Response(json.dumps({f'error': f'Error querying device topic {topic}: {e}'}),
                             400, content_type='application/json')
 
         if request_method == 'GET':
-            try:
-                if include_points or all([n.is_leaf() for n in topic_nodes]):
-                    # Either leaf values are explicitly requested, or all nodes are already leaves -- Return points.
-                    leaves = device_tree.leaves()
-                    ret_values = self._rpc('platform.actuator', 'get_multiple_points', [d.identifier for d in leaves],
-                                           on_platform=platform) if return_values else {}
-                    ret_routes = {n.identifier[len('devices/'):]: f'/vui/platforms/{platform}/{n.identifier}'
-                                  for n in leaves} if return_routes else {}
-                    # TODO: Add writability to data property of nodes in device_tree when it is created.
-                    ret_writability = {n.identifier[len('devices/'):]: n.data.get('writability') for n in leaves} if\
-                        return_writability else {}
+            # Query parameters:
+            read_all = query_params.get('read-all', False)
+            return_routes = query_params.get('routes', True)
+            return_writability = query_params.get('writability', True)
+            return_values = query_params.get('values', True)
+            return_config = query_params.get('config', False)
 
-                    # TODO: Logic needed to combine various possible pieces of ret_dict.
-                    ret_dict = {'error': 'Leaf behavior not fully implemented yet.'}
+            try:
+                if read_all or all([n.is_point() for n in topic_nodes]):
+                    # Either leaf values are explicitly requested, or all nodes are already points -- Return points:
+                    ret_dict = defaultdict(dict)
+                    if return_values:
+                        ret_values = self._rpc('platform.actuator', 'get_multiple_points',
+                                              [d.topic for d in points], on_platform=platform)
+                        for k, v in ret_values[0].items():
+                            ret_dict[k]['value'] = v
+                        for k, e in ret_values[1].items():
+                            ret_dict[k]['value_error'] = e
+                    for point in points:
+                        if return_routes:
+                            ret_dict[point.topic]['route'] = f'/vui/platforms/{platform}/{point.identifier}'
+                        if return_writability:
+                            ret_dict[point.topic]['writability'] = point.data.get('Writable')
+                        if return_config:
+                            ret_dict[point.topic]['config'] = point.data
+
                     return Response(json.dumps(ret_dict), 200, content_type='application/json')
                 else:
-                    # All topics are not complete to points and include_points=False -- return route to next segments.
+                    # All topics are not complete to points and read_all=False -- return route to next segments:
                     ret_dict = device_tree.get_children_dict([n.identifier for n in topic_nodes], replace_topic=topic,
                                                              prefix=f'/vui/platforms/{platform}')
                     return Response(json.dumps(ret_dict), 200, content_type='application/json')
 
             # TODO: Move this exception handling up to a wrapper.
             except Timeout as e:
-                return Response(json.dumps({'error': f'RPC Timed Out: {e}'}), 408, content_type='application/json')
+                return Response(json.dumps({'error': f'RPC Timed Out: {e}'}), 504, content_type='application/json')
             except Exception as e:
                 return Response(json.dumps({f'error': f'Error querying device topic {topic}: {e}'}),
                                 400, content_type='application/json')
 
         elif request_method == 'PUT':
-            # TODO: Implement PUT.
-            # TODO: For put requests, we should have a configuration to disallow mass sets.
-            # TODO: For put requests, we should also return a route for DELETE to reset the action later.
-            return Response(f'Endpoint {request_method} {path_info} is not implemented.',
-                            status='501 Not Implemented', content_type='text/plain')
+            try:
+                confirm_values, selected_routes, unwritables = _get_allowed_write_selection(points, topic, regex, tag)
+            except ValueError as e:
+                return Response(str(e), 405, content_type='application/json')
+
+            # Set selected points:
+            try:
+                set_value = data.get('value')
+                topics_values = [(d.topic, set_value) for d in points if d.topic not in unwritables]
+                ret_errors = self._rpc('platform.actuator', 'set_multiple_points',
+                                       requester_id=self._agent.core.identity, topics_values=topics_values,
+                                       on_platform=platform)
+                ret_dict = defaultdict(dict)
+                for k in selected_routes.keys():
+                    ret_dict[k]['route'] = selected_routes[k]
+                    ret_dict[k]['set_error'] = ret_errors.get(k)
+                    ret_dict[k]['writable'] = True if k not in unwritables else False
+                if confirm_values:
+                    ret_values = self._rpc('platform.actuator', 'get_multiple_points',
+                                           [d.topic for d in points], on_platform=platform)
+                    for k in selected_routes.keys():
+                        ret_dict[k]['value'] = ret_values[0].get(k)
+                        ret_dict[k]['value_check_error'] = ret_values[1].get(k)
+
+                return Response(json.dumps(ret_dict), 200, content_type='application/json')
+
+            # TODO: Move this exception handling up to a wrapper.
+            except (LockError, OverrideError) as e:
+                return Response(json.dumps({'error': e}), 409, content_type='application/json')
+            except Timeout as e:
+                return Response(json.dumps({'error': f'RPC Timed Out: {e}'}), 504, content_type='application/json')
+            except Exception as e:
+                return Response(json.dumps({f'error': f'Error querying device topic {topic}: {e}'}),
+                                400, content_type='application/json')
+
         elif request_method == 'DELETE':
-            # TODO: Implement DELETE.
-            return Response(f'Endpoint {request_method} {path_info} is not implemented.',
-                            status='501 Not Implemented', content_type='text/plain')
+            try:
+                confirm_values, selected_routes, unwritables = _get_allowed_write_selection(points, topic, regex, tag)
+            except ValueError as e:
+                return Response(str(e), status=405, content_type='application/json')
+
+            # Reset selected points:
+            try:
+                for t_node in topic_nodes:
+                    if t_node.is_device():
+                        self._rpc('platform.actuator', 'revert_device',
+                                  requester_id=self._agent.core.identity, topic=t_node.topic, on_platform=platform)
+                    elif t_node.is_point() and t_node.topic not in unwritables:
+                        self._rpc('platform.actuator', 'revert_point',
+                                  requester_id=self._agent.core.identity, topic=t_node.topic, on_platform=platform)
+
+                ret_dict = defaultdict(dict)
+                for k in selected_routes.keys():
+                    ret_dict[k]['route'] = selected_routes[k]
+                    ret_dict[k]['writable'] = True if k not in unwritables else False
+
+                if confirm_values:
+                    ret_values = self._rpc('platform.actuator', 'get_multiple_points',
+                                           [d.topic for d in points], on_platform=platform)
+                    for k in selected_routes.keys():
+                        ret_dict[k]['value'] = ret_values[0].get(k)
+                        ret_dict[k]['value_check_error'] = ret_values[1].get(k)
+                return Response(json.dumps(ret_dict), 200, content_type='application/json')
+
+            # TODO: Move this exception handling up to a wrapper.
+            except (LockError, OverrideError) as e:
+                return Response(json.dumps({'error': e}), 409, content_type='application/json')
+            except Timeout as e:
+                return Response(json.dumps({'error': f'RPC Timed Out: {e}'}), 504, content_type='application/json')
+            except Exception as e:
+                return Response(json.dumps({f'error': f'Error querying device topic {topic}: {e}'}),
+                                400, content_type='application/json')
+
         else:
             return Response(f'Endpoint {request_method} {path_info} is not implemented.',
                             status='501 Not Implemented', content_type='text/plain')
-
-    def _build_device_tree(self, platform):
-        devices = self._rpc(CONFIGURATION_STORE, 'manage_list_configs', 'platform.driver', on_platform=platform)
-        devices = [d for d in devices if re.match('^devices/.*', d)]
-        # TODO: Should we be storing this tree to use for faster requests later? How to keep it updated?
-        device_tree = TopicTree(devices, 'devices')
-        for d in devices:
-            # TODO: Getting points requires getting device config, using it to find the registry config,
-            #  and then parsing that. There is not a method in config.store, nor in the platform.driver for
-            #  getting a completed configuration. The configuration is only fully assembled in the subsystem's
-            #  _initial_update method called when the agent itself calls get_configs at startup. There does not
-            #  seem to be an equivalent management method, and the code for this is in the agent subsystem
-            #  rather than the service (though it is reached through the service, oddly...
-            dev_config = json.loads(
-                self._rpc('config.store', 'manage_get', 'platform.driver', d, on_platform=platform))
-            reg_cfg_name = dev_config.get('registry_config')[len('config://'):]
-            registry_config = self._rpc('config.store', 'manage_get', 'platform.driver',
-                                        f'registry_configs/{reg_cfg_name}', raw=False, on_platform=platform)
-            for pnt in registry_config:
-                point_name = pnt['Volttron Point Name']
-                device_tree.create_node(point_name, f"{d}/{point_name}", parent=d)
-        return device_tree
-
-    # TODO: Will _find_segments() be needed? This may be superseded by the TopicTree, (at least for topic uses)?
-    @staticmethod
-    def _find_segments(path_info):
-        match = re.match('/([^/]+)/?', path_info)
-        if match:
-            groups = match.groups()
-            if groups:
-                return [x for x in groups[0].split('/') if x]
 
     def _find_active_sub_routes(self, segments: list, path_info: str = None) -> dict or list:
         """
@@ -464,6 +543,19 @@ class VUIEndpoints(object):
             if on_platform != self.local_instance_name else {}
         result = self._agent.vip.rpc.call(vip_identity, method, *args, **external_platform, **kwargs).get(timeout=5)
         return result
+
+    @staticmethod
+    def _to_bool(values):
+        values = values if type(values) is list else [values]
+        bools = []
+        for v in values:
+            bools.append(True if str(v).lower() in ['true', 't', '1'] else False)
+        if len(bools) == 1:
+            return bools[0]
+        elif len(bools) == 0:
+            return None
+        else:
+            return bools
 
     # def admin(self, env, data):
     #     if env.get('REQUEST_METHOD') == 'POST':
