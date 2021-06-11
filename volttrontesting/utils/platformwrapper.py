@@ -495,7 +495,7 @@ class PlatformWrapper:
         # allow 2 seconds here for the auth to be updated in auth service
         # before connecting to the platform with the agent.
         #
-        gevent.sleep(2)
+        gevent.sleep(3)
         agent = agent_class(address=address, identity=identity,
                             publickey=publickey, secretkey=secretkey,
                             serverkey=serverkey,

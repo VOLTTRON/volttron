@@ -123,6 +123,17 @@ class AuthService(Agent):
 
         self._user_to_permissions = topics()
 
+    # Export all relevant AuthFile methods to external agents through AuthService
+    def export_auth_file(self):
+        self.vip.rpc.export(self.auth_file.read, "auth_file.read")
+        self.vip.rpc.export(self.auth_file.find_by_credentials, "auth_file.find_by_credentials")
+        self.vip.rpc.export(self.auth_file.add, "auth_file.add")
+        self.vip.rpc.export(self.auth_file.remove_by_credentials, "auth_file.remove_by_credentials")
+        self.vip.rpc.export(self.auth_file.remove_by_index, "auth_file.remove_by_index")
+        self.vip.rpc.export(self.auth_file.remove_by_indices, "auth_file.remove_by_indices")
+        self.vip.rpc.export(self.auth_file.set_groups, "auth_file.set_groups")
+        self.vip.rpc.export(self.auth_file.set_roles, "auth_file.set_roles")
+
     @Core.receiver('onsetup')
     def setup_zap(self, sender, **kwargs):
         self.zap_socket = zmq.Socket(zmq.Context.instance(), zmq.ROUTER)
@@ -131,11 +142,8 @@ class AuthService(Agent):
             _log.warning('insecure permissive authentication enabled')
         self.read_auth_file()
         self._read_protected_topics_file()
-        # gevent.spawn_later(10, self.update_auth_file)
         self.core.spawn(watch_file, self.auth_file_path, self.read_auth_file)
         self.core.spawn(watch_file, self._protected_topics_file_path, self._read_protected_topics_file)
-        # self.core.periodic(1, self.update_if_needed)
-        # self.core.spawn(watch_file, os.path.join(get_home(), "VOLTTRON_PID"), self.update_auth_file)
         if self.core.messagebus == 'rmq':
             self.vip.peerlist.onadd.connect(self._check_topic_rules)
 
@@ -328,20 +336,6 @@ class AuthService(Agent):
         _log.error(f"Agent identity not found in auth file!")
         return
 
-    def update_auth_file(self):
-        entries = self.auth_file.read_allow_entries()
-        entries = [entry for entry in entries if entry.enabled]
-        new_entries = self.update_auth_file_rpc_method_authorizations(entries)
-        if entries != new_entries:
-            for entry in new_entries:
-                self.auth_file.update_by_index(entry, new_entries.index(entry))
-        self.can_update = True
-
-    def update_if_needed(self):
-        if self.needs_rpc_update:
-            entries = self.auth_file.read_allow_entries()
-            self.update_rpc_method_authorizations(entries)
-            self.needs_rpc_update = False
 
     def _update_auth_lists(self, entries, is_allow=True):
         auth_list = []
@@ -352,8 +346,7 @@ class AuthService(Agent):
                               'credentials': entry.credentials,
                               'user_id': entry.user_id,
                               'retries': 0
-                              }
-                             )
+                              })
         if is_allow:
             self._auth_approved = [entry for entry in auth_list if entry["address"] is not None]
         else:
@@ -362,6 +355,8 @@ class AuthService(Agent):
 
     def read_auth_file(self):
         _log.info('loading auth file %s', self.auth_file_path)
+        # Update from auth file into memory
+        self.auth_file.auth_data = self.auth_file._read()
         entries = self.auth_file.read_allow_entries()
         denied_entries = self.auth_file.read_deny_entries()
         # Populate auth lists with current entries
@@ -1350,16 +1345,18 @@ class AuthFile(object):
             auth_file = os.path.join(auth_file_dir, 'auth.json')
         self.auth_file = auth_file
         self._check_for_upgrade()
+        self.auth_data = self._read()
+
 
     @property
     def version(self):
         return {'major': 1, 'minor': 3}
 
     def _check_for_upgrade(self):
-        allow_list, deny_list, groups, roles, version = self._read()
-        if version != self.version:
-            if version['major'] <= self.version['major']:
-                self._upgrade(allow_list, deny_list, groups, roles, version)
+        auth_data = self._read()
+        if auth_data["version"] != self.version:
+            if auth_data["version"]['major'] <= self.version['major']:
+                self._upgrade(auth_data["allow_list"], auth_data["deny_list"], auth_data["groups"], auth_data["roles"], auth_data["version"])
             else:
                 _log.error('This version of VOLTTRON cannot parse {}. '
                            'Please upgrade VOLTTRON or move or delete '
@@ -1379,13 +1376,13 @@ class AuthFile(object):
                     auth_data = jsonapi.loads(data)
         except Exception:
             _log.exception('error loading %s', self.auth_file)
-
-        allow_list = auth_data.get('allow', [])
-        deny_list = auth_data.get('deny', [])
-        groups = auth_data.get('groups', {})
-        roles = auth_data.get('roles', {})
-        version = auth_data.get('version', {'major': 0, 'minor': 0})
-        return allow_list, deny_list, groups, roles, version
+        auth_output_data = {}
+        auth_output_data["allow_list"] = auth_data.get('allow', [])
+        auth_output_data["deny_list"] = auth_data.get('deny', [])
+        auth_output_data["groups"] = auth_data.get('groups', {})
+        auth_output_data["roles"] = auth_data.get('roles', {})
+        auth_output_data["version"] = auth_data.get('version', {'major': 0, 'minor': 0})
+        return auth_output_data
 
     def read(self):
         """Gets the allowed entries, groups, and roles from the auth
@@ -1394,10 +1391,9 @@ class AuthFile(object):
         :returns: tuple of allow-entries-list, groups-dict, roles-dict
         :rtype: tuple
         """
-        allow_list, deny_list, groups, roles, _ = self._read()
-        allow_entries, deny_entries = self._get_entries(allow_list, deny_list)
-        self._use_groups_and_roles(allow_entries, groups, roles)
-        return allow_entries, deny_entries, groups, roles
+        allow_entries, deny_entries = self._get_entries(self.auth_data["allow_list"], self.auth_data["deny_list"])
+        self._use_groups_and_roles(allow_entries, self.auth_data["groups"], self.auth_data["roles"])
+        return allow_entries, deny_entries, self.auth_data["groups"], self.auth_data["roles"]
 
     def _upgrade(self, allow_list, deny_list, groups, roles, version):
         backup = self.auth_file + '.' + str(uuid.uuid4()) + '.bak'

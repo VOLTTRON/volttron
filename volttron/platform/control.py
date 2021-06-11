@@ -68,7 +68,7 @@ from volttron.platform.jsonrpc import MethodNotFound
 from volttron.platform.agent import utils
 from volttron.platform.agent.known_identities import CONTROL_CONNECTION, \
     CONFIGURATION_STORE, PLATFORM_HEALTH, AUTH
-from volttron.platform.auth import AuthEntry, AuthFile, AuthException
+from volttron.platform.auth import AuthEntry, AuthException
 from volttron.platform.certs import Certs
 from volttron.platform.jsonrpc import RemoteError
 from volttron.platform.keystore import KeyStore, KnownHostsStore
@@ -1302,11 +1302,6 @@ def show_serverkey(opts):
     return 1
 
 
-def _get_auth_file(volttron_home):
-    path = os.path.join(volttron_home, 'auth.json')
-    return AuthFile(path)
-
-
 def _print_two_columns(dict_, key_name, value_name):
     padding = 2
     key_lengths = [len(key) for key in dict_] + [len(key_name)]
@@ -1325,8 +1320,7 @@ def _print_two_columns(dict_, key_name, value_name):
 
 
 def list_auth(opts, indices=None):
-    auth_file = _get_auth_file(opts.volttron_home)
-    entries = auth_file.read_allow_entries()
+    entries = opts.conn.vip.rpc.call(AUTH, "auth_file.read").get()[0]
     print_out = []
     if entries:
         for index, entry in enumerate(entries):
@@ -1335,7 +1329,7 @@ def list_auth(opts, indices=None):
                 _stdout.write(
                     '{}\n'.format(jsonapi.dumps(vars(entry), indent=2)))
     else:
-        _stdout.write('No entries in {}\n'.format(auth_file.auth_file))
+        _stdout.write('No entries in {}\n'.format(os.path.join(get_home(), 'auth.json')))
 
 
 def _ask_for_auth_fields(domain=None, address=None, user_id=None, identity=None,
@@ -1486,9 +1480,8 @@ def add_auth(opts):
         opts.serverkey = entry.credentials
         add_server_key(opts)
 
-    auth_file = _get_auth_file(opts.volttron_home)
     try:
-        auth_file.add(entry, overwrite=False)
+        opts.conn.vip.rpc.call(AUTH, "auth_file.add", entry)
         _stdout.write('added entry {}\n'.format(entry))
     except AuthException as err:
         _stderr.write('ERROR: %s\n' % str(err))
@@ -1517,8 +1510,7 @@ def _ask_yes_no(question, default='yes'):
 
 
 def remove_auth(opts):
-    auth_file = _get_auth_file(opts.volttron_home)
-    entry_count = len(auth_file.read_allow_entries())
+    entry_count = len(opts.conn.vip.rpc.call(AUTH, "auth_file.read").get()[0])
 
     for i in opts.indices:
         if i < 0 or i >= entry_count:
@@ -1530,7 +1522,7 @@ def remove_auth(opts):
     if not _ask_yes_no('Do you wish to delete?'):
         return
     try:
-        auth_file.remove_by_indices(opts.indices)
+        opts.conn.vip.rpc.call(AUTH, "auth_file.remove_by_indices", opts.indices)
         if len(opts.indices) > 1:
             msg = 'removed entries at indices {}'.format(opts.indices)
         else:
@@ -1541,8 +1533,7 @@ def remove_auth(opts):
 
 
 def update_auth(opts):
-    auth_file = _get_auth_file(opts.volttron_home)
-    entries = auth_file.read_allow_entries()
+    entries = opts.conn.vip.rpc.call(AUTH, "auth_file.read").get()[0]
     try:
         if opts.index < 0:
             raise IndexError
@@ -1551,7 +1542,7 @@ def update_auth(opts):
         response = _ask_for_auth_fields(**entry.__dict__)
         response['rpc_method_authorizations'] = None
         updated_entry = AuthEntry(**response)
-        auth_file.update_by_index(updated_entry, opts.index)
+        opts.conn.vip.rpc.call(AUTH, "auth_file.update_by_index", updated_entry, opts.index)
         _stdout.write('updated entry at index {}\n'.format(opts.index))
     except IndexError:
         _stderr.write('ERROR: invalid index %s\n' % opts.index)
@@ -1560,25 +1551,22 @@ def update_auth(opts):
 
 
 def add_role(opts):
-    auth_file = _get_auth_file(opts.volttron_home)
-    roles = auth_file.read()[3]
+    roles = opts.conn.vip.rpc.call(AUTH, "auth_file.read").get()[3]
     if opts.role in roles:
         _stderr.write('role "{}" already exists\n'.format(opts.role))
         return
     roles[opts.role] = list(set(opts.capabilities))
-    auth_file.set_roles(roles)
+    opts.conn.vip.rpc.call(AUTH, "auth_file.set_roles", roles)
     _stdout.write('added role "{}"\n'.format(opts.role))
 
 
 def list_roles(opts):
-    auth_file = _get_auth_file(opts.volttron_home)
-    roles = auth_file.read()[3]
+    roles = opts.conn.vip.rpc.call(AUTH, "auth_file.read").get()[3]
     _print_two_columns(roles, 'ROLE', 'CAPABILITIES')
 
 
 def update_role(opts):
-    auth_file = _get_auth_file(opts.volttron_home)
-    roles = auth_file.read()[3]
+    roles = opts.conn.vip.rpc.call(AUTH, "auth_file.read").get()[3]
     if opts.role not in roles:
         _stderr.write('role "{}" does not exist\n'.format(opts.role))
         return
@@ -1587,41 +1575,37 @@ def update_role(opts):
         roles[opts.role] = list(set(caps) - set(opts.capabilities))
     else:
         roles[opts.role] = list(set(caps) | set(opts.capabilities))
-    auth_file.set_roles(roles)
+    opts.conn.vip.rpc.call(AUTH, "auth_file.set_roles", roles)
     _stdout.write('updated role "{}"\n'.format(opts.role))
 
 
 def remove_role(opts):
-    auth_file = _get_auth_file(opts.volttron_home)
-    roles = auth_file.read()[3]
+    roles = opts.conn.vip.rpc.call(AUTH, "auth_file.read").get()[3]
     if opts.role not in roles:
         _stderr.write('role "{}" does not exist\n'.format(opts.role))
         return
     del roles[opts.role]
-    auth_file.set_roles(roles)
+    opts.conn.vip.rpc.call(AUTH, "auth_file.set_roles", roles)
     _stdout.write('removed role "{}"\n'.format(opts.role))
 
 
 def add_group(opts):
-    auth_file = _get_auth_file(opts.volttron_home)
-    groups = auth_file.read()[2]
+    groups = opts.conn.vip.rpc.call(AUTH, "auth_file.read").get()[2]
     if opts.group in groups:
         _stderr.write('group "{}" already exists\n'.format(opts.group))
         return
     groups[opts.group] = list(set(opts.roles))
-    auth_file.set_groups(groups)
+    opts.conn.vip.rpc.call(AUTH, "auth_file.set_groups", groups)
     _stdout.write('added group "{}"\n'.format(opts.group))
 
 
 def list_groups(opts):
-    auth_file = _get_auth_file(opts.volttron_home)
-    groups = auth_file.read()[2]
+    groups = opts.conn.vip.rpc.call(AUTH, "auth_file.read").get()[2]
     _print_two_columns(groups, 'GROUPS', 'ROLES')
 
 
 def update_group(opts):
-    auth_file = _get_auth_file(opts.volttron_home)
-    groups = auth_file.read()[2]
+    groups = opts.conn.vip.rpc.call(AUTH, "auth_file.read").get()[2]
     if opts.group not in groups:
         _stderr.write('group "{}" does not exist\n'.format(opts.group))
         return
@@ -1630,18 +1614,17 @@ def update_group(opts):
         groups[opts.group] = list(set(roles) - set(opts.roles))
     else:
         groups[opts.group] = list(set(roles) | set(opts.roles))
-    auth_file.set_groups(groups)
+    opts.conn.vip.rpc.call(AUTH, "auth_file.set_groups", groups)
     _stdout.write('updated group "{}"\n'.format(opts.group))
 
 
 def remove_group(opts):
-    auth_file = _get_auth_file(opts.volttron_home)
-    groups = auth_file.read()[2]
+    groups = opts.conn.vip.rpc.call(AUTH, "auth_file.read").get()[2]
     if opts.group not in groups:
         _stderr.write('group "{}" does not exist\n'.format(opts.group))
         return
     del groups[opts.group]
-    auth_file.set_groups(groups)
+    opts.conn.vip.rpc.call(AUTH, "auth_file.set_groups", groups)
     _stdout.write('removed group "{}"\n'.format(opts.group))
 
 
