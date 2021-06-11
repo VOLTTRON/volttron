@@ -26,11 +26,9 @@
                         'Accept': 'application/json'
                     },
                     success: function(content){
-                        alert(content);
                         $("#response").append(content)
                     },
                     failure: function(content){
-                        alert("failed!");
                         $('#response').append("FAILURE "+ content.toString());
                     },
                     statusCode: {
