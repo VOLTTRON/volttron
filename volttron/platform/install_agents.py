@@ -45,7 +45,6 @@ import sys
 import tempfile
 import traceback
 import uuid
-from volttron.platform.control import ControlConnection
 
 import gevent
 import yaml
@@ -54,6 +53,7 @@ from volttron.platform.vip.agent.results import AsyncResult
 from volttron.platform import agent, config, jsonapi, get_home
 from volttron.platform.agent.utils import execute_command
 from volttron.platform.packaging import add_files_to_package, create_package
+
 
 _log = logging.getLogger(__name__)
 
@@ -234,7 +234,7 @@ def install_agent_vctl(opts, publickey=None, secretkey=None, callback=None):
     # This is where we need to exit so the script doesn't continue after installation.
     sys.exit(0)
 
-def send_agent(connection: ControlConnection, wheel_file: str, vip_identity: str , publickey: str, 
+def send_agent(connection: "ControlConnection", wheel_file: str, vip_identity: str , publickey: str, 
     secretkey: str, force: str):
     """
     Send an agent wheel from the client to the server.
