@@ -45,6 +45,7 @@ import sys
 import tempfile
 import traceback
 import uuid
+from volttron.platform.control import ControlConnection
 
 import gevent
 import yaml
@@ -233,12 +234,20 @@ def install_agent_vctl(opts, publickey=None, secretkey=None, callback=None):
     # This is where we need to exit so the script doesn't continue after installation.
     sys.exit(0)
 
+def send_agent(connection: ControlConnection, wheel_file: str, vip_identity: str , publickey: str, 
+    secretkey: str, force: str):
+    """
+    Send an agent wheel from the client to the server.
 
-def _send_agent(connection, peer, path,
-                vip_identity, publickey, secretkey, force):
+    The `ControlConnection` uses a protocol to send the wheel across the wire to the 'ControlService`.
+    """
+    path = wheel_file
+    peer = connection.peer
+    server = connection.server
+    
     wheel = open(path, 'rb')
     _log.debug(f"Connecting to {peer} to install {path}")
-    channel = connection.vip.channel(peer, 'agent_sender')
+    channel = server.vip.channel(peer, 'agent_sender')
 
     def send():
         nonlocal wheel, channel
@@ -298,7 +307,7 @@ def _send_agent(connection, peer, path,
             del channel
 
     _log.debug(f"calling install_agent on {peer} using channel {channel.name}")
-    result = connection.vip.rpc.call(
+    result = server.vip.rpc.call(
         peer, 'install_agent', os.path.basename(path), channel.name,
         vip_identity, publickey, secretkey, force)
     
@@ -310,15 +319,15 @@ def _send_agent(connection, peer, path,
     return result
 
 
-def send_agent(connection, wheel_file, vip_identity, publickey, secretkey, force):
+# def send_agent(connection, wheel_file, vip_identity, publickey, secretkey, force):
     
-    #for wheel in opts.wheel:
-    #uuid = _send_agent(connection.server, connection.peer, wheel_file).get()
-    result = _send_agent(connection.server, connection.peer, wheel_file,
-                         vip_identity, publickey, secretkey, force)
+#     #for wheel in opts.wheel:
+#     #uuid = _send_agent(connection.server, connection.peer, wheel_file).get()
+#     result = _send_agent(connection.server, connection.peer, wheel_file,
+#                          vip_identity, publickey, secretkey, force)
 
-    _log.debug(f"Returning {result} from send_agent")
-    return result
+#     _log.debug(f"Returning {result} from send_agent")
+#     return result
     
 
 def add_install_agent_parser(add_parser_fn, has_restricted):
