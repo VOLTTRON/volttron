@@ -82,7 +82,7 @@ from volttron.utils.rmq_config_params import RMQConfig
 from volttron.utils.rmq_mgmt import RabbitMQMgmt
 from volttron.utils.rmq_setup import check_rabbit_status
 from volttron.platform.agent.utils import is_secure_mode, wait_for_volttron_shutdown
-from . install_agents import add_install_agent_parser
+from volttron.platform.install_agents import add_install_agent_parser
 
 try:
     import volttron.restricted
@@ -2428,7 +2428,7 @@ def main():
     # Refuse to run as root
     if not getattr(os, 'getuid', lambda: -1)():
         sys.stderr.write('%s: error: refusing to run as root to prevent '
-                         'potential damage.\n' % os.path.basename(argv[0]))
+                         'potential damage.\n' % os.path.basename(sys.argv[0]))
         sys.exit(77)
 
     volttron_home = get_home()
