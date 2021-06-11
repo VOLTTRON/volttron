@@ -451,7 +451,7 @@ import sys
 
 import gevent
 
-from actuator.scheduler import ScheduleManager
+from services.core.ActuatorAgent.actuator.scheduler import ScheduleManager
 
 from tzlocal import get_localzone
 from volttron.platform.agent import utils
