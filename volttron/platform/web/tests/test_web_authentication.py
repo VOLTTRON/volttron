@@ -9,6 +9,8 @@ from deepdiff import DeepDiff
 
 import pytest
 
+from volttron.platform.web import PlatformWebService
+
 try:
     import jwt
 except ImportError:
@@ -187,7 +189,7 @@ def mock_platformweb_service():
     platformweb._admin_endpoints = AdminEndpoints(rpc_caller=rpc_caller)
     yield platformweb
 
-# TODO: These tests are updated in PR#2650
+
 @pytest.mark.parametrize("scheme", ("http", "https"))
 def test_authenticate_endpoint(scheme):
     kwargs = {}
@@ -219,21 +221,22 @@ def test_authenticate_endpoint(scheme):
 
         invalid_login_username_params = dict(username='fooey', password=passwd)
 
-        response = authorizeep.get_auth_token(env, invalid_login_username_params)
+        response = authorizeep.get_auth_tokens(env, invalid_login_username_params)
 
-        assert '401' == response.status
-        # TODO: Get the actual response content here
         # assert '401 Unauthorized' in response.content
+        assert '401' == response.status
 
         invalid_login_password_params = dict(username=user, password='hazzah')
-        response = authorizeep.get_auth_token(env, invalid_login_password_params)
+        response = authorizeep.get_auth_tokens(env, invalid_login_password_params)
 
         assert '401' == response.status
         valid_login_params = urlencode(dict(username=user, password=passwd))
-        response = authorizeep.get_auth_token(env, valid_login_params)
+        response = authorizeep.get_auth_tokens(env, valid_login_params)
         assert '200 OK' == response.status
-        assert "text/plain" in response.content_type
-        assert 3 == len(response.response[0].decode('utf-8').split('.'))
+        assert "application/json" in response.content_type
+        response_data = json.loads(response.data.decode('utf-8'))
+        assert 3 == len(response_data["refresh_token"].split('.'))
+        assert 3 == len(response_data["access_token"].split('.'))
 
 
 @pytest.mark.web
@@ -286,7 +289,7 @@ def test_deny_credential(volttron_instance_web):
         pending_agent = Agent(identity="PendingAgent")
         task = gevent.spawn(pending_agent.core.run)
         task.join()
-        gevent.sleep(5)
+        gevent.sleep(7)
         pending_agent.core.stop()
 
         auth_pending = instance.dynamic_agent.vip.rpc.call(AUTH, "get_authorization_pending").get()
@@ -313,7 +316,7 @@ def test_delete_credential(volttron_instance_web):
         pending_agent = Agent(identity="PendingAgent")
         task = gevent.spawn(pending_agent.core.run)
         task.join()
-        gevent.sleep(5)
+        gevent.sleep(7)
         pending_agent.core.stop()
 
         auth_pending = instance.dynamic_agent.vip.rpc.call(AUTH, "get_authorization_pending").get()
