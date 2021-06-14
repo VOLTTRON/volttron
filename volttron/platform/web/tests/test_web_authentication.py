@@ -224,12 +224,12 @@ def test_authenticate_endpoint(scheme):
         response = authorizeep.get_auth_tokens(env, invalid_login_username_params)
 
         # assert '401 Unauthorized' in response.content
-        assert '401' == response.status
+        assert '401 UNAUTHORIZED' == response.status
 
         invalid_login_password_params = dict(username=user, password='hazzah')
         response = authorizeep.get_auth_tokens(env, invalid_login_password_params)
 
-        assert '401' == response.status
+        assert '401 UNAUTHORIZED' == response.status
         valid_login_params = urlencode(dict(username=user, password=passwd))
         response = authorizeep.get_auth_tokens(env, valid_login_params)
         assert '200 OK' == response.status
@@ -248,8 +248,7 @@ def test_get_credentials(volttron_instance_web):
     with with_os_environ(instance.env):
         pending_agent = Agent(identity="PendingAgent")
         task = gevent.spawn(pending_agent.core.run)
-        task.join()
-        gevent.sleep(5)
+        task.join(timeout=5)
         pending_agent.core.stop()
 
     auth_pending = instance.dynamic_agent.vip.rpc.call(AUTH, "get_authorization_pending").get()
@@ -264,8 +263,7 @@ def test_accept_credential(volttron_instance_web):
     with with_os_environ(instance.env):
         pending_agent = Agent(identity="PendingAgent")
         task = gevent.spawn(pending_agent.core.run)
-        task.join()
-        gevent.sleep(5)
+        task.join(timeout=5)
         pending_agent.core.stop()
 
         auth_pending = instance.dynamic_agent.vip.rpc.call(AUTH, "get_authorization_pending").get()
@@ -288,8 +286,7 @@ def test_deny_credential(volttron_instance_web):
     with with_os_environ(instance.env):
         pending_agent = Agent(identity="PendingAgent")
         task = gevent.spawn(pending_agent.core.run)
-        task.join()
-        gevent.sleep(7)
+        task.join(timeout=5)
         pending_agent.core.stop()
 
         auth_pending = instance.dynamic_agent.vip.rpc.call(AUTH, "get_authorization_pending").get()
@@ -315,8 +312,7 @@ def test_delete_credential(volttron_instance_web):
     with with_os_environ(instance.env):
         pending_agent = Agent(identity="PendingAgent")
         task = gevent.spawn(pending_agent.core.run)
-        task.join()
-        gevent.sleep(7)
+        task.join(timeout=5)
         pending_agent.core.stop()
 
         auth_pending = instance.dynamic_agent.vip.rpc.call(AUTH, "get_authorization_pending").get()
