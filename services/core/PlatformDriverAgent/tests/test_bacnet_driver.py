@@ -52,6 +52,46 @@ def test_set_and_get(
             assert updated_v == v
 
 
+def test_revert_all(
+    bacnet_device, query_agent, platform_driver, bacnet_proxy_agent, volttron_instance
+):
+    query_agent.poll_callback.reset_mock()
+    assert volttron_instance.is_agent_running(bacnet_proxy_agent)
+
+    cooling_valve = "CoolingValveOutputCommand"
+    general_exhaust = "GeneralExhaustFanCommand"
+    register_values_default = {
+        cooling_valve: 0.0,
+        general_exhaust: 0
+    }
+    register_values_updated = {
+        cooling_valve: 42.42,
+        general_exhaust: 1
+    }
+
+    # change the points from the initial to new values
+    for k, v in register_values_updated.items():
+        logger.info(f"Setting and getting point: {k} with value: {v}")
+        query_agent.vip.rpc.call(PLATFORM_DRIVER, "set_point", "bacnet", k, v).get(
+            timeout=10
+        )
+        async_res = query_agent.vip.rpc.call(PLATFORM_DRIVER, "get_point", "bacnet", k)
+        updated_v = async_res.get()
+        logger.info(f"Updated value: {updated_v}")
+
+        if isinstance(updated_v, float):
+            assert math.isclose(v, updated_v, rel_tol=0.05)
+        else:
+            assert updated_v == v
+
+    # revert all the changed points
+    query_agent.vip.rpc.call(PLATFORM_DRIVER, "revert_all", "bacnet").get(timeout=10)
+    for k, default_v in register_values_default:
+        async_res = query_agent.vip.rpc.call(PLATFORM_DRIVER, "get_point", "bacnet", k)
+        reverted_v = async_res.get()
+        logger.info(f"Updated value:{reverted_v}")
+        assert reverted_v == default_v
+
 # TODO: add test for "scrape_all"
 # p = query_agent.vip.rpc.call(PLATFORM_DRIVER, "scrape_all", "bacnet").get(timeout=10)
 
