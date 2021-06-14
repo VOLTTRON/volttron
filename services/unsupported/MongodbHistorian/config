@@ -1,0 +1,19 @@
+{
+    "connection": {
+        "type": "mongodb",
+        "params": {
+            "host": "localhost",
+            "port": 27017,
+            "database": "mongo_test",
+            "user": "test",
+            "passwd": "test"
+        }
+    },
+    "readonly":false,
+    "initial_rollup_start_time":"2018-01-21T00:00:00.000000",
+    "periodic_rollup_initial_wait":0.1,
+    "periodic_rollup_frequency":1,
+    "rollup_query_start":"2017-01-01T00:00:00.000000",
+    "rollup_query_end":5,
+    "rollup_topic_pattern": "^Economizer_RCx|^Airside_RCx"
+}

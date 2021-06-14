@@ -1,0 +1,13 @@
+{
+    "agent_id": "primary",
+    "simple_behavior": true,
+
+    "remote_vip": "tcp://127.0.0.1:8001",
+    "remote_serverkey": "",
+
+    "agent_vip_identity": "platform.driver",
+
+    "heartbeat_period": 10,
+
+    "timeout": 120
+}

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<schema xmlns="http://www.w3.org/2001/XMLSchema"
+        xmlns:dsp="http://openadr.org/oadr-2.0b/2012/07/xmldsig-properties"
+        targetNamespace="http://openadr.org/oadr-2.0b/2012/07/xmldsig-properties"
+        version="0.1" elementFormDefault="qualified">
+
+  <element name="ReplayProtect" type="dsp:ReplayProtectType"/>
+  <complexType name="ReplayProtectType" >
+    <sequence>
+      <element name="timestamp" type="dateTime"/>
+      <element name="nonce" type="dsp:NonceValueType"/>
+    </sequence>
+  </complexType>
+
+  <complexType name="NonceValueType">
+    <simpleContent>
+      <extension base="string">
+        <attribute name="EncodingType" type="anyURI"/>
+      </extension>
+    </simpleContent>
+  </complexType>
+
+</schema>

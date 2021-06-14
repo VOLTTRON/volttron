@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<!-- edited with XMLSpy v2010 rel. 3 (http://www.altova.com) by James Zuber (private) -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xcal="urn:ietf:params:xml:ns:icalendar-2.0" xmlns:ei="http://docs.oasis-open.org/ns/energyinterop/201110" targetNamespace="urn:ietf:params:xml:ns:icalendar-2.0" elementFormDefault="qualified" attributeFormDefault="qualified">
+   <xs:import namespace="http://docs.oasis-open.org/ns/energyinterop/201110" schemaLocation="oadr_ei_20b.xsd"/>
+   <!-- ##### SAME AS A ##### -->
+   <!--  ******* date-time ******** -->
+   <xs:element name="date-time" type="xcal:DateTimeType"/>
+   <!--  ******* DateTimeType ******** -->
+   <xs:simpleType name="DateTimeType">
+      <xs:restriction base="xs:dateTime">
+         <xs:pattern value="(\-|\+)?\d{4}\-\d{2}\-\d{2}T\d{2}:\d{2}:\d{2}(\.\d*)?Z?"/>
+      </xs:restriction>
+   </xs:simpleType>
+   <!--  ******* duration ******** -->
+   <xs:element name="duration" type="xcal:DurationPropType">
+      <xs:annotation>
+         <xs:documentation>The duration of the  activity, data, or state </xs:documentation>
+      </xs:annotation>
+   </xs:element>
+   <!--  ******* DurationPropType ******** -->
+   <xs:complexType name="DurationPropType" mixed="false">
+      <xs:sequence>
+         <xs:element name="duration" type="xcal:DurationValueType"/>
+      </xs:sequence>
+   </xs:complexType>
+   <!--  ******* DurationValueType ******** -->
+   <xs:simpleType name="DurationValueType">
+      <xs:restriction base="xs:string">
+         <xs:pattern value="(\+|\-)?P((\d+Y)?(\d+M)?(\d+D)?T?(\d+H)?(\d+M)?(\d+S)?)|(\d+W)"/>
+      </xs:restriction>
+   </xs:simpleType>
+   <!--  ******* uid ******** -->
+   <xs:element name="uid">
+      <xs:annotation>
+         <xs:documentation>Used as an index to identify intervals</xs:documentation>
+      </xs:annotation>
+      <xs:complexType>
+         <xs:sequence>
+            <xs:element ref="xcal:text"/>
+         </xs:sequence>
+      </xs:complexType>
+   </xs:element>
+   <!--  ******* text ******** -->
+   <xs:element name="text" type="xs:string"/>
+   <xs:element name="dtstart">
+      <xs:annotation>
+         <xs:documentation>The starting time for the activity, data, or state change</xs:documentation>
+      </xs:annotation>
+      <xs:complexType>
+         <xs:sequence>
+            <xs:element ref="xcal:date-time"/>
+         </xs:sequence>
+      </xs:complexType>
+   </xs:element>
+   <!--  ******* properties ******** -->
+   <xs:element name="properties">
+      <xs:complexType>
+         <xs:sequence>
+            <xs:element ref="xcal:dtstart"/>
+            <xs:element ref="xcal:duration"/>
+            <xs:element name="tolerance" minOccurs="0">
+               <xs:annotation>
+                  <xs:documentation>Set randomization period for start of event</xs:documentation>
+               </xs:annotation>
+               <xs:complexType>
+                  <xs:sequence>
+                     <xs:element name="tolerate">
+                        <xs:complexType>
+                           <xs:sequence>
+                              <xs:element name="startafter" type="xcal:DurationValueType" minOccurs="0"/>
+                           </xs:sequence>
+                        </xs:complexType>
+                     </xs:element>
+                  </xs:sequence>
+               </xs:complexType>
+            </xs:element>
+            <xs:element ref="ei:x-eiNotification" minOccurs="0"/>
+            <xs:element ref="ei:x-eiRampUp" minOccurs="0"/>
+            <xs:element ref="ei:x-eiRecovery" minOccurs="0"/>
+         </xs:sequence>
+      </xs:complexType>
+   </xs:element>
+   <!--  ******* components ******** -->
+   <xs:element name="components" nillable="true"/>
+   <!-- ##### NEW for B ##### -->
+   <!--  ******* dtend ******** -->
+   <xs:element name="dtend">
+      <xs:complexType>
+         <xs:sequence>
+            <xs:element ref="xcal:date-time"/>
+         </xs:sequence>
+      </xs:complexType>
+   </xs:element>
+   <!-- ******* vavailabiity ******** -->
+   <xs:complexType name="VavailabilityType" mixed="false">
+      <xs:sequence>
+         <xs:element name="components" type="xcal:ArrayOfVavailabilityContainedComponents"/>
+      </xs:sequence>
+   </xs:complexType>
+   <xs:element name="vavailability" type="xcal:VavailabilityType">
+      <xs:annotation>
+         <xs:documentation>A schedule reflecting device availability for participating in DR events</xs:documentation>
+      </xs:annotation>
+   </xs:element>
+   <xs:complexType name="ArrayOfVavailabilityContainedComponents">
+      <xs:sequence>
+         <xs:element ref="xcal:available" minOccurs="0" maxOccurs="unbounded"/>
+      </xs:sequence>
+   </xs:complexType>
+   <xs:complexType name="AvailableType" mixed="false">
+      <xs:sequence>
+         <xs:element ref="xcal:properties"/>
+      </xs:sequence>
+   </xs:complexType>
+   <xs:element name="available" type="xcal:AvailableType"/>
+   <!-- Granularity is used in the VAVAILABILITY and AVAILABILITY components -->
+   <xs:element name="granularity" type="xcal:DurationPropType"/>
+   <xs:element name="interval" type="xcal:WsCalendarIntervalType"/>
+   <xs:complexType name="WsCalendarIntervalType">
+      <xs:annotation>
+         <xs:documentation xml:lang="en">
+			 An interval takes no sub-components.
+			 </xs:documentation>
+      </xs:annotation>
+      <xs:sequence>
+         <xs:element ref="xcal:properties"/>
+      </xs:sequence>
+   </xs:complexType>
+</xs:schema>

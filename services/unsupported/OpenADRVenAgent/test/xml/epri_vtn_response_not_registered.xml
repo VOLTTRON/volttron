@@ -1,0 +1,12 @@
+<ns4:oadrPayload xmlns="http://www.w3.org/2000/09/xmldsig#" xmlns:ns2="http://docs.oasis-open.org/ns/energyinterop/201110" xmlns:ns3="http://docs.oasis-open.org/ns/energyinterop/201110/payloads" xmlns:ns4="http://openadr.org/oadr-2.0b/2012/07" xmlns:ns5="http://www.w3.org/2005/Atom" xmlns:ns6="http://docs.oasis-open.org/ns/emix/2011/06/siscale" xmlns:ns7="http://docs.oasis-open.org/ns/emix/2011/06/power" xmlns:ns8="urn:ietf:params:xml:ns:icalendar-2.0" xmlns:ns9="urn:ietf:params:xml:ns:icalendar-2.0:stream" xmlns:ns10="http://www.opengis.net/gml/3.2" xmlns:ns11="http://docs.oasis-open.org/ns/emix/2011/06" xmlns:ns12="http://www.w3.org/2009/xmldsig11#" xmlns:ns13="http://openadr.org/oadr-2.0b/2012/07/xmldsig-properties" xmlns:ns14="urn:un:unece:uncefact:codelist:standard:5:ISO42173A:2010-04-07">
+    <ns4:oadrSignedObject>
+        <ns4:oadrResponse ns2:schemaVersion="2.0b">
+            <ns2:eiResponse>
+                <ns2:responseCode>463</ns2:responseCode>
+                <ns2:responseDescription>Not Registered/Authorized</ns2:responseDescription>
+                <ns3:requestID></ns3:requestID>
+            </ns2:eiResponse>
+            <ns2:venID>919a1dfa088fe14b79f9</ns2:venID>
+        </ns4:oadrResponse>
+    </ns4:oadrSignedObject>
+</ns4:oadrPayload>

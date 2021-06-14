@@ -1,0 +1,5 @@
+<oadr:oadrSignedObject xmlns:oadr="http://openadr.org/oadr-2.0b/2012/07" Id="signedObject">
+  <oadr:oadrPoll xmlns:oadr="http://openadr.org/oadr-2.0b/2012/07" xmlns:ei="http://docs.oasis-open.org/ns/energyinterop/201110" schemaVersion="1.0">
+    <ei:venID>919a1dfa088fe14b79f9</ei:venID>
+  </oadr:oadrPoll>
+</oadr:oadrSignedObject>

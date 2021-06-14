@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- edited with XMLSpy v2010 rel. 3 (http://www.altova.com) by James Zuber (private) -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:gml="http://www.opengis.net/gml/3.2" targetNamespace="http://www.opengis.net/gml/3.2" elementFormDefault="qualified" attributeFormDefault="unqualified" version="1.0">
+   <xs:element name="FeatureCollection">
+      <xs:complexType>
+         <xs:sequence>
+            <xs:element name="location">
+               <xs:complexType>
+                  <xs:sequence>
+                     <xs:element name="Polygon">
+                        <xs:complexType>
+                           <xs:sequence>
+                              <xs:element name="exterior">
+                                 <xs:complexType>
+                                    <xs:sequence>
+                                       <xs:element name="LinearRing">
+                                          <xs:complexType>
+                                             <xs:sequence>
+                                                <xs:element ref="gml:posList"/>
+                                             </xs:sequence>
+                                          </xs:complexType>
+                                       </xs:element>
+                                    </xs:sequence>
+                                 </xs:complexType>
+                              </xs:element>
+                           </xs:sequence>
+                           <xs:attribute ref="gml:id"/>
+                        </xs:complexType>
+                     </xs:element>
+                  </xs:sequence>
+               </xs:complexType>
+            </xs:element>
+         </xs:sequence>
+         <xs:attribute ref="gml:id"/>
+      </xs:complexType>
+   </xs:element>
+   <xs:attribute name="id" type="xs:ID"/>
+   <xs:element name="posList" type="gml:doubleList"/>
+   <xs:simpleType name="doubleList">
+      <xs:list itemType="xs:double"/>
+   </xs:simpleType>
+</xs:schema>

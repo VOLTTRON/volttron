@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<oadr:oadrPayload xmlns:oadr="http://openadr.org/oadr-2.0b/2012/07">
+  <oadr:oadrSignedObject>
+        <oadr:oadrRegisterReport xmlns:pyld="http://docs.oasis-open.org/ns/energyinterop/201110/payloads" xmlns:ei="http://docs.oasis-open.org/ns/energyinterop/201110" schemaVersion="2.0b">
+            <pyld:requestID>e0d240a6-e431-11e7-af2f-34363bc85ec4</pyld:requestID>
+            <oadr:oadrReport>
+                <xcal:duration xmlns:xcal="urn:ietf:params:xml:ns:icalendar-2.0">
+                    <oadr:duration>PT30S</oadr:duration>
+                </xcal:duration>
+                <oadr:oadrReportDescription xmlns:emix="http://docs.oasis-open.org/ns/emix/2011/06">
+                    <ei:rID>baseline_power</ei:rID>
+                    <ei:reportType>baseline</ei:reportType>
+                    <power:PowerRealType xmlns:scale="http://docs.oasis-open.org/ns/emix/2011/06/siscale" xmlns:power="http://docs.oasis-open.org/ns/emix/2011/06/power">
+                        <power:itemDescription>RealPower</power:itemDescription>
+                        <power:itemUnits>W</power:itemUnits>
+                    </power:PowerRealType>
+                    <ei:readingType>Direct Read</ei:readingType>
+                    <oadr:oadrSamplingRate xmlns:xcal="urn:ietf:params:xml:ns:icalendar-2.0">
+                        <oadr:oadrMinPeriod>PT30S</oadr:oadrMinPeriod>
+                        <oadr:oadrMaxPeriod>PT1M</oadr:oadrMaxPeriod>
+                        <oadr:oadrOnChange>false</oadr:oadrOnChange>
+                    </oadr:oadrSamplingRate>
+                </oadr:oadrReportDescription>
+                <oadr:oadrReportDescription xmlns:emix="http://docs.oasis-open.org/ns/emix/2011/06">
+                    <ei:rID>actual_power</ei:rID>
+                    <ei:reportType>reading</ei:reportType>
+                    <power:PowerRealType xmlns:scale="http://docs.oasis-open.org/ns/emix/2011/06/siscale" xmlns:power="http://docs.oasis-open.org/ns/emix/2011/06/power">
+                        <power:itemDescription>RealPower</power:itemDescription>
+                        <power:itemUnits>W</power:itemUnits>
+                    </power:PowerRealType>
+                    <ei:readingType>Direct Read</ei:readingType>
+                    <oadr:oadrSamplingRate xmlns:xcal="urn:ietf:params:xml:ns:icalendar-2.0">
+                        <oadr:oadrMinPeriod>PT30S</oadr:oadrMinPeriod>
+                        <oadr:oadrMaxPeriod>PT1M</oadr:oadrMaxPeriod>
+                        <oadr:oadrOnChange>false</oadr:oadrOnChange>
+                    </oadr:oadrSamplingRate>
+                </oadr:oadrReportDescription>
+                <ei:reportSpecifierID>telemetry</ei:reportSpecifierID>
+                <ei:reportName>METADATA_TELEMETRY_USAGE</ei:reportName>
+                <ei:createdDateTime>2017-12-18T20:27:33.449060Z</ei:createdDateTime>
+            </oadr:oadrReport>
+            <oadr:oadrReport>
+                <xcal:duration xmlns:xcal="urn:ietf:params:xml:ns:icalendar-2.0">
+                    <oadr:duration>PT5M</oadr:duration>
+                </xcal:duration>
+                <oadr:oadrReportDescription xmlns:emix="http://docs.oasis-open.org/ns/emix/2011/06">
+                    <ei:rID>Status</ei:rID>
+                    <ei:reportType>x-resourceStatus</ei:reportType>
+                    <ei:readingType>x-notApplicable</ei:readingType>
+                    <oadr:oadrSamplingRate xmlns:xcal="urn:ietf:params:xml:ns:icalendar-2.0">
+                        <oadr:oadrMinPeriod>PT1M</oadr:oadrMinPeriod>
+                        <oadr:oadrMaxPeriod>PT2M</oadr:oadrMaxPeriod>
+                        <oadr:oadrOnChange>false</oadr:oadrOnChange>
+                    </oadr:oadrSamplingRate>
+                </oadr:oadrReportDescription>
+                <ei:reportSpecifierID>telemetry_status</ei:reportSpecifierID>
+                <ei:reportName>METADATA_TELEMETRY_STATUS</ei:reportName>
+                <ei:createdDateTime>2017-12-18T20:27:33.449427Z</ei:createdDateTime>
+            </oadr:oadrReport>
+            <ei:venID>0</ei:venID>
+        </oadr:oadrRegisterReport>
+    </oadr:oadrSignedObject>
+</oadr:oadrPayload>
