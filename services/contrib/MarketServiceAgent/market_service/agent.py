@@ -88,7 +88,7 @@ from volttron.platform.agent.known_identities import PLATFORM_MARKET_SERVICE
 from volttron.platform.agent import utils
 from volttron.platform.messaging.topics import MARKET_RESERVE, MARKET_BID
 from volttron.platform.vip.agent import Agent, Core, RPC
-from volttron.platform.agent.base_market_agent.poly_line_factory import PolyLineFactory
+from ..base_market_agent.poly_line_factory import PolyLineFactory
 
 from .market_list import MarketList
 from .market_participant import MarketParticipant
