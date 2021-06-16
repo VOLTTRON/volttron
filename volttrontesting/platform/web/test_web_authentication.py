@@ -10,6 +10,7 @@ from deepdiff import DeepDiff
 import pytest
 
 from volttron.platform.web import PlatformWebService
+from volttrontesting.utils.utils import AgentMock
 
 try:
     import jwt
