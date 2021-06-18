@@ -3,7 +3,6 @@ import gevent
 import logging
 import time
 
-from random import randint
 from volttrontesting.utils.utils import get_rand_ip_and_port
 from volttron.platform import get_services_core, jsonapi
 from platform_driver.interfaces.modbus_tk.server import Server
@@ -98,7 +97,7 @@ registers_dict = {"unsigned short": 65530,
 
 
 @pytest.fixture(scope="module")
-def agent(request, volttron_instance):
+def agent(volttron_instance):
     """
     Build PlatformDriverAgent, add modbus driver & csv configurations
     """
@@ -158,19 +157,17 @@ def agent(request, volttron_instance):
 
     gevent.sleep(10)  # wait for the agent to start and start the devices
 
-    def stop():
-        """
-        Stop platform driver agent
-        """
-        volttron_instance.stop_agent(platform_uuid)
-        md_agent.core.stop()
+    assert volttron_instance.is_agent_running(platform_uuid)
 
-    request.addfinalizer(stop)
-    return md_agent
+    yield md_agent
+
+    logger.info("Teardown Platform Driver.")
+    volttron_instance.stop_agent(platform_uuid)
+    md_agent.core.stop()
 
 
 @pytest.fixture(scope='class')
-def modbus_server(request):
+def modbus_server():
     # modbus_map = Map(
     #     map_dir=os.path.abspath(
     #         os.path.join(os.path.dirname(__file__), "..", "maps")),

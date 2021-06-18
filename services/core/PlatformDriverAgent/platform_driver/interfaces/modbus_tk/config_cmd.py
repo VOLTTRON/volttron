@@ -36,14 +36,16 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-
-from .helpers import str2bool
-
 import cmd
 import yaml
 import os
-import subprocess32
 
+try:
+    import subprocess32
+except ImportError:
+    raise ImportError("Required imports for config_cmd.py are not installed. Install imports with: pip install subprocess32==3.5.4")
+
+from helpers import str2bool
 from volttron.platform import jsonapi
 
 

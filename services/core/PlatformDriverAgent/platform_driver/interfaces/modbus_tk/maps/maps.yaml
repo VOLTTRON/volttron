@@ -49,3 +49,4 @@
   endian: big
   file: battery_meter.csv
   name: battery_meter
+  description: example of battery meter

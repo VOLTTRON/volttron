@@ -44,7 +44,6 @@ from platform_driver.interfaces.modbus_tk.maps import Map
 
 import logging
 import struct
-import re
 
 monkey.patch_socket()
 
@@ -53,21 +52,6 @@ modbus_logger.setLevel(logging.WARNING)
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-
-
-parity_map = dict(
-    none='N',
-    even='E',
-    odd='O',
-    mark='M',
-    space='S'
-)
-
-config_keys = ["name", "device_type", "device_address", "port", "slave_id", "baudrate", "bytesize", "parity",
-               "stopbits", "xonxoff", "addressing", "endian", "write_multiple_registers", "register_map"]
-
-register_map_columns = ["register name", "address", "type", "units", "writable", "default value", "transform", "table",
-                        "mixed endian", "description"]
 
 
 class ModbusInterfaceException(Exception):
@@ -188,6 +172,7 @@ class Interface(BasicRevert, BaseInterface):
         super(Interface, self).__init__(**kwargs)
         self.name_map = dict()
         self.modbus_client = None
+        self.name = None
 
     def insert_register(self, register):
         """
@@ -253,18 +238,7 @@ class Interface(BasicRevert, BaseInterface):
         if not registry_config_lst:
             _log.warning("Registry config csv is empty.")
 
-        name = config_dict.get('name', 'UNKOWN')
-        device_address = config_dict['device_address']
-        port = config_dict.get('port', None)
-        slave_address = config_dict.get('slave_id', 1)
-        baudrate = config_dict.get('baudrate', 9600)
-        bytesize = config_dict.get('bytesize', 8)
-        parity = parity_map[config_dict.get('parity', 'none')]
-        stopbits = config_dict.get('stopbits', 1)
-        xonxoff = config_dict.get('xonxoff', 0)
-        addressing = config_dict.get('addressing', helpers.OFFSET).lower()
-        endian = config_dict.get('endian', 'big')
-        write_single_values = not helpers.str2bool(str(config_dict.get('write_multiple_registers', "True")))
+        self.name = config_dict.get('name', 'UNKNOWN')
 
         # Convert original modbus csv config format to the new modbus_tk registry_config_lst
         if registry_config_lst and 'point address' in registry_config_lst[0]:
@@ -276,15 +250,15 @@ class Interface(BasicRevert, BaseInterface):
                              config_dict.get('register_map', registry_config_lst)])
 
         # Log warning for ignored config fields
-        ignored_config_keys = [k for k in config_dict.keys() if k not in config_keys]
+        ignored_config_keys = [k for k in config_dict.keys() if k not in Interface.config_keys()]
         if ignored_config_keys:
-            _log.warning("%s: Ignored config fields: %s", name, ','.join(ignored_config_keys))
+            _log.warning("%s: Ignored config fields: %s", self.name, ','.join(ignored_config_keys))
 
         try:
             # Log warning for ignored register map csv column
-            ignored_register_map_csv_columns = [c for c in list(register_map.values())[0].keys() if c not in register_map_columns]
+            ignored_register_map_csv_columns = [c for c in list(register_map.values())[0].keys() if c not in Interface.register_map_columns()]
             if ignored_register_map_csv_columns:
-                _log.warning("%s: Ignored register map csv columns: %s", name, ','.join(ignored_register_map_csv_columns))
+                _log.warning("%s: Ignored register map csv columns: %s", self.name, ','.join(ignored_register_map_csv_columns))
         except IndexError:
             # Log warning if register_map is empty
             if not register_map:
@@ -305,33 +279,7 @@ class Interface(BasicRevert, BaseInterface):
             _log.warning("The selected registry config list is empty.")
 
         # Generate the subclass of Client from the device config and register list
-        modbus_client_class = Map(
-            name=name,
-            addressing=addressing,
-            endian=endian,
-            registry_config_lst=selected_registry_config_lst
-        ).get_class()
-
-        self.modbus_client = modbus_client_class(device_address=device_address,
-                                                 port=port,
-                                                 slave_address=slave_address,
-                                                 write_single_values=write_single_values)
-
-        # Set modbus client transport based on device configure
-        if port:
-            self.modbus_client.set_transport_tcp(
-                hostname=device_address,
-                port=port
-            )
-        else:
-            self.modbus_client.set_transport_rtu(
-                device=device_address,
-                baudrate=baudrate,
-                bytesize=bytesize,
-                parity=parity,
-                stopbits=stopbits,
-                xonxoff=xonxoff
-            )
+        self.modbus_client = self.get_modubus_client(config_dict, selected_registry_config_lst)
 
         # Insert driver/interface registers
         for reg_dict in selected_registry_config_lst:
@@ -344,6 +292,73 @@ class Interface(BasicRevert, BaseInterface):
             if not register.read_only and register.default_value:
                 self.set_default(register.point_name, register.default_value)
 
+    @staticmethod
+    def config_keys():
+        return ["name", "device_type", "device_address", "port", "slave_id", "baudrate", "bytesize", "parity",
+                       "stopbits", "xonxoff", "addressing", "endian", "write_multiple_registers", "register_map"]
+
+    @staticmethod
+    def register_map_columns():
+        return ["register name", "address", "type", "units", "writable", "default value", "transform", "table",
+                        "mixed endian", "description"]
+
+    @staticmethod
+    def parity_map():
+        return dict(
+            none='N',
+            even='E',
+            odd='O',
+            mark='M',
+            space='S'
+        )
+
+    def get_modubus_client(self, config_dict, selected_registry_config_lst):
+        # Required driver configurations
+        device_address = config_dict["device_address"]
+
+        # Optional driver configurations
+        port = config_dict.get("port", 0)
+        slave_address = config_dict.get("slave_id", 1)
+        baudrate = config_dict.get("baudrate", 9600)
+        bytesize = config_dict.get("bytesize", 8)  # valid values: 5, 6, 7, 8
+        parity = Interface.parity_map()[config_dict.get("parity", "none")]
+        stopbits = config_dict.get("stopbits", 1)  # valid values: 1, 1.5, 2
+        xonxoff = config_dict.get("xonxoff", 0)  # boolean
+        addressing = config_dict.get("addressing", helpers.OFFSET).lower()  # valid values: offset, offset_plus, or address
+        endian = config_dict.get("endian", "big")  # valid values: big, small
+        write_single_values = (config_dict.get("write_multiple_registers", True))
+
+        modbus_client_class = Map(
+            name=self.name,
+            addressing=addressing,
+            endian=endian,
+            registry_config_lst=selected_registry_config_lst,
+        ).get_class()
+
+        modbus_client = modbus_client_class(
+            device_address=device_address,
+            port=port,
+            slave_address=slave_address,
+            write_single_values=write_single_values,
+        )
+
+        # Set modbus client transport based on device configure
+        if port:
+            _log.debug(f"Setting Modbus Client to TCP on port: {port}")
+            modbus_client.set_transport_tcp(hostname=device_address, port=port)
+        else:
+            _log.debug(f"Setting ModbusClient to RTU transport on port {port} ")
+            modbus_client.set_transport_rtu(
+                device=device_address,
+                baudrate=baudrate,
+                bytesize=bytesize,
+                parity=parity,
+                stopbits=stopbits,
+                xonxoff=xonxoff,
+            )
+        _log.info("Created ModbusClient.")
+
+        return modbus_client
 
     def get_point(self, point_name):
         """
