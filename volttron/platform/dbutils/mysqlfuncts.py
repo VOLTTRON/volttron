@@ -80,6 +80,7 @@ class MySqlFuncts(DbDriver):
         # cached data even if we create a new cursor for each query and
         # close the cursor after fetching results
         connect_params['autocommit'] = True
+        _log.debug(f"Creating mysql connector with params {connect_params}")
         super(MySqlFuncts, self).__init__('mysql.connector', auth_plugin='mysql_native_password',
                                           **connect_params)
 
@@ -111,6 +112,7 @@ class MySqlFuncts(DbDriver):
             WHERE TABLE_SCHEMA = '{self.db_name}' AND 
             TABLE_NAME = '{self.topics_table}' AND 
             COLUMN_NAME = 'metadata'""")
+            _log.debug(f"Result of query to check columns of topic table {rows}")
             if rows:
                 # metadata is now in topics table
                 _log.debug("Found new schema. topics table contains metadata")
@@ -187,6 +189,12 @@ class MySqlFuncts(DbDriver):
             insert_stmt,
             ('meta_table', tables_def['meta_table'], table_prefix),
             commit=True)
+        _log.debug(f"Recorded table def in {meta_table_name}")
+        rows = self.select("show tables like %s", [meta_table_name])
+        if rows:
+            _log.debug("Found meta data table {}. ".format(meta_table_name))
+        else:
+            _log.error(f"No {meta_table_name} found")
 
     def setup_aggregate_historian_tables(self, meta_table_name):
         _log.debug("CREATING AGG TABLES")
@@ -220,7 +228,7 @@ class MySqlFuncts(DbDriver):
                   metadata TEXT NOT NULL, \
                   PRIMARY KEY(agg_topic_id));')
             self.commit()
-        _log.debug("Created aggregate topics and meta tables")
+        _log.debug(f"Created aggregate topics and meta tables: {self.agg_topics_table}  and {self.agg_meta_table}")
 
     def query(self, topic_ids, id_name_map, start=None, end=None, skip=0,
               agg_type=None, agg_period=None, count=None,
