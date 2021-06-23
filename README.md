@@ -6,8 +6,6 @@ platform provides services for collecting and storing data from buildings and
 devices and provides an environment for developing applications which interact
 with that data.
 
-[![Build Status](https://travis-ci.org/VOLTTRON/volttron.svg?branch=develop)](https://travis-ci.org/VOLTTRON/volttron)
-
 ## Features
 
 -   [Message Bus](https://volttron.readthedocs.io/en/latest/core_services/messagebus/index.html#messagebus-index) allows agents to subscribe to data sources and publish results and messages.
