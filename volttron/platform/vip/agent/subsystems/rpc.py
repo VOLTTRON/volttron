@@ -82,6 +82,7 @@ class Dispatcher(jsonrpc.Dispatcher):
         self._results = ResultsDictionary()
 
     def serialize(self, json_obj):
+        _log.debug(f"json_obj is {json_obj}")
         return jsonapi.dumps(json_obj)
 
     def deserialize(self, json_string):

@@ -1,0 +1,12 @@
+{
+  "volttrontesting/platform/test_core_agent.py::test_channel_send_data[volttron_instance0]": {
+    "before": 0,
+    "name": "volttrontesting/platform/test_core_agent.py::test_channel_send_data[volttron_instance0]",
+    "after": 1
+  },
+  "volttrontesting/platform/test_core_agent.py::test_channel_send_data[volttron_instance1]": {
+    "before": 1,
+    "name": "volttrontesting/platform/test_core_agent.py::test_channel_send_data[volttron_instance1]",
+    "after": 0
+  }
+}
