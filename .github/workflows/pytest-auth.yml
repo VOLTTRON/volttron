@@ -35,13 +35,13 @@ jobs:
 
     # Each step will be run in order of listing.
     steps:
+      # checkout the volttron repository and set current direectory to it
+      - uses: actions/checkout@v2
+
       # Install erlang for rabbitmq
       - name: Install erlang
         run: |
-            sudo scripts/rabbit_dependencies.sh debian ${{ matrix.os }}
-
-      # checkout the volttron repository and set current direectory to it
-      - uses: actions/checkout@v2
+          sudo scripts/rabbit_dependencies.sh debian ${{ matrix.os }}
 
       # setup the python environment for the operating system
       - name: Set up Python ${{matrix.os}} ${{ matrix.python-version }}
