@@ -92,7 +92,11 @@ function install_on_debian {
 
     echo "installing ERLANG"
     ${prefix} apt-get update
-    ${prefix} apt-get install -y apt-transport-https libwxbase3.0-0v5 libwxgtk3.0-0v5 libsctp1  build-essential python-dev openssl libssl-dev libevent-dev git
+    if [[ "$DIST" == "xenial" ]] || [[ "$DIST" == "bionic" ]]; then
+        ${prefix} apt-get install -y apt-transport-https libwxbase3.0-0v5 libwxgtk3.0-0v5 libsctp1  build-essential python-dev openssl libssl-dev libevent-dev git
+    else
+        ${prefix} apt-get install -y apt-transport-https libwxbase3.0-0v5 libwxgtk3.0-gtk3-0v5 libsctp1  build-essential python-dev openssl libssl-dev libevent-dev git
+    fi
     set +e
     ${prefix} apt-get purge -yf erlang*
     set -e
