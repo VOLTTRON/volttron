@@ -41,7 +41,6 @@ jobs:
       # Install erlang for rabbitmq
       - name: Install erlang
         run: |
-          sudo apt install libwxgtk3.0-gtk3-0v5
           sudo scripts/rabbit_dependencies.sh debian ${{ matrix.os }}
 
       # setup the python environment for the operating system
