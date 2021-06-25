@@ -35,6 +35,11 @@ jobs:
 
     # Each step will be run in order of listing.
     steps:
+      # Install erlang for rabbitmq
+      - name: Install erlang
+        run: |
+            sudo scripts/rabbit_dependencies.sh debian ${{ matrix.os }}
+
       # checkout the volttron repository and set current direectory to it
       - uses: actions/checkout@v2
 
@@ -57,7 +62,7 @@ jobs:
         if: steps.check_files.outputs.files_exists != 'true'
         run: |
           pip install wheel
-          python bootstrap.py --all  --force
+          python bootstrap.py --all --rabbitmq --force
 
       - name: Install volttron
         run: |
