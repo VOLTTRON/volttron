@@ -27,6 +27,11 @@ jobs:
       # checkout the volttron repository and set current direectory to it
       - uses: actions/checkout@v2
 
+      # Install erlang for rabbitmq
+      - name: Install erlang
+        run: |
+          sudo scripts/rabbit_dependencies.sh debian ${{ matrix.os }}
+
       # Attempt to restore the cache from the build-dependency-cache workflow if present then
       # the output value steps.check_files.outputs.files_exists will be set (see the next step for usage)
       - name: Set up Python ${{matrix.os}} ${{ matrix.python-version }}
@@ -46,7 +51,7 @@ jobs:
         if: steps.check_files.outputs.files_exists != 'true'
         run: |
           pip install wheel
-          python bootstrap.py --all  --force
+          python bootstrap.py --all --rabbitmq --force
             
       - name: Install volttron
         run: |
