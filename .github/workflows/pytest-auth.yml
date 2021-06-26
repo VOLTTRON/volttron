@@ -65,11 +65,11 @@ jobs:
           pip install wheel
           python bootstrap.py --all --rabbitmq --force
 
-      -name: Install dependencies other than rmq
+      - name: Install dependencies other than rmq
         if: steps.check_files.outputs.files_exists != 'true' && ${{matrix.os}} == "ubuntu-20.04"
-            run: |
-                pip install wheel
-                python bootstrap.py --all --force
+        run: |
+          pip install wheel
+          python bootstrap.py --all --force
 
       - name: Install volttron
         run: |
