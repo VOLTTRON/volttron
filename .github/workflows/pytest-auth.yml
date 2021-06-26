@@ -40,6 +40,7 @@ jobs:
 
       # Install erlang for rabbitmq
       - name: Install erlang
+        if: ${{matrix.os}} != "ubuntu-20.04"
         run: |
           sudo scripts/rabbit_dependencies.sh debian ${{ matrix.os }}
 
@@ -58,11 +59,17 @@ jobs:
           files: "env/bin/activate"
 
       # This step is only run if the cache wasn't able to be restored.
-      - name: Install dependencies
-        if: steps.check_files.outputs.files_exists != 'true'
+      - name: Install dependencies including rmq
+        if: steps.check_files.outputs.files_exists != 'true'  && ${{matrix.os}} != "ubuntu-20.04"
         run: |
           pip install wheel
           python bootstrap.py --all --rabbitmq --force
+
+      -name: Install dependencies other than rmq
+        if: steps.check_files.outputs.files_exists != 'true' && ${{matrix.os}} == "ubuntu-20.04"
+            run: |
+                pip install wheel
+                python bootstrap.py --all --force
 
       - name: Install volttron
         run: |
