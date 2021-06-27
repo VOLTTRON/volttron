@@ -970,7 +970,6 @@ def _create_signed_certificate(ca_cert, ca_key, name, valid_days=DEFAULT_DAYS, t
                         [x509.NameAttribute(
                             NameOID.COMMON_NAME,
                             hostname)]))
-                    new_attrs.append()
                 else:
                     new_attrs.append(RelativeDistinguishedName(
                         [x509.NameAttribute(NameOID.COMMON_NAME,
