@@ -958,16 +958,17 @@ def _create_signed_certificate(ca_cert, ca_key, name, valid_days=DEFAULT_DAYS, t
         for i in temp_list:
             if i.get_attributes_for_oid(NameOID.COMMON_NAME):
                 if type == 'server':
-                    # TODO: Also add SubjectAltName
                     if fqdn:
                         hostname = fqdn
                     else:
-                        hostname = getfqdn()
+                        hostname = getfqdn(gethostname())
+                        _log.info(f"SERVER HOSTNAME IS {hostname}")
                         fqdn = hostname
                     new_attrs.append(RelativeDistinguishedName(
                         [x509.NameAttribute(
                             NameOID.COMMON_NAME,
                             hostname)]))
+                    new_attrs.append()
                 else:
                     new_attrs.append(RelativeDistinguishedName(
                         [x509.NameAttribute(NameOID.COMMON_NAME,
