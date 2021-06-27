@@ -43,7 +43,7 @@ import os
 import six
 import time
 from shutil import copyfile
-from socket import gethostname, getfqdn
+from socket import gethostname, getfqdn, getaddrinfo, AI_CANONNAME
 import subprocess
 
 from cryptography import x509
@@ -963,6 +963,8 @@ def _create_signed_certificate(ca_cert, ca_key, name, valid_days=DEFAULT_DAYS, t
                     else:
                         hostname = getfqdn(gethostname())
                         _log.info(f"SERVER HOSTNAME IS {hostname}")
+                        _log.info(f"SERVER ADDRESS INFO {getaddrinfo(gethostname(), 0, flags=AI_CANONNAME)}")
+                        _log.info(f"SERVER ADDRESS INFO {getaddrinfo(gethostname(), 0, flags=AI_CANONNAME)[0][3]}")
                         fqdn = hostname
                     new_attrs.append(RelativeDistinguishedName(
                         [x509.NameAttribute(
