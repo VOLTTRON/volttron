@@ -27,6 +27,12 @@ jobs:
       # checkout the volttron repository and set current direectory to it
       - uses: actions/checkout@v2
 
+      # Install erlang for rabbitmq
+      - name: Install erlang
+        if: matrix.os != 'ubuntu-20.04'
+        run: |
+          sudo scripts/rabbit_dependencies.sh debian ${{ matrix.os }}
+
       # Attempt to restore the cache from the build-dependency-cache workflow if present then
       # the output value steps.check_files.outputs.files_exists will be set (see the next step for usage)
       - name: Set up Python ${{matrix.os}} ${{ matrix.python-version }}
@@ -41,12 +47,18 @@ jobs:
         with:
           files: "env/bin/activate"
 
-      # if cache wasn't restored then do an installation of the dependencies
-      - name: Install dependencies
-        if: steps.check_files.outputs.files_exists != 'true'
+      # This step is only run if the cache wasn't able to be restored.
+      - name: Install dependencies including rmq
+        if: steps.check_files.outputs.files_exists != 'true'  && matrix.os != 'ubuntu-20.04'
         run: |
           pip install wheel
-          python bootstrap.py --all  --force
+          python bootstrap.py --all --rabbitmq --force
+
+      - name: Install dependencies other than rmq
+        if: steps.check_files.outputs.files_exists != 'true' && matrix.os == 'ubuntu-20.04'
+        run: |
+          pip install wheel
+          python bootstrap.py --all --force
             
       - name: Install volttron
         run: |
