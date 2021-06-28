@@ -959,13 +959,13 @@ def _create_signed_certificate(ca_cert, ca_key, name, valid_days=DEFAULT_DAYS, t
             if i.get_attributes_for_oid(NameOID.COMMON_NAME):
                 if type == 'server':
                     if fqdn:
-                        hostname = fqdn
+                        hostname = gethostname()
                     else:
-                        hostname = getfqdn(gethostname())
+                        hostname = gethostname()
+                        fqdn = getfqdn(hostname)
                         _log.info(f"SERVER HOSTNAME IS {hostname}")
                         _log.info(f"SERVER ADDRESS INFO {getaddrinfo(gethostname(), 0, flags=AI_CANONNAME)}")
                         _log.info(f"SERVER ADDRESS INFO {getaddrinfo(gethostname(), 0, flags=AI_CANONNAME)[0][3]}")
-                        fqdn = hostname
                     new_attrs.append(RelativeDistinguishedName(
                         [x509.NameAttribute(
                             NameOID.COMMON_NAME,
@@ -1031,6 +1031,11 @@ def _create_signed_certificate(ca_cert, ca_key, name, valid_days=DEFAULT_DAYS, t
             x509.SubjectAlternativeName((DNSName(fqdn),)),
             critical=True
         )
+        if hostname and fqdn != hostname:
+            cert_builder = cert_builder.add_extension(
+                x509.SubjectAlternativeName((DNSName(hostname),)),
+                critical=True
+            )
     elif type == 'client':
         # specify that the certificate can be used as an SSL
         # client certificate to enable TLS Web Client Authentication
