@@ -1027,15 +1027,17 @@ def _create_signed_certificate(ca_cert, ca_key, name, valid_days=DEFAULT_DAYS, t
             x509.ExtendedKeyUsage((ExtendedKeyUsageOID.SERVER_AUTH,)),
             critical=False
         )
-        cert_builder = cert_builder.add_extension(
-            x509.SubjectAlternativeName((DNSName(fqdn),)),
-            critical=True
-        )
         if hostname and fqdn != hostname:
             cert_builder = cert_builder.add_extension(
-                x509.SubjectAlternativeName((DNSName(hostname),)),
+                x509.SubjectAlternativeName([DNSName(hostname), DNSName(fqdn)]),
                 critical=True
             )
+        else:
+            cert_builder = cert_builder.add_extension(
+                x509.SubjectAlternativeName([DNSName(fqdn)]),
+                critical=True
+        )
+
     elif type == 'client':
         # specify that the certificate can be used as an SSL
         # client certificate to enable TLS Web Client Authentication
