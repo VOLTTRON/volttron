@@ -963,9 +963,6 @@ def _create_signed_certificate(ca_cert, ca_key, name, valid_days=DEFAULT_DAYS, t
                     else:
                         hostname = gethostname()
                         fqdn = getfqdn(hostname)
-                        _log.info(f"SERVER HOSTNAME IS {hostname}")
-                        _log.info(f"SERVER ADDRESS INFO {getaddrinfo(gethostname(), 0, flags=AI_CANONNAME)}")
-                        _log.info(f"SERVER ADDRESS INFO {getaddrinfo(gethostname(), 0, flags=AI_CANONNAME)[0][3]}")
                     new_attrs.append(RelativeDistinguishedName(
                         [x509.NameAttribute(
                             NameOID.COMMON_NAME,
