@@ -552,7 +552,7 @@ class PlatformWebService(Agent):
                 status, response, headers = res
             else:
                 raise Exception("Couldn't process raw response {}".format(res))
-            start_response(status.encode('utf-8'), headers)
+            start_response(status, headers)
             return [base64.b64decode(response)]
         else:
             start_response("500 Programming Error",
