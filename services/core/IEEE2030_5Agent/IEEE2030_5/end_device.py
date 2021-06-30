@@ -376,6 +376,9 @@ class IEEE2030_5Renderer:
         :param data: XSD object to render. Empty string if data does not come in correctly.
         :return: Formatted XML string.
         """
+        _log.debug(f"render: type ({type(data)}, value: {data}")
+        exported = IEEE2030_5Renderer.export(data['result'], True)
+        _log.debug(f"exported: type ({type(exported)}) value: {exported}")
         if data is None:
             return ''
 

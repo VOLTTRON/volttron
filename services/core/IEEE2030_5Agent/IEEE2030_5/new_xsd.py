@@ -2,17 +2,17 @@
 # -*- coding: utf-8 -*-
 
 #
-# Generated Tue Jun 29 18:34:49 2021 by generateDS.py version 2.39.2.
+# Generated Tue Jun 29 18:10:49 2021 by generateDS.py version 2.39.2.
 # Python 3.8.5 (default, Sep  4 2020, 07:30:14)  [GCC 7.3.0]
 #
 # Command line options:
-#   ('-o', 'xsd_models.py')
+#   ('-o', '/home/callwardt/repos/volttron/services/core/IEEE2030_5Agent/new_xsd.py')
 #
 # Command line arguments:
 #   sep.xsd
 #
 # Command line:
-#   generateDS.py -o "xsd_models.py" sep.xsd
+#   ../generateDS-2.39.2/generateDS.py -o "/home/callwardt/repos/volttron/services/core/IEEE2030_5Agent/new_xsd.py" sep.xsd
 #
 # Current working directory (os.getcwd()):
 #   Model Build 20180301
@@ -44183,8 +44183,8 @@ def parseLiteral(inFileName, silence=False, print_warnings=True):
         doc = None
         rootNode = None
     if not silence:
-        sys.stdout.write('#from xsd_models import *\n\n')
-        sys.stdout.write('import xsd_models as model_\n\n')
+        sys.stdout.write('#from new_xsd import *\n\n')
+        sys.stdout.write('import new_xsd as model_\n\n')
         sys.stdout.write('rootObj = model_.rootClass(\n')
         rootObj.exportLiteral(sys.stdout, 0, name_=rootTag)
         sys.stdout.write(')\n')

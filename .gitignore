@@ -8,7 +8,8 @@ parser.out
 node_modules
 applications
 .cache
-.idea
+.idea/
+.vscode/
 /env/
 /Agents/*/{build,dist}/
 /Agents/*.egg
