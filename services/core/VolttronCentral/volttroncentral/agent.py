@@ -412,7 +412,7 @@ class VolttronCentralAgent(Agent):
                 resp = requests.post(auth_url, json=args, verify=False)
 
                 if resp.ok and resp.text:
-                    claims = self.vip.web.get_user_claims(resp.text)
+                    claims = self.vip.web.get_user_claims(jsonapi.loads(resp.text)["access_token"])
                     # Because the web-user.json has the groups under a key and the
                     # groups is just passed into the session we need to make sure
                     # we pass in the proper thing to the _add_sesion function.
