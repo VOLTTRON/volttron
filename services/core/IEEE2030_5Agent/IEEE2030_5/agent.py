@@ -280,9 +280,15 @@ class IEEE2030_5Agent(Agent):
 
         :return: Tuple of (Status Code, Response Data, Headers)
         """
-        return (IEEE2030_5.STATUS_CODES[200],
-                base64.b64encode(IEEE2030_5Renderer.render(render_dict)).decode('ascii'),
+        retval = (IEEE2030_5.STATUS_CODES[200],
+                base64.b64encode(IEEE2030_5Renderer.render(render_dict).encode('utf-8')).decode('ascii'),
                 IEEE2030_5.XML_HEADERS)
+
+        _log.debug(f"Ret value; {retval}")
+        return retval 
+        # (IEEE2030_5.STATUS_CODES[200],
+        #         base64.b64encode(IEEE2030_5Renderer.render(render_dict).encode('utf-8')).decode('ascii'),
+        #         IEEE2030_5.XML_HEADERS)
 
     @RPC.export
     def get_point(self, sfdi, point_name):
