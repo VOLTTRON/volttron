@@ -40,10 +40,7 @@ import cmd
 import yaml
 import os
 
-try:
-    import subprocess32
-except ImportError:
-    raise ImportError("Required imports for config_cmd.py are not installed. Install imports with: pip install subprocess32==3.5.4")
+import subprocess
 
 from helpers import str2bool
 from volttron.platform import jsonapi
@@ -89,10 +86,10 @@ class ConfigCmd (cmd.Cmd):
             Run shell command
         """
         try:
-            return_value = subprocess32.check_output(shell_command, shell=True, stderr=subprocess32.PIPE, timeout=5)
-        except subprocess32.TimeoutExpired:
+            return_value = subprocess.check_output(shell_command, shell=True, stderr=subprocess.PIPE, timeout=5)
+        except subprocess.TimeoutExpired:
             return_value = "Timeout Error: Volttron is not running"
-        except subprocess32.CalledProcessError:
+        except subprocess.CalledProcessError:
             return_value = "File does not exist in Volttron"
         return return_value
 
