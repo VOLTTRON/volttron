@@ -145,18 +145,21 @@ class DeviceTree(TopicTree):
     #  rather than the service (though it is reached through the service, oddly...
     @classmethod
     def from_store(cls, platform, rpc_caller):
-        devices = rpc_caller(CONFIGURATION_STORE, 'manage_list_configs', 'platform.driver', on_platform=platform)
+        # TODO: This is a little hackish. Perhaps VUIEndpoints._rpc should use "external_platform" instead of
+        #  "on_platform"?
+        kwargs = {'on_platform': platform} if 'VUIEndpoints' in rpc_caller.__repr__() else {}
+        devices = rpc_caller(CONFIGURATION_STORE, 'manage_list_configs', 'platform.driver', **kwargs)
+        devices = devices if kwargs else devices.get(timeout=5)
         devices = [d for d in devices if re.match('^devices/.*', d)]
         device_tree = cls(devices)
         for d in devices:
-            # TODO: This is a little hackish. Perhaps VUIEndpoints._rpc should use "external_platform" instead of
-            #  "on_platform"?
-            kwargs = {'on_platform': platform if 'VUIEndpoints' in rpc_caller.__repr__() else {}}
             dev_config = rpc_caller(CONFIGURATION_STORE, 'manage_get', 'platform.driver', d, raw=False, **kwargs)
+            dev_config = dev_config if kwargs else dev_config.get(timeout=5)
             reg_cfg_name = dev_config.pop('registry_config')[len('config://'):]
             device_tree.update_node(d, data=dev_config, segment_type='DEVICE')
             registry_config = rpc_caller('config.store', 'manage_get', 'platform.driver',
-                                         f'{reg_cfg_name}', raw=False, on_platform=platform)
+                                         f'{reg_cfg_name}', raw=False, **kwargs)
+            registry_config = registry_config if kwargs else registry_config.get(timeout=5)
             for pnt in registry_config:
                 point_name = pnt.pop('Volttron Point Name')
                 n = device_tree.create_node(point_name, f"{d}/{point_name}", parent=d, data=pnt)
