@@ -13,6 +13,7 @@ from volttron.platform.vip.agent.subsystems.query import Query
 from volttron.platform.jsonrpc import MethodNotFound
 
 from volttron.platform.web.topic_tree import DeviceTree, TopicTree
+from volttron.platform.web.vui_pubsub import VUIPubsubManager
 
 
 import logging
@@ -113,6 +114,8 @@ class VUIEndpoints(object):
                 }
             }
         }
+        if self.active_routes['vui']['platform']['pubsub']:
+            self.pubsub_manager = VUIPubsubManager()
 
     def get_routes(self):
         """
@@ -137,8 +140,8 @@ class VUIEndpoints(object):
             (re.compile('^/vui/platforms/[^/]+/historians/[^/]+/?$'), 'callable', self.handle_platforms_historians_historian),
             (re.compile('^/vui/platforms/[^/]+/historians/[^/]+/topics/?$'), 'callable', self.handle_platforms_historians_historian_topics),
             (re.compile('^/vui/platforms/[^/]+/historians/[^/]+/topics/.*/?$'), 'callable', self.handle_platforms_historians_historian_topics),
-            # (re.compile('^/vui/platforms/[^/]+/pubsub(/.*/)?$'), 'callable', self.handle_platforms_pubsub),
-            # (re.compile('^/vui/platforms/[^/]+/pubsub(/.*/)?$'), 'callable', self.handle_platforms_pubsub_topic),
+            (re.compile('^/vui/platforms/[^/]+/pubsub/?$'), 'callable', self.handle_platforms_pubsub),
+            (re.compile('^/vui/platforms/[^/]+/pubsub/.*/?$'), 'callable', self.handle_platforms_pubsub),
             # (re.compile('^/vui/devices/?$'), 'callable', self.handle_vui_devices),
             # (re.compile('^/vui/devices/.+/?$'), 'callable', self.handle_vui_devices_topic),
             # (re.compile('^/vui/devices/hierarchy/?$'), 'callable', self.handle_vui_devices_hierarchy),
@@ -512,7 +515,53 @@ class VUIEndpoints(object):
 
         else:
             return Response(f'Endpoint {request_method} {path_info} is not implemented.',
-                            status='501 Not Implemented', content_type='text/plain')
+                            status=501, content_type='text/plain')
+
+    def handle_platforms_pubsub(self, env, data):
+        path_info = env.get('PATH_INFO')
+        request_method = env.get("REQUEST_METHOD")
+        query_params = url_decode(env['QUERY_STRING'])
+        access_token = get_bearer(env)
+
+        no_topic = re.match('^/vui/platforms/([^/]+)/pubsub/?$', path_info)
+        if no_topic:
+            platform, topic = no_topic.groups()[0], ''
+        else:
+            platform, topic = re.match('^/vui/platforms/([^/]+)/pubsub/(.*)/?$', path_info).groups()
+            topic = topic[:-1] if topic[-1] == '/' else topic
+
+        # GET -- For ../pubsub and /pubsub/:topic, Get routes to open web sockets for this user.
+        if request_method == 'GET':
+            ret_dict = self.pubsub_manager.get_socket_routes(access_token, topic)
+            return Response(json.dumps(ret_dict), 200, content_type='application/json')
+
+        elif request_method == 'POST':
+            # POST -- For ../pubsub? and ../pubsub/:topic, Subscribe to a topic or open a publication socket.
+            for_publish = query_params.get('publication', False)
+            # TODO: Should subscription or opening a publication websocket be disallowed without specifying a topic?
+            if for_publish:
+                socket_route = self.pubsub_manager.open_publication_socket(access_token, topic)
+            else:
+                socket_route = self.pubsub_manager.open_subscription_socket(access_token, topic)
+            ret_dict = {}  # TODO: Compose response body.
+            response = Response(json.dumps(ret_dict), 201, content_type='application/json')
+            response.location = socket_route  # TODO: Test that this correctly sets the Location header.
+            return response
+
+        elif request_method == 'DELETE':
+            # DELETE -- For ../pubsub and /pubsub/:topic, Close open web sockets and subscriptions for this user.
+            self.pubsub_manager.close_socket(access_token, topic)
+            # TODO: How to handle case of both subscription and publication sockets for same topic?
+            return Response(status=204)
+
+        elif request_method == 'PUT':
+            # PUT -- for ../pubsub/:topic: One-time publish to a topic.
+            ret_dict = self.pubsub_manager.publish(access_token, topic)
+            return Response(json.dumps(ret_dict), 200, content_type='application/json')
+
+        else:
+            return Response(f'Endpoint {request_method} {path_info} is not implemented.',
+                            status=501, content_type='text/plain')
 
     def handle_platforms_historians(self, env: dict, data: dict) -> Response:
         _log.debug("VUI: in handle_platforms_historians")
@@ -658,7 +707,6 @@ class VUIEndpoints(object):
                             status='501 Not Implemented', content_type='text/plain')
 
     def _find_active_sub_routes(self, segments: list, path_info: str = None, enclose=True) -> dict or list:
-
         """
         Returns active routes with constant segments at the end of the route.
                 If no path_info is provided, return only a list of the keys.
