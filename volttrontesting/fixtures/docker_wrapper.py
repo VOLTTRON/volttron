@@ -1,4 +1,5 @@
 import os
+import subprocess
 
 try:
     import docker
@@ -60,7 +61,12 @@ if HAS_DOCKER:
             if ":" not in full_docker_image:
                 # So all tags aren't pulled. According to docs https://docker-py.readthedocs.io/en/stable/images.html.
                 full_docker_image = full_docker_image + ":latest"
-            client.images.pull(full_docker_image)
+
+            # only pull image if image has not yet been pulled so we don't exceed pull rate limits for free Dockerhub accounts: https://www.docker.com/increase-rate-limits
+            res = subprocess.run(["docker", "image", "inspect", f"{full_docker_image}"], stdout=subprocess.DEVNULL)
+            if res.returncode != 0:
+                client.images.pull(full_docker_image)
+
             if network_name:
                 container = client.containers.run(image_name, ports=ports, environment=env, auto_remove=True,
                                                   detach=True, network=network_name, hostname=hostname)
