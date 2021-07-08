@@ -88,7 +88,7 @@ The easiest way to install the requirements for drivers included in the VOLTTRON
 Platform Driver Configuration
 =============================
 
-The Platform Driver Agent configuration consists of general settings for all devices. The default values of the Master
+The Platform Driver Agent configuration consists of general settings for all devices. The default values of the Platform
 Driver should be sufficient for most users.  The user may optionally change the interval between device scrapes with the
 driver_scrape_interval.
 
@@ -152,13 +152,13 @@ The following settings are required for all device configurations:
     - **driver_config** - Driver specific setting go here. See below for driver specific settings.
     - **driver_type** - Type of driver to use for this device: bacnet, modbus, fake, etc.
     - **registry_config** - Reference to a configuration file in the configuration store for registers
-      on the device. See the `Registry-Configuration-File`_ section below or
-      and the :ref:`Adding Device Configurations to the Configuration Store <Adding-Devices-To-Config-Store>` section in
+      on the device. See the `Registry-Configuration-File`_ section below and/or
+      the :ref:`Adding Device Configurations to the Configuration Store <Adding-Devices-To-Config-Store>` section in
       the driver framework docs.
 
 These settings are optional:
 
-    - **interval** - Period which to scrape the device and publish the results in seconds. Defaults to 60 seconds.
+    - **interval** - Period to scrape the device and publish the results in seconds. Defaults to 60 seconds.
     - **heart_beat_point** - A Point which to toggle to indicate a heartbeat to the device. A point with this ``Volttron
       Point Name`` must exist in the registry.  If this setting is missing the driver will not send a heart beat signal
       to the device.  Heart beats are triggered by the :ref:`Actuator Agent <Actuator-Agent>` which must be running to
@@ -167,7 +167,7 @@ These settings are optional:
 
 These settings are used to create the topic that this device will be referenced by following the VOLTTRON convention of
 ``{campus}/{building}/{unit}``.  This will also be the topic published on, when the device is periodically scraped for
-it's current state.
+its current state.
 
 The topic used to reference the device is derived from the name of the device configuration in the store. See the
 :ref:`Adding Device Configurations to the Configuration Store <Adding-Devices-To-Config-Store>` section of the driver
@@ -239,7 +239,7 @@ is accessible with the Actuator Agent via `PNNL/ISB1/vav1`.
 The name of a registry configuration must match the name used to refer to it in the driver configuration.  The reference
 is not case sensitive.
 
-If the Platform Driver Agent is running any changes to the configuration store will immediately affect the running devices
+If the Platform Driver Agent is running, any changes to the configuration store will immediately affect the running devices
 according to the changes.
 
 Example
@@ -279,7 +279,7 @@ Converting Old Style Configuration
 The new Platform Driver no longer supports the old style of device configuration.  The old `device_list` setting is
 ignored.
 
-To simplify updating to the new format `scripts/update_platform_driver_config.py` is provide to automatically update to
+To simplify updating to the new format, `scripts/update_platform_driver_config.py` is provided to automatically update to
 the new configuration format.
 
 With the platform running run:
@@ -288,12 +288,12 @@ With the platform running run:
 
     python scripts/update_platform_driver_config.py <old configuration> <output>
 
-old_configuration`` is the main configuration file in the old format. The script automatically modifies the driver
+`old_configuration` is the main configuration file in the old format. The script automatically modifies the driver
 files to create references to CSV files and adds the CSV files with the appropriate name.
 
 `output` is the target output directory.
 
-If the ``--keep-old`` switch is used the old configurations in the output directory (if any) will not be deleted before
+If the ``--keep-old`` switch is used, the old configurations in the output directory (if any) will not be deleted before
 new configurations are created.  Matching names will still be overwritten.
 
 The output from `scripts/update_platform_driver_config.py` can be automatically added to the configuration store
@@ -307,7 +307,7 @@ the process of changing and updating a large number of configurations. See the `
 Device Scalability Settings
 ---------------------------
 
-In order to improve the scalability of the platform unneeded device state publishes for a device can be turned off.
+To improve the scalability of the platform, unneeded device state publishes for a device can be turned off.
 All of the following setting are optional and will override the value set in the main platform driver configuration.
 
     - **publish_depth_first_all** - Enable "depth first" publish of all points to a single topic.
@@ -339,8 +339,8 @@ Polling
 
 Once running, the Platform Driver will spawn drivers using the `driver_type` parameter of the
 :ref:`driver configuration <Driver-Configuration-File>` and periodically poll devices for all point data specified in
-the :ref:`registry configuration <Registry-Configuration-File>` (at the interval specified by the interval parameter
-of the driver configuration).
+the :ref:`registry configuration <Registry-Configuration-File>` at the interval specified by the interval parameter
+of the driver configuration.
 
 By default, the value of each register on a device is published 4 different ways when the device state is published.
 Consider the following settings in a driver configuration stored under the name ``devices/pnnl/isb1/vav1``:
@@ -355,14 +355,14 @@ Consider the following settings in a driver configuration stored under the name 
         "registry_config":"config://registry_configs/vav.csv",
     }
 
-In the `vav.csv` file is a register with the name `temperature`.  For these examples the current value of the
+In the `vav.csv` file, a register has the name `temperature`.  For these examples the current value of the
 register on the device happens to be 75.2 and the meta data is
 
 .. code-block:: json
 
     {"units": "F"}
 
-When the driver publishes the device state the following 2 things will be published for this register:
+When the driver publishes the device state the following two things will be published for this register:
 
     A "depth first" publish to the topic `devices/pnnl/isb1/vav1/temperature` with the following message:
 

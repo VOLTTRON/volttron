@@ -72,7 +72,7 @@ def schedule_example(config_path, **kwargs):
 
     class SchedulerExample(Agent):
         '''This agent can be used to demonstrate scheduling and 
-        acutation of devices. It reserves a non-existant device, then
+        acutation of devices. It reserves a non-existent device, then
         acts when its time comes up. Since there is no device, this 
         will cause an error.
         '''
@@ -126,18 +126,16 @@ def schedule_example(config_path, **kwargs):
     
     
             msg = [
-                   ['campus/building/unit',start,end]
-                   #Could add more devices
-    #                 ["campus/building/device1", #First time slot.
-    #                  "2014-1-31 12:27:00",     #Start of time slot.
-    #                  "2016-1-31 12:29:00"],     #End of time slot.
-    #                 ["campus/building/device2", #Second time slot.
-    #                  "2014-1-31 12:26:00",     #Start of time slot.
-    #                  "2016-1-31 12:30:00"],     #End of time slot.
-    #                 ["campus/building/device3", #Third time slot.
-    #                  "2014-1-31 12:30:00",     #Start of time slot.
-    #                  "2016-1-31 12:32:00"],     #End of time slot.
-                    #etc...
+                   ['campus/building/unit', start, end],
+                    ["campus/building/device1", #First time slot.
+                     "2014-1-31 12:27:00",     #Start of time slot.
+                     "2016-1-31 12:29:00"],     #End of time slot.
+                    ["campus/building/device2", #Second time slot.
+                     "2014-1-31 12:26:00",     #Start of time slot.
+                     "2016-1-31 12:30:00"],     #End of time slot.
+                    ["campus/building/device3", #Third time slot.
+                     "2014-1-31 12:30:00",     #Start of time slot.
+                     "2016-1-31 12:32:00"],     #End of time slot.
                 ]
             self.vip.pubsub.publish(
             'pubsub', topics.ACTUATOR_SCHEDULE_REQUEST, headers, msg)
@@ -160,7 +158,7 @@ def schedule_example(config_path, **kwargs):
                                            msg).get(timeout=10)
                 print("schedule result", result)
             except Exception as e:
-                print ("Could not contact actuator. Is it running?")
+                print("Could not contact actuator. Is it running?")
                 print(e)
                 return
             
@@ -173,13 +171,22 @@ def schedule_example(config_path, **kwargs):
                                            'campus/building/unit3/some_point',
                                            '0.0').get(timeout=10)
                     print("Set result", result)
+
+                    topic_values = []
+                    for x in msg:
+                        topic = x[0]
+                        value = '0.0'
+                        topic_values.append((topic, value))
+                    result = self.vip.rpc.call(
+                                            'platform.actuator',
+                                            'set_multiple_points',
+                                            self.core.identity,
+                                            topic_values).get(timeout=10)
+                    print("Set_multiple_points result", result)
             except Exception as e:
-                print ("Expected to fail since there is no real device to set")
+                print("Expected to fail since there is no real device to set")
                 print(e)    
-                
-                
-            
-            
+
     Agent.__name__ = 'ScheduleExampleAgent'
     return SchedulerExample(**kwargs)
             
