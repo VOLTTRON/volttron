@@ -817,8 +817,29 @@ class RabbitMQMgmt(object):
         :param vhost: virtual host
         :return:
         """
-        self.delete_parameter(component, parameter_name, vhost,
+        shovel_names_for_host = []
+        try:
+            self.delete_parameter(component, parameter_name, vhost,
                               ssl_auth=self.rmq_config.is_ssl)
+            if component == 'shovel':
+                _, host, _ = parameter_name.split('-')
+                shovel_links = self.get_shovel_links()
+                shovel_names = [link['name'] for link in shovel_links]
+                for name in shovel_names:
+                    _, h, _ = name.split('-')
+                    if host == h:
+                        shovel_names_for_host.append(name)
+
+                # Check if there are other shovel connections to remote platform. If yes, we
+                # cannot delete the certs since others will need them
+                if delete_certs and len(shovel_names_for_host) > 1:
+                    print(f"Cannot delete certificates since there are other shovels connected to remote host: {host}"
+                          f" will need it for connection")
+                    return
+        except AttributeError as ex:
+            _log.error(f"Unable to reach RabbitMQ management API. Check if RabbitMQ server is running. "
+                       f"If not running, start the server using start-rabbitmq script in root of source directory.")
+            return
 
         import os
         vhome = get_home()
@@ -840,9 +861,10 @@ class RabbitMQMgmt(object):
             del config[key][names[1]]['certificates']
             write_to_config_file(config_file, config)
         except (KeyError, IndexError) as e:
-            print(f"Missing key:{e}")
+            print(f"Error: Missing key in {config_file}:{e}")
             pass
 
+        # Delete certs from VOLTTRON_HOME
         if delete_certs and certs_config:
             try:
                 private_key = certs_config['private_key']
@@ -861,9 +883,8 @@ class RabbitMQMgmt(object):
                 if os.path.exists(remote_ca):
                     os.remove(remote_ca)
             except KeyError as e:
-                print("Missing Key: {e}")
+                print(f"Error: Missing key in {config_file}: {e}")
                 pass
-
 
     def build_connection_param(self, rmq_user, ssl_auth=None, retry_attempt=30, retry_delay=2):
         """

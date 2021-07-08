@@ -2376,7 +2376,7 @@ def remove_queues(opts):
 def remove_fed_parameters(opts):
     try:
         for param in opts.parameters:
-            delete_certs = _ask_yes_no('Do you wish to delete certificates as well?')
+            delete_certs = _ask_yes_no(f'Do you wish to delete certificates as well for {param}?')
             rmq_mgmt.delete_multiplatform_parameter('federation-upstream', param, delete_certs=delete_certs)
     except requests.exceptions.HTTPError as e:
         _stdout.write("No Federation Parameters Found {} \n".format(opts.parameters))
