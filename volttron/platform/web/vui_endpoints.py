@@ -10,15 +10,23 @@ from werkzeug import Response
 from werkzeug.urls import url_decode
 from volttron.platform.vip.agent.subsystems.query import Query
 from volttron.platform.jsonrpc import MethodNotFound
-from services.core.PlatformDriverAgent.platform_driver.agent import OverrideError
-# TODO: How to get this without modifiying the actuator.py import of ScheduleManager from scheduler?
-from services.core.ActuatorAgent.actuator.agent import LockError
 
 from volttron.platform.web.topic_tree import DeviceTree
 
 
 import logging
 _log = logging.getLogger(__name__)
+
+
+class OverrideError(Exception):
+    """Error raised by driver when the user tries to set/revert point when global override is set."""
+    pass
+
+
+class LockError(Exception):
+    """Error raised by actuator when the user does not have a device scheduled
+    and tries to use methods that require exclusive access."""
+    pass
 
 
 class VUIEndpoints(object):
