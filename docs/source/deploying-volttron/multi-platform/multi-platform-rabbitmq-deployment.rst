@@ -4,7 +4,8 @@
 Multi-platform RabbitMQ Deployment
 ==================================
 
-With ZeroMQ based VOLTTRON, multi-platform communication was accomplished in three different ways:
+With ZeroMQ based VOLTTRON, multi-platform communication was accomplished in three different ways described below.
+Similar behavior can be accomplished with RabbitMQ-VOLTTRON as well.
 
 #. Direct connection to remote instance - Write an agent that would connect to a remote instance directly.
 
@@ -17,7 +18,6 @@ With ZeroMQ based VOLTTRON, multi-platform communication was accomplished in thr
    and take care of the message routing for us.  In RabbitMQ-VOLTTRON, we make use of the
    :ref:`Federation Plugin <RabbitMQ-Federation>` to achieve this behavior.
 
-
 Terminology
 -----------
 
@@ -25,6 +25,22 @@ For all the three different ways of setting up multiplatform links, we first nee
 The upstream server is the node that is publishing some message of interest; we shall refer to this node as the publisher node.
 The downstream server is the node that will receive messages from the upstream server; we shall refer to this node as the subscriber node.
 Note that upstream server & publisher node and downstream server & subscriber node will be used interchangeably for the rest of this guide.
+
+Multi-Platform Communication With RabbitMQ SSL
+=========================================================
+RabbitMQ-VOLTTRON uses SSL based authentication for connection to the platform. This feature is extended to connection
+between multiple VOLTTRON platforms. The below figure shows the
+
+.. image:: files/multiplatform_ssl.png
+
+Suppose there are two virtual machines (VOLTTRON1 and VOLTTRON2) running single instances of RabbitMQ; VOLTTRON1 and VOLTTRON2
+want to talk to each other via the federation or shovel plugins. For shovel/federation to have authenticated connection to the
+remote instance, it needs to have it's public certificate signed by the remote instance's CA. So as part of the shovel
+or federation creation steps, a certificate signing request is made to the remote instance. The admin of the remote instance
+should be ready to accept/reject such a request through VOLTTRON's admin web interface. To facilitate this process, the
+VOLTTRON platform exposes a web-based server API for requesting, listing, approving, and denying certificate requests. For
+more detailed description, refer to :ref:`Agent communication to Remote RabbitMQ instance <Agent-Communication-to-Remote-RabbitMQ>`.
+After the CSR request is accepted, an authenticated shovel/federation connection can be established.
 
 
 Using the Federation Plugin
@@ -132,22 +148,6 @@ VOLTTRON instance "volttron2" on host "host_B".  First, a federation link needs 
 
 .. _RabbitMQ-Multi-platform-SSL:
 
-Multi-Platform Federation Communication With RabbitMQ SSL
-=========================================================
-
-For multi-platform communication over federation, we need the connecting instances to trust each other.
-
-.. image:: files/multiplatform_ssl.png
-
-Suppose there are two virtual machines (VOLTTRON1 and VOLTTRON2) running single instances of RabbitMQ; VOLTTRON1 and VOLTTRON2
-want to talk to each other via the federation or shovel plugins. For shovel/federation to have authenticated connection to the
-remote instance, it needs to have it's public certificate signed by the remote instance's CA. So as part of the shovel
-or federation creation steps, a certificate signing request is made to the remote instance. The admin of the remote instance
-should be ready to accept/reject such a request through VOLTTRON's admin web interface. To facilitate this process, the
-VOLTTRON platform exposes a web-based server API for requesting, listing, approving, and denying certificate requests. For
-more detailed description, refer to :ref:`Agent communication to Remote RabbitMQ instance <Agent-Communication-to-Remote-RabbitMQ>`.
-After the CSR request is accepted, an authenticated shovel/federation connection can be established.
-
 
 Installation Steps
 ------------------
@@ -219,18 +219,6 @@ upstream servers on the downstream server and make the VOLTTRON exchange
             USER_ID                                 ADDRESS        STATUS
             volttron2.volttron1.federation          172.20.0.2     APPROVED
 
-
-    c.  Create a user in the upstream server (publisher) and provide it access to the virtual host of the upstream RabbitMQ server.
-        The username should take the form of <instance name of local><instance name of downstream>.federation.
-        For example, if the downstream server name is "volttron1", and instance of local instance is "volttron2" then the instance name would be "volttron2.volttron1.federation".
-        Run the below command in the upstream server
-
-        .. code-block:: bash
-
-             vctl rabbitmq add-user <username> <password>
-             Do you want to set READ permission  [Y/n]
-             Do you want to set WRITE permission  [Y/n]
-             Do you want to set CONFIGURE permission  [Y/n]
 
 5.  Test the federation setup.
 
