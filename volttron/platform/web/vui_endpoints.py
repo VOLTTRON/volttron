@@ -9,6 +9,7 @@ from typing import List
 from volttron.platform.agent.known_identities import CONFIGURATION_STORE
 from werkzeug import Response
 from werkzeug.urls import url_decode
+from volttron.platform.web import get_bearer, NotAuthorized
 from volttron.platform.vip.agent.subsystems.query import Query
 from volttron.platform.jsonrpc import MethodNotFound
 
@@ -114,8 +115,8 @@ class VUIEndpoints(object):
                 }
             }
         }
-        if self.active_routes['vui']['platform']['pubsub']:
-            self.pubsub_manager = VUIPubsubManager()
+        if self.active_routes['vui']['platforms']['pubsub']:
+            self.pubsub_manager = VUIPubsubManager(self._agent)
 
     def get_routes(self):
         """
@@ -517,10 +518,14 @@ class VUIEndpoints(object):
             return Response(f'Endpoint {request_method} {path_info} is not implemented.',
                             status=501, content_type='text/plain')
 
-    def handle_platforms_pubsub(self, env, data):
+    def handle_platforms_pubsub(self, env: dict, start_response, data: dict):
+        from volttron.platform.web import get_bearer
         path_info = env.get('PATH_INFO')
         request_method = env.get("REQUEST_METHOD")
         query_params = url_decode(env['QUERY_STRING'])
+        _log.debug('VUI.handle_platforms_pubsub -- env is: ')
+        _log.debug({k: str(v) for k, v in env.items()})
+        _log.debug(f'HTTP_AUTHORIZATION is: {env["HTTP_AUTHORIZATION"]}')
         access_token = get_bearer(env)
 
         no_topic = re.match('^/vui/platforms/([^/]+)/pubsub/?$', path_info)
@@ -532,32 +537,38 @@ class VUIEndpoints(object):
 
         # GET -- For ../pubsub and /pubsub/:topic, Get routes to open web sockets for this user.
         if request_method == 'GET':
-            ret_dict = self.pubsub_manager.get_socket_routes(access_token, topic)
-            return Response(json.dumps(ret_dict), 200, content_type='application/json')
-
-        elif request_method == 'POST':
-            # POST -- For ../pubsub? and ../pubsub/:topic, Subscribe to a topic or open a publication socket.
-            for_publish = query_params.get('publication', False)
-            # TODO: Should subscription or opening a publication websocket be disallowed without specifying a topic?
-            if for_publish:
-                socket_route = self.pubsub_manager.open_publication_socket(access_token, topic)
+            if not topic:
+                ret_dict = self.pubsub_manager.get_socket_routes(access_token, topic)
+                response = Response(json.dumps(ret_dict), 200, content_type='application/json')
+                return response
             else:
-                socket_route = self.pubsub_manager.open_subscription_socket(access_token, topic)
-            ret_dict = {}  # TODO: Compose response body.
-            response = Response(json.dumps(ret_dict), 201, content_type='application/json')
-            response.location = socket_route  # TODO: Test that this correctly sets the Location header.
-            return response
+                ws = self.pubsub_manager.open_subscription_socket(access_token, topic)
+                env['ws4py.app'] = self.pubsub_manager
+                return [ws(env, start_response)]
 
-        elif request_method == 'DELETE':
-            # DELETE -- For ../pubsub and /pubsub/:topic, Close open web sockets and subscriptions for this user.
-            self.pubsub_manager.close_socket(access_token, topic)
-            # TODO: How to handle case of both subscription and publication sockets for same topic?
-            return Response(status=204)
+        # elif request_method == 'POST':
+        #     # POST -- For ../pubsub? and ../pubsub/:topic, Subscribe to a topic or open a publication socket.
+        #     for_publish = query_params.get('publication', False)
+        #     # TODO: Should subscription or opening a publication websocket be disallowed without specifying a topic?
+        #     if for_publish:
+        #         socket_route = self.pubsub_manager.open_publication_socket(access_token, topic)
+        #     else:
+        #         socket_route = self.pubsub_manager.open_subscription_socket(access_token, topic)
+        #     ret_dict = {}  # TODO: Compose response body.
+        #     response = Response(json.dumps(ret_dict), 201, content_type='application/json')
+        #     response.location = socket_route  # TODO: Test that this correctly sets the Location header.
+        #     return response
 
-        elif request_method == 'PUT':
-            # PUT -- for ../pubsub/:topic: One-time publish to a topic.
-            ret_dict = self.pubsub_manager.publish(access_token, topic)
-            return Response(json.dumps(ret_dict), 200, content_type='application/json')
+        # elif request_method == 'DELETE':
+        #     # DELETE -- For ../pubsub and /pubsub/:topic, Close open web sockets and subscriptions for this user.
+        #     self.pubsub_manager.close_socket(access_token, topic)
+        #     # TODO: How to handle case of both subscription and publication sockets for same topic?
+        #     return Response(status=204)
+        #
+        # elif request_method == 'PUT':
+        #     # PUT -- for ../pubsub/:topic: One-time publish to a topic.
+        #     ret_dict = self.pubsub_manager.publish(access_token, topic)
+        #     return Response(json.dumps(ret_dict), 200, content_type='application/json')
 
         else:
             return Response(f'Endpoint {request_method} {path_info} is not implemented.',

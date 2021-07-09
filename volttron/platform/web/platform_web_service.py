@@ -48,6 +48,7 @@ from collections import defaultdict
 
 import gevent
 import gevent.pywsgi
+import werkzeug
 import jwt
 from cryptography.hazmat.primitives import serialization
 from gevent import Greenlet
@@ -474,7 +475,7 @@ class PlatformWebService(Agent):
         # if ws4pi.socket is set then this connection is a web socket
         # and so we return the websocket response.
 
-        if 'ws4py.socket' in env:
+        if 'ws4py.socket' in env and 'vui' not in path_info:
             return env['ws4py.socket'](env, start_response)
 
         for k, t, v in self.registeredroutes:
@@ -495,7 +496,7 @@ class PlatformWebService(Agent):
                         return response(env, start_response)
                         # retvalue = self.process_response(start_response, v(env, data))
 
-                    if isinstance(retvalue, Response):
+                    if isinstance(retvalue, werkzeug.Response):
                         return retvalue(env, start_response)
                     else:
                         return retvalue[0]
