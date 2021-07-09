@@ -18,6 +18,7 @@ Similar behavior can be accomplished with RabbitMQ-VOLTTRON as well.
    and take care of the message routing for us.  In RabbitMQ-VOLTTRON, we make use of the
    :ref:`Federation Plugin <RabbitMQ-Federation>` to achieve this behavior.
 
+
 Terminology
 -----------
 
@@ -27,9 +28,10 @@ The downstream server is the node that will receive messages from the upstream s
 Note that upstream server & publisher node and downstream server & subscriber node will be used interchangeably for the rest of this guide.
 
 Multi-Platform Communication With RabbitMQ SSL
-=========================================================
+----------------------------------------------
 RabbitMQ-VOLTTRON uses SSL based authentication for connection to the platform. This feature is extended to connection
-between multiple VOLTTRON platforms. The below figure shows the
+between multiple VOLTTRON platforms. The below figure shows the 2 remote VOLTTRON platforms can establish authentication
+connection to the other.
 
 .. image:: files/multiplatform_ssl.png
 
@@ -45,6 +47,10 @@ After the CSR request is accepted, an authenticated shovel/federation connection
 
 Using the Federation Plugin
 ---------------------------
+
+.. note::
+    Please make sure that a single instance of RabbitMQ VOLTTRON is setup before attempting to create a federation link
+    :ref:`platform installation steps for RMQ <RabbitMQ-Install>`
 
 Connecting multiple VOLTTRON instances can be done using the federation plugin. To create a RabbitMQ federation, we have to
 configure the downstream volttron instance to create federated exchange. A federated exchange links to other exchanges.
@@ -92,7 +98,7 @@ Multi-Platform RPC With Federation
 ----------------------------------
 
 For multi-platform RPC communication, federation links need to be established on both the VOLTTRON
-nodes.  Once the federation links are established, RPC communication becomes fairly simple.
+nodes. Once the federation links are established, RPC communication becomes fairly simple.
 
 .. image:: files/multiplatform_rpc.png
 
@@ -291,6 +297,10 @@ upstream servers on the downstream server and make the VOLTTRON exchange
 
 Using the Shovel Plugin
 -----------------------
+
+.. note::
+    Please make sure that a single instance of RabbitMQ VOLTTRON is setup before attempting to create a shovel link
+    :ref:`platform installation steps for RMQ <RabbitMQ-Install>`.
 
 Shovels act as well-written client applications which move messages from a source to a destination broker.
 The below configuration shows how to setup a shovel to forward PubSub messages or perform multi-platform RPC
