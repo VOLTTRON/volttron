@@ -1,10 +1,8 @@
-import contextlib
 import datetime
 import itertools
 import os
 import logging
 
-import gevent
 
 logging.getLogger("urllib3.connectionpool").setLevel(logging.INFO)
 
@@ -43,8 +41,8 @@ ALLOW_CONNECTION_TIME = 50
 DATA_TABLE = "data"
 TOPICS_TABLE = "topics"
 META_TABLE = "meta"
-AGG_TOPICS_TABLE = "p_aggregate_topics"
-AGG_META_TABLE = "p_aggregate_meta"
+AGG_TOPICS_TABLE = "aggregate_topics"
+AGG_META_TABLE = "aggregate_meta"
 METADATA_TABLE = "metadata"
 
 
@@ -166,16 +164,14 @@ def create_incorrect_meta_data_table(container):
 @pytest.mark.dbutils
 def test_setup_aggregate_historian_tables_should_create_aggregate_tables(get_container_func, seed_meta_data_table):
     container, mysqlfuncts, connection_port, historian_version = get_container_func
-    agg_topic_table = "aggregate_topics"
-    agg_meta_table = "aggregate_meta"
 
     # get_container initializes db and sqlfuncts to test setup explicitly drop tables and see if tables get created
     drop_all_tables(connection_port)
     create_historian_tables(container, historian_version)
     create_metadata_table(container)
     original_tables = get_tables(connection_port)
-    assert agg_topic_table not in original_tables
-    assert agg_meta_table not in original_tables
+    assert AGG_TOPICS_TABLE not in original_tables
+    assert AGG_META_TABLE not in original_tables
 
     seed_meta_data_table(container)
     expected_agg_topic_fields = {
@@ -189,17 +185,17 @@ def test_setup_aggregate_historian_tables_should_create_aggregate_tables(get_con
     mysqlfuncts.setup_aggregate_historian_tables(METADATA_TABLE)
 
     updated_tables = get_tables(connection_port)
-    assert agg_topic_table in updated_tables
-    assert agg_meta_table in updated_tables
+    assert AGG_TOPICS_TABLE in updated_tables
+    assert AGG_META_TABLE in updated_tables
     assert (
-        describe_table(connection_port, agg_topic_table)
+        describe_table(connection_port, AGG_TOPICS_TABLE)
         == expected_agg_topic_fields
     )
     assert (
-        describe_table(connection_port, agg_meta_table) == expected_agg_meta_fields
+        describe_table(connection_port, AGG_META_TABLE) == expected_agg_meta_fields
     )
-    assert mysqlfuncts.agg_topics_table == agg_topic_table
-    assert mysqlfuncts.agg_meta_table == agg_meta_table
+    assert mysqlfuncts.agg_topics_table == AGG_TOPICS_TABLE
+    assert mysqlfuncts.agg_meta_table == AGG_META_TABLE
     assert mysqlfuncts.data_table == DATA_TABLE
     assert mysqlfuncts.topics_table == TOPICS_TABLE
     assert mysqlfuncts.meta_table == META_TABLE
@@ -361,6 +357,7 @@ def test_insert_agg_meta_should_succeed(get_container_func):
     metadata = "meaning of life"
     expected_data = (42, '"meaning of life"')
 
+    sleep(5)
     result = mysqlfuncts.insert_agg_meta(topic_id, metadata)
 
     assert result is True
@@ -398,6 +395,7 @@ def test_get_agg_topic_map_should_return_dict(get_container_func):
     seed_database(container, query)
     expected = {("topic_name", "AVG", "2001"): 1}
 
+    sleep(5)
     actual = mysqlfuncts.get_agg_topic_map()
 
     assert actual == expected
@@ -526,7 +524,7 @@ def get_mysqlfuncts(port):
     IMAGES,
     [
      '<4.0.0',
-    # '>=4.0.0'
+    '>=4.0.0'
      ]))
 def get_container_func(request):
     global CONNECTION_HOST
@@ -586,30 +584,30 @@ def wait_for_connection(container):
 
 def create_historian_tables(container, historian_version):
     if historian_version == "<4.0.0":
-        query = """
-                   CREATE TABLE IF NOT EXISTS data
+        query = f"""
+                   CREATE TABLE IF NOT EXISTS {DATA_TABLE}
                    (ts timestamp NOT NULL,
                    topic_id INTEGER NOT NULL,
                    value_string TEXT NOT NULL,
                    UNIQUE(topic_id, ts));
-                   CREATE TABLE IF NOT EXISTS topics
+                   CREATE TABLE IF NOT EXISTS {TOPICS_TABLE}
                    (topic_id INTEGER NOT NULL AUTO_INCREMENT,
                    topic_name varchar(512) NOT NULL,
                    PRIMARY KEY (topic_id),
                    UNIQUE(topic_name));
-                   CREATE TABLE IF NOT EXISTS meta
+                   CREATE TABLE IF NOT EXISTS {META_TABLE}
                    (topic_id INTEGER NOT NULL,
                    metadata TEXT NOT NULL,
                    PRIMARY KEY(topic_id));
             """
     else:
-        query = """
-                   CREATE TABLE IF NOT EXISTS data
+        query = f"""
+                   CREATE TABLE IF NOT EXISTS {DATA_TABLE}
                    (ts timestamp NOT NULL,
                    topic_id INTEGER NOT NULL,
                    value_string TEXT NOT NULL,
                    UNIQUE(topic_id, ts));
-                   CREATE TABLE IF NOT EXISTS topics
+                   CREATE TABLE IF NOT EXISTS {TOPICS_TABLE}
                    (topic_id INTEGER NOT NULL AUTO_INCREMENT,
                    topic_name varchar(512) NOT NULL,
                     metadata TEXT,
@@ -623,17 +621,17 @@ def create_historian_tables(container, historian_version):
 
 
 def create_metadata_table(container):
-    query = """
-               CREATE TABLE IF NOT EXISTS metadata
+    query = f"""
+               CREATE TABLE IF NOT EXISTS {METADATA_TABLE}
                (table_id varchar(512) PRIMARY KEY, 
                table_name varchar(512) NOT NULL, 
                table_prefix varchar(512));
-               REPLACE INTO metadata
-               VALUES ('data_table', 'data', 'p');
-               REPLACE INTO metadata
-               VALUES ('topics_table', 'topics', 'p');
-               REPLACE INTO metadata
-               VALUES ('meta_table', 'meta', 'p');
+               REPLACE INTO {METADATA_TABLE}
+               VALUES ('data_table', 'data', '');
+               REPLACE INTO {METADATA_TABLE}
+               VALUES ('topics_table', 'topics', '');
+               REPLACE INTO {METADATA_TABLE}
+               VALUES ('meta_table','meta', '');
             """
     command = f'mysql --user="root" --password="{ROOT_PASSWORD}" {TEST_DATABASE} --execute="{query}"'
     container.exec_run(cmd=command, tty=True)
@@ -642,29 +640,29 @@ def create_metadata_table(container):
 
 def create_aggregate_tables(container, historian_version):
     if historian_version == "<4.0.0":
-        query = """
-                    CREATE TABLE IF NOT EXISTS p_aggregate_topics
+        query = f"""
+                    CREATE TABLE IF NOT EXISTS {AGG_TOPICS_TABLE}
                     (agg_topic_id INTEGER NOT NULL AUTO_INCREMENT, 
                     agg_topic_name varchar(512) NOT NULL, 
                     agg_type varchar(512) NOT NULL, 
                     agg_time_period varchar(512) NOT NULL, 
                     PRIMARY KEY (agg_topic_id), 
                     UNIQUE(agg_topic_name, agg_type, agg_time_period));
-                    CREATE TABLE IF NOT EXISTS p_aggregate_meta
+                    CREATE TABLE IF NOT EXISTS {AGG_META_TABLE}
                     (agg_topic_id INTEGER NOT NULL, 
                     metadata TEXT NOT NULL,
                     PRIMARY KEY(agg_topic_id));
                 """
     else:
-        query = """
-                    CREATE TABLE IF NOT EXISTS p_aggregate_topics
+        query = f"""
+                    CREATE TABLE IF NOT EXISTS {AGG_TOPICS_TABLE}
                     (agg_topic_id INTEGER NOT NULL AUTO_INCREMENT, 
                     agg_topic_name varchar(512) NOT NULL, 
                     agg_type varchar(20) NOT NULL, 
                     agg_time_period varchar(20) NOT NULL, 
                     PRIMARY KEY (agg_topic_id), 
                     UNIQUE(agg_topic_name, agg_type, agg_time_period));
-                    CREATE TABLE IF NOT EXISTS p_aggregate_meta
+                    CREATE TABLE IF NOT EXISTS {AGG_META_TABLE}
                     (agg_topic_id INTEGER NOT NULL, 
                     metadata TEXT NOT NULL,
                     PRIMARY KEY(agg_topic_id));
@@ -793,4 +791,5 @@ def get_cnx_cursor(port):
     cnx = mysql.connector.connect(**connect_params)
     cursor = cnx.cursor()
     return cnx, cursor
+
 
