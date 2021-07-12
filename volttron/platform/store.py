@@ -156,11 +156,9 @@ class ConfigStoreService(Agent):
     @Core.receiver('onstart')
     def _onstart(self, sender, **kwargs):
         try:
-            _log.info("Call peerlist() once so that we can access the peer_list variable after this")
             self.vip.peerlist().get(timeout=3)
-            _log.info(f"Current peerlist is {self.vip.peerlist.peers_list}")
         except Exception as e:
-            _log.error(f"Exception getting peerlist {e}")
+            _log.error(f"Exception getting peerlist on startup of config store: {e}")
 
     @RPC.export
     @RPC.allow('edit_config_store')
@@ -193,9 +191,7 @@ class ConfigStoreService(Agent):
         # Sync will delete the file if the store is empty.
         agent_disk_store.async_sync()
 
-        if identity not in self.vip.peerlist.peers_list:
-            _log.info("Agent is not currently running. Configuration updates not sent")
-        else:
+        if identity in self.vip.peerlist.peers_list:
             with agent_store_lock:
                 try:
                     self.vip.rpc.call(identity, "config.update",
@@ -305,9 +301,7 @@ class ConfigStoreService(Agent):
         agent_configs = agent_store["configs"]
         agent_disk_store = agent_store["store"]
         agent_store_lock = agent_store["lock"]
-        if identity not in self.vip.peerlist.peers_list:
-            _log.info("Agent is not currently running. Configuration updates not sent")
-        else:
+        if identity in self.vip.peerlist.peers_list:
             with agent_store_lock:
                 try:
                     self.vip.rpc.call(identity, "config.initial_update",
@@ -361,20 +355,17 @@ class ConfigStoreService(Agent):
         # Sync will delete the file if the store is empty.
         agent_disk_store.async_sync()
 
-        if send_update:
-            if identity not in self.vip.peerlist.peers_list:
-                _log.info("Agent is not currently running. Configuration updates not sent")
-            else:
-                with agent_store_lock:
-                    try:
-                        self.vip.rpc.call(identity, "config.update", "DELETE", config_name, trigger_callback=trigger_callback).get(timeout=UPDATE_TIMEOUT)
-                    except errors.Unreachable:
-                        _log.debug("Agent {} not currently running. Configuration update not sent.".format(identity))
-                    except RemoteError as e:
-                        _log.error("Agent {} failure when deleting configuration {}: {}".format(identity, config_name, e))
-                    except MethodNotFound as e:
-                        _log.error(
-                            "Agent {} failure when adding/updating configuration {}: {}".format(identity, config_name, e))
+        if send_update and identity in self.vip.peerlist.peers_list:
+            with agent_store_lock:
+                try:
+                    self.vip.rpc.call(identity, "config.update", "DELETE", config_name, trigger_callback=trigger_callback).get(timeout=UPDATE_TIMEOUT)
+                except errors.Unreachable:
+                    _log.debug("Agent {} not currently running. Configuration update not sent.".format(identity))
+                except RemoteError as e:
+                    _log.error("Agent {} failure when deleting configuration {}: {}".format(identity, config_name, e))
+                except MethodNotFound as e:
+                    _log.error(
+                        "Agent {} failure when adding/updating configuration {}: {}".format(identity, config_name, e))
 
         # If the store is empty (and nothing jumped in and added to it while we
         # were informing the agent) then remove it from the global store.
@@ -445,21 +436,18 @@ class ConfigStoreService(Agent):
 
         _log.debug("Agent {} config {} stored.".format(identity, config_name))
 
-        if send_update:
-            if identity not in self.vip.peerlist.peers_list:
-                _log.info("Agent is not currently running. Configuration updates not sent")
-            else:
-                with agent_store_lock:
-                    try:
-                        self.vip.rpc.call(identity, "config.update", action, config_name, contents=parsed, trigger_callback=trigger_callback).get(timeout=UPDATE_TIMEOUT)
-                    except errors.Unreachable:
-                        _log.debug("Agent {} not currently running. Configuration update not sent.".format(identity))
-                    except RemoteError as e:
-                        _log.error("Agent {} failure when adding/updating configuration {}: {}".format(identity, config_name, e))
-                    except MethodNotFound as e:
-                        _log.error(
-                            "Agent {} failure when adding/updating configuration {}: {}".format(identity, config_name, e))
-                    except gevent.timeout.Timeout:
-                        _log.error("Config update to agent {} timed out after {} seconds".format(identity, UPDATE_TIMEOUT))
-                    except Exception as e:
-                        _log.error("Unknown error sending update to agent identity {}.: {}".format(identity, e))
+        if send_update and identity in self.vip.peerlist.peers_list:
+            with agent_store_lock:
+                try:
+                    self.vip.rpc.call(identity, "config.update", action, config_name, contents=parsed, trigger_callback=trigger_callback).get(timeout=UPDATE_TIMEOUT)
+                except errors.Unreachable:
+                    _log.debug("Agent {} not currently running. Configuration update not sent.".format(identity))
+                except RemoteError as e:
+                    _log.error("Agent {} failure when adding/updating configuration {}: {}".format(identity, config_name, e))
+                except MethodNotFound as e:
+                    _log.error(
+                        "Agent {} failure when adding/updating configuration {}: {}".format(identity, config_name, e))
+                except gevent.timeout.Timeout:
+                    _log.error("Config update to agent {} timed out after {} seconds".format(identity, UPDATE_TIMEOUT))
+                except Exception as e:
+                    _log.error("Unknown error sending update to agent identity {}.: {}".format(identity, e))
