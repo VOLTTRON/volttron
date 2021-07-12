@@ -818,9 +818,11 @@ class RabbitMQMgmt(object):
         :return:
         """
         shovel_names_for_host = []
-        try:
-            self.delete_parameter(component, parameter_name, vhost,
+        self.delete_parameter(component, parameter_name, vhost,
                               ssl_auth=self.rmq_config.is_ssl)
+        print(f"Deleted {component} parameter: {parameter_name}")
+
+        try:
             if component == 'shovel':
                 _, host, _ = parameter_name.split('-')
                 shovel_links = self.get_shovel_links()
@@ -829,10 +831,9 @@ class RabbitMQMgmt(object):
                     _, h, _ = name.split('-')
                     if host == h:
                         shovel_names_for_host.append(name)
-
                 # Check if there are other shovel connections to remote platform. If yes, we
                 # cannot delete the certs since others will need them
-                if delete_certs and len(shovel_names_for_host) > 1:
+                if delete_certs and len(shovel_names_for_host) >= 1:
                     print(f"Cannot delete certificates since there are other shovels connected to remote host: {host}"
                           f" will need it for connection")
                     return
@@ -851,21 +852,19 @@ class RabbitMQMgmt(object):
             key = 'federation-upstream'
         config = read_config_file(config_file)
 
-        print(f"Removing certificate paths from VOLTTRON_HOME and from the config file")
-
-        names = parameter_name.split("-")
-
-        certs_config = None
-        try:
-            certs_config = config[key][names[1]]['certificates']
-            del config[key][names[1]]['certificates']
-            write_to_config_file(config_file, config)
-        except (KeyError, IndexError) as e:
-            print(f"Error: Missing key in {config_file}:{e}")
-            pass
-
         # Delete certs from VOLTTRON_HOME
-        if delete_certs and certs_config:
+        if delete_certs:
+            print(f"Removing certificate paths from VOLTTRON_HOME and from the config file")
+            names = parameter_name.split("-")
+
+            certs_config = None
+            try:
+                certs_config = config[key][names[1]]['certificates']
+                del config[key][names[1]]['certificates']
+                write_to_config_file(config_file, config)
+            except (KeyError, IndexError) as e:
+                print(f"Error: Did not find certificates entry in {config_file}:{e}")
+                return
             try:
                 private_key = certs_config['private_key']
                 public_cert = certs_config['public_cert']

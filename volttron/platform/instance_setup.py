@@ -966,6 +966,8 @@ def process_rmq_inputs(args_dict, instance_name=None):
                                          default='N')
                 if prompt in n:
                     copy(args_dict['config'], vhome_config)
+            else:
+                r = copy(args_dict['config'], vhome_config)
         elif args_dict['installation-type'] == 'shovel':
             vhome_config = os.path.join(vhome, 'rabbitmq_shovel_config.yml')
             if os.path.exists(vhome_config):
@@ -977,6 +979,8 @@ def process_rmq_inputs(args_dict, instance_name=None):
                                          default='N')
                 if prompt in n:
                     copy(args_dict['config'], vhome_config)
+            else:
+                r = copy(args_dict['config'], vhome_config)
         else:
             print("Invalid installation type. Acceptable values single|federation|shovel")
             sys.exit(1)

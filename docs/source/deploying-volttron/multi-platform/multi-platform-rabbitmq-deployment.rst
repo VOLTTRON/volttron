@@ -496,15 +496,6 @@ Please note that each instance should have a unique instance name.
 
     .. image:: files/csr_accepted.png
 
-    c.  Create a user in the subscriber node with username set to the publisher instance's
-        agent name (for example: volttron1-admin) and allow the shovel access to
-        the virtual host of the subscriber node.
-
-        .. code-block:: bash
-
-            cd $RABBITMQ_HOME
-            vctl rabbitmq add-user <username> <password>
-
 4. Test the shovel setup.
 
    a. Start VOLTTRON on publisher and subscriber nodes.
