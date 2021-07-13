@@ -155,6 +155,8 @@ class SqlLiteFuncts(DbDriver):
                      metadata TEXT,
                      UNIQUE(topic_name))''', commit=False)
             self.commit()
+            # metadata is in topics table
+            self.meta_table = self.topics_table
             _log.debug("Created new schema. data and topics tables")
 
     def record_table_definitions(self, table_defs, meta_table_name):

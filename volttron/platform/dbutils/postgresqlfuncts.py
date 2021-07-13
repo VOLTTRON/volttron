@@ -186,6 +186,8 @@ class PostgreSqlFuncts(DbDriver):
                     'metadata TEXT, '
                     'UNIQUE (topic_name)'
                 ')').format(Identifier(self.topics_table)))
+            # metadata is in topics table
+            self.meta_table = self.topics_table
             self.commit()
 
     def record_table_definitions(self, tables_def, meta_table_name):
