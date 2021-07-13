@@ -260,7 +260,7 @@ try:
 
     def dumps(data):
         try:
-            return ujson.dumps(data, double_precision=15)
+            return ujson.dumps(data)
         except Exception:
             return _dumps(data)
 
