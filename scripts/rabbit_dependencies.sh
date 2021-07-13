@@ -2,6 +2,8 @@
 set -e
 
 list=( bionic buster )
+declare -A ubuntu_versions
+ubuntu_versions=( ["ubuntu-16.04"]="xenial" ["ubuntu-18.04"]="bionic" ["ubuntu-20.04"]="focal")
 
 function exit_on_error {
     rc=$?
@@ -16,8 +18,8 @@ function exit_on_error {
 function print_usage {
  echo "
 Command Usage:
-<path>/rabbit_dependencies.sh <debian, raspbian, or centos> <distribution name or centos version>
-Valid Raspbian/Debian distributions: ${list[@]}
+<path>/rabbit_dependencies.sh <debian, raspbian, or centos> <distribution name/ubuntu-<version> or centos version>
+Valid Raspbian/Debian distributions: ${list[@]} ${!ubuntu_versions[@]}
 Valid centos versions: 6, 7, 8
 "
  exit 0
@@ -73,13 +75,28 @@ function install_on_debian {
     done
 
     if [[ "$FOUND" != "1" ]]; then
+        # check if ubuntu-version was passed if so map it to name
+        for ubuntu_version in "${!ubuntu_versions[@]}"; do
+            if [[ "$DIST" == "$ubuntu_version" ]]; then
+                FOUND=1
+                DIST="${ubuntu_versions[$ubuntu_version]}"
+                break
+            fi
+        done
+    fi
+
+    if [[ "$FOUND" != "1" ]]; then
         echo "Invalid distribution found"
         print_usage
     fi
 
     echo "installing ERLANG"
     ${prefix} apt-get update
-    ${prefix} apt-get install -y apt-transport-https libwxbase3.0-0v5 libwxgtk3.0-0v5 libsctp1  build-essential python-dev openssl libssl-dev libevent-dev git
+    if [[ "$DIST" == "xenial" ]] || [[ "$DIST" == "bionic" ]]; then
+        ${prefix} apt-get install -y apt-transport-https libwxbase3.0-0v5 libwxgtk3.0-0v5 libsctp1  build-essential python-dev openssl libssl-dev libevent-dev git
+    else
+        ${prefix} apt-get install -y apt-transport-https libwxbase3.0-0v5 libwxgtk3.0-gtk3-0v5 libsctp1  build-essential python-dev openssl libssl-dev libevent-dev git
+    fi
     set +e
     ${prefix} apt-get purge -yf erlang*
     set -e

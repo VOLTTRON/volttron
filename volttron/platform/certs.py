@@ -43,7 +43,7 @@ import os
 import six
 import time
 from shutil import copyfile
-from socket import gethostname, getfqdn
+from socket import gethostname, getfqdn, getaddrinfo, AI_CANONNAME
 import subprocess
 
 from cryptography import x509
@@ -958,12 +958,11 @@ def _create_signed_certificate(ca_cert, ca_key, name, valid_days=DEFAULT_DAYS, t
         for i in temp_list:
             if i.get_attributes_for_oid(NameOID.COMMON_NAME):
                 if type == 'server':
-                    # TODO: Also add SubjectAltName
                     if fqdn:
-                        hostname = fqdn
+                        hostname = gethostname()
                     else:
-                        hostname = getfqdn()
-                        fqdn = hostname
+                        hostname = gethostname()
+                        fqdn = getfqdn(hostname)
                     new_attrs.append(RelativeDistinguishedName(
                         [x509.NameAttribute(
                             NameOID.COMMON_NAME,
@@ -1025,10 +1024,17 @@ def _create_signed_certificate(ca_cert, ca_key, name, valid_days=DEFAULT_DAYS, t
             x509.ExtendedKeyUsage((ExtendedKeyUsageOID.SERVER_AUTH,)),
             critical=False
         )
-        cert_builder = cert_builder.add_extension(
-            x509.SubjectAlternativeName((DNSName(fqdn),)),
-            critical=True
+        if hostname and fqdn != hostname:
+            cert_builder = cert_builder.add_extension(
+                x509.SubjectAlternativeName([DNSName(hostname), DNSName(fqdn)]),
+                critical=True
+            )
+        else:
+            cert_builder = cert_builder.add_extension(
+                x509.SubjectAlternativeName([DNSName(fqdn)]),
+                critical=True
         )
+
     elif type == 'client':
         # specify that the certificate can be used as an SSL
         # client certificate to enable TLS Web Client Authentication
