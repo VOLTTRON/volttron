@@ -426,7 +426,6 @@ def setup_mongodb(connection_params, table_names, historian_version):
     db[table_names['data_table']].remove()
     db[table_names['topics_table']].remove()
     db[table_names['meta_table']].remove()
-    db["volttron_table_definitions"].remove()
     return db, 3
 
 def setup_postgresql(connection_params, table_names, historian_version):

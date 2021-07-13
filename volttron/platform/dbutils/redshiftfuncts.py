@@ -146,24 +146,8 @@ class RedshiftFuncts(DbDriver):
                 if not cursor.rowcount:
                     cursor.execute(insert_stmt, params)
 
-    def read_tablenames_from_db(self, meta_table_name):
-        tables = dict(self.select(
-            SQL('SELECT table_id, table_name FROM {}').format(
-                Identifier(meta_table_name))))
-        prefix = tables.pop('', '')
-        tables['agg_topics_table'] = 'aggregate_' + tables['topics_table']
-        tables['agg_meta_table'] = 'aggregate_' + tables['meta_table']
-        if prefix:
-            tables = {key: prefix + '_' + name for key, name in tables.items()}
-        return tables
+    def setup_aggregate_historian_tables(self):
 
-    def setup_aggregate_historian_tables(self, meta_table_name):
-        table_names = self.read_tablenames_from_db(meta_table_name)
-        self.data_table = table_names['data_table']
-        self.topics_table = table_names['topics_table']
-        self.meta_table = table_names['meta_table']
-        self.agg_topics_table = table_names['agg_topics_table']
-        self.agg_meta_table = table_names['agg_meta_table']
         self.execute_stmt(SQL(
             'CREATE TABLE IF NOT EXISTS {} ('
                 'agg_topic_id INTEGER IDENTITY (1, 1) PRIMARY KEY NOT NULL, '

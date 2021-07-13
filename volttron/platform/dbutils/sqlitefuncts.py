@@ -180,14 +180,7 @@ class SqlLiteFuncts(DbDriver):
             ['meta_table', table_defs['meta_table'], table_prefix])
         self.commit()
 
-    def setup_aggregate_historian_tables(self, meta_table_name):
-        table_names = self.read_tablenames_from_db(meta_table_name)
-
-        self.data_table = table_names['data_table']
-        self.topics_table = table_names['topics_table']
-        self.meta_table = table_names['meta_table']
-        self.agg_topics_table = table_names.get('agg_topics_table', None)
-        self.agg_meta_table = table_names.get('agg_meta_table', None)
+    def setup_aggregate_historian_tables(self):
 
         self.execute_stmt(
             'CREATE TABLE IF NOT EXISTS ' + self.agg_topics_table +

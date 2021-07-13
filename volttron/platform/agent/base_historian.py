@@ -389,7 +389,6 @@ class BaseHistorianAgent(Agent):
 
         self.gather_timing_data = bool(gather_timing_data)
 
-        self.volttron_table_defs = 'volttron_table_definitions'
         self._backup_storage_limit_gb = backup_storage_limit_gb
         self._backup_storage_report = backup_storage_report
         self._retry_period = float(retry_period)
@@ -1286,9 +1285,6 @@ class BaseHistorianAgent(Agent):
         try:
             _log.info("Trying to setup historian")
             self.historian_setup()
-            if not self._readonly:
-                # Record the names of data, topics, meta tables in a metadata table
-                self.record_table_definitions(self.volttron_table_defs)
             if self._setup_failed:
                 self._setup_failed = False
                 self._update_status({STATUS_KEY_PUBLISHING: True})

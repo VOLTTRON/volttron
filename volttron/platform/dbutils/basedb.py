@@ -140,36 +140,6 @@ class DbDriver(object):
 
         return self.stash.cursor
 
-    def read_tablenames_from_db(self, meta_table_name):
-        """
-        Reads names of the tables used by this historian to store data,
-        topics, metadata, aggregate topics and aggregate metadata
-        :param meta_table_name: The volttron metadata table in which table definitions are stored
-        :return: table names
-        .. code-block:: python
-
-            {
-             'data_table': name of table that store data,
-             'topics_table':name of table that store list of topics,
-             'meta_table':name of table that store metadata,
-             'agg_topics_table':name of table that stores aggregate topics,
-             'agg_meta_table':name of table that store aggregate metadata
-             }
-        """
-        rows = self.select("SELECT table_id, table_name, table_prefix from " + meta_table_name, None)
-        table_names = dict()
-        table_prefix = ""
-        table_map = {}
-
-        for row in rows:
-            table_map[row[0].lower()] = row[1]
-            table_prefix = row[2] + "_" if row[2] else ""
-            table_names[row[0]] = table_prefix + row[1]
-
-        table_names['agg_topics_table'] = table_prefix + 'aggregate_' + table_map['topics_table']
-        table_names['agg_meta_table'] = table_prefix + 'aggregate_' + table_map['meta_table']
-        return table_names
-
     @abstractmethod
     def setup_historian_tables(self):
         """

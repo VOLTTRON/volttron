@@ -89,7 +89,6 @@ sqlite_aggregator = {
 mysql_aggregator = {
     "source_historian": get_services_core("SQLHistorian"),
     "source_agg_historian": get_services_core("SQLAggregateHistorian"),
-    "agentid": "test",
     "connection": {
         "type": "mysql",
         "params": {
@@ -100,6 +99,28 @@ mysql_aggregator = {
             "passwd": "historian"
         }
     }
+}
+
+mysql_aggregator_with_table_names = {
+    "source_historian": get_services_core("SQLHistorian"),
+    "source_agg_historian": get_services_core("SQLAggregateHistorian"),
+    "connection": {
+        "type": "mysql",
+        "params": {
+            "host": "localhost",
+            "port": 3306,
+            "database": "test_historian",
+            "user": "historian",
+            "passwd": "historian"
+        }
+    },
+    "tables_def": {
+        "table_prefix": "volttron",
+        "data_table": "data_table",
+        "topics_table": "topics_table",
+        "meta_table": "meta_table",
+    }
+
 }
 
 mongo_aggregator = {
@@ -127,10 +148,32 @@ postgresql_aggregator = {
             'dbname': 'test_historian',
             'port': 5432,
             'host': 'localhost',
-            'user' : 'historian',
+            'user': 'historian',
             'password': 'historian'
         },
     },
+}
+
+postgresql_aggregator_with_table_names = {
+    'source_historian': get_services_core('SQLHistorian'),
+    "source_agg_historian": get_services_core("SQLAggregateHistorian"),
+    'connection': {
+        'type': 'postgresql',
+        'params': {
+            'dbname': 'test_historian',
+            'port': 5432,
+            'host': 'localhost',
+            'user': 'historian',
+            'password': 'historian'
+        },
+    },
+    "tables_def": {
+        "table_prefix": "volttron",
+        "data_table": "data_table",
+        "topics_table": "topics_table",
+        "meta_table": "meta_table",
+    }
+
 }
 
 redshift_aggregator = {
@@ -213,7 +256,7 @@ def cleanup_sqlite(db_connection, truncate_tables, drop_tables=False):
         rows = cursor.fetchall()
         print(f"table names {rows}")
         truncate_tables = [columns[0] for columns in rows]
-    cleanup_sql(db_connection, truncate_tables)
+    cleanup_sql(db_connection, truncate_tables, drop_tables)
     db_connection.commit()
     pass
 
@@ -226,7 +269,7 @@ def cleanup_mysql(db_connection, truncate_tables, drop_tables=False):
         rows = cursor.fetchall()
         print(f"table names {rows}")
         truncate_tables = [columns[0] for columns in rows]
-    cleanup_sql(db_connection, truncate_tables)
+    cleanup_sql(db_connection, truncate_tables, drop_tables)
 
 
 def cleanup_mongodb(db_connection, truncate_tables, drop_tables=False):
@@ -360,9 +403,10 @@ def query_agent(request, volttron_instance):
 @pytest.fixture(scope="module",
                 params=[
                     pytest.param(mysql_aggregator, marks=mysql_skipif),
+                    pytest.param(mysql_aggregator_with_table_names, marks=mysql_skipif),
                     sqlite_aggregator,
-                    pytest.param(mongo_aggregator, marks=pymongo_skipif),
                     pytest.param(postgresql_aggregator, marks=postgresql_skipif),
+                    pytest.param(postgresql_aggregator_with_table_names, marks=postgresql_skipif),
                     pytest.param(redshift_aggregator, marks=redshift_skipif),
                 ])
 def aggregate_agent(request, volttron_instance):

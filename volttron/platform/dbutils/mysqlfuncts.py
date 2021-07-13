@@ -196,17 +196,8 @@ class MySqlFuncts(DbDriver):
         else:
             _log.error(f"No {meta_table_name} found")
 
-    def setup_aggregate_historian_tables(self, meta_table_name):
+    def setup_aggregate_historian_tables(self):
         _log.debug("CREATING AGG TABLES")
-        table_names = self.read_tablenames_from_db(meta_table_name)
-
-        self.data_table = table_names['data_table']
-        self.topics_table = table_names['topics_table']
-        _log.debug("In setup_aggregate_historian self.topics_table"
-                   " {}".format(self.topics_table))
-        self.meta_table = table_names['meta_table']
-        self.agg_topics_table = table_names.get('agg_topics_table', None)
-        self.agg_meta_table = table_names.get('agg_meta_table', None)
 
         rows = self.select("show tables like %s", [self.agg_topics_table])
         if rows:
