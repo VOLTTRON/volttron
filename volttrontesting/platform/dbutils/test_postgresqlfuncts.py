@@ -2,12 +2,12 @@ import contextlib
 import datetime
 import os
 import logging
-
-logging.getLogger("urllib3.connectionpool").setLevel(logging.INFO)
+import pytest
 
 from time import time
 
-import pytest
+logging.getLogger("urllib3.connectionpool").setLevel(logging.INFO)
+
 
 try:
     import psycopg2
@@ -28,7 +28,7 @@ pytestmark = [pytest.mark.postgresqlfuncts, pytest.mark.dbutils, pytest.mark.uni
 # See https://volttron.readthedocs.io/en/develop/core_services/historians/SQL-Historian.html#postgresql-and-redshift
 IMAGES = ["postgres:9.6.18", "postgres:10.13"]
 
-if "CI" not in os.environ:
+if "CI" in os.environ:
     IMAGES.extend(
         [
             "postgres:11.8",
@@ -71,7 +71,7 @@ def test_setup_historian_tables_should_create_tables(get_container_func, ports_c
             tables_before_setup = get_tables(port_on_host)
             assert tables_before_setup == set()
 
-            expected_tables = set(["data", "topics", "meta"])
+            expected_tables = set(["data", "topics"])
 
             postgresqlfuncts.setup_historian_tables()
 
@@ -106,20 +106,6 @@ def test_record_table_definitions_should_create_meta_table(
             assert describe_table(port_on_host, METADATA_TABLE) == expected_table_defs
 
 
-def create_meta_data_table(container):
-    query = f"""
-                CREATE TABLE {METADATA_TABLE}
-                (table_id VARCHAR(512) PRIMARY KEY NOT NULL,
-                table_name VARCHAR(512) NOT NULL);
-                INSERT INTO {METADATA_TABLE} VALUES ('data_table', '{DATA_TABLE}');
-                INSERT INTO {METADATA_TABLE} VALUES ('topics_table', '{TOPICS_TABLE}');
-                INSERT INTO {METADATA_TABLE} VALUES ('meta_table', '{META_TABLE}');
-            """
-    seed_database(container, query)
-
-    return
-
-
 def create_empty_meta_data_table(container):
     query = f"""
                 CREATE TABLE {METADATA_TABLE}
@@ -145,61 +131,24 @@ def create_incorrect_meta_data_table(container):
     return
 
 
-@pytest.mark.parametrize(
-    "seed_meta_data_table, expected_tables",
-    [
-        (
-            create_meta_data_table,
-            {
-                "data_table": "data",
-                "topics_table": "topics",
-                "meta_table": "meta",
-                "agg_topics_table": "aggregate_topics",
-                "agg_meta_table": "aggregate_meta",
-            },
-        ),
-        (
-            create_empty_meta_data_table,
-            {
-                "agg_topics_table": "aggregate_topics",
-                "agg_meta_table": "aggregate_meta",
-            },
-        ),
-        (
-            create_incorrect_meta_data_table,
-            {
-                "3333gjhmeta_table": "meta",
-                "agg_meta_table": "aggregate_meta",
-                "agg_topics_table": "aggregate_topics",
-                "data_tableFOOOBAR": "data",
-                "topifdkjadslkfcs_table": "topics",
-            },
-        ),
-    ],
-)
-@pytest.mark.postgresqlfuncts
-@pytest.mark.dbutils
-def test_read_tablenames_from_db_should_return_table_names(
-    get_container_func, ports_config, seed_meta_data_table, expected_tables
-):
-    get_container, image = get_container_func
-    with get_container(
-        image, ports=ports_config["ports"], env=ENV_POSTGRESQL
-    ) as container:
-        port_on_host = ports_config["port_on_host"]
-        wait_for_connection(container, port_on_host)
-        seed_meta_data_table(container)
+def create_metadata_table(container):
+    query = f"""
+                CREATE TABLE {METADATA_TABLE}
+                (table_id VARCHAR(512) PRIMARY KEY NOT NULL,
+                table_name VARCHAR(512) NOT NULL);
+                INSERT INTO {METADATA_TABLE} VALUES ('data_table', '{DATA_TABLE}');
+                INSERT INTO {METADATA_TABLE} VALUES ('topics_table', '{TOPICS_TABLE}');
+                INSERT INTO {METADATA_TABLE} VALUES ('meta_table', '{META_TABLE}');
+            """
+    seed_database(container, query)
 
-        with get_postgresqlfuncts(port_on_host) as postgresqlfuncts:
-            actual_tables = postgresqlfuncts.read_tablenames_from_db(METADATA_TABLE)
-
-            assert actual_tables == expected_tables
+    return
 
 
 @pytest.mark.parametrize(
     "seed_meta_data_table",
     [
-        (create_meta_data_table),
+        (create_metadata_table),
         (create_empty_meta_data_table),
         (create_incorrect_meta_data_table),
     ],
@@ -234,7 +183,7 @@ def test_setup_aggregate_historian_tables_should_create_aggregate_tables(
             }
             expected_agg_meta_fields = {"agg_topic_id", "metadata"}
 
-            postgresqlfuncts.setup_aggregate_historian_tables(METADATA_TABLE)
+            postgresqlfuncts.setup_aggregate_historian_tables()
 
             updated_tables = get_tables(port_on_host)
             assert agg_topic_table in updated_tables
@@ -602,7 +551,6 @@ def test_get_agg_topic_map_should_return_dict(get_container_func, ports_config):
         ),
     ],
 )
-
 def test_query_topics_by_pattern_should_return_matching_results(
     get_container_func,
     ports_config,
@@ -650,7 +598,7 @@ def test_create_aggregate_store_should_succeed(get_container_func, ports_config)
             agg_type = "AVG"
             agg_time_period = "1984"
             expected_aggregate_table = "AVG_1984"
-            expected_fields = {"value_string", "topics_list", "topic_id", "ts"}
+            expected_fields = {"topics_list", "agg_value", "topic_id", "ts"}
 
             postgresqlfuncts.create_aggregate_store(agg_type, agg_time_period)
 
@@ -685,7 +633,7 @@ def test_insert_aggregate_stmt_should_succeed(get_container_func, ports_config):
                        CREATE TABLE AVG_1776 (
                        ts timestamp NOT NULL,
                        topic_id INTEGER NOT NULL,
-                       value_string TEXT NOT NULL,
+                       agg_value DOUBLE PRECISION NOT NULL,
                        topics_list TEXT,
                        UNIQUE(ts, topic_id));
                        CREATE INDEX IF NOT EXISTS idx_avg_1776 ON avg_1776 (ts ASC);
@@ -696,12 +644,12 @@ def test_insert_aggregate_stmt_should_succeed(get_container_func, ports_config):
             agg_type = "avg"
             period = "1776"
             ts = "2020-06-01 12:30:59"
-            data = "some_data"
+            data = 44.42
             topic_ids = [12, 54, 65]
             expected_data = (
                 datetime.datetime(2020, 6, 1, 12, 30, 59),
                 42,
-                '"some_data"',
+                44.42,
                 "[12, 54, 65]",
             )
 
@@ -792,8 +740,8 @@ def ports_config():
 
 def create_all_tables(container):
     create_historian_tables(container)
-    create_meta_data_table(container)
-    create_aggregate_historian_tables(container)
+    create_metadata_table(container)
+    create_aggregate_tables(container)
 
 
 def create_historian_tables(container):
@@ -817,7 +765,7 @@ def create_historian_tables(container):
     return
 
 
-def create_aggregate_historian_tables(container):
+def create_aggregate_tables(container):
     query = f"""
                 CREATE TABLE IF NOT EXISTS {AGG_TOPICS_TABLE} (
                 agg_topic_id SERIAL PRIMARY KEY NOT NULL,
