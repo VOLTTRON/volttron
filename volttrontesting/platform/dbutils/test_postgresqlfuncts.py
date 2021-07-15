@@ -25,7 +25,7 @@ except ImportError:
 
 # Current documentation claims that we have tested Historian on Postgres 10
 # See https://volttron.readthedocs.io/en/develop/core_services/historians/SQL-Historian.html#postgresql-and-redshift
-IMAGES = ["postgres:9.6.18"] #, "postgres:10.13"]
+IMAGES = ["postgres:9.6.18", "postgres:10.13"]
 
 if "CI" in os.environ:
     IMAGES.extend(
