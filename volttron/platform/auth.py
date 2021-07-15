@@ -155,28 +155,28 @@ class AuthService(Agent):
         if self.core.messagebus == 'rmq':
             self.vip.peerlist.onadd.connect(self._check_topic_rules)
 
-    def get_entry_rpc_method_authorizations(self, peer_id):
+    def get_entry_rpc_method_authorizations(self, identity):
         rpc_method_authorizations = {}
         peer_methods = []
         try:
             peer_methods = self.vip.rpc.call(
-                peer_id, 'inspect').get(timeout=4)["methods"]
+                identity, 'inspect').get(timeout=4)["methods"]
         except gevent.Timeout:
-            _log.warn(f'{peer_id} has timed out while attempting to get rpc methods')
+            _log.warning(f'{identity} has timed out while attempting to get rpc methods')
         except Unreachable:
-            _log.warn(f'{peer_id} is unreachable while attempting to get rpc methods')
+            _log.warning(f'{identity} is unreachable while attempting to get rpc methods')
         except MethodNotFound as e:
             _log.error(e)
 
         for method in peer_methods:
             try:
                 rpc_method_authorizations[method] = \
-                    self.vip.rpc.call(peer_id, 'get_rpc_authorizations', method).get(timeout=4)
+                    self.vip.rpc.call(identity, 'get_rpc_authorizations', method).get(timeout=4)
             except gevent.Timeout:
                 rpc_method_authorizations[method] = None
-                _log.warn(f'{peer_id} has timed out while attempting to get rpc method authorizations')
+                _log.warning(f'{identity} has timed out while attempting to get rpc method authorizations')
             except Unreachable:
-                _log.warn(f'{peer_id} is unreachable while attempting to get rpc method authorizations')
+                _log.warning(f'{identity} is unreachable while attempting to get rpc method authorizations')
                 rpc_method_authorizations[method] = None
             except MethodNotFound as e:
                 _log.error(e)
@@ -1556,10 +1556,10 @@ class AuthFile(object):
             try:
                 entry = AuthEntry(**file_entry)
             except TypeError:
-                _log.warn('invalid entry %r in auth file %s',
+                _log.warning('invalid entry %r in auth file %s',
                           file_entry, self.auth_file)
             except AuthEntryInvalid as e:
-                _log.warn('invalid entry %r in auth file %s (%s)',
+                _log.warning('invalid entry %r in auth file %s (%s)',
                           file_entry, self.auth_file, str(e))
             else:
                 deny_entries.append(entry)
