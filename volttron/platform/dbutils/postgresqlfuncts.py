@@ -171,8 +171,10 @@ class PostgreSqlFuncts(DbDriver):
                     "SELECT create_hypertable({}, 'ts', if_not_exists => true)").format(
                     Literal(self.data_table)))
                 self.execute_stmt(SQL(
-                    'CREATE INDEX IF NOT EXISTS ON {} (topic_id, ts)').format(
-                    Identifier(self.data_table)))
+                    'CREATE INDEX IF NOT EXISTS {} ON {} (topic_id, ts)').format(
+                    Identifier(f"idx_{self.data_table}"),
+                    Identifier(self.data_table))
+                )
             else:
                 self.execute_stmt(SQL(
                     'CREATE INDEX IF NOT EXISTS {} ON {} (ts ASC)').format(
@@ -257,8 +259,12 @@ class PostgreSqlFuncts(DbDriver):
         return values
 
     def insert_topic(self, topic, **kwargs):
+        meta = kwargs.get('metadata')
         with self.cursor() as cursor:
-            cursor.execute(self.insert_topic_query(), {'topic': topic})
+            if self.meta_table == self.topics_table and topic and meta:
+                cursor.execute(self.insert_topic_and_meta_query(), (topic, jsonapi.dumps(meta)))
+            else:
+                cursor.execute(self.insert_topic_query(), {'topic': topic})
             return cursor.fetchone()[0]
 
     def insert_agg_topic(self, topic, agg_type, agg_time_period):
