@@ -48,6 +48,7 @@ from collections import defaultdict
 
 import gevent
 import gevent.pywsgi
+import jwt
 from cryptography.hazmat.primitives import serialization
 from gevent import Greenlet
 from jinja2 import Environment, FileSystemLoader, select_autoescape
@@ -734,6 +735,10 @@ class PlatformWebService(Agent):
         except NotAuthorized:
             _log.error("Unauthorized user attempted to connect to platform.")
             return False
+        except jwt.ExpiredSignatureError:
+            _log.error("User attempted to connect with an expired signature.")
+            return False
+
         return True
 
 
