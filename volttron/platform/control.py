@@ -713,18 +713,18 @@ def print_rpc_methods(opts, peer_method_metadata, code=False):
             else:
                 print(f'\t{method}')
                 if opts.verbose == True:
-                    print("\tDocumentation:")
+                    print("\t\tDocumentation:")
                     doc = peer_method_metadata[peer][method]\
                         .get('doc', "No documentation for this method.")\
-                        .replace("\n", "\n\t\t")
-                    print(f'\t\t{doc}\n')
+                        .replace("\n", "\n\t\t\t")
+                    print(f'\t\t\t{doc}\n')
                 print(f'\t\t{peer_method_metadata[peer][method]["authorized_capabilities"]}\n')
-            print("\tParameters:")
+            print("\t\tParameters:")
             if type(params) is str:
-                print(f'\t\t{params}')
+                print(f'\t\t\t{params}')
             else:
                 for param in params:
-                    print(f'\t\t{param}:\n\t\t\t{params[param]}')
+                    print(f'\t\t\t{param}:\n\t\t\t\t{params[param]}')
 
 
 def list_agents_rpc(opts):
