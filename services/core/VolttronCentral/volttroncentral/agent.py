@@ -702,9 +702,10 @@ class VolttronCentralAgent(Agent):
         if len(entries) > 0:
             return "SUCCESS"
 
-        entry = AuthEntry(credentials="/.*/",
-                          comments="Un-Authenticated connections allowed here",
-                          user_id="unknown")
+        entry = {"credentials": "/.*/",
+                 "comments": "Un-Authenticated connections allowed here",
+                 "user_id": "unknown"
+                }
         self.vip.rpc.call(AUTH, "auth_file.add", entry)
         return "SUCCESS"
 

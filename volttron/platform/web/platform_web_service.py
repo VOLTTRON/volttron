@@ -69,7 +69,7 @@ from ..jsonrpc import (json_result,
                        INVALID_REQUEST, METHOD_NOT_FOUND,
                        UNHANDLED_EXCEPTION, UNAUTHORIZED,
                        UNAVAILABLE_PLATFORM, INVALID_PARAMS,
-                       UNAVAILABLE_AGENT, INTERNAL_ERROR)
+                       UNAVAILABLE_AGENT, INTERNAL_ERROR, RemoteError)
 
 from ..vip.agent import Agent, Core, RPC, Unreachable
 from ..vip.agent.subsystems import query
@@ -356,12 +356,12 @@ class PlatformWebService(Agent):
         assert vcpublickey
         assert len(vcpublickey) == 43
 
-        authentry = AuthEntry(credentials=vcpublickey, identity=VOLTTRON_CENTRAL)
-
+        authentry = {"credentials": vcpublickey, "identity": VOLTTRON_CENTRAL}
         try:
             self.vip.rpc.call(AUTH, "auth_file.add", authentry)
-        except AuthFileEntryAlreadyExists:
-            pass
+        except RemoteError as e:
+            if "AuthFileEntryAlreadyExists" in e.exc_info["exc_type"]:
+                pass
 
         start_response('200 OK',
                        [('Content-Type', 'application/json')])

@@ -103,6 +103,7 @@ class AuthService(Agent):
             self._certs = Certs()
         self.auth_file_path = os.path.abspath(auth_file)
         self.auth_file = AuthFile(self.auth_file_path)
+        self.export_auth_file()
         self.can_update = False
         self.needs_rpc_update = False
         self.aip = aip
@@ -125,9 +126,16 @@ class AuthService(Agent):
 
     # Export all relevant AuthFile methods to external agents through AuthService
     def export_auth_file(self):
-        self.vip.rpc.export(self.auth_file.read, "auth_file.read")
+        def auth_file_read():
+            return self.auth_file.auth_data
+        def auth_file_add(entry):
+            self.auth_file.add(AuthEntry(**entry))
+        def auth_file_update_by_index(auth_entry, index, is_allow=True):
+            self.auth_file.update_by_index(AuthEntry(**auth_entry), index, is_allow)
+        self.vip.rpc.export(auth_file_read, "auth_file.read")
         self.vip.rpc.export(self.auth_file.find_by_credentials, "auth_file.find_by_credentials")
-        self.vip.rpc.export(self.auth_file.add, "auth_file.add")
+        self.vip.rpc.export(auth_file_add, "auth_file.add")
+        self.vip.rpc.export(auth_file_update_by_index, "auth_file.update_by_index")
         self.vip.rpc.export(self.auth_file.remove_by_credentials, "auth_file.remove_by_credentials")
         self.vip.rpc.export(self.auth_file.remove_by_index, "auth_file.remove_by_index")
         self.vip.rpc.export(self.auth_file.remove_by_indices, "auth_file.remove_by_indices")

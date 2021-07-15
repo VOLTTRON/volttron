@@ -1320,14 +1320,20 @@ def _print_two_columns(dict_, key_name, value_name):
 
 
 def list_auth(opts, indices=None):
-    entries = opts.conn.vip.rpc.call(AUTH, "auth_file.read").get()[0]
+    conn = opts.connection
+    if not conn:
+        _stderr.write("VOLTTRON is not running. This command "
+                      "requires VOLTTRON platform to be running\n")
+        return
+
+    entries = conn.server.vip.rpc.call(AUTH, "auth_file.read").get()["allow_list"]
     print_out = []
     if entries:
         for index, entry in enumerate(entries):
             if indices is None or index in indices:
                 _stdout.write('\nINDEX: {}\n'.format(index))
                 _stdout.write(
-                    '{}\n'.format(jsonapi.dumps(vars(entry), indent=2)))
+                    '{}\n'.format(entry))
     else:
         _stdout.write('No entries in {}\n'.format(os.path.join(get_home(), 'auth.json')))
 
@@ -1444,6 +1450,12 @@ def add_auth(opts):
 
     If all options are None, then use interactive 'wizard.'
     """
+    conn = opts.connection
+    if not conn:
+        _stderr.write("VOLTTRON is not running. This command "
+                      "requires VOLTTRON platform to be running\n")
+        return
+
     fields = {
         "domain": opts.domain,
         "address": opts.address,
@@ -1462,26 +1474,26 @@ def add_auth(opts):
         # Remove unspecified options so the default parameters are used
         fields = {k: v for k, v in fields.items() if v}
         fields['enabled'] = not opts.disabled
-        entry = AuthEntry(**fields)
+        entry = fields
     else:
         # No options were specified, use interactive wizard
         responses = _ask_for_auth_fields()
         responses['rpc_method_authorizations'] = None
-        entry = AuthEntry(**responses)
+        entry = responses
 
     if opts.add_known_host:
-        if entry.address is None:
+        if entry["address"] is None:
             raise ValueError('host (--address) is required when '
                              '--add-known-host is specified')
-        if entry.credentials is None:
+        if entry["credentials"] is None:
             raise ValueError('serverkey (--credentials) is required when '
                              '--add-known-host is specified')
-        opts.host = entry.address
-        opts.serverkey = entry.credentials
+        opts.host = entry["address"]
+        opts.serverkey = entry["credentials"]
         add_server_key(opts)
 
     try:
-        opts.conn.vip.rpc.call(AUTH, "auth_file.add", entry)
+        conn.server.vip.rpc.call(AUTH, "auth_file.add", entry)
         _stdout.write('added entry {}\n'.format(entry))
     except AuthException as err:
         _stderr.write('ERROR: %s\n' % str(err))
@@ -1510,7 +1522,12 @@ def _ask_yes_no(question, default='yes'):
 
 
 def remove_auth(opts):
-    entry_count = len(opts.conn.vip.rpc.call(AUTH, "auth_file.read").get()[0])
+    conn = opts.connection
+    if not conn:
+        _stderr.write("VOLTTRON is not running. This command "
+                      "requires VOLTTRON platform to be running\n")
+        return
+    entry_count = len(conn.server.vip.rpc.call(AUTH, "auth_file.read").get()["allow_list"])
 
     for i in opts.indices:
         if i < 0 or i >= entry_count:
@@ -1522,7 +1539,7 @@ def remove_auth(opts):
     if not _ask_yes_no('Do you wish to delete?'):
         return
     try:
-        opts.conn.vip.rpc.call(AUTH, "auth_file.remove_by_indices", opts.indices)
+        conn.server.vip.rpc.call(AUTH, "auth_file.remove_by_indices", opts.indices)
         if len(opts.indices) > 1:
             msg = 'removed entries at indices {}'.format(opts.indices)
         else:
@@ -1533,7 +1550,13 @@ def remove_auth(opts):
 
 
 def update_auth(opts):
-    entries = opts.conn.vip.rpc.call(AUTH, "auth_file.read").get()[0]
+    conn = opts.connection
+    if not conn:
+        _stderr.write("VOLTTRON is not running. This command "
+                      "requires VOLTTRON platform to be running\n")
+        return
+
+    entries = conn.server.vip.rpc.call(AUTH, "auth_file.read").get()["allow_list"]
     try:
         if opts.index < 0:
             raise IndexError
@@ -1541,8 +1564,8 @@ def update_auth(opts):
         _stdout.write('(For any field type "clear" to clear the value.)\n')
         response = _ask_for_auth_fields(**entry.__dict__)
         response['rpc_method_authorizations'] = None
-        updated_entry = AuthEntry(**response)
-        opts.conn.vip.rpc.call(AUTH, "auth_file.update_by_index", updated_entry, opts.index)
+        updated_entry = response
+        conn.server.vip.rpc.call(AUTH, "auth_file.update_by_index", updated_entry, opts.index)
         _stdout.write('updated entry at index {}\n'.format(opts.index))
     except IndexError:
         _stderr.write('ERROR: invalid index %s\n' % opts.index)
@@ -1551,22 +1574,38 @@ def update_auth(opts):
 
 
 def add_role(opts):
-    roles = opts.conn.vip.rpc.call(AUTH, "auth_file.read").get()[3]
+    conn = opts.connection
+    if not conn:
+        _stderr.write("VOLTTRON is not running. This command "
+                      "requires VOLTTRON platform to be running\n")
+        return
+
+    roles = conn.server.vip.rpc.call(AUTH, "auth_file.read").get()["roles"]
     if opts.role in roles:
         _stderr.write('role "{}" already exists\n'.format(opts.role))
         return
     roles[opts.role] = list(set(opts.capabilities))
-    opts.conn.vip.rpc.call(AUTH, "auth_file.set_roles", roles)
+    conn.server.vip.rpc.call(AUTH, "auth_file.set_roles", roles)
     _stdout.write('added role "{}"\n'.format(opts.role))
 
 
 def list_roles(opts):
-    roles = opts.conn.vip.rpc.call(AUTH, "auth_file.read").get()[3]
+    conn = opts.connection
+    if not conn:
+        _stderr.write("VOLTTRON is not running. This command "
+                      "requires VOLTTRON platform to be running\n")
+        return
+    roles = conn.server.vip.rpc.call(AUTH, "auth_file.read").get()["roles"]
     _print_two_columns(roles, 'ROLE', 'CAPABILITIES')
 
 
 def update_role(opts):
-    roles = opts.conn.vip.rpc.call(AUTH, "auth_file.read").get()[3]
+    conn = opts.connection
+    if not conn:
+        _stderr.write("VOLTTRON is not running. This command "
+                      "requires VOLTTRON platform to be running\n")
+        return
+    roles = conn.server.vip.rpc.call(AUTH, "auth_file.read").get()["roles"]
     if opts.role not in roles:
         _stderr.write('role "{}" does not exist\n'.format(opts.role))
         return
@@ -1575,37 +1614,57 @@ def update_role(opts):
         roles[opts.role] = list(set(caps) - set(opts.capabilities))
     else:
         roles[opts.role] = list(set(caps) | set(opts.capabilities))
-    opts.conn.vip.rpc.call(AUTH, "auth_file.set_roles", roles)
+    conn.server.vip.rpc.call(AUTH, "auth_file.set_roles", roles)
     _stdout.write('updated role "{}"\n'.format(opts.role))
 
 
 def remove_role(opts):
-    roles = opts.conn.vip.rpc.call(AUTH, "auth_file.read").get()[3]
+    conn = opts.connection
+    if not conn:
+        _stderr.write("VOLTTRON is not running. This command "
+                      "requires VOLTTRON platform to be running\n")
+        return
+    roles = conn.server.vip.rpc.call(AUTH, "auth_file.read").get()["roles"]
     if opts.role not in roles:
         _stderr.write('role "{}" does not exist\n'.format(opts.role))
         return
     del roles[opts.role]
-    opts.conn.vip.rpc.call(AUTH, "auth_file.set_roles", roles)
+    conn.server.vip.rpc.call(AUTH, "auth_file.set_roles", roles)
     _stdout.write('removed role "{}"\n'.format(opts.role))
 
 
 def add_group(opts):
-    groups = opts.conn.vip.rpc.call(AUTH, "auth_file.read").get()[2]
+    conn = opts.connection
+    if not conn:
+        _stderr.write("VOLTTRON is not running. This command "
+                      "requires VOLTTRON platform to be running\n")
+        return
+    groups = conn.server.vip.rpc.call(AUTH, "auth_file.read").get()["groups"]
     if opts.group in groups:
         _stderr.write('group "{}" already exists\n'.format(opts.group))
         return
     groups[opts.group] = list(set(opts.roles))
-    opts.conn.vip.rpc.call(AUTH, "auth_file.set_groups", groups)
+    conn.server.vip.rpc.call(AUTH, "auth_file.set_groups", groups)
     _stdout.write('added group "{}"\n'.format(opts.group))
 
 
 def list_groups(opts):
-    groups = opts.conn.vip.rpc.call(AUTH, "auth_file.read").get()[2]
+    conn = opts.connection
+    if not conn:
+        _stderr.write("VOLTTRON is not running. This command "
+                      "requires VOLTTRON platform to be running\n")
+        return
+    groups = conn.server.vip.rpc.call(AUTH, "auth_file.read").get()["groups"]
     _print_two_columns(groups, 'GROUPS', 'ROLES')
 
 
 def update_group(opts):
-    groups = opts.conn.vip.rpc.call(AUTH, "auth_file.read").get()[2]
+    conn = opts.connection
+    if not conn:
+        _stderr.write("VOLTTRON is not running. This command "
+                      "requires VOLTTRON platform to be running\n")
+        return
+    groups = conn.server.vip.rpc.call(AUTH, "auth_file.read").get()["groups"]
     if opts.group not in groups:
         _stderr.write('group "{}" does not exist\n'.format(opts.group))
         return
@@ -1614,17 +1673,22 @@ def update_group(opts):
         groups[opts.group] = list(set(roles) - set(opts.roles))
     else:
         groups[opts.group] = list(set(roles) | set(opts.roles))
-    opts.conn.vip.rpc.call(AUTH, "auth_file.set_groups", groups)
+    conn.server.vip.rpc.call(AUTH, "auth_file.set_groups", groups)
     _stdout.write('updated group "{}"\n'.format(opts.group))
 
 
 def remove_group(opts):
-    groups = opts.conn.vip.rpc.call(AUTH, "auth_file.read").get()[2]
+    conn = opts.connection
+    if not conn:
+        _stderr.write("VOLTTRON is not running. This command "
+                      "requires VOLTTRON platform to be running\n")
+        return
+    groups = conn.server.vip.rpc.call(AUTH, "auth_file.read").get()["groups"]
     if opts.group not in groups:
         _stderr.write('group "{}" does not exist\n'.format(opts.group))
         return
     del groups[opts.group]
-    opts.conn.vip.rpc.call(AUTH, "auth_file.set_groups", groups)
+    conn.server.vip.rpc.call(AUTH, "auth_file.set_groups", groups)
     _stdout.write('removed group "{}"\n'.format(opts.group))
 
 
