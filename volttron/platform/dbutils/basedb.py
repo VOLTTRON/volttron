@@ -535,15 +535,15 @@ class DbDriver(object):
         :param agg_type: type of aggregation
         :param period: time period of aggregation
         :param ts: end time of aggregation period (not inclusive)
-        :param data: computed aggregate
+        :param data: a float that represents a computed aggregate
         :param topic_ids: topic ids or topic ids for which aggregate was computed
         :return: True if execution was successful, raises exception in case of connection failures
         """
         table_name = agg_type + '_' + period
         _log.debug("Inserting aggregate: {} {} {} {} into table {}".format(
-            ts, agg_topic_id, jsonapi.dumps(data), str(topic_ids), table_name))
+            ts, agg_topic_id, data, str(topic_ids), table_name))
         self.execute_stmt(self.insert_aggregate_stmt(table_name),
-                          (ts, agg_topic_id, jsonapi.dumps(data), str(topic_ids)), commit=True)
+                          (ts, agg_topic_id, data, str(topic_ids)), commit=True)
         return True
 
     @abstractmethod
