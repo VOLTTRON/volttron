@@ -43,7 +43,6 @@ TOPICS_TABLE = "topics"
 META_TABLE = "meta"
 AGG_TOPICS_TABLE = "aggregate_topics"
 AGG_META_TABLE = "aggregate_meta"
-METADATA_TABLE = "metadata"
 
 
 @pytest.mark.mysqlfuncts
@@ -65,39 +64,6 @@ def test_setup_historian_tables_should_create_tables(get_container_func):
 
 
 @pytest.mark.mysqlfuncts
-def test_record_table_definitions_should_succeed(get_container_func):
-    container, mysqlfuncts, connection_port, historian_version = get_container_func
-    # get_container initializes db and sqlfuncts
-    # to test setup explicitly drop tables and see if tables get created correctly
-    drop_all_tables(connection_port)
-
-    tables_def = {
-        "table_prefix": "prefix",
-        "data_table": "data",
-        "topics_table": "topics",
-        "meta_table": "meta",
-    }
-    meta_table_name = "meta_other"
-    expected_data = {
-        ("data_table", "data", "prefix"),
-        ("topics_table", "topics", "prefix"),
-        ("meta_table", "meta", "prefix"),
-    }
-
-    tables = get_tables(connection_port)
-    assert meta_table_name not in tables
-
-    mysqlfuncts.record_table_definitions(tables_def, meta_table_name)
-
-    tables = get_tables(connection_port)
-    assert meta_table_name in tables
-
-    data = get_data_in_table(connection_port, meta_table_name)
-    for val in data:
-        assert val in expected_data
-
-
-@pytest.mark.mysqlfuncts
 def test_setup_aggregate_historian_tables_should_succeed(get_container_func):
     container, mysqlfuncts, connection_port, historian_version = get_container_func
 
@@ -105,100 +71,11 @@ def test_setup_aggregate_historian_tables_should_succeed(get_container_func):
     drop_all_tables(connection_port)
 
     create_historian_tables(container, historian_version)
-    create_metadata_table(container)
-    mysqlfuncts.setup_aggregate_historian_tables(METADATA_TABLE)
+    mysqlfuncts.setup_aggregate_historian_tables()
 
     tables = get_tables(connection_port)
     assert AGG_TOPICS_TABLE in tables
     assert AGG_META_TABLE in tables
-
-
-def create_meta_data_table(container):
-    query = f"""
-                CREATE TABLE {METADATA_TABLE}
-                (table_id VARCHAR(512) PRIMARY KEY NOT NULL,
-                table_name VARCHAR(512) NOT NULL);
-                INSERT INTO {METADATA_TABLE} VALUES ('data_table', '{DATA_TABLE}');
-                INSERT INTO {METADATA_TABLE} VALUES ('topics_table', '{TOPICS_TABLE}');
-                INSERT INTO {METADATA_TABLE} VALUES ('meta_table', '{META_TABLE}');
-            """
-    seed_database(container, query)
-
-    return
-
-
-def create_empty_meta_data_table(container):
-    query = f"""
-                CREATE TABLE {METADATA_TABLE}
-                (table_id VARCHAR(512) PRIMARY KEY NOT NULL,
-                table_name VARCHAR(512) NOT NULL);
-            """
-    seed_database(container, query)
-
-    return
-
-
-def create_incorrect_meta_data_table(container):
-    query = f"""
-                CREATE TABLE {METADATA_TABLE}
-                (table_id VARCHAR(512) PRIMARY KEY NOT NULL,
-                table_name VARCHAR(512) NOT NULL);
-                INSERT INTO {METADATA_TABLE} VALUES ('data_tableFOOOBAR', '{DATA_TABLE}');
-                INSERT INTO {METADATA_TABLE} VALUES ('topifdkjadslkfcs_table', '{TOPICS_TABLE}');
-                INSERT INTO {METADATA_TABLE} VALUES ('3333gjhmeta_table', '{META_TABLE}');
-            """
-    seed_database(container, query)
-
-    return
-
-
-@pytest.mark.parametrize(
-    "seed_meta_data_table",
-    [
-        create_meta_data_table,
-        create_empty_meta_data_table,
-        create_incorrect_meta_data_table,
-    ],
-)
-@pytest.mark.postgresqlfuncts
-@pytest.mark.dbutils
-def test_setup_aggregate_historian_tables_should_create_aggregate_tables(get_container_func, seed_meta_data_table):
-    container, mysqlfuncts, connection_port, historian_version = get_container_func
-
-    # get_container initializes db and sqlfuncts to test setup explicitly drop tables and see if tables get created
-    drop_all_tables(connection_port)
-    create_historian_tables(container, historian_version)
-    create_metadata_table(container)
-    original_tables = get_tables(connection_port)
-    assert AGG_TOPICS_TABLE not in original_tables
-    assert AGG_META_TABLE not in original_tables
-
-    seed_meta_data_table(container)
-    expected_agg_topic_fields = {
-        "agg_topic_id",
-        "agg_topic_name",
-        "agg_time_period",
-        "agg_type",
-    }
-    expected_agg_meta_fields = {"agg_topic_id", METADATA_TABLE}
-
-    mysqlfuncts.setup_aggregate_historian_tables(METADATA_TABLE)
-
-    updated_tables = get_tables(connection_port)
-    assert AGG_TOPICS_TABLE in updated_tables
-    assert AGG_META_TABLE in updated_tables
-    assert (
-        describe_table(connection_port, AGG_TOPICS_TABLE)
-        == expected_agg_topic_fields
-    )
-    assert (
-        describe_table(connection_port, AGG_META_TABLE) == expected_agg_meta_fields
-    )
-    assert mysqlfuncts.agg_topics_table == AGG_TOPICS_TABLE
-    assert mysqlfuncts.agg_meta_table == AGG_META_TABLE
-    assert mysqlfuncts.data_table == DATA_TABLE
-    assert mysqlfuncts.topics_table == TOPICS_TABLE
-    assert mysqlfuncts.meta_table == META_TABLE
 
 
 @pytest.mark.mysqlfuncts
@@ -325,7 +202,7 @@ def test_insert_agg_topic_should_succeed(get_container_func):
     assert isinstance(actual_id, int)
     assert get_data_in_table(connection_port, AGG_TOPICS_TABLE)[0] == expected_data
 
-
+# fails for mysql:8.0.25 historian schema version >=4.0.0
 @pytest.mark.mysqlfuncts
 def test_update_agg_topic_should_succeed(get_container_func):
     container, mysqlfuncts, connection_port, historian_version = get_container_func
@@ -334,7 +211,7 @@ def test_update_agg_topic_should_succeed(get_container_func):
     agg_type = "SUM"
     agg_time_period = "2100ZULU"
     expected_data = (1, "cars", "SUM", "2100ZULU")
-
+    print(f" db tables: {get_tables(connection_port)}")
     actual_id = mysqlfuncts.insert_agg_topic(topic, agg_type, agg_time_period)
 
     assert isinstance(actual_id, int)
@@ -348,7 +225,7 @@ def test_update_agg_topic_should_succeed(get_container_func):
     assert result is True
     assert get_data_in_table(connection_port, AGG_TOPICS_TABLE)[0] == expected_data
 
-
+# fails for image:mysql:8.0.25 historian schema version >=4.0.0
 @pytest.mark.mysqlfuncts
 def test_insert_agg_meta_should_succeed(get_container_func):
     container, mysqlfuncts, connection_port, historian_version = get_container_func
@@ -383,6 +260,7 @@ def test_get_topic_map_should_succeed(get_container_func):
 
     assert actual == expected
 
+# fails for image:mysql:8.0.25 historian schema version >=4.0.0
 
 @pytest.mark.mysqlfuncts
 def test_get_agg_topic_map_should_return_dict(get_container_func):
@@ -524,7 +402,7 @@ def get_mysqlfuncts(port):
     IMAGES,
     [
      '<4.0.0',
-    '>=4.0.0'
+     '>=4.0.0'
      ]))
 def get_container_func(request):
     global CONNECTION_HOST
@@ -620,24 +498,6 @@ def create_historian_tables(container, historian_version):
     return
 
 
-def create_metadata_table(container):
-    query = f"""
-               CREATE TABLE IF NOT EXISTS {METADATA_TABLE}
-               (table_id varchar(512) PRIMARY KEY, 
-               table_name varchar(512) NOT NULL, 
-               table_prefix varchar(512));
-               REPLACE INTO {METADATA_TABLE}
-               VALUES ('data_table', 'data', '');
-               REPLACE INTO {METADATA_TABLE}
-               VALUES ('topics_table', 'topics', '');
-               REPLACE INTO {METADATA_TABLE}
-               VALUES ('meta_table','meta', '');
-            """
-    command = f'mysql --user="root" --password="{ROOT_PASSWORD}" {TEST_DATABASE} --execute="{query}"'
-    container.exec_run(cmd=command, tty=True)
-    return
-
-
 def create_aggregate_tables(container, historian_version):
     if historian_version == "<4.0.0":
         query = f"""
@@ -674,7 +534,6 @@ def create_aggregate_tables(container, historian_version):
 
 def create_all_tables(container, historian_version):
     create_historian_tables(container, historian_version)
-    create_metadata_table(container)
     create_aggregate_tables(container, historian_version)
     return
 
