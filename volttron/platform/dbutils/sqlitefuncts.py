@@ -159,27 +159,6 @@ class SqlLiteFuncts(DbDriver):
             self.meta_table = self.topics_table
             _log.debug("Created new schema. data and topics tables")
 
-    def record_table_definitions(self, table_defs, meta_table_name):
-        _log.debug("In record_table_def {} {}".format(table_defs, meta_table_name))
-        self.execute_stmt(
-            'CREATE TABLE IF NOT EXISTS ' + meta_table_name +
-            ' (table_id TEXT PRIMARY KEY, \
-               table_name TEXT NOT NULL, \
-               table_prefix TEXT);')
-
-        table_prefix = table_defs.get('table_prefix', "")
-
-        self.execute_stmt(
-            'INSERT OR REPLACE INTO ' + meta_table_name + ' VALUES (?, ?, ?)',
-            ['data_table', table_defs['data_table'], table_prefix])
-        self.execute_stmt(
-            'INSERT OR REPLACE INTO ' + meta_table_name + ' VALUES (?, ?, ?)',
-            ['topics_table', table_defs['topics_table'], table_prefix])
-        self.execute_stmt(
-            'INSERT OR REPLACE INTO ' + meta_table_name + ' VALUES (?, ?, ?)',
-            ['meta_table', table_defs['meta_table'], table_prefix])
-        self.commit()
-
     def setup_aggregate_historian_tables(self):
 
         self.execute_stmt(

@@ -126,26 +126,6 @@ class RedshiftFuncts(DbDriver):
             ')').format(Identifier(self.meta_table)))
         self.commit()
 
-    def record_table_definitions(self, tables_def, meta_table_name):
-        meta_table = Identifier(meta_table_name)
-        self.execute_stmt(SQL(
-            'CREATE TABLE IF NOT EXISTS {} ('
-                'table_id VARCHAR(512) PRIMARY KEY NOT NULL, '
-                'table_name VARCHAR(512) NOT NULL'
-            ')').format(meta_table))
-        update_stmt = SQL('UPDATE {} SET table_name = %(name)s '
-                          'WHERE table_id = %(key)s').format(meta_table)
-        insert_stmt = SQL('INSERT INTO {} '
-                          'VALUES (%(key)s, %(name)s)').format(meta_table)
-        tables_names = tables_def.copy()
-        tables_names[''] = tables_names.pop('table_prefix', '')
-        with self.cursor() as cursor:
-            for key, name in tables_def.items():
-                params = {'key': key, 'name': name}
-                cursor.execute(update_stmt, params)
-                if not cursor.rowcount:
-                    cursor.execute(insert_stmt, params)
-
     def setup_aggregate_historian_tables(self):
 
         self.execute_stmt(SQL(

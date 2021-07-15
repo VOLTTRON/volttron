@@ -190,24 +190,6 @@ class PostgreSqlFuncts(DbDriver):
             self.meta_table = self.topics_table
             self.commit()
 
-    def record_table_definitions(self, tables_def, meta_table_name):
-        meta_table = Identifier(meta_table_name)
-        self.execute_stmt(SQL(
-            'CREATE TABLE IF NOT EXISTS {} ('
-                'table_id VARCHAR(512) PRIMARY KEY NOT NULL, '
-                'table_name VARCHAR(512) NOT NULL'
-            ')').format(meta_table))
-        insert_stmt = SQL(
-            'INSERT INTO {} VALUES (%s, %s) '
-            'ON CONFLICT (table_id) DO UPDATE '
-            'SET table_name = EXCLUDED.table_name').format(meta_table)
-        for key, name in tables_def.items():
-            if key and name and key != 'table_prefix':
-                self.execute_stmt(insert_stmt, (key, name))
-        prefix = tables_def.get('table_prefix', '')
-        self.execute_stmt(insert_stmt, ('', prefix))
-        self.commit()
-
     def setup_aggregate_historian_tables(self):
 
         self.execute_stmt(SQL(

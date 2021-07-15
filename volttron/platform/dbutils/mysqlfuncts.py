@@ -161,41 +161,6 @@ class MySqlFuncts(DbDriver):
                 err_msg = err.msg + " : " + err_msg
             raise RuntimeError(err_msg)
 
-    def record_table_definitions(self, tables_def, meta_table_name):
-        _log.debug(
-            "In record_table_def {} {}".format(tables_def, meta_table_name))
-
-        rows = self.select("show tables like %s", [meta_table_name])
-        if rows:
-            _log.debug("Found meta data table {}. ".format(meta_table_name))
-        else:
-            self.execute_stmt(
-                'CREATE TABLE ' + meta_table_name +
-                ' (table_id varchar(512) PRIMARY KEY, \
-                   table_name varchar(512) NOT NULL, \
-                   table_prefix varchar(512));')
-
-        table_prefix = tables_def.get('table_prefix', "")
-
-        insert_stmt = 'REPLACE INTO ' + meta_table_name + \
-                      ' VALUES (%s, %s, %s)'
-        self.execute_stmt(insert_stmt,
-                         ('data_table', tables_def['data_table'],
-                          table_prefix))
-        self.execute_stmt(insert_stmt,
-                         ('topics_table', tables_def['topics_table'],
-                          table_prefix))
-        self.execute_stmt(
-            insert_stmt,
-            ('meta_table', tables_def['meta_table'], table_prefix),
-            commit=True)
-        _log.debug(f"Recorded table def in {meta_table_name}")
-        rows = self.select("show tables like %s", [meta_table_name])
-        if rows:
-            _log.debug("Found meta data table {}. ".format(meta_table_name))
-        else:
-            _log.error(f"No {meta_table_name} found")
-
     def setup_aggregate_historian_tables(self):
         _log.debug("CREATING AGG TABLES")
 
