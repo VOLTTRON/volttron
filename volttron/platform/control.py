@@ -1333,7 +1333,7 @@ def list_auth(opts, indices=None):
             if indices is None or index in indices:
                 _stdout.write('\nINDEX: {}\n'.format(index))
                 _stdout.write(
-                    '{}\n'.format(entry))
+                    '{}\n'.format(jsonapi.dumps(entry, indent=2)))
     else:
         _stdout.write('No entries in {}\n'.format(os.path.join(get_home(), 'auth.json')))
 
@@ -1493,10 +1493,11 @@ def add_auth(opts):
         add_server_key(opts)
 
     try:
-        conn.server.vip.rpc.call(AUTH, "auth_file.add", entry)
+        conn.server.vip.rpc.call(AUTH, "auth_file.add", entry).get(timeout=4)
         _stdout.write('added entry {}\n'.format(entry))
     except AuthException as err:
         _stderr.write('ERROR: %s\n' % str(err))
+
 
 
 def _ask_yes_no(question, default='yes'):

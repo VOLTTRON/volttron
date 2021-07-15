@@ -358,10 +358,9 @@ class PlatformWebService(Agent):
 
         authentry = {"credentials": vcpublickey, "identity": VOLTTRON_CENTRAL}
         try:
-            self.vip.rpc.call(AUTH, "auth_file.add", authentry)
-        except RemoteError as e:
-            if "AuthFileEntryAlreadyExists" in e.exc_info["exc_type"]:
-                pass
+            self.vip.rpc.call(AUTH, "auth_file.add", authentry).get()
+        except AuthFileEntryAlreadyExists:
+            pass
 
         start_response('200 OK',
                        [('Content-Type', 'application/json')])
