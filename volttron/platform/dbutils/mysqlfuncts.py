@@ -352,7 +352,7 @@ ON DUPLICATE KEY UPDATE value_string=VALUES(value_string);
             self.execute_many(query, meta)
 
     def insert_meta_query(self):
-        return '''REPLACE INTO ''' + self.meta_table + ''' values(%s, %s)'''
+        return '''REPLACE INTO ''' + self.meta_table + ''' (topic_id, metadata) ''' + ''' VALUES(%s, %s)'''
 
     def insert_data_query(self):
         return '''REPLACE INTO ''' + self.data_table + \

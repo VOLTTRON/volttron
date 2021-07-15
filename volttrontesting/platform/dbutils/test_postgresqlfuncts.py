@@ -231,6 +231,27 @@ def test_update_topic_and_metadata_should_succeed(get_container_func):
     assert (actual_id, "soccer", '{"test": "test value"}') == get_data_in_table(connection_port, "topics")[0]
 
 
+def test_update_meta_should_succeed(get_container_func):
+    container, sqlfuncts, connection_port, historian_version = get_container_func
+    metadata = {"units": "count"}
+    metadata_s = jsonapi.dumps(metadata)
+    topic = "foobar"
+
+    id = sqlfuncts.insert_topic(topic)
+    sqlfuncts.insert_meta(id, {"fdjlj": "XXXX"})
+    assert metadata_s not in get_data_in_table(connection_port, TOPICS_TABLE)[0]
+
+    res = sqlfuncts.update_meta(id, metadata)
+
+    expected_lt_4 = [(1, metadata_s)]
+    expected_gteq_4 = [(1, topic, metadata_s)]
+    assert res is True
+    if historian_version == "<4.0.0":
+        assert get_data_in_table(connection_port, META_TABLE) == expected_lt_4
+    else:
+        assert get_data_in_table(connection_port, TOPICS_TABLE) == expected_gteq_4
+
+
 def test_get_aggregation_list_should_return_list(get_container_func):
     container, sqlfuncts, connection_port, historian_version = get_container_func
 

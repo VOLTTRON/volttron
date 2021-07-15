@@ -143,11 +143,9 @@ def test_insert_topic_and_meta_query_should_succeed(get_container_func):
     topic = "football"
     metadata = {"units": "count"}
     actual_id = sqlfuncts.insert_topic(topic, metadata=metadata)
-    sleep(3)
     assert isinstance(actual_id, int)
     result = get_data_in_table(connection_port, "topics")[0]
     assert (actual_id, topic) == result[0:2]
-    print(result)
     assert metadata == jsonapi.loads(result[2])
 
 
@@ -205,6 +203,42 @@ def test_update_topic_should_return_true(get_container_func):
 
     assert result is True
     assert (actual_id, "soccer") == get_data_in_table(port_on_host, "topics")[0][0:2]
+
+
+def test_update_topic_and_metadata_should_succeed(get_container_func):
+    container, sqlfuncts, connection_port, historian_version = get_container_func
+    if historian_version == "<4.0.0":
+        pytest.skip("Not relevant for historian schema before 4.0.0")
+    topic = "football"
+    actual_id = sqlfuncts.insert_topic(topic)
+
+    assert isinstance(actual_id, int)
+
+    result = sqlfuncts.update_topic("soccer", actual_id, metadata={"test": "test value"})
+
+    assert result is True
+    assert (actual_id, "soccer", '{"test": "test value"}') == get_data_in_table(connection_port, "topics")[0]
+
+
+def test_update_meta_should_succeed(get_container_func):
+    container, sqlfuncts, connection_port, historian_version = get_container_func
+    metadata = {"units": "count"}
+    metadata_s = jsonapi.dumps(metadata)
+    topic = "foobar"
+
+    id = sqlfuncts.insert_topic(topic)
+    sqlfuncts.insert_meta(id, {"fdjlj": "XXXX"})
+    assert metadata_s not in get_data_in_table(connection_port, TOPICS_TABLE)[0]
+
+    res = sqlfuncts.update_meta(id, metadata)
+
+    expected_lt_4 = [(1, metadata_s)]
+    expected_gteq_4 = [(1, topic, metadata_s)]
+    assert res is True
+    if historian_version == "<4.0.0":
+        assert get_data_in_table(connection_port, META_TABLE) == expected_lt_4
+    else:
+        assert get_data_in_table(connection_port, TOPICS_TABLE) == expected_gteq_4
 
 
 def test_get_aggregation_list_should_return_list(get_container_func):
@@ -513,6 +547,7 @@ def create_historian_tables(container, historian_version):
                 CREATE TABLE IF NOT EXISTS {TOPICS_TABLE} (
                 topic_id SERIAL PRIMARY KEY NOT NULL,
                 topic_name VARCHAR(512) NOT NULL,
+                metadata TEXT,
                 UNIQUE (topic_name));
             """
 
