@@ -47,14 +47,14 @@ AGG_META_TABLE = "aggregate_meta"
 
 @pytest.mark.mysqlfuncts
 def test_setup_historian_tables_should_create_tables(get_container_func):
-    container, mysqlfuncts, connection_port, historian_version = get_container_func
+    container, sqlfuncts, connection_port, historian_version = get_container_func
     if historian_version == '<4.0.0':
         pytest.skip("sqlfuncts will not create db with schema <4.0.0")
     # get_container initializes db and sqlfuncts
     # to test setup explicitly drop tables and see if tables get created correctly
     drop_all_tables(connection_port)
     try:
-        mysqlfuncts.setup_historian_tables()
+        sqlfuncts.setup_historian_tables()
         tables = get_tables(connection_port)
         assert "data" in tables
         assert "topics" in tables
@@ -65,13 +65,13 @@ def test_setup_historian_tables_should_create_tables(get_container_func):
 
 @pytest.mark.mysqlfuncts
 def test_setup_aggregate_historian_tables_should_succeed(get_container_func):
-    container, mysqlfuncts, connection_port, historian_version = get_container_func
+    container, sqlfuncts, connection_port, historian_version = get_container_func
 
     # get_container initializes db and sqlfuncts to test setup explicitly drop tables and see if tables get created
     drop_all_tables(connection_port)
 
     create_historian_tables(container, historian_version)
-    mysqlfuncts.setup_aggregate_historian_tables()
+    sqlfuncts.setup_aggregate_historian_tables()
 
     tables = get_tables(connection_port)
     assert AGG_TOPICS_TABLE in tables
@@ -91,7 +91,7 @@ def test_setup_aggregate_historian_tables_should_succeed(get_container_func):
     ],
 )
 def test_query_should_return_data(get_container_func, topic_ids, id_name_map, expected_values):
-    container, mysqlfuncts, connection_port, historian_version = get_container_func
+    container, sqlfuncts, connection_port, historian_version = get_container_func
     query = f"""
                CREATE TABLE IF NOT EXISTS {DATA_TABLE}
                (ts timestamp NOT NULL,
@@ -102,15 +102,13 @@ def test_query_should_return_data(get_container_func, topic_ids, id_name_map, ex
                VALUES ('2020-06-01 12:30:59', 43, '[2,3]')                     
             """
     seed_database(container, query)
-
-    actual_values = mysqlfuncts.query(topic_ids, id_name_map)
-
+    actual_values = sqlfuncts.query(topic_ids, id_name_map)
     assert actual_values == expected_values
 
 
 @pytest.mark.mysqlfuncts
 def test_insert_meta_query_should_succeed(get_container_func):
-    container, mysqlfuncts, connection_port, historian_version = get_container_func
+    container, sqlfuncts, connection_port, historian_version = get_container_func
 
     if historian_version != "<4.0.0":
         pytest.skip("insert_meta() is called by historian only for schema <4.0.0")
@@ -118,19 +116,19 @@ def test_insert_meta_query_should_succeed(get_container_func):
     topic_id = "44"
     metadata = "foobar44"
     expected_data = (44, '"foobar44"')
-    res = mysqlfuncts.insert_meta(topic_id, metadata)
+    res = sqlfuncts.insert_meta(topic_id, metadata)
     assert res is True
     assert get_data_in_table(connection_port, "meta")[0] == expected_data
 
 
 @pytest.mark.mysqlfuncts
 def test_insert_data_query_should_succeed(get_container_func):
-    container, mysqlfuncts, connection_port, historian_version = get_container_func
+    container, sqlfuncts, connection_port, historian_version = get_container_func
     ts = "2001-09-11 08:46:00"
     topic_id = "11"
     data = "1wtc"
     expected_data = [(datetime.datetime(2001, 9, 11, 8, 46), 11, '"1wtc"')]
-    res = mysqlfuncts.insert_data(ts, topic_id, data)
+    res = sqlfuncts.insert_data(ts, topic_id, data)
 
     assert res is True
     assert get_data_in_table(connection_port, "data") == expected_data
@@ -138,9 +136,9 @@ def test_insert_data_query_should_succeed(get_container_func):
 
 @pytest.mark.mysqlfuncts
 def test_insert_topic_query_should_succeed(get_container_func):
-    container, mysqlfuncts, connection_port, historian_version = get_container_func
+    container, sqlfuncts, connection_port, historian_version = get_container_func
     topic = "football"
-    actual_id = mysqlfuncts.insert_topic(topic)
+    actual_id = sqlfuncts.insert_topic(topic)
 
     assert isinstance(actual_id, int)
     assert (actual_id, "football") == get_data_in_table(connection_port, "topics")[0][0:2]
@@ -148,12 +146,12 @@ def test_insert_topic_query_should_succeed(get_container_func):
 
 @pytest.mark.mysqlfuncts
 def test_insert_topic_and_meta_query_should_succeed(get_container_func):
-    container, mysqlfuncts, connection_port, historian_version = get_container_func
+    container, sqlfuncts, connection_port, historian_version = get_container_func
     if historian_version == "<4.0.0":
         pytest.skip("Not relevant for historian schema before 4.0.0")
     topic = "football"
     metadata = {"units": "count"}
-    actual_id = mysqlfuncts.insert_topic(topic, metadata=metadata)
+    actual_id = sqlfuncts.insert_topic(topic, metadata=metadata)
 
     assert isinstance(actual_id, int)
     result = get_data_in_table(connection_port, "topics")[0]
@@ -162,13 +160,13 @@ def test_insert_topic_and_meta_query_should_succeed(get_container_func):
 
 @pytest.mark.mysqlfuncts
 def test_update_topic_should_succeed(get_container_func):
-    container, mysqlfuncts, connection_port, historian_version = get_container_func
+    container, sqlfuncts, connection_port, historian_version = get_container_func
     topic = "football"
-    actual_id = mysqlfuncts.insert_topic(topic)
+    actual_id = sqlfuncts.insert_topic(topic)
 
     assert isinstance(actual_id, int)
 
-    result = mysqlfuncts.update_topic("soccer", actual_id)
+    result = sqlfuncts.update_topic("soccer", actual_id)
 
     assert result is True
     assert (actual_id, "soccer") == get_data_in_table(connection_port, "topics")[0][0:2]
@@ -176,15 +174,15 @@ def test_update_topic_should_succeed(get_container_func):
 
 @pytest.mark.mysqlfuncts
 def test_update_topic_and_metadata_should_succeed(get_container_func):
-    container, mysqlfuncts, connection_port, historian_version = get_container_func
+    container, sqlfuncts, connection_port, historian_version = get_container_func
     if historian_version == "<4.0.0":
         pytest.skip("Not relevant for historian schema before 4.0.0")
     topic = "football"
-    actual_id = mysqlfuncts.insert_topic(topic)
+    actual_id = sqlfuncts.insert_topic(topic)
 
     assert isinstance(actual_id, int)
 
-    result = mysqlfuncts.update_topic("soccer", actual_id, metadata={"test": "test value"})
+    result = sqlfuncts.update_topic("soccer", actual_id, metadata={"test": "test value"})
 
     assert result is True
     assert (actual_id, "soccer", '{"test": "test value"}') == get_data_in_table(connection_port, "topics")[0]
@@ -192,12 +190,12 @@ def test_update_topic_and_metadata_should_succeed(get_container_func):
 
 @pytest.mark.mysqlfuncts
 def test_insert_agg_topic_should_succeed(get_container_func):
-    container, mysqlfuncts, connection_port, historian_version = get_container_func
+    container, sqlfuncts, connection_port, historian_version = get_container_func
     topic = "some_agg_topic"
     agg_type = "AVG"
     agg_time_period = "2019"
     expected_data = (1, "some_agg_topic", "AVG", "2019")
-    actual_id = mysqlfuncts.insert_agg_topic(topic, agg_type, agg_time_period)
+    actual_id = sqlfuncts.insert_agg_topic(topic, agg_type, agg_time_period)
 
     assert isinstance(actual_id, int)
     assert get_data_in_table(connection_port, AGG_TOPICS_TABLE)[0] == expected_data
@@ -205,14 +203,14 @@ def test_insert_agg_topic_should_succeed(get_container_func):
 # fails for mysql:8.0.25 historian schema version >=4.0.0
 @pytest.mark.mysqlfuncts
 def test_update_agg_topic_should_succeed(get_container_func):
-    container, mysqlfuncts, connection_port, historian_version = get_container_func
+    container, sqlfuncts, connection_port, historian_version = get_container_func
 
     topic = "cars"
     agg_type = "SUM"
     agg_time_period = "2100ZULU"
     expected_data = (1, "cars", "SUM", "2100ZULU")
     print(f" db tables: {get_tables(connection_port)}")
-    actual_id = mysqlfuncts.insert_agg_topic(topic, agg_type, agg_time_period)
+    actual_id = sqlfuncts.insert_agg_topic(topic, agg_type, agg_time_period)
 
     assert isinstance(actual_id, int)
     assert get_data_in_table(connection_port, AGG_TOPICS_TABLE)[0] == expected_data
@@ -220,7 +218,7 @@ def test_update_agg_topic_should_succeed(get_container_func):
     new_agg_topic_name = "boats"
     expected_data = (1, "boats", "SUM", "2100ZULU")
 
-    result = mysqlfuncts.update_agg_topic(actual_id, new_agg_topic_name)
+    result = sqlfuncts.update_agg_topic(actual_id, new_agg_topic_name)
 
     assert result is True
     assert get_data_in_table(connection_port, AGG_TOPICS_TABLE)[0] == expected_data
@@ -228,14 +226,14 @@ def test_update_agg_topic_should_succeed(get_container_func):
 # fails for image:mysql:8.0.25 historian schema version >=4.0.0
 @pytest.mark.mysqlfuncts
 def test_insert_agg_meta_should_succeed(get_container_func):
-    container, mysqlfuncts, connection_port, historian_version = get_container_func
+    container, sqlfuncts, connection_port, historian_version = get_container_func
 
     topic_id = 42
     metadata = "meaning of life"
     expected_data = (42, '"meaning of life"')
 
     sleep(5)
-    result = mysqlfuncts.insert_agg_meta(topic_id, metadata)
+    result = sqlfuncts.insert_agg_meta(topic_id, metadata)
 
     assert result is True
     assert get_data_in_table(connection_port, AGG_META_TABLE)[0] == expected_data
@@ -243,7 +241,7 @@ def test_insert_agg_meta_should_succeed(get_container_func):
 
 @pytest.mark.mysqlfuncts
 def test_get_topic_map_should_succeed(get_container_func):
-    container, mysqlfuncts, connection_port, historian_version = get_container_func
+    container, sqlfuncts, connection_port, historian_version = get_container_func
     query = """
                INSERT INTO topics (topic_name)
                VALUES ('football');
@@ -256,7 +254,7 @@ def test_get_topic_map_should_succeed(get_container_func):
         {"baseball": "baseball", "football": "football"},
     )
 
-    actual = mysqlfuncts.get_topic_map()
+    actual = sqlfuncts.get_topic_map()
 
     assert actual == expected
 
@@ -264,7 +262,7 @@ def test_get_topic_map_should_succeed(get_container_func):
 
 @pytest.mark.mysqlfuncts
 def test_get_agg_topic_map_should_return_dict(get_container_func):
-    container, mysqlfuncts, connection_port, historian_version = get_container_func
+    container, sqlfuncts, connection_port, historian_version = get_container_func
     query = f"""
                 INSERT INTO {AGG_TOPICS_TABLE}
                 (agg_topic_name, agg_type, agg_time_period)
@@ -274,14 +272,14 @@ def test_get_agg_topic_map_should_return_dict(get_container_func):
     expected = {("topic_name", "AVG", "2001"): 1}
 
     sleep(5)
-    actual = mysqlfuncts.get_agg_topic_map()
+    actual = sqlfuncts.get_agg_topic_map()
 
     assert actual == expected
 
 
 @pytest.mark.mysqlfuncts
 def test_query_topics_by_pattern_should_succeed(get_container_func):
-    container, mysqlfuncts, connection_port, historian_version = get_container_func
+    container, sqlfuncts, connection_port, historian_version = get_container_func
     query = f"""
                INSERT INTO {TOPICS_TABLE}  (topic_name)
                VALUES ('football');
@@ -294,21 +292,21 @@ def test_query_topics_by_pattern_should_succeed(get_container_func):
     expected = {"football": 1, "foobar": 2}
     topic_pattern = "foo"
 
-    actual = mysqlfuncts.query_topics_by_pattern(topic_pattern)
+    actual = sqlfuncts.query_topics_by_pattern(topic_pattern)
 
     assert actual == expected
 
 
 @pytest.mark.mysqlfuncts
 def test_create_aggregate_store_should_succeed(get_container_func):
-    container, mysqlfuncts, connection_port, historian_version = get_container_func
+    container, sqlfuncts, connection_port, historian_version = get_container_func
 
     agg_type = "AVG"
     agg_time_period = "1984"
     expected_aggregate_table = "AVG_1984"
     expected_fields = {"agg_value", "topics_list", "topic_id", "ts"}
 
-    result = mysqlfuncts.create_aggregate_store(agg_type, agg_time_period)
+    result = sqlfuncts.create_aggregate_store(agg_type, agg_time_period)
 
     assert result is not None
     assert expected_aggregate_table in get_tables(connection_port)
@@ -320,7 +318,7 @@ def test_create_aggregate_store_should_succeed(get_container_func):
 
 @pytest.mark.mysqlfuncts
 def test_insert_aggregate_stmt_should_succeed(get_container_func):
-    container, mysqlfuncts, connection_port, historian_version = get_container_func
+    container, sqlfuncts, connection_port, historian_version = get_container_func
     query = """
                 CREATE TABLE IF NOT EXISTS AVG_1776
                 (ts timestamp NOT NULL, topic_id INTEGER NOT NULL, 
@@ -342,7 +340,7 @@ def test_insert_aggregate_stmt_should_succeed(get_container_func):
         "[12, 54, 65]",
     )
 
-    res = mysqlfuncts.insert_aggregate(
+    res = sqlfuncts.insert_aggregate(
         agg_topic_id, agg_type, period, ts, data, topic_ids
     )
 
@@ -352,7 +350,7 @@ def test_insert_aggregate_stmt_should_succeed(get_container_func):
 
 @pytest.mark.mysqlfuncts
 def test_collect_aggregate_should_return_aggregate_result(get_container_func):
-    container, mysqlfuncts, connection_port, historian_version = get_container_func
+    container, sqlfuncts, connection_port, historian_version = get_container_func
     query = f"""
                 REPLACE INTO {DATA_TABLE}
                 VALUES ('2020-06-01 12:30:59', 42, '2');
@@ -365,16 +363,16 @@ def test_collect_aggregate_should_return_aggregate_result(get_container_func):
     agg_type = "avg"
     expected_aggregate = (5.0, 2)
 
-    actual_aggregate = mysqlfuncts.collect_aggregate(topic_ids, agg_type)
+    actual_aggregate = sqlfuncts.collect_aggregate(topic_ids, agg_type)
 
     assert actual_aggregate == expected_aggregate
 
 
 @pytest.mark.mysqlfuncts
 def test_collect_aggregate_should_raise_value_error(get_container_func):
-    container, mysqlfuncts, connection_port, historian_version = get_container_func
+    container, sqlfuncts, connection_port, historian_version = get_container_func
     with pytest.raises(ValueError):
-       mysqlfuncts.collect_aggregate("dfd", "Invalid agg type")
+       sqlfuncts.collect_aggregate("dfd", "Invalid agg type")
 
 
 def get_mysqlfuncts(port):
@@ -406,9 +404,10 @@ def get_mysqlfuncts(port):
      ]))
 def get_container_func(request):
     global CONNECTION_HOST
+    historian_version = request.param[1]
     print(f"image:{request.param[0]} historian schema "
-          f"version {request.param[1]}")
-    if request.param[1] == '<4.0.0' and request.param[0].startswith("mysql:8"):
+          f"version {historian_version}")
+    if historian_version == '<4.0.0' and request.param[0].startswith("mysql:8"):
         pytest.skip(msg=f"Default schema of historian version <4.0.0 "
                         f"will not work in mysql version > 5. Skipping tests "
                         f"for this parameter combination ",
@@ -428,13 +427,13 @@ def get_container_func(request):
     with create_container(request.param[0], **kwargs) as container:
 
         wait_for_connection(container)
-        create_all_tables(container, request.param[1])
+        create_all_tables(container, historian_version)
 
         mysqlfuncts = get_mysqlfuncts(connection_port)
         sleep(5)
         # So that sqlfuncts class can check if metadata is in topics table and sets its variables accordingly
         mysqlfuncts.setup_historian_tables()
-        yield container, mysqlfuncts, connection_port, request.param[1]
+        yield container, mysqlfuncts, connection_port, historian_version
 
 
 def ports_config():
@@ -595,24 +594,6 @@ def get_data_in_table(port, table):
     cnx.close()
 
     return results
-
-
-def select_all_mysql_tables(db_connection):
-    cursor = db_connection.cursor()
-    query = f"SHOW TABLES"
-    print(f"query {query}")
-    tables = []
-    try:
-        cursor.execute(query)
-        rows = cursor.fetchall()
-        print(f"table names {rows}")
-        tables = [columns[0] for columns in rows]
-    except Exception as e:
-        print("Error getting list of {}".format(e))
-    finally:
-        if cursor:
-            cursor.close()
-    return tables
 
 
 def drop_all_tables(port):
