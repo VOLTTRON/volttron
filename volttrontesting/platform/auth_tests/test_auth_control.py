@@ -1,6 +1,8 @@
 import os
 import re
 import subprocess
+
+import gevent
 import pytest
 from mock import MagicMock
 
@@ -320,7 +322,8 @@ def test_auth_add(volttron_instance):
     entries = auth_list_json(platform)
     assert len(entries) > 0
     assert_auth_entries_same(entries[-1], _auth_entry1.__dict__)
-
+    auth_remove(platform, len(entries) - 1)
+    gevent.sleep(1)
 
 @pytest.mark.control
 def test_auth_add_cmd_line(volttron_instance):
@@ -331,7 +334,8 @@ def test_auth_add_cmd_line(volttron_instance):
     entries = auth_list_json(platform)
     assert len(entries) > 0
     assert_auth_entries_same(entries[-1], _auth_entry1.__dict__)
-
+    auth_remove(platform, len(entries) - 1)
+    gevent.sleep(1)
 
 @pytest.mark.control
 def test_auth_update(volttron_instance):
@@ -345,7 +349,8 @@ def test_auth_update(volttron_instance):
 
     entries = auth_list_json(platform)
     assert_auth_entries_same(entries[-1], _auth_entry2.__dict__)
-
+    auth_remove(platform, len(entries) - 1)
+    gevent.sleep(1)
 
 @pytest.mark.control
 def test_auth_remove(volttron_instance):
@@ -358,11 +363,15 @@ def test_auth_remove(volttron_instance):
     assert len(entries) > 0
 
     auth_remove(platform, len(entries) - 1)
+    gevent.sleep(1)
 
     # Verify _auth_entry2 was removed and _auth_entry1 remains
     entries = auth_list_json(platform)
     assert len(entries) > 0
     assert_auth_entries_same(entries[-1], _auth_entry3.__dict__)
+    auth_remove(platform, len(entries) - 1)
+    gevent.sleep(1)
+
 
 @pytest.mark.control
 def test_auth_rpc_method_allow(volttron_instance):

@@ -297,11 +297,6 @@ class ControlService(BaseAgent):
                  'identity': self.agent_vip_identity(uuid)}
                 for uuid, name in self._aip.list_agents().items()]
 
-    @RPC.export
-    def list_agents_rpc(self):
-        pass
-        # agents = self.list_agents()
-        # return [jsonapi.dumps(self.vip.rpc.call(agent.vip_identity, 'inspect').get(timeout=4)) for agent in agents]
 
     @RPC.export
     def tag_agent(self, uuid, tag):
@@ -751,7 +746,7 @@ def list_agents_rpc(opts):
                 authorized_capabilities = conn.server.vip.rpc.call(
                     peer, "get_rpc_authorizations", method).get(timeout=4)
                 peer_method_metadata[peer][method]['authorized_capabilities'] = \
-                    f"Authorized capabilities: {authorized_capabilities} for method: {method}"
+                    f"Authorized capabilities: {authorized_capabilities}"
             except gevent.Timeout:
                 print(f'{peer} has timed out.')
             except Unreachable:

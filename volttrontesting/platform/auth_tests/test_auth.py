@@ -20,8 +20,9 @@ def build_two_test_agents(volttron_instance):
     The second agent is the unauthorized "RPC caller."
     """
     agent1 = volttron_instance.build_agent(identity='agent1')
+    gevent.sleep(4)
     agent2 = volttron_instance.build_agent(identity='agent2')
-    gevent.sleep(1)
+    gevent.sleep(4)
 
     agent1.foo = lambda x: x
     agent1.foo.__name__ = 'foo'
@@ -52,8 +53,9 @@ def build_agents_with_capability_args(volttron_instance):
     """
     # Can't call the fixture directly so build our own agent here.
     agent1 = volttron_instance.build_agent(identity='agent1')
+    gevent.sleep(4)
     agent2 = volttron_instance.build_agent(identity='agent2')
-    gevent.sleep(1)
+    gevent.sleep(4)
 
 
     agent1.foo = lambda x: x
