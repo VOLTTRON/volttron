@@ -82,6 +82,7 @@ class Auth(SubsystemBase):
         def onsetup(sender, **kwargs):
             rpc.export(self._update_capabilities, 'auth.update')
             rpc.export(self.get_rpc_authorizations)
+            rpc.export(self.get_all_rpc_authorizations, "auth.get_all_rpc_authorizations")
             rpc.export(self.set_rpc_authorizations)
             rpc.allow(self.set_rpc_authorizations, 'modify_rpc_method_allowance')
             # Do not update platform agents on start-up, which can cause trouble.
@@ -397,6 +398,20 @@ class Auth(SubsystemBase):
         """
         rpc_exports = list(self._rpc()._exports)
         return rpc_exports
+
+    def get_all_rpc_authorizations(self):
+        """Returns a dict of methods with authorized capabilities for the provided method
+        These dynamic changes are recorded and handled by the auth file. This method's primary purpose is
+        to collect the initial condition of all method's allowed capabilites.
+
+        :returns: dict of rpc methods with list of capabilities that will be able to access the method, exclusively
+        :rtype: dict
+        """
+        rpc_methods = self.get_rpc_exports()
+        rpc_method_authorizations = {}
+        for method in rpc_methods:
+            rpc_method_authorizations[method] = self.get_rpc_authorizations(method)
+        return rpc_method_authorizations
 
     def get_rpc_authorizations(self, method_str):
         """Returns a list of authorized capabilities for the provided method
