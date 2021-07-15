@@ -37,6 +37,7 @@
 # }}}
 
 import argparse
+import base64
 import hashlib
 import logging
 import os
@@ -244,12 +245,110 @@ def send_agent(connection: "ControlConnection", wheel_file: str, vip_identity: s
     path = wheel_file
     peer = connection.peer
     server = connection.server
+    _log.debug(f"server type is {type(server)} {type(server.core)}")
     
     wheel = open(path, 'rb')
     _log.debug(f"Connecting to {peer} to install {path}")
-    channel = server.vip.channel(peer, 'agent_sender')
+    channel = None
+    rmq_send_topic = None
+    rmq_response_topic = None
 
-    def send():
+    if server.core.messagebus == 'zmq':
+        channel = server.vip.channel(peer, 'agent_sender')
+    elif server.core.messagebus == 'rmq':
+        rmq_send_topic = "agent_sender"
+        rmq_response_topic = "request_data"
+    else:
+        raise ValueError("Unknown messagebus detected")
+
+    def send_rmq():
+        nonlocal wheel, server
+        
+        sha512 = hashlib.sha512()
+        protocol_message = None
+        protocol_headers = None
+        response_received = False
+
+        def protocol_requested(peer, sender, bus, topic, headers, message):
+            nonlocal protocol_message, protocol_headers, response_received
+
+            protocol_message = message
+            protocol_message = base64.b64decode(protocol_message.encode('utf-8'))
+            protocol_headers = headers
+            response_received = True
+
+        try:
+            first = True
+            op = None
+            size = None
+            _log.debug(f"Subscribing to {rmq_response_topic}")
+            server.vip.pubsub.subscribe(peer="pubsub", 
+                                        prefix=rmq_response_topic,
+                                        callback=protocol_requested).get(timeout=5)
+            gevent.sleep(5)
+            _log.debug(f"Publishing to {rmq_send_topic}")
+            while True:
+                if first:
+                    _log.debug("Waiting for a fetch")
+                    # Wait until we get the first request.
+                    with gevent.Timeout(30):
+                        while not response_received:
+                            gevent.sleep(0.1)
+                            
+                    first = False
+                    resp = jsonapi.loads(protocol_message)
+                    _log.debug(f"Got first response {resp}")
+
+                    if len(resp) > 1:
+                        op, size = resp
+                    else:
+                        op = resp[0]
+                    
+                    if op != 'fetch':
+                        raise ValueError(f'First channel response must be fetch but was {op}')
+                response_received = False
+                if op == 'fetch':
+                    chunk = wheel.read(size)
+                    if chunk:
+                        _log.debug(f"Op was fetch sending {size}")
+                        sha512.update(chunk)
+                        # Needs a string to go across the messagebus.
+                        message = base64.b64encode(chunk).decode('utf-8')
+                        server.vip.pubsub.publish(peer="pubsub", topic=rmq_send_topic, message=message).get(timeout=10)
+                    else:
+                        _log.debug(f"Op was fetch sending complete")
+                        message = base64.b64encode(b'complete').decode('utf-8')
+                        server.vip.pubsub.publish(peer="pubsub", topic=rmq_send_topic, message=message).get(timeout=10)
+                        gevent.sleep(10)
+                        break
+                elif op == 'checksum':
+                    _log.debug(f"sending checksum {sha512.hexdigest()}")
+                    message = base64.b64encode(sha512.digest()).decode('utf-8')
+                    server.vip.pubsub.publish("pubsub", topic=rmq_send_topic, message=message).get(timeout=10)
+
+                _log.debug("Waiting for next response")
+
+                with gevent.Timeout(30):
+                    while not response_received:
+                        gevent.sleep(0.1)
+                _log.debug(f"Response received bottom of loop {protocol_message}")
+                # wait for next response
+                resp = jsonapi.loads(protocol_message)
+                
+                # [fetch, size] or checksum
+                if len(resp) > 1:
+                    op, size = resp
+                else:
+                    op = resp[0]
+
+        finally:
+            _log.debug("Closing wheel and unsubscribing.")
+            wheel.close()
+            server.vip.pubsub.unsubscribe(peer="pubsub", prefix="rmq_response_topic", callback=protocol_requested)
+
+
+
+    def send_zmq():
         nonlocal wheel, channel
         sha512 = hashlib.sha512()
         try:
@@ -274,7 +373,7 @@ def send_agent(connection: "ControlConnection", wheel_file: str, vip_identity: s
                         op = resp[0]
                     
                     if op != 'fetch':
-                        raise ValueError(f'First channel response must be fetch but was {fetch}')
+                        raise ValueError(f'First channel response must be fetch but was {op}')
 
                 if op == 'fetch':
                     chunk = wheel.read(size)
@@ -306,15 +405,24 @@ def send_agent(connection: "ControlConnection", wheel_file: str, vip_identity: s
             channel.close(linger=0)
             del channel
 
-    _log.debug(f"calling install_agent on {peer} using channel {channel.name}")
-    result = server.vip.rpc.call(
-        peer, 'install_agent', os.path.basename(path), channel.name,
-        vip_identity, publickey, secretkey, force)
     
-    task = gevent.spawn(send)
+    if server.core.messagebus == 'rmq':
+        _log.debug(f"calling install_agent on {peer} sending to topic {rmq_send_topic}")
+        task = gevent.spawn(send_rmq)
+        result = server.vip.rpc.call(
+                peer, 'install_agent_rmq', vip_identity, os.path.basename(path), rmq_send_topic, force, rmq_response_topic)
+    elif server.core.messagebus == 'zmq':
+        _log.debug(f"calling install_agent on {peer} using channel {channel.name}")
+        task = gevent.spawn(send_zmq)
+        result = server.vip.rpc.call(
+                peer, 'install_agent', os.path.basename(path), channel.name, vip_identity, publickey, secretkey, force)
+        
+    else:
+        raise ValueError("Unknown messagebus detected!")
+    
     result.rawlink(lambda glt: task.kill(block=False))
-    _log.debug("Completed sending of agent across.")
     gevent.wait([result])
+    _log.debug("Completed sending of agent across.")
     _log.debug(f"After wait result is {result}")
     return result
 
