@@ -1,4 +1,3 @@
-import contextlib
 import datetime
 import itertools
 import os
@@ -6,10 +5,13 @@ import logging
 import pytest
 
 from time import time
-
 from volttron.platform import jsonapi
+from volttron.platform.dbutils.postgresqlfuncts import PostgreSqlFuncts
+from volttrontesting.fixtures.docker_wrapper import create_container
+from volttrontesting.utils.utils import get_rand_port
 
 logging.getLogger("urllib3.connectionpool").setLevel(logging.INFO)
+pytestmark = [pytest.mark.postgresqlfuncts, pytest.mark.dbutils, pytest.mark.unit]
 
 
 try:
@@ -20,12 +22,6 @@ except ImportError:
         "Required imports for testing are not installed; thus, not running tests. Install imports with: python bootstrap.py --postgres",
         allow_module_level=True,
     )
-
-from volttron.platform.dbutils.postgresqlfuncts import PostgreSqlFuncts
-from volttrontesting.fixtures.docker_wrapper import create_container
-from volttrontesting.utils.utils import get_rand_port
-
-pytestmark = [pytest.mark.postgresqlfuncts, pytest.mark.dbutils, pytest.mark.unit]
 
 # Current documentation claims that we have tested Historian on Postgres 10
 # See https://volttron.readthedocs.io/en/develop/core_services/historians/SQL-Historian.html#postgresql-and-redshift
@@ -45,7 +41,7 @@ if "CI" in os.environ:
             "postgres:13-beta2",
         ]
     )
-ALLOW_CONNECTION_TIME = 5
+ALLOW_CONNECTION_TIME = 10
 CONNECTION_HOST = "localhost"
 TEST_DATABASE = "test_historian"
 ROOT_USER = "postgres"
@@ -79,8 +75,6 @@ def test_setup_historian_tables_should_create_tables(get_container_func):
         create_all_tables(container, historian_version)
 
 
-@pytest.mark.postgresqlfuncts
-@pytest.mark.dbutils
 def test_setup_aggregate_historian_tables_should_create_aggregate_tables(get_container_func):
     container, sqlfuncts, connection_port, historian_version = get_container_func
     # get_container initializes db and sqlfuncts to test setup explicitly drop tables and see if tables get created
@@ -117,7 +111,8 @@ def test_setup_aggregate_historian_tables_should_create_aggregate_tables(get_con
     assert sqlfuncts.agg_meta_table == agg_meta_table
     assert sqlfuncts.data_table == DATA_TABLE
     assert sqlfuncts.topics_table == TOPICS_TABLE
-    assert sqlfuncts.meta_table == META_TABLE
+    if sqlfuncts.meta_table != TOPICS_TABLE:
+        assert sqlfuncts.meta_table == META_TABLE
 
 
 @pytest.mark.parametrize(
@@ -234,6 +229,27 @@ def test_update_topic_and_metadata_should_succeed(get_container_func):
 
     assert result is True
     assert (actual_id, "soccer", '{"test": "test value"}') == get_data_in_table(connection_port, "topics")[0]
+
+
+def test_update_meta_should_succeed(get_container_func):
+    container, sqlfuncts, connection_port, historian_version = get_container_func
+    metadata = {"units": "count"}
+    metadata_s = jsonapi.dumps(metadata)
+    topic = "foobar"
+
+    id = sqlfuncts.insert_topic(topic)
+    sqlfuncts.insert_meta(id, {"fdjlj": "XXXX"})
+    assert metadata_s not in get_data_in_table(connection_port, TOPICS_TABLE)[0]
+
+    res = sqlfuncts.update_meta(id, metadata)
+
+    expected_lt_4 = [(1, metadata_s)]
+    expected_gteq_4 = [(1, topic, metadata_s)]
+    assert res is True
+    if historian_version == "<4.0.0":
+        assert get_data_in_table(connection_port, META_TABLE) == expected_lt_4
+    else:
+        assert get_data_in_table(connection_port, TOPICS_TABLE) == expected_gteq_4
 
 
 def test_get_aggregation_list_should_return_list(get_container_func):
@@ -559,7 +575,7 @@ def create_all_tables(container, historian_version):
 def create_historian_tables(container, historian_version):
     if historian_version == "<4.0.0":
         query = f"""
-                    CREATE TABLE {DATA_TABLE} (
+                    CREATE TABLE IF NOT EXISTS {DATA_TABLE} (
                     ts TIMESTAMP NOT NULL,
                     topic_id INTEGER NOT NULL,
                     value_string TEXT NOT NULL,
@@ -574,7 +590,7 @@ def create_historian_tables(container, historian_version):
                 """
     else:
         query = f"""
-                    CREATE TABLE {DATA_TABLE} (
+                    CREATE TABLE IF NOT EXISTS {DATA_TABLE} (
                     ts TIMESTAMP NOT NULL,
                     topic_id INTEGER NOT NULL,
                     value_string TEXT NOT NULL,
@@ -718,19 +734,12 @@ def wait_for_connection(container, port):
 
 
 def drop_all_tables(port):
-    """
-    :param port:
-
-    """
+    tables = get_tables(port)
     cnx, cursor = get_cnx_cursor(port)
-    query = f"\\dt"
-    print(f"query {query}")
     try:
-        cursor.execute(query)
-        rows = cursor.fetchall()
-        print(f"table names {rows}")
-        for columns in rows:
-            cursor.execute("DROP TABLE " + columns[0])
+        for t in tables:
+            cursor.execute(SQL(f'DROP TABLE {t}'))
+        cnx.commit()
     except Exception as e:
         print("Error deleting tables {}".format(e))
     finally:

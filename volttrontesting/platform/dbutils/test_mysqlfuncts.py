@@ -2,13 +2,17 @@ import datetime
 import itertools
 import os
 import logging
-
+import pytest
 
 logging.getLogger("urllib3.connectionpool").setLevel(logging.INFO)
+pytestmark = [pytest.mark.mysqlfuncts, pytest.mark.dbutils, pytest.mark.unit]
 
 from time import time, sleep
+from volttron.platform.dbutils.mysqlfuncts import MySqlFuncts
+from volttrontesting.fixtures.docker_wrapper import create_container
+from volttrontesting.utils.utils import get_rand_port
+from volttron.platform import jsonapi
 
-import pytest
 
 try:
     import mysql.connector
@@ -18,17 +22,11 @@ except ImportError:
         allow_module_level=True,
     )
 
-from volttron.platform.dbutils.mysqlfuncts import MySqlFuncts
-from volttrontesting.fixtures.docker_wrapper import create_container
-from volttrontesting.utils.utils import get_rand_port
-from volttron.platform import jsonapi
-
-pytestmark = [pytest.mark.mysqlfuncts, pytest.mark.dbutils, pytest.mark.unit]
 
 IMAGES = [
     "mysql:5.6.49",
     "mysql:8.0.25"
- ]
+]
 
 if "CI" in os.environ:
     IMAGES.extend(["mysql:5.7.31", "mysql:5", "mysql:5.6", "mysql:5.7"])
@@ -45,10 +43,9 @@ AGG_TOPICS_TABLE = "aggregate_topics"
 AGG_META_TABLE = "aggregate_meta"
 
 
-@pytest.mark.mysqlfuncts
 def test_setup_historian_tables_should_create_tables(get_container_func):
     container, sqlfuncts, connection_port, historian_version = get_container_func
-    if historian_version == '<4.0.0':
+    if historian_version == "<4.0.0":
         pytest.skip("sqlfuncts will not create db with schema <4.0.0")
     # get_container initializes db and sqlfuncts
     # to test setup explicitly drop tables and see if tables get created correctly
@@ -63,7 +60,6 @@ def test_setup_historian_tables_should_create_tables(get_container_func):
         create_all_tables(container, historian_version)
 
 
-@pytest.mark.mysqlfuncts
 def test_setup_aggregate_historian_tables_should_succeed(get_container_func):
     container, sqlfuncts, connection_port, historian_version = get_container_func
 
@@ -78,7 +74,6 @@ def test_setup_aggregate_historian_tables_should_succeed(get_container_func):
     assert AGG_META_TABLE in tables
 
 
-@pytest.mark.mysqlfuncts
 @pytest.mark.parametrize(
     "topic_ids, id_name_map, expected_values",
     [
@@ -106,7 +101,6 @@ def test_query_should_return_data(get_container_func, topic_ids, id_name_map, ex
     assert actual_values == expected_values
 
 
-@pytest.mark.mysqlfuncts
 def test_insert_meta_query_should_succeed(get_container_func):
     container, sqlfuncts, connection_port, historian_version = get_container_func
 
@@ -121,7 +115,6 @@ def test_insert_meta_query_should_succeed(get_container_func):
     assert get_data_in_table(connection_port, "meta")[0] == expected_data
 
 
-@pytest.mark.mysqlfuncts
 def test_insert_data_query_should_succeed(get_container_func):
     container, sqlfuncts, connection_port, historian_version = get_container_func
     ts = "2001-09-11 08:46:00"
@@ -134,17 +127,17 @@ def test_insert_data_query_should_succeed(get_container_func):
     assert get_data_in_table(connection_port, "data") == expected_data
 
 
-@pytest.mark.mysqlfuncts
 def test_insert_topic_query_should_succeed(get_container_func):
     container, sqlfuncts, connection_port, historian_version = get_container_func
     topic = "football"
     actual_id = sqlfuncts.insert_topic(topic)
 
     assert isinstance(actual_id, int)
-    assert (actual_id, "football") == get_data_in_table(connection_port, "topics")[0][0:2]
+    assert (actual_id, "football") == get_data_in_table(connection_port, "topics")[0][
+        0:2
+    ]
 
 
-@pytest.mark.mysqlfuncts
 def test_insert_topic_and_meta_query_should_succeed(get_container_func):
     container, sqlfuncts, connection_port, historian_version = get_container_func
     if historian_version == "<4.0.0":
@@ -158,7 +151,7 @@ def test_insert_topic_and_meta_query_should_succeed(get_container_func):
     assert (actual_id, topic) == result[0:2]
     assert metadata == jsonapi.loads(result[2])
 
-@pytest.mark.mysqlfuncts
+
 def test_update_topic_should_succeed(get_container_func):
     container, sqlfuncts, connection_port, historian_version = get_container_func
     topic = "football"
@@ -172,7 +165,6 @@ def test_update_topic_should_succeed(get_container_func):
     assert (actual_id, "soccer") == get_data_in_table(connection_port, "topics")[0][0:2]
 
 
-@pytest.mark.mysqlfuncts
 def test_update_topic_and_metadata_should_succeed(get_container_func):
     container, sqlfuncts, connection_port, historian_version = get_container_func
     if historian_version == "<4.0.0":
@@ -182,13 +174,33 @@ def test_update_topic_and_metadata_should_succeed(get_container_func):
 
     assert isinstance(actual_id, int)
 
-    result = sqlfuncts.update_topic("soccer", actual_id, metadata={"test": "test value"})
+    result = sqlfuncts.update_topic(
+        "soccer", actual_id, metadata={"test": "test value"}
+    )
 
     assert result is True
-    assert (actual_id, "soccer", '{"test": "test value"}') == get_data_in_table(connection_port, "topics")[0]
+    assert (actual_id, "soccer", '{"test": "test value"}') == get_data_in_table(
+        connection_port, "topics"
+    )[0]
 
 
-@pytest.mark.mysqlfuncts
+def test_update_meta_should_succeed(get_container_func):
+    container, sqlfuncts, connection_port, historian_version = get_container_func
+    id = sqlfuncts.insert_topic("foobar")
+
+    if historian_version == "<4.0.0":
+        sqlfuncts.insert_meta(id, {"fdjlj": "XXXX"})
+
+    assert sqlfuncts.update_meta(id, {"units": "count"})
+
+    if historian_version == "<4.0.0":
+        data = get_data_in_table(connection_port, META_TABLE)
+        assert data == [(1, '{"units": "count"}')]
+    else:
+        data = get_data_in_table(connection_port, TOPICS_TABLE)
+        assert data == [(1, "foobar", '{"units": "count"}')]
+
+
 def test_insert_agg_topic_should_succeed(get_container_func):
     container, sqlfuncts, connection_port, historian_version = get_container_func
     topic = "some_agg_topic"
@@ -200,8 +212,8 @@ def test_insert_agg_topic_should_succeed(get_container_func):
     assert isinstance(actual_id, int)
     assert get_data_in_table(connection_port, AGG_TOPICS_TABLE)[0] == expected_data
 
+
 # fails for mysql:8.0.25 historian schema version >=4.0.0
-@pytest.mark.mysqlfuncts
 def test_update_agg_topic_should_succeed(get_container_func):
     container, sqlfuncts, connection_port, historian_version = get_container_func
 
@@ -223,8 +235,8 @@ def test_update_agg_topic_should_succeed(get_container_func):
     assert result is True
     assert get_data_in_table(connection_port, AGG_TOPICS_TABLE)[0] == expected_data
 
+
 # fails for image:mysql:8.0.25 historian schema version >=4.0.0
-@pytest.mark.mysqlfuncts
 def test_insert_agg_meta_should_succeed(get_container_func):
     container, sqlfuncts, connection_port, historian_version = get_container_func
 
@@ -239,7 +251,6 @@ def test_insert_agg_meta_should_succeed(get_container_func):
     assert get_data_in_table(connection_port, AGG_META_TABLE)[0] == expected_data
 
 
-@pytest.mark.mysqlfuncts
 def test_get_topic_map_should_succeed(get_container_func):
     container, sqlfuncts, connection_port, historian_version = get_container_func
     query = """
@@ -258,9 +269,8 @@ def test_get_topic_map_should_succeed(get_container_func):
 
     assert actual == expected
 
-# fails for image:mysql:8.0.25 historian schema version >=4.0.0
 
-@pytest.mark.mysqlfuncts
+# fails for image:mysql:8.0.25 historian schema version >=4.0.0
 def test_get_agg_topic_map_should_return_dict(get_container_func):
     container, sqlfuncts, connection_port, historian_version = get_container_func
     query = f"""
@@ -277,7 +287,6 @@ def test_get_agg_topic_map_should_return_dict(get_container_func):
     assert actual == expected
 
 
-@pytest.mark.mysqlfuncts
 def test_query_topics_by_pattern_should_succeed(get_container_func):
     container, sqlfuncts, connection_port, historian_version = get_container_func
     query = f"""
@@ -297,7 +306,6 @@ def test_query_topics_by_pattern_should_succeed(get_container_func):
     assert actual == expected
 
 
-@pytest.mark.mysqlfuncts
 def test_create_aggregate_store_should_succeed(get_container_func):
     container, sqlfuncts, connection_port, historian_version = get_container_func
 
@@ -310,13 +318,9 @@ def test_create_aggregate_store_should_succeed(get_container_func):
 
     assert result is not None
     assert expected_aggregate_table in get_tables(connection_port)
-    assert (
-        describe_table(connection_port, expected_aggregate_table)
-        == expected_fields
-    )
+    assert describe_table(connection_port, expected_aggregate_table) == expected_fields
 
 
-@pytest.mark.mysqlfuncts
 def test_insert_aggregate_stmt_should_succeed(get_container_func):
     container, sqlfuncts, connection_port, historian_version = get_container_func
     query = """
@@ -336,7 +340,7 @@ def test_insert_aggregate_stmt_should_succeed(get_container_func):
     expected_data = (
         datetime.datetime(2020, 6, 1, 12, 30, 59),
         42,
-        '"some_data"',
+        "some_data",
         "[12, 54, 65]",
     )
 
@@ -348,7 +352,6 @@ def test_insert_aggregate_stmt_should_succeed(get_container_func):
     assert get_data_in_table(connection_port, "AVG_1776")[0] == expected_data
 
 
-@pytest.mark.mysqlfuncts
 def test_collect_aggregate_should_return_aggregate_result(get_container_func):
     container, sqlfuncts, connection_port, historian_version = get_container_func
     query = f"""
@@ -368,11 +371,10 @@ def test_collect_aggregate_should_return_aggregate_result(get_container_func):
     assert actual_aggregate == expected_aggregate
 
 
-@pytest.mark.mysqlfuncts
 def test_collect_aggregate_should_raise_value_error(get_container_func):
     container, sqlfuncts, connection_port, historian_version = get_container_func
     with pytest.raises(ValueError):
-       sqlfuncts.collect_aggregate("dfd", "Invalid agg type")
+        sqlfuncts.collect_aggregate("dfd", "Invalid agg type")
 
 
 def get_mysqlfuncts(port):
@@ -382,7 +384,7 @@ def get_mysqlfuncts(port):
         "database": TEST_DATABASE,
         "user": "root",
         "passwd": ROOT_PASSWORD,
-        "connection_timeout": ALLOW_CONNECTION_TIME
+        "connection_timeout": ALLOW_CONNECTION_TIME,
     }
 
     table_names = {
@@ -396,36 +398,31 @@ def get_mysqlfuncts(port):
     return MySqlFuncts(connect_params, table_names)
 
 
-@pytest.fixture(params=itertools.product(
-    IMAGES,
-    [
-     '<4.0.0',
-     '>=4.0.0'
-     ]))
+@pytest.fixture(params=itertools.product(IMAGES, ["<4.0.0", ">=4.0.0"]))
 def get_container_func(request):
     global CONNECTION_HOST
-    historian_version = request.param[1]
-    print(f"image:{request.param[0]} historian schema "
-          f"version {historian_version}")
-    if historian_version == '<4.0.0' and request.param[0].startswith("mysql:8"):
-        pytest.skip(msg=f"Default schema of historian version <4.0.0 "
-                        f"will not work in mysql version > 5. Skipping tests "
-                        f"for this parameter combination ",
-                        allow_module_level=True)
-    kwargs = {'env': ENV_MYSQL}
+    image, historian_version = request.param
+    print(f"image: {image} historian schema; version {historian_version}")
+    if historian_version == "<4.0.0" and image.startswith("mysql:8"):
+        pytest.skip(
+            msg=f"Default schema of historian version <4.0.0 "
+            f"will not work in mysql version > 5. Skipping tests "
+            f"for this parameter combination ",
+            allow_module_level=True,
+        )
+    kwargs = {"env": ENV_MYSQL}
     if os.path.exists("/.dockerenv"):
         print("Running test within docker container.")
         connection_port = 3306
-        CONNECTION_HOST = 'mysql_test'
-        kwargs['hostname'] = CONNECTION_HOST
+        CONNECTION_HOST = "mysql_test"
+        kwargs["hostname"] = CONNECTION_HOST
     else:
         ports_dict = ports_config()
-        kwargs['ports'] = ports_dict["ports"]
+        kwargs["ports"] = ports_dict["ports"]
         connection_port = ports_dict["port_on_host"]
-        CONNECTION_HOST = 'localhost'
+        CONNECTION_HOST = "localhost"
 
     with create_container(request.param[0], **kwargs) as container:
-
         wait_for_connection(container)
         create_all_tables(container, historian_version)
 
@@ -626,10 +623,8 @@ def get_cnx_cursor(port):
         "user": "root",
         "passwd": ROOT_PASSWORD,
         "auth_plugin": "mysql_native_password",
-        "autocommit": True
+        "autocommit": True,
     }
     cnx = mysql.connector.connect(**connect_params)
     cursor = cnx.cursor()
     return cnx, cursor
-
-
