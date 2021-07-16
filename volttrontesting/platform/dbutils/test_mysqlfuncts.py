@@ -25,7 +25,7 @@ except ImportError:
 
 IMAGES = [
     "mysql:5.6.49",
-    # "mysql:8.0.25"
+    "mysql:8.0.25"
 ]
 
 if "CI" in os.environ:
@@ -85,9 +85,7 @@ def test_setup_aggregate_historian_tables_should_succeed(get_container_func):
         ),
     ],
 )
-def test_query_should_return_data(
-    get_container_func, topic_ids, id_name_map, expected_values
-):
+def test_query_should_return_data(get_container_func, topic_ids, id_name_map, expected_values):
     container, sqlfuncts, connection_port, historian_version = get_container_func
     query = f"""
                CREATE TABLE IF NOT EXISTS {DATA_TABLE}
@@ -216,8 +214,6 @@ def test_insert_agg_topic_should_succeed(get_container_func):
 
 
 # fails for mysql:8.0.25 historian schema version >=4.0.0
-
-
 def test_update_agg_topic_should_succeed(get_container_func):
     container, sqlfuncts, connection_port, historian_version = get_container_func
 
@@ -241,8 +237,6 @@ def test_update_agg_topic_should_succeed(get_container_func):
 
 
 # fails for image:mysql:8.0.25 historian schema version >=4.0.0
-
-
 def test_insert_agg_meta_should_succeed(get_container_func):
     container, sqlfuncts, connection_port, historian_version = get_container_func
 
@@ -277,8 +271,6 @@ def test_get_topic_map_should_succeed(get_container_func):
 
 
 # fails for image:mysql:8.0.25 historian schema version >=4.0.0
-
-
 def test_get_agg_topic_map_should_return_dict(get_container_func):
     container, sqlfuncts, connection_port, historian_version = get_container_func
     query = f"""
@@ -409,9 +401,9 @@ def get_mysqlfuncts(port):
 @pytest.fixture(params=itertools.product(IMAGES, ["<4.0.0", ">=4.0.0"]))
 def get_container_func(request):
     global CONNECTION_HOST
-    historian_version = request.param[1]
-    print(f"image:{request.param[0]} historian schema " f"version {historian_version}")
-    if historian_version == "<4.0.0" and request.param[0].startswith("mysql:8"):
+    image, historian_version = request.param
+    print(f"image: {image} historian schema; version {historian_version}")
+    if historian_version == "<4.0.0" and image.startswith("mysql:8"):
         pytest.skip(
             msg=f"Default schema of historian version <4.0.0 "
             f"will not work in mysql version > 5. Skipping tests "
@@ -431,7 +423,6 @@ def get_container_func(request):
         CONNECTION_HOST = "localhost"
 
     with create_container(request.param[0], **kwargs) as container:
-
         wait_for_connection(container)
         create_all_tables(container, historian_version)
 
