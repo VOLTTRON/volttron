@@ -744,7 +744,7 @@ def list_agents_rpc(opts):
                 peer_method_metadata[peer][method] = conn.server.vip.rpc.call(
                     peer, f'{method}.inspect').get(timeout=4)
                 authorized_capabilities = conn.server.vip.rpc.call(
-                    peer, "get_rpc_authorizations", method).get(timeout=4)
+                    peer, "auth.get_rpc_authorizations", method).get(timeout=4)
                 peer_method_metadata[peer][method]['authorized_capabilities'] = \
                     f"Authorized capabilities: {authorized_capabilities}"
             except gevent.Timeout:
@@ -2875,13 +2875,17 @@ def main(argv=sys.argv):
     auth_rpc_allow = add_parser("allow", subparser=auth_rpc_subparsers, help="adds rpc method authorizations")
 
     auth_rpc_allow.add_argument('pattern', nargs='*',
-                                help='Identity of agent, followed by method(s)')
+                                help='Identity of agent and method, followed by capabilities. '
+                                     'Should be in the format: '
+                                     'agent_id.method authorized_capability1 authorized_capability2 ...')
     auth_rpc_allow.set_defaults(func=add_agent_rpc_authorizations, min_uuid_len=1)
 
     auth_rpc_allow = add_parser("deny", subparser=auth_rpc_subparsers, help="removes rpc method authorizations")
 
     auth_rpc_allow.add_argument('pattern', nargs='*',
-                                help='Identity of agent, followed by method(s)')
+                                help='Identity of agent and method, followed by capabilities. '
+                                     'Should be in the format: '
+                                     'agent_id.method authorized_capability1 authorized_capability2 ...')
     auth_rpc_allow.set_defaults(func=remove_agent_rpc_authorizations, min_uuid_len=1)
 
     # ====================================================

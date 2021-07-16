@@ -228,7 +228,7 @@ def test_get_rpc_method_authorizations(volttron_instance, build_two_test_agents)
     (agent1, agent2) = build_two_test_agents
     volttron_instance.add_capabilities(agent2.publickey, 'modify_rpc_method_allowance')
     gevent.sleep(1)
-    agent1_rpc_authorizations = agent2.vip.rpc.call(AUTH, 'get_rpc_authorizations', 'approve_authorization_failure').get(timeout=2)
+    agent1_rpc_authorizations = agent2.vip.rpc.call(AUTH, 'auth.get_rpc_authorizations', 'approve_authorization_failure').get(timeout=2)
     assert len(agent1_rpc_authorizations) == 1
 
 
@@ -241,7 +241,7 @@ def test_set_rpc_method_authorizations(volttron_instance, build_two_test_agents)
     with pytest.raises(jsonrpc.RemoteError):
         agent2.vip.rpc.call(agent1.core.identity, 'foo', 42).get(timeout=1)
 
-    agent2.vip.rpc.call(agent1.core.identity, 'set_rpc_authorizations', 'foo', 'test_authorization_1')
+    agent2.vip.rpc.call(agent1.core.identity, 'auth.set_rpc_authorizations', 'foo', 'test_authorization_1')
 
     return_val = agent2.vip.rpc.call(agent1.core.identity, 'foo', 42).get(timeout=1)
     assert return_val == 42

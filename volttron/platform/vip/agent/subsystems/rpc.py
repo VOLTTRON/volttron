@@ -575,7 +575,26 @@ class RPC(SubsystemBase):
             cap = set([capabilities])
         else:
             cap = set(capabilities)
-        self._exports[method.__name__] = self._add_auth_check(method, cap)
+        # Necessary if you have provided an alias for the rpc method.
+        if isinstance(method, str):
+            if method in self._exports:
+                # for c in cap:
+                #     try:
+                #         annotate(self._exports[method], set, 'rpc.allow_capabilities', c)
+                #     except AttributeError:
+                #         setattr(self._exports[method], "_annotations", {})
+                #         annotate(self._exports[method], set, 'rpc.allow_capabilities', c)
+                self._exports[method] = self._add_auth_check(self._exports[method], cap)
+            else:
+                _log.error("Method alias is not in RPC export list.")
+        else:
+            # for c in cap:
+            #     try:
+            #         annotate(method, set, 'rpc.allow_capabilities', c)
+            #     except AttributeError:
+            #         setattr(method, "_annotations", {})
+            #         annotate(method, set, 'rpc.allow_capabilities', c)
+            self._exports[method.__name__] = self._add_auth_check(method, cap)
 
     @allow.classmethod
     def allow(cls, capabilities):

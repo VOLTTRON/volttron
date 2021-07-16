@@ -81,10 +81,13 @@ class Auth(SubsystemBase):
 
         def onsetup(sender, **kwargs):
             rpc.export(self._update_capabilities, 'auth.update')
-            rpc.export(self.get_rpc_authorizations)
+            rpc.export(self.get_rpc_authorizations, "auth.get_rpc_authorizations")
             rpc.export(self.get_all_rpc_authorizations, "auth.get_all_rpc_authorizations")
-            rpc.export(self.set_rpc_authorizations)
-            rpc.allow(self.set_rpc_authorizations, 'modify_rpc_method_allowance')
+            rpc.export(self.set_rpc_authorizations, "auth.set_rpc_authorizations")
+            rpc.export(self.set_multiple_rpc_authorizations, "auth.set_multiple_rpc_authorizations")
+            rpc.allow("auth.set_rpc_authorizations", 'modify_rpc_method_allowance')
+            rpc.allow("auth.set_multiple_rpc_authorizations", 'modify_rpc_method_allowance')
+
             # Do not update platform agents on start-up, which can cause trouble.
             ignored_ids = [AUTH, PLATFORM_WEB, CONTROL, KEY_DISCOVERY, CONFIGURATION_STORE,
                            CONTROL_CONNECTION, PLATFORM_HEALTH, 'pubsub']
@@ -410,7 +413,11 @@ class Auth(SubsystemBase):
         rpc_methods = self.get_rpc_exports()
         rpc_method_authorizations = {}
         for method in rpc_methods:
-            rpc_method_authorizations[method] = self.get_rpc_authorizations(method)
+            if len(method.split(".")) > 1:
+                pass
+            else:
+                rpc_method_authorizations[method] = self.get_rpc_authorizations(method)
+        _log.debug(f"get_all_rpc_authorizations finished correctly!")
         return rpc_method_authorizations
 
     def get_rpc_authorizations(self, method_str):
@@ -425,21 +432,32 @@ class Auth(SubsystemBase):
         :returns: list of capabilities that will be able to access the method, exclusively
         :rtype: list
         """
+        # Prevent getting of subsystem methods, noted with a '.' in the RPC export name.
+        if len(method_str.split(".")) > 1:
+            _log.error(f"Illegal operation. Attempt to get authorization on subsystem method: {method_str}")
+            return []
         try:
             method = getattr(self._owner, method_str)
-        except AttributeError:
-            try:
-                method = getattr(self._owner.vip, method_str)
-            except AttributeError:
-                return []
+        except AttributeError as err:
+            _log.warning(f"{err}")
+            return []
         try:
             authorized_capabilities = list(method._annotations['rpc.allow_capabilities'])
         except KeyError:
             authorized_capabilities = []
         except Exception as e:
-            print(e)
-            authorized_capabilities = None
+            _log.error(e)
+            authorized_capabilities = []
         return authorized_capabilities
+
+    def set_multiple_rpc_authorizations(self, rpc_authorizations):
+        """Sets authorized capabilites for multiple RPC exported methods.
+
+        :param rpc_authorizations: dictionary of {method: [authorized capabilities]}
+        :type rpc_authorizations: dict
+        """
+        for method in rpc_authorizations:
+            self.set_rpc_authorizations(method, rpc_authorizations[method])
 
     def set_rpc_authorizations(self, method_str, capabilities):
         """Sets authorized capabilites for an RPC exported method.
@@ -449,13 +467,15 @@ class Auth(SubsystemBase):
         :param capabilities: list of capabilities that will be able to access the method, exclusively
         :type capabilities: list
         """
+        # Prevent setting on subsystem methods, noted with a '.' in the RPC export name.
+        if len(method_str.split(".")) > 1:
+            _log.error(f"Illegal operation. Attempt to set authorization on subsystem method: {method_str}")
+            return
         try:
             method = getattr(self._owner, method_str)
-        except AttributeError:
-            try:
-                method = getattr(self._owner.vip, method_str)
-            except AttributeError:
-                raise
+        except AttributeError as err:
+            _log.warning(f"{err}")
+            return
         _log.debug(f"Setting authorized capabilities: {capabilities} for method: {method_str}")
         self._rpc().allow(method, capabilities)
         _log.debug(f"Authorized capabilities: {capabilities} for method: {method_str} set")
@@ -471,11 +491,15 @@ class Auth(SubsystemBase):
         rpc_method_authorizations = {}
         rpc_methods = self.get_rpc_exports()
         for method in rpc_methods:
-            rpc_method_authorizations[method] = self.get_rpc_authorizations(method)
+            if len(method.split(".")) > 1:
+                pass
+            else:
+                rpc_method_authorizations[method] = self.get_rpc_authorizations(method)
         updated_rpc_method_authorizations = self._rpc().call(AUTH, 'update_auth_entry_rpc_method_authorizations',
                          self._core().identity, rpc_method_authorizations).get(timeout=4)
         if updated_rpc_method_authorizations is None:
             _log.error(f"Auth entry not found for {self._core().identity}: rpc_method_authorizations not updated.")
+            return
         if rpc_method_authorizations != updated_rpc_method_authorizations:
             for method in updated_rpc_method_authorizations:
                 self.set_rpc_authorizations(method, updated_rpc_method_authorizations[method])

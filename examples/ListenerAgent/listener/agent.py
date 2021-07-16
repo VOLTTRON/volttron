@@ -44,7 +44,7 @@ import datetime
 
 from volttron.platform.agent import utils
 from volttron.platform.messaging.health import STATUS_GOOD
-from volttron.platform.vip.agent import Agent, Core, PubSub
+from volttron.platform.vip.agent import Agent, Core, PubSub, RPC
 from volttron.platform.vip.agent.subsystems.query import Query
 
 utils.setup_logging()
@@ -114,6 +114,9 @@ class ListenerAgent(Agent):
             "Peer: {0}, Sender: {1}:, Bus: {2}, Topic: {3}, Headers: {4}, "
             "Message: \n{5}".format(peer, sender, bus, topic, headers, pformat(message)))
 
+    @RPC.export
+    def foo(self):
+        _log.debug("YAY! THIS WORKED!")
 
 def main(argv=sys.argv):
     '''Main method called by the eggsecutable.'''
