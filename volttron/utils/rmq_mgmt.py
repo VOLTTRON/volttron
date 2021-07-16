@@ -824,18 +824,20 @@ class RabbitMQMgmt(object):
 
         try:
             if component == 'shovel':
-                _, host, _ = parameter_name.split('-')
+                parameter_parts = parameter_name.split('-')
                 shovel_links = self.get_shovel_links()
                 shovel_names = [link['name'] for link in shovel_links]
+                print(f"shovel names : {shovel_names}")
+                print(f"shovel links: {shovel_links}")
                 for name in shovel_names:
-                    _, h, _ = name.split('-')
-                    if host == h:
+                    name_parts = name.split('-')
+                    if parameter_parts[1] == name_parts[1]:
                         shovel_names_for_host.append(name)
                 # Check if there are other shovel connections to remote platform. If yes, we
                 # cannot delete the certs since others will need them
                 if delete_certs and len(shovel_names_for_host) >= 1:
-                    print(f"Cannot delete certificates since there are other shovels connected to remote host: {host}"
-                          f" will need it for connection")
+                    print(f"Cannot delete certificates since there are other shovels "
+                          f"connected to remote host: {parameter_parts[1]}")
                     return
         except AttributeError as ex:
             _log.error(f"Unable to reach RabbitMQ management API. Check if RabbitMQ server is running. "
