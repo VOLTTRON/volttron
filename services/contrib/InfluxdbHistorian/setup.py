@@ -51,7 +51,7 @@ for package in find_packages():
 if not agent_package:
     raise RuntimeError('None of the packages under {dir} contain the file '
                        '{main_module}'.format(main_module=MAIN_MODULE + '.py',
-                                              dir=path.abspath('.')))
+                                              dir=path.abspath('')))
 
 # Find the version number from the main module
 agent_module = agent_package + '.' + MAIN_MODULE
