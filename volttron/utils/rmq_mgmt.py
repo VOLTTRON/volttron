@@ -827,8 +827,6 @@ class RabbitMQMgmt(object):
                 parameter_parts = parameter_name.split('-')
                 shovel_links = self.get_shovel_links()
                 shovel_names = [link['name'] for link in shovel_links]
-                print(f"shovel names : {shovel_names}")
-                print(f"shovel links: {shovel_links}")
                 for name in shovel_names:
                     name_parts = name.split('-')
                     if parameter_parts[1] == name_parts[1]:
