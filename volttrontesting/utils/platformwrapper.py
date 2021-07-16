@@ -613,7 +613,7 @@ class PlatformWrapper:
                          msgdebug=False,
                          setupmode=False,
                          agent_monitor_frequency=600,
-                         timeout=60,
+                         timeout=120,
                          # Allow the AuthFile to be preauthenticated with keys for service agents.
                          perform_preauth_service_agents=True):
 
