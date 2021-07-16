@@ -62,6 +62,7 @@ def test_base_historian_agent_should_filter_duplicates(base_historian_agent):
             "headers": {
                 "Date": "2015-11-17 21:24:10.189393+00:00",
                 "TimeStamp": "2015-11-17 21:24:10.189393+00:00",
+                "time_error": False
             },
             "meta": {},
         }
