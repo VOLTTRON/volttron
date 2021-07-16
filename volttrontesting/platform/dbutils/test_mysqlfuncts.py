@@ -4,15 +4,11 @@ import os
 import logging
 import pytest
 
-logging.getLogger("urllib3.connectionpool").setLevel(logging.INFO)
-pytestmark = [pytest.mark.mysqlfuncts, pytest.mark.dbutils, pytest.mark.unit]
-
 from time import time, sleep
 from volttron.platform.dbutils.mysqlfuncts import MySqlFuncts
 from volttrontesting.fixtures.docker_wrapper import create_container
 from volttrontesting.utils.utils import get_rand_port
 from volttron.platform import jsonapi
-
 
 try:
     import mysql.connector
@@ -21,6 +17,9 @@ except ImportError:
         "Required imports for testing are not installed; thus, not running tests. Install imports with: python bootstrap.py --mysql",
         allow_module_level=True,
     )
+
+logging.getLogger("urllib3.connectionpool").setLevel(logging.INFO)
+pytestmark = [pytest.mark.mysqlfuncts, pytest.mark.dbutils, pytest.mark.unit]
 
 
 IMAGES = [
@@ -179,9 +178,8 @@ def test_update_topic_and_metadata_should_succeed(get_container_func):
     )
 
     assert result is True
-    assert (actual_id, "soccer", '{"test": "test value"}') == get_data_in_table(
-        connection_port, "topics"
-    )[0]
+    assert (actual_id, "soccer", '{"test": "test value"}') == \
+           get_data_in_table(connection_port, "topics")[0]
 
 
 def test_update_meta_should_succeed(get_container_func):
