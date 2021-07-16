@@ -1049,7 +1049,6 @@ def start_volttron_process(opts):
             if opts.message_bus == 'rmq':
                 if opts.web_ssl_key is None or opts.web_ssl_cert is None or \
                         (not os.path.isfile(opts.web_ssl_key) and not os.path.isfile(opts.web_ssl_cert)):
-                    _log.info(f"web_ssl_key/web_ssl_cert")
                     # This is different than the master.web cert which is used for the agent to connect
                     # to rmq server.  The master.web-server certificate will be used for the platform web
                     # services.
@@ -1113,7 +1112,6 @@ def start_volttron_process(opts):
 
         # Done with all start up process write a PID file
 
-        _log.info(f"Writing to PID file: {pid_file}")
         with open(pid_file, 'w+') as f:
             f.write(str(os.getpid()))
 
