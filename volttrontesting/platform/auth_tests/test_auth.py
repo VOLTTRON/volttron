@@ -20,9 +20,9 @@ def build_two_test_agents(volttron_instance):
     The second agent is the unauthorized "RPC caller."
     """
     agent1 = volttron_instance.build_agent(identity='agent1')
-    gevent.sleep(4)
+    gevent.sleep(1)
     agent2 = volttron_instance.build_agent(identity='agent2')
-    gevent.sleep(4)
+    gevent.sleep(1)
 
     agent1.foo = lambda x: x
     agent1.foo.__name__ = 'foo'
@@ -40,7 +40,7 @@ def build_two_test_agents(volttron_instance):
         auth_file.remove_by_indices(list(range(3, len(allow_entries))))
         # TODO if we have to wait for auth propagation anyways why do we create new agents for each test case
         #  we should just update capabilities, at least we will save on agent creation and tear down time
-        gevent.sleep(3)
+        gevent.sleep(1)
 
 
 @pytest.fixture
@@ -53,9 +53,9 @@ def build_agents_with_capability_args(volttron_instance):
     """
     # Can't call the fixture directly so build our own agent here.
     agent1 = volttron_instance.build_agent(identity='agent1')
-    gevent.sleep(4)
+    gevent.sleep(1)
     agent2 = volttron_instance.build_agent(identity='agent2')
-    gevent.sleep(4)
+    gevent.sleep(1)
 
 
     agent1.foo = lambda x: x

@@ -418,7 +418,7 @@ class Auth(SubsystemBase):
             else:
                 rpc_method_authorizations[method] = self.get_rpc_authorizations(method)
         _log.debug(f"get_all_rpc_authorizations finished correctly!")
-        return rpc_method_authorizations
+        return rpc_method_authorizations.copy()
 
     def get_rpc_authorizations(self, method_str):
         """Returns a list of authorized capabilities for the provided method
@@ -448,7 +448,7 @@ class Auth(SubsystemBase):
         except Exception as e:
             _log.error(e)
             authorized_capabilities = []
-        return authorized_capabilities
+        return authorized_capabilities.copy()
 
     def set_multiple_rpc_authorizations(self, rpc_authorizations):
         """Sets authorized capabilites for multiple RPC exported methods.

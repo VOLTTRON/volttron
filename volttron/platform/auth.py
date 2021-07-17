@@ -118,6 +118,7 @@ class AuthService(Agent):
         self._auth_pending = []
         self._auth_denied = []
         self._auth_approved = []
+        self.x = 0
 
         def topics():
             return defaultdict(set)
@@ -154,17 +155,6 @@ class AuthService(Agent):
         self.core.spawn(watch_file, self._protected_topics_file_path, self._read_protected_topics_file)
         if self.core.messagebus == 'rmq':
             self.vip.peerlist.onadd.connect(self._check_topic_rules)
-
-    def get_entry_rpc_method_authorizations(self, identity):
-        rpc_method_authorizations = {}
-        try:
-            rpc_method_authorizations = self.vip.rpc.call(identity, "auth.get_all_rpc_authorizations").get(timeout=2)
-            _log.debug(f"RPC Methods are: {rpc_method_authorizations}")
-        except gevent.Timeout:
-            _log.warning(f'{identity} has timed out while attempting to get rpc methods')
-        except Unreachable:
-            _log.warning(f'{identity} is unreachable while attempting to get rpc methods')
-        return rpc_method_authorizations
 
     @RPC.export
     def update_auth_entry_rpc_method_authorizations(self, identity, rpc_methods):
@@ -204,6 +194,17 @@ class AuthService(Agent):
                 return updated_rpc_methods
         return None
 
+    def get_entry_rpc_method_authorizations(self, identity):
+        rpc_method_authorizations = {}
+        # try:
+        rpc_method_authorizations = self.vip.rpc.call(identity, "auth.get_all_rpc_authorizations").get()
+        _log.debug(f"RPC Methods are: {rpc_method_authorizations}")
+        # except gevent.Timeout:
+        #     _log.warning(f'{identity} has timed out while attempting to get rpc methods')
+        # except Unreachable:
+        #     _log.warning(f'{identity} is unreachable while attempting to get rpc methods')
+        return rpc_method_authorizations
+
     def update_rpc_method_authorizations(self, entries):
         """
         Update allowed capabilities for an rpc method if it doesn't match what is in the auth file.
@@ -238,7 +239,7 @@ class AuthService(Agent):
                         try:
                             self.vip.rpc.call(
                                 entry.identity, "auth.set_multiple_rpc_authorizations",
-                                rpc_authorizations=modified_methods).get(timeout=4)
+                                rpc_authorizations=modified_methods)
                             method_error = False
                         except gevent.Timeout:
                             _log.error(f"{entry.identity} "
@@ -253,8 +254,7 @@ class AuthService(Agent):
                                 try:
                                     self.vip.rpc.call(
                                         entry.identity, "auth.set_rpc_authorizations",
-                                        method_str=method, capabilities=entry.rpc_method_authorizations[method]).get(
-                                        timeout=4)
+                                        method_str=method, capabilities=entry.rpc_method_authorizations[method])
                                 except gevent.Timeout:
                                     _log.error(f"{entry.identity} "
                                                f"has timed out while attempting to update rpc_method_authorizations")
@@ -372,7 +372,7 @@ class AuthService(Agent):
             self.auth_file.auth_data = self.auth_file._read()
             entries = self.auth_file.read_allow_entries()
             count = 0
-            while not entries or count < 2:
+            while not entries and count < 3:
                 self.auth_file.auth_data = self.auth_file._read()
                 entries = self.auth_file.read_allow_entries()
                 count += 1
@@ -399,10 +399,6 @@ class AuthService(Agent):
             except BaseException as e:
                 _log.error("Exception sending auth updates to peer. {}".format(e))
                 raise e
-            # Update RPC method authorizations on agents
-            if modified_entries:
-                _log.debug(f"Modified Entries are: {modified_entries}")
-                self.update_rpc_method_authorizations(modified_entries)
         _log.info('auth file %s loaded', self.auth_file_path)
 
     def get_protected_topics(self):
@@ -451,9 +447,13 @@ class AuthService(Agent):
             if peer not in [self.core.identity, CONTROL_CONNECTION]:
                 _log.debug(f"Sending auth update to peers {peer}")
                 self.vip.rpc.call(peer, 'auth.update', user_to_caps)
-        # # Update RPC method authorizations on agents
-        # if modified_entries:
-        #     self.update_rpc_method_authorizations(modified_entries)
+
+        # Update RPC method authorizations on agents
+        if modified_entries:
+            try:
+                gevent.spawn(self.update_rpc_method_authorizations, modified_entries).join(timeout=15)
+            except Exception as e:
+                _log.error(e)
         if self.core.messagebus == 'rmq':
             self._check_rmq_topic_permissions()
         else:
@@ -694,14 +694,7 @@ class AuthService(Agent):
 
         for pending in self._auth_denied:
             if user_id == pending['user_id']:
-                self._update_auth_entry(
-                    pending['domain'],
-                    pending['address'],
-                    pending['mechanism'],
-                    pending['credentials'],
-                    pending['user_id']
-                    )
-                self._remove_auth_entry(pending['credentials'], is_allow=False)
+                self.auth_file.approve_deny_credential(user_id, is_approved=True)
                 val_err = None
         # If the user_id supplied was not for a ZMQ credential, and the pending_csr check failed,
         # output the ValueError message to the error log.
@@ -752,15 +745,7 @@ class AuthService(Agent):
 
         for pending in self._auth_approved:
             if user_id == pending['user_id']:
-                self._update_auth_entry(
-                    pending['domain'],
-                    pending['address'],
-                    pending['mechanism'],
-                    pending['credentials'],
-                    pending['user_id'],
-                    is_allow=False
-                    )
-                self._remove_auth_entry(pending['credentials'])
+                self.auth_file.approve_deny_credential(user_id, is_approved=False)
                 val_err = None
         # If the user_id supplied was not for a ZMQ credential, and the pending_csr check failed,
         # output the ValueError message to the error log.
@@ -1661,12 +1646,55 @@ class AuthFile(object):
             _log.debug("Added auth entry {} ".format(auth_entry))
         gevent.sleep(1)
 
+    def approve_deny_credential(self, user_id, is_approved=True):
+        """approves a denied credential or denies an approved credential
+        :param user_id: entry with this user_id will be
+            approved or denied appropriately
+        :param is_approved: Determines if the entry should be
+            approved from denied, or denied from approved. If True,
+            it will attempt to move the selected denied entry to
+            the approved entries.
+
+        :type credential: str
+        :type is_approved: bool
+        """
+        allow_entries, deny_entries, groups, roles = self.read()
+        if is_approved:
+            for e in deny_entries:
+                if e.user_id == user_id:
+                    try:
+                        # If it does not already exist in allow_entries, add it
+                        self._check_if_exists(e)
+                        allow_entries.append(e)
+                    except AuthFileEntryAlreadyExists:
+                        _log.warning(f"Entry for {user_id} already exists! Removing from denied credentials")
+                else:
+                    pass
+            # Remove entry from denied entries
+            deny_entries = [e for e in deny_entries if e.user_id != user_id]
+        else:
+            for e in allow_entries:
+                if e.user_id == user_id:
+                    try:
+                        # If it does not already exist in deny_entries, add it
+                        self._check_if_exists(e, is_allow=False)
+                        deny_entries.append(e)
+                    except AuthFileEntryAlreadyExists:
+                        _log.warning(f"Entry for {user_id} already exists! Removing from allowed credentials")
+                else:
+                    pass
+            # Remove entry from allowed entries
+            allow_entries = [e for e in allow_entries if e.user_id != user_id]
+
+        self._write(allow_entries, deny_entries, groups, roles)
+        gevent.sleep(1)
+
+
     def remove_by_credentials(self, credentials, is_allow=True):
         """Removes entry from auth file by credential
 
-        :para credential: entries will this credential will be
-            removed
-        :type credential: str
+        :param credentials: entries with these credentials will be removed
+        :type credentials: str
         """
         allow_entries, deny_entries, groups, roles = self.read()
         if is_allow:
