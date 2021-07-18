@@ -150,7 +150,7 @@ You can deactivate the environment at any time by running `deactivate`.
 ##### 5. Create RabbitMQ setup for VOLTTRON:
 
 ```sh
-vcfg --rabbitmq single [optional path to rabbitmq_config.yml]
+vcfg rabbitmq single [--config optional path to rabbitmq_config.yml]
 ```
 
 Refer to [examples/configurations/rabbitmq/rabbitmq_config.yml](examples/configurations/rabbitmq/rabbitmq_config.yml)
@@ -180,9 +180,9 @@ be configured. The VOLTTRON instance name will be read from volttron_home/config
 if available, if not the user will be prompted for VOLTTRON instance name. To
 run the scripts without any prompts, save the VOLTTRON instance name in
 volttron_home/config file and pass the VOLTTRON home directory as a command line
-argument. For example: `vcfg --vhome /home/vdev/.new_vhome --rabbitmq single`
+argument. For example: `vcfg --vhome /home/vdev/.new_vhome rabbitmq single`
 
-The Following are the example inputs for `vcfg --rabbitmq single` command. Since no
+The Following are the example inputs for `vcfg rabbitmq single` command. Since no
 config file is passed the script prompts for necessary details.
 
 ```sh

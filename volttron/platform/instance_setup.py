@@ -941,29 +941,52 @@ def wizard():
     print('the config file is at {}/config\n'.format(volttron_home))
 
 
-def process_rmq_inputs(args, instance_name=None):
+def process_rmq_inputs(args_dict, instance_name=None):
+    #print(f"args_dict:{args_dict}, args")
     if not is_rabbitmq_available():
         raise RuntimeError("Rabbitmq Dependencies not installed please run python bootstrap.py --rabbitmq")
     confirm_volttron_home()
-    if len(args) == 2:
-        vhome = get_home()
-        if args[0] == 'single':
+    vhome = get_home()
+
+    if args_dict['config'] is not None:
+        if not os.path.exists(vhome):
+            os.makedirs(vhome, 0o755)
+        if args_dict['installation-type'] == 'single':
             vhome_config = os.path.join(vhome, 'rabbitmq_config.yml')
-        elif args[0] == 'federation':
+            if args_dict['config'] != vhome_config:
+                copy(args_dict['config'], vhome_config)
+        elif args_dict['installation-type'] == 'federation':
             vhome_config = os.path.join(vhome, 'rabbitmq_federation_config.yml')
-        elif args[0] == 'shovel':
+            if os.path.exists(vhome_config):
+                prompt = f"rabbitmq_federation_config.yml already exists in VOLTTRON_HOME: {vhome}.\n" \
+                         "Do you wish to use this config file? If no, rabbitmq_federation_config.yml \n" \
+                         "will be replaced with new config file"
+                prompt = prompt_response(prompt,
+                                         valid_answers=y_or_n,
+                                         default='N')
+                if prompt in n:
+                    copy(args_dict['config'], vhome_config)
+            else:
+                r = copy(args_dict['config'], vhome_config)
+        elif args_dict['installation-type'] == 'shovel':
             vhome_config = os.path.join(vhome, 'rabbitmq_shovel_config.yml')
+            if os.path.exists(vhome_config):
+                prompt = f"rabbitmq_shovel_config.yml already exists in VOLTTRON_HOME: {vhome}.\n" \
+                         "Do you wish to use this config file? If no, rabbitmq_shovel_config.yml \n" \
+                         "will be replaced with new config file"
+                prompt = prompt_response(prompt,
+                                         valid_answers=y_or_n,
+                                         default='N')
+                if prompt in n:
+                    copy(args_dict['config'], vhome_config)
+            else:
+                r = copy(args_dict['config'], vhome_config)
         else:
-            print("Invalid argument. \nUsage: vcf --rabbitmq single|federation|shovel "
-                  "[optional path to rabbitmq config yml]")
+            print("Invalid installation type. Acceptable values single|federation|shovel")
             sys.exit(1)
-        if args[1] != vhome_config:
-            if not os.path.exists(vhome):
-                os.makedirs(vhome, 0o755)
-            copy(args[1], vhome_config)
-        setup_rabbitmq_volttron(args[0], verbose, instance_name=instance_name)
+        setup_rabbitmq_volttron(args_dict['installation-type'], verbose, instance_name=instance_name, max_retries=args_dict['max_retries'])
     else:
-        setup_rabbitmq_volttron(args[0], verbose, prompt=True, instance_name=instance_name)
+        setup_rabbitmq_volttron(args_dict['installation-type'], verbose, prompt=True, instance_name=instance_name, max_retries=args_dict['max_retries'])
 
 
 def main():
@@ -972,27 +995,35 @@ def main():
     parser.add_argument('-v', '--verbose', action='store_true')
     parser.add_argument('--vhome', help="Path to volttron home")
     parser.add_argument('--instance-name', dest='instance_name', help="Name of this volttron instance")
-
+    parser.set_defaults(is_rabbitmq=False)
     group = parser.add_mutually_exclusive_group()
 
     agent_list = '\n\t' + '\n\t'.join(sorted(available_agents.keys()))
     group.add_argument('--list-agents', action='store_true', dest='list_agents',
                        help='list configurable agents{}'.format(agent_list))
+    rabbitmq_parser = parser.add_subparsers(title='rabbitmq',
+                                            metavar='',
+                                            dest='parser_name')
+    single_parser = rabbitmq_parser.add_parser('rabbitmq', help='Configure rabbitmq for single instance, '
+                            'federation, or shovel either based on '
+                            'configuration file in yml format or providing '
+                            'details when prompted. \nUsage: vcfg rabbitmq '
+                            'single|federation|shovel --config <rabbitmq config '
+                            'file> --max-retries <attempt number>]')
+    single_parser.add_argument('installation-type', default='single', help='Rabbitmq option for installation. Installation type can be single|federation|shovel')
+    single_parser.add_argument('--max-retries', help='Optional Max retry attempt', type=int, default=12)
+    single_parser.add_argument('--config', help='Optional path to rabbitmq config yml', type=str)
+    single_parser.set_defaults(is_rabbitmq=True)
 
     group.add_argument('--agent', nargs='+',
                         help='configure listed agents')
-    group.add_argument('--rabbitmq', nargs='+',
-                       help='Configure rabbitmq for single instance, '
-                            'federation, or shovel either based on '
-                            'configuration file in yml format or providing '
-                            'details when prompted. \nUsage: vcfg --rabbitmq '
-                            'single|federation|shovel [rabbitmq config '
-                            'file]')
+
     group.add_argument('--secure-agent-users', action='store_true', dest='secure_agent_users',
                        help='Require that agents run with their own users (this requires running '
                             'scripts/secure_user_permissions.sh as sudo)')
 
     args = parser.parse_args()
+
     verbose = args.verbose
     # Protect against configuration of base logger when not the "main entry point"
     if verbose:
@@ -1013,25 +1044,12 @@ def main():
         _update_config_file(instance_name=args.instance_name)
     if args.list_agents:
         print("Agents available to configure:{}".format(agent_list))
-    elif args.rabbitmq:
-        if len(args.rabbitmq) > 2:
-            print("vcfg --rabbitmq can at most accept 2 arguments")
-            parser.print_help()
-            sys.exit(1)
-        elif args.rabbitmq[0] not in ['single', 'federation', 'shovel']:
-            print("Usage: vcf --rabbitmq single|federation|shovel "
-                  "[optional path to rabbitmq config yml]")
-            parser.print_help()
-            sys.exit(1)
-        elif len(args.rabbitmq) == 2 and not os.path.exists(args.rabbitmq[1]):
-            print("Invalid rabbitmq configuration file path.")
-            parser.print_help()
-            sys.exit(1)
-        else:
-            process_rmq_inputs(args.rabbitmq, args.instance_name)
+
     elif args.secure_agent_users:
         config_opts['secure-agent-users'] = args.secure_agent_users
         _update_config_file()
+    elif args.is_rabbitmq:
+        process_rmq_inputs(vars(args))
     elif not args.agent:
         wizard()
 

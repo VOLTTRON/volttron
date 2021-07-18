@@ -58,9 +58,9 @@ def read_config_file(filename):
         with open(filename, 'r') as yaml_file:
             data = yaml.safe_load(yaml_file)
     except IOError as exc:
-        _log.error("Error reading from file: {}".format(filename))
+        _log.error(f"Error reading from file: {filename}, Exception: {exc}")
     except yaml.YAMLError as exc:
-        _log.error("Yaml Error: {}".format(filename))
+        _log.error(f"Yaml Error: {filename}. Exception: {exc}")
     return data
 
 
@@ -69,9 +69,9 @@ def write_to_config_file(filename, data):
         with open(filename, 'w') as yaml_file:
             yaml.dump(data, yaml_file, default_flow_style=False)
     except IOError as exc:
-        _log.error("Error writing to file: {}".format(filename))
+        _log.error(f"Error writing to file: {filename}. Exception: {exc}")
     except yaml.YAMLError as exc:
-        _log.error("Yaml Error: {}".format(filename))
+        _log.error(f"Yaml Error: {filename}. Exception: {exc}")
 
 
 class RMQConfig(object):
@@ -129,7 +129,7 @@ class RMQConfig(object):
         :return:
         """
         """Loads the config file if the path exists."""
-        
+        _log.debug(f"RMQConfig: {self.volttron_rmq_config}")
         with open(self.volttron_rmq_config, 'r') as yaml_file:
             self.config_opts = yaml.safe_load(yaml_file)
             if self.config_opts.get('rmq-home'):
