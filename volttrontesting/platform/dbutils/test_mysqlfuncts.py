@@ -3,20 +3,20 @@ import itertools
 import os
 import logging
 import pytest
-
 from time import time, sleep
-from volttron.platform.dbutils.mysqlfuncts import MySqlFuncts
-from volttrontesting.fixtures.docker_wrapper import create_container
-from volttrontesting.utils.utils import get_rand_port
-from volttron.platform import jsonapi
 
 try:
     import mysql.connector
 except ImportError:
     pytest.skip(
-        "Required imports for testing are not installed; thus, not running tests. Install imports with: python bootstrap.py --mysql",
-        allow_module_level=True,
+        "Required imports for testing are not installed; thus, not running tests. "
+        "Install imports with: python bootstrap.py --mysql",
+        allow_module_level=True
     )
+from volttron.platform import jsonapi
+from volttron.platform.dbutils.mysqlfuncts import MySqlFuncts
+from volttrontesting.fixtures.docker_wrapper import create_container
+from volttrontesting.utils.utils import get_rand_port
 
 logging.getLogger("urllib3.connectionpool").setLevel(logging.INFO)
 pytestmark = [pytest.mark.mysqlfuncts, pytest.mark.dbutils, pytest.mark.unit]

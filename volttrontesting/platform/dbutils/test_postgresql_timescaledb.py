@@ -3,8 +3,17 @@ import itertools
 import os
 import logging
 import pytest
-
 from time import time, sleep
+
+try:
+    import psycopg2
+    from psycopg2.sql import SQL, Identifier
+except ImportError:
+    pytest.skip(
+        "Required imports for testing are not installed; thus, not running tests. "
+        "Install imports with: python bootstrap.py --postgres",
+        allow_module_level=True
+    )
 
 from volttron.platform import jsonapi
 from volttron.platform.dbutils.postgresqlfuncts import PostgreSqlFuncts
@@ -17,15 +26,6 @@ pytestmark = [
     pytest.mark.dbutils,
     pytest.mark.unit,
 ]
-
-try:
-    import psycopg2
-    from psycopg2.sql import SQL, Identifier
-except ImportError:
-    pytest.skip(
-        "Required imports for testing are not installed; thus, not running tests. Install imports with: python bootstrap.py --postgres",
-        allow_module_level=True,
-    )
 
 
 IMAGES = ["timescale/timescaledb:latest-pg10"]

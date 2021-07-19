@@ -3,8 +3,18 @@ import itertools
 import os
 import logging
 import pytest
-
 from time import time
+
+
+try:
+    import psycopg2
+    from psycopg2.sql import SQL, Identifier
+except ImportError:
+    pytest.skip(
+        "Required imports for testing are not installed; thus, not running tests. "
+        "Install imports with: python bootstrap.py --postgres",
+        allow_module_level=True,
+    )
 from volttron.platform import jsonapi
 from volttron.platform.dbutils.postgresqlfuncts import PostgreSqlFuncts
 from volttrontesting.fixtures.docker_wrapper import create_container
@@ -13,15 +23,6 @@ from volttrontesting.utils.utils import get_rand_port
 logging.getLogger("urllib3.connectionpool").setLevel(logging.INFO)
 pytestmark = [pytest.mark.postgresqlfuncts, pytest.mark.dbutils, pytest.mark.unit]
 
-
-try:
-    import psycopg2
-    from psycopg2.sql import SQL, Identifier
-except ImportError:
-    pytest.skip(
-        "Required imports for testing are not installed; thus, not running tests. Install imports with: python bootstrap.py --postgres",
-        allow_module_level=True,
-    )
 
 # Current documentation claims that we have tested Historian on Postgres 10
 # See https://volttron.readthedocs.io/en/develop/core_services/historians/SQL-Historian.html#postgresql-and-redshift
