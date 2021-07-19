@@ -182,4 +182,5 @@ def test_alert_multi_messagebus_publish(volttron_multi_messagebus):
            u"Topic(s) not published within time limit: [('fakedevice2/all', 'point'), " \
            u"'fakedevice2/all', 'fakedevice']" in \
            alert_messages
+
     alert_messages.clear()
