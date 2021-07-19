@@ -444,11 +444,15 @@ def test_auth_rpc_method_allow(volttron_instance):
     print(entries)
 
     auth_rpc_method_allow(platform, 'test7_userid', 'test_method', 'test_auth')
-    gevent.sleep(12)
     entries = auth_list_json(platform)
     print(entries[-1])
-    assert entries[-1]['rpc_method_authorizations'] == {'test_method': ["test_auth"]}
-    gevent.sleep(1)
+
+    i = 0
+    while entries[-1]['rpc_method_authorizations'] != {'test_method': ["test_auth"]} and i < 20:
+        gevent.sleep(1)
+        i += 1
+
+    assert entries[-1]['rpc_method_authorizations'] != {'test_method': ["test_auth"]}
 
 @pytest.mark.control
 def test_group_cmds(volttron_instance):
@@ -471,7 +475,7 @@ def _run_group_or_role_cmds(platform, add_fn, list_fn, update_fn, remove_fn):
     expected.extend(values)
 
     add_fn(platform, key, values)
-    gevent.sleep(1)
+    gevent.sleep(4)
     keys = list_fn(platform)
     assert set(keys[key]) == set(expected)
 
@@ -479,7 +483,7 @@ def _run_group_or_role_cmds(platform, add_fn, list_fn, update_fn, remove_fn):
     values = ['2']
     expected.extend(values)
     update_fn(platform, key, values)
-    gevent.sleep(1)
+    gevent.sleep(2)
     keys = list_fn(platform)
     assert set(keys[key]) == set(expected)
 
@@ -487,7 +491,7 @@ def _run_group_or_role_cmds(platform, add_fn, list_fn, update_fn, remove_fn):
     values = ['3', '4']
     expected.extend(values)
     update_fn(platform, key, values)
-    gevent.sleep(1)
+    gevent.sleep(2)
     keys = list_fn(platform)
     assert set(keys[key]) == set(expected)
 
@@ -495,7 +499,7 @@ def _run_group_or_role_cmds(platform, add_fn, list_fn, update_fn, remove_fn):
     value = '0'
     expected.remove(value)
     update_fn(platform, key, [value], remove=True)
-    gevent.sleep(1)
+    gevent.sleep(2)
     keys = list_fn(platform)
     assert set(keys[key]) == set(expected)
 
@@ -504,13 +508,13 @@ def _run_group_or_role_cmds(platform, add_fn, list_fn, update_fn, remove_fn):
     for value in values:
         expected.remove(value)
     update_fn(platform, key, values, remove=True)
-    gevent.sleep(1)
+    gevent.sleep(2)
     keys = list_fn(platform)
     assert set(keys[key]) == set(expected)
 
     # Remove key
     remove_fn(platform, key)
-    gevent.sleep(1)
+    gevent.sleep(2)
     keys = list_fn(platform)
     assert key not in keys
 
