@@ -609,10 +609,10 @@ def query_agent(request, volttron_instance):
                 params=itertools.product(
                     [
                     pytest.param(crate_platform, marks=crate_skipif),
-                    #pytest.param(mysql_platform, marks=mysql_skipif),
-                    #sqlite_platform,
-                    #pytest.param(mongo_platform, marks=pymongo_skipif),
-                    #pytest.param(postgresql_platform, marks=postgresql_skipif),
+                    pytest.param(mysql_platform, marks=mysql_skipif),
+                    sqlite_platform,
+                    pytest.param(mongo_platform, marks=pymongo_skipif),
+                    pytest.param(postgresql_platform, marks=postgresql_skipif),
                     #pytest.param(redshift_platform, marks=redshift_skipif)
                     ],
                     ["<4.0.0",
