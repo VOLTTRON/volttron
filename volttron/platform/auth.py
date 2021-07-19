@@ -118,7 +118,6 @@ class AuthService(Agent):
         self._auth_pending = []
         self._auth_denied = []
         self._auth_approved = []
-        self.x = 0
 
         def topics():
             return defaultdict(set)
@@ -196,13 +195,12 @@ class AuthService(Agent):
 
     def get_entry_rpc_method_authorizations(self, identity):
         rpc_method_authorizations = {}
-        # try:
-        rpc_method_authorizations = self.vip.rpc.call(identity, "auth.get_all_rpc_authorizations").get()
-        _log.debug(f"RPC Methods are: {rpc_method_authorizations}")
-        # except gevent.Timeout:
-        #     _log.warning(f'{identity} has timed out while attempting to get rpc methods')
-        # except Unreachable:
-        #     _log.warning(f'{identity} is unreachable while attempting to get rpc methods')
+        try:
+            rpc_method_authorizations = self.vip.rpc.call(identity, "auth.get_all_rpc_authorizations").get()
+            _log.debug(f"RPC Methods are: {rpc_method_authorizations}")
+        except Unreachable:
+            _log.warning(f'{identity} is unreachable while attempting to get rpc methods')
+
         return rpc_method_authorizations
 
     def update_rpc_method_authorizations(self, entries):
@@ -452,8 +450,8 @@ class AuthService(Agent):
         if modified_entries:
             try:
                 gevent.spawn(self.update_rpc_method_authorizations, modified_entries).join(timeout=15)
-            except Exception as e:
-                _log.error(e)
+            except gevent.Timeout as e:
+                _log.error("Timed out updating methods from auth file!")
         if self.core.messagebus == 'rmq':
             self._check_rmq_topic_permissions()
         else:
