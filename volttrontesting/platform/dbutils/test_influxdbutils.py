@@ -457,8 +457,6 @@ def test_get_topics_by_pattern(
 
 @pytest.fixture(params=IMAGES)
 def get_container_func(request):
-
-
     return create_container, request.param
 
 
