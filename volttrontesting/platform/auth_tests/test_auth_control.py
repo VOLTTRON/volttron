@@ -23,25 +23,45 @@ _auth_entry1 = AuthEntry(
 
 _auth_entry2 = AuthEntry(
     domain='test2_domain', address='test2_address', mechanism='NULL',
-    user_id='test2_userid', groups=['test2_group1', 'test2_group2'],
+    user_id='test2_userid', identity='test2_userid', groups=['test2_group1', 'test2_group2'],
     roles=['test2_role1', 'test2_role2'],
     capabilities=['test2_cap1', 'test2_cap2'],
-    comments='test2 comment', enabled=False)
+    comments='test2 comment', enabled=True)
 
 _auth_entry3 = AuthEntry(
     domain='test3_domain', address='test3_address', mechanism='NULL',
-    user_id='test3_userid', groups=['test3_group1', 'test3_group2'],
+    user_id='test3_userid', identity='test3_userid', groups=['test3_group1', 'test3_group2'],
     roles=['test3_role1', 'test3_role2'],
     capabilities=['test3_cap1', 'test3_cap2'],
-    comments='test3 comment', enabled=False)
+    comments='test3 comment', enabled=True)
 
 _auth_entry4 = AuthEntry(
     domain='test4_domain', address='test4_address', mechanism='NULL',
-    user_id='test4_userid', groups=['test4_group1', 'test4_group2'],
+    user_id='test4_userid', identity='test4_userid', groups=['test4_group1', 'test4_group2'],
     roles=['test4_role1', 'test4_role2'],
     capabilities=['test4_cap1', 'test4_cap2'],
-    comments='test4 comment', enabled=False)
+    comments='test4 comment', enabled=True)
 
+_auth_entry5 = AuthEntry(
+    domain='test5_domain', address='test5_address', mechanism='NULL',
+    user_id='test5_userid', identity='test5_userid', groups=['test5_group1', 'test5_group2'],
+    roles=['test5_role1', 'test5_role2'],
+    capabilities=['test5_cap1', 'test5_cap2'],
+    comments='test5 comment', enabled=True)
+
+_auth_entry6 = AuthEntry(
+    domain='test6_domain', address='test6_address', mechanism='NULL',
+    user_id='test6_userid', identity='test6_userid', groups=['test6_group1', 'test6_group2'],
+    roles=['test6_role1', 'test6_role2'],
+    capabilities=['test6_cap1', 'test6_cap2'],
+    comments='test6 comment', enabled=True)
+
+_auth_entry7 = AuthEntry(
+    domain='test7_domain', address='test7_address', mechanism='NULL',
+    user_id='test7_userid', identity='test7_userid', groups=['test7_group1', 'test7_group2'],
+    roles=['test7_role1', 'test7_role2'],
+    capabilities=['test7_cap1', 'test7_cap2'],
+    comments='test7 comment', enabled=True)
 
 @pytest.fixture()
 def mock_auth_service():
@@ -223,7 +243,7 @@ def auth_list_json(platform):
 
 def entry_to_input_string(domain='', address='', user_id='', identity='',
                           capabilities='', rpc_method_authorizations='',
-                          roles='', groups='', mechanism='', credentials='',
+                          roles='', groups='', mechanism="NULL", credentials='',
                           comments='', enabled=''):
     inputs = []
     inputs.append(domain)
@@ -240,6 +260,7 @@ def entry_to_input_string(domain='', address='', user_id='', identity='',
     if isinstance(enabled, bool):
         enabled = 'True' if enabled else 'False'
     inputs.append(enabled)
+    print(inputs)
     return '\n'.join(inputs) + '\n'
 
 
@@ -260,7 +281,7 @@ def auth_add_cmd_line(platform, entry):
             v = ','.join(v)
         if v:
             if k == "capabilities":
-                args.extend(['--' + k, jsonapi.dumps(v)])
+                args.extend(['--' + k, f"{jsonapi.dumps(v)}"])
             else:
                 args.extend(['--' + k, v])
 
@@ -268,6 +289,7 @@ def auth_add_cmd_line(platform, entry):
         args.append('--disabled')
 
     with with_os_environ(platform.env):
+        print(args)
         p = subprocess.Popen(args, env=platform.env, stdin=subprocess.PIPE, universal_newlines=True)
         p.communicate()
         assert p.returncode == 0
@@ -306,6 +328,13 @@ def assert_auth_entries_same(e1, e2):
         assert set(e1[field]) == set(e2[field])
     assert e1['capabilities'] == e2['capabilities']
 
+@pytest.fixture
+def auth_instance(volttron_instance):
+    # try:
+    yield volttron_instance
+    # finally:
+    #     with with_os_environ(volttron_instance.env):
+    #         os.remove(os.path.join(volttron_instance.volttron_home, "auth.json"))
 
 @pytest.mark.control
 def test_auth_list(volttron_instance):
@@ -320,36 +349,49 @@ def test_auth_add(volttron_instance):
     auth_add(platform, _auth_entry1)
     # Verify entry shows up in list
     entries = auth_list_json(platform)
+    print(entries)
     assert len(entries) > 0
+    i = 0
+    while len(entries) < 8 and i < 20:
+        gevent.sleep(1)
+        entries = auth_list_json(platform)
+        i += 1
+
     assert_auth_entries_same(entries[-1], _auth_entry1.__dict__)
-    auth_remove(platform, len(entries) - 1)
-    gevent.sleep(1)
 
 @pytest.mark.control
 def test_auth_add_cmd_line(volttron_instance):
     """Add a single entry, specifying parameters on the command line"""
     platform = volttron_instance
-    auth_add_cmd_line(platform, _auth_entry1)
+    auth_add_cmd_line(platform, _auth_entry2)
     # Verify entry shows up in list
     entries = auth_list_json(platform)
+    print(entries)
     assert len(entries) > 0
-    assert_auth_entries_same(entries[-1], _auth_entry1.__dict__)
-    auth_remove(platform, len(entries) - 1)
-    gevent.sleep(1)
+    i = 0
+    while len(entries) < 9 and i < 20:
+        gevent.sleep(1)
+        entries = auth_list_json(platform)
+        i += 1
+    assert_auth_entries_same(entries[-1], _auth_entry2.__dict__)
 
 @pytest.mark.control
 def test_auth_update(volttron_instance):
     """Add an entry then update it with a different entry"""
     platform = volttron_instance
-    auth_add(platform, _auth_entry1)
+    auth_add(platform, _auth_entry3)
     entries = auth_list_json(platform)
+    print(entries)
     assert len(entries) > 0
-
-    auth_update(platform, len(entries) - 1, **_auth_entry2.__dict__)
-
+    i = 0
+    while len(entries) < 10 and i < 20:
+        gevent.sleep(1)
+        entries = auth_list_json(platform)
+        i += 1
+    auth_update(platform, len(entries) - 1, **_auth_entry4.__dict__)
     entries = auth_list_json(platform)
-    assert_auth_entries_same(entries[-1], _auth_entry2.__dict__)
-    auth_remove(platform, len(entries) - 1)
+    print(entries)
+    assert_auth_entries_same(entries[-1], _auth_entry3.__dict__)
     gevent.sleep(1)
 
 @pytest.mark.control
@@ -357,35 +399,56 @@ def test_auth_remove(volttron_instance):
     """Add two entries then remove the last entry"""
     platform = volttron_instance
     # using unique entries so that there is no side effect from the previous test case
-    auth_add(platform, _auth_entry3)
-    auth_add(platform, _auth_entry4)
+    auth_add(platform, _auth_entry5)
     entries = auth_list_json(platform)
     assert len(entries) > 0
-
+    i = 0
+    while len(entries) < 11 and i < 20:
+        gevent.sleep(1)
+        entries = auth_list_json(platform)
+        i += 1
+    auth_add(platform, _auth_entry6)
+    entries = auth_list_json(platform)
+    assert len(entries) > 0
+    i = 0
+    while len(entries) < 12 and i < 20:
+        gevent.sleep(1)
+        entries = auth_list_json(platform)
+        i += 1
+    print(entries)
     auth_remove(platform, len(entries) - 1)
     gevent.sleep(1)
 
-    # Verify _auth_entry2 was removed and _auth_entry1 remains
+    # Verify _auth_entry5 was removed and _auth_entry4 remains
     entries = auth_list_json(platform)
+    print(entries)
     assert len(entries) > 0
-    assert_auth_entries_same(entries[-1], _auth_entry3.__dict__)
-    auth_remove(platform, len(entries) - 1)
-    gevent.sleep(1)
-
+    i = 0
+    while len(entries) > 11 and i < 5:
+        gevent.sleep(1)
+        entries = auth_list_json(platform)
+    assert_auth_entries_same(entries[-1], _auth_entry5.__dict__)
 
 @pytest.mark.control
 def test_auth_rpc_method_allow(volttron_instance):
     """Add an entry then update it with a different entry"""
     platform = volttron_instance
-    auth_add(platform, _auth_entry1)
+    auth_add(platform, _auth_entry7)
     entries = auth_list_json(platform)
     assert len(entries) > 0
+    i = 0
+    while len(entries) < 12 and i < 20:
+        gevent.sleep(1)
+        entries = auth_list_json(platform)
+        i += 1
+    print(entries)
 
-    auth_rpc_method_allow(platform, 'test_userid', 'test_method', 'test_auth')
-
+    auth_rpc_method_allow(platform, 'test7_userid', 'test_method', 'test_auth')
+    gevent.sleep(12)
     entries = auth_list_json(platform)
     print(entries[-1])
     assert entries[-1]['rpc_method_authorizations'] == {'test_method': ["test_auth"]}
+    gevent.sleep(1)
 
 @pytest.mark.control
 def test_group_cmds(volttron_instance):
@@ -408,6 +471,7 @@ def _run_group_or_role_cmds(platform, add_fn, list_fn, update_fn, remove_fn):
     expected.extend(values)
 
     add_fn(platform, key, values)
+    gevent.sleep(1)
     keys = list_fn(platform)
     assert set(keys[key]) == set(expected)
 
@@ -415,6 +479,7 @@ def _run_group_or_role_cmds(platform, add_fn, list_fn, update_fn, remove_fn):
     values = ['2']
     expected.extend(values)
     update_fn(platform, key, values)
+    gevent.sleep(1)
     keys = list_fn(platform)
     assert set(keys[key]) == set(expected)
 
@@ -422,6 +487,7 @@ def _run_group_or_role_cmds(platform, add_fn, list_fn, update_fn, remove_fn):
     values = ['3', '4']
     expected.extend(values)
     update_fn(platform, key, values)
+    gevent.sleep(1)
     keys = list_fn(platform)
     assert set(keys[key]) == set(expected)
 
@@ -429,6 +495,7 @@ def _run_group_or_role_cmds(platform, add_fn, list_fn, update_fn, remove_fn):
     value = '0'
     expected.remove(value)
     update_fn(platform, key, [value], remove=True)
+    gevent.sleep(1)
     keys = list_fn(platform)
     assert set(keys[key]) == set(expected)
 
@@ -437,11 +504,13 @@ def _run_group_or_role_cmds(platform, add_fn, list_fn, update_fn, remove_fn):
     for value in values:
         expected.remove(value)
     update_fn(platform, key, values, remove=True)
+    gevent.sleep(1)
     keys = list_fn(platform)
     assert set(keys[key]) == set(expected)
 
     # Remove key
     remove_fn(platform, key)
+    gevent.sleep(1)
     keys = list_fn(platform)
     assert key not in keys
 

@@ -1558,7 +1558,7 @@ def update_auth(opts):
             raise IndexError
         entry = entries[opts.index]
         _stdout.write('(For any field type "clear" to clear the value.)\n')
-        response = _ask_for_auth_fields(**entry.__dict__)
+        response = _ask_for_auth_fields(**entry)
         response['rpc_method_authorizations'] = None
         updated_entry = response
         conn.server.vip.rpc.call(AUTH, "auth_file.update_by_index", updated_entry, opts.index)
