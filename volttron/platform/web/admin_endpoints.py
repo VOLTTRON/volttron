@@ -41,8 +41,6 @@ import os
 import re
 from urllib.parse import parse_qs
 
-import jwt
-
 from volttron.platform.agent.known_identities import PLATFORM_WEB, AUTH
 from volttron.platform.jsonrpc import RemoteError
 
