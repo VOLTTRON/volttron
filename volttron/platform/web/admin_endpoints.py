@@ -162,7 +162,7 @@ class AdminEndpoints(object):
             claims = self._rpc_caller(PLATFORM_WEB, 'get_user_claims', get_bearer(env)).get()
         except RemoteError as e:
             if "ExpiredSignatureError" in e.exc_info["exc_type"]:
-                _log.warn("Access token has expired! Please re-login to renew.")
+                _log.warning("Access token has expired! Please re-login to renew.")
                 template = template_env(env).get_template('login.html')
                 _log.debug("Login.html: {}".format(env.get('PATH_INFO')))
                 return Response(template.render(), content_type='text/html')
