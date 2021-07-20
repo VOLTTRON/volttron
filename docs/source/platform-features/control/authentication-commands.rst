@@ -506,7 +506,7 @@ To dynamically modify an RPC method's authorization, use:
 
 .. code-block:: console
 
-    vctl auth rpc allow <agent_id.method> <authorized capability 1> <authorized capability 2> ...
+    vctl auth rpc add <agent_id.method> <authorized capability 1> <authorized capability 2> ...
 
 
 

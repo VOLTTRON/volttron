@@ -421,7 +421,8 @@ class PlatformWrapper:
             entry = AuthEntry(capabilities=capabilities,
                               comments="Added by test",
                               credentials=keys.public,
-                              user_id=identity)
+                              user_id=identity,
+                              identity=identity)
             file = AuthFile(self.volttron_home + "/auth.json")
             file.add(entry)
 
@@ -487,7 +488,7 @@ class PlatformWrapper:
 
         if capabilities is None:
             capabilities = dict(edit_config_store=dict(identity=identity))
-        entry = AuthEntry(user_id=identity, credentials=publickey,
+        entry = AuthEntry(user_id=identity, identity=identity, credentials=publickey,
                           capabilities=capabilities,
                           comments="Added by platform wrapper")
         authfile = AuthFile()
@@ -534,7 +535,7 @@ class PlatformWrapper:
     def _append_allow_curve_key(self, publickey, identity):
 
         if identity:
-            entry = AuthEntry(user_id=identity, credentials=publickey,
+            entry = AuthEntry(user_id=identity, identity=identity, credentials=publickey,
                               capabilities={'edit_config_store': {'identity': identity}},
                               comments="Added by platform wrapper")
         else:
@@ -647,6 +648,7 @@ class PlatformWrapper:
                         ks = KeyStore(KeyStore.get_agent_keystore_path(identity))
                         entry = AuthEntry(credentials=encode_key(decode_key(ks.public)),
                                           user_id=identity,
+                                          identity=identity,
                                           capabilities=capabilities,
                                           comments='Added by pre-seeding.')
                         authfile.add(entry)
@@ -657,6 +659,7 @@ class PlatformWrapper:
                     ks = KeyStore(KeyStore.get_agent_keystore_path(identity))
                     entry = AuthEntry(credentials=encode_key(decode_key(ks.public)),
                                       user_id=identity,
+                                      identity=identity,
                                       capabilities=capabilities,
                                       comments='Added by pre-seeding.')
                     authfile.add(entry)
@@ -667,6 +670,7 @@ class PlatformWrapper:
                     ks = KeyStore(KeyStore.get_agent_keystore_path(identity))
                     entry = AuthEntry(credentials=encode_key(decode_key(ks.public)),
                                       user_id=identity,
+                                      identity=identity,
                                       capabilities=capabilities,
                                       comments='Added by pre-seeding.')
                     authfile.add(entry)

@@ -63,6 +63,13 @@ _auth_entry7 = AuthEntry(
     capabilities=['test7_cap1', 'test7_cap2'],
     comments='test7 comment', enabled=True)
 
+_auth_entry8 = AuthEntry(
+    domain='test8_domain', address='test8_address', mechanism='NULL',
+    user_id='test8_userid', identity='test8_userid', groups=['test8_group1', 'test8_group2'],
+    roles=['test8_role1', 'test8_role2'],
+    capabilities=['test8_cap1', 'test8_cap2'],
+    comments='test8 comment', enabled=True)
+
 @pytest.fixture()
 def mock_auth_service():
     AuthService.__bases__ = (AgentMock.imitate(Agent, Agent()), )
@@ -311,9 +318,18 @@ def auth_update(platform, index, **kwargs):
         assert p.returncode == 0
 
 
-def auth_rpc_method_allow(platform, agent, method, auth_cap):
+def auth_rpc_method_add(platform, agent, method, auth_cap):
     with with_os_environ(platform.env):
-        with subprocess.Popen(['volttron-ctl', 'auth', 'rpc', 'allow', f'{agent}.{method}', auth_cap], env=platform.env,
+        with subprocess.Popen(['volttron-ctl', 'auth', 'rpc', 'add', f'{agent}.{method}', auth_cap], env=platform.env,
+                             stdin=subprocess.PIPE, universal_newlines=True) as p:
+            out, err = p.communicate()
+            assert p.returncode == 0
+    print(f"Out is: {out}")
+    print(f"ERROR is: {err}")
+
+def auth_rpc_method_remove(platform, agent, method, auth_cap):
+    with with_os_environ(platform.env):
+        with subprocess.Popen(['volttron-ctl', 'auth', 'rpc', 'remove', f'{agent}.{method}', auth_cap], env=platform.env,
                              stdin=subprocess.PIPE, universal_newlines=True) as p:
             out, err = p.communicate()
             assert p.returncode == 0
@@ -328,31 +344,43 @@ def assert_auth_entries_same(e1, e2):
         assert set(e1[field]) == set(e2[field])
     assert e1['capabilities'] == e2['capabilities']
 
+
 @pytest.fixture
 def auth_instance(volttron_instance):
-    # try:
-    yield volttron_instance
-    # finally:
-    #     with with_os_environ(volttron_instance.env):
-    #         os.remove(os.path.join(volttron_instance.volttron_home, "auth.json"))
+    with open(os.path.join(volttron_instance.volttron_home, "auth.json"), 'r') as f:
+        auth_file = jsonapi.load(f)
+    print(auth_file)
+    try:
+        yield volttron_instance
+    finally:
+        with with_os_environ(volttron_instance.env):
+            with open(os.path.join(volttron_instance.volttron_home, "auth.json"), 'w') as f:
+                jsonapi.dump(auth_file, f)
+
+
+# Number of tries to check if auth file is updated properly
+auth_retry = 30
+
 
 @pytest.mark.control
-def test_auth_list(volttron_instance):
-    output = auth_list(volttron_instance)
+def test_auth_list(auth_instance):
+    output = auth_list(auth_instance)
     assert output.startswith('No entries in') or output.startswith('\nINDEX')
 
 
 @pytest.mark.control
-def test_auth_add(volttron_instance):
+def test_auth_add(auth_instance):
     """Add a single entry"""
-    platform = volttron_instance
+    platform = auth_instance
+    entries = auth_list_json(platform)
+    len_entries = len(entries)
     auth_add(platform, _auth_entry1)
     # Verify entry shows up in list
     entries = auth_list_json(platform)
     print(entries)
     assert len(entries) > 0
     i = 0
-    while len(entries) < 8 and i < 20:
+    while len(entries) < len_entries and i < auth_retry:
         gevent.sleep(1)
         entries = auth_list_json(platform)
         i += 1
@@ -360,50 +388,56 @@ def test_auth_add(volttron_instance):
     assert_auth_entries_same(entries[-1], _auth_entry1.__dict__)
 
 @pytest.mark.control
-def test_auth_add_cmd_line(volttron_instance):
+def test_auth_add_cmd_line(auth_instance):
     """Add a single entry, specifying parameters on the command line"""
-    platform = volttron_instance
+    platform = auth_instance
+    entries = auth_list_json(platform)
+    len_entries = len(entries)
     auth_add_cmd_line(platform, _auth_entry2)
     # Verify entry shows up in list
     entries = auth_list_json(platform)
     print(entries)
     assert len(entries) > 0
     i = 0
-    while len(entries) < 9 and i < 20:
+    while len(entries) < len_entries and i < auth_retry:
         gevent.sleep(1)
         entries = auth_list_json(platform)
         i += 1
     assert_auth_entries_same(entries[-1], _auth_entry2.__dict__)
 
 @pytest.mark.control
-def test_auth_update(volttron_instance):
+def test_auth_update(auth_instance):
     """Add an entry then update it with a different entry"""
-    platform = volttron_instance
+    platform = auth_instance
+    entries = auth_list_json(platform)
+    len_entries = len(entries)
     auth_add(platform, _auth_entry3)
     entries = auth_list_json(platform)
     print(entries)
     assert len(entries) > 0
     i = 0
-    while len(entries) < 10 and i < 20:
+    while len(entries) < len_entries and i < auth_retry:
         gevent.sleep(1)
         entries = auth_list_json(platform)
         i += 1
     auth_update(platform, len(entries) - 1, **_auth_entry4.__dict__)
+    gevent.sleep(4)
     entries = auth_list_json(platform)
     print(entries)
-    assert_auth_entries_same(entries[-1], _auth_entry3.__dict__)
+    assert_auth_entries_same(entries[-1], _auth_entry4.__dict__)
     gevent.sleep(1)
 
 @pytest.mark.control
-def test_auth_remove(volttron_instance):
+def test_auth_remove(auth_instance):
     """Add two entries then remove the last entry"""
-    platform = volttron_instance
-    # using unique entries so that there is no side effect from the previous test case
+    platform = auth_instance
+    entries = auth_list_json(platform)
+    len_entries = len(entries)
     auth_add(platform, _auth_entry5)
     entries = auth_list_json(platform)
     assert len(entries) > 0
     i = 0
-    while len(entries) < 11 and i < 20:
+    while len(entries) < len_entries and i < auth_retry:
         gevent.sleep(1)
         entries = auth_list_json(platform)
         i += 1
@@ -411,7 +445,7 @@ def test_auth_remove(volttron_instance):
     entries = auth_list_json(platform)
     assert len(entries) > 0
     i = 0
-    while len(entries) < 12 and i < 20:
+    while len(entries) < (len_entries + 1) and i < auth_retry:
         gevent.sleep(1)
         entries = auth_list_json(platform)
         i += 1
@@ -419,52 +453,96 @@ def test_auth_remove(volttron_instance):
     auth_remove(platform, len(entries) - 1)
     gevent.sleep(1)
 
-    # Verify _auth_entry5 was removed and _auth_entry4 remains
+    # Verify _auth_entry6 was removed and _auth_entry5 remains
     entries = auth_list_json(platform)
     print(entries)
     assert len(entries) > 0
     i = 0
-    while len(entries) > 11 and i < 5:
+    while len(entries) > (len_entries + 1) and i < auth_retry:
         gevent.sleep(1)
         entries = auth_list_json(platform)
+        i += 1
     assert_auth_entries_same(entries[-1], _auth_entry5.__dict__)
 
 @pytest.mark.control
-def test_auth_rpc_method_allow(volttron_instance):
+def test_auth_rpc_method_add(auth_instance):
     """Add an entry then update it with a different entry"""
-    platform = volttron_instance
+    platform = auth_instance
+    entries = auth_list_json(platform)
+    len_entries = len(entries)
     auth_add(platform, _auth_entry7)
     entries = auth_list_json(platform)
     assert len(entries) > 0
     i = 0
-    while len(entries) < 12 and i < 20:
+    while len(entries) < len_entries and i < auth_retry:
         gevent.sleep(1)
         entries = auth_list_json(platform)
         i += 1
     print(entries)
 
-    auth_rpc_method_allow(platform, 'test7_userid', 'test_method', 'test_auth')
+    auth_rpc_method_add(platform, 'test7_userid', 'test_method', 'test_auth')
     entries = auth_list_json(platform)
     print(entries[-1])
 
     i = 0
-    while entries[-1]['rpc_method_authorizations'] != {'test_method': ["test_auth"]} and i < 20:
+    while entries[-1]['rpc_method_authorizations'] != {'test_method': ["test_auth"]} and i < auth_retry:
         gevent.sleep(1)
+        entries = auth_list_json(platform)
+        i += 1
+
+    assert entries[-1]['rpc_method_authorizations'] == {'test_method': ["test_auth"]}
+
+@pytest.mark.control
+def test_auth_rpc_method_remove(auth_instance):
+    """Add an entry then update it with a different entry"""
+    platform = auth_instance
+    entries = auth_list_json(platform)
+    len_entries = len(entries)
+    auth_add(platform, _auth_entry8)
+    entries = auth_list_json(platform)
+    assert len(entries) > 0
+    i = 0
+    while len(entries) < len_entries and i < auth_retry:
+        gevent.sleep(1)
+        entries = auth_list_json(platform)
+        i += 1
+    print(entries)
+
+    auth_rpc_method_add(platform, 'test8_userid', 'test_method', 'test_auth')
+    entries = auth_list_json(platform)
+    print(entries[-1])
+
+    i = 0
+    while entries[-1]['rpc_method_authorizations'] != {'test_method': ["test_auth"]} and i < auth_retry:
+        gevent.sleep(1)
+        entries = auth_list_json(platform)
+        i += 1
+
+    assert entries[-1]['rpc_method_authorizations'] == {'test_method': ["test_auth"]}
+
+    auth_rpc_method_remove(platform, 'test8_userid', 'test_method', 'test_auth')
+    entries = auth_list_json(platform)
+    print(entries[-1])
+
+    i = 0
+    while entries[-1]['rpc_method_authorizations'] == {'test_method': ["test_auth"]} and i < auth_retry:
+        gevent.sleep(1)
+        entries = auth_list_json(platform)
         i += 1
 
     assert entries[-1]['rpc_method_authorizations'] != {'test_method': ["test_auth"]}
 
 @pytest.mark.control
-def test_group_cmds(volttron_instance):
+def test_group_cmds(auth_instance):
     """Test add-group, list-groups, update-group, and remove-group"""
-    _run_group_or_role_cmds(volttron_instance, _add_group, _list_groups,
+    _run_group_or_role_cmds(auth_instance, _add_group, _list_groups,
             _update_group, _remove_group)
 
 
 @pytest.mark.control
-def test_role_cmds(volttron_instance):
+def test_role_cmds(auth_instance):
     """Test add-role, list-roles, update-role, and remove-role"""
-    _run_group_or_role_cmds(volttron_instance, _add_role, _list_roles,
+    _run_group_or_role_cmds(auth_instance, _add_role, _list_roles,
             _update_role, _remove_role)
 
 
@@ -596,8 +674,8 @@ def _remove_role(platform, role):
 
 
 @pytest.mark.control
-def test_known_host_cmds(volttron_instance):
-    platform = volttron_instance
+def test_known_host_cmds(auth_instance):
+    platform = auth_instance
     host = '1.2.3.4:5678'
     key = 'w-mKufe5hiRSPKK2LnkK_Z9VwRPMohdafhS6IekxYE7'
     _add_known_host(platform, host, key)

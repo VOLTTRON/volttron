@@ -2872,21 +2872,21 @@ def main(argv=sys.argv):
 
     auth_rpc_subparsers = auth_rpc.add_subparsers(title='subcommands',
                                                metavar='', dest='store_commands')
-    auth_rpc_allow = add_parser("allow", subparser=auth_rpc_subparsers, help="adds rpc method authorizations")
+    auth_rpc_add = add_parser("add", subparser=auth_rpc_subparsers, help="adds rpc method authorizations")
 
-    auth_rpc_allow.add_argument('pattern', nargs='*',
+    auth_rpc_add.add_argument('pattern', nargs='*',
                                 help='Identity of agent and method, followed by capabilities. '
                                      'Should be in the format: '
                                      'agent_id.method authorized_capability1 authorized_capability2 ...')
-    auth_rpc_allow.set_defaults(func=add_agent_rpc_authorizations, min_uuid_len=1)
+    auth_rpc_add.set_defaults(func=add_agent_rpc_authorizations, min_uuid_len=1)
 
-    auth_rpc_allow = add_parser("deny", subparser=auth_rpc_subparsers, help="removes rpc method authorizations")
+    auth_rpc_remove = add_parser("remove", subparser=auth_rpc_subparsers, help="removes rpc method authorizations")
 
-    auth_rpc_allow.add_argument('pattern', nargs='*',
+    auth_rpc_remove.add_argument('pattern', nargs='*',
                                 help='Identity of agent and method, followed by capabilities. '
                                      'Should be in the format: '
                                      'agent_id.method authorized_capability1 authorized_capability2 ...')
-    auth_rpc_allow.set_defaults(func=remove_agent_rpc_authorizations, min_uuid_len=1)
+    auth_rpc_remove.set_defaults(func=remove_agent_rpc_authorizations, min_uuid_len=1)
 
     # ====================================================
     # config commands
