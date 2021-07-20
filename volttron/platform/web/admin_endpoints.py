@@ -41,7 +41,10 @@ import os
 import re
 from urllib.parse import parse_qs
 
+import jwt
+
 from volttron.platform.agent.known_identities import PLATFORM_WEB, AUTH
+from volttron.platform.jsonrpc import RemoteError
 
 try:
     from jinja2 import Environment, FileSystemLoader, select_autoescape, TemplateNotFound
@@ -157,9 +160,14 @@ class AdminEndpoints(object):
         from volttron.platform.web import get_bearer, NotAuthorized
         try:
             claims = self._rpc_caller(PLATFORM_WEB, 'get_user_claims', get_bearer(env)).get()
-        except NotAuthorized:
-            _log.error("Unauthorized user attempted to connect to {}".format(env.get('PATH_INFO')))
-            return Response('<h1>Unauthorized User</h1>', status="401 Unauthorized")
+        except RemoteError as e:
+            if "ExpiredSignatureError" in e.exc_info["exc_type"]:
+                _log.warn("Access token has expired! Please re-login to renew.")
+                template = template_env(env).get_template('login.html')
+                _log.debug("Login.html: {}".format(env.get('PATH_INFO')))
+                return Response(template.render(), content_type='text/html')
+            else:
+                _log.error(e)
 
         # Make sure we have only admins for viewing this.
         if 'admin' not in claims.get('groups'):
