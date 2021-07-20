@@ -160,6 +160,9 @@ class AdminEndpoints(object):
         from volttron.platform.web import get_bearer, NotAuthorized
         try:
             claims = self._rpc_caller(PLATFORM_WEB, 'get_user_claims', get_bearer(env)).get()
+        except NotAuthorized:
+            _log.error("Unauthorized user attempted to connect to {}".format(env.get('PATH_INFO')))
+            return Response('<h1>Unauthorized User</h1>', status="401 Unauthorized")
         except RemoteError as e:
             if "ExpiredSignatureError" in e.exc_info["exc_type"]:
                 _log.warning("Access token has expired! Please re-login to renew.")
