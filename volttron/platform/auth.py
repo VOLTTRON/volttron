@@ -214,53 +214,40 @@ class AuthService(Agent):
             if entry.identity is not None and \
                 entry.identity not in PROCESS_IDENTITIES and \
                 entry.identity != CONTROL_CONNECTION:
-                rpc_method_authorizations = self.get_entry_rpc_method_authorizations(entry.identity)
-                # Only works if get_entry_rpc_method_authorizations returns something
-                if rpc_method_authorizations:
-                    # Collect all modified methods
-                    modified_methods = {}
-                    for method in entry.rpc_method_authorizations:
-                        # Check if the rpc method exists in the auth file entry
-                        if method not in entry.rpc_method_authorizations:
-                            # Do not need to update agent capabilities if it is not in auth file
-                            continue
-                        # Check if the rpc method does not have any rpc capabilities
-                        if not entry.rpc_method_authorizations[method]:
-                            # Do not need to update agent capabilities if no capabilities in auth file
-                            continue
-                        # Check if the rpc method's capabilities match what have been provided and the agent was reachable
-                        if entry.rpc_method_authorizations[method] != rpc_method_authorizations[method] and \
-                            rpc_method_authorizations[method] is not None:
-                            modified_methods[method] = entry.rpc_method_authorizations[method]
-                    if modified_methods:
+                # Collect all modified methods
+                modified_methods = {}
+                for method in entry.rpc_method_authorizations:
+                    # Check if the rpc method does not have any rpc capabilities
+                    if not entry.rpc_method_authorizations[method]:
+                        # Do not need to update agent capabilities if no capabilities in auth file
+                        continue
+                    modified_methods[method] = entry.rpc_method_authorizations[method]
+                if modified_methods:
+                    method_error = True
+                    try:
+                        self.vip.rpc.call(
+                            entry.identity, "auth.set_multiple_rpc_authorizations",
+                            rpc_authorizations=modified_methods).wait(timeout=4)
+                        method_error = False
+                    except gevent.Timeout:
+                        _log.error(f"{entry.identity} "
+                                   f"has timed out while attempting to update rpc_method_authorizations")
+                        method_error = False
+                    except RemoteError:
                         method_error = True
-                        try:
-                            self.vip.rpc.call(
-                                entry.identity, "auth.set_multiple_rpc_authorizations",
-                                rpc_authorizations=modified_methods)
-                            method_error = False
-                        except gevent.Timeout:
-                            _log.error(f"{entry.identity} "
-                                       f"has timed out while attempting to update rpc_method_authorizations")
-                            method_error = False
-                        except RemoteError:
-                            method_error = True
 
-                        # One or more methods are invalid, need to iterate
-                        if method_error:
-                            for method in modified_methods:
-                                try:
-                                    self.vip.rpc.call(
-                                        entry.identity, "auth.set_rpc_authorizations",
-                                        method_str=method, capabilities=entry.rpc_method_authorizations[method])
-                                except gevent.Timeout:
-                                    _log.error(f"{entry.identity} "
-                                               f"has timed out while attempting to update rpc_method_authorizations")
-                                except RemoteError:
-                                    _log.error(f"Method {method} does not exist.")
-                else:
-                    _log.warning(f"No RPC methods received for {entry.identity}")
-
+                    # One or more methods are invalid, need to iterate
+                    if method_error:
+                        for method in modified_methods:
+                            try:
+                                self.vip.rpc.call(
+                                    entry.identity, "auth.set_rpc_authorizations",
+                                    method_str=method, capabilities=entry.rpc_method_authorizations[method])
+                            except gevent.Timeout:
+                                _log.error(f"{entry.identity} "
+                                           f"has timed out while attempting to update rpc_method_authorizations")
+                            except RemoteError:
+                                _log.error(f"Method {method} does not exist.")
 
 
     @RPC.export
