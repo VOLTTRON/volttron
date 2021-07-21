@@ -63,22 +63,21 @@ jobs:
         if: steps.check_files.outputs.files_exists != 'true'  && matrix.os != 'ubuntu-20.04'
         run: |
           pip install wheel
-          pip install pytest-rerunfailures
           python bootstrap.py --all --rabbitmq --force
 
       - name: Install dependencies other than rmq
         if: steps.check_files.outputs.files_exists != 'true' && matrix.os == 'ubuntu-20.04'
         run: |
           pip install wheel
-          pip install pytest-rerunfailures
           python bootstrap.py --all --force
 
       - name: Install volttron
         run: |
           source env/bin/activate
           pip install -e .
+          pip install pytest-rerunfailures
 
-      # Run the specified tests and save the results to a unique file that can be archived for later analysis.
+          # Run the specified tests and save the results to a unique file that can be archived for later analysis.
       - name: Run pytest
         run: |
           source env/bin/activate
