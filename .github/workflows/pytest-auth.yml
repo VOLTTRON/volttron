@@ -81,7 +81,7 @@ jobs:
         run: |
           source env/bin/activate
           pip install -e .
-          pytest volttrontesting/platform/auth_tests -rf -o junit_family=xunit2 --junitxml=output/test-auth-${{matrix.os}}-${{ matrix.python-version }}-results.xml
+          pytest volttrontesting/platform/auth_tests --reruns 5 -rf -o junit_family=xunit2 --junitxml=output/test-auth-${{matrix.os}}-${{ matrix.python-version }}-results.xml
 
       # Archive the results from the pytest to storage.
       - name: Archive test results
