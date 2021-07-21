@@ -75,9 +75,8 @@ jobs:
         run: |
           source env/bin/activate
           pip install -e .
-          pip install pytest-rerunfailures
 
-          # Run the specified tests and save the results to a unique file that can be archived for later analysis.
+      # Run the specified tests and save the results to a unique file that can be archived for later analysis.
       - name: Run pytest
         run: |
           source env/bin/activate
