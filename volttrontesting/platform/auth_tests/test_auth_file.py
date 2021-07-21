@@ -48,20 +48,21 @@ from volttron.platform.auth import (AuthEntry, AuthFile, AuthFileIndexError,
                                     AuthEntryInvalid)
 from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM, CONTROL
 from volttron.platform import jsonapi
+from volttrontesting.fixtures.volttron_platform_fixtures import get_test_volttron_home
 from volttrontesting.platform.auth_tests.conftest import assert_auth_entries_same
 
 
 @pytest.fixture(scope='function')
-def auth_file_platform_tuple(volttron_instance):
-    platform = volttron_instance
-    auth_file = AuthFile(os.path.join(platform.volttron_home, 'auth.json'))
-    gevent.sleep(0.5)
-    yield auth_file, platform
+def auth_file_platform_tuple():
+    with get_test_volttron_home('zmq') as vhome:
+        auth_file = AuthFile(os.path.join(vhome, 'auth.json'))
+        gevent.sleep(0.5)
+        yield auth_file
 
-    allow_entries = auth_file.read_allow_entries()
+        allow_entries = auth_file.read_allow_entries()
 
-    auth_file.remove_by_indices(list(range(3, len(allow_entries))))
-    gevent.sleep(0.5)
+        auth_file.remove_by_indices(list(range(3, len(allow_entries))))
+        gevent.sleep(0.5)
 
 
 @pytest.fixture(scope='module')
@@ -92,43 +93,52 @@ def auth_entry3():
                      user_id='user3', groups=['group3'], roles=['role3'],
                      capabilities=['cap3'], comments='com3', enabled=False)
 
+counter = 50
 
 @pytest.mark.auth
 def test_auth_file_overwrite(auth_file_platform_tuple, auth_entry_only_creds):
-    authfile, platform = auth_file_platform_tuple
-    authfile.add(auth_entry_only_creds)
-    authfile.add(auth_entry_only_creds, overwrite=True)
+    auth_file = auth_file_platform_tuple
+    auth_file.add(auth_entry_only_creds)
+    auth_file.auth_data = auth_file._read()
+    auth_file.add(auth_entry_only_creds, overwrite=True)
+    auth_file.auth_data = auth_file._read()
+    entries = auth_file.read_allow_entries()
     with raises(AuthFileEntryAlreadyExists):
-        authfile.add(auth_entry_only_creds)
+        auth_file.add(auth_entry_only_creds)
 
 
 @pytest.mark.auth
 def test_auth_file_same_user_id(auth_file_platform_tuple, auth_entry1, auth_entry2):
-    authfile, platform = auth_file_platform_tuple
-    authfile.add(auth_entry1)
+    auth_file = auth_file_platform_tuple
+    auth_file.add(auth_entry1)
+    auth_file.auth_data = auth_file._read()
     auth_entry2.user_id = auth_entry1.user_id
     with raises(AuthFileUserIdAlreadyExists):
-        authfile.add(auth_entry2, False)
+        auth_file.add(auth_entry2, False)
 
 @pytest.mark.auth
 def test_auth_file_api(auth_file_platform_tuple, auth_entry1,
                        auth_entry2, auth_entry3):
-    auth_file, platform = auth_file_platform_tuple
+    auth_file = auth_file_platform_tuple
 
     # add entries
     auth_file.add(auth_entry1)
+    auth_file.auth_data = auth_file._read()
     auth_file.add(auth_entry2)
+    auth_file.auth_data = auth_file._read()
     entries = auth_file.read_allow_entries()
     entries_len = len(entries)
-    assert entries_len == 5
+    assert entries_len == 2
 
     # update entries
     auth_file.update_by_index(auth_entry3, entries_len-2)
+    auth_file.auth_data = auth_file._read()
     entries = auth_file.read_allow_entries()
     assert entries_len == len(entries)
 
     # remove entries
     auth_file.remove_by_index(entries_len-1)
+    auth_file.auth_data = auth_file._read()
     entries = auth_file.read_allow_entries()
     assert entries_len - 1 == len(entries)
 
@@ -136,25 +146,29 @@ def test_auth_file_api(auth_file_platform_tuple, auth_entry1,
 @pytest.mark.auth
 def test_remove_auth_by_credentials(auth_file_platform_tuple, auth_entry1,
                                     auth_entry2, auth_entry3):
-    auth_file, platform = auth_file_platform_tuple
+    auth_file = auth_file_platform_tuple
 
     # add entries
     auth_file.add(auth_entry1)
+    auth_file.auth_data = auth_file._read()
     auth_file.add(auth_entry2)
+    auth_file.auth_data = auth_file._read()
     auth_entry3.credentials = auth_entry2.credentials
     auth_file.add(auth_entry3)
+    auth_file.auth_data = auth_file._read()
     entries = auth_file.read_allow_entries()
     entries_len = len(entries)
 
     # remove entries
     auth_file.remove_by_credentials(auth_entry2.credentials)
+    auth_file.auth_data = auth_file._read()
     entries = auth_file.read_allow_entries()
     assert entries_len - 2 == len(entries)
 
 
 @pytest.mark.auth
 def test_remove_invalid_index(auth_file_platform_tuple):
-    auth_file, _ = auth_file_platform_tuple
+    auth_file = auth_file_platform_tuple
     with pytest.raises(AuthFileIndexError):
         # by default will have 3 entries - platform, control and dynamic_agent created by platform wrapper
         auth_file.remove_by_index(3)
@@ -162,7 +176,7 @@ def test_remove_invalid_index(auth_file_platform_tuple):
 
 @pytest.mark.auth
 def test_update_invalid_index(auth_file_platform_tuple, auth_entry1):
-    auth_file, _ = auth_file_platform_tuple
+    auth_file = auth_file_platform_tuple
     with pytest.raises(AuthFileIndexError):
         # by default will have 3 entries - platform, control and dynamic_agent created by platform wrapper
         auth_file.update_by_index(auth_entry1, 3)
@@ -170,7 +184,7 @@ def test_update_invalid_index(auth_file_platform_tuple, auth_entry1):
 
 @pytest.mark.auth
 def test_invalid_auth_entries(auth_file_platform_tuple):
-    auth_file, _ = auth_file_platform_tuple
+    auth_file = auth_file_platform_tuple
     with pytest.raises(AuthEntryInvalid):
         AuthEntry()
     with pytest.raises(AuthEntryInvalid):
@@ -181,12 +195,15 @@ def test_invalid_auth_entries(auth_file_platform_tuple):
 
 @pytest.mark.auth
 def test_find_by_credentials(auth_file_platform_tuple):
-    auth_file = auth_file_platform_tuple[0]
+    auth_file = auth_file_platform_tuple
     cred1 = 'A'*43
     cred2 = 'B'*43
     auth_file.add(AuthEntry(domain='test1', credentials=cred1))
+    auth_file.auth_data = auth_file._read()
     auth_file.add(AuthEntry(domain='test2', credentials=cred1))
+    auth_file.auth_data = auth_file._read()
     auth_file.add(AuthEntry(domain='test3', credentials=cred2))
+    auth_file.auth_data = auth_file._read()
 
     # find non-regex creds
     results = auth_file.find_by_credentials(cred1)
@@ -201,11 +218,11 @@ def test_find_by_credentials(auth_file_platform_tuple):
 
 @pytest.mark.auth
 def test_groups_and_roles(auth_file_platform_tuple):
-    auth_file = auth_file_platform_tuple[0]
+    auth_file = auth_file_platform_tuple
     cred = 'C'*43
     auth_file.add(AuthEntry(credentials=cred, groups=['group_1'],
                             roles=['role_b']))
-
+    auth_file.auth_data = auth_file._read()
     # This entry hasn not been granted any capabilities
     results = auth_file.find_by_credentials(cred)
     assert len(results) == 1
@@ -224,8 +241,9 @@ def test_groups_and_roles(auth_file_platform_tuple):
         'group_2': ['role_b']
     }
     auth_file.set_roles(roles)
+    auth_file.auth_data = auth_file._read()
     auth_file.set_groups(groups)
-
+    auth_file.auth_data = auth_file._read()
     # Now the entry has inherited capabilities from its roles and groups
     results = auth_file.find_by_credentials(cred)
     assert len(results) == 1
