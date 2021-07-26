@@ -153,14 +153,15 @@ class SQLHistorian(BaseHistorian):
         self.bg_thread_dbutils = None
         super(SQLHistorian, self).__init__(**kwargs)
 
-    def record_table_definitions(self, meta_table_name):
-        self.bg_thread_dbutils.record_table_definitions(self.tables_def, meta_table_name)
-
     def manage_db_size(self, history_limit_timestamp, storage_limit_gb):
         """
         Optional function to manage database size.
         """
         self.bg_thread_dbutils.manage_db_size(history_limit_timestamp, storage_limit_gb)
+
+    @doc_inherit
+    def version(self):
+        return __version__
 
     @doc_inherit
     def publish_to_historian(self, to_publish_list):
