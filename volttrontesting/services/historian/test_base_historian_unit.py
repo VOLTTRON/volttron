@@ -93,9 +93,6 @@ class BaseHistorianAgentTestWrapper(BaseHistorianAgent):
         self.report_all_handled()
         self.last_to_publish_list = to_publish_list
 
-    def record_table_definitions(self, meta_table_name):
-        pass
-
 
 @pytest.fixture()
 def base_historian_agent():

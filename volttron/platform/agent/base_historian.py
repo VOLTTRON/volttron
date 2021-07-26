@@ -87,7 +87,6 @@ The new Agent must implement the following methods:
 If this historian has a corresponding  AggregateHistorian
 (see :py:class:`AggregateHistorian`) implement the following method in addition
 to the above ones:
-- :py:meth:`BaseQueryHistorianAgent.record_table_definitions`
 - :py:meth:`BaseQueryHistorianAgent.query_aggregate_topics`
 
 While not required this method may be overridden as needed:
@@ -116,10 +115,6 @@ At startup the publishing thread calls two methods:
 - :py:meth:`BaseHistorianAgent.historian_setup` to give the implemented
 historian a chance to setup any connections in the thread. This method can
 also be used to load an initial data into memory
-- :py:meth:`BaseQueryHistorianAgent.record_table_definitions` to give the
-implemented Historian a chance to record the table/collection names into a
-meta table/collection with the named passed as parameter. The implemented
-historian is responsible for creating the meta table if it does not exist.
 
 The process thread then enters the following logic loop:
 ::
@@ -140,8 +135,7 @@ The process thread then enters the following logic loop:
 The logic will also forgo waiting the `retry_period` for new data to appear
 when checking for new data if publishing has been successful and there is
 still data in the cache to be publish. If
-:py:meth:`BaseHistorianAgent.historian_setup` or
-:py:meth:`BaseQueryHistorianAgent.record_table_definitions` throw exception
+:py:meth:`BaseHistorianAgent.historian_setup` throw exception
 and alert is raised but the process loop continues to wait for data and
 caches it. The process loop will periodically try to call the two methods
 again until successful. Exception thrown by
@@ -1377,19 +1371,6 @@ class BaseHistorianAgent(Agent):
         arrives from the config store.
         """
 
-    @abstractmethod
-    def record_table_definitions(self, meta_table_name):
-        """
-        Record the table or collection names in which data, topics and
-        metadata are stored into the metadata table.  This is essentially
-        information from information from configuration item
-        'table_defs'. The metadata table contents will be used by the
-        corresponding aggregate historian(if any)
-
-        :param meta_table_name: table name into which the table names and
-        table name prefix for data, topics, and meta tables should be inserted
-        """
-
 #TODO: Finish this.
 # from collections import deque
 #
@@ -1922,6 +1903,7 @@ class BaseQueryHistorianAgent(Agent):
             else:
                 time_parser = yacc.yacc(write_tables=0)
         super(BaseQueryHistorianAgent, self).__init__(**kwargs)
+
     @RPC.export
     def get_version(self):
         """RPC call to get the version of the historian
