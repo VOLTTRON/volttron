@@ -164,7 +164,6 @@ def _send_and_intialize_agent(opts, publickey, secretkey):
         
         opts.connection.call('prioritize_agent', agent_uuid, str(opts.priority))
 
-    
     try: 
 
         if opts.start:
@@ -184,9 +183,13 @@ def _send_and_intialize_agent(opts, publickey, secretkey):
     except Exception as e:
         _log.error(e)
 
-
     if opts.json:
         sys.stdout.write("%s\n" % jsonapi.dumps(output_dict, indent=4))
+    else:
+        if output_dict.get('started'):
+            sys.stdout.write(f"Agent {agent_uuid} installed and started [{output_dict['pid']}]\n")
+        else:
+            sys.stdout.write(f"Agent {agent_uuid} installed\n")
     if opts.csv:
         keylen = len(output_dict)
         keyline = ''
@@ -207,7 +210,6 @@ def install_agent_vctl(opts, publickey=None, secretkey=None, callback=None):
     The `install_agent_vctl` function is called from the volttron-ctl or vctl install
     sub-parser.
     """
-
     try:
         install_path = opts.install_path
     except AttributeError:
@@ -218,22 +220,20 @@ def install_agent_vctl(opts, publickey=None, secretkey=None, callback=None):
         # then we can send things across and it will be handled on the server side.
         if opts.connection.call("identity_exists", opts.vip_identity):
             if not opts.force:
-                # sys.stderr.write("Identity already exists.  Pass --force option to re-install.\n")
+                opts.connection.kill()
                 raise RuntimeError("Identity already exists.  Pass --force option to re-install.")
-                sys.exit(0)
 
     if os.path.isdir(install_path):
         install_agent_directory(opts, publickey, secretkey)
         if opts.connection is not None:
-            opts.connection.server.core.stop()
+            opts.connection.kill()
     else:
         opts.package = opts.install_path
         if not os.path.exists(opts.package):
+            opts.connection.kill()
             raise FileNotFoundError(f"Invalid file {opts.package}")
         _send_and_intialize_agent(opts, publickey, secretkey)
-        
-    # This is where we need to exit so the script doesn't continue after installation.
-    sys.exit(0)
+
 
 def send_agent(connection: "ControlConnection", wheel_file: str, vip_identity: str , publickey: str, 
     secretkey: str, force: str):
