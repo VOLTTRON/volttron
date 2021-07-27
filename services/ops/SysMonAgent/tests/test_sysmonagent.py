@@ -102,8 +102,8 @@ def listen(agent, config):
 
     agent.vip.pubsub.subscribe('pubsub', base_topic, callback=add_topic)
 
-    max_wait = 1 + max(value for key, value in _test_config.items() if key.endswith('_interval'))
-
+    max_wait = 1 + max(value for key, value in _test_config.items() if key.endswith('_interval')) + 8
+    print(f"Max wait: {max_wait}, topics: {topics}, seen_topics: {seen_topics}")
     assert poll_gevent_sleep(max_wait, lambda: set(topics) <= seen_topics)
 
 
@@ -124,6 +124,7 @@ def test_reconfigure_then_listen(sysmon_tester_agent):
     listen(sysmon_tester_agent, new_config)
 
 
+@pytest.mark.dev
 def test_default_config(sysmon_tester_agent):
     """
     Test that the topic can be reconfigured
