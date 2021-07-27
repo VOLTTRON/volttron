@@ -9,14 +9,13 @@ from volttron.platform import get_examples
 import sys
 
 
-
 @pytest.mark.control
 def test_agent_versions(volttron_instance):
     auuid = volttron_instance.install_agent(
         agent_dir=get_examples("ListenerAgent"), start=True)
     assert auuid is not None
 
-    agent = volttron_instance.build_agent()
+    agent = volttron_instance.dynamic_agent
     version = agent.vip.rpc.call('control', 'agent_version',
                                   auuid).get(timeout=2)
     assert version == "3.3"
@@ -28,6 +27,7 @@ def test_agent_versions(volttron_instance):
     versions = versions[k]
     assert versions[0] == 'listeneragent-3.3'
     assert versions[1] == '3.3'
+    volttron_instance.remove_all_agents()
 
 
 @pytest.mark.control
@@ -42,11 +42,11 @@ def test_identity_is_uuid(volttron_instance):
         agent_dir=get_examples("ListenerAgent"), start=True)
     assert auuid is not None
 
-    agent = volttron_instance.build_agent()
+    agent = volttron_instance.dynamic_agent
     identity = agent.vip.rpc.call('control', 'agent_vip_identity',
                                   auuid).get(timeout=2)
-    assert identity == "listeneragent-3.3_2"
-
+    assert identity == "listeneragent-3.3_1"
+    volttron_instance.remove_all_agents()
 
 @pytest.mark.control
 def test_can_get_identity(volttron_instance):
@@ -63,6 +63,7 @@ def test_can_get_identity(volttron_instance):
     cn = volttron_instance.build_connection(peer='control')
     identity = cn.call('agent_vip_identity', auuid)
     assert identity == 'test_can_get_identity'
+    volttron_instance.remove_all_agents()
 
 
 @pytest.mark.control
@@ -158,12 +159,14 @@ setup(
     # print("err {}".format(stderr))
 
     wheel = os.path.join(tmpdir, 'dist', 'crashtest-0.1-py3-none-any.whl')
+    assert os.path.exists(wheel)
     agent_uuid = volttron_instance.install_agent(agent_wheel=wheel,
                                                  start=True)
-    print("agent_uuid {}".format(agent_uuid))
-    query_agent = volttron_instance.build_agent()
+    assert agent_uuid
+    query_agent = volttron_instance.dynamic_agent
     status = query_agent.vip.rpc.call('control', 'agent_status',
-                              agent_uuid).get(timeout=2)
+                                      agent_uuid).get(timeout=2)
+    assert status
     crashed = False
     restarted = False
     wait_time = 0
@@ -174,8 +177,6 @@ setup(
     while not crashed or (not restarted and wait_time < 30):
         status = query_agent.vip.rpc.call('control', 'agent_status',
                                           agent_uuid).get(timeout=2)
-
-        print("agent status: {} ".format(status))
         if crashed and status[0] and status[1] is None:
             restarted = True
         elif status[0] and status[1] == 5:

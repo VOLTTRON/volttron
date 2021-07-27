@@ -151,7 +151,7 @@ class ControlService(BaseAgent):
         """
         # Get status for agents that have been started at least once.
         stats = self._aip.status_agents()
-        for (uid, name, (pid, stat)) in stats:
+        for (uid, name, (pid, stat), identity) in stats:
             if stat:
                 # stat=0 means stopped and stat=None means running
                 # will always have pid(current/crashed/stopped)
@@ -1163,8 +1163,9 @@ def update_health_cache(opts):
 
     if do_update:
         health_cache.clear()
-        health_cache.update(opts.connection.server.vip.rpc.call(PLATFORM_HEALTH, 'get_platform_health').get(timeout=4))
-        health_cache_timeout_date = datetime.now() + timedelta(seconds=health_cache_timeout)
+        if opts.connection.server:
+            health_cache.update(opts.connection.server.vip.rpc.call(PLATFORM_HEALTH, 'get_platform_health').get(timeout=4))
+            health_cache_timeout_date = datetime.now() + timedelta(seconds=health_cache_timeout)
 
 
 def status_agents(opts):
@@ -1939,36 +1940,12 @@ def _show_filtered_agents_status(opts, status_callback, health_callback, agents=
         _stdout.write(f'{jsonapi.dumps(json_obj, indent=2)}\n')
 
 
-
 def get_agent_publickey(opts):
     def get_key(agent):
         return opts.aip.get_agent_keystore(agent.uuid).public
 
     _show_filtered_agents(opts, 'PUBLICKEY', get_key)
 
-
-# XXX: reimplement over VIP
-# def send_agent(opts):
-#    _log.debug("send_agent: "+ str(opts))
-#    ssh_dir = os.path.join(opts.volttron_home, 'ssh')
-#    _log.debug('ssh_dir: ' + ssh_dir)
-#    try:
-#        host_key, client = comms.client(ssh_dir, opts.host, opts.port)
-#    except (OSError, IOError, PasswordRequiredException, SSHException) as exc:
-#        if opts.debug:
-#            traceback.print_exc()
-#        _stderr.write('{}: error: {}\n'.format(opts.command, exc))
-#        if isinstance(exc, OSError):
-#            return os.EX_OSERR
-#        if isinstance(exc, IOError):
-#            return os.EX_IOERR
-#        return os.EX_SOFTWARE
-#    if host_key is None:
-#        _stderr.write('warning: no public key found for remote host\n')
-#    with client:
-#        for wheel in opts.wheel:
-#            with open(wheel) as file:
-#                client.send_and_start_agent(file)
 
 def add_config_to_store(opts):
     opts.connection.peer = CONFIGURATION_STORE
@@ -2100,8 +2077,18 @@ class ControlConnection(object):
             self.peer, method, *args, **kwargs)
 
     def kill(self, *args, **kwargs):
+        """
+        Resets a running greenlet and cleans up the internal stopped agent.
+        """
         if self._greenlet is not None:
-            self._greenlet.kill(*args, **kwargs)
+            try:
+                self._server.core.stop()
+            finally:
+                self._server = None
+            try:
+                self._greenlet.kill(*args, **kwargs)
+            finally:
+                self._greenlet = None
 
 
 def priority(value):
@@ -3244,9 +3231,6 @@ def main():
     if utils.is_volttron_running(volttron_home):
         opts.connection = ControlConnection(opts.vip_address)
 
-    with gevent.Timeout(opts.timeout):
-        return opts.func(opts)
-    
     try:
         with gevent.Timeout(opts.timeout):
             return opts.func(opts)
@@ -3278,7 +3262,7 @@ def main():
         # make sure the connection to the server is closed when this scriopt is about to exit.
         if opts.connection:
             try:
-                opts.connection.server.core.stop()
+                opts.connection.kill()
             except Unreachable:
                 # its ok for this to fail at this point it might not even be valid.
                 pass

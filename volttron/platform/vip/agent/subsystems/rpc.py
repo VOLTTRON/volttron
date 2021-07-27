@@ -74,6 +74,7 @@ _log = logging.getLogger(__name__)
 def _isregex(obj):
     return obj is not None and isinstance(obj, str) and len(obj) > 1 and obj[0] == obj[-1] == '/'
 
+
 class Dispatcher(jsonrpc.Dispatcher):
     def __init__(self, methods, local):
         super(Dispatcher, self).__init__()
@@ -82,7 +83,7 @@ class Dispatcher(jsonrpc.Dispatcher):
         self._results = ResultsDictionary()
 
     def serialize(self, json_obj):
-        _log.debug(f"json_obj is {json_obj}")
+        # _log.debug(f"json_obj is {json_obj}")
         return jsonapi.dumps(json_obj)
 
     def deserialize(self, json_string):

@@ -346,8 +346,6 @@ def send_agent(connection: "ControlConnection", wheel_file: str, vip_identity: s
             wheel.close()
             server.vip.pubsub.unsubscribe(peer="pubsub", prefix="rmq_response_topic", callback=protocol_requested)
 
-
-
     def send_zmq():
         nonlocal wheel, channel
         sha512 = hashlib.sha512()
