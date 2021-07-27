@@ -35,55 +35,24 @@ jobs:
 
     # Each step will be run in order of listing.
     steps:
-      # checkout the volttron repository and set current direectory to it
+      # checkout the volttron repository and set current directory to it
       - uses: actions/checkout@v2
 
-      # Install erlang for rabbitmq
-      - name: Install erlang
-        if: matrix.os != 'ubuntu-20.04'
-        run: |
-          sudo scripts/rabbit_dependencies.sh debian ${{ matrix.os }}
-
-      # setup the python environment for the operating system
+      # Attempt to restore the cache from the build-dependency-cache workflow if present then
+      # the output value steps.check_files.outputs.files_exists will be set (see the next step for usage)
       - name: Set up Python ${{matrix.os}} ${{ matrix.python-version }}
         uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python-version }}
 
-      # Attempt to restore the cache from the build-dependency-cache workflow if present then
-      # the output value steps.check_files.outputs.files_exists will be set (see the next step for usage)
-      - name: Has restored cache
-        id: check_files
-        uses: andstor/file-existence-action@v1
-        with:
-          files: "env/bin/activate"
-
-      # This step is only run if the cache wasn't able to be restored.
-      - name: Install dependencies including rmq
-        if: steps.check_files.outputs.files_exists != 'true'  && matrix.os != 'ubuntu-20.04'
-        run: |
-          pip install wheel
-          python bootstrap.py --all --rabbitmq --force
-
-      - name: Install dependencies other than rmq
-        if: steps.check_files.outputs.files_exists != 'true' && matrix.os == 'ubuntu-20.04'
-        run: |
-          pip install wheel
-          python bootstrap.py --all --force
-
-      - name: Install volttron
-        run: |
-          source env/bin/activate
-          pip install -e .
-
       # Run the specified tests and save the results to a unique file that can be archived for later analysis.
-      - name: Run pytest
-        run: |
-          source env/bin/activate
-          pip install pytest-rerunfailures
-          pip install -e .
-          pytest volttrontesting/platform/control_tests \
-            -rf -o junit_family=xunit2 --junitxml=output/test-vctl-${{matrix.os}}-${{ matrix.python-version }}-results.xml
+      - name: Run pytest on ${{ matrix.python-version }}, ${{ matrix.os }}
+        uses: volttron/volttron-build-action@v1
+        with:
+            python_version: ${{ matrix.python-version }}
+            os: ${{ matrix.os }}
+            test_path: volttrontesting/platform/control_tests
+            test_output_suffix: control_tests
 
       # Archive the results from the pytest to storage.
       - name: Archive test results
@@ -92,23 +61,3 @@ jobs:
         with:
           name: pytest-report
           path: output/test-vctl-${{matrix.os}}-${{ matrix.python-version }}-results.xml
-    
-#       - name: Publish Unit Test Results
-#         uses: EnricoMi/publish-unit-test-result-action@v1.5
-#         if: always()
-#         with:
-#           github_token: ${{ secrets.WORKFLOW_ACCESS_TOKEN }}
-#           files: output/test-testutils*.xml
-          
-          
-#-cov=com --cov-report=xml --cov-report=html
-# pytest tests.py --doctest-modules --junitxml=junit/test-results.xml --cov=com --cov-report=xml --cov-report=html
-#    - name: Lint with flake8
-#      run: |
-#        # stop the build if there are Python syntax errors or undefined names
-#        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-#        # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
-#        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-#    - name: Test with pytest
-#      run: |
-#        pytest --junitxml=junit/test-results.xml --cov=com --cov-report=xml --cov-report=html
