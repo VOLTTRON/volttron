@@ -213,6 +213,17 @@ def is_rabbitmq_available():
     return rabbitmq_available
 
 
+def is_web_available():
+    web_available = True
+    try:
+        import jwt
+        from jinja2 import Environment, FileSystemLoader, select_autoescape
+        from ws4py.server.geventserver import WSGIServer
+    except ImportError:
+        web_available = False
+    return web_available
+
+
 __config__ = None
 
 
