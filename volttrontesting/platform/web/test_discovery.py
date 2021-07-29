@@ -42,7 +42,7 @@ import os
 from volttron.platform.web import DiscoveryInfo
 
 from volttrontesting.utils.web_utils import get_test_web_env
-
+from volttrontesting.fixtures.volttron_platform_fixtures import volttron_instance_web
 
 def test_discovery_endpoint(volttron_instance_web):
     """

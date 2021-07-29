@@ -35,15 +35,15 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-
 import logging
+import os
 import pytest
 import gevent
 import gevent.subprocess as subprocess
-from gevent.subprocess import Popen
+from gevent.subprocess import check_call
 from mock import MagicMock
 from volttron.platform.agent import utils
-from volttron.platform import get_services_core
+from volttron.platform import get_services_core, get_volttron_root
 from volttron.platform.agent.known_identities import PLATFORM_DRIVER
 
 utils.setup_logging()
@@ -51,7 +51,7 @@ _log = logging.getLogger(__name__)
 
 
 @pytest.fixture(scope="module")
-def test_agent(request, volttron_instance):
+def test_agent(volttron_instance):
     """Dynamic agent for sending rpc calls and listening to the bus"""
     agent = volttron_instance.build_agent()
     agent.cov_callback = MagicMock(name="cov_callback")
@@ -62,36 +62,33 @@ def test_agent(request, volttron_instance):
         prefix="devices/fakedriver/all",
         callback=agent.cov_callback).get()
 
-    def stop_agent():
-        print("In teardown method of query_agent")
-        agent.core.stop()
+    yield agent
 
-    request.addfinalizer(stop_agent)
-    return agent
+    _log.info("In teardown method of query_agent")
+    agent.core.stop()
 
 
 @pytest.mark.driver
-def test_cov_update_published(volttron_instance, test_agent):
+def test_forward_bacnet_cov_value(volttron_instance, test_agent):
     """Tests the functionality of BACnet change of value forwarding in the
     Platform Driver and driver.py"""
     # Reset platform driver config store
     cmd = ['volttron-ctl', 'config', 'delete', PLATFORM_DRIVER, '--all']
-    process = Popen(cmd, env=volttron_instance.env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    result = process.wait()
-    assert result == 0
+    retcode = check_call(cmd, env=volttron_instance.env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    assert retcode == 0
 
     # Add fake device configuration
+    fake_csv_infile = os.path.join(get_volttron_root(), 'examples/configurations/drivers/fake.csv')
     cmd = ['volttron-ctl', 'config', 'store', PLATFORM_DRIVER,
-           'fake.csv', 'examples/configurations/drivers/fake.csv', '--csv']
-    process = Popen(cmd, env=volttron_instance.env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    result = process.wait()
-    assert result == 0
+           'fake.csv', fake_csv_infile, '--csv']
+    retcode = check_call(cmd, env=volttron_instance.env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    assert retcode == 0
 
+    fakedriver_infile = os.path.join(get_volttron_root(), 'examples/configurations/drivers/fake.config')
     cmd = ['volttron-ctl', 'config', 'store', PLATFORM_DRIVER,
-           "devices/fakedriver", 'examples/configurations/drivers/fake.config', '--json']
-    process = Popen(cmd, env=volttron_instance.env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    result = process.wait()
-    assert result == 0
+           "devices/fakedriver", fakedriver_infile, '--json']
+    retcode = check_call(cmd, env=volttron_instance.env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    assert retcode == 0
 
     # install platform driver, start the platform driver, which starts the device
     platform_uuid = volttron_instance.install_agent(

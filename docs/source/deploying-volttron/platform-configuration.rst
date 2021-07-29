@@ -161,14 +161,31 @@ Optional Arguments
   - **--list-agents** - Display a list of configurable agents (Listener, Platform Driver, Platform Historian, VOLTTRON
     Central, VOLTTRON Central Platform)
   - **--agent AGENT [AGENT ...]** - Configure listed agents
-  - **--rabbitmq RABBITMQ [RABBITMQ ...]** - Configure rabbitmq for single instance, federation, or shovel either based
-    on configuration file in yml format or providing details when prompted.
+  - **--secure-agent-users** - Require that agents run as their own Unix users (this requires running
+    `scripts/secure_user_permissions.sh` as `sudo`)
+
+RabbitMQ Arguments
+------------------
+vcfg command to configure a single RabbitMQ instance of VOLTTRON.
 
         Usage:
 
         .. code-block:: bash
 
-            vcfg --rabbitmq single|federation|shovel [rabbitmq config file]``
+            vcfg rabbitmq single [--config Optional path to rabbitmq config file]``
 
-  - **--secure-agent-users** - Require that agents run as their own Unix users (this requires running
-    `scripts/secure_user_permissions.sh` as `sudo`)
+vcfg command to configure a federation instance of RabbitMQ VOLTTRON.
+
+        Usage:
+
+        .. code-block:: bash
+
+            vcfg rabbitmq federation [--config Optional path to rabbitmq federation config file] [--max-retries Optional maximum CSR retry attempt]``
+
+vcfg command to create shovel to send messages from one RabbitMQ instance of VOLTTRON to another.
+
+        Usage:
+
+        .. code-block:: bash
+
+            vcfg rabbitmq shovel [--config Optional path to shovel config file] [--max-retries Optional maximum CSR retry attempt]``

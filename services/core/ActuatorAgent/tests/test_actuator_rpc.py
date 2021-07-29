@@ -37,7 +37,7 @@
 # }}}
 
 """
-Pytest test cases for testing actuator agent using rpc calls.
+Pytest integration test cases for testing actuator agent using rpc calls.
 """
 
 import json
@@ -200,8 +200,14 @@ def revert_devices(request, publish_agent):
     return cleanup_parameters
 
 
+@pytest.mark.parametrize("taskid, expected_result, expected_info", [
+    ('task_schedule_success', SUCCESS, ''),
+    (1234, FAILURE, 'MALFORMED_REQUEST: TypeError: taskid must be a nonempty string'),
+    ('', FAILURE, 'MALFORMED_REQUEST: TypeError: taskid must be a nonempty string'),
+    (None, FAILURE, 'MISSING_TASK_ID')
+])
 @pytest.mark.actuator
-def test_schedule_success(publish_agent, cancel_schedules):
+def test_request_new_schedule(publish_agent, cancel_schedules, taskid, expected_result, expected_info):
     """
     Test responses for successful schedule request
     :param publish_agent: fixture invoked to setup all agents necessary and
@@ -212,7 +218,6 @@ def test_schedule_success(publish_agent, cancel_schedules):
     print ("\n**** test_schedule_success ****")
     # used by cancel_schedules
     agentid = TEST_AGENT
-    taskid = 'task_schedule_success'
     cancel_schedules.append({'agentid': agentid, 'taskid': taskid})
 
     start = str(datetime.now())
@@ -229,109 +234,25 @@ def test_schedule_success(publish_agent, cancel_schedules):
         msg).get(timeout=10)
     # expected result {'info': u'', 'data': {}, 'result': SUCCESS}
     print(result)
-    assert result['result'] == SUCCESS
+
+    assert result['result'] == expected_result
+    if not result['info']:
+        assert result['info'] == expected_info
 
 
+@pytest.mark.parametrize("invalid_priority, expected_info", [
+    ('LOW2', 'INVALID_PRIORITY'),
+    (None, 'MISSING_PRIORITY')
+])
 @pytest.mark.actuator
-def test_schedule_error_int_taskid(publish_agent):
-    """
-    Test responses for successful schedule request with integer task id
-    :param publish_agent: fixture invoked to setup all agents necessary and
-    returns an instance of Agent object used for publishing
-    """
-    print("\n**** test_schedule_error_int_taskid ****")
-    agentid = TEST_AGENT
-    taskid = 1234
-
-    start = str(datetime.now())
-    end = str(datetime.now() + timedelta(seconds=1))
-    msg = [
-        ['fakedriver1', start, end]
-    ]
-    result = publish_agent.vip.rpc.call(
-        PLATFORM_ACTUATOR,
-        REQUEST_NEW_SCHEDULE,
-        agentid,
-        taskid,
-        PRIORITY_LOW,
-        msg).get(timeout=10)
-    # expected result {'info': u'', 'data': {}, 'result': SUCCESS}
-    print(result)
-    assert result['result'] == FAILURE
-    assert result['info'] == 'MALFORMED_REQUEST: TypeError: taskid must be a nonempty string'
-
-
-@pytest.mark.actuator
-def test_schedule_empty_taskid(publish_agent, cancel_schedules):
-    """
-    Test responses for successful schedule request when task id is an empty
-    string
-    :param publish_agent: fixture invoked to setup all agents necessary and
-    returns an instance of Agent object used for publishing
-    :param cancel_schedules: fixture used to cancel the schedule at the end
-    of test so that other tests can use the same device and time slot
-    """
-    print("\n**** test_schedule_empty_taskid ****")
-    # used by cancel_schedules
-    agentid = TEST_AGENT
-    taskid = ''
-    cancel_schedules.append({'agentid': agentid, 'taskid': taskid})
-
-    start = str(datetime.now())
-    end = str(datetime.now() + timedelta(seconds=1))
-    msg = [
-        ['fakedriver1', start, end]
-    ]
-    result = publish_agent.vip.rpc.call(
-        PLATFORM_ACTUATOR,
-        REQUEST_NEW_SCHEDULE,
-        agentid,
-        taskid,
-        PRIORITY_LOW,
-        msg).get(timeout=10)
-    # expected result {'info': u'', 'data': {}, 'result': SUCCESS}
-    print(result)
-    assert result['result'] == FAILURE
-    assert result['info'] == 'MALFORMED_REQUEST: TypeError: taskid must be a nonempty string'
-
-
-@pytest.mark.actuator
-def test_schedule_error_none_taskid(publish_agent):
-    """
-    Test error responses for  schedule request with taskid = None
-    :param publish_agent: fixture invoked to setup all agents necessary and
-    returns an instance of Agent object used for publishing
-    """
-    print("\n**** test_schedule_error_none_taskid ****")
-    agentid = TEST_AGENT
-    taskid = None
-
-    start = str(datetime.now())
-    end = str(datetime.now() + timedelta(seconds=1))
-    msg = [
-        ['fakedriver1', start, end]
-    ]
-    result = publish_agent.vip.rpc.call(
-        PLATFORM_ACTUATOR,
-        REQUEST_NEW_SCHEDULE,
-        agentid,
-        taskid,
-        PRIORITY_LOW,
-        msg).get(timeout=10)
-    print(result)
-    assert result['result'] == FAILURE
-    assert result['info'] == 'MISSING_TASK_ID'
-
-
-@pytest.mark.actuator
-def test_schedule_error_invalid_priority(publish_agent):
+def test_request_new_schedule_should_return_failure_on_bad_priority(publish_agent, invalid_priority, expected_info):
     """
     Test error responses for schedule request with an invalid priority
     :param publish_agent: fixture invoked to setup all agents necessary and
     returns an instance of Agent object used for publishing
     """
     print("\n**** test_schedule_error_invalid_priority ****")
-    taskid = 'task_invalid_priority'
+    taskid = 'task_bad_priority'
     start = str(datetime.now())
     end = str(datetime.now() + timedelta(seconds=1))
     msg = [
@@ -343,16 +264,17 @@ def test_schedule_error_invalid_priority(publish_agent):
         REQUEST_NEW_SCHEDULE,
         TEST_AGENT,
         taskid,
-        'LOW2',
+        # 'LOW2',
+        invalid_priority,
         msg).get(timeout=10)
     # expected result {'info': u'', 'data': {}, 'result': SUCCESS}
     print(result)
     assert result['result'] == FAILURE
-    assert result['info'] == 'INVALID_PRIORITY'
+    assert result['info'] == expected_info
 
 
 @pytest.mark.actuator
-def test_schedule_error_empty_message(publish_agent):
+def test_request_new_schedule_should_return_failure_on_empty_message(publish_agent):
     """
     Test error responses for schedule request with an empty message
     :param publish_agent: fixture invoked to setup all agents necessary and
@@ -361,9 +283,7 @@ def test_schedule_error_empty_message(publish_agent):
     print("\n**** test_schedule_error_empty_message ****")
     taskid = 'task_empty_message'
 
-    msg = [
-
-    ]
+    msg = []
     result = publish_agent.vip.rpc.call(
         PLATFORM_ACTUATOR,
         REQUEST_NEW_SCHEDULE,
@@ -378,7 +298,7 @@ def test_schedule_error_empty_message(publish_agent):
 
 
 @pytest.mark.actuator
-def test_schedule_error_duplicate_task(publish_agent, cancel_schedules):
+def test_request_new_schedule_should_return_failure_on_duplicate_taskid(publish_agent, cancel_schedules):
     """
     Test error responses for schedule request with task id that is already
     in use
@@ -407,6 +327,7 @@ def test_schedule_error_duplicate_task(publish_agent, cancel_schedules):
         PRIORITY_LOW,
         msg).get(timeout=10)
     assert result['result'] == SUCCESS
+
     # new request with same task id
     result = publish_agent.vip.rpc.call(
         PLATFORM_ACTUATOR,
@@ -422,36 +343,7 @@ def test_schedule_error_duplicate_task(publish_agent, cancel_schedules):
 
 
 @pytest.mark.actuator
-def test_schedule_error_none_priority(publish_agent):
-    """
-    Test error responses for schedule request with priority = None
-    :param publish_agent: fixture invoked to setup all agents necessary
-    and returns an instance of Agent object used for publishing
-    """
-    print("\n**** test_schedule_error_none_priority ****")
-    taskid = 'task_none_priority'
-
-    start = str(datetime.now())
-    end = str(datetime.now() + timedelta(seconds=1))
-    msg = [
-        ['fakedriver0', start, end]
-    ]
-
-    result = publish_agent.vip.rpc.call(
-        PLATFORM_ACTUATOR,
-        REQUEST_NEW_SCHEDULE,
-        TEST_AGENT,
-        taskid,
-        None,
-        msg).get(timeout=10)
-    # expected result {'info': u'', 'data': {}, 'result': SUCCESS}
-    print(result)
-    assert result['result'] == FAILURE
-    assert result['info'] == 'MISSING_PRIORITY'
-
-
-@pytest.mark.actuator
-def test_schedule_error_malformed_request(publish_agent):
+def test_reques_new_schedule_error_malformed_request(publish_agent):
     """
     Test error responses for schedule request with malformed request -
     request with only a device name and start time and no stop time
@@ -480,7 +372,7 @@ def test_schedule_error_malformed_request(publish_agent):
 
 
 @pytest.mark.actuator
-def test_schedule_preempt_self(publish_agent, cancel_schedules):
+def test_request_new_schedule_should_succeed_on_preempt_self(publish_agent, cancel_schedules):
     """
     Test error response for schedule request through pubsub.
     Test schedule preemption by a higher priority task from the same agent.
@@ -557,7 +449,7 @@ def test_schedule_preempt_self(publish_agent, cancel_schedules):
 
 
 @pytest.mark.actuator
-def test_schedule_preempt_active_task(publish_agent, cancel_schedules):
+def test_request_new_schedule_should_suceed_on_preempt_active_task(publish_agent, cancel_schedules):
     """
     Test error response for schedule request.
     Test schedule preemption of a actively running task with priority
@@ -638,7 +530,7 @@ def test_schedule_preempt_active_task(publish_agent, cancel_schedules):
 # This test checks to see if a requestid is no longer valid.
 # Since request ids are always vip identities and only one agent
 # is scheduling devices the expected lock error is not raised.
-def test_schedule_preempt_active_task_gracetime(publish_agent, cancel_schedules):
+def test_request_new_schedule_preempt_active_task_gracetime(publish_agent, cancel_schedules):
     """
     Test error response for schedule request.
     Test schedule preemption of a actively running task with priority LOW by
@@ -656,7 +548,7 @@ def test_schedule_preempt_active_task_gracetime(publish_agent, cancel_schedules)
     agentid = 'new_agent'
     taskid = 'task_high_priority3'
     cancel_schedules.append({'agentid': agentid, 'taskid': taskid})
-    # add low prority task as well since it won't get cancelled till end of grace time
+    # add low priority task as well since it won't get cancelled till end of grace time
     cancel_schedules.append(
         {'agentid': TEST_AGENT, 'taskid': 'task_low_priority3'})
 
@@ -752,7 +644,7 @@ def test_schedule_preempt_active_task_gracetime(publish_agent, cancel_schedules)
 
 
 @pytest.mark.actuator
-def test_schedule_preempt_error_active_task(publish_agent, cancel_schedules):
+def test_request_new_schedule_should_return_failure_on_preempt_active_task(publish_agent, cancel_schedules):
     """
     Test error response for schedule request.
     Test schedule preemption of a actively running task with priority LOW by
@@ -810,7 +702,7 @@ def test_schedule_preempt_error_active_task(publish_agent, cancel_schedules):
 
 
 @pytest.mark.actuator
-def test_schedule_preempt_future_task(publish_agent, cancel_schedules):
+def test_request_new_schedule_should_succeed_on_preempt_future_task(publish_agent, cancel_schedules):
     """
     Test error response for schedule request.
     Test schedule preemption of a future task with priority LOW by a higher
@@ -889,7 +781,7 @@ def test_schedule_preempt_future_task(publish_agent, cancel_schedules):
 
 
 @pytest.mark.actuator
-def test_schedule_conflict_self(publish_agent):
+def test_request_new_schedule_should_return_failure_on_conflicting_time_slots(publish_agent):
     """
     Test error response for schedule request. Test schedule with conflicting
     time slots in the same request
@@ -921,16 +813,15 @@ def test_schedule_conflict_self(publish_agent):
 
 
 @pytest.mark.actuator
-def test_schedule_conflict(publish_agent, cancel_schedules):
+def test_request_new_schedule_should_return_failure_on_conflicting_schedules(publish_agent, cancel_schedules):
     """
-    Test schedule conflict with existing schdeule
+    Test schedule conflict with existing schedule
 
     :param publish_agent: fixture invoked to setup all agents necessary and
     returns an instance of Agent object used for publishing
     :param cancel_schedules: fixture used to cancel the schedule at the end of
     test so that other tests can use the same device and time slot
     """
-    print ("\n**** test_schedule_conflict ****")
     # set agentid and task id for  cancel_schedules fixture
     agentid = TEST_AGENT
     taskid = 'task_conflict1'
@@ -966,7 +857,7 @@ def test_schedule_conflict(publish_agent, cancel_schedules):
 
 
 @pytest.mark.actuator
-def test_schedule_overlap_success(publish_agent, cancel_schedules):
+def test_request_new_schedule_should_succeed_on_overlap_time_slots(publish_agent, cancel_schedules):
     """
     Test schedule where stop time of one requested time slot is the same as
     start time of another requested time slot.
@@ -1004,29 +895,7 @@ def test_schedule_overlap_success(publish_agent, cancel_schedules):
 
 
 @pytest.mark.actuator
-def test_cancel_error_invalid_taskid(publish_agent):
-    """
-    Test error responses for schedule request. Test invalid task id
-
-    :param publish_agent: fixture invoked to setup all agents necessary and
-    returns an instance
-    of Agent object used for publishing
-    """
-    print ("\n**** test_cancel_error_invalid_taskid ****")
-    result = publish_agent.vip.rpc.call(
-        PLATFORM_ACTUATOR,
-        REQUEST_CANCEL_SCHEDULE,
-        TEST_AGENT,
-        'invalid_cancel',
-    ).get(timeout=10)
-    # expected result {'info': u'', 'data': {}, 'result': SUCCESS}
-    print(result)
-    assert result['result'] == FAILURE
-    assert result['info'] == 'TASK_ID_DOES_NOT_EXIST'
-
-
-@pytest.mark.actuator
-def test_cancel_success(publish_agent):
+def test_request_cancel_schedule_should_succeed(publish_agent):
     """
     Test successful schedule cancel
 
@@ -1063,7 +932,31 @@ def test_cancel_success(publish_agent):
 
 
 @pytest.mark.actuator
-def test_get_default(publish_agent):
+def test_request_cancel_schedule_should_return_failure_on_invalid_taskid(publish_agent):
+    """
+    Test error responses for schedule request. Test invalid task id
+
+    :param publish_agent: fixture invoked to setup all agents necessary and
+    returns an instance
+    of Agent object used for publishing
+    """
+    print ("\n**** test_cancel_error_invalid_taskid ****")
+    result = publish_agent.vip.rpc.call(
+        PLATFORM_ACTUATOR,
+        REQUEST_CANCEL_SCHEDULE,
+        TEST_AGENT,
+        'invalid_cancel',
+    ).get(timeout=10)
+    # expected result {'info': u'', 'data': {}, 'result': SUCCESS}
+    print(result)
+    assert result['result'] == FAILURE
+    assert result['info'] == 'TASK_ID_DOES_NOT_EXIST'
+
+
+# We need to test the getters first before proceeding to testing the other actuator methods because
+# some methods mutate driver points AND all tests share the same publish_agent setup
+@pytest.mark.actuator
+def test_get_point_should_succeed(publish_agent):
     """
     Test get default value of a point
 
@@ -1081,60 +974,25 @@ def test_get_default(publish_agent):
     assert result == 10.0
 
 
+@pytest.mark.parametrize("topics", [
+    (['fakedriver0/SampleWritableFloat1',
+      'fakedriver1/SampleWritableFloat1']),
+    ([['fakedriver0', 'SampleWritableFloat1'],
+      ['fakedriver1', 'SampleWritableFloat1']])
+])
 @pytest.mark.actuator
-def test_get_success(publish_agent, cancel_schedules):
-    """
-    Test getting a float value of a point through pubsub
-    Expected Result - value of the point
+def test_get_multiple_points_should_succeed(publish_agent, cancel_schedules, topics):
+    results, errors = publish_agent.vip.rpc.call(
+        'platform.actuator',
+        'get_multiple_points',
+        topics).get(timeout=10)
 
-    :param publish_agent: fixture invoked to setup all agents necessary and
-    returns an instance of Agent object used for publishing
-    :param cancel_schedules: fixture used to cancel the schedule at
-    the end of test so that other tests can use the same device and time slot
-    """
-    print("\n**** test_get_value_success ****")
-    agentid = TEST_AGENT
-    taskid = 'task_set_and_get'
-    cancel_schedules.append({'agentid': agentid, 'taskid': taskid})
-
-    start = str(datetime.now())
-    end = str(datetime.now() + timedelta(seconds=2))
-    msg = [
-        ['fakedriver1', start, end]
-    ]
-
-    result = publish_agent.vip.rpc.call(
-        PLATFORM_ACTUATOR,
-        REQUEST_NEW_SCHEDULE,
-        agentid,
-        taskid,
-        PRIORITY_LOW,
-        msg).get(timeout=10)
-    # expected result {'info': u'', 'data': {}, 'result': SUCCESS}
-    print(result)
-    assert result['result'] == SUCCESS
-
-    result = publish_agent.vip.rpc.call(
-        PLATFORM_ACTUATOR,  # Target agent
-        'set_point',  # Method
-        agentid,  # Requestor
-        'fakedriver1/SampleWritableFloat1',  # Point to set
-        1.0  # New value
-    ).get(timeout=10)
-    assert result == 1.0
-
-    result = publish_agent.vip.rpc.call(
-        PLATFORM_ACTUATOR,  # Target agent
-        'get_point',  # Method
-        'fakedriver1/SampleWritableFloat1'  # point
-    ).get(timeout=10)
-    # expected result {'info': u'', 'data': {}, 'result': SUCCESS}
-    print(result)
-    assert result == 1.0
+    assert results == {'fakedriver0/SampleWritableFloat1': 10.0, 'fakedriver1/SampleWritableFloat1': 10.0}
+    assert errors == {}
 
 
 @pytest.mark.actuator
-def test_get_success_with_point(publish_agent, cancel_schedules):
+def test_set_point_then_get_point_should_succeed(publish_agent, cancel_schedules):
     """
     Test getting a float value of a point through RPC
     Expected Result - value of the point
@@ -1186,14 +1044,13 @@ def test_get_success_with_point(publish_agent, cancel_schedules):
 
 
 @pytest.mark.actuator
-def test_get_error_invalid_point(publish_agent):
+def test_get_point_raises_remote_error_on_invalid_point(publish_agent):
     """
     Test getting a float value of a point through RPC with invalid point
 
     :param publish_agent: fixture invoked to setup all agents necessary and
     returns an instance of Agent object used for publishing
     """
-    print ("\n**** test_get_error_invalid_point ****")
     try:
         result = publish_agent.vip.rpc.call(
             PLATFORM_ACTUATOR,  # Target agent
@@ -1206,54 +1063,10 @@ def test_get_error_invalid_point(publish_agent):
 
 
 @pytest.mark.actuator
-def test_set_value_float(publish_agent, cancel_schedules, revert_devices):
+def test_revert_point_should_succeed(publish_agent, cancel_schedules):
     """
-    Test setting a float value of a point through rpc
-    Expected result = value of the actuation point
-    :param publish_agent: fixture invoked to setup all agents necessary and
-    returns an instance of Agent object used for publishing
-    :param cancel_schedules: fixture used to cancel the schedule at the end
-    of test so that other tests can use the same device and time slot
-    :param revert_devices: list of devices to revert during test
-    """
-    print("\n**** test_set_float_value ****")
-    taskid = 'task_set_float_value'
-    agentid = TEST_AGENT
-    device = 'fakedriver0'
-    cancel_schedules.append({'agentid': agentid, 'taskid': taskid})
-    revert_devices.append({'agentid': agentid, 'device': device})
+    Test reverting a float value of a point through rpc using only the topic parameter
 
-    start = str(datetime.now())
-    end = str(datetime.now() + timedelta(seconds=2))
-    msg = [
-        [device, start, end]
-    ]
-    result = publish_agent.vip.rpc.call(
-        PLATFORM_ACTUATOR,
-        REQUEST_NEW_SCHEDULE,
-        agentid,
-        taskid,
-        PRIORITY_LOW,
-        msg).get(timeout=10)
-    # expected result {'info': u'', 'data': {}, 'result': SUCCESS}
-    print(result)
-    assert result['result'] == SUCCESS
-
-    result = publish_agent.vip.rpc.call(
-        PLATFORM_ACTUATOR,  # Target agent
-        'set_point',  # Method
-        agentid,  # Requestor
-        'fakedriver0/SampleWritableFloat1',  # Point to set
-        2.5  # New value
-    ).get(timeout=10)
-    assert result == 2.5
-
-
-@pytest.mark.actuator
-def test_revert_point(publish_agent, cancel_schedules):
-    """
-    Test setting a float value of a point through rpc
-    Expected result = value of the actuation point
     :param publish_agent: fixture invoked to setup all agents necessary and
     returns an instance of Agent object used for publishing
     :param cancel_schedules: fixture used to cancel the schedule at the end
@@ -1314,10 +1127,9 @@ def test_revert_point(publish_agent, cancel_schedules):
 
 
 @pytest.mark.actuator
-def test_revert_point_with_point(publish_agent, cancel_schedules):
+def test_revert_point_with_point_should_succeed(publish_agent, cancel_schedules):
     """
-    Test setting a float value of a point through rpc
-    Expected result = value of the actuation point
+    Test reverting a float value of a point through rpc using both topic and point parameters
 
     :param publish_agent: fixture invoked to setup all agents necessary and
     returns an instance of Agent object used for publishing
@@ -1379,17 +1191,17 @@ def test_revert_point_with_point(publish_agent, cancel_schedules):
 
 
 @pytest.mark.actuator
-def test_revert_device(publish_agent, cancel_schedules):
+def test_revert_device_should_succeed(publish_agent, cancel_schedules):
     """
-    Test setting a float value of a point through rpc
-    Expected result = value of the actuation point
+    Tests whether a point is set to its initial value upon calling revert_device.
+    Consequently, this tests requires a lot of setup, namely setting a point to a new value,
+    verifying the change, then calling revert_device and again verifying that the point is set to its original value.
 
     :param publish_agent: fixture invoked to setup all agents necessary and
     returns an instance of Agent object used for publishing
     :param cancel_schedules: fixture used to cancel the schedule at the end
     of test so that other tests can use the same device and time slot
     """
-    print ("\n**** test_set_float_value ****")
     taskid = 'test_revert_point'
     agentid = TEST_AGENT
     cancel_schedules.append({'agentid': agentid, 'taskid': taskid})
@@ -1444,7 +1256,51 @@ def test_revert_device(publish_agent, cancel_schedules):
 
 
 @pytest.mark.actuator
-def test_set_error_array(publish_agent, cancel_schedules):
+def test_set_point_should_succeed(publish_agent, cancel_schedules, revert_devices):
+    """
+    Test setting a float value of a point through rpc
+    Expected result = value of the actuation point
+    :param publish_agent: fixture invoked to setup all agents necessary and
+    returns an instance of Agent object used for publishing
+    :param cancel_schedules: fixture used to cancel the schedule at the end
+    of test so that other tests can use the same device and time slot
+    :param revert_devices: list of devices to revert during test
+    """
+    print("\n**** test_set_float_value ****")
+    taskid = 'task_set_float_value'
+    agentid = TEST_AGENT
+    device = 'fakedriver0'
+    cancel_schedules.append({'agentid': agentid, 'taskid': taskid})
+    revert_devices.append({'agentid': agentid, 'device': device})
+
+    start = str(datetime.now())
+    end = str(datetime.now() + timedelta(seconds=2))
+    msg = [
+        [device, start, end]
+    ]
+    result = publish_agent.vip.rpc.call(
+        PLATFORM_ACTUATOR,
+        REQUEST_NEW_SCHEDULE,
+        agentid,
+        taskid,
+        PRIORITY_LOW,
+        msg).get(timeout=10)
+    # expected result {'info': u'', 'data': {}, 'result': SUCCESS}
+    print(result)
+    assert result['result'] == SUCCESS
+
+    result = publish_agent.vip.rpc.call(
+        PLATFORM_ACTUATOR,  # Target agent
+        'set_point',  # Method
+        agentid,  # Requestor
+        'fakedriver0/SampleWritableFloat1',  # Point to set
+        2.5  # New value
+    ).get(timeout=10)
+    assert result == 2.5
+
+
+@pytest.mark.actuator
+def test_set_point_raises_type_error_on_setting_array(publish_agent, cancel_schedules):
     """
     Test setting a array of single float value of a point. Should return
     type error
@@ -1454,7 +1310,6 @@ def test_set_error_array(publish_agent, cancel_schedules):
     :param cancel_schedules: fixture used to cancel the schedule at the end
     of test so that other tests can use the same device and time slot
     """
-    print("\n**** test_set_error_array ****")
     # set agentid and task id for  cancel_schedules fixture
     agentid = TEST_AGENT
     taskid = 'task_set_float_array_value'
@@ -1490,7 +1345,7 @@ def test_set_error_array(publish_agent, cancel_schedules):
 
 
 @pytest.mark.actuator
-def test_set_lock_error(publish_agent):
+def test_set_point_raises_lock_error(publish_agent):
     """
     Test setting a float value of a point through rpc without an allocation
     Expected result
@@ -1517,11 +1372,9 @@ def test_set_lock_error(publish_agent):
 
 
 @pytest.mark.actuator
-def test_set_value_error(publish_agent, cancel_schedules):
+def test_set_point_raises_value_error(publish_agent, cancel_schedules):
     """
     Test setting a wrong type value of a point through rpc
-
-
     :param publish_agent: fixture invoked to setup all agents necessary and
     returns an instance of Agent object used for publishing
     :param cancel_schedules: fixture used to cancel the schedule at the end
@@ -1562,16 +1415,7 @@ def test_set_value_error(publish_agent, cancel_schedules):
 
 
 @pytest.mark.actuator
-def test_set_error_read_only_point(publish_agent, cancel_schedules):
-    """
-    Test setting a value of a read only point through pubsub
-
-    :param publish_agent: fixture invoked to setup all agents necessary and
-    returns an instance of Agent object used for publishing
-    :param cancel_schedules: fixture used to cancel the schedule at the end
-    of test so that other tests can use the same device and time slot
-    """
-    print ("\n**** test_set_read_only_point ****")
+def test_set_point_raises_remote_error_on_read_only_point(publish_agent, cancel_schedules):
     agentid = TEST_AGENT
     taskid = 'task_set_readonly_point'
     cancel_schedules.append({'agentid': agentid, 'taskid': taskid})
@@ -1593,219 +1437,20 @@ def test_set_error_read_only_point(publish_agent, cancel_schedules):
     print(result)
     assert result['result'] == SUCCESS
 
-    try:
-        result = publish_agent.vip.rpc.call(
+    with pytest.raises(RemoteError):
+        publish_agent.vip.rpc.call(
             'platform.actuator',  # Target agent
             'set_point',  # Method
             agentid,  # Requestor
             'fakedriver0/OutsideAirTemperature1',  # Point to set
             1.2  # New value
         ).get(timeout=10)
-        pytest.fail(
-            'Expecting RemoteError but code returned: {}'.format(result))
-    except RemoteError as e:
-        assert "RuntimeError" in e.message
+        pytest.fail("Expecting remote error.")
 
 
 @pytest.mark.actuator
-def test_get_multiple_points(publish_agent, cancel_schedules):
-    results, errors = publish_agent.vip.rpc.call(
-        'platform.actuator',
-        'get_multiple_points',
-        ['fakedriver0/SampleWritableFloat1',
-         'fakedriver1/SampleWritableFloat1']).get(timeout=10)
-
-    assert results == {'fakedriver0/SampleWritableFloat1': 10.0, 'fakedriver1/SampleWritableFloat1': 1.0}
-    assert errors == {}
-
-
-@pytest.mark.actuator
-def test_get_multiple_points_separate_pointname(publish_agent, cancel_schedules):
-    results, errors = publish_agent.vip.rpc.call(
-        'platform.actuator',
-        'get_multiple_points',
-        [['fakedriver0', 'SampleWritableFloat1'],
-         ['fakedriver1', 'SampleWritableFloat1']]).get(timeout=10)
-
-    assert results == {'fakedriver0/SampleWritableFloat1': 10.0, 'fakedriver1/SampleWritableFloat1': 1.0}
-    assert errors == {}
-
-
-@pytest.mark.actuator
-def test_get_multiple_captures_errors(publish_agent, cancel_schedules):
-    results, errors = publish_agent.vip.rpc.call(
-        'platform.actuator',
-        'get_multiple_points',
-        ['fakedriver0/nonexistentpoint']).get(timeout=10)
-
-    assert results == {}
-    assert errors['fakedriver0/nonexistentpoint'] == \
-           "DriverInterfaceError('Point not configured on device: nonexistentpoint',)"
-
-
-@pytest.mark.actuator
-def test_get_multiple_captures_errors_invalid_point(publish_agent, cancel_schedules):
-    results, errors = publish_agent.vip.rpc.call('platform.actuator', 'get_multiple_points', [42]).get(timeout=10)
-
-    assert results == {}
-    assert errors['42'] == "ValueError('Invalid topic: 42',)"
-
-
-@pytest.mark.actuator
-def test_set_multiple_points(publish_agent, cancel_schedules):
-    agentid = TEST_AGENT
-    taskid0 = 'task_point_on_device_0'
-    taskid1 = 'task_point_on_device_1'
-    cancel_schedules.append({'agentid': agentid, 'taskid': taskid0})
-    cancel_schedules.append({'agentid': agentid, 'taskid': taskid1})
-
-    start = str(datetime.now())
-    end = str(datetime.now() + timedelta(seconds=2))
-
-    msg = [
-        ['fakedriver0', start, end]
-    ]
-    result = publish_agent.vip.rpc.call(
-        PLATFORM_ACTUATOR,
-        REQUEST_NEW_SCHEDULE,
-        agentid,
-        taskid0,
-        PRIORITY_LOW,
-        msg).get(timeout=10)
-    assert result['result'] == SUCCESS
-
-    msg = [
-        ['fakedriver1', start, end]
-    ]
-    result = publish_agent.vip.rpc.call(
-        PLATFORM_ACTUATOR,
-        REQUEST_NEW_SCHEDULE,
-        agentid,
-        taskid1,
-        PRIORITY_LOW,
-        msg).get(timeout=10)
-    assert result['result'] == SUCCESS
-
-    result = publish_agent.vip.rpc.call(
-        'platform.actuator',
-        'set_multiple_points',
-        agentid,
-        [('fakedriver0/SampleWritableFloat1', 42),
-         ('fakedriver1/SampleWritableFloat1', 42)]).get(timeout=10)
-
-    assert result == {}
-
-
-@pytest.mark.actuator
-def test_set_multiple_points_separate_pointname(publish_agent, cancel_schedules):
-    agentid = TEST_AGENT
-    taskid0 = 'task_point_on_device_0'
-    taskid1 = 'task_point_on_device_1'
-    cancel_schedules.append({'agentid': agentid, 'taskid': taskid0})
-    cancel_schedules.append({'agentid': agentid, 'taskid': taskid1})
-
-    start = str(datetime.now())
-    end = str(datetime.now() + timedelta(seconds=2))
-
-    msg = [
-        ['fakedriver0', start, end]
-    ]
-    result = publish_agent.vip.rpc.call(
-        PLATFORM_ACTUATOR,
-        REQUEST_NEW_SCHEDULE,
-        agentid,
-        taskid0,
-        PRIORITY_LOW,
-        msg).get(timeout=10)
-    assert result['result'] == SUCCESS
-
-    msg = [
-        ['fakedriver1', start, end]
-    ]
-    result = publish_agent.vip.rpc.call(
-        PLATFORM_ACTUATOR,
-        REQUEST_NEW_SCHEDULE,
-        agentid,
-        taskid1,
-        PRIORITY_LOW,
-        msg).get(timeout=10)
-    assert result['result'] == SUCCESS
-
-    result = publish_agent.vip.rpc.call(
-        'platform.actuator',
-        'set_multiple_points',
-        agentid,
-        [(('fakedriver0', 'SampleWritableFloat1'), 42),
-         (('fakedriver1', 'SampleWritableFloat1'), 42)]).get(timeout=10)
-
-    assert result == {}
-
-
-@pytest.mark.actuator
-def test_set_multiple_raises_lock_error(publish_agent, cancel_schedules):
-    agentid = TEST_AGENT
-
-    try:
-        result = publish_agent.vip.rpc.call(
-            'platform.actuator',
-            'set_multiple_points',
-            agentid,
-            [('fakedriver0/SampleWritableFloat1', 42)]).get(timeout=10)
-
-        pytest.fail('Expecting LockError. Code returned: {}'.format(result))
-    except Exception as e:
-        # TODO - check exc_info
-        assert e.exc_info['exc_type'].endswith("LockError")
-        assert e.message == \
-            "caller ({}) does not lock for device {}".format(TEST_AGENT, 'fakedriver0')
-
-
-@pytest.mark.actuator
-def test_set_multiple_captures_errors(publish_agent, cancel_schedules):
-    agentid = TEST_AGENT
-    taskid = 'task_point_on_device_0'
-    cancel_schedules.append({'agentid': agentid, 'taskid': taskid})
-
-    start = str(datetime.now())
-    end = str(datetime.now() + timedelta(seconds=2))
-
-    msg = [
-        ['fakedriver0', start, end]
-    ]
-    result = publish_agent.vip.rpc.call(
-        PLATFORM_ACTUATOR,
-        REQUEST_NEW_SCHEDULE,
-        agentid,
-        taskid,
-        PRIORITY_LOW,
-        msg).get(timeout=10)
-    assert result['result'] == SUCCESS
-
-    result = publish_agent.vip.rpc.call(
-        'platform.actuator',
-        'set_multiple_points',
-        agentid,
-        [('fakedriver0/OutsideAirTemperature1', 42)]).get(timeout=10)
-
-    try:
-        r = result['fakedriver0/OutsideAirTemperature1']
-        assert "RuntimeError" in r
-    except KeyError:
-        pytest.fail('read only point did not raise an exception')
-
-    assert True
-
-
-@pytest.mark.actuator
-def test_scrape_all(publish_agent, cancel_schedules):
-    result = publish_agent.vip.rpc.call('platform.actuator', 'scrape_all', 'fakedriver0').get(timeout=10)
-    assert type(result) is dict
-    assert len(result) == 13
-
-
-@pytest.mark.actuator
-def test_set_value_no_lock(publish_agent, volttron_instance):
-    """ Tests the (now default) setting to allow writing without a
+def test_set_point_should_succeed_on_allow_no_lock_write_default_setting(publish_agent, volttron_instance):
+    """ Tests the default setting, 'allow_no_lock_write=True', to allow writing without a
     lock as long as nothing else has the device locked.
 
     :param publish_agent: fixture invoked to setup all agents necessary and
@@ -1814,7 +1459,7 @@ def test_set_value_no_lock(publish_agent, volttron_instance):
     """
 
     alternate_actuator_vip_id = "my_actuator"
-    # Use actuator that allows write with no lock.
+    # Use actuator that allows write with no lock (i.e. allow_no_lock_write=True)
     my_actuator_uuid = volttron_instance.install_agent(
         agent_dir=get_services_core("ActuatorAgent"),
         config_file=get_services_core("ActuatorAgent/tests/actuator-no-lock.config"),
@@ -1845,9 +1490,10 @@ def test_set_value_no_lock(publish_agent, volttron_instance):
 
 
 @pytest.mark.actuator
-def test_set_value_no_lock_failure(publish_agent, volttron_instance):
-    """ Tests the (now default) setting to allow writing without a
-    lock as long as nothing else has the device locked.
+def test_set_point_raises_remote_error_on_allow_no_lock_write_default_setting(publish_agent, volttron_instance):
+    """ Tests the default setting, 'allow_no_lock_write=True', to allow writing without a
+    lock as long as nothing else has the device locked. In this case, we schedule the devices, thereby
+    creating a lock. Upon setting a point when a lock is created, this test should raise a RemoteError.
 
     :param publish_agent: fixture invoked to setup all agents necessary and
     returns an instance of Agent object used for publishing
@@ -1883,7 +1529,6 @@ def test_set_value_no_lock_failure(publish_agent, volttron_instance):
         assert result['result'] == SUCCESS
 
         agentid = TEST_AGENT
-
         with pytest.raises(RemoteError):
             publish_agent.vip.rpc.call(
                 alternate_actuator_vip_id,  # Target agent
@@ -1908,7 +1553,7 @@ def test_set_value_no_lock_failure(publish_agent, volttron_instance):
 
 
 @pytest.mark.actuator
-def test_set_value_float_failure(publish_agent, cancel_schedules):
+def test_set_point_raises_remote_error_on_lock_failure(publish_agent, cancel_schedules):
     """
     Test setting a float value of a point through rpc
     Expected result = value of the actuation point
@@ -1932,7 +1577,180 @@ def test_set_value_float_failure(publish_agent, cancel_schedules):
 
 
 @pytest.mark.actuator
-def test_actuator_default_config(volttron_instance, publish_agent):
+def test_get_multiple_points_captures_errors_on_nonexistent_point(publish_agent, cancel_schedules):
+    results, errors = publish_agent.vip.rpc.call(
+        'platform.actuator',
+        'get_multiple_points',
+        ['fakedriver0/nonexistentpoint']).get(timeout=10)
+
+    assert results == {}
+    assert errors['fakedriver0/nonexistentpoint'] == \
+           "DriverInterfaceError('Point not configured on device: nonexistentpoint',)"
+
+
+@pytest.mark.parametrize("invalid_topics, topic_key", [
+        ([42], '42'),
+        ([None], 'None'),
+])
+@pytest.mark.actuator
+def test_get_multiple_points_captures_errors_on_invalid_topic(publish_agent, cancel_schedules, invalid_topics, topic_key):
+    results, errors = publish_agent.vip.rpc.call('platform.actuator', 'get_multiple_points', invalid_topics).get(timeout=10)
+    assert results == {}
+    assert errors[topic_key] == f"ValueError('Invalid topic: {topic_key}',)"
+
+
+@pytest.mark.parametrize(
+    "topics_values_list",
+    [
+        (
+                [('fakedriver0/SampleWritableFloat1', 42),
+                 ('fakedriver1/SampleWritableFloat1', 42)]
+        ),
+        (
+                [(('fakedriver0', 'SampleWritableFloat1'), 42),
+                 (('fakedriver1', 'SampleWritableFloat1'), 42)]
+        )
+    ])
+@pytest.mark.actuator
+def test_set_multiple_points_should_succeed(publish_agent, cancel_schedules, topics_values_list):
+    agentid = TEST_AGENT
+    taskid0 = 'task_point_on_device_0'
+    taskid1 = 'task_point_on_device_1'
+    cancel_schedules.append({'agentid': agentid, 'taskid': taskid0})
+    cancel_schedules.append({'agentid': agentid, 'taskid': taskid1})
+
+    start = str(datetime.now())
+    end = str(datetime.now() + timedelta(seconds=2))
+
+    msg = [
+        ['fakedriver0', start, end]
+    ]
+    result = publish_agent.vip.rpc.call(
+        PLATFORM_ACTUATOR,
+        REQUEST_NEW_SCHEDULE,
+        agentid,
+        taskid0,
+        PRIORITY_LOW,
+        msg).get(timeout=10)
+    assert result['result'] == SUCCESS
+
+    msg = [
+        ['fakedriver1', start, end]
+    ]
+    result = publish_agent.vip.rpc.call(
+        PLATFORM_ACTUATOR,
+        REQUEST_NEW_SCHEDULE,
+        agentid,
+        taskid1,
+        PRIORITY_LOW,
+        msg).get(timeout=10)
+    assert result['result'] == SUCCESS
+
+    result = publish_agent.vip.rpc.call(
+        'platform.actuator',
+        'set_multiple_points',
+        agentid,
+        topics_values_list).get(timeout=10)
+
+    assert result == {}
+
+
+@pytest.mark.actuator
+def test_set_multiple_points_raises_remote_error_on_no_lock(publish_agent, cancel_schedules):
+    agentid = TEST_AGENT
+    with pytest.raises(RemoteError):
+        publish_agent.vip.rpc.call(
+            'platform.actuator',
+            'set_multiple_points',
+            agentid,
+            [('fakedriver0/SampleWritableFloat1', 42)]).get(timeout=10)
+        pytest.fail("Expecting remote error.")
+
+
+@pytest.mark.actuator
+def test_set_multiple_points_captures_errors_on_read_only_point(publish_agent, cancel_schedules):
+    agentid = TEST_AGENT
+    taskid = 'task_point_on_device_0'
+    cancel_schedules.append({'agentid': agentid, 'taskid': taskid})
+
+    start = str(datetime.now())
+    end = str(datetime.now() + timedelta(seconds=2))
+
+    msg = [
+        ['fakedriver0', start, end]
+    ]
+    result = publish_agent.vip.rpc.call(
+        PLATFORM_ACTUATOR,
+        REQUEST_NEW_SCHEDULE,
+        agentid,
+        taskid,
+        PRIORITY_LOW,
+        msg).get(timeout=10)
+    assert result['result'] == SUCCESS
+
+    result = publish_agent.vip.rpc.call(
+        'platform.actuator',
+        'set_multiple_points',
+        agentid,
+        [('fakedriver0/OutsideAirTemperature1', 42)]).get(timeout=10)
+
+    try:
+        r = result['fakedriver0/OutsideAirTemperature1']
+        assert "RuntimeError" in r
+    except KeyError:
+        pytest.fail('read only point did not raise an exception')
+
+    assert True
+
+
+@pytest.mark.parametrize("invalid_topics, topic_key", [
+        (42, '42'),
+        (None, 'None'),
+])
+@pytest.mark.actuator
+def test_set_multiple_points_captures_errors_on_invalid_topic(publish_agent, cancel_schedules, invalid_topics, topic_key):
+    agentid = TEST_AGENT
+    taskid = 'task_point_on_device_0'
+    cancel_schedules.append({'agentid': agentid, 'taskid': taskid})
+
+    start = str(datetime.now())
+    end = str(datetime.now() + timedelta(seconds=2))
+
+    msg = [
+        ['fakedriver0', start, end]
+    ]
+    result = publish_agent.vip.rpc.call(
+        PLATFORM_ACTUATOR,
+        REQUEST_NEW_SCHEDULE,
+        agentid,
+        taskid,
+        PRIORITY_LOW,
+        msg).get(timeout=10)
+    assert result['result'] == SUCCESS
+
+    result = publish_agent.vip.rpc.call(
+        'platform.actuator',
+        'set_multiple_points',
+        agentid,
+        [(invalid_topics, 42.42)]).get(timeout=10)
+
+    assert result[topic_key] == f"ValueError('Invalid topic: {topic_key}',)"
+
+
+@pytest.mark.actuator
+def test_scrape_all_should_succeed(publish_agent, cancel_schedules, volttron_instance):
+    points_filename = f"{volttron_instance.volttron_root}/scripts/scalability-testing/fake_unit_testing.csv"
+    with open(points_filename) as f:
+        expected_count_points = sum(1 for _ in f) - 1
+
+    result = publish_agent.vip.rpc.call('platform.actuator', 'scrape_all', 'fakedriver0').get(timeout=10)
+
+    assert type(result) is dict
+    assert len(result) == expected_count_points
+
+
+@pytest.mark.actuator
+def test_actuator_default_config_should_succeed(volttron_instance, publish_agent):
     """
     Test the default configuration file included with the agent
     """

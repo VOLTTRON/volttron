@@ -289,6 +289,7 @@ class ControlService(BaseAgent):
 
     @RPC.export
     def list_agents(self):
+        _log.info("CONTROL RPC list_agents")
         tag = self._aip.agent_tag
         priority = self._aip.agent_priority
         return [{'name': name, 'uuid': uuid,
@@ -2215,6 +2216,64 @@ def list_shovel_parameters(opts):
         _stdout.write("Error in getting shovel parameters")
 
 
+def list_fed_links(opts):
+    links = None
+    try:
+        links = rmq_mgmt.get_federation_links()
+    except requests.exceptions.HTTPError as e:
+        _stdout.write("No Federation links Found \n")
+        return
+    except ConnectionError as e:
+        _stdout.write("Error making request to RabbitMQ Management interface.\n"
+                      "Check Connection Parameters: {} \n".format(e))
+        return
+    try:
+        if links:
+            name_width = max(5, max(len(lk['name']) for lk in links))
+            status_width = max(3, max(len(lk['status']) for lk in links))
+            fmt = '{:{}} {:{}}\n'
+            _stderr.write(
+                fmt.format('NAME', name_width, 'STATUS', status_width))
+            for link in links:
+                _stdout.write(fmt.format(link['name'], name_width,
+                                         link['status'], status_width))
+    except (AttributeError, KeyError) as ex:
+        _stdout.write("Error in federation links")
+
+
+def list_shovel_links(opts):
+    links = None
+    try:
+        links = rmq_mgmt.get_shovel_links()
+    except requests.exceptions.HTTPError as e:
+        _stdout.write("No Shovel links Found \n")
+        return
+    except ConnectionError as e:
+        _stdout.write("Error making request to RabbitMQ Management interface.\n"
+                      "Check Connection Parameters: {} \n".format(e))
+        return
+    try:
+        if links:
+            name_width = max(5, max(len(lk['name']) for lk in links))
+            status_width = max(3, max(len(lk['status']) for lk in links))
+            src_exchange_key_width = max(3, max(len(lk['src_exchange_key']) for lk in links))
+            src_uri_width = max(3, max(len(lk['src_uri']) for lk in links))
+            dest_uri_width = max(3, max(len(lk['dest_uri']) for lk in links))
+            fmt = '{:{}}  {:{}}  {:{}}  {:{}}  {:{}}\n'
+            _stderr.write(
+                fmt.format('NAME', name_width, 'STATUS', status_width, 'SRC_URI',
+                           src_uri_width, 'DEST_URI', dest_uri_width,
+                           'SRC_EXCHANGE_KEY', src_exchange_key_width))
+            for link in links:
+                _stdout.write(fmt.format(link['name'], name_width,
+                                         link['status'], status_width,
+                                         link['src_uri'], src_uri_width,
+                                         link['dest_uri'], dest_uri_width,
+                                         link['src_exchange_key'], src_exchange_key_width))
+    except (AttributeError, KeyError) as ex:
+        _stdout.write(f"Error in shovel links as {ex}")
+
+
 def list_bindings(opts):
     bindings = None
     try:
@@ -2317,7 +2376,8 @@ def remove_queues(opts):
 def remove_fed_parameters(opts):
     try:
         for param in opts.parameters:
-            rmq_mgmt.delete_multiplatform_parameter('federation-upstream', param)
+            delete_certs = _ask_yes_no(f'Do you wish to delete certificates as well for {param}?')
+            rmq_mgmt.delete_multiplatform_parameter('federation-upstream', param, delete_certs=delete_certs)
     except requests.exceptions.HTTPError as e:
         _stdout.write("No Federation Parameters Found {} \n".format(opts.parameters))
     except ConnectionError as e:
@@ -2328,7 +2388,8 @@ def remove_fed_parameters(opts):
 def remove_shovel_parameters(opts):
     try:
         for param in opts.parameters:
-            rmq_mgmt.delete_multiplatform_parameter('shovel', param)
+            delete_certs = _ask_yes_no('Do you wish to delete certificates as well?')
+            rmq_mgmt.delete_multiplatform_parameter('shovel', param, delete_certs=delete_certs)
     except requests.exceptions.HTTPError as e:
         _stdout.write("No Shovel Parameters Found {} \n".format(opts.parameters))
     except ConnectionError as e:
@@ -2957,6 +3018,14 @@ def main(argv=sys.argv):
                                                   subparser=rabbitmq_subparsers)
         rabbitmq_list_fed_parameters.set_defaults(func=list_fed_parameters)
 
+        rabbitmq_list_fed_links = add_parser('list-federation-links', help='list all federation links',
+                                             subparser=rabbitmq_subparsers)
+        rabbitmq_list_fed_links.set_defaults(func=list_fed_links)
+
+        rabbitmq_list_shovel_links = add_parser('list-shovel-links', help='list all Shovel links',
+                                                subparser=rabbitmq_subparsers)
+        rabbitmq_list_shovel_links.set_defaults(func=list_shovel_links)
+
         rabbitmq_list_shovel_parameters = add_parser('list-shovel-parameters', help='list all shovel parameters',
                                                      subparser=rabbitmq_subparsers)
         rabbitmq_list_shovel_parameters.set_defaults(func=list_shovel_parameters)
@@ -2986,13 +3055,13 @@ def main(argv=sys.argv):
         rabbitmq_remove_queues.add_argument('queues', nargs='+', help='Queue')
         rabbitmq_remove_queues.set_defaults(func=remove_queues)
 
-        rabbitmq_remove_fed_parameters = add_parser('remove-federation-parameters',
+        rabbitmq_remove_fed_parameters = add_parser('remove-federation-links',
                                                     help='Remove federation parameter',
                                                     subparser=rabbitmq_subparsers)
         rabbitmq_remove_fed_parameters.add_argument('parameters', nargs='+', help='parameter name/s')
         rabbitmq_remove_fed_parameters.set_defaults(func=remove_fed_parameters)
 
-        rabbitmq_remove_shovel_parameters = add_parser('remove-shovel-parameters',
+        rabbitmq_remove_shovel_parameters = add_parser('remove-shovel-links',
                                                        help='Remove shovel parameter',
                                                        subparser=rabbitmq_subparsers)
         rabbitmq_remove_shovel_parameters.add_argument('parameters', nargs='+', help='parameter name/s')

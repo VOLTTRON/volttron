@@ -74,7 +74,7 @@ There are few things that are essential for SSL certificates to work right.
 
 a. Please use a unique common-name for CA certificate for each VOLTTRON instance.  This is configured under
    `certificate-data` in the `rabbitmq_config.yml` or if no yml file is used while configuring a VOLTTRON single
-   instance (using ``vcfg --rabbitmq single``).  Certificate generated for agent will automatically get agent's VIP
+   instance (using ``vcfg rabbitmq single``).  Certificate generated for agent will automatically get agent's VIP
    identity as the certificate's common-name
 
 b. The host name in the SSL certificate should match hostname used to access the server.  For example, if the fully

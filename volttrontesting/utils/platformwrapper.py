@@ -44,6 +44,7 @@ from volttrontesting.utils.utils import get_rand_http_address, get_rand_vip, get
 from volttrontesting.utils.utils import get_rand_tcp_address
 from volttrontesting.fixtures.rmq_test_setup import create_rmq_volttron_setup
 from volttron.utils.rmq_setup import start_rabbit, stop_rabbit
+from volttron.utils.rmq_setup import setup_rabbitmq_volttron
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -1328,13 +1329,31 @@ class PlatformWrapper:
         :param config_path: path to federation config yml file.
         """
         with with_os_environ(self.env):
-            _log.debug("Setting up federation using config : {}".format(config_path))
+            print(f"VHOME WITH with_os_environ: {os.environ['VOLTTRON_HOME']}")
+            setup_rabbitmq_volttron('federation',
+                                    verbose=False,
+                                    prompt=False,
+                                    instance_name=self.instance_name,
+                                    rmq_conf_file=self.rabbitmq_config_obj.rmq_conf_file,
+                                    max_retries=5,
+                                    env=self.env)
 
-            cmd = ['vcfg']
-            cmd.extend(['--vhome', self.volttron_home, '--instance-name', self.instance_name, '--rabbitmq',
-                        "federation", config_path])
-            execute_command(cmd, env=self.env, logger=_log,
-                            err_prefix="Error setting up federation")
+
+    def setup_shovel(self, config_path):
+        """
+        Set up shovel using the given config path
+        :param config_path: path to shovel config yml file.
+        """
+        with with_os_environ(self.env):
+            print(f"VHOME WITH with_os_environ: {os.environ['VOLTTRON_HOME']}")
+            setup_rabbitmq_volttron('shovel',
+                                    verbose=False,
+                                    prompt=False,
+                                    instance_name=self.instance_name,
+                                    rmq_conf_file=self.rabbitmq_config_obj.rmq_conf_file,
+                                    max_retries=5,
+                                    env=self.env)
+
 
     def restart_platform(self):
         with with_os_environ(self.env):

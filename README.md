@@ -1,12 +1,13 @@
 ![image](docs/source/files/VOLLTRON_Logo_Black_Horizontal_with_Tagline.png)
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/fcf58045b4804edf8f4d3ecde3016f76)](https://app.codacy.com/gh/VOLTTRON/volttron?utm_source=github.com&utm_medium=referral&utm_content=VOLTTRON/volttron&utm_campaign=Badge_Grade_Settings)
 
+![example workflow](https://github.com/volttron/volttron/actions/workflows/pytest-testutils.yml/badge.svg)
+
 VOLTTRON™ is an open source platform for distributed sensing and control. The
 platform provides services for collecting and storing data from buildings and
 devices and provides an environment for developing applications which interact
 with that data.
 
-[![Build Status](https://travis-ci.org/VOLTTRON/volttron.svg?branch=develop)](https://travis-ci.org/VOLTTRON/volttron)
 
 ## Features
 
@@ -150,7 +151,7 @@ You can deactivate the environment at any time by running `deactivate`.
 ##### 5. Create RabbitMQ setup for VOLTTRON:
 
 ```sh
-vcfg --rabbitmq single [optional path to rabbitmq_config.yml]
+vcfg rabbitmq single [--config optional path to rabbitmq_config.yml]
 ```
 
 Refer to [examples/configurations/rabbitmq/rabbitmq_config.yml](examples/configurations/rabbitmq/rabbitmq_config.yml)
@@ -180,9 +181,9 @@ be configured. The VOLTTRON instance name will be read from volttron_home/config
 if available, if not the user will be prompted for VOLTTRON instance name. To
 run the scripts without any prompts, save the VOLTTRON instance name in
 volttron_home/config file and pass the VOLTTRON home directory as a command line
-argument. For example: `vcfg --vhome /home/vdev/.new_vhome --rabbitmq single`
+argument. For example: `vcfg --vhome /home/vdev/.new_vhome rabbitmq single`
 
-The Following are the example inputs for `vcfg --rabbitmq single` command. Since no
+The Following are the example inputs for `vcfg rabbitmq single` command. Since no
 config file is passed the script prompts for necessary details.
 
 ```sh
