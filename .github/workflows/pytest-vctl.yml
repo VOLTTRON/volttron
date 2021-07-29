@@ -60,24 +60,6 @@ jobs:
         if: always()
         with:
           name: pytest-report
-          path: output/test-vctl-${{matrix.os}}-${{ matrix.python-version }}-results.xml
+          # should match test-<test_output_suffix>- ...
+          path: output/test-control_tests-${{matrix.os}}-${{ matrix.python-version }}-results.xml
 
-#       - name: Publish Unit Test Results
-#         uses: EnricoMi/publish-unit-test-result-action@v1.5
-#         if: always()
-#         with:
-#           github_token: ${{ secrets.WORKFLOW_ACCESS_TOKEN }}
-#           files: output/test-testutils*.xml
-
-
-#-cov=com --cov-report=xml --cov-report=html
-# pytest tests.py --doctest-modules --junitxml=junit/test-results.xml --cov=com --cov-report=xml --cov-report=html
-#    - name: Lint with flake8
-#      run: |
-#        # stop the build if there are Python syntax errors or undefined names
-#        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-#        # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
-#        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-#    - name: Test with pytest
-#      run: |
-#        pytest --junitxml=junit/test-results.xml --cov=com --cov-report=xml --cov-report=html

@@ -177,6 +177,11 @@ class ChannelReceiver(Agent):
 
 @pytest.mark.agent
 def test_channel_send_data(volttron_instance: PlatformWrapper):
+
+    if not volttron_instance.messagebus == "zmq":
+        pytest.skip("Channel only available for zmq message bus")
+        return
+
     data = "x" * 50
 
     sender = volttron_instance.build_agent(agent_class=ChannelSender,
@@ -195,6 +200,10 @@ def test_channel_send_data(volttron_instance: PlatformWrapper):
 
 @pytest.mark.agent
 def test_channel_send_file(volttron_instance: PlatformWrapper):
+
+    if not volttron_instance.messagebus == "zmq":
+        pytest.skip("Channel only available for zmq message bus")
+        return
 
     # Create 
     with tarfile.open("/tmp/tmptar.tar", mode="w") as tf:
