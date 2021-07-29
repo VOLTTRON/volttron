@@ -1,5 +1,5 @@
+import copy
 from pathlib import Path
-import tempfile
 from typing import List
 
 import gevent
@@ -9,8 +9,6 @@ from gevent import subprocess
 import yaml
 
 from volttron.platform import get_examples
-import sys
-
 from volttron.platform import jsonapi
 from volttron.platform.agent.utils import execute_command
 from volttrontesting.utils.platformwrapper import with_os_environ, PlatformWrapper
