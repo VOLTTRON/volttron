@@ -356,16 +356,6 @@ class AIPplatform(object):
         # Then do setfacl -m "r" to only agent user
         self._set_agent_dir_file_permissions(agent_dir, volttron_agent_user, data_dir)
 
-        # if messagebus is rmq.
-        # TODO: For now provide read access to all agents since this is used for
-        #  multi instance connections. This will not be requirement in
-        #  VOLTTRON 8.0 once CSR is implemented for
-        #  federation and shovel. The below lines can be removed then
-        if self.message_bus == 'rmq':
-            os.chmod(os.path.join(get_home(), "certificates/private"), 0o755)
-            self.set_acl_for_path("r", volttron_agent_user,
-                                  os.path.join(get_home(), "certificates/private", self.instance_name + "-admin.pem"))
-
     def _set_agent_dir_file_permissions(self, input_dir, agent_user, data_dir):
         """ Recursively change permissions to all files in given directrory to 400 but for files in
             agent-data directory
