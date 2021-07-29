@@ -4,15 +4,14 @@ from time import time
 from gevent import sleep
 import pytest
 
+try:
+    import pymongo
+except ImportError:
+    pytest.skip("pymongo not available", allow_module_level=True)
+
+import volttron.platform.dbutils.mongoutils as mongoutils
 from volttrontesting.fixtures.docker_wrapper import create_container
 from volttrontesting.utils.utils import get_rand_port
-
-try:
-    import volttron.platform.dbutils.mongoutils as mongoutils
-except ImportError:
-    pytest.skip("Required imports for testing are not installed; thus, not running tests. "
-                "From an activated environment run python bootstrap --mongo",
-                allow_module_level=True)
 
 
 IMAGES = ["mongo:3-xenial", "mongo:bionic"]

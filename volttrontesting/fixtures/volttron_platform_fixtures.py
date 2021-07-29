@@ -8,7 +8,7 @@ from urllib.parse import urlparse
 import psutil
 import pytest
 
-from volttron.platform import is_rabbitmq_available
+from volttron.platform import is_rabbitmq_available, is_web_available
 from volttron.platform import update_platform_config
 from volttron.utils import get_random_key
 from volttrontesting.fixtures.cert_fixtures import certs_profile_1
@@ -20,9 +20,12 @@ from volttron.utils.rmq_setup import start_rabbit
 
 PRINT_LOG_ON_SHUTDOWN = False
 HAS_RMQ = is_rabbitmq_available()
+HAS_WEB = is_web_available()
+
 ci_skipif = pytest.mark.skipif(os.getenv('CI', None) == 'true', reason='SSL does not work in CI')
 rmq_skipif = pytest.mark.skipif(not HAS_RMQ,
                                 reason='RabbitMQ is not setup and/or SSL does not work in CI')
+web_skipif = pytest.mark.skipif(not HAS_WEB, reason='Web libraries are not installed')
 
 
 def print_log(volttron_home):
@@ -273,7 +276,7 @@ def volttron_instance_web(request):
 
 @pytest.fixture(scope="module",
                 params=[
-                    dict(sink='zmq_web', source='zmq', zmq_ssl=False),
+                    pytest.param(dict(sink='zmq_web', source='zmq', zmq_ssl=False), marks=web_skipif),
                     pytest.param(dict(sink='zmq_web', source='zmq', zmq_ssl=True), marks=ci_skipif),
                     pytest.param(dict(sink='rmq_web', source='zmq', zmq_ssl=False), marks=rmq_skipif),
                     pytest.param(dict(sink='rmq_web', source='rmq', zmq_ssl=False), marks=rmq_skipif),
