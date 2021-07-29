@@ -70,7 +70,7 @@ def test_install_same_identity(volttron_instance: PlatformWrapper):
 
 
 @pytest.mark.control
-def test_install_with_wheel(volttron_instance:PlatformWrapper):
+def test_install_with_wheel(volttron_instance: PlatformWrapper):
 
     with with_os_environ(volttron_instance.env):
         listener_path = "examples/ListenerAgent"
