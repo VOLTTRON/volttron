@@ -4,7 +4,8 @@
 Multi-platform RabbitMQ Deployment
 ==================================
 
-With ZeroMQ based VOLTTRON, multi-platform communication was accomplished in three different ways:
+With ZeroMQ based VOLTTRON, multi-platform communication was accomplished in three different ways described below.
+Similar behavior can be accomplished with RabbitMQ-VOLTTRON as well.
 
 #. Direct connection to remote instance - Write an agent that would connect to a remote instance directly.
 
@@ -26,9 +27,30 @@ The upstream server is the node that is publishing some message of interest; we 
 The downstream server is the node that will receive messages from the upstream server; we shall refer to this node as the subscriber node.
 Note that upstream server & publisher node and downstream server & subscriber node will be used interchangeably for the rest of this guide.
 
+Multi-Platform Communication With RabbitMQ SSL
+----------------------------------------------
+RabbitMQ-VOLTTRON uses SSL based authentication for connection to the platform. This feature is extended to connection
+between multiple VOLTTRON platforms. The below figure shows the 2 remote VOLTTRON platforms can establish authentication
+connection to the other.
+
+.. image:: files/multiplatform_ssl.png
+
+Suppose there are two virtual machines (VOLTTRON1 and VOLTTRON2) running single instances of RabbitMQ; VOLTTRON1 and VOLTTRON2
+want to talk to each other via the federation or shovel plugins. For shovel/federation to have authenticated connection to the
+remote instance, it needs to have it's public certificate signed by the remote instance's CA. So as part of the shovel
+or federation creation steps, a certificate signing request is made to the remote instance. The admin of the remote instance
+should be ready to accept/reject such a request through VOLTTRON's admin web interface. To facilitate this process, the
+VOLTTRON platform exposes a web-based server API for requesting, listing, approving, and denying certificate requests. For
+more detailed description, refer to :ref:`Agent communication to Remote RabbitMQ instance <Agent-Communication-to-Remote-RabbitMQ>`.
+After the CSR request is accepted, an authenticated shovel/federation connection can be established.
+
 
 Using the Federation Plugin
 ---------------------------
+
+.. note::
+    Please make sure that a single instance of RabbitMQ VOLTTRON is setup before attempting to create a federation link
+    :ref:`platform installation steps for RMQ <RabbitMQ-Install>`
 
 Connecting multiple VOLTTRON instances can be done using the federation plugin. To create a RabbitMQ federation, we have to
 configure the downstream volttron instance to create federated exchange. A federated exchange links to other exchanges.
@@ -65,19 +87,18 @@ To setup federation on the VOLTTRON instance, run the following command on the d
 
 .. code-block:: bash
 
-    vcfg --rabbitmq federation [optional path to rabbitmq_federation_config.yml]
+    vcfg rabbitmq federation [--config optional path to rabbitmq_federation_config.yml] [--max-retries optional maximum CSR retry attempt]
 
 
-This establishes federation links to upstream servers. Once a federation link to the upstream server is established on
-the downstream server, the messages published on the upstream server become available to the downstream server as if
-it were published locally.
+This establishes federation links to upstream servers. Here the default maximum retry attempt is set to 15. Once a federation link to the upstream server is established on
+the downstream server, the messages published on the upstream server become available to the downstream server as if it were published locally.
 
 
 Multi-Platform RPC With Federation
 ----------------------------------
 
 For multi-platform RPC communication, federation links need to be established on both the VOLTTRON
-nodes.  Once the federation links are established, RPC communication becomes fairly simple.
+nodes. Once the federation links are established, RPC communication becomes fairly simple.
 
 .. image:: files/multiplatform_rpc.png
 
@@ -133,22 +154,6 @@ VOLTTRON instance "volttron2" on host "host_B".  First, a federation link needs 
 
 .. _RabbitMQ-Multi-platform-SSL:
 
-Multi-Platform Federation Communication With RabbitMQ SSL
-=========================================================
-
-For multi-platform communication over federation, we need the connecting instances to trust each other.
-
-.. image:: files/multiplatform_ssl.png
-
-Suppose there are two virtual machines (VOLTTRON1 and VOLTTRON2) running single instances of RabbitMQ; VOLTTRON1 and VOLTTRON2
-want to talk to each other via the federation or shovel plugins. For shovel/federation to have authenticated connection to the
-remote instance, it needs to have it's public certificate signed by the remote instance's CA. So as part of the shovel
-or federation creation steps, a certificate signing request is made to the remote instance. The admin of the remote instance
-should be ready to accept/reject such a request through VOLTTRON's admin web interface. To facilitate this process, the
-VOLTTRON platform exposes a web-based server API for requesting, listing, approving, and denying certificate requests. For
-more detailed description, refer to :ref:`Agent communication to Remote RabbitMQ instance <Agent-Communication-to-Remote-RabbitMQ>`.
-After the CSR request is accepted, an authenticated shovel/federation connection can be established.
-
 
 Installation Steps
 ------------------
@@ -165,8 +170,8 @@ upstream servers on the downstream server and make the VOLTTRON exchange
 
         .. code-block:: bash
 
-            vcfg --rabbitmq federation [optional path to rabbitmq_federation_config.yml
-            containing the details of the upstream hostname, port and vhost.]
+            vcfg rabbitmq federation [--config optional path to rabbitmq_federation_config.yml
+            containing the details of the upstream hostname, port and vhost.] [--max-retries optional maximum CSR retry attempt]
 
 
         Example configuration for federation is available
@@ -221,18 +226,6 @@ upstream servers on the downstream server and make the VOLTTRON exchange
             volttron2.volttron1.federation          172.20.0.2     APPROVED
 
 
-    c.  Create a user in the upstream server (publisher) and provide it access to the virtual host of the upstream RabbitMQ server.
-        The username should take the form of <instance name of local><instance name of downstream>.federation.
-        For example, if the downstream server name is "volttron1", and instance of local instance is "volttron2" then the instance name would be "volttron2.volttron1.federation".
-        Run the below command in the upstream server
-
-        .. code-block:: bash
-
-             vctl rabbitmq add-user <username> <password>
-             Do you want to set READ permission  [Y/n]
-             Do you want to set WRITE permission  [Y/n]
-             Do you want to set CONFIGURE permission  [Y/n]
-
 5.  Test the federation setup.
 
    a. On the downstream server run a listener agent which subscribes to messages from all platforms
@@ -280,33 +273,34 @@ upstream servers on the downstream server and make the VOLTTRON exchange
 
        .. code-block:: bash
 
-           vctl rabbitmq list-federation-parameters
-           NAME                         URI
-           upstream-volttron2-volttron amqps://volttron2:5671/volttron?cacertfile=/home/volttron/vhome/test_fed/certificates/federation/volttron2_ca.crt&certfile=/home/volttron/vhome/test_fed/certificates/federation/volttron2.volttron1.federation.crt&keyfile=/home/volttron/vhome/test_fed/certificates/private/volttron1.federation.pem&verify=verify_peer&fail_if_no_peer_cert=true&auth_mechanism=external&server_name_indication=volttron2
+           vctl rabbitmq list-federation-links
+           NAME                         STATUS
+           upstream-volttron2-volttron  running
 
 
      Copy the upstream link name and run the below command to remove it.
 
        .. code-block:: bash
 
-         vctl rabbitmq remove-federation-parameters upstream-volttron2-volttron
+         vctl rabbitmq remove-federation-links upstream-volttron2-volttron
+         Do you wish to delete certificates as well? [Y/n] y
+         Removing certificate paths from VOLTTRON_HOME and from the config file
 
 .. note::
 
-    These commands only remove the federation parameter from RabbitMQ and certificate entries from rabbitmq_federation_config.yml on the publisher node.
-    `It does not remove the actual certificates.` Rerunning the federation command for same setup will reuse the existing certificates.
-    If you need to rerun the federation command again for the same setup
-    and need to create fresh certificates, then you will need to manually remove public and private certificates.
-    Private certificates will be in
-    $VOLTTRON_HOME/certificates/private. Public certificates will be in two directories:
-    $VOLTTRON_HOME/certificates/federation and $VOLTTRON_HOME/certificates/certs.
-    Further, you should request the remote instance admin to delete earlier generated certificates through admin web
-    interface  before a new CSR is sent for approval.
+    These commands removes the federation parameter from RabbitMQ, deletes the certificates from VOLTTRON_HOME and certificate entries from 
+    rabbitmq_federation_config.yml on the publisher node. The remote admin must delete the remote certificates through admin web
+    interface. If you need to rerun the federation command again for the same setup, then a fresh CSR request is made to the remote instance.
+    The remote admin has to approve the new request as before. 
 
 
 
 Using the Shovel Plugin
 -----------------------
+
+.. note::
+    Please make sure that a single instance of RabbitMQ VOLTTRON is setup before attempting to create a shovel link
+    :ref:`platform installation steps for RMQ <RabbitMQ-Install>`.
 
 Shovels act as well-written client applications which move messages from a source to a destination broker.
 The below configuration shows how to setup a shovel to forward PubSub messages or perform multi-platform RPC
@@ -319,26 +313,28 @@ Path: `$VOLTTRON_HOME/rabbitmq_shovel_config.yml`
 
     # Mandatory parameters for shovel setup
     shovel:
-      rabbit-2:
-        port: '5671'
-        virtual-host: volttron
-        certificates:
-          csr: true
-          private_cert: "path to private key" # For example, /home/volttron/vhome/test_shovel/certificates/private/volttron1.shovelvolttron2.pem
-          public_cert: "path to public cert" # For example, /home/volttron/vhome/test_shovel/certificates/shovels/volttron2.volttron1.shovelvolttron2.crt
-          remote_ca: "path to CA cert" # For example, /home/volttron/vhome/test_shovel/certificates/shovels/volttron2_ca.crt
+        volttron2: # remote hostname
+            https-port: 8443
+            port: 5671
+            shovel-user: volttron1.shovelvolttron2 #<instance_name>.<unique name>
+            virtual-host: volttron
+            certificates:
+                private_cert: "path to private cert" # For example, /home/volttron/vhome/test_shovel/certificates/private/volttron1.shovelvolttron2.pem
+                public_cert: "path to public cert" # For example, /home/volttron/vhome/test_shovel/certificates/shovels/volttron2.volttron1.shovelvolttron2.crt
+                remote_ca: "path to CA cert" # For example, /home/volttron/vhome/test_shovel/certificates/shovels/volttron2_ca.crt
+            # Configuration to forward pubsub topics
+            pubsub:
+                # Identity of agent that is publishing the topic
+                platform.driver:
+                    # Topic pattern to be forwarded
+                    - devices
 
-        # Configuration to forward pubsub topics
-        pubsub:
-          # Identity of agent that is publishing the topic
-          platform.driver:
-            - devices
-        # Configuration to make remote RPC calls
-        rpc:
-          # Remote instance name
-          volttron2:
-            # List of pair of agent identities (local caller, remote callee)
-            - [scheduler, platform.actuator]
+            # Configuration to make remote RPC calls
+            rpc:
+              # Remote instance name
+              volttron2:
+                # List of pair of agent identities (local caller, remote callee)
+                - [scheduler, platform.actuator]
 
 To forward PubSub messages, the topic and agent identity of the publisher agent is needed.  To perform RPC, the instance
 name of the remote instance and agent identities of the local agent and remote agent are needed.
@@ -347,7 +343,7 @@ To configure the VOLTTRON instance to setup shovel, run the following command on
 
 .. code-block:: bash
 
-    vcfg --rabbitmq shovel [optional path to rabbitmq_shovel_config.yml]
+    vcfg rabbitmq shovel [--config optional path to rabbitmq_shovel_config.yml] [--max-retries optional maximum CSR retry attempt]
 
 This sets up a shovel that forwards messages (either PubSub or RPC) from a local exchange to a remote exchange.
 
@@ -424,7 +420,7 @@ creation process, a certificate signing request is made to the remote instance. 
 accept or reject such a request through VOLTTRON admin web interface. If accepted, a bundle containing a certificate
 signed by the remote CA is sent as a response back to the local instance. Subsequently, shovel connection is
 established with these certificates. If the user already has certificates signed by the remote CA, then that will be used for
-connection. Otherwise, the user can run the command ``vcfg --rabbitmq shovel`` and it will prompt the user to make a CSR request as part of shovel setup.
+connection. Otherwise, the user can run the command ``vcfg rabbitmq shovel`` and it will prompt the user to make a CSR request as part of shovel setup.
 
 1. Setup two VOLTTRON instances using the steps described in installation section.
 Please note that each instance should have a unique instance name.
@@ -438,7 +434,7 @@ Please note that each instance should have a unique instance name.
 
         .. code-block:: bash
 
-            vcfg --rabbitmq shovel [optional path to rabbitmq_shovel_config.yml]
+            vcfg rabbitmq shovel [--config optional path to rabbitmq_shovel_config.yml] [--max-retries optional maximum CSR retry attempt]
 
         rabbitmq_shovel_config.yml should contain the details of the remote hostname, port, vhost,
         certificates for connecting to remote instance and list of topics to forward.
@@ -500,15 +496,6 @@ Please note that each instance should have a unique instance name.
 
     .. image:: files/csr_accepted.png
 
-    c.  Create a user in the subscriber node with username set to the publisher instance's
-        agent name (for example: volttron1-admin) and allow the shovel access to
-        the virtual host of the subscriber node.
-
-        .. code-block:: bash
-
-            cd $RABBITMQ_HOME
-            vctl rabbitmq add-user <username> <password>
-
 4. Test the shovel setup.
 
    a. Start VOLTTRON on publisher and subscriber nodes.
@@ -547,150 +534,24 @@ Please note that each instance should have a unique instance name.
 
     .. code-block:: bash
 
-     vctl rabbitmq list-shovel-parameters
-     NAME                     SOURCE ADDRESS                                                 DESTINATION ADDRESS                                            BINDING KEY
-     shovel-volttron2-devices  amqps://volttron1:5671/volttron?cacertfile=/home/volttron/vhome/test_shovel/certificates/certs/volttron1-trusted-cas.crt&certfile=/home/volttron/vhome/test_shovel/certificates/certs/volttron1.platform.driver.crt&keyfile=/home/volttron/vhome/test_shovel/certificates/private/volttron1.platform.driver.pem&verify=verify_peer&fail_if_no_peer_cert=true&auth_mechanism=external&server_name_indication=volttron1  amqps://volttron2:5671/volttron?cacertfile=/home/volttron/vhome/test_shovel/certificates/shovels/volttron2_ca.crt&certfile=/home/volttron/vhome/test_shovel/certificates/shovels/volttron2.volttron1.shovelvolttron2.crt&keyfile=/home/volttron/vhome/test_shovel/certificates/private/volttron1.shovelvolttron2.pem&verify=verify_peer&fail_if_no_peer_cert=true&auth_mechanism=external&server_name_indication=volttron2  __pubsub__.volttron1.devices.#
+     vctl rabbitmq list-shovel-links
+     NAME                      STATUS   SRC_URI                          DEST_URI                         SRC_EXCHANGE_KEY
+
+     shovel-volttron2-devices  running  amqps://volttron1:5671/volttron  amqps://volttron2:5671/volttron  __pubsub__.volttron1.devices.#
 
 
     Copy the shovel name and run following command to remove it.
 
     .. code-block:: bash
 
-        vctl rabbitmq remove-shovel-parameters shovel-volttron2-devices
-
+        vctl rabbitmq remove-shovel-links shovel-volttron2-devices
+        Do you wish to delete certificates as well? [Y/n] y                   
+        Removing certificate paths from VOLTTRON_HOME and from the config file
+        
 .. note::
 
-    These commands only remove the shovel parameter from RabbitMQ and certificate entries from rabbitmq_shovel_config.yml on the publisher node.
-    `It does not remove the actual certificates.` Rerunning the shovel command for same setup will reuse the existing certificates.
-    But if you need to rerun the shovel command again for the same setup and need to create fresh certificates, then you will
-    need to manually remove public and private certificates. Private certificates will be in
-    $VOLTTRON_HOME/certificates/private. Public certificates will be in two directories:
-    $VOLTTRON_HOME/certificates/shovel and $VOLTTRON_HOME/certificates/certs.
-    Further, you should request the remote instance admin to delete earlier generated cert through the admin web
-    interface before a new CSR is sent for approval.
+    These commands removes the shovel parameter from RabbitMQ, deletes the certificates from VOLTTRON_HOME and certificate entries from 
+    rabbitmq_shovel_config.yml on the publisher node. The remote admin must delete the remote certificates through admin web
+    interface. If you need to rerun the federation command again for the same setup, then a fresh CSR request is made to the remote instance.
+    The remote admin has to approve the new request as before. 
 
-
-DataMover Communication
------------------------
-
-The DataMover historian running on one instance makes RPC call to platform historian running on remote
-instance to store data on remote instance. Platform historian agent returns response back to DataMover
-agent. For such a request-response behavior, shovels need to be created on both instances.
-
-1. Please ensure that preliminary steps for multi-platform communication are completed (namely,
-   steps 1-3 described above) .
-
-2. To setup a data mover to send messages from local instance (say v1) to remote instance (say v2)
-   and back, we would need to setup shovels on both instances.
-
-   Example of RabbitMQ shovel configuration on v1
-
-   .. code-block:: json
-
-      shovel:
-      # hostname of remote machine
-       rabbit-2:
-        port: 5671
-        certificates:
-          csr: true
-          private_cert: "path to private key" # For example, /home/volttron/vhome/test_shovel/certificates/private/volttron1.shovelvolttron2.pem
-          public_cert: "path to public cert" # For example, /home/volttron/vhome/test_shovel/certificates/shovels/volttron2.volttron1.shovelvolttron2.crt
-          remote_ca: "path to CA cert" # For example, /home/volttron/vhome/test_shovel/certificates/shovels/volttron2_ca.crt
-        rpc:
-          # Remote instance name
-          v2:
-          # List of pair of agent identities (local caller, remote callee)
-          - [data.mover, platform.historian]
-        virtual-host: v1
-
-   This says that DataMover agent on v1 wants to make RPC call to platform historian on v2.
-
-  .. code-block:: bash
-
-    vcfg --rabbitmq shovel [optional path to rabbitmq_shovel_config.yml
-
-
-   Example of RabbitMQ shovel configuration on v2
-
-  .. code-block:: json
-
-   shovel:
-    # hostname of remote machine
-    rabbit-1:
-      port: 5671
-      rpc:
-      # Remote instance name
-      v1:
-      # List of pair of agent identities (local caller, remote callee)
-      - [platform.historian, data.mover]
-    virtual-host: v2
-
-   This says that Hplatform historian on v2 wants to make RPC call to DataMover agent on v1.
-
-   a. On v1, run below command to setup a shovel from v1 to v2.
-
-  .. code-block:: bash
-
-     vcfg --rabbitmq shovel [optional path to rabbitmq_shovel_config.yml
-
-   b. Create a user on v2 with username set to remote agent's username
-      ( for example, v1.data.mover i.e., <instance_name>.<agent_identity>) and allow
-      the shovel access to the virtual host of v2.
-
-  .. code-block:: bash
-
-      cd $RABBITMQ_HOME
-      vctl rabbitmq add-user <username> <password>
-
-   c. On v2, run below command to setup a shovel from v2 to v1
-
-  .. code-block:: bash
-
-      vcfg --rabbitmq shovel [optional path to rabbitmq_shovel_config.yml
-
-   d. Create a user on v1 with username set to remote agent's username
-     ( for example, v2.patform.historian i.e., <instance_name>.<agent_identity>) and allow
-     the shovel access to the virtual host of the v1.
-
-  .. code-block:: bash
-
-      cd $RABBITMQ_HOME
-      vctl rabbitmq add-user <username> <password>
-
-3. Start Platform driver agent on v1
-
-   .. code-block:: bash
-
-       ./stop-volttron
-       vcfg --agent platform_driver
-       ./start-volttron
-       vctl start --tag platform_driver
-
-4. Install DataMover agent on v1. Contents of the install script can look like below.
-
-   .. code-block:: bash
-
-       #!/bin/bash
-       export CONFIG=$(mktemp /tmp/abc-script.XXXXXX)
-       cat > $CONFIG <<EOL
-       {
-           "destination-vip": "",
-           "destination-serverkey": "",
-           "destination-instance-name": "volttron2",
-           "destination-message-bus": "rmq"
-       }
-       EOL
-       python scripts/install-agent.py -s services/core/DataMover -c $CONFIG --start --force -i data.mover
-
-    Execute the install script.
-
-5. Start platform historian of your choice on v2. Example shows starting SQLiteHistorian
-
-   .. code-block:: bash
-
-       ./stop-volttron
-       vcfg --agent platform_historian
-       ./start-volttron
-       vctl start --tag platform_historian
-
-6. Observe data getting stored in sqlite historian on v2.

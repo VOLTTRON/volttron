@@ -973,7 +973,6 @@ def start_volttron_process(opts):
             del event
 
             protected_topics = auth.get_protected_topics()
-
             # Spawn Greenlet friendly ZMQ router
             # Necessary for backward compatibility with ZMQ message bus
             green_router = GreenRouter(opts.vip_local_address, opts.vip_address,
@@ -1039,7 +1038,6 @@ def start_volttron_process(opts):
                               enable_store=False,
                               message_bus='zmq')
         ]
-
         entry = AuthEntry(credentials=services[0].core.publickey,
                           user_id=CONTROL,
                           identity=CONTROL,
@@ -1058,6 +1056,7 @@ def start_volttron_process(opts):
         # Begin the webserver based options here.
         if opts.bind_web_address is not None:
             if not HAS_WEB:
+                _log.info(f"Web libraries not installed, but bind web address specified\n")
                 sys.stderr.write("Web libraries not installed, but bind web address specified\n")
                 sys.stderr.write("Please install web libraries using python3 bootstrap.py --web\n")
                 sys.exit(-1)
@@ -1109,7 +1108,6 @@ def start_volttron_process(opts):
         #                   capabilities=['allow_auth_modifications'],
         #                   comments='Automatically added by platform on start')
         # AuthFile().add(entry, overwrite=True)
-
         health_service = HealthService(address=address,
                                        identity=PLATFORM_HEALTH, heartbeat_autostart=True,
                                        enable_store=False,
