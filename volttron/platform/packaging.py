@@ -354,9 +354,7 @@ def _create_initial_package(agent_dir_to_package, wheelhouse, identity=None):
         response = subprocess.run(cmd, cwd=builddir, stderr=subprocess.PIPE,
                                   stdout=subprocess.PIPE)
         if response.returncode != 0:
-            _log.error(response.stderr)
-            print(response.stderr)
-            return None
+            raise ValueError(f"Couldn't compile agent directory: {response.stderr}")
 
         wheel_name = os.listdir(distdir)[0]
         wheel_path = os.path.join(distdir, wheel_name)
