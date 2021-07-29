@@ -330,7 +330,7 @@ class PlatformWrapper:
 
             self.remote_platform_ca = remote_platform_ca
             self.requests_ca_bundle = None
-            self.dynamic_agent = None
+            self.dynamic_agent: Optional[Agent] = None
 
             if self.messagebus == 'rmq':
                 self.rabbitmq_config_obj = create_rmq_volttron_setup(vhome=self.volttron_home,
