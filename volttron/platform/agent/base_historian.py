@@ -1460,10 +1460,11 @@ class BackupDatabase:
         self._dupe_ids = []
         self._unique_ids = []
 
-    def backup_new_data(self, new_publish_list, time_tolerance_check):
+    def backup_new_data(self, new_publish_list, time_tolerance_check=False):
         """
         :param new_publish_list: An iterable of records to cache to disk.
         :type new_publish_list: iterable
+        :param time_tolerance_check: Boolean to know if time tolerance check is enabled.default =False
         :returns: True if records the cache has reached a full state.
         :rtype: bool
         """
