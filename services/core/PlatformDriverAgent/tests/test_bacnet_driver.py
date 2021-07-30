@@ -28,21 +28,20 @@ BACNET_DEVICE_TOPIC = "devices/bacnet"
 
 
 def test_set_and_get(
-    bacnet_device, query_agent, platform_driver, bacnet_proxy_agent, volttron_instance
+    bacnet_device, bacnet_proxy_agent, config_store, bacnet_test_agent
 ):
-    query_agent.poll_callback.reset_mock()
-    assert volttron_instance.is_agent_running(bacnet_proxy_agent)
-
     register_values = {
         "CoolingValveOutputCommand": 42.42,
         "GeneralExhaustFanCommand": 1,
     }
     for k, v in register_values.items():
         logger.info(f"Setting and getting point: {k} with value: {v}")
-        query_agent.vip.rpc.call(PLATFORM_DRIVER, "set_point", "bacnet", k, v).get(
-            timeout=10
+        bacnet_test_agent.vip.rpc.call(
+            PLATFORM_DRIVER, "set_point", "bacnet", k, v
+        ).get(timeout=10)
+        async_res = bacnet_test_agent.vip.rpc.call(
+            PLATFORM_DRIVER, "get_point", "bacnet", k
         )
-        async_res = query_agent.vip.rpc.call(PLATFORM_DRIVER, "get_point", "bacnet", k)
         updated_v = async_res.get()
         logger.info(f"Updated value: {updated_v}")
 
@@ -52,30 +51,22 @@ def test_set_and_get(
             assert updated_v == v
 
 
-def test_revert_all(
-    bacnet_device, query_agent, platform_driver, bacnet_proxy_agent, volttron_instance
-):
-    query_agent.poll_callback.reset_mock()
-    assert volttron_instance.is_agent_running(bacnet_proxy_agent)
-
+@pytest.mark.skip(reason="still WIP")
+def test_revert_all(bacnet_device, bacnet_proxy_agent, config_store, bacnet_test_agent):
     cooling_valve = "CoolingValveOutputCommand"
     general_exhaust = "GeneralExhaustFanCommand"
-    register_values_default = {
-        cooling_valve: 0.0,
-        general_exhaust: 0
-    }
-    register_values_updated = {
-        cooling_valve: 42.42,
-        general_exhaust: 1
-    }
+    register_values_default = {cooling_valve: 0.0, general_exhaust: 0}
+    register_values_updated = {cooling_valve: 42.42, general_exhaust: 1}
 
     # change the points from the initial to new values
     for k, v in register_values_updated.items():
         logger.info(f"Setting and getting point: {k} with value: {v}")
-        query_agent.vip.rpc.call(PLATFORM_DRIVER, "set_point", "bacnet", k, v).get(
-            timeout=10
+        bacnet_test_agent.vip.rpc.call(
+            PLATFORM_DRIVER, "set_point", "bacnet", k, v
+        ).get(timeout=10)
+        async_res = bacnet_test_agent.vip.rpc.call(
+            PLATFORM_DRIVER, "get_point", "bacnet", k
         )
-        async_res = query_agent.vip.rpc.call(PLATFORM_DRIVER, "get_point", "bacnet", k)
         updated_v = async_res.get()
         logger.info(f"Updated value: {updated_v}")
 
@@ -85,12 +76,17 @@ def test_revert_all(
             assert updated_v == v
 
     # revert all the changed points
-    query_agent.vip.rpc.call(PLATFORM_DRIVER, "revert_all", "bacnet").get(timeout=10)
+    bacnet_test_agent.vip.rpc.call(PLATFORM_DRIVER, "revert_all", "bacnet").get(
+        timeout=10
+    )
     for k, default_v in register_values_default:
-        async_res = query_agent.vip.rpc.call(PLATFORM_DRIVER, "get_point", "bacnet", k)
+        async_res = bacnet_test_agent.vip.rpc.call(
+            PLATFORM_DRIVER, "get_point", "bacnet", k
+        )
         reverted_v = async_res.get()
         logger.info(f"Updated value:{reverted_v}")
         assert reverted_v == default_v
+
 
 # TODO: add test for "scrape_all"
 # p = query_agent.vip.rpc.call(PLATFORM_DRIVER, "scrape_all", "bacnet").get(timeout=10)
@@ -126,46 +122,23 @@ def bacnet_proxy_agent(volttron_instance):
 
 
 @pytest.fixture(scope="module")
-def query_agent(volttron_instance):
-    query_agent = volttron_instance.build_agent()
+def bacnet_test_agent(volttron_instance):
+    test_agent = volttron_instance.build_agent(identity="test-agent")
 
     # create a mock callback to use with a subscription to the driver's publish publishes
-    query_agent.poll_callback = MagicMock(name="poll_callback")
+    test_agent.poll_callback = MagicMock(name="poll_callback")
 
     # subscribe to device topic results
-    query_agent.vip.pubsub.subscribe(
+    test_agent.vip.pubsub.subscribe(
         peer="pubsub",
         prefix=BACNET_DEVICE_TOPIC,
-        callback=query_agent.poll_callback,
+        callback=test_agent.poll_callback,
     ).get()
 
-    # give the query agent the capability to modify the platform_driver's config store
+    # give the test agent the capability to modify the platform_driver's config store
     capabilities = {"edit_config_store": {"identity": PLATFORM_DRIVER}}
-    volttron_instance.add_capabilities(query_agent.core.publickey, capabilities)
-    # A sleep was required here to get the platform to consistently add the edit config store capability
-    gevent.sleep(1)
+    volttron_instance.add_capabilities(test_agent.core.publickey, capabilities)
 
-    yield query_agent
-
-    print("In teardown method of query_agent")
-    query_agent.core.stop()
-
-
-@pytest.fixture(scope="module")
-def platform_driver(volttron_instance, query_agent):
-    """Build PlatformDriverAgent and add BACNET driver config to it."""
-    # Install a Platform Driver instance without starting it
-    platform_driver = volttron_instance.install_agent(
-        agent_dir=get_services_core("PlatformDriverAgent"),
-        start=False,
-        config_file={
-            "publish_breadth_first_all": False,
-            "publish_depth_first": False,
-            "publish_breadth_first": False,
-        },
-    )
-
-    # store bacnet driver configuration
     driver_config = {
         "driver_config": {"device_address": BACNET_DEVICE_IP_ADDR, "device_id": 599},
         "driver_type": "bacnet",
@@ -173,7 +146,8 @@ def platform_driver(volttron_instance, query_agent):
         "timezone": "US/Pacific",
         "interval": 15,
     }
-    query_agent.vip.rpc.call(
+
+    test_agent.vip.rpc.call(
         CONFIGURATION_STORE,
         "manage_store",
         PLATFORM_DRIVER,
@@ -181,31 +155,62 @@ def platform_driver(volttron_instance, query_agent):
         driver_config,
     ).get(timeout=3)
 
-    registry_string = f"""Point Name,Volttron Point Name,Units,Unit Details,BACnet Object Type,Property,Writable,Index,Notes
-    Building/FCB.Local Application.CLG-O,CoolingValveOutputCommand,percent,0.00 to 100.00 (default 0.0),analogOutput,presentValue,TRUE,{str(COOLING_VALVE_OUTPUT_COMMAND_OBJECT_ID)},Resolution: 0.1
-    Building/FCB.Local Application.GEF-C,GeneralExhaustFanCommand,Enum,0-1 (default 0),binaryOutput,presentValue,TRUE,{str(GENERAL_EXHAUST_FAN_COMMAND_OBJECT_ID)},"BinaryPV: 0=inactive, 1=active"""
+    # A sleep was required here to get the platform to consistently add the edit config store capability
+    gevent.sleep(1)
 
-    query_agent.vip.rpc.call(
-        CONFIGURATION_STORE,
+    yield test_agent
+
+    print("In teardown method of query_agent")
+    test_agent.core.stop()
+
+
+@pytest.fixture(scope="module")
+def config_store_connection(volttron_instance):
+    capabilities = [{"edit_config_store": {"identity": PLATFORM_DRIVER}}]
+    connection = volttron_instance.build_connection(
+        peer=CONFIGURATION_STORE, capabilities=capabilities
+    )
+    gevent.sleep(1)
+
+    # Start the platform driver agent which would in turn start the bacnet driver
+    platform_uuid = volttron_instance.install_agent(
+        agent_dir=get_services_core("PlatformDriverAgent"),
+        config_file={
+            "publish_breadth_first_all": False,
+            "publish_depth_first": False,
+            "publish_breadth_first": False,
+        },
+        start=True,
+    )
+    gevent.sleep(2)  # wait for the agent to start and start the devices
+
+    yield connection
+
+    volttron_instance.stop_agent(platform_uuid)
+    volttron_instance.remove_agent(platform_uuid)
+    connection.kill()
+
+
+@pytest.fixture(scope="function")
+def config_store(config_store_connection):
+    # store the BACnet registry
+    registry_string = f"""Point Name,Volttron Point Name,Units,Unit Details,BACnet Object Type,Property,Writable,Index,Notes
+        Building/FCB.Local Application.CLG-O,CoolingValveOutputCommand,percent,0.00 to 100.00 (default 0.0),analogOutput,presentValue,TRUE,{str(COOLING_VALVE_OUTPUT_COMMAND_OBJECT_ID)},Resolution: 0.1
+        Building/FCB.Local Application.GEF-C,GeneralExhaustFanCommand,Enum,0-1 (default 0),binaryOutput,presentValue,TRUE,{str(GENERAL_EXHAUST_FAN_COMMAND_OBJECT_ID)},"BinaryPV: 0=inactive, 1=active"""
+
+    config_store_connection.call(
         "manage_store",
         PLATFORM_DRIVER,
         "bacnet.csv",
         registry_string,
         config_type="csv",
-    ).get(timeout=3)
+    )
+    # the associated bacnet driver config that uses this registry is stored by the bacnet_test_agent fixture
+    yield config_store_connection
 
-    # start the platform driver
-    volttron_instance.start_agent(platform_driver)
-
-    # Wait for the agent to start and start the devices
-    gevent.sleep(3)
-
-    assert volttron_instance.is_agent_running(platform_driver)
-
-    yield platform_driver
-
-    print("In teardown method of Platform Driver")
-    volttron_instance.stop_agent(platform_driver)
+    print("Wiping out store.")
+    config_store_connection.call("manage_delete_store", PLATFORM_DRIVER)
+    gevent.sleep(0.1)
 
 
 @pytest.fixture()
