@@ -83,6 +83,7 @@ except ImportError:
     auth = None
 
 _log = logging.getLogger(__name__)
+_log.setLevel(logging.WARN)
 
 
 def process_wait(p):
@@ -736,10 +737,10 @@ class AIPplatform(object):
 
     def status_agents(self, get_agent_user=False):
         if self.secure_agent_user and get_agent_user:
-            return [(agent_uuid, agent[0], agent[1], self.agent_status(agent_uuid))
+            return [(agent_uuid, agent[0], agent[1], self.agent_status(agent_uuid), self.agent_identity(agent_uuid))
                     for agent_uuid, agent in self.active_agents(get_agent_user=True).items()]
         else:
-            return [(agent_uuid, agent_name, self.agent_status(agent_uuid))
+            return [(agent_uuid, agent_name, self.agent_status(agent_uuid), self.agent_identity(agent_uuid))
                     for agent_uuid, agent_name in self.active_agents().items()]
 
     def tag_agent(self, agent_uuid, tag):
@@ -1038,7 +1039,9 @@ class AIPplatform(object):
     def agent_status(self, agent_uuid):
         execenv = self.agents.get(agent_uuid)
         if execenv is None:
+            _log.debug(f"agent_status: No execution environment detect for {agent_uuid}")
             return (None, None)
+        _log.debug(f"agent_status: {execenv.process.pid} {execenv.process.poll()}")
         return (execenv.process.pid, execenv.process.poll())
 
     def stop_agent(self, agent_uuid):

@@ -4,6 +4,11 @@ from time import time
 from gevent import sleep
 import pytest
 
+try:
+    import pymongo
+except ImportError:
+    pytest.skip("pymongo not available", allow_module_level=True)
+
 import volttron.platform.dbutils.mongoutils as mongoutils
 from volttrontesting.fixtures.docker_wrapper import create_container
 from volttrontesting.utils.utils import get_rand_port

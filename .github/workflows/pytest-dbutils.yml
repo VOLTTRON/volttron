@@ -7,7 +7,7 @@
 # This workflow also shows the caching mechanisms available for storage
 # and retrieval of cache for quicker setup of test environments.
 
-name: Testing testutils directory
+name: Testing dbutils directory
 on: [push, pull_request]
 
 jobs:
@@ -22,7 +22,8 @@ jobs:
         python-version: [ 3.6, 3.7] # , 3.8, 3.9 ]
 
     runs-on: ${{ matrix.os }}
-
+    env:
+        TEST_TYPE: dbutils
     steps:
       # checkout the volttron repository and set current directory to it
       - uses: actions/checkout@v2
@@ -40,13 +41,13 @@ jobs:
         with:
             python_version: ${{ matrix.python-version }}
             os: ${{ matrix.os }}
-            test_path: volttrontesting/testutils
-            test_output_suffix: testutils
+            test_path: volttrontesting/platform/${{ env.TEST_TYPE }}
+            test_output_suffix: ${{ env.TEST_TYPE }}
 
-      # Archive the results from the pytest to storage.
+#       Archive the results from the pytest to storage.
       - name: Archive test results
         uses: actions/upload-artifact@v2
         if: always()
         with:
           name: pytest-report
-          path: output/test-testutils-${{matrix.os}}-${{ matrix.python-version }}-results.xml
+          path: output/${{ env.TEST_TYPE }}-${{matrix.os}}-${{ matrix.python-version }}-results.xml
