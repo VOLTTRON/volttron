@@ -37,6 +37,7 @@
 # }}}
 
 import gevent
+from volttron.platform.auth import AuthFile, AuthEntry
 from volttron.platform.vip.agent import Agent
 from volttron.platform.agent.known_identities import CONFIGURATION_STORE, PLATFORM_DRIVER
 from volttron.platform import get_address
@@ -76,17 +77,30 @@ By default this will delete the old platform driver configuration store before
 adding new configurations.
 """
 
+
 def install_configs(input_directory, keep=False):
     os.chdir(input_directory)
+    ks = KeyStore()
+    publickey = ks.public
+    secretkey = ks.secret
+    identity = "platform_driver_update_agent"
+    capabilities = dict(edit_config_store=dict(identity=PLATFORM_DRIVER))
+    entry = AuthEntry(user_id=identity, credentials=publickey,
+                      capabilities=capabilities,
+                      comments="Added by install_configs")
+    authfile = AuthFile()
+    authfile.add(entry, overwrite=True, no_error=True)
+    gevent.sleep(2)
 
-    keystore = KeyStore()
-    agent = Agent(address=get_address(), identity="platform_driver_update_agent",
-                  publickey=keystore.public, secretkey=keystore.secret,
-                  enable_store=False)
+    agent = Agent(address=get_address(), identity=identity,
+                  publickey=publickey, secretkey=secretkey,
+                  enable_store=True)
 
     event = gevent.event.Event()
     gevent.spawn(agent.core.run, event)
-    event.wait()
+    event.wait(timeout=2)
+    router_ping = agent.vip.ping("").get(timeout=30)
+    assert len(router_ping) > 0
 
     if not keep:
         print("Deleting old Platform Driver store")
@@ -102,7 +116,6 @@ def install_configs(input_directory, keep=False):
                            'config',
                            f.read(),
                            config_type="json").get(timeout=10)
-
 
     for name in glob.iglob("registry_configs/*"):
         with open(name) as f:
@@ -125,6 +138,7 @@ def install_configs(input_directory, keep=False):
                                    name,
                                    f.read(),
                                    config_type="json").get(timeout=10)
+
 
 if __name__ == "__main__":
     parser = ArgumentParser(description=description, formatter_class=RawTextHelpFormatter)
