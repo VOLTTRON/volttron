@@ -363,12 +363,14 @@ auth_retry = 30
 
 
 @pytest.mark.control
+@pytest.mark.flaky(reruns=5)
 def test_auth_list(auth_instance):
     output = auth_list(auth_instance)
     assert output.startswith('No entries in') or output.startswith('\nINDEX')
 
 
 @pytest.mark.control
+@pytest.mark.flaky(reruns=5)
 def test_auth_add(auth_instance):
     """Add a single entry"""
     platform = auth_instance
@@ -387,7 +389,9 @@ def test_auth_add(auth_instance):
 
     assert_auth_entries_same(entries[-1], _auth_entry1.__dict__)
 
+
 @pytest.mark.control
+@pytest.mark.flaky(reruns=5)
 def test_auth_add_cmd_line(auth_instance):
     """Add a single entry, specifying parameters on the command line"""
     platform = auth_instance
@@ -405,7 +409,9 @@ def test_auth_add_cmd_line(auth_instance):
         i += 1
     assert_auth_entries_same(entries[-1], _auth_entry2.__dict__)
 
+
 @pytest.mark.control
+@pytest.mark.flaky(reruns=5)
 def test_auth_update(auth_instance):
     """Add an entry then update it with a different entry"""
     platform = auth_instance
@@ -427,7 +433,9 @@ def test_auth_update(auth_instance):
     assert_auth_entries_same(entries[-1], _auth_entry4.__dict__)
     gevent.sleep(1)
 
+
 @pytest.mark.control
+@pytest.mark.flaky(reruns=5)
 def test_auth_remove(auth_instance):
     """Add two entries then remove the last entry"""
     platform = auth_instance
@@ -464,7 +472,9 @@ def test_auth_remove(auth_instance):
         i += 1
     assert_auth_entries_same(entries[-1], _auth_entry5.__dict__)
 
+
 @pytest.mark.control
+@pytest.mark.flaky(reruns=5)
 def test_auth_rpc_method_add(auth_instance):
     """Add an entry then update it with a different entry"""
     platform = auth_instance
@@ -492,7 +502,9 @@ def test_auth_rpc_method_add(auth_instance):
 
     assert entries[-1]['rpc_method_authorizations'] == {'test_method': ["test_auth"]}
 
+
 @pytest.mark.control
+@pytest.mark.flaky(reruns=5)
 def test_auth_rpc_method_remove(auth_instance):
     """Add an entry then update it with a different entry"""
     platform = auth_instance
@@ -532,7 +544,9 @@ def test_auth_rpc_method_remove(auth_instance):
 
     assert entries[-1]['rpc_method_authorizations'] != {'test_method': ["test_auth"]}
 
+
 @pytest.mark.control
+@pytest.mark.flaky(reruns=5)
 def test_group_cmds(auth_instance):
     """Test add-group, list-groups, update-group, and remove-group"""
     _run_group_or_role_cmds(auth_instance, _add_group, _list_groups,
@@ -540,6 +554,7 @@ def test_group_cmds(auth_instance):
 
 
 @pytest.mark.control
+@pytest.mark.flaky(reruns=5)
 def test_role_cmds(auth_instance):
     """Test add-role, list-roles, update-role, and remove-role"""
     _run_group_or_role_cmds(auth_instance, _add_role, _list_roles,
