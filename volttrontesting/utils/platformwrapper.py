@@ -330,7 +330,7 @@ class PlatformWrapper:
 
             self.remote_platform_ca = remote_platform_ca
             self.requests_ca_bundle = None
-            self.dynamic_agent = None
+            self.dynamic_agent: Optional[Agent] = None
 
             if self.messagebus == 'rmq':
                 self.rabbitmq_config_obj = create_rmq_volttron_setup(vhome=self.volttron_home,
@@ -437,7 +437,7 @@ class PlatformWrapper:
 
     def build_agent(self, address=None, should_spawn=True, identity=None,
                     publickey=None, secretkey=None, serverkey=None,
-                    agent_class=Agent, capabilities: Optional[dict] = None, **kwargs):
+                    agent_class=Agent, capabilities: Optional[dict] = None, **kwargs) -> Agent:
         """ Build an agent connnected to the passed bus.
 
         By default the current instance that this class wraps will be the
@@ -966,8 +966,11 @@ class PlatformWrapper:
 
             res = execute_command(cmd, env=env, logger=_log)
             assert res, "failed to install wheel:{}".format(wheel_file)
-            agent_uuid = res.split(' ')[-2]
+            res = jsonapi.loads(res)
+            agent_uuid = res['agent_uuid']
+            self.logit(f"Inside __install_agent_wheel__ res is: {res}")
             self.logit(agent_uuid)
+            self.logit(f"After exec install command {self.dynamic_agent.vip.peerlist().get()}")
 
             if start:
                 self.start_agent(agent_uuid)
@@ -1036,6 +1039,7 @@ class PlatformWrapper:
         :return:
         """
         with with_os_environ(self.env):
+            _log.debug(f"install_agent called with params\nagent_wheel: {agent_wheel}\nagent_dir: {agent_dir}")
             self.__wait_for_control_connection_to_exit__()
             assert self.is_running(), "Instance must be running to install agent."
             assert agent_wheel or agent_dir, "Invalid agent_wheel or agent_dir."
@@ -1047,6 +1051,7 @@ class PlatformWrapper:
                 assert os.path.exists(agent_wheel)
                 wheel_file = agent_wheel
                 agent_uuid = self.__install_agent_wheel__(wheel_file, False, vip_identity)
+                assert agent_uuid
 
             # Now if the agent_dir is specified.
             temp_config = None
@@ -1085,10 +1090,10 @@ class PlatformWrapper:
                 # vctl install with start seem to have a auth issue. For now start after install
                 # if start:
                 #     cmd.extend(["--start"])
-
+                self.logit(f"Command installation is: {cmd}")
                 stdout = execute_command(cmd, logger=_log, env=self.env,
                                          err_prefix="Error installing agent")
-
+                self.logit(f"RESPONSE FROM INSTALL IS: {stdout}")
                 # Because we are no longer silencing output from the install, the
                 # the results object is now much more verbose.  Our assumption is
                 # that the result we are looking for is the only JSON block in
@@ -1119,9 +1124,12 @@ class PlatformWrapper:
                 #     assert resultobj['started']
                 agent_uuid = resultobj['agent_uuid']
 
-            assert agent_uuid is not None
+                assert resultobj
+                self.logit(f"resultobj: {resultobj}")
+            assert agent_uuid
             time.sleep(5)
             if start:
+                self.logit(f"We are running {agent_uuid}")
                 # call start after install for now. vctl install with start seem to have auth issues.
                 self.start_agent(agent_uuid)
                 assert self.is_agent_running(agent_uuid)
