@@ -54,13 +54,14 @@ from gevent.fileobject import FileObject
 from zmq import green as zmq
 
 from volttron.platform import jsonapi, get_home
-from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM, CONTROL, PLATFORM_WEB, CONTROL_CONNECTION, PROCESS_IDENTITIES
+from volttron.platform.agent.known_identities import \
+    VOLTTRON_CENTRAL_PLATFORM, CONTROL, CONTROL_CONNECTION, PROCESS_IDENTITIES
 from volttron.platform.certs import Certs
-from volttron.platform.vip.agent.errors import VIPError
-from volttron.platform.jsonrpc import MethodNotFound, RemoteError
+from volttron.platform.jsonrpc import RemoteError
 from volttron.platform.vip.agent.errors import VIPError, Unreachable
 from volttron.platform.vip.pubsubservice import ProtectedPubSubTopics
-from .agent.utils import strip_comments, create_file_if_missing, watch_file, get_messagebus
+from .agent.utils import \
+    strip_comments, create_file_if_missing, watch_file, get_messagebus
 from .vip.agent import Agent, Core, RPC
 from .vip.socket import encode_key, BASE64_ENCODED_CURVE_KEY_LEN
 
@@ -91,7 +92,8 @@ class AuthException(Exception):
 
 
 class AuthService(Agent):
-    def __init__(self, auth_file, protected_topics_file, setup_mode, aip, *args, **kwargs):
+    def __init__(self, auth_file, protected_topics_file, setup_mode, aip,
+                 *args, **kwargs):
         self.allow_any = kwargs.pop('allow_any', False)
         super(AuthService, self).__init__(*args, **kwargs)
 
@@ -112,7 +114,8 @@ class AuthService(Agent):
         self.auth_entries = []
         self._is_connected = False
         self._protected_topics_file = protected_topics_file
-        self._protected_topics_file_path = os.path.abspath(protected_topics_file)
+        self._protected_topics_file_path = \
+            os.path.abspath(protected_topics_file)
         self._protected_topics_for_rmq = ProtectedPubSubTopics()
         self._setup_mode = setup_mode
         self._auth_pending = []
@@ -124,23 +127,56 @@ class AuthService(Agent):
 
         self._user_to_permissions = topics()
 
-    # Export all relevant AuthFile methods to external agents through AuthService
     def export_auth_file(self):
+        """
+        Export all relevant AuthFile methods to external agents
+        through AuthService
+        :params: None
+        :return: None
+        """
+
         def auth_file_read():
+            """
+            Returns AuthFile data object
+            :params: None
+            :return: auth_data
+            """
             return self.auth_file.auth_data
+
         def auth_file_add(entry):
+            """
+            Wrapper function to add entry to AuthFile
+            :params: entry
+            :return: None
+            """
             self.auth_file.add(AuthEntry(**entry))
+
         def auth_file_update_by_index(auth_entry, index, is_allow=True):
-            self.auth_file.update_by_index(AuthEntry(**auth_entry), index, is_allow)
-        self.vip.rpc.export(auth_file_read, "auth_file.read")
-        self.vip.rpc.export(self.auth_file.find_by_credentials, "auth_file.find_by_credentials")
+            """
+             Wrapper function to update entry in AuthFile
+             :params: auth_entry, index, is_allow
+             :return: None
+             """
+            self.auth_file.update_by_index(AuthEntry(**auth_entry),
+                                           index, is_allow)
+
+        self.vip.rpc.export(auth_file_read,
+                            "auth_file.read")
+        self.vip.rpc.export(self.auth_file.find_by_credentials,
+                            "auth_file.find_by_credentials")
         self.vip.rpc.export(auth_file_add, "auth_file.add")
-        self.vip.rpc.export(auth_file_update_by_index, "auth_file.update_by_index")
-        self.vip.rpc.export(self.auth_file.remove_by_credentials, "auth_file.remove_by_credentials")
-        self.vip.rpc.export(self.auth_file.remove_by_index, "auth_file.remove_by_index")
-        self.vip.rpc.export(self.auth_file.remove_by_indices, "auth_file.remove_by_indices")
-        self.vip.rpc.export(self.auth_file.set_groups, "auth_file.set_groups")
-        self.vip.rpc.export(self.auth_file.set_roles, "auth_file.set_roles")
+        self.vip.rpc.export(auth_file_update_by_index,
+                            "auth_file.update_by_index")
+        self.vip.rpc.export(self.auth_file.remove_by_credentials,
+                            "auth_file.remove_by_credentials")
+        self.vip.rpc.export(self.auth_file.remove_by_index,
+                            "auth_file.remove_by_index")
+        self.vip.rpc.export(self.auth_file.remove_by_indices,
+                            "auth_file.remove_by_indices")
+        self.vip.rpc.export(self.auth_file.set_groups,
+                            "auth_file.set_groups")
+        self.vip.rpc.export(self.auth_file.set_roles,
+                            "auth_file.set_roles")
 
     @Core.receiver('onsetup')
     def setup_zap(self, sender, **kwargs):
@@ -151,18 +187,21 @@ class AuthService(Agent):
         self.read_auth_file()
         self._read_protected_topics_file()
         self.core.spawn(watch_file, self.auth_file_path, self.read_auth_file)
-        self.core.spawn(watch_file, self._protected_topics_file_path, self._read_protected_topics_file)
+        self.core.spawn(watch_file, self._protected_topics_file_path,
+                        self._read_protected_topics_file)
         if self.core.messagebus == 'rmq':
             self.vip.peerlist.onadd.connect(self._check_topic_rules)
 
     @RPC.export
-    def update_auth_entry_rpc_method_authorizations(self, identity, rpc_methods):
+    def update_auth_entry_rpc_method_authorizations(self, identity,
+                                                    rpc_methods):
         """
-        Update RPC methods for an auth entry. This is called by the subsystem on
-        agent start-up to ensure that the agent's current rpc allowances are recorded
-        with it's auth entry.
+        Update RPC methods for an auth entry. This is called by the subsystem
+        on agent start-up to ensure that the agent's current rpc allowances are
+        recorded with it's auth entry.
         :param identity: The agent's identity in the auth entry
-        :param rpc_methods: The rpc methods to update, in the format {rpc_method_name: [allowed_rpc_capability_1, ...]}
+        :param rpc_methods: The rpc methods to update in the format
+            {rpc_method_name: [allowed_rpc_capability_1, ...]}
         :return: updated_rpc_methods or None
         """
         entries = self.auth_file.read_allow_entries()
@@ -175,18 +214,25 @@ class AuthService(Agent):
                     updated_rpc_methods[method] = rpc_methods[method]
                     # Check if the rpc method exists in the auth file entry
                     if method not in entry.rpc_method_authorizations:
-                        # Create it and set it to have the provided rpc capabilities
-                        entry.rpc_method_authorizations[method] = rpc_methods[method]
+                        # Create it and set it to have the provided
+                        # rpc capabilities
+                        entry.rpc_method_authorizations[method] = \
+                            rpc_methods[method]
                         is_updated = True
-                    # Check if the rpc method does not have any rpc capabilities
+                    # Check if the rpc method does not have any
+                    # rpc capabilities
                     if not entry.rpc_method_authorizations[method]:
                         # Set it to have the provided rpc capabilities
-                        entry.rpc_method_authorizations[method] = rpc_methods[method]
+                        entry.rpc_method_authorizations[method] = \
+                            rpc_methods[method]
                         is_updated = True
-                    # Check if the rpc method's capabilities match what have been provided
-                    if entry.rpc_method_authorizations[method] != rpc_methods[method]:
+                    # Check if the rpc method's capabilities match
+                    # what have been provided
+                    if entry.rpc_method_authorizations[method] != \
+                        rpc_methods[method]:
                         # Update rpc_methods based on auth entries
-                        updated_rpc_methods[method] = entry.rpc_method_authorizations[method]
+                        updated_rpc_methods[method] = \
+                            entry.rpc_method_authorizations[method]
                 # Update auth file if changed and return rpc_methods
                 if is_updated:
                     self.auth_file.update_by_index(entry, entries.index(entry))
@@ -194,18 +240,27 @@ class AuthService(Agent):
         return None
 
     def get_entry_rpc_method_authorizations(self, identity):
+        """
+        Gets all rpc_method_authorizations for an agent using RPC.
+        :param identity: Agent identity in the auth file
+        :return: rpc_method_authorizations
+        """
         rpc_method_authorizations = {}
         try:
-            rpc_method_authorizations = self.vip.rpc.call(identity, "auth.get_all_rpc_authorizations").get()
+            rpc_method_authorizations = \
+                self.vip.rpc.call(identity,
+                                  "auth.get_all_rpc_authorizations").get()
             _log.debug(f"RPC Methods are: {rpc_method_authorizations}")
         except Unreachable:
-            _log.warning(f'{identity} is unreachable while attempting to get rpc methods')
+            _log.warning(f'{identity} '
+                         f'is unreachable while attempting to get rpc methods')
 
         return rpc_method_authorizations
 
     def update_rpc_method_authorizations(self, entries):
         """
-        Update allowed capabilities for an rpc method if it doesn't match what is in the auth file.
+        Update allowed capabilities for an rpc method if it
+        doesn't match what is in the auth file.
         :param entries: Entries read in from the auth file
         :return: None
         """
@@ -217,21 +272,27 @@ class AuthService(Agent):
                 # Collect all modified methods
                 modified_methods = {}
                 for method in entry.rpc_method_authorizations:
-                    # Check if the rpc method does not have any rpc capabilities
+                    # Check if the rpc method does not have
+                    # any rpc capabilities
                     if not entry.rpc_method_authorizations[method]:
-                        # Do not need to update agent capabilities if no capabilities in auth file
+                        # Do not need to update agent capabilities
+                        # if no capabilities in auth file
                         continue
-                    modified_methods[method] = entry.rpc_method_authorizations[method]
+                    modified_methods[method] = \
+                        entry.rpc_method_authorizations[method]
                 if modified_methods:
                     method_error = True
                     try:
                         self.vip.rpc.call(
-                            entry.identity, "auth.set_multiple_rpc_authorizations",
-                            rpc_authorizations=modified_methods).wait(timeout=4)
+                            entry.identity,
+                            "auth.set_multiple_rpc_authorizations",
+                            rpc_authorizations=
+                            modified_methods).wait(timeout=4)
                         method_error = False
                     except gevent.Timeout:
                         _log.error(f"{entry.identity} "
-                                   f"has timed out while attempting to update rpc_method_authorizations")
+                                   f"has timed out while attempting "
+                                   f"to update rpc_method_authorizations")
                         method_error = False
                     except RemoteError:
                         method_error = True
@@ -241,17 +302,29 @@ class AuthService(Agent):
                         for method in modified_methods:
                             try:
                                 self.vip.rpc.call(
-                                    entry.identity, "auth.set_rpc_authorizations",
-                                    method_str=method, capabilities=entry.rpc_method_authorizations[method])
+                                    entry.identity,
+                                    "auth.set_rpc_authorizations",
+                                    method_str=method,
+                                    capabilities=
+                                    entry.rpc_method_authorizations[method])
                             except gevent.Timeout:
                                 _log.error(f"{entry.identity} "
-                                           f"has timed out while attempting to update rpc_method_authorizations")
+                                           f"has timed out while attempting "
+                                           f"to update "
+                                           f"rpc_method_authorizations")
                             except RemoteError:
                                 _log.error(f"Method {method} does not exist.")
 
-
     @RPC.export
     def add_rpc_method_authorizations(self, identity, method, authorizations):
+        """
+        Adds authorizations to method in auth entry in auth file.
+        :param identity: Agent identity in the auth file
+        :param method: RPC exported method in the auth entry
+        :param authorizations: Allowed capabilities to access the RPC exported
+        method
+        :return: None
+        """
         if identity in PROCESS_IDENTITIES or identity == CONTROL_CONNECTION:
             _log.error(f"{identity} cannot be modified using this command!")
             return
@@ -266,14 +339,24 @@ class AuthService(Agent):
                     entry.rpc_method_authorizations[method].extend(
                         [rpc_auth for rpc_auth in authorizations
                          if rpc_auth in authorizations and
-                         rpc_auth not in entry.rpc_method_authorizations[method]])
+                         rpc_auth not in
+                         entry.rpc_method_authorizations[method]])
                 self.auth_file.update_by_index(entry, entries.index(entry))
                 return
         _log.error(f"Agent identity not found in auth file!")
         return
 
     @RPC.export
-    def delete_rpc_method_authorizations(self, identity, method, denied_authorizations):
+    def delete_rpc_method_authorizations(self, identity, method,
+                                         denied_authorizations):
+        """
+        Adds authorizations to method in auth entry in auth file.
+        :param identity: Agent identity in the auth file
+        :param method: RPC exported method in the auth entry
+        :param authorizations: Allowed capabilities to access the RPC exported
+        method
+        :return: None
+        """
         if identity in PROCESS_IDENTITIES or identity == CONTROL_CONNECTION:
             _log.error(f"{identity} cannot be modified using this command!")
             return
@@ -281,29 +364,39 @@ class AuthService(Agent):
         for entry in entries:
             if entry.identity == identity:
                 if method not in entry.rpc_method_authorizations:
-                    _log.error(f"{entry.identity} does not have a method called {method}")
+                    _log.error(
+                        f"{entry.identity} does not have a method called "
+                        f"{method}")
                 elif not entry.rpc_method_authorizations[method]:
-                    _log.error(f"{entry.identity}.{method} does not have any authorized capabilities.")
+                    _log.error(
+                        f"{entry.identity}.{method} does not have any "
+                        f"authorized capabilities.")
                 else:
                     any_match = False
                     for rpc_auth in denied_authorizations:
-                        if rpc_auth not in entry.rpc_method_authorizations[method]:
-                            _log.error(f"{rpc_auth} is not an authorized capability for {method}")
+                        if rpc_auth not in entry.rpc_method_authorizations[
+                            method]:
+                            _log.error(
+                                f"{rpc_auth} is not an authorized capability "
+                                f"for {method}")
                         else:
                             any_match = True
                     if any_match:
                         entry.rpc_method_authorizations[method] = \
-                            [rpc_auth for rpc_auth in entry.rpc_method_authorizations[method]
+                            [rpc_auth for rpc_auth in
+                             entry.rpc_method_authorizations[method]
                              if rpc_auth not in denied_authorizations]
                         if not entry.rpc_method_authorizations[method]:
                             entry.rpc_method_authorizations[method] = [""]
-                        self.auth_file.update_by_index(entry, entries.index(entry))
+                        self.auth_file.update_by_index(entry,
+                                                       entries.index(entry))
                     else:
-                        _log.error(f"No matching authorized capabilities provided for {method}")
+                        _log.error(
+                            f"No matching authorized capabilities provided "
+                            f"for {method}")
                 return
-        _log.error(f"Agent identity not found in auth file!")
+        _log.error("Agent identity not found in auth file!")
         return
-
 
     def _update_auth_lists(self, entries, is_allow=True):
         auth_list = []
@@ -316,13 +409,17 @@ class AuthService(Agent):
                               'retries': 0
                               })
         if is_allow:
-            self._auth_approved = [entry for entry in auth_list if entry["address"] is not None]
+            self._auth_approved = [entry for entry in auth_list if
+                                   entry["address"] is not None]
         else:
-            self._auth_denied = [entry for entry in auth_list if entry["address"] is not None]
+            self._auth_denied = [entry for entry in auth_list if
+                                 entry["address"] is not None]
 
-    def _get_updated_rpc_method_authorizations_entries(self, old_entries, new_entries):
+    def _get_updated_rpc_method_authorizations_entries(self, old_entries,
+                                                       new_entries):
         """
-        Compare old and new entries rpc_method_authorization data. Return which entries have been changed.
+        Compare old and new entries rpc_method_authorization data. Return
+        which entries have been changed.
         :param old_entries: Old entries currently stored in memory
         :type old_entries: list
         :param new_entries: New entries read in from auth_file.json
@@ -337,13 +434,15 @@ class AuthService(Agent):
 
                 for old_entry in old_entries:
                     if entry.identity == old_entry.identity:
-                        if entry.rpc_method_authorizations != old_entry.rpc_method_authorizations:
+                        if entry.rpc_method_authorizations != \
+                            old_entry.rpc_method_authorizations:
                             modified_entries.append(entry)
                         else:
                             pass
                     else:
                         pass
-                if entry.identity not in [old_entry.identity for old_entry in old_entries]:
+                if entry.identity not in [old_entry.identity for old_entry in
+                                          old_entries]:
                     modified_entries.append(entry)
             else:
                 pass
@@ -357,11 +456,14 @@ class AuthService(Agent):
             self.auth_file.auth_data = self.auth_file._read()
             entries = self.auth_file.read_allow_entries()
             count = 0
+            # Allow for multiple tries to ensure auth file is read
             while not entries and count < 3:
                 self.auth_file.auth_data = self.auth_file._read()
                 entries = self.auth_file.read_allow_entries()
                 count += 1
-            modified_entries = self._get_updated_rpc_method_authorizations_entries(old_entries, entries)
+            modified_entries = \
+                self._get_updated_rpc_method_authorizations_entries(
+                    old_entries, entries)
             denied_entries = self.auth_file.read_deny_entries()
         else:
             self.auth_file.auth_data = self.auth_file._read()
@@ -382,7 +484,8 @@ class AuthService(Agent):
                 gevent.sleep(2)
                 self._send_update(modified_entries)
             except BaseException as e:
-                _log.error("Exception sending auth updates to peer. {}".format(e))
+                _log.error(
+                    "Exception sending auth updates to peer. {}".format(e))
                 raise e
         _log.info('auth file %s loaded', self.auth_file_path)
 
@@ -400,9 +503,11 @@ class AuthService(Agent):
                 self._protected_topics = jsonapi.loads(data) if data else {}
                 if self.core.messagebus == 'rmq':
                     self._load_protected_topics_for_rmq()
-                    # Deferring the RMQ topic permissions to after "onstart" event
+                    # Deferring the RMQ topic permissions to after "onstart"
+                    # event
                 else:
-                    self._send_protected_update_to_pubsub(self._protected_topics)
+                    self._send_protected_update_to_pubsub(
+                        self._protected_topics)
         except Exception:
             _log.exception('error loading %s', self._protected_topics_file)
 
@@ -411,16 +516,22 @@ class AuthService(Agent):
         i = 0
         exception = None
         peers = None
-        # peerlist times out lots of times when running test suite. This happens even with higher timeout in get()
-        # but if we retry peerlist succeeds by second attempt most of the time!!!
+        # peerlist times out lots of times when running test suite. This
+        # happens even with higher timeout in get()
+        # but if we retry peerlist succeeds by second attempt most of the
+        # time!!!
         while not peers and i < 3:
             try:
                 i = i + 1
                 peers = self.vip.peerlist().get(timeout=0.5)
             except BaseException as e:
-                _log.warning("Attempt {} to get peerlist failed with exception {}".format(i, e))
+                _log.warning(
+                    "Attempt {} to get peerlist failed with exception {"
+                    "}".format(
+                        i, e))
                 peers = list(self.vip.peerlist.peers_list)
-                _log.warning("Get list of peers from subsystem directly".format(peers))
+                _log.warning(
+                    "Get list of peers from subsystem directly".format(peers))
                 exception = e
 
         if not peers:
@@ -436,7 +547,8 @@ class AuthService(Agent):
         # Update RPC method authorizations on agents
         if modified_entries:
             try:
-                gevent.spawn(self.update_rpc_method_authorizations, modified_entries).join(timeout=15)
+                gevent.spawn(self.update_rpc_method_authorizations,
+                             modified_entries).join(timeout=15)
             except gevent.Timeout as e:
                 _log.error("Timed out updating methods from auth file!")
         if self.core.messagebus == 'rmq':
@@ -457,13 +569,17 @@ class AuthService(Agent):
     def _send_protected_update_to_pubsub(self, contents):
         protected_topics_msg = jsonapi.dumpb(contents)
 
-        frames = [zmq.Frame(b'protected_update'), zmq.Frame(protected_topics_msg)]
+        frames = [zmq.Frame(b'protected_update'),
+                  zmq.Frame(protected_topics_msg)]
         if self._is_connected:
             try:
                 # <recipient, subsystem, args, msg_id, flags>
                 self.core.socket.send_vip(b'', b'pubsub', frames, copy=False)
             except VIPError as ex:
-                _log.error("Error in sending protected topics update to clear PubSub: " + str(ex))
+                _log.error(
+                    "Error in sending protected topics update to clear "
+                    "PubSub: " + str(
+                        ex))
 
     @Core.receiver('onstop')
     def stop_zap(self, sender, **kwargs):
@@ -520,25 +636,32 @@ class AuthService(Agent):
                 address = address.decode("utf-8")
                 kind = kind.decode("utf-8")
                 user = self.authenticate(domain, address, kind, credentials)
-                _log.info("AUTH: After authenticate user id: {0}, {1}".format(user, userid))
+                _log.info(
+                    "AUTH: After authenticate user id: {0}, {1}".format(user,
+                                                                        userid))
                 if user:
                     _log.info(
-                        'authentication success: userid=%r domain=%r, address=%r, '
+                        'authentication success: userid=%r domain=%r, '
+                        'address=%r, '
                         'mechanism=%r, credentials=%r, user=%r',
                         userid, domain, address, kind, credentials[:1], user)
-                    response.extend([b'200', b'SUCCESS', user.encode("utf-8"), b''])
+                    response.extend(
+                        [b'200', b'SUCCESS', user.encode("utf-8"), b''])
                     sock.send_multipart(response)
                 else:
                     userid = str(uuid.uuid4())
                     _log.info(
-                        'authentication failure: userid=%r, domain=%r, address=%r, '
+                        'authentication failure: userid=%r, domain=%r, '
+                        'address=%r, '
                         'mechanism=%r, credentials=%r',
                         userid, domain, address, kind, credentials)
                     # If in setup mode, add/update auth entry
                     if self._setup_mode:
-                        self._update_auth_entry(domain, address, kind, credentials[0], userid)
+                        self._update_auth_entry(domain, address, kind,
+                                                credentials[0], userid)
                         _log.info(
-                            'new authentication entry added in setup mode: domain=%r, address=%r, '
+                            'new authentication entry added in setup mode: '
+                            'domain=%r, address=%r, '
                             'mechanism=%r, credentials=%r, user_id=%r',
                             domain, address, kind, credentials[:1], userid)
                         response.extend([b'200', b'SUCCESS', b'', b''])
@@ -547,7 +670,8 @@ class AuthService(Agent):
                     else:
                         if type(userid) == bytes:
                             userid = userid.decode("utf-8")
-                        self._update_auth_pending(domain, address, kind, credentials[0], userid)
+                        self._update_auth_pending(domain, address, kind,
+                                                  credentials[0], userid)
 
                     try:
                         expire, delay = blocked[address]
@@ -641,22 +765,32 @@ class AuthService(Agent):
         The approved CSR or credential can be deleted or denied later.
         An approved credential is stored in the allow list in auth.json.
 
-        :param user_id: user id field from VOLTTRON Interconnect Protocol or common name for CSR
+        :param user_id: user id field from VOLTTRON Interconnect Protocol or
+        common name for CSR
         :type user_id: str
         """
 
         val_err = None
         if self._certs:
-            # Will fail with ValueError when a zmq credential user_id is passed.
+            # Will fail with ValueError when a zmq credential user_id is
+            # passed.
             try:
                 self._certs.approve_csr(user_id)
-                permissions = self.core.rmq_mgmt.get_default_permissions(user_id)
+                permissions = self.core.rmq_mgmt.get_default_permissions(
+                    user_id)
 
-                if "federation" in user_id:  # federation needs more than the current default permissions # TODO: Fix authorization in rabbitmq
+                if "federation" in user_id:
+                    # federation needs more than
+                    # the current default permissions
+                    # TODO: Fix authorization in rabbitmq
                     permissions = dict(configure=".*", read=".*", write=".*")
-                self.core.rmq_mgmt.create_user_with_permissions(user_id, permissions, True)
-                _log.debug("Created cert and permissions for user: {}".format(user_id))
-            # Stores error message in case it is caused by an unexpected failure
+                self.core.rmq_mgmt.create_user_with_permissions(user_id,
+                                                                permissions,
+                                                                True)
+                _log.debug("Created cert and permissions for user: {}".format(
+                    user_id))
+            # Stores error message in case it is caused by an unexpected
+            # failure
             except ValueError as e:
                 val_err = e
         index = 0
@@ -669,7 +803,7 @@ class AuthService(Agent):
                     pending['mechanism'],
                     pending['credentials'],
                     pending['user_id']
-                    )
+                )
                 matched_index = index
                 val_err = None
                 break
@@ -679,9 +813,11 @@ class AuthService(Agent):
 
         for pending in self._auth_denied:
             if user_id == pending['user_id']:
-                self.auth_file.approve_deny_credential(user_id, is_approved=True)
+                self.auth_file.approve_deny_credential(user_id,
+                                                       is_approved=True)
                 val_err = None
-        # If the user_id supplied was not for a ZMQ credential, and the pending_csr check failed,
+        # If the user_id supplied was not for a ZMQ credential, and the
+        # pending_csr check failed,
         # output the ValueError message to the error log.
         if val_err:
             _log.error(f"{val_err}")
@@ -695,17 +831,20 @@ class AuthService(Agent):
         The denied CSR or credential can be deleted or accepted later.
         A denied credential is stored in the deny list in auth.json.
 
-        :param user_id: user id field from VOLTTRON Interconnect Protocol or common name for CSR
+        :param user_id: user id field from VOLTTRON Interconnect Protocol or
+        common name for CSR
         :type user_id: str
         """
 
         val_err = None
         if self._certs:
-            # Will fail with ValueError when a zmq credential user_id is passed.
+            # Will fail with ValueError when a zmq credential user_id is
+            # passed.
             try:
                 self._certs.deny_csr(user_id)
                 _log.debug("Denied cert for user: {}".format(user_id))
-            # Stores error message in case it is caused by an unexpected failure
+            # Stores error message in case it is caused by an unexpected
+            # failure
             except ValueError as e:
                 val_err = e
 
@@ -720,7 +859,7 @@ class AuthService(Agent):
                     pending['credentials'],
                     pending['user_id'],
                     is_allow=False
-                    )
+                )
                 matched_index = index
                 val_err = None
                 break
@@ -730,13 +869,14 @@ class AuthService(Agent):
 
         for pending in self._auth_approved:
             if user_id == pending['user_id']:
-                self.auth_file.approve_deny_credential(user_id, is_approved=False)
+                self.auth_file.approve_deny_credential(user_id,
+                                                       is_approved=False)
                 val_err = None
-        # If the user_id supplied was not for a ZMQ credential, and the pending_csr check failed,
+        # If the user_id supplied was not for a ZMQ credential, and the
+        # pending_csr check failed,
         # output the ValueError message to the error log.
         if val_err:
             _log.error(f"{val_err}")
-
 
     @RPC.export
     @RPC.allow(capabilities="allow_auth_modifications")
@@ -747,17 +887,20 @@ class AuthService(Agent):
         To approve or deny a deleted pending CSR or credential,
         the request must be resent by the remote platform or agent.
 
-        :param user_id: user id field from VOLTTRON Interconnect Protocol or common name for CSR
+        :param user_id: user id field from VOLTTRON Interconnect Protocol or
+        common name for CSR
         :type user_id: str
         """
 
         val_err = None
         if self._certs:
-            # Will fail with ValueError when a zmq credential user_id is passed.
+            # Will fail with ValueError when a zmq credential user_id is
+            # passed.
             try:
                 self._certs.delete_csr(user_id)
                 _log.debug("Denied cert for user: {}".format(user_id))
-            # Stores error message in case it is caused by an unexpected failure
+            # Stores error message in case it is caused by an unexpected
+            # failure
             except ValueError as e:
                 val_err = e
 
@@ -771,7 +914,7 @@ class AuthService(Agent):
                     pending['mechanism'],
                     pending['credentials'],
                     pending['user_id']
-                    )
+                )
                 matched_index = index
                 val_err = None
                 break
@@ -800,7 +943,8 @@ class AuthService(Agent):
                 self._remove_auth_entry(pending['credentials'], is_allow=False)
                 val_err = None
 
-        # If the user_id supplied was not for a ZMQ credential, and the pending_csr check failed,
+        # If the user_id supplied was not for a ZMQ credential, and the
+        # pending_csr check failed,
         # output the ValueError message to the error log.
         if val_err:
             _log.error(f"{val_err}")
@@ -821,7 +965,8 @@ class AuthService(Agent):
 
         Returns a list of approved ZMQ credentials.
         This list is updated whenever the auth file is read.
-        It includes all allow entries from the auth file that contain a populated address field.
+        It includes all allow entries from the auth file that contain a
+        populated address field.
 
         :rtype: list
         """
@@ -833,7 +978,8 @@ class AuthService(Agent):
 
         Returns a list of denied ZMQ credentials.
         This list is updated whenever the auth file is read.
-        It includes all deny entries from the auth file that contain a populated address field.
+        It includes all deny entries from the auth file that contain a
+        populated address field.
 
         :rtype: list
         """
@@ -845,7 +991,8 @@ class AuthService(Agent):
         """RPC method
 
         Returns a list of pending CSRs.
-        This method provides RPC access to the Certs class's get_pending_csr_requests method.
+        This method provides RPC access to the Certs class's
+        get_pending_csr_requests method.
         This method is only applicable for web-enabled, RMQ instances.
 
         :rtype: list
@@ -862,7 +1009,8 @@ class AuthService(Agent):
         """RPC method
 
         Returns the status of a pending CSRs.
-        This method provides RPC access to the Certs class's get_csr_status method.
+        This method provides RPC access to the Certs class's get_csr_status
+        method.
         This method is only applicable for web-enabled, RMQ instances.
         Currently, this method is only used by admin_endpoints.
 
@@ -881,7 +1029,8 @@ class AuthService(Agent):
         """RPC method
 
         Returns the cert of a pending CSRs.
-        This method provides RPC access to the Certs class's get_cert_from_csr method.
+        This method provides RPC access to the Certs class's
+        get_cert_from_csr method.
         This method is only applicable for web-enabled, RMQ instances.
         Currently, this method is only used by admin_endpoints.
 
@@ -900,7 +1049,8 @@ class AuthService(Agent):
         """RPC method
 
         Returns a list of all certs subjects.
-        This method provides RPC access to the Certs class's get_all_cert_subjects method.
+        This method provides RPC access to the Certs class's
+        get_all_cert_subjects method.
         This method is only applicable for web-enabled, RMQ instances.
         Currently, this method is only used by admin_endpoints.
 
@@ -957,7 +1107,8 @@ class AuthService(Agent):
         """
         return self._get_authorizations(user_id, 2)
 
-    def _update_auth_entry(self, domain, address, mechanism, credential, user_id, is_allow=True):
+    def _update_auth_entry(self, domain, address, mechanism, credential,
+                           user_id, is_allow=True):
         # Make a new entry
         fields = {
             "domain": domain,
@@ -984,22 +1135,24 @@ class AuthService(Agent):
         except AuthException as err:
             _log.error('ERROR: %s\n' % str(err))
 
-    def _update_auth_pending(self, domain, address, mechanism, credential, user_id):
+    def _update_auth_pending(self, domain, address, mechanism, credential,
+                             user_id):
         for entry in self._auth_denied:
-            # Check if failure entry has been denied. If so, increment the failure's denied count
+            # Check if failure entry has been denied. If so, increment the
+            # failure's denied count
             if ((entry['domain'] == domain) and
-                    (entry['address'] == address) and
-                    (entry['mechanism'] == mechanism) and
-                    (entry['credentials'] == credential)):
+                (entry['address'] == address) and
+                (entry['mechanism'] == mechanism) and
+                (entry['credentials'] == credential)):
                 entry['retries'] += 1
                 return
 
         for entry in self._auth_pending:
             # Check if failure entry exists. If so, increment the failure count
             if ((entry['domain'] == domain) and
-                    (entry['address'] == address) and
-                    (entry['mechanism'] == mechanism) and
-                    (entry['credentials'] == credential)):
+                (entry['address'] == address) and
+                (entry['mechanism'] == mechanism) and
+                (entry['credentials'] == credential)):
                 entry['retries'] += 1
                 return
         # Add a new failure entry
@@ -1035,20 +1188,24 @@ class AuthService(Agent):
 
     def _check_rmq_topic_permissions(self):
         """
-        Go through the topic permissions for each agent based on the protected topic setting.
-        Update the permissions for the agent/user based on the latest configuration
+        Go through the topic permissions for each agent based on the
+        protected topic setting.
+        Update the permissions for the agent/user based on the latest
+        configuration
         :return:
         """
         return
         # Get agent to capabilities mapping
         user_to_caps = self.get_user_to_capabilities()
         # Get topics to capabilities mapping
-        topic_to_caps = self._protected_topics_for_rmq.get_topic_caps()  # topic to caps
+        topic_to_caps = self._protected_topics_for_rmq.get_topic_caps()  #
+        # topic to caps
 
         peers = self.vip.peerlist().get(timeout=5)
-        # _log.debug("USER TO CAPS: {0}, TOPICS TO CAPS: {1}, {2}".format(user_to_caps,
-        #                                                                 topic_to_caps,
-        #                                                                 self._user_to_permissions))
+        # _log.debug("USER TO CAPS: {0}, TOPICS TO CAPS: {1}, {2}".format(
+        # user_to_caps,
+        # topic_to_caps,
+        # self._user_to_permissions))
         if not user_to_caps or not topic_to_caps:
             # clear all old permission rules
             for peer in peers:
@@ -1058,7 +1215,8 @@ class AuthService(Agent):
                 for user in user_to_caps:
                     try:
                         caps_for_user = user_to_caps[user]
-                        common_caps = list(set(caps_for_user).intersection(caps_for_topic))
+                        common_caps = list(
+                            set(caps_for_user).intersection(caps_for_topic))
                         if common_caps:
                             self._user_to_permissions[user].add(topic)
                         else:
@@ -1090,18 +1248,25 @@ class AuthService(Agent):
         :param identity: identity of the agent
         :return:
         """
-        read_tokens = ["{instance}.{identity}".format(instance=self.core.instance_name, identity=identity),
-                       "__pubsub__.*"]
-        write_tokens = ["{instance}.*".format(instance=self.core.instance_name, identity=identity)]
+        read_tokens = [
+            "{instance}.{identity}".format(instance=self.core.instance_name,
+                                           identity=identity),
+            "__pubsub__.*"]
+        write_tokens = ["{instance}.*".format(instance=self.core.instance_name,
+                                              identity=identity)]
 
         if not not_allowed:
-            write_tokens.append("__pubsub__.{instance}.*".format(instance=self.core.instance_name))
+            write_tokens.append("__pubsub__.{instance}.*".format(
+                instance=self.core.instance_name))
         else:
             not_allowed_string = "|".join(not_allowed)
-            write_tokens.append("__pubsub__.{instance}.".format(instance=self.core.instance_name) +
-                                "^(!({not_allow})).*$".format(not_allow=not_allowed_string))
+            write_tokens.append("__pubsub__.{instance}.".format(
+                instance=self.core.instance_name) +
+                                "^(!({not_allow})).*$".format(
+                                    not_allow=not_allowed_string))
         current = self.core.rmq_mgmt.get_topic_permissions_for_user(identity)
-        # _log.debug("CURRENT for identity: {0}, {1}".format(identity, current))
+        # _log.debug("CURRENT for identity: {0}, {1}".format(identity,
+        # current))
         if current and isinstance(current, list):
             current = current[0]
             dift = False
@@ -1187,8 +1352,10 @@ class AuthEntry(object):
     """
 
     def __init__(self, domain=None, address=None, mechanism='CURVE',
-                 credentials=None, user_id=None, identity=None, groups=None, roles=None,
-                 capabilities: Optional[dict] = None, rpc_method_authorizations=None,
+                 credentials=None, user_id=None, identity=None, groups=None,
+                 roles=None,
+                 capabilities: Optional[dict] = None,
+                 rpc_method_authorizations=None,
                  comments=None, enabled=True, **kwargs):
 
         self.domain = AuthEntry._build_field(domain)
@@ -1197,9 +1364,11 @@ class AuthEntry(object):
         self.credentials = AuthEntry._build_field(credentials)
         self.groups = AuthEntry._build_field(groups) or []
         self.roles = AuthEntry._build_field(roles) or []
-        self.capabilities = AuthEntry.build_capabilities_field(capabilities) or {}
+        self.capabilities = AuthEntry.build_capabilities_field(
+            capabilities) or {}
         self.rpc_method_authorizations = \
-            AuthEntry.build_rpc_method_authorizations_field(rpc_method_authorizations) or {}
+            AuthEntry.build_rpc_method_authorizations_field(
+                rpc_method_authorizations) or {}
         self.comments = AuthEntry._build_field(comments)
         if user_id is None:
             user_id = str(uuid.uuid4())
@@ -1208,7 +1377,8 @@ class AuthEntry(object):
         self.enabled = enabled
         if kwargs:
             _log.debug(
-                'auth record has unrecognized keys: %r' % (list(kwargs.keys()),))
+                'auth record has unrecognized keys: %r' % (
+                    list(kwargs.keys()),))
         self._check_validity()
 
     def __lt__(self, other):
@@ -1231,7 +1401,7 @@ class AuthEntry(object):
 
     @staticmethod
     def build_capabilities_field(value: Optional[dict]):
-        #_log.debug("_build_capabilities {}".format(value))
+        # _log.debug("_build_capabilities {}".format(value))
 
         if not value:
             return None
@@ -1239,7 +1409,8 @@ class AuthEntry(object):
         if isinstance(value, list):
             result = dict()
             for elem in value:
-                # update if it is not there or if existing entry doesn't have args.
+                # update if it is not there or if existing entry doesn't
+                # have args.
                 # i.e. capability with args can override capability str
                 temp = result.update(AuthEntry._get_capability(elem))
                 if temp and result[next(iter(temp))] is None:
@@ -1251,9 +1422,11 @@ class AuthEntry(object):
 
     @staticmethod
     def _get_capability(value):
-        err_message = "Invalid capability value: {} of type {}. Capability entries can only be a string or " \
+        err_message = "Invalid capability value: {} of type {}. Capability " \
+                      "entries can only be a string or " \
                       "dictionary or list containing string/dictionary. " \
-                      "dictionaries should be of the format {'capability_name':None} or " \
+                      "dictionaries should be of the format {" \
+                      "'capability_name':None} or " \
                       "{'capability_name':{'arg1':'value',...}"
         if isinstance(value, str):
             return {value: None}
@@ -1275,18 +1448,15 @@ class AuthEntry(object):
 
     @staticmethod
     def _get_rpc_method_authorizations(value):
-        err_message = "Invalid rpc method authorization value: {} of type {}. " \
-                      "Authorized rpc method entries can only be a dictionary. " \
-                      "dictionaries should be of the format" \
-                      " {'method1:[list of capabilities], 'method2: [], ...}"
+        err_message = "Invalid rpc method authorization value: {} " \
+                      "of type {}. Authorized rpc method entries can " \
+                      "only be a dictionary. Dictionaries should be of " \
+                      "the format: " \
+                      "{'method1:[list of capabilities], 'method2: [], ...}"
         if isinstance(value, dict):
             return value
         else:
             raise AuthEntryInvalid(err_message.format(value, type(value)))
-
-        temp = AuthEntry.build_rpc_method_authorizations_field(rpc_method_authorizations)
-        if temp:
-            self.rpc_method_authorizations.update(temp)
 
     def match(self, domain, address, mechanism, credentials):
         return ((self.domain is None or self.domain.match(domain)) and
@@ -1299,7 +1469,8 @@ class AuthEntry(object):
     def __str__(self):
         return ('domain={0.domain!r}, address={0.address!r}, '
                 'mechanism={0.mechanism!r}, credentials={0.credentials!r}, '
-                'user_id={0.user_id!r}, capabilities={0.capabilities!r}'.format(self))
+                'user_id={0.user_id!r}, '
+                'capabilities={0.capabilities!r}'.format(self))
 
     def __repr__(self):
         cls = self.__class__
@@ -1314,7 +1485,7 @@ class AuthEntry(object):
         if cred is None:
             raise AuthEntryInvalid(
                 'credentials parameter is required for mechanism {}'
-                .format(mechanism))
+                    .format(mechanism))
         if isregex(cred):
             return
         if mechanism == 'CURVE' and len(cred) != BASE64_ENCODED_CURVE_KEY_LEN:
@@ -1341,7 +1512,6 @@ class AuthFile(object):
         self._check_for_upgrade()
         self.auth_data = self._read()
 
-
     @property
     def version(self):
         return {'major': 1, 'minor': 3}
@@ -1350,7 +1520,11 @@ class AuthFile(object):
         auth_data = self._read()
         if auth_data["version"] != self.version:
             if auth_data["version"]['major'] <= self.version['major']:
-                self._upgrade(auth_data["allow_list"], auth_data["deny_list"], auth_data["groups"], auth_data["roles"], auth_data["version"])
+                self._upgrade(auth_data["allow_list"],
+                              auth_data["deny_list"],
+                              auth_data["groups"],
+                              auth_data["roles"],
+                              auth_data["version"])
             else:
                 _log.error('This version of VOLTTRON cannot parse {}. '
                            'Please upgrade VOLTTRON or move or delete '
@@ -1364,7 +1538,8 @@ class AuthFile(object):
                 # Use gevent FileObject to avoid blocking the thread
                 before_strip_comments = FileObject(fil, close=False).read()
                 if isinstance(before_strip_comments, bytes):
-                    before_strip_comments = before_strip_comments.decode("utf-8")
+                    before_strip_comments = \
+                        before_strip_comments.decode("utf-8")
                 data = strip_comments(before_strip_comments)
                 if data:
                     auth_data = jsonapi.loads(data)
@@ -1375,7 +1550,8 @@ class AuthFile(object):
         auth_output_data["deny_list"] = auth_data.get('deny', [])
         auth_output_data["groups"] = auth_data.get('groups', {})
         auth_output_data["roles"] = auth_data.get('roles', {})
-        auth_output_data["version"] = auth_data.get('version', {'major': 0, 'minor': 0})
+        auth_output_data["version"] = auth_data.get('version',
+                                                    {'major': 0, 'minor': 0})
         return auth_output_data
 
     def read(self):
@@ -1385,9 +1561,12 @@ class AuthFile(object):
         :returns: tuple of allow-entries-list, groups-dict, roles-dict
         :rtype: tuple
         """
-        allow_entries, deny_entries = self._get_entries(self.auth_data["allow_list"], self.auth_data["deny_list"])
-        self._use_groups_and_roles(allow_entries, self.auth_data["groups"], self.auth_data["roles"])
-        return allow_entries, deny_entries, self.auth_data["groups"], self.auth_data["roles"]
+        allow_entries, deny_entries = self._get_entries(
+            self.auth_data["allow_list"], self.auth_data["deny_list"])
+        self._use_groups_and_roles(allow_entries, self.auth_data["groups"],
+                                   self.auth_data["roles"])
+        return allow_entries, deny_entries, self.auth_data["groups"], \
+               self.auth_data["roles"]
 
     def _upgrade(self, allow_list, deny_list, groups, roles, version):
         backup = self.auth_file + '.' + str(uuid.uuid4()) + '.bak'
@@ -1395,7 +1574,9 @@ class AuthFile(object):
         _log.info('Created backup of {} at {}'.format(self.auth_file, backup))
 
         def warn_invalid(entry, msg=''):
-            _log.warning('Invalid entry {} in auth file {}. {}'.format(entry, self.auth_file, msg))
+            _log.warning('Invalid entry {} in auth file {}. {}'.format(entry,
+                                                                       self.auth_file,
+                                                                       msg))
 
         def upgrade_0_to_1(allow_list):
             new_allow_list = []
@@ -1465,17 +1646,21 @@ class AuthFile(object):
                 if user_id in [CONTROL, VOLTTRON_CENTRAL_PLATFORM]:
                     user_id = '/.*/'
                 capabilities = entry.get('capabilities')
-                entry['capabilities'] = AuthEntry.build_capabilities_field(capabilities) or {}
-                entry['capabilities']['edit_config_store'] = {'identity': user_id}
+                entry['capabilities'] = AuthEntry.build_capabilities_field(
+                    capabilities) or {}
+                entry['capabilities']['edit_config_store'] = {
+                    'identity': user_id}
                 new_allow_list.append(entry)
             return new_allow_list
 
         def upgrade_1_2_to_1_3(allow_list):
             new_allow_list = []
             for entry in allow_list:
-                rpc_method_authorizations = entry.get('rpc_method_authorizations')
+                rpc_method_authorizations = entry.get(
+                    'rpc_method_authorizations')
                 entry['rpc_method_authorizations'] = \
-                    AuthEntry.build_rpc_method_authorizations_field(rpc_method_authorizations) or {}
+                    AuthEntry.build_rpc_method_authorizations_field(
+                        rpc_method_authorizations) or {}
                 new_allow_list.append(entry)
             return new_allow_list
 
@@ -1531,9 +1716,11 @@ class AuthFile(object):
             try:
                 entry = AuthEntry(**file_entry)
             except TypeError:
-                _log.warning('invalid entry %r in auth file %s', file_entry, self.auth_file)
+                _log.warning('invalid entry %r in auth file %s', file_entry,
+                             self.auth_file)
             except AuthEntryInvalid as e:
-                _log.warning('invalid entry %r in auth file %s (%s)', file_entry, self.auth_file, str(e))
+                _log.warning('invalid entry %r in auth file %s (%s)',
+                             file_entry, self.auth_file, str(e))
             else:
                 allow_entries.append(entry)
 
@@ -1543,10 +1730,10 @@ class AuthFile(object):
                 entry = AuthEntry(**file_entry)
             except TypeError:
                 _log.warning('invalid entry %r in auth file %s',
-                          file_entry, self.auth_file)
+                             file_entry, self.auth_file)
             except AuthEntryInvalid as e:
                 _log.warning('invalid entry %r in auth file %s (%s)',
-                          file_entry, self.auth_file, str(e))
+                             file_entry, self.auth_file, str(e))
             else:
                 deny_entries.append(entry)
         return allow_entries, deny_entries
@@ -1574,9 +1761,9 @@ class AuthFile(object):
                 # Compare AuthEntry objects component-wise, rather than
                 # using match, because match will evaluate regex.
                 if (prev_entry.domain == entry.domain and
-                        prev_entry.address == entry.address and
-                        prev_entry.mechanism == entry.mechanism and
-                        prev_entry.credentials == entry.credentials):
+                    prev_entry.address == entry.address and
+                    prev_entry.mechanism == entry.mechanism and
+                    prev_entry.credentials == entry.credentials):
                     raise AuthFileEntryAlreadyExists([index])
         else:
             for index, prev_entry in enumerate(self.read_deny_entries()):
@@ -1602,7 +1789,8 @@ class AuthFile(object):
         :param auth_entry: authentication entry
         :param overwrite: set to true to overwrite matching entries
         :param no_error:
-            set to True to not throw an AuthFileEntryAlreadyExists when attempting to add an exiting entry.
+            set to True to not throw an AuthFileEntryAlreadyExists when
+            attempting to add an exiting entry.
 
         :type auth_entry: AuthEntry
         :type overwrite: bool
@@ -1616,7 +1804,8 @@ class AuthFile(object):
             self._check_if_exists(auth_entry, is_allow)
         except AuthFileEntryAlreadyExists as err:
             if overwrite:
-                _log.debug("Updating existing auth entry with {} ".format(auth_entry))
+                _log.debug(
+                    "Updating existing auth entry with {} ".format(auth_entry))
                 self._update_by_indices(auth_entry, err.indices, is_allow)
             else:
                 if not no_error:
@@ -1632,7 +1821,8 @@ class AuthFile(object):
         gevent.sleep(1)
 
     def approve_deny_credential(self, user_id, is_approved=True):
-        """approves a denied credential or denies an approved credential
+        """Approves a denied credential or denies an approved credential
+
         :param user_id: entry with this user_id will be
             approved or denied appropriately
         :param is_approved: Determines if the entry should be
@@ -1645,35 +1835,40 @@ class AuthFile(object):
         """
         allow_entries, deny_entries, groups, roles = self.read()
         if is_approved:
-            for e in deny_entries:
-                if e.user_id == user_id:
+            for entry in deny_entries:
+                if entry.user_id == user_id:
                     try:
                         # If it does not already exist in allow_entries, add it
-                        self._check_if_exists(e)
-                        allow_entries.append(e)
+                        self._check_if_exists(entry)
+                        allow_entries.append(entry)
                     except AuthFileEntryAlreadyExists:
-                        _log.warning(f"Entry for {user_id} already exists! Removing from denied credentials")
+                        _log.warning(
+                            f"Entry for {user_id} already exists! Removing "
+                            f"from denied credentials")
                 else:
                     pass
             # Remove entry from denied entries
-            deny_entries = [e for e in deny_entries if e.user_id != user_id]
+            deny_entries = [entry for eentry in deny_entries if
+                            entry.user_id != user_id]
         else:
-            for e in allow_entries:
-                if e.user_id == user_id:
+            for entry in allow_entries:
+                if entry.user_id == user_id:
                     try:
                         # If it does not already exist in deny_entries, add it
-                        self._check_if_exists(e, is_allow=False)
-                        deny_entries.append(e)
+                        self._check_if_exists(entry, is_allow=False)
+                        deny_entries.append(entry)
                     except AuthFileEntryAlreadyExists:
-                        _log.warning(f"Entry for {user_id} already exists! Removing from allowed credentials")
+                        _log.warning(
+                            f"Entry for {user_id} already exists! Removing "
+                            f"from allowed credentials")
                 else:
                     pass
             # Remove entry from allowed entries
-            allow_entries = [e for e in allow_entries if e.user_id != user_id]
+            allow_entries = [entry for entry in allow_entries if
+                             entry.user_id != user_id]
 
         self._write(allow_entries, deny_entries, groups, roles)
         gevent.sleep(1)
-
 
     def remove_by_credentials(self, credentials, is_allow=True):
         """Removes entry from auth file by credential
@@ -1686,7 +1881,8 @@ class AuthFile(object):
             entries = allow_entries
         else:
             entries = deny_entries
-        entries = [e for e in entries if e.credentials != credentials]
+        entries = [entry for entry in entries if
+                   entry.credentials != credentials]
         if is_allow:
             self._write(entries, deny_entries, groups, roles)
         else:

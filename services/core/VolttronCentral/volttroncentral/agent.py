@@ -74,7 +74,6 @@ from volttron.platform.agent.known_identities import (
     VOLTTRON_CENTRAL, PLATFORM_HISTORIAN, AUTH)
 from volttron.platform.agent.utils import (
     get_aware_utc_now, get_messagebus)
-from volttron.platform.auth import AuthEntry
 from volttron.platform.jsonrpc import (
     INVALID_REQUEST, METHOD_NOT_FOUND,
     UNHANDLED_EXCEPTION, UNAUTHORIZED,

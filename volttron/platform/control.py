@@ -49,8 +49,7 @@ import subprocess
 import sys
 import tarfile
 import tempfile
-import traceback
-import uuid
+
 from datetime import timedelta, datetime
 
 import gevent
@@ -80,9 +79,9 @@ from volttron.platform.vip.agent.subsystems.query import Query
 from volttron.utils.rmq_config_params import RMQConfig
 from volttron.utils.rmq_mgmt import RabbitMQMgmt
 from volttron.utils.rmq_setup import check_rabbit_status
-from volttron.platform.agent.utils import is_secure_mode, wait_for_volttron_shutdown
+from volttron.platform.agent.utils import is_secure_mode, \
+    wait_for_volttron_shutdown
 from . install_agents import add_install_agent_parser, install_agent
-from .. import platform
 
 try:
     import volttron.restricted
@@ -995,8 +994,8 @@ def add_agent_rpc_authorizations(opts):
     agent_id = ".".join(opts.pattern[0].split(".")[:-1])
     agent_method = opts.pattern[0].split(".")[-1]
     if len(opts.pattern) < 2:
-        _log.error(f"Missing authorizations for method. "
-                   f"Should be in the format agent_id.method authorized_capability1 authorized_capability2 ...")
+        _log.error("Missing authorizations for method. "
+                   "Should be in the format agent_id.method authorized_capability1 authorized_capability2 ...")
         return
     added_auths = [x for x in opts.pattern[1:]]
     try:
