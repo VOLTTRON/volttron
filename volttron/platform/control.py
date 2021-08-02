@@ -1695,7 +1695,7 @@ def list_auth(opts, indices=None):
         for index, entry in enumerate(entries):
             if indices is None or index in indices:
                 _stdout.write("\nINDEX: {}\n".format(index))
-                _stdout.write("{}\n".format(jsonapi.dumps(vars(entry), indent=2)))
+                _stdout.write("{}\n".format(jsonapi.dumps(entry, indent=2)))
     else:
         _stdout.write(
             'No entries in {}\n'.format(os.path.join(get_home(), 'auth.json')))
