@@ -94,6 +94,8 @@ class AuthException(Exception):
 class AuthService(Agent):
     def __init__(self, auth_file, protected_topics_file, setup_mode, aip,
                  *args, **kwargs):
+        """Initializes AuthService, and prepares Auth File
+        """
         self.allow_any = kwargs.pop('allow_any', False)
         super(AuthService, self).__init__(*args, **kwargs)
 
@@ -319,6 +321,7 @@ class AuthService(Agent):
     def add_rpc_method_authorizations(self, identity, method, authorizations):
         """
         Adds authorizations to method in auth entry in auth file.
+
         :param identity: Agent identity in the auth file
         :param method: RPC exported method in the auth entry
         :param authorizations: Allowed capabilities to access the RPC exported
@@ -343,18 +346,19 @@ class AuthService(Agent):
                          entry.rpc_method_authorizations[method]])
                 self.auth_file.update_by_index(entry, entries.index(entry))
                 return
-        _log.error(f"Agent identity not found in auth file!")
+        _log.error("Agent identity not found in auth file!")
         return
 
     @RPC.export
     def delete_rpc_method_authorizations(self, identity, method,
                                          denied_authorizations):
         """
-        Adds authorizations to method in auth entry in auth file.
+        Removes authorizations to method in auth entry in auth file.
+
         :param identity: Agent identity in the auth file
         :param method: RPC exported method in the auth entry
-        :param authorizations: Allowed capabilities to access the RPC exported
-        method
+        :param denied_authorizations: Capabilities that can no longer access
+        the RPC exported method
         :return: None
         """
         if identity in PROCESS_IDENTITIES or identity == CONTROL_CONNECTION:
@@ -407,7 +411,7 @@ class AuthService(Agent):
                               'credentials': entry.credentials,
                               'user_id': entry.user_id,
                               'retries': 0
-                              })
+                             })
         if is_allow:
             self._auth_approved = [entry for entry in auth_list if
                                    entry["address"] is not None]
@@ -512,6 +516,14 @@ class AuthService(Agent):
             _log.exception('error loading %s', self._protected_topics_file)
 
     def _send_update(self, modified_entries=None):
+        """
+        Compare old and new entries rpc_method_authorization data. Return
+        which entries have been changed.
+
+        :param modified_entries: Entries that have been modified when compared
+        to the auth file.
+        :type modified_entries: list
+        """
         user_to_caps = self.get_user_to_capabilities()
         i = 0
         exception = None
@@ -530,8 +542,7 @@ class AuthService(Agent):
                     "}".format(
                         i, e))
                 peers = list(self.vip.peerlist.peers_list)
-                _log.warning(
-                    "Get list of peers from subsystem directly".format(peers))
+                _log.warning("Get list of peers from subsystem directly")
                 exception = e
 
         if not peers:
@@ -1252,8 +1263,7 @@ class AuthService(Agent):
             "{instance}.{identity}".format(instance=self.core.instance_name,
                                            identity=identity),
             "__pubsub__.*"]
-        write_tokens = ["{instance}.*".format(instance=self.core.instance_name,
-                                              identity=identity)]
+        write_tokens = ["{instance}.*".format(instance=self.core.instance_name)]
 
         if not not_allowed:
             write_tokens.append("__pubsub__.{instance}.*".format(
@@ -1442,12 +1452,14 @@ class AuthEntry(object):
 
     @staticmethod
     def build_rpc_method_authorizations_field(value):
+        """Returns auth entry's rpc method authorizations value if valid"""
         if not value:
             return None
         return AuthEntry._get_rpc_method_authorizations(value)
 
     @staticmethod
     def _get_rpc_method_authorizations(value):
+        """Returns auth entry's rpc method authorizations value if valid"""
         err_message = "Invalid rpc method authorization value: {} " \
                       "of type {}. Authorized rpc method entries can " \
                       "only be a dictionary. Dictionaries should be of " \
@@ -1485,7 +1497,7 @@ class AuthEntry(object):
         if cred is None:
             raise AuthEntryInvalid(
                 'credentials parameter is required for mechanism {}'
-                    .format(mechanism))
+                .format(mechanism))
         if isregex(cred):
             return
         if mechanism == 'CURVE' and len(cred) != BASE64_ENCODED_CURVE_KEY_LEN:
@@ -1654,6 +1666,7 @@ class AuthFile(object):
             return new_allow_list
 
         def upgrade_1_2_to_1_3(allow_list):
+            """Adds rpc_method_authorizations section to auth entries"""
             new_allow_list = []
             for entry in allow_list:
                 rpc_method_authorizations = entry.get(
@@ -1784,7 +1797,8 @@ class AuthFile(object):
             self.update_by_index(auth_entry, index, is_allow)
 
     def add(self, auth_entry, overwrite=False, no_error=False, is_allow=True):
-        """Adds an AuthEntry to the auth file
+        """
+        Adds an AuthEntry to the auth file
 
         :param auth_entry: authentication entry
         :param overwrite: set to true to overwrite matching entries
@@ -1821,7 +1835,8 @@ class AuthFile(object):
         gevent.sleep(1)
 
     def approve_deny_credential(self, user_id, is_approved=True):
-        """Approves a denied credential or denies an approved credential
+        """
+        Approves a denied credential or denies an approved credential
 
         :param user_id: entry with this user_id will be
             approved or denied appropriately
@@ -1871,7 +1886,8 @@ class AuthFile(object):
         gevent.sleep(1)
 
     def remove_by_credentials(self, credentials, is_allow=True):
-        """Removes entry from auth file by credential
+        """
+        Removes entry from auth file by credential
 
         :param credentials: entries with these credentials will be removed
         :type credentials: str
@@ -1889,7 +1905,8 @@ class AuthFile(object):
             self._write(allow_entries, entries, groups, roles)
 
     def remove_by_index(self, index, is_allow=True):
-        """Removes entry from auth file by index
+        """
+        Removes entry from auth file by index
 
         :param index: index of entry to remove
         :type index: int
@@ -1900,7 +1917,8 @@ class AuthFile(object):
         self.remove_by_indices([index], is_allow)
 
     def remove_by_indices(self, indices, is_allow=True):
-        """Removes entry from auth file by indices
+        """
+        Removes entry from auth file by indices
 
         :param indices: list of indicies of entries to remove
         :type indices: list
@@ -1941,7 +1959,8 @@ class AuthFile(object):
         self._write(allow_entries, deny_entries, groups, roles)
 
     def set_groups(self, groups):
-        """Define the mapping of group names to role lists
+        """
+        Define the mapping of group names to role lists
 
         :param groups: dict where the keys are group names and the
                        values are lists of capability names
@@ -1952,7 +1971,8 @@ class AuthFile(object):
         self._set_groups_or_roles(groups, is_group=True)
 
     def set_roles(self, roles):
-        """Define the mapping of role names to capability lists
+        """
+        Define the mapping of role names to capability lists
 
         :param roles: dict where the keys are role names and the
                       values are lists of group names
@@ -1963,7 +1983,8 @@ class AuthFile(object):
         self._set_groups_or_roles(roles, is_group=False)
 
     def update_by_index(self, auth_entry, index, is_allow=True):
-        """Updates entry with given auth entry at given index
+        """
+        Updates entry with given auth entry at given index
 
         :param auth_entry: new authorization entry
         :param index: index of entry to update

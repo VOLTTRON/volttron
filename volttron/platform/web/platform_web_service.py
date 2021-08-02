@@ -60,7 +60,8 @@ from .authenticate_endpoint import AuthenticateEndpoints
 from .csr_endpoints import CSREndpoints
 from .webapp import WebApplicationWrapper
 from volttron.platform.agent import utils
-from volttron.platform.agent.known_identities import CONTROL, VOLTTRON_CENTRAL, AUTH
+from volttron.platform.agent.known_identities import \
+    CONTROL, VOLTTRON_CENTRAL, AUTH
 from ..agent.utils import get_fq_identity
 from ..agent.web import Response, JsonResponse
 from ..auth import AuthEntry, AuthFile, AuthFileEntryAlreadyExists

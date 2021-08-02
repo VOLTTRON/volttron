@@ -796,8 +796,8 @@ def start_volttron_process(opts):
                       user_id=CONTROL_CONNECTION,
                       identity=CONTROL_CONNECTION,
                       capabilities=[{'edit_config_store': {'identity': '/.*/'}},
-                                     'modify_rpc_method_allowance',
-                                     'allow_auth_modifications'],
+                                    'modify_rpc_method_allowance',
+                                    'allow_auth_modifications'],
                       comments='Automatically added by platform on start')
     AuthFile().add(entry, overwrite=True)
 
@@ -900,11 +900,12 @@ def start_volttron_process(opts):
                 enable_store=False, message_bus='zmq')
 
             ks_auth = KeyStore(KeyStore.get_agent_keystore_path(AUTH))
-            entry = AuthEntry(credentials=encode_key(decode_key(ks_auth.public)),
-                              user_id=AUTH,
-                              identity=AUTH,
-                              capabilities=['modify_rpc_method_allowance'],
-                              comments='Automatically added by platform on start')
+            entry = AuthEntry(
+                credentials=encode_key(decode_key(ks_auth.public)),
+                user_id=AUTH,
+                identity=AUTH,
+                capabilities=['modify_rpc_method_allowance'],
+                comments='Automatically added by platform on start')
             AuthFile().add(entry, overwrite=True)
 
             event = gevent.event.Event()

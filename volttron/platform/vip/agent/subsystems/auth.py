@@ -44,8 +44,6 @@ import grequests
 from urllib.parse import urlparse
 import weakref
 
-from .base import SubsystemBase
-
 from volttron.platform import jsonapi
 from volttron.platform.agent.known_identities import AUTH, PLATFORM_WEB, \
     CONTROL, KEY_DISCOVERY, CONFIGURATION_STORE, \
@@ -59,6 +57,9 @@ from volttron.utils.rmq_config_params import RMQConfig
 from volttron.platform.keystore import KeyStore
 from volttron.platform.vip.agent.subsystems.health import BAD_STATUS, Status
 from volttron.platform import get_home
+
+from .base import SubsystemBase
+
 
 """
 The auth subsystem allows an agent to quickly query authorization state
@@ -196,8 +197,7 @@ class Auth(SubsystemBase):
                 if get_messagebus() == 'zmq':
                     if not info.vip_address or not info.serverkey:
                         err = "Discovery from {} did not return serverkey " \
-                              "and/or vip_address".format(
-                            address)
+                              "and/or vip_address".format(address)
                         raise ValueError(err)
 
                     _log.debug("Connecting using: {}".format(
@@ -441,8 +441,7 @@ class Auth(SubsystemBase):
             self._dirty = False
             try:
                 self._user_to_capabilities = self._rpc().call(AUTH,
-                                                              'get_user_to_capabilities').get(
-                    timeout=10)
+                    'get_user_to_capabilities').get(timeout=10)
                 _log.debug(
                     "self. user to cap {}".format(self._user_to_capabilities))
             except RemoteError:
@@ -601,8 +600,7 @@ class Auth(SubsystemBase):
             self._rpc().call(AUTH,
                              'update_auth_entry_rpc_method_authorizations',
                              self._core().identity,
-                             rpc_method_authorizations).get(
-            timeout=4)
+                             rpc_method_authorizations).get(timeout=4)
         if updated_rpc_method_authorizations is None:
             _log.error(
                 f"Auth entry not found for {self._core().identity}: "
