@@ -795,8 +795,7 @@ def filter_agents(agents, patterns, opts):
                 result.update(matches)
             # if no match is found based on uuid, try matching on agent name
             elif len(matches) == 0:
-                matches = [agent for agent in agents if
-                           reobj.match(agent.name)]
+                matches = [agent for agent in agents if reobj.match(agent.name)]
                 if len(matches) >= 1:
                     result.update(matches)
         else:
@@ -816,8 +815,7 @@ def filter_agent(agents, pattern, opts):
 
 def backup_agent_data(output_filename, source_dir):
     with tarfile.open(output_filename, "w:gz") as tar:
-        tar.add(source_dir,
-                arcname=os.path.sep)  # os.path.basename(source_dir))
+        tar.add(source_dir, arcname=os.path.sep)  # os.path.basename(source_dir))
 
 
 def restore_agent_data_from_tgz(source_file, output_dir):
@@ -1007,12 +1005,14 @@ def list_agents_rpc(opts):
         for method in methods:
             try:
                 peer_method_metadata[peer][method] = conn.server.vip.rpc.call(
-                    peer, f'{method}.inspect').get(timeout=4)
+                    peer, f"{method}.inspect"
+                ).get(timeout=4)
                 authorized_capabilities = conn.server.vip.rpc.call(
-                    peer, "auth.get_rpc_authorizations", method).get(timeout=4)
+                    peer, "auth.get_rpc_authorizations", method
+                ).get(timeout=4)
                 peer_method_metadata[peer][method][
-                    'authorized_capabilities'] = \
-                    f"Authorized capabilities: {authorized_capabilities}"
+                    "authorized_capabilities"
+                ] = f"Authorized capabilities: {authorized_capabilities}"
             except gevent.Timeout:
                 print(f"{peer} has timed out.")
             except Unreachable:
@@ -1135,8 +1135,7 @@ def list_remotes(opts):
 
     output_view = []
     try:
-        pending_csrs = conn.server.vip.rpc.call(AUTH, "get_pending_csrs").get(
-            timeout=4)
+        pending_csrs = conn.server.vip.rpc.call(AUTH, "get_pending_csrs").get(timeout=4)
         for csr in pending_csrs:
             output_view.append(
                 {
@@ -1184,8 +1183,7 @@ def list_remotes(opts):
         ]
 
     elif opts.status == "denied":
-        output_view = [output for output in output_view if
-                       output["status"] == "DENIED"]
+        output_view = [output for output in output_view if output["status"] == "DENIED"]
 
     elif opts.status == "pending":
         output_view = [
@@ -1232,7 +1230,6 @@ def list_remotes(opts):
                 status_width,
             )
         )
-
 
 
 def approve_remote(opts):
@@ -1334,22 +1331,27 @@ def add_agent_rpc_authorizations(opts):
     agent_id = ".".join(opts.pattern[0].split(".")[:-1])
     agent_method = opts.pattern[0].split(".")[-1]
     if len(opts.pattern) < 2:
-        _log.error("Missing authorizations for method. "
-                   "Should be in the format agent_id.method "
-                   "authorized_capability1 authorized_capability2 ...")
+        _log.error(
+            "Missing authorizations for method. "
+            "Should be in the format agent_id.method "
+            "authorized_capability1 authorized_capability2 ..."
+        )
         return
     added_auths = [x for x in opts.pattern[1:]]
     try:
-        conn.server.vip.rpc.call(AUTH, "add_rpc_method_authorizations",
-                                 agent_id, agent_method, added_auths).get(
-            timeout=4)
+        conn.server.vip.rpc.call(
+            AUTH, "add_rpc_method_authorizations", agent_id, agent_method, added_auths
+        ).get(timeout=4)
     except TimeoutError:
         _log.error(
             f"Adding RPC authorizations {added_auths} for {agent_id}'s "
-            f"method {agent_method} timed out")
+            f"method {agent_method} timed out"
+        )
     except Exception as e:
-        _log.error(f"{e}) \nCommand format should be agent_id.method "
-                   f"authorized_capability1 authorized_capability2 ...")
+        _log.error(
+            f"{e}) \nCommand format should be agent_id.method "
+            f"authorized_capability1 authorized_capability2 ..."
+        )
     return
 
 
@@ -1364,22 +1366,31 @@ def remove_agent_rpc_authorizations(opts):
     agent_id = ".".join(opts.pattern[0].split(".")[:-1])
     agent_method = opts.pattern[0].split(".")[-1]
     if len(opts.pattern) < 2:
-        _log.error("Missing authorizations for method. "
-                   "Should be in the format agent_id.method "
-                   "authorized_capability1 authorized_capability2 ...")
+        _log.error(
+            "Missing authorizations for method. "
+            "Should be in the format agent_id.method "
+            "authorized_capability1 authorized_capability2 ..."
+        )
         return
     removed_auths = [x for x in opts.pattern[1:]]
     try:
-        conn.server.vip.rpc.call(AUTH, "delete_rpc_method_authorizations",
-                                 agent_id, agent_method, removed_auths).get(
-            timeout=4)
+        conn.server.vip.rpc.call(
+            AUTH,
+            "delete_rpc_method_authorizations",
+            agent_id,
+            agent_method,
+            removed_auths,
+        ).get(timeout=4)
     except TimeoutError:
         _log.error(
             f"Adding RPC authorizations {removed_auths} for {agent_id}'s "
-            f"method {agent_method} timed out")
+            f"method {agent_method} timed out"
+        )
     except Exception as e:
-        _log.error(f"{e}) \nCommand format should be agent_id.method "
-                   f"authorized_capability1 authorized_capability2 ...")
+        _log.error(
+            f"{e}) \nCommand format should be agent_id.method "
+            f"authorized_capability1 authorized_capability2 ..."
+        )
     return
 
 
@@ -1684,12 +1695,13 @@ def _print_two_columns(dict_, key_name, value_name):
 def list_auth(opts, indices=None):
     conn = opts.connection
     if not conn:
-        _stderr.write("VOLTTRON is not running. This command "
-                      "requires VOLTTRON platform to be running\n")
+        _stderr.write(
+            "VOLTTRON is not running. This command "
+            "requires VOLTTRON platform to be running\n"
+        )
         return
 
-    entries = conn.server.vip.rpc.call(AUTH, "auth_file.read").get()[
-        "allow_list"]
+    entries = conn.server.vip.rpc.call(AUTH, "auth_file.read").get()["allow_list"]
     print_out = []
     if entries:
         for index, entry in enumerate(entries):
@@ -1698,7 +1710,8 @@ def list_auth(opts, indices=None):
                 _stdout.write("{}\n".format(jsonapi.dumps(entry, indent=2)))
     else:
         _stdout.write(
-            'No entries in {}\n'.format(os.path.join(get_home(), 'auth.json')))
+            "No entries in {}\n".format(os.path.join(get_home(), "auth.json"))
+        )
 
 
 def _ask_for_auth_fields(
@@ -1792,21 +1805,22 @@ def _ask_for_auth_fields(
         return True, None
 
     asker = Asker()
-    asker.add('domain', domain)
-    asker.add('address', address)
-    asker.add('user_id', user_id)
-    asker.add('identity', identity)
-    asker.add('capabilities', capabilities,
-              'delimit multiple entries with comma', _parse_capabilities)
-    asker.add('roles', roles, 'delimit multiple entries with comma',
-              _comma_split)
-    asker.add('groups', groups, 'delimit multiple entries with comma',
-              _comma_split)
-    asker.add('mechanism', mechanism, validate=valid_mech)
-    asker.add('credentials', credentials, validate=valid_creds)
-    asker.add('comments', comments)
-    asker.add('enabled', enabled, callback=to_true_or_false,
-              validate=is_true_or_false)
+    asker.add("domain", domain)
+    asker.add("address", address)
+    asker.add("user_id", user_id)
+    asker.add("identity", identity)
+    asker.add(
+        "capabilities",
+        capabilities,
+        "delimit multiple entries with comma",
+        _parse_capabilities,
+    )
+    asker.add("roles", roles, "delimit multiple entries with comma", _comma_split)
+    asker.add("groups", groups, "delimit multiple entries with comma", _comma_split)
+    asker.add("mechanism", mechanism, validate=valid_mech)
+    asker.add("credentials", credentials, validate=valid_creds)
+    asker.add("comments", comments)
+    asker.add("enabled", enabled, callback=to_true_or_false, validate=is_true_or_false)
 
     return asker.ask()
 
@@ -1838,8 +1852,10 @@ def add_auth(opts):
     """
     conn = opts.connection
     if not conn:
-        _stderr.write("VOLTTRON is not running. This command "
-                      "requires VOLTTRON platform to be running\n")
+        _stderr.write(
+            "VOLTTRON is not running. This command "
+            "requires VOLTTRON platform to be running\n"
+        )
         return
 
     fields = {
@@ -1859,12 +1875,12 @@ def add_auth(opts):
     if any(fields.values()):
         # Remove unspecified options so the default parameters are used
         fields = {k: v for k, v in fields.items() if v}
-        fields['enabled'] = not opts.disabled
+        fields["enabled"] = not opts.disabled
         entry = fields
     else:
         # No options were specified, use interactive wizard
         responses = _ask_for_auth_fields()
-        responses['rpc_method_authorizations'] = None
+        responses["rpc_method_authorizations"] = None
         entry = responses
 
     if opts.add_known_host:
@@ -1883,7 +1899,7 @@ def add_auth(opts):
 
     try:
         conn.server.vip.rpc.call(AUTH, "auth_file.add", entry).get(timeout=4)
-        _stdout.write('added entry {}\n'.format(entry))
+        _stdout.write("added entry {}\n".format(entry))
     except AuthException as err:
         _stderr.write("ERROR: %s\n" % str(err))
 
@@ -1913,11 +1929,14 @@ def _ask_yes_no(question, default="yes"):
 def remove_auth(opts):
     conn = opts.connection
     if not conn:
-        _stderr.write("VOLTTRON is not running. This command "
-                      "requires VOLTTRON platform to be running\n")
+        _stderr.write(
+            "VOLTTRON is not running. This command "
+            "requires VOLTTRON platform to be running\n"
+        )
         return
     entry_count = len(
-        conn.server.vip.rpc.call(AUTH, "auth_file.read").get()["allow_list"])
+        conn.server.vip.rpc.call(AUTH, "auth_file.read").get()["allow_list"]
+    )
 
     for i in opts.indices:
         if i < 0 or i >= entry_count:
@@ -1929,8 +1948,7 @@ def remove_auth(opts):
     if not _ask_yes_no("Do you wish to delete?"):
         return
     try:
-        conn.server.vip.rpc.call(AUTH, "auth_file.remove_by_indices",
-                                 opts.indices)
+        conn.server.vip.rpc.call(AUTH, "auth_file.remove_by_indices", opts.indices)
         if len(opts.indices) > 1:
             msg = "removed entries at indices {}".format(opts.indices)
         else:
@@ -1943,23 +1961,25 @@ def remove_auth(opts):
 def update_auth(opts):
     conn = opts.connection
     if not conn:
-        _stderr.write("VOLTTRON is not running. This command "
-                      "requires VOLTTRON platform to be running\n")
+        _stderr.write(
+            "VOLTTRON is not running. This command "
+            "requires VOLTTRON platform to be running\n"
+        )
         return
 
-    entries = conn.server.vip.rpc.call(AUTH, "auth_file.read").get()[
-        "allow_list"]
+    entries = conn.server.vip.rpc.call(AUTH, "auth_file.read").get()["allow_list"]
     try:
         if opts.index < 0:
             raise IndexError
         entry = entries[opts.index]
         _stdout.write('(For any field type "clear" to clear the value.)\n')
         response = _ask_for_auth_fields(**entry)
-        response['rpc_method_authorizations'] = None
+        response["rpc_method_authorizations"] = None
         updated_entry = response
-        conn.server.vip.rpc.call(AUTH, "auth_file.update_by_index",
-                                 updated_entry, opts.index)
-        _stdout.write('updated entry at index {}\n'.format(opts.index))
+        conn.server.vip.rpc.call(
+            AUTH, "auth_file.update_by_index", updated_entry, opts.index
+        )
+        _stdout.write("updated entry at index {}\n".format(opts.index))
     except IndexError:
         _stderr.write("ERROR: invalid index %s\n" % opts.index)
     except AuthException as err:
@@ -1969,8 +1989,10 @@ def update_auth(opts):
 def add_role(opts):
     conn = opts.connection
     if not conn:
-        _stderr.write("VOLTTRON is not running. This command "
-                      "requires VOLTTRON platform to be running\n")
+        _stderr.write(
+            "VOLTTRON is not running. This command "
+            "requires VOLTTRON platform to be running\n"
+        )
         return
 
     roles = conn.server.vip.rpc.call(AUTH, "auth_file.read").get()["roles"]
@@ -1985,18 +2007,22 @@ def add_role(opts):
 def list_roles(opts):
     conn = opts.connection
     if not conn:
-        _stderr.write("VOLTTRON is not running. This command "
-                      "requires VOLTTRON platform to be running\n")
+        _stderr.write(
+            "VOLTTRON is not running. This command "
+            "requires VOLTTRON platform to be running\n"
+        )
         return
     roles = conn.server.vip.rpc.call(AUTH, "auth_file.read").get()["roles"]
-    _print_two_columns(roles, 'ROLE', 'CAPABILITIES')
+    _print_two_columns(roles, "ROLE", "CAPABILITIES")
 
 
 def update_role(opts):
     conn = opts.connection
     if not conn:
-        _stderr.write("VOLTTRON is not running. This command "
-                      "requires VOLTTRON platform to be running\n")
+        _stderr.write(
+            "VOLTTRON is not running. This command "
+            "requires VOLTTRON platform to be running\n"
+        )
         return
     roles = conn.server.vip.rpc.call(AUTH, "auth_file.read").get()["roles"]
     if opts.role not in roles:
@@ -2014,8 +2040,10 @@ def update_role(opts):
 def remove_role(opts):
     conn = opts.connection
     if not conn:
-        _stderr.write("VOLTTRON is not running. This command "
-                      "requires VOLTTRON platform to be running\n")
+        _stderr.write(
+            "VOLTTRON is not running. This command "
+            "requires VOLTTRON platform to be running\n"
+        )
         return
     roles = conn.server.vip.rpc.call(AUTH, "auth_file.read").get()["roles"]
     if opts.role not in roles:
@@ -2029,8 +2057,10 @@ def remove_role(opts):
 def add_group(opts):
     conn = opts.connection
     if not conn:
-        _stderr.write("VOLTTRON is not running. This command "
-                      "requires VOLTTRON platform to be running\n")
+        _stderr.write(
+            "VOLTTRON is not running. This command "
+            "requires VOLTTRON platform to be running\n"
+        )
         return
     groups = conn.server.vip.rpc.call(AUTH, "auth_file.read").get()["groups"]
     if opts.group in groups:
@@ -2044,18 +2074,22 @@ def add_group(opts):
 def list_groups(opts):
     conn = opts.connection
     if not conn:
-        _stderr.write("VOLTTRON is not running. This command "
-                      "requires VOLTTRON platform to be running\n")
+        _stderr.write(
+            "VOLTTRON is not running. This command "
+            "requires VOLTTRON platform to be running\n"
+        )
         return
     groups = conn.server.vip.rpc.call(AUTH, "auth_file.read").get()["groups"]
-    _print_two_columns(groups, 'GROUPS', 'ROLES')
+    _print_two_columns(groups, "GROUPS", "ROLES")
 
 
 def update_group(opts):
     conn = opts.connection
     if not conn:
-        _stderr.write("VOLTTRON is not running. This command "
-                      "requires VOLTTRON platform to be running\n")
+        _stderr.write(
+            "VOLTTRON is not running. This command "
+            "requires VOLTTRON platform to be running\n"
+        )
         return
     groups = conn.server.vip.rpc.call(AUTH, "auth_file.read").get()["groups"]
     if opts.group not in groups:
@@ -2073,8 +2107,10 @@ def update_group(opts):
 def remove_group(opts):
     conn = opts.connection
     if not conn:
-        _stderr.write("VOLTTRON is not running. This command "
-                      "requires VOLTTRON platform to be running\n")
+        _stderr.write(
+            "VOLTTRON is not running. This command "
+            "requires VOLTTRON platform to be running\n"
+        )
         return
     groups = conn.server.vip.rpc.call(AUTH, "auth_file.read").get()["groups"]
     if opts.group not in groups:
@@ -2177,8 +2213,7 @@ def _show_filtered_agents(opts, field_name, field_callback, agents=None):
         _stdout.write(f"{jsonapi.dumps(json_obj, indent=2)}\n")
 
 
-def _show_filtered_agents_status(opts, status_callback, health_callback,
-                                 agents=None):
+def _show_filtered_agents_status(opts, status_callback, health_callback, agents=None):
     """Provides generic way to filter and display agent information.
 
     The agents will be filtered by the provided opts.pattern and the
@@ -2308,6 +2343,7 @@ def _show_filtered_agents_status(opts, status_callback, health_callback,
                     else ""
                 )
         _stdout.write(f"{jsonapi.dumps(json_obj, indent=2)}\n")
+
 
 def get_agent_publickey(opts):
     def get_key(agent):
@@ -2523,8 +2559,7 @@ def add_user(opts):
     try:
         rmq_mgmt.set_user_permissions(permissions, opts.user)
     except requests.exceptions.HTTPError as e:
-        _stdout.write(
-            "Error Setting User permissions : {} \n".format(opts.user))
+        _stdout.write("Error Setting User permissions : {} \n".format(opts.user))
     except ConnectionError as e:
         _stdout.write(
             "Error making request to RabbitMQ Management interface.\n"
@@ -3075,8 +3110,7 @@ def remove_fed_parameters(opts):
                 "federation-upstream", param, delete_certs=delete_certs
             )
     except requests.exceptions.HTTPError as e:
-        _stdout.write(
-            "No Federation Parameters Found {} \n".format(opts.parameters))
+        _stdout.write("No Federation Parameters Found {} \n".format(opts.parameters))
     except ConnectionError as e:
         _stdout.write(
             "Error making request to RabbitMQ Management interface.\n"
@@ -3092,8 +3126,7 @@ def remove_shovel_parameters(opts):
                 "shovel", param, delete_certs=delete_certs
             )
     except requests.exceptions.HTTPError as e:
-        _stdout.write(
-            "No Shovel Parameters Found {} \n".format(opts.parameters))
+        _stdout.write("No Shovel Parameters Found {} \n".format(opts.parameters))
     except ConnectionError as e:
         _stdout.write(
             "Error making request to RabbitMQ Management interface.\n"
@@ -3497,7 +3530,7 @@ def main():
     auth_add.add_argument("--mechanism", default=None)
     auth_add.add_argument("--credentials", default=None)
     auth_add.add_argument("--user_id", default=None)
-    auth_add.add_argument('--identity', default=None)
+    auth_add.add_argument("--identity", default=None)
     auth_add.add_argument(
         "--groups", default=None, help="delimit multiple entries with comma"
     )
@@ -3735,36 +3768,45 @@ def main():
     )
     auth_remote_delete_cmd.set_defaults(func=delete_remote)
 
-    auth_rpc = add_parser("rpc", subparser=auth_subparsers,
-                          help="Manage rpc method authorizations")
+    auth_rpc = add_parser(
+        "rpc", subparser=auth_subparsers, help="Manage rpc method authorizations"
+    )
 
-    auth_rpc_subparsers = auth_rpc.add_subparsers(title='subcommands',
-                                                  metavar='',
-                                                  dest='store_commands')
-    auth_rpc_add = add_parser("add", subparser=auth_rpc_subparsers,
-                              help="adds rpc method authorizations")
+    auth_rpc_subparsers = auth_rpc.add_subparsers(
+        title="subcommands", metavar="", dest="store_commands"
+    )
+    auth_rpc_add = add_parser(
+        "add", subparser=auth_rpc_subparsers, help="adds rpc method authorizations"
+    )
 
-    auth_rpc_add.add_argument('pattern', nargs='*',
-                              help='Identity of agent and method, followed '
-                                   'by capabilities. '
-                                   'Should be in the format: '
-                                   'agent_id.method authorized_capability1 '
-                                   'authorized_capability2 ...')
-    auth_rpc_add.set_defaults(func=add_agent_rpc_authorizations,
-                              min_uuid_len=1)
+    auth_rpc_add.add_argument(
+        "pattern",
+        nargs="*",
+        help="Identity of agent and method, followed "
+        "by capabilities. "
+        "Should be in the format: "
+        "agent_id.method authorized_capability1 "
+        "authorized_capability2 ...",
+    )
+    auth_rpc_add.set_defaults(func=add_agent_rpc_authorizations, min_uuid_len=1)
 
-    auth_rpc_remove = add_parser("remove", subparser=auth_rpc_subparsers,
-                                 help="removes rpc method authorizations")
+    auth_rpc_remove = add_parser(
+        "remove",
+        subparser=auth_rpc_subparsers,
+        help="removes rpc method authorizations",
+    )
 
-    auth_rpc_remove.add_argument('pattern', nargs='*',
-                                 help='Identity of agent and method, '
-                                      'followed by capabilities. '
-                                      'Should be in the format: '
-                                      'agent_id.method '
-                                      'authorized_capability1 '
-                                      'authorized_capability2 ...')
-    auth_rpc_remove.set_defaults(func=remove_agent_rpc_authorizations,
-                                 min_uuid_len=1)
+    auth_rpc_remove.add_argument(
+        "pattern",
+        nargs="*",
+        help="Identity of agent and method, "
+        "followed by capabilities. "
+        "Should be in the format: "
+        "agent_id.method "
+        "authorized_capability1 "
+        "authorized_capability2 ...",
+    )
+    auth_rpc_remove.set_defaults(func=remove_agent_rpc_authorizations, min_uuid_len=1)
 
     # ====================================================
     # config commands
