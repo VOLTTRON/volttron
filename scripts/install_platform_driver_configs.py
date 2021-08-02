@@ -36,15 +36,15 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-import gevent
-from volttron.platform.auth import AuthFile, AuthEntry
-from volttron.platform.vip.agent import Agent
+import os
+import glob
+
 from volttron.platform.agent.known_identities import CONFIGURATION_STORE, PLATFORM_DRIVER
 from volttron.platform import get_address
 from volttron.platform.keystore import KeyStore
+from volttron.platform.agent.utils import execute_command
+from volttrontesting.fixtures.volttron_platform_fixtures import build_wrapper
 from argparse import ArgumentParser, RawTextHelpFormatter
-import os
-import glob
 
 description = """
 Updates the contents of the Platform Driver configuration store with a set of
@@ -84,23 +84,17 @@ def install_configs(input_directory, keep=False):
     publickey = ks.public
     secretkey = ks.secret
     identity = "platform_driver_update_agent"
-    capabilities = dict(edit_config_store=dict(identity=PLATFORM_DRIVER))
-    entry = AuthEntry(user_id=identity, credentials=publickey,
-                      capabilities=capabilities,
-                      comments="Added by install_configs")
-    authfile = AuthFile()
-    authfile.add(entry, overwrite=True, no_error=True)
-    gevent.sleep(2)
+    capabilities = str(dict(edit_config_store=dict(identity=PLATFORM_DRIVER)))
+    args = ["vctl", "auth", "add",
+            "--user_id", identity,
+            "--credentials", publickey,
+            "--capabilities", capabilities,
+            "--comments", "Added by install_platform_driver_configs"]
 
-    agent = Agent(address=get_address(), identity=identity,
-                  publickey=publickey, secretkey=secretkey,
-                  enable_store=True)
+    execute_command(args)
 
-    event = gevent.event.Event()
-    gevent.spawn(agent.core.run, event)
-    event.wait(timeout=2)
-    router_ping = agent.vip.ping("").get(timeout=30)
-    assert len(router_ping) > 0
+    agent = build_wrapper(get_address(), should_start=False)\
+        .build_agent(address=get_address(), identity=identity, publickey=publickey, secretkey=secretkey, enable_store=True)
 
     if not keep:
         print("Deleting old Platform Driver store")
@@ -143,13 +137,11 @@ def install_configs(input_directory, keep=False):
 if __name__ == "__main__":
     parser = ArgumentParser(description=description, formatter_class=RawTextHelpFormatter)
 
-
     parser.add_argument('input_directory',
                         help='The input directory.')
 
     parser.add_argument('--keep-old', action="store_true",
                         help="Do not remove existing device driver and registry files from the Platform Driver configuration store.")
-
 
     args = parser.parse_args()
     install_configs(args.input_directory, args.keep_old)
