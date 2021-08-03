@@ -161,7 +161,7 @@ communicate between agents via RPC calls. It should be set if an agent has RPC e
 
 Capabilities:
 -------------
-A capability is an arbitrary string used by an agent to constrain its exported RPC method.
+A capability is a string used by an agent to constrain its exported RPC method.
 Only agents who have that capability listed in their authentication record will be able to access that RPC method.
 
 If an administrator wants to authorize an agent to access an exported RPC method with a specific capability
@@ -486,7 +486,7 @@ field describes which capabilities will authorize a remote agent to access it's 
 
 .. note::
     While this field can be modified manually, it is best practice to use the interface.
-    When the agent starts up, the AuthService will automatically query it for all current allowed rpc capabilities on each method.
+    When the agent starts up, it will query the AuthService for all current allowed rpc capabilities on each method.
 
 The format for rpc_method_authorizations is as follows:
 
@@ -508,5 +508,40 @@ To dynamically modify an RPC method's authorization, use:
 
     vctl auth rpc add <agent_id.method> <authorized capability 1> <authorized capability 2> ...
 
+For example, AgentA has an RPC exported method 'bar' which can be called by any other agent.
+
+::
+
+   @RPC.export
+   def bar(self, x):
+      return 'If you can see this, then you have the required capabilities'
+
+If you wanted the bar method to only be accessible to an agent with the "can_call_bar" capability, you could restrict
+access to the bar method on AgentA using the following command:
+
+.. code-block:: console
+
+    vctl auth rpc add AgentA.bar can_call_bar
+
+This would be equivalent to having written the agent method as:
+
+::
+
+   @RPC.export
+   @RPC.allow("can_call_bar")
+   def bar(self, x):
+      return 'If you can see this, then you have the required capabilities'
+
+Although it would be possible to re-write the agent method in the above manner, a restart of the agent would be
+required for the change to take effect. By using the vctl command, the method's authorization is updated on the fly.
+
+On the other hand, if you wish to remove an rpc authorization from an agent dynamically, you can use the ``remove`` command.
+
+As in the above example, AgentA has a method 'bar', which can only be called by agents with the "can_call_bar" capability.
+Since you want bar to be accessible to all agents, regardless of their capabilities, you could use the command:
+
+.. code-block:: console
+
+    vctl auth rpc remove AgentA.bar can_call_bar
 
 
