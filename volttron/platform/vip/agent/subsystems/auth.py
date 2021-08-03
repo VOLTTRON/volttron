@@ -546,7 +546,7 @@ class Auth(SubsystemBase):
         :returns: agent's list of RPC exported methods
         :rtype: list
         """
-        rpc_exports = list(self._rpc()._exports)
+        rpc_exports = self._rpc().get_exports()
         return rpc_exports
 
     def get_all_rpc_authorizations(self):
