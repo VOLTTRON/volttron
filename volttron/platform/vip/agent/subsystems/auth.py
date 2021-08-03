@@ -300,7 +300,7 @@ class Auth(SubsystemBase):
                                 fqid_local, info.instance_name
                             )
                             _log.debug(
-                                "REMOTE RMQ USER IS: {}".format(remote_rmq_user)
+                                "REMOTE RMQ USER IS: %s", remote_rmq_user
                             )
                             remote_rmq_address = self._core().rmq_mgmt.build_remote_connection_param(
                                 remote_rmq_user,
@@ -335,15 +335,15 @@ class Auth(SubsystemBase):
                         # is installed.
                         if get_messagebus() == "rmq":
                             if not os.path.exists("keystore.json"):
-                                with open("keystore.json", "w") as fp:
-                                    fp.write(
+                                with open("keystore.json", "w") as file_pointer:
+                                    file_pointer.write(
                                         jsonapi.dumps(
                                             KeyStore.generate_keypair_dict()
                                         )
                                     )
 
-                            with open("keystore.json") as fp:
-                                keypair = jsonapi.loads(fp.read())
+                            with open("keystore.json") as file_pointer:
+                                keypair = jsonapi.loads(file_pointer.read())
 
                         value = build_agent(
                             agent_class=agent_class,
@@ -373,7 +373,8 @@ class Auth(SubsystemBase):
     def request_cert(
         self, csr_server, fully_qualified_local_identity, discovery_info
     ):
-        """Get a signed csr from the csr_server endpoint
+        """
+        Get a signed csr from the csr_server endpoint
 
         This method will create a csr request that is going to be sent to the
         signing server.
@@ -381,7 +382,6 @@ class Auth(SubsystemBase):
         :param csr_server: the http(s) location of the server to connect to.
         :return:
         """
-
         if get_messagebus() != "rmq":
             raise ValueError(
                 "Only can create csr for rabbitmq based platform in ssl mode."
@@ -593,8 +593,8 @@ class Auth(SubsystemBase):
         # export name.
         if len(method_str.split(".")) > 1:
             _log.error(
-                f"Illegal operation. Attempt to get authorization on "
-                f"subsystem method: %s",
+                "Illegal operation. Attempt to get authorization on "
+                "subsystem method: %s",
                 method_str,
             )
             return []
@@ -608,9 +608,6 @@ class Auth(SubsystemBase):
                 method._annotations["rpc.allow_capabilities"]
             )
         except KeyError:
-            authorized_capabilities = []
-        except Exception as err:
-            _log.error(err)
             authorized_capabilities = []
         return authorized_capabilities.copy()
 
@@ -639,8 +636,8 @@ class Auth(SubsystemBase):
         # export name.
         if len(method_str.split(".")) > 1:
             _log.error(
-                f"Illegal operation. Attempt to set authorization on "
-                f"subsystem method: %s",
+                "Illegal operation. Attempt to set authorization on "
+                "subsystem method: %s",
                 method_str,
             )
             return
@@ -680,7 +677,7 @@ class Auth(SubsystemBase):
                 rpc_method_authorizations[method] = self.get_rpc_authorizations(
                     method
                 )
-        updated_rpc_method_authorizations = (
+        updated_rpc_authorizations = (
             self._rpc()
             .call(
                 AUTH,
@@ -690,14 +687,14 @@ class Auth(SubsystemBase):
             )
             .get(timeout=4)
         )
-        if updated_rpc_method_authorizations is None:
+        if updated_rpc_authorizations is None:
             _log.error(
                 f"Auth entry not found for {self._core().identity}: "
                 f"rpc_method_authorizations not updated."
             )
             return
-        if rpc_method_authorizations != updated_rpc_method_authorizations:
-            for method in updated_rpc_method_authorizations:
+        if rpc_method_authorizations != updated_rpc_authorizations:
+            for method in updated_rpc_authorizations:
                 self.set_rpc_authorizations(
-                    method, updated_rpc_method_authorizations[method]
+                    method, updated_rpc_authorizations[method]
                 )

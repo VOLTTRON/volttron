@@ -582,7 +582,6 @@ class AuthService(Agent):
         """
         user_to_caps = self.get_user_to_capabilities()
         i = 0
-        exception = None
         peers = None
         # peerlist times out lots of times when running test suite. This
         # happens even with higher timeout in get()
@@ -600,7 +599,6 @@ class AuthService(Agent):
                 )
                 peers = list(self.vip.peerlist.peers_list)
                 _log.warning("Get list of peers from subsystem directly")
-                exception = err
 
         if not peers:
             raise BaseException("No peers connected to the platform")
@@ -707,9 +705,9 @@ class AuthService(Agent):
                 kind = kind.decode("utf-8")
                 user = self.authenticate(domain, address, kind, credentials)
                 _log.info(
-                    "AUTH: After authenticate user id: {0}, {1}".format(
-                        user, userid
-                    )
+                    "AUTH: After authenticate user id: %r, %r",
+                    user,
+                    userid
                 )
                 if user:
                     _log.info(
@@ -881,7 +879,8 @@ class AuthService(Agent):
                     user_id, permissions, True
                 )
                 _log.debug(
-                    "Created cert and permissions for user: {}".format(user_id)
+                    "Created cert and permissions for user: %r",
+                    user_id
                 )
             # Stores error message in case it is caused by an unexpected
             # failure
@@ -1206,6 +1205,7 @@ class AuthService(Agent):
     def _update_auth_entry(
         self, domain, address, mechanism, credential, user_id, is_allow=True
     ):
+        """Adds a pending auth entry to AuthFile."""
         # Make a new entry
         fields = {
             "domain": domain,
@@ -1224,13 +1224,13 @@ class AuthService(Agent):
         try:
             self.auth_file.add(new_entry, overwrite=False, is_allow=is_allow)
         except AuthException as err:
-            _log.error("ERROR: %s\n" % str(err))
+            _log.error("ERROR: %s\n", str(err))
 
     def _remove_auth_entry(self, credential, is_allow=True):
         try:
             self.auth_file.remove_by_credentials(credential, is_allow=is_allow)
         except AuthException as err:
-            _log.error("ERROR: %s\n" % str(err))
+            _log.error("ERROR: %s\n", str(err))
 
     def _update_auth_pending(
         self, domain, address, mechanism, credential, user_id
@@ -1294,6 +1294,7 @@ class AuthService(Agent):
         protected topic setting.
         Update the permissions for the agent/user based on the latest
         configuration
+
         :return:
         """
         return
@@ -1347,7 +1348,8 @@ class AuthService(Agent):
     def _update_topic_permission_tokens(self, identity, not_allowed):
         """
         Make rules for read and write permission on topic (routing key)
-        for an agent based on protected topics setting
+        for an agent based on protected topics setting.
+
         :param identity: identity of the agent
         :return:
         """
@@ -1488,7 +1490,7 @@ class AuthEntry(object):
             AuthEntry.build_capabilities_field(capabilities) or {}
         )
         self.rpc_method_authorizations = (
-            AuthEntry.build_rpc_method_authorizations_field(
+            AuthEntry.build_rpc_authorizations_field(
                 rpc_method_authorizations
             )
             or {}
@@ -1567,7 +1569,7 @@ class AuthEntry(object):
             self.capabilities.update(temp)
 
     @staticmethod
-    def build_rpc_method_authorizations_field(value):
+    def build_rpc_authorizations_field(value):
         """Returns auth entry's rpc method authorizations value if valid."""
         if not value:
             return None
@@ -1730,13 +1732,18 @@ class AuthFile(object):
     def _upgrade(self, allow_list, deny_list, groups, roles, version):
         backup = self.auth_file + "." + str(uuid.uuid4()) + ".bak"
         shutil.copy(self.auth_file, backup)
-        _log.info("Created backup of {} at {}".format(self.auth_file, backup))
+        _log.info("Created backup of %s at %s",
+                  self.auth_file,
+                  backup
+                  )
 
         def warn_invalid(entry, msg=""):
+            """Warns if entry is invalid."""
             _log.warning(
-                "Invalid entry {} in auth file {}. {}".format(
-                    entry, self.auth_file, msg
-                )
+                "invalid entry %r in auth file %s",
+                entry,
+                self.auth_file,
+                msg
             )
 
         def upgrade_0_to_1(allow_list):
@@ -1828,7 +1835,7 @@ class AuthFile(object):
                     "rpc_method_authorizations"
                 )
                 entry["rpc_method_authorizations"] = (
-                    AuthEntry.build_rpc_method_authorizations_field(
+                    AuthEntry.build_rpc_authorizations_field(
                         rpc_method_authorizations
                     )
                     or {}
@@ -2005,7 +2012,7 @@ class AuthFile(object):
         except AuthFileEntryAlreadyExists as err:
             if overwrite:
                 _log.debug(
-                    "Updating existing auth entry with {} ".format(auth_entry)
+                    "Updating existing auth entry with %s ", auth_entry
                 )
                 self._update_by_indices(auth_entry, err.indices, is_allow)
             else:
@@ -2032,7 +2039,7 @@ class AuthFile(object):
             it will attempt to move the selected denied entry to
             the approved entries.
 
-        :type credential: str
+        :type user_id: str
         :type is_approved: bool
         """
         allow_entries, deny_entries, groups, roles = self.read()
@@ -2052,7 +2059,7 @@ class AuthFile(object):
                     pass
             # Remove entry from denied entries
             deny_entries = [
-                entry for eentry in deny_entries if entry.user_id != user_id
+                entry for entry in deny_entries if entry.user_id != user_id
             ]
         else:
             for entry in allow_entries:
@@ -2211,11 +2218,12 @@ class AuthFile(object):
             "version": self.version,
         }
 
-        with open(self.auth_file, "w") as fp:
-            jsonapi.dump(auth, fp, indent=2)
+        with open(self.auth_file, "w") as file_pointer:
+            jsonapi.dump(auth, file_pointer, indent=2)
 
 
 class AuthFileIndexError(AuthException, IndexError):
+
     """Exception for invalid indices provided to AuthFile."""
 
     def __init__(self, indices, message=None):
@@ -2230,6 +2238,7 @@ class AuthFileIndexError(AuthException, IndexError):
 
 
 class AuthFileEntryAlreadyExists(AuthFileIndexError):
+
     """Exception if adding an entry that already exists."""
 
     def __init__(self, indicies, message=None):
@@ -2241,6 +2250,7 @@ class AuthFileEntryAlreadyExists(AuthFileIndexError):
 
 
 class AuthFileUserIdAlreadyExists(AuthFileEntryAlreadyExists):
+
     """Exception if adding an entry that has a taken user_id."""
 
     def __init__(self, user_id, indicies, message=None):
