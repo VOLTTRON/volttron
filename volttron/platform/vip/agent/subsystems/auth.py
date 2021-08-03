@@ -92,23 +92,26 @@ class Auth(SubsystemBase):
 
         def onsetup(sender, **kwargs):
             rpc.export(self._update_capabilities, "auth.update")
-            rpc.export(self.get_rpc_authorizations,
-                       "auth.get_rpc_authorizations")
+            rpc.export(
+                self.get_rpc_authorizations, "auth.get_rpc_authorizations"
+            )
             rpc.export(
                 self.get_all_rpc_authorizations,
-                "auth.get_all_rpc_authorizations"
+                "auth.get_all_rpc_authorizations",
             )
-            rpc.export(self.set_rpc_authorizations,
-                       "auth.set_rpc_authorizations")
+            rpc.export(
+                self.set_rpc_authorizations, "auth.set_rpc_authorizations"
+            )
             rpc.export(
                 self.set_multiple_rpc_authorizations,
                 "auth.set_multiple_rpc_authorizations",
             )
-            rpc.allow("auth.set_rpc_authorizations",
-                      "modify_rpc_method_allowance")
+            rpc.allow(
+                "auth.set_rpc_authorizations", "modify_rpc_method_allowance"
+            )
             rpc.allow(
                 "auth.set_multiple_rpc_authorizations",
-                "modify_rpc_method_allowance"
+                "modify_rpc_method_allowance",
             )
 
             # Do not update platform agents on start-up, which can cause
@@ -128,8 +131,9 @@ class Auth(SubsystemBase):
 
         core.onsetup.connect(onsetup, self)
 
-    def connect_remote_platform(self, address, serverkey=None,
-                                agent_class=None):
+    def connect_remote_platform(
+        self, address, serverkey=None, agent_class=None
+    ):
         """
         Agent attempts to connect to a remote platform to exchange data.
 
@@ -181,15 +185,18 @@ class Auth(SubsystemBase):
                 if temp_serverkey != serverkey:
                     raise ValueError(
                         "server_key passed and known hosts serverkey do not "
-                        "" "match!"
+                        ""
+                        "match!"
                     )
                 destination_serverkey = serverkey
 
-            publickey, secretkey = self._core().publickey, self._core(
-
-            ).secretkey
-            _log.debug("Connecting using: %s",
-                       get_fq_identity(self._core().identity))
+            publickey, secretkey = (
+                self._core().publickey,
+                self._core().secretkey,
+            )
+            _log.debug(
+                "Connecting using: %s", get_fq_identity(self._core().identity)
+            )
 
             value = build_agent(
                 agent_class=agent_class,
@@ -231,7 +238,7 @@ class Auth(SubsystemBase):
 
                     _log.debug(
                         "Connecting using: %s",
-                        get_fq_identity(self._core().identity)
+                        get_fq_identity(self._core().identity),
                     )
 
                     # use fully qualified identity
@@ -263,8 +270,9 @@ class Auth(SubsystemBase):
                         if os.path.exists(certfile):
                             response = certfile
                         else:
-                            response = self.request_cert(address, fqid_local,
-                                                         info)
+                            response = self.request_cert(
+                                address, fqid_local, info
+                            )
 
                         if response is None:
                             _log.error("there was no response from the server")
@@ -291,15 +299,14 @@ class Auth(SubsystemBase):
                             remote_rmq_user = get_fq_identity(
                                 fqid_local, info.instance_name
                             )
-                            _log.debug("REMOTE RMQ USER IS: {}".format(
-                                remote_rmq_user))
-                            remote_rmq_address = (
-                                self._core().rmq_mgmt.build_remote_connection_param(
-                                    remote_rmq_user,
-                                    info.rmq_address,
-                                    ssl_auth=True,
-                                    cert_dir=self.get_remote_certs_dir(),
-                                )
+                            _log.debug(
+                                "REMOTE RMQ USER IS: {}".format(remote_rmq_user)
+                            )
+                            remote_rmq_address = self._core().rmq_mgmt.build_remote_connection_param(
+                                remote_rmq_user,
+                                info.rmq_address,
+                                ssl_auth=True,
+                                cert_dir=self.get_remote_certs_dir(),
                             )
 
                             value = build_agent(
@@ -314,7 +321,8 @@ class Auth(SubsystemBase):
                             )
                         else:
                             raise ValueError(
-                                "Unknown path through discovery process!")
+                                "Unknown path through discovery process!"
+                            )
 
                     else:
                         # TODO: cache the connection so we don't always have
@@ -330,7 +338,8 @@ class Auth(SubsystemBase):
                                 with open("keystore.json", "w") as fp:
                                     fp.write(
                                         jsonapi.dumps(
-                                            KeyStore.generate_keypair_dict())
+                                            KeyStore.generate_keypair_dict()
+                                        )
                                     )
 
                             with open("keystore.json") as fp:
@@ -361,8 +370,9 @@ class Auth(SubsystemBase):
 
         return value
 
-    def request_cert(self, csr_server, fully_qualified_local_identity,
-                     discovery_info):
+    def request_cert(
+        self, csr_server, fully_qualified_local_identity, discovery_info
+    ):
         """Get a signed csr from the csr_server endpoint
 
         This method will create a csr request that is going to be sent to the
@@ -456,17 +466,20 @@ class Auth(SubsystemBase):
             _log.error("Denied from remote machine.  Shutting down agent.")
             status = Status.build(
                 BAD_STATUS,
-                context="Administrator denied remote " "connection.  "
-                        "Shutting down",
+                context="Administrator denied remote "
+                "connection.  "
+                "Shutting down",
             )
             self._owner.vip.health.set_status(status.status, status.context)
             self._owner.vip.health.send_alert(
-                self._core().identity + "_DENIED", status)
+                self._core().identity + "_DENIED", status
+            )
             self._core().stop()
             return None
         elif status == "ERROR":
             err = "Error retrieving certificate from {}\n".format(
-                config.hostname)
+                config.hostname
+            )
             err += "{}".format(message)
             raise ValueError(err)
         else:  # No resposne
@@ -480,8 +493,9 @@ class Auth(SubsystemBase):
 
     def get_remote_certs_dir(self):
         if not self.remote_certs_dir:
-            install_dir = os.path.join(get_home(), "agents",
-                                       self._core().agent_uuid)
+            install_dir = os.path.join(
+                get_home(), "agents", self._core().agent_uuid
+            )
             files = os.listdir(install_dir)
             for f in files:
                 agent_dir = os.path.join(install_dir, f)
@@ -499,8 +513,9 @@ class Auth(SubsystemBase):
             self._dirty = False
             try:
                 self._user_to_capabilities = (
-                    self._rpc().call(AUTH, "get_user_to_capabilities").get(
-                        timeout=10)
+                    self._rpc()
+                    .call(AUTH, "get_user_to_capabilities")
+                    .get(timeout=10)
                 )
                 _log.debug("self. user to cap %s", self._user_to_capabilities)
             except RemoteError:
@@ -552,8 +567,9 @@ class Auth(SubsystemBase):
             if len(method.split(".")) > 1:
                 pass
             else:
-                rpc_method_authorizations[
-                    method] = self.get_rpc_authorizations(method)
+                rpc_method_authorizations[method] = self.get_rpc_authorizations(
+                    method
+                )
         return rpc_method_authorizations.copy()
 
     def get_rpc_authorizations(self, method_str):
@@ -640,7 +656,8 @@ class Auth(SubsystemBase):
         self._rpc().allow(method, capabilities)
         _log.debug(
             f"Authorized capabilities: {capabilities} for meth"
-            f"od: " f"{method_str} set"
+            f"od: "
+            f"{method_str} set"
         )
 
     def update_rpc_method_capabilities(self):
@@ -660,11 +677,12 @@ class Auth(SubsystemBase):
             if len(method.split(".")) > 1:
                 pass
             else:
-                rpc_method_authorizations[
-                    method] = self.get_rpc_authorizations(method)
+                rpc_method_authorizations[method] = self.get_rpc_authorizations(
+                    method
+                )
         updated_rpc_method_authorizations = (
             self._rpc()
-                .call(
+            .call(
                 AUTH,
                 "update_id_rpc_authorizations",
                 self._core().identity,
