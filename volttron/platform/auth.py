@@ -705,9 +705,7 @@ class AuthService(Agent):
                 kind = kind.decode("utf-8")
                 user = self.authenticate(domain, address, kind, credentials)
                 _log.info(
-                    "AUTH: After authenticate user id: %r, %r",
-                    user,
-                    userid
+                    "AUTH: After authenticate user id: %r, %r", user, userid
                 )
                 if user:
                     _log.info(
@@ -878,10 +876,7 @@ class AuthService(Agent):
                 self.core.rmq_mgmt.create_user_with_permissions(
                     user_id, permissions, True
                 )
-                _log.debug(
-                    "Created cert and permissions for user: %r",
-                    user_id
-                )
+                _log.debug("Created cert and permissions for user: %r", user_id)
             # Stores error message in case it is caused by an unexpected
             # failure
             except ValueError as err:
@@ -1490,9 +1485,7 @@ class AuthEntry(object):
             AuthEntry.build_capabilities_field(capabilities) or {}
         )
         self.rpc_method_authorizations = (
-            AuthEntry.build_rpc_authorizations_field(
-                rpc_method_authorizations
-            )
+            AuthEntry.build_rpc_authorizations_field(rpc_method_authorizations)
             or {}
         )
         self.comments = AuthEntry._build_field(comments)
@@ -1732,18 +1725,12 @@ class AuthFile(object):
     def _upgrade(self, allow_list, deny_list, groups, roles, version):
         backup = self.auth_file + "." + str(uuid.uuid4()) + ".bak"
         shutil.copy(self.auth_file, backup)
-        _log.info("Created backup of %s at %s",
-                  self.auth_file,
-                  backup
-                  )
+        _log.info("Created backup of %s at %s", self.auth_file, backup)
 
         def warn_invalid(entry, msg=""):
             """Warns if entry is invalid."""
             _log.warning(
-                "invalid entry %r in auth file %s",
-                entry,
-                self.auth_file,
-                msg
+                "invalid entry %r in auth file %s", entry, self.auth_file, msg
             )
 
         def upgrade_0_to_1(allow_list):
@@ -2011,9 +1998,7 @@ class AuthFile(object):
             self._check_if_exists(auth_entry, is_allow)
         except AuthFileEntryAlreadyExists as err:
             if overwrite:
-                _log.debug(
-                    "Updating existing auth entry with %s ", auth_entry
-                )
+                _log.debug("Updating existing auth entry with %s ", auth_entry)
                 self._update_by_indices(auth_entry, err.indices, is_allow)
             else:
                 if not no_error:
