@@ -102,7 +102,13 @@ class AuthException(Exception):
 
 class AuthService(Agent):
     def __init__(
-        self, auth_file, protected_topics_file, setup_mode, aip, *args, **kwargs
+        self,
+        auth_file,
+        protected_topics_file,
+        setup_mode,
+        aip,
+        *args,
+        **kwargs
     ):
         """Initializes AuthService, and prepares AuthFile."""
         self.allow_any = kwargs.pop("allow_any", False)
@@ -1430,7 +1436,8 @@ class AuthEntryInvalid(AuthException):
 
 
 class AuthEntry(object):
-    """An authentication entry contains fields for authenticating and
+    """
+    An authentication entry contains fields for authenticating and
     granting permissions to an agent that connects to the platform.
 
     :param str domain: Name assigned to locally bound address
@@ -1474,6 +1481,7 @@ class AuthEntry(object):
         enabled=True,
         **kwargs,
     ):
+        """Initialize AuthEntry."""
 
         self.domain = AuthEntry._build_field(domain)
         self.address = AuthEntry._build_field(address)
@@ -1666,9 +1674,10 @@ class AuthFile(object):
                 )
             else:
                 _log.error(
-                    "This version of VOLTTRON cannot parse {}. "
+                    "This version of VOLTTRON cannot parse %r. "
                     "Please upgrade VOLTTRON or move or delete "
-                    "this file.".format(self.auth_file)
+                    "this file.",
+                    self.auth_file
                 )
 
     def _read(self):
@@ -1699,7 +1708,6 @@ class AuthFile(object):
 
     def load(self):
         """Reads in auth_file.json and stores it in auth_data."""
-
         self.auth_data = self._read()
 
     def read(self):
@@ -2209,7 +2217,9 @@ class AuthFile(object):
 
 class AuthFileIndexError(AuthException, IndexError):
 
-    """Exception for invalid indices provided to AuthFile."""
+    """
+    Exception for invalid indices provided to AuthFile.
+    """
 
     def __init__(self, indices, message=None):
         if not isinstance(indices, list):
@@ -2224,7 +2234,9 @@ class AuthFileIndexError(AuthException, IndexError):
 
 class AuthFileEntryAlreadyExists(AuthFileIndexError):
 
-    """Exception if adding an entry that already exists."""
+    """
+    Exception if adding an entry that already exists.
+    """
 
     def __init__(self, indicies, message=None):
         if message is None:
@@ -2235,8 +2247,10 @@ class AuthFileEntryAlreadyExists(AuthFileIndexError):
 
 
 class AuthFileUserIdAlreadyExists(AuthFileEntryAlreadyExists):
-
-    """Exception if adding an entry that has a taken user_id."""
+    
+    """
+    Exception if adding an entry that has a taken user_id.
+    """
 
     def __init__(self, user_id, indicies, message=None):
         if message is None:

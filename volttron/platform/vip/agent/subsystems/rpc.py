@@ -329,9 +329,9 @@ class RPC(SubsystemBase):
                         args_dict = inspect.getcallargs(method, *args, **kwargs)
                         _log.debug("dict = {}".format(args_dict))
                         _log.debug(
-                            "name= {} parameters allowed={}".format(
-                                cap_name, param_dict
-                            )
+                            "name= %r parameters allowed=%r",
+                            cap_name,
+                            param_dict
                         )
                         for name, value in param_dict.items():
                             _log.debug("name= {} value={}".format(name, value))
@@ -382,11 +382,9 @@ class RPC(SubsystemBase):
     @spawn
     def _handle_external_rpc_subsystem(self, message):
         ret_msg = dict()
-        # _log.debug("EXT_RPC subsystem handler IN message {0}".format(message))
-        op = message.args[0]
+        operation = message.args[0]
         rpc_msg = message.args[1]  # jsonapi.loads(message.args[1])
         try:
-            # _log.debug("EXT_RPC subsystem handler IN message {0}, {1}".format(message.peer, rpc_msg))
             method_args = rpc_msg["args"]
             # message.args = [method_args]
             message.args = method_args
@@ -398,7 +396,8 @@ class RPC(SubsystemBase):
 
             responses = [
                 response
-                for response in (dispatch(msg, message) for msg in message.args)
+                for response in (dispatch(msg, message)
+                                 for msg in message.args)
                 if response
             ]
             # _log.debug("External RPC Responses {}".format(responses))
@@ -408,8 +407,8 @@ class RPC(SubsystemBase):
                     message.peer = ""
                     message.subsystem = "external_rpc"
                     frames = []
-                    op = "send_platform"
-                    frames.append(op)
+                    operation = "send_platform"
+                    frames.append(operation)
                     msg = jsonapi.dumps(
                         dict(
                             to_platform=rpc_msg["from_platform"],
