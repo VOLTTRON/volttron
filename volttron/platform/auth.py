@@ -102,13 +102,13 @@ class AuthException(Exception):
 
 class AuthService(Agent):
     def __init__(
-        self,
-        auth_file,
-        protected_topics_file,
-        setup_mode,
-        aip,
-        *args,
-        **kwargs
+            self,
+            auth_file,
+            protected_topics_file,
+            setup_mode,
+            aip,
+            *args,
+            **kwargs
     ):
         """Initializes AuthService, and prepares AuthFile."""
         self.allow_any = kwargs.pop("allow_any", False)
@@ -255,8 +255,8 @@ class AuthService(Agent):
                     # Check if the rpc method's capabilities match
                     # what have been provided
                     if (
-                        entry.rpc_method_authorizations[method]
-                        != rpc_methods[method]
+                            entry.rpc_method_authorizations[method]
+                            != rpc_methods[method]
                     ):
                         # Update rpc_methods based on auth entries
                         updated_rpc_methods[
@@ -298,9 +298,9 @@ class AuthService(Agent):
         for entry in entries:
             # Skip if core agent
             if (
-                entry.identity is not None
-                and entry.identity not in PROCESS_IDENTITIES
-                and entry.identity != CONTROL_CONNECTION
+                    entry.identity is not None
+                    and entry.identity not in PROCESS_IDENTITIES
+                    and entry.identity != CONTROL_CONNECTION
             ):
                 # Collect all modified methods
                 modified_methods = {}
@@ -341,7 +341,8 @@ class AuthService(Agent):
                                     entry.identity,
                                     "auth.set_rpc_authorizations",
                                     method_str=method,
-                                    capabilities=entry.rpc_method_authorizations[
+                                    capabilities=
+                                    entry.rpc_method_authorizations[
                                         method
                                     ],
                                 )
@@ -393,7 +394,10 @@ class AuthService(Agent):
 
     @RPC.export
     def delete_rpc_authorizations(
-        self, identity, method, denied_authorizations
+            self,
+            identity,
+            method,
+            denied_authorizations
     ):
         """
         Removes authorizations to method in auth entry in auth file.
@@ -424,8 +428,8 @@ class AuthService(Agent):
                     any_match = False
                     for rpc_auth in denied_authorizations:
                         if (
-                            rpc_auth
-                            not in entry.rpc_method_authorizations[method]
+                                rpc_auth
+                                not in entry.rpc_method_authorizations[method]
                         ):
                             _log.error(
                                 f"{rpc_auth} is not an authorized capability "
@@ -498,8 +502,8 @@ class AuthService(Agent):
                 for old_entry in old_entries:
                     if entry.identity == old_entry.identity:
                         if (
-                            entry.rpc_method_authorizations
-                            != old_entry.rpc_method_authorizations
+                                entry.rpc_method_authorizations
+                                != old_entry.rpc_method_authorizations
                         ):
                             modified_entries.append(entry)
                         else:
@@ -507,7 +511,7 @@ class AuthService(Agent):
                     else:
                         pass
                 if entry.identity not in [
-                    old_entry.identity for old_entry in old_entries
+                        old_entry.identity for old_entry in old_entries
                 ]:
                     modified_entries.append(entry)
             else:
@@ -549,7 +553,8 @@ class AuthService(Agent):
                 self._send_update(modified_entries)
             except BaseException as err:
                 _log.error(
-                    "Exception sending auth updates to peer. {}".format(err)
+                    "Exception sending auth updates to peer. %r",
+                    err
                 )
                 raise err
         _log.info("auth file %s loaded", self.auth_file_path)
@@ -1204,7 +1209,13 @@ class AuthService(Agent):
         return self._get_authorizations(user_id, 2)
 
     def _update_auth_entry(
-        self, domain, address, mechanism, credential, user_id, is_allow=True
+            self,
+            domain,
+            address,
+            mechanism,
+            credential,
+            user_id,
+            is_allow=True
     ):
         """Adds a pending auth entry to AuthFile."""
         # Make a new entry
@@ -1234,16 +1245,22 @@ class AuthService(Agent):
             _log.error("ERROR: %s\n", str(err))
 
     def _update_auth_pending(
-        self, domain, address, mechanism, credential, user_id
+            self,
+            domain,
+            address,
+            mechanism,
+            credential,
+            user_id
     ):
+        """Handles incoming pending auth entries."""
         for entry in self._auth_denied:
             # Check if failure entry has been denied. If so, increment the
             # failure's denied count
             if (
-                (entry["domain"] == domain)
-                and (entry["address"] == address)
-                and (entry["mechanism"] == mechanism)
-                and (entry["credentials"] == credential)
+                    (entry["domain"] == domain)
+                    and (entry["address"] == address)
+                    and (entry["mechanism"] == mechanism)
+                    and (entry["credentials"] == credential)
             ):
                 entry["retries"] += 1
                 return
@@ -1466,23 +1483,22 @@ class AuthEntry(object):
     """
 
     def __init__(
-        self,
-        domain=None,
-        address=None,
-        mechanism="CURVE",
-        credentials=None,
-        user_id=None,
-        identity=None,
-        groups=None,
-        roles=None,
-        capabilities: Optional[dict] = None,
-        rpc_method_authorizations=None,
-        comments=None,
-        enabled=True,
-        **kwargs,
+            self,
+            domain=None,
+            address=None,
+            mechanism="CURVE",
+            credentials=None,
+            user_id=None,
+            identity=None,
+            groups=None,
+            roles=None,
+            capabilities: Optional[dict] = None,
+            rpc_method_authorizations=None,
+            comments=None,
+            enabled=True,
+            **kwargs,
     ):
         """Initialize AuthEntry."""
-
         self.domain = AuthEntry._build_field(domain)
         self.address = AuthEntry._build_field(address)
         self.mechanism = mechanism
@@ -1738,7 +1754,10 @@ class AuthFile(object):
         def warn_invalid(entry, msg=""):
             """Warns if entry is invalid."""
             _log.warning(
-                "invalid entry %r in auth file %s", entry, self.auth_file, msg
+                "invalid entry %r in auth file %s (%s)",
+                entry,
+                self.auth_file,
+                msg
             )
 
         def upgrade_0_to_1(allow_list):
@@ -1958,10 +1977,10 @@ class AuthFile(object):
                 # Compare AuthEntry objects component-wise, rather than
                 # using match, because match will evaluate regex.
                 if (
-                    prev_entry.domain == entry.domain
-                    and prev_entry.address == entry.address
-                    and prev_entry.mechanism == entry.mechanism
-                    and prev_entry.credentials == entry.credentials
+                        prev_entry.domain == entry.domain
+                        and prev_entry.address == entry.address
+                        and prev_entry.mechanism == entry.mechanism
+                        and prev_entry.credentials == entry.credentials
                 ):
                     raise AuthFileEntryAlreadyExists([index])
         else:
@@ -2247,7 +2266,7 @@ class AuthFileEntryAlreadyExists(AuthFileIndexError):
 
 
 class AuthFileUserIdAlreadyExists(AuthFileEntryAlreadyExists):
-    
+
     """
     Exception if adding an entry that has a taken user_id.
     """
