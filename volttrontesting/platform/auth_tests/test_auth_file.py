@@ -99,9 +99,9 @@ counter = 50
 def test_auth_file_overwrite(auth_file_platform_tuple, auth_entry_only_creds):
     auth_file = auth_file_platform_tuple
     auth_file.add(auth_entry_only_creds)
-    auth_file.auth_data = auth_file._read()
+    auth_file.load()
     auth_file.add(auth_entry_only_creds, overwrite=True)
-    auth_file.auth_data = auth_file._read()
+    auth_file.load()
     entries = auth_file.read_allow_entries()
     with raises(AuthFileEntryAlreadyExists):
         auth_file.add(auth_entry_only_creds)
@@ -111,7 +111,7 @@ def test_auth_file_overwrite(auth_file_platform_tuple, auth_entry_only_creds):
 def test_auth_file_same_user_id(auth_file_platform_tuple, auth_entry1, auth_entry2):
     auth_file = auth_file_platform_tuple
     auth_file.add(auth_entry1)
-    auth_file.auth_data = auth_file._read()
+    auth_file.load()
     auth_entry2.user_id = auth_entry1.user_id
     with raises(AuthFileUserIdAlreadyExists):
         auth_file.add(auth_entry2, False)
@@ -123,22 +123,22 @@ def test_auth_file_api(auth_file_platform_tuple, auth_entry1,
 
     # add entries
     auth_file.add(auth_entry1)
-    auth_file.auth_data = auth_file._read()
+    auth_file.load()
     auth_file.add(auth_entry2)
-    auth_file.auth_data = auth_file._read()
+    auth_file.load()
     entries = auth_file.read_allow_entries()
     entries_len = len(entries)
     assert entries_len == 2
 
     # update entries
     auth_file.update_by_index(auth_entry3, entries_len-2)
-    auth_file.auth_data = auth_file._read()
+    auth_file.load()
     entries = auth_file.read_allow_entries()
     assert entries_len == len(entries)
 
     # remove entries
     auth_file.remove_by_index(entries_len-1)
-    auth_file.auth_data = auth_file._read()
+    auth_file.load()
     entries = auth_file.read_allow_entries()
     assert entries_len - 1 == len(entries)
 
@@ -150,18 +150,18 @@ def test_remove_auth_by_credentials(auth_file_platform_tuple, auth_entry1,
 
     # add entries
     auth_file.add(auth_entry1)
-    auth_file.auth_data = auth_file._read()
+    auth_file.load()
     auth_file.add(auth_entry2)
-    auth_file.auth_data = auth_file._read()
+    auth_file.load()
     auth_entry3.credentials = auth_entry2.credentials
     auth_file.add(auth_entry3)
-    auth_file.auth_data = auth_file._read()
+    auth_file.load()
     entries = auth_file.read_allow_entries()
     entries_len = len(entries)
 
     # remove entries
     auth_file.remove_by_credentials(auth_entry2.credentials)
-    auth_file.auth_data = auth_file._read()
+    auth_file.load()
     entries = auth_file.read_allow_entries()
     assert entries_len - 2 == len(entries)
 
@@ -199,11 +199,11 @@ def test_find_by_credentials(auth_file_platform_tuple):
     cred1 = 'A'*43
     cred2 = 'B'*43
     auth_file.add(AuthEntry(domain='test1', credentials=cred1))
-    auth_file.auth_data = auth_file._read()
+    auth_file.load()
     auth_file.add(AuthEntry(domain='test2', credentials=cred1))
-    auth_file.auth_data = auth_file._read()
+    auth_file.load()
     auth_file.add(AuthEntry(domain='test3', credentials=cred2))
-    auth_file.auth_data = auth_file._read()
+    auth_file.load()
 
     # find non-regex creds
     results = auth_file.find_by_credentials(cred1)
@@ -222,7 +222,7 @@ def test_groups_and_roles(auth_file_platform_tuple):
     cred = 'C'*43
     auth_file.add(AuthEntry(credentials=cred, groups=['group_1'],
                             roles=['role_b']))
-    auth_file.auth_data = auth_file._read()
+    auth_file.load()
     # This entry hasn not been granted any capabilities
     results = auth_file.find_by_credentials(cred)
     assert len(results) == 1
@@ -241,9 +241,9 @@ def test_groups_and_roles(auth_file_platform_tuple):
         'group_2': ['role_b']
     }
     auth_file.set_roles(roles)
-    auth_file.auth_data = auth_file._read()
+    auth_file.load()
     auth_file.set_groups(groups)
-    auth_file.auth_data = auth_file._read()
+    auth_file.load()
     # Now the entry has inherited capabilities from its roles and groups
     results = auth_file.find_by_credentials(cred)
     assert len(results) == 1
