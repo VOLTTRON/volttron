@@ -494,9 +494,9 @@ class AuthService(Agent):
         modified_entries = []
         for entry in new_entries:
             if (
-                entry.identity is not None
-                and entry.identity not in PROCESS_IDENTITIES
-                and entry.identity != CONTROL_CONNECTION
+                    entry.identity is not None
+                    and entry.identity not in PROCESS_IDENTITIES
+                    and entry.identity != CONTROL_CONNECTION
             ):
 
                 for old_entry in old_entries:
@@ -1268,10 +1268,10 @@ class AuthService(Agent):
         for entry in self._auth_pending:
             # Check if failure entry exists. If so, increment the failure count
             if (
-                (entry["domain"] == domain)
-                and (entry["address"] == address)
-                and (entry["mechanism"] == mechanism)
-                and (entry["credentials"] == credential)
+                    (entry["domain"] == domain)
+                    and (entry["address"] == address)
+                    and (entry["mechanism"] == mechanism)
+                    and (entry["credentials"] == credential)
             ):
                 entry["retries"] += 1
                 return
@@ -1991,10 +1991,10 @@ class AuthFile(object):
                 # Compare AuthEntry objects component-wise, rather than
                 # using match, because match will evaluate regex.
                 if (
-                    prev_entry.domain == entry.domain
-                    and prev_entry.address == entry.address
-                    and prev_entry.mechanism == entry.mechanism
-                    and prev_entry.credentials == entry.credentials
+                        prev_entry.domain == entry.domain
+                        and prev_entry.address == entry.address
+                        and prev_entry.mechanism == entry.mechanism
+                        and prev_entry.credentials == entry.credentials
                 ):
                     raise AuthFileEntryAlreadyExists([index])
 

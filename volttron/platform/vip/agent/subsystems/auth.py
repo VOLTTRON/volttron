@@ -132,7 +132,10 @@ class Auth(SubsystemBase):
         core.onsetup.connect(onsetup, self)
 
     def connect_remote_platform(
-        self, address, serverkey=None, agent_class=None
+            self,
+            address,
+            serverkey=None,
+            agent_class=None
     ):
         """
         Agent attempts to connect to a remote platform to exchange data.
@@ -371,7 +374,10 @@ class Auth(SubsystemBase):
         return value
 
     def request_cert(
-        self, csr_server, fully_qualified_local_identity, discovery_info
+            self,
+            csr_server,
+            fully_qualified_local_identity,
+            discovery_info
     ):
         """
         Get a signed csr from the csr_server endpoint

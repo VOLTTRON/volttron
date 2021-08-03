@@ -562,9 +562,8 @@ class RPC(SubsystemBase):
                 except ZMQError as exc:
                     if exc.errno == ENOTSOCK:
                         _log.debug(
-                            "Socket send on non socket {}".format(
-                                self.core().identity
-                            )
+                            "Socket send on non-socket %s",
+                            self.core().identity
                         )
         return results or None
 
