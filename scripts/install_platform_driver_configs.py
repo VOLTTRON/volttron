@@ -39,11 +39,9 @@
 import os
 import glob
 
-from volttron.platform.agent.known_identities import CONFIGURATION_STORE, PLATFORM_DRIVER
-from volttron.platform import get_address
+from volttron.platform.agent.known_identities import CONFIGURATION_STORE, PLATFORM_DRIVER, PLATFORM
 from volttron.platform.keystore import KeyStore
-from volttron.platform.agent.utils import execute_command
-from volttrontesting.fixtures.volttron_platform_fixtures import build_wrapper
+from volttron.platform.vip.agent.utils import build_agent
 from argparse import ArgumentParser, RawTextHelpFormatter
 
 description = """
@@ -81,20 +79,8 @@ adding new configurations.
 def install_configs(input_directory, keep=False):
     os.chdir(input_directory)
     ks = KeyStore()
-    publickey = ks.public
-    secretkey = ks.secret
-    identity = "platform_driver_update_agent"
-    capabilities = str(dict(edit_config_store=dict(identity=PLATFORM_DRIVER)))
-    args = ["vctl", "auth", "add",
-            "--user_id", identity,
-            "--credentials", publickey,
-            "--capabilities", capabilities,
-            "--comments", "Added by install_platform_driver_configs"]
 
-    execute_command(args)
-
-    agent = build_wrapper(get_address(), should_start=False)\
-        .build_agent(address=get_address(), identity=identity, publickey=publickey, secretkey=secretkey, enable_store=True)
+    agent = build_agent(identity=PLATFORM, publickey=ks.public, secretkey=ks.secret, enable_store=True, timeout=30)
 
     if not keep:
         print("Deleting old Platform Driver store")
