@@ -562,7 +562,7 @@ class RPC(SubsystemBase):
                 except ZMQError as exc:
                     if exc.errno == ENOTSOCK:
                         _log.debug(
-                            "Socket send on non-socket %s",
+                            "Socket send on non-socket %r",
                             self.core().identity
                         )
         return results or None
@@ -604,9 +604,8 @@ class RPC(SubsystemBase):
             except ZMQError as exc:
                 if exc.errno == ENOTSOCK:
                     _log.debug(
-                        "Socket send on non socket {}".format(
-                            self.core().identity
-                        )
+                        "Socket send on non-socket %r",
+                        self.core().identity
                     )
         else:
             # Agent running on RMQ message bus.
@@ -662,9 +661,8 @@ class RPC(SubsystemBase):
             except ZMQError as exc:
                 if exc.errno == ENOTSOCK:
                     _log.debug(
-                        "Socket send on non socket {}".format(
-                            self.core().identity
-                        )
+                        "Socket send on non-socket %r",
+                        self.core().identity
                     )
         else:
             # Agent running on RMQ message bus.
