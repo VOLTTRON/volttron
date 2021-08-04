@@ -269,12 +269,8 @@ class PlatformWrapper:
             'VOLTTRON_ROOT': VOLTTRON_ROOT
         }
         self.volttron_root = VOLTTRON_ROOT
-
-        self.vctl_exe = str(Path(sys.executable).parent.joinpath('volttron-ctl'))
-        self.volttron_exe = str(Path(sys.executable).parent.joinpath('volttron'))
-
-        assert Path(self.vctl_exe).exists()
-        assert Path(self.volttron_exe).exists()
+        self.vctl_exe = 'volttron-ctl'
+        self.volttron_exe = 'volttron'
         self.python = sys.executable
         assert os.path.exists(self.python)
 
