@@ -104,14 +104,9 @@ VOLTTRON_ROOT = os.environ.get("VOLTTRON_ROOT")
 if not VOLTTRON_ROOT:
     VOLTTRON_ROOT = dirname(dirname(dirname(os.path.realpath(__file__))))
 
-if os.environ.get('CI', None) is None:
-    VSTART = os.path.join(VOLTTRON_ROOT, "env/bin/volttron")
-    VCTRL = os.path.join(VOLTTRON_ROOT, "env/bin/volttron-ctl")
-    TWISTED_START = os.path.join(VOLTTRON_ROOT, "env/bin/twistd")
-else:
-    VSTART = "volttron"
-    VCTRL = "volttron-ctl"
-    TWISTED_START = "twistd"
+VSTART = "volttron"
+VCTRL = "volttron-ctl"
+TWISTED_START = "twistd"
 
 SEND_AGENT = "send"
 
