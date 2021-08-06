@@ -272,7 +272,6 @@ class PlatformWrapper:
         self.vctl_exe = 'volttron-ctl'
         self.volttron_exe = 'volttron'
         self.python = sys.executable
-        assert os.path.exists(self.python)
 
         # By default no web server should be started.
         self.bind_web_address = None
