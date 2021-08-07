@@ -62,7 +62,7 @@ class VolttronProcess(Process):
             sys.exit(1)
 
         with open(os.path.join(self.volttron_home, "volttron.log"), "w", encoding='utf-8') as fw:
-            process = subprocess.Popen(["volttron", "-vv"],
+            process = subprocess.Popen(["env/bin/volttron", "-vv"],
                                        env=self._my_env, stderr=STDOUT, stdout=PIPE)
             self._volttron_subprocess = process
             skip = len('2019-07-12 18:51:02,702 ()')

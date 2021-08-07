@@ -33,8 +33,22 @@ ignore_env_check = os.environ.get('IGNORE_ENV_CHECK', False)
 
 # Call the script with the correct environment if we aren't activated yet.
 if not ignore_env_check and not inenv and not corrected:
+    mypath = os.path.dirname(__file__)
+    # Travis-CI puts the python in a little bit different location than
+    # we do.
+    if os.environ.get('CI') is not None:
+        correct_python = execute_command(['which', 'python'],
+                                         logger=log).strip()
+    else:
+        correct_python = os.path.abspath(
+            os.path.join(mypath, '../env/bin/python'))
+
+    if not os.path.exists(correct_python):
+        log.error("Invalid location for the script {}".format(correct_python))
+        sys.exit(-10)
+
     # Call this script in a subprocess with the correct python interpreter.
-    cmds = [sys.executable, __file__]
+    cmds = [correct_python, __file__]
     cmds.extend(sys.argv[1:])
     try:
         output = execute_command(cmds, env=os.environ, logger=log)
@@ -47,7 +61,7 @@ from volttron.platform import get_address, get_home, get_volttron_root, \
     is_instance_running
 from volttron.platform.packaging import create_package, add_files_to_package
 
-__version__ = '0.4'
+__version__ = '0.3'
 
 
 def _build_copy_env(opts):
@@ -290,7 +304,14 @@ if __name__ == '__main__':
     elif not opts.json and not opts.csv:
         opts.json = True
 
-    opts.volttron_control = "volttron-ctl"
+    # We know we need to disable the joining of env path if we aren't within
+    # the context of an environment
+    if os.environ.get('CI') is not None or ignore_env_check:
+        opts.volttron_control = "volttron-ctl"
+    else:
+        opts.volttron_control = os.path.join(opts.volttron_root,
+                                             "env/bin/volttron-ctl")
+
     if opts.vip_identity is not None:
         # if the identity exists the variable will have the agent uuid in it.
         exists = identity_exists(opts, opts.vip_identity)
