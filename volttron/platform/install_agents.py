@@ -56,6 +56,10 @@ from volttron.platform.agent.utils import execute_command
 from volttron.platform.packaging import add_files_to_package, create_package
 
 
+class InstallRuntimeError(RuntimeError):
+    pass
+
+
 _log = logging.getLogger(__name__)
 
 _stdout = sys.stdout
@@ -71,7 +75,7 @@ def install_requirements(agent_source):
         try:
             execute_command(cmds, logger=_log,
                             err_prefix="Error installing requirements")
-        except RuntimeError:
+        except InstallRuntimeError:
             sys.exit(1)
 
 
@@ -97,8 +101,7 @@ def install_agent_directory(opts, publickey=None, secretkey=None):
     opts.package = create_package(opts.install_path, wheelhouse, opts.vip_identity)
 
     if not os.path.isfile(opts.package):
-        _log.error("The wheel file for the agent was unable to be created.")
-        sys.exit(-10)
+        raise InstallRuntimeError("The wheel file for the agent was unable to be created.")
 
     agent_uuid = None
     if not opts.vip_identity:
@@ -118,6 +121,8 @@ def install_agent_directory(opts, publickey=None, secretkey=None):
     # if not a dict then config should be a filename
     if not isinstance(agent_config, dict):
         config_file = agent_config
+        if not Path(config_file).exists():
+            raise InstallRuntimeError(f"Config file {config_file} does not exist!")
     else:
         cfg = tempfile.NamedTemporaryFile()
         with open(cfg.name, 'w') as fout:
@@ -127,12 +132,14 @@ def install_agent_directory(opts, publickey=None, secretkey=None):
     try:
         with open(config_file) as fp:
             data = yaml.safe_load(fp)
-    except:
-        _log.error("Invalid yaml/json config file.")
-        sys.exit(-10)
+    except Exception as exc:
+        raise InstallRuntimeError(exc)
 
-    # Configure the whl file before installing.
-    add_files_to_package(opts.package, {'config_file': config_file})
+    try:
+        # Configure the whl file before installing.
+        add_files_to_package(opts.package, {'config_file': config_file})
+    except FileNotFoundError:
+        raise InstallRuntimeError(f"File not found: {config_file}")
 
     _send_and_intialize_agent(opts, publickey, secretkey)
     
@@ -221,7 +228,7 @@ def install_agent_vctl(opts, publickey=None, secretkey=None, callback=None):
         if opts.connection.call("identity_exists", opts.vip_identity):
             if not opts.force:
                 opts.connection.kill()
-                raise RuntimeError("Identity already exists.  Pass --force option to re-install.")
+                raise InstallRuntimeError("Identity already exists.  Pass --force option to re-install.")
 
     if os.path.isdir(install_path):
         install_agent_directory(opts, publickey, secretkey)
@@ -403,7 +410,6 @@ def send_agent(connection: "ControlConnection", wheel_file: str, vip_identity: s
             channel.close(linger=0)
             del channel
 
-    
     if server.core.messagebus == 'rmq':
         _log.debug(f"calling install_agent on {peer} sending to topic {rmq_send_topic}")
         task = gevent.spawn(send_rmq)

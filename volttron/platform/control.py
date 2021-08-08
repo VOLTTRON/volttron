@@ -88,7 +88,7 @@ from volttron.utils.rmq_config_params import RMQConfig
 from volttron.utils.rmq_mgmt import RabbitMQMgmt
 from volttron.utils.rmq_setup import check_rabbit_status
 from volttron.platform.agent.utils import is_secure_mode, wait_for_volttron_shutdown
-from volttron.platform.install_agents import add_install_agent_parser
+from volttron.platform.install_agents import add_install_agent_parser, InstallRuntimeError
 
 try:
     import volttron.restricted
@@ -4032,10 +4032,14 @@ def main():
         # else we return 0 from here.  This has the added effect of
         # allowing us to cascade short circuit calls.
         if exc.args[0] != 0:
-            print_tb = exc.print_tb
             error = exc.message
         else:
             return 0
+    except InstallRuntimeError as exrt:
+        if opts.debug:
+            _log.exception(exrt)
+        _stderr.write(f"{exrt.args[0]}\n")
+        return 1
     finally:
         # make sure the connection to the server is closed when this scriopt is about to exit.
         if opts.connection:
@@ -4047,8 +4051,6 @@ def main():
             finally:
                 opts.connection = None
 
-    if opts.debug:
-        print_tb()
     _stderr.write("{}: error: {}\n".format(opts.command, error))
     return 20
 
