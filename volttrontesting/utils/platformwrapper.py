@@ -104,14 +104,9 @@ VOLTTRON_ROOT = os.environ.get("VOLTTRON_ROOT")
 if not VOLTTRON_ROOT:
     VOLTTRON_ROOT = dirname(dirname(dirname(os.path.realpath(__file__))))
 
-if os.environ.get('CI', None) is None:
-    VSTART = os.path.join(VOLTTRON_ROOT, "env/bin/volttron")
-    VCTRL = os.path.join(VOLTTRON_ROOT, "env/bin/volttron-ctl")
-    TWISTED_START = os.path.join(VOLTTRON_ROOT, "env/bin/twistd")
-else:
-    VSTART = "volttron"
-    VCTRL = "volttron-ctl"
-    TWISTED_START = "twistd"
+VSTART = "volttron"
+VCTRL = "volttron-ctl"
+TWISTED_START = "twistd"
 
 SEND_AGENT = "send"
 
@@ -274,14 +269,9 @@ class PlatformWrapper:
             'VOLTTRON_ROOT': VOLTTRON_ROOT
         }
         self.volttron_root = VOLTTRON_ROOT
-
-        self.vctl_exe = str(Path(sys.executable).parent.joinpath('volttron-ctl'))
-        self.volttron_exe = str(Path(sys.executable).parent.joinpath('volttron'))
-
-        assert Path(self.vctl_exe).exists()
-        assert Path(self.volttron_exe).exists()
+        self.vctl_exe = 'volttron-ctl'
+        self.volttron_exe = 'volttron'
         self.python = sys.executable
-        assert os.path.exists(self.python)
 
         # By default no web server should be started.
         self.bind_web_address = None

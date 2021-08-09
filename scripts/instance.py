@@ -15,8 +15,7 @@ else:
 
 if not inenv:
     mypath = os.path.dirname(__file__)
-    correct_python = os.path.abspath(
-        os.path.join(mypath, '../env/bin/python'))
+    correct_python = sys.executable
     if not os.path.exists(correct_python):
         log.error("Invalid location for the script {}".format(correct_python))
         sys.exit(-10)
@@ -30,7 +29,7 @@ if not inenv:
 
 from volttron.platform import get_home, is_instance_running
 
-__version__ = '0.1'
+__version__ = '0.2'
 
 
 if __name__ == '__main__':
