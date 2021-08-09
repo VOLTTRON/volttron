@@ -278,7 +278,7 @@ def test_accept_credential(volttron_instance_web):
 
         print(f"agent uuid: {pending_agent.core.agent_uuid}")
         instance.dynamic_agent.vip.rpc.call(AUTH, "approve_authorization_failure", auth_pending[0]["user_id"]).wait(timeout=4)
-        gevent.sleep(1)
+        gevent.sleep(2)
         auth_approved = instance.dynamic_agent.vip.rpc.call(AUTH, "get_authorization_approved").get()
 
         assert len(auth_approved) == len_auth_approved + 1
@@ -305,7 +305,7 @@ def test_deny_credential(volttron_instance_web):
 
         print(f"agent uuid: {pending_agent.core.agent_uuid}")
         instance.dynamic_agent.vip.rpc.call(AUTH, "deny_authorization_failure", auth_pending[0]["user_id"]).wait(timeout=4)
-        gevent.sleep(1)
+        gevent.sleep(2)
         auth_denied = instance.dynamic_agent.vip.rpc.call(AUTH, "get_authorization_denied").get()
 
         assert len(auth_denied) == len_auth_denied + 1
@@ -328,7 +328,7 @@ def test_delete_credential(volttron_instance_web):
         assert len(auth_pending) == len_auth_pending + 1
 
         instance.dynamic_agent.vip.rpc.call(AUTH, "delete_authorization_failure", auth_pending[0]["user_id"]).wait(timeout=4)
-        gevent.sleep(1)
+        gevent.sleep(2)
         auth_pending = instance.dynamic_agent.vip.rpc.call(AUTH, "get_authorization_pending").get()
 
         assert len(auth_pending) == len_auth_pending
