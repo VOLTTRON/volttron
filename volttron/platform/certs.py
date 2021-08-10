@@ -688,6 +688,10 @@ class Certs(object):
 
             with open(metafile, 'w') as fp:
                 fp.write(jsonapi.dumps(metadata))
+            # Change group+other permissions to read only
+            for root, dirs, files in os.walk(directory):
+                for f in files:
+                    os.chmod(os.path.join(root, f), 0o644)
         except Exception as e:
             _log.error(f"Error saving agent remote cert info. Exception:{e}")
             raise e
@@ -742,6 +746,9 @@ class Certs(object):
             os.makedirs(directory, mode=0o755)
         if file_path != cert_file:
             copyfile(file_path, cert_file)
+            # but restrict file access. even to group. umask won't change
+            # group permissions
+            os.chmod(cert_file, 0o644)
 
     def save_key(self, file_path):
         key_file = self.private_key_file(os.path.splitext(os.path.basename(
