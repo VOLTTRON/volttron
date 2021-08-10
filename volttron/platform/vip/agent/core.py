@@ -193,7 +193,7 @@ class BasicCore(object):
         self._owner = owner
 
     def setup(self):
-        # Split out setup from __init__ to give oportunity to add
+        # Split out setup from __init__ to give opportunity to add
         # subsystems with signals
         try:
             owner = self._owner

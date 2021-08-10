@@ -597,6 +597,7 @@ class AIPplatform(object):
             capabilities = {'edit_config_store': {'identity': '/.*/'}}
 
         entry = AuthEntry(credentials=publickey, user_id=identity,
+                          identity=identity,
                           capabilities=capabilities,
                           comments='Automatically added on agent install')
         try:

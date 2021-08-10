@@ -794,8 +794,10 @@ def start_volttron_process(opts):
     ks_control_conn = KeyStore(KeyStore.get_agent_keystore_path(CONTROL_CONNECTION))
     entry = AuthEntry(credentials=encode_key(decode_key(ks_control_conn.public)),
                       user_id=CONTROL_CONNECTION,
+                      identity=CONTROL_CONNECTION,
                       capabilities=[{'edit_config_store': {'identity': '/.*/'}},
-                                    "allow_auth_modifications"],
+                                    'modify_rpc_method_allowance',
+                                    'allow_auth_modifications'],
                       comments='Automatically added by platform on start')
     AuthFile().add(entry, overwrite=True)
 
@@ -896,6 +898,15 @@ def start_volttron_process(opts):
                 auth_file, protected_topics_file, opts.setup_mode,
                 opts.aip, address=address, identity=AUTH,
                 enable_store=False, message_bus='zmq')
+
+            ks_auth = KeyStore(KeyStore.get_agent_keystore_path(AUTH))
+            entry = AuthEntry(
+                credentials=encode_key(decode_key(ks_auth.public)),
+                user_id=AUTH,
+                identity=AUTH,
+                capabilities=['modify_rpc_method_allowance'],
+                comments='Automatically added by platform on start')
+            AuthFile().add(entry, overwrite=True)
 
             event = gevent.event.Event()
             auth_task = gevent.spawn(auth.core.run, event)
@@ -1030,8 +1041,16 @@ def start_volttron_process(opts):
         ]
         entry = AuthEntry(credentials=services[0].core.publickey,
                           user_id=CONTROL,
+                          identity=CONTROL,
                           capabilities=[{'edit_config_store': {'identity': '/.*/'}},
-                                        "allow_auth_modifications"],
+                                        'modify_rpc_method_allowance',
+                                        'allow_auth_modifications'],
+                          comments='Automatically added by platform on start')
+        AuthFile().add(entry, overwrite=True)
+
+        entry = AuthEntry(credentials=services[1].core.publickey,
+                          user_id=KEY_DISCOVERY,
+                          identity=KEY_DISCOVERY,
                           comments='Automatically added by platform on start')
         AuthFile().add(entry, overwrite=True)
 
@@ -1076,6 +1095,7 @@ def start_volttron_process(opts):
         ks_platformweb = KeyStore(KeyStore.get_agent_keystore_path(PLATFORM_WEB))
         entry = AuthEntry(credentials=encode_key(decode_key(ks_platformweb.public)),
                           user_id=PLATFORM_WEB,
+                          identity=PLATFORM_WEB,
                           capabilities=['allow_auth_modifications'],
                           comments='Automatically added by platform on start')
         AuthFile().add(entry, overwrite=True)
