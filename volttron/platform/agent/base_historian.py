@@ -1780,7 +1780,7 @@ class BackupDatabase:
         if c.fetchone() is None:
             _log.debug("Configuring backup DB for the first time.")
             self._connection.execute('''PRAGMA auto_vacuum = FULL''')
-            self._connection.execute('''CREATE TABLE outstanding
+            self._connection.execute('''CREATE TABLE IF NOT EXISTS outstanding
                                         (id INTEGER PRIMARY KEY,
                                          ts timestamp NOT NULL,
                                          source TEXT NOT NULL,
@@ -1835,7 +1835,7 @@ class BackupDatabase:
         if c.fetchone() is None:
             _log.debug("Configuring backup DB for the first time.")
             self._connection.execute('''PRAGMA auto_vacuum = FULL''')
-            self._connection.execute('''CREATE TABLE time_error
+            self._connection.execute('''CREATE TABLE IF NOT EXISTS time_error
                                                 (id INTEGER PRIMARY KEY,
                                                  ts timestamp NOT NULL,
                                                  source TEXT NOT NULL,
@@ -1848,7 +1848,7 @@ class BackupDatabase:
                   "AND name='metadata';")
 
         if c.fetchone() is None:
-            self._connection.execute('''CREATE TABLE metadata
+            self._connection.execute('''CREATE TABLE IF NOT EXISTS metadata
                                         (source TEXT NOT NULL,
                                          topic_id INTEGER NOT NULL,
                                          name TEXT NOT NULL,
@@ -1863,7 +1863,7 @@ class BackupDatabase:
                   "AND name='topics';")
 
         if c.fetchone() is None:
-            self._connection.execute('''create table topics
+            self._connection.execute('''create table IF NOT EXISTS topics
                                         (topic_id INTEGER PRIMARY KEY,
                                          topic_name TEXT NOT NULL,
                                          UNIQUE(topic_name))''')

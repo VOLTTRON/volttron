@@ -267,9 +267,7 @@ def test_time_tolerance_check(request, volttron_instance, client_agent):
         gevent.sleep(5) #wait for historian to be fully up
         historian.publish_sleep = 0
         import pathlib
-        p = pathlib.Path(__file__).parent.parent.parent.parent.absolute()
-        print(f"Path to backupdb is {os.path.join(p,'backup.sqlite')}")
-        db_connection = sqlite3.connect(os.path.join(p,"backup.sqlite"))
+        db_connection = sqlite3.connect("./backup.sqlite")
         c = db_connection.cursor()
         try:
             c.execute("DELETE FROM time_error")
@@ -310,7 +308,7 @@ def test_time_tolerance_check(request, volttron_instance, client_agent):
                                             message=all_message)
             d_now = d_now + timedelta(seconds=1)
 
-        gevent.sleep(2)
+        gevent.sleep(3)
         status = client_agent.vip.rpc.call("platform.historian", "health.get_status").get(timeout=10)
         print(f"STATUS: {status}")
         assert status["status"] == STATUS_BAD
