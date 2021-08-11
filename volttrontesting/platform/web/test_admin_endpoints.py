@@ -44,7 +44,8 @@ from volttron.utils.rmq_mgmt import RabbitMQMgmt
 from mock import patch
 from urllib.parse import urlencode
 from volttrontesting.utils.web_utils import get_test_web_env
-from volttrontesting.fixtures.volttron_platform_fixtures import get_test_volttron_home
+from volttrontesting.fixtures.volttron_platform_fixtures import \
+    get_test_volttron_home, rmq_skipif
 
 from volttron.platform import jsonapi
 from passlib.hash import argon2
@@ -191,6 +192,7 @@ def test_add_user():
 
 
 @pytest.mark.web
+@rmq_skipif
 def test_construction():
 
     # within rabbitmq mgmt this is used

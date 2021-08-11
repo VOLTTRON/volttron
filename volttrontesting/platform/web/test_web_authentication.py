@@ -29,10 +29,10 @@ from volttron.platform.web.authenticate_endpoint import AuthenticateEndpoints
 from volttrontesting.fixtures.cert_fixtures import certs_profile_1
 from volttrontesting.fixtures.volttron_platform_fixtures import get_test_volttron_home, volttron_instance_web
 
-HAS_RMQ = is_rabbitmq_available()
-ci_skipif = pytest.mark.skipif(os.getenv('CI', None) == 'true', reason='SSL does not work in CI')
-rmq_skipif = pytest.mark.skipif(not HAS_RMQ,
-                                reason='RabbitMQ is not setup and/or SSL does not work in CI')
+# HAS_RMQ = is_rabbitmq_available()
+# ci_skipif = pytest.mark.skipif(os.getenv('CI', None) == 'true', reason='SSL does not work in CI')
+# rmq_skipif = pytest.mark.skipif(not HAS_RMQ,
+#                                 reason='RabbitMQ is not setup and/or SSL does not work in CI')
 
 
 @pytest.mark.parametrize("encryption_type", ("private_key", "tls"))
