@@ -1,6 +1,6 @@
 from time import time
-
-from gevent import sleep, os
+import os
+from gevent import sleep
 import pytest
 
 try:
