@@ -54,6 +54,7 @@ utils.setup_logging()
 logger = logging.getLogger(__name__)
 
 BACNET_DEVICE_TOPIC = "devices/bacnet"
+BACNET_TEST_IP = "BACNET_TEST_IP"
 
 
 def test_scrape_all_should_succeed(bacnet_test_agent):
@@ -112,7 +113,7 @@ def bacnet_proxy_agent(volttron_instance):
 
 
 @pytest.fixture(scope="module")
-def bacnet_test_agent(bacnet_proxy_agent, config_store, volttron_instance):
+def bacnet_test_agent(test_ip, bacnet_proxy_agent, config_store, volttron_instance):
     test_agent = volttron_instance.build_agent(identity="test-agent")
 
     # create a mock callback to use with a subscription to the driver's publish publishes
@@ -136,6 +137,14 @@ def bacnet_test_agent(bacnet_proxy_agent, config_store, volttron_instance):
 
     print("In teardown method of query_agent")
     test_agent.core.stop()
+
+
+@pytest.fixture(scope="module")
+def test_ip():
+    if not os.environ.get(BACNET_TEST_IP):
+        pytest.skip(
+            f"Env var {BACNET_TEST_IP} not set. Please set the env var to the proper IP to run this integration test.")
+    return os.environ.get(BACNET_TEST_IP)
 
 
 @pytest.fixture(scope="module")
@@ -166,9 +175,9 @@ def config_store_connection(volttron_instance):
 
 
 @pytest.fixture(scope="module")
-def config_store(config_store_connection):
+def config_store(test_ip, config_store_connection):
     # this fixture will setup a the BACnet driver that will communicate with a live BACnet device located at PNNL campus in Richland at the given device_address
-    device_address = "130.20.24.157"
+    device_address = test_ip
     if os.system("ping -c 1 " + device_address) != 0:
         pytest.skip(f"BACnet device cannot be reached at {device_address} ")
 
