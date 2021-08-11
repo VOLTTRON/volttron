@@ -39,10 +39,10 @@
 import os
 import glob
 
+from argparse import ArgumentParser, RawTextHelpFormatter
 from volttron.platform.agent.known_identities import CONFIGURATION_STORE, PLATFORM_DRIVER, PLATFORM
 from volttron.platform.keystore import KeyStore
 from volttron.platform.vip.agent.utils import build_agent
-from argparse import ArgumentParser, RawTextHelpFormatter
 
 description = """
 Updates the contents of the Platform Driver configuration store with a set of
@@ -77,9 +77,13 @@ adding new configurations.
 
 
 def install_configs(input_directory, keep=False):
-    os.chdir(input_directory)
-    ks = KeyStore()
+    try:
+        os.chdir(input_directory)
+    except FileNotFoundError:
+        print(f"'input_directory' could not be found: {input_directory}")
+        return
 
+    ks = KeyStore()
     agent = build_agent(identity=PLATFORM, publickey=ks.public, secretkey=ks.secret, enable_store=True, timeout=30)
 
     if not keep:
