@@ -24,6 +24,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
         TEST_TYPE: dbutils
+        CI: true
     steps:
       # checkout the volttron repository and set current directory to it
       - uses: actions/checkout@v2
