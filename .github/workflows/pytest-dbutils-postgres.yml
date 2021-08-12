@@ -7,14 +7,16 @@
 # This workflow also shows the caching mechanisms available for storage
 # and retrieval of cache for quicker setup of test environments.
 
-env:
-    DB: postgresqlfuncts
 
 name: Testing postgresqlfuncts
 on: [push, pull_request]
 
 jobs:
   build:
+    env:
+      TEST_FILE: postgresqlfuncts.py
+      #        CI: true
+
     # The strategy allows customization of the build and allows matrixing the version of os and software
     # https://docs.github.com/en/free-pro-team@l.atest/actions/reference/workflow-syntax-for-github-actions#jobsjob_idstrategy
     strategy:
@@ -25,9 +27,7 @@ jobs:
         python-version: [ 3.6 ] #, 3.7] # , 3.8, 3.9 ]
 
     runs-on: ${{ matrix.os }}
-    env:
-        TEST_FILE: ${{ env.DB }}.py
-#        CI: true
+
     steps:
       # checkout the volttron repository and set current directory to it
       - uses: actions/checkout@v2
