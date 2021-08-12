@@ -82,9 +82,8 @@ def test_can_get_publickey(volttron_instance):
     volttron_instance.is_running()
     message_bus = os.environ.get("MESSAGEBUS", "zmq")
 
-    cn = volttron_instance.build_connection(peer="control")
-    assert cn.is_peer_connected()
-    id_serverkey_map = cn.call("get_all_agent_publickeys")
+    cn = volttron_instance.dynamic_agent
+    id_serverkey_map = cn.vip.rpc.call("control", "get_all_agent_publickeys").get(timeout=5)
 
     auuid = volttron_instance.install_agent(
         agent_dir=get_examples("ListenerAgent"),
@@ -93,9 +92,10 @@ def test_can_get_publickey(volttron_instance):
     )
     assert auuid is not None
 
-    id_serverkey_map = cn.call("get_all_agent_publickeys")
+    id_serverkey_map = cn.vip.rpc.call("control", "get_all_agent_publickeys").get(timeout=5)
     assert listener_identity in id_serverkey_map
     assert id_serverkey_map.get(listener_identity) is not None
+    volttron_instance.remove_all_agents()
 
 
 @pytest.mark.control

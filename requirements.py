@@ -121,6 +121,7 @@ extras_require = {
         'mock',
         'pytest',
         'pytest-timeout',
+        'pytest-rerunfailures',
         'websocket-client',
         # Allows us to compare nested dictionaries easily.
         'deepdiff',

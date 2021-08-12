@@ -4,6 +4,8 @@ import gevent
 import pytest
 
 from volttron.platform import jsonrpc
+from volttron.platform import keystore
+from volttron.platform.agent.known_identities import AUTH
 from volttrontesting.utils.utils import poll_gevent_sleep
 from volttron.platform.vip.agent.errors import VIPError
 from volttron.platform import jsonapi
@@ -18,6 +20,7 @@ def build_two_test_agents(volttron_instance):
     The second agent is the unauthorized "RPC caller."
     """
     agent1 = volttron_instance.build_agent(identity='agent1')
+    gevent.sleep(1)
     agent2 = volttron_instance.build_agent(identity='agent2')
     gevent.sleep(1)
 
@@ -37,7 +40,7 @@ def build_two_test_agents(volttron_instance):
         auth_file.remove_by_indices(list(range(3, len(allow_entries))))
         # TODO if we have to wait for auth propagation anyways why do we create new agents for each test case
         #  we should just update capabilities, at least we will save on agent creation and tear down time
-        gevent.sleep(3)
+        gevent.sleep(1)
 
 
 @pytest.fixture
@@ -50,6 +53,7 @@ def build_agents_with_capability_args(volttron_instance):
     """
     # Can't call the fixture directly so build our own agent here.
     agent1 = volttron_instance.build_agent(identity='agent1')
+    gevent.sleep(1)
     agent2 = volttron_instance.build_agent(identity='agent2')
     gevent.sleep(1)
 
@@ -217,6 +221,30 @@ def test_authorized_rpc_call2(volttron_instance, build_two_test_agents):
     gevent.sleep(.1)
     result = agent2.vip.rpc.call(agent1.core.identity, 'foo', 42).get(timeout=2)
     assert result == 42
+
+
+@pytest.mark.auth
+def test_get_rpc_method_authorizations(volttron_instance, build_two_test_agents):
+    (agent1, agent2) = build_two_test_agents
+    volttron_instance.add_capabilities(agent2.publickey, 'modify_rpc_method_allowance')
+    gevent.sleep(1)
+    agent1_rpc_authorizations = agent2.vip.rpc.call(AUTH, 'auth.get_rpc_authorizations', 'approve_authorization_failure').get(timeout=2)
+    assert len(agent1_rpc_authorizations) == 1
+
+
+@pytest.mark.auth
+def test_set_rpc_method_authorizations(volttron_instance, build_two_test_agents):
+    (agent1, agent2) = build_two_test_agents
+    volttron_instance.add_capabilities(agent2.publickey, 'modify_rpc_method_allowance')
+    volttron_instance.add_capabilities(agent2.publickey, 'test_authorization_1')
+    # If the agent is not authorized, then an exception will be raised
+    with pytest.raises(jsonrpc.RemoteError):
+        agent2.vip.rpc.call(agent1.core.identity, 'foo', 42).get(timeout=1)
+
+    agent2.vip.rpc.call(agent1.core.identity, 'auth.set_rpc_authorizations', 'foo', 'test_authorization_1')
+
+    return_val = agent2.vip.rpc.call(agent1.core.identity, 'foo', 42).get(timeout=1)
+    assert return_val == 42
 
 
 @pytest.mark.auth

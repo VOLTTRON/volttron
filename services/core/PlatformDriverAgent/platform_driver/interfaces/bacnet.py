@@ -50,6 +50,10 @@ _log = logging.getLogger(__name__)
 
 DEFAULT_COV_LIFETIME = 180
 COV_UPDATE_BUFFER = 3
+BACNET_TYPE_MAPPING = {"multiStateValue": int, "multiStateInput": int, "multiStateOutput": int,
+                       "analogValue": float, "analogInput": float, "analogOutput": float,
+                       "binaryValue": bool, "binaryInput": bool, "binaryOutput": bool
+                      }
 
 
 class Register(BaseRegister):
@@ -61,6 +65,7 @@ class Register(BaseRegister):
         self.property = property_name
         self.priority = priority
         self.index = list_index
+        self.python_type = BACNET_TYPE_MAPPING[object_type]
 
 
 class Interface(BaseInterface):

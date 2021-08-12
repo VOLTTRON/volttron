@@ -24,6 +24,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
         TEST_TYPE: dbutils
+        CI: true
     steps:
       # checkout the volttron repository and set current directory to it
       - uses: actions/checkout@v2
@@ -38,6 +39,7 @@ jobs:
       # Run the specified tests and save the results to a unique file that can be archived for later analysis.
       - name: Run pytest on ${{ matrix.python-version }}, ${{ matrix.os }}
         uses: volttron/volttron-build-action@v1
+        timeout-minutes: 600
         with:
             python_version: ${{ matrix.python-version }}
             os: ${{ matrix.os }}
