@@ -7,7 +7,10 @@
 # This workflow also shows the caching mechanisms available for storage
 # and retrieval of cache for quicker setup of test environments.
 
-name: Testing postgresqlfuncts
+env:
+    db: postgresqlfuncts
+
+name: Testing ${{ env.db }}
 on: [push, pull_request]
 
 jobs:
@@ -23,7 +26,7 @@ jobs:
 
     runs-on: ${{ matrix.os }}
     env:
-        TEST_TYPE: dbutils/test_postgresqlfuncts.py
+        TEST_FILE: ${{ env.db }}.py
 #        CI: true
     steps:
       # checkout the volttron repository and set current directory to it
@@ -43,8 +46,8 @@ jobs:
         with:
             python_version: ${{ matrix.python-version }}
             os: ${{ matrix.os }}
-            test_path: volttrontesting/platform/${{ env.TEST_TYPE }}
-            test_output_suffix: ${{ env.TEST_TYPE }}
+            test_path: volttrontesting/platform/dbutils/test_${{ env.TEST_FILE }}
+            test_output_suffix: ${{ env.TEST_FILE }}
 
 #       Archive the results from the pytest to storage.
       - name: Archive test results
