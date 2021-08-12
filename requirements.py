@@ -71,7 +71,7 @@ extras_require = {
         'crate'
     ],
     'databases': [  # Support for all known databases
-        'mysql-connector-python-rf',
+        'mysql-connector-python',
         'bson==0.5.7',
         'pymongo==3.7.2',
         'crate',
@@ -108,7 +108,7 @@ extras_require = {
         'pymongo==3.7.2',
     ],
     'mysql': [  # mysql databases
-        'mysql-connector-python-rf',
+        'mysql-connector-python',
     ],
     'pandas': [  # numpy and pandas for applications
         'numpy',

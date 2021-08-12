@@ -62,6 +62,7 @@ def test_base_historian_agent_should_filter_duplicates(base_historian_agent):
             "headers": {
                 "Date": "2015-11-17 21:24:10.189393+00:00",
                 "TimeStamp": "2015-11-17 21:24:10.189393+00:00",
+                "time_error": False
             },
             "meta": {},
         }
@@ -91,9 +92,6 @@ class BaseHistorianAgentTestWrapper(BaseHistorianAgent):
     def publish_to_historian(self, to_publish_list):
         self.report_all_handled()
         self.last_to_publish_list = to_publish_list
-
-    def record_table_definitions(self, meta_table_name):
-        pass
 
 
 @pytest.fixture()

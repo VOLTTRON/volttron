@@ -25,6 +25,7 @@ import pytz
 import psycopg2
 from psycopg2 import InterfaceError, ProgrammingError, errorcodes
 from psycopg2.sql import Identifier, Literal, SQL
+from psycopg2.extras import execute_values
 
 from volttron.platform.agent import utils
 from volttron.platform import jsonapi
@@ -68,8 +69,8 @@ class PostgreSqlFuncts(DbDriver):
     @contextlib.contextmanager
     def bulk_insert(self):
         """
-        This function implements the bulk insert requirements for Redshift historian by overriding the
-        DbDriver::bulk_insert() in basedb.py and yields nescessary data insertion method needed for bulk inserts
+        This function implements the bulk insert requirements for postgresql historian by overriding the
+        DbDriver::bulk_insert() in basedb.py and yields necessary data insertion method needed for bulk inserts
 
         :yields: insert method
         """
@@ -89,17 +90,54 @@ class PostgreSqlFuncts(DbDriver):
             :rtype: bool
             """
             value = jsonapi.dumps(data)
-            records.append(SQL('({}, {}, {})').format(Literal(ts), Literal(topic_id), Literal(value)))
+            records.append((ts, topic_id, value))
             return True
 
         yield insert_data
 
         if records:
-            query = SQL('INSERT INTO {} VALUES {} '
+            query = SQL('INSERT INTO {} VALUES %s '
                         'ON CONFLICT (ts, topic_id) DO UPDATE '
                         'SET value_string = EXCLUDED.value_string').format(
-                            Identifier(self.data_table), SQL(', ').join(records))
-            self.execute_stmt(query)
+                            Identifier(self.data_table))
+            execute_values(self.cursor(), query, records)
+
+    @contextlib.contextmanager
+    def bulk_insert_meta(self):
+        """
+        This function implements the bulk insert requirements for Redshift historian by overriding the
+        DbDriver::bulk_insert_meta() in basedb.py and yields necessary data insertion method needed for bulk inserts
+
+        :yields: insert method
+        """
+        records = []
+
+        def insert_meta(topic_id, metadata):
+            """
+            Inserts metadata records to the list
+
+            :param topic_id: topic ID
+            :type string
+            :param metadata: metadata dictionary
+            :type dict
+            :return: Returns True after insert
+            :rtype: bool
+            """
+            value = jsonapi.dumps(metadata)
+            records.append((topic_id, value))
+            return True
+
+        yield insert_meta
+
+        if records:
+            _log.debug(f"###DEBUG bulk inserting meta of len {len(records)}")
+            _log.debug(f"###DEBUG bulk inserting meta of len {records}")
+
+            query = SQL('INSERT INTO {} VALUES %s'
+                        'ON CONFLICT (topic_id) DO UPDATE '
+                        'SET metadata = EXCLUDED.metadata').format(
+                            Identifier(self.meta_table))
+            execute_values(self.cursor(), query, records)
 
     def rollback(self):
         try:
@@ -108,82 +146,60 @@ class PostgreSqlFuncts(DbDriver):
             return False
 
     def setup_historian_tables(self):
-        self.execute_stmt(SQL(
-            'CREATE TABLE IF NOT EXISTS {} ('
-                'ts TIMESTAMP NOT NULL, '
-                'topic_id INTEGER NOT NULL, '
-                'value_string TEXT NOT NULL, '
-                'UNIQUE (topic_id, ts)'
-            ')').format(Identifier(self.data_table)))
-        if self.timescale_dialect:
-            _log.debug("trying to create hypertable")
-            self.execute_stmt(SQL(
-                "SELECT create_hypertable({}, 'ts', if_not_exists => true)").format(
-                Literal(self.data_table)))
-            self.execute_stmt(SQL(
-                'CREATE INDEX IF NOT EXISTS {} ON {} (topic_id, ts)').format(
-                Identifier('idx_' + self.data_table),
-                Identifier(self.data_table)))
+        rows = self.select(f"""SELECT table_name FROM information_schema.tables
+                            WHERE table_catalog = 'test_historian' and table_schema = 'public' 
+                            AND table_name = '{self.data_table}'""")
+        if rows:
+            _log.debug("Found table {}. Historian table exists".format(
+                self.data_table))
+            rows = self.select(f"""SELECT column_name FROM information_schema.columns
+                                WHERE table_name = '{self.topics_table}' and column_name = 'metadata'""")
+            if rows:
+                # metadata is in topics table
+                self.meta_table = self.topics_table
         else:
             self.execute_stmt(SQL(
-                'CREATE INDEX IF NOT EXISTS {} ON {} (ts ASC)').format(
-                Identifier('idx_' + self.data_table),
-                Identifier(self.data_table)))
-        self.execute_stmt(SQL(
-            'CREATE TABLE IF NOT EXISTS {} ('
-                'topic_id SERIAL PRIMARY KEY NOT NULL, '
-                'topic_name VARCHAR(512) NOT NULL, '
-                'UNIQUE (topic_name)'
-            ')').format(Identifier(self.topics_table)))
-        self.execute_stmt(SQL(
-            'CREATE TABLE IF NOT EXISTS {} ('
-                'topic_id INTEGER PRIMARY KEY NOT NULL, '
-                'metadata TEXT NOT NULL'
-            ')').format(Identifier(self.meta_table)))
-        self.commit()
+                'CREATE TABLE IF NOT EXISTS {} ('
+                    'ts TIMESTAMP NOT NULL, '
+                    'topic_id INTEGER NOT NULL, '
+                    'value_string TEXT NOT NULL, '
+                    'UNIQUE (topic_id, ts)'
+                ')').format(Identifier(self.data_table)))
+            if self.timescale_dialect:
+                _log.debug("trying to create hypertable")
+                self.execute_stmt(SQL(
+                    "SELECT create_hypertable({}, 'ts', if_not_exists => true)").format(
+                    Literal(self.data_table)))
+                self.execute_stmt(SQL(
+                    'CREATE INDEX IF NOT EXISTS {} ON {} (topic_id, ts)').format(
+                    Identifier(f"idx_{self.data_table}"),
+                    Identifier(self.data_table))
+                )
+            else:
+                self.execute_stmt(SQL(
+                    'CREATE INDEX IF NOT EXISTS {} ON {} (ts ASC)').format(
+                    Identifier('idx_' + self.data_table),
+                    Identifier(self.data_table)))
 
-    def record_table_definitions(self, tables_def, meta_table_name):
-        meta_table = Identifier(meta_table_name)
-        self.execute_stmt(SQL(
-            'CREATE TABLE IF NOT EXISTS {} ('
-                'table_id VARCHAR(512) PRIMARY KEY NOT NULL, '
-                'table_name VARCHAR(512) NOT NULL'
-            ')').format(meta_table))
-        insert_stmt = SQL(
-            'INSERT INTO {} VALUES (%s, %s) '
-            'ON CONFLICT (table_id) DO UPDATE '
-            'SET table_name = EXCLUDED.table_name').format(meta_table)
-        for key, name in tables_def.items():
-            if key and name and key != 'table_prefix':
-                self.execute_stmt(insert_stmt, (key, name))
-        prefix = tables_def.get('table_prefix', '')
-        self.execute_stmt(insert_stmt, ('', prefix))
-        self.commit()
+            self.execute_stmt(SQL(
+                'CREATE TABLE IF NOT EXISTS {} ('
+                    'topic_id SERIAL PRIMARY KEY NOT NULL, '
+                    'topic_name VARCHAR(512) NOT NULL, '
+                    'metadata TEXT, '
+                    'UNIQUE (topic_name)'
+                ')').format(Identifier(self.topics_table)))
+            # metadata is in topics table
+            self.meta_table = self.topics_table
+            self.commit()
 
-    def read_tablenames_from_db(self, meta_table_name):
-        tables = dict(self.select(
-            SQL('SELECT table_id, table_name FROM {}').format(
-                Identifier(meta_table_name))))
-        prefix = tables.pop('', '')
-        tables['agg_topics_table'] = 'aggregate_' + tables.get('topics_table', 'topics')
-        tables['agg_meta_table'] = 'aggregate_' + tables.get('meta_table', 'meta')
-        if prefix:
-            tables = {key: prefix + '_' + name for key, name in tables.items()}
-        return tables
+    def setup_aggregate_historian_tables(self):
 
-    def setup_aggregate_historian_tables(self, meta_table_name):
-        table_names = self.read_tablenames_from_db(meta_table_name)
-        self.data_table = table_names.get('data_table', 'data')
-        self.topics_table = table_names.get('topics_table', 'topics')
-        self.meta_table = table_names.get('meta_table', 'meta')
-        self.agg_topics_table = table_names['agg_topics_table']
-        self.agg_meta_table = table_names['agg_meta_table']
         self.execute_stmt(SQL(
             'CREATE TABLE IF NOT EXISTS {} ('
                 'agg_topic_id SERIAL PRIMARY KEY NOT NULL, '
                 'agg_topic_name VARCHAR(512) NOT NULL, '
-                'agg_type VARCHAR(512) NOT NULL, '
-                'agg_time_period VARCHAR(512) NOT NULL, '
+                'agg_type VARCHAR(20) NOT NULL, '
+                'agg_time_period VARCHAR(20) NOT NULL, '
                 'UNIQUE (agg_topic_name, agg_type, agg_time_period)'
             ')').format(Identifier(self.agg_topics_table)))
         self.execute_stmt(SQL(
@@ -198,12 +214,14 @@ class PostgreSqlFuncts(DbDriver):
               order='FIRST_TO_LAST'):
         if agg_type and agg_period:
             table_name = agg_type + '_' + agg_period
+            value_col = 'agg_value'
         else:
             table_name = self.data_table
+            value_col = 'value_string'
+
         topic_id = Literal(0)
         query = [SQL(
-            '''SELECT to_char(ts, 'YYYY-MM-DD"T"HH24:MI:SS.USOF:00'), '''
-                'value_string\n'
+            '''SELECT to_char(ts, 'YYYY-MM-DD"T"HH24:MI:SS.USOF:00'), ''' + value_col + ' \n'
             'FROM {}\n'
             'WHERE topic_id = {}'
         ).format(Identifier(table_name), topic_id)]
@@ -226,16 +244,27 @@ class PostgreSqlFuncts(DbDriver):
                 Literal(None if not skip or skip < 0 else skip)))
         query = SQL('\n').join(query)
         values = {}
-        for topic_id._wrapped in topic_ids:
-            name = id_name_map[topic_id.wrapped]
-            with self.select(query, fetch_all=False) as cursor:
-                values[name] = [(ts, jsonapi.loads(value))
-                                for ts, value in cursor]
+        if value_col == 'agg_value':
+            for topic_id._wrapped in topic_ids:
+                name = id_name_map[topic_id.wrapped]
+                with self.select(query, fetch_all=False) as cursor:
+                    values[name] = [(ts, value)
+                                    for ts, value in cursor]
+        else:
+            for topic_id._wrapped in topic_ids:
+                name = id_name_map[topic_id.wrapped]
+                with self.select(query, fetch_all=False) as cursor:
+                    values[name] = [(ts, jsonapi.loads(value))
+                                    for ts, value in cursor]
         return values
 
-    def insert_topic(self, topic):
+    def insert_topic(self, topic, **kwargs):
+        meta = kwargs.get('metadata')
         with self.cursor() as cursor:
-            cursor.execute(self.insert_topic_query(), {'topic': topic})
+            if self.meta_table == self.topics_table and topic and meta:
+                cursor.execute(self.insert_topic_and_meta_query(), (topic, jsonapi.dumps(meta)))
+            else:
+                cursor.execute(self.insert_topic_query(), {'topic': topic})
             return cursor.fetchone()[0]
 
     def insert_agg_topic(self, topic, agg_type, agg_time_period):
@@ -263,10 +292,25 @@ class PostgreSqlFuncts(DbDriver):
             'INSERT INTO {} (topic_name) VALUES (%(topic)s) '
             'RETURNING topic_id').format(Identifier(self.topics_table))
 
+    def insert_topic_and_meta_query(self):
+        return SQL(
+            'INSERT INTO {} (topic_name, metadata) VALUES (%s, %s) '
+            'RETURNING topic_id').format(Identifier(self.topics_table))
+
     def update_topic_query(self):
         return SQL(
             'UPDATE {} SET topic_name = %s '
             'WHERE topic_id = %s').format(Identifier(self.topics_table))
+
+    def update_topic_and_meta_query(self):
+        return SQL(
+            'UPDATE {} SET topic_name = %s , metadata= %s '
+            'WHERE topic_id = %s').format(Identifier(self.topics_table))
+
+    def update_meta_query(self):
+        return SQL(
+            'UPDATE {} SET metadata= %s '
+            'WHERE topic_id = %s').format(Identifier(self.meta_table))
 
     def get_aggregation_list(self):
         return ['AVG', 'MIN', 'MAX', 'COUNT', 'SUM', 'BIT_AND', 'BIT_OR',
@@ -300,6 +344,14 @@ class PostgreSqlFuncts(DbDriver):
         id_map = {key: tid for tid, _, key in rows}
         name_map = {key: name for _, name, key in rows}
         return id_map, name_map
+
+    def get_topic_meta_map(self):
+        query = SQL(
+            'SELECT topic_id, metadata '
+            'FROM {}').format(Identifier(self.meta_table))
+        rows = self.select(query)
+        meta_map = {tid: jsonapi.loads(meta) for tid, meta in rows}
+        return meta_map
 
     def get_agg_topics(self):
         query = SQL(
@@ -342,7 +394,7 @@ class PostgreSqlFuncts(DbDriver):
             'CREATE TABLE IF NOT EXISTS {} ('
                 'ts TIMESTAMP NOT NULL, '
                 'topic_id INTEGER NOT NULL, '
-                'value_string TEXT NOT NULL, '
+                'agg_value DOUBLE PRECISION NOT NULL, '
                 'topics_list TEXT, '
                 'UNIQUE (ts, topic_id)'
             ')').format(Identifier(table_name)))
@@ -356,7 +408,7 @@ class PostgreSqlFuncts(DbDriver):
         return SQL(
             'INSERT INTO {} VALUES (%s, %s, %s, %s) '
             'ON CONFLICT (ts, topic_id) DO UPDATE '
-            'SET value_string = EXCLUDED.value_string, '
+            'SET agg_value = EXCLUDED.agg_value, '
                 'topics_list = EXCLUDED.topics_list').format(
             Identifier(table_name))
 

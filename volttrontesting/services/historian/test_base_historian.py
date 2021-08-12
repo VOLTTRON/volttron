@@ -266,10 +266,8 @@ def test_time_tolerance_check(request, volttron_instance, client_agent):
         DEVICES_ALL_TOPIC = "devices/Building/LAB/Device/all"
         gevent.sleep(5) #wait for historian to be fully up
         historian.publish_sleep = 0
-        import pathlib
-        p = pathlib.Path(__file__).parent.parent.parent.parent.absolute()
-        print(f"Path to backupdb is {os.path.join(p,'backup.sqlite')}")
-        db_connection = sqlite3.connect(os.path.join(p,"backup.sqlite"))
+        db_file = os.path.join(os.path.curdir, 'backup.sqlite')
+        db_connection = sqlite3.connect(db_file)
         c = db_connection.cursor()
         try:
             c.execute("DELETE FROM time_error")
@@ -512,7 +510,6 @@ class FailureHistorian(BaseHistorian):
         self.record_fail = False
         self.teardown_fail = False
         self.setup_run = False
-        self.record_run = False
         self.teardown_run = False
         self.seen = []
 
@@ -532,7 +529,6 @@ class FailureHistorian(BaseHistorian):
     def reset(self):
         self.seen = []
         self.setup_run = False
-        self.record_run = False
         self.teardown_run = False
         self.setup_fail = False
         self.record_fail = False
@@ -544,11 +540,6 @@ class FailureHistorian(BaseHistorian):
             raise Exception("Failed to setup.")
 
         self.setup_run = True
-
-    def record_table_definitions(self, meta_table_name):
-        if self.record_fail:
-            raise Exception("Failed to record table definitions")
-        self.record_run = True
 
     def historian_teardown(self):
         if self.teardown_fail:
@@ -613,14 +604,12 @@ def test_failing_historian(request, volttron_instance, client_agent):
 
         assert fail_historian._process_thread.is_alive()
         assert fail_historian.setup_run
-        assert not fail_historian.record_run
         assert not fail_historian.teardown_run
 
         fail_historian.stop_process_thread()
 
         assert fail_historian.teardown_run
         assert fail_historian.setup_run
-        assert not fail_historian.record_run
         assert fail_historian._process_thread is None
         ###
         # Test failure during teardown
@@ -736,7 +725,6 @@ def test_failing_historian(request, volttron_instance, client_agent):
         gevent.sleep(2.0)
         assert fail_historian._process_thread.is_alive()
         assert fail_historian.setup_run
-        assert fail_historian.record_run
         assert len(fail_historian.seen)
         print(fail_historian.seen)
     finally:
