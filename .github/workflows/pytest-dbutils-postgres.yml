@@ -8,9 +8,9 @@
 # and retrieval of cache for quicker setup of test environments.
 
 env:
-    db: postgresqlfuncts
+    DB: postgresqlfuncts
 
-name: Testing ${{ env.db }}
+name: Testing postgresqlfuncts
 on: [push, pull_request]
 
 jobs:
@@ -26,7 +26,7 @@ jobs:
 
     runs-on: ${{ matrix.os }}
     env:
-        TEST_FILE: ${{ env.db }}.py
+        TEST_FILE: ${{ env.DB }}.py
 #        CI: true
     steps:
       # checkout the volttron repository and set current directory to it
