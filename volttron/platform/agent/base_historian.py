@@ -136,7 +136,7 @@ The logic will also forgo waiting the `retry_period` for new data to appear
 when checking for new data if publishing has been successful and there is
 still data in the cache to be publish. If
 :py:meth:`BaseHistorianAgent.historian_setup` throw exception
-and alert is raised but the process loop continues to wait for data and
+and an alert is raised but the process loop continues to wait for data and
 caches it. The process loop will periodically try to call the two methods
 again until successful. Exception thrown by
 :py:meth:`BaseHistorianAgent.publish_to_historian` would also raise alerts
