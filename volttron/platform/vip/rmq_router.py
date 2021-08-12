@@ -319,7 +319,6 @@ class RMQRouter(object):
         message = Message(peer=None, subsystem=parts[0], args=parts[1:])
         for peer in self._peers:
             message.peer = peer
-            _log.debug(f"Distributing to peers {peer}")
             if self._peers_with_messagebus[peer] == 'rmq':
                 self.connection.send_vip_object(message)
 

@@ -46,7 +46,7 @@ from volttron.platform.agent.base_aggregate_historian import AggregateHistorian
 from volttron.platform.dbutils import sqlutils
 
 _log = logging.getLogger(__name__)
-__version__ = '1.0'
+__version__ = '4.0.0'
 
 
 class SQLAggregateHistorian(AggregateHistorian):
@@ -64,6 +64,8 @@ class SQLAggregateHistorian(AggregateHistorian):
         :param kwargs:
         """
         self.dbfuncts_class = None
+        self.tables_def = None
+        self.table_names = None
         super(SQLAggregateHistorian, self).__init__(config_path, **kwargs)
 
     def configure(self, config_name, action, config):
@@ -77,11 +79,12 @@ class SQLAggregateHistorian(AggregateHistorian):
         assert database_type is not None
         params = connection.get('params', None)
         assert params is not None
+        tables_def = config.get('tables_def', None)
+        self.tables_def, self.table_names = self.parse_table_def(tables_def)
 
         class_name = sqlutils.get_dbfuncts_class(database_type)
-        self.dbfuncts_class = class_name(connection['params'], None)
-        self.dbfuncts_class.setup_aggregate_historian_tables(
-            self.volttron_table_defs)
+        self.dbfuncts_class = class_name(connection['params'], self.table_names)
+        self.dbfuncts_class.setup_aggregate_historian_tables()
         super(SQLAggregateHistorian, self).configure(
             config_name, action, config)
 
