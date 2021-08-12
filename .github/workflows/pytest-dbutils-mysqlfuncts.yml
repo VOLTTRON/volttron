@@ -11,7 +11,7 @@ on: [push, pull_request]
 jobs:
   build:
     env:
-      TEST_FILE: postgresqlfuncts.py
+      TEST_FILE: mysqlfuncts.py
 
     # The strategy allows customization of the build and allows matrixing the version of os and software
     # https://docs.github.com/en/free-pro-team@l.atest/actions/reference/workflow-syntax-for-github-actions#jobsjob_idstrategy
