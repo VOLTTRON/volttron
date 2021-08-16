@@ -1056,27 +1056,6 @@ class MongodbHistorian(BaseHistorian):
                 [('last_updated_data', pymongo.DESCENDING)],
                 background=True)
 
-    def record_table_definitions(self, meta_table_name):
-        _log.debug("In record_table_def  table:{}".format(meta_table_name))
-
-        db = self._client.get_default_database()
-        db[meta_table_name].bulk_write([
-            ReplaceOne(
-                {'table_id': 'data_table'},
-                {'table_id': 'data_table',
-                 'table_name': self._data_collection, 'table_prefix': ''},
-                upsert=True),
-            ReplaceOne(
-                {'table_id': 'topics_table'},
-                {'table_id': 'topics_table',
-                 'table_name': self._topic_collection, 'table_prefix': ''},
-                upsert=True),
-            ReplaceOne(
-                {'table_id': 'meta_table'},
-                {'table_id': 'meta_table',
-                 'table_name': self._meta_collection, 'table_prefix': ''},
-                upsert=True)])
-
     def manage_db_size(self, history_limit_timestamp, storage_limit_gb):
         """
         Remove documents older than `history_limit_timestamp` from

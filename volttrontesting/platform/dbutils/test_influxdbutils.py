@@ -17,10 +17,10 @@ import volttron.platform.dbutils.influxdbutils as influxdbutils
 from volttrontesting.fixtures.docker_wrapper import create_container
 from volttrontesting.utils.utils import get_rand_port
 
-IMAGES = ["influxdb"]
+IMAGES = ["influxdb:1.7"]
 
 if "CI" not in os.environ:
-    IMAGES.extend(["influxdb:1.7", "influxdb:1.8.1", "influxdb:1.7.10"])
+    IMAGES.extend(["influxdb:1.8.1", "influxdb:1.7.10"])
 
 TEST_DATABASE = "test_historian"
 ENV_INFLUXDB = {"INFLUXDB_DB": TEST_DATABASE}

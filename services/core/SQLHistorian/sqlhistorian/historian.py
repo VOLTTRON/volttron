@@ -46,7 +46,7 @@ from volttron.platform.agent.base_historian import BaseHistorian
 from volttron.platform.dbutils import sqlutils
 from volttron.utils.docs import doc_inherit
 
-__version__ = "3.7.0"
+__version__ = "4.0.0"
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -148,13 +148,10 @@ class SQLHistorian(BaseHistorian):
 
         # One utils class instance( hence one db connection) for main thread
         self.main_thread_dbutils = self.db_functs_class(self.connection['params'], self.table_names)
-        # One utils class instance( hence one db connection) for main thread
+        # One utils class instance( hence one db connection) for background thread
         # this gets initialized in the bg_thread within historian_setup
         self.bg_thread_dbutils = None
         super(SQLHistorian, self).__init__(**kwargs)
-
-    def record_table_definitions(self, meta_table_name):
-        self.bg_thread_dbutils.record_table_definitions(self.tables_def, meta_table_name)
 
     def manage_db_size(self, history_limit_timestamp, storage_limit_gb):
         """
@@ -163,10 +160,16 @@ class SQLHistorian(BaseHistorian):
         self.bg_thread_dbutils.manage_db_size(history_limit_timestamp, storage_limit_gb)
 
     @doc_inherit
+    def version(self):
+        return __version__
+
+    @doc_inherit
     def publish_to_historian(self, to_publish_list):
         try:
             published = 0
-            with self.bg_thread_dbutils.bulk_insert() as insert_data:
+            with self.bg_thread_dbutils.bulk_insert() as insert_data, \
+                self.bg_thread_dbutils.bulk_insert_meta() as insert_meta:
+
                 for x in to_publish_list:
                     ts = x['timestamp']
                     topic = x['topic']
@@ -178,20 +181,38 @@ class SQLHistorian(BaseHistorian):
                     topic_id = self.topic_id_map.get(lowercase_name, None)
                     db_topic_name = self.topic_name_map.get(lowercase_name,
                                                             None)
+                    old_meta = self.topic_meta.get(topic_id, {})
+                    update_topic_meta = True
                     if topic_id is None:
-                        # _log.debug('Inserting topic: {}'.format(topic))
-                        # Insert topic name as is in db
-                        topic_id = self.bg_thread_dbutils.insert_topic(topic)
+                        # send metadata data too. If topics table contains metadata column too it will get inserted
+                        topic_id = self.bg_thread_dbutils.insert_topic(topic, metadata=meta)
                         # user lower case topic name when storing in map for case insensitive comparison
-                        self.topic_id_map[lowercase_name] = topic_id
                         self.topic_name_map[lowercase_name] = topic
+                        self.topic_id_map[lowercase_name] = topic_id
+                        update_topic_meta = False
                     elif db_topic_name != topic:
-                        self.bg_thread_dbutils.update_topic(topic, topic_id)
+                        if old_meta != meta:
+                            _log.debug(f"META HAS CHANGED TOO. old:{old_meta} new:{meta}")
+                            # pass metadata if metadata is stored in topics table metadata will get updated too
+                            # if not will get ignored
+                            self.bg_thread_dbutils.update_topic(topic, topic_id, metadata=meta)
+                            update_topic_meta = False
+                        else:
+                            self.bg_thread_dbutils.update_topic(topic, topic_id)
                         self.topic_name_map[lowercase_name] = topic
 
-                    old_meta = self.topic_meta.get(topic_id, {})
-                    if set(old_meta.items()) != set(meta.items()):
-                        self.bg_thread_dbutils.insert_meta(topic_id, meta)
+                    if old_meta != meta:
+                        if self.bg_thread_dbutils.topics_table != self.bg_thread_dbutils.meta_table:
+                            # there is a separate metadata table. do bulk insert
+                            _log.debug("meta in separate table")
+                            insert_meta(topic_id, meta)
+                        elif update_topic_meta:
+                            _log.debug(" meta in same table. no topic change only meta changed")
+                            # topic name and metadata are in same table, and metadata has not got into db during insert
+                            # or update of topic so update meta alone in topics table
+                            self.bg_thread_dbutils.update_meta(metadata=meta, topic_id=topic_id)
+
+                        # either way update cache
                         self.topic_meta[topic_id] = meta
 
                     if insert_data(ts, topic_id, value):
@@ -199,12 +220,13 @@ class SQLHistorian(BaseHistorian):
 
             if published:
                 if self.bg_thread_dbutils.commit():
+                    _log.debug("Reporting all handled")
                     self.report_all_handled()
                 else:
-                    _log.debug('Commit error. Rolling back {} values.'.format(published))
+                    _log.warning('Commit error. Rolling back {} values.'.format(published))
                     self.bg_thread_dbutils.rollback()
             else:
-                _log.debug('Unable to publish {}'.format(len(to_publish_list)))
+                _log.warning('Unable to publish {}'.format(len(to_publish_list)))
         except Exception as e:
             # TODO Unable to send alert from here
             # if isinstance(e, ConnectionError):
@@ -319,7 +341,7 @@ class SQLHistorian(BaseHistorian):
     @doc_inherit
     def historian_setup(self):
         thread_name = threading.currentThread().getName()
-        _log.debug("historian_setup on Thread: {}".format(thread_name))
+        _log.info("historian_setup on Thread: {}".format(thread_name))
         self.bg_thread_dbutils = self.db_functs_class(self.connection['params'], self.table_names)
 
         if not self._readonly:
@@ -329,6 +351,10 @@ class SQLHistorian(BaseHistorian):
         self.topic_id_map.update(topic_id_map)
         self.topic_name_map.update(topic_name_map)
         self.agg_topic_id_map = self.bg_thread_dbutils.get_agg_topic_map()
+        topic_meta_map = self.bg_thread_dbutils.get_topic_meta_map()
+        self.topic_meta.update(topic_meta_map)
+        _log.debug(f"###DEBUG Loaded topics and metadata on start. Len of  topics {len(self.topic_id_map)} "
+                   f"Len of metadata: {len(self.topic_meta)}")
 
 
 def main(argv=sys.argv):
