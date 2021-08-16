@@ -252,7 +252,7 @@ def test_can_stop_vip_heartbeat(volttron_instance):
     assert vi.is_running()
 
     agent = vi.build_agent(heartbeat_autostart=True,
-                           heartbeat_period=1,
+                           heartbeat_period=2,
                            identity='Agent')
     agent.vip.pubsub.subscribe(peer='pubsub', prefix='heartbeat/Agent',
                                callback=onmessage)
@@ -261,7 +261,7 @@ def test_can_stop_vip_heartbeat(volttron_instance):
     time_start = time.time()
     print('Awaiting heartbeat response.')
     while not messages_contains_prefix(
-            'heartbeat/Agent') and time.time() < time_start + 10:
+            'heartbeat/Agent') and time.time() < time_start + 20:
         gevent.sleep(0.2)
 
     assert messages_contains_prefix('heartbeat/Agent')
@@ -272,7 +272,7 @@ def test_can_stop_vip_heartbeat(volttron_instance):
     clear_messages()
     time_start = time.time()
     while not messages_contains_prefix(
-            'heartbeat/Agent') and time.time() < time_start + 10:
+            'heartbeat/Agent') and time.time() < time_start + 20:
         gevent.sleep(0.2)
 
     assert not messages_contains_prefix('heartbeat/Agent')
