@@ -504,7 +504,8 @@ class Certs(object):
 
         :param fully_qualified_identity:
         :param remote_instance_name:
-        :return csr.public_bytes:
+        :return csr.public_bytes: Encoded certificate which can saved
+        to a file or sent to be verified by clients.
         """
         assert fully_qualified_identity
         remote_rmq_user = "{}.{}".format(remote_instance_name, fully_qualified_identity)
