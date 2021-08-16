@@ -503,8 +503,8 @@ class Certs(object):
         The key that is used to sign the csr is <instance_name>.name.
 
         :param fully_qualified_identity:
-        :param target_volttron:
-        :return:
+        :param remote_instance_name:
+        :return csr.public_bytes:
         """
         assert fully_qualified_identity
         remote_rmq_user = "{}.{}".format(remote_instance_name, fully_qualified_identity)
@@ -1048,6 +1048,17 @@ def _create_signed_certificate(ca_cert, ca_key, name, valid_days=DEFAULT_DAYS, t
 
 
 def build_subject(ca_cert, name, type="client", fqdn=None):
+    """
+    Builds a x509 Name list of OID's based on a CA certificate.
+
+    :param ca_cert: Certificate Authority used to sign the cert
+    :param name: Name of the new cert
+    :param type: Server or client
+    :param fqdn: Fully qualified domain name
+    :return fqdn: Fully qualified domain name update/pass-through
+    :return hostname: Current hostname
+    :return subject: x509 Name used when building a certificate
+    """
     temp_list = ca_cert.subject.rdns
     new_attrs = []
     hostname = gethostname()
