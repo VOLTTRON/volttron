@@ -16,7 +16,7 @@ if HAS_DOCKER:
 
     @contextlib.contextmanager
     def create_container(image_name: str, ports: dict = None, env: dict = None, command: (list, str) = None,
-                         startup_time_seconds: int = 30, hostname: str = 'mysql_test') -> \
+                         startup_time_seconds: int = 30, hostname: str = 'test_docker_env') -> \
             (docker.models.containers.Container, None):
         """ Creates a container instance in a context that will clean up after itself.
 
