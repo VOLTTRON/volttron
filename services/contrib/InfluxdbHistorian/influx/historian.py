@@ -375,14 +375,6 @@ class InfluxdbHistorian(BaseHistorian):
         _log.info("_meta_dicts is {}".format(self._meta_dicts))
         _log.info("_topic_id_map is {}".format(self._topic_id_map))
 
-    @doc_inherit
-    def record_table_definitions(self, meta_table_name):
-        """
-        InfluxDB Historian doesn't have a separate aggregation agent.
-        Hence, implementing this method is not necessary.
-        """
-        pass
-
 
 def main(argv=sys.argv):
     """Main method called by the eggsecutable.
