@@ -7,7 +7,7 @@ from time import sleep
 import pytest
 from pytz import UTC
 
-from utils.utils import AgentMock
+from volttrontesting.utils.utils import AgentMock
 from volttron.platform.agent.base_historian import BaseHistorianAgent, Agent
 
 CACHE_NAME = "backup.sqlite"
