@@ -76,11 +76,11 @@ import itertools
 import random
 import sqlite3
 import sys
+import re
 
 from tzlocal import get_localzone
 import gevent
 import pytest
-import re
 import pytz
 
 from volttron.platform import get_volttron_root, get_services_core
@@ -93,6 +93,7 @@ from volttron.platform.vip.agent import Agent
 try:
     from crate import client
     from crate.client.exceptions import ProgrammingError
+
     # Adding crate historian to the path so we have access to it's packages
     # for removing/creating schema for testing with.
     root = get_volttron_root()
@@ -100,6 +101,7 @@ try:
 
     sys.path.insert(0, crate_path)
     from volttron.platform.dbutils import crateutils as crate_utils
+
     HAS_CRATE_CONNECTOR = True
 except:
     HAS_CRATE_CONNECTOR = False
@@ -114,6 +116,7 @@ except:
 
 try:
     import pymongo
+
     HAS_PYMONGO = True
 except:
     HAS_PYMONGO = False
@@ -330,7 +333,6 @@ def setup_mysql(connection_params, table_names, historian_version):
 
 
 def select_all_sqlite_tables(db_connection):
-
     cursor = db_connection.cursor()
     tables = []
     try:
@@ -369,7 +371,7 @@ def setup_sqlite(connection_params, table_names, historian_version):
     database_path = connection_params['database']
     print("connecting to sqlite path " + database_path)
     db_connection = sqlite3.connect(database_path)
-    print ("successfully connected to sqlite")
+    print("successfully connected to sqlite")
 
     # clean_db_rows up any rows from older runs if exists
     cursor = db_connection.cursor()
@@ -427,8 +429,8 @@ def setup_mongodb(connection_params, table_names, historian_version):
     db[table_names['meta_table']].remove()
     return db, 3
 
-def setup_postgresql(connection_params, table_names, historian_version):
 
+def setup_postgresql(connection_params, table_names, historian_version):
     print("setup postgresql", connection_params, table_names)
     connection = psycopg2.connect(**connection_params)
     connection.autocommit = True
@@ -461,12 +463,13 @@ def setup_postgresql(connection_params, table_names, historian_version):
             ')').format(Identifier(table_names['topics_table'])))
         cursor.execute(SQL(
             'CREATE TABLE IF NOT EXISTS {} ('
-                'topic_id INTEGER PRIMARY KEY NOT NULL, '
-                'metadata TEXT NOT NULL'
+            'topic_id INTEGER PRIMARY KEY NOT NULL, '
+            'metadata TEXT NOT NULL'
             ')').format(Identifier(table_names['meta_table'])))
         connection.commit()
 
     return connection, 6
+
 
 setup_redshift = setup_postgresql
 
@@ -522,11 +525,12 @@ def cleanup_postgresql(connection, truncate_tables, drop_tables=False):
                             pgsql.Identifier(table)))
                     else:
                         cursor.execute(pgsql.SQL('TRUNCATE TABLE {}').format(
-                          pgsql.Identifier(table)))
+                            pgsql.Identifier(table)))
                 except psycopg2.ProgrammingError as exc:
                     if exc.pgcode != psycopg2.errorcodes.UNDEFINED_TABLE:
                         raise
                     print("Error truncating {!r} table: {}".format(table, exc))
+
 
 cleanup_redshift = cleanup_postgresql
 
@@ -608,16 +612,16 @@ def query_agent(request, volttron_instance):
 @pytest.fixture(scope="module",
                 params=itertools.product(
                     [
-                    pytest.param(crate_platform, marks=crate_skipif),
-                    pytest.param(mysql_platform, marks=mysql_skipif),
-                    sqlite_platform,
-                    pytest.param(mongo_platform, marks=pymongo_skipif),
-                    pytest.param(postgresql_platform, marks=postgresql_skipif),
-                    #pytest.param(redshift_platform, marks=redshift_skipif)
+                        pytest.param(crate_platform, marks=crate_skipif),
+                        pytest.param(mysql_platform, marks=mysql_skipif),
+                        sqlite_platform,
+                        pytest.param(mongo_platform, marks=pymongo_skipif),
+                        pytest.param(postgresql_platform, marks=postgresql_skipif),
+                        # pytest.param(redshift_platform, marks=redshift_skipif)
                     ],
                     ["<4.0.0",
                      ">=4.0.0"
-                    ]
+                     ]
                 ))
 def historian(request, volttron_instance, query_agent):
     global db_connection, MICROSECOND_PRECISION, table_names, \
@@ -723,11 +727,11 @@ def assert_timestamp(result, expected_date, expected_time):
     if expected_time[-6:] == "+00:00":
         expected_time = expected_time[:-6]
 
-    if MICROSECOND_PRECISION > 0 and MICROSECOND_PRECISION <6:
+    if MICROSECOND_PRECISION > 0 and MICROSECOND_PRECISION < 6:
         truncate = (6 - MICROSECOND_PRECISION) * -1
         assert (result == expected_date + 'T'
-                         + expected_time[:truncate] + '0'*
-                            MICROSECOND_PRECISION + '+00:00')
+                + expected_time[:truncate] + '0' *
+                MICROSECOND_PRECISION + '+00:00')
 
     elif MICROSECOND_PRECISION == 6:
         assert result == expected_date + 'T' + expected_time + '+00:00'
@@ -832,12 +836,12 @@ def test_basic_function(request, historian, publish_agent, query_agent,
     assert (result['values'][0][1] == damper_reading)
     assert set(result['metadata'].items()) == set(percent_meta.items())
 
+
 @pytest.mark.timeout(1000)
 @pytest.mark.historian
 def test_basic_function_optional_config(request, historian, publish_agent,
                                         query_agent, clean_db_rows,
                                         volttron_instance):
-
     """
     Test optional table_def config for historians
     Expected result:
@@ -861,8 +865,8 @@ def test_basic_function_optional_config(request, historian, publish_agent,
     try:
         new_historian = copy.copy(historian)
         new_historian["tables_def"] = {"table_prefix": "",
-            "data_table": "data_table", "topics_table": "topics_table",
-            "meta_table": "meta_table"}
+                                       "data_table": "data_table", "topics_table": "topics_table",
+                                       "meta_table": "meta_table"}
 
         setup_function = globals()["setup_" + connection_type]
         db_connection_params = historian['connection']['params']
@@ -876,8 +880,8 @@ def test_basic_function_optional_config(request, historian, publish_agent,
         # Install and start historian agent
         source = new_historian.pop('source_historian')
         agent_uuid = volttron_instance.install_agent(agent_dir=source,
-            config_file=new_historian, start=True,
-            vip_identity='hist2')
+                                                     config_file=new_historian, start=True,
+                                                     vip_identity='hist2')
         print("agent id: ", agent_uuid)
 
         # Create timestamp
@@ -892,8 +896,8 @@ def test_basic_function_optional_config(request, historian, publish_agent,
 
         # Query the historian
         result = query_agent.vip.rpc.call('hist2', 'query',
-            topic=topics.RECORD(subtopic="test"), start=query_start,
-            count=20, order="FIRST_TO_LAST").get(timeout=10)
+                                          topic=topics.RECORD(subtopic="test"), start=query_start,
+                                          count=20, order="FIRST_TO_LAST").get(timeout=10)
         print('Query Result', result)
         assert (len(result['values']) == 1)
         assert (result['values'][0][1] == 1)
@@ -911,8 +915,8 @@ def test_basic_function_optional_config(request, historian, publish_agent,
                                        "topics_table": "topics_table",
                                        "meta_table": "meta_table"}
         agent_uuid = volttron_instance.install_agent(agent_dir=source,
-            config_file=new_historian, start=True,
-            vip_identity='hist2')
+                                                     config_file=new_historian, start=True,
+                                                     vip_identity='hist2')
         print("agent id: ", agent_uuid)
 
         # Publish messages
@@ -962,8 +966,8 @@ def test_basic_function_optional_config(request, historian, publish_agent,
 
         # Query the historian
         result = query_agent.vip.rpc.call('hist2', 'query',
-            topic=topics.RECORD(subtopic="test"), start=query_start,
-            count=20, order="FIRST_TO_LAST").get(timeout=10)
+                                          topic=topics.RECORD(subtopic="test"), start=query_start,
+                                          count=20, order="FIRST_TO_LAST").get(timeout=10)
         print('Query Result', result)
         assert (len(result['values']) == 1)
         assert (result['values'][0][1] == 2)
@@ -1094,8 +1098,8 @@ def test_query_start_time(request, historian, publish_agent, query_agent,
                                       start=time1,
                                       count=20,
                                       order="LAST_TO_FIRST").get(timeout=10)
-    print ("time1:", time1)
-    print ("time2:", time2)
+    print("time1:", time1)
+    print("time2:", time2)
     print('Query Result', result)
     assert len(result['values']) == 2
     (time2_date, time2_time) = time2.split("T")
@@ -1143,8 +1147,8 @@ def test_query_start_time_with_z(request, historian, publish_agent,
                                       start=time1,
                                       count=20,
                                       order="LAST_TO_FIRST").get(timeout=10)
-    print ("time1:", time1)
-    print ("time2:", time2)
+    print("time1:", time1)
+    print("time2:", time2)
     print('Query Result', result)
     assert (len(result['values']) == 2)
     # Verify order LAST_TO_FIRST.
@@ -1195,8 +1199,8 @@ def test_query_end_time(request, historian, publish_agent, query_agent,
                                       end=query_end_time.isoformat(' '),
                                       count=20,
                                       order="FIRST_TO_LAST").get(timeout=100)
-    print ("time1:", time1)
-    print ("time2:", time2)
+    print("time1:", time1)
+    print("time2:", time2)
     print('Query Result', result)
 
     assert (len(result['values']) == 2)
@@ -1248,8 +1252,8 @@ def test_query_end_time_with_z(request, historian, publish_agent,
                                       end=query_end_time.isoformat(),
                                       count=20,
                                       order="FIRST_TO_LAST").get(timeout=10)
-    print ("time1:", time1)
-    print ("time2:", time2)
+    print("time1:", time1)
+    print("time2:", time2)
     print('Query Result', result)
     # pytest.set_trace()
     assert (len(result['values']) == 2)
@@ -1436,7 +1440,7 @@ def test_invalid_query(request, historian, publish_agent, query_agent,
                                  count=20,
                                  order="LAST_TO_FIRST").get(timeout=10)
     except RemoteError as error:
-        print ("topic required excinfo {}".format(error))
+        print("topic required excinfo {}".format(error))
         assert '"Topic" required' in str(error.message)
 
     try:
@@ -1448,10 +1452,8 @@ def test_invalid_query(request, historian, publish_agent, query_agent,
                                  count=20,
                                  order="LAST_TO_FIRST").get(timeout=10)
     except Exception as error:
-        print ("exception: {}".format(error))
+        print("exception: {}".format(error))
         assert "No route to host:" in str(error)
-
-
 
 
 @pytest.mark.historian
@@ -1485,7 +1487,7 @@ def test_invalid_time(request, historian, publish_agent, query_agent,
                                  count=20,
                                  order="LAST_TO_FIRST").get(timeout=10)
     except RemoteError as error:
-        print ("exception: {}".format(error))
+        print("exception: {}".format(error))
         assert 'Syntax Error in Query' == error.message
 
 
@@ -1565,8 +1567,7 @@ def test_analysis_topic(request, historian, publish_agent, query_agent,
 
 @pytest.mark.historian
 def test_analysis_topic_replacement(request, historian, publish_agent,
-                                 query_agent, clean_db_rows, volttron_instance):
-
+                                    query_agent, clean_db_rows, volttron_instance):
     """
     Test if topic name substitutions happened.
     Publish to topic
@@ -1584,8 +1585,8 @@ def test_analysis_topic_replacement(request, historian, publish_agent,
     try:
         new_historian = copy.copy(historian)
         new_historian["tables_def"] = {"table_prefix": "readonly",
-            "data_table": "data", "topics_table": "topics",
-            "meta_table": "meta"}
+                                       "data_table": "data", "topics_table": "topics",
+                                       "meta_table": "meta"}
         # new_historian["topic_replace_list"] = [
         #     {"from": "PNNL/BUILDING_1", "to": "PNNL/BUILDING1_ANON"}]
 
@@ -1597,8 +1598,8 @@ def test_analysis_topic_replacement(request, historian, publish_agent,
         # Install and start historian agent
         source = new_historian.pop('source_historian')
         agent_uuid = volttron_instance.install_agent(agent_dir=source,
-            config_file=new_historian, start=True,
-            vip_identity='replace_hist')
+                                                     config_file=new_historian, start=True,
+                                                     vip_identity='replace_hist')
         print("agent id: ", agent_uuid)
 
         # Publish fake data. The format mimics the format used by VOLTTRON drivers.
@@ -1631,8 +1632,8 @@ def test_analysis_topic_replacement(request, historian, publish_agent,
         # pytest.set_trace()
         # Query the historian
         result = query_agent.vip.rpc.call('replace_hist', 'query',
-            topic='Campus1/BUILDING_1/Device/MixedAirTemperature', start=now,
-            order="LAST_TO_FIRST").get(timeout=10)
+                                          topic='Campus1/BUILDING_1/Device/MixedAirTemperature', start=now,
+                                          order="LAST_TO_FIRST").get(timeout=10)
         print('Query Result', result)
         assert (len(result['values']) == 1)
         (now_date, now_time) = now.split("T")
@@ -1641,8 +1642,8 @@ def test_analysis_topic_replacement(request, historian, publish_agent,
         assert_timestamp(result['values'][0][0], now_date, now_time)
         assert (result['values'][0][1] == mixed_reading)
         topic_list = query_agent.vip.rpc.call(
-            'replace_hist','get_topic_list').get(timeout=5)
-        print (topic_list)
+            'replace_hist', 'get_topic_list').get(timeout=5)
+        print(topic_list)
         assert 'Campus1/BUILDING_1/device/OutsideAirTemperature' in topic_list
         assert 'Campus1/BUILDING_1/device/DamperSignal' in topic_list
         assert 'Campus1/BUILDING_1/device/MixedAirTemperature' in topic_list
@@ -1683,8 +1684,8 @@ def test_analysis_topic_no_meta(request, historian, publish_agent, query_agent,
 
     # Create a message for all points.
     all_message = {'OutsideAirTemperature': oat_reading,
-                    'MixedAirTemperature': mixed_reading,
-                    'DamperSignal': damper_reading}
+                   'MixedAirTemperature': mixed_reading,
+                   'DamperSignal': damper_reading}
 
     # Create timestamp
 
@@ -1751,8 +1752,8 @@ def test_tz_conversion_local_tz(request, historian, publish_agent, query_agent,
     damper_reading = random_uniform(0, 100)
 
     # Create a message for all points.
-    all_message = [{'OutsideAirTemperature': {'key1':'value1',
-                                              'key2':'value2'},
+    all_message = [{'OutsideAirTemperature': {'key1': 'value1',
+                                              'key2': 'value2'},
                     'MixedAirTemperature': mixed_reading,
                     'DamperSignal': damper_reading},
                    {'OutsideAirTemperature': {'units': 'F', 'tz': 'UTC',
@@ -1764,7 +1765,7 @@ def test_tz_conversion_local_tz(request, historian, publish_agent, query_agent,
                     }]
 
     # Create timestamp
-    publish_time_naive  = datetime.now() - timedelta(days=1)
+    publish_time_naive = datetime.now() - timedelta(days=1)
     local_tz = get_localzone()
     local_t = local_tz.localize(publish_time_naive)
     publish_time = utils.format_timestamp(local_t)
@@ -1826,8 +1827,8 @@ def test_tz_conversion_naive_ts(request, historian, publish_agent, query_agent,
     damper_reading = random_uniform(0, 100)
 
     # Create a message for all points.
-    all_message = [{'OutsideAirTemperature': {'key1':'value1',
-                                              'key2':'value2'},
+    all_message = [{'OutsideAirTemperature': {'key1': 'value1',
+                                              'key2': 'value2'},
                     'MixedAirTemperature': mixed_reading,
                     'DamperSignal': damper_reading},
                    {'OutsideAirTemperature': {'units': 'F', 'tz': 'UTC',
@@ -1839,7 +1840,7 @@ def test_tz_conversion_naive_ts(request, historian, publish_agent, query_agent,
                     }]
 
     # Create timestamp
-    publish_time_naive  = datetime.now() - timedelta(days=1)
+    publish_time_naive = datetime.now() - timedelta(days=1)
     local_tz = get_localzone()
     local_t = local_tz.localize(publish_time_naive)
     utc_publish_time = utils.format_timestamp(local_t.astimezone(pytz.utc))
@@ -2083,7 +2084,7 @@ def test_log_topic_timestamped_readings(request, historian, publish_agent,
         identity,
         'query',
         topic="datalogger/Building/LAB/Device/MixedAirTemperature",
-        end='2015-12-02T00:00:01', #end time is exclusive so do +1 second
+        end='2015-12-02T00:00:01',  # end time is exclusive so do +1 second
         order="LAST_TO_FIRST").get(timeout=10)
     print('Query Result', result)
     assert (len(result['values']) == 1)
@@ -2155,7 +2156,7 @@ def test_get_topic_metadata(request, historian, publish_agent,
 
     print('Query Result', result)
     assert result['datalogger/Building/LAB/Device/temp1'] == \
-        {'units': 'F', 'tz': 'UTC', 'type': 'int'}
+           {'units': 'F', 'tz': 'UTC', 'type': 'int'}
 
     # Query the historian
     result = query_agent.vip.rpc.call(
@@ -2167,9 +2168,9 @@ def test_get_topic_metadata(request, historian, publish_agent,
 
     print('Query Result', result)
     assert result['datalogger/Building/LAB/Device/temp1'] == \
-        {'units': 'F', 'tz': 'UTC', 'type': 'int'}
+           {'units': 'F', 'tz': 'UTC', 'type': 'int'}
     assert result['datalogger/Building/LAB/Device/temp2'] == \
-        {'units': 'F', 'tz': 'UTC', 'type': 'float'}
+           {'units': 'F', 'tz': 'UTC', 'type': 'float'}
 
 
 @pytest.mark.historian
@@ -2288,7 +2289,6 @@ def test_metadata_update(request, historian, volttron_instance, publish_agent, q
             volttron_instance.remove_agent(agent_uuid)
 
 
-
 @pytest.mark.historian
 def test_topic_and_metadata_update(request, historian, volttron_instance, publish_agent, query_agent, clean_db_rows):
     """
@@ -2311,7 +2311,7 @@ def test_topic_and_metadata_update(request, historian, volttron_instance, publis
     oat_reading = random_uniform(30, 100)
     float_meta_new = {'units': 'F', 'tz': 'UTC', 'type': 'float1'}
     # Create a message for all points.
-    all_message = [{'OutsideAirTemperature': oat_reading},  {'OutsideAirTemperature': float_meta_new}]
+    all_message = [{'OutsideAirTemperature': oat_reading}, {'OutsideAirTemperature': float_meta_new}]
 
     # Create timestamp
     now = utils.format_timestamp(datetime.utcnow())
@@ -2382,7 +2382,7 @@ def test_topic_and_metadata_update(request, historian, volttron_instance, publis
 
 @pytest.mark.historian
 def test_insert_duplicate(request, historian, publish_agent, query_agent,
-                        clean_db_rows):
+                          clean_db_rows):
     """
     Test that historians don't break when duplicate data gets published.
     historians' should ignore or update record in the database but should not
@@ -2404,7 +2404,6 @@ def test_insert_duplicate(request, historian, publish_agent, query_agent,
     # Make some random readings.  Random readings are going to be
     # within the tolerance here.
     oat_reading = random_uniform(30, 100)
-
 
     float_meta = {'units': 'F', 'tz': 'UTC', 'type': 'float'}
 
@@ -2439,7 +2438,7 @@ def test_insert_duplicate(request, historian, publish_agent, query_agent,
     assert (result['values'][0][1] == oat_reading)
     assert set(result['metadata'].items()) == set(float_meta.items())
 
-    #publish same data again
+    # publish same data again
     publish(publish_agent, DEVICES_ALL_TOPIC, headers, all_message)
 
     gevent.sleep(1)
@@ -2517,7 +2516,7 @@ def test_multi_topic_query(request, historian, publish_agent, query_agent,
                 expected_result["values"][query_points['mixed_point']][i][1])
 
         expected_date, expected_time = \
-        expected_result["values"][query_points['oat_point']][i][0].split("T")
+            expected_result["values"][query_points['oat_point']][i][0].split("T")
         assert_timestamp(result["values"][query_points['oat_point']][i][0],
                          expected_date, expected_time)
         assert (result["values"][query_points['oat_point']][i][1] ==
@@ -2590,7 +2589,7 @@ def test_multi_topic_query_single_result(request, historian, publish_agent,
     assert result["values"][query_points['mixed_point']] == []
     for i in range(0, 3):
         expected_date, expected_time = \
-        expected_result["values"][query_points['oat_point']][i][0].split("T")
+            expected_result["values"][query_points['oat_point']][i][0].split("T")
         assert_timestamp(result["values"][query_points['oat_point']][i][0],
                          expected_date, expected_time)
         assert (result["values"][query_points['oat_point']][i][1] ==
@@ -2598,8 +2597,8 @@ def test_multi_topic_query_single_result(request, historian, publish_agent,
 
     # Query the historian with a valid topic and an invalid topic
     result = query_agent.vip.rpc.call(identity, 'query',
-        topic=[query_points['oat_point'], "device/topic/unknown"],
-        count=3, start=query_start, order="FIRST_TO_LAST").get(timeout=100)
+                                      topic=[query_points['oat_point'], "device/topic/unknown"],
+                                      count=3, start=query_start, order="FIRST_TO_LAST").get(timeout=100)
     print('Query Result', result)
     print('Expected Result', expected_result)
 
@@ -2678,7 +2677,7 @@ def test_query_with_naive_timestamp(request, historian, publish_agent,
                 expected_result["values"][query_points['mixed_point']][i][1])
 
         expected_date, expected_time = \
-        expected_result["values"][query_points['oat_point']][i][0].split("T")
+            expected_result["values"][query_points['oat_point']][i][0].split("T")
         assert_timestamp(result["values"][query_points['oat_point']][i][0],
                          expected_date, expected_time)
         assert (result["values"][query_points['oat_point']][i][1] ==
@@ -2736,7 +2735,7 @@ def test_query_with_start_end_count(request, historian, publish_agent,
         'query',
         topic=[query_points['oat_point'], query_points['mixed_point']],
         start=query_start_time,
-        end = query_end_time,
+        end=query_end_time,
         count=3,
         order="FIRST_TO_LAST").get(timeout=100)
     print('Query Result', result)
@@ -2798,8 +2797,6 @@ def test_get_topic_list(request, historian, publish_agent, query_agent,
                                                      vip_identity='hist2')
         print("agent id: ", agent_uuid)
 
-
-
         # Publish fake data. The format mimics the format used by VOLTTRON drivers.
         # Make some random readings
         oat_reading = random_uniform(30, 100)
@@ -2853,10 +2850,10 @@ def test_get_topic_list(request, historian, publish_agent, query_agent,
             volttron_instance.stop_agent(agent_uuid)
             volttron_instance.remove_agent(agent_uuid)
 
+
 @pytest.mark.historian
 def test_readonly_mode(request, historian, publish_agent, query_agent,
                        clean_db_rows, volttron_instance):
-
     """
     Test the readonly mode of historian where historian is only used to query
     and not insert anything into the database.
@@ -2914,7 +2911,7 @@ def test_readonly_mode(request, historian, publish_agent, query_agent,
 
         volttron_instance.remove_agent(agent_uuid)
 
-        #reinstall agent this time with readonly=True
+        # reinstall agent this time with readonly=True
 
         new_historian["readonly"] = True
         agent_uuid = volttron_instance.install_agent(
@@ -2998,4 +2995,3 @@ def publish_devices_fake_data_single_topic(publish_agent, time=None):
     # Publish messages
     publish(publish_agent, DEVICES_ALL_TOPIC, headers, all_message)
     return time, reading, meta
-

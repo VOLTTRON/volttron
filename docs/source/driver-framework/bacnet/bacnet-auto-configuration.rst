@@ -135,7 +135,7 @@ The utility is invoked with the command:
 This will query the device with the matching device ID for configuration information and print the resulting CSV file to
 the console.
 
-In order to save the configuration to a file use the ``--out-file`` option to specify the output file name.
+In order to save the configuration to a file use the ``--registry-out-file`` option to specify the output file name.
 
 Optionally the ``--address`` option can be used to specify the address of the target. In some cases, this is needed to
 help establish a route to the device.
