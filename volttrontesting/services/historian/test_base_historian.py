@@ -58,8 +58,6 @@ from volttron.platform.messaging.health import *
 from volttron.platform.messaging import topics
 from volttron.platform.agent.known_identities import CONFIGURATION_STORE
 
-from volttrontesting.utils.utils import AgentMock
-
 
 class Historian(BaseHistorian):
     def publish_to_historian(self, _):
