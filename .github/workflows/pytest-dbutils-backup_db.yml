@@ -53,4 +53,5 @@ jobs:
         if: always()
         with:
           name: pytest-report
-          path: output/${{ env.TEST_FILE }}-${{matrix.os}}-${{ matrix.python-version }}-results.xml
+          # should match test-<test_output_suffix>- ...
+          path: output/test-${{ env.TEST_FILE }}-${{matrix.os}}-${{ matrix.python-version }}-results.xml
