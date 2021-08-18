@@ -1735,7 +1735,14 @@ def show_serverkey(opts):
 
     return 0 if success, 1 if false
     """
-    q = Query(opts.connection.server.core)
+    conn = opts.connection
+    if not conn:
+        _stderr.write(
+            "VOLTTRON is not running. This command "
+            "requires VOLTTRON platform to be running\n"
+        )
+        return
+    q = Query(conn.server.core)
     pk = q.query("serverkey").get(timeout=2)
     del q
     if pk is not None:
