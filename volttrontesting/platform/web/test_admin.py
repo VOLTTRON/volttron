@@ -14,18 +14,9 @@ def user_pass():
 def test_can_authenticate_admin_user(volttron_instance_web, user_pass):
     instance = volttron_instance_web
 
-    # if instance.messagebus != 'rmq':
-    #     pytest.skip("Only for rmq at this point in time.")
-    #     return
-
     webadmin = instance.web_admin_api
 
     user, password = user_pass
-    #
-    # resp = webadmin.create_web_admin(user, password)
-    # assert resp.ok
-    # # Allow file operation to run
-    # gevent.sleep(2)
 
     resp = webadmin.authenticate(user, password)
     assert resp.ok

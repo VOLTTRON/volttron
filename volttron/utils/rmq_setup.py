@@ -742,7 +742,6 @@ def setup_rabbitmq_volttron(setup_type, verbose=False, prompt=False, instance_na
     # Load either the newly created config or config passed
     try:
         rmq_config.load_rmq_config()
-        _log.debug(f"RMQConfig : {setup_type}, {rmq_config.volttron_home}, os env: {os.environ['VOLTTRON_HOME']}")
 
     except (yaml.parser.ParserError, yaml.scanner.ScannerError, yaml.YAMLError) as exc:
         _log.error("Error: YAML file cannot parsed properly. Check the contents of the file")

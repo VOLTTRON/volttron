@@ -51,4 +51,4 @@ jobs:
         if: always()
         with:
           name: pytest-report
-          path: output/${{ env.TEST_TYPE }}-${{matrix.os}}-${{ matrix.python-version }}-results.xml
+          path: output/${{ env.TEST_FILE }}-${{matrix.os}}-${{ matrix.python-version }}-results.xml

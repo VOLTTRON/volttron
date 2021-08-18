@@ -1,9 +1,11 @@
 ---
 # This workflow is meant as a foundational workflow for running integration/unit tests on the
-# platform.
+# platform.  For this workflow we are testing the
+#
+# volttrontesting/testutils directory using pytest.
+#
 # This workflow also shows the caching mechanisms available for storage
 # and retrieval of cache for quicker setup of test environments.
-
 
 name: Testing BackupDatabase
 on: [push, pull_request]
@@ -11,7 +13,7 @@ on: [push, pull_request]
 jobs:
   build:
     env:
-      TEST_FILE: backup_database.py
+        TEST_FILE: backup_database.py
 
     # The strategy allows customization of the build and allows matrixing the version of os and software
     # https://docs.github.com/en/free-pro-team@l.atest/actions/reference/workflow-syntax-for-github-actions#jobsjob_idstrategy
@@ -19,8 +21,8 @@ jobs:
       fail-fast: false
       matrix:
         # Each entry in the os and python-version matrix will be run so for the 3 x 4 there will be 12 jobs run
-        os: [ ubuntu-18.04 ]
-        python-version: [ 3.6, 3.7,] # 3.8 ]
+        os: [ ubuntu-18.04 ] # , ubuntu-20.04  ]
+        python-version: [ 3.7 ] # 3.6, 3.7] # , 3.8, 3.9 ]
 
     runs-on: ${{ matrix.os }}
 
@@ -51,4 +53,4 @@ jobs:
         if: always()
         with:
           name: pytest-report
-          path: output/${{ env.TEST_TYPE }}-${{matrix.os}}-${{ matrix.python-version }}-results.xml
+          path: output/${{ env.TEST_FILE }}-${{matrix.os}}-${{ matrix.python-version }}-results.xml
