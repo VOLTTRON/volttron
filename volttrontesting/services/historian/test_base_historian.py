@@ -326,7 +326,7 @@ def test_time_tolerance_check(request, volttron_instance, client_agent):
                                             message=all_message)
             d_now = d_now + timedelta(seconds=1)
 
-        gevent.sleep(2)
+        gevent.sleep(3)
         status = client_agent.vip.rpc.call("platform.historian", "health.get_status").get(timeout=10)
         print(f"STATUS: {status}")
         assert status["status"] == STATUS_BAD
