@@ -14,7 +14,7 @@
 name: Testing volttron-ctl
 
 # Determine what events are going to trigger a running of the workflow
-on: [push, pull_request]
+on: [pull_request]
 
 jobs:
   # The job named build
