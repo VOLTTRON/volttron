@@ -28,20 +28,20 @@ pytestmark = [pytest.mark.postgresqlfuncts, pytest.mark.dbutils, pytest.mark.uni
 # See https://volttron.readthedocs.io/en/develop/core_services/historians/SQL-Historian.html#postgresql-and-redshift
 IMAGES = ["postgres:9.6.18", "postgres:10.13"]
 
-if "CI" in os.environ:
-    IMAGES.extend(
-        [
-            "postgres:11.8",
-            "postgres:9",
-            "postgres:9.5",
-            "postgres:10",
-            "postgres:11",
-            "postgres:12",
-            "postgres:12.3",
-            "postgres:13",
-            "postgres:13-beta2",
-        ]
-    )
+# if "CI" in os.environ:
+#     IMAGES.extend(
+#         [
+#             "postgres:11.8",
+#             "postgres:9",
+#             "postgres:9.5",
+#             "postgres:10",
+#             "postgres:11",
+#             "postgres:12",
+#             "postgres:12.3",
+#             "postgres:13",
+#             "postgres:13-beta2",
+#         ]
+#     )
 ALLOW_CONNECTION_TIME = 10
 CONNECTION_HOST = "localhost"
 TEST_DATABASE = "test_historian"
