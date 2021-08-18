@@ -26,7 +26,7 @@
 # privately owned rights. Reference herein to any specific commercial product,
 # process, or service by trade name, trademark, manufacturer, or otherwise
 # does not necessarily constitute or imply its endorsement, recommendation, or
-# favoring by the United States Government or any agency thereof, or
+# favoringby the United States Government or any agency thereof, or
 # Battelle Memorial Institute. The views and opinions of authors expressed
 # herein do not necessarily state or reflect those of the
 # United States Government or any agency thereof.
@@ -58,7 +58,7 @@ from volttron.platform.messaging.health import *
 from volttron.platform.messaging import topics
 from volttron.platform.agent.known_identities import CONFIGURATION_STORE
 
-from volttrontesting.utils.utils import AgentMock
+from volttrontesting.utils.utils import 
 
 
 class Historian(BaseHistorian):
@@ -285,9 +285,11 @@ def test_time_tolerance_check(request, volttron_instance, client_agent):
         DEVICES_ALL_TOPIC = "devices/Building/LAB/Device/all"
         gevent.sleep(5)  # wait for historian to be fully up
         historian.publish_sleep = 0
+
         db_file = Path('backup.sqlite').absolute()
         assert db_file.exists()
         db_connection = sqlite3.connect(str(db_file))
+
         c = db_connection.cursor()
         try:
             c.execute("DELETE FROM time_error")
@@ -328,7 +330,7 @@ def test_time_tolerance_check(request, volttron_instance, client_agent):
                                             message=all_message)
             d_now = d_now + timedelta(seconds=1)
 
-        gevent.sleep(2)
+        gevent.sleep(3)
         status = client_agent.vip.rpc.call("platform.historian", "health.get_status").get(timeout=10)
         print(f"STATUS: {status}")
         assert status["status"] == STATUS_BAD
