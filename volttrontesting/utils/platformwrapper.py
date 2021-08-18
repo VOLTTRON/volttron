@@ -104,14 +104,9 @@ VOLTTRON_ROOT = os.environ.get("VOLTTRON_ROOT")
 if not VOLTTRON_ROOT:
     VOLTTRON_ROOT = dirname(dirname(dirname(os.path.realpath(__file__))))
 
-if os.environ.get('CI', None) is None:
-    VSTART = os.path.join(VOLTTRON_ROOT, "env/bin/volttron")
-    VCTRL = os.path.join(VOLTTRON_ROOT, "env/bin/volttron-ctl")
-    TWISTED_START = os.path.join(VOLTTRON_ROOT, "env/bin/twistd")
-else:
-    VSTART = "volttron"
-    VCTRL = "volttron-ctl"
-    TWISTED_START = "twistd"
+VSTART = "volttron"
+VCTRL = "volttron-ctl"
+TWISTED_START = "twistd"
 
 SEND_AGENT = "send"
 
@@ -274,14 +269,9 @@ class PlatformWrapper:
             'VOLTTRON_ROOT': VOLTTRON_ROOT
         }
         self.volttron_root = VOLTTRON_ROOT
-
-        self.vctl_exe = str(Path(sys.executable).parent.joinpath('volttron-ctl'))
-        self.volttron_exe = str(Path(sys.executable).parent.joinpath('volttron'))
-
-        assert Path(self.vctl_exe).exists()
-        assert Path(self.volttron_exe).exists()
+        self.vctl_exe = 'volttron-ctl'
+        self.volttron_exe = 'volttron'
         self.python = sys.executable
-        assert os.path.exists(self.python)
 
         # By default no web server should be started.
         self.bind_web_address = None
@@ -422,7 +412,8 @@ class PlatformWrapper:
             entry = AuthEntry(capabilities=capabilities,
                               comments="Added by test",
                               credentials=keys.public,
-                              user_id=identity)
+                              user_id=identity,
+                              identity=identity)
             file = AuthFile(self.volttron_home + "/auth.json")
             file.add(entry)
 
@@ -488,7 +479,7 @@ class PlatformWrapper:
 
         if capabilities is None:
             capabilities = dict(edit_config_store=dict(identity=identity))
-        entry = AuthEntry(user_id=identity, credentials=publickey,
+        entry = AuthEntry(user_id=identity, identity=identity, credentials=publickey,
                           capabilities=capabilities,
                           comments="Added by platform wrapper")
         authfile = AuthFile()
@@ -496,7 +487,7 @@ class PlatformWrapper:
         # allow 2 seconds here for the auth to be updated in auth service
         # before connecting to the platform with the agent.
         #
-        gevent.sleep(2)
+        gevent.sleep(3)
         agent = agent_class(address=address, identity=identity,
                             publickey=publickey, secretkey=secretkey,
                             serverkey=serverkey,
@@ -535,7 +526,7 @@ class PlatformWrapper:
     def _append_allow_curve_key(self, publickey, identity):
 
         if identity:
-            entry = AuthEntry(user_id=identity, credentials=publickey,
+            entry = AuthEntry(user_id=identity, identity=identity, credentials=publickey,
                               capabilities={'edit_config_store': {'identity': identity}},
                               comments="Added by platform wrapper")
         else:
@@ -648,6 +639,7 @@ class PlatformWrapper:
                         ks = KeyStore(KeyStore.get_agent_keystore_path(identity))
                         entry = AuthEntry(credentials=encode_key(decode_key(ks.public)),
                                           user_id=identity,
+                                          identity=identity,
                                           capabilities=capabilities,
                                           comments='Added by pre-seeding.')
                         authfile.add(entry)
@@ -658,6 +650,7 @@ class PlatformWrapper:
                     ks = KeyStore(KeyStore.get_agent_keystore_path(identity))
                     entry = AuthEntry(credentials=encode_key(decode_key(ks.public)),
                                       user_id=identity,
+                                      identity=identity,
                                       capabilities=capabilities,
                                       comments='Added by pre-seeding.')
                     authfile.add(entry)
@@ -668,6 +661,7 @@ class PlatformWrapper:
                     ks = KeyStore(KeyStore.get_agent_keystore_path(identity))
                     entry = AuthEntry(credentials=encode_key(decode_key(ks.public)),
                                       user_id=identity,
+                                      identity=identity,
                                       capabilities=capabilities,
                                       comments='Added by pre-seeding.')
                     authfile.add(entry)

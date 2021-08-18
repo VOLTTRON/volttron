@@ -11,7 +11,7 @@
 
 # The workflow name will show up in the action tab on github during execution
 # https://github.com/VOLTTRON/volttron/actions (or if you are pushing to your own fork change the user)
-name: Testing platform auth
+name: Testing platform web
 
 # Determine what events are going to trigger a running of the workflow
 on: [pull_request]
@@ -50,8 +50,8 @@ jobs:
         with:
             python_version: ${{ matrix.python-version }}
             os: ${{ matrix.os }}
-            test_path: volttrontesting/platform/auth_tests
-            test_output_suffix: auth
+            test_path: volttrontesting/platform/web
+            test_output_suffix: web
 
       # Archive the results from the pytest to storage.
       - name: Archive test results
@@ -59,7 +59,7 @@ jobs:
         if: always()
         with:
           name: pytest-report
-          path: output/test-auth-${{matrix.os}}-${{ matrix.python-version }}-results.xml
+          path: output/test-web-${{matrix.os}}-${{ matrix.python-version }}-results.xml
     
 #       - name: Publish Unit Test Results
 #         uses: EnricoMi/publish-unit-test-result-action@v1.5

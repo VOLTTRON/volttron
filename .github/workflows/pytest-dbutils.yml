@@ -8,7 +8,7 @@
 # and retrieval of cache for quicker setup of test environments.
 
 name: Testing dbutils directory
-on: [push, pull_request]
+on: [pull_request]
 
 jobs:
   build:
@@ -18,12 +18,13 @@ jobs:
       fail-fast: false
       matrix:
         # Each entry in the os and python-version matrix will be run so for the 3 x 4 there will be 12 jobs run
-        os: [ ubuntu-18.04, ubuntu-20.04  ]
-        python-version: [ 3.6, 3.7] # , 3.8, 3.9 ]
+        os: [ ubuntu-18.04 ] # , ubuntu-20.04  ]
+        python-version: [ 3.7 ] # 3.6, 3.7] # , 3.8, 3.9 ]
 
     runs-on: ${{ matrix.os }}
     env:
         TEST_TYPE: dbutils
+        CI: true
     steps:
       # checkout the volttron repository and set current directory to it
       - uses: actions/checkout@v2
@@ -38,6 +39,7 @@ jobs:
       # Run the specified tests and save the results to a unique file that can be archived for later analysis.
       - name: Run pytest on ${{ matrix.python-version }}, ${{ matrix.os }}
         uses: volttron/volttron-build-action@v1
+        timeout-minutes: 600
         with:
             python_version: ${{ matrix.python-version }}
             os: ${{ matrix.os }}

@@ -62,7 +62,6 @@ from volttron.platform.agent.utils import (store_message_bus_config,
 from volttron.utils.prompt import prompt_response, y, n, y_or_n
 from volttron.platform import jsonapi
 from urllib.parse import urlparse
-from volttron.platform.web import DiscoveryInfo
 from volttron.platform.agent.utils import get_platform_instance_name, get_fq_identity
 
 _log = logging.getLogger(os.path.basename(__file__))
@@ -743,7 +742,6 @@ def setup_rabbitmq_volttron(setup_type, verbose=False, prompt=False, instance_na
     # Load either the newly created config or config passed
     try:
         rmq_config.load_rmq_config()
-        _log.debug(f"RMQConfig : {setup_type}, {rmq_config.volttron_home}, os env: {os.environ['VOLTTRON_HOME']}")
 
     except (yaml.parser.ParserError, yaml.scanner.ScannerError, yaml.YAMLError) as exc:
         _log.error("Error: YAML file cannot parsed properly. Check the contents of the file")
@@ -1366,7 +1364,6 @@ def get_remote_certs_dir(type):
 def request_plugin_cert(csr_server, fully_qualified_local_identity, discovery_info, type):
     import grequests
 
-    # from volttron.platform.web import DiscoveryInfo
     config = RMQConfig()
 
     if not config.is_ssl:
@@ -1436,7 +1433,7 @@ def request_plugin_cert(csr_server, fully_qualified_local_identity, discovery_in
 def request_cert_for_plugin(rmq_user, https_address, type):
     value = None
     parsed_address = urlparse(https_address)
-
+    from volttron.platform.web import DiscoveryInfo
     if parsed_address.scheme in ('https',):
         info = DiscoveryInfo.request_discovery_info(https_address)
 

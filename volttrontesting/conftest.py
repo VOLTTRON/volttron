@@ -1,5 +1,4 @@
 import sys
-import psutil
 
 from volttron.platform import jsonapi
 from volttrontesting.fixtures.volttron_platform_fixtures import *

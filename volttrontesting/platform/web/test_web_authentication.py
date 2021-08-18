@@ -29,10 +29,10 @@ from volttron.platform.web.authenticate_endpoint import AuthenticateEndpoints
 from volttrontesting.fixtures.cert_fixtures import certs_profile_1
 from volttrontesting.fixtures.volttron_platform_fixtures import get_test_volttron_home, volttron_instance_web
 
-HAS_RMQ = is_rabbitmq_available()
-ci_skipif = pytest.mark.skipif(os.getenv('CI', None) == 'true', reason='SSL does not work in CI')
-rmq_skipif = pytest.mark.skipif(not HAS_RMQ,
-                                reason='RabbitMQ is not setup and/or SSL does not work in CI')
+# HAS_RMQ = is_rabbitmq_available()
+# ci_skipif = pytest.mark.skipif(os.getenv('CI', None) == 'true', reason='SSL does not work in CI')
+# rmq_skipif = pytest.mark.skipif(not HAS_RMQ,
+#                                 reason='RabbitMQ is not setup and/or SSL does not work in CI')
 
 
 @pytest.mark.parametrize("encryption_type", ("private_key", "tls"))
@@ -244,8 +244,7 @@ def test_authenticate_endpoint(scheme):
 def test_get_credentials(volttron_instance_web):
     instance = volttron_instance_web
     auth_pending = instance.dynamic_agent.vip.rpc.call(AUTH, "get_authorization_pending").get()
-    print(f"Auth pending is: {auth_pending}")
-    assert len(auth_pending) == 0
+    len_auth_pending = len(auth_pending)
     with with_os_environ(instance.env):
         pending_agent = Agent(identity="PendingAgent")
         task = gevent.spawn(pending_agent.core.run)
@@ -255,53 +254,61 @@ def test_get_credentials(volttron_instance_web):
     auth_pending = instance.dynamic_agent.vip.rpc.call(AUTH, "get_authorization_pending").get()
     print(f"Auth pending is: {auth_pending}")
 
-    assert len(auth_pending) == 1
+    assert len(auth_pending) == len_auth_pending + 1
 
 
 @pytest.mark.web
 def test_accept_credential(volttron_instance_web):
     instance = volttron_instance_web
+    auth_pending = instance.dynamic_agent.vip.rpc.call(AUTH, "get_authorization_pending").get()
+    len_auth_pending = len(auth_pending)
     with with_os_environ(instance.env):
-        pending_agent = Agent(identity="PendingAgent")
+        pending_agent = Agent(identity="PendingAgent1")
         task = gevent.spawn(pending_agent.core.run)
         task.join(timeout=5)
         pending_agent.core.stop()
 
         auth_pending = instance.dynamic_agent.vip.rpc.call(AUTH, "get_authorization_pending").get()
         print(f"Auth pending is: {auth_pending}")
-        assert len(auth_pending) == 1
+        assert len(auth_pending) == len_auth_pending + 1
 
         auth_approved = instance.dynamic_agent.vip.rpc.call(AUTH, "get_authorization_approved").get()
-        assert len(auth_approved) == 0
+        len_auth_approved = len(auth_approved)
+        assert len_auth_approved == 0
 
         print(f"agent uuid: {pending_agent.core.agent_uuid}")
-        instance.dynamic_agent.vip.rpc.call(AUTH, "approve_authorization_failure", auth_pending[0]["user_id"]).get()
+        instance.dynamic_agent.vip.rpc.call(AUTH, "approve_authorization_failure", auth_pending[0]["user_id"]).wait(timeout=4)
+        gevent.sleep(2)
         auth_approved = instance.dynamic_agent.vip.rpc.call(AUTH, "get_authorization_approved").get()
 
-        assert len(auth_approved) == 1
+        assert len(auth_approved) == len_auth_approved + 1
 
 
 @pytest.mark.web
 def test_deny_credential(volttron_instance_web):
     instance = volttron_instance_web
+    auth_pending = instance.dynamic_agent.vip.rpc.call(AUTH, "get_authorization_pending").get()
+    len_auth_pending = len(auth_pending)
     with with_os_environ(instance.env):
-        pending_agent = Agent(identity="PendingAgent")
+        pending_agent = Agent(identity="PendingAgent2")
         task = gevent.spawn(pending_agent.core.run)
         task.join(timeout=5)
         pending_agent.core.stop()
 
         auth_pending = instance.dynamic_agent.vip.rpc.call(AUTH, "get_authorization_pending").get()
         print(f"Auth pending is: {auth_pending}")
-        assert len(auth_pending) == 1
+        assert len(auth_pending) == len_auth_pending + 1
 
         auth_denied = instance.dynamic_agent.vip.rpc.call(AUTH, "get_authorization_denied").get()
-        assert len(auth_denied) == 0
+        len_auth_denied = len(auth_denied)
+        assert len_auth_denied == 0
 
         print(f"agent uuid: {pending_agent.core.agent_uuid}")
-        instance.dynamic_agent.vip.rpc.call(AUTH, "deny_authorization_failure", auth_pending[0]["user_id"]).get()
+        instance.dynamic_agent.vip.rpc.call(AUTH, "deny_authorization_failure", auth_pending[0]["user_id"]).wait(timeout=4)
+        gevent.sleep(2)
         auth_denied = instance.dynamic_agent.vip.rpc.call(AUTH, "get_authorization_denied").get()
 
-        assert len(auth_denied) == 1
+        assert len(auth_denied) == len_auth_denied + 1
 
 
 @pytest.mark.web
@@ -309,18 +316,19 @@ def test_delete_credential(volttron_instance_web):
     instance = volttron_instance_web
     auth_pending = instance.dynamic_agent.vip.rpc.call(AUTH, "get_authorization_pending").get()
     print(f"Auth pending is: {auth_pending}")
-    assert len(auth_pending) == 0
+    len_auth_pending = len(auth_pending)
     with with_os_environ(instance.env):
-        pending_agent = Agent(identity="PendingAgent")
+        pending_agent = Agent(identity="PendingAgent3")
         task = gevent.spawn(pending_agent.core.run)
         task.join(timeout=5)
         pending_agent.core.stop()
 
         auth_pending = instance.dynamic_agent.vip.rpc.call(AUTH, "get_authorization_pending").get()
         print(f"Auth pending is: {auth_pending}")
-        assert len(auth_pending) == 1
+        assert len(auth_pending) == len_auth_pending + 1
 
-        instance.dynamic_agent.vip.rpc.call(AUTH, "delete_authorization_failure", auth_pending[0]["user_id"]).get()
+        instance.dynamic_agent.vip.rpc.call(AUTH, "delete_authorization_failure", auth_pending[0]["user_id"]).wait(timeout=4)
+        gevent.sleep(2)
         auth_pending = instance.dynamic_agent.vip.rpc.call(AUTH, "get_authorization_pending").get()
 
-        assert len(auth_pending) == 0
+        assert len(auth_pending) == len_auth_pending
