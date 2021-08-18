@@ -145,9 +145,8 @@ class DeviceTree(TopicTree):
     #  rather than the service (though it is reached through the service, oddly...
     @classmethod
     def from_store(cls, platform, rpc_caller):
-        # TODO: This is a little hackish. Perhaps VUIEndpoints._rpc should use "external_platform" instead of
-        #  "on_platform"?
-        kwargs = {'on_platform': platform} if 'VUIEndpoints' in rpc_caller.__repr__() else {}
+        # TODO: Duplicate logic for external_platform check from VUIEndpoints to remove reference to it from here.
+        kwargs = {'external_platform': platform} if 'VUIEndpoints' in rpc_caller.__repr__() else {}
         devices = rpc_caller(CONFIGURATION_STORE, 'manage_list_configs', 'platform.driver', **kwargs)
         devices = devices if kwargs else devices.get(timeout=5)
         devices = [d for d in devices if re.match('^devices/.*', d)]

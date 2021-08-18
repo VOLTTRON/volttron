@@ -4,12 +4,11 @@ import json
 from os.path import normpath, join
 from gevent.timeout import Timeout
 from collections import defaultdict
-from typing import List
+from typing import List, Union
 
 from volttron.platform.agent.known_identities import CONFIGURATION_STORE
 from werkzeug import Response
 from werkzeug.urls import url_decode
-from volttron.platform.web import get_bearer, NotAuthorized
 from volttron.platform.vip.agent.subsystems.query import Query
 from volttron.platform.jsonrpc import MethodNotFound
 
@@ -58,7 +57,7 @@ class VUIEndpoints(object):
                             'endpoint-active': False,
                         },
                         'pubsub': {
-                            'endpoint-active': True,
+                            'endpoint-active': False,
                         },
                         'rpc': {
                             'endpoint-active': True,
@@ -108,10 +107,10 @@ class VUIEndpoints(object):
                     }
                 },
                 'devices': {
-                    'endpoint-active': True,
+                    'endpoint-active': False,
                 },
                 'historians': {
-                    'endpoint-active': True,
+                    'endpoint-active': False,
                 }
             }
         }
@@ -201,10 +200,13 @@ class VUIEndpoints(object):
         _log.debug('VUI: In handle_platforms_agents')
         path_info = env.get('PATH_INFO')
         request_method = env.get("REQUEST_METHOD")
+        _log.debug(f'QUERY_STRING IS: {env["QUERY_STRING"]}')
+        query_params = url_decode(env['QUERY_STRING'])
         platform = re.match('^/vui/platforms/([^/]+)/agents/?$', path_info).groups()[0]
         if request_method == 'GET':
-            include_hidden = bool(env.get('include-hidden', False))
-            agent_state = env.get('agent-state', 'running')
+            include_hidden = self._to_bool(query_params.get('include-hidden', False))
+            _log.debug(f'in handle_platforms_agents, include hidden is: {include_hidden}, {type(include_hidden)}')
+            agent_state = query_params.get('agent-state', 'running')
             if agent_state not in ['running', 'installed']:
                 error = {'error': f'Unknown agent-state: {agent_state} -- must be "running", "installed",'
                                   f' or "packaged". Default is "running".'}
@@ -224,7 +226,9 @@ class VUIEndpoints(object):
                     error = {'error': e}
                     return Response(json.dumps(error), 500, content_type='application/json')
         else:
-            return Response(f'Endpoint {request_method} {path_info} is not implemented.',
+            # TODO: changed this to 200 from 501, to test error alerting, but should probably change back.
+            error = {"error": f"Endpoint {request_method} {path_info} is not implemented."}
+            return Response(json.dumps(error),
                             status=501, content_type='text/plain')
 
     def handle_platforms_agents_agent(self, env: dict, data: dict) -> Response:
@@ -238,11 +242,13 @@ class VUIEndpoints(object):
         path_info = env.get('PATH_INFO')
         request_method = env.get("REQUEST_METHOD")
         platform, vip_identity = re.match('^/vui/platforms/([^/]+)/agents/([^/]+)/?$', path_info).groups()
-        # TODO: Check whether this agent is actually running.
-        # TODO: Check whether certain types of actions are actually available for this agent (or require next endpoint for this)?
         if request_method == 'GET':
-            response = json.dumps(self._find_active_sub_routes(['vui', 'platforms', 'agents'], path_info=path_info))
-            return Response(response, 200, content_type='application/json')
+            active_routes = self._find_active_sub_routes(['vui', 'platforms', 'agents'], path_info=path_info)
+            # If RPC endpoint is enabled, check if agent is running and disallow if it is not.
+            if 'rpc' in active_routes['route_options'].keys():
+                if vip_identity not in self._get_agents(platform, 'running'):
+                    active_routes['route_options'].pop('rpc')
+            return Response(json.dumps(active_routes), 200, content_type='application/json')
         else:
             return Response(f'Endpoint {request_method} {path_info} is not implemented.',
                             status=501, content_type='text/plain')
@@ -260,7 +266,7 @@ class VUIEndpoints(object):
         platform, vip_identity = re.match('^/vui/platforms/([^/]+)/agents/([^/]+)/rpc/?$', path_info).groups()
         if request_method == 'GET':
             try:
-                method_dict = self._rpc(vip_identity, 'inspect', on_platform=platform)
+                method_dict = self._rpc(vip_identity, 'inspect', external_platform=platform)
             # TODO: Move this exception handling up to a wrapper.
             except TimeoutError as e:
                 return Response(json.dumps({'error': f'Request Timed Out: {e}'}), 504, content_type='application/json')
@@ -270,10 +276,10 @@ class VUIEndpoints(object):
             response = self._route_options(path_info, method_dict.get('methods'))
             return Response(json.dumps(response), 200, content_type='application/json')
         else:
-            return Response(f'Endpoint {request_method} {path_info} is not implemented.',
-                            status=501, content_type='text/plain')
+            return Response(json.dumps({"error": f"Endpoint {request_method} {path_info} is not implemented."}),
+                            status=501, content_type='application/json')
 
-    def handle_platforms_agents_rpc_method(self, env: dict, data: dict) -> Response:
+    def handle_platforms_agents_rpc_method(self, env: dict, data: Union[dict, List]) -> Response:
         """
         Endpoints for /vui/platforms/:platform/agents/:vip_identity/rpc/
         :param env:
@@ -289,7 +295,7 @@ class VUIEndpoints(object):
         if request_method == 'GET':
             try:
                 _log.debug('VUI: request_method was "GET"')
-                method_dict = self._rpc(vip_identity, method_name + '.inspect', on_platform=platform)
+                method_dict = self._rpc(vip_identity, method_name + '.inspect', external_platform=platform)
                 _log.debug(f'VUI: method_dict is: {method_dict}')
             # TODO: Move this exception handling up to a wrapper.
             except Timeout as e:
@@ -303,15 +309,21 @@ class VUIEndpoints(object):
             return Response(json.dumps(method_dict), 200, content_type='application/json')
 
         elif request_method == 'POST':
-            # TODO: Should this also support lists?
-            data = data if type(data) is dict else {}
             try:
                 _log.debug('VUI: request_method was "POST')
-                _log.debug(f'VUI: data has type: {type(data)}, value: {data}')
-                result = self._rpc(vip_identity, method_name, **data, on_platform=platform)
+                if type(data) is dict:
+                    if 'args' in data.keys() and type(data['args']) is list:
+                        args = data.pop('args')
+                        result = self._rpc(vip_identity, method_name, *args, **data, external_platform=platform)
+                    else:
+                        result = self._rpc(vip_identity, method_name, **data, external_platform=platform)
+                elif type(data) is list:
+                    result = self._rpc(vip_identity, method_name, *data, external_platform=platform)
+                else:
+                    raise ValueError(f'Malformed message body: {data}')
             except Timeout as e:
                 return Response(json.dumps({'error': f'RPC Timed Out: {e}'}), 504, content_type='application/json')
-            except MethodNotFound as e:
+            except MethodNotFound or ValueError as e:
                 return Response(json.dumps({f'error': f'for agent {vip_identity}: {e}'}),
                                 400, content_type='application/json')
             except Exception as e:
@@ -329,15 +341,20 @@ class VUIEndpoints(object):
         :param data:
         :return:
         """
+        _log.debug("IN HANDLE_PLATFORMS_DEVICES")
         def _get_allowed_write_selection(points, topic, regex, tag):
             # Query parameters:
+            _log.debug('IN GET_ALLOWED_WRITE_SELECTION')
             write_all = self._to_bool(query_params.get('write-all', 'false'))
             confirm_values = self._to_bool(query_params.get('confirm-values', False))
             # Map of selected topics to routes:
+            _log.debug('IN GET_ALLOWED_WRITE_SELECTION BEFORE SELECTION')
             selection = {p.topic: f'/vui/platforms/{platform}/{p.identifier}' for p in points}
+            _log.debug('IN GET_ALLOWED_WRITE_SELECTION AFTER SELECTION')
             unwritables = [p.topic for p in points if not self._to_bool(p.data['Writable'])]
 
             if (regex or tag or '/-' in topic or len(points) > 1) and not write_all:
+                _log.debug('IN GET_ALLOWED_WRITE_SELECTION IN IF')
                 # Disallow potential use of multiple writes without explicit write-all flag:
                 error_message = {
                     'error': f"Use of wildcard expressions, regex, or tags may set multiple points. "
@@ -350,9 +367,14 @@ class VUIEndpoints(object):
 
                 raise ValueError(json.dumps(error_message))
             elif len(unwritables) == len(points):
+                _log.debug('IN GET_ALLOWED_WRITE_SELECTION IN ELIF')
+                _log.debug(f'IN GET_ALLOWED_WRITE_SELECTION UNWRITABLES IS: {unwritables}')
+                _log.debug(f'IN GET_ALLOWED_WRITE_SELECTION POINTS IS: {points}')
+                _log.debug(f'IN GET_ALLOWED_WRITE_SELECTION LEN_POINTS IS: {len(points)}')
                 raise ValueError(json.dumps({'error': 'No selected points are writable.',
                                              'unwritable_points': unwritables}))
             else:
+                _log.debug('IN GET_ALLOWED_WRITE_SELECTION IN ELSE')
                 return confirm_values, selection, unwritables
 
         path_info = env.get('PATH_INFO')
@@ -372,7 +394,7 @@ class VUIEndpoints(object):
         # Resolve tags if the tag query parameter is set:
         if tag:
             try:
-                tag_list = self._rpc('platform.tagging', 'get_topics_by_tags', tag, on_platform=platform).get(timeout=5)
+                tag_list = self._rpc('platform.tagging', 'get_topics_by_tags', tag, external_platform=platform).get(timeout=5)
             except Timeout as e:
                 return Response(json.dumps({'error': f'Tagging Service timed out: {e}'}),
                                 504, content_type='application/json')
@@ -380,13 +402,19 @@ class VUIEndpoints(object):
             tag_list = None
         # Prune device tree and get nodes matching topic:
         try:
+            _log.debug('IN TRY BLOCK')
             # TODO: Should we be storing this tree to use for faster requests later? How to keep it updated?
             device_tree = DeviceTree.from_store(platform, self._rpc).prune(topic, regex, tag_list)
+            _log.debug(f'DEVICE TREE IS: {device_tree}')
             topic_nodes = device_tree.get_matches(f'devices/{topic}' if topic else 'devices')
+            _log.debug(f'TOPIC NODES IS: {topic_nodes}')
             if not topic_nodes:
+                _log.debug('NOT TOPIC_NODES!')
                 return Response(json.dumps({f'error': f'Device topic {topic} not found on platform: {platform}.'}),
                                 400, content_type='application/json')
+            _log.debug('BEFORE POINTS')
             points = device_tree.points()
+            _log.debug(f'POINTS iS {points}')
         # TODO: Move this exception handling up to a wrapper.
         except Timeout as e:
             return Response(json.dumps({'error': f'RPC Timed Out: {e}'}), 504, content_type='application/json')
@@ -395,6 +423,7 @@ class VUIEndpoints(object):
                             400, content_type='application/json')
 
         if request_method == 'GET':
+            _log.debug('IN GET')
             # Query parameters:
             read_all = query_params.get('read-all', False)
             return_routes = query_params.get('routes', True)
@@ -403,26 +432,35 @@ class VUIEndpoints(object):
             return_config = query_params.get('config', False)
 
             try:
+                _log.debug('IN GET TRY')
                 if read_all or all([n.is_point() for n in topic_nodes]):
+                    _log.debug('IN GET READ_ALL')
                     # Either leaf values are explicitly requested, or all nodes are already points -- Return points:
                     ret_dict = defaultdict(dict)
                     if return_values:
+                        _log.debug('IN GET RET_VALUES')
                         ret_values = self._rpc('platform.actuator', 'get_multiple_points',
-                                              [d.topic for d in points], on_platform=platform)
+                                               [d.topic for d in points], external_platform=platform)
+                        _log.debug(f'IN GET, RET_VALUES IS: {ret_values}')
                         for k, v in ret_values[0].items():
+                            _log.debug('IN RET_VALUES[0] LOOP')
                             ret_dict[k]['value'] = v
+                        _log.debug("IN GET< BEFORE RET_VALUES[1]")
                         for k, e in ret_values[1].items():
+                            _log.debug('IN RET_VALUES[1] LOOP')
                             ret_dict[k]['value_error'] = e
                     for point in points:
+                        _log.debug('IN POINTS LOOP')
                         if return_routes:
                             ret_dict[point.topic]['route'] = f'/vui/platforms/{platform}/{point.identifier}'
                         if return_writability:
                             ret_dict[point.topic]['writability'] = point.data.get('Writable')
                         if return_config:
                             ret_dict[point.topic]['config'] = point.data
-
+                    _log.debug('IN GET BEFORE RETURN')
                     return Response(json.dumps(ret_dict), 200, content_type='application/json')
                 else:
+                    _log.debug('IN GET ELSE')
                     # All topics are not complete to points and read_all=False -- return route to next segments:
                     ret_dict = {
                         'route_options': device_tree.get_children_dict([n.identifier for n in topic_nodes],
@@ -435,12 +473,15 @@ class VUIEndpoints(object):
             except Timeout as e:
                 return Response(json.dumps({'error': f'RPC Timed Out: {e}'}), 504, content_type='application/json')
             except Exception as e:
+                _log.debug(f'IN GET EXCEPTION IS: {e}')
                 return Response(json.dumps({f'error': f'Error querying device topic {topic}: {e}'}),
                                 400, content_type='application/json')
 
         elif request_method == 'PUT':
+            _log.debug('IN PUT')
             try:
                 confirm_values, selected_routes, unwritables = _get_allowed_write_selection(points, topic, regex, tag)
+                _log.debug('IN PUT AFTER GET_ALLOWED WRITE SELECTION')
             except ValueError as e:
                 return Response(str(e), 405, content_type='application/json')
 
@@ -450,17 +491,21 @@ class VUIEndpoints(object):
                 _log.debug(data)
                 set_value = data.get('value')
                 topics_values = [(d.topic, set_value) for d in points if d.topic not in unwritables]
+                _log.debug('IN PUT BEFORE SET RPC CALL')
                 ret_errors = self._rpc('platform.actuator', 'set_multiple_points',
                                        requester_id=self._agent.core.identity, topics_values=topics_values,
-                                       on_platform=platform)
+                                       external_platform=platform)
+                _log.debug(f'IN PUT AFTER SET RPC, RET_VALUES IS: {ret_errors}')
                 ret_dict = defaultdict(dict)
                 for k in selected_routes.keys():
                     ret_dict[k]['route'] = selected_routes[k]
                     ret_dict[k]['set_error'] = ret_errors.get(k)
                     ret_dict[k]['writable'] = True if k not in unwritables else False
                 if confirm_values:
+                    _log.debug('IN PUT BEFORE GET RPC CALL')
                     ret_values = self._rpc('platform.actuator', 'get_multiple_points',
-                                           [d.topic for d in points], on_platform=platform)
+                                           [d.topic for d in points], external_platform=platform)
+                    _log.debug(f'IN PUT AFTER GET RPC, RET_VALUES IS: {ret_values}')
                     for k in selected_routes.keys():
                         ret_dict[k]['value'] = ret_values[0].get(k)
                         ret_dict[k]['value_check_error'] = ret_values[1].get(k)
@@ -477,6 +522,7 @@ class VUIEndpoints(object):
                                 400, content_type='application/json')
 
         elif request_method == 'DELETE':
+            _log.debug('IN DELETE')
             try:
                 confirm_values, selected_routes, unwritables = _get_allowed_write_selection(points, topic, regex, tag)
             except ValueError as e:
@@ -487,10 +533,10 @@ class VUIEndpoints(object):
                 for t_node in topic_nodes:
                     if t_node.is_device():
                         self._rpc('platform.actuator', 'revert_device',
-                                  requester_id=self._agent.core.identity, topic=t_node.topic, on_platform=platform)
+                                  requester_id=self._agent.core.identity, topic=t_node.topic, external_platform=platform)
                     elif t_node.is_point() and t_node.topic not in unwritables:
                         self._rpc('platform.actuator', 'revert_point',
-                                  requester_id=self._agent.core.identity, topic=t_node.topic, on_platform=platform)
+                                  requester_id=self._agent.core.identity, topic=t_node.topic, external_platform=platform)
 
                 ret_dict = defaultdict(dict)
                 for k in selected_routes.keys():
@@ -499,7 +545,7 @@ class VUIEndpoints(object):
 
                 if confirm_values:
                     ret_values = self._rpc('platform.actuator', 'get_multiple_points',
-                                           [d.topic for d in points], on_platform=platform)
+                                           [d.topic for d in points], external_platform=platform)
                     for k in selected_routes.keys():
                         ret_dict[k]['value'] = ret_values[0].get(k)
                         ret_dict[k]['value_check_error'] = ret_values[1].get(k)
@@ -544,31 +590,20 @@ class VUIEndpoints(object):
             else:
                 ws = self.pubsub_manager.open_subscription_socket(access_token, topic)
                 env['ws4py.app'] = self.pubsub_manager
+                _log.debug('ENV is:')
+                _log.debug(env)
                 return [ws(env, start_response)]
 
-        # elif request_method == 'POST':
-        #     # POST -- For ../pubsub? and ../pubsub/:topic, Subscribe to a topic or open a publication socket.
-        #     for_publish = query_params.get('publication', False)
-        #     # TODO: Should subscription or opening a publication websocket be disallowed without specifying a topic?
-        #     if for_publish:
-        #         socket_route = self.pubsub_manager.open_publication_socket(access_token, topic)
-        #     else:
-        #         socket_route = self.pubsub_manager.open_subscription_socket(access_token, topic)
-        #     ret_dict = {}  # TODO: Compose response body.
-        #     response = Response(json.dumps(ret_dict), 201, content_type='application/json')
-        #     response.location = socket_route  # TODO: Test that this correctly sets the Location header.
-        #     return response
+        elif request_method == 'PUT':
+            # PUT -- for ../pubsub/:topic: One-time publish to a topic.
+            message = data
+            subscriber_count = self.pubsub_manager.publish(topic, message)
+            return Response(json.dumps(subscriber_count), 200, content_type='application/json')
 
         # elif request_method == 'DELETE':
         #     # DELETE -- For ../pubsub and /pubsub/:topic, Close open web sockets and subscriptions for this user.
         #     self.pubsub_manager.close_socket(access_token, topic)
-        #     # TODO: How to handle case of both subscription and publication sockets for same topic?
         #     return Response(status=204)
-        #
-        # elif request_method == 'PUT':
-        #     # PUT -- for ../pubsub/:topic: One-time publish to a topic.
-        #     ret_dict = self.pubsub_manager.publish(access_token, topic)
-        #     return Response(json.dumps(ret_dict), 200, content_type='application/json')
 
         else:
             return Response(f'Endpoint {request_method} {path_info} is not implemented.',
@@ -586,8 +621,7 @@ class VUIEndpoints(object):
 
         if request_method == 'GET':
             agents = self._get_agents(platform)
-            response = json.dumps(
-                {agent: normpath(path_info + '/' + agent) for agent in agents if 'historian' in agent})
+            response = json.dumps(self._route_options(path_info, [agent for agent in agents if 'historian' in agent]))
             return Response(response, 200, content_type='application/json')
         else:
             return Response(f'Endpoint {request_method} {path_info} is not implemented.',
@@ -644,14 +678,14 @@ class VUIEndpoints(object):
         # Resolve tags if the tag query parameter is set:
         if tag:
             try:
-                tag_list = self._rpc('platform.tagging', 'get_topics_by_tags', tag, on_platform=platform).get(timeout=5)
+                tag_list = self._rpc('platform.tagging', 'get_topics_by_tags', tag, external_platform=platform).get(timeout=5)
             except Timeout as e:
                 return Response(json.dumps({'error': f'Tagging Service timed out: {e}'}),
                                 504, content_type='application/json')
         else:
             tag_list = None
         try:
-            historian_topics = self._rpc(historian, 'get_topic_list', on_platform=platform)
+            historian_topics = self._rpc(historian, 'get_topic_list', external_platform=platform)
             historian_tree = TopicTree(historian_topics, 'historians').prune(topic, regex, tag_list)
             topic_nodes = historian_tree.get_matches(f'historians/{topic}' if topic else 'historians')
 
@@ -680,7 +714,7 @@ class VUIEndpoints(object):
                     if return_values:
                         ret_values = self._rpc('platform.historian', 'query',
                                                [d.topic for d in points], start, end, agg_type, agg_period, skip, count,
-                                               order, on_platform=platform)
+                                               order, external_platform=platform)
 
                         # TODO: check return type for ret_values and based on that code
                         # to match single and multiple topics query results into the same structure
@@ -700,9 +734,9 @@ class VUIEndpoints(object):
 
                 else:
                     # All topics are not complete to points and read_all=False -- return route to next segments:
-                    ret_dict = historian_tree.get_children_dict([n.identifier for n in topic_nodes],
+                    ret_dict = {'route_options': historian_tree.get_children_dict([n.identifier for n in topic_nodes],
                                                                 replace_topic=topic,
-                                                                prefix=f'/vui/platforms/{platform}')
+                                                                prefix=f'/vui/platforms/{platform}')}
                     return Response(json.dumps(ret_dict), 200, content_type='application/json')
 
 
@@ -727,7 +761,7 @@ class VUIEndpoints(object):
             if route_obj and route_obj.get(segment) and route_obj.get(segment).get('endpoint-active'):
                 route_obj = route_obj.get(segment)
             else:
-                return {}
+                route_obj = {}
         keys = [k for k in route_obj.keys() if k != 'endpoint-active' and route_obj[k]['endpoint-active']]
         if not path_info:
             return keys
@@ -749,13 +783,13 @@ class VUIEndpoints(object):
         return platforms
 
     def _get_agents(self, platform: str, agent_state: str = "running", include_hidden=False) -> List[str]:
-        agent_list = self._rpc('control', 'list_agents', on_platform=platform)
-        agent_status = self._rpc('control', 'status_agents', on_platform=platform)
+        agent_list = self._rpc('control', 'list_agents', external_platform=platform)
+        agent_status = self._rpc('control', 'status_agents', external_platform=platform)
         running_uuids = [a[0] for a in agent_status]
         for agent in agent_list:
             agent['running'] = True if agent['uuid'] in running_uuids else False
         if include_hidden:
-            peerlist = self._rpc('control', 'peerlist', on_platform=platform)
+            peerlist = self._rpc('control', 'peerlist', external_platform=platform)
             for p in peerlist:
                 if p not in [a['identity'] for a in agent_list]:
                     agent_list.append({'identity': p, 'running': True})
@@ -766,9 +800,9 @@ class VUIEndpoints(object):
         elif agent_state == 'packaged':
             return [os.path.splitext(a)[0] for a in os.listdir(f'{self._agent.core.volttron_home}/packaged')]
 
-    def _rpc(self, vip_identity, method, *args, on_platform=None, **kwargs):
-        external_platform = {'external_platform': on_platform}\
-            if on_platform != self.local_instance_name else {}
+    def _rpc(self, vip_identity, method, *args, external_platform=None, **kwargs):
+        external_platform = {'external_platform': external_platform}\
+            if external_platform != self.local_instance_name else {}
         result = self._agent.vip.rpc.call(vip_identity, method, *args, **external_platform, **kwargs).get(timeout=5)
         return result
 

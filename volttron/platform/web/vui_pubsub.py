@@ -12,7 +12,6 @@ _log = logging.getLogger()
 
 class VUIPubsubManager:
     def __init__(self, agent):
-        # TODO: What needs to be initialized for this?
         self._agent = agent
         self.subscription_websockets = WeakValueDictionary() # Websockets for all topics with current subscriptions.
         self.publication_websockets = {}  # Websockets for all topics with current publication queue.
@@ -24,12 +23,6 @@ class VUIPubsubManager:
         _log.debug('In get_socket_routes. subscription_websockets is: ')
         _log.debug(self.subscription_websockets)
         return {t: str(w) for t, w in self.user_websockets[access_token].items()}
-
-    # def open_publication_socket(self, access_token, topic=None):
-    #     if access_token not in self.publication_websockets.keys():
-    #         self._create_websocket(topic, access_token, for_publication=False)
-    #     # TODO: Set up publication websocket for the specified topic.
-    #     return None  # Return route to this websocket. (somehow)
 
     def open_subscription_socket(self, access_token, topic):
         _log.debug('In open_subscription_socket:')
@@ -54,10 +47,9 @@ class VUIPubsubManager:
         # TODO: Close websocket if there are no additional subscribers.
         pass
 
-    def publish(self, access_token, topic=None):
-        # TODO: publish the received content to the message bus.
-        # TODO: return {'number_of_subscribers': the_number}
-        return {}
+    def publish(self, topic, message):
+        subscriber_count = self._agent.vip.pubsub.publish('pubsub', topic, message=message).get(timeout=5)
+        return {'number_of_subscribers': subscriber_count}
 
     def _create_websocket(self, topic, access_token):
         ws_app = WebSocketWSGIApplication(handler_cls=VUIWebSocket)
