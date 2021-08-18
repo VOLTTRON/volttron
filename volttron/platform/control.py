@@ -1741,7 +1741,7 @@ def show_serverkey(opts):
             "VOLTTRON is not running. This command "
             "requires VOLTTRON platform to be running\n"
         )
-        return
+        return 1
     q = Query(conn.server.core)
     pk = q.query("serverkey").get(timeout=2)
     del q
