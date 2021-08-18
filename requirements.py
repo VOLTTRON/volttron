@@ -57,7 +57,8 @@ install_requires = [
     'PyYAML',
     'pyzmq',
     'setuptools',
-    'tzlocal',
+    # tzlocal 3.0 breaks without the backports.tzinfo package on python < 3.9 https://pypi.org/project/tzlocal/3.0/
+    'tzlocal==2.1',
     'pyOpenSSL==19.0.0',
     'cryptography==2.3',
     # Cross platform way of handling changes in file/directories.
