@@ -36,14 +36,13 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-import gevent
-from volttron.platform.vip.agent import Agent
-from volttron.platform.agent.known_identities import CONFIGURATION_STORE, PLATFORM_DRIVER
-from volttron.platform import get_address
-from volttron.platform.keystore import KeyStore
-from argparse import ArgumentParser, RawTextHelpFormatter
 import os
 import glob
+
+from argparse import ArgumentParser, RawTextHelpFormatter
+from volttron.platform.agent.known_identities import CONFIGURATION_STORE, PLATFORM_DRIVER, PLATFORM
+from volttron.platform.keystore import KeyStore
+from volttron.platform.vip.agent.utils import build_agent
 
 description = """
 Updates the contents of the Platform Driver configuration store with a set of
@@ -76,17 +75,16 @@ By default this will delete the old platform driver configuration store before
 adding new configurations.
 """
 
+
 def install_configs(input_directory, keep=False):
-    os.chdir(input_directory)
+    try:
+        os.chdir(input_directory)
+    except FileNotFoundError:
+        print(f"'input_directory' could not be found: {input_directory}")
+        return
 
-    keystore = KeyStore()
-    agent = Agent(address=get_address(), identity="platform_driver_update_agent",
-                  publickey=keystore.public, secretkey=keystore.secret,
-                  enable_store=False)
-
-    event = gevent.event.Event()
-    gevent.spawn(agent.core.run, event)
-    event.wait()
+    ks = KeyStore()
+    agent = build_agent(identity=PLATFORM, publickey=ks.public, secretkey=ks.secret, enable_store=True, timeout=30)
 
     if not keep:
         print("Deleting old Platform Driver store")
@@ -102,7 +100,6 @@ def install_configs(input_directory, keep=False):
                            'config',
                            f.read(),
                            config_type="json").get(timeout=10)
-
 
     for name in glob.iglob("registry_configs/*"):
         with open(name) as f:
@@ -126,16 +123,15 @@ def install_configs(input_directory, keep=False):
                                    f.read(),
                                    config_type="json").get(timeout=10)
 
+
 if __name__ == "__main__":
     parser = ArgumentParser(description=description, formatter_class=RawTextHelpFormatter)
-
 
     parser.add_argument('input_directory',
                         help='The input directory.')
 
     parser.add_argument('--keep-old', action="store_true",
                         help="Do not remove existing device driver and registry files from the Platform Driver configuration store.")
-
 
     args = parser.parse_args()
     install_configs(args.input_directory, args.keep_old)
