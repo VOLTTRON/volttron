@@ -14,7 +14,7 @@
 name: Testing platform web
 
 # Determine what events are going to trigger a running of the workflow
-on: [pull_request, push]
+on: [pull_request]
 
 jobs:
   # The job named build
