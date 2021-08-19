@@ -15,8 +15,7 @@ from volttrontesting.utils.utils import get_rand_port
 
 
 IMAGES = ["mongo:3-xenial", "mongo:bionic"]
-
-if "CI" not in os.environ:
+if "CI" in os.environ:
     IMAGES.extend(
         [
             "mongo:3.6-xenial",
