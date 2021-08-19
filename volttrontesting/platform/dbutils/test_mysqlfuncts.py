@@ -27,9 +27,6 @@ IMAGES = [
     "mysql:8.0"
 ]
 
-# if "CI" in os.environ:
-#     IMAGES.extend(["mysql:5.7.31", "mysql:5", "mysql:5.7"])
-
 CONNECTION_HOST = "localhost"
 TEST_DATABASE = "test_historian"
 ROOT_PASSWORD = "12345"
