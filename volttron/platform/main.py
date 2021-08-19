@@ -93,7 +93,7 @@ except ImportError:
 from .store import ConfigStoreService
 from .agent import utils
 from .agent.known_identities import PLATFORM_WEB, CONFIGURATION_STORE, AUTH, CONTROL, CONTROL_CONNECTION, PLATFORM_HEALTH, \
-    KEY_DISCOVERY, PROXY_ROUTER
+    KEY_DISCOVERY, PROXY_ROUTER, PLATFORM
 from .vip.agent.subsystems.pubsub import ProtectedPubSubTopics
 from .keystore import KeyStore, KnownHostsStore
 from .vip.pubsubservice import PubSubService
@@ -777,7 +777,7 @@ def start_volttron_process(opts):
     if publickey:
         # Authorize the platform key:
         entry = AuthEntry(credentials=encode_key(publickey),
-                          user_id='platform',
+                          user_id=PLATFORM,
                           capabilities=[{'edit_config_store': {'identity': '/.*/'}}],
                           comments='Automatically added by platform on start')
         AuthFile().add(entry, overwrite=True)
