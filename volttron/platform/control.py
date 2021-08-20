@@ -459,7 +459,7 @@ class ControlService(BaseAgent):
         Install the agent through the rmq message bus.
         """
         peer = self.vip.rpc.context.vip_message.peer
-
+        protocol_request_size = 8192
         protocol_message = None
         protocol_headers = None
         response_received = False
@@ -487,7 +487,7 @@ class ControlService(BaseAgent):
                     jsonapi.dumps(["checksum"]).encode("utf-8")
                 ).decode("utf-8")
                 request_fetch = base64.b64encode(
-                    jsonapi.dumps(["fetch", 1024]).encode("utf-8")
+                    jsonapi.dumps(["fetch", protocol_request_size]).encode("utf-8")
                 ).decode("utf-8")
 
                 _log.debug(f"Server subscribing to {topic}")
