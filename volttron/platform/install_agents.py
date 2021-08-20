@@ -425,7 +425,9 @@ def send_agent(connection: "ControlConnection", wheel_file: str, vip_identity: s
         raise ValueError("Unknown messagebus detected!")
     
     result.rawlink(lambda glt: task.kill(block=False))
-    gevent.wait([result])
+    # Allows larger files to be sent across the message bus without
+    # raising an error.
+    gevent.wait([result], timeout=300)
     _log.debug("Completed sending of agent across.")
     _log.debug(f"After wait result is {result}")
     return result
