@@ -59,7 +59,7 @@ except ImportError:
 
 if HAS_INFLUXDB:
     from volttron.platform.dbutils import influxdbutils
-    from fixtures import *
+    from .fixtures import *
 
 
 def clean_database(client, clean_updated_database=False):
@@ -71,7 +71,10 @@ def clean_database(client, clean_updated_database=False):
 
 
 def start_influxdb_instance(vi, config):
-    return vi.install_agent(agent_dir=get_services_core("InfluxdbHistorian"),
+    from volttron.platform import get_volttron_root
+    root = get_volttron_root()
+    agent_dir = os.path.join(root, "services/contrib/InfluxdbHistorian")
+    return vi.install_agent(agent_dir=agent_dir,
                             config_file=config,
                             vip_identity="influxdb.historian")
 

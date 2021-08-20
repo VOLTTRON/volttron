@@ -974,6 +974,11 @@ def test_basic_function_optional_config(request, historian, publish_agent,
 
     finally:
         if agent_uuid:
+            cleanup_function = globals()["cleanup_" + connection_type]
+            cleanup_function(db_connection, ['data_table',
+                                             'topics_table',
+                                             'prefix_data_table',
+                                             'prefix_topics_table'])
             volttron_instance.stop_agent(agent_uuid)
             volttron_instance.remove_agent(agent_uuid)
 
