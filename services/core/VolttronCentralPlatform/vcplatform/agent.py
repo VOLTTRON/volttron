@@ -741,16 +741,19 @@ class VolttronCentralPlatform(Agent):
 
         :return: A list of agents.
         """
-
+        agents = ["hey"]
+        _log.debug("HERE 1")
         agents = self.vip.rpc.call(CONTROL, "list_agents").get(timeout=5)
+        _log.debug("HERE 2")
         versions = self.vip.rpc.call(CONTROL, "agent_versions").get(timeout=5)
+        _log.debug("HERE 3")
         status_running = self.status_agents()
         uuid_to_status = {}
         # proc_info has a list of [startproc, endprox]
         for a in agents:
             pinfo = None
             is_running = False
-            for uuid, name, proc_info in status_running:
+            for uuid, name, proc_info, _ in status_running:
                 if a['uuid'] == uuid:
                     is_running = proc_info[0] > 0 and proc_info[1] == None
                     pinfo = proc_info
@@ -784,7 +787,7 @@ class VolttronCentralPlatform(Agent):
                 'context': None,
                 'last_updated': None
             }
-
+            _log.debug("HERE 4")
             if is_running:
                 identity = self.vip.rpc.call(CONTROL, 'agent_vip_identity',
                                              a['uuid']).get(timeout=30)
@@ -802,10 +805,12 @@ class VolttronCentralPlatform(Agent):
                         "Couldn't reach agent identity {} uuid: {}".format(
                             identity, a['uuid']
                         ))
+        _log.debug("HERE 5")
         for a in agents:
             if a['uuid'] in uuid_to_status:
                 _log.debug('UPDATING STATUS OF: {}'.format(a['uuid']))
                 a.update(uuid_to_status[a['uuid']])
+        _log.debug("HERE 6")
         return agents
 
     def store_agent_config(self, agent_identity, config_name, raw_contents,
