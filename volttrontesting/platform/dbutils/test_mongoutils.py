@@ -14,21 +14,10 @@ from volttrontesting.fixtures.docker_wrapper import create_container
 from volttrontesting.utils.utils import get_rand_port
 
 
-IMAGES = ["mongo:3-xenial", "mongo:bionic"]
-
-if "CI" not in os.environ:
+IMAGES = ["mongo:latest"]
+if "CI" in os.environ:
     IMAGES.extend(
-        [
-            "mongo:3.6-xenial",
-            "mongo:3.6.19-xenial",
-            "mongo:4.0-xenial",
-            "mongo:4.0.19-xenial",
-            "mongo:4-bionic",
-            "mongo:4.2-bionic",
-            "mongo:4.2.8-bionic",
-            "mongo:4.4-bionic",
-            "mongo:4.4.0-bionic",
-        ]
+        ["mongo:5.0", "mongo:4.0"]
     )
 
 TEST_DATABASE = "test_historian"

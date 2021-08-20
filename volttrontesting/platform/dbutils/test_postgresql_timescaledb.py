@@ -28,10 +28,10 @@ pytestmark = [
 ]
 
 
-IMAGES = ["timescale/timescaledb:latest-pg10"]
+IMAGES = ["timescale/timescaledb:latest-pg12"]
 if "CI" in os.environ:
     IMAGES.extend(
-        ["timescale/timescaledb:latest-pg12", "timescale/timescaledb:latest-pg11"]
+        ["timescale/timescaledb:latest-pg11", "timescale/timescaledb:latest-pg10"]
     )
 
 CONNECTION_HOST = "localhost"

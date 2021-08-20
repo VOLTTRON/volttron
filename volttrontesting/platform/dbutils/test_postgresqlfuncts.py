@@ -24,24 +24,12 @@ logging.getLogger("urllib3.connectionpool").setLevel(logging.INFO)
 pytestmark = [pytest.mark.postgresqlfuncts, pytest.mark.dbutils, pytest.mark.unit]
 
 
-# Current documentation claims that we have tested Historian on Postgres 10
-# See https://volttron.readthedocs.io/en/develop/core_services/historians/SQL-Historian.html#postgresql-and-redshift
-IMAGES = ["postgres:9.6.18", "postgres:10.13"]
-
+IMAGES = ["postgres:13"]
 if "CI" in os.environ:
     IMAGES.extend(
-        [
-            "postgres:11.8",
-            "postgres:9",
-            "postgres:9.5",
-            "postgres:10",
-            "postgres:11",
-            "postgres:12",
-            "postgres:12.3",
-            "postgres:13",
-            "postgres:13-beta2",
-        ]
+        ["postgres:12", "postgres:11"]
     )
+
 ALLOW_CONNECTION_TIME = 10
 CONNECTION_HOST = "localhost"
 TEST_DATABASE = "test_historian"
@@ -297,7 +285,6 @@ def test_insert_agg_topic_should_return_true(get_container_func):
 def test_update_agg_topic_should_return_true(get_container_func):
     container, sqlfuncts, connection_port, historian_version = get_container_func
 
-
     topic = "cars"
     agg_type = "SUM"
     agg_time_period = "2100ZULU"
@@ -444,7 +431,6 @@ def test_create_aggregate_store_should_succeed(get_container_func):
 
 def test_insert_aggregate_stmt_should_succeed(get_container_func):
     container, sqlfuncts, connection_port, historian_version = get_container_func
-
 
     # be aware that Postgresql will automatically fold unquoted names into lower case
     # From : https://www.postgresql.org/docs/current/sql-syntax-lexical.html
