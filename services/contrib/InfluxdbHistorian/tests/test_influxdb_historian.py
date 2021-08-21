@@ -59,7 +59,7 @@ except ImportError:
 
 if HAS_INFLUXDB:
     from volttron.platform.dbutils import influxdbutils
-    from fixtures import *
+    from .fixtures import *
 
 
 def clean_database(client, clean_updated_database=False):
@@ -71,7 +71,10 @@ def clean_database(client, clean_updated_database=False):
 
 
 def start_influxdb_instance(vi, config):
-    return vi.install_agent(agent_dir=get_services_core("InfluxdbHistorian"),
+    from volttron.platform import get_volttron_root
+    root = get_volttron_root()
+    agent_dir = os.path.join(root, "services/contrib/InfluxdbHistorian")
+    return vi.install_agent(agent_dir=agent_dir,
                             config_file=config,
                             vip_identity="influxdb.historian")
 
@@ -1356,55 +1359,3 @@ def test_update_config_store(volttron_instance, influxdb_client):
         volttron_instance.stop_agent(agent_uuid)
         volttron_instance.remove_agent(agent_uuid)
         clean_database(influxdb_client, clean_updated_database=True)
-
-
-@pytest.mark.historian
-@pytest.mark.skipif(not HAS_INFLUXDB, reason='No influxdb library. Please run \'pip install influxdb\'')
-def test_default_config(volttron_instance, influxdb_client):
-    """
-    Test installing the InfluxdbHistorian agent and then connect to influxdb client.
-    When it first connect to the client, there should be no database yet. If database already existed, clean database.
-    """
-    clean_database(influxdb_client)
-
-    config_path = os.path.join(get_services_core("InfluxdbHistorian"), "config")
-    with open(config_path, "r") as config_file:
-        config_json = json.load(config_file)
-    assert isinstance(config_json, dict)
-
-    clean_database(influxdb_client)
-    db = config_json['connection']['params']['database']
-    influxdb_client.create_database(db)
-
-    agent_uuid = start_influxdb_instance(volttron_instance, config_json)
-    assert agent_uuid is not None
-    assert volttron_instance.is_agent_running(agent_uuid)
-
-    try:
-        # query the table to check publishes, do a minimal comparison
-        publisher = volttron_instance.build_agent()
-        assert publisher is not None
-        expected = publish_some_fake_data(publisher, 10)
-
-        rs = influxdb_client.get_list_database()
-
-        # the databases historian
-        assert {'name': 'historian'} in rs
-
-        # Check for measurement OutsideAirTemperature
-        query = 'SELECT value FROM outsideairtemperature ' \
-                'WHERE campus=\'building\' and building=\'lab\' and device=\'device\''
-        rs = influxdb_client.query(query)
-        rs = list(rs.get_points())
-        topic = query_topics["oat_point"]
-
-        assert len(rs) == 10
-
-        for point in rs:
-            ts = parser.parse(point['time'])
-            ts = format_timestamp(ts)
-            assert point["value"] == approx(expected['data'][ts][topic])
-    finally:
-        volttron_instance.stop_agent(agent_uuid)
-        volttron_instance.remove_agent(agent_uuid)
-        clean_database(influxdb_client)

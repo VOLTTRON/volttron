@@ -57,7 +57,8 @@ install_requires = [
     'PyYAML',
     'pyzmq',
     'setuptools',
-    'tzlocal',
+    # tzlocal 3.0 breaks without the backports.tzinfo package on python < 3.9 https://pypi.org/project/tzlocal/3.0/
+    'tzlocal==2.1',
     'pyOpenSSL==19.0.0',
     'cryptography==2.3',
     # Cross platform way of handling changes in file/directories.
@@ -71,7 +72,7 @@ extras_require = {
         'crate'
     ],
     'databases': [  # Support for all known databases
-        'mysql-connector-python-rf',
+        'mysql-connector-python',
         'bson==0.5.7',
         'pymongo==3.7.2',
         'crate',
@@ -108,7 +109,7 @@ extras_require = {
         'pymongo==3.7.2',
     ],
     'mysql': [  # mysql databases
-        'mysql-connector-python-rf',
+        'mysql-connector-python',
     ],
     'pandas': [  # numpy and pandas for applications
         'numpy',

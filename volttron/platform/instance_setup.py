@@ -208,6 +208,7 @@ def _cleanup_on_exit():
             return
     _shutdown_platform()
 
+
 def _install_agent(agent_dir, config, tag):
     if not isinstance(config, dict):
         config_file = config
@@ -216,9 +217,7 @@ def _install_agent(agent_dir, config, tag):
         with open(cfg.name, 'w') as fout:
             fout.write(jsonapi.dumps(config))
         config_file = cfg.name
-    _cmd(['volttron-ctl', 'remove', '--tag', tag, '--force'])
-    _cmd(['scripts/core/pack_install.sh',
-          agent_dir, config_file, tag])
+    _cmd(['volttron-ctl', 'install', "--config", config_file, "--tag", tag, "--force", agent_dir])
 
 
 def _is_agent_installed(tag):

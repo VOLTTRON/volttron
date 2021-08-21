@@ -459,7 +459,7 @@ class ControlService(BaseAgent):
         Install the agent through the rmq message bus.
         """
         peer = self.vip.rpc.context.vip_message.peer
-
+        protocol_request_size = 8192
         protocol_message = None
         protocol_headers = None
         response_received = False
@@ -487,7 +487,7 @@ class ControlService(BaseAgent):
                     jsonapi.dumps(["checksum"]).encode("utf-8")
                 ).decode("utf-8")
                 request_fetch = base64.b64encode(
-                    jsonapi.dumps(["fetch", 1024]).encode("utf-8")
+                    jsonapi.dumps(["fetch", protocol_request_size]).encode("utf-8")
                 ).decode("utf-8")
 
                 _log.debug(f"Server subscribing to {topic}")
@@ -1735,7 +1735,14 @@ def show_serverkey(opts):
 
     return 0 if success, 1 if false
     """
-    q = Query(opts.connection.server.core)
+    conn = opts.connection
+    if not conn:
+        _stderr.write(
+            "VOLTTRON is not running. This command "
+            "requires VOLTTRON platform to be running\n"
+        )
+        return 1
+    q = Query(conn.server.core)
     pk = q.query("serverkey").get(timeout=2)
     del q
     if pk is not None:

@@ -1,5 +1,8 @@
-from gevent import os, subprocess
+import sqlite3
+
+from gevent import subprocess
 import pytest
+import os
 
 from setuptools import glob
 
@@ -9,16 +12,16 @@ from volttron.platform.dbutils.sqlitefuncts import SqlLiteFuncts
 TOPICS_TABLE = "topics"
 DATA_TABLE = "data"
 META_TABLE = "meta"
-METAMETA_TABLE = "metameta"
 AGG_TOPICS_TABLE = "aggregate_topics"
 AGG_META_TABLE = "aggregate_meta"
 TABLE_PREFIX = ""
+CONNECT_PARAMS = {"database": "data/historian.sqlite"}
 
 
 @pytest.mark.sqlitefuncts
 @pytest.mark.dbutils
 def test_setup_historian_tables(sqlitefuncts_db_not_initialized):
-    expected_tables = {"data", "meta", "topics"}
+    expected_tables = {"data", "topics"}
 
     sqlitefuncts_db_not_initialized.setup_historian_tables()
 
@@ -29,39 +32,26 @@ def test_setup_historian_tables(sqlitefuncts_db_not_initialized):
 
 @pytest.mark.sqlitefuncts
 @pytest.mark.dbutils
-def test_record_table_definitions(sqlitefuncts_db_not_initialized):
-    table_defs = {
-        "table_prefix": "prefixtab",
-        "data_table": "data",
-        "topics_table": "topics",
-        "meta_table": "meta",
-    }
-    meta_table_name = "metameta"
-    init_historian_tables(sqlitefuncts_db_not_initialized)
-    expected_tables = {"data", "meta", "metameta", "topics"}
+def test_setup_aggregate_historian_tables(get_sqlitefuncts):
+    sqlitefuncts, historain_version = get_sqlitefuncts
 
-    sqlitefuncts_db_not_initialized.record_table_definitions(
-        table_defs, meta_table_name
-    )
+    if historain_version == "<4.0.0":
+        expected_tables = {
+            "data",
+            "aggregate_meta",
+            "meta",
+            "aggregate_topics",
+            "topics"
+        }
+    else:
+        expected_tables = {
+            "data",
+            "aggregate_meta",
+            "aggregate_topics",
+            "topics"
+        }
 
-    actual_tables = get_tables()
-    assert actual_tables == expected_tables
-
-
-@pytest.mark.sqlitefuncts
-@pytest.mark.dbutils
-def test_setup_aggregate_historian_tables(sqlitefuncts):
-    meta_table_name = "metameta"
-    expected_tables = {
-        "data",
-        "aggregate_meta",
-        "meta",
-        "aggregate_topics",
-        "topics",
-        "metameta",
-    }
-
-    sqlitefuncts.setup_aggregate_historian_tables(meta_table_name)
+    sqlitefuncts.setup_aggregate_historian_tables()
 
     actual_tables = get_tables()
     assert actual_tables == expected_tables
@@ -76,8 +66,9 @@ def test_setup_aggregate_historian_tables(sqlitefuncts):
         ([43], {43: "topic43"}, {"topic43": [("2020-06-01T12:30:59.000000", [2, 3])]}),
     ],
 )
-def test_query(sqlitefuncts, topic_ids, id_name_map, expected_values):
-    init_database(sqlitefuncts)
+def test_query(get_sqlitefuncts, topic_ids, id_name_map, expected_values):
+    sqlitefuncts, historain_version = get_sqlitefuncts
+
     query = """INSERT OR REPLACE INTO data VALUES('2020-06-01 12:30:59',43,'[2,3]')"""
     query_db(query)
 
@@ -96,9 +87,8 @@ def test_query(sqlitefuncts, topic_ids, id_name_map, expected_values):
         ("2020-06-01 12:30:59", 10, []),
     ],
 )
-def test_manage_db_size(
-    sqlitefuncts, history_limit_timestamp, storage_limit_gb, expected_data
-):
+def test_manage_db_size(get_sqlitefuncts, history_limit_timestamp, storage_limit_gb, expected_data):
+    sqlitefuncts, historain_version = get_sqlitefuncts
     query = (
         "INSERT OR REPLACE INTO data VALUES('2000-06-01 12:30:59',43,'[2,3]'); "
         "INSERT OR REPLACE INTO data VALUES('2000-06-01 12:30:58',42,'[2,3]')"
@@ -118,7 +108,11 @@ def test_manage_db_size(
 
 @pytest.mark.sqlitefuncts
 @pytest.mark.dbutils
-def test_insert_meta(sqlitefuncts):
+def test_insert_meta(get_sqlitefuncts):
+    sqlitefuncts, historain_version = get_sqlitefuncts
+    if historain_version != "<4.0.0":
+        pytest.skip("insert_meta() is called by historian only for schema <4.0.0")
+
     assert get_all_data(META_TABLE) == []
 
     topic_id = "44"
@@ -134,7 +128,8 @@ def test_insert_meta(sqlitefuncts):
 
 @pytest.mark.sqlitefuncts
 @pytest.mark.dbutils
-def test_insert_data(sqlitefuncts):
+def test_insert_data(get_sqlitefuncts):
+    sqlitefuncts, historain_version = get_sqlitefuncts
     assert get_all_data(DATA_TABLE) == []
 
     ts = "2001-09-11 08:46:00"
@@ -151,11 +146,15 @@ def test_insert_data(sqlitefuncts):
 
 @pytest.mark.sqlitefuncts
 @pytest.mark.dbutils
-def test_insert_topic(sqlitefuncts):
+def test_insert_topic(get_sqlitefuncts):
+    sqlitefuncts, historain_version = get_sqlitefuncts
     assert get_all_data(TOPICS_TABLE) == []
 
     topic = "football"
-    expected_data = ["1|football"]
+    if historain_version == "<4.0.0":
+        expected_data = ["1|football"]
+    else:
+        expected_data = ["1|football|"]
 
     res = sqlitefuncts.insert_topic(topic)
     sqlitefuncts.commit()
@@ -166,36 +165,46 @@ def test_insert_topic(sqlitefuncts):
 
 @pytest.mark.sqlitefuncts
 @pytest.mark.dbutils
-def test_update_topic(sqlitefuncts):
+def test_update_topic(get_sqlitefuncts):
+    sqlitefuncts, historain_version = get_sqlitefuncts
     query = "INSERT INTO topics (topic_name) values ('football')"
     query_db(query)
 
-    assert get_all_data(TOPICS_TABLE) == ["1|football"]
+    if historain_version == "<4.0.0":
+        expected_data = ["1|football"]
+    else:
+        expected_data = ["1|football|"]
+    assert get_all_data(TOPICS_TABLE) == expected_data
 
     res = sqlitefuncts.update_topic("basketball", 1)
     sqlitefuncts.commit()
 
     assert res is True
-    assert get_all_data("topics") == ["1|basketball"]
+    if historain_version == "<4.0.0":
+        expected_data = ["1|basketball"]
+    else:
+        expected_data = ["1|basketball|"]
+    assert get_all_data("topics") == expected_data
 
 
 @pytest.mark.sqlitefuncts
 @pytest.mark.dbutils
-def test_get_aggregation_list(sqlitefuncts):
+def test_get_aggregation_list(get_sqlitefuncts):
+    sqlitefuncts, historain_version = get_sqlitefuncts
     assert sqlitefuncts.get_aggregation_list() == [
         "AVG",
         "MIN",
         "MAX",
         "COUNT",
         "SUM",
-        "TOTAL",
-        "GROUP_CONCAT",
+        "TOTAL"
     ]
 
 
 @pytest.mark.sqlitefuncts
 @pytest.mark.dbutils
-def test_insert_agg_topic(sqlitefuncts):
+def test_insert_agg_topic(get_sqlitefuncts):
+    sqlitefuncts, historain_version = get_sqlitefuncts
     assert get_all_data(AGG_TOPICS_TABLE) == []
 
     topic = "agg_topics"
@@ -211,8 +220,10 @@ def test_insert_agg_topic(sqlitefuncts):
 
 @pytest.mark.sqlitefuncts
 @pytest.mark.dbutils
-def test_update_agg_topic(sqlitefuncts):
-    query = "INSERT INTO aggregate_topics (agg_topic_name, agg_type, agg_time_period) values ('cars', 'SUM', '2100ZULU')"
+def test_update_agg_topic(get_sqlitefuncts):
+    sqlitefuncts, historain_version = get_sqlitefuncts
+    query = "INSERT INTO aggregate_topics " \
+            "(agg_topic_name, agg_type, agg_time_period) values ('cars', 'SUM', '2100ZULU')"
     query_db(query)
 
     assert get_all_data(AGG_TOPICS_TABLE) == ["1|cars|SUM|2100ZULU"]
@@ -228,7 +239,8 @@ def test_update_agg_topic(sqlitefuncts):
 
 @pytest.mark.sqlitefuncts
 @pytest.mark.dbutils
-def test_insert_agg_meta(sqlitefuncts):
+def test_insert_agg_meta(get_sqlitefuncts):
+    sqlitefuncts, historain_version = get_sqlitefuncts
     assert get_all_data(AGG_META_TABLE) == []
 
     topic_id = 42
@@ -243,7 +255,8 @@ def test_insert_agg_meta(sqlitefuncts):
 
 @pytest.mark.sqlitefuncts
 @pytest.mark.dbutils
-def test_get_topic_map(sqlitefuncts):
+def test_get_topic_map(get_sqlitefuncts):
+    sqlitefuncts, historain_version = get_sqlitefuncts
     query = "INSERT INTO topics (topic_name) values ('football');INSERT INTO topics (topic_name) values ('netball');"
     query_db(query)
     expected_topic_map = (
@@ -251,7 +264,12 @@ def test_get_topic_map(sqlitefuncts):
         {"football": "football", "netball": "netball"},
     )
 
-    assert get_all_data(TOPICS_TABLE) == ["1|football", "2|netball"]
+    if historain_version == "<4.0.0":
+        expected_data = ["1|football", "2|netball"]
+    else:
+        # topics table contains metadata column
+        expected_data = ["1|football|", "2|netball|"]
+    assert get_all_data(TOPICS_TABLE) == expected_data
 
     actual_topic_map = sqlitefuncts.get_topic_map()
 
@@ -260,7 +278,8 @@ def test_get_topic_map(sqlitefuncts):
 
 @pytest.mark.sqlitefuncts
 @pytest.mark.dbutils
-def test_get_agg_topics(sqlitefuncts):
+def test_get_agg_topics(get_sqlitefuncts):
+    sqlitefuncts, historain_version = get_sqlitefuncts
     query = (
         "INSERT INTO aggregate_topics (agg_topic_name, agg_type, agg_time_period ) "
         "values('topic_name', 'AVG', '2001');"
@@ -277,9 +296,7 @@ def test_get_agg_topics(sqlitefuncts):
 
 @pytest.mark.sqlitefuncts
 @pytest.mark.dbutils
-def test_agg_topics_should_return_empty_on_nonexistent_table(
-    sqlitefuncts_db_not_initialized,
-):
+def test_agg_topics_should_return_empty_on_nonexistent_table(sqlitefuncts_db_not_initialized):
     init_historian_tables(sqlitefuncts_db_not_initialized)
 
     actual_topic_map = sqlitefuncts_db_not_initialized.get_agg_topics()
@@ -289,7 +306,8 @@ def test_agg_topics_should_return_empty_on_nonexistent_table(
 
 @pytest.mark.sqlitefuncts
 @pytest.mark.dbutils
-def test_get_agg_topic_map(sqlitefuncts):
+def test_get_agg_topic_map(get_sqlitefuncts):
+    sqlitefuncts, historain_version = get_sqlitefuncts
     query = (
         "INSERT INTO aggregate_topics (agg_topic_name, agg_type, agg_time_period ) "
         "values('topic_name', 'AVG', '2001');"
@@ -304,9 +322,7 @@ def test_get_agg_topic_map(sqlitefuncts):
 
 @pytest.mark.sqlitefuncts
 @pytest.mark.dbutils
-def test_agg_topic_map_should_return_empty_on_nonexistent_table(
-    sqlitefuncts_db_not_initialized,
-):
+def test_agg_topic_map_should_return_empty_on_nonexistent_table(sqlitefuncts_db_not_initialized):
     init_historian_tables(sqlitefuncts_db_not_initialized)
 
     actual_topic_map = sqlitefuncts_db_not_initialized.get_agg_topic_map()
@@ -333,9 +349,8 @@ def test_agg_topic_map_should_return_empty_on_nonexistent_table(
         ),
     ],
 )
-def test_query_topics_by_pattern(
-    sqlitefuncts, topic_1, topic_2, topic_3, topic_pattern, expected_topics
-):
+def test_query_topics_by_pattern(get_sqlitefuncts, topic_1, topic_2, topic_3, topic_pattern, expected_topics):
+    sqlitefuncts, historain_version = get_sqlitefuncts
     query = (
         f"INSERT INTO topics (topic_name) values ({topic_1});"
         f"INSERT INTO topics (topic_name) values ({topic_2});"
@@ -350,7 +365,8 @@ def test_query_topics_by_pattern(
 
 @pytest.mark.sqlitefuncts
 @pytest.mark.dbutils
-def test_create_aggregate_store(sqlitefuncts):
+def test_create_aggregate_store(get_sqlitefuncts):
+    sqlitefuncts, historain_version = get_sqlitefuncts
     agg_type = "AVG"
     agg_time_period = "1984"
     expected_new_agg_table = "AVG_1984"
@@ -367,7 +383,8 @@ def test_create_aggregate_store(sqlitefuncts):
 
 @pytest.mark.sqlitefuncts
 @pytest.mark.dbutils
-def test_collect_aggregate(sqlitefuncts):
+def test_collect_aggregate(get_sqlitefuncts):
+    sqlitefuncts, historain_version = get_sqlitefuncts
     query = (
         "INSERT OR REPLACE INTO data values('2020-06-01 12:30:59', 42, '2');"
         "INSERT OR REPLACE INTO data values('2020-06-01 12:31:59', 43, '8');"
@@ -413,7 +430,7 @@ def query_db(query):
 
 @pytest.fixture()
 def sqlitefuncts_db_not_initialized():
-    connect_params = {"database": "data/historian.sqlite"}
+    global CONNECT_PARAMS
     table_names = {
         "data_table": DATA_TABLE,
         "topics_table": TOPICS_TABLE,
@@ -421,7 +438,7 @@ def sqlitefuncts_db_not_initialized():
         "agg_topics_table": AGG_TOPICS_TABLE,
         "agg_meta_table": AGG_META_TABLE,
     }
-    client = SqlLiteFuncts(connect_params, table_names)
+    client = SqlLiteFuncts(CONNECT_PARAMS, table_names)
     yield client
 
     # Teardown
@@ -432,23 +449,45 @@ def sqlitefuncts_db_not_initialized():
         os.rmdir("./data/")
 
 
-@pytest.fixture()
-def sqlitefuncts(sqlitefuncts_db_not_initialized):
-    init_database(sqlitefuncts_db_not_initialized)
-    yield sqlitefuncts_db_not_initialized
+@pytest.fixture(params=[
+    "<4.0.0",
+    ">=4.0.0"
+])
+def get_sqlitefuncts(request, sqlitefuncts_db_not_initialized):
+    init_database(sqlitefuncts_db_not_initialized, request.param)
+    yield sqlitefuncts_db_not_initialized, request.param
 
 
-def init_database(sqlitefuncts_client):
-    sqlitefuncts_client.setup_historian_tables()
-    table_defs = {
-        "table_prefix": TABLE_PREFIX,
-        "data_table": DATA_TABLE,
-        "topics_table": TOPICS_TABLE,
-        "meta_table": META_TABLE,
-    }
-    meta_table_name = METAMETA_TABLE
-    sqlitefuncts_client.record_table_definitions(table_defs, meta_table_name)
-    sqlitefuncts_client.setup_aggregate_historian_tables(meta_table_name)
+def init_database(sqlitefuncts_client, historian_version):
+    global CONNECT_PARAMS
+    if historian_version == "<4.0.0":
+        if 'detect_types' not in CONNECT_PARAMS:
+            CONNECT_PARAMS['detect_types'] = sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
+        if 'timeout' not in CONNECT_PARAMS.keys():
+            CONNECT_PARAMS['timeout'] = 10
+        connection = sqlite3.connect(**CONNECT_PARAMS)
+        c = connection.cursor()
+        c.execute(
+            '''CREATE TABLE ''' + DATA_TABLE +
+            ''' (ts timestamp NOT NULL,
+                 topic_id INTEGER NOT NULL,
+                 value_string TEXT NOT NULL,
+                 UNIQUE(topic_id, ts))''')
+        c.execute(
+            '''CREATE TABLE ''' + TOPICS_TABLE +
+            ''' (topic_id INTEGER PRIMARY KEY,
+                 topic_name TEXT NOT NULL,
+                 UNIQUE(topic_name))''')
+        c.execute(
+            '''CREATE TABLE ''' + META_TABLE +
+            ''' (topic_id INTEGER PRIMARY KEY,
+                 metadata TEXT NOT NULL,
+                 UNIQUE(topic_id))''')
+        connection.commit()
+        sqlitefuncts_client.setup_aggregate_historian_tables()
+    else:
+        sqlitefuncts_client.setup_historian_tables()
+        sqlitefuncts_client.setup_aggregate_historian_tables()
 
 
 def init_historian_tables(sqlitefuncts_client):
