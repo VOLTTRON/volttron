@@ -503,14 +503,13 @@ class Certs(object):
         The key that is used to sign the csr is <instance_name>.name.
 
         :param fully_qualified_identity:
-        :param target_volttron:
-        :return:
+        :param remote_instance_name:
+        :return csr.public_bytes: Encoded certificate which can saved
+        to a file or sent to be verified by clients.
         """
         assert fully_qualified_identity
         remote_rmq_user = "{}.{}".format(remote_instance_name, fully_qualified_identity)
-        xname = x509.Name([
-            x509.NameAttribute(NameOID.COMMON_NAME,  six.u(remote_rmq_user)),
-        ])
+        _, _, xname = build_subject(self.cert(self.root_ca_name), six.u(remote_rmq_user))
         key = _load_key(self.private_key_file(fully_qualified_identity))
         csr = x509.CertificateSigningRequestBuilder().subject_name(
             xname).sign(key, hashes.SHA256(), default_backend())
@@ -960,27 +959,7 @@ def _create_signed_certificate(ca_cert, ca_key, name, valid_days=DEFAULT_DAYS, t
     elif kwargs:
         subject = _create_subject(**kwargs)
     else:
-        temp_list = ca_cert.subject.rdns
-        new_attrs = []
-        for i in temp_list:
-            if i.get_attributes_for_oid(NameOID.COMMON_NAME):
-                if type == 'server':
-                    if fqdn:
-                        hostname = gethostname()
-                    else:
-                        hostname = gethostname()
-                        fqdn = getfqdn(hostname)
-                    new_attrs.append(RelativeDistinguishedName(
-                        [x509.NameAttribute(
-                            NameOID.COMMON_NAME,
-                            hostname)]))
-                else:
-                    new_attrs.append(RelativeDistinguishedName(
-                        [x509.NameAttribute(NameOID.COMMON_NAME,
-                                            name)]))
-            else:
-                new_attrs.append(i)
-        subject = x509.Name(new_attrs)
+        fqdn, hostname, subject = build_subject(ca_cert, name, type, fqdn)
 
     cert_builder = x509.CertificateBuilder().subject_name(
         subject
@@ -1067,6 +1046,41 @@ def _create_signed_certificate(ca_cert, ca_key, name, valid_days=DEFAULT_DAYS, t
     # ca_key = _load_key(self.private_key_file(ca_name))
     cert = cert_builder.sign(ca_key, hashes.SHA256(), default_backend())
     return cert, key, serial
+
+
+def build_subject(ca_cert, name, type="client", fqdn=None):
+    """
+    Builds a x509 Name list of OID's based on a CA certificate.
+
+    :param ca_cert: Certificate Authority used to sign the cert
+    :param name: Name of the new cert
+    :param type: Server or client
+    :param fqdn: Fully qualified domain name
+    :return fqdn: Fully qualified domain name update/pass-through
+    :return hostname: Current hostname
+    :return subject: x509 Name used when building a certificate
+    """
+    temp_list = ca_cert.subject.rdns
+    new_attrs = []
+    hostname = gethostname()
+    for i in temp_list:
+        if i.get_attributes_for_oid(NameOID.COMMON_NAME):
+            if type == 'server':
+                if not fqdn:
+                    hostname = gethostname()
+                    fqdn = getfqdn(hostname)
+                new_attrs.append(RelativeDistinguishedName(
+                    [x509.NameAttribute(
+                        NameOID.COMMON_NAME,
+                        hostname)]))
+            else:
+                new_attrs.append(RelativeDistinguishedName(
+                    [x509.NameAttribute(NameOID.COMMON_NAME,
+                                        name)]))
+        else:
+            new_attrs.append(i)
+    subject = x509.Name(new_attrs)
+    return fqdn, hostname, subject
 
 
 class CertWrapper(object):
