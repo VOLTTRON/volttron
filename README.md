@@ -261,7 +261,7 @@ with a log file named volttron.log.
 Next, start an example listener to see it publish and subscribe to the message bus:
 
 ```sh
-scripts/core/upgrade-listener
+vctl install examples/ListenerAgent
 ```
 
 This script handles several commands for installing and starting an agent after removing an old copy. This 
