@@ -23,12 +23,10 @@ pytestmark = [pytest.mark.mysqlfuncts, pytest.mark.dbutils, pytest.mark.unit]
 
 
 IMAGES = [
-    "mysql:5.6.49",
-    "mysql:8.0.25"
+    "mysql:latest"
+    "mysql:5.7.35",
+    "mysql:5.6"
 ]
-
-if "CI" in os.environ:
-    IMAGES.extend(["mysql:5.7.31", "mysql:5", "mysql:5.6", "mysql:5.7"])
 
 CONNECTION_HOST = "localhost"
 TEST_DATABASE = "test_historian"
