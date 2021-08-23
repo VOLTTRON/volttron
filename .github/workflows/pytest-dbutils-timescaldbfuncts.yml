@@ -1,30 +1,29 @@
 ---
 # This workflow is meant as a foundational workflow for running integration/unit tests on the
-# platform.  For this workflow we are testing the
-#
-# volttrontesting/testutils directory using pytest.
-#
+# platform.
 # This workflow also shows the caching mechanisms available for storage
 # and retrieval of cache for quicker setup of test environments.
 
-name: Testing dbutils directory
+
+name: Testing postgresql_timescaledb_functs
 on: [pull_request]
 
 jobs:
   build:
+    env:
+      TEST_FILE: volttrontesting/platform/dbutils/test_postgresql_timescaledb.py
+
     # The strategy allows customization of the build and allows matrixing the version of os and software
     # https://docs.github.com/en/free-pro-team@l.atest/actions/reference/workflow-syntax-for-github-actions#jobsjob_idstrategy
     strategy:
       fail-fast: false
       matrix:
         # Each entry in the os and python-version matrix will be run so for the 3 x 4 there will be 12 jobs run
-        os: [ ubuntu-18.04 ] # , ubuntu-20.04  ]
-        python-version: [ 3.7 ] # 3.6, 3.7] # , 3.8, 3.9 ]
+        os: [ ubuntu-18.04, ubuntu-20.04 ]
+        python-version: [ 3.6, 3.7] # , 3.8, 3.9 ]
 
     runs-on: ${{ matrix.os }}
-    env:
-        TEST_TYPE: dbutils
-        CI: true
+
     steps:
       # checkout the volttron repository and set current directory to it
       - uses: actions/checkout@v2
@@ -43,13 +42,17 @@ jobs:
         with:
             python_version: ${{ matrix.python-version }}
             os: ${{ matrix.os }}
-            test_path: volttrontesting/platform/${{ env.TEST_TYPE }}
-            test_output_suffix: ${{ env.TEST_TYPE }}
+            test_path: ${{ env.TEST_FILE }}
+            test_output_suffix: ${{ env.TEST_FILE }}
 
 #       Archive the results from the pytest to storage.
+      - name: Create output suffix
+        run: |
+          echo "OUTPUT_SUFFIX=$(basename $TEST_FILE)" >> $GITHUB_ENV
       - name: Archive test results
         uses: actions/upload-artifact@v2
         if: always()
         with:
           name: pytest-report
-          path: output/${{ env.TEST_TYPE }}-${{matrix.os}}-${{ matrix.python-version }}-results.xml
+          # should match test-<test_output_suffix>- ...
+          path: output/test-${{ env.OUTPUT_SUFFIX }}-${{matrix.os}}-${{ matrix.python-version }}-results.xml

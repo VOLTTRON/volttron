@@ -1,0 +1,68 @@
+---
+# This workflow is meant as a foundational workflow for running integration/unit tests on multiple targeted
+# ubuntu versions with multiple python versions.
+#
+# This workflow utilizes the build-dependency-cache workflow which sets up the environment dependencies using
+# bootstrap.py --all
+#
+
+# Documentation for the syntax of this file is located
+# https://docs.github.com/en/free-pro-team@latest/actions/reference/workflow-syntax-for-github-actions
+
+# The workflow name will show up in the action tab on github during execution
+# https://github.com/VOLTTRON/volttron/actions (or if you are pushing to your own fork change the user)
+name: Testing BackupDatabase
+
+# Determine what events are going to trigger a running of the workflow
+on: [pull_request]
+
+jobs:
+  build:
+    env:
+        TEST_FILE: volttrontesting/platform/dbutils/test_backup_database.py
+
+    # The strategy allows customization of the build and allows matrixing the version of os and software
+    # https://docs.github.com/en/free-pro-team@l.atest/actions/reference/workflow-syntax-for-github-actions#jobsjob_idstrategy
+    strategy:
+      fail-fast: false
+      matrix:
+        # Each entry in the os and python-version matrix will be run. For example, on a list of 3 os's and 4 python versions, 12 jobs will be run
+        os: [ ubuntu-18.04, ubuntu-20.04 ]
+        python-version: [ 3.6, 3.7] # , 3.8, 3.9 ]
+
+    # Run-on determines the operating system available to run on
+    # - At the current time there is only ubuntu machines between 16.04 and 20.04 available
+    # - This uses the matrix os from the strategy above
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      # checkout the volttron repository and set current directory to it
+      - uses: actions/checkout@v2
+
+      # setup the python environment for the operating system
+      - name: Set up Python ${{matrix.os}} ${{ matrix.python-version }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      # Run the specified tests and save the results to a unique file that can be archived for later analysis.
+      - name: Run pytest on ${{ matrix.python-version }}, ${{ matrix.os }}
+        uses: volttron/volttron-build-action@v1
+        timeout-minutes: 600
+        with:
+            python_version: ${{ matrix.python-version }}
+            os: ${{ matrix.os }}
+            test_path: ${{ env.TEST_FILE }}
+            test_output_suffix: ${{ env.TEST_FILE }}
+
+#       Archive the results from the pytest to storage.
+      - name: Create output suffix
+        run: |
+          echo "OUTPUT_SUFFIX=$(basename $TEST_FILE)" >> $GITHUB_ENV
+      - name: Archive test results
+        uses: actions/upload-artifact@v2
+        if: always()
+        with:
+          name: pytest-report
+          # should match test-<test_output_suffix>- ...
+          path: output/test-${{ env.OUTPUT_SUFFIX }}-${{matrix.os}}-${{ matrix.python-version }}-results.xml
