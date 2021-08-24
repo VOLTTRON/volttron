@@ -217,7 +217,7 @@ def _install_agent(agent_dir, config, tag):
         with open(cfg.name, 'w') as fout:
             fout.write(jsonapi.dumps(config))
         config_file = cfg.name
-    _cmd(['volttron-ctl', 'install', "--config", config_file, "--tag", tag, "--force", agent_dir])
+    _cmd(['volttron-ctl', 'install', "--agent-config", config_file, "--tag", tag, "--force", agent_dir])
 
 
 def _is_agent_installed(tag):
