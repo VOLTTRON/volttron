@@ -447,11 +447,11 @@ Installing and Running Agents
 -----------------------------
 
 VOLTTRON platform comes with several built in services and example agents out of the box. To install a agent
-use the script `install-agent.py`
+use the `volttron-ctl` (or `vctl`) command `vctl install`.
 
 .. code-block:: bash
 
-  python scripts/install-agent.py -s <top most folder of the agent> [-c <config file. Might be optional for some agents>]
+    vctl install <top most folder of the agent> [--agent-config <config file. Might be optional for some agents>]
 
 
 For example, we can use the command to install and start the Listener Agent - a simple agent that periodically publishes
@@ -460,7 +460,7 @@ following command:
 
 .. code-block:: bash
 
-  python scripts/install-agent.py -s examples/ListenerAgent --start
+  vctl install examples/ListenerAgent --start
 
 
 Check volttron.log to ensure that the listener agent is publishing heartbeat messages.
@@ -474,7 +474,7 @@ Check volttron.log to ensure that the listener agent is publishing heartbeat mes
   2016-10-17 18:17:52,245 (listeneragent-3.2 11367) listener.agent INFO: Peer: 'pubsub', Sender: 'listeneragent-3.2_1':, Bus: u'', Topic: 'heartbeat/listeneragent-3.2_1', Headers: {'Date': '2016-10-18T01:17:52.239724+00:00', 'max_compatible_version': u'', 'min_compatible_version': '3.0'}, Message: {'status': 'GOOD', 'last_updated': '2016-10-18T01:17:47.232972+00:00', 'context': 'hello'}
 
 
-You can also use the `volttron-ctl` (or `vctl`) command to start, stop or check the status of an agent
+You can also use the `vctl` command to start, stop or check the status of an agent after installation.
 
 .. code-block:: console
 

@@ -92,27 +92,27 @@ Install and start each simulation agent:
     $ export SIMULATION_ROOT=$VOLTTRON_ROOT/applications/kisensum/Simulation
     $ export VIP_SOCKET="ipc://$VOLTTRON_HOME/run/vip.socket"
 
-    $ python scripts/install-agent.py \
+    $ vctl install \
+        $SIMULATION_ROOT/SimulationDriverAgent \
         --vip-identity simulation.driver \
         --tag          simulation.driver \
-        --agent-source $SIMULATION_ROOT/SimulationDriverAgent \
-        --config       $SIMULATION_ROOT/SimulationDriverAgent/simulationdriver.config \
+        --agent-config       $SIMULATION_ROOT/SimulationDriverAgent/simulationdriver.config \
         --force \
         --start
 
-    $ python scripts/install-agent.py \
+    $ vctl install \
+        $SIMULATION_ROOT/SimulationClockAgent \
         --vip-identity simulationclock \
         --tag          simulationclock \
-        --agent-source $SIMULATION_ROOT/SimulationClockAgent \
-        --config       $SIMULATION_ROOT/SimulationClockAgent/simulationclock.config \
+        --agent-config       $SIMULATION_ROOT/SimulationClockAgent/simulationclock.config \
         --force \
         --start
 
-    $ python scripts/install-agent.py \
+    $ vctl install \
+        $SIMULATION_ROOT/SimulationAgent \
         --vip-identity simulationagent \
         --tag          simulationagent \
-        --agent-source $SIMULATION_ROOT/SimulationAgent \
-        --config       $SIMULATION_ROOT/SimulationAgent/simulationagent.config \
+        --agent-config       $SIMULATION_ROOT/SimulationAgent/simulationagent.config \
         --force \
         --start
 

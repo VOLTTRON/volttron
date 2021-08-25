@@ -19,7 +19,7 @@ the user has copied the example or created their own config, the Platform Driver
 
 .. code-block:: bash
 
-    python scripts/install-agent.py -s services/core/PlatformDriverAgent -c <platform driver config file>
+    vctl install services/core/PlatformDriverAgent --agent-config <platform driver config file>
 
 
 Requirements
