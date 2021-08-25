@@ -67,10 +67,13 @@ proxy in front of the system, including:
 - Many other traffic management and filtering options which are documented by the various
   tools (load balancing, http header management, etc.).
 
-Configuring a reverse proxy is outside the scope of this documentation. For reference,
+The full complexity of configuring a reverse proxy is outside the scope of this documentation. For reference,
 two common open source options are `apache httpd <https://httpd.apache.org/docs/2.4/howto/reverse_proxy.html>`_
 and `nginx <https://docs.nginx.com/nginx/admin-guide/web-server/reverse-proxy/>`_
 (relevant portions of their respective documentation pages are linked).
+
+To set up a basic reverse proxy for VOLTTRON using apache, please refer to this document:
+:ref:`Apache Reverse Proxy Setup <Apache-Reverse-Proxy-Setup>`
 
 
 Monitor for Data Tampering
