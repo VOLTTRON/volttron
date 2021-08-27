@@ -182,15 +182,6 @@ def test_both_private_key_and_passphrase():
                                                     tls_private_key=certs.server_certs[0].key)
 
 
-# @pytest.fixture()
-# def mock_platformweb_service():
-#     PlatformWebService.__bases__ = (AgentMock.imitate(Agent, Agent()),)
-#     platformweb = PlatformWebService(serverkey=MagicMock(), identity=MagicMock(), address=MagicMock(), bind_web_address=MagicMock())
-#     rpc_caller = platformweb.vip.rpc
-#     platformweb._admin_endpoints = AdminEndpoints(rpc_caller=rpc_caller)
-#     yield platformweb
-
-
 @pytest.mark.parametrize("scheme", ("http", "https"))
 def test_authenticate_endpoint(scheme):
     kwargs = {}
