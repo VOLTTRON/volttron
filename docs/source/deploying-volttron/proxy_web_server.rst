@@ -44,7 +44,11 @@ apache2.conf File
 -----------------
 
 The apache2.conf sits in the root apache2 directory and serves as a top level configuration file
-for the apache2 web server. The default location is at /etc/apache2/apache2.conf.
+for the apache2 web server. This is the main Apache server configuration file. It contains the configuration directives
+that give the server its instructions. Debian's apache2 configuration is split into several files forming a
+configuration hierarchy. The apache2.conf file puts the pieces together by including all
+remaining configuration files when starting up the web server. The default location for this file is at
+/etc/apache2/apache2.conf.
 
 An example apache2.conf config file can be found within the volttron repository at
 volttron/scripts/admin/apache-proxy/apache2.conf. Within the file, you will need to set the
