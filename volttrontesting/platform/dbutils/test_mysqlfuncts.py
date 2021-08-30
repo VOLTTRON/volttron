@@ -23,7 +23,7 @@ pytestmark = [pytest.mark.mysqlfuncts, pytest.mark.dbutils, pytest.mark.unit]
 
 
 IMAGES = [
-    "mysql:latest"
+    "mysql:latest",
     "mysql:5.7.35",
     "mysql:5.6"
 ]
@@ -40,6 +40,23 @@ AGG_TOPICS_TABLE = "aggregate_topics"
 AGG_META_TABLE = "aggregate_meta"
 
 
+def test_update_meta_should_succeed(get_container_func):
+    container, sqlfuncts, connection_port, historian_version = get_container_func
+    id = sqlfuncts.insert_topic("foobar")
+
+    if historian_version == "<4.0.0":
+        sqlfuncts.insert_meta(id, {"fdjlj": "XXXX"})
+
+    assert sqlfuncts.update_meta(id, {"units": "count"})
+
+    if historian_version == "<4.0.0":
+        data = get_data_in_table(connection_port, META_TABLE)
+        assert data == [(1, '{"units": "count"}')]
+    else:
+        data = get_data_in_table(connection_port, TOPICS_TABLE)
+        assert data == [(1, "foobar", '{"units": "count"}')]
+
+
 def test_setup_historian_tables_should_create_tables(get_container_func):
     container, sqlfuncts, connection_port, historian_version = get_container_func
     if historian_version == "<4.0.0":
@@ -47,14 +64,11 @@ def test_setup_historian_tables_should_create_tables(get_container_func):
     # get_container initializes db and sqlfuncts
     # to test setup explicitly drop tables and see if tables get created correctly
     drop_all_tables(connection_port)
-    try:
-        sqlfuncts.setup_historian_tables()
-        tables = get_tables(connection_port)
-        assert "data" in tables
-        assert "topics" in tables
-    finally:
-        # create all tables so that other test cases can use it
-        create_all_tables(container, historian_version)
+
+    sqlfuncts.setup_historian_tables()
+    tables = get_tables(connection_port)
+    assert "data" in tables
+    assert "topics" in tables
 
 
 def test_setup_aggregate_historian_tables_should_succeed(get_container_func):
@@ -178,23 +192,6 @@ def test_update_topic_and_metadata_should_succeed(get_container_func):
     assert result is True
     assert (actual_id, "soccer", '{"test": "test value"}') == \
            get_data_in_table(connection_port, "topics")[0]
-
-
-def test_update_meta_should_succeed(get_container_func):
-    container, sqlfuncts, connection_port, historian_version = get_container_func
-    id = sqlfuncts.insert_topic("foobar")
-
-    if historian_version == "<4.0.0":
-        sqlfuncts.insert_meta(id, {"fdjlj": "XXXX"})
-
-    assert sqlfuncts.update_meta(id, {"units": "count"})
-
-    if historian_version == "<4.0.0":
-        data = get_data_in_table(connection_port, META_TABLE)
-        assert data == [(1, '{"units": "count"}')]
-    else:
-        data = get_data_in_table(connection_port, TOPICS_TABLE)
-        assert data == [(1, "foobar", '{"units": "count"}')]
 
 
 def test_insert_agg_topic_should_succeed(get_container_func):
@@ -394,7 +391,7 @@ def get_mysqlfuncts(port):
     return MySqlFuncts(connect_params, table_names)
 
 
-@pytest.fixture(params=itertools.product(IMAGES, ["<4.0.0", ">=4.0.0"]))
+@pytest.fixture(scope="module", params=itertools.product(IMAGES, ["<4.0.0", ">=4.0.0"]))
 def get_container_func(request):
     global CONNECTION_HOST
     image, historian_version = request.param
@@ -624,3 +621,10 @@ def get_cnx_cursor(port):
     cnx = mysql.connector.connect(**connect_params)
     cursor = cnx.cursor()
     return cnx, cursor
+
+
+@pytest.fixture(autouse=True)
+def cleanup_tables(get_container_func):
+    container, sqlfuncts, connection_port, historian_version = get_container_func
+    drop_all_tables(connection_port)
+    create_all_tables(container, historian_version)

@@ -47,21 +47,53 @@ AGG_TOPICS_TABLE = "aggregate_topics"
 AGG_META_TABLE = "aggregate_meta"
 
 
+def test_insert_meta_should_return_true(get_container_func):
+    container, sqlfuncts, connection_port, historian_version = get_container_func
+    if historian_version != "<4.0.0":
+        pytest.skip("insert_meta() is called by historian only for schema <4.0.0")
+    topic_id = "44"
+    metadata = "foobar44"
+    expected_data = (44, '"foobar44"')
+
+    res = sqlfuncts.insert_meta(topic_id, metadata)
+
+    assert res is True
+    assert get_data_in_table(connection_port, "meta")[0] == expected_data
+
+
+def test_update_meta_should_succeed(get_container_func):
+    container, sqlfuncts, connection_port, historian_version = get_container_func
+    metadata = {"units": "count"}
+    metadata_s = jsonapi.dumps(metadata)
+    topic = "foobar"
+
+    id = sqlfuncts.insert_topic(topic)
+    sqlfuncts.insert_meta(id, {"fdjlj": "XXXX"})
+    assert metadata_s not in get_data_in_table(connection_port, TOPICS_TABLE)[0]
+
+    res = sqlfuncts.update_meta(id, metadata)
+
+    expected_lt_4 = [(1, metadata_s)]
+    expected_gteq_4 = [(1, topic, metadata_s)]
+    assert res is True
+    if historian_version == "<4.0.0":
+        assert get_data_in_table(connection_port, META_TABLE) == expected_lt_4
+    else:
+        assert get_data_in_table(connection_port, TOPICS_TABLE) == expected_gteq_4
+
+
 def test_setup_historian_tables_should_create_tables(get_container_func):
     container, sqlfuncts, connection_port, historian_version = get_container_func
     # get_container initializes db and sqlfuncts
     # to test setup explicitly drop tables and see if tables get created correctly
     drop_all_tables(connection_port)
-    try:
-        tables_before_setup = get_tables(connection_port)
-        assert tables_before_setup == set()
-        expected_tables = set(["data", "topics"])
-        sqlfuncts.setup_historian_tables()
-        actual_tables = get_tables(connection_port)
-        assert actual_tables == expected_tables
-    finally:
-        # create all tables so that other test cases can use it
-        create_all_tables(container, historian_version)
+
+    tables_before_setup = get_tables(connection_port)
+    assert tables_before_setup == set()
+    expected_tables = set(["data", "topics"])
+    sqlfuncts.setup_historian_tables()
+    actual_tables = get_tables(connection_port)
+    assert actual_tables == expected_tables
 
 
 def test_setup_aggregate_historian_tables_should_create_aggregate_tables(get_container_func):
@@ -165,20 +197,6 @@ def test_insert_agg_topic_should_return_agg_topic_id(get_container_func):
     assert get_data_in_table(connection_port, AGG_TOPICS_TABLE)[0] == expected_data
 
 
-def test_insert_meta_should_return_true(get_container_func):
-    container, sqlfuncts, connection_port, historian_version = get_container_func
-    if historian_version != "<4.0.0":
-        pytest.skip("insert_meta() is called by historian only for schema <4.0.0")
-    topic_id = "44"
-    metadata = "foobar44"
-    expected_data = (44, '"foobar44"')
-
-    res = sqlfuncts.insert_meta(topic_id, metadata)
-
-    assert res is True
-    assert get_data_in_table(connection_port, "meta")[0] == expected_data
-
-
 def test_insert_data_should_return_true(get_container_func):
     container, sqlfuncts, connection_port, historian_version = get_container_func
 
@@ -219,26 +237,6 @@ def test_update_topic_and_metadata_should_succeed(get_container_func):
     assert result is True
     assert (actual_id, "soccer", '{"test": "test value"}') == get_data_in_table(connection_port, "topics")[0]
 
-
-def test_update_meta_should_succeed(get_container_func):
-    container, sqlfuncts, connection_port, historian_version = get_container_func
-    metadata = {"units": "count"}
-    metadata_s = jsonapi.dumps(metadata)
-    topic = "foobar"
-
-    id = sqlfuncts.insert_topic(topic)
-    sqlfuncts.insert_meta(id, {"fdjlj": "XXXX"})
-    assert metadata_s not in get_data_in_table(connection_port, TOPICS_TABLE)[0]
-
-    res = sqlfuncts.update_meta(id, metadata)
-
-    expected_lt_4 = [(1, metadata_s)]
-    expected_gteq_4 = [(1, topic, metadata_s)]
-    assert res is True
-    if historian_version == "<4.0.0":
-        assert get_data_in_table(connection_port, META_TABLE) == expected_lt_4
-    else:
-        assert get_data_in_table(connection_port, TOPICS_TABLE) == expected_gteq_4
 
 
 def test_get_aggregation_list_should_return_list(get_container_func):
@@ -520,7 +518,7 @@ def get_postgresqlfuncts(port):
     return PostgreSqlFuncts(connect_params, table_names)
 
 
-@pytest.fixture(params=itertools.product(
+@pytest.fixture(scope="module", params=itertools.product(
     IMAGES,
     [
      '<4.0.0',
@@ -732,3 +730,10 @@ def drop_all_tables(port):
     finally:
         if cursor:
             cursor.close()
+
+
+@pytest.fixture(autouse=True)
+def cleanup_tables(get_container_func):
+    container, sqlfuncts, connection_port, historian_version = get_container_func
+    drop_all_tables(connection_port)
+    create_all_tables(container, historian_version)
