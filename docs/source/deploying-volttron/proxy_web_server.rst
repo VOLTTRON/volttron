@@ -46,20 +46,27 @@ apache2.conf File
 The apache2.conf sits in the root apache2 directory and serves as a top level configuration file
 for the apache2 web server. The default location is at /etc/apache2/apache2.conf.
 
-An example apache2.conf config file can be found at volttron/scripts/admin/apache-proxy/apache2.conf.
-Within the file, you will need to set the User and Group options, with ServerAdmin being optional.
+An example apache2.conf config file can be found within the volttron repository at
+volttron/scripts/admin/apache-proxy/apache2.conf. Within the file, you will need to set the
+User and Group options, with ServerAdmin being optional.
 
 .. code-block:: console
+
+    # apache2.conf
 
     ServerRoot "/etc/apache2"
 
     # Set User, Group, and ServerAdmin based on your system and organization
 
-    # User will be a unix user
-    User volttron
+    # User will be a non-root unix user that the server will use to respond to requests.
+    # It is recommended to create a new user group specifically for the apache server.
+    # The user and group should not have the ability to access any files that are not
+    # intended to be available through the VOLTTRON web service, or have the ability to
+    # execute code beyond the anticipated scope. This user does not need permissions for
+    # all of VOLTTRON, only the web hosted materials.
+    User <user name>
+    Group <group name>
 
-    # Group will be a unix group
-    Group volttron
 
     # ServerAdmin will be an email address.
     ServerAdmin admin@volttron
@@ -139,29 +146,19 @@ Within the file, you will need to set the User and Group options, with ServerAdm
 000-default.conf File
 ---------------------
 
-The 000-default.conf contains the site specific configuration to serve the VOLTTRON web server from and enforce https.
-By default, the file can be found at /etc/apache2/sites-enabled/000-default.conf.
+The 000-default.conf contains the site specific configuration to serve the proxy server for the VOLTTRON web server
+and to enforce https. 000-default.conf is the default file name used by apache2 to sort the default site on a multi-site
+system. On installation, the default file can be found at /etc/apache2/sites-available/000-default.conf.
 
-An example to use as a starting point for the volttron reverse proxy can be found at
-volttron/scripts/admin/apache-proxy/000-default.conf. Within this file, DocumentRoot and Directory will need to be set.
-Both DocumentRoot and Directory should be set to <path to volttron directory>/volttron/volttron/platform/web/static.
+An example to use as a starting point for the volttron reverse proxy can be found within the volttron repository at
+volttron/scripts/admin/apache-proxy/000-default.conf.
 
 
 .. code-block:: console
 
+    # 000-default.conf
+
     <VirtualHost *:80>
-        # Set DocumentRoot file path to
-        # <path to volttron>/volttron/volttron/platform/web/static
-        # DO NOT include a '/' at the end of the file path!
-        DocumentRoot "<VOLTTRON_ROOT>/volttron/volttron/platform/web/static"
-
-        # Set Directory file path to match DocumentRoot
-        <Directory "<VOLTTRON_ROOT>/volttron/volttron/platform/web/static">
-            Options Indexes FollowSymLinks
-            AllowOverride None
-            Require all granted
-        </Directory>
-
         # Force redirect of http to https
         RewriteEngine On
         RewriteCond %{HTTPS} off
@@ -173,62 +170,28 @@ ssl.conf File
 -------------
 
 The ssl.conf contains the proxy, cert, and https configuration details. By default, the file can be found
-at /etc/apache2/mods-enabled/ssl.conf.
+at /etc/apache2/mods-available/ssl.conf.
 
-An example ssl.conf file is provided with volttron and can be found at volttron/scripts/admin/apache-proxy/ssl.conf.
-The file will need to be modified. The SSLCertificateFile, and SSLCertificateKeyFile paths need to be set to appropriate
-cert and key file path.
-
-Generating self-signed Certs
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-The following instructions are based on directions for generating a self-signed certificate
-provided by Ubuntu: `https://ubuntu.com/server/docs/security-certificates <https://ubuntu.com/server/docs/security-certificates>`_.
-
+An example ssl.conf file is provided with volttron and can be found within the volttron repository at
+volttron/scripts/admin/apache-proxy/ssl.conf. The SSLCertificateFile, and SSLCertificateKeyFile paths need
+to be set to appropriate cert and key file path. The default values are set to use the built-in
+(for Debian-based systems) `snakeoil http://manpages.ubuntu.com/manpages/bionic/man8/make-ssl-cert.8.html>`_
+cert and key. These will work for testing, but are not the preferred values for a production environment.
 
 .. warning::
 
-    While we generate a self-signed certificate for the demo, it is not recommended to use a self-signed certificate
-    in a production environment, as this is not a secure practice. Instead use your institution's CA and certificates or a
-    trusted 3rd party, e.g. `Let's Encrypt <https://letsencrypt.org/>`_. This is provided for education and demonstrative
-    purposes only.
+    While we use a self-signed certificate for the demo, it is not recommended to use a self-signed certificate
+    in a production environment. Instead use certificates signed by your institution's CA or a trusted 3rd party,
+    e.g. `Let's Encrypt <https://letsencrypt.org/>`_. This is provided for education and demonstrative purposes only.
 
-First, generate a server key:
-
-.. code-block::
-
-    openssl genrsa -des3 -out server.key 2048
-
-This key will require a pass-phrase on startup of the proxy service which can become inconvenient.
-It is possible to create a version of the key that does not require a pass-phrase, though this is less secure.
-This will be done for this demo, but is not recommended (see warning and link above)
-
-.. code-block::
-    openssl rsa -in server.key -out server.key.insecure
-    mv server.key server.key.secure
-    mv server.key.insecure server.key
-
-Generate a CSR.
-
-.. code-block::
-    openssl req -new -key server.key -out server.csr
-
-Create the certificate file using the CSR and key files:
-
-.. code-block::
-
-    openssl x509 -req -days 365 -in server.csr -signkey server.key -out server.crt
-
-server.key can now be used for the SSLCertificateKeyFile entry,
-and server.crt can now be used for the SSLCertificateFile entry.
-
-
- Once that is complete, verify that ProxyPass and ProxyPassReverse options,
-as well as the /vc path found under the RewriteRule option are all appropriate for your use case. This simple use-case
-routes all web traffic through the proxy to your VOLTTRON instance running on your localhost.
+ Once you have set these values, decided to use the self-signed cert, verify that the ProxyPass and ProxyPassReverse
+ options, as well as the /vc path found under the RewriteRule option are all appropriate for your use case.
+ This simple use-case routes all web traffic through the proxy to your VOLTTRON instance running on your localhost.
 
 
 .. code-block:: console
+
+    # ssl.conf
 
     <IfModule mod_ssl.c>
         SSLPassPhraseDialog  exec:/usr/share/apache2/ask-for-passphrase
@@ -249,8 +212,17 @@ routes all web traffic through the proxy to your VOLTTRON instance running on yo
             SSLCipherSuite "EECDH:!RC4:!3des:!SHA"
             # Require Cipher Order
             SSLHonorCipherOrder on
-            SSLCertificateFile <path to cert file provided by CA>
-            SSLCertificateKeyFile <path to key file>
+
+            # Using the included (Debian based systems) self-signed snakeoil certificate and key.
+            # These should be replaced with a key cert pair signed by your
+            # institution's CA or a trusted 3rd party.
+
+            #CHANGE PATH TO CERT ISSUED BY APPROVED CA
+            SSLCertificateFile      /etc/ssl/certs/ssl-cert-snakeoil.pem
+
+            #CHANGE PATH TO APPROVED KEY
+            SSLCertificateKeyFile /etc/ssl/private/ssl-cert-snakeoil.key
+
             <Files ~ "\.(cgi|shtml|phtml|php3?)$">
                 SSLOptions +StdEnvVars
             </Files>
@@ -273,6 +245,7 @@ routes all web traffic through the proxy to your VOLTTRON instance running on yo
             RewriteCond %{HTTP:UPGRADE} ^WebSocket$ [NC]
             RewriteCond %{HTTP:CONNECTION} Upgrade$ [NC]
             # Set proxy path as appropriate
+            # This is only needed if VC is installed.
             RewriteRule /vc/index.html#/dashboard(.*) ws://localhost:8080/vc/index.html#/dashboard$1 [P]
 
             #Add HSTS header:
@@ -281,15 +254,20 @@ routes all web traffic through the proxy to your VOLTTRON instance running on yo
         </VirtualHost>
     </IfModule>
 
+
 Setting Up Apache2
 ^^^^^^^^^^^^^^^^^^
 
+.. note::
+
+    We will be overwriting some of the default config files in the apache2 service directory as part
+    of this setup. You may want to create backup copies of these files for future reference.
+
 Once all the config files have been properly configured, use them to overwrite the default config files
 within the apache2 service directory. Sudo permissions are needed for this operation. After these files
-have been overwritten, restart the apache service, and the proxy will be in place. You may want to make
-a backup copy of the default config files found in the apache2 service directory for future reference.
+have been overwritten, restart the apache service, and the proxy will be in place.
 
-Navigate to volttron/scripts/admin/apache-proxy/
+Change directory to volttron/scripts/admin/apache-proxy/
 
 .. code-block:: console
 
@@ -300,8 +278,8 @@ Copy configuration files to their appropriate locations
 .. code-block:: console
 
     sudo cp apache2.conf /etc/apache2/apache2.conf
-    sudo cp 000-default.conf /etc/apache2/sites-enabled/000-default.conf
-    sudo cp ssl.conf /etc/apache2/mods-enabled/ssl.conf
+    sudo cp 000-default.conf /etc/apache2/sites-available/000-default.conf
+    sudo cp ssl.conf /etc/apache2/mods-available/ssl.conf
     sudo service apache2 restart
 
 

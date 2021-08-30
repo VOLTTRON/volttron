@@ -72,7 +72,7 @@ two common open source options are `apache httpd <https://httpd.apache.org/docs/
 and `nginx <https://docs.nginx.com/nginx/admin-guide/web-server/reverse-proxy/>`_
 (relevant portions of their respective documentation pages are linked).
 
-To set up a basic reverse proxy for VOLTTRON using apache, please refer to this document:
+To set up a reverse proxy for VOLTTRON using apache, please refer to this document:
 :ref:`Apache Reverse Proxy Setup <Apache-Reverse-Proxy-Setup>`
 
 
