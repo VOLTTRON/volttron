@@ -153,6 +153,13 @@ class ConfigStoreService(Agent):
                                           "name_map": name_map,
                                           "lock": Semaphore()}
 
+    @Core.receiver('onstart')
+    def _onstart(self, sender, **kwargs):
+        try:
+            self.vip.peerlist().get(timeout=3)
+        except Exception as e:
+            _log.error(f"Exception getting peerlist on startup of config store: {e}")
+
     @RPC.export
     @RPC.allow('edit_config_store')
     def manage_store(self, identity, config_name, raw_contents, config_type="raw"):
@@ -184,18 +191,19 @@ class ConfigStoreService(Agent):
         # Sync will delete the file if the store is empty.
         agent_disk_store.async_sync()
 
-        with agent_store_lock:
-            try:
-                self.vip.rpc.call(identity, "config.update",
-                                  "DELETE_ALL", None,
-                                  trigger_callback=True).get(timeout=UPDATE_TIMEOUT)
-            except errors.Unreachable:
-                _log.debug("Agent {} not currently running. Configuration update not sent.".format(identity))
-            except RemoteError as e:
-                _log.error("Agent {} failure when all configurations: {}".format(identity, e))
-            except MethodNotFound as e:
-                _log.error(
-                    "Agent {} failure when deleting configuration store: {}".format(identity, e))
+        if identity in self.vip.peerlist.peers_list:
+            with agent_store_lock:
+                try:
+                    self.vip.rpc.call(identity, "config.update",
+                                      "DELETE_ALL", None,
+                                      trigger_callback=True).get(timeout=UPDATE_TIMEOUT)
+                except errors.Unreachable:
+                    _log.debug("Agent {} not currently running. Configuration update not sent.".format(identity))
+                except RemoteError as e:
+                    _log.error("Agent {} failure when all configurations: {}".format(identity, e))
+                except MethodNotFound as e:
+                    _log.error(
+                        "Agent {} failure when deleting configuration store: {}".format(identity, e))
 
         # If the store is still empty (nothing jumped in and added to it while
         # we were informing the agent) then remove it from the global store.
@@ -293,20 +301,20 @@ class ConfigStoreService(Agent):
         agent_configs = agent_store["configs"]
         agent_disk_store = agent_store["store"]
         agent_store_lock = agent_store["lock"]
-
-        with agent_store_lock:
-            try:
-                self.vip.rpc.call(identity, "config.initial_update",
-                                  agent_configs).get(timeout=UPDATE_TIMEOUT)
-            except errors.Unreachable:
-                _log.debug("Agent {} not currently running. Configuration update not sent.".format(identity))
-            except RemoteError as e:
-                _log.error("Agent {} failure when performing initial update: {}".format(identity, e))
-            except MethodNotFound as e:
-                _log.error(
-                    "Agent {} failure when performing initial update: {}".format(identity, e))
-            except errors.VIPError as e:
-                _log.error("VIP Error sending initial agent configuration: {}".format(e))
+        if identity in self.vip.peerlist.peers_list:
+            with agent_store_lock:
+                try:
+                    self.vip.rpc.call(identity, "config.initial_update",
+                                      agent_configs).get(timeout=UPDATE_TIMEOUT)
+                except errors.Unreachable:
+                    _log.debug("Agent {} not currently running. Configuration update not sent.".format(identity))
+                except RemoteError as e:
+                    _log.error("Agent {} failure when performing initial update: {}".format(identity, e))
+                except MethodNotFound as e:
+                    _log.error(
+                        "Agent {} failure when performing initial update: {}".format(identity, e))
+                except errors.VIPError as e:
+                    _log.error("VIP Error sending initial agent configuration: {}".format(e))
 
         # If the store is empty (and nothing jumped in and added to it while we
         # were informing the agent) then remove it from the global store.
@@ -347,7 +355,7 @@ class ConfigStoreService(Agent):
         # Sync will delete the file if the store is empty.
         agent_disk_store.async_sync()
 
-        if send_update:
+        if send_update and identity in self.vip.peerlist.peers_list:
             with agent_store_lock:
                 try:
                     self.vip.rpc.call(identity, "config.update", "DELETE", config_name, trigger_callback=trigger_callback).get(timeout=UPDATE_TIMEOUT)
@@ -428,7 +436,7 @@ class ConfigStoreService(Agent):
 
         _log.debug("Agent {} config {} stored.".format(identity, config_name))
 
-        if send_update:
+        if send_update and identity in self.vip.peerlist.peers_list:
             with agent_store_lock:
                 try:
                     self.vip.rpc.call(identity, "config.update", action, config_name, contents=parsed, trigger_callback=trigger_callback).get(timeout=UPDATE_TIMEOUT)

@@ -10,26 +10,26 @@ from volttrontesting.utils.platformwrapper import PlatformWrapper
 from volttrontesting.utils.utils import get_rand_vip
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope="module")
 def aip(request):
     volttron_home = tempfile.mkdtemp()
     packaged_dir = os.path.join(volttron_home, "packaged")
     os.makedirs(packaged_dir)
-    ipc = 'ipc://{}{}/run/'.format(
-        '@' if sys.platform.startswith('linux') else '',
-        volttron_home)
-    local_vip_address = ipc + 'vip.socket'
-    os.environ['VOLTTRON_HOME'] = volttron_home
+    ipc = "ipc://{}{}/run/".format(
+        "@" if sys.platform.startswith("linux") else "", volttron_home
+    )
+    local_vip_address = ipc + "vip.socket"
+    os.environ["VOLTTRON_HOME"] = volttron_home
 
     opts = dict(
         volttron_home=volttron_home,
         vip_address=get_rand_vip(),
-        local_vip_address=ipc+'vip.socket',
-        publish_address=ipc+'publish',
-        subscribe_address=ipc+'subscribe',
-        log_level=logging.DEBUG
+        local_vip_address=ipc + "vip.socket",
+        publish_address=ipc + "publish",
+        subscribe_address=ipc + "subscribe",
+        log_level=logging.DEBUG,
     )
-    options = type('Options', (), opts)
+    options = type("Options", (), opts)
 
     # 'verify_agents': False,
     # 'volttron_home': self.volttron_home,
@@ -50,4 +50,3 @@ def aip(request):
     aip = AIPplatform(options)
     aip.setup()
     return aip
-

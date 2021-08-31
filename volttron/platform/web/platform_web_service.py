@@ -60,7 +60,8 @@ from .authenticate_endpoint import AuthenticateEndpoints
 from .csr_endpoints import CSREndpoints
 from .webapp import WebApplicationWrapper
 from volttron.platform.agent import utils
-from volttron.platform.agent.known_identities import CONTROL
+from volttron.platform.agent.known_identities import \
+    CONTROL, VOLTTRON_CENTRAL, AUTH
 from ..agent.utils import get_fq_identity
 from ..agent.web import Response, JsonResponse
 from ..auth import AuthEntry, AuthFile, AuthFileEntryAlreadyExists
@@ -70,7 +71,7 @@ from ..jsonrpc import (json_result,
                        INVALID_REQUEST, METHOD_NOT_FOUND,
                        UNHANDLED_EXCEPTION, UNAUTHORIZED,
                        UNAVAILABLE_PLATFORM, INVALID_PARAMS,
-                       UNAVAILABLE_AGENT, INTERNAL_ERROR)
+                       UNAVAILABLE_AGENT, INTERNAL_ERROR, RemoteError)
 
 from ..vip.agent import Agent, Core, RPC, Unreachable
 from ..vip.agent.subsystems import query
@@ -357,11 +358,9 @@ class PlatformWebService(Agent):
         assert vcpublickey
         assert len(vcpublickey) == 43
 
-        authfile = AuthFile()
-        authentry = AuthEntry(credentials=vcpublickey)
-
+        authentry = {"credentials": vcpublickey, "identity": VOLTTRON_CENTRAL}
         try:
-            authfile.add(authentry)
+            self.vip.rpc.call(AUTH, "auth_file.add", authentry).get()
         except AuthFileEntryAlreadyExists:
             pass
 

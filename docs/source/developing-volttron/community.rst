@@ -44,5 +44,10 @@ available through a Zoom meeting. To be invited to the link meeting, contact the
 
 Meetings are recorded and can be reviewed `here <https://volttron.org/office-hours>`__.
 
+Publications
+============
+
+VOLTTRON white papers and technical reports can be found at https://volttron.org/publications
+
 
 .. |VOLTTRON| unicode:: VOLTTRON U+2122

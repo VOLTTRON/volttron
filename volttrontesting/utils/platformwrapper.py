@@ -44,6 +44,7 @@ from volttrontesting.utils.utils import get_rand_http_address, get_rand_vip, get
 from volttrontesting.utils.utils import get_rand_tcp_address
 from volttrontesting.fixtures.rmq_test_setup import create_rmq_volttron_setup
 from volttron.utils.rmq_setup import start_rabbit, stop_rabbit
+from volttron.utils.rmq_setup import setup_rabbitmq_volttron
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -103,14 +104,9 @@ VOLTTRON_ROOT = os.environ.get("VOLTTRON_ROOT")
 if not VOLTTRON_ROOT:
     VOLTTRON_ROOT = dirname(dirname(dirname(os.path.realpath(__file__))))
 
-if os.environ.get('CI', None) is None:
-    VSTART = os.path.join(VOLTTRON_ROOT, "env/bin/volttron")
-    VCTRL = os.path.join(VOLTTRON_ROOT, "env/bin/volttron-ctl")
-    TWISTED_START = os.path.join(VOLTTRON_ROOT, "env/bin/twistd")
-else:
-    VSTART = "volttron"
-    VCTRL = "volttron-ctl"
-    TWISTED_START = "twistd"
+VSTART = "volttron"
+VCTRL = "volttron-ctl"
+TWISTED_START = "twistd"
 
 SEND_AGENT = "send"
 
@@ -273,14 +269,9 @@ class PlatformWrapper:
             'VOLTTRON_ROOT': VOLTTRON_ROOT
         }
         self.volttron_root = VOLTTRON_ROOT
-
-        self.vctl_exe = str(Path(sys.executable).parent.joinpath('volttron-ctl'))
-        self.volttron_exe = str(Path(sys.executable).parent.joinpath('volttron'))
-
-        assert Path(self.vctl_exe).exists()
-        assert Path(self.volttron_exe).exists()
+        self.vctl_exe = 'volttron-ctl'
+        self.volttron_exe = 'volttron'
         self.python = sys.executable
-        assert os.path.exists(self.python)
 
         # By default no web server should be started.
         self.bind_web_address = None
@@ -329,7 +320,7 @@ class PlatformWrapper:
 
             self.remote_platform_ca = remote_platform_ca
             self.requests_ca_bundle = None
-            self.dynamic_agent = None
+            self.dynamic_agent: Optional[Agent] = None
 
             if self.messagebus == 'rmq':
                 self.rabbitmq_config_obj = create_rmq_volttron_setup(vhome=self.volttron_home,
@@ -421,7 +412,8 @@ class PlatformWrapper:
             entry = AuthEntry(capabilities=capabilities,
                               comments="Added by test",
                               credentials=keys.public,
-                              user_id=identity)
+                              user_id=identity,
+                              identity=identity)
             file = AuthFile(self.volttron_home + "/auth.json")
             file.add(entry)
 
@@ -436,7 +428,7 @@ class PlatformWrapper:
 
     def build_agent(self, address=None, should_spawn=True, identity=None,
                     publickey=None, secretkey=None, serverkey=None,
-                    agent_class=Agent, capabilities: Optional[dict] = None, **kwargs):
+                    agent_class=Agent, capabilities: Optional[dict] = None, **kwargs) -> Agent:
         """ Build an agent connnected to the passed bus.
 
         By default the current instance that this class wraps will be the
@@ -487,7 +479,7 @@ class PlatformWrapper:
 
         if capabilities is None:
             capabilities = dict(edit_config_store=dict(identity=identity))
-        entry = AuthEntry(user_id=identity, credentials=publickey,
+        entry = AuthEntry(user_id=identity, identity=identity, credentials=publickey,
                           capabilities=capabilities,
                           comments="Added by platform wrapper")
         authfile = AuthFile()
@@ -495,7 +487,7 @@ class PlatformWrapper:
         # allow 2 seconds here for the auth to be updated in auth service
         # before connecting to the platform with the agent.
         #
-        gevent.sleep(2)
+        gevent.sleep(3)
         agent = agent_class(address=address, identity=identity,
                             publickey=publickey, secretkey=secretkey,
                             serverkey=serverkey,
@@ -534,7 +526,7 @@ class PlatformWrapper:
     def _append_allow_curve_key(self, publickey, identity):
 
         if identity:
-            entry = AuthEntry(user_id=identity, credentials=publickey,
+            entry = AuthEntry(user_id=identity, identity=identity, credentials=publickey,
                               capabilities={'edit_config_store': {'identity': identity}},
                               comments="Added by platform wrapper")
         else:
@@ -647,6 +639,7 @@ class PlatformWrapper:
                         ks = KeyStore(KeyStore.get_agent_keystore_path(identity))
                         entry = AuthEntry(credentials=encode_key(decode_key(ks.public)),
                                           user_id=identity,
+                                          identity=identity,
                                           capabilities=capabilities,
                                           comments='Added by pre-seeding.')
                         authfile.add(entry)
@@ -657,6 +650,7 @@ class PlatformWrapper:
                     ks = KeyStore(KeyStore.get_agent_keystore_path(identity))
                     entry = AuthEntry(credentials=encode_key(decode_key(ks.public)),
                                       user_id=identity,
+                                      identity=identity,
                                       capabilities=capabilities,
                                       comments='Added by pre-seeding.')
                     authfile.add(entry)
@@ -667,6 +661,7 @@ class PlatformWrapper:
                     ks = KeyStore(KeyStore.get_agent_keystore_path(identity))
                     entry = AuthEntry(credentials=encode_key(decode_key(ks.public)),
                                       user_id=identity,
+                                      identity=identity,
                                       capabilities=capabilities,
                                       comments='Added by pre-seeding.')
                     authfile.add(entry)
@@ -965,8 +960,11 @@ class PlatformWrapper:
 
             res = execute_command(cmd, env=env, logger=_log)
             assert res, "failed to install wheel:{}".format(wheel_file)
-            agent_uuid = res.split(' ')[-2]
+            res = jsonapi.loads(res)
+            agent_uuid = res['agent_uuid']
+            self.logit(f"Inside __install_agent_wheel__ res is: {res}")
             self.logit(agent_uuid)
+            self.logit(f"After exec install command {self.dynamic_agent.vip.peerlist().get()}")
 
             if start:
                 self.start_agent(agent_uuid)
@@ -1035,6 +1033,7 @@ class PlatformWrapper:
         :return:
         """
         with with_os_environ(self.env):
+            _log.debug(f"install_agent called with params\nagent_wheel: {agent_wheel}\nagent_dir: {agent_dir}")
             self.__wait_for_control_connection_to_exit__()
             assert self.is_running(), "Instance must be running to install agent."
             assert agent_wheel or agent_dir, "Invalid agent_wheel or agent_dir."
@@ -1046,6 +1045,7 @@ class PlatformWrapper:
                 assert os.path.exists(agent_wheel)
                 wheel_file = agent_wheel
                 agent_uuid = self.__install_agent_wheel__(wheel_file, False, vip_identity)
+                assert agent_uuid
 
             # Now if the agent_dir is specified.
             temp_config = None
@@ -1084,10 +1084,10 @@ class PlatformWrapper:
                 # vctl install with start seem to have a auth issue. For now start after install
                 # if start:
                 #     cmd.extend(["--start"])
-
+                self.logit(f"Command installation is: {cmd}")
                 stdout = execute_command(cmd, logger=_log, env=self.env,
                                          err_prefix="Error installing agent")
-
+                self.logit(f"RESPONSE FROM INSTALL IS: {stdout}")
                 # Because we are no longer silencing output from the install, the
                 # the results object is now much more verbose.  Our assumption is
                 # that the result we are looking for is the only JSON block in
@@ -1118,9 +1118,12 @@ class PlatformWrapper:
                 #     assert resultobj['started']
                 agent_uuid = resultobj['agent_uuid']
 
-            assert agent_uuid is not None
+                assert resultobj
+                self.logit(f"resultobj: {resultobj}")
+            assert agent_uuid
             time.sleep(5)
             if start:
+                self.logit(f"We are running {agent_uuid}")
                 # call start after install for now. vctl install with start seem to have auth issues.
                 self.start_agent(agent_uuid)
                 assert self.is_agent_running(agent_uuid)
@@ -1328,13 +1331,31 @@ class PlatformWrapper:
         :param config_path: path to federation config yml file.
         """
         with with_os_environ(self.env):
-            _log.debug("Setting up federation using config : {}".format(config_path))
+            print(f"VHOME WITH with_os_environ: {os.environ['VOLTTRON_HOME']}")
+            setup_rabbitmq_volttron('federation',
+                                    verbose=False,
+                                    prompt=False,
+                                    instance_name=self.instance_name,
+                                    rmq_conf_file=self.rabbitmq_config_obj.rmq_conf_file,
+                                    max_retries=5,
+                                    env=self.env)
 
-            cmd = ['vcfg']
-            cmd.extend(['--vhome', self.volttron_home, '--instance-name', self.instance_name, '--rabbitmq',
-                        "federation", config_path])
-            execute_command(cmd, env=self.env, logger=_log,
-                            err_prefix="Error setting up federation")
+
+    def setup_shovel(self, config_path):
+        """
+        Set up shovel using the given config path
+        :param config_path: path to shovel config yml file.
+        """
+        with with_os_environ(self.env):
+            print(f"VHOME WITH with_os_environ: {os.environ['VOLTTRON_HOME']}")
+            setup_rabbitmq_volttron('shovel',
+                                    verbose=False,
+                                    prompt=False,
+                                    instance_name=self.instance_name,
+                                    rmq_conf_file=self.rabbitmq_config_obj.rmq_conf_file,
+                                    max_retries=5,
+                                    env=self.env)
+
 
     def restart_platform(self):
         with with_os_environ(self.env):

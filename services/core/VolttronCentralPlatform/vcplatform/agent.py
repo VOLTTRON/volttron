@@ -750,7 +750,7 @@ class VolttronCentralPlatform(Agent):
         for a in agents:
             pinfo = None
             is_running = False
-            for uuid, name, proc_info in status_running:
+            for uuid, name, proc_info, _ in status_running:
                 if a['uuid'] == uuid:
                     is_running = proc_info[0] > 0 and proc_info[1] == None
                     pinfo = proc_info
@@ -802,10 +802,12 @@ class VolttronCentralPlatform(Agent):
                         "Couldn't reach agent identity {} uuid: {}".format(
                             identity, a['uuid']
                         ))
+
         for a in agents:
             if a['uuid'] in uuid_to_status:
                 _log.debug('UPDATING STATUS OF: {}'.format(a['uuid']))
                 a.update(uuid_to_status[a['uuid']])
+
         return agents
 
     def store_agent_config(self, agent_identity, config_name, raw_contents,

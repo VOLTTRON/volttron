@@ -8,7 +8,7 @@ from mysql import connector
 #
 # print(container.id)
 #
-create_tables_file = "services/core/SQLHistorian/mysql-create.sql"
+create_tables_file = "services/core/SQLHistorian/mysql-create_before_historian_4.0.0.sql"
 
 with open(create_tables_file) as fp:
     data = fp.read() # .split(";")

@@ -36,33 +36,37 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-import os
-import json
-import gevent
-import pytest
+from os import path
+from setuptools import setup, find_packages
 
-from volttron.platform import get_services_core
-from volttron.platform.messaging.health import STATUS_GOOD
+MAIN_MODULE = 'historian'
 
+# Find the agent package that contains the main module
+packages = find_packages('.')
+agent_package = ''
+for package in find_packages():
+    # Because there could be other packages such as tests
+    if path.isfile(package + '/' + MAIN_MODULE + '.py') is True:
+        agent_package = package
+if not agent_package:
+    raise RuntimeError('None of the packages under {dir} contain the file '
+                       '{main_module}'.format(main_module=MAIN_MODULE + '.py',
+                                              dir=path.abspath('')))
 
-@pytest.mark.sqlhistorian
-@pytest.mark.aggregator
-def test_default_config(volttron_instance):
-    """
-    Test the default configuration file included with the agent
-    """
-    publish_agent = volttron_instance.build_agent(identity="test_agent")
-    gevent.sleep(1)
+# Find the version number from the main module
+agent_module = agent_package + '.' + MAIN_MODULE
+_temp = __import__(agent_module, globals(), locals(), ['__version__'], 0)
+__version__ = _temp.__version__
 
-    config_path = os.path.join(get_services_core("SQLAggregateHistorian"), "config")
-    with open(config_path, "r") as config_file:
-        config_json = json.load(config_file)
-    assert isinstance(config_json, dict)
-
-    volttron_instance.install_agent(
-        agent_dir=get_services_core("SQLAggregateHistorian"),
-        config_file=config_json,
-        start=True,
-        vip_identity="health_test")
-
-    assert publish_agent.vip.rpc.call("health_test", "health.get_status").get(timeout=10).get('status') == STATUS_GOOD
+# Setup
+setup(
+    name=agent_package + 'agent',
+    version=__version__,
+    install_requires=['volttron'],
+    packages=packages,
+    entry_points={
+        'setuptools.installation': [
+            'eggsecutable = ' + agent_module + ':main',
+        ]
+    }
+)
