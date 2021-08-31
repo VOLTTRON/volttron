@@ -1,11 +1,11 @@
 .. _Apache-Reverse-Proxy-Setup:
 
-*****************
-Apache Web Server
-*****************
+*********************************************
+Reverse Proxy Example for VOLTTRON Deployment
+*********************************************
 
-The purpose of this section is to review the necessary dependencies and configurations for setting up a
-simple reverse proxy for VOLTTRON using apache2.
+The purpose of this section is to review the necessary dependencies and configurations for setting up and deploying
+a reverse proxy for VOLTTRON using apache2 as the proxy on Ubuntu.
 
 Configuring VOLTTRON
 ====================
@@ -179,7 +179,7 @@ at /etc/apache2/mods-available/ssl.conf.
 An example ssl.conf file is provided with volttron and can be found within the volttron repository at
 volttron/scripts/admin/apache-proxy/ssl.conf. The SSLCertificateFile, and SSLCertificateKeyFile paths need
 to be set to appropriate cert and key file path. The default values are set to use the built-in
-(for Debian-based systems) `snakeoil http://manpages.ubuntu.com/manpages/bionic/man8/make-ssl-cert.8.html>`_
+(for Debian-based systems) `snakeoil <http://manpages.ubuntu.com/manpages/bionic/man8/make-ssl-cert.8.html>`_
 cert and key. These will work for testing, but are not the preferred values for a production environment.
 
 .. warning::

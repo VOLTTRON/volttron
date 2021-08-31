@@ -62,5 +62,6 @@ below. in the following.
 # Security Considerations
 
 When deploying any web agent, including VOLTTRON Central, it is important to consider security.
-Please refer to the documentation for secure-deployment-considerations. In particular, 
-it would be recommended to consider the use of a reverse proxy.
+Please refer to the documentation for 
+[Security Considerations of Deployment](https://volttron.readthedocs.io/en/main/deploying-volttron/secure-deployment-considerations.html). 
+In particular, it would be recommended to consider the use of a reverse proxy.
