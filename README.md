@@ -11,11 +11,11 @@ with that data.
 
 ## Features
 
--   [Message Bus](https://volttron.readthedocs.io/en/latest/core_services/messagebus/index.html#messagebus-index) allows agents to subscribe to data sources and publish results and messages.
--   [Driver framework](https://volttron.readthedocs.io/en/latest/core_services/drivers/index.html#volttron-driver-framework) for collecting data from and sending control actions to buildings and devices.
--   [Historian framework](https://volttron.readthedocs.io/en/latest/core_services/historians/index.html#historian-index) for storing data.
--   [Agent lifecycle managment](https://volttron.readthedocs.io/en/latest/core_services/control/AgentManagement.html#agentmanagement) in the platform
--   [Web UI](https://volttron.readthedocs.io/en/latest/core_services/service_agents/central_management/VOLTTRON-Central.html#volttron-central) for managing deployed instances from a single central instance.
+-   [Message Bus](https://volttron.readthedocs.io/en/latest/platform-features/message-bus/index.html) allows agents to subscribe to data sources and publish results and messages.
+-   [Driver framework](https://volttron.readthedocs.io/en/latest/driver-framework/drivers-overview.html) for collecting data from and sending control actions to buildings and devices.
+-   [Historian framework](https://volttron.readthedocs.io/en/latest/agent-framework/historian-agents/historian-framework.html) for storing data.
+-   [Agent lifecycle managment](https://volttron.readthedocs.io/en/latest/platform-features/control/agent-management-control.html) in the platform
+-   [Web UI](https://volttron.readthedocs.io/en/latest/agent-framework/core-service-agents/volttron-central/volttron-central-overview.html) for managing deployed instances from a single central instance.
 
 ## Installation
 
@@ -27,7 +27,7 @@ users unfamiliar with those technologies, the following resources are recommende
 
 ### 1. Install prerequisites
 
-[Requirements Reference](https://volttron.readthedocs.io/en/develop/introduction/platform-install.html#step-1-install-prerequisites)
+[Requirements Reference](https://volttron.readthedocs.io/en/latest/introduction/platform-install.html#step-1-install-prerequisites)
 
 From version 7.0, VOLTTRON requires python 3 with a minimum version of 3.6; it is tested only systems supporting that as a native package.
 On Debian-based systems (Ubuntu bionic, debian buster, raspbian buster), these can all be installed with the following commands:
