@@ -6,7 +6,16 @@
 
 
 name: Testing postgresqlfuncts
-on: [pull_request]
+on:
+  push:
+    branches:
+    - develop
+    - releases/**
+  pull_request:
+    branches:
+    - main
+    - develop
+    - releases/**
 
 jobs:
   build:
