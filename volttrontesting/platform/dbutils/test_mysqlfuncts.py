@@ -23,7 +23,7 @@ pytestmark = [pytest.mark.mysqlfuncts, pytest.mark.dbutils, pytest.mark.unit]
 
 
 IMAGES = [
-    "mysql:latest",
+    "mysql:8.0",
     "mysql:5.7.35",
     "mysql:5.6"
 ]
