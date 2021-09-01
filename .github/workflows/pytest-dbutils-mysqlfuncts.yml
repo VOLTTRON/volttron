@@ -5,7 +5,7 @@
 # and retrieval of cache for quicker setup of test environments.
 
 
-name: Testing mysqlfucnts
+name: Testing mysqlfuncts
 on:
   push:
     branches:
