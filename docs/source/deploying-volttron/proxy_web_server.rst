@@ -73,10 +73,6 @@ User and Group options, with ServerAdmin being optional.
     # ServerAdmin will be an email address.
     ServerAdmin admin@domain
 
-
-    # ServerAdmin will be an email address.
-    ServerAdmin admin@volttron
-
     <Directory />
         AllowOverride none
         Require all denied
