@@ -211,10 +211,13 @@ class TestIEEE2030_5Agent:
 
     def test_set_derg(self, agent):
         """Test that DERSettings can be fetched after it's been set."""
+        obj = self.IEEE2030_5_http_get('edev/0/der/1/derg')
+
         assert self.IEEE2030_5_http_get('edev/0/der/1/derg').setGradW is None
         assert self.get_point(agent, 'b121_WMax') is None
         assert self.IEEE2030_5_http_put('edev/0/der/1/derg', 'der.derg').status_code == 204
         assert self.IEEE2030_5_http_get('edev/0/der/1/derg').setGradW == 55000
+        assert self.IEEE2030_5_http_get('edev/0/der/1/derg').setMaxW == 20.0
         assert self.get_point(agent, 'b121_WMax') == 20.0
 
     def test_set_dera(self, agent):
@@ -285,7 +288,8 @@ class TestIEEE2030_5Agent:
         """
         url = '{}/dcap/{}'.format(web_address, IEEE2030_5_resource_name)
         headers = {'content-type': 'application/IEEE2030_5+xml'}
+        data = open(get_services_core("IEEE2030_5Agent/tests/{}.PUT.xml").format(IEEE2030_5_filename), 'rb').read()
+        print(f"Putting to {url}\ndata: {data}")
         return requests.post(url,
-                             data=open(get_services_core("IEEE2030_5Agent/tests/{}.PUT.xml").format(IEEE2030_5_filename),
-                                       'rb'),
+                             data=data,
                              headers=headers)

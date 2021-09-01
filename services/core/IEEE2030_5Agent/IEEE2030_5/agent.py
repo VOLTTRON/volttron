@@ -153,7 +153,7 @@ class IEEE2030_5Agent(Agent):
 
         Registers all IEEE 2030.5 related endpoints. Endpoints are defined in the end_device.py file.
         """
-        # _log.debug("Deregistering Endpoints: {}".format(self.__class__.__name__))
+        _log.debug("Deregistering Endpoints: {}".format(self.__class__.__name__))
         for endpoint in self.vip.web._endpoints:
             try:
                 split_path = endpoint.split('/')
@@ -179,13 +179,15 @@ class IEEE2030_5Agent(Agent):
         """ Register IEEE 2030.5 end devices.
 
         :param devices: End devices from agent config file.
-        :type devices: List
+        :type : List
 
         :return: Dictionary of EndDevice objects keyed by ID.
         """
         _log.debug("Loading Devices: {}".format(self.__class__.__name__))
         end_devices = self.devices
+        _log.debug(f"Begin registering devices")
         for device in devices:
+            _log.debug(f"Device: {device}")
             if device['sfdi'] not in [k.sfdi for k in end_devices.values()]:
                 d = EndDevice(sfdi=device["sfdi"],
                               lfdi=device["lfdi"],
@@ -206,7 +208,7 @@ class IEEE2030_5Agent(Agent):
             end_devices.pop(i)
         return end_devices
 
-    def get_end_device(self, path=None, sfdi=None, lfdi=None):
+    def get_end_device(self, path=None, sfdi=None, lfdi=None) -> EndDevice:
         """ Helper function to return end device object.
 
         Only one of path or sfdi should be used for End Device lookup
@@ -216,6 +218,7 @@ class IEEE2030_5Agent(Agent):
         :param lfdi: LFDI of end device
         :return: EndDevice object
         """
+        _log.debug(f"Getting end device path {path} sfdi {sfdi} lfdi {lfdi}")
         if path:
             end_device_id = path.split('/')[3]
             try:
@@ -243,6 +246,7 @@ class IEEE2030_5Agent(Agent):
         """
         device = self.get_end_device(env['PATH_INFO'])
         if env['REQUEST_METHOD'] in ('POST', 'PUT'):
+            _log.debug(f"process_edev {env['REQUEST_METHOD']}, {data}")
             obj = xsd_models.parseString(data, silence=True)
             if type(obj) == xsd_type:
                 setattr(device, attr_name, obj)
@@ -292,8 +296,8 @@ class IEEE2030_5Agent(Agent):
         end_device = self.get_end_device(sfdi=sfdi)
         try:
             point_definition = end_device.mappings[point_name]
-            return end_device.field_value(point_definition['IEEE 2030.5 Resource Name'],
-                                          point_definition['IEEE 2030.5 Field Name'])
+            return end_device.field_value(point_definition['IEEE2030_5 Resource Name'],
+                                          point_definition['IEEE2030_5 Field Name'])
         except KeyError:
             raise IEEE2030_5Exception("{0} not a configured point name.".format(point_name))
 
@@ -304,8 +308,8 @@ class IEEE2030_5Agent(Agent):
         try:
             end_device_points = {}
             for volttron_point_name, point_definition in end_device.mappings.items():
-                field_value = end_device.field_value(point_definition['IEEE 2030.5 Resource Name'],
-                                                     point_definition['IEEE 2030.5 Field Name'])
+                field_value = end_device.field_value(point_definition['IEEE2030_5 Resource Name'],
+                                                     point_definition['IEEE2030_5 Field Name'])
                 end_device_points[volttron_point_name] = field_value
             return end_device_points
         except Exception as e:
@@ -482,6 +486,7 @@ class IEEE2030_5Agent(Agent):
 
     def mup_list(self, env, data):
         if env['REQUEST_METHOD'] in ('POST', 'PUT'):
+            _log.debug(f"mup_list {env['REQUEST_METHOD']}, {data}")
             endpoint = IEEE2030_5.IEEE2030_5_MUP_ENDPOINTS["mup"]
             mup = xsd_models.parseString(data, silence=True)
             device = self.get_end_device(lfdi=mup.get_deviceLFDI())
@@ -517,6 +522,7 @@ class IEEE2030_5Agent(Agent):
         mup_id = env['PATH_INFO'].split('/')[3]
         mup = self.mups[int(mup_id)]
         if env['REQUEST_METHOD'] in ('POST', 'PUT'):
+            _log.debug(f"mup {env['REQUEST_METHOD']}, {data}")
             device = self.get_end_device(lfdi=mup.mup_xsd.get_deviceLFDI())
             obj = xsd_models.parseString(data, silence=True)
             if type(obj) == xsd_models.MirrorUsagePoint:

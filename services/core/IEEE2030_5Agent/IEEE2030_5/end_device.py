@@ -396,7 +396,8 @@ class IEEE2030_5Parser:
     @staticmethod
     def parse(stream):
         """ Parses the incoming bytestream as XML and returns the resulting data. """
-        return xsd_models.parseString(stream, silence=True)
+        data = xsd_models.parseString(stream, print_warnings=True, silence=True)
+        return data
 
 
 def mrid_helper(edev_pk, resource_suffix):

@@ -424,15 +424,17 @@ class IEEE2030_5DriverTestAgent(Agent):
     def get_point(self, point_name, driver_name=None):
         """Issue a get_point RPC call for the named point and return the result."""
         driver = driver_name if driver_name else DEFAULT_DRIVER
+        _log.debug(f"{driver}: get_point for {point_name}")
         response = self.vip.rpc.call(PLATFORM_DRIVER, 'get_point', driver, point_name).get(timeout=10)
-        _log.debug('{}: Sent get_point for {}, received {}'.format(driver, point_name, response))
+        _log.debug(f"{driver}: get_point for {point_name}, received: {response}")
         return response
 
     def set_point(self, point_name, value, driver_name=None):
         """Issue a set_point RPC call for the named point and value, and return the result."""
         driver = driver_name if driver_name else DEFAULT_DRIVER
-        self.vip.rpc.call(PLATFORM_DRIVER, 'set_point', driver, point_name, value)
-        _log.debug('{}: Sent set_point for {} = {}'.format(driver, point_name, value))
+        _log.debug(f"{driver}: set_point for {point_name} value: {value}")
+        self.vip.rpc.call(PLATFORM_DRIVER, 'set_point', driver, point_name, value).get(timeout=10)
+        _log.debug('{}: set_point for {} = {}'.format(driver, point_name, value))
 
 
 def test_IEEE2030_5_agent(config_path, **kwargs):
