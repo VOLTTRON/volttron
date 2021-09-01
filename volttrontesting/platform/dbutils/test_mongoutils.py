@@ -14,11 +14,9 @@ from volttrontesting.fixtures.docker_wrapper import create_container
 from volttrontesting.utils.utils import get_rand_port
 
 
-IMAGES = ["mongo:latest"]
+IMAGES = ["mongo:5.0"]
 if "CI" in os.environ:
-    IMAGES.extend(
-        ["mongo:5.0", "mongo:4.0"]
-    )
+    IMAGES.extend(["mongo:4.0"])
 
 TEST_DATABASE = "test_historian"
 ROOT_USERNAME = "mongoadmin"
