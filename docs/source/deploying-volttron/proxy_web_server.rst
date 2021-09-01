@@ -65,11 +65,13 @@ User and Group options, with ServerAdmin being optional.
     # User will be a non-root unix user that the server will use to respond to requests.
     # It is recommended to create a new user group specifically for the apache server.
     # The user and group should not have the ability to access any files that are not
-    # intended to be available through the VOLTTRON web service, or have the ability to
-    # execute code beyond the anticipated scope. This user does not need permissions for
-    # all of VOLTTRON, only the web hosted materials.
+    # intended to be available to the apache proxy, or have the ability to
+    # execute code beyond the anticipated scope.
     User <user name>
     Group <group name>
+
+    # ServerAdmin will be an email address.
+    ServerAdmin admin@domain
 
 
     # ServerAdmin will be an email address.
@@ -88,6 +90,7 @@ User and Group options, with ServerAdmin being optional.
         Require all denied
     </Files>
 
+    # Stored in /etc/apache2/ by default
     ErrorLog "logs/error_log"
     LogLevel warn
 
