@@ -42,6 +42,7 @@ import gevent
 import requests
 
 from volttron.platform import get_services_core
+from volttron.platform.agent.known_identities import PLATFORM_DRIVER
 
 DRIVER_NAME = 'IEEE2030_5'
 DEVICE_ID = "097935300833"
@@ -128,6 +129,9 @@ web_address = ""
 @pytest.fixture(scope="module")
 def agent(request, volttron_instance_module_web):
     test_agent = volttron_instance_module_web.build_agent()
+    capabilities = {'edit_config_store': {'identity': PLATFORM_DRIVER}}
+    volttron_instance_module_web.add_capabilities(publickey=test_agent.core.publickey,
+                                                  capabilities=capabilities)
 
     # Configure a IEEE 2030.5 device in the Platform Driver
     test_agent.vip.rpc.call('config.store', 'manage_delete_store', 'platform.driver').get(timeout=10)
@@ -206,6 +210,8 @@ class TestIEEE2030_5Driver:
 
         # Test that each point has the test value that was posted to it
         for point_name, expected_value in ASSERTED_VALUES.items():
+            print(f"Looking at point name: {point_name} expected: {expected_value}")
+            value = self.get_point(agent, point_name)
             assert self.get_point(agent, point_name) == expected_value
 
     @staticmethod
