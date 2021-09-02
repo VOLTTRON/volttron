@@ -8,7 +8,6 @@ platform provides services for collecting and storing data from buildings and
 devices and provides an environment for developing applications which interact
 with that data.
 
-
 ## Features
 
 -   [Message Bus](https://volttron.readthedocs.io/en/latest/platform-features/message-bus/index.html) allows agents to subscribe to data sources and publish results and messages.
