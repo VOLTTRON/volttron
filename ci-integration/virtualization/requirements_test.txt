@@ -7,7 +7,7 @@ numpy>1.13<2
 pandas
 watchdog==0.10.2
 watchdog-gevent==0.1.1
-cryptography==2.3
+cryptography==3.3.2
 docker
 psycopg2
 mysql-connector-python-rf
