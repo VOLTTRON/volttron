@@ -73,7 +73,6 @@ extras_require = {   'crate': ['crate==0.26.0'],
                'passlib==1.7.4',
                'argon2-cffi==20.1.0',
                'Werkzeug==2.0.1']}
-
 install_requires = [   'gevent==20.6.1',
     'greenlet==0.4.16',
     'grequests==0.6.0',
@@ -93,5 +92,3 @@ install_requires = [   'gevent==20.6.1',
     'wheel==0.30']
 
 option_requirements = [('pyzmq==22.2.1', ['--zmq=bundled'])]
-
-
