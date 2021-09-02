@@ -1,1 +1,1 @@
-influxdb
+influxdb==5.3.1
