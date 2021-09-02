@@ -36,108 +36,62 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-# These need to be importable by bootstrap.py. If we put them in
-# setup.py the import may fail if setuptools in not installed
-# in the global python3.
 
-option_requirements = [
-    ('pyzmq', ['--zmq=bundled']),
-]
+extras_require = {   'crate': ['crate==0.26.0'],
+    'databases': [   'mysql-connector-python==8.0.26',
+                     'bson==0.5.7',
+                     'pymongo==3.7.2',
+                     'crate==0.26.0',
+                     'influxdb==5.3.1',
+                     'psycopg2-binary==2.8.6'],
+    'documentation': [   'mock==4.0.3',
+                         'Sphinx==4.1.2',
+                         'sphinx-rtd-theme==0.5.2',
+                         'sphinx==3.3.0',
+                         'm2r2==0.3.1'],
+    'drivers': [   'pymodbus==2.5.2',
+                   'bacpypes==0.16.7',
+                   'modbus-tk==1.1.2',
+                   'pyserial==3.5'],
+    'influxdb': ['influxdb==5.3.1'],
+    'market': ['numpy==1.19.5', 'transitions==0.8.8'],
+    'mongo': ['bson==0.5.7pymongo==3.7.2'],
+    'mysql': ['mysql-connector-python==8.0.26'],
+    'pandas': ['numpy==1.19.5', 'pandas==1.1.5'],
+    'postgres': ['psycopg2-binary==2.8.6'],
+    'testing': [   'mock==4.0.3',
+                   'pytest==6.2.4',
+                   'pytest-timeout==1.4.2',
+                   'pytest-rerunfailures==10.1',
+                   'websocket-client==1.2.1',
+                   'deepdiff==5.5.0',
+                   'docker==5.0.0'],
+    'weather': ['Pint==0.17'],
+    'web': [   'ws4py==0.5.1',
+               'PyJWT==1.7.1',
+               'Jinja2==3.0.1',
+               'passlib==1.7.4',
+               'argon2-cffi==20.1.0',
+               'Werkzeug==2.0.1']}
 
-install_requires = [
-    'gevent==20.6.1',
+install_requires = [   'gevent==20.6.1',
     'greenlet==0.4.16',
-    'grequests',
+    'grequests==0.6.0',
     'idna<3,>=2.5',
     'requests==2.23.0',
-    'ply',
-    'psutil',
-    'python-dateutil',
-    'pytz',
-    'PyYAML',
-    'pyzmq',
-    'setuptools',
-    # tzlocal 3.0 breaks without the backports.tzinfo package on python < 3.9 https://pypi.org/project/tzlocal/3.0/
+    'ply==3.11',
+    'psutil==5.8.0',
+    'python-dateutil==2.8.2',
+    'pytz==2021.1',
+    'PyYAML==5.4.1',
+    'pyzmq==22.2.1',
+    'setuptools==40.0.0',
     'tzlocal==2.1',
     'pyOpenSSL==19.0.0',
     'cryptography==2.3',
-    # Cross platform way of handling changes in file/directories.
-    # https://github.com/Bogdanp/watchdog_gevent
-    'watchdog-gevent',
-    'wheel==0.30'
-]
+    'watchdog-gevent==0.1.1',
+    'wheel==0.30']
 
-extras_require = {
-    'crate': [  # crate databases
-        'crate'
-    ],
-    'databases': [  # Support for all known databases
-        'mysql-connector-python',
-        'bson==0.5.7',
-        'pymongo==3.7.2',
-        'crate',
-        'influxdb',
-        'psycopg2-binary'
-    ],
-    # Removing from requirements until we can get cmake installed on
-    # ubuntu 20.04 and pydnp3 is working with python3
-    # 'dnp3': [  # dnp3 agent requirements.
-    #     'pydnp3'
-    # ],
-    'documentation': [  # Requirements for building the documentation
-        'mock',
-        'Sphinx',
-        'sphinx-rtd-theme',
-        'sphinx==3.3.0',
-        'm2r2'
-    ],
-    'drivers': [
-        'pymodbus',
-        'bacpypes==0.16.7',
-        'modbus-tk',
-        'pyserial'
-    ],
-    'influxdb': [  # influxdb historian requirements.
-        'influxdb'
-    ],
-    'market': [  # Requirements for the market service
-        'numpy',
-        'transitions',
-    ],
-    'mongo': [  # mongo databases
-        'bson==0.5.7'
-        'pymongo==3.7.2',
-    ],
-    'mysql': [  # mysql databases
-        'mysql-connector-python',
-    ],
-    'pandas': [  # numpy and pandas for applications
-        'numpy',
-        'pandas',
-    ],
-    'postgres': [  # numpy and pandas for applications
-        'psycopg2-binary'
-    ],
-    'testing': [  # Testing infrastructure dependencies
-        'mock',
-        'pytest',
-        'pytest-timeout',
-        'pytest-rerunfailures',
-        'websocket-client',
-        # Allows us to compare nested dictionaries easily.
-        'deepdiff',
-        # Allows setup of databases for testing with.
-        'docker'
-    ],
-    'web': [    # Web support for launching web based agents including ssl and json web tokens.
-        'ws4py',
-        'PyJWT==1.7.1',
-        'Jinja2',
-        'passlib',
-        'argon2-cffi',
-        'Werkzeug'
-    ],
-    'weather': [
-        'Pint'
-    ],
-}
+option_requirements = [('pyzmq==22.2.1', ['--zmq=bundled'])]
+
+

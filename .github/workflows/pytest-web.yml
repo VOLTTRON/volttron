@@ -13,8 +13,16 @@
 # https://github.com/VOLTTRON/volttron/actions (or if you are pushing to your own fork change the user)
 name: Testing platform web
 
-# Determine what events are going to trigger a running of the workflow
-on: [pull_request]
+on:
+  push:
+    branches:
+    - develop
+    - releases/**
+  pull_request:
+    branches:
+    - main
+    - develop
+    - releases/**
 
 jobs:
   # The job named build
