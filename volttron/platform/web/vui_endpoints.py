@@ -6,7 +6,6 @@ from gevent.timeout import Timeout
 from collections import defaultdict
 from typing import List, Union
 
-from volttron.platform.agent.known_identities import CONFIGURATION_STORE
 from werkzeug import Response
 from werkzeug.urls import url_decode
 from volttron.platform.vip.agent.subsystems.query import Query
@@ -210,10 +209,10 @@ class VUIEndpoints(object):
             if agent_state not in ['running', 'installed']:
                 error = {'error': f'Unknown agent-state: {agent_state} -- must be "running", "installed",'
                                   f' or "packaged". Default is "running".'}
-                return Response(json.dumps(error), 400, content_type = 'application/json')
+                return Response(json.dumps(error), 400, content_type='application/json')
             if platform not in self._get_platforms():
                 error = {'error': f'Unknown platform: {platform}'}
-                return Response(json.dumps(error), 400, content_type = 'application/json')
+                return Response(json.dumps(error), 400, content_type='application/json')
             else:
                 try:
                     agents = self._get_agents(platform, agent_state, include_hidden)
@@ -341,20 +340,16 @@ class VUIEndpoints(object):
         :param data:
         :return:
         """
-        _log.debug("IN HANDLE_PLATFORMS_DEVICES")
+
         def _get_allowed_write_selection(points, topic, regex, tag):
             # Query parameters:
-            _log.debug('IN GET_ALLOWED_WRITE_SELECTION')
             write_all = self._to_bool(query_params.get('write-all', 'false'))
             confirm_values = self._to_bool(query_params.get('confirm-values', False))
             # Map of selected topics to routes:
-            _log.debug('IN GET_ALLOWED_WRITE_SELECTION BEFORE SELECTION')
             selection = {p.topic: f'/vui/platforms/{platform}/{p.identifier}' for p in points}
-            _log.debug('IN GET_ALLOWED_WRITE_SELECTION AFTER SELECTION')
             unwritables = [p.topic for p in points if not self._to_bool(p.data['Writable'])]
 
             if (regex or tag or '/-' in topic or len(points) > 1) and not write_all:
-                _log.debug('IN GET_ALLOWED_WRITE_SELECTION IN IF')
                 # Disallow potential use of multiple writes without explicit write-all flag:
                 error_message = {
                     'error': f"Use of wildcard expressions, regex, or tags may set multiple points. "
@@ -367,14 +362,9 @@ class VUIEndpoints(object):
 
                 raise ValueError(json.dumps(error_message))
             elif len(unwritables) == len(points):
-                _log.debug('IN GET_ALLOWED_WRITE_SELECTION IN ELIF')
-                _log.debug(f'IN GET_ALLOWED_WRITE_SELECTION UNWRITABLES IS: {unwritables}')
-                _log.debug(f'IN GET_ALLOWED_WRITE_SELECTION POINTS IS: {points}')
-                _log.debug(f'IN GET_ALLOWED_WRITE_SELECTION LEN_POINTS IS: {len(points)}')
                 raise ValueError(json.dumps({'error': 'No selected points are writable.',
                                              'unwritable_points': unwritables}))
             else:
-                _log.debug('IN GET_ALLOWED_WRITE_SELECTION IN ELSE')
                 return confirm_values, selection, unwritables
 
         path_info = env.get('PATH_INFO')
@@ -402,19 +392,13 @@ class VUIEndpoints(object):
             tag_list = None
         # Prune device tree and get nodes matching topic:
         try:
-            _log.debug('IN TRY BLOCK')
             # TODO: Should we be storing this tree to use for faster requests later? How to keep it updated?
             device_tree = DeviceTree.from_store(platform, self._rpc).prune(topic, regex, tag_list)
-            _log.debug(f'DEVICE TREE IS: {device_tree}')
             topic_nodes = device_tree.get_matches(f'devices/{topic}' if topic else 'devices')
-            _log.debug(f'TOPIC NODES IS: {topic_nodes}')
             if not topic_nodes:
-                _log.debug('NOT TOPIC_NODES!')
                 return Response(json.dumps({f'error': f'Device topic {topic} not found on platform: {platform}.'}),
                                 400, content_type='application/json')
-            _log.debug('BEFORE POINTS')
             points = device_tree.points()
-            _log.debug(f'POINTS iS {points}')
         # TODO: Move this exception handling up to a wrapper.
         except Timeout as e:
             return Response(json.dumps({'error': f'RPC Timed Out: {e}'}), 504, content_type='application/json')
@@ -423,44 +407,33 @@ class VUIEndpoints(object):
                             400, content_type='application/json')
 
         if request_method == 'GET':
-            _log.debug('IN GET')
             # Query parameters:
-            read_all = query_params.get('read-all', False)
-            return_routes = query_params.get('routes', True)
-            return_writability = query_params.get('writability', True)
-            return_values = query_params.get('values', True)
-            return_config = query_params.get('config', False)
+            read_all = self._to_bool(query_params.get('read-all', False))
+            return_routes = self._to_bool(query_params.get('routes', True))
+            return_writability = self._to_bool(query_params.get('writability', True))
+            return_values = self._to_bool(query_params.get('values', True))
+            return_config = self._to_bool(query_params.get('config', False))
 
             try:
-                _log.debug('IN GET TRY')
                 if read_all or all([n.is_point() for n in topic_nodes]):
-                    _log.debug('IN GET READ_ALL')
                     # Either leaf values are explicitly requested, or all nodes are already points -- Return points:
                     ret_dict = defaultdict(dict)
                     if return_values:
-                        _log.debug('IN GET RET_VALUES')
                         ret_values = self._rpc('platform.actuator', 'get_multiple_points',
                                                [d.topic for d in points], external_platform=platform)
-                        _log.debug(f'IN GET, RET_VALUES IS: {ret_values}')
                         for k, v in ret_values[0].items():
-                            _log.debug('IN RET_VALUES[0] LOOP')
                             ret_dict[k]['value'] = v
-                        _log.debug("IN GET< BEFORE RET_VALUES[1]")
                         for k, e in ret_values[1].items():
-                            _log.debug('IN RET_VALUES[1] LOOP')
                             ret_dict[k]['value_error'] = e
                     for point in points:
-                        _log.debug('IN POINTS LOOP')
                         if return_routes:
                             ret_dict[point.topic]['route'] = f'/vui/platforms/{platform}/{point.identifier}'
                         if return_writability:
-                            ret_dict[point.topic]['writability'] = point.data.get('Writable')
+                            ret_dict[point.topic]['writable'] = self._to_bool(point.data.get('Writable'))
                         if return_config:
                             ret_dict[point.topic]['config'] = point.data
-                    _log.debug('IN GET BEFORE RETURN')
                     return Response(json.dumps(ret_dict), 200, content_type='application/json')
                 else:
-                    _log.debug('IN GET ELSE')
                     # All topics are not complete to points and read_all=False -- return route to next segments:
                     ret_dict = {
                         'route_options': device_tree.get_children_dict([n.identifier for n in topic_nodes],
@@ -473,39 +446,30 @@ class VUIEndpoints(object):
             except Timeout as e:
                 return Response(json.dumps({'error': f'RPC Timed Out: {e}'}), 504, content_type='application/json')
             except Exception as e:
-                _log.debug(f'IN GET EXCEPTION IS: {e}')
                 return Response(json.dumps({f'error': f'Error querying device topic {topic}: {e}'}),
                                 400, content_type='application/json')
 
         elif request_method == 'PUT':
-            _log.debug('IN PUT')
             try:
                 confirm_values, selected_routes, unwritables = _get_allowed_write_selection(points, topic, regex, tag)
-                _log.debug('IN PUT AFTER GET_ALLOWED WRITE SELECTION')
             except ValueError as e:
                 return Response(str(e), 405, content_type='application/json')
 
             # Set selected points:
             try:
-                _log.debug('body in devices PUT request was:')
-                _log.debug(data)
                 set_value = data.get('value')
                 topics_values = [(d.topic, set_value) for d in points if d.topic not in unwritables]
-                _log.debug('IN PUT BEFORE SET RPC CALL')
                 ret_errors = self._rpc('platform.actuator', 'set_multiple_points',
                                        requester_id=self._agent.core.identity, topics_values=topics_values,
                                        external_platform=platform)
-                _log.debug(f'IN PUT AFTER SET RPC, RET_VALUES IS: {ret_errors}')
                 ret_dict = defaultdict(dict)
                 for k in selected_routes.keys():
                     ret_dict[k]['route'] = selected_routes[k]
                     ret_dict[k]['set_error'] = ret_errors.get(k)
                     ret_dict[k]['writable'] = True if k not in unwritables else False
                 if confirm_values:
-                    _log.debug('IN PUT BEFORE GET RPC CALL')
                     ret_values = self._rpc('platform.actuator', 'get_multiple_points',
                                            [d.topic for d in points], external_platform=platform)
-                    _log.debug(f'IN PUT AFTER GET RPC, RET_VALUES IS: {ret_values}')
                     for k in selected_routes.keys():
                         ret_dict[k]['value'] = ret_values[0].get(k)
                         ret_dict[k]['value_check_error'] = ret_values[1].get(k)
@@ -522,7 +486,6 @@ class VUIEndpoints(object):
                                 400, content_type='application/json')
 
         elif request_method == 'DELETE':
-            _log.debug('IN DELETE')
             try:
                 confirm_values, selected_routes, unwritables = _get_allowed_write_selection(points, topic, regex, tag)
             except ValueError as e:
@@ -610,14 +573,9 @@ class VUIEndpoints(object):
                             status=501, content_type='text/plain')
 
     def handle_platforms_historians(self, env: dict, data: dict) -> Response:
-        _log.debug("VUI: in handle_platforms_historians")
         path_info = env.get('PATH_INFO')
-
-        _log.debug(f'path_info: {path_info}')
         request_method = env.get("REQUEST_METHOD")
-
         platform = re.match('^/vui/platforms/([^/]+)/historians/?$', path_info).groups()[0]
-        _log.debug(f'platform: {platform}')
 
         if request_method == 'GET':
             agents = self._get_agents(platform)
@@ -628,8 +586,6 @@ class VUIEndpoints(object):
                             status='501 Not Implemented', content_type='text/plain')
 
     def handle_platforms_historians_historian(self, env: dict, data: dict) -> Response:
-
-        _log.debug("VUI: in handle_platforms_historians_historian")
         path_info = env.get('PATH_INFO')
         request_method = env.get("REQUEST_METHOD")
 
@@ -655,12 +611,13 @@ class VUIEndpoints(object):
         request_method = env.get("REQUEST_METHOD")
         query_params = url_decode(env['QUERY_STRING'])
 
+        # Query parameters used directly in this method.
         tag = query_params.get('tag')
         regex = query_params.get('regex')
 
+        # Query parameters passed directly to RPC.
         start = query_params.get('start')
         end = query_params.get('end')
-
         skip = int(query_params.get('skip') if query_params.get('skip') else 0)
         count = query_params.get('count')
         order = query_params.get('order') if query_params.get('order') else 'FIRST_TO_LAST'
@@ -678,7 +635,8 @@ class VUIEndpoints(object):
         # Resolve tags if the tag query parameter is set:
         if tag:
             try:
-                tag_list = self._rpc('platform.tagging', 'get_topics_by_tags', tag, external_platform=platform).get(timeout=5)
+                tag_list = self._rpc('platform.tagging', 'get_topics_by_tags', tag,
+                                     external_platform=platform).get(timeout=5)
             except Timeout as e:
                 return Response(json.dumps({'error': f'Tagging Service timed out: {e}'}),
                                 504, content_type='application/json')
@@ -702,9 +660,9 @@ class VUIEndpoints(object):
                             400, content_type='application/json')
 
         if request_method == 'GET':
-            read_all = query_params.get('read-all', False)
-            return_routes = query_params.get('routes', True)
-            return_values = query_params.get('values', True)
+            read_all = self._to_bool(query_params.get('read-all', False))
+            return_routes = self._to_bool(query_params.get('routes', True))
+            return_values = self._to_bool(query_params.get('values', True))
 
             try:
                 if read_all or all([n.is_leaf() for n in topic_nodes]):
@@ -712,19 +670,16 @@ class VUIEndpoints(object):
                     ret_dict = defaultdict(dict)
 
                     if return_values:
-                        ret_values = self._rpc('platform.historian', 'query',
-                                               [d.topic for d in points], start, end, agg_type, agg_period, skip, count,
+                        ret_values = self._rpc(historian, 'query',
+                                               [p.topic for p in points], start, end, agg_type, agg_period, skip, count,
                                                order, external_platform=platform)
-
-                        # TODO: check return type for ret_values and based on that code
                         # to match single and multiple topics query results into the same structure
                         ret_values['values'] = ret_values['values'] if isinstance(ret_values['values'], dict) else {
                             points[0].topic: ret_values['values']}
-
                         for k, v in ret_values['values'].items():
                             ret_dict[k]['value'] = v
-                        for k, m in ret_values['metadata'].items():
-                            ret_dict[k]['metadata'] = m
+                            if ret_values['metadata']:
+                                ret_dict[k]['metadata'] = ret_values['metadata']
                     for point in points:
                         if return_routes:
                             ret_dict[point.topic][

@@ -83,7 +83,7 @@ class TopicTree(Tree):
 
     def prune(self, topic_pattern: str = None, regex: str = None, exact_matches: Iterable = None, *args, **kwargs):
         if topic_pattern:
-            pattern = re.compile(topic_pattern.replace('-', '[^/]+'))
+            pattern = re.compile(topic_pattern.replace('-', '[^/]+') + '(/|$)')
             nids = [n.identifier for n in self.filter_nodes(lambda x: pattern.search(x.identifier))]
         else:
             nids = list(self.expand_tree())
@@ -108,8 +108,8 @@ class TopicTree(Tree):
 
 
 class DeviceNode(TopicNode):
-    def __init__(self, tag=None, identifier=None, expanded=True, data=None, segment_type='TOPIC_SEGMENT'):
-        super(DeviceNode, self).__init__(tag, identifier, expanded, data, segment_type)
+    def __init__(self, tag=None, identifier=None, expanded=True, data=None, segment_type='TOPIC_SEGMENT', topic=''):
+        super(DeviceNode, self).__init__(tag, identifier, expanded, data, segment_type, topic)
 
     def is_point(self):
         return True if self.segment_type == 'POINT' else False
@@ -119,9 +119,14 @@ class DeviceNode(TopicNode):
 
 
 class DeviceTree(TopicTree):
-    def __init__(self, topic_list=None, root_name='devices', *args, **kwargs):
+    def __init__(self, topic_list=None, root_name='devices', assume_full_topics=False,  *args, **kwargs):
         super(DeviceTree, self).__init__(topic_list=topic_list, root_name=root_name, node_class=DeviceNode,
                                          *args, **kwargs)
+        if assume_full_topics:
+            for n in self.leaves():
+                n.segment_type = 'POINT'
+            for n in [self.parent(l.identifier) for l in self.leaves()]:
+                n.segment_type = 'DEVICE'
 
     def points(self, nid=None):
         if nid is None:
@@ -153,6 +158,7 @@ class DeviceTree(TopicTree):
         device_tree = cls(devices)
         for d in devices:
             dev_config = rpc_caller(CONFIGURATION_STORE, 'manage_get', 'platform.driver', d, raw=False, **kwargs)
+            # TODO: If not AsyncResponse instead of if kwargs
             dev_config = dev_config if kwargs else dev_config.get(timeout=5)
             reg_cfg_name = dev_config.pop('registry_config')[len('config://'):]
             device_tree.update_node(d, data=dev_config, segment_type='DEVICE')
