@@ -7,7 +7,43 @@ inconsistent network connectivity (automatic re-connection to tcp based
 databases). All additions to the historian are batched and wrapped
 within a transaction with commit and rollback functions properly
 implemented. This allows the maximum throughput of data with the most
-protection.
+protection
+
+## Common Configurations
+All SQLHistorians support a minimum of two parameters
+1. connection - This is a mandatory parameter with type indicating the type of
+   sql historian (ex. mysql, sqlite, etc.) and params containing the connection 
+   parameters specific to the connecting database type.
+   
+2. tables_def - Optional parameter to provide custom table names for
+   topics, data, and metadata. This is useful when you want to use more than
+   one instance of sqlhistorian with the same database
+
+Example:
+   
+JSON format :
+
+    {
+        "connection": {
+            # type should be sqlite
+            "type": "sqlite",
+            "params": {
+                "database": "data/historian.sqlite",
+            }
+        }
+        "tables_def":  {
+            # prefix for data, topics, and (in version < 4.0.0 metadata tables)
+            # default is ""
+            "table_prefix": "",
+            # table name for time series data. default "data"
+            "data_table": "data",
+            # table name for list of topics. default "topics"
+            "topics_table": "topics",
+            # table name mapping topic to metadata. default "meta"
+            # In sqlhistorian version >= 4.0.0 metadata is stored in topics table
+            "meta_table": "meta"
+        }
+    }
 
 ## MySQL
 
