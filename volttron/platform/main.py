@@ -93,7 +93,7 @@ except ImportError:
 from .store import ConfigStoreService
 from .agent import utils
 from .agent.known_identities import PLATFORM_WEB, CONFIGURATION_STORE, AUTH, CONTROL, CONTROL_CONNECTION, PLATFORM_HEALTH, \
-    KEY_DISCOVERY, PROXY_ROUTER
+    KEY_DISCOVERY, PROXY_ROUTER, PLATFORM
 from .vip.agent.subsystems.pubsub import ProtectedPubSubTopics
 from .keystore import KeyStore, KnownHostsStore
 from .vip.pubsubservice import PubSubService
@@ -777,7 +777,7 @@ def start_volttron_process(opts):
     if publickey:
         # Authorize the platform key:
         entry = AuthEntry(credentials=encode_key(publickey),
-                          user_id='platform',
+                          user_id=PLATFORM,
                           capabilities=[{'edit_config_store': {'identity': '/.*/'}}],
                           comments='Automatically added by platform on start')
         AuthFile().add(entry, overwrite=True)
@@ -794,8 +794,10 @@ def start_volttron_process(opts):
     ks_control_conn = KeyStore(KeyStore.get_agent_keystore_path(CONTROL_CONNECTION))
     entry = AuthEntry(credentials=encode_key(decode_key(ks_control_conn.public)),
                       user_id=CONTROL_CONNECTION,
+                      identity=CONTROL_CONNECTION,
                       capabilities=[{'edit_config_store': {'identity': '/.*/'}},
-                                    "allow_auth_modifications"],
+                                    'modify_rpc_method_allowance',
+                                    'allow_auth_modifications'],
                       comments='Automatically added by platform on start')
     AuthFile().add(entry, overwrite=True)
 
@@ -897,6 +899,15 @@ def start_volttron_process(opts):
                 opts.aip, address=address, identity=AUTH,
                 enable_store=False, message_bus='zmq')
 
+            ks_auth = KeyStore(KeyStore.get_agent_keystore_path(AUTH))
+            entry = AuthEntry(
+                credentials=encode_key(decode_key(ks_auth.public)),
+                user_id=AUTH,
+                identity=AUTH,
+                capabilities=['modify_rpc_method_allowance'],
+                comments='Automatically added by platform on start')
+            AuthFile().add(entry, overwrite=True)
+
             event = gevent.event.Event()
             auth_task = gevent.spawn(auth.core.run, event)
             event.wait()
@@ -910,7 +921,7 @@ def start_volttron_process(opts):
             thread.start()
 
             gevent.sleep(0.1)
-            if not thread.isAlive():
+            if not thread.is_alive():
                 sys.exit()
         else:
             # Start RabbitMQ server if not running
@@ -941,7 +952,7 @@ def start_volttron_process(opts):
             thread.start()
 
             gevent.sleep(0.1)
-            if not thread.isAlive():
+            if not thread.is_alive():
                 sys.exit()
 
             gevent.sleep(1)
@@ -963,7 +974,6 @@ def start_volttron_process(opts):
             del event
 
             protected_topics = auth.get_protected_topics()
-
             # Spawn Greenlet friendly ZMQ router
             # Necessary for backward compatibility with ZMQ message bus
             green_router = GreenRouter(opts.vip_local_address, opts.vip_address,
@@ -1029,17 +1039,25 @@ def start_volttron_process(opts):
                               enable_store=False,
                               message_bus='zmq')
         ]
-
         entry = AuthEntry(credentials=services[0].core.publickey,
                           user_id=CONTROL,
+                          identity=CONTROL,
                           capabilities=[{'edit_config_store': {'identity': '/.*/'}},
-                                        "allow_auth_modifications"],
+                                        'modify_rpc_method_allowance',
+                                        'allow_auth_modifications'],
+                          comments='Automatically added by platform on start')
+        AuthFile().add(entry, overwrite=True)
+
+        entry = AuthEntry(credentials=services[1].core.publickey,
+                          user_id=KEY_DISCOVERY,
+                          identity=KEY_DISCOVERY,
                           comments='Automatically added by platform on start')
         AuthFile().add(entry, overwrite=True)
 
         # Begin the webserver based options here.
         if opts.bind_web_address is not None:
             if not HAS_WEB:
+                _log.info(f"Web libraries not installed, but bind web address specified\n")
                 sys.stderr.write("Web libraries not installed, but bind web address specified\n")
                 sys.stderr.write("Please install web libraries using python3 bootstrap.py --web\n")
                 sys.exit(-1)
@@ -1077,6 +1095,7 @@ def start_volttron_process(opts):
         ks_platformweb = KeyStore(KeyStore.get_agent_keystore_path(PLATFORM_WEB))
         entry = AuthEntry(credentials=encode_key(decode_key(ks_platformweb.public)),
                           user_id=PLATFORM_WEB,
+                          identity=PLATFORM_WEB,
                           capabilities=['allow_auth_modifications'],
                           comments='Automatically added by platform on start')
         AuthFile().add(entry, overwrite=True)
@@ -1090,7 +1109,6 @@ def start_volttron_process(opts):
         #                   capabilities=['allow_auth_modifications'],
         #                   comments='Automatically added by platform on start')
         # AuthFile().add(entry, overwrite=True)
-
         health_service = HealthService(address=address,
                                        identity=PLATFORM_HEALTH, heartbeat_autostart=True,
                                        enable_store=False,

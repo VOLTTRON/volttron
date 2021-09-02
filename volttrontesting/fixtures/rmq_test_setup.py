@@ -191,6 +191,7 @@ def create_rmq_volttron_setup(vhome=None, ssl_auth=False, env=None,
                             prompt=False,
                             instance_name=rabbit_config_obj.instance_name,
                             rmq_conf_file=rabbit_config_obj.rmq_conf_file,
+                            max_retries=5,
                             env=env)
 
     return rabbit_config_obj

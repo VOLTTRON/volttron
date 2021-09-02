@@ -43,7 +43,7 @@ import os
 import six
 import time
 from shutil import copyfile
-from socket import gethostname, getfqdn
+from socket import gethostname, getfqdn, getaddrinfo, AI_CANONNAME
 import subprocess
 
 from cryptography import x509
@@ -503,14 +503,13 @@ class Certs(object):
         The key that is used to sign the csr is <instance_name>.name.
 
         :param fully_qualified_identity:
-        :param target_volttron:
-        :return:
+        :param remote_instance_name:
+        :return csr.public_bytes: Encoded certificate which can saved
+        to a file or sent to be verified by clients.
         """
         assert fully_qualified_identity
         remote_rmq_user = "{}.{}".format(remote_instance_name, fully_qualified_identity)
-        xname = x509.Name([
-            x509.NameAttribute(NameOID.COMMON_NAME,  six.u(remote_rmq_user)),
-        ])
+        _, _, xname = build_subject(self.cert(self.root_ca_name), six.u(remote_rmq_user))
         key = _load_key(self.private_key_file(fully_qualified_identity))
         csr = x509.CertificateSigningRequestBuilder().subject_name(
             xname).sign(key, hashes.SHA256(), default_backend())
@@ -688,6 +687,10 @@ class Certs(object):
 
             with open(metafile, 'w') as fp:
                 fp.write(jsonapi.dumps(metadata))
+            # Change group+other permissions to read only
+            for root, dirs, files in os.walk(directory):
+                for f in files:
+                    os.chmod(os.path.join(root, f), 0o644)
         except Exception as e:
             _log.error(f"Error saving agent remote cert info. Exception:{e}")
             raise e
@@ -742,6 +745,9 @@ class Certs(object):
             os.makedirs(directory, mode=0o755)
         if file_path != cert_file:
             copyfile(file_path, cert_file)
+            # but restrict file access. even to group. umask won't change
+            # group permissions
+            os.chmod(cert_file, 0o644)
 
     def save_key(self, file_path):
         key_file = self.private_key_file(os.path.splitext(os.path.basename(
@@ -953,28 +959,7 @@ def _create_signed_certificate(ca_cert, ca_key, name, valid_days=DEFAULT_DAYS, t
     elif kwargs:
         subject = _create_subject(**kwargs)
     else:
-        temp_list = ca_cert.subject.rdns
-        new_attrs = []
-        for i in temp_list:
-            if i.get_attributes_for_oid(NameOID.COMMON_NAME):
-                if type == 'server':
-                    # TODO: Also add SubjectAltName
-                    if fqdn:
-                        hostname = fqdn
-                    else:
-                        hostname = getfqdn()
-                        fqdn = hostname
-                    new_attrs.append(RelativeDistinguishedName(
-                        [x509.NameAttribute(
-                            NameOID.COMMON_NAME,
-                            hostname)]))
-                else:
-                    new_attrs.append(RelativeDistinguishedName(
-                        [x509.NameAttribute(NameOID.COMMON_NAME,
-                                            name)]))
-            else:
-                new_attrs.append(i)
-        subject = x509.Name(new_attrs)
+        fqdn, hostname, subject = build_subject(ca_cert, name, type, fqdn)
 
     cert_builder = x509.CertificateBuilder().subject_name(
         subject
@@ -1025,10 +1010,17 @@ def _create_signed_certificate(ca_cert, ca_key, name, valid_days=DEFAULT_DAYS, t
             x509.ExtendedKeyUsage((ExtendedKeyUsageOID.SERVER_AUTH,)),
             critical=False
         )
-        cert_builder = cert_builder.add_extension(
-            x509.SubjectAlternativeName((DNSName(fqdn),)),
-            critical=True
+        if hostname and fqdn != hostname:
+            cert_builder = cert_builder.add_extension(
+                x509.SubjectAlternativeName([DNSName(hostname), DNSName(fqdn)]),
+                critical=True
+            )
+        else:
+            cert_builder = cert_builder.add_extension(
+                x509.SubjectAlternativeName([DNSName(fqdn)]),
+                critical=True
         )
+
     elif type == 'client':
         # specify that the certificate can be used as an SSL
         # client certificate to enable TLS Web Client Authentication
@@ -1054,6 +1046,41 @@ def _create_signed_certificate(ca_cert, ca_key, name, valid_days=DEFAULT_DAYS, t
     # ca_key = _load_key(self.private_key_file(ca_name))
     cert = cert_builder.sign(ca_key, hashes.SHA256(), default_backend())
     return cert, key, serial
+
+
+def build_subject(ca_cert, name, type="client", fqdn=None):
+    """
+    Builds a x509 Name list of OID's based on a CA certificate.
+
+    :param ca_cert: Certificate Authority used to sign the cert
+    :param name: Name of the new cert
+    :param type: Server or client
+    :param fqdn: Fully qualified domain name
+    :return fqdn: Fully qualified domain name update/pass-through
+    :return hostname: Current hostname
+    :return subject: x509 Name used when building a certificate
+    """
+    temp_list = ca_cert.subject.rdns
+    new_attrs = []
+    hostname = gethostname()
+    for i in temp_list:
+        if i.get_attributes_for_oid(NameOID.COMMON_NAME):
+            if type == 'server':
+                if not fqdn:
+                    hostname = gethostname()
+                    fqdn = getfqdn(hostname)
+                new_attrs.append(RelativeDistinguishedName(
+                    [x509.NameAttribute(
+                        NameOID.COMMON_NAME,
+                        hostname)]))
+            else:
+                new_attrs.append(RelativeDistinguishedName(
+                    [x509.NameAttribute(NameOID.COMMON_NAME,
+                                        name)]))
+        else:
+            new_attrs.append(i)
+    subject = x509.Name(new_attrs)
+    return fqdn, hostname, subject
 
 
 class CertWrapper(object):

@@ -74,11 +74,11 @@ if HAVE_POSTGRESQL:
 
 
 postgres_connection_params = {
-                                'dbname': 'historian_test',
-                                'port': 5433,
+                                'dbname': 'test_historian',
+                                'port': 5432,
                                 'host': '127.0.0.1',
                                 'user' : 'historian',
-                                'password': 'volttron'
+                                'password': 'historian'
                             }
 def random_uniform(a, b):
     return float('{.13f}'.format(random.uniform(a, b)))
@@ -123,8 +123,6 @@ class Suite(object):
     def create_driver(self, state):
         driver = state.driver
         driver.setup_historian_tables()
-        driver.record_table_definitions(
-            state.table_names, state.meta_table_name)
         return driver
 
     @pytest.fixture
@@ -134,51 +132,6 @@ class Suite(object):
     @contextlib.contextmanager
     def transact(self, truncate_tables, drop_tables):
         pass
-
-    def test_setup_tables(self, suite_driver, state):
-        try:
-            suite_driver.setup_historian_tables()
-            suite_driver.record_table_definitions(
-                state.table_names, state.meta_table_name)
-            assert suite_driver.read_tablenames_from_db(
-                state.meta_table_name) == state.table_names
-        except psycopg2.ProgrammingError as exc:
-            print (exc.pgcode, exc.pgerror)
-            raise
-
-    def test_add_data(self, suite_driver):
-        id_map = {}
-        name_map = {}
-        id_name_map = {}
-        values = {}
-        for topic in ['Building/LAB/Device/OutsideAirTemperature',
-                      'Building/LAB/Device/MixedAirTemperature',
-                      'Building/LAB/Device/DamperSignal']:
-            name = topic.lower()
-            topic_id = suite_driver.insert_topic(topic)
-            assert topic_id
-            id_map[name] = topic_id
-            name_map[name] = topic
-            id_name_map[topic_id] = topic
-            suite_driver.insert_meta(topic_id, {
-                'units': 'X', 'tz': 'UTC', 'type': 'float'})
-            ts = datetime(year=2015, month=3, day=14, hour=9, minute=26,
-                          second=53, microsecond=59, tzinfo=pytz.UTC)
-            for value in range(3):
-                value = float(value)
-                suite_driver.insert_data(ts, topic_id, value)
-                try:
-                    values[topic].append((ts.isoformat(), value))
-                except KeyError:
-                    values[topic] = [(ts.isoformat(), value)]
-                ts += timedelta(seconds=1)
-        assert suite_driver.get_topic_map() == (id_map, name_map)
-        assert suite_driver.query(list(id_name_map.keys()), id_name_map) == values
-        start = datetime(year=2015, month=3, day=14, hour=9, minute=26,
-                         second=0, microsecond=0, tzinfo=pytz.UTC)
-        end = datetime(year=2015, month=3, day=14, hour=9, minute=27,
-                         second=0, microsecond=0, tzinfo=pytz.UTC)
-        assert suite_driver.query(list(id_name_map.keys()), id_name_map, start, end) == values
 
     def test_topic_name_case_change(self, suite_driver):
         topic_id = suite_driver.insert_topic('This/is/some/Topic')
@@ -216,9 +169,7 @@ class AggregationSuite(Suite):
     @pytest.fixture
     def driver(self, state, suite_driver):
         #driver = super(AggregationSuite, self).driver(state)
-        suite_driver.record_table_definitions(
-            state.table_names, state.meta_table_name)
-        suite_driver.setup_aggregate_historian_tables(state.meta_table_name)
+        suite_driver.setup_aggregate_historian_tables()
         return suite_driver
 
     @pytest.mark.aggregator

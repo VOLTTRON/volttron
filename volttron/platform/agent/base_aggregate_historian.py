@@ -83,7 +83,6 @@ class AggregateHistorian(Agent):
         config = utils.load_config(config_path)
         self.topic_id_map = None
         self.aggregate_topic_id_map = None
-        self.volttron_table_defs = 'volttron_table_definitions'
 
         self.vip.config.set_default("config", config)
         self.vip.config.subscribe(self.configure, actions=["NEW", "UPDATE"],
@@ -155,6 +154,31 @@ class AggregateHistorian(Agent):
                 agg_group['points'])
         _log.debug("End of onstart method - current time{}".format(
             datetime.utcnow()))
+
+    @staticmethod
+    def parse_table_def(tables_def):
+        default_table_def = {"table_prefix": "",
+                             "data_table": "data",
+                             "topics_table": "topics",
+                             "meta_table": "meta"}
+        if not tables_def:
+            tables_def = default_table_def
+        else:
+            default_table_def.update(tables_def)
+            tables_def = default_table_def
+
+        table_names = dict(tables_def)
+
+        table_prefix = tables_def.get('table_prefix', None)
+        table_prefix = table_prefix + "_" if table_prefix else ""
+        if table_prefix:
+            for key, value in list(table_names.items()):
+                table_names[key] = table_prefix + table_names[key]
+        table_names["agg_topics_table"] = table_prefix + \
+            "aggregate_" + tables_def["topics_table"]
+        table_names["agg_meta_table"] = table_prefix + \
+            "aggregate_" + tables_def["meta_table"]
+        return tables_def, table_names
 
     def _init_agg_group(self, agg_group, agg_time_period):
         if 'points' not in agg_group:

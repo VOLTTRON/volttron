@@ -10,8 +10,8 @@ Platform Driver process.
 
 Driver instances are created by the Platform Driver when a new driver configuration is added to the configuration store.
 Drivers use the following topic pattern `devices/<campus>/<building>/<device id>`.  When a configuration file is added
-to the Platform Driver's store using this pattern, the Platform Driver creates a Driver Agent.  The Driver agent is in turn
-instantiated with a instance of the Interface class corresponding to the `driver_type` parameter in the configuration
+to the Platform Driver's store using this pattern, the Platform Driver creates a Driver Agent.  The Driver agent is then
+instantiated with an instance of the Interface class corresponding to the `driver_type` parameter in the configuration
 file.  The Interface class is responsible for implementing the communication paradigms of a device or protocol.  Once
 configured, the Platform Driver periodically polls the Driver Agent for data which is collected from the interface class.
 Additionally, points can be requested ad-hoc via the Platform Driver's JSON-RPC method "get_point". Points may be set
@@ -21,12 +21,10 @@ by using JSON-RPC with the Actuator agent to set up a schedule and calling the "
 Driver Conventions
 ******************
 
--  Drivers are polled by the Platform Driver agent and values can be set using the `Actuator Agent`
--  Drivers should have a 1-to-1 relationship with a device
--  Driver modules should be written in Python files in the `services/core/PlatformDriverAgent/platform_driver/interfaces`
-   directory in the VOLTTRON repository.  The platform driver will search for a Python file in this directory matching the
-   name provided by the `driver_type` value from the driver configuration when creating the Driver agent.
--  Driver code consists of an Interface class (exactly named), supported in most cases by one or more Register classes
+* Drivers are polled by the Platform Driver agent and values can be set using the `Actuator Agent`.
+* Drivers should have a 1-to-1 relationship with a device.
+* Driver modules should be written in Python files in the `services/core/PlatformDriverAgent/platform_driver/interfaces` directory in the VOLTTRON repository.  The platform driver will search for a Python file in this directory matching the name provided by the `driver_type` value from the driver configuration when creating the Driver agent.
+* Driver code consists of an Interface class (exactly named), supported in most cases by one or more Register classes.
 
 
 .. _Driver_Communication:
@@ -51,19 +49,19 @@ The diagram features several entities that comprise the platform and its connect
   message bus is built around existing message bus software; currently VOLTTRON supports RabbitMQ and ZeroMQ. The
   VOLTTRON integration includes Pub/Sub and JSON RPC interfaces for agent and driver communication.
 * VOLTTRON Platform Agents and Subsystems - These agents and subsystems are installed on the platform to manage the
-  platform. They provide many user facing functions, aid in communication and manage other agents and drivers.
-* User's Agents - These agents are either agents included in the core repository but installed by a user, or user built
+  platform. They provide many user facing functions, aid in communication, and manage other agents and drivers.
+* User's Agents - These agents are either agents included in the core repository but installed by a user or built by an end-user's
   agent modules. They may perform a huge variety of user specified tasks, including data collection, device control,
   simulation, etc.
-* Platform Driver Agent - This agent is installed by a user to facilitate communication with drivers. Drivers should not
-  communicated with directly - the platform driver implements several features for communicating with drivers to ensure
+* Platform Driver Agent - This agent facilitates communication with drivers. Agents should not
+  communicate directly with drivers. The platform driver implements several features for communicating with drivers to ensure
   smooth operation and consistent driver behavior.
-* Actuator agent - This agent is installed by user to provide scheduling capability for controlling drivers. The
+* Actuator agent - This agent provides scheduling capability for controlling drivers. The
   Platform Driver does not include protections for race conditions, etc. It is always recommended to use the Actuator
   agent to set values on a device.
 * Device Driver - Drivers are special purpose agents which provide an interface between the platform driver and devices
-  such as Modbus, and BACnet devices. Drivers implement a specific set of features for protecting device communication
-  ensuring uniform behaviors across different devices.
+  such as Modbus and BACnet devices. Drivers implement a specific set of features for protecting device communication and
+  ensure uniform behaviors across different devices.
 * Device - Devices may be low level physical computers for controlling various systems such as PLCs (Programmable Logic
   Controller), devices which communicate on the local network (such as a Smart T.V.), or devices which are accessed via
   a remote web API (other smart devices).
@@ -76,9 +74,9 @@ Connectivity of the platform follows the following paradigm:
 
 * Platform agents (including the Platform Driver and Actuator), subsystems, and user agents communicate with the message
   bus via a publish/subscribe system.
-* Agents can communicate "directly" to each other via JSONRPC calls - JSONRPC calls use the VOLTTRON message bus router
+* Agents can communicate "directly" to each other via JSONRPC (RPC). A JSONRPC call uses the VOLTTRON message bus router
   to "direct" messages to an intended recipient. RPC calls from an agent specify a function for the recipient to
-  perform including input parameters, and the response to the sender should contain the value output by the specified
+  perform including input parameters; the response to the sender should contain the value output by the specified
   function.
 * The Platform Driver will periodically poll device drivers. This functionality is intentionally not user-facing. The
   Platform Driver iterates over the configured drivers and calls their respective "scrape_all" methods. This will trigger
@@ -151,7 +149,7 @@ Installing the Fake Driver
 **************************
 
 The Fake Driver is included as a way to quickly see data published to the message bus in a format that mimics what a
-true driver would produce.  This is a simple implementation of the VOLTTRON driver framework.
+real driver would produce.  This is a simple implementation of the VOLTTRON driver framework.
 
 See :ref:`instructions for installing the fake driver <Fake-Driver-Install>`
 

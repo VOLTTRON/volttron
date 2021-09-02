@@ -206,10 +206,9 @@ class SecurityAgent(Agent):
         log = os.path.join(vhome, "volttron.log")
         rmq_yml = os.path.join(vhome, "rabbitmq_config.yml")
         key = os.path.join(vhome, "certificates/private", instance_name + "." + self.core.identity + ".pem")
-        admin_key = os.path.join(vhome, "certificates/private", instance_name + "-admin.pem")
         data_dir_name = os.path.basename(self.get_agent_dir()) + ".agent-data"
         ca_public = os.path.join(vhome, "certificates/remote_certs/requests_ca_bundle")
-        paths = [config, known_hosts, rmq_yml, key, ca_public, admin_key]
+        paths = [config, known_hosts, rmq_yml, key, ca_public]
         public_key_dir = os.path.join(vhome, "certificates/certs")
         for (root, directories, files) in os.walk(vhome, topdown=True):
             if os.path.basename(root) == data_dir_name:

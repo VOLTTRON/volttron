@@ -152,6 +152,7 @@ breadth_set = set(['devices/Float/fake', 'devices/FloatNoDefault/fake'])
 def config_store_connection(request, volttron_instance):
     capabilities = [{'edit_config_store': {'identity': PLATFORM_DRIVER}}]
     connection = volttron_instance.build_connection(peer=CONFIGURATION_STORE, capabilities=capabilities)
+    gevent.sleep(1)
     # Reset platform driver config store
     connection.call("manage_delete_store", PLATFORM_DRIVER)
 

@@ -1,6 +1,8 @@
 ![image](docs/source/files/VOLLTRON_Logo_Black_Horizontal_with_Tagline.png)
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/fcf58045b4804edf8f4d3ecde3016f76)](https://app.codacy.com/gh/VOLTTRON/volttron?utm_source=github.com&utm_medium=referral&utm_content=VOLTTRON/volttron&utm_campaign=Badge_Grade_Settings)
 
+![example workflow](https://github.com/volttron/volttron/actions/workflows/pytest-testutils.yml/badge.svg)
+
 VOLTTRON™ is an open source platform for distributed sensing and control. The
 platform provides services for collecting and storing data from buildings and
 devices and provides an environment for developing applications which interact
@@ -8,11 +10,11 @@ with that data.
 
 ## Features
 
--   [Message Bus](https://volttron.readthedocs.io/en/latest/core_services/messagebus/index.html#messagebus-index) allows agents to subscribe to data sources and publish results and messages.
--   [Driver framework](https://volttron.readthedocs.io/en/latest/core_services/drivers/index.html#volttron-driver-framework) for collecting data from and sending control actions to buildings and devices.
--   [Historian framework](https://volttron.readthedocs.io/en/latest/core_services/historians/index.html#historian-index) for storing data.
--   [Agent lifecycle managment](https://volttron.readthedocs.io/en/latest/core_services/control/AgentManagement.html#agentmanagement) in the platform
--   [Web UI](https://volttron.readthedocs.io/en/latest/core_services/service_agents/central_management/VOLTTRON-Central.html#volttron-central) for managing deployed instances from a single central instance.
+-   [Message Bus](https://volttron.readthedocs.io/en/latest/platform-features/message-bus/index.html) allows agents to subscribe to data sources and publish results and messages.
+-   [Driver framework](https://volttron.readthedocs.io/en/latest/driver-framework/drivers-overview.html) for collecting data from and sending control actions to buildings and devices.
+-   [Historian framework](https://volttron.readthedocs.io/en/latest/agent-framework/historian-agents/historian-framework.html) for storing data.
+-   [Agent lifecycle managment](https://volttron.readthedocs.io/en/latest/platform-features/control/agent-management-control.html) in the platform
+-   [Web UI](https://volttron.readthedocs.io/en/latest/agent-framework/core-service-agents/volttron-central/volttron-central-overview.html) for managing deployed instances from a single central instance.
 
 ## Installation
 
@@ -24,7 +26,7 @@ users unfamiliar with those technologies, the following resources are recommende
 
 ### 1. Install prerequisites
 
-[Requirements Reference](https://volttron.readthedocs.io/en/develop/introduction/platform-install.html#step-1-install-prerequisites)
+[Requirements Reference](https://volttron.readthedocs.io/en/latest/introduction/platform-install.html#step-1-install-prerequisites)
 
 From version 7.0, VOLTTRON requires python 3 with a minimum version of 3.6; it is tested only systems supporting that as a native package.
 On Debian-based systems (Ubuntu bionic, debian buster, raspbian buster), these can all be installed with the following commands:
@@ -148,7 +150,7 @@ You can deactivate the environment at any time by running `deactivate`.
 ##### 5. Create RabbitMQ setup for VOLTTRON:
 
 ```sh
-vcfg --rabbitmq single [optional path to rabbitmq_config.yml]
+vcfg rabbitmq single [--config optional path to rabbitmq_config.yml]
 ```
 
 Refer to [examples/configurations/rabbitmq/rabbitmq_config.yml](examples/configurations/rabbitmq/rabbitmq_config.yml)
@@ -178,9 +180,9 @@ be configured. The VOLTTRON instance name will be read from volttron_home/config
 if available, if not the user will be prompted for VOLTTRON instance name. To
 run the scripts without any prompts, save the VOLTTRON instance name in
 volttron_home/config file and pass the VOLTTRON home directory as a command line
-argument. For example: `vcfg --vhome /home/vdev/.new_vhome --rabbitmq single`
+argument. For example: `vcfg --vhome /home/vdev/.new_vhome rabbitmq single`
 
-The Following are the example inputs for `vcfg --rabbitmq single` command. Since no
+The Following are the example inputs for `vcfg rabbitmq single` command. Since no
 config file is passed the script prompts for necessary details.
 
 ```sh
@@ -258,7 +260,7 @@ with a log file named volttron.log.
 Next, start an example listener to see it publish and subscribe to the message bus:
 
 ```sh
-scripts/core/upgrade-listener
+vctl install examples/ListenerAgent
 ```
 
 This script handles several commands for installing and starting an agent after removing an old copy. This 
@@ -320,7 +322,7 @@ There are several options for VOLTTRONTM [support](https://volttron.readthedocs.
 -   The VOLTTRONTM contact email for being added to office hours, the mailing list, and for inquiries is: volttron@pnnl.gov
 -   The preferred method for questions is through [StackOverflow](https://stackoverflow.com/questions/tagged/volttron) since this is easily discoverable by others who may have the same issue.
 -   [GitHub issue tracker](https://github.com/VOLTTRON/volttron/issues) for feature requests, bug reports, and following development activities
--   VOLTTRON now has a [Slack channel](volttron-community.slack.com/signup)
+-   VOLTTRON now has a [Slack channel](https://volttron-community.slack.com/signup)
 
 ## License
 

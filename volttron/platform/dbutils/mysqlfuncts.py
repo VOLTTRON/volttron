@@ -36,6 +36,7 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 import ast
+import contextlib
 import logging
 from collections import defaultdict
 
@@ -61,6 +62,7 @@ class MySqlFuncts(DbDriver):
     def __init__(self, connect_params, table_names):
         # kwargs['dbapimodule'] = 'mysql.connector'
         self.MICROSECOND_SUPPORT = None
+        self.db_name = connect_params.get('database')
 
         self.data_table = None
         self.topics_table = None
@@ -78,6 +80,7 @@ class MySqlFuncts(DbDriver):
         # cached data even if we create a new cursor for each query and
         # close the cursor after fetching results
         connect_params['autocommit'] = True
+        _log.debug(f"Creating mysql connector with params {connect_params}")
         super(MySqlFuncts, self).__init__('mysql.connector', auth_plugin='mysql_native_password',
                                           **connect_params)
 
@@ -85,23 +88,35 @@ class MySqlFuncts(DbDriver):
         rows = self.select("SELECT version()", None)
         p = re.compile('(\d+)\D+(\d+)\D+(\d+)\D*')
         version_nums = p.match(rows[0][0]).groups()
+        _log.debug(f"MYSQL version number components {version_nums}")
+        self.MICROSECOND_SUPPORT = True
         if int(version_nums[0]) < 5:
             self.MICROSECOND_SUPPORT = False
-        elif int(version_nums[1]) < 6:
-            self.MICROSECOND_SUPPORT = False
-        elif int(version_nums[2]) < 4:
-            self.MICROSECOND_SUPPORT = False
-        else:
-            self.MICROSECOND_SUPPORT = True
+        elif int(version_nums[0]) == 5:
+            if int(version_nums[1]) < 6:
+                self.MICROSECOND_SUPPORT = False
+            elif int(version_nums[1]) == 6:
+                if int(version_nums[2]) < 4:
+                    self.MICROSECOND_SUPPORT = False
 
     def setup_historian_tables(self):
         if self.MICROSECOND_SUPPORT is None:
             self.init_microsecond_support()
 
         rows = self.select("show tables like %s", [self.data_table])
+        _log.debug(f"Checking if data table {self.data_table} exists. Got rows as {rows}")
         if rows:
             _log.debug("Found table {}. Historian table exists".format(
                 self.data_table))
+            rows = self.select(f"""SELECT 1 FROM information_schema.COLUMNS 
+            WHERE TABLE_SCHEMA = '{self.db_name}' AND 
+            TABLE_NAME = '{self.topics_table}' AND 
+            COLUMN_NAME = 'metadata'""")
+            _log.debug(f"Result of query to check columns of topic table {rows}")
+            if rows:
+                # metadata is now in topics table
+                _log.debug("Found new schema. topics table contains metadata")
+                self.meta_table = self.topics_table
             return
 
         try:
@@ -126,15 +141,13 @@ class MySqlFuncts(DbDriver):
                               self.topics_table +
                               ''' (topic_id INTEGER NOT NULL AUTO_INCREMENT,
                                    topic_name varchar(512) NOT NULL,
+                                   metadata TEXT,
                                    PRIMARY KEY (topic_id),
                                    UNIQUE(topic_name))''')
-            self.execute_stmt('''CREATE TABLE  '''
-                              + self.meta_table +
-                              '''(topic_id INTEGER NOT NULL,
-                               metadata TEXT NOT NULL,
-                               PRIMARY KEY(topic_id))''')
+            _log.debug("Created new schema. topics table contains metadata")
+            self.meta_table = self.topics_table
             self.commit()
-            _log.debug("Created data topics and meta tables")
+            _log.debug("Created data and topics tables")
         except MysqlError as err:
             err_msg = "Error creating " \
                       "historian tables as the configured user. " \
@@ -148,46 +161,8 @@ class MySqlFuncts(DbDriver):
                 err_msg = err.msg + " : " + err_msg
             raise RuntimeError(err_msg)
 
-    def record_table_definitions(self, tables_def, meta_table_name):
-        _log.debug(
-            "In record_table_def {} {}".format(tables_def, meta_table_name))
-
-        rows = self.select("show tables like %s", [meta_table_name])
-        if rows:
-            _log.debug("Found meta data table {}. ".format(meta_table_name))
-        else:
-            self.execute_stmt(
-                'CREATE TABLE ' + meta_table_name +
-                ' (table_id varchar(512) PRIMARY KEY, \
-                   table_name varchar(512) NOT NULL, \
-                   table_prefix varchar(512));')
-
-        table_prefix = tables_def.get('table_prefix', "")
-
-        insert_stmt = 'REPLACE INTO ' + meta_table_name + \
-                      ' VALUES (%s, %s, %s)'
-        self.execute_stmt(insert_stmt,
-                         ('data_table', tables_def['data_table'],
-                          table_prefix))
-        self.execute_stmt(insert_stmt,
-                         ('topics_table', tables_def['topics_table'],
-                          table_prefix))
-        self.execute_stmt(
-            insert_stmt,
-            ('meta_table', tables_def['meta_table'], table_prefix),
-            commit=True)
-
-    def setup_aggregate_historian_tables(self, meta_table_name):
+    def setup_aggregate_historian_tables(self):
         _log.debug("CREATING AGG TABLES")
-        table_names = self.read_tablenames_from_db(meta_table_name)
-
-        self.data_table = table_names['data_table']
-        self.topics_table = table_names['topics_table']
-        _log.debug("In setup_aggregate_historian self.topics_table"
-                   " {}".format(self.topics_table))
-        self.meta_table = table_names['meta_table']
-        self.agg_topics_table = table_names.get('agg_topics_table', None)
-        self.agg_meta_table = table_names.get('agg_meta_table', None)
 
         rows = self.select("show tables like %s", [self.agg_topics_table])
         if rows:
@@ -198,8 +173,8 @@ class MySqlFuncts(DbDriver):
                 'CREATE TABLE ' + self.agg_topics_table +
                 ' (agg_topic_id INTEGER NOT NULL AUTO_INCREMENT, \
                    agg_topic_name varchar(512) NOT NULL, \
-                   agg_type varchar(512) NOT NULL, \
-                   agg_time_period varchar(512) NOT NULL, \
+                   agg_type varchar(20) NOT NULL, \
+                   agg_time_period varchar(20) NOT NULL, \
                    PRIMARY KEY (agg_topic_id), \
                    UNIQUE(agg_topic_name, agg_type, agg_time_period));')
 
@@ -209,18 +184,19 @@ class MySqlFuncts(DbDriver):
                   metadata TEXT NOT NULL, \
                   PRIMARY KEY(agg_topic_id));')
             self.commit()
-        _log.debug("Created aggregate topics and meta tables")
+        _log.debug(f"Created aggregate topics and meta tables: {self.agg_topics_table}  and {self.agg_meta_table}")
 
     def query(self, topic_ids, id_name_map, start=None, end=None, skip=0,
               agg_type=None, agg_period=None, count=None,
               order="FIRST_TO_LAST"):
 
         table_name = self.data_table
+        value_col = 'value_string'
         if agg_type and agg_period:
             table_name = agg_type + "_" + agg_period
+            value_col = 'agg_value'
 
-        query = '''SELECT topic_id, ts, value_string
-                FROM ''' + table_name + '''
+        query = '''SELECT topic_id, ts, ''' + value_col + ''' FROM ''' + table_name + '''
                 {where}
                 {order_by}
                 {limit}
@@ -291,17 +267,92 @@ class MySqlFuncts(DbDriver):
 
             cursor = self.select(real_query, args, fetch_all=False)
             if cursor:
-                for _id, ts, value in cursor:
-                    values[id_name_map[topic_id]].append(
-                        (utils.format_timestamp(ts.replace(tzinfo=pytz.UTC)),
-                         jsonapi.loads(value)))
+                if value_col == 'agg_value':
+                    for _id, ts, value in cursor:
+                        values[id_name_map[topic_id]].append(
+                            (utils.format_timestamp(ts.replace(tzinfo=pytz.UTC)),
+                             value))
+                else:
+                    for _id, ts, value in cursor:
+                        values[id_name_map[topic_id]].append(
+                            (utils.format_timestamp(ts.replace(tzinfo=pytz.UTC)),
+                             jsonapi.loads(value)))
 
             if cursor is not None:
                 cursor.close()
         return values
 
+    @contextlib.contextmanager
+    def bulk_insert(self):
+        """
+        This function implements the bulk insert requirements for Mysql historian by overriding the
+        DbDriver::bulk_insert() in basedb.py and yields necessary data insertion method needed for bulk inserts
+        :yields: insert method
+        """
+        records = []
+
+        def insert_data(ts, topic_id, data):
+            """
+            Inserts data records to the list
+            :param ts: time stamp
+            :type string
+            :param topic_id: topic ID
+            :type string
+            :param data: data value
+            :type any valid JSON serializable value
+            :return: Returns True after insert
+            :rtype: bool
+            """
+#            _log.info("appended record")
+            value = jsonapi.dumps(data)
+            records.append((ts, topic_id, value))
+#            records.append(SQL('({}, {}, {})').format(Literal(ts), Literal(topic_id), Literal(value)))
+            return True
+
+        yield insert_data
+
+        if records:
+            query = f"""
+INSERT INTO {self.data_table} (ts, topic_id, value_string) VALUES(%s, %s, %s)
+ON DUPLICATE KEY UPDATE value_string=VALUES(value_string);
+"""
+            _log.debug(f"calling execute many with records {len(records)}")
+            self.execute_many(query, records)
+
+    @contextlib.contextmanager
+    def bulk_insert_meta(self):
+        """
+        This function implements the bulk insert requirements for Redshift historian by overriding the
+        DbDriver::bulk_insert_meta() in basedb.py and yields necessary data insertion method needed for bulk inserts
+        :yields: insert method
+        """
+        meta = []
+
+        def insert_meta(topic_id, metadata):
+            """
+            Inserts metadata records to the list
+            :param topic_id: topic name
+            :type int
+            :param metadata: dictionary of metadata
+            :type dict
+            :return: Returns True after insert
+            :rtype: bool
+            """
+            meta.append((topic_id, jsonapi.dumps(metadata)))
+            return True
+
+        yield insert_meta
+
+        if meta:
+            query = f"""
+            INSERT INTO {self.meta_table} (topic_id, metadata) VALUES(%s, %s)
+            ON DUPLICATE KEY UPDATE metadata=VALUES(metadata);
+            """
+            _log.debug(f"###DEBUG calling execute many with meta len {len(meta)}")
+            self.execute_many(query, meta)
+
     def insert_meta_query(self):
-        return '''REPLACE INTO ''' + self.meta_table + ''' values(%s, %s)'''
+        return '''REPLACE INTO ''' + self.meta_table + ''' (topic_id, metadata) ''' + ''' VALUES(%s, %s)'''
 
     def insert_data_query(self):
         return '''REPLACE INTO ''' + self.data_table + \
@@ -313,13 +364,33 @@ class MySqlFuncts(DbDriver):
         return '''INSERT INTO ''' + self.topics_table + ''' (topic_name)
             values (%s)'''
 
+    def insert_topic_and_meta_query(self):
+        return '''INSERT INTO  ''' + self.topics_table + ''' (topic_name, metadata)
+                        values(%s, %s)'''
+
     def update_topic_query(self):
         return '''UPDATE ''' + self.topics_table + ''' SET topic_name = %s
             WHERE topic_id = %s'''
 
+    def update_topic_and_meta_query(self):
+        """
+        :return: query string to update both metadata and topic_name field in self.topics_table. This is used from
+         SQLHistorian version 4.0.0
+        """
+        return '''UPDATE ''' + self.topics_table + ''' SET topic_name = %s , metadata = %s 
+                    WHERE topic_id = %s'''
+
+    def update_meta_query(self):
+        """
+        :return: query string to update metadata field in self.topics_table. This is used from
+         SQLHistorian version 4.0.0
+        """
+        return '''UPDATE ''' + self.meta_table + ''' SET metadata = %s 
+                    WHERE topic_id = %s'''
+
     def get_aggregation_list(self):
         return ['AVG', 'MIN', 'MAX', 'COUNT', 'SUM', 'BIT_AND', 'BIT_OR',
-                'BIT_XOR', 'GROUP_CONCAT', 'STD', 'STDDEV', 'STDDEV_POP',
+                'BIT_XOR', 'STD', 'STDDEV', 'STDDEV_POP',
                 'STDDEV_SAMP', 'VAR_POP', 'VAR_SAMP', 'VARIANCE']
 
     def insert_agg_topic_stmt(self):
@@ -337,6 +408,15 @@ class MySqlFuncts(DbDriver):
         return '''REPLACE INTO ''' + self.agg_meta_table + ''' values(%s,
         %s)'''
 
+    def get_topic_meta_map(self):
+        q = "SELECT topic_id, metadata FROM " + self.meta_table + ";"
+        rows = self.select(q, None)
+        _log.debug("loading metadata from db")
+        topic_meta_map = dict()
+        for id, meta in rows:
+            topic_meta_map[id] = jsonapi.loads(meta)
+        return topic_meta_map
+
     def get_topic_map(self):
         q = "SELECT topic_id, topic_name FROM " + self.topics_table + ";"
         rows = self.select(q, None)
@@ -346,8 +426,6 @@ class MySqlFuncts(DbDriver):
         for t, n in rows:
             id_map[n.lower()] = t
             name_map[n.lower()] = n
-        _log.debug(id_map)
-        _log.debug(name_map)
         return id_map, name_map
 
     def get_agg_topics(self):
@@ -412,13 +490,13 @@ class MySqlFuncts(DbDriver):
         else:
             stmt = "CREATE TABLE " + table_name + \
                    " (ts timestamp(6) NOT NULL, topic_id INTEGER NOT NULL, " \
-                   "value_string TEXT NOT NULL, topics_list TEXT," \
+                   "agg_value DOUBLE NOT NULL, topics_list TEXT," \
                    " UNIQUE(topic_id, ts)," \
                    "INDEX (ts ASC))"
             if not self.MICROSECOND_SUPPORT:
                 stmt = "CREATE TABLE " + table_name + \
                        " (ts timestamp NOT NULL, topic_id INTEGER NOT NULL, " \
-                       "value_string TEXT NOT NULL, topics_list TEXT," \
+                       "agg_value DOUBLE NOT NULL, topics_list TEXT," \
                        " UNIQUE(topic_id, ts)," \
                        "INDEX (ts ASC))"
             return self.execute_stmt(stmt, commit=True)
@@ -448,6 +526,9 @@ class MySqlFuncts(DbDriver):
 
         if start is not None:
             where_clauses.append("ts >= %s")
+            if self.MICROSECOND_SUPPORT is None:
+                self.init_microsecond_support()
+
             if self.MICROSECOND_SUPPORT:
                 args.append(start)
             else:
