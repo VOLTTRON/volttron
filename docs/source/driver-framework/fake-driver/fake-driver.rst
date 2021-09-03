@@ -137,7 +137,7 @@ All local config files will be worked on here.
 .. code-block:: bash
 
     vctl config store platform.driver devices/campus/building/fake config/fake.config
-    vcfl config store platform.driver fake.csv config/fake.csv --csv
+    vctl config store platform.driver fake.csv config/fake.csv --csv
 
 - Edit `fake-platform-driver.config` to reflect paths on your system
 

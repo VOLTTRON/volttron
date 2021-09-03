@@ -87,7 +87,6 @@ The new Agent must implement the following methods:
 If this historian has a corresponding  AggregateHistorian
 (see :py:class:`AggregateHistorian`) implement the following method in addition
 to the above ones:
-- :py:meth:`BaseQueryHistorianAgent.record_table_definitions`
 - :py:meth:`BaseQueryHistorianAgent.query_aggregate_topics`
 
 While not required this method may be overridden as needed:
@@ -116,10 +115,6 @@ At startup the publishing thread calls two methods:
 - :py:meth:`BaseHistorianAgent.historian_setup` to give the implemented
 historian a chance to setup any connections in the thread. This method can
 also be used to load an initial data into memory
-- :py:meth:`BaseQueryHistorianAgent.record_table_definitions` to give the
-implemented Historian a chance to record the table/collection names into a
-meta table/collection with the named passed as parameter. The implemented
-historian is responsible for creating the meta table if it does not exist.
 
 The process thread then enters the following logic loop:
 ::
@@ -140,9 +135,8 @@ The process thread then enters the following logic loop:
 The logic will also forgo waiting the `retry_period` for new data to appear
 when checking for new data if publishing has been successful and there is
 still data in the cache to be publish. If
-:py:meth:`BaseHistorianAgent.historian_setup` or
-:py:meth:`BaseQueryHistorianAgent.record_table_definitions` throw exception
-and alert is raised but the process loop continues to wait for data and
+:py:meth:`BaseHistorianAgent.historian_setup` throw exception
+and an alert is raised but the process loop continues to wait for data and
 caches it. The process loop will periodically try to call the two methods
 again until successful. Exception thrown by
 :py:meth:`BaseHistorianAgent.publish_to_historian` would also raise alerts
@@ -260,7 +254,7 @@ try:
 
     def dumps(data):
         try:
-            return ujson.dumps(data, double_precision=15)
+            return ujson.dumps(data)
         except Exception:
             return _dumps(data)
 
@@ -317,6 +311,7 @@ STATUS_KEY_CACHE_COUNT = "cache_count"
 STATUS_KEY_PUBLISHING = "publishing"
 STATUS_KEY_CACHE_FULL = "cache_full"
 STATUS_KEY_TIME_ERROR = "records_with_invalid_timestamp"
+STATUS_KEY_CACHE_ONLY = "cache_only_enabled"
 
 
 class BaseHistorianAgent(Agent):
@@ -371,6 +366,7 @@ class BaseHistorianAgent(Agent):
                  all_platforms=False,
                  time_tolerance=None,
                  time_tolerance_topics=None,
+                 cache_only_enabled=False,
                  **kwargs):
 
         super(BaseHistorianAgent, self).__init__(**kwargs)
@@ -387,7 +383,6 @@ class BaseHistorianAgent(Agent):
 
         self.gather_timing_data = bool(gather_timing_data)
 
-        self.volttron_table_defs = 'volttron_table_definitions'
         self._backup_storage_limit_gb = backup_storage_limit_gb
         self._backup_storage_report = backup_storage_report
         self._retry_period = float(retry_period)
@@ -416,7 +411,8 @@ class BaseHistorianAgent(Agent):
             STATUS_KEY_CACHE_COUNT: 0,
             STATUS_KEY_BACKLOGGED: False,
             STATUS_KEY_PUBLISHING: True,
-            STATUS_KEY_CACHE_FULL: False
+            STATUS_KEY_CACHE_FULL: False,
+            STATUS_KEY_CACHE_ONLY: False
         }
         self._all_platforms = bool(all_platforms)
         self._time_tolerance = float(time_tolerance) if time_tolerance else None
@@ -427,6 +423,11 @@ class BaseHistorianAgent(Agent):
                 raise ValueError(f"time_tolerance_topic should a list of topics. Got value({time_tolerance_topics}) of "
                                  f"type {type(time_tolerance_topics)}")
         self._time_tolerance_topics = time_tolerance_topics
+        if str(cache_only_enabled) in ('True', 'False'):
+            self._cache_only_enabled = cache_only_enabled
+            self._current_status_context[STATUS_KEY_CACHE_ONLY] = cache_only_enabled
+        else:
+            raise ValueError(f"cache_only_enabled should be either True or False")
 
         self._default_config = {
                                 "retry_period":self._retry_period,
@@ -448,7 +449,8 @@ class BaseHistorianAgent(Agent):
                                 "device_data_filter": device_data_filter,
                                 "all_platforms": self._all_platforms,
                                 "time_tolerance": self._time_tolerance,
-                                "time_tolerance_topics": self._time_tolerance_topics
+                                "time_tolerance_topics": self._time_tolerance_topics,
+                                "cache_only_enabled": self._cache_only_enabled
                                }
 
         self.vip.config.set_default("config", self._default_config)
@@ -556,6 +558,13 @@ class BaseHistorianAgent(Agent):
                     raise ValueError(
                         f"time_tolerance_topic should a list of topics. Got value({time_tolerance_topics}) of "
                         f"type {type(time_tolerance_topics)}")
+
+            cache_only_enabled = config.get("cache_only_enabled", False)
+            if str(cache_only_enabled) not in ('True', 'False'):
+                raise ValueError(f"cache_only_enabled should be either True or False")
+
+            self._cache_only_enabled = cache_only_enabled
+            self._current_status_context[STATUS_KEY_CACHE_ONLY] = cache_only_enabled
             self._time_tolerance_topics = time_tolerance_topics
 
         except ValueError as e:
@@ -725,6 +734,10 @@ class BaseHistorianAgent(Agent):
                              "meta_table": "meta"}
         if not tables_def:
             tables_def = default_table_def
+        else:
+            default_table_def.update(tables_def)
+            tables_def = default_table_def
+
         table_names = dict(tables_def)
 
         table_prefix = tables_def.get('table_prefix', None)
@@ -780,6 +793,9 @@ class BaseHistorianAgent(Agent):
             if topic.startswith(tuple(self._time_tolerance_topics)):
                 return abs(get_aware_utc_now() - utc_timestamp).seconds > self._time_tolerance
         return False
+
+    def is_cache_only_enabled(self):
+        return self._cache_only_enabled
 
     def _capture_record_data(self, peer, sender, bus, topic, headers,
                              message):
@@ -1172,6 +1188,8 @@ class BaseHistorianAgent(Agent):
                 start_time = datetime.utcnow()
 
                 while True:
+                    # use local variable that will be written only one time during this loop
+                    cache_only_enabled = self.is_cache_only_enabled()
                     to_publish_list = backupdb.get_outstanding_to_publish(
                         self._submit_size_limit)
 
@@ -1195,7 +1213,8 @@ class BaseHistorianAgent(Agent):
                         history_limit_timestamp = last_time_stamp - self._history_limit_days
 
                     try:
-                        self.publish_to_historian(to_publish_list)
+                        if not cache_only_enabled:
+                            self.publish_to_historian(to_publish_list)
                         self.manage_db_size(history_limit_timestamp, self._storage_limit_gb)
                     except:
                         _log.exception(
@@ -1204,18 +1223,23 @@ class BaseHistorianAgent(Agent):
                     # if the success queue is empty then we need not remove
                     # them from the database and we are probably having connection problems.
                     # Update the status and send alert accordingly.
-                    if not self._successful_published:
+                    if not self._successful_published and not cache_only_enabled:
                         self._send_alert({STATUS_KEY_PUBLISHING: False}, "historian_not_publishing")
                         break
 
+                    # _successful_published is set when publish_to_historian is called to the concrete
+                    # historian.  Because we don't call that function when cache_only_enabled is True
+                    # the _successful_published will be set().  Therefore we don't need to wrap
+                    # this call with check of cache_only_enabled
                     backupdb.remove_successfully_published(
-                        self._successful_published, self._submit_size_limit)
+                            self._successful_published, self._submit_size_limit)
 
                     backlog_count = backupdb.get_backlog_count()
                     old_backlog_state = self._current_status_context[STATUS_KEY_BACKLOGGED]
                     self._update_status({STATUS_KEY_PUBLISHING: True,
                                          STATUS_KEY_BACKLOGGED: old_backlog_state and backlog_count > 0,
-                                         STATUS_KEY_CACHE_COUNT: backlog_count})
+                                         STATUS_KEY_CACHE_COUNT: backlog_count,
+                                         STATUS_KEY_CACHE_ONLY: cache_only_enabled})
 
                     if None in self._successful_published:
                         current_published_count += len(to_publish_list)
@@ -1255,9 +1279,6 @@ class BaseHistorianAgent(Agent):
         try:
             _log.info("Trying to setup historian")
             self.historian_setup()
-            if not self._readonly:
-                # Record the names of data, topics, meta tables in a metadata table
-                self.record_table_definitions(self.volttron_table_defs)
             if self._setup_failed:
                 self._setup_failed = False
                 self._update_status({STATUS_KEY_PUBLISHING: True})
@@ -1350,19 +1371,6 @@ class BaseHistorianAgent(Agent):
         arrives from the config store.
         """
 
-    @abstractmethod
-    def record_table_definitions(self, meta_table_name):
-        """
-        Record the table or collection names in which data, topics and
-        metadata are stored into the metadata table.  This is essentially
-        information from information from configuration item
-        'table_defs'. The metadata table contents will be used by the
-        corresponding aggregate historian(if any)
-
-        :param meta_table_name: table name into which the table names and
-        table name prefix for data, topics, and meta tables should be inserted
-        """
-
 #TODO: Finish this.
 # from collections import deque
 #
@@ -1452,10 +1460,11 @@ class BackupDatabase:
         self._dupe_ids = []
         self._unique_ids = []
 
-    def backup_new_data(self, new_publish_list, time_tolerance_check):
+    def backup_new_data(self, new_publish_list, time_tolerance_check=False):
         """
         :param new_publish_list: An iterable of records to cache to disk.
         :type new_publish_list: iterable
+        :param time_tolerance_check: Boolean to know if time tolerance check is enabled.default =False
         :returns: True if records the cache has reached a full state.
         :rtype: bool
         """
@@ -1753,7 +1762,7 @@ class BackupDatabase:
         if c.fetchone() is None:
             _log.debug("Configuring backup DB for the first time.")
             self._connection.execute('''PRAGMA auto_vacuum = FULL''')
-            self._connection.execute('''CREATE TABLE outstanding
+            self._connection.execute('''CREATE TABLE IF NOT EXISTS outstanding
                                         (id INTEGER PRIMARY KEY,
                                          ts timestamp NOT NULL,
                                          source TEXT NOT NULL,
@@ -1808,7 +1817,7 @@ class BackupDatabase:
         if c.fetchone() is None:
             _log.debug("Configuring backup DB for the first time.")
             self._connection.execute('''PRAGMA auto_vacuum = FULL''')
-            self._connection.execute('''CREATE TABLE time_error
+            self._connection.execute('''CREATE TABLE IF NOT EXISTS time_error
                                                 (id INTEGER PRIMARY KEY,
                                                  ts timestamp NOT NULL,
                                                  source TEXT NOT NULL,
@@ -1821,7 +1830,7 @@ class BackupDatabase:
                   "AND name='metadata';")
 
         if c.fetchone() is None:
-            self._connection.execute('''CREATE TABLE metadata
+            self._connection.execute('''CREATE TABLE IF NOT EXISTS metadata
                                         (source TEXT NOT NULL,
                                          topic_id INTEGER NOT NULL,
                                          name TEXT NOT NULL,
@@ -1836,7 +1845,7 @@ class BackupDatabase:
                   "AND name='topics';")
 
         if c.fetchone() is None:
-            self._connection.execute('''create table topics
+            self._connection.execute('''create table IF NOT EXISTS topics
                                         (topic_id INTEGER PRIMARY KEY,
                                          topic_name TEXT NOT NULL,
                                          UNIQUE(topic_name))''')
@@ -1895,6 +1904,7 @@ class BaseQueryHistorianAgent(Agent):
             else:
                 time_parser = yacc.yacc(write_tables=0)
         super(BaseQueryHistorianAgent, self).__init__(**kwargs)
+
     @RPC.export
     def get_version(self):
         """RPC call to get the version of the historian

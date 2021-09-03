@@ -40,6 +40,7 @@ import base64
 import logging
 import mimetypes
 import os
+from pathlib import Path
 import re
 from urllib.parse import urlparse, parse_qs
 import zlib
@@ -47,6 +48,7 @@ from collections import defaultdict
 
 import gevent
 import gevent.pywsgi
+import jwt
 from cryptography.hazmat.primitives import serialization
 from gevent import Greenlet
 from jinja2 import Environment, FileSystemLoader, select_autoescape
@@ -58,7 +60,8 @@ from .authenticate_endpoint import AuthenticateEndpoints
 from .csr_endpoints import CSREndpoints
 from .webapp import WebApplicationWrapper
 from volttron.platform.agent import utils
-from volttron.platform.agent.known_identities import CONTROL
+from volttron.platform.agent.known_identities import \
+    CONTROL, VOLTTRON_CENTRAL, AUTH
 from ..agent.utils import get_fq_identity
 from ..agent.web import Response, JsonResponse
 from ..auth import AuthEntry, AuthFile, AuthFileEntryAlreadyExists
@@ -68,7 +71,7 @@ from ..jsonrpc import (json_result,
                        INVALID_REQUEST, METHOD_NOT_FOUND,
                        UNHANDLED_EXCEPTION, UNAUTHORIZED,
                        UNAVAILABLE_PLATFORM, INVALID_PARAMS,
-                       UNAVAILABLE_AGENT, INTERNAL_ERROR)
+                       UNAVAILABLE_AGENT, INTERNAL_ERROR, RemoteError)
 
 from ..vip.agent import Agent, Core, RPC, Unreachable
 from ..vip.agent.subsystems import query
@@ -162,7 +165,6 @@ class PlatformWebService(Agent):
         # noinspection PyTypeChecker
         self._admin_endpoints: AdminEndpoints = None
 
-
     # pylint: disable=unused-argument
     @Core.receiver('onsetup')
     def onsetup(self, sender, **kwargs):
@@ -186,17 +188,19 @@ class PlatformWebService(Agent):
     def get_user_claims(self, bearer):
         from volttron.platform.web import get_user_claim_from_bearer
         if self.core.messagebus == 'rmq':
-            return get_user_claim_from_bearer(bearer,
-                                              tls_public_key=self._certs.get_cert_public_key(
-                                                           get_fq_identity(self.core.identity)))
-        if self.web_ssl_cert is not None:
-            return get_user_claim_from_bearer(bearer,
-                                              tls_public_key=CertWrapper.get_cert_public_key(self.web_ssl_cert))
+            claims = get_user_claim_from_bearer(bearer,
+                                                tls_public_key=self._certs.get_cert_public_key(
+                                                    get_fq_identity(self.core.identity)))
+        elif self.web_ssl_cert is not None:
+            claims = get_user_claim_from_bearer(bearer,
+                                                tls_public_key=CertWrapper.get_cert_public_key(self.web_ssl_cert))
         elif self._web_secret_key is not None:
-            return get_user_claim_from_bearer(bearer, web_secret_key=self._web_secret_key)
+            claims = get_user_claim_from_bearer(bearer, web_secret_key=self._web_secret_key)
 
         else:
             raise ValueError("Configuration error secret key or web ssl cert must be not None.")
+
+        return claims if claims.get('grant_type') == 'access_token' else {}
 
     @RPC.export
     def websocket_send(self, endpoint, message):
@@ -296,6 +300,10 @@ class PlatformWebService(Agent):
 
         compiled = re.compile(regex)
         self.pathroutes[identity].append(compiled)
+        assert Path(root_dir).exists()
+        # Make sure we resolve the root directory so its easier to check
+        # later on.
+        root_dir = str(Path(root_dir).resolve(root_dir))
         # in order for this agent to pass against the default route we want this
         # to be before the last route which will resolve to .*
         self.registeredroutes.insert(len(self.registeredroutes) - 1, (compiled, 'path', root_dir))
@@ -350,11 +358,9 @@ class PlatformWebService(Agent):
         assert vcpublickey
         assert len(vcpublickey) == 43
 
-        authfile = AuthFile()
-        authentry = AuthEntry(credentials=vcpublickey)
-
+        authentry = {"credentials": vcpublickey, "identity": VOLTTRON_CENTRAL}
         try:
-            authfile.add(authentry)
+            self.vip.rpc.call(AUTH, "auth_file.add", authentry).get()
         except AuthFileEntryAlreadyExists:
             pass
 
@@ -487,11 +493,6 @@ class PlatformWebService(Agent):
 
                     if isinstance(retvalue, Response):
                         return retvalue(env, start_response)
-                        #return self.process_response(start_response, retvalue)
-                    elif isinstance(retvalue, Response):  # werkzueg Response
-                        for d in retvalue(env, start_response):
-                            print(d)
-                        return retvalue(env, start_response)
                     else:
                         return retvalue[0]
 
@@ -508,7 +509,12 @@ class PlatformWebService(Agent):
                     if path_info == '/':
                         return self._redirect_index(env, start_response)
                     server_path = v + path_info  # os.path.join(v, path_info)
+                    server_path = str(Path(server_path).resolve())
                     _log.debug('Serverpath: {}'.format(server_path))
+                    # protects against relative server traversal.
+                    if not server_path.startswith(v):
+                        start_response('403 Forbidden', [('Content-Type', 'text/html')])
+                        return [b'<h1>403 Forbidden</h1>']
                     return self._sendfile(env, start_response, server_path)
 
         start_response('404 Not Found', [('Content-Type', 'text/html')])
@@ -730,6 +736,10 @@ class PlatformWebService(Agent):
         except NotAuthorized:
             _log.error("Unauthorized user attempted to connect to platform.")
             return False
+        except jwt.ExpiredSignatureError:
+            _log.error("User attempted to connect with an expired signature.")
+            return False
+
         return True
 
 
@@ -794,9 +804,11 @@ class PlatformWebService(Agent):
         if parsed.scheme == 'https':
             if self.core.messagebus == 'rmq':
                 ssl_private_key = self._certs.get_pk_bytes(get_fq_identity(self.core.identity))
+                ssl_public_key = self._certs.get_cert_public_key(get_fq_identity(self.core.identity))
             else:
                 ssl_private_key = CertWrapper.get_private_key(ssl_key)
-            for rt in AuthenticateEndpoints(tls_private_key=ssl_private_key).get_routes():
+                ssl_public_key = CertWrapper.get_cert_public_key(self.web_ssl_cert)
+            for rt in AuthenticateEndpoints(tls_private_key=ssl_private_key, tls_public_key=ssl_public_key).get_routes():
                 self.registeredroutes.append(rt)
         else:
             # We don't have a private ssl key if we aren't using ssl.

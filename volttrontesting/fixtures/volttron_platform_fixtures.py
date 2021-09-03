@@ -3,23 +3,29 @@ import os
 from pathlib import Path
 import shutil
 from typing import Optional
+from urllib.parse import urlparse
 
 import psutil
 import pytest
 
-from volttron.platform import is_rabbitmq_available
+from volttron.platform import is_rabbitmq_available, is_web_available
 from volttron.platform import update_platform_config
 from volttron.utils import get_random_key
 from volttrontesting.fixtures.cert_fixtures import certs_profile_1
-from volttrontesting.utils.platformwrapper import PlatformWrapper
+from volttrontesting.utils.platformwrapper import PlatformWrapper, with_os_environ
 from volttrontesting.utils.platformwrapper import create_volttron_home
 from volttrontesting.utils.utils import get_hostname_and_random_port, get_rand_vip, get_rand_ip_and_port
+from volttron.utils.rmq_mgmt import RabbitMQMgmt
+from volttron.utils.rmq_setup import start_rabbit
 
 PRINT_LOG_ON_SHUTDOWN = False
 HAS_RMQ = is_rabbitmq_available()
+HAS_WEB = is_web_available()
+
 ci_skipif = pytest.mark.skipif(os.getenv('CI', None) == 'true', reason='SSL does not work in CI')
 rmq_skipif = pytest.mark.skipif(not HAS_RMQ,
                                 reason='RabbitMQ is not setup and/or SSL does not work in CI')
+web_skipif = pytest.mark.skipif(not HAS_WEB, reason='Web libraries are not installed')
 
 
 def print_log(volttron_home):
@@ -68,7 +74,7 @@ def cleanup_wrappers(platforms):
 
 @pytest.fixture(scope="module",
                 params=[dict(messagebus='zmq', ssl_auth=False),
-                        # pytest.param(dict(messagebus='rmq', ssl_auth=True), marks=rmq_skipif),
+                        pytest.param(dict(messagebus='rmq', ssl_auth=True), marks=rmq_skipif),
                         ])
 def volttron_instance_msgdebug(request):
     print("building msgdebug instance")
@@ -270,7 +276,7 @@ def volttron_instance_web(request):
 
 @pytest.fixture(scope="module",
                 params=[
-                    dict(sink='zmq_web', source='zmq', zmq_ssl=False),
+                    pytest.param(dict(sink='zmq_web', source='zmq', zmq_ssl=False), marks=web_skipif),
                     pytest.param(dict(sink='zmq_web', source='zmq', zmq_ssl=True), marks=ci_skipif),
                     pytest.param(dict(sink='rmq_web', source='zmq', zmq_ssl=False), marks=rmq_skipif),
                     pytest.param(dict(sink='rmq_web', source='rmq', zmq_ssl=False), marks=rmq_skipif),
@@ -489,3 +495,202 @@ def get_test_volttron_home(messagebus: str, web_https=False, web_http=False, has
         os.environ.update(env_cpy)
         if not os.environ.get("DEBUG", 0) != 1 and not os.environ.get("DEBUG_MODE", 0):
             shutil.rmtree(volttron_home, ignore_errors=True)
+
+
+@pytest.fixture(scope="module")
+def federated_rmq_instances(request, **kwargs):
+    """
+    Create two rmq based volttron instances. One to act as producer of data and one to act as consumer of data
+    producer is upstream instance and consumer is the downstream instance
+
+    :return: 2 volttron instances - (producer, consumer) that are federated
+    """
+    upstream_vip = get_rand_vip()
+    upstream_hostname, upstream_https_port = get_hostname_and_random_port()
+    web_address = 'https://{hostname}:{port}'.format(hostname=upstream_hostname, port=upstream_https_port)
+    upstream = build_wrapper(upstream_vip,
+                             ssl_auth=True,
+                             messagebus='rmq',
+                             should_start=True,
+                             bind_web_address=web_address,
+                             instance_name='volttron1',
+                             **kwargs)
+    upstream.enable_auto_csr()
+    downstream_vip = get_rand_vip()
+    hostname, https_port = get_hostname_and_random_port()
+    downstream_web_address = 'https://{hostname}:{port}'.format(hostname=hostname, port=https_port)
+
+    downstream = build_wrapper(downstream_vip,
+                               ssl_auth=True,
+                               messagebus='rmq',
+                               should_start=False,
+                               bind_web_address=downstream_web_address,
+                               instance_name='volttron2',
+                               **kwargs)
+
+    link_name = None
+    rmq_mgmt = None
+    try:
+        # create federation config and save in volttron home of 'downstream' instance
+        content = dict()
+        fed = dict()
+        fed[upstream.rabbitmq_config_obj.rabbitmq_config["host"]] = {
+            'port': upstream.rabbitmq_config_obj.rabbitmq_config["amqp-port-ssl"],
+            'virtual-host': upstream.rabbitmq_config_obj.rabbitmq_config["virtual-host"],
+            'https-port': upstream_https_port,
+            'federation-user': "{}.federation".format(downstream.instance_name)}
+        content['federation-upstream'] = fed
+        import yaml
+        config_path = os.path.join(downstream.volttron_home, "rabbitmq_federation_config.yml")
+        with open(config_path, 'w') as yaml_file:
+            yaml.dump(content, yaml_file, default_flow_style=False)
+
+        # setup federation link from 'downstream' to 'upstream' instance
+        downstream.setup_federation(config_path)
+
+        downstream.startup_platform(vip_address=downstream_vip,
+                                    bind_web_address=downstream_web_address)
+        with with_os_environ(downstream.env):
+            rmq_mgmt = RabbitMQMgmt()
+            links = rmq_mgmt.get_federation_links()
+            assert links and links[0]['status'] == 'running'
+            link_name = links[0]['name']
+
+    except Exception as e:
+        print("Exception setting up federation: {}".format(e))
+        upstream.shutdown_platform()
+        if downstream.is_running():
+            downstream.shutdown_platform()
+        raise e
+
+    yield upstream, downstream
+
+    if link_name and rmq_mgmt:
+        rmq_mgmt.delete_multiplatform_parameter('federation-upstream', link_name)
+    upstream.shutdown_platform()
+    downstream.shutdown_platform()
+
+
+@pytest.fixture(scope="module")
+def two_way_federated_rmq_instances(request, **kwargs):
+    """
+    Create two rmq based volttron instances. Create bi-directional data flow channel
+    by creating 2 federation links
+
+    :return: 2 volttron instances - that are connected through federation
+    """
+    instance_1_vip = get_rand_vip()
+    instance_1_hostname, instance_1_https_port = get_hostname_and_random_port()
+    instance_1_web_address = 'https://{hostname}:{port}'.format(hostname=instance_1_hostname,
+                                                     port=instance_1_https_port)
+
+    instance_1 = build_wrapper(instance_1_vip,
+                               ssl_auth=True,
+                               messagebus='rmq',
+                               should_start=True,
+                               bind_web_address=instance_1_web_address,
+                               instance_name='volttron1',
+                               **kwargs)
+
+    instance_1.enable_auto_csr()
+
+    instance_2_vip = get_rand_vip()
+    instance_2_hostname, instance_2_https_port = get_hostname_and_random_port()
+    instance_2_webaddress = 'https://{hostname}:{port}'.format(hostname=instance_2_hostname,
+                                                               port=instance_2_https_port)
+
+    instance_2 = build_wrapper(instance_2_vip,
+                               ssl_auth=True,
+                               messagebus='rmq',
+                               should_start=False,
+                               bind_web_address=instance_2_webaddress,
+                               instance_name='volttron2',
+                               **kwargs)
+
+    instance_2_link_name = None
+    instance_1_link_name = None
+
+    try:
+        # create federation config and setup federation link to instance_1
+        content = dict()
+        fed = dict()
+        fed[instance_1.rabbitmq_config_obj.rabbitmq_config["host"]] = {
+            'port': instance_1.rabbitmq_config_obj.rabbitmq_config["amqp-port-ssl"],
+            'virtual-host': instance_1.rabbitmq_config_obj.rabbitmq_config["virtual-host"],
+            'https-port': instance_1_https_port,
+            'federation-user': "{}.federation".format(instance_2.instance_name)}
+        content['federation-upstream'] = fed
+        import yaml
+        config_path = os.path.join(instance_2.volttron_home, "rabbitmq_federation_config.yml")
+        with open(config_path, 'w') as yaml_file:
+            yaml.dump(content, yaml_file, default_flow_style=False)
+
+        print(f"instance 2 Fed config path:{config_path}, content: {content}")
+
+        instance_2.setup_federation(config_path)
+        instance_2.startup_platform(vip_address=instance_2_vip, bind_web_address=instance_2_webaddress)
+        instance_2.enable_auto_csr()
+        # Check federation link status
+        with with_os_environ(instance_2.env):
+            rmq_mgmt = RabbitMQMgmt()
+            links = rmq_mgmt.get_federation_links()
+            print(f"instance 2 fed links state: {links[0]['status']}")
+            assert links and links[0]['status'] == 'running'
+            instance_2_link_name = links[0]['name']
+
+        instance_1.skip_cleanup = True
+        instance_1.shutdown_platform()
+        instance_1.skip_cleanup = False
+
+        start_rabbit(rmq_home=instance_1.rabbitmq_config_obj.rmq_home, env=instance_1.env)
+
+        # create federation config and setup federation to instance_2
+        content = dict()
+        fed = dict()
+        fed[instance_2.rabbitmq_config_obj.rabbitmq_config["host"]] = {
+            'port': instance_2.rabbitmq_config_obj.rabbitmq_config["amqp-port-ssl"],
+            'virtual-host': instance_2.rabbitmq_config_obj.rabbitmq_config["virtual-host"],
+            'https-port': instance_2_https_port,
+            'federation-user': "{}.federation".format(instance_1.instance_name)}
+        content['federation-upstream'] = fed
+        import yaml
+        config_path = os.path.join(instance_1.volttron_home, "rabbitmq_federation_config.yml")
+        with open(config_path, 'w') as yaml_file:
+            yaml.dump(content, yaml_file, default_flow_style=False)
+
+        print(f"instance 1 Fed config path:{config_path}, content: {content}")
+
+        instance_1.setup_federation(config_path)
+        instance_1.startup_platform(vip_address=instance_1_vip, bind_web_address=instance_1_web_address)
+        import gevent
+        gevent.sleep(10)
+        # Check federation link status
+        with with_os_environ(instance_1.env):
+            rmq_mgmt = RabbitMQMgmt()
+            links = rmq_mgmt.get_federation_links()
+            print(f"instance 1 fed links state: {links[0]['status']}")
+            assert links and links[0]['status'] == 'running'
+            instance_1_link_name = links[0]['name']
+
+    except Exception as e:
+        print(f"Exception setting up federation: {e}")
+        instance_1.shutdown_platform()
+        instance_2.shutdown_platform()
+        raise e
+
+    yield instance_1, instance_2
+
+    if instance_1_link_name:
+        with with_os_environ(instance_1.env):
+            rmq_mgmt = RabbitMQMgmt()
+            rmq_mgmt.delete_multiplatform_parameter('federation-upstream',
+                                                    instance_1_link_name)
+    if instance_2_link_name:
+        with with_os_environ(instance_2.env):
+            rmq_mgmt = RabbitMQMgmt()
+            rmq_mgmt.delete_multiplatform_parameter('federation-upstream',
+                                                    instance_2_link_name)
+    instance_1.shutdown_platform()
+    instance_2.shutdown_platform()
+
+

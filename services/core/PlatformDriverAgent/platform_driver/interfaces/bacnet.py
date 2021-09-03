@@ -50,6 +50,10 @@ _log = logging.getLogger(__name__)
 
 DEFAULT_COV_LIFETIME = 180
 COV_UPDATE_BUFFER = 3
+BACNET_TYPE_MAPPING = {"multiStateValue": int, "multiStateInput": int, "multiStateOutput": int,
+                       "analogValue": float, "analogInput": float, "analogOutput": float,
+                       "binaryValue": bool, "binaryInput": bool, "binaryOutput": bool
+                      }
 
 
 class Register(BaseRegister):
@@ -61,6 +65,7 @@ class Register(BaseRegister):
         self.property = property_name
         self.priority = priority
         self.index = list_index
+        self.python_type = BACNET_TYPE_MAPPING[object_type]
 
 
 class Interface(BaseInterface):
@@ -170,6 +175,10 @@ class Interface(BaseInterface):
                     self.register_count_divisor += 1
                     self.max_per_request = max(int(self.register_count/self.register_count_divisor), 1)
                     _log.info("Device requires a lower max_per_request setting. Trying: "+str(self.max_per_request))
+                    continue
+                elif e.message.endswith("rejected the request: 9") and self.use_read_multiple:
+                    _log.info("Device rejected request with 'unrecognized-service' error, attempting to access with use_read_multiple false")
+                    self.use_read_multiple = False
                     continue
                 else:
                     raise

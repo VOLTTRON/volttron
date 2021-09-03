@@ -149,6 +149,10 @@ All Historians support the following settings:
         # in cache and are not sent to concrete historian for publishing. An alert is raised when records are entered
         # into the time_error table. Units: seconds
         "time_tolerance": 5,
+        
+        # If set to true the base_historian will not publish to the concrete historian (SQLHistorian, CrateHistorian ...)
+        # This is useful for storing historian data while updating database versions.
+        "cache_only_enabled": False
     }
 
 

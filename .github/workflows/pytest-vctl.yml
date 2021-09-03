@@ -1,0 +1,74 @@
+---
+# This workflow is meant as a foundational workflow for running integration/unit tests on multiple targeted
+# ubuntu versions with multiple python versions.
+#
+# This workflow utilizes the build-dependency-cache workflow which sets up the environment dependencies using
+# bootstrap.py --all
+#
+
+# Documentation for the syntax of this file is located
+# https://docs.github.com/en/free-pro-team@latest/actions/reference/workflow-syntax-for-github-actions
+
+# The workflow name will show up in the action tab on github during execution
+# https://github.com/VOLTTRON/volttron/actions (or if you are pushing to your own fork change the user)
+name: Testing volttron-ctl
+
+# Determine what events are going to trigger a running of the workflow
+on:
+  push:
+    branches:
+    - develop
+    - releases/**
+  pull_request:
+    branches:
+    - main
+    - develop
+    - releases/**
+
+jobs:
+  # The job named build
+  build:
+    # The strategy allows customization of the build and allows matrixing the version of os and software
+    # https://docs.github.com/en/free-pro-team@l.atest/actions/reference/workflow-syntax-for-github-actions#jobsjob_idstrategy
+    strategy:
+      fail-fast: false
+      matrix:
+        # Each entry in the os and python-version matrix will be run so for the 3 x 4 there will be 12 jobs run
+        os: [ ubuntu-18.04, ubuntu-20.04 ]
+        python-version: [ 3.6, 3.7] # , 3.8, 3.9 ]
+
+    # Run-on determines the operating system available to run on
+    # - At the current time there is only ubuntu machines between 16.04 and 20.04 available
+    # - This uses the matrix os from the strategy above
+    runs-on: ${{ matrix.os }}
+
+    # Each step will be run in order of listing.
+    steps:
+      # checkout the volttron repository and set current directory to it
+      - uses: actions/checkout@v2
+
+      # Attempt to restore the cache from the build-dependency-cache workflow if present then
+      # the output value steps.check_files.outputs.files_exists will be set (see the next step for usage)
+      - name: Set up Python ${{matrix.os}} ${{ matrix.python-version }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      # Run the specified tests and save the results to a unique file that can be archived for later analysis.
+      - name: Run pytest on ${{ matrix.python-version }}, ${{ matrix.os }}
+        uses: volttron/volttron-build-action@v1
+        with:
+            python_version: ${{ matrix.python-version }}
+            os: ${{ matrix.os }}
+            test_path: volttrontesting/platform/control_tests
+            test_output_suffix: control_tests
+
+      # Archive the results from the pytest to storage.
+      - name: Archive test results
+        uses: actions/upload-artifact@v2
+        if: always()
+        with:
+          name: pytest-report
+          # should match test-<test_output_suffix>- ...
+          path: output/test-control_tests-${{matrix.os}}-${{ matrix.python-version }}-results.xml
+
