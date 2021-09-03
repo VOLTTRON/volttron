@@ -5,12 +5,13 @@ from unittest.mock import MagicMock
 import re
 import json
 import pickle
-
 from werkzeug import Response
 
+mock.patch('volttron.platform.web.vui_endpoints.endpoint', lambda x: x).start()
+
+from volttron.platform.web.vui_endpoints import VUIEndpoints
 from volttron.platform.vip.agent import Agent
 from volttron.platform.web.platform_web_service import PlatformWebService
-from volttron.platform.web.vui_endpoints import VUIEndpoints
 from volttrontesting.utils.utils import AgentMock
 from volttrontesting.utils.web_utils import get_test_web_env
 from volttron.platform.vip.agent.results import AsyncResult
@@ -64,6 +65,7 @@ def mock_platform_web_service() -> PlatformWebService:
         platform_web.vip.rpc.context.vip_message.peer.return_value = "foo"
         platform_web.core.volttron_home = 'foo_home'
         platform_web.core.instance_name = 'my_instance_name'
+        platform_web.get_user_claims = lambda x: {'groups': ['vui']}
 
         yield platform_web
 

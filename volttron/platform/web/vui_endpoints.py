@@ -1,3 +1,4 @@
+import functools
 import os
 import re
 import json
@@ -8,9 +9,10 @@ from typing import List, Union
 
 from werkzeug import Response
 from werkzeug.urls import url_decode
+from jwt import ExpiredSignatureError
+
 from volttron.platform.vip.agent.subsystems.query import Query
 from volttron.platform.jsonrpc import MethodNotFound
-
 from volttron.platform.web.topic_tree import DeviceTree, TopicTree
 from volttron.platform.web.vui_pubsub import VUIPubsubManager
 
@@ -28,6 +30,38 @@ class LockError(Exception):
     """Error raised by actuator when the user does not have a device scheduled
     and tries to use methods that require exclusive access."""
     pass
+
+
+def endpoint(func):
+    @functools.wraps(func)
+    def verify_and_dispatch(self, env, data):
+        from volttron.platform.web import get_bearer, NotAuthorized
+        try:
+            claims = self._agent.get_user_claims(get_bearer(env))
+        except (NotAuthorized, ExpiredSignatureError) as e:
+            _log.warning(f"Unauthorized user attempted to connect to {env.get('PATH_INFO')}. Caught Exception: {e}")
+            return Response(json.dumps({'error': 'Not Authorized'}), 401, content_type='app/json')
+
+        # Only allow only users with API permissions:
+        if 'vui' not in claims.get('groups'):
+            _log.warning(f"Unauthorized user attempted to connect with 'vui' claim to {env.get('PATH_INFO')}.")
+            return Response(json.dumps({'error': 'Not Authorized'}), 401, content_type='app/json')
+
+        # Dispatch endpoint:
+        try:
+            response = func(self, env, data)
+            _log.debug('RESPONSE IN WRAPPER IS:')
+            _log.debug(response)
+            if not response:
+                message = f"Endpoint {env['REQUEST_METHOD']} {env['PATH_INFO']} is not implemented."
+                return Response(json.dumps({"error": message}), status=501, content_type='application/json')
+            else:
+                return response
+        except TimeoutError as e:
+            return Response(json.dumps({'error': f'Request Timed Out: {e}'}), 504, content_type='application/json')
+        except Exception as e:
+            return Response(json.dumps({'error' f'Unexpected Error: {e}'}), 500, content_type='application/json')
+    return verify_and_dispatch
 
 
 class VUIEndpoints(object):
@@ -149,6 +183,7 @@ class VUIEndpoints(object):
             # (re.compile('^/vui/history/?$), 'callable', self.handle_vui_history)
         ]
 
+    @endpoint
     def handle_vui_root(self, env: dict, data: dict) -> Response:
         _log.debug('VUI: In handle_vui_root')
         path_info = env.get('PATH_INFO')
@@ -157,10 +192,8 @@ class VUIEndpoints(object):
             path_info = env.get('PATH_INFO')
             response = json.dumps(self._find_active_sub_routes(['vui'], path_info=path_info))
             return Response(response, 200, content_type='application/json')
-        else:
-            return Response(f'Endpoint {request_method} {path_info} is not implemented.',
-                            status=501, content_type='text/plain')
 
+    @endpoint
     def handle_platforms(self, env: dict, data: dict) -> Response:
         _log.debug('VUI: In handle_platforms')
         path_info = env.get('PATH_INFO')
@@ -169,9 +202,6 @@ class VUIEndpoints(object):
             platforms = self._get_platforms()
             response = json.dumps(self._route_options(path_info, platforms))
             return Response(response, 200, content_type='application/json')
-        else:
-            return Response(f'Endpoint {request_method} {path_info} is not implemented.',
-                            status=501, content_type='text/plain')
 
     def handle_platforms_platform(self, env: dict, data: dict) -> Response:
         _log.debug('VUI: In handle_platforms_platform')
@@ -185,9 +215,6 @@ class VUIEndpoints(object):
             else:
                 return Response(json.dumps({f'error': f'Unknown platform: {platform}'}),
                                 400, content_type='application/json')
-        else:
-            return Response(f'Endpoint {request_method} {path_info} is not implemented.',
-                            status=501, content_type='text/plain')
 
     def handle_platforms_agents(self, env: dict, data: dict) -> Response:
         """
@@ -214,21 +241,9 @@ class VUIEndpoints(object):
                 error = {'error': f'Unknown platform: {platform}'}
                 return Response(json.dumps(error), 400, content_type='application/json')
             else:
-                try:
-                    agents = self._get_agents(platform, agent_state, include_hidden)
-                    return Response(json.dumps(self._route_options(path_info, agents)), 200,
-                                    content_type='application/json')
-                except TimeoutError:
-                    error = {'error': f'Timed out getting agents from platform: {platform}'}
-                    return Response(json.dumps(error), 504, content_type='application/json')
-                except Exception as e:
-                    error = {'error': e}
-                    return Response(json.dumps(error), 500, content_type='application/json')
-        else:
-            # TODO: changed this to 200 from 501, to test error alerting, but should probably change back.
-            error = {"error": f"Endpoint {request_method} {path_info} is not implemented."}
-            return Response(json.dumps(error),
-                            status=501, content_type='text/plain')
+                agents = self._get_agents(platform, agent_state, include_hidden)
+                return Response(json.dumps(self._route_options(path_info, agents)), 200,
+                                content_type='application/json')
 
     def handle_platforms_agents_agent(self, env: dict, data: dict) -> Response:
         """
@@ -248,9 +263,6 @@ class VUIEndpoints(object):
                 if vip_identity not in self._get_agents(platform, 'running'):
                     active_routes['route_options'].pop('rpc')
             return Response(json.dumps(active_routes), 200, content_type='application/json')
-        else:
-            return Response(f'Endpoint {request_method} {path_info} is not implemented.',
-                            status=501, content_type='text/plain')
 
     def handle_platforms_agents_rpc(self, env: dict, data: dict) -> Response:
         """
@@ -264,19 +276,9 @@ class VUIEndpoints(object):
         request_method = env.get("REQUEST_METHOD")
         platform, vip_identity = re.match('^/vui/platforms/([^/]+)/agents/([^/]+)/rpc/?$', path_info).groups()
         if request_method == 'GET':
-            try:
-                method_dict = self._rpc(vip_identity, 'inspect', external_platform=platform)
-            # TODO: Move this exception handling up to a wrapper.
-            except TimeoutError as e:
-                return Response(json.dumps({'error': f'Request Timed Out: {e}'}), 504, content_type='application/json')
-            except Exception as e:
-                return Response(json.dumps({'error' f'Unexpected Error: {e}'}), 500, content_type='application/json')
-
+            method_dict = self._rpc(vip_identity, 'inspect', external_platform=platform)
             response = self._route_options(path_info, method_dict.get('methods'))
             return Response(json.dumps(response), 200, content_type='application/json')
-        else:
-            return Response(json.dumps({"error": f"Endpoint {request_method} {path_info} is not implemented."}),
-                            status=501, content_type='application/json')
 
     def handle_platforms_agents_rpc_method(self, env: dict, data: Union[dict, List]) -> Response:
         """
@@ -285,31 +287,20 @@ class VUIEndpoints(object):
         :param data:
         :return:
         """
-        _log.debug("VUI: in handle_platform_agents_rpc_method")
         path_info = env.get('PATH_INFO')
         request_method = env.get("REQUEST_METHOD")
         platform, vip_identity, method_name = re.match('^/vui/platforms/([^/]+)/agents/([^/]+)/rpc/([^/]+)/?$',
                                                        path_info).groups()
-        _log.debug(f'VUI: Parsed - platform: {platform}, vip_identity: {vip_identity}, method_name: {method_name}')
         if request_method == 'GET':
             try:
-                _log.debug('VUI: request_method was "GET"')
                 method_dict = self._rpc(vip_identity, method_name + '.inspect', external_platform=platform)
-                _log.debug(f'VUI: method_dict is: {method_dict}')
-            # TODO: Move this exception handling up to a wrapper.
-            except Timeout as e:
-                return Response(json.dumps({'error': f'RPC Timed Out: {e}'}), 504, content_type='application/json')
             except MethodNotFound as e:
                 return Response(json.dumps({f'error': f'for agent {vip_identity}: {e}'}),
                                 400, content_type='application/json')
-            except Exception as e:
-                return Response(json.dumps({'error' f'Unexpected Error: {e}'}), 500, content_type='application/json')
-
             return Response(json.dumps(method_dict), 200, content_type='application/json')
 
         elif request_method == 'POST':
             try:
-                _log.debug('VUI: request_method was "POST')
                 if type(data) is dict:
                     if 'args' in data.keys() and type(data['args']) is list:
                         args = data.pop('args')
@@ -320,18 +311,10 @@ class VUIEndpoints(object):
                     result = self._rpc(vip_identity, method_name, *data, external_platform=platform)
                 else:
                     raise ValueError(f'Malformed message body: {data}')
-            except Timeout as e:
-                return Response(json.dumps({'error': f'RPC Timed Out: {e}'}), 504, content_type='application/json')
             except MethodNotFound or ValueError as e:
                 return Response(json.dumps({f'error': f'for agent {vip_identity}: {e}'}),
                                 400, content_type='application/json')
-            except Exception as e:
-                return Response(json.dumps({'error' f'Unexpected Error: {e}'}), 500, content_type='application/json')
-
             return Response(json.dumps(result), 200, content_type='application/json')
-        else:
-            return Response(f'Endpoint {request_method} {path_info} is not implemented.',
-                            status=501, content_type='text/plain')
 
     def handle_platforms_devices(self, env: dict, data: dict) -> Response:
         """
@@ -340,7 +323,6 @@ class VUIEndpoints(object):
         :param data:
         :return:
         """
-
         def _get_allowed_write_selection(points, topic, regex, tag):
             # Query parameters:
             write_all = self._to_bool(query_params.get('write-all', 'false'))
@@ -359,7 +341,6 @@ class VUIEndpoints(object):
                     'tag': tag,
                     'selected_points': selection
                 }
-
                 raise ValueError(json.dumps(error_message))
             elif len(unwritables) == len(points):
                 raise ValueError(json.dumps({'error': 'No selected points are writable.',
@@ -401,12 +382,8 @@ class VUIEndpoints(object):
                 return Response(json.dumps({f'error': f'Device topic {topic} not found on platform: {platform}.'}),
                                 400, content_type='application/json')
             points = device_tree.points()
-        # TODO: Move this exception handling up to a wrapper.
         except Timeout as e:
             return Response(json.dumps({'error': f'RPC Timed Out: {e}'}), 504, content_type='application/json')
-        except Exception as e:
-            return Response(json.dumps({f'error': f'Error querying device topic {topic}: {e}'}),
-                            400, content_type='application/json')
 
         if request_method == 'GET':
             # Query parameters:
@@ -444,12 +421,8 @@ class VUIEndpoints(object):
                     }
                     return Response(json.dumps(ret_dict), 200, content_type='application/json')
 
-            # TODO: Move this exception handling up to a wrapper.
             except Timeout as e:
                 return Response(json.dumps({'error': f'RPC Timed Out: {e}'}), 504, content_type='application/json')
-            except Exception as e:
-                return Response(json.dumps({f'error': f'Error querying device topic {topic}: {e}'}),
-                                400, content_type='application/json')
 
         elif request_method == 'PUT':
             try:
@@ -478,14 +451,10 @@ class VUIEndpoints(object):
 
                 return Response(json.dumps(ret_dict), 200, content_type='application/json')
 
-            # TODO: Move this exception handling up to a wrapper.
             except (LockError, OverrideError) as e:
                 return Response(json.dumps({'error': e}), 409, content_type='application/json')
             except Timeout as e:
                 return Response(json.dumps({'error': f'RPC Timed Out: {e}'}), 504, content_type='application/json')
-            except Exception as e:
-                return Response(json.dumps({f'error': f'Error querying device topic {topic}: {e}'}),
-                                400, content_type='application/json')
 
         elif request_method == 'DELETE':
             try:
@@ -516,21 +485,17 @@ class VUIEndpoints(object):
                         ret_dict[k]['value_check_error'] = ret_values[1].get(k)
                 return Response(json.dumps(ret_dict), 200, content_type='application/json')
 
-            # TODO: Move this exception handling up to a wrapper.
             except (LockError, OverrideError) as e:
                 return Response(json.dumps({'error': e}), 409, content_type='application/json')
             except Timeout as e:
                 return Response(json.dumps({'error': f'RPC Timed Out: {e}'}), 504, content_type='application/json')
-            except Exception as e:
-                return Response(json.dumps({f'error': f'Error querying device topic {topic}: {e}'}),
-                                400, content_type='application/json')
 
         else:
             return Response(f'Endpoint {request_method} {path_info} is not implemented.',
                             status=501, content_type='text/plain')
 
     def handle_platforms_pubsub(self, env: dict, start_response, data: dict):
-        from volttron.platform.web import get_bearer
+        from volttron.platform.web import get_bearer  # TODO: Is this necessary, with bearer imported in decorator?
         path_info = env.get('PATH_INFO')
         request_method = env.get("REQUEST_METHOD")
         query_params = url_decode(env['QUERY_STRING'])
@@ -571,10 +536,6 @@ class VUIEndpoints(object):
         #     self.pubsub_manager.close_socket(access_token, topic)
         #     return Response(status=204)
 
-        else:
-            return Response(f'Endpoint {request_method} {path_info} is not implemented.',
-                            status=501, content_type='text/plain')
-
     def handle_platforms_historians(self, env: dict, data: dict) -> Response:
         path_info = env.get('PATH_INFO')
         request_method = env.get("REQUEST_METHOD")
@@ -584,23 +545,16 @@ class VUIEndpoints(object):
             agents = self._get_agents(platform)
             response = json.dumps(self._route_options(path_info, [agent for agent in agents if 'historian' in agent]))
             return Response(response, 200, content_type='application/json')
-        else:
-            return Response(f'Endpoint {request_method} {path_info} is not implemented.',
-                            status='501 Not Implemented', content_type='text/plain')
 
     def handle_platforms_historians_historian(self, env: dict, data: dict) -> Response:
         path_info = env.get('PATH_INFO')
         request_method = env.get("REQUEST_METHOD")
-
         platform, vip_identity = re.match('^/vui/platforms/([^/]+)/historians/([^/]+)/?$', path_info).groups()
 
         if request_method == 'GET':
             route_options = {'route_options': {'topics': f'/vui/platforms/{platform}/historians/{vip_identity}/topics'}}
 
             return Response(json.dumps(route_options), 200, content_type='application/json')
-        else:
-            return Response(f'Endpoint {request_method} {path_info} is not implemented.',
-                            status='501 Not Implemented', content_type='text/plain')
 
     def handle_platforms_historians_historian_topics(self, env: dict, data: dict) -> Response:
         """
@@ -626,6 +580,7 @@ class VUIEndpoints(object):
         skip = int(query_params.get('skip') if query_params.get('skip') else 0)
         count = query_params.get('count')
         order = query_params.get('order') if query_params.get('order') else 'FIRST_TO_LAST'
+        # TODO: agg_type & agg_period not implemented, need to check response format of Aggregate Historians
         agg_type = None
         agg_period = None
 
@@ -656,13 +611,8 @@ class VUIEndpoints(object):
                 return Response(json.dumps({f'error': f'Historian topic {topic} not found on platform: {platform}.'}),
                                 400, content_type='application/json')
             points = historian_tree.leaves()
-
-        # TODO: Move this exception handling up to a wrapper.
         except Timeout as e:
             return Response(json.dumps({'error': f'RPC Timed Out: {e}'}), 504, content_type='application/json')
-        except Exception as e:
-            return Response(json.dumps({f'error': f'Error querying historian topic {topic}: {e}'}),
-                            400, content_type='application/json')
 
         if request_method == 'GET':
             read_all = self._to_bool(query_params.get('read-all', False))
@@ -699,13 +649,8 @@ class VUIEndpoints(object):
                                                                 prefix=f'/vui/platforms/{platform}')}
                     return Response(json.dumps(ret_dict), 200, content_type='application/json')
 
-
-            # TODO: Move this exception handling up to a wrapper.
             except Timeout as e:
                 return Response(json.dumps({'error': f'RPC Timed Out: {e}'}), 504, content_type='application/json')
-            except Exception as e:
-                return Response(json.dumps({f'error': f'Error querying historian topic {topic}: {e}'}),
-                                400, content_type='application/json')
 
         else:
             return Response(f'Endpoint {request_method} {path_info} is not implemented.',
@@ -783,29 +728,3 @@ class VUIEndpoints(object):
             return None
         else:
             return bools
-
-    # def admin(self, env, data):
-    #     if env.get('REQUEST_METHOD') == 'POST':
-    #         decoded = dict((k, v if len(v) > 1 else v[0])
-    #                        for k, v in parse_qs(data).items())
-    #         username = decoded.get('username')
-    #
-    # def verify_and_dispatch(self, env, data):
-    #     """ Verify that the user is an admin and dispatch"""
-    #
-    #     from volttron.platform.web import get_bearer, NotAuthorized
-    #     try:
-    #         claims = self._rpc_caller(PLATFORM_WEB, 'get_user_claims', get_bearer(env)).get()
-    #     except NotAuthorized:
-    #         _log.error("Unauthorized user attempted to connect to {}".format(env.get('PATH_INFO')))
-    #         return Response('<h1>Unauthorized User</h1>', status="401 Unauthorized")
-    #
-    #     # Make sure we have only admins for viewing this.
-    #     if 'admin' not in claims.get('groups'):
-    #         return Response('<h1>Unauthorized User</h1>', status="401 Unauthorized")
-    #
-    #     path_info = env.get('PATH_INFO')
-    #     if path_info.startswith('/admin/api/'):
-    #         return self.__api_endpoint(path_info[len('/admin/api/'):], data)
-    #
-    #     return Response(resp)
