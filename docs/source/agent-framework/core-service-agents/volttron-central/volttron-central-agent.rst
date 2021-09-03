@@ -17,7 +17,7 @@ this is to create a config file in the root of your :term:`VOLTTRON_HOME` direct
 
 The following is an example of the configuration file
 
-::
+.. code-block::
 
     [volttron]
     instance-name = volttron1
@@ -27,13 +27,12 @@ The following is an example of the configuration file
     volttron-central-address = https://localhost:8443
 
 
-.. Note:
+.. note::
 
-    The above configuration will open a discoverable port for the volttron instance.  In addition, the opening of this
+    The above configuration will open a discoverable port for the volttron instance. In addition, the opening of this
     web address allows you to serve both static as well as dynamic pages.
 
 Verify that the instance is serving properly by pointing your web browser to ``https://localhost:8443/index.html``
-
 
 Agent Execution
 ===============
@@ -54,3 +53,9 @@ you may install and start it as follows:
     # Start the agent
     vctl start --tag vc
 
+Security Considerations
+=======================
+
+When deploying any web agent, including VOLTTRON Central, it is important to consider security.
+Please refer to the documentation for :ref:`Security Considerations of Deployment <Secure-Deployment-Considerations>`.
+In particular, it would be recommended to consider the use of a reverse proxy for a VOLTTRON Central deployment.
