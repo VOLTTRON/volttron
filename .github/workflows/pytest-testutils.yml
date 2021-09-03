@@ -8,7 +8,16 @@
 # and retrieval of cache for quicker setup of test environments.
 
 name: Testing testutils directory
-on: [pull_request]
+on:
+  push:
+    branches:
+    - develop
+    - releases/**
+  pull_request:
+    branches:
+    - main
+    - develop
+    - releases/**
 
 jobs:
   build:
