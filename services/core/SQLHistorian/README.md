@@ -10,7 +10,7 @@ implemented. This allows the maximum throughput of data with the most
 protection
 
 ## Common Configurations
-All SQLHistorians support a minimum of two parameters
+All SQLHistorians support two parameters
 1. connection - This is a mandatory parameter with type indicating the type of
    sql historian (ex. mysql, sqlite, etc.) and params containing the connection 
    parameters specific to the connecting database type.
