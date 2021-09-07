@@ -174,6 +174,7 @@ def _send_and_intialize_agent(opts, publickey, secretkey):
     try: 
 
         if opts.start:
+            gevent.sleep(2)
             _log.debug(f"Staring agent {agent_uuid}")
             opts.connection.call('start_agent', agent_uuid)
             output_dict['starting'] = True
