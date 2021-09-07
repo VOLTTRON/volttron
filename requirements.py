@@ -84,7 +84,7 @@ extras_require = {
                 'pyserial'],
     'influxdb': ['influxdb'],
     'market': ['numpy', 'transitions'],
-    'mongo': ['bson==0.5.7,'
+    'mongo': ['bson==0.5.7',
               'pymongo==3.7.2'],
     'mysql': ['mysql-connector-python'],
     'pandas': ['numpy',
