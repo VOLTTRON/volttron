@@ -1866,6 +1866,7 @@ class AuthFile(object):
             version["minor"] = 1
         if version["major"] == 1 and version["minor"] == 1:
             allow_list = upgrade_1_1_to_1_2(allow_list)
+            version["minor"] = 2
         if version["major"] == 1 and version["minor"] == 2:
             allow_list = upgrade_1_2_to_1_3(allow_list)
 
