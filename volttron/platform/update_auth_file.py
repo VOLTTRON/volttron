@@ -35,44 +35,58 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
+import sys
 
-import contextlib
+from volttron.platform import get_home
+from volttron.platform.aip import AIPplatform
+from volttron.platform.auth import AuthFile
+from volttron.platform.instance_setup import fail_if_instance_running
 
-from setuptools import setup, find_packages
-from requirements import extras_require, install_requires
 
-with open('volttron/platform/__init__.py') as file:
-    for line in file:
-        if line.startswith('__version__'):
-            with contextlib.suppress(IndexError):
-                exec(line)
-                break
-    else:
-        raise RuntimeError('Unable to find version string in {}.'.format(file.name))
+def get_identity_credentials():
+    """Returns a dictionary containing a mapping from publickey to identity"""
 
-if __name__ == '__main__':
-    setup(
-        name = 'volttron',
-        version = __version__,
-        description = 'Agent Execution Platform',
-        author = 'Volttron Team',
-        author_email = 'volttron@pnnl.gov',
-        url = 'https://github.com/VOLTTRON/volttron',
-        packages = find_packages('.'),
-        install_requires = install_requires,
-        extras_require = extras_require,
-        entry_points = {
-            'console_scripts': [
-                'volttron = volttron.platform.main:_main',
-                'volttron-ctl = volttron.platform.control:_main',
-                'volttron-pkg = volttron.platform.packaging:_main',
-                'volttron-cfg = volttron.platform.config:_main',
-                'vctl = volttron.platform.control:_main',
-                'vpkg = volttron.platform.packaging:_main',
-                'vcfg = volttron.platform.config:_main',
-                # 'volttron-update = ...',
-                'volttron-update-auth = volttron.platform.update_auth_file:_main',
-            ]
-        },
-        zip_safe = False,
-    )
+    vhome = get_home()
+    options = type("Options", (), dict(volttron_home=vhome))
+    aip = AIPplatform(options)
+    agent_map = aip.get_agent_identity_to_uuid_mapping()
+    agent_credential_map = {}
+    for agent in agent_map:
+        agent_credential = aip.get_agent_keystore(agent_map[agent]).public
+        agent_credential_map[agent_credential] = agent
+    return agent_credential_map
+
+
+def set_auth_identities(agent_credential_map):
+    """Updates auth entries' identity field in auth file based on existing agents"""
+
+    auth_file = AuthFile()
+    entries, deny_entries, groups, roles = auth_file.read()
+    for entry in entries:
+        for credential in agent_credential_map:
+            if entry.credentials == credential:
+                entry.identity = agent_credential_map[credential]
+    auth_file._write(entries, deny_entries, groups, roles)
+    return
+
+
+def main():
+    """Upgrade auth file to function with dynamic rpc authorizations"""
+
+    fail_if_instance_running()
+    identity_map = get_identity_credentials()
+    set_auth_identities(identity_map)
+    print("Auth File Update Complete!")
+
+
+def _main():
+    """ Wrapper for main function"""
+
+    try:
+        sys.exit(main())
+    except KeyboardInterrupt:
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    _main()
