@@ -694,9 +694,12 @@ class Auth(SubsystemBase):
             .get(timeout=4)
         )
         if updated_rpc_authorizations is None:
-            _log.error(
+            _log.warning(
                 f"Auth entry not found for {self._core().identity}: "
-                f"rpc_method_authorizations not updated."
+                f"rpc_method_authorizations not updated. If this agent "
+                f"does have an auth entry, verify that the 'identity' field "
+                f"has been included in the auth entry. This should be set to "
+                f"the identity of the agent"
             )
             return
         if rpc_method_authorizations != updated_rpc_authorizations:
