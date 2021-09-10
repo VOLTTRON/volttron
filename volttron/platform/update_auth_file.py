@@ -35,20 +35,77 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
+import os
 import sys
+from shutil import move
+from gevent import monkey as curious_george
+curious_george.patch_all(thread=False, select=False)
 
 from volttron.platform import get_home
 from volttron.platform.aip import AIPplatform
 from volttron.platform.auth import AuthFile
 from volttron.platform.instance_setup import fail_if_instance_running
+from volttron.platform.keystore import KeyStore
 
 
-def get_identity_credentials():
-    """Returns a dictionary containing a mapping from publickey to identity"""
+def get_aip():
+    """Get AIPplatform to interface with agent directories in vhome"""
 
     vhome = get_home()
     options = type("Options", (), dict(volttron_home=vhome))
     aip = AIPplatform(options)
+    return aip
+
+
+def get_agent_name(agent_uuid, agent_path):
+    """
+    Stand-alone method based off of agent_name method from AIPplatform.
+    Gets the name of an agent from it's file path location.
+    """
+
+    for agent_name in os.listdir(agent_path):
+        dist_info = os.path.join(
+            agent_path, agent_name, agent_name + '.dist-info')
+        if os.path.exists(dist_info):
+            return agent_name
+
+    raise KeyError(agent_uuid)
+
+
+def upgrade_old_agents(aip):
+    """
+    Moves any keystore.json from agent-data to dist-info.
+    Only applies to agents in auth file.
+    """
+
+    vhome = aip.env.volttron_home
+    agent_map = aip.get_agent_identity_to_uuid_mapping()
+
+    auth_file = AuthFile()
+    install_dir = os.path.join(vhome, 'agents')
+    for agent in agent_map:
+        agent_path = os.path.join(install_dir, agent_map[agent])
+
+        agent_name = get_agent_name(agent_map[agent], agent_path)
+        agent_data = os.path.join(agent_path, agent_name,
+                                 agent_name + '.agent-data')
+        keystore_path = os.path.join(agent_data, 'keystore.json')
+        dist_info = os.path.join(agent_path, agent_name,
+                                 agent_name + '.dist-info')
+        keystore_dest_path = os.path.join(dist_info, 'keystore.json')
+
+        if os.path.isfile(keystore_path):
+            agent_keystore = KeyStore(keystore_path)
+            for entry in auth_file.read()[0]:
+                if entry.credentials == agent_keystore.public:
+                    move(keystore_path, keystore_dest_path)
+    return
+
+
+
+def get_identity_credentials(aip):
+    """Returns a dictionary containing a mapping from publickey to identity"""
+
     agent_map = aip.get_agent_identity_to_uuid_mapping()
     agent_credential_map = {}
     for agent in agent_map:
@@ -74,7 +131,9 @@ def main():
     """Upgrade auth file to function with dynamic rpc authorizations"""
 
     fail_if_instance_running()
-    identity_map = get_identity_credentials()
+    aip = get_aip()
+    upgrade_old_agents(aip)
+    identity_map = get_identity_credentials(aip)
     set_auth_identities(identity_map)
     print("Auth File Update Complete!")
 
