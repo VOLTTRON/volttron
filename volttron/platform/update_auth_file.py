@@ -37,7 +37,8 @@
 # }}}
 import os
 import sys
-from shutil import move
+import shutil
+from pathlib import Path
 from gevent import monkey as curious_george
 curious_george.patch_all(thread=False, select=False)
 
@@ -57,19 +58,17 @@ def get_aip():
     return aip
 
 
-def get_agent_name(agent_uuid, agent_path):
+def get_agent_name(agent_dir_path):
     """
     Stand-alone method based off of agent_name method from AIPplatform.
     Gets the name of an agent from it's file path location.
     """
 
-    for agent_name in os.listdir(agent_path):
-        dist_info = os.path.join(
-            agent_path, agent_name, agent_name + '.dist-info')
-        if os.path.exists(dist_info):
-            return agent_name
+    for agent_name in agent_dir_path.iterdir():
+        if agent_name.match(".dist-info"):
+            return agent_name.stem
 
-    raise KeyError(agent_uuid)
+    raise KeyError(agent_dir_path.stem)
 
 
 def upgrade_old_agents(aip):
@@ -78,27 +77,28 @@ def upgrade_old_agents(aip):
     Only applies to agents in auth file.
     """
 
-    vhome = aip.env.volttron_home
+    vhome = Path(aip.env.volttron_home)
     agent_map = aip.get_agent_identity_to_uuid_mapping()
 
     auth_file = AuthFile()
-    install_dir = os.path.join(vhome, 'agents')
+    install_dir = vhome.joinpath("agents")
     for agent in agent_map:
-        agent_path = os.path.join(install_dir, agent_map[agent])
+        agent_path = install_dir.joinpath(agent_map[agent])
 
-        agent_name = get_agent_name(agent_map[agent], agent_path)
-        agent_data = os.path.join(agent_path, agent_name,
-                                 agent_name + '.agent-data')
-        keystore_path = os.path.join(agent_data, 'keystore.json')
-        dist_info = os.path.join(agent_path, agent_name,
-                                 agent_name + '.dist-info')
-        keystore_dest_path = os.path.join(dist_info, 'keystore.json')
+        agent_name = get_agent_name(agent_path)
+        agent_data = agent_path.joinpath(agent_name,
+                                         agent_name + '.agent-data')
+        keystore_path = agent_data.joinpath('keystore.json')
+        dist_info = agent_path.joinpath(agent_name,
+                                        agent_name + '.dist-info')
+        keystore_dest_path = dist_info.joinpath('keystore.json')
 
-        if os.path.isfile(keystore_path):
+        if keystore_path.exists():
             agent_keystore = KeyStore(keystore_path)
             for entry in auth_file.read()[0]:
                 if entry.credentials == agent_keystore.public:
-                    move(keystore_path, keystore_dest_path)
+                    shutil.move(str(keystore_path), str(keystore_dest_path))
+                    break
     return
 
 
