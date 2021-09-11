@@ -65,8 +65,9 @@ def get_agent_name(agent_dir_path):
     """
 
     for agent_name in agent_dir_path.iterdir():
-        if agent_name.match(".dist-info"):
-            return agent_name.stem
+        dist_info = agent_name.joinpath(agent_name.name + ".dist-info")
+        if dist_info.exists():
+            return agent_name.name
 
     raise KeyError(agent_dir_path.stem)
 
