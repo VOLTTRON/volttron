@@ -35,7 +35,7 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-import os
+
 import sys
 import shutil
 from pathlib import Path
@@ -58,16 +58,21 @@ def get_aip():
     return aip
 
 
-def get_agent_name(agent_dir_path):
+def get_agent_path(agent_dir_path, agent_dir_suffix):
     """
     Stand-alone method based off of agent_name method from AIPplatform.
-    Gets the name of an agent from it's file path location.
+    Gets the path to the agent file of the specified directory if it exists.
     """
-
     for agent_name in agent_dir_path.iterdir():
-        dist_info = agent_name.joinpath(agent_name.name + ".dist-info")
-        if dist_info.exists():
-            return agent_name.name
+        try:
+            for agent_subdir in agent_name.iterdir():
+                agent_dir = agent_name.joinpath(
+                    agent_subdir.stem + f".{agent_dir_suffix}")
+                if agent_dir.exists():
+                    return agent_dir
+        # Ignore files that are not directories
+        except NotADirectoryError:
+            pass
 
     raise KeyError(agent_dir_path.stem)
 
@@ -85,18 +90,26 @@ def upgrade_old_agents(aip):
     install_dir = vhome.joinpath("agents")
     for agent in agent_map:
         agent_path = install_dir.joinpath(agent_map[agent])
+        try:
+            agent_data = get_agent_path(agent_path, 'agent-data')
+        # Skip if no agent-data exists
+        except KeyError as err:
+            print(f"agent-data not found for {err}")
+            continue
 
-        agent_name = get_agent_name(agent_path)
-        agent_data = agent_path.joinpath(agent_name,
-                                         agent_name + '.agent-data')
         keystore_path = agent_data.joinpath('keystore.json')
-        dist_info = agent_path.joinpath(agent_name,
-                                        agent_name + '.dist-info')
+        try:
+            dist_info = get_agent_path(agent_path, 'dist-info')
+        # Skip if no dist-info exists
+        except KeyError as err:
+            print(f"dist-info not found for {err}")
+            continue
         keystore_dest_path = dist_info.joinpath('keystore.json')
 
         if keystore_path.exists():
             agent_keystore = KeyStore(keystore_path)
             for entry in auth_file.read()[0]:
+                # Only move if agent exists in auth file
                 if entry.credentials == agent_keystore.public:
                     shutil.move(str(keystore_path), str(keystore_dest_path))
                     break
