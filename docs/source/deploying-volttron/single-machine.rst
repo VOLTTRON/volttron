@@ -180,9 +180,9 @@ For a simple setup example, a Platform Driver, SQLite Historian, and Listener ar
 
 .. code-block:: bash
 
-   python scripts/install-agent.py -s services/core/SQLHistorian -c configs/config.sqlite --tag listener
+   python scripts/install-agent.py -s services/core/SQLHistorian -c configs/config.sqlite --tag platform_historian
    python scripts/install-agent.py -s services/core/PlatformDriverAgent -c configs/platform-driver.agent --tag platform_driver
-   python scripts/install-agent.py -s examples/ListenerAgent -c configs/listener.config --tag platform_historian
+   python scripts/install-agent.py -s examples/ListenerAgent -c configs/listener.config --tag listener
 
    .. note::
 
@@ -232,15 +232,15 @@ concrete drivers such as the BACnet or Modbus drivers, view their respective doc
 
 .. note::
 
-   This section will assume the user has created a `configs` directory in the volttron root directory, activated
-   the Python virtual environment, and started the platform as noted above.
+   This section will assume the user is currently in the volttron root directory and has created a `configs` directory,
+   activated the Python virtual environment, and started the platform as noted above.
 
 .. code-block:: console
 
-   cp examples/configurations/drivers/fake.config <VOLTTRON root>/configs
-   cp examples/configurations/drivers/fake.csv <VOLTTRON root>/configs
+   cp examples/configurations/drivers/fake.config configs
+   cp examples/configurations/drivers/fake.csv configs
    vctl config store platform.driver devices/campus/building/fake configs/fake.config
-   vctl config store platform.driver fake.csv devices/fake.csv
+   vctl config store platform.driver fake.csv configs/fake.csv --csv
 
 .. note::
 
