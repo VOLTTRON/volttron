@@ -70,6 +70,8 @@ if __name__ == '__main__':
                 'vctl = volttron.platform.control:_main',
                 'vpkg = volttron.platform.packaging:_main',
                 'vcfg = volttron.platform.config:_main',
+                # 'volttron-update = ...',
+                'volttron-update-auth = volttron.platform.update_auth_file:_main',
             ]
         },
         zip_safe = False,
