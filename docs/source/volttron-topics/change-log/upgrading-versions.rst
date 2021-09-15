@@ -8,6 +8,13 @@ It is often recommended that users upgrade to the latest stable release of VOLTT
 releases include helpful new features, bug fixes, and other improvements.  Please see the guides below for upgrading
 your existing deployment to the latest version.
 
+VOLTTRON 8
+==========
+
+VOLTTRON 8 introduces dynamic RPC authorization, which requires a modification to the auth file.
+If you have a pre-existing instance of VOLTTRON running on an older version, the auth file will need to be updated.
+This can be done by running the ```volttron-update-auth``` in an activated VOLTTRON environment. The platform can not
+be running when this update script is ran.
 
 VOLTTRON 7
 ==========

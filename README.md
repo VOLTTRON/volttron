@@ -296,6 +296,13 @@ There are several walkthroughs to explore additional aspects of the platform:
 -   [RabbitMQ setup with Federation and Shovel plugins](https://volttron.readthedocs.io/en/latest/deploying-volttron/multi-platform/multi-platform-rabbitmq-deployment.html)
 -   [Backward compatibility with the RabbitMQ message bus](https://volttron.readthedocs.io/en/latest/deploying-volttron/multi-platform/multi-platform-multi-bus.html)
 
+## Upgrade to VOLTTRON 8.x
+
+VOLTTRON 8 and above introduces dynamic RPC authorization, which requires a modification to the auth file.
+If you have a pre-existing instance of VOLTTRON running on an older version, the auth file will need to be updated. 
+This can be done by running the ```volttron-update-auth``` in an activated VOLTTRON environment. The platform can not 
+be running when this update script is ran. 
+
 ## Acquiring Third Party Agent Code
 
 Third party agents are available under the volttron-applications repository. In
