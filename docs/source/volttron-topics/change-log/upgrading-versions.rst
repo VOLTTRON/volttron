@@ -11,10 +11,16 @@ your existing deployment to the latest version.
 VOLTTRON 8
 ==========
 
-VOLTTRON 8 introduces dynamic RPC authorization, which requires a modification to the auth file.
+VOLTTRON 8 and above introduces dynamic RPC authorization, which requires a modification to the auth file.
 If you have a pre-existing instance of VOLTTRON running on an older version, the auth file will need to be updated.
-This can be done by running the ```volttron-update-auth``` in an activated VOLTTRON environment. The platform can not
-be running when this update script is ran.
+To begin the upgrade process, activate the volttron environment, and run ```python bootstrap.py --force```.
+
+.. note::
+
+    If you have any additional bootstrap options that you need (rabbitmq, web, drivers, etc.)
+    include these in the above command.
+
+After the bootstrap process is completed, run ```volttron-update-auth``` to update the auth file.
 
 VOLTTRON 7
 ==========
