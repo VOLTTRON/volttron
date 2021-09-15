@@ -8,6 +8,14 @@ platform provides services for collecting and storing data from buildings and
 devices and provides an environment for developing applications which interact
 with that data.
 
+## Upgrading to VOLTTRON 8.x
+
+VOLTTRON 8 and above introduces dynamic RPC authorization, which requires a modification to the auth file.
+If you have a pre-existing instance of VOLTTRON running on an older version, the auth file will need to be updated.
+To begin the upgrade process, activate the volttron environment, and run ```python bootstrap.py --force```. If you 
+have any additional bootstrap options that you need (rabbitmq, web, drivers, etc.) include these in the above command. 
+After the bootstrap process is completed, run ```volttron-update-auth``` to update the auth file.
+
 
 ## Features
 
@@ -295,6 +303,7 @@ There are several walkthroughs to explore additional aspects of the platform:
 -   Demonstration of the [management UI](https://volttron.readthedocs.io/en/latest/deploying-volttron/multi-platform/volttron-central-deployment.html)
 -   [RabbitMQ setup with Federation and Shovel plugins](https://volttron.readthedocs.io/en/latest/deploying-volttron/multi-platform/multi-platform-rabbitmq-deployment.html)
 -   [Backward compatibility with the RabbitMQ message bus](https://volttron.readthedocs.io/en/latest/deploying-volttron/multi-platform/multi-platform-multi-bus.html)
+
 
 ## Acquiring Third Party Agent Code
 
