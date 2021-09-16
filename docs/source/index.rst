@@ -161,9 +161,10 @@ at our bi-weekly office-hours and on Slack. To be invited to office-hours or sla
    :titlesonly:
    :maxdepth: 1
 
+   volttron-topics/VOLTTRON-releases/index
    volttron-topics/troubleshooting/index
    volttron-topics/volttron-applications/index
-   volttron-topics/change-log/index
+
 
 
 
