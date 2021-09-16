@@ -87,6 +87,7 @@ at our bi-weekly office-hours and on Slack. To be invited to office-hours or sla
    deploying-volttron/secure-deployment-considerations
    deploying-volttron/linux-system-hardening
    deploying-volttron/recipe-deployment
+   deploying-volttron/scalability/scalability
 
 
 .. toctree::
@@ -137,6 +138,7 @@ at our bi-weekly office-hours and on Slack. To be invited to office-hours or sla
    platform-features/config-store/configuration-store
    platform-features/security/volttron-security
 
+
 .. toctree::
    :caption: VOLTTRON Core Service Agents
    :hidden:
@@ -145,6 +147,7 @@ at our bi-weekly office-hours and on Slack. To be invited to office-hours or sla
    :glob:
 
    volttron-api/services/*/modules
+
 
 .. toctree::
    :caption: VOLTTRON Core Operations Agents
@@ -155,6 +158,7 @@ at our bi-weekly office-hours and on Slack. To be invited to office-hours or sla
 
    volttron-api/ops/*/modules
 
+
 .. toctree::
    :caption: VOLTTRON Topics
    :hidden:
@@ -164,8 +168,6 @@ at our bi-weekly office-hours and on Slack. To be invited to office-hours or sla
    volttron-topics/VOLTTRON-releases/index
    volttron-topics/troubleshooting/index
    volttron-topics/volttron-applications/index
-
-
 
 
 Indices and tables
