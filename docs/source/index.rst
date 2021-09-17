@@ -87,7 +87,6 @@ at our bi-weekly office-hours and on Slack. To be invited to office-hours or sla
    deploying-volttron/secure-deployment-considerations
    deploying-volttron/linux-system-hardening
    deploying-volttron/recipe-deployment
-   deploying-volttron/scalability/scalability
 
 
 .. toctree::
@@ -165,7 +164,7 @@ at our bi-weekly office-hours and on Slack. To be invited to office-hours or sla
    :titlesonly:
    :maxdepth: 1
 
-   volttron-topics/VOLTTRON-releases/index
+   Releases <volttron-topics/VOLTTRON-releases/index>
    volttron-topics/troubleshooting/index
    volttron-topics/volttron-applications/index
 
