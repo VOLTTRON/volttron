@@ -1,2 +1,2 @@
-pymongo
-bson
+pymongo==3.7.2
+bson==0.5.7

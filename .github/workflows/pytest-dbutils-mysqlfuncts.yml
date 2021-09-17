@@ -5,7 +5,7 @@
 # and retrieval of cache for quicker setup of test environments.
 
 
-name: Testing influxdbutils
+name: Testing mysqlfuncts
 on:
   push:
     branches:
@@ -20,7 +20,7 @@ on:
 jobs:
   build:
     env:
-      TEST_FILE: volttrontesting/platform/dbutils/test_influxdbutils.py
+      TEST_FILE: volttrontesting/platform/dbutils/test_mysqlfuncts.py
 
     # The strategy allows customization of the build and allows matrixing the version of os and software
     # https://docs.github.com/en/free-pro-team@l.atest/actions/reference/workflow-syntax-for-github-actions#jobsjob_idstrategy
