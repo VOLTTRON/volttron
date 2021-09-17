@@ -1,3 +1,7 @@
+===================
+Historian Endpoints
+===================
+
 .. container::
    :name: platforms-historians
 
