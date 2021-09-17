@@ -372,7 +372,9 @@ class VUIEndpoints(object):
         query_params = url_decode(env['QUERY_STRING'])
 
         tag = query_params.get('tag')
+        tag = tag if tag and tag.lower() != 'null' and tag.lower() != 'none' else None
         regex = query_params.get('regex')
+        regex = regex if regex and regex.lower() != 'null' and regex.lower() != 'none' else None
 
         no_topic = re.match('^/vui/platforms/([^/]+)/devices/?$', path_info)
         if no_topic:
@@ -613,7 +615,9 @@ class VUIEndpoints(object):
 
         # Query parameters used directly in this method.
         tag = query_params.get('tag')
+        tag = tag if tag and tag.lower() != 'null' and tag.lower() != 'none' else None
         regex = query_params.get('regex')
+        regex = regex if regex and regex.lower() != 'null' and regex.lower() != 'none' else None
 
         # Query parameters passed directly to RPC.
         start = query_params.get('start')
