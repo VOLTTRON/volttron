@@ -40,7 +40,12 @@
 # setup.py the import may fail if setuptools in not installed
 # in the global python3.
 
-option_requirements = [('pyzmq', ['--zmq=bundled'])]
+# We must install wheel first to eliminate a bunch of scary looking
+# errors at first install.
+# TODO Look towards fixing the packaging so that it works with 0.31
+# option_requirements contains wheel as first entry and
+# bootstrap.py installs contents of option_requirements first
+option_requirements = [('wheel==0.30', []), ('pyzmq==22.2.1', ['--zmq=bundled'])]
 
 
 install_requires = [
@@ -54,7 +59,6 @@ install_requires = [
     'python-dateutil',
     'pytz',
     'PyYAML',
-    'pyzmq',
     'setuptools>=40.0.0',
     # tzlocal 3.0 breaks without the backports.tzinfo package on python < 3.9 https://pypi.org/project/tzlocal/3.0/
     'tzlocal==2.1',
