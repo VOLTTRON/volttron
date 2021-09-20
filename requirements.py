@@ -66,8 +66,7 @@ install_requires = [
     'cryptography==2.3',
     # Cross platform way of handling changes in file/directories.
     # https://github.com/Bogdanp/watchdog_gevent
-    'watchdog-gevent',
-    'wheel==0.30'
+    'watchdog-gevent'
 ]
 
 extras_require = {
