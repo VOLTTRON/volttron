@@ -130,11 +130,6 @@ def update(operation, verbose=None, upgrade=False, offline=False, optional_requi
     path = os.path.dirname(__file__) or '.'
     _log.info('%sing required packages', 'Build' if wheeling else 'Install')
 
-    # We must install wheel first to eliminate a bunch of scary looking
-    # errors at first install.
-    # TODO Look towards fixing the packaging so that it works with 0.31
-    pip('install', ['wheel==0.30'], verbose, True, offline=offline)
-
     # Build option_requirements separately to pass install options
     build_option = '--build-option' if wheeling else '--install-option'
     for requirement, options in option_requirements:
