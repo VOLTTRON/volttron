@@ -1,13 +1,16 @@
 import os
 from shutil import rmtree
 import subprocess
+from pathlib import Path
 
 import pytest
 from gevent import sleep
 from datetime import timedelta
 from services.core.SQLHistorian.sqlhistorian import historian
 
-CACHE_NAME = "backup.sqlite"
+agent_data_dir = os.path.join(os.getcwd(), os.path.basename(os.getcwd()) + ".agent-data")
+os.makedirs(agent_data_dir, exist_ok=True)
+CACHE_NAME = str(Path(agent_data_dir).joinpath("backup.sqlite"))
 HISTORIAN_DB = "./data/historian.sqlite"
 
 
@@ -76,6 +79,8 @@ def sql_historian():
         rmtree("./data")
     if os.path.exists(CACHE_NAME):
         os.remove(CACHE_NAME)
+    if os.path.exists(agent_data_dir):
+        os.rmdir(agent_data_dir)
 
 
 def query_db(query, db):
