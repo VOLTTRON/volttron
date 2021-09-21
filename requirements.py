@@ -91,7 +91,7 @@ install_requires = [   'gevent==20.6.0',
     'watchdog-gevent==0.1.1',
     'wheel==0.30']
 
-option_requirements = [('wheel==0.30'), ('pyzmq==19.0.1', ['--zmq=bundled'])]
+option_requirements = [('wheel==0.30', []), ('pyzmq==19.0.1', ['--zmq=bundled'])]
 
 
 
