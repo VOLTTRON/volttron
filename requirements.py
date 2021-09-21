@@ -83,12 +83,10 @@ install_requires = ['gevent==20.6.1',
                     'python-dateutil==2.8.2',
                     'pytz==2021.1',
                     'PyYAML==5.4.1',
-                    'pyzmq==22.2.1',
                     'setuptools>=40.0.0',
                     'tzlocal==2.1',
                     'pyOpenSSL==19.0.0',
                     'cryptography==2.3',
-                    'watchdog-gevent==0.1.1',
-                    'wheel==0.30']
+                    'watchdog-gevent==0.1.1']
 
-option_requirements = [('pyzmq==22.2.1', ['--zmq=bundled'])]
+option_requirements = [('wheel==0.30', []), ('pyzmq==22.2.1', ['--zmq=bundled'])]
