@@ -343,7 +343,7 @@ class AIPplatform(object):
         # except agent-data dir. agent-data dir has rwx
         self.set_acl_for_path("rx", volttron_agent_user, agent_dir)
         # creates dir if it doesn't exist
-        data_dir = self._get_agent_data_dir(agent_path_with_name)
+        data_dir = self.get_agent_data_dir(agent_path_with_name)
 
         for (root, directories, files) in os.walk(agent_dir, topdown=True):
             for directory in directories:
@@ -609,7 +609,7 @@ class AIPplatform(object):
         publickey = self.get_agent_keystore(agent_uuid).public
         AuthFile().remove_by_credentials(publickey)
 
-    def _get_agent_data_dir(self, agent_path):
+    def get_agent_data_dir(self, agent_path):
         pkg = UnpackedPackage(agent_path)
         data_dir = os.path.join(os.path.dirname(pkg.distinfo),
                                 '{}.agent-data'.format(pkg.package_name))
@@ -618,7 +618,7 @@ class AIPplatform(object):
         return data_dir
 
     def create_agent_data_dir_if_missing(self, agent_uuid):
-        new_agent_data_dir = self._get_agent_data_dir(self.agent_dir(agent_uuid))
+        new_agent_data_dir = self.get_agent_data_dir(self.agent_dir(agent_uuid))
         return new_agent_data_dir
 
     def _get_data_dir(self, agent_path, agent_name):
@@ -953,7 +953,7 @@ class AIPplatform(object):
         resmon = getattr(self.env, 'resmon', None)
         agent_user = None
 
-        data_dir = self._get_agent_data_dir(agent_path_with_name)
+        data_dir = self.get_agent_data_dir(agent_path_with_name)
 
         if self.secure_agent_user:
             _log.info("Starting agent securely...")
