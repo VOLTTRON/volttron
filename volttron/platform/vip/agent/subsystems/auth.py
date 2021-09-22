@@ -61,7 +61,7 @@ from volttron.platform.agent.utils import (
     get_messagebus,
 )
 from volttron.platform.certs import Certs
-from volttron.platform.jsonrpc import RemoteError
+from volttron.platform.jsonrpc import RemoteError, MethodNotFound
 from volttron.utils.rmq_config_params import RMQConfig
 from volttron.platform.keystore import KeyStore
 from volttron.platform.vip.agent.subsystems.health import BAD_STATUS, Status
@@ -683,20 +683,30 @@ class Auth(SubsystemBase):
                 rpc_method_authorizations[method] = self.get_rpc_authorizations(
                     method
                 )
-        updated_rpc_authorizations = (
-            self._rpc()
-            .call(
-                AUTH,
-                "update_id_rpc_authorizations",
-                self._core().identity,
-                rpc_method_authorizations,
+        try:
+            updated_rpc_authorizations = (
+                self._rpc()
+                .call(
+                    AUTH,
+                    "update_id_rpc_authorizations",
+                    self._core().identity,
+                    rpc_method_authorizations,
+                )
+                .get(timeout=4)
             )
-            .get(timeout=4)
-        )
+        except MethodNotFound:
+            _log.warning("update_id_rpc_authorization method is missing from "
+                         "AuthService! The VOLTTRON Instance you are "
+                         "attempting to connect to is to old to support "
+                         "dynamic RPC authorizations.")
+            return
         if updated_rpc_authorizations is None:
-            _log.error(
+            _log.warning(
                 f"Auth entry not found for {self._core().identity}: "
-                f"rpc_method_authorizations not updated."
+                f"rpc_method_authorizations not updated. If this agent "
+                f"does have an auth entry, verify that the 'identity' field "
+                f"has been included in the auth entry. This should be set to "
+                f"the identity of the agent"
             )
             return
         if rpc_method_authorizations != updated_rpc_authorizations:

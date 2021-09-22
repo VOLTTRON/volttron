@@ -312,6 +312,7 @@ STATUS_KEY_PUBLISHING = "publishing"
 STATUS_KEY_CACHE_FULL = "cache_full"
 STATUS_KEY_TIME_ERROR = "records_with_invalid_timestamp"
 STATUS_KEY_CACHE_ONLY = "cache_only_enabled"
+STATUS_KEY_ERROR_MANAGE_DB_SIZE = "error_managing_db_size"
 
 
 class BaseHistorianAgent(Agent):
@@ -412,7 +413,9 @@ class BaseHistorianAgent(Agent):
             STATUS_KEY_BACKLOGGED: False,
             STATUS_KEY_PUBLISHING: True,
             STATUS_KEY_CACHE_FULL: False,
-            STATUS_KEY_CACHE_ONLY: False
+            STATUS_KEY_CACHE_ONLY: False,
+            STATUS_KEY_TIME_ERROR: False,
+            STATUS_KEY_ERROR_MANAGE_DB_SIZE: False
         }
         self._all_platforms = bool(all_platforms)
         self._time_tolerance = float(time_tolerance) if time_tolerance else None
@@ -1062,7 +1065,8 @@ class BaseHistorianAgent(Agent):
         if (context.get(STATUS_KEY_BACKLOGGED) or
                 context.get(STATUS_KEY_CACHE_FULL) or
                 not context.get(STATUS_KEY_PUBLISHING) or
-                context.get(STATUS_KEY_TIME_ERROR)):
+                context.get(STATUS_KEY_TIME_ERROR) or
+                context.get(STATUS_KEY_ERROR_MANAGE_DB_SIZE)):
             status = STATUS_BAD
         return status
 
@@ -1215,10 +1219,17 @@ class BaseHistorianAgent(Agent):
                     try:
                         if not cache_only_enabled:
                             self.publish_to_historian(to_publish_list)
-                        self.manage_db_size(history_limit_timestamp, self._storage_limit_gb)
-                    except:
+                    except Exception as e:
                         _log.exception(
-                            "An unhandled exception occurred while publishing.")
+                            f"An unhandled exception occurred while publishing: {e}")
+
+                    try:
+                        self.manage_db_size(history_limit_timestamp, self._storage_limit_gb)
+                        self._update_status({STATUS_KEY_ERROR_MANAGE_DB_SIZE: False})
+                    except Exception as e:
+                        _log.exception(
+                            f"An unhandled exception occurred while attempting to managing db size: {e}")
+                        self._send_alert({STATUS_KEY_ERROR_MANAGE_DB_SIZE: True}, "error_managing_db_size")
 
                     # if the success queue is empty then we need not remove
                     # them from the database and we are probably having connection problems.
@@ -1734,13 +1745,13 @@ class BackupDatabase:
     def _setupdb(self, check_same_thread):
         """ Creates a backup database for the historian if doesn't exist."""
 
-        _log.debug("Setting up backup DB.")
-        if utils.is_secure_mode():
-            # we want to create it in the agent-data directory since agent will not have write access to any other
-            # directory in secure mode
-            backup_db = os.path.join(os.getcwd(), os.path.basename(os.getcwd()) + ".agent-data", 'backup.sqlite')
-        else:
-            backup_db = 'backup.sqlite'
+        _log.debug(f"Setting up backup DB. {os.getcwd()}")
+        # we want to create it in the agent-data directory since agent will not have write access to any other
+        # directory in secure mode
+        # TODO - revisit logic to get agent-data directory. Refer to aip.get_agent_data()
+        # Also take into account dynamic agents - especially for testing
+        backup_db = os.path.join(os.getcwd(), os.path.basename(os.getcwd()) + ".agent-data", 'backup.sqlite')
+
         _log.info(f"Creating  backup db at {backup_db}")
         self._connection = sqlite3.connect(
             backup_db,

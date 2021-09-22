@@ -253,7 +253,7 @@ def test_groups_and_roles(auth_file_platform_tuple):
 
 
 @pytest.mark.auth
-def test_upgrade_file_verison_0_to_1_2(tmpdir_factory):
+def test_upgrade_file_verison_0_to_latest(tmpdir_factory):
     mechanism = "CURVE"
     publickey = "A" * 43
     version0 = {
@@ -275,7 +275,11 @@ def test_upgrade_file_verison_0_to_1_2(tmpdir_factory):
         },
         "groups": {
             "admin": ["reader", "writer"]
-        }
+        },
+        "version": {
+            "major": 0,
+            "minor": 0
+        },
     }
 
     filename = str(tmpdir_factory.mktemp('auth_test').join('auth.json'))
@@ -293,16 +297,23 @@ def test_upgrade_file_verison_0_to_1_2(tmpdir_factory):
     expected["mechanism"] = mechanism
     expected["capabilities"] = {'can_publish_temperature': None,
                                 'edit_config_store': {'identity': entries[0].user_id}}
+    expected["rpc_method_authorizations"] = {}
     assert_auth_entries_same(expected, vars(entries[0]))
-
+    # RPC Method Authorizations added with 1.3
+    for entry in upgraded.auth_data["allow_list"]:
+        assert entry["rpc_method_authorizations"] == {}
 
 @pytest.mark.auth
-def test_upgrade_file_verison_0_to_1_2_minimum_entries(tmpdir_factory):
+def test_upgrade_file_verison_0_to_latest_minimum_entries(tmpdir_factory):
     """The only required field in 'version 0' was credentials"""
     mechanism = "CURVE"
     publickey = "A" * 43
     version0 = {
         "allow": [{"credentials": mechanism + ":" + publickey}],
+        "version": {
+            "major": 0,
+            "minor": 0
+        },
     }
 
     filename = str(tmpdir_factory.mktemp('auth_test').join('auth.json'))
@@ -323,10 +334,14 @@ def test_upgrade_file_verison_0_to_1_2_minimum_entries(tmpdir_factory):
     expected["enabled"] = True
     expected["comments"] = None
     expected["capabilities"] = {'edit_config_store': {'identity': entries[0].user_id}}
+    expected["rpc_method_authorizations"] = {}
     expected["roles"] = []
     expected["groups"] = []
     assert_auth_entries_same(expected, vars(entries[0]))
 
+    # RPC Method Authorizations added with 1.3
+    for entry in upgraded.auth_data["allow_list"]:
+        assert entry["rpc_method_authorizations"] == {}
 
 @pytest.mark.auth
 def test_upgrade_file_version_1_1_to_1_2(tmpdir_factory):
@@ -422,7 +437,7 @@ def test_upgrade_file_version_1_1_to_1_2(tmpdir_factory):
 def test_upgrade_file_version_1_2_to_1_3(tmpdir_factory):
     """The only required field in 'version 0' was credentials"""
 
-    version1_1 = {
+    version1_2 = {
       "roles":{
         "manager":[
           "can_managed_platform"
@@ -495,7 +510,7 @@ def test_upgrade_file_version_1_2_to_1_3(tmpdir_factory):
 
     filename = str(tmpdir_factory.mktemp('auth_test').join('auth.json'))
     with open(filename, 'w') as fp:
-        fp.write(jsonapi.dumps(version1_1, indent=2))
+        fp.write(jsonapi.dumps(version1_2, indent=2))
 
     upgraded = AuthFile(filename)
     entries = upgraded.read()[0]

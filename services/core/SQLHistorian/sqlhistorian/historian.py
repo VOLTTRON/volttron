@@ -138,8 +138,6 @@ class SQLHistorian(BaseHistorian):
         self.topic_name_map = {}
         self.topic_meta = {}
         self.agg_topic_id_map = {}
-        database_type = self.connection['type']
-        self.db_functs_class = sqlutils.get_dbfuncts_class(database_type)
         # Create two instance so connection is shared within a single thread.
         # This is because sqlite only supports sharing of connection within
         # a single thread.
@@ -147,7 +145,7 @@ class SQLHistorian(BaseHistorian):
         # everything else happens in the MainThread
 
         # One utils class instance( hence one db connection) for main thread
-        self.main_thread_dbutils = self.db_functs_class(self.connection['params'], self.table_names)
+        self.main_thread_dbutils = self.get_dbfuncts_object()
         # One utils class instance( hence one db connection) for background thread
         # this gets initialized in the bg_thread within historian_setup
         self.bg_thread_dbutils = None
@@ -342,7 +340,7 @@ class SQLHistorian(BaseHistorian):
     def historian_setup(self):
         thread_name = threading.currentThread().getName()
         _log.info("historian_setup on Thread: {}".format(thread_name))
-        self.bg_thread_dbutils = self.db_functs_class(self.connection['params'], self.table_names)
+        self.bg_thread_dbutils = self.get_dbfuncts_object()
 
         if not self._readonly:
             self.bg_thread_dbutils.setup_historian_tables()
@@ -355,6 +353,10 @@ class SQLHistorian(BaseHistorian):
         self.topic_meta.update(topic_meta_map)
         _log.debug(f"###DEBUG Loaded topics and metadata on start. Len of  topics {len(self.topic_id_map)} "
                    f"Len of metadata: {len(self.topic_meta)}")
+
+    def get_dbfuncts_object(self):
+        db_functs_class = sqlutils.get_dbfuncts_class(self.connection['type'])
+        return db_functs_class(self.connection['params'], self.table_names)
 
 
 def main(argv=sys.argv):
