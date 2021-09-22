@@ -1,6 +1,6 @@
 import os
 import pytest
-
+from pathlib import Path
 from gevent import subprocess
 from datetime import datetime
 from pytz import UTC
@@ -9,6 +9,8 @@ from volttron.platform.agent.base_historian import BackupDatabase, BaseHistorian
 
 SIZE_LIMIT = 1000  # the default submit_size_limit for BaseHistorianAgents
 
+agent_data_dir = os.path.join(os.getcwd(), os.path.basename(os.getcwd()) + ".agent-data")
+cache_db = str(Path(agent_data_dir).joinpath("backup.sqlite"))
 
 def test_get_outstanding_to_publish_should_return_records(
     backup_database, new_publish_list_unique
@@ -245,13 +247,16 @@ def new_publish_list_dupes():
 
 @pytest.fixture()
 def backup_database():
+    os.makedirs(agent_data_dir, exist_ok=True)
     yield BackupDatabase(BaseHistorian(), None, 0.9)
 
     # Teardown
     # the backup database is an sqlite database with the name "backup.sqlite".
     # the db is created if it doesn't exist; see the method: BackupDatabase._setupdb(check_same_thread) for details
-    if os.path.exists("./backup.sqlite"):
-        os.remove("./backup.sqlite")
+    if os.path.exists(cache_db):
+        os.remove(cache_db)
+    if os.path.exists(agent_data_dir):
+        os.rmdir(agent_data_dir)
 
 
 def get_all_data(table):
@@ -262,7 +267,7 @@ def get_all_data(table):
 
 def query_db(query):
     output = subprocess.run(
-        ["sqlite3", "backup.sqlite", query], text=True, capture_output=True
+        ["sqlite3", cache_db, query], text=True, capture_output=True
     )
     # check_returncode() will raise a CalledProcessError if the query fails
     # see https://docs.python.org/3/library/subprocess.html#subprocess.CompletedProcess.returncode
