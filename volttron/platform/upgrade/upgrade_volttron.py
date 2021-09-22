@@ -47,7 +47,7 @@ from . import move_sqlite_files
 def main():
     # Upgrade auth file to function with dynamic rpc authorizations
     update_auth_file.main()
-
+    print("")
     # Moves backup cache of historian (backup.sqlite files) into corresponding agent-data directory so that
     # historian agents other than sqlitehistorian, can be upgraded to latest version using
     # vctl install --force without losing cache data. vctl install --force will backup and restore

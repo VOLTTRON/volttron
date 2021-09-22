@@ -99,6 +99,7 @@ def main():
     fail_if_instance_running()
     aip = get_aip()
     move_historian_cache_files(aip)
+    print("")
     print("Moving historian backup files complete. "
           "You can now safely upgrade historian agents other than SQLITE Historian with vctl install --force. "
           "If using using SQLite historian please back up and restore sqlite historian's db manually")
