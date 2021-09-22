@@ -8,6 +8,11 @@ InfluxDB is an open source time series database with a fast, scalable engine and
 build DevOps Monitoring (Infrastructure Monitoring, Application Monitoring, Cloud Monitoring), IoT Monitoring, and
 real-time analytics solutions.
 
+.. note::
+   The Influxdb Historian is located within the **contributed** directory. ::
+
+      services/contrib/InfluxdbHistorian/
+
 More information about InfluxDB is available from `<https://www.influxdata.com/>`_.
 
 
