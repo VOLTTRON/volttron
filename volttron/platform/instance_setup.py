@@ -268,9 +268,10 @@ def installs(agent_dir, tag, identity=None, post_install_func=None):
             _shutdown_platform()
 
             if identity is not None:
-                # If identity was specified then we don't want the global 
-                # AGENT_VIP_IDENTITY to be set.
-                os.environ.pop('AGENT_VIP_IDENTITY', None)
+                try:
+                    os.environ.pop('AGENT_VIP_IDENTITY')
+                except KeyError:
+                    pass
 
         available_agents[tag] = func
         return func
