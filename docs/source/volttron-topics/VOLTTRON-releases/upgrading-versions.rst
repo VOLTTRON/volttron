@@ -25,21 +25,24 @@ VOLTTRON 8 introduces three changes that require an explict upgrade step when up
        database with older schema however the historian agent code should be upgraded to newer version (>=4.0.0) to run
        with VOLTTRON 8 core.
 
-To begin the upgrade process, activate the volttron environment, and run ```python bootstrap.py --force```.
 
-.. note::
+To upgrade:
 
-    If you have any additional bootstrap options that you need (rabbitmq, web, drivers, etc.)
-    include these in the above command.
-
-After the bootstrap process is completed, run ```volttron-upgrade``` to update the auth file and move historian
-cache files into agent-data directory. Note that the upgrade script will only move the backup.sqlite file and will not
-move sqlite historian's db file if they are within the install directory. If using a SQLite historian, please backup
-the database file of sqlite historian before upgrading to the latest historian version.
-
-Once the volttron-upgrade script is complete, you can do a vctl install --force command to upgrade to the latest
-historian version. vctl install --force will backup the cache in <agent-version>.agent-data folder, install the latest
-version of the historian and restore the contents of <agent-version>.agent-data folder.
+    1. If upgrading historian, make sure historians are not in auto start mode. To remove any historian from auto start
+       mode use the command 'vctl disable <uuid of historian that is currently enabled>. This is necessary so that old
+       sqlhistorian does not automatically start after step 5.
+    2. Update volttron source code version to VOLTTRON 8
+    3. activate the volttron environment, and run ```python bootstrap.py --force```. If you have
+       any additional bootstrap options that you need (rabbitmq, web, drivers, etc.) include these in the above command.
+    4. Run ```volttron-upgrade``` to update the auth file and move historian cache files into agent-data directory.
+       Note that the upgrade script will only move the backup.sqlite file and will not move sqlite historian's db file
+       if they are within the install directory. If using a SQLite historian, please backup the database file of
+       sqlite historian before upgrading to the latest historian version.
+    5. Start VOLTTRON
+    6. Run ```vctl install --force --vip-identity <vip id of existing historian> --agent-config <config>``` to upgrade
+       to the  latest historian version. vctl install --force will backup the cache in <agent-version>.agent-data
+       folder, installs the latest version of the historian and restore the contents of
+       <agent-version>.agent-data folder.
 
 Upgrading aggregate historians
 ------------------------------
