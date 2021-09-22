@@ -9,6 +9,14 @@ on behalf of the user.  Agents may perform a huge variety of tasks, but common u
 control of ICS and IOT devices, and various platform management tasks.  Agents implemented using the VOLTTRON agent
 framework inherit a number of capabilities, including message bus connectivity and agent lifecycle.
 
+.. attention::
+   Agents are split into the directories of **core**, **contributed**, **operations** and **unsupported**. ::
+
+      services/contrib/
+      services/core/
+      services/ops/
+      services/unsupported/
+
 Agents deployed on VOLTTRON can perform one or more roles which can be broadly classified into the following groups:
 
 -  Platform Agents: Agents which are part of the platform and provide a service to other agents. Examples are the

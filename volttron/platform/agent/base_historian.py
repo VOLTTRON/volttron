@@ -1745,13 +1745,13 @@ class BackupDatabase:
     def _setupdb(self, check_same_thread):
         """ Creates a backup database for the historian if doesn't exist."""
 
-        _log.debug("Setting up backup DB.")
-        if utils.is_secure_mode():
-            # we want to create it in the agent-data directory since agent will not have write access to any other
-            # directory in secure mode
-            backup_db = os.path.join(os.getcwd(), os.path.basename(os.getcwd()) + ".agent-data", 'backup.sqlite')
-        else:
-            backup_db = 'backup.sqlite'
+        _log.debug(f"Setting up backup DB. {os.getcwd()}")
+        # we want to create it in the agent-data directory since agent will not have write access to any other
+        # directory in secure mode
+        # TODO - revisit logic to get agent-data directory. Refer to aip.get_agent_data()
+        # Also take into account dynamic agents - especially for testing
+        backup_db = os.path.join(os.getcwd(), os.path.basename(os.getcwd()) + ".agent-data", 'backup.sqlite')
+
         _log.info(f"Creating  backup db at {backup_db}")
         self._connection = sqlite3.connect(
             backup_db,

@@ -176,6 +176,10 @@ class Interface(BaseInterface):
                     self.max_per_request = max(int(self.register_count/self.register_count_divisor), 1)
                     _log.info("Device requires a lower max_per_request setting. Trying: "+str(self.max_per_request))
                     continue
+                elif e.message.endswith("rejected the request: 9") and self.use_read_multiple:
+                    _log.info("Device rejected request with 'unrecognized-service' error, attempting to access with use_read_multiple false")
+                    self.use_read_multiple = False
+                    continue
                 else:
                     raise
             except errors.Unreachable:
