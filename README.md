@@ -27,7 +27,7 @@ VOLTTRON 8 introduces three changes that require an explict upgrade step when up
 To upgrade:
 
     1. If upgrading historian, make sure historians are not in auto start mode. To remove any historian from auto start
-       mode use the command 'vctl disable <uuid of historian that is currently enabled>. This is necessary so that old
+       mode use the command 'vctl disable <uuid of historian that is currently enabled>. This is necessary so that the old
        sqlhistorian does not automatically start after step 5. 
     2. Update volttron source code version to VOLTTRON 8
     3. activate the volttron environment, and run ```python bootstrap.py --force```. If you have 
