@@ -60,6 +60,13 @@ from volttron.platform.agent.known_identities import CONFIGURATION_STORE
 
 
 class Historian(BaseHistorian):
+
+    def __init__(self, **kwargs):
+        self.agent_data_dir = os.path.join(os.getcwd(), os.path.basename(os.getcwd()) + ".agent-data")
+        os.makedirs(self.agent_data_dir, exist_ok=True)
+        self.backup_sqlite = Path(self.agent_data_dir).joinpath("backup.sqlite")
+        super(Historian, self).__init__(**kwargs)
+
     def publish_to_historian(self, _):
         pass
 
@@ -71,9 +78,9 @@ class Historian(BaseHistorian):
 
     def remove_backup_cache_db(self):
         try:
-            abspath = Path('backup.sqlite').absolute()
-            if abspath.exists():
-                os.remove(str(abspath))
+            print(f"Removing backup cache  {self.backup_sqlite}")
+            os.remove(str(self.backup_sqlite))
+            os.remove(str(self.agent_data_dir))
         except:
             print("Don't throw here if os.remove fails...")
 
@@ -89,6 +96,9 @@ def listener(peer, sender, bus, topic, headers, message):
 
 class BasicHistorian(BaseHistorian):
     def __init__(self, **kwargs):
+        self.agent_data_dir = os.path.join(os.getcwd(), os.path.basename(os.getcwd()) + ".agent-data")
+        os.makedirs(self.agent_data_dir, exist_ok=True)
+        self.backup_sqlite = Path(self.agent_data_dir).joinpath("backup.sqlite")
         super(BasicHistorian, self).__init__(**kwargs)
         self.publish_fail = False
         self.publish_sleep = 0
@@ -108,9 +118,9 @@ class BasicHistorian(BaseHistorian):
 
     def remove_backup_cache_db(self):
         try:
-            abspath = Path('backup.sqlite').absolute()
-            if abspath.exists():
-                os.remove(str(abspath))
+            print(f"Removing backup cache  {self.backup_sqlite}")
+            os.remove(str(self.backup_sqlite))
+            os.remove(str(self.agent_data_dir))
         except:
             print("Don't throw here if os.remove fails...")
 
@@ -271,7 +281,6 @@ def test_time_tolerance_check(request, volttron_instance, client_agent):
                                                       enable_store=True)
         assert "could not convert string to float: 'invalid'" in str(e.value)
         print(e)
-
         historian = volttron_instance.build_agent(agent_class=BasicHistorian,
                                                   identity=identity,
                                                   submit_size_limit=5,
@@ -283,7 +292,7 @@ def test_time_tolerance_check(request, volttron_instance, client_agent):
         DEVICES_ALL_TOPIC = "devices/Building/LAB/Device/all"
         gevent.sleep(5)  # wait for historian to be fully up
         historian.publish_sleep = 0
-        db_file = Path('backup.sqlite').absolute()
+        db_file = historian.backup_sqlite
         assert db_file.exists()
         db_connection = sqlite3.connect(str(db_file))
         c = db_connection.cursor()
@@ -524,6 +533,9 @@ def test_health_stuff(request, volttron_instance, client_agent):
 
 class FailureHistorian(BaseHistorian):
     def __init__(self, **kwargs):
+        self.agent_data_dir = os.path.join(os.getcwd(), os.path.basename(os.getcwd()) + ".agent-data")
+        os.makedirs(self.agent_data_dir, exist_ok=True)
+        self.backup_sqlite = Path(self.agent_data_dir).joinpath("backup.sqlite")
         super(FailureHistorian, self).__init__(**kwargs)
         self.publish_fail = False
         self.setup_fail = False
@@ -557,9 +569,9 @@ class FailureHistorian(BaseHistorian):
 
     def remove_backup_cache_db(self):
         try:
-            abspath = Path('backup.sqlite').absolute()
-            if abspath.exists():
-                os.remove(str(abspath))
+            print(f"Removing backup cache  {self.backup_sqlite}")
+            os.remove(str(self.backup_sqlite))
+            os.remove(str(self.agent_data_dir))
         except:
             print("Don't throw here if os.remove fails...")
 

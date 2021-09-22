@@ -209,7 +209,7 @@ def _cleanup_on_exit():
     _shutdown_platform()
 
 
-def _install_agent(agent_dir, config, tag):
+def _install_agent(agent_dir, config, tag, identity):
     if not isinstance(config, dict):
         config_file = config
     else:
@@ -217,7 +217,11 @@ def _install_agent(agent_dir, config, tag):
         with open(cfg.name, 'w') as fout:
             fout.write(jsonapi.dumps(config))
         config_file = cfg.name
-    _cmd(['volttron-ctl', 'install', "--agent-config", config_file, "--tag", tag, "--force", agent_dir])
+    cmd_array = ['volttron-ctl', 'install', "--agent-config", config_file, "--tag", tag, "--force"]
+    if identity:
+        cmd_array.extend(["--vip-identity", identity])
+    cmd_array.append(agent_dir)
+    _cmd(cmd_array)
 
 
 def _is_agent_installed(tag):
@@ -238,9 +242,6 @@ def installs(agent_dir, tag, identity=None, post_install_func=None):
         global available_agents
 
         def func(*args, **kwargs):
-            if identity is not None:
-                os.environ['AGENT_VIP_IDENTITY'] = identity
-
             print('Configuring {}.'.format(agent_dir))
             config = config_func(*args, **kwargs)
             _update_config_file()
@@ -248,7 +249,7 @@ def installs(agent_dir, tag, identity=None, post_install_func=None):
             #TODO: (potentially only starting the platform once per vcfg)
             _start_platform()
 
-            _install_agent(agent_dir, config, tag)
+            _install_agent(agent_dir, config, tag, identity)
 
             if not _is_agent_installed(tag):
                 print(tag + ' not installed correctly!')

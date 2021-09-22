@@ -193,7 +193,7 @@ def auth_instance(volttron_instance):
 
 
 # Number of tries to check if auth file is updated properly
-auth_retry = 30
+auth_retry = 5
 
 
 @pytest.mark.control
@@ -214,8 +214,8 @@ def test_auth_add(auth_instance):
     print(entries)
     assert len(entries) > 0
     i = 0
-    while len(entries) < len_entries and i < auth_retry:
-        gevent.sleep(1)
+    while len(entries) <= len_entries and i < auth_retry:
+        gevent.sleep(i)
         entries = auth_list_json(platform)
         i += 1
 
@@ -234,8 +234,8 @@ def test_auth_add_cmd_line(auth_instance):
     print(entries)
     assert len(entries) > 0
     i = 0
-    while len(entries) < len_entries and i < auth_retry:
-        gevent.sleep(1)
+    while len(entries) <= len_entries and i < auth_retry:
+        gevent.sleep(i)
         entries = auth_list_json(platform)
         i += 1
     assert_auth_entries_same(entries[-1], _auth_entry2.__dict__)
@@ -252,8 +252,8 @@ def test_auth_update(auth_instance):
     print(entries)
     assert len(entries) > 0
     i = 0
-    while len(entries) < len_entries and i < auth_retry:
-        gevent.sleep(1)
+    while len(entries) <= len_entries and i < auth_retry:
+        gevent.sleep(i)
         entries = auth_list_json(platform)
         i += 1
     auth_update(platform, len(entries) - 1, **_auth_entry4.__dict__)
@@ -274,16 +274,16 @@ def test_auth_remove(auth_instance):
     entries = auth_list_json(platform)
     assert len(entries) > 0
     i = 0
-    while len(entries) < len_entries and i < auth_retry:
-        gevent.sleep(1)
+    while len(entries) <= len_entries and i < auth_retry:
+        gevent.sleep(i)
         entries = auth_list_json(platform)
         i += 1
     auth_add(platform, _auth_entry6)
     entries = auth_list_json(platform)
     assert len(entries) > 0
     i = 0
-    while len(entries) < (len_entries + 1) and i < auth_retry:
-        gevent.sleep(1)
+    while len(entries) <= (len_entries + 1) and i < auth_retry:
+        gevent.sleep(i)
         entries = auth_list_json(platform)
         i += 1
     print(entries)
@@ -296,7 +296,7 @@ def test_auth_remove(auth_instance):
     assert len(entries) > 0
     i = 0
     while len(entries) > (len_entries + 1) and i < auth_retry:
-        gevent.sleep(1)
+        gevent.sleep(i)
         entries = auth_list_json(platform)
         i += 1
     assert_auth_entries_same(entries[-1], _auth_entry5.__dict__)
@@ -312,8 +312,8 @@ def test_auth_rpc_method_add(auth_instance):
     entries = auth_list_json(platform)
     assert len(entries) > 0
     i = 0
-    while len(entries) < len_entries and i < auth_retry:
-        gevent.sleep(1)
+    while len(entries) <= len_entries and i < auth_retry:
+        gevent.sleep(i)
         entries = auth_list_json(platform)
         i += 1
     print(entries)
@@ -324,7 +324,7 @@ def test_auth_rpc_method_add(auth_instance):
 
     i = 0
     while entries[-1]['rpc_method_authorizations'] != {'test_method': ["test_auth"]} and i < auth_retry:
-        gevent.sleep(1)
+        gevent.sleep(i)
         entries = auth_list_json(platform)
         i += 1
 
@@ -341,8 +341,8 @@ def test_auth_rpc_method_remove(auth_instance):
     entries = auth_list_json(platform)
     assert len(entries) > 0
     i = 0
-    while len(entries) < len_entries and i < auth_retry:
-        gevent.sleep(1)
+    while len(entries) <= len_entries and i < auth_retry:
+        gevent.sleep(i)
         entries = auth_list_json(platform)
         i += 1
     print(entries)
@@ -353,7 +353,7 @@ def test_auth_rpc_method_remove(auth_instance):
 
     i = 0
     while entries[-1]['rpc_method_authorizations'] != {'test_method': ["test_auth"]} and i < auth_retry:
-        gevent.sleep(1)
+        gevent.sleep(i)
         entries = auth_list_json(platform)
         i += 1
 
@@ -365,7 +365,7 @@ def test_auth_rpc_method_remove(auth_instance):
 
     i = 0
     while entries[-1]['rpc_method_authorizations'] == {'test_method': ["test_auth"]} and i < auth_retry:
-        gevent.sleep(1)
+        gevent.sleep(i)
         entries = auth_list_json(platform)
         i += 1
 

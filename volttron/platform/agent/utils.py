@@ -797,7 +797,7 @@ def execute_command(cmds, env=None, cwd=None, logger=None, err_prefix=None) -> s
                                                           results.stderr)
         if logger:
             logger.exception(err_message)
-            raise RuntimeError()
+            raise RuntimeError(err_message)
         else:
             raise RuntimeError(err_message)
 

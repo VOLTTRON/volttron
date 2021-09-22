@@ -4429,7 +4429,7 @@ def main():
         # else we return 0 from here.  This has the added effect of
         # allowing us to cascade short circuit calls.
         if exc.args[0] != 0:
-            error = exc.message
+            error = exc
         else:
             return 0
     except InstallRuntimeError as exrt:

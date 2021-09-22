@@ -36,42 +36,33 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-import contextlib
+import sys
+from gevent import monkey as curious_george
+curious_george.patch_all(thread=False, select=False)
 
-from setuptools import setup, find_packages
-from requirements import extras_require, install_requires
+from . import update_auth_file
+from . import move_sqlite_files
 
-with open('volttron/platform/__init__.py') as file:
-    for line in file:
-        if line.startswith('__version__'):
-            with contextlib.suppress(IndexError):
-                exec(line)
-                break
-    else:
-        raise RuntimeError('Unable to find version string in {}.'.format(file.name))
 
-if __name__ == '__main__':
-    setup(
-        name = 'volttron',
-        version = __version__,
-        description = 'Agent Execution Platform',
-        author = 'Volttron Team',
-        author_email = 'volttron@pnnl.gov',
-        url = 'https://github.com/VOLTTRON/volttron',
-        packages = find_packages('.'),
-        install_requires = install_requires,
-        extras_require = extras_require,
-        entry_points = {
-            'console_scripts': [
-                'volttron = volttron.platform.main:_main',
-                'volttron-ctl = volttron.platform.control:_main',
-                'volttron-pkg = volttron.platform.packaging:_main',
-                'volttron-cfg = volttron.platform.config:_main',
-                'vctl = volttron.platform.control:_main',
-                'vpkg = volttron.platform.packaging:_main',
-                'vcfg = volttron.platform.config:_main',
-                'volttron-upgrade = volttron.platform.upgrade.upgrade_volttron:_main',
-            ]
-        },
-        zip_safe = False,
-    )
+def main():
+    # Upgrade auth file to function with dynamic rpc authorizations
+    update_auth_file.main()
+    print("")
+    # Moves backup cache of historian (backup.sqlite files) into corresponding agent-data directory so that
+    # historian agents other than sqlitehistorian, can be upgraded to latest version using
+    # vctl install --force without losing cache data. vctl install --force will backup and restore
+    # contents of <agent-install-dir>/<agentname-version>/<agentname-version>.agent-data directory
+    # If using sqlite historian manually backup and restore sqlite historian's db before upgrading to historian version
+    # 4.0.0 or later
+    move_sqlite_files.main()
+
+
+def _main():
+    """ Wrapper for main function"""
+    try:
+        sys.exit(main())
+    except KeyboardInterrupt:
+        sys.exit(1)
+
+if __name__ == "__main__":
+    _main()
