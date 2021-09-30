@@ -78,7 +78,7 @@ def auth_list(platform):
 
 def auth_list_json(platform):
     output = auth_list(platform)
-    entries = re.findall('\nINDEX: \d+(\n{.*?\n}\n)', output, re.DOTALL)
+    entries = re.findall(r'\nINDEX: \d+(\n{.*?\n}\n)', output, re.DOTALL)
     return [jsonapi.loads(entry) for entry in entries]
 
 

@@ -32,7 +32,7 @@ class PrometheusScrapeAgent(Agent):
         self._cache = defaultdict(dict)
         self._cache_time = self._config_dict.get('cache_timeout', 660)
         self._tag_delimiter_re = self._config_dict.get('tag_delimiter_re',
-                                                       "\s+|:|_|\.|/")
+                                                       r"\s+|:|_|\.|/")
 
     @Core.receiver("onstart")
     def _starting(self, sender, **kwargs):
