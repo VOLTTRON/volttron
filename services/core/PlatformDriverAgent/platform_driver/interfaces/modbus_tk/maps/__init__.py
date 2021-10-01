@@ -113,7 +113,7 @@ class CSVRegister(object):
 
         # string[length] format: "string[4]"
         if csv_type.startswith('string'):
-            match = re.match('string\[(\d+)\]', csv_type)
+            match = re.match(r'string\[(\d+)\]', csv_type)
             if match:
                 try:
                     length = int(match.group(1))
@@ -124,7 +124,7 @@ class CSVRegister(object):
 
         # array(type, length) format: "array(int16, 4)"
         if csv_type.startswith('array'):
-            match = re.match("array\((\w+)\, (\d+)\)", csv_type)
+            match = re.match(r"array\((\w+)\, (\d+)\)", csv_type)
             try:
                 type = data_type_map[match.group(1)]
             except KeyError:
@@ -169,7 +169,7 @@ class CSVRegister(object):
 
         try:
             if csv_transform:
-                match = re.match('(\w+)\(([a-zA-z0-9.]*)\)', csv_transform)
+                match = re.match(r'(\w+)\(([a-zA-z0-9.]*)\)', csv_transform)
                 func = match.group(1)
                 arg = match.group(2)
 
