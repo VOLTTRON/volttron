@@ -102,9 +102,17 @@ class RabbitMQMgmt(object):
         kwargs["headers"] = {"Content-Type": "application/json"}
         auth_args = self._get_authentication_args(ssl_auth)
         kwargs.update(auth_args)
+        try:
+            import requests
+            _log.warning(f"CALLING rewquest with {url} {kwargs}")
+            result = requests.get(url, **kwargs)
+            _log.warning(f"Got result as {result}")
+        except BaseException as e:
+            _log.exception("****Exception in reqeust e")
 
         try:
             fn = getattr(grequests, method_name)
+            _log.warning(f" fn is {fn}  url:{url} kwargs:{kwargs}")
             request = fn(url, **kwargs)
             response = grequests.map([request])
 
@@ -252,6 +260,8 @@ class RabbitMQMgmt(object):
         """
         ssl_auth = ssl_auth if ssl_auth is not None else self.is_ssl
         url = '/api/users/'
+        _log.warning("in get users")
+        _log.warning(f"{self._get_url_prefix(ssl_auth) + url} {self._get_authentication_args(True)}")
         response = self._http_get_request(url, ssl_auth)
         users = []
         if response:
