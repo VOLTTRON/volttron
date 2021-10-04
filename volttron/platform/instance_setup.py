@@ -309,7 +309,7 @@ def _get_dependencies():
     return dependencies
 
 
-def _check_dependencies_met(requirement):
+def check_dependencies_met(requirement):
     try:
         dependencies_needed = extras_require[requirement]
     except KeyError:
@@ -423,7 +423,7 @@ def do_message_bus():
             # set_dependencies_rmq()
             # print("Done!")
 
-        # if not _check_dependencies_met('rabbitmq'):
+        # if not check_dependencies_met('rabbitmq'):
         #     print("Rabbitmq dependencies not installed. Installing now...")
         #     set_dependencies("rabbitmq")
         #     print("Done!")
@@ -886,7 +886,7 @@ def wizard():
     prompt = 'Is this instance web enabled?'
     response = prompt_response(prompt, valid_answers=y_or_n, default='N')
     if response in y:
-        if not _check_dependencies_met('web'):
+        if not check_dependencies_met('web'):
             print("Web dependencies not installed. Installing now...")
             set_dependencies('web')
             print("Done!")
@@ -911,11 +911,11 @@ def wizard():
     prompt = 'Will this instance be controlled by volttron central?'
     response = prompt_response(prompt, valid_answers=y_or_n, default='Y')
     if response in y:
-        if not _check_dependencies_met("drivers") or not _check_dependencies_met("web"):
+        if not check_dependencies_met("drivers") or not check_dependencies_met("web"):
             print("VCP dependencies not installed. Installing now...")
-            if not _check_dependencies_met("drivers"):
+            if not check_dependencies_met("drivers"):
                 set_dependencies("drivers")
-            if not _check_dependencies_met("web"):
+            if not check_dependencies_met("web"):
                 set_dependencies("web")
             print("Done!")
         do_vcp()
@@ -927,7 +927,7 @@ def wizard():
     prompt = 'Would you like to install a platform driver?'
     response = prompt_response(prompt, valid_answers=y_or_n, default='N')
     if response in y:
-        if not _check_dependencies_met("drivers"):
+        if not check_dependencies_met("drivers"):
             print("Driver dependencies not installed. Installing now...")
             set_dependencies("drivers")
             print("Done!")
@@ -951,6 +951,11 @@ def process_rmq_inputs(args_dict, instance_name=None):
     confirm_volttron_home()
     vhome = get_home()
 
+    if args_dict['installation-type'] in ['federation', 'shovel'] and not check_dependencies_met('web'):
+        print("Web dependencies not installed. Installing now...")
+        set_dependencies('web')
+        print("Done!")
+
     if args_dict['config'] is not None:
         if not os.path.exists(vhome):
             os.makedirs(vhome, 0o755)
@@ -959,6 +964,7 @@ def process_rmq_inputs(args_dict, instance_name=None):
             if args_dict['config'] != vhome_config:
                 copy(args_dict['config'], vhome_config)
         elif args_dict['installation-type'] == 'federation':
+
             vhome_config = os.path.join(vhome, 'rabbitmq_federation_config.yml')
             if os.path.exists(vhome_config):
                 prompt = f"rabbitmq_federation_config.yml already exists in VOLTTRON_HOME: {vhome}.\n" \
