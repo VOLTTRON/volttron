@@ -969,7 +969,7 @@ def _create_signed_certificate(ca_cert, ca_key, name, valid_days=DEFAULT_DAYS, t
         # Our certificate will be valid for 3650 days
         datetime.datetime.utcnow() + datetime.timedelta(days=valid_days)
     ).add_extension(
-        x509.AuthorityKeyIdentifier.from_issuer_subject_key_identifier(ski),
+        x509.AuthorityKeyIdentifier.from_issuer_public_key(ca_cert.public_key()),
         critical=False
     )
     if type == 'CA':

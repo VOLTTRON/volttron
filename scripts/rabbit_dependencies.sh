@@ -162,7 +162,7 @@ is_arm="FALSE"
 ${prefix} pwd > /dev/null
 
 if [[ "$os_name" == "debian" ]]; then
-    erlang_package_version="1:22.1.8.1-1"
+    erlang_package_version="1:24.0.5-1"
     is_arm="FALSE"
     install_on_debian
 elif [[ "$os_name" == "raspbian" ]]; then
