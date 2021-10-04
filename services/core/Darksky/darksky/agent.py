@@ -72,7 +72,7 @@ SERVICES_MAPPING = {
  'get_minutely_forecast': {'json_name': 'minutely', 'type': 'forecast'}
 }
 
-LAT_LONG_REGEX = re.compile("^-?[0-9]{1,3}(\.[0-9]{1,4})?$")
+LAT_LONG_REGEX = re.compile(r"^-?[0-9]{1,3}(\.[0-9]{1,4})?$")
 
 
 def darksky(config_path, **kwargs):

@@ -276,7 +276,7 @@ def setup_mysql(connection_params, table_names, historian_version):
     cursor = db_connection.cursor()
     cursor.execute("SELECT version()")
     version = cursor.fetchone()
-    p = re.compile('(\d+)\D+(\d+)\D+(\d+)\D*')
+    p = re.compile(r'(\d+)\D+(\d+)\D+(\d+)\D*')
     version_nums = p.match(version[0]).groups()
 
     print(version)

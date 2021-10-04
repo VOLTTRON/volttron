@@ -324,7 +324,7 @@ def insert_data_point(client, time, topic_id, source, value, value_string):
     try:
         client.write_points(json_body)
     except InfluxDBClientError as e:
-        matching = re.findall('type \w+', jsonapi.loads(e.content)["error"])
+        matching = re.findall(r'type \w+', jsonapi.loads(e.content)["error"])
         inserted_type = matching[1]
         existed_type = matching[2]
         _log.warning('{} value exists as {}, while inserted value={} has {}'.format(measurement,
