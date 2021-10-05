@@ -8,6 +8,11 @@ An OpenEIS Historian has been developed to integrate real time data ingestion in
 the OpenEIS Historian to be able to communicate with an OpenEIS server a datasource must be created on the OpenEIS
 server.
 
+.. note::
+   The OpenEIS Historian is located within the **core** directory. ::
+
+      services/core/OpenEISHistorian/
+
 The process of creating a dataset is documented in the
 `OpenEIS User's Guide <https://github.com/VOLTTRON/openeis/raw/2.x/guides/PNNL-24065%20-%20OpenEIS%20Users%20Guide.pdf>`__
 under `Creating a Dataset` heading.

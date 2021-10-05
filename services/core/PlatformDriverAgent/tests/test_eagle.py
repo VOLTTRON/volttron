@@ -45,6 +45,8 @@ from volttron.platform import get_services_core, jsonapi
 from volttrontesting.utils.utils import get_rand_http_address
 from volttron.platform.agent.known_identities import CONFIGURATION_STORE, PLATFORM_DRIVER
 
+pytestmark = [pytest.mark.skip(reason='Community-contributed driver'), pytest.mark.contrib]
+
 server_addr = get_rand_http_address()
 no_scheme = server_addr[7:]
 ip, port = no_scheme.split(':')

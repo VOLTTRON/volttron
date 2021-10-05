@@ -77,7 +77,7 @@ def mock_response(monkeypatch):
                 mock_args = kwargs['json']
                 if mock_args['username'] == 'test' and mock_args['password'] == 'test':
                     self.ok = True
-                    self.text = "super_secret_auth_token"
+                    self.text = '{"refresh_token": "super_secret_refresh_token", "access_token": "super_secret_access_token"}'
                 else:
                     self.ok = False
                     self.text = "invalid username/password"
@@ -126,7 +126,7 @@ def mock_websocket(mock_vc):
 @pytest.mark.vc
 def test_jsonrpc_is_authorized(mock_vc_jsonrpc, mock_jsonrpc_env):
     data = jsonrpc.json_method("12345", "list_platforms", None, None)
-    data['authorization'] = "super_secret_auth_token"
+    data['authorization'] = '{"refresh_token": "super_secret_refresh_token", "access_token": "super_secret_access_token"}'
     response = mock_vc_jsonrpc.jsonrpc(mock_jsonrpc_env, data)
     assert len(response['result']) is 0 and type(response['result']) is list
 
@@ -134,7 +134,7 @@ def test_jsonrpc_is_authorized(mock_vc_jsonrpc, mock_jsonrpc_env):
 @pytest.mark.vc
 def test_jsonrpc_is_unauthorized(mock_vc_jsonrpc, mock_jsonrpc_env):
     data = jsonrpc.json_method("12345", "list_platforms", None, None)
-    data['authorization'] = "really_bad_auth_token"
+    data['authorization'] = "really_bad_access_token"
     response = mock_vc_jsonrpc.jsonrpc(mock_jsonrpc_env, data)
     assert response['error']['message'] == "Invalid authentication token"
 

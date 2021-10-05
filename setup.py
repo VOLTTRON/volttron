@@ -70,6 +70,7 @@ if __name__ == '__main__':
                 'vctl = volttron.platform.control:_main',
                 'vpkg = volttron.platform.packaging:_main',
                 'vcfg = volttron.platform.config:_main',
+                'volttron-upgrade = volttron.platform.upgrade.upgrade_volttron:_main',
             ]
         },
         zip_safe = False,

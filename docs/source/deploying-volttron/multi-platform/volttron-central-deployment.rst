@@ -12,24 +12,7 @@ VOLTTRON with three historians and different agents on each host. The
 following entries will help to navigate around the VOLTTRON Central
 interface.
 
--  `Getting Started <#getting-started>`__
--  `Remote Platform Configuration <#remote-platform-configuration>`__
--  `Starting the Demo <#starting-the-demo>`__
--  `Stopping the Demo <#stopping-the-demo>`__
--  `Log In <#log-in>`__
--  `Log Out <#log-out>`__
--  `Platforms Tree <#platforms-tree>`__
--  `Loading the Tree <#loading-the-tree>`__
--  `Health Status <#health-status>`__
--  `Filter the Tree <#filter-the-tree>`__
--  `Platforms Screen <#platforms-screen>`__
--  `Register New Platform <#register-new-platform>`__
--  `Deregister Platform <#deregister-platform>`__
--  `Platform View <#platform-view>`__
--  `Add Charts <#add-charts>`__
--  `Dashboard Charts <#dashboard-charts>`__
--  `Remove Charts <#remove-charts>`__
-
+.. contents::
 
 Getting Started
 ---------------
@@ -535,3 +518,9 @@ For more information on VOLTTRON Central, please see:
 
 * :ref:`VOLTTRON Central Management <VOLTTRON-Central>`
 * :ref:`VOLTTRON Central Demo <Device-Configuration-in-VOLTTRON-Central>`
+
+.. note::
+
+    You may want to consider :ref:`securing your VC deployment <Secure-Deployment-Considerations>`
+    Please take particular note of the implementation of a reverse proxy.
+

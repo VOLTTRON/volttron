@@ -613,15 +613,6 @@ class CrateHistorian(BaseHistorian):
         """
         pass
 
-    @doc_inherit
-    def record_table_definitions(self, meta_table_name):
-        """
-        There is no crate aggregate historian so not implementing this method
-        :param meta_table_name:
-        :return:
-        """
-        pass
-
     def load_topic_meta(self):
         _log.debug("Querying topic metadata map")
         cursor = self.get_connection().cursor()

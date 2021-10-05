@@ -1,6 +1,16 @@
 import pytest
 import gevent
 import logging
+
+try:
+    import pydnp3
+except ModuleNotFoundError:
+    pytest.skip(
+        "DNP3 driver is currently not supported and not tested. "
+        "If you still want to run this test, install the import with: pip install pydnp3",
+        allow_module_level=True
+    )
+
 from services.core.DNP3Agent.dnp3 import DATA_TYPE_ANALOG_INPUT
 from volttron.platform.agent.known_identities import PLATFORM_DRIVER
 from volttron.platform import get_services_core

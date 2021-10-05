@@ -39,6 +39,7 @@
 from http.cookies import SimpleCookie
 import logging
 
+from datetime import datetime
 from volttron.platform import get_platform_config
 
 try:
@@ -66,6 +67,8 @@ def get_bearer(env):
         auth_type, bearer = http_auth.split(' ')
         if auth_type.upper() != 'BEARER':
             raise NotAuthorized("Invalid HTTP_AUTHORIZATION header passed, must be Bearer")
+        else:
+            return bearer
     else:
         cookiestr = env.get('HTTP_COOKIE')
         if not cookiestr:
@@ -110,7 +113,7 @@ def __get_key_and_algorithm__(env, ssl_public_key):
 def get_user_claim_from_bearer(bearer, web_secret_key=None, tls_public_key=None):
     if web_secret_key is None and tls_public_key is None:
         raise ValueError("web_secret_key or tls_public_key must be set")
-    if web_secret_key is None and tls_public_key is None:
+    if web_secret_key is not None and tls_public_key is not None:
         raise ValueError("web_secret_key or tls_public_key must be set not both")
 
     if web_secret_key is not None:
@@ -121,7 +124,6 @@ def get_user_claim_from_bearer(bearer, web_secret_key=None, tls_public_key=None)
         pubkey = tls_public_key
         # if isinstance(tls_public_key, str):
         #     pubkey = CertWrapper.load_cert(tls_public_key)
-    return jwt.decode(bearer, pubkey, algorithms=algorithm)
 
-
-
+    claims = jwt.decode(bearer, pubkey, algorithms=algorithm)
+    return claims

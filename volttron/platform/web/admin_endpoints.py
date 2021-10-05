@@ -42,6 +42,7 @@ import re
 from urllib.parse import parse_qs
 
 from volttron.platform.agent.known_identities import PLATFORM_WEB, AUTH
+from volttron.platform.jsonrpc import RemoteError
 
 try:
     from jinja2 import Environment, FileSystemLoader, select_autoescape, TemplateNotFound
@@ -160,6 +161,14 @@ class AdminEndpoints(object):
         except NotAuthorized:
             _log.error("Unauthorized user attempted to connect to {}".format(env.get('PATH_INFO')))
             return Response('<h1>Unauthorized User</h1>', status="401 Unauthorized")
+        except RemoteError as e:
+            if "ExpiredSignatureError" in e.exc_info["exc_type"]:
+                _log.warning("Access token has expired! Please re-login to renew.")
+                template = template_env(env).get_template('login.html')
+                _log.debug("Login.html: {}".format(env.get('PATH_INFO')))
+                return Response(template.render(), content_type='text/html')
+            else:
+                _log.error(e)
 
         # Make sure we have only admins for viewing this.
         if 'admin' not in claims.get('groups'):

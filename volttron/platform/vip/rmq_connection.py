@@ -360,7 +360,7 @@ class RMQConnection(BaseConnection):
         # Fit VIP frames in the PIKA properties dict
         # VIP format - [SENDER, RECIPIENT, PROTO, USER_ID, MSG_ID, SUBSYS, ARGS...]
         dct = {
-            'user_id': self._rmq_userid,
+            #'user_id': self._rmq_userid,
             'app_id': self.routing_key,  # Routing key of SENDER
             'headers': dict(
                 recipient=destination_routing_key,  # RECEIVER

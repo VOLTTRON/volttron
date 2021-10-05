@@ -10,6 +10,11 @@ The SQL Historian has been programmed to handle for inconsistent network connect
 based databases).  All additions to the historian are batched and wrapped within a transaction with commit and rollback
 functions.  This allows the maximum throughput of data with the most protection.
 
+.. note::
+   The SQL Historian is located within the **core** directory. ::
+
+      services/core/SQLHistorian/
+
 
 Configuration
 =============
