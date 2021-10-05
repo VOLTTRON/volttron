@@ -69,7 +69,7 @@ class RedshiftFuncts(DbDriver):
     def bulk_insert(self):
         """
         This function implements the bulk insert requirements for Redshift historian by overriding the
-        DbDriver::bulk_insert() in basedb.py and yields nescessary data insertion method needed for bulk inserts
+        DbDriver::bulk_insert() in basedb.py and yields necessary data insertion method needed for bulk inserts
 
         :yields: insert method
         """
@@ -126,44 +126,8 @@ class RedshiftFuncts(DbDriver):
             ')').format(Identifier(self.meta_table)))
         self.commit()
 
-    def record_table_definitions(self, tables_def, meta_table_name):
-        meta_table = Identifier(meta_table_name)
-        self.execute_stmt(SQL(
-            'CREATE TABLE IF NOT EXISTS {} ('
-                'table_id VARCHAR(512) PRIMARY KEY NOT NULL, '
-                'table_name VARCHAR(512) NOT NULL'
-            ')').format(meta_table))
-        update_stmt = SQL('UPDATE {} SET table_name = %(name)s '
-                          'WHERE table_id = %(key)s').format(meta_table)
-        insert_stmt = SQL('INSERT INTO {} '
-                          'VALUES (%(key)s, %(name)s)').format(meta_table)
-        tables_names = tables_def.copy()
-        tables_names[''] = tables_names.pop('table_prefix', '')
-        with self.cursor() as cursor:
-            for key, name in tables_def.items():
-                params = {'key': key, 'name': name}
-                cursor.execute(update_stmt, params)
-                if not cursor.rowcount:
-                    cursor.execute(insert_stmt, params)
+    def setup_aggregate_historian_tables(self):
 
-    def read_tablenames_from_db(self, meta_table_name):
-        tables = dict(self.select(
-            SQL('SELECT table_id, table_name FROM {}').format(
-                Identifier(meta_table_name))))
-        prefix = tables.pop('', '')
-        tables['agg_topics_table'] = 'aggregate_' + tables['topics_table']
-        tables['agg_meta_table'] = 'aggregate_' + tables['meta_table']
-        if prefix:
-            tables = {key: prefix + '_' + name for key, name in tables.items()}
-        return tables
-
-    def setup_aggregate_historian_tables(self, meta_table_name):
-        table_names = self.read_tablenames_from_db(meta_table_name)
-        self.data_table = table_names['data_table']
-        self.topics_table = table_names['topics_table']
-        self.meta_table = table_names['meta_table']
-        self.agg_topics_table = table_names['agg_topics_table']
-        self.agg_meta_table = table_names['agg_meta_table']
         self.execute_stmt(SQL(
             'CREATE TABLE IF NOT EXISTS {} ('
                 'agg_topic_id INTEGER IDENTITY (1, 1) PRIMARY KEY NOT NULL, '
@@ -219,7 +183,7 @@ class RedshiftFuncts(DbDriver):
                                 for ts, value in cursor]
         return values
 
-    def insert_topic(self, topic):
+    def insert_topic(self, topic, **kwargs):
         with self.cursor() as cursor:
             cursor.execute(self.insert_topic_query(), {'topic': topic})
             return cursor.fetchone()[0]
@@ -251,6 +215,16 @@ class RedshiftFuncts(DbDriver):
         return SQL(
             'UPDATE {} SET topic_name = %s '
             'WHERE topic_id = %s').format(Identifier(self.topics_table))
+
+    def update_topic_and_meta_query(self):
+        return SQL(
+            'UPDATE {} SET topic_name = %s , metadata= %s '
+            'WHERE topic_id = %s').format(Identifier(self.topics_table))
+
+    def update_meta_query(self):
+        return SQL(
+            'UPDATE {} SET metadata= %s '
+            'WHERE topic_id = %s').format(Identifier(self.meta_table))
 
     def get_aggregation_list(self):
         return ['AVG', 'MIN', 'MAX', 'COUNT', 'SUM', 'BIT_AND', 'BIT_OR',
@@ -286,6 +260,14 @@ class RedshiftFuncts(DbDriver):
         id_map = {key: tid for tid, _, key in rows}
         name_map = {key: name for _, name, key in rows}
         return id_map, name_map
+
+    def get_topic_meta_map(self):
+        query = SQL(
+            'SELECT topic_id, metadata '
+            'FROM {}').format(Identifier(self.meta_table))
+        rows = self.select(query)
+        meta_map = {tid: jsonapi.loads(meta) for tid, meta in rows}
+        return meta_map
 
     def get_agg_topics(self):
         query = SQL(

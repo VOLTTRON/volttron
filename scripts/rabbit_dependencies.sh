@@ -2,6 +2,8 @@
 set -e
 
 list=( bionic buster )
+declare -A ubuntu_versions
+ubuntu_versions=( ["ubuntu-16.04"]="xenial" ["ubuntu-18.04"]="bionic" ["ubuntu-20.04"]="focal")
 
 function exit_on_error {
     rc=$?
@@ -16,8 +18,8 @@ function exit_on_error {
 function print_usage {
  echo "
 Command Usage:
-<path>/rabbit_dependencies.sh <debian, raspbian, or centos> <distribution name or centos version>
-Valid Raspbian/Debian distributions: ${list[@]}
+<path>/rabbit_dependencies.sh <debian, raspbian, or centos> <distribution name/ubuntu-<version> or centos version>
+Valid Raspbian/Debian distributions: ${list[@]} ${!ubuntu_versions[@]}
 Valid centos versions: 6, 7, 8
 "
  exit 0
@@ -28,33 +30,39 @@ Valid centos versions: 6, 7, 8
 function install_on_centos {
 
    if [[ "$DIST" == "6" ]]; then
-       erlang_url='https://dl.bintray.com/rabbitmq-erlang/rpm/erlang/21/el/6'
+       erlang_url='https://packagecloud.io/rabbitmq/erlang/el/6/$basearch'
+       erlang_package_name='erlang-21.3.8.21-1.el6.x86_64'
    elif [[ "$DIST" == "7" ]]; then
-       erlang_url='https://dl.bintray.com/rabbitmq-erlang/rpm/erlang/21/el/7'
+       erlang_url='https://packagecloud.io/rabbitmq/erlang/el/7/$basearch'
+       erlang_package_name='erlang-21.3.8.21-1.el7.x86_64'
    elif [[ "$DIST" == "8" ]]; then
-       erlang_url='https://dl.bintray.com/rabbitmq-erlang/rpm/erlang/21/el/8'
+       erlang_url='https://packagecloud.io/rabbitmq/erlang/el/8/$basearch'
+       erlang_package_name='erlang-21.3.8.21-1.el8.x86_64'
    else
        printf "Invalid centos version. 6, 7, and 8 are the only compatible versions\n"
        print_usage
    fi
 
    repo="## In /etc/yum.repos.d/rabbitmq-erlang.repo
-[rabbitmq-erlang]
-name=rabbitmq-erlang
+[rabbitmq_erlang]
+name=rabbitmq_erlang
 baseurl=$erlang_url
-gpgcheck=1
-gpgkey=https://dl.bintray.com/rabbitmq/Keys/rabbitmq-release-signing-key.asc
-repo_gpgcheck=0
-enabled=1"
-
-    if [[ ! -f "/etc/yum.repos.d/rabbitmq-erlang.repo" ]]; then
-      echo "$repo" | ${prefix} tee -a /etc/yum.repos.d/rabbitmq-erlang.repo
+repo_gpgcheck=1
+gpgcheck=0
+enabled=1
+gpgkey=https://packagecloud.io/rabbitmq/erlang/gpgkey
+sslverify=1
+sslcacert=/etc/pki/tls/certs/ca-bundle.crt
+metadata_expire=300
+"
+   if [[ -f "/etc/yum.repos.d/rabbitmq-erlang.repo" ]]; then
+      echo "\n/etc/yum.repos.d/rabbitmq-erlang.repo exists. renaming current file to rabbitmq-erlang.repo.old\n"
+      mv /etc/yum.repos.d/rabbitmq-erlang.repo /etc/yum.repos.d/rabbitmq-erlang.repo.old
       exit_on_error
-    else
-      echo "\nrepo file /etc/yum.repos.d/rabbitmq-erlang.repo already exists\n"
-    fi
-    ${prefix} yum install erlang
-    exit_on_error
+   fi
+   echo "$repo" | ${prefix} tee -a /etc/yum.repos.d/rabbitmq-erlang.repo
+   ${prefix} yum install $erlang_package_name
+   exit_on_error
 }
 
 function install_on_debian {
@@ -67,13 +75,28 @@ function install_on_debian {
     done
 
     if [[ "$FOUND" != "1" ]]; then
+        # check if ubuntu-version was passed if so map it to name
+        for ubuntu_version in "${!ubuntu_versions[@]}"; do
+            if [[ "$DIST" == "$ubuntu_version" ]]; then
+                FOUND=1
+                DIST="${ubuntu_versions[$ubuntu_version]}"
+                break
+            fi
+        done
+    fi
+
+    if [[ "$FOUND" != "1" ]]; then
         echo "Invalid distribution found"
         print_usage
     fi
 
     echo "installing ERLANG"
     ${prefix} apt-get update
-    ${prefix} apt-get install -y apt-transport-https libwxbase3.0-0v5 libwxgtk3.0-0v5 libsctp1  build-essential python-dev openssl libssl-dev libevent-dev git
+    if [[ "$DIST" == "xenial" ]] || [[ "$DIST" == "bionic" ]]; then
+        ${prefix} apt-get install -y apt-transport-https libwxbase3.0-0v5 libwxgtk3.0-0v5 libsctp1  build-essential python-dev openssl libssl-dev libevent-dev git
+    else
+        ${prefix} apt-get install -y apt-transport-https libwxbase3.0-0v5 libwxgtk3.0-gtk3-0v5 libsctp1  build-essential python-dev openssl libssl-dev libevent-dev git
+    fi
     set +e
     ${prefix} apt-get purge -yf erlang*
     set -e

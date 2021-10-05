@@ -493,6 +493,7 @@ class PubSubService(object):
                         frames = [publisher, '', proto, user_id, msg_id,
                                   'error', errnum, errmsg, platform_id, subsystem]
                         try:
+                            frames = serialize_frames(frames)
                             self._vip_sock.send_multipart(frames, flags=NOBLOCK, copy=False)
                         except ZMQError as exc:
                             # raise
@@ -543,9 +544,10 @@ class PubSubService(object):
                 self._logger.debug("EAGAIN error {}".format(subscriber))
                 # Only send EAGAIN errors
                 proto, user_id, msg_id, subsystem = frames[2:6]
-                frames = [publisher, b'', proto, user_id, msg_id,
-                          b'error', errnum, errmsg, subscriber, subsystem]
+                frames = [publisher, '', proto, user_id, msg_id,
+                          'error', errnum, errmsg, subscriber, subsystem]
                 try:
+                    frames = serialize_frames(frames)
                     self._vip_sock.send_multipart(frames, flags=NOBLOCK, copy=False)
                 except ZMQError as exc:
                     # raise
@@ -790,8 +792,8 @@ class PubSubService(object):
             # peer is not authorized to publish to the topic, send error message to the peer
             if errmsg is not None:
                 try:
-                    frames = [publisher, b'', proto, user_id, msg_id,
-                              subsystem, b'error', zmq.Frame(str(UNAUTHORIZED).encode("utf-8")),
+                    frames = [publisher, '', proto, user_id, msg_id,
+                              subsystem, 'error', zmq.Frame(str(UNAUTHORIZED).encode("utf-8")),
                               zmq.Frame(str(errmsg).encode("utf-8"))]
                     self._ext_router.send_external(publisher, frames)
                     return
@@ -808,7 +810,7 @@ class PubSubService(object):
             # There are no subscribers, send error message back to source platform
             if not subscribers_count:
                 try:
-                    frames = [publisher, b'', proto, user_id, msg_id,
+                    frames = [publisher, '', proto, user_id, msg_id,
                               subsystem, zmq.Frame(b'error'), zmq.Frame(str(INVALID_REQUEST).encode("utf-8")),
                               topic]
                     self._ext_router.send_external(publisher, frames)

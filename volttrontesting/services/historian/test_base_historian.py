@@ -36,9 +36,15 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-import shutil
+from time import sleep
+from datetime import datetime
+import random
+import os
+from pathlib import Path
+import sqlite3
 
-from volttron.platform import get_services_core, jsonapi
+import pytest
+import gevent
 
 from volttron.platform.agent.base_historian import (BaseHistorian,
                                                     STATUS_KEY_BACKLOGGED,
@@ -46,24 +52,21 @@ from volttron.platform.agent.base_historian import (BaseHistorian,
                                                     STATUS_KEY_PUBLISHING,
                                                     STATUS_KEY_CACHE_FULL,
                                                     STATUS_KEY_TIME_ERROR)
-import pytest
-
 from volttron.platform.agent import utils
 from volttron.platform.messaging import headers as headers_mod
 from volttron.platform.messaging.health import *
 from volttron.platform.messaging import topics
-
-from time import sleep
-from datetime import datetime
-import random
-import gevent
-import os
-import sqlite3
-
 from volttron.platform.agent.known_identities import CONFIGURATION_STORE
 
 
 class Historian(BaseHistorian):
+
+    def __init__(self, **kwargs):
+        self.agent_data_dir = os.path.join(os.getcwd(), os.path.basename(os.getcwd()) + ".agent-data")
+        os.makedirs(self.agent_data_dir, exist_ok=True)
+        self.backup_sqlite = Path(self.agent_data_dir).joinpath("backup.sqlite")
+        super(Historian, self).__init__(**kwargs)
+
     def publish_to_historian(self, _):
         pass
 
@@ -73,8 +76,18 @@ class Historian(BaseHistorian):
     def query_historian(self, **kwargs):
         pass
 
+    def remove_backup_cache_db(self):
+        try:
+            print(f"Removing backup cache  {self.backup_sqlite}")
+            os.remove(str(self.backup_sqlite))
+            os.remove(str(self.agent_data_dir))
+        except:
+            print("Don't throw here if os.remove fails...")
+
+
 
 foundtopic = False
+
 
 def listener(peer, sender, bus, topic, headers, message):
     global foundtopic
@@ -83,6 +96,9 @@ def listener(peer, sender, bus, topic, headers, message):
 
 class BasicHistorian(BaseHistorian):
     def __init__(self, **kwargs):
+        self.agent_data_dir = os.path.join(os.getcwd(), os.path.basename(os.getcwd()) + ".agent-data")
+        os.makedirs(self.agent_data_dir, exist_ok=True)
+        self.backup_sqlite = Path(self.agent_data_dir).joinpath("backup.sqlite")
         super(BasicHistorian, self).__init__(**kwargs)
         self.publish_fail = False
         self.publish_sleep = 0
@@ -99,6 +115,16 @@ class BasicHistorian(BaseHistorian):
 
     def reset(self):
         self.seen = []
+
+    def remove_backup_cache_db(self):
+        try:
+            print(f"Removing backup cache  {self.backup_sqlite}")
+            os.remove(str(self.backup_sqlite))
+            os.remove(str(self.agent_data_dir))
+        except:
+            print("Don't throw here if os.remove fails...")
+
+
 
     def query_historian(self, topic, start=None, end=None, agg_type=None,
                         agg_period=None, skip=0, count=None, order="FIRST_TO_LAST"):
@@ -142,7 +168,7 @@ def test_cache_backlog(request, volttron_instance, client_agent):
                                                   backup_storage_limit_gb=0.0001,
                                                   enable_store=True)  # 100K
         # give it a second to finish setting up backup and finish subscribing
-        gevent.sleep(0.5)
+        gevent.sleep(5)
 
         DEVICES_ALL_TOPIC = "devices/Building/LAB/Device/all"
         # Publish fake data. The format mimics the format used by VOLTTRON drivers.
@@ -199,7 +225,7 @@ def test_cache_backlog(request, volttron_instance, client_agent):
 
         # Cache need not be full if it is backlogged. but if cache is full backlogged should be true
         # and alert should be sent
-        if status["context"][STATUS_KEY_CACHE_FULL] :
+        if status["context"][STATUS_KEY_CACHE_FULL]:
             gevent.sleep(1)
             print(alert_publishes)
             alert_publish = alert_publishes[-1]
@@ -222,6 +248,7 @@ def test_cache_backlog(request, volttron_instance, client_agent):
         assert not bool(status["context"][STATUS_KEY_CACHE_COUNT])
     finally:
         if historian:
+            historian.remove_backup_cache_db()
             historian.core.stop()
         # wait for cleanup to complete
         gevent.sleep(2)
@@ -254,28 +281,26 @@ def test_time_tolerance_check(request, volttron_instance, client_agent):
                                                       enable_store=True)
         assert "could not convert string to float: 'invalid'" in str(e.value)
         print(e)
-
         historian = volttron_instance.build_agent(agent_class=BasicHistorian,
-                                              identity=identity,
-                                              submit_size_limit=5,
-                                              max_time_publishing=5,
-                                              retry_period=1.0,
-                                              backup_storage_limit_gb=0.0001,
-                                              time_tolerance=5,
-                                              enable_store=True)
+                                                  identity=identity,
+                                                  submit_size_limit=5,
+                                                  max_time_publishing=5,
+                                                  retry_period=1.0,
+                                                  backup_storage_limit_gb=0.0001,
+                                                  time_tolerance=5,
+                                                  enable_store=True)
         DEVICES_ALL_TOPIC = "devices/Building/LAB/Device/all"
-        gevent.sleep(5) #wait for historian to be fully up
+        gevent.sleep(5)  # wait for historian to be fully up
         historian.publish_sleep = 0
-        import pathlib
-        p = pathlib.Path(__file__).parent.parent.parent.parent.absolute()
-        print(f"Path to backupdb is {os.path.join(p,'backup.sqlite')}")
-        db_connection = sqlite3.connect(os.path.join(p,"backup.sqlite"))
+        db_file = historian.backup_sqlite
+        assert db_file.exists()
+        db_connection = sqlite3.connect(str(db_file))
         c = db_connection.cursor()
         try:
             c.execute("DELETE FROM time_error")
             db_connection.commit()
         except:
-            pass # might fail with no such table. ignore
+            pass  # might fail with no such table. ignore
 
         # Publish fake data. The format mimics the format used by VOLTTRON drivers.
         # Make some random readings.  Randome readings are going to be
@@ -310,7 +335,7 @@ def test_time_tolerance_check(request, volttron_instance, client_agent):
                                             message=all_message)
             d_now = d_now + timedelta(seconds=1)
 
-        gevent.sleep(2)
+        gevent.sleep(3)
         status = client_agent.vip.rpc.call("platform.historian", "health.get_status").get(timeout=10)
         print(f"STATUS: {status}")
         assert status["status"] == STATUS_BAD
@@ -364,7 +389,7 @@ def test_time_tolerance_check(request, volttron_instance, client_agent):
         historian.publish_sleep = 0
         json_config = """{"time_tolerance_topics":["record"]}"""
         historian.vip.rpc.call(CONFIGURATION_STORE, 'manage_store',
-                                               identity, "config", json_config, config_type="json").get()
+                               identity, "config", json_config, config_type="json").get()
         gevent.sleep(2)
 
         d_now = datetime.utcnow() - timedelta(minutes=10)
@@ -393,6 +418,7 @@ def test_time_tolerance_check(request, volttron_instance, client_agent):
     finally:
         if historian:
             historian.core.stop()
+            historian.remove_backup_cache_db()
         if db_connection:
             db_connection.close()
         # wait for cleanup to complete
@@ -409,12 +435,12 @@ def test_health_stuff(request, volttron_instance, client_agent):
     try:
         identity = 'platform.historian'
         historian = volttron_instance.build_agent(agent_class=BasicHistorian,
-                                              identity=identity,
-                                              submit_size_limit=2,
-                                              max_time_publishing=0.5,
-                                              retry_period=1.0,
-                                              backup_storage_limit_gb=0.0001,
-                                              enable_store=True)  # 100K
+                                                  identity=identity,
+                                                  submit_size_limit=2,
+                                                  max_time_publishing=0.5,
+                                                  retry_period=1.0,
+                                                  backup_storage_limit_gb=0.0001,
+                                                  enable_store=True)  # 100K
         # give it some time to finish setting up backup and finish subscribing
         gevent.sleep(0.5)
 
@@ -450,9 +476,9 @@ def test_health_stuff(request, volttron_instance, client_agent):
 
         for _ in range(10):
             client_agent.vip.pubsub.publish('pubsub',
-                                             DEVICES_ALL_TOPIC,
-                                             headers=headers,
-                                             message=all_message).get(timeout=10)
+                                            DEVICES_ALL_TOPIC,
+                                            headers=headers,
+                                            message=all_message).get(timeout=10)
 
         gevent.sleep(2.0)
 
@@ -471,9 +497,9 @@ def test_health_stuff(request, volttron_instance, client_agent):
 
         for _ in range(10):
             client_agent.vip.pubsub.publish('pubsub',
-                                             DEVICES_ALL_TOPIC,
-                                             headers=headers,
-                                             message=all_message).get(timeout=10)
+                                            DEVICES_ALL_TOPIC,
+                                            headers=headers,
+                                            message=all_message).get(timeout=10)
         gevent.sleep(2)
         status = client_agent.vip.rpc.call("platform.historian", "health.get_status").get(timeout=10)
 
@@ -500,19 +526,22 @@ def test_health_stuff(request, volttron_instance, client_agent):
     finally:
         if historian:
             historian.core.stop()
+            historian.remove_backup_cache_db()
         # wait for cleanup to complete
         gevent.sleep(2)
 
 
 class FailureHistorian(BaseHistorian):
     def __init__(self, **kwargs):
+        self.agent_data_dir = os.path.join(os.getcwd(), os.path.basename(os.getcwd()) + ".agent-data")
+        os.makedirs(self.agent_data_dir, exist_ok=True)
+        self.backup_sqlite = Path(self.agent_data_dir).joinpath("backup.sqlite")
         super(FailureHistorian, self).__init__(**kwargs)
         self.publish_fail = False
         self.setup_fail = False
         self.record_fail = False
         self.teardown_fail = False
         self.setup_run = False
-        self.record_run = False
         self.teardown_run = False
         self.seen = []
 
@@ -532,23 +561,25 @@ class FailureHistorian(BaseHistorian):
     def reset(self):
         self.seen = []
         self.setup_run = False
-        self.record_run = False
         self.teardown_run = False
         self.setup_fail = False
         self.record_fail = False
         self.teardown_fail = False
         self.publish_fail = False
 
+    def remove_backup_cache_db(self):
+        try:
+            print(f"Removing backup cache  {self.backup_sqlite}")
+            os.remove(str(self.backup_sqlite))
+            os.remove(str(self.agent_data_dir))
+        except:
+            print("Don't throw here if os.remove fails...")
+
     def historian_setup(self):
         if self.setup_fail:
             raise Exception("Failed to setup.")
 
         self.setup_run = True
-
-    def record_table_definitions(self, meta_table_name):
-        if self.record_fail:
-            raise Exception("Failed to record table definitions")
-        self.record_run = True
 
     def historian_teardown(self):
         if self.teardown_fail:
@@ -567,12 +598,12 @@ def test_failing_historian(request, volttron_instance, client_agent):
     try:
         identity = 'platform.historian'
         fail_historian = volttron_instance.build_agent(agent_class=FailureHistorian,
-                                              identity=identity,
-                                              submit_size_limit=2,
-                                              max_time_publishing=0.5,
-                                              retry_period=1.0,
-                                              backup_storage_limit_gb=0.0001,
-                                              enable_store=True)  # 100K
+                                                       identity=identity,
+                                                       submit_size_limit=2,
+                                                       max_time_publishing=0.5,
+                                                       retry_period=1.0,
+                                                       backup_storage_limit_gb=0.0001,
+                                                       enable_store=True)  # 100K
         # give it some time to finish setting up backup and finish subscribing
         gevent.sleep(0.5)
 
@@ -613,14 +644,12 @@ def test_failing_historian(request, volttron_instance, client_agent):
 
         assert fail_historian._process_thread.is_alive()
         assert fail_historian.setup_run
-        assert not fail_historian.record_run
         assert not fail_historian.teardown_run
 
         fail_historian.stop_process_thread()
 
         assert fail_historian.teardown_run
         assert fail_historian.setup_run
-        assert not fail_historian.record_run
         assert fail_historian._process_thread is None
         ###
         # Test failure during teardown
@@ -661,7 +690,7 @@ def test_failing_historian(request, volttron_instance, client_agent):
                        {'OutsideAirTemperature': float_meta}]
 
         # Create timestamp
-        now = utils.format_timestamp( datetime.utcnow() )
+        now = utils.format_timestamp(datetime.utcnow())
 
         # now = '2015-12-02T00:00:00'
         headers = {
@@ -670,9 +699,9 @@ def test_failing_historian(request, volttron_instance, client_agent):
         print("Published time in header: " + now)
 
         client_agent.vip.pubsub.publish('pubsub',
-                                         DEVICES_ALL_TOPIC,
-                                         headers=headers,
-                                         message=all_message).get(timeout=10)
+                                        DEVICES_ALL_TOPIC,
+                                        headers=headers,
+                                        message=all_message).get(timeout=10)
 
         gevent.sleep(2.0)
         assert fail_historian._process_thread.is_alive()
@@ -736,7 +765,6 @@ def test_failing_historian(request, volttron_instance, client_agent):
         gevent.sleep(2.0)
         assert fail_historian._process_thread.is_alive()
         assert fail_historian.setup_run
-        assert fail_historian.record_run
         assert len(fail_historian.seen)
         print(fail_historian.seen)
     finally:
@@ -744,6 +772,7 @@ def test_failing_historian(request, volttron_instance, client_agent):
         # This may cause test case right after this to timeout
         if fail_historian:
             fail_historian.core.stop()
+            fail_historian.remove_backup_cache_db()
         # wait for cleanup to complete
         gevent.sleep(2)
 
@@ -765,14 +794,14 @@ def test_additional_custom_topics(request, volttron_instance, client_agent):
         DEVICES_QUERY_TOPIC = "Building/LAB/Device"
 
         historian = volttron_instance.build_agent(agent_class=BasicHistorian,
-                                              identity=identity,
-                                              custom_topics={'capture_device_data': [CUSTOM_TOPIC]},
-                                              enable_store=True)  # 100K
+                                                  identity=identity,
+                                                  custom_topics={'capture_device_data': [CUSTOM_TOPIC]},
+                                                  enable_store=True)  # 100K
 
         # give it some time to finish setting up backup and finish subscribing
         gevent.sleep(0.5)
 
-        #volttron_instance.dynamic_agent.vip.pubsub.subscribe('pubsub', 'devices', callback=listener)
+        # volttron_instance.dynamic_agent.vip.pubsub.subscribe('pubsub', 'devices', callback=listener)
         # Publish fake data. The format mimics the format used by VOLTTRON drivers.
         # Make some random readings.  Randome readings are going to be
         # within the tolerance here.
@@ -794,7 +823,7 @@ def test_additional_custom_topics(request, volttron_instance, client_agent):
                         }]
 
         # Create timestamp
-        now = utils.format_timestamp( datetime.utcnow() )
+        now = utils.format_timestamp(datetime.utcnow())
 
         # now = '2015-12-02T00:00:00'
         headers = {
@@ -803,9 +832,9 @@ def test_additional_custom_topics(request, volttron_instance, client_agent):
 
         for _ in range(2):
             client_agent.vip.pubsub.publish('pubsub',
-                                             DEVICES_ALL_TOPIC,
-                                             headers=headers,
-                                             message=all_message).get(timeout=10)
+                                            DEVICES_ALL_TOPIC,
+                                            headers=headers,
+                                            message=all_message).get(timeout=10)
         for _ in range(2):
             client_agent.vip.pubsub.publish('pubsub',
                                             CUSTOM_TOPIC,
@@ -818,7 +847,7 @@ def test_additional_custom_topics(request, volttron_instance, client_agent):
         found_device_topic = 0
         found_custom_topic = 0
         for item in historian.seen:
-            if item["topic"].startswith(DEVICES_QUERY_TOPIC) :
+            if item["topic"].startswith(DEVICES_QUERY_TOPIC):
                 found_device_topic += 1
             elif item["topic"].startswith(CUSTOM_QUERY_TOPIC):
                 found_custom_topic += 1
@@ -827,6 +856,7 @@ def test_additional_custom_topics(request, volttron_instance, client_agent):
     finally:
         if historian:
             historian.core.stop()
+            historian.remove_backup_cache_db()
         # wait for cleanup to complete
         gevent.sleep(2)
 
@@ -844,17 +874,17 @@ def test_restricting_topics(request, volttron_instance, client_agent):
         identity = 'platform.historian'
         CUSTOM_TOPIC = 'devices/device1/unit/all'
         DEVICES_ALL_TOPIC = "devices/Building/LAB/Device/all"
-        CUSTOM_QUERY_TOPIC  = "device1/unit"
+        CUSTOM_QUERY_TOPIC = "device1/unit"
         DEVICES_QUERY_TOPIC = "Building/LAB/Device"
 
         historian = volttron_instance.build_agent(agent_class=BasicHistorian,
-                                              identity=identity,
-                                              capture_device_data=False,
-                                              capture_log_data=False,
-                                              capture_analysis_data=False,
-                                              capture_record_data=False,
-                                              custom_topics={'capture_device_data': [CUSTOM_TOPIC]},
-                                              enable_store=True)  # 100K
+                                                  identity=identity,
+                                                  capture_device_data=False,
+                                                  capture_log_data=False,
+                                                  capture_analysis_data=False,
+                                                  capture_record_data=False,
+                                                  custom_topics={'capture_device_data': [CUSTOM_TOPIC]},
+                                                  enable_store=True)  # 100K
         # give it some time to finish setting up backup and finish subscribing
         gevent.sleep(0.5)
 
@@ -879,7 +909,7 @@ def test_restricting_topics(request, volttron_instance, client_agent):
                         }]
 
         # Create timestamp
-        now = utils.format_timestamp( datetime.utcnow() )
+        now = utils.format_timestamp(datetime.utcnow())
 
         # now = '2015-12-02T00:00:00'
         headers = {
@@ -888,9 +918,9 @@ def test_restricting_topics(request, volttron_instance, client_agent):
 
         for _ in range(2):
             client_agent.vip.pubsub.publish('pubsub',
-                                             DEVICES_ALL_TOPIC,
-                                             headers=headers,
-                                             message=all_message).get(timeout=10)
+                                            DEVICES_ALL_TOPIC,
+                                            headers=headers,
+                                            message=all_message).get(timeout=10)
         for _ in range(2):
             client_agent.vip.pubsub.publish('pubsub',
                                             CUSTOM_TOPIC,
@@ -912,5 +942,6 @@ def test_restricting_topics(request, volttron_instance, client_agent):
     finally:
         if historian:
             historian.core.stop()
+            historian.remove_backup_cache_db()
         # wait for cleanup to complete
         gevent.sleep(2)

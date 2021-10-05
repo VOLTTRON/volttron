@@ -71,10 +71,9 @@ from volttron.platform import jsonapi
 from volttron.platform import jsonrpc
 from volttron.platform.agent import utils
 from volttron.platform.agent.known_identities import (
-    VOLTTRON_CENTRAL, PLATFORM_HISTORIAN)
+    VOLTTRON_CENTRAL, PLATFORM_HISTORIAN, AUTH)
 from volttron.platform.agent.utils import (
     get_aware_utc_now, get_messagebus)
-from volttron.platform.auth import AuthFile, AuthEntry
 from volttron.platform.jsonrpc import (
     INVALID_REQUEST, METHOD_NOT_FOUND,
     UNHANDLED_EXCEPTION, UNAUTHORIZED,
@@ -412,7 +411,7 @@ class VolttronCentralAgent(Agent):
                 resp = requests.post(auth_url, json=args, verify=False)
 
                 if resp.ok and resp.text:
-                    claims = self.vip.web.get_user_claims(resp.text)
+                    claims = self.vip.web.get_user_claims(jsonapi.loads(resp.text)["access_token"])
                     # Because the web-user.json has the groups under a key and the
                     # groups is just passed into the session we need to make sure
                     # we pass in the proper thing to the _add_sesion function.
@@ -698,15 +697,15 @@ class VolttronCentralAgent(Agent):
             return jsonrpc.json_error(
                 id, UNAUTHORIZED,
                 "Admin access is required to enable setup mode")
-        auth_file = AuthFile()
-        entries = auth_file.find_by_credentials(".*")
+        entries = self.vip.rpc.call(AUTH, "auth_file.find_by_credentials", ".*")
         if len(entries) > 0:
             return "SUCCESS"
 
-        entry = AuthEntry(credentials="/.*/",
-                          comments="Un-Authenticated connections allowed here",
-                          user_id="unknown")
-        auth_file.add(entry)
+        entry = {"credentials": "/.*/",
+                 "comments": "Un-Authenticated connections allowed here",
+                 "user_id": "unknown"
+                }
+        self.vip.rpc.call(AUTH, "auth_file.add", entry)
         return "SUCCESS"
 
     def _disable_setup_mode(self, session_user, params):
@@ -716,8 +715,7 @@ class VolttronCentralAgent(Agent):
             return jsonrpc.json_error(
                 id, UNAUTHORIZED,
                 "Admin access is required to disable setup mode")
-        auth_file = AuthFile()
-        auth_file.remove_by_credentials("/.*/")
+        self.vip.rpc.call(AUTH, "auth_file.remove_by_credentials", "/.*/")
         return "SUCCESS"
 
     def _handle_management_endpoint(self, session_user, params):

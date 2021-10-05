@@ -85,7 +85,10 @@ def drop_schema(connection, truncate_tables, schema=None, truncate=True):
     tables = [t[0] for t in result]
     cursor.close()
     cursor = connection.cursor()
-
+    if truncate_tables is None:
+        cursor.execute(f"SHOW tables in {schema}")
+        tables = cursor.fetchall()
+        truncate_tables = [t[0] for t in tables]
     for t in truncate_tables:
         if t not in tables:
             continue
@@ -98,6 +101,7 @@ def drop_schema(connection, truncate_tables, schema=None, truncate=True):
         _log.debug("Droping table:{schema}.{table}".format(schema=schema,
                                                          table=t))
         cursor.execute(query)
+
 
 
 def create_schema(connection, schema="historian", table_names={}, num_replicas='0-1',

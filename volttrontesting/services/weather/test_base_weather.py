@@ -203,6 +203,7 @@ def weather(request, volttron_instance):
     agent = volttron_instance.build_agent(
         agent_class=BasicWeatherAgent,
         identity=identity,
+        enable_store=True,
         api_calls_limit=100
     )
     gevent.sleep(2)
@@ -281,6 +282,7 @@ def test_manage_cache_size(volttron_instance):
     weather = volttron_instance.build_agent(
         agent_class=BasicWeatherAgent,
         identity="test_cache_basic_weather",
+        enable_store=True,
         max_size_gb=0.00005
     )
 
@@ -920,6 +922,7 @@ def test_poll_location(volttron_instance, query_agent):
             identity="test_poll_basic",
             poll_locations=[{"location": "fake_location"}],
             poll_interval=10,
+            enable_store=True,
             should_spawn=True
         )
         gevent.sleep(3)
@@ -976,6 +979,7 @@ def test_poll_multiple_locations(volttron_instance, query_agent, config,
             agent_class=BasicWeatherAgent,
             identity="test_poll_basic2",
             should_spawn=True,
+            enable_store=True,
             **config
         )
         gevent.sleep(3)
@@ -1030,6 +1034,7 @@ def test_poll_errors(volttron_instance, query_agent, config,
             agent_class=BasicWeatherAgent,
             identity="test_poll_errors",
             should_spawn=True,
+            enable_store=True,
             **config
         )
         gevent.sleep(10)

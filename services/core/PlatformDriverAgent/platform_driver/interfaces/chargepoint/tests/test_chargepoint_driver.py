@@ -42,6 +42,8 @@ import gevent
 
 from volttron.platform import get_services_core
 
+pytestmark = [pytest.mark.contrib]
+
 DRIVER1_CONFIG_STRING = """{
     "driver_config": {
         "stationID" : "1:34003",

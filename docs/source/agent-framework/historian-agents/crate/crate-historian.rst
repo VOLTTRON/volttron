@@ -7,6 +7,11 @@ Crate Historian
 Crate is an open source SQL database designed on top of a No-SQL design.  It allows automatic data replication and
 self-healing clusters for high availability, automatic sharding, and fast joins, aggregations and sub-selects.
 
+.. note::
+   The Crate Historian is located within the **core** directory. ::
+
+      services/core/CrateHistorian/
+
 Find out more about crate from `<https://crate.io/>`_.
 
 

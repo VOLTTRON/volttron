@@ -75,7 +75,7 @@ class _subscriber_agent(Agent):
 
 
 @pytest.fixture(scope="module")
-def subscriber_agent(request, volttron_instance):
+def subscriber_agent(volttron_instance):
 
     agent = volttron_instance.build_agent(identity='subscriber_agent', agent_class=_subscriber_agent)
 
@@ -118,9 +118,10 @@ FloatNoDefault,FloatNoDefault,F,-100 to 300,TRUE,,float,CO2 Reading 0.00-2000.0 
 
 
 @pytest.fixture(scope="module")
-def config_store_connection(request, volttron_instance):
+def config_store_connection(volttron_instance):
     capabilities = [{'edit_config_store': {'identity': PLATFORM_DRIVER}}]
     connection = volttron_instance.build_connection(peer=CONFIGURATION_STORE, capabilities=capabilities)
+    gevent.sleep(1)
     # Reset platform driver config store
     connection.call("manage_delete_store", PLATFORM_DRIVER)
 
@@ -141,14 +142,14 @@ def config_store_connection(request, volttron_instance):
 
 
 @pytest.fixture(scope="function")
-def config_store(request, config_store_connection):
+def config_store(config_store_connection):
     # Always have fake.csv ready to go.
     print("Adding fake.csv into store")
     config_store_connection.call("manage_store", PLATFORM_DRIVER, "fake.csv", registry_config_string, config_type="csv")
 
     yield config_store_connection
-    # Reset platform driver config store
-    print("Wiping out store.")
+
+    print("Resetting platform driver config store")
     config_store_connection.call("manage_delete_store", PLATFORM_DRIVER)
     gevent.sleep(0.1)
 

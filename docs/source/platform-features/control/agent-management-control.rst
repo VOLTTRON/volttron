@@ -239,5 +239,5 @@ used with the ``--tag`` or ``--name`` options.
 
 .. code-block:: bash
 
-    vctl enable <AGENT_UUID> <PRIORITY>
+    vctl enable <AGENT_UUID> -p <PRIORITY>
 

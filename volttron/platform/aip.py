@@ -83,6 +83,7 @@ except ImportError:
     auth = None
 
 _log = logging.getLogger(__name__)
+_log.setLevel(logging.WARN)
 
 
 def process_wait(p):
@@ -342,7 +343,7 @@ class AIPplatform(object):
         # except agent-data dir. agent-data dir has rwx
         self.set_acl_for_path("rx", volttron_agent_user, agent_dir)
         # creates dir if it doesn't exist
-        data_dir = self._get_agent_data_dir(agent_path_with_name)
+        data_dir = self.get_agent_data_dir(agent_path_with_name)
 
         for (root, directories, files) in os.walk(agent_dir, topdown=True):
             for directory in directories:
@@ -355,16 +356,6 @@ class AIPplatform(object):
         # In install directory, make all files' permissions to 400.
         # Then do setfacl -m "r" to only agent user
         self._set_agent_dir_file_permissions(agent_dir, volttron_agent_user, data_dir)
-
-        # if messagebus is rmq.
-        # TODO: For now provide read access to all agents since this is used for
-        #  multi instance connections. This will not be requirement in
-        #  VOLTTRON 8.0 once CSR is implemented for
-        #  federation and shovel. The below lines can be removed then
-        if self.message_bus == 'rmq':
-            os.chmod(os.path.join(get_home(), "certificates/private"), 0o755)
-            self.set_acl_for_path("r", volttron_agent_user,
-                                  os.path.join(get_home(), "certificates/private", self.instance_name + "-admin.pem"))
 
     def _set_agent_dir_file_permissions(self, input_dir, agent_user, data_dir):
         """ Recursively change permissions to all files in given directrory to 400 but for files in
@@ -606,6 +597,7 @@ class AIPplatform(object):
             capabilities = {'edit_config_store': {'identity': '/.*/'}}
 
         entry = AuthEntry(credentials=publickey, user_id=identity,
+                          identity=identity,
                           capabilities=capabilities,
                           comments='Automatically added on agent install')
         try:
@@ -617,7 +609,7 @@ class AIPplatform(object):
         publickey = self.get_agent_keystore(agent_uuid).public
         AuthFile().remove_by_credentials(publickey)
 
-    def _get_agent_data_dir(self, agent_path):
+    def get_agent_data_dir(self, agent_path):
         pkg = UnpackedPackage(agent_path)
         data_dir = os.path.join(os.path.dirname(pkg.distinfo),
                                 '{}.agent-data'.format(pkg.package_name))
@@ -626,7 +618,7 @@ class AIPplatform(object):
         return data_dir
 
     def create_agent_data_dir_if_missing(self, agent_uuid):
-        new_agent_data_dir = self._get_agent_data_dir(self.agent_dir(agent_uuid))
+        new_agent_data_dir = self.get_agent_data_dir(self.agent_dir(agent_uuid))
         return new_agent_data_dir
 
     def _get_data_dir(self, agent_path, agent_name):
@@ -746,10 +738,10 @@ class AIPplatform(object):
 
     def status_agents(self, get_agent_user=False):
         if self.secure_agent_user and get_agent_user:
-            return [(agent_uuid, agent[0], agent[1], self.agent_status(agent_uuid))
+            return [(agent_uuid, agent[0], agent[1], self.agent_status(agent_uuid), self.agent_identity(agent_uuid))
                     for agent_uuid, agent in self.active_agents(get_agent_user=True).items()]
         else:
-            return [(agent_uuid, agent_name, self.agent_status(agent_uuid))
+            return [(agent_uuid, agent_name, self.agent_status(agent_uuid), self.agent_identity(agent_uuid))
                     for agent_uuid, agent_name in self.active_agents().items()]
 
     def tag_agent(self, agent_uuid, tag):
@@ -961,7 +953,7 @@ class AIPplatform(object):
         resmon = getattr(self.env, 'resmon', None)
         agent_user = None
 
-        data_dir = self._get_agent_data_dir(agent_path_with_name)
+        data_dir = self.get_agent_data_dir(agent_path_with_name)
 
         if self.secure_agent_user:
             _log.info("Starting agent securely...")
@@ -1048,7 +1040,9 @@ class AIPplatform(object):
     def agent_status(self, agent_uuid):
         execenv = self.agents.get(agent_uuid)
         if execenv is None:
+            _log.debug(f"agent_status: No execution environment detect for {agent_uuid}")
             return (None, None)
+        _log.debug(f"agent_status: {execenv.process.pid} {execenv.process.poll()}")
         return (execenv.process.pid, execenv.process.poll())
 
     def stop_agent(self, agent_uuid):

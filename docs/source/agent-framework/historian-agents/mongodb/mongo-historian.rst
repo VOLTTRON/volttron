@@ -8,6 +8,11 @@ MongoDB is a NoSQL document database, which allows for great performance for tra
 documents do not have a schema, it is easy to store and query data which changes over time.  MongoDB also scales
 horizontally using sharding.
 
+.. note::
+   The MongodbHistorian is located within the **unsupported** directory. ::
+
+      services/unsupported/MongodbHistorian/
+
 For more information about MongoDB, read the `MongoDB documentation <https://docs.mongodb.com/>`_
 
 
