@@ -85,7 +85,7 @@ _log = logging.getLogger(__name__)
 
 _WINDOWS = sys.platform.startswith('win')
 default_rmq_dir = os.path.join(os.path.expanduser("~"), "rabbitmq_server")
-rabbitmq_server = 'rabbitmq_server-3.7.7'
+rabbitmq_server = 'rabbitmq_server-3.9.7'
 
 
 def shescape(args):
@@ -202,7 +202,7 @@ def install_rabbit(rmq_install_dir):
               "Skipping rabbitmq server install".format(
             rmq_install_dir, rabbitmq_server))
     else:
-        url = "https://github.com/rabbitmq/rabbitmq-server/releases/download/v3.7.7/rabbitmq-server-generic-unix-3.7.7.tar.xz"
+        url = "https://github.com/rabbitmq/rabbitmq-server/releases/download/v3.9.7/rabbitmq-server-generic-unix-3.9.7.tar.xz"
         f = urlopen(url)
         data = f.read()
         filename = "rabbitmq-server.download.tar.xz"
