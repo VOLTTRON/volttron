@@ -694,7 +694,7 @@ class VUIEndpoints(object):
                 else:
                     # All topics are not complete to points and read_all=False -- return route to next segments:
                     ret_dict = {'route_options': historian_tree.get_children_dict([n.identifier for n in topic_nodes],
-                                                                replace_topic=topic,
+                                                                replace_topic=f'{historian}/topics/{topic}',
                                                                 prefix=f'/vui/platforms/{platform}')}
                     return Response(json.dumps(ret_dict), 200, content_type='application/json')
 
