@@ -3,6 +3,7 @@ from datetime import timedelta
 import os
 from shutil import rmtree
 from time import sleep
+from pathlib import Path
 
 import pytest
 from pytz import UTC
@@ -10,7 +11,11 @@ from pytz import UTC
 from volttrontesting.utils.utils import AgentMock
 from volttron.platform.agent.base_historian import BaseHistorianAgent, Agent
 
-CACHE_NAME = "backup.sqlite"
+
+agent_data_dir = os.path.join(os.getcwd(), os.path.basename(os.getcwd()) + ".agent-data")
+os.makedirs(agent_data_dir, exist_ok=True)
+CACHE_NAME = str(Path(agent_data_dir).joinpath("backup.sqlite"))
+
 HISTORIAN_DB = "./data/historian.sqlite"
 
 
@@ -113,3 +118,5 @@ def base_historian_agent():
         rmtree("./data")
     if os.path.exists(CACHE_NAME):
         os.remove(CACHE_NAME)
+    if os.path.exists(agent_data_dir):
+        os.rmdir(agent_data_dir)

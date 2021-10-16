@@ -29,7 +29,7 @@
 import argparse
 import logging
 import os
-import collections
+import collections.abc
 import yaml
 
 from dnp3.points import PointDefinitions, PointDefinition, DNP3Exception
@@ -59,7 +59,7 @@ ACTION_NONE = 'none'
 _log = logging.getLogger(__name__)
 
 
-class FunctionDefinitions(collections.Mapping):
+class FunctionDefinitions(collections.abc.Mapping):
     """In-memory repository of FunctionDefinitions."""
 
     def __init__(self, point_definitions, function_definitions_path=None):

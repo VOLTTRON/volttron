@@ -10,6 +10,11 @@ Overview
 The MQTT Historian agent publishes data to an MQTT broker.  The ``mqttlistener.py`` script will connect to the broker
 and print all messages.
 
+.. note::
+   The MQTT Historian is located within the **core** directory. ::
+
+      services/core/MQTTHistorian/
+
 
 Dependencies
 ============
