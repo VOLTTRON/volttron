@@ -108,8 +108,8 @@ function install_on_debian {
     # Add the signing key
     ## Team RabbitMQ's main signing key
     curl -1sLf "https://keys.openpgp.org/vks/v1/by-fingerprint/0A9AF2115F4687BD29803A206B73A36E6026DFCA" | sudo gpg --dearmor | sudo tee /usr/share/keyrings/com.rabbitmq.team.gpg > /dev/null
-    ## Launchpad PPA that provides modern Erlang releases
-    curl -1sLf "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xf77f1eda57ebb1cc" | sudo gpg --dearmor | sudo tee /usr/share/keyrings/net.launchpad.ppa.rabbitmq.erlang.gpg > /dev/null
+    ## Cloudsmith: modern Erlang repository
+    curl -1sLf https://dl.cloudsmith.io/public/rabbitmq/rabbitmq-erlang/gpg.E495BB49CC4BBE5B.key | sudo gpg --dearmor | sudo tee /usr/share/keyrings/io.cloudsmith.rabbitmq.E495BB49CC4BBE5B.gpg > /dev/null
 
     if [[ -f "/etc/apt/sources.list.d/rabbitmq-erlang.list" ]]; then
       echo "\n/etc/apt/sources.list.d/rabbitmq-erlang.list exists. renaming current file to rabbitmq-erlang.list.old\n"
