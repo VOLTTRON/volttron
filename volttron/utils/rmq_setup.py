@@ -55,7 +55,7 @@ import time
 from .rmq_mgmt import RabbitMQMgmt
 from .rmq_config_params import RMQConfig, read_config_file, write_to_config_file
 
-from volttron.platform import certs
+from volttron.platform.auth import certs
 from volttron.platform import get_home
 from volttron.platform.agent.utils import (store_message_bus_config,
                                            execute_command)

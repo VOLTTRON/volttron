@@ -36,42 +36,37 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-import contextlib
 
-from setuptools import setup, find_packages
-from requirements import extras_require, install_requires
+# def get_interface(self, driver_type, config_dict, config_string):
+#     """Returns an instance of the interface"""
+#     module_name = "platform_driver.interfaces." + driver_type
+#     module = __import__(module_name,globals(),locals(),[], 0)
+#     interfaces = module.interfaces
+#     sub_module = getattr(interfaces, driver_type)
+#     klass = getattr(sub_module, "Interface")
+#     interface = klass(vip=self.vip, core=self.core, device_path=self.device_path)
+#     interface.configure(config_dict, config_string)
+#     return interface
 
-with open('volttron/platform/__init__.py') as file:
-    for line in file:
-        if line.startswith('__version__'):
-            with contextlib.suppress(IndexError):
-                exec(line)
-                break
-    else:
-        raise RuntimeError('Unable to find version string in {}.'.format(file.name))
+class AuthProtocolAgent(BasicAgent):
+    def __init__(self, parent, config, **kwargs):
+        super(AuthProtocolAgent, self).__init__(**kwargs)
+        #Use the parent's vip connection
+        self.parent = parent
+        self.vip = parent.vip
+        self.config = config
 
-if __name__ == '__main__':
-    setup(
-        name = 'volttron',
-        version = __version__,
-        description = 'Agent Execution Platform',
-        author = 'Volttron Team',
-        author_email = 'volttron@pnnl.gov',
-        url = 'https://github.com/VOLTTRON/volttron',
-        packages = find_packages('.'),
-        install_requires = install_requires,
-        extras_require = extras_require,
-        entry_points = {
-            'console_scripts': [
-                'volttron = volttron.platform.main:_main',
-                'volttron-ctl = volttron.platform.control.control:_main',
-                'volttron-pkg = volttron.platform.packaging:_main',
-                'volttron-cfg = volttron.platform.config:_main',
-                'vctl = volttron.platform.control.control:_main',
-                'vpkg = volttron.platform.packaging:_main',
-                'vcfg = volttron.platform.config:_main',
-                'volttron-upgrade = volttron.platform.upgrade.upgrade_volttron:_main',
-            ]
-        },
-        zip_safe = False,
-    )
+    def get_protocol(self, auth_protocol, config_dict, config_string):
+        """Returns an instance of the interface"""
+        module_name = "volttron.platform.auth.auth_protocols." + auth_protocol
+        module = __import__(module_name,globals(),locals(),[], 0)
+        interfaces = module.interfaces
+        sub_module = getattr(interfaces, auth_protocol)
+        klass = getattr(sub_module, "Interface")
+        interface = klass(vip=self.vip, core=self.core, device_path=self.device_path)
+        interface.configure(config_dict, config_string)
+        return interface
+
+
+#BaseAuthorization class
+#BaseAuthentication class

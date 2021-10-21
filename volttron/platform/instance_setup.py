@@ -53,7 +53,8 @@ from zmq import green as zmq
 
 from bootstrap import install_rabbit, default_rmq_dir
 from requirements import extras_require
-from volttron.platform import certs, is_rabbitmq_available
+from volttron.platform import is_rabbitmq_available
+from volttron.platform.auth import certs
 from volttron.platform import jsonapi
 from volttron.platform.agent.known_identities import PLATFORM_WEB, PLATFORM_DRIVER, VOLTTRON_CENTRAL
 from volttron.platform.agent.utils import get_platform_instance_name, wait_for_volttron_startup, \

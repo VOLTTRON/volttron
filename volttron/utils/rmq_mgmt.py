@@ -52,7 +52,7 @@ import requests
 from requests.packages.urllib3.connection import (ConnectionError,
                                                   NewConnectionError)
 import os
-from volttron.platform import certs
+from volttron.platform.auth import certs
 from volttron.platform import jsonapi, get_home
 from .rmq_config_params import RMQConfig, read_config_file, write_to_config_file
 

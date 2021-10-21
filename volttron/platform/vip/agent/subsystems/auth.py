@@ -60,7 +60,7 @@ from volttron.platform.agent.utils import (
     get_fq_identity,
     get_messagebus,
 )
-from volttron.platform.certs import Certs
+from volttron.platform.auth.certs import Certs
 from volttron.platform.jsonrpc import RemoteError, MethodNotFound
 from volttron.utils.rmq_config_params import RMQConfig
 from volttron.platform.keystore import KeyStore

@@ -36,42 +36,20 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-import contextlib
+import re
 
-from setuptools import setup, find_packages
-from requirements import extras_require, install_requires
+_dump_re = re.compile(r"([,\\])")
+_load_re = re.compile(r"\\(.)|,")
 
-with open('volttron/platform/__init__.py') as file:
-    for line in file:
-        if line.startswith('__version__'):
-            with contextlib.suppress(IndexError):
-                exec(line)
-                break
-    else:
-        raise RuntimeError('Unable to find version string in {}.'.format(file.name))
+def isregex(obj):
+    return len(obj) > 1 and obj[0] == obj[-1] == "/"
 
-if __name__ == '__main__':
-    setup(
-        name = 'volttron',
-        version = __version__,
-        description = 'Agent Execution Platform',
-        author = 'Volttron Team',
-        author_email = 'volttron@pnnl.gov',
-        url = 'https://github.com/VOLTTRON/volttron',
-        packages = find_packages('.'),
-        install_requires = install_requires,
-        extras_require = extras_require,
-        entry_points = {
-            'console_scripts': [
-                'volttron = volttron.platform.main:_main',
-                'volttron-ctl = volttron.platform.control.control:_main',
-                'volttron-pkg = volttron.platform.packaging:_main',
-                'volttron-cfg = volttron.platform.config:_main',
-                'vctl = volttron.platform.control.control:_main',
-                'vpkg = volttron.platform.packaging:_main',
-                'vcfg = volttron.platform.config:_main',
-                'volttron-upgrade = volttron.platform.upgrade.upgrade_volttron:_main',
-            ]
-        },
-        zip_safe = False,
-    )
+def dump_user(*args):
+    return ",".join([_dump_re.sub(r"\\\1", arg) for arg in args])
+
+
+def load_user(string):
+    def sub(match):
+        return match.group(1) or "\x00"
+
+    return _load_re.sub(sub, string).split("\x00")

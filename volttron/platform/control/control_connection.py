@@ -36,42 +36,55 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-import contextlib
+import gevent
 
-from setuptools import setup, find_packages
-from requirements import extras_require, install_requires
+from volttron.platform.agent import utils
+from volttron.platform.agent.known_identities import CONTROL_CONNECTION
+from volttron.platform.vip.agent import Agent as BaseAgent
 
-with open('volttron/platform/__init__.py') as file:
-    for line in file:
-        if line.startswith('__version__'):
-            with contextlib.suppress(IndexError):
-                exec(line)
-                break
-    else:
-        raise RuntimeError('Unable to find version string in {}.'.format(file.name))
+class ControlConnection(object):
+    def __init__(self, address, peer="control"):
+        self.address = address
+        self.peer = peer
+        message_bus = utils.get_messagebus()
+        self._server = BaseAgent(
+            address=self.address,
+            enable_store=False,
+            identity=CONTROL_CONNECTION,
+            message_bus=message_bus,
+            enable_channel=True,
+        )
+        self._greenlet = None
 
-if __name__ == '__main__':
-    setup(
-        name = 'volttron',
-        version = __version__,
-        description = 'Agent Execution Platform',
-        author = 'Volttron Team',
-        author_email = 'volttron@pnnl.gov',
-        url = 'https://github.com/VOLTTRON/volttron',
-        packages = find_packages('.'),
-        install_requires = install_requires,
-        extras_require = extras_require,
-        entry_points = {
-            'console_scripts': [
-                'volttron = volttron.platform.main:_main',
-                'volttron-ctl = volttron.platform.control.control:_main',
-                'volttron-pkg = volttron.platform.packaging:_main',
-                'volttron-cfg = volttron.platform.config:_main',
-                'vctl = volttron.platform.control.control:_main',
-                'vpkg = volttron.platform.packaging:_main',
-                'vcfg = volttron.platform.config:_main',
-                'volttron-upgrade = volttron.platform.upgrade.upgrade_volttron:_main',
-            ]
-        },
-        zip_safe = False,
-    )
+    @property
+    def server(self):
+        if self._greenlet is None:
+            event = gevent.event.Event()
+            self._greenlet = gevent.spawn(self._server.core.run, event)
+            event.wait()
+        return self._server
+
+    def call(self, method, *args, **kwargs):
+        return self.server.vip.rpc.call(self.peer, method, *args,
+                                        **kwargs).get()
+
+    def call_no_get(self, method, *args, **kwargs):
+        return self.server.vip.rpc.call(self.peer, method, *args, **kwargs)
+
+    def notify(self, method, *args, **kwargs):
+        return self.server.vip.rpc.notify(self.peer, method, *args, **kwargs)
+
+    def kill(self, *args, **kwargs):
+        """
+        Resets a running greenlet and cleans up the internal stopped agent.
+        """
+        if self._greenlet is not None:
+            try:
+                self._server.core.stop()
+            finally:
+                self._server = None
+            try:
+                self._greenlet.kill(*args, **kwargs)
+            finally:
+                self._greenlet = None
+

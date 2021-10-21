@@ -45,7 +45,7 @@ try:
 except ImportError:
     raise RuntimeError('PyYAML must be installed before running this script ')
 
-from volttron.platform import certs
+from volttron.platform.auth import certs
 from volttron.platform import get_home
 from volttron.platform.agent.utils import get_platform_instance_name
 
