@@ -286,7 +286,7 @@ def test_get_topic_meta_map(get_sqlitefuncts):
         query = "INSERT INTO topics (topic_name) values ('football');" \
                 "INSERT INTO topics (topic_name, metadata) values ('netball', '{\"meta\":\"value\"}');"
         query_db(query)
-        expected_topic_map = {1: None, 2: '{"meta":"value"}'}
+        expected_topic_map = {1: None, 2: {"meta": "value"}}
 
         actual_topic_meta_map = sqlitefuncts.get_topic_meta_map()
 
