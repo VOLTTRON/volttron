@@ -275,11 +275,8 @@ def test_get_topic_meta_map_should_succeed(get_container_func):
                    VALUES ('baseball', '{"metadata":"value"}');                     
                 """
         seed_database(container, query)
-        expected = (
-            {1: None, 2: '{"metadata":"value"}'}
-        )
+        expected = {1: None, 2: '{"metadata":"value"}'}
         actual = sqlfuncts.get_topic_meta_map()
-
         assert actual == expected
 
 
