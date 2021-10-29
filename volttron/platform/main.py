@@ -36,6 +36,21 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
+from gevent import monkey
+
+# At this point these are the only things that need to be patched
+# and the server and client are working harmoniously with this.
+patches = [
+    ('ssl', monkey.patch_ssl),
+    ('socket', monkey.patch_socket),
+    ('os', monkey.patch_os),
+]
+
+# patch modules if necessary.  Only if the module hasn't been patched before.
+# this could happen if the server code uses the client (which it does).
+for module, fn in patches:
+    if not monkey.is_module_patched(module):
+        fn()
 
 import argparse
 import errno
@@ -60,9 +75,9 @@ from volttron.platform.vip.healthservice import HealthService
 from volttron.platform.vip.servicepeer import ServicePeerNotifier
 from volttron.utils import get_random_key
 from volttron.utils.frame_serialization import deserialize_frames, serialize_frames
+#gevent.monkey.patch_socket()
+#gevent.monkey.patch_ssl()
 
-gevent.monkey.patch_socket()
-gevent.monkey.patch_ssl()
 from gevent.fileobject import FileObject
 import zmq
 from zmq import ZMQError

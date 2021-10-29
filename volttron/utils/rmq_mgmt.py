@@ -46,6 +46,7 @@ if is_rabbitmq_available():
 
 from volttron.platform.agent.utils import get_fq_identity
 
+
 import grequests
 import gevent
 import requests
@@ -104,15 +105,15 @@ class RabbitMQMgmt(object):
         kwargs.update(auth_args)
         try:
             import requests
-            _log.warning(f"CALLING rewquest with {url} {kwargs}")
+            #_log.warning(f"CALLING rewquest with {url} {kwargs}")
             result = requests.get(url, **kwargs)
-            _log.warning(f"Got result as {result}")
+            #_log.warning(f"Got result as {result}")
         except BaseException as e:
-            _log.exception("****Exception in reqeust e")
+            _log.exception(f"****Exception in request {e}")
 
         try:
             fn = getattr(grequests, method_name)
-            _log.warning(f" fn is {fn}  url:{url} kwargs:{kwargs}")
+            #_log.warning(f" fn is {fn}  url:{url} kwargs:{kwargs}")
             request = fn(url, **kwargs)
             response = grequests.map([request])
 
@@ -908,12 +909,18 @@ class RabbitMQMgmt(object):
 
         try:
             if ssl_auth:
-                ssl_options = dict(
-                    ssl_version=ssl.PROTOCOL_TLSv1,
-                    ca_certs=crt.cert_file(crt.trusted_ca_name),
-                    keyfile=crt.private_key_file(rmq_user),
-                    certfile=crt.cert_file(rmq_user),
-                    cert_reqs=ssl.CERT_REQUIRED)
+
+                context = ssl.create_default_context(cafile=crt.cert_file(crt.trusted_ca_name))
+                context.load_cert_chain(crt.cert_file(rmq_user),
+                                        crt.private_key_file(rmq_user))
+
+                ssl_options = pika.SSLOptions(context, self.rmq_config.hostname)
+                # ssl_options = dict(
+                #     ssl_version=ssl.PROTOCOL_TLSv1,
+                #     ca_certs=crt.cert_file(crt.trusted_ca_name),
+                #     keyfile=crt.private_key_file(rmq_user),
+                #     certfile=crt.cert_file(rmq_user),
+                #     cert_reqs=ssl.CERT_REQUIRED)
                 conn_params = pika.ConnectionParameters(
                     host=self.rmq_config.hostname,
                     port=int(self.rmq_config.amqp_port_ssl),
@@ -921,7 +928,6 @@ class RabbitMQMgmt(object):
                     connection_attempts=retry_attempt,
                     retry_delay=retry_delay,
                     heartbeat=heartbeat_interval,
-                    ssl=True,
                     ssl_options=ssl_options,
                     credentials=pika.credentials.ExternalCredentials())
             else:

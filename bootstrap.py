@@ -172,7 +172,7 @@ def update(operation, verbose=None, upgrade=False, offline=False, optional_requi
 
 def install_rabbit(rmq_install_dir):
     # Install gevent friendly pika
-    pip('install', ['gevent-pika==0.3'], False, True, offline=False)
+    pip('install', ['pika==1.2.0'], False, True, offline=False)
     # try:
     process = subprocess.Popen(["which", "erl"], stderr=subprocess.PIPE,  stdout=subprocess.PIPE)
     (output, error) = process.communicate()
