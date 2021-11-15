@@ -275,8 +275,10 @@ class RMQPubSub(SubsystemBase):
                 bus = msg['bus']
                 sender = msg['sender']
                 self.core().spawn(callback, 'pubsub', sender, bus, topic, headers, message)
+                connection.channel.basic_ack(method.delivery_tag)
             except KeyError as esc:
                 self._logger.error("Missing keys in pubsub message {}".format(esc))
+
 
         connection.channel.basic_consume(queue,
                                          rmq_callback

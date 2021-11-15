@@ -302,6 +302,7 @@ class RMQConnection(BaseConnection):
         msg.args = jsonapi.loads(body)
         if self._vip_handler:
             self._vip_handler(msg)
+        self.channel.basic_ack(method.delivery_tag)
 
     def send_vip_object(self, message, flags=0, copy=True, track=False):
         """
