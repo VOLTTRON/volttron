@@ -103,19 +103,10 @@ class RabbitMQMgmt(object):
         kwargs["headers"] = {"Content-Type": "application/json"}
         auth_args = self._get_authentication_args(ssl_auth)
         kwargs.update(auth_args)
-        try:
-            import requests
-            #_log.warning(f"CALLING rewquest with {url} {kwargs}")
-            result = requests.get(url, **kwargs)
-            #_log.warning(f"Got result as {result}")
-        except BaseException as e:
-            _log.exception(f"****Exception in request {e}")
 
         try:
-            fn = getattr(grequests, method_name)
-            #_log.warning(f" fn is {fn}  url:{url} kwargs:{kwargs}")
-            request = fn(url, **kwargs)
-            response = grequests.map([request])
+            request = grequests.request(method_name, url, **kwargs)
+            response = request.send().response
 
             if response and isinstance(response, list):
                 response[0].raise_for_status()
@@ -178,8 +169,11 @@ class RabbitMQMgmt(object):
 
     def _http_get_request(self, url, ssl_auth=True):
         response = self._call_grequest('get', url, ssl_auth)
-        if response and isinstance(response, list):
-            response = response[0].json()
+        if response:
+            if isinstance(response, requests.models.Response):
+                response = response.json()
+            elif isinstance(response, list):
+                response = response[0].json()
         return response
 
     def create_vhost(self, vhost='volttron', ssl_auth=None):
@@ -261,9 +255,10 @@ class RabbitMQMgmt(object):
         """
         ssl_auth = ssl_auth if ssl_auth is not None else self.is_ssl
         url = '/api/users/'
-        _log.warning("in get users")
-        _log.warning(f"{self._get_url_prefix(ssl_auth) + url} {self._get_authentication_args(True)}")
+        #_log.info("in get users")
+        #_log.info(f"{self._get_url_prefix(ssl_auth) + url} {self._get_authentication_args(True)}")
         response = self._http_get_request(url, ssl_auth)
+
         users = []
         if response:
             users = [u['name'] for u in response]

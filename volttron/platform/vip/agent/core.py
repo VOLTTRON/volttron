@@ -36,7 +36,6 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-
 import heapq
 import inspect
 import logging
@@ -996,18 +995,18 @@ class RMQCore(Core):
 
         def connect_callback():
             router_connected = False
-            # try:
-            #     bindings = self.rmq_mgmt.get_bindings('volttron')
-            # except AttributeError:
-            #     bindings = None
-            # router_user = router_key = "{inst}.{ident}".format(inst=self.instance_name,
-            #                                                    ident='router')
-            # if bindings:
-            #     for binding in bindings:
-            #         if binding['destination'] == router_user and \
-            #                 binding['routing_key'] == router_key:
-            #             router_connected = True
-            #             break
+            try:
+                bindings = self.rmq_mgmt.get_bindings('volttron')
+            except AttributeError:
+                bindings = None
+            router_user = router_key = "{inst}.{ident}".format(inst=self.instance_name,
+                                                               ident='router')
+            if bindings:
+                for binding in bindings:
+                    if binding['destination'] == router_user and \
+                            binding['routing_key'] == router_key:
+                        router_connected = True
+                        break
             router_connected = True
             # Connection retry attempt issue #1702.
             # If the agent detects that RabbitMQ broker is reconnected before the router, wait

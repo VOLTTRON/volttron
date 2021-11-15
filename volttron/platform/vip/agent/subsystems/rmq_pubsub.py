@@ -496,7 +496,7 @@ class RMQPubSub(SubsystemBase):
         :param callback: callback method
         :return:
         """
-        self._logger.debug("DROP subscriptions: {}".format(routing_key))
+        #self._logger.debug("DROP subscriptions: {}".format(routing_key))
         topics = []
         remove = []
         remove_topics = []
@@ -533,7 +533,7 @@ class RMQPubSub(SubsystemBase):
                     del self._my_subscriptions[prefix]
                 if not topics:
                     raise KeyError('no such subscription')
-                self._logger.debug("my subscriptions: {0}".format(self._my_subscriptions))
+                #self._logger.debug("my subscriptions: {0}".format(self._my_subscriptions))
         else:
             # Search based on routing key
             if routing_key in self._my_subscriptions:
@@ -560,7 +560,7 @@ class RMQPubSub(SubsystemBase):
                         del subscriptions[que]
                     if not subscriptions:
                         del self._my_subscriptions[routing_key]
-            self._logger.debug("my subscriptions: {0}".format(self._my_subscriptions))
+            #self._logger.debug("my subscriptions: {0}".format(self._my_subscriptions))
         orig_topics = []
         # Strip '__pubsub__.<instance_name>' from the topic string
         for topic in topics:

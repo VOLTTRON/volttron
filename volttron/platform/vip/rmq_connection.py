@@ -57,6 +57,7 @@ _log = logging.getLogger(__name__)
 logging.getLogger("pika").setLevel(logging.WARNING)
 RMQ_RESOURCE_LOCKED = 405
 CONNECTION_FORCED = 320
+NORMAL_SHUTDOWN = 200
 
 
 class RMQConnection(BaseConnection):
@@ -181,7 +182,9 @@ class RMQConnection(BaseConnection):
         :param Exception reason: why the channel was closed
 
         """
-        _log.error(f"Channel Closed Unexpectedly. Reason: {reason}")
+        #_log.debug(f"Channel Closed Unexpectedly. Reason: {reason}")
+        if reason.reply_code in [0, NORMAL_SHUTDOWN]:
+            self._explicitly_closed = True
         if reason == RMQ_RESOURCE_LOCKED:
             _log.error(f"Channel Closed Unexpectedly. Attempting to run Agent: {self._identity}")
             self._connection.close()
@@ -370,7 +373,7 @@ class RMQConnection(BaseConnection):
         }
         properties = pika.BasicProperties(**dct)
         msg = args  # ARGS
-        # _log.debug("PUBLISHING TO CHANNEL {0}, {1}, {2}, {3}".format(destination_routing_key,
+        #_log.debug("PUBLISHING TO CHANNEL {0}, {1}, {2}, {3}".format(destination_routing_key,
         #                                                              msg,
         #                                                              properties,
         #                                                              self.routing_key))
@@ -443,7 +446,7 @@ class RMQConnection(BaseConnection):
             _log.error("Connection to RabbitMQ broker or Channel is already closed.")
             self._connection.ioloop.stop()
 
-    def on_cancel_ok(self):
+    def on_cancel_ok(self, unused_frame):
         """
         Callback method invoked by Pika when RabbitMQ acknowledges the cancellation of a consumer.
         Next step is to close the channel.
