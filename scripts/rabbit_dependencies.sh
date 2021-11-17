@@ -19,9 +19,9 @@ function exit_on_error {
 function print_usage {
  echo "
 Command Usage:
-<path>/rabbit_dependencies.sh <debian, raspbian, or centos> <distribution name/ubuntu-<version> or centos version>
-Valid Raspbian/Debian distributions: ${list[@]} ${!ubuntu_versions[@]}
-Valid centos versions: 7, 8
+<path>/rabbit_dependencies.sh <debian, or centos> <distribution name/ubuntu-<version> or centos version>
+Valid Debian distributions: ${list[@]} ${!ubuntu_versions[@]}
+Valid centos versions: 8
 "
  exit 0
 
@@ -30,14 +30,11 @@ Valid centos versions: 7, 8
 
 function install_on_centos {
 
-   if [[ "$DIST" == "7" ]]; then
-       erlang_url='https://packagecloud.io/rabbitmq/erlang/el/7/$basearch'
-       erlang_package_name='erlang-23.3.4.7-1.el7.x86_64'
-   elif [[ "$DIST" == "8" ]]; then
+   if [[ "$DIST" == "8" ]]; then
        erlang_url='https://packagecloud.io/rabbitmq/erlang/el/8/$basearch'
        erlang_package_name='erlang-24.1-1.el8.x86_64'
    else
-       printf "Invalid centos version. 7, and 8 are the only compatible versions\n"
+       printf "Invalid centos version. Centos 8 is the only compatible versions\n"
        print_usage
    fi
 
@@ -160,12 +157,8 @@ is_arm="FALSE"
 ${prefix} pwd > /dev/null
 
 if [[ "$os_name" == "debian" ]]; then
-    erlang_package_version="1:24.1.2-1"
+    erlang_package_version="1:24.1.5-1"
     is_arm="FALSE"
-    install_on_debian
-elif [[ "$os_name" == "raspbian" ]]; then
-    erlang_package_version="1:24.1.2-1"
-    is_arm="TRUE"
     install_on_debian
 elif [[ "$os_name" == "centos" ]]; then
     install_on_centos
