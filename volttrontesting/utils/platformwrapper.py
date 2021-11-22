@@ -28,7 +28,7 @@ from gevent.fileobject import FileObject
 from gevent.subprocess import Popen
 from volttron.platform import packaging, jsonapi
 from volttron.platform.agent.known_identities import PLATFORM_WEB, CONTROL, CONTROL_CONNECTION, PROCESS_IDENTITIES
-from volttron.platform.certs import Certs
+from volttron.platform.auth.certs import Certs
 from volttron.platform.agent import utils
 from volttron.platform.agent.utils import (strip_comments,
                                            load_platform_config,

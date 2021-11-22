@@ -232,7 +232,10 @@ def update_health_cache(opts):
 
 # TODO: Remove AIP
 def status_agents(opts):
-    agents = {agent.uuid: agent for agent in _list_agents(opts.aip)}
+    agents = {}
+    for agent in _list_agents(opts.aip):
+        agents[agent.uuid] = agent
+    # agents = {agent.uuid: agent for agent in _list_agents(opts.aip)}
     status = {}
     for details in opts.connection.call("status_agents", get_agent_user=True):
         if is_secure_mode():
@@ -280,7 +283,7 @@ def status_agents(opts):
 
     _show_filtered_agents_status(opts, get_status, get_health, agents)
 
-# TODO: Remove AIP
+#TODO: Remove AIP
 def agent_health(opts):
     agents = {agent.uuid: agent for agent in _list_agents(opts.aip)}.values()
     agents = get_filtered_agents(opts, agents)
@@ -888,14 +891,14 @@ def main():
     except RemoteError as exc:
         print_tb = exc.print_tb
         error = exc.message
-    except AttributeError as exc:
-        _stderr.write(
-            "Invalid command: '{}' or command requires additional arguments\n".format(
-                opts.command
-            )
-        )
-        parser.print_help()
-        return 1
+    # except AttributeError as exc:
+    #     _stderr.write(
+    #         "Invalid command: '{}' or command requires additional arguments\n".format(
+    #             opts.command
+    #         )
+    #     )
+    #     parser.print_help()
+    #     return 1
     # raised during install if wheel not found.
     except FileNotFoundError as exc:
         _stderr.write(f"{exc.args[0]}\n")

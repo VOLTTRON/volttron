@@ -4,7 +4,7 @@ import os
 from types import SimpleNamespace
 
 from volttron.platform.certs import CertWrapper
-from volttron.platform.certs import Certs, _load_key
+from volttron.platform.auth.certs import Certs, _load_key
 
 #TODO: Combine cert_profile_1 and cert_profile_2
 # Verify whether we need it as dictionary or SimpleNamespace

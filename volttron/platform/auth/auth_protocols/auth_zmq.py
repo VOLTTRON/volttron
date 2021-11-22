@@ -36,6 +36,7 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
+import random
 import gevent
 from gevent import time
 from volttron.platform.vip.agent.core import ZMQCore

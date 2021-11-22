@@ -72,7 +72,7 @@ class KeyDiscoveryAgent(Agent):
     Class to get server key, instance name and vip address of external/remote platforms
     """
 
-    def __init__(self, address, serverkey, identity, external_address_config,
+    def __init__(self, address, identity, external_address_config,
                  setup_mode, bind_web_address, *args, **kwargs):
         super(KeyDiscoveryAgent, self).__init__(identity, address, **kwargs)
         self._external_address_file = external_address_config

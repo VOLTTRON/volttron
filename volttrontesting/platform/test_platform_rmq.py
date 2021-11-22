@@ -50,7 +50,7 @@ from gevent import subprocess
 
 from volttrontesting.fixtures.volttron_platform_fixtures import get_rand_vip
 from volttrontesting.utils.platformwrapper import PlatformWrapper
-from volttron.platform.certs import Certs
+from volttron.platform.auth.certs import Certs
 from volttron.platform import get_examples
 from volttron.utils.rmq_setup import stop_rabbit, start_rabbit, restart_ssl
 

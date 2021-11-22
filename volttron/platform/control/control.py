@@ -64,7 +64,6 @@ from volttron.platform.control.control_auth import add_auth_parser
 from volttron.platform.control.control_certs import add_certs_parser
 from volttron.platform.control.control_config import add_config_store_parser
 from volttron.platform.control.control_connection import ControlConnection
-from volttron.platform.control.control_parser import backup_agent_data, restore_agent_data_from_tgz
 from volttron.platform.control.control_rpc import add_rpc_agent_parser
 from volttron.platform.control.control_utils import _show_filtered_agents
 from volttron.platform.agent import utils
@@ -113,6 +112,16 @@ message_bus = utils.get_messagebus()
 rmq_mgmt = None
 
 CHUNK_SIZE = 4096
+
+def backup_agent_data(output_filename, source_dir):
+    with tarfile.open(output_filename, "w:gz") as tar:
+        tar.add(source_dir,
+                arcname=os.path.sep)  # os.path.basename(source_dir))
+
+def restore_agent_data_from_tgz(source_file, output_dir):
+    # Open tarfile
+    with tarfile.open(source_file, mode="r:gz") as tar:
+        tar.extractall(output_dir)
 
 
 class ControlService(BaseAgent):
@@ -566,9 +575,11 @@ class ControlService(BaseAgent):
         finally:
             shutil.rmtree(tmpdir, ignore_errors=True)
 
+
     def _install_wheel_to_platform(
         self, agent_uuid, vip_identity, path, agent_existed_before
     ):
+                        
         agent_data_dir = None
         backup_agent_file = None
         # Fix unbound variable.  Only gets set if there is an existing agent

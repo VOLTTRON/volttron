@@ -37,36 +37,13 @@
 # }}}
 
 
-# def get_interface(self, driver_type, config_dict, config_string):
-#     """Returns an instance of the interface"""
-#     module_name = "platform_driver.interfaces." + driver_type
-#     module = __import__(module_name,globals(),locals(),[], 0)
-#     interfaces = module.interfaces
-#     sub_module = getattr(interfaces, driver_type)
-#     klass = getattr(sub_module, "Interface")
-#     interface = klass(vip=self.vip, core=self.core, device_path=self.device_path)
-#     interface.configure(config_dict, config_string)
-#     return interface
-
-class AuthProtocolAgent(BasicAgent):
-    def __init__(self, parent, config, **kwargs):
-        super(AuthProtocolAgent, self).__init__(**kwargs)
-        #Use the parent's vip connection
-        self.parent = parent
-        self.vip = parent.vip
-        self.config = config
-
-    def get_protocol(self, auth_protocol, config_dict, config_string):
-        """Returns an instance of the interface"""
-        module_name = "volttron.platform.auth.auth_protocols." + auth_protocol
-        module = __import__(module_name,globals(),locals(),[], 0)
-        interfaces = module.interfaces
-        sub_module = getattr(interfaces, auth_protocol)
-        klass = getattr(sub_module, "Interface")
-        interface = klass(vip=self.vip, core=self.core, device_path=self.device_path)
-        interface.configure(config_dict, config_string)
-        return interface
-
-
 #BaseAuthorization class
+class BaseAuthorization(object):
+    def __init__(self) -> None:
+        super().__init__()
+
 #BaseAuthentication class
+class BaseAuthentication(object):
+    def __init__(self) -> None:
+        super().__init__()
+

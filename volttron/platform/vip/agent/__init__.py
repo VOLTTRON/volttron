@@ -53,7 +53,7 @@ class Agent(object):
     class Subsystems(object):
         def __init__(self, owner, core, heartbeat_autostart,
                      heartbeat_period, enable_store, enable_web,
-                     enable_channel, enable_fncs, message_bus):
+                     enable_channel, enable_fncs, enable_auth, message_bus):
             self.peerlist = PeerList(core)
             self.ping = Ping(core)
             self.rpc = RPC(core, owner, self.peerlist)
@@ -72,7 +72,8 @@ class Agent(object):
                 self.config = ConfigStore(owner, core, self.rpc)
             if enable_web:
                 self.web = WebSubSystem(owner, core, self.rpc)
-            self.auth = Auth(owner, core, self.rpc)
+            if enable_auth:
+                self.auth = Auth(owner, core, self.rpc)
             if enable_fncs:
                 self.fncs = FNCS(owner, core, self.pubsub)
 
@@ -86,7 +87,7 @@ class Agent(object):
                  enable_web=False, enable_channel=False,
                  reconnect_interval=None, version='0.1', enable_fncs=False,
                  instance_name=None, message_bus=None,
-                 volttron_central_address=None, volttron_central_instance_name=None):
+                 volttron_central_address=None, volttron_central_instance_name=None, enable_auth=True):
 
         if volttron_home is None:
             volttron_home = os.path.abspath(platform.get_home())
@@ -122,7 +123,7 @@ class Agent(object):
                                     version=version, enable_fncs=enable_fncs)
             self.vip = Agent.Subsystems(self, self.core, heartbeat_autostart,
                                         heartbeat_period, enable_store, enable_web,
-                                        enable_channel, enable_fncs, message_bus)
+                                        enable_channel, enable_fncs, enable_auth, message_bus)
             self.core.setup()
             self.vip.rpc.export(self.core.version, 'agent.version')
         except Exception as e:

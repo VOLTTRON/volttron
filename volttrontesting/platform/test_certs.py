@@ -3,7 +3,7 @@ import tempfile
 import shutil
 
 import pytest
-from volttron.platform.certs import Certs, Subject, CertError
+from volttron.platform.auth.certs import Certs, Subject, CertError
 from volttron.platform.agent.utils import get_platform_instance_name
 
 INSTANCE_NAME = "VC"

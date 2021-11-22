@@ -75,33 +75,35 @@ from volttron.platform.agent.utils import get_platform_instance_name
 green.Context._instance = green.Context.shadow(zmq.Context.instance().underlying)
 from volttron.platform import jsonapi
 
-from . import aip
-from . import __version__
-from . import config
-from . import vip
-from .vip.agent import Agent, Core
-from .vip.router import *
-from .vip.socket import decode_key, encode_key, Address
-from .vip.tracking import Tracker
-from .auth import AuthService, AuthFile, AuthEntry
-from .control import ControlService
+from volttron.platform import aip
+from volttron.platform import __version__
+from volttron.platform import config
+from volttron.platform import vip
+from volttron.platform.vip.agent import Agent, Core
+from volttron.platform.vip.router import *
+from volttron.platform.vip.socket import decode_key, encode_key, Address
+from volttron.platform.vip.tracking import Tracker
+from volttron.platform.auth.auth import AuthService
+from volttron.platform.auth.auth_file import AuthFile
+from volttron.platform.auth.auth_entry import AuthEntry
+from volttron.platform.control.control import ControlService
 try:
     from .web import PlatformWebService
     HAS_WEB = True
 except ImportError:
     HAS_WEB = False
-from .store import ConfigStoreService
-from .agent import utils
-from .agent.known_identities import PLATFORM_WEB, CONFIGURATION_STORE, AUTH, CONTROL, CONTROL_CONNECTION, PLATFORM_HEALTH, \
+from volttron.platform.store import ConfigStoreService
+from volttron.platform.agent import utils
+from volttron.platform.agent.known_identities import PLATFORM_WEB, CONFIGURATION_STORE, AUTH, CONTROL, CONTROL_CONNECTION, PLATFORM_HEALTH, \
     KEY_DISCOVERY, PROXY_ROUTER, PLATFORM
-from .vip.agent.subsystems.pubsub import ProtectedPubSubTopics
-from .keystore import KeyStore, KnownHostsStore
-from .vip.pubsubservice import PubSubService
-from .vip.routingservice import RoutingService
-from .vip.externalrpcservice import ExternalRPCService
-from .vip.keydiscovery import KeyDiscoveryAgent
-from ..utils.persistance import load_create_store
-from .vip.rmq_router import RMQRouter
+from volttron.platform.vip.agent.subsystems.pubsub import ProtectedPubSubTopics
+from volttron.platform.keystore import KeyStore, KnownHostsStore
+from volttron.platform.vip.pubsubservice import PubSubService
+from volttron.platform.vip.routingservice import RoutingService
+from volttron.platform.vip.externalrpcservice import ExternalRPCService
+from volttron.platform.vip.keydiscovery import KeyDiscoveryAgent
+from volttron.utils.persistance import load_create_store
+from volttron.platform.vip.rmq_router import RMQRouter
 from volttron.platform.agent.utils import store_message_bus_config
 from zmq import green as _green
 from volttron.platform.vip.proxy_zmq_router import ZMQProxyRouter
@@ -661,6 +663,8 @@ def start_volttron_process(opts):
     opts.vip_address = [config.expandall(addr) for addr in opts.vip_address]
     opts.vip_local_address = config.expandall(opts.vip_local_address)
     opts.message_bus = config.expandall(opts.message_bus)
+    if opts.auth_protocol:
+        opts.auth_protocol = config.expandall(opts.auth_protocol)
     if opts.web_ssl_key:
         opts.web_ssl_key = config.expandall(opts.web_ssl_key)
     if opts.web_ssl_cert:
@@ -848,7 +852,7 @@ def start_volttron_process(opts):
             RMQRouter(opts.vip_address, opts.vip_local_address, opts.instance_name, opts.vip_address,
                       volttron_central_address=opts.volttron_central_address,
                       bind_web_address=opts.bind_web_address,
-                      service_notifier=notifier
+                      service_notifier=notifier, platform_version=__version__
                       ).run()
         except Exception:
             _log.exception('Unhandled exception in rmq router loop')
@@ -869,27 +873,111 @@ def start_volttron_process(opts):
         config_store_task = None
         proxy_router = None
         proxy_router_task = None
+        opts.auth_protocol = None
+        auth_protocol = False
+        if opts.auth_protocol:
+            auth_protocol = True
 
         _log.debug("********************************************************************")
         _log.debug("VOLTTRON PLATFORM RUNNING ON {} MESSAGEBUS".format(opts.message_bus))
         _log.debug("********************************************************************")
-        if opts.message_bus == 'zmq':
-            # Start the config store before auth so we may one day have auth use it.
-            config_store = ConfigStoreService(address=address,
-                                              identity=CONFIGURATION_STORE,
-                                              message_bus=opts.message_bus)
+
+        # Start the config store before auth so we may one day have auth use it.
+        config_store = ConfigStoreService(address=address,
+                                            identity=CONFIGURATION_STORE,
+                                            message_bus=opts.message_bus,
+                                            enable_auth=auth_protocol)
+
+        # Launch additional services and wait for them to start before
+        # auto-starting agents
+        services = [
+            ControlService(opts.aip, address=address, identity=CONTROL,
+                           tracker=tracker, heartbeat_autostart=True,
+                           enable_store=False, enable_channel=True,
+                           message_bus=opts.message_bus,
+                           agent_monitor_frequency=opts.agent_monitor_frequency,
+                           enable_auth=auth_protocol),
+
+            KeyDiscoveryAgent(address=address,
+                              identity=KEY_DISCOVERY,
+                              external_address_config=external_address_file,
+                              setup_mode=opts.setup_mode,
+                              bind_web_address=opts.bind_web_address,
+                              enable_store=False,
+                              message_bus='zmq',
+                              enable_auth=auth_protocol)
+        ]
+
+        health_service = HealthService(address=address,
+                                       identity=PLATFORM_HEALTH, heartbeat_autostart=True,
+                                       enable_store=False,
+                                       message_bus=opts.message_bus,
+                                       enable_auth=auth_protocol)
+        notifier.register_peer_callback(health_service.peer_added, health_service.peer_dropped)
+        services.append(health_service)
+
+        # Begin the webserver based options here.
+        if opts.bind_web_address is not None:
+            if not HAS_WEB:
+                _log.info(f"Web libraries not installed, but bind web address specified\n")
+                sys.stderr.write("Web libraries not installed, but bind web address specified\n")
+                sys.stderr.write("Please install web libraries using python3 bootstrap.py --web\n")
+                sys.exit(-1)
+
+            if opts.instance_name is None:
+                _update_config_file()
+
+            if opts.message_bus == 'rmq':
+                if opts.web_ssl_key is None or opts.web_ssl_cert is None or \
+                        (not os.path.isfile(opts.web_ssl_key) and not os.path.isfile(opts.web_ssl_cert)):
+                    # This is different than the master.web cert which is used for the agent to connect
+                    # to rmq server.  The master.web-server certificate will be used for the platform web
+                    # services.
+                    base_webserver_name = PLATFORM_WEB + "-server"
+                    from volttron.platform.auth.certs import Certs
+                    certs = Certs()
+                    certs.create_signed_cert_files(base_webserver_name, cert_type='server')
+                    opts.web_ssl_key = certs.private_key_file(base_webserver_name)
+                    opts.web_ssl_cert = certs.cert_file(base_webserver_name)
+            
+            _log.info("Starting platform web service")
+            services.append(PlatformWebService(
+                identity=PLATFORM_WEB,
+                address=address,
+                bind_web_address=opts.bind_web_address,
+                volttron_central_address=opts.volttron_central_address,
+                enable_store=False,
+                message_bus=opts.message_bus,
+                volttron_central_rmq_address=opts.volttron_central_rmq_address,
+                web_ssl_key=opts.web_ssl_key,
+                web_ssl_cert=opts.web_ssl_cert,
+                web_secret_key=opts.web_secret_key,
+                enable_auth=auth_protocol
+            ))
+
+
+        event = gevent.event.Event()
+        config_store_task = gevent.spawn(config_store.core.run, event)
+        event.wait()
+        del event
+        
+        # Auth Handling
+        # Ensure auth service is running before router
+        if opts.auth_protocol:
+            auth_file = os.path.join(opts.volttron_home, 'auth.json')
+            auth = AuthService(auth_file, protected_topics_file,
+                                opts.setup_mode, opts.aip,
+                                address=address, identity=AUTH,
+                                enable_store=False, message_bus=opts.message_bus,
+                                enable_auth=auth_protocol)
 
             event = gevent.event.Event()
-            config_store_task = gevent.spawn(config_store.core.run, event)
+            auth_task = gevent.spawn(auth.core.run, event)
             event.wait()
             del event
 
-            # Ensure auth service is running before router
-            auth_file = os.path.join(opts.volttron_home, 'auth.json')
-            auth = AuthService(
-                auth_file, protected_topics_file, opts.setup_mode,
-                opts.aip, address=address, identity=AUTH,
-                enable_store=False, message_bus='zmq', zap_required=False)
+            protected_topics = auth.get_protected_topics()
+            _log.debug("MAIN: protected topics content {}".format(protected_topics))
 
             ks_auth = KeyStore(KeyStore.get_agent_keystore_path(AUTH))
             entry = AuthEntry(
@@ -900,13 +988,37 @@ def start_volttron_process(opts):
                 comments='Automatically added by platform on start')
             AuthFile().add(entry, overwrite=True)
 
-            event = gevent.event.Event()
-            auth_task = gevent.spawn(auth.core.run, event)
-            event.wait()
-            del event
+            protected_topics_file = os.path.join(opts.volttron_home, 'protected_topics.json')
+            _log.debug('protected topics file %s', protected_topics_file)
+            external_address_file = os.path.join(opts.volttron_home, 'external_address.json')
+            _log.debug('external_address_file file %s', external_address_file)
 
-            protected_topics = auth.get_protected_topics()
-            _log.debug("MAIN: protected topics content {}".format(protected_topics))
+            entry = AuthEntry(credentials=services[0].core.publickey,
+                            user_id=CONTROL,
+                            identity=CONTROL,
+                            capabilities=[{'edit_config_store': {'identity': '/.*/'}},
+                                            'modify_rpc_method_allowance',
+                                            'allow_auth_modifications'],
+                            comments='Automatically added by platform on start')
+            AuthFile().add(entry, overwrite=True)
+
+            entry = AuthEntry(credentials=services[1].core.publickey,
+                            user_id=KEY_DISCOVERY,
+                            identity=KEY_DISCOVERY,
+                            comments='Automatically added by platform on start')
+            AuthFile().add(entry, overwrite=True)
+
+
+
+            ks_masterweb = KeyStore(KeyStore.get_agent_keystore_path(PLATFORM_WEB))
+            entry = AuthEntry(credentials=encode_key(decode_key(ks_masterweb.public)),
+                            user_id=PLATFORM_WEB,
+                            capabilities=['allow_auth_modifications'],
+                            comments='Automatically added by platform on start')
+            AuthFile().add(entry, overwrite=True)
+
+
+        if opts.message_bus == 'zmq':
             # Start ZMQ router in separate thread to remain responsive
             thread = threading.Thread(target=zmq_router, args=(config_store.core.stop,))
             thread.daemon = True
@@ -934,10 +1046,7 @@ def start_volttron_process(opts):
                                "Check rabbitmq log for errors")
                     sys.exit()
 
-            # Start the config store before auth so we may one day have auth use it.
-            config_store = ConfigStoreService(address=address,
-                                              identity=CONFIGURATION_STORE,
-                                              message_bus=opts.message_bus)
+
 
             thread = threading.Thread(target=rmq_router, args=(config_store.core.stop,))
             thread.daemon = True
@@ -947,25 +1056,6 @@ def start_volttron_process(opts):
             if not thread.is_alive():
                 sys.exit()
 
-            gevent.sleep(1)
-            event = gevent.event.Event()
-            config_store_task = gevent.spawn(config_store.core.run, event)
-            event.wait()
-            del event
-
-            # Ensure auth service is running before router
-            auth_file = os.path.join(opts.volttron_home, 'auth.json')
-            auth = AuthService(auth_file, protected_topics_file,
-                               opts.setup_mode, opts.aip,
-                               address=address, identity=AUTH,
-                               enable_store=False, message_bus='rmq')
-
-            event = gevent.event.Event()
-            auth_task = gevent.spawn(auth.core.run, event)
-            event.wait()
-            del event
-
-            protected_topics = auth.get_protected_topics()
             # Spawn Greenlet friendly ZMQ router
             # Necessary for backward compatibility with ZMQ message bus
             green_router = GreenRouter(opts.vip_local_address, opts.vip_address,
@@ -1008,135 +1098,13 @@ def start_volttron_process(opts):
         instances[opts.volttron_home] = this_instance
         instances.async_sync()
 
-        protected_topics_file = os.path.join(opts.volttron_home, 'protected_topics.json')
-        _log.debug('protected topics file %s', protected_topics_file)
-        external_address_file = os.path.join(opts.volttron_home, 'external_address.json')
-        _log.debug('external_address_file file %s', external_address_file)
 
-        #SN -- testing
-        publickey = None
-
-        # Launch additional services and wait for them to start before
-        # auto-starting agents
-        services = [
-            ControlService(opts.aip, address=address, identity=CONTROL,
-                           tracker=tracker, heartbeat_autostart=True,
-                           enable_store=False, enable_channel=True,
-                           message_bus=opts.message_bus,
-                           agent_monitor_frequency=opts.agent_monitor_frequency),
-
-            KeyDiscoveryAgent(address=address,
-                              identity=KEY_DISCOVERY,
-                              external_address_config=external_address_file,
-                              setup_mode=opts.setup_mode,
-                              bind_web_address=opts.bind_web_address,
-                              enable_store=False,
-                              message_bus='zmq')
-        ]
-        #SN -- testing
-        # entry = AuthEntry(credentials=services[0].core.publickey,
-        #                   user_id=CONTROL,
-        #                   identity=CONTROL,
-        #                   capabilities=[{'edit_config_store': {'identity': '/.*/'}},
-        #                                 'modify_rpc_method_allowance',
-        #                                 'allow_auth_modifications'],
-        #                   comments='Automatically added by platform on start')
-        # AuthFile().add(entry, overwrite=True)
-
-        entry = AuthEntry(credentials=services[1].core.publickey,
-                          user_id=KEY_DISCOVERY,
-                          identity=KEY_DISCOVERY,
-                          comments='Automatically added by platform on start')
-        AuthFile().add(entry, overwrite=True)
-
-        # Begin the webserver based options here.
-        if opts.bind_web_address is not None:
-            if not HAS_WEB:
-                _log.info(f"Web libraries not installed, but bind web address specified\n")
-                sys.stderr.write("Web libraries not installed, but bind web address specified\n")
-                sys.stderr.write("Please install web libraries using python3 bootstrap.py --web\n")
-                sys.exit(-1)
-
-            if opts.instance_name is None:
-                _update_config_file()
-
-            if opts.message_bus == 'rmq':
-                if opts.web_ssl_key is None or opts.web_ssl_cert is None or \
-                        (not os.path.isfile(opts.web_ssl_key) and not os.path.isfile(opts.web_ssl_cert)):
-                    # This is different than the master.web cert which is used for the agent to connect
-                    # to rmq server.  The master.web-server certificate will be used for the platform web
-                    # services.
-                    base_webserver_name = PLATFORM_WEB + "-server"
-                    from volttron.platform.certs import Certs
-                    certs = Certs()
-                    certs.create_signed_cert_files(base_webserver_name, cert_type='server')
-                    opts.web_ssl_key = certs.private_key_file(base_webserver_name)
-                    opts.web_ssl_cert = certs.cert_file(base_webserver_name)
-            #
-            # _log.info("Starting platform web service")
-            # services.append(PlatformWebService(
-            #     identity=PLATFORM_WEB,
-            #     address=address,
-            #     bind_web_address=opts.bind_web_address,
-            #     volttron_central_address=opts.volttron_central_address,
-            #     enable_store=False,
-            #     message_bus=opts.message_bus,
-            #     volttron_central_rmq_address=opts.volttron_central_rmq_address,
-            #     web_ssl_key=opts.web_ssl_key,
-            #     web_ssl_cert=opts.web_ssl_cert,
-            #     web_secret_key=opts.web_secret_key
-            # ))
-
-        #SN -- testing
-        # ks_masterweb = KeyStore(KeyStore.get_agent_keystore_path(MASTER_WEB))
-        # entry = AuthEntry(credentials=encode_key(decode_key(ks_masterweb.public)),
-        #                   user_id=MASTER_WEB,
-        #                   capabilities=['allow_auth_modifications'],
-        #                   comments='Automatically added by platform on start')
-        # AuthFile().add(entry, overwrite=True)
-
-        #     _log.info("Starting platform web service")
-        #     services.append(PlatformWebService(
-        #         serverkey=publickey, identity=PLATFORM_WEB,
-        #         address=address,
-        #         bind_web_address=opts.bind_web_address,
-        #         volttron_central_address=opts.volttron_central_address,
-        #         enable_store=False,
-        #         message_bus=opts.message_bus,
-        #         volttron_central_rmq_address=opts.volttron_central_rmq_address,
-        #         web_ssl_key=opts.web_ssl_key,
-        #         web_ssl_cert=opts.web_ssl_cert,
-        #         web_secret_key=opts.web_secret_key
-        #     ))
-
-        # ks_platformweb = KeyStore(KeyStore.get_agent_keystore_path(PLATFORM_WEB))
-        # entry = AuthEntry(credentials=encode_key(decode_key(ks_platformweb.public)),
-        #                   user_id=PLATFORM_WEB,
-        #                   identity=PLATFORM_WEB,
-        #                   capabilities=['allow_auth_modifications'],
-        #                   comments='Automatically added by platform on start')
-        # AuthFile().add(entry, overwrite=True)
-
-        # # PLATFORM_WEB did not work on RMQ. Referred to agent as master
-        # # Added this auth to allow RPC calls for credential authentication
-        # # when using the RMQ messagebus.
-        # ks_platformweb = KeyStore(KeyStore.get_agent_keystore_path('master'))
-        # entry = AuthEntry(credentials=encode_key(decode_key(ks_platformweb.public)),
-        #                   user_id='master',
-        #                   capabilities=['allow_auth_modifications'],
-        #                   comments='Automatically added by platform on start')
-        # AuthFile().add(entry, overwrite=True)
-        health_service = HealthService(address=address,
-                                       identity=PLATFORM_HEALTH, heartbeat_autostart=True,
-                                       enable_store=False,
-                                       message_bus=opts.message_bus)
-        notifier.register_peer_callback(health_service.peer_added, health_service.peer_dropped)
-        services.append(health_service)
         events = [gevent.event.Event() for service in services]
         tasks = [gevent.spawn(service.core.run, event)
                  for service, event in zip(services, events)]
         tasks.append(config_store_task)
         tasks.append(auth_task)
+        tasks = [task for task in tasks if task]
         if stop_event:
             tasks.append(stop_event)
         gevent.wait(events)
@@ -1392,7 +1360,8 @@ def main(argv=sys.argv):
         # Type of underlying message bus to use - ZeroMQ or RabbitMQ
         message_bus='zmq',
         # Volttron Central in AMQP address format is needed if running on RabbitMQ message bus
-        volttron_central_rmq_address=None
+        volttron_central_rmq_address=None,
+        auth_protocol=None
     )
 
     # Parse and expand options

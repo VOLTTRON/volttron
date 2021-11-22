@@ -57,11 +57,11 @@ except ImportError:
 from watchdog_gevent import Observer
 from volttron.platform.agent.web import Response
 
-from ...platform import get_home
-from ...platform import jsonapi
-from ...platform.certs import Certs
-from ...utils import VolttronHomeFileReloader
-from ...utils.persistance import PersistentDict
+from volttron.platform import get_home
+from volttron.platform import jsonapi
+from volttron.platform.auth.certs import Certs
+from volttron.utils import VolttronHomeFileReloader
+from volttron.utils.persistance import PersistentDict
 
 
 _log = logging.getLogger(__name__)
@@ -244,10 +244,10 @@ class AdminEndpoints(object):
             data = dict(status=self._rpc_caller.call(AUTH, "get_pending_csr_status", common_name).get(timeout=2),
                         cert=self._rpc_caller.call(AUTH, "get_pending_csr_cert", common_name).get(timeout=2))
         except ValueError as e:
-            data = dict(status="ERROR", message=e.message)
+            data = dict(status="ERROR", message=str(e))
 
         except TimeoutError as e:
-            data = dict(status="ERROR", message=e.message)
+            data = dict(status="ERROR", message=str(e))
 
         return Response(jsonapi.dumps(data), content_type="application/json")
 
@@ -257,10 +257,10 @@ class AdminEndpoints(object):
             data = dict(status="DENIED",
                         message="The administrator has denied the request")
         except ValueError as e:
-            data = dict(status="ERROR", message=e.message)
+            data = dict(status="ERROR", message=str(e))
 
         except TimeoutError as e:
-            data = dict(status="ERROR", message=e.message)
+            data = dict(status="ERROR", message=str(e))
 
         return Response(jsonapi.dumps(data), content_type="application/json")
 
@@ -270,10 +270,10 @@ class AdminEndpoints(object):
             data = dict(status="DELETED",
                         message="The administrator has denied the request")
         except ValueError as e:
-            data = dict(status="ERROR", message=e.message)
+            data = dict(status="ERROR", message=str(e))
 
         except TimeoutError as e:
-            data = dict(status="ERROR", message=e.message)
+            data = dict(status="ERROR", message=str(e))
 
         return Response(jsonapi.dumps(data), content_type="application/json")
 
@@ -282,7 +282,7 @@ class AdminEndpoints(object):
             data = self._rpc_caller.call(AUTH, 'get_pending_csrs').get(timeout=4)
 
         except TimeoutError as e:
-            data = dict(status="ERROR", message=e.message)
+            data = dict(status="ERROR", message=str(e))
 
         return Response(jsonapi.dumps(data), content_type="application/json")
 
@@ -293,7 +293,7 @@ class AdminEndpoints(object):
                     self._rpc_caller.call(AUTH, "get_all_pending_csr_subjects").get(timeout=2)]
 
         except TimeoutError as e:
-            data = dict(status="ERROR", message=e.message)
+            data = dict(status="ERROR", message=str(e))
 
         return Response(jsonapi.dumps(data), content_type="application/json")
 
@@ -304,10 +304,10 @@ class AdminEndpoints(object):
             data = dict(status='APPROVED',
                         message="The administrator has approved the request")
         except ValueError as e:
-            data = dict(status="ERROR", message=e.message)
+            data = dict(status="ERROR", message=str(e))
 
         except TimeoutError as e:
-            data = dict(status="ERROR", message=e.message)
+            data = dict(status="ERROR", message=str(e))
 
         return Response(jsonapi.dumps(data), content_type="application/json")
 
@@ -317,10 +317,10 @@ class AdminEndpoints(object):
             data = dict(status="DENIED",
                         message="The administrator has denied the request")
         except ValueError as e:
-            data = dict(status="ERROR", message=e.message)
+            data = dict(status="ERROR", message=str(e))
 
         except TimeoutError as e:
-            data = dict(status="ERROR", message=e.message)
+            data = dict(status="ERROR", message=str(e))
 
         return Response(jsonapi.dumps(data), content_type="application/json")
 
@@ -330,10 +330,10 @@ class AdminEndpoints(object):
             data = dict(status="DELETED",
                         message="The administrator has denied the request")
         except ValueError as e:
-            data = dict(status="ERROR", message=e.message)
+            data = dict(status="ERROR", message=str(e))
 
         except TimeoutError as e:
-            data = dict(status="ERROR", message=e.message)
+            data = dict(status="ERROR", message=str(e))
 
         return Response(jsonapi.dumps(data), content_type="application/json")
 

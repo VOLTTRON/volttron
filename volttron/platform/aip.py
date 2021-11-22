@@ -63,14 +63,14 @@ from volttron.platform import jsonapi
 from volttron.platform.auth.certs import Certs
 from volttron.platform.keystore import KeyStore
 
-from .agent.utils import (is_valid_identity,
+from volttron.platform.agent.utils import (is_valid_identity,
                           get_messagebus,
                           get_platform_instance_name)
 from volttron.platform import get_home
 from volttron.platform.agent.utils import load_platform_config, \
     get_utc_seconds_from_epoch
-from .packages import UnpackedPackage
-from .vip.agent import Agent
+from volttron.platform.packages import UnpackedPackage
+from volttron.platform.vip.agent import Agent
 from volttron.platform.auth.auth_entry import AuthEntry
 from volttron.platform.auth.auth_file import AuthFile, AuthFileEntryAlreadyExists
 from volttron.utils.rmq_mgmt import RabbitMQMgmt

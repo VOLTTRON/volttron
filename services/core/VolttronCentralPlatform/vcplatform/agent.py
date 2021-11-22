@@ -69,7 +69,8 @@ from volttron.platform.agent.known_identities import (
 from volttron.platform.agent.utils import (get_aware_utc_now)
 from volttron.platform.agent.utils import (get_utc_seconds_from_epoch,
                                            format_timestamp, normalize_identity)
-from volttron.platform.auth import AuthEntry, AuthFile
+from volttron.platform.auth.auth_entry import AuthEntry
+from volttron.platform.auth.auth_file import AuthFile
 from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS)
 from volttron.platform.messaging import topics
 from volttron.platform.messaging.health import GOOD_STATUS

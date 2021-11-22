@@ -64,8 +64,9 @@ from volttron.platform.agent.known_identities import \
     CONTROL, VOLTTRON_CENTRAL, AUTH
 from ..agent.utils import get_fq_identity
 from ..agent.web import Response, JsonResponse
-from ..auth import AuthEntry, AuthFile, AuthFileEntryAlreadyExists
-from ..certs import Certs, CertWrapper
+from volttron.platform.auth.auth_entry import AuthEntry
+from volttron.platform.auth.auth_file import AuthFile, AuthFileEntryAlreadyExists
+from volttron.platform.auth.certs import Certs, CertWrapper
 from ..jsonrpc import (json_result,
                        json_validate_request,
                        INVALID_REQUEST, METHOD_NOT_FOUND,

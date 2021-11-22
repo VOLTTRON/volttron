@@ -450,7 +450,7 @@ def vip_main(agent_class, identity=None, version='0.1', **kwargs):
         agent_uuid = os.environ.get('AGENT_UUID')
         volttron_home = get_home()
 
-        from volttron.platform.certs import Certs
+        from volttron.platform.auth.certs import Certs
         certs = Certs()
         agent = agent_class(config_path=config, identity=identity,
                             address=address, agent_uuid=agent_uuid,
