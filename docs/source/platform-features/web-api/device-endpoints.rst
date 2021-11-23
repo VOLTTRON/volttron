@@ -28,10 +28,13 @@ as described in *Use of Topics*.
         use ``-`` as a wildcard within a segment containing other characters: ``/campus/foo-bar/:device``
         will only match a building called “foo-bar”, not one called “foobazbar”.
 
-    Topic-Filtring Query Parameters:
-        -  ``tag`` (default=null): Filter the result by the provided tag.
-        -  ``regex`` (default=null): Filter the result by the provided regular expression. The raw regular expression
-           should follow python re syntax, but must be url-encoded within the query-string.
+    Topic-Filtering Query Parameters:
+        -  ``tag`` (default=null):
+            Filter the result by the provided tag. (This requires that the tagging service be
+            running and configured.)
+        -  ``regex`` (default=null):
+                Filter the result by the provided regular expression. The raw regular expression
+                should follow python re syntax, but must be url-encoded within the query-string.
 
 .. attention::
     All endpoints in this tree require authorization using a JWT bearer access token provided by the
@@ -52,10 +55,14 @@ in the *Use of Topics* section above, the following query parameters are accepte
         If true, the response will return entries for every point. These will be a set of JSON objects
         with `route`, `writability`, and `value` unless the result is further filtered by the
         corresponding query parameters.
-    * ``route`` (default=true): If true, the result will include the route to the points.
-    * ``writable`` (default=true): If true, the result will include the writability of the points.
-    * ``value`` (default=true): If true, the result will include the value of the points.
-    * ``config`` (default=false): If true, the result will include information about the configuration of the point.
+    * ``routes`` (default=true):
+        If true, the result will include the route to the points.
+    * ``writability`` (default=true):
+        If true, the result will include the writability of the points.
+    * ``values`` (default=true):
+        If true, the result will include the value of the points.
+    * ``config`` (default=false):
+        If true, the result will include information about the configuration of the point.
 
 Request:
 --------
@@ -80,7 +87,7 @@ Response:
                     {
                         "route_options": {
                             "<device1>": "/platforms/:platform/devices/MyCampus/Building1/<device1>",
-                            "<device2>": "/platforms/:platform/devices/MyCampus/Building2/<device2>"
+                            "<device2>": "/platforms/:platform/devices/MyCampus/Building1/<device2>"
                         }
                     }
 
@@ -88,9 +95,8 @@ Response:
 
                 This example shows the result of a topic: `MyCampus/Building1/-/Point4`. Note that
                 the wildcard selects all devices in `Building1` with a point called `Point4`.
-                ``read-all`` must be ``true`` for this case, or a route_options object would have
-                been returned. Other query parameters were not provided or were set to their default
-                values.
+                ``read-all`` does not need to be ``true`` for this case to get data, as a point segment was provided.
+                Other query parameters were not provided or were set to their default values.
 
                 .. code-block:: JSON
 
@@ -122,9 +128,16 @@ Response:
 
 
 PUT /platforms/:platform/devices/:topic/
-----------------------------------------
+========================================
 
-Sets the value of the specified point and returns its new value and meta-data.
+Sets the value of the specified point and returns its new value and meta-data. In addition to the tag and regex query
+parameters described in the Use of Topics section above, the following query parameters are accepted:
+
+    * ``write-all`` (default=false):
+        If true, the response will write the given value to all points matching the topic. It is *always* necessary to
+        set write-all=true if more than one point is intended to be written in response to the request.
+    * ``confirm-values`` (default=false):
+        If true, the current value of any written points will be read and returned after the write.
 
 .. warning::
     If an attempt is made to set a point which is not writable, or if multiple points are selected
@@ -133,131 +146,170 @@ Sets the value of the specified point and returns its new value and meta-data.
 
 Request:
 --------
-    - Authorization: ``BEARER <jwt_access_token>``
-    - Content Type: ``application/json``
-    - Body:
 
-        .. code-block:: JSON
+- Authorization: ``BEARER <jwt_access_token>``
 
-      {
-          "value": <value>
-      }
+- Content Type: ``application/json``
 
-**Response:**
+- Body:
 
--  With valid BEARER token on success: ``200 OK``
+    .. code-block:: JSON
+
+        {
+            "value": <value>
+        }
+
+Response:
+---------
+
+-  **With valid BEARER token on success (confirm-values=false):** ``200 OK``
 
    -  Content Type: ``application/json``
 
    -  Body:
 
-      ::
+      .. code-block:: JSON
 
          {
-             "value": <new_value>,
-             "meta": <meta_data>
+            "<topic>": {
+                "route": "/vui/platforms/:platform/devices/:topic",
+                "set_error": <null or error message>,
+                "writable": <bool>
+            }
          }
 
--  With valid BEARER token if any point is not writable:
+-  **With valid BEARER token on success (confirm-values=true):** ``200 OK``
+
+   -  Content Type: ``application/json``
+
+   -  Body:
+
+      .. code-block:: JSON
+
+         {
+            "<topic>": {
+                "route": "/vui/platforms/:platform/devices/:topic",
+                "set_error": <null or error message>,
+                "writable": <bool>,
+                "value": <value>,
+                "value_check_error": <null or error message>
+            }
+         }
+
+-  **With valid BEARER token if any point is not writable:**
    ``405 Method Not Allowed``:
 
    -  Content Type: ``application/json``
 
    -  Body:
 
-      ::
+      .. code-block:: JSON
 
          {
              "error": "<Error Message indicating unwritable points>"
          }
 
--  With valid BEARER token on any other failure: ``400 Bad Request``
+-  **With valid BEARER token on any other failure:** ``400 Bad Request``
 
    -  Content Type: ``application/json``
 
    -  Body:
 
-      ::
+      .. code-block:: JSON
 
          {
              "error": "<Error Message>"
          }
 
--  With invalid BEARER token: ``401 Unauthorized``
+-  **With invalid BEARER token:** ``401 Unauthorized``
 
 --------------
 
-.. container::
-   :name: delete-platformsplatformdevicestopic
+DELETE /platforms/:platform/devices/:topic/
+===========================================
 
-   .. rubric:: DELETE /platforms/:platform/devices/:topic/
-      :name: delete-platformsplatformdevicestopic
+Resets the value of the specified point and returns its new value andmeta-data.In addition to the tag and regex query
+parameters described in the Use of Topics section above, the following query parameters are accepted:
 
-resets the value of the specified point and returns its new value and
-meta-data.
+    * ``write-all`` (default=false):
+        If true, the response will write the given value to all points matching the topic. It is *always* necessary to
+        set write-all=true if more than one point is intended to be written in response to the request.
+    * ``confirm-values`` (default=false):
+        If true, the current value of any written points will be read and returned after the write.
 
-   **Note:** Platform Device endpoints accept query parameters to refine
-   their output, as described in the introduction to the Devices
-   section.
+.. warning::
+    If an attempt is made to set a point which is not writable, or if multiple points are selected
+    using a partial topic and/or query parameters and the ``write-all`` query parameter is not set
+    to ``true``, the response will be ``405 Method Not Allowed``.
 
-..
+.. warning::
+    The request will also fail unless all writes are successful, and any points which would otherwise be set will be
+    reverted to their previous value.
 
-   **Note:** See the introduction to the Platform Devices section for
-   information on the use of topics.
-
-If an attempt is made to set a point which is not writable, the response
-will be ``405 Method Not Allowed``.
-
-If the request uses partial topics and/or query parameters to select
-more than one point to set, the query parameter ``write-all`` must be
-set. If ``write-all`` is not set, the request will fail with
-``405 Method Not Allowed``. The request will also fail unless all writes
-are successful, and any points which would otherwise be set will be
-reverted to their previous value.
-
-**Request:**
+Request:
+--------
 
 -  Authorization: ``BEARER <jwt_access_token>``
 
-**Response:**
+Response:
+---------
 
--  With valid BEARER token on success: ``200 OK``
+-  **With valid BEARER token on success (confirm-values=false):** ``200 OK``
 
    -  Content Type: ``application/json``
 
    -  Body:
 
-      ::
+      .. code-block:: JSON
 
          {
-             "value": <new_value>,
-             "meta": <meta_data>
-         }
+            "<topic>": {
+                "route": "/vui/platforms/:platform/devices/:topic",
+                "writable": <bool>
+            }
+        }
 
--  With valid BEARER token if any point is not writable:
+-  **With valid BEARER token on success (confirm-values=true):** ``200 OK``
+
+   -  Content Type: ``application/json``
+
+   -  Body:
+
+      .. code-block:: JSON
+
+         {
+            "<topic>": {
+                "route": "/vui/platforms/:platform/devices/:topic",
+                "writable": <bool>,
+                "value": <value>,
+                "value_check_error": <null or error message>
+            }
+        }
+
+-  **With valid BEARER token if any point is not writable:**
    ``405 Method Not Allowed``:
 
    -  Content Type: ``application/json``
 
    -  Body:
 
-      ::
+      .. code-block:: JSON
 
          {
              "error": "<Error Message indicating unwritable points>"
          }
 
--  With valid BEARER token on any other failure: ``400 Bad Request``
+-  **With valid BEARER token on any other failure:** ``400 Bad Request``
 
    -  Content Type: ``application/json``
 
    -  Body:
 
-      ::
+      .. code-block:: JSON
 
          {
              "error": "<Error Message>"
          }
 
--  With invalid BEARER token: ``401 Unauthorized``
+-  **With invalid BEARER token:** ``401 Unauthorized``
 

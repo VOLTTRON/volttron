@@ -15,7 +15,7 @@ The platforms tree currently provides access to four major categories of endpoin
 through the following links:
 
 * `Agents <agent-endpoints.html>`_: Endpoints pertaining to a specific agent (e.g. RPC)
-* `Devices <device-endpoints.html>`_: Endpoints for discovering, getting, and setting data about devices on the platform.
+* `Devices <device-endpoints.html>`_: Endpoints for discovering, getting, and setting data about the current state of devices on the platform.
 * `Historians <historian-endpoints.html>`_: Endpoints for querying data from historians.
 * `PubSub <pubsub-endpoints.html>`_: Endpoints for subscription and publication to message bus topics.
 

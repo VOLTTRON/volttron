@@ -1,255 +1,188 @@
-.. container::
-   :name: platforms-pubsub
-
-   .. rubric:: Platforms PubSub
-      :name: platforms-pubsub
+PubSub Endpoints
+================
 
 PubSub endpoints expose functionality associated with publication and
 subscription to topics on the VOLTTRON message bus.
 
--  All PubSub endpoints require a JWT bearer token obtained through the
-   ``POST /authenticate`` or ``PUT /authenticate`` endpoints.
+.. attention::
+    All endpoints in this tree require authorization using a JWT bearer access token provided by the
+    ``POST /authenticate`` or ``PUT /authenticate`` endpoints.
 
---------------
-
-.. container::
-   :name: get-platforms/platform/pubsub
-
-   .. rubric:: GET /platforms/:platform/pubsub
-      :name: get-platformsplatformpubsub
+GET /platforms/:platform/pubsub
+===============================
 
 Retrieve routes for message bus topics being monitored by this user of
 the VUI API.
 
-**Request:**
+Request:
+--------
 
--  Authorization: ``BEARER <jwt_access_token>``
+    -  Authorization: ``BEARER <jwt_access_token>``
 
-**Response:**
+Response:
+---------
 
--  With valid BEARER token on success: ``200 OK``
+    -  With valid BEARER token on success: ``200 OK``
 
-   -  Body:
+       -  Body:
 
-      ::
+          .. code-block:: JSON
 
-             [
-                 "/platform/:platform/pubsub/:topic",
-                 "/platform/:platform/pubsub/:topic",
-                 ...
-             ]
+                 [
+                     "/vui/platform/:platform/pubsub/:topic",
+                     "/vui/platform/:platform/pubsub/:topic"
+                 ]
 
--  With valid BEARER token on failure: ``400 Bad Request``
+    -  With valid BEARER token on failure: ``400 Bad Request``
 
-   -  Content Type: ``application/json``
+       -  Content Type: ``application/json``
 
-   -  Body:
+       -  Body:
 
-      ::
+          .. code-block:: JSON
 
-         {
-             "error": "<Error Message>"
-         }
+             {
+                 "error": "<Error Message>"
+             }
 
--  With invalid BEARER token: ``401 Unauthorized``
-
---------------
-
-.. container::
-   :name: get-platformsplatformpubsubtopic
-
-   .. rubric:: GET /platforms/:platform/pubsub/:topic
-      :name: get-platformsplatformpubsubtopic
-
-Return the subscription to the topic.
-
-**Request:**
-
--  Authorization: ``BEARER <jwt_access_token>``
-
-**Response:**
-
--  With valid BEARER token if subscription exists: ``200 OK``
-
-   -  Content Type: ``application/json``
-
-   -  Body:
-
-      ::
-
-         {
-         "topic": "<topic">,
-         "push_bind": <bind_object> or null,
-         "last_value": <last_value>,
-         "number_of_subscribers": <number_of_open_subscriptions_to_topic>
-         }
-
--  With valid BEARER token on failure: ``400 Bad Request``
-
-   -  Content Type: ``application/json``
-
-   -  Body:
-
-   ::
-
-          {
-              "error": "<Error Message>"
-          }
-
--  With invalid BEARER token: ``401 Unauthorized``
+    -  With invalid BEARER token: ``401 Unauthorized``
 
 --------------
 
-.. container::
-   :name: post-platformsplatformpubsubtopic
+GET /platforms/:platform/pubsub/:topic
+======================================
 
-   .. rubric:: POST /platforms/:platform/pubsub/:topic
-      :name: post-platformsplatformpubsubtopic
+Return a subscription to the topic.
 
-Create the specified subscription. Returns details. For publishing to
-the topic, see the ``PUT /platforms/:platform/pubsub/:topic`` endpoint.
+.. attention::
 
-**Request:**
+    Unique to the API, this endpoint is used to open a websocket which allows the
+    subscription data to be pushed to the client as it arrives on the message bus. As such, several additional headers are
+    required in the request, and the client will need to appropriately process the response in accordance with the
+    websocket protocol to keep the websocket open and process incoming push data.
 
--  Content Type: ``application/json``
+Request:
+--------
 
--  Authorization: ``BEARER <jwt_access_token>``
+    - Authorization: ``BEARER <jwt_access_token>``
+    - Connection: ``Upgrade``
+    - Upgrade: ``websocket``
+    - Sec-WebSocket-Key: ``<calculated at runtime>``
+    - Sec-WebSocket-Version: ``13``
+    - Sec-WebSocket-Extensions: ``permessage-deflate; client_max_window_bits``
 
--  Body:
+Response:
+---------
 
-   ::
+    -  With valid BEARER token on success: ``101 Switching Protocols``
 
-      {
-          "push_bind": <bind_object> or null
-      }
+       - Upgrade: ``websocket``
+       - Connection: ``Upgrade``
+       - Sec-WebSocket-Version: ``13``
+       - Sec-WebSocket-Accept: ``<calculated at runtime>``
 
-**Response:**
+    -  With valid BEARER token on failure: ``400 Bad Request``
 
--  With valid BEARER token on success: ``201 Created``
+       -  Content Type: ``application/json``
 
-   -  Content Type: ``application/json``
+       -  Body:
 
-   -  Location: ``<resource_location>``
+          .. code-block:: JSON
 
-   -  Body:
+              {
+                  "error": "<Error Message>"
+              }
 
-      ::
+    -  With invalid BEARER token: ``401 Unauthorized``
 
-         {
-         "topic": "<topic>",
-             "push_bind": <bind_object> or null,
-             "last_value": "<last_value>",
-             "access_token": <JWT_access_token_for_resource>
-         }
+-------------
 
--  With valid BEARER token on failure: ``400 Bad Request``
-
-   -  Content Type: ``application/json``
-
-   -  Body:
-
-      ::
-
-         {
-             "error": "<Error Message>"
-         }
-
--  With invalid BEARER token: ``401 Unauthorized``
-
---------------
-
-.. container::
-   :name: delete-platformsplatformpubsubtopic
-
-   .. rubric:: DELETE /platforms/:platform/pubsub/:topic
-      :name: delete-platformsplatformpubsubtopic
-
-Unsubscribe to the topic.
-
-NOTE: If multiple subscriptions are open to the same topic, the server
-should remove this subscriber but keep the subscription resource open.
-
-**Request:**
-
--  Authorization: ``BEARER <jwt_access_token>``
-
-**Response:**
-
--  With valid BEARER token on success: ``204 No Content``
-
--  With valid BEARER token on failure: ``400 Bad Request``
-
-   -  Content Type: ``application/json``
-
-   -  Body:
-
-      ::
-
-         {
-             "error": "<Error Message>"
-         }
-
--  With invalid BEARER token: ``401 Unauthorized``
-
---------------
-
-.. container::
-   :name: put-platformsplatformpubsubtopic
-
-   .. rubric:: PUT /platforms/:platform/pubsub/:topic
-      :name: put-platformsplatformpubsubtopic
+PUT /platforms/:platform/pubsub/:topic
+======================================
 
 Publish to the specified topic on the specified platform and return
 confirmation details.
 
 The value given in the request body must contain the intended publish
-body. This may be a single value or dictionary as expected by
-subscribers to the topic. The publish_type will be used in formatting
-the publish before it reaches the message bus. If a dictionary is
-provided for the value and no publish_type is given, the publish will be
-treated as a record type.
+body. The request body should be a JSON object where the ``headers`` key contains headers for the VOLTTRON message bus
+and the ``message`` key contains the message body. The message body may be a single value, JSON object, or other value
+as expected by subscribers to the topic.
 
-**Request:**
+Request:
+--------
 
--  Content Type: ``application/json``
+    -  Content Type: ``application/json``
 
--  Authorization: ``BEARER <jwt_access_token>``
+    -  Authorization: ``BEARER <jwt_access_token>``
 
--  Body:
+    -  Body:
 
-   ::
+       .. code-block:: JSON
 
-      {
-          "headers": {<message_bus_headers>},
-          "publish_type": "<datalogger|device|analysis|record>"
-          "value": <value>
-      }
+          {
+              "headers": {<message_bus_headers>},
+              "message": <message body>
+          }
 
 **Response:**
 
--  With valid BEARER token on success: ``200 OK``
+    -  With valid BEARER token on success: ``200 OK``
 
-   -  Content Type: ``application/json``
+       -  Content Type: ``application/json``
 
-   -  Body:
+       -  Body:
 
-      ::
+          .. code-block:: JSON
 
-         {
-             "number_of_subscribers": <number_of_subscribers>
-         }
+             {
+                 "number_of_subscribers": <number_of_subscribers>
+             }
 
--  With valid BEARER token on failure: ``400 Bad Request``
+    -  With valid BEARER token on failure: ``400 Bad Request``
 
-   -  Content Type: ``application/json``
+       -  Content Type: ``application/json``
 
-   -  Body:
+       -  Body:
 
-      ::
+          .. code-block:: JSON
 
-         {
-             "error": "<Error Message>"
-         }
+             {
+                 "error": "<Error Message>"
+             }
 
--  With invalid BEARER token: ``401 Unauthorized``
+    -  With invalid BEARER token: ``401 Unauthorized``
 
+---------------
+
+DELETE /platforms/:platform/pubsub/:topic
+=========================================
+
+Unsubscribe to the topic.
+
+.. attention::
+    If multiple subscriptions are open to the same topic, the server
+    will remove this subscriber but keep the subscription resource open.
+
+Request:
+--------
+
+    -  Authorization: ``BEARER <jwt_access_token>``
+
+Response:
+---------
+
+    -  With valid BEARER token on success: ``204 No Content``
+
+    -  With valid BEARER token on failure: ``400 Bad Request``
+
+        -  Content Type: ``application/json``
+
+        -  Body:
+
+            .. code-block:: JSON
+
+                {
+                    "error": "<Error Message>"
+                }
+
+    -  With invalid BEARER token: ``401 Unauthorized``

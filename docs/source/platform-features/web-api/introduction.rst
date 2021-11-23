@@ -23,7 +23,7 @@ Available Endpoints
 -------------------
 
 
-Endpoints which are currently provided by the API are describe in detail in the
+Endpoints which are currently provided by the API are described in detail in the
 following sections:
 
 - `Authentication <authentication-endpoints.html>`_
