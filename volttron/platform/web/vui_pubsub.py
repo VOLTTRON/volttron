@@ -47,8 +47,8 @@ class VUIPubsubManager:
         # TODO: Close websocket if there are no additional subscribers.
         pass
 
-    def publish(self, topic, message):
-        subscriber_count = self._agent.vip.pubsub.publish('pubsub', topic, message=message).get(timeout=5)
+    def publish(self, topic, headers, message):
+        subscriber_count = self._agent.vip.pubsub.publish('pubsub', topic, headers=headers, message=message).get(timeout=5)
         return {'number_of_subscribers': subscriber_count}
 
     def _create_websocket(self, topic, access_token):

@@ -561,8 +561,9 @@ class VUIEndpoints(object):
 
         elif request_method == 'PUT':
             # PUT -- for ../pubsub/:topic: One-time publish to a topic.
-            message = data
-            subscriber_count = self.pubsub_manager.publish(topic, message)
+            message = data.get('message')
+            headers = data.get('headers')
+            subscriber_count = self.pubsub_manager.publish(topic, headers, message)
             return Response(json.dumps(subscriber_count), 200, content_type='application/json')
 
         # elif request_method == 'DELETE':
