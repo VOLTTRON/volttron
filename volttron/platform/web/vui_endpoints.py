@@ -203,6 +203,7 @@ class VUIEndpoints(object):
             response = json.dumps(self._route_options(path_info, platforms))
             return Response(response, 200, content_type='application/json')
 
+    @endpoint
     def handle_platforms_platform(self, env: dict, data: dict) -> Response:
         _log.debug('VUI: In handle_platforms_platform')
         path_info = env.get('PATH_INFO')
@@ -216,6 +217,7 @@ class VUIEndpoints(object):
                 return Response(json.dumps({f'error': f'Unknown platform: {platform}'}),
                                 400, content_type='application/json')
 
+    @endpoint
     def handle_platforms_agents(self, env: dict, data: dict) -> Response:
         """
         Endpoints for /vui/platforms/:platform/agents/
@@ -245,6 +247,7 @@ class VUIEndpoints(object):
                 return Response(json.dumps(self._route_options(path_info, agents)), 200,
                                 content_type='application/json')
 
+    @endpoint
     def handle_platforms_agents_agent(self, env: dict, data: dict) -> Response:
         """
         Endpoints for /vui/platforms/:platform/agents/:vip_identity/
@@ -264,6 +267,7 @@ class VUIEndpoints(object):
                     active_routes['route_options'].pop('rpc')
             return Response(json.dumps(active_routes), 200, content_type='application/json')
 
+    @endpoint
     def handle_platforms_agents_rpc(self, env: dict, data: dict) -> Response:
         """
         Endpoints for /vui/platforms/:platform/agents/:vip_identity/rpc/
@@ -280,6 +284,7 @@ class VUIEndpoints(object):
             response = self._route_options(path_info, method_dict.get('methods'))
             return Response(json.dumps(response), 200, content_type='application/json')
 
+    @endpoint
     def handle_platforms_agents_rpc_method(self, env: dict, data: Union[dict, List]) -> Response:
         """
         Endpoints for /vui/platforms/:platform/agents/:vip_identity/rpc/
@@ -316,6 +321,7 @@ class VUIEndpoints(object):
                                 400, content_type='application/json')
             return Response(json.dumps(result), 200, content_type='application/json')
 
+    @endpoint
     def handle_platforms_devices(self, env: dict, data: dict) -> Response:
         """
         Endpoints for /vui/platforms/:platform/devices/ and /vui/platforms/:platform/devices/:topic/
@@ -325,7 +331,7 @@ class VUIEndpoints(object):
         """
         def _get_allowed_write_selection(points, topic, regex, tag):
             # Query parameters:
-            write_all = self._to_bool(query_params.get('write-all', 'false'))
+            write_all = self._to_bool(query_params.get('write-all', False))
             confirm_values = self._to_bool(query_params.get('confirm-values', False))
             # Map of selected topics to routes:
             selection = {p.topic: f'/vui/platforms/{platform}/{p.identifier}' for p in points}
@@ -536,6 +542,7 @@ class VUIEndpoints(object):
         #     self.pubsub_manager.close_socket(access_token, topic)
         #     return Response(status=204)
 
+    @endpoint
     def handle_platforms_historians(self, env: dict, data: dict) -> Response:
         path_info = env.get('PATH_INFO')
         request_method = env.get("REQUEST_METHOD")
@@ -546,6 +553,7 @@ class VUIEndpoints(object):
             response = json.dumps(self._route_options(path_info, [agent for agent in agents if 'historian' in agent]))
             return Response(response, 200, content_type='application/json')
 
+    @endpoint
     def handle_platforms_historians_historian(self, env: dict, data: dict) -> Response:
         path_info = env.get('PATH_INFO')
         request_method = env.get("REQUEST_METHOD")
@@ -556,6 +564,7 @@ class VUIEndpoints(object):
 
             return Response(json.dumps(route_options), 200, content_type='application/json')
 
+    @endpoint
     def handle_platforms_historians_historian_topics(self, env: dict, data: dict) -> Response:
         """
         Endpoints for /vui/platforms/:platform/historians/topics and /vui/platforms/:platform/historians/topics/:topic/
