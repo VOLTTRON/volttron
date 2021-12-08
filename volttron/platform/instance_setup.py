@@ -240,14 +240,15 @@ def _is_agent_installed(tag):
 def installs(agent_dir, tag, identity=None, post_install_func=None):
     def wrap(config_func):
         global available_agents
-
+        home = get_home()
         def func(*args, **kwargs):
             print('Configuring {}.'.format(agent_dir))
             config = config_func(*args, **kwargs)
             _update_config_file()
             #TODO: Optimize long vcfg install times
             #TODO: (potentially only starting the platform once per vcfg)
-            _start_platform()
+            if not is_volttron_running(home):
+                _start_platform()
 
             _install_agent(agent_dir, config, tag, identity)
 
@@ -345,7 +346,12 @@ def set_dependencies(requirement):
 
 def set_dependencies_rmq():
     install_rabbit(default_rmq_dir)
-
+    #TODO add rmq prompts to run scripts/rabbit_dependencies.sh
+    prompt = 'What OS are you running?'
+    user_os = prompt_response(prompt, default='debian')
+    prompt = 'Which distribution are you running?'
+    user_dist = prompt_response(prompt, default='bionic')
+    _cmd(["./scripts/rabbit_dependencies.py", user_os, user_dist])
 
 def _create_web_certs():
     global config_opts
@@ -417,16 +423,16 @@ def do_message_bus():
     if bus_type == 'rmq':
         if not is_rabbitmq_available():
             print("RabbitMQ has not been set up!")
-            print("Please run scripts/rabbit_dependencies.sh and bootstrap --rabbitmq before running vcfg.")
-            sys.exit()
-            # print("Setting up now...")
-            # set_dependencies_rmq()
-            # print("Done!")
+            # print("Please run scripts/rabbit_dependencies.sh and bootstrap --rabbitmq before running vcfg.")
+            # sys.exit()
+            print("Setting up now...")
+            set_dependencies_rmq()
+            print("Done!")
 
-        # if not _check_dependencies_met('rabbitmq'):
-        #     print("Rabbitmq dependencies not installed. Installing now...")
-        #     set_dependencies("rabbitmq")
-        #     print("Done!")
+        if not _check_dependencies_met('rabbitmq'):
+            print("Rabbitmq dependencies not installed. Installing now...")
+            set_dependencies("rabbitmq")
+            print("Done!")
         try:
             check_rmq_setup()
         except AssertionError:
@@ -1018,6 +1024,7 @@ def main():
     single_parser.add_argument('--config', help='Optional path to rabbitmq config yml', type=str)
     single_parser.set_defaults(is_rabbitmq=True)
 
+    #Add web?
     group.add_argument('--agent', nargs='+',
                         help='configure listed agents')
 
@@ -1045,14 +1052,14 @@ def main():
     _load_config()
     if args.instance_name:
         _update_config_file(instance_name=args.instance_name)
-    if args.list_agents:
+    if args.list_agents: # Don't need instance running
         print("Agents available to configure:{}".format(agent_list))
 
     elif args.secure_agent_users:
         config_opts['secure-agent-users'] = args.secure_agent_users
         _update_config_file()
     elif args.is_rabbitmq:
-        process_rmq_inputs(vars(args))
+        process_rmq_inputs(vars(args)) # Does not need volttron shutdown
     elif not args.agent:
         wizard()
 
