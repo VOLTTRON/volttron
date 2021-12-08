@@ -794,11 +794,16 @@ Agent = collections.namedtuple("Agent",
                                "name tag uuid vip_identity agent_user")
 
 
-def needs_connection(func):
+def needs_connection(func: callable) -> callable:
     """
     Decorator that checks if a connection exists.
     If opts.connection exists, then the platform is running.
     Used for commands that need to connect to the platform.
+    If opts.connection does not exist, then an error message will
+    be output and an error code returned.
+
+    The first argument passed into func must be opts for
+    this decorator to be used successfully.
     """
 
     def wrapper(opts, *args, **kwargs):
@@ -1750,12 +1755,7 @@ def show_serverkey(opts):
     return 0 if success, 1 if false
     """
     conn = opts.connection
-    # if not conn:
-    #     _stderr.write(
-    #         "VOLTTRON is not running. This command "
-    #         "requires VOLTTRON platform to be running\n"
-    #     )
-    #     return
+
     q = Query(conn.server.core)
     pk = q.query("serverkey").get(timeout=2)
     del q
