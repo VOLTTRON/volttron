@@ -35,7 +35,7 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-
+import collections
 import os
 import sys
 import re
@@ -60,6 +60,8 @@ def _calc_min_uuid_length(agents):
 
 
 def _list_agents(aip):
+    Agent = collections.namedtuple("Agent",
+                                   "name tag uuid vip_identity agent_user")
     agent_list = []
     for uuid, name in aip.list_agents().items():
         agent_list.append(Agent(name, aip.agent_tag(uuid), uuid, aip.agent_identity(uuid), ""))

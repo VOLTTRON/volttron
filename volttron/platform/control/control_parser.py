@@ -247,6 +247,9 @@ def status_agents(opts):
             agent = agents[uuid]
             agents[uuid] = agent._replace(agent_user=agent_user)
         except KeyError:
+            Agent = collections.namedtuple("Agent",
+                                           "name tag uuid vip_identity "
+                                           "agent_user")
             agents[uuid] = agent = Agent(
                 name, None, uuid, vip_identity=identity, agent_user=agent_user
             )

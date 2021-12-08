@@ -72,6 +72,7 @@ class Agent(object):
                 self.config = ConfigStore(owner, core, self.rpc)
             if enable_web:
                 self.web = WebSubSystem(owner, core, self.rpc)
+            enable_auth = False
             if enable_auth:
                 self.auth = Auth(owner, core, self.rpc)
             if enable_fncs:
