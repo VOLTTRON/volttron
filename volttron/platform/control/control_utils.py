@@ -60,10 +60,10 @@ def _calc_min_uuid_length(agents):
 
 
 def _list_agents(aip):
-    return [
-        Agent(name, aip.agent_tag(uuid), uuid, aip.agent_identity(uuid), "")
-        for uuid, name in aip.list_agents().items()
-    ]
+    agent_list = []
+    for uuid, name in aip.list_agents().items():
+        agent_list.append(Agent(name, aip.agent_tag(uuid), uuid, aip.agent_identity(uuid), ""))
+    return agent_list
 
 
 def escape(pattern):
