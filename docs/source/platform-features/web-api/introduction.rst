@@ -8,6 +8,14 @@ The VOLTTRON User Interface API (VUI) is provided by the VOLTTRON Web Service, a
 intended to provide capabilities for building fully featured frontend applications.
 The VUI is a RESTful HTTP API for communicating with components of the VOLTTRON system.
 
+Installation
+------------
+The VUI is a built-in part of the VOLTTRON Web Service. To enable to VOLTTRON Web Service,
+bootstrap VOLTTRON within the virtual environment using the `--web` option:
+
+.. code-block:: bash
+
+    python boostrap.py --web
 
 Path Structure
 ---------------
