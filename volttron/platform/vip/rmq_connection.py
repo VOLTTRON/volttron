@@ -557,6 +557,7 @@ class RMQRouterConnection(RMQConnection):
         :param body: message body
         :return:
         """
+        self.channel.basic_ack(method.delivery_tag)
         # Ignore if message type is 'pubsub'
         if props.type == 'pubsub':
             return

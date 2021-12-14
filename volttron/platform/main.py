@@ -75,10 +75,7 @@ from volttron.platform.vip.healthservice import HealthService
 from volttron.platform.vip.servicepeer import ServicePeerNotifier
 from volttron.utils import get_random_key
 from volttron.utils.frame_serialization import deserialize_frames, serialize_frames
-#gevent.monkey.patch_socket()
-#gevent.monkey.patch_ssl()
 
-from gevent.fileobject import FileObject
 import zmq
 from zmq import ZMQError
 from zmq import green
@@ -107,8 +104,8 @@ except ImportError:
     HAS_WEB = False
 from .store import ConfigStoreService
 from .agent import utils
-from .agent.known_identities import PLATFORM_WEB, CONFIGURATION_STORE, AUTH, CONTROL, CONTROL_CONNECTION, PLATFORM_HEALTH, \
-    KEY_DISCOVERY, PROXY_ROUTER, PLATFORM
+from .agent.known_identities import PLATFORM_WEB, CONFIGURATION_STORE, AUTH, CONTROL, CONTROL_CONNECTION, \
+    PLATFORM_HEALTH, KEY_DISCOVERY, PROXY_ROUTER, PLATFORM
 from .vip.agent.subsystems.pubsub import ProtectedPubSubTopics
 from .keystore import KeyStore, KnownHostsStore
 from .vip.pubsubservice import PubSubService

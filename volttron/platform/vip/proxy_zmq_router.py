@@ -171,6 +171,8 @@ class ZMQProxyRouter(Agent):
         :param body: message
         :return:
         """
+        self.core.connection.channel.basic_ack(method.delivery_tag)
+
         # Strip sender's identity from binding key
         routing_key = str(method.routing_key)
         platform, to_identity = routing_key.split(".", 1)
@@ -213,7 +215,7 @@ class ZMQProxyRouter(Agent):
         :param body:
         :return:
         """
-
+        self.core.connection.channel.basic_ack(method.delivery_tag)
         frames = serialize_frames(jsonapi.loads(body))
 
         try:
@@ -232,6 +234,7 @@ class ZMQProxyRouter(Agent):
         :return:
         """
         _log.debug("Proxy ZMQ Router {}".format(body))
+        self.core.connection.channel.basic_ack(method.delivery_tag)
         frames = jsonapi.loads(body.decode('utf-8'))
         if len(frames) > 6:
             if frames[5] == 'pubsub':
