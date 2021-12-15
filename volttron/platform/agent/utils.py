@@ -156,7 +156,10 @@ def load_config(config_path):
     # Then if that fails we fallback to our modified json parser.
     try:
         with open(config_path) as f:
-            return yaml.safe_load(f.read())
+            config = yaml.safe_load(f.read())
+            if config is None:
+                return {}
+            return config
     except yaml.scanner.ScannerError as e:
         try:
             with open(config_path) as f:
