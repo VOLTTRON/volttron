@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 set -e
-
-list=( bionic buster )
+ubuntu_list=(bionic focal)
+list=(buster )
+list=("${ubuntu_list[@]}" "${debian_list[@]}")
 declare -A ubuntu_versions
-ubuntu_versions=( ["ubuntu-16.04"]="xenial" ["ubuntu-18.04"]="bionic" ["ubuntu-20.04"]="focal")
+ubuntu_versions=( ["ubuntu-18.04"]="bionic" ["ubuntu-20.04"]="focal")
 
 function exit_on_error {
     rc=$?
@@ -18,9 +19,9 @@ function exit_on_error {
 function print_usage {
  echo "
 Command Usage:
-<path>/rabbit_dependencies.sh <debian, raspbian, or centos> <distribution name/ubuntu-<version> or centos version>
-Valid Raspbian/Debian distributions: ${list[@]} ${!ubuntu_versions[@]}
-Valid centos versions: 6, 7, 8
+<path>/rabbit_dependencies.sh <debian, or centos> <distribution name/ubuntu-<version> or centos version>
+Valid Debian distributions: ${list[@]} ${!ubuntu_versions[@]}
+Valid centos versions: 8
 "
  exit 0
 
@@ -29,17 +30,11 @@ Valid centos versions: 6, 7, 8
 
 function install_on_centos {
 
-   if [[ "$DIST" == "6" ]]; then
-       erlang_url='https://packagecloud.io/rabbitmq/erlang/el/6/$basearch'
-       erlang_package_name='erlang-21.3.8.21-1.el6.x86_64'
-   elif [[ "$DIST" == "7" ]]; then
-       erlang_url='https://packagecloud.io/rabbitmq/erlang/el/7/$basearch'
-       erlang_package_name='erlang-21.3.8.21-1.el7.x86_64'
-   elif [[ "$DIST" == "8" ]]; then
+   if [[ "$DIST" == "8" ]]; then
        erlang_url='https://packagecloud.io/rabbitmq/erlang/el/8/$basearch'
-       erlang_package_name='erlang-21.3.8.21-1.el8.x86_64'
+       erlang_package_name='erlang-24.1-1.el8.x86_64'
    else
-       printf "Invalid centos version. 6, 7, and 8 are the only compatible versions\n"
+       printf "Invalid centos version. Centos 8 is the only compatible versions\n"
        print_usage
    fi
 
@@ -67,12 +62,24 @@ metadata_expire=300
 
 function install_on_debian {
     FOUND=0
-    for item in ${list[@]}; do
+    OS=""
+    for item in "${ubuntu_list[@]}"; do
         if [[ "$DIST" == "$item" ]]; then
         FOUND=1
+        OS="ubuntu"
         break
         fi
     done
+
+    if [[ "$FOUND" != "1" ]]; then
+        for item in "${debian_list[@]}"; do
+            if [[ "$DIST" == "$item" ]]; then
+            FOUND=1
+            OS="debian"
+            break
+            fi
+        done
+    fi
 
     if [[ "$FOUND" != "1" ]]; then
         # check if ubuntu-version was passed if so map it to name
@@ -80,6 +87,7 @@ function install_on_debian {
             if [[ "$DIST" == "$ubuntu_version" ]]; then
                 FOUND=1
                 DIST="${ubuntu_versions[$ubuntu_version]}"
+                OS="ubuntu"
                 break
             fi
         done
@@ -92,61 +100,48 @@ function install_on_debian {
 
     echo "installing ERLANG"
     ${prefix} apt-get update
-    if [[ "$DIST" == "xenial" ]] || [[ "$DIST" == "bionic" ]]; then
-        ${prefix} apt-get install -y apt-transport-https libwxbase3.0-0v5 libwxgtk3.0-0v5 libsctp1  build-essential python-dev openssl libssl-dev libevent-dev git
-    else
-        ${prefix} apt-get install -y apt-transport-https libwxbase3.0-0v5 libwxgtk3.0-gtk3-0v5 libsctp1  build-essential python-dev openssl libssl-dev libevent-dev git
-    fi
-    set +e
+    ${prefix} apt-get install -y gnupg apt-transport-https -y
     ${prefix} apt-get purge -yf erlang*
-    set -e
     # Add the signing key
-    wget -O- https://packages.erlang-solutions.com/ubuntu/erlang_solutions.asc | ${prefix} apt-key add -
+    ## Team RabbitMQ's main signing key
+    curl -1sLf "https://keys.openpgp.org/vks/v1/by-fingerprint/0A9AF2115F4687BD29803A206B73A36E6026DFCA" | sudo gpg --dearmor | sudo tee /usr/share/keyrings/com.rabbitmq.team.gpg > /dev/null
+    ## Cloudsmith: modern Erlang repository
+    curl -1sLf https://dl.cloudsmith.io/public/rabbitmq/rabbitmq-erlang/gpg.E495BB49CC4BBE5B.key | sudo gpg --dearmor | sudo tee /usr/share/keyrings/io.cloudsmith.rabbitmq.E495BB49CC4BBE5B.gpg > /dev/null
 
-    if [[ ! -f "/etc/apt/sources.list.d/erlang.solutions.list" ]]; then
-        echo "deb https://packages.erlang-solutions.com/ubuntu $DIST contrib" | ${prefix} tee /etc/apt/sources.list.d/erlang.solutions.list
+    if [[ -f "/etc/apt/sources.list.d/rabbitmq-erlang.list" ]]; then
+      echo "\n/etc/apt/sources.list.d/rabbitmq-erlang.list exists. renaming current file to rabbitmq-erlang.list.old\n"
+      mv /etc/apt/sources.list.d/rabbitmq-erlang.list /etc/apt/sources.list.d/rabbitmq-erlang.list.old
+      exit_on_error
     fi
-
+    ## Add apt repositories maintained by Team RabbitMQ
+    ${prefix} tee /etc/apt/sources.list.d/rabbitmq-erlang.list <<EOF
+## Provides modern Erlang/OTP releases
+##
+deb [signed-by=/usr/share/keyrings/io.cloudsmith.rabbitmq.E495BB49CC4BBE5B.gpg] https://dl.cloudsmith.io/public/rabbitmq/rabbitmq-erlang/deb/$OS $DIST main
+deb-src [signed-by=/usr/share/keyrings/io.cloudsmith.rabbitmq.E495BB49CC4BBE5B.gpg] https://dl.cloudsmith.io/public/rabbitmq/rabbitmq-erlang/deb/$OS $DIST main
+EOF
     version=${erlang_package_version}
-    common_deb_pkgs="\
+    to_install="\
         erlang-asn1=$version \
-        erlang-base=$version \
         erlang-crypto=$version \
-        erlang-diameter=$version \
-        erlang-edoc=$version \
         erlang-eldap=$version \
-        erlang-erl-docgen=$version \
-        erlang-eunit=$version \
+        erlang-ftp=$version \
         erlang-inets=$version \
         erlang-mnesia=$version \
-        erlang-odbc=$version \
         erlang-os-mon=$version \
         erlang-parsetools=$version \
         erlang-public-key=$version \
         erlang-runtime-tools=$version \
         erlang-snmp=$version \
-        erlang-ssh=$version \
         erlang-ssl=$version \
         erlang-syntax-tools=$version \
         erlang-tools=$version \
         erlang-xmerl=$version \
+        erlang-tftp=$version \
         "
-    x86_pkgs="\
-        erlang-ic=$version \
-        erlang-inviso=$version \
-        erlang-percept=$version \
-        "
-    to_install=""
-    if [[ $is_arm == "FALSE" ]]; then
-       to_install="${common_deb_pkgs} ${x86_pkgs}"
-    else
-       to_install="${common_deb_pkgs}"
-    fi
 
     ${prefix} apt-get update
-    ${prefix} apt-get install -yf
     ${prefix} apt-get install -y ${to_install}
-    ${prefix} apt-get install -y "erlang-nox=$version"
 }
 
 os_name="$1"
@@ -162,12 +157,8 @@ is_arm="FALSE"
 ${prefix} pwd > /dev/null
 
 if [[ "$os_name" == "debian" ]]; then
-    erlang_package_version="1:22.1.8.1-1"
+    erlang_package_version="1:24.1.5-1"
     is_arm="FALSE"
-    install_on_debian
-elif [[ "$os_name" == "raspbian" ]]; then
-    erlang_package_version="1:21.2.6+dfsg-1"
-    is_arm="TRUE"
     install_on_debian
 elif [[ "$os_name" == "centos" ]]; then
     install_on_centos
