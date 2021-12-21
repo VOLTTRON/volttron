@@ -42,6 +42,7 @@ class BaseAuthorization(object):
     def __init__(self) -> None:
         super().__init__()
 
+
 #BaseAuthentication class
 class BaseAuthentication(object):
     def __init__(self) -> None:

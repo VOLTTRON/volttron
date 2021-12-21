@@ -295,8 +295,8 @@ class RPC(SubsystemBase):
         for method_name in self._exports:
             method = self._exports[method_name]
             caps = annotations(method, set, "rpc.allow_capabilities")
-            if caps:
-                self._exports[method_name] = self._add_auth_check(method, caps)
+            # if caps:
+            #     self._exports[method_name] = self._add_auth_check(method, caps)
 
     def _add_auth_check(self, method, required_caps):
         """
