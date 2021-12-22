@@ -356,6 +356,14 @@ def _create_initial_package(agent_dir_to_package, wheelhouse, identity=None):
         if response.returncode != 0:
             raise ValueError(f"Couldn't compile agent directory: {response.stderr}")
 
+        import glob
+        g = glob.glob(distdir + "/*.whl")
+        wheel_name = None
+        if g:
+            wheel_name = os.path.basename(g[0])
+        if wheel_name is None:
+            raise ValueError(f"Unable to create wheel file")
+
         wheel_name = os.listdir(distdir)[0]
         wheel_path = os.path.join(distdir, wheel_name)
 
