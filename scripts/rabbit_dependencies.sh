@@ -157,7 +157,7 @@ is_arm="FALSE"
 ${prefix} pwd > /dev/null
 
 if [[ "$os_name" == "debian" ]]; then
-    erlang_package_version="1:24.1.5-1"
+    erlang_package_version="1:24.2-1"
     is_arm="FALSE"
     install_on_debian
 elif [[ "$os_name" == "centos" ]]; then
