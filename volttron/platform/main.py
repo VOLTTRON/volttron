@@ -758,41 +758,44 @@ def start_volttron_process(opts):
     mode = os.stat(opts.volttron_home).st_mode
     if mode & (stat.S_IWGRP | stat.S_IWOTH):
         _log.warning('insecure mode on directory: %s', opts.volttron_home)
-    # Get or generate encryption key
-    keystore = KeyStore()
-    _log.debug('using key-store file %s', keystore.filename)
-    if not keystore.isvalid():
-        _log.warning('key store is invalid; connections may fail')
-    st = os.stat(keystore.filename)
-    if st.st_mode & (stat.S_IRWXG | stat.S_IRWXO):
-        _log.warning('insecure mode on key file')
-    publickey = decode_key(keystore.public)
-    if publickey:
-        # Authorize the platform key:
-        entry = AuthEntry(credentials=encode_key(publickey),
-                          user_id=PLATFORM,
-                          capabilities=[{'edit_config_store': {'identity': '/.*/'}}],
+    # auth entries for agents
+    if opts.allow_auth:
+        # Get or generate encryption key
+        keystore = KeyStore()
+        _log.debug('using key-store file %s', keystore.filename)
+        if not keystore.isvalid():
+            _log.warning('key store is invalid; connections may fail')
+        st = os.stat(keystore.filename)
+        if st.st_mode & (stat.S_IRWXG | stat.S_IRWXO):
+            _log.warning('insecure mode on key file')
+        publickey = decode_key(keystore.public)
+        if publickey:
+            # Authorize the platform key:
+            entry = AuthEntry(credentials=encode_key(publickey),
+                              user_id=PLATFORM,
+                              capabilities=[{'edit_config_store': {'identity': '/.*/'}}],
+                              comments='Automatically added by platform on start')
+            AuthFile().add(entry, overwrite=True)
+            # Add platform key to known-hosts file:
+            known_hosts = KnownHostsStore()
+            known_hosts.add(opts.vip_local_address, encode_key(publickey))
+            for addr in opts.vip_address:
+                known_hosts.add(addr, encode_key(publickey))
+        secretkey = decode_key(keystore.secret)
+
+    if opts.allow_auth:
+        # Add the control.connection so that volttron-ctl can access the bus
+        control_conn_path = KeyStore.get_agent_keystore_path(CONTROL_CONNECTION)
+        os.makedirs(os.path.dirname(control_conn_path), exist_ok=True)
+        ks_control_conn = KeyStore(KeyStore.get_agent_keystore_path(CONTROL_CONNECTION))
+        entry = AuthEntry(credentials=encode_key(decode_key(ks_control_conn.public)),
+                          user_id=CONTROL_CONNECTION,
+                          identity=CONTROL_CONNECTION,
+                          capabilities=[{'edit_config_store': {'identity': '/.*/'}},
+                                        'modify_rpc_method_allowance',
+                                        'allow_auth_modifications'],
                           comments='Automatically added by platform on start')
         AuthFile().add(entry, overwrite=True)
-        # Add platform key to known-hosts file:
-        known_hosts = KnownHostsStore()
-        known_hosts.add(opts.vip_local_address, encode_key(publickey))
-        for addr in opts.vip_address:
-            known_hosts.add(addr, encode_key(publickey))
-    secretkey = decode_key(keystore.secret)
-
-    # Add the control.connection so that volttron-ctl can access the bus
-    control_conn_path = KeyStore.get_agent_keystore_path(CONTROL_CONNECTION)
-    os.makedirs(os.path.dirname(control_conn_path), exist_ok=True)
-    ks_control_conn = KeyStore(KeyStore.get_agent_keystore_path(CONTROL_CONNECTION))
-    entry = AuthEntry(credentials=encode_key(decode_key(ks_control_conn.public)),
-                      user_id=CONTROL_CONNECTION,
-                      identity=CONTROL_CONNECTION,
-                      capabilities=[{'edit_config_store': {'identity': '/.*/'}},
-                                    'modify_rpc_method_allowance',
-                                    'allow_auth_modifications'],
-                      comments='Automatically added by platform on start')
-    AuthFile().add(entry, overwrite=True)
 
     # The following line doesn't appear to do anything, but it creates
     # a context common to the green and non-green zmq modules.
@@ -1072,60 +1075,48 @@ def start_volttron_process(opts):
                     certs.create_signed_cert_files(base_webserver_name, cert_type='server')
                     opts.web_ssl_key = certs.private_key_file(base_webserver_name)
                     opts.web_ssl_cert = certs.cert_file(base_webserver_name)
-            #
-            # _log.info("Starting platform web service")
-            # services.append(PlatformWebService(
-            #     identity=PLATFORM_WEB,
-            #     address=address,
-            #     bind_web_address=opts.bind_web_address,
-            #     volttron_central_address=opts.volttron_central_address,
-            #     enable_store=False,
-            #     message_bus=opts.message_bus,
-            #     volttron_central_rmq_address=opts.volttron_central_rmq_address,
-            #     web_ssl_key=opts.web_ssl_key,
-            #     web_ssl_cert=opts.web_ssl_cert,
-            #     web_secret_key=opts.web_secret_key
-            # ))
+
+            _log.info("Starting platform web service")
+            services.append(PlatformWebService(
+                identity=PLATFORM_WEB,
+                address=address,
+                bind_web_address=opts.bind_web_address,
+                volttron_central_address=opts.volttron_central_address,
+                enable_store=False,
+                message_bus=opts.message_bus,
+                volttron_central_rmq_address=opts.volttron_central_rmq_address,
+                web_ssl_key=opts.web_ssl_key,
+                web_ssl_cert=opts.web_ssl_cert,
+                web_secret_key=opts.web_secret_key
+            ))
 
         #SN -- testing
-        # ks_masterweb = KeyStore(KeyStore.get_agent_keystore_path(MASTER_WEB))
-        # entry = AuthEntry(credentials=encode_key(decode_key(ks_masterweb.public)),
-        #                   user_id=MASTER_WEB,
-        #                   capabilities=['allow_auth_modifications'],
-        #                   comments='Automatically added by platform on start')
-        # AuthFile().add(entry, overwrite=True)
+        ks_masterweb = KeyStore(KeyStore.get_agent_keystore_path(MASTER_WEB))
+        entry = AuthEntry(credentials=encode_key(decode_key(ks_masterweb.public)),
+                          user_id=MASTER_WEB,
+                          capabilities=['allow_auth_modifications'],
+                          comments='Automatically added by platform on start')
+        AuthFile().add(entry, overwrite=True)
 
-        #     _log.info("Starting platform web service")
-        #     services.append(PlatformWebService(
-        #         serverkey=publickey, identity=PLATFORM_WEB,
-        #         address=address,
-        #         bind_web_address=opts.bind_web_address,
-        #         volttron_central_address=opts.volttron_central_address,
-        #         enable_store=False,
-        #         message_bus=opts.message_bus,
-        #         volttron_central_rmq_address=opts.volttron_central_rmq_address,
-        #         web_ssl_key=opts.web_ssl_key,
-        #         web_ssl_cert=opts.web_ssl_cert,
-        #         web_secret_key=opts.web_secret_key
-        #     ))
 
-        # ks_platformweb = KeyStore(KeyStore.get_agent_keystore_path(PLATFORM_WEB))
-        # entry = AuthEntry(credentials=encode_key(decode_key(ks_platformweb.public)),
-        #                   user_id=PLATFORM_WEB,
-        #                   identity=PLATFORM_WEB,
-        #                   capabilities=['allow_auth_modifications'],
-        #                   comments='Automatically added by platform on start')
-        # AuthFile().add(entry, overwrite=True)
 
-        # # PLATFORM_WEB did not work on RMQ. Referred to agent as master
-        # # Added this auth to allow RPC calls for credential authentication
-        # # when using the RMQ messagebus.
-        # ks_platformweb = KeyStore(KeyStore.get_agent_keystore_path('master'))
-        # entry = AuthEntry(credentials=encode_key(decode_key(ks_platformweb.public)),
-        #                   user_id='master',
-        #                   capabilities=['allow_auth_modifications'],
-        #                   comments='Automatically added by platform on start')
-        # AuthFile().add(entry, overwrite=True)
+        ks_platformweb = KeyStore(KeyStore.get_agent_keystore_path(PLATFORM_WEB))
+        entry = AuthEntry(credentials=encode_key(decode_key(ks_platformweb.public)),
+                          user_id=PLATFORM_WEB,
+                          identity=PLATFORM_WEB,
+                          capabilities=['allow_auth_modifications'],
+                          comments='Automatically added by platform on start')
+        AuthFile().add(entry, overwrite=True)
+
+        # PLATFORM_WEB did not work on RMQ. Referred to agent as master
+        # Added this auth to allow RPC calls for credential authentication
+        # when using the RMQ messagebus.
+        ks_platformweb = KeyStore(KeyStore.get_agent_keystore_path('master'))
+        entry = AuthEntry(credentials=encode_key(decode_key(ks_platformweb.public)),
+                          user_id='master',
+                          capabilities=['allow_auth_modifications'],
+                          comments='Automatically added by platform on start')
+        AuthFile().add(entry, overwrite=True)
         health_service = HealthService(address=address,
                                        identity=PLATFORM_HEALTH, heartbeat_autostart=True,
                                        enable_store=False,
@@ -1392,7 +1383,8 @@ def main(argv=sys.argv):
         # Type of underlying message bus to use - ZeroMQ or RabbitMQ
         message_bus='zmq',
         # Volttron Central in AMQP address format is needed if running on RabbitMQ message bus
-        volttron_central_rmq_address=None
+        volttron_central_rmq_address=None,
+        allow_auth=False
     )
 
     # Parse and expand options
