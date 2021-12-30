@@ -124,6 +124,7 @@ pytestmark_locs = pytest.mark.skipif(SKIP_LOCS, reason="Invalid locations list f
                                                        "test_ambient_data.json"
                                                        " variable app_key")
 
+pytestmark = [pytestmark_app, pytestmark_app, pytestmark_locs]
 
 @pytest.fixture(scope="module")
 def query_agent(request, volttron_instance):
