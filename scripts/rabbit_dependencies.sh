@@ -94,21 +94,12 @@ function install_on_debian {
 
     echo "**installing ERLANG"
     ${prefix} apt-get update
-    echo "installing ERLANG 1"
-
     ${prefix} apt-get install -y gnupg apt-transport-https -y
-    echo "installing ERLANG 2"
-
-    ${prefix} apt-get purge -yf erlang*
-    echo "AFTER PURGE"
+    ${prefix} apt-get purge -yf erlang-base
     # Add the signing key
-    echo "Before wget"
     wget https://packages.erlang-solutions.com/ubuntu/erlang_solutions.asc
-    echo "after wget"
     sudo apt-key add erlang_solutions.asc
-    echo "after import of gpg key"
     rm erlang_solutions.asc
-    echo "after rm"
     if [[ -f "/etc/apt/sources.list.d/erlang.list" ]]; then
       echo "\n/etc/apt/sources.list.d/erlang.list exists. renaming current file to erlang.list.old\n"
       mv /etc/apt/sources.list.d/erlang.list /etc/apt/sources.list.d/erlang.list.old
@@ -122,6 +113,7 @@ deb https://packages.erlang-solutions.com/$OS $DIST contrib
 EOF
     version=${erlang_package_version}
     to_install="\
+        erlang-base=$version\
         erlang-asn1=$version \
         erlang-crypto=$version \
         erlang-eldap=$version \
@@ -157,7 +149,7 @@ is_arm="FALSE"
 ${prefix} pwd > /dev/null
 
 if [[ "$os_name" == "debian" ]]; then
-    erlang_package_version="1:24.2-1"
+    erlang_package_version="1:24.1.7-1"
     is_arm="FALSE"
     install_on_debian
 elif [[ "$os_name" == "centos" ]]; then
