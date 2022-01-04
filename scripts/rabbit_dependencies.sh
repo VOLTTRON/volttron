@@ -38,7 +38,7 @@ function install_on_centos {
    repo="## In /etc/yum.repos.d/erlang.repo
 [erlang-solutions]
 name=CentOS $releasever - $basearch - Erlang Solutions
-baseurl=https://packages.erlang-solutions.com/rpm/centos/$releasever/$basearch
+baseurl=https://packages.erlang-solutions.com/rpm/centos/\$releasever/\$basearch
 gpgcheck=1
 gpgkey=https://packages.erlang-solutions.com/rpm/erlang_solutions.asc
 enabled=1
@@ -50,27 +50,7 @@ enabled=1
    fi
    echo "$repo" | ${prefix} tee -a /etc/yum.repos.d/erlang.repo
    rpm --import https://packages.erlang-solutions.com/rpm/erlang_solutions.asc
-   version=${erlang_package_version}
-   to_install="\
-        erlang-asn1=$version \
-        erlang-crypto=$version \
-        erlang-eldap=$version \
-        erlang-ftp=$version \
-        erlang-inets=$version \
-        erlang-mnesia=$version \
-        erlang-os-mon=$version \
-        erlang-parsetools=$version \
-        erlang-public-key=$version \
-        erlang-runtime-tools=$version \
-        erlang-snmp=$version \
-        erlang-ssl=$version \
-        erlang-syntax-tools=$version \
-        erlang-tools=$version \
-        erlang-xmerl=$version \
-        erlang-tftp=$version \
-        "
-
-   ${prefix} yum install -y ${to_install}
+   ${prefix} yum install -y erlang-$erlang_package_version
    exit_on_error
 }
 
@@ -131,7 +111,7 @@ function install_on_debian {
     echo "after rm"
     if [[ -f "/etc/apt/sources.list.d/erlang.list" ]]; then
       echo "\n/etc/apt/sources.list.d/erlang.list exists. renaming current file to erlang.list.old\n"
-      mv /etc/apt/sources.list.d/rabbitmq-erlang.list /etc/apt/sources.list.d/erlang.list.old
+      mv /etc/apt/sources.list.d/erlang.list /etc/apt/sources.list.d/erlang.list.old
       exit_on_error
     fi
     ## Add apt repository
@@ -161,7 +141,7 @@ EOF
         "
 
     ${prefix} apt-get update
-    ${prefix} apt-get install -y ${to_install}
+    ${prefix} apt-get install -y --allow-downgrades ${to_install}
 }
 
 os_name="$1"
@@ -177,14 +157,14 @@ is_arm="FALSE"
 ${prefix} pwd > /dev/null
 
 if [[ "$os_name" == "debian" ]]; then
-    erlang_package_version="1:24.1.5-1"
+    erlang_package_version="1:24.2-1"
     is_arm="FALSE"
     install_on_debian
 elif [[ "$os_name" == "centos" ]]; then
+    erlang_package_version="24.2-1.el8"
     install_on_centos
 else
-    printf "For operating system/distributions not supported by this script, please install Erlang manually with the \
-following components- ssl, publickey, asn1, and crypto.\n"
+    printf "For operating system/distributions not supported by this script, please refer to https://www.rabbitmq.com/which-erlang.html#erlang-repositories\n"
     print_usage
 fi
 
