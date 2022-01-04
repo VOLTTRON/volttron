@@ -92,7 +92,7 @@ function install_on_debian {
         print_usage
     fi
 
-    echo "**installing ERLANG"
+    echo "Installing ERLANG"
     ${prefix} apt-get update
     ${prefix} apt-get install -y gnupg apt-transport-https -y
     ${prefix} apt-get purge -yf erlang-base
