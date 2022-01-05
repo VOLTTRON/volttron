@@ -30,33 +30,27 @@ Valid centos versions: 8
 
 function install_on_centos {
 
-   if [[ "$DIST" == "8" ]]; then
-       erlang_url='https://packagecloud.io/rabbitmq/erlang/el/8/$basearch'
-       erlang_package_name='erlang-24.1-1.el8.x86_64'
-   else
+   if [[ "$DIST" != "8" ]]; then
        printf "Invalid centos version. Centos 8 is the only compatible versions\n"
        print_usage
    fi
 
-   repo="## In /etc/yum.repos.d/rabbitmq-erlang.repo
-[rabbitmq_erlang]
-name=rabbitmq_erlang
-baseurl=$erlang_url
-repo_gpgcheck=1
-gpgcheck=0
+   repo="## In /etc/yum.repos.d/erlang.repo
+[erlang-solutions]
+name=CentOS $releasever - $basearch - Erlang Solutions
+baseurl=https://packages.erlang-solutions.com/rpm/centos/\$releasever/\$basearch
+gpgcheck=1
+gpgkey=https://packages.erlang-solutions.com/rpm/erlang_solutions.asc
 enabled=1
-gpgkey=https://packagecloud.io/rabbitmq/erlang/gpgkey
-sslverify=1
-sslcacert=/etc/pki/tls/certs/ca-bundle.crt
-metadata_expire=300
 "
-   if [[ -f "/etc/yum.repos.d/rabbitmq-erlang.repo" ]]; then
-      echo "\n/etc/yum.repos.d/rabbitmq-erlang.repo exists. renaming current file to rabbitmq-erlang.repo.old\n"
-      mv /etc/yum.repos.d/rabbitmq-erlang.repo /etc/yum.repos.d/rabbitmq-erlang.repo.old
+   if [[ -f "/etc/yum.repos.d/erlang.repo" ]]; then
+      echo "\n/etc/yum.repos.d/erlang.repo exists. renaming current file to rlang.repo.old\n"
+      mv /etc/yum.repos.d/erlang.repo /etc/yum.repos.d/erlang.repo.old
       exit_on_error
    fi
-   echo "$repo" | ${prefix} tee -a /etc/yum.repos.d/rabbitmq-erlang.repo
-   ${prefix} yum install $erlang_package_name
+   echo "$repo" | ${prefix} tee -a /etc/yum.repos.d/erlang.repo
+   rpm --import https://packages.erlang-solutions.com/rpm/erlang_solutions.asc
+   ${prefix} yum install -y erlang-$erlang_package_version
    exit_on_error
 }
 
@@ -98,30 +92,28 @@ function install_on_debian {
         print_usage
     fi
 
-    echo "installing ERLANG"
+    echo "Installing ERLANG"
     ${prefix} apt-get update
     ${prefix} apt-get install -y gnupg apt-transport-https -y
-    ${prefix} apt-get purge -yf erlang*
+    ${prefix} apt-get purge -yf erlang-base
     # Add the signing key
-    ## Team RabbitMQ's main signing key
-    curl -1sLf "https://keys.openpgp.org/vks/v1/by-fingerprint/0A9AF2115F4687BD29803A206B73A36E6026DFCA" | sudo gpg --dearmor | sudo tee /usr/share/keyrings/com.rabbitmq.team.gpg > /dev/null
-    ## Cloudsmith: modern Erlang repository
-    curl -1sLf https://dl.cloudsmith.io/public/rabbitmq/rabbitmq-erlang/gpg.E495BB49CC4BBE5B.key | sudo gpg --dearmor | sudo tee /usr/share/keyrings/io.cloudsmith.rabbitmq.E495BB49CC4BBE5B.gpg > /dev/null
-
-    if [[ -f "/etc/apt/sources.list.d/rabbitmq-erlang.list" ]]; then
-      echo "\n/etc/apt/sources.list.d/rabbitmq-erlang.list exists. renaming current file to rabbitmq-erlang.list.old\n"
-      mv /etc/apt/sources.list.d/rabbitmq-erlang.list /etc/apt/sources.list.d/rabbitmq-erlang.list.old
+    wget https://packages.erlang-solutions.com/ubuntu/erlang_solutions.asc
+    sudo apt-key add erlang_solutions.asc
+    rm erlang_solutions.asc
+    if [[ -f "/etc/apt/sources.list.d/erlang.list" ]]; then
+      echo "\n/etc/apt/sources.list.d/erlang.list exists. renaming current file to erlang.list.old\n"
+      mv /etc/apt/sources.list.d/erlang.list /etc/apt/sources.list.d/erlang.list.old
       exit_on_error
     fi
-    ## Add apt repositories maintained by Team RabbitMQ
-    ${prefix} tee /etc/apt/sources.list.d/rabbitmq-erlang.list <<EOF
+    ## Add apt repository
+    ${prefix} tee /etc/apt/sources.list.d/erlang.list <<EOF
 ## Provides modern Erlang/OTP releases
 ##
-deb [signed-by=/usr/share/keyrings/io.cloudsmith.rabbitmq.E495BB49CC4BBE5B.gpg] https://dl.cloudsmith.io/public/rabbitmq/rabbitmq-erlang/deb/$OS $DIST main
-deb-src [signed-by=/usr/share/keyrings/io.cloudsmith.rabbitmq.E495BB49CC4BBE5B.gpg] https://dl.cloudsmith.io/public/rabbitmq/rabbitmq-erlang/deb/$OS $DIST main
+deb https://packages.erlang-solutions.com/$OS $DIST contrib
 EOF
     version=${erlang_package_version}
     to_install="\
+        erlang-base=$version\
         erlang-asn1=$version \
         erlang-crypto=$version \
         erlang-eldap=$version \
@@ -141,7 +133,7 @@ EOF
         "
 
     ${prefix} apt-get update
-    ${prefix} apt-get install -y ${to_install}
+    ${prefix} apt-get install -y --allow-downgrades ${to_install}
 }
 
 os_name="$1"
@@ -157,14 +149,14 @@ is_arm="FALSE"
 ${prefix} pwd > /dev/null
 
 if [[ "$os_name" == "debian" ]]; then
-    erlang_package_version="1:24.2-1"
+    erlang_package_version="1:24.1.7-1"
     is_arm="FALSE"
     install_on_debian
 elif [[ "$os_name" == "centos" ]]; then
+    erlang_package_version="24.2-1.el8"
     install_on_centos
 else
-    printf "For operating system/distributions not supported by this script, please install Erlang manually with the \
-following components- ssl, publickey, asn1, and crypto.\n"
+    printf "For operating system/distributions not supported by this script, please refer to https://www.rabbitmq.com/which-erlang.html#erlang-repositories\n"
     print_usage
 fi
 
