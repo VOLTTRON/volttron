@@ -348,8 +348,12 @@ def _create_initial_package(agent_dir_to_package, wheelhouse, identity=None):
         tmpdir = tempfile.mkdtemp()
 
         builddir = os.path.join(tmpdir, 'pkg')
-        distdir = os.path.join(builddir, 'dist')
         shutil.copytree(agent_dir_to_package, builddir)
+        distdir = os.path.join(builddir, 'dist')
+        # Remove any existing wheels in 'dist' directory
+        if os.path.exists(distdir):
+            shutil.rmtree(distdir)
+
         cmd = [sys.executable, 'setup.py', '--no-user-cfg', 'bdist_wheel']
         response = subprocess.run(cmd, cwd=builddir, stderr=subprocess.PIPE,
                                   stdout=subprocess.PIPE)
