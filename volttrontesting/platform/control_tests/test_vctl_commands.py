@@ -316,3 +316,40 @@ def test_agent_filters(volttron_instance):
         agent_list = p.communicate()
         assert "listeneragent-3.3_1" in str(agent_list)
         assert "listeneragent-3.3_2" not in str(agent_list)
+
+
+@pytest.mark.control
+def test_no_connection():
+    # Test command that doesn't need instance running.
+    p = subprocess.Popen(
+        ["volttron-ctl", "list"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    stdout, stderr = p.communicate()
+    print(f"stdout: {stdout}")
+    print(f"stderr: {stderr}")
+    assert "VOLTTRON is not running." not in stderr.decode("utf-8")
+
+@pytest.mark.control
+def test_needs_connection():
+    # Test command that needs instance running
+    p = subprocess.Popen(
+        ["volttron-ctl", "peerlist"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    stdout, stderr = p.communicate()
+    assert "VOLTTRON is not running." in stderr.decode("utf-8")
+
+
+@pytest.mark.control
+def test_needs_connection_with_connection(volttron_instance):
+    # Verify peerlist command works when instance is running
+    p = subprocess.Popen(
+        ["volttron-ctl", "peerlist"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    stdout, stderr = p.communicate()
+    assert "VOLTTRON is not running." not in stderr.decode("utf-8")
