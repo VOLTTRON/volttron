@@ -607,13 +607,7 @@ class ControlService(BaseAgent):
             )
         _log.debug(f"Returning {agent_uuid}")
         return agent_uuid
-
-    @RPC.export
-    def install_agent_local(self, filename, vip_identity=None, publickey=None,
-                            secretkey=None):
-        return self._aip.install_agent(filename, vip_identity=vip_identity,
-                                       publickey=publickey,
-                                       secretkey=secretkey)
+   
 
     @RPC.export
     def install_agent(
