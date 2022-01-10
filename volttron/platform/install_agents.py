@@ -211,6 +211,7 @@ def _send_and_intialize_agent(opts, publickey, secretkey):
                 keyline += "%s" % keys[k]
                 valueline += "%s" % output_dict[keys[k]]
         sys.stdout.write("%s\n%s\n" % (keyline, valueline))
+    return agent_uuid
 
 
 def install_agent_vctl(opts, publickey=None, secretkey=None, callback=None):

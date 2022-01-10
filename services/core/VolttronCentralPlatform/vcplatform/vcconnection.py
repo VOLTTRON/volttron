@@ -42,7 +42,7 @@
 import logging
 
 from volttron.platform.agent.known_identities import (
-    VOLTTRON_CENTRAL)
+    VOLTTRON_CENTRAL, CONTROL)
 from volttron.platform.vip.agent import (Agent, RPC)
 
 _log = logging.getLogger(__name__)
@@ -59,6 +59,8 @@ class VCConnection(Agent):
         self._log = logging.getLogger(self.__class__.__name__)
         super(VCConnection, self).__init__(**kwargs)
         self._main_agent = None
+        self.server = None
+        self.peer = CONTROL
 
     def set_main_agent(self, main_agent):
         """
@@ -69,6 +71,7 @@ class VCConnection(Agent):
         :type VolttronCentralPlatform:
         """
         self._main_agent = main_agent
+        self.server = self._main_agent
 
     def publish_to_vc(self, topic, message=None, headers={}):
         """
@@ -286,6 +289,10 @@ class VCConnection(Agent):
     @RPC.export
     def call(self, platform_method, *args, **kwargs):
         return self._main_agent.call(platform_method, *args, **kwargs)
+
+    def kill(self):
+        """Dummy method to use install_agent_vctl"""
+        pass
 
     def is_connected(self):
         connected = self.vip.hello().get(timeout=5) is not None

@@ -50,6 +50,7 @@ import sys
 import tempfile
 import urllib.parse
 from collections import defaultdict
+from argparse import Namespace
 
 import gevent
 import gevent.event
@@ -57,6 +58,7 @@ import psutil
 from enum import Enum
 
 from volttron.platform.agent import utils
+from volttron.platform.install_agents import install_agent_vctl
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -129,7 +131,7 @@ class VolttronCentralPlatform(Agent):
     def __init__(self, reconnect_interval, vc_address,
                  vc_serverkey, instance_name, stats_publish_interval,
                  topic_replace_map, device_status_interval, platform_driver_ids, **kwargs):
-        super(VolttronCentralPlatform, self).__init__(**kwargs)
+        super(VolttronCentralPlatform, self).__init__(enable_channel=True, **kwargs)
 
         # This is scheduled after first call to the reconnect function
         self._scheduled_connection_event = None
@@ -1164,9 +1166,19 @@ class VolttronCentralPlatform(Agent):
                             fileargs['file'].split(base64_sep)[1].encode('utf-8')
                         )
                     )
-            uuid = self.vip.rpc.call(CONTROL, 'install_agent_local',
-                                     path, vip_identity=vip_identity
-                                     ).get(timeout=30)
+            opts = Namespace(connection=self._vc_connection,
+                             install_path=path,
+                             vip_identity=vip_identity,
+                             tag=None,
+                             enable=None,
+                             start=None,
+                             priority=-1,
+                             force=False,
+                             csv=None,
+                             json=None,
+                             st=5
+                             )
+            uuid = install_agent_vctl(opts)
             result = dict(uuid=uuid)
         except Exception as e:
             err_str = "EXCEPTION: " + str(e)
