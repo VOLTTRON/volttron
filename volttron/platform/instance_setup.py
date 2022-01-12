@@ -73,6 +73,8 @@ config_opts = {}
 # Populated by the `installs` decorator.
 available_agents = {}
 
+# Determines if VOLTTRON instance can remain running with vcfg
+use_active = "N"
 
 def _load_config():
     """Loads the config file if the path exists."""
@@ -150,20 +152,31 @@ def _is_bound_already(address):
     return already_bound
 
 
-def fail_if_instance_running():
+def fail_if_instance_running(args):
 
     home = get_home()
 
     if os.path.exists(home) and\
        is_volttron_running(home):
-        print("""
-The current instance is running.  In order to configure an instance it cannot
-be running.  Please execute:
+        global use_active
+        use_active = prompt_response(
+            "The VOLTTRON Instance is currently running. "
+            "Installing agents to an active instance may overwrite currently installed "
+            "and active agents on the platform, causing undesirable behavior. "
+            "Would you like to continue?",
+            valid_answers=y_or_n,
+            default='Y')
+        if use_active in y:
+            return
+        else:
+            print("""
+Please execute:
 
     volttron-ctl shutdown --platform
 
 to stop the instance.
 """)
+
         sys.exit()
 
 
@@ -242,18 +255,32 @@ def installs(agent_dir, tag, identity=None, post_install_func=None):
         global available_agents
 
         def func(*args, **kwargs):
+            global use_active
             print('Configuring {}.'.format(agent_dir))
             config = config_func(*args, **kwargs)
             _update_config_file()
             #TODO: Optimize long vcfg install times
             #TODO: (potentially only starting the platform once per vcfg)
-            _start_platform()
+
+            if use_active in n:
+                _start_platform()
+            else:
+                agent_installed = _is_agent_installed(tag)
+                if agent_installed:
+                    overwrite_agent = prompt_response(f"Agent {tag} is already installed. "
+                                                      f"Do you want to overwrite the current agent?",
+                                                      valid_answers=y_or_n,
+                                                      default='N')
+                    if overwrite_agent in n:
+                        print(tag + " was not reinstalled.")
+                        return
 
             _install_agent(agent_dir, config, tag, identity)
 
             if not _is_agent_installed(tag):
                 print(tag + ' not installed correctly!')
-                _shutdown_platform()
+                if use_active in n:
+                    _shutdown_platform()
                 return
 
             if post_install_func:
@@ -264,8 +291,8 @@ def installs(agent_dir, tag, identity=None, post_install_func=None):
                                         default='N')
             if autostart in y:
                 _cmd(['volttron-ctl', 'enable', '--tag', tag])
-
-            _shutdown_platform()
+            if use_active in n:
+                _shutdown_platform()
 
             if identity is not None:
                 try:
@@ -866,7 +893,7 @@ def confirm_volttron_home():
 
 
 def wizard():
-    global config_opts
+    global config_opts, use_active
     """Routine for configuring an installed volttron instance.
 
     The function interactively sets up the instance for working with volttron
@@ -878,71 +905,103 @@ def wizard():
     confirm_volttron_home()
     _load_config()
     _update_config_file()
-    do_message_bus()
-    do_vip()
-    do_instance_name()
-    _update_config_file()
-
-    prompt = 'Is this instance web enabled?'
-    response = prompt_response(prompt, valid_answers=y_or_n, default='N')
-    if response in y:
-        if not _check_dependencies_met('web'):
-            print("Web dependencies not installed. Installing now...")
-            set_dependencies('web')
-            print("Done!")
-        if config_opts['message-bus'] == 'rmq':
-            do_web_enabled_rmq(volttron_home)
-        elif config_opts['message-bus'] == 'zmq':
-            do_web_enabled_zmq(volttron_home)
+    if use_active in n:
+        do_message_bus()
+        do_vip()
+        do_instance_name()
         _update_config_file()
-        # TODO: Commented out so we don't prompt for installing vc or vcp until they
-        # have been figured out totally for python3
 
-        prompt = 'Is this an instance of volttron central?'
+        prompt = 'Is this instance web enabled?'
         response = prompt_response(prompt, valid_answers=y_or_n, default='N')
         if response in y:
-            do_vc()
-            if _is_agent_installed('vc'):
-                print("VC admin and password are set up using the admin web interface.\n"
-                      "After starting VOLTTRON, please go to {} to complete the setup.".format(
-                        os.path.join(config_opts['bind-web-address'], "admin", "login.html")
-                        ))
+            if not _check_dependencies_met('web'):
+                print("Web dependencies not installed. Installing now...")
+                set_dependencies('web')
+                print("Done!")
+            if config_opts['message-bus'] == 'rmq':
+                do_web_enabled_rmq(volttron_home)
+            elif config_opts['message-bus'] == 'zmq':
+                do_web_enabled_zmq(volttron_home)
+            _update_config_file()
 
-    prompt = 'Will this instance be controlled by volttron central?'
-    response = prompt_response(prompt, valid_answers=y_or_n, default='Y')
-    if response in y:
-        if not _check_dependencies_met("drivers") or not _check_dependencies_met("web"):
-            print("VCP dependencies not installed. Installing now...")
+            prompt = 'Is this an instance of volttron central?'
+            response = prompt_response(prompt, valid_answers=y_or_n, default='N')
+            if response in y:
+                do_vc()
+                if _is_agent_installed('vc'):
+                    print("VC admin and password are set up using the admin web interface.\n"
+                          "After starting VOLTTRON, please go to {} to complete the setup.".format(
+                            os.path.join(config_opts['bind-web-address'], "admin", "login.html")
+                            ))
+
+        prompt = 'Will this instance be controlled by volttron central?'
+        response = prompt_response(prompt, valid_answers=y_or_n, default='Y')
+        if response in y:
+            if not _check_dependencies_met("drivers") or not _check_dependencies_met("web"):
+                print("VCP dependencies not installed. Installing now...")
+                if not _check_dependencies_met("drivers"):
+                    set_dependencies("drivers")
+                if not _check_dependencies_met("web"):
+                    set_dependencies("web")
+                print("Done!")
+            do_vcp()
+
+        prompt = 'Would you like to install a platform historian?'
+        response = prompt_response(prompt, valid_answers=y_or_n, default='N')
+        if response in y:
+            do_platform_historian()
+        prompt = 'Would you like to install a platform driver?'
+        response = prompt_response(prompt, valid_answers=y_or_n, default='N')
+        if response in y:
             if not _check_dependencies_met("drivers"):
+                print("Driver dependencies not installed. Installing now...")
                 set_dependencies("drivers")
-            if not _check_dependencies_met("web"):
-                set_dependencies("web")
-            print("Done!")
-        do_vcp()
+                print("Done!")
+            do_platform_driver()
 
-    prompt = 'Would you like to install a platform historian?'
-    response = prompt_response(prompt, valid_answers=y_or_n, default='N')
-    if response in y:
-        do_platform_historian()
-    prompt = 'Would you like to install a platform driver?'
-    response = prompt_response(prompt, valid_answers=y_or_n, default='N')
-    if response in y:
-        if not _check_dependencies_met("drivers"):
-            print("Driver dependencies not installed. Installing now...")
-            set_dependencies("drivers")
-            print("Done!")
-        do_platform_driver()
+        prompt = 'Would you like to install a listener agent?'
+        response = prompt_response(prompt, valid_answers=y_or_n, default='N')
+        if response in y:
+            do_listener()
 
-    prompt = 'Would you like to install a listener agent?'
-    response = prompt_response(prompt, valid_answers=y_or_n, default='N')
-    if response in y:
-        do_listener()
+        print('Finished configuration!\n')
+        print('You can now start the volttron instance.\n')
+        print('If you need to change the instance configuration you can edit')
+        print('the config file is at {}/config\n'.format(volttron_home))
 
-    print('Finished configuration!\n')
-    print('You can now start the volttron instance.\n')
-    print('If you need to change the instance configuration you can edit')
-    print('the config file is at {}/config\n'.format(volttron_home))
+    # Only allow vcp, historian, driver, and listener to be installed
+    # through the wizard if the instance is running.
+    else:
+        prompt = 'Will this instance be controlled by volttron central?'
+        response = prompt_response(prompt, valid_answers=y_or_n, default='Y')
+        if response in y:
+            if not _check_dependencies_met(
+                "drivers") or not _check_dependencies_met("web"):
+                print("VCP dependencies not installed. Installing now...")
+                if not _check_dependencies_met("drivers"):
+                    set_dependencies("drivers")
+                if not _check_dependencies_met("web"):
+                    set_dependencies("web")
+                print("Done!")
+            do_vcp()
 
+        prompt = 'Would you like to install a platform historian?'
+        response = prompt_response(prompt, valid_answers=y_or_n, default='N')
+        if response in y:
+            do_platform_historian()
+        prompt = 'Would you like to install a platform driver?'
+        response = prompt_response(prompt, valid_answers=y_or_n, default='N')
+        if response in y:
+            if not _check_dependencies_met("drivers"):
+                print("Driver dependencies not installed. Installing now...")
+                set_dependencies("drivers")
+                print("Done!")
+            do_platform_driver()
+
+        prompt = 'Would you like to install a listener agent?'
+        response = prompt_response(prompt, valid_answers=y_or_n, default='N')
+        if response in y:
+            do_listener()
 
 def process_rmq_inputs(args_dict, instance_name=None):
     #print(f"args_dict:{args_dict}, args")
@@ -999,7 +1058,8 @@ def process_rmq_inputs(args_dict, instance_name=None):
 
 
 def main():
-    global verbose, prompt_vhome
+    global verbose, prompt_vhome, use_active
+    use_active = "N"
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('-v', '--verbose', action='store_true')
     parser.add_argument('--vhome', help="Path to volttron home")
@@ -1045,9 +1105,10 @@ def main():
         set_home(args.vhome)
         prompt_vhome = False
     # if not args.rabbitmq or args.rabbitmq[0] in ["single"]:
-    fail_if_instance_running()
+    fail_if_instance_running(args)
     fail_if_not_in_src_root()
-    atexit.register(_cleanup_on_exit)
+    if use_active in n:
+        atexit.register(_cleanup_on_exit)
     _load_config()
     if args.instance_name:
         _update_config_file(instance_name=args.instance_name)
