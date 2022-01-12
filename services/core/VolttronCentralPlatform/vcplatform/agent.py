@@ -58,7 +58,7 @@ import psutil
 from enum import Enum
 
 from volttron.platform.agent import utils
-from volttron.platform.install_agents import install_agent_vctl
+from volttron.platform.install_agents import install_agent_remote
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -1149,6 +1149,14 @@ class VolttronCentralPlatform(Agent):
         try:
             _log.debug('Installing agent FILEARGS: {}'.format(fileargs))
             vip_identity = fileargs.get('vip_identity', None)
+            agent_tag = fileargs.get('tag', None)
+            agent_enable = fileargs.get('enable', None)
+            agent_start = fileargs.get('start', None)
+            agent_priority = fileargs.get('priority', -1)
+            agent_force = fileargs.get('force', False)
+            agent_csv = fileargs.get('csv', None)
+            agent_json = fileargs.get('json', None)
+            agent_st = fileargs.get('st', 5)
             if 'local' in fileargs:
                 path = fileargs['file_name']
             else:
@@ -1169,16 +1177,16 @@ class VolttronCentralPlatform(Agent):
             opts = Namespace(connection=self._vc_connection,
                              install_path=path,
                              vip_identity=vip_identity,
-                             tag=None,
-                             enable=None,
-                             start=None,
-                             priority=-1,
-                             force=False,
-                             csv=None,
-                             json=None,
-                             st=5
+                             tag=agent_tag,
+                             enable=agent_enable,
+                             start=agent_start,
+                             priority=agent_priority,
+                             force=agent_force,
+                             csv=agent_csv,
+                             json=agent_json,
+                             st=agent_st
                              )
-            uuid = install_agent_vctl(opts)
+            uuid = install_agent_remote(opts)
             result = dict(uuid=uuid)
         except Exception as e:
             err_str = "EXCEPTION: " + str(e)
