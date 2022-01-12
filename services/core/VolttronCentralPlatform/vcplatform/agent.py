@@ -37,8 +37,6 @@
 # }}}
 
 
-
-
 import base64
 import datetime
 import hashlib
@@ -1160,7 +1158,7 @@ class VolttronCentralPlatform(Agent):
                 # after base64,
                 with open(path, 'wb') as fout:
                     fout.write(
-                        base64.decodestring(
+                        base64.decodebytes(
                             fileargs['file'].split(base64_sep)[1].encode('utf-8')
                         )
                     )

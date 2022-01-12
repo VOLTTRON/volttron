@@ -346,12 +346,11 @@ def set_dependencies(requirement):
 
 def set_dependencies_rmq():
     install_rabbit(default_rmq_dir)
-    #TODO add rmq prompts to run scripts/rabbit_dependencies.sh
     prompt = 'What OS are you running?'
     user_os = prompt_response(prompt, default='debian')
     prompt = 'Which distribution are you running?'
     user_dist = prompt_response(prompt, default='bionic')
-    _cmd(["./scripts/rabbit_dependencies.py", user_os, user_dist])
+    _cmd(["./scripts/rabbit_dependencies.sh", user_os, user_dist])
 
 def _create_web_certs():
     global config_opts
@@ -429,10 +428,10 @@ def do_message_bus():
             set_dependencies_rmq()
             print("Done!")
 
-        if not _check_dependencies_met('rabbitmq'):
-            print("Rabbitmq dependencies not installed. Installing now...")
-            set_dependencies("rabbitmq")
-            print("Done!")
+        # if not _check_dependencies_met('rabbitmq'):
+        #     print("Rabbitmq dependencies not installed. Installing now...")
+        #     set_dependencies("rabbitmq")
+        #     print("Done!")
         try:
             check_rmq_setup()
         except AssertionError:
