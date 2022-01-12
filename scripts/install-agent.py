@@ -36,7 +36,7 @@ if not ignore_env_check and not inenv and not corrected:
     cmds.extend(sys.argv[1:])
     try:
         output = subprocess.call(cmds, env=os.environ)
-        sys.exit(0)
+        sys.exit(output)
     except RuntimeError:
         sys.exit(1)
 
@@ -163,4 +163,5 @@ if __name__ == "__main__":
     cmds.insert(0, "volttron-ctl")
     # Use run because it is going to be in-charge of all of the output from
     # this command.
-    subprocess.run(cmds, env=os.environ, stderr=sys.stderr, stdout=sys.stdout)
+    completed_process = subprocess.run(cmds, env=os.environ, stderr=sys.stderr, stdout=sys.stdout)
+    sys.exit(completed_process.returncode)

@@ -348,15 +348,32 @@ def _create_initial_package(agent_dir_to_package, wheelhouse, identity=None):
         tmpdir = tempfile.mkdtemp()
 
         builddir = os.path.join(tmpdir, 'pkg')
-        distdir = os.path.join(builddir, 'dist')
         shutil.copytree(agent_dir_to_package, builddir)
+        distdir = os.path.join(builddir, 'dist')
+        # Remove any existing wheels in 'dist' directory
+        if os.path.exists(distdir):
+            shutil.rmtree(distdir)
+
         cmd = [sys.executable, 'setup.py', '--no-user-cfg', 'bdist_wheel']
         response = subprocess.run(cmd, cwd=builddir, stderr=subprocess.PIPE,
                                   stdout=subprocess.PIPE)
         if response.returncode != 0:
             raise ValueError(f"Couldn't compile agent directory: {response.stderr}")
 
-        wheel_name = os.listdir(distdir)[0]
+        dist_files = os.listdir(distdir)
+        if len(dist_files) > 1:
+            raise ValueError(f"dist_files contains more than one file: {dist_files}")
+            # TODO: Instead of raising an error, is there a scenario where we have to choose a specific wheel files among a group of files and directories
+            # import glob
+            # g = glob.glob(distdir + "/*.whl")
+            # wheel_name = None
+            # if g:
+            #     _log.info(f"wheels in distdir {g}")
+            #     wheel_name = os.path.basename(g[0]) # choose a wheel based on some logic
+
+        wheel_name = dist_files[0]
+        if wheel_name is None or not wheel_name.endswith(".whl"):
+            raise ValueError(f"Unable to create wheel file")
         wheel_path = os.path.join(distdir, wheel_name)
 
         if identity is not None:
