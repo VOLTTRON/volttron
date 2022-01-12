@@ -220,7 +220,7 @@ def install_agent_vctl(opts, publickey=None, secretkey=None, callback=None):
     vctl install sub-parser.
     """
 
-    agent_uuid = install_agent_remote(opts, publickey=publickey,
+    agent_uuid = install_agent_local(opts, publickey=publickey,
                          secretkey=secretkey, callback=callback)
     if agent_uuid:
         return 0
@@ -228,9 +228,10 @@ def install_agent_vctl(opts, publickey=None, secretkey=None, callback=None):
         return 1
 
 
-def install_agent_remote(opts, publickey=None, secretkey=None, callback=None):
+def install_agent_local(opts, publickey=None, secretkey=None, callback=None):
     """
-    Used by install_agent_vctl and vc for installing agents.
+    Install agents via either directory or wheel
+    Used by VC and VCTL
     """
     try:
         install_path = opts.install_path

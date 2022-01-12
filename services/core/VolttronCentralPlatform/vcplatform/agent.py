@@ -58,7 +58,7 @@ import psutil
 from enum import Enum
 
 from volttron.platform.agent import utils
-from volttron.platform.install_agents import install_agent_remote
+from volttron.platform.install_agents import install_agent_local
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -1170,7 +1170,7 @@ class VolttronCentralPlatform(Agent):
                 # after base64,
                 with open(path, 'wb') as fout:
                     fout.write(
-                        base64.decodestring(
+                        base64.decodebytes(
                             fileargs['file'].split(base64_sep)[1].encode('utf-8')
                         )
                     )
@@ -1186,7 +1186,7 @@ class VolttronCentralPlatform(Agent):
                              json=agent_json,
                              st=agent_st
                              )
-            uuid = install_agent_remote(opts)
+            uuid = install_agent_local(opts)
             result = dict(uuid=uuid)
         except Exception as e:
             err_str = "EXCEPTION: " + str(e)
