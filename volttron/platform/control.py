@@ -794,6 +794,29 @@ Agent = collections.namedtuple("Agent",
                                "name tag uuid vip_identity agent_user")
 
 
+def needs_connection(func: callable) -> callable:
+    """
+    Decorator that checks if a connection exists.
+    If opts.connection exists, then the platform is running.
+    Used for commands that need to connect to the platform.
+    If opts.connection does not exist, then an error message will
+    be output and an error code returned.
+
+    The first argument passed into func must be opts for
+    this decorator to be used successfully.
+    """
+
+    def wrapper(opts, *args, **kwargs):
+        if not opts.connection:
+            _stderr.write(
+                "VOLTTRON is not running. This command "
+                "requires VOLTTRON platform to be running\n"
+            )
+            return 1
+        else:
+            return func(opts, *args, **kwargs)
+    return wrapper
+
 def _list_agents(aip):
     return [
         Agent(name, aip.agent_tag(uuid), uuid, aip.agent_identity(uuid), "")
@@ -898,6 +921,7 @@ def tag_agent(opts):
             _stdout.writelines([agent.tag, "\n"])
 
 
+@needs_connection
 def remove_agent(opts, remove_auth=True):
     agents = _list_agents(opts.aip)
     for pattern, match in filter_agents(agents, opts.pattern, opts):
@@ -940,6 +964,7 @@ def list_agents(opts):
     _show_filtered_agents(opts, "PRI", get_priority)
 
 
+@needs_connection
 def list_peers(opts):
     conn = opts.connection
     peers = sorted(conn.call("peerlist"))
@@ -994,6 +1019,7 @@ def print_rpc_methods(opts, peer_method_metadata, code=False):
                     print(f"\t\t{param}:\n\t\t\t{params[param]}")
 
 
+@needs_connection
 def list_agents_rpc(opts):
     conn = opts.connection
     try:
@@ -1053,6 +1079,7 @@ def list_agents_rpc(opts):
         print_rpc_list(peer_methods)
 
 
+@needs_connection
 def list_agent_rpc_code(opts):
     conn = opts.connection
     try:
@@ -1119,6 +1146,7 @@ def list_agent_rpc_code(opts):
     print_rpc_methods(opts, peer_method_metadata, code=True)
 
 
+@needs_connection
 def list_remotes(opts):
     """Lists remote certs and credentials.
     Can be filters using the '--status' option, specifying
@@ -1130,12 +1158,6 @@ def list_remotes(opts):
 
     """
     conn = opts.connection
-    if not conn:
-        _stderr.write(
-            "VOLTTRON is not running. This command "
-            "requires VOLTTRON platform to be running\n"
-        )
-        return
 
     output_view = []
     try:
@@ -1243,6 +1265,7 @@ def list_remotes(opts):
         )
 
 
+@needs_connection
 def approve_remote(opts):
     """Approves either a pending CSR or ZMQ credential.
     The platform must be running for this command to succeed.
@@ -1250,18 +1273,13 @@ def approve_remote(opts):
     :type opts.user_id: str
     """
     conn = opts.connection
-    if not conn:
-        _stderr.write(
-            "VOLTTRON is not running. This command "
-            "requires VOLTTRON platform to be running\n"
-        )
-        return
     conn.server.vip.rpc.call(AUTH, "approve_authorization_failure",
                              opts.user_id).get(
         timeout=4
     )
 
 
+@needs_connection
 def deny_remote(opts):
     """Denies either a pending CSR or ZMQ credential.
     The platform must be running for this command to succeed.
@@ -1269,18 +1287,13 @@ def deny_remote(opts):
     :type opts.user_id: str
     """
     conn = opts.connection
-    if not conn:
-        _stderr.write(
-            "VOLTTRON is not running. This command "
-            "requires VOLTTRON platform to be running\n"
-        )
-        return
     conn.server.vip.rpc.call(AUTH, "deny_authorization_failure",
                              opts.user_id).get(
         timeout=4
     )
 
 
+@needs_connection
 def delete_remote(opts):
     """Deletes either a pending CSR or ZMQ credential.
     The platform must be running for this command to succeed.
@@ -1288,12 +1301,6 @@ def delete_remote(opts):
     :type opts.user_id: str
     """
     conn = opts.connection
-    if not conn:
-        _stderr.write(
-            "VOLTTRON is not running. This command "
-            "requires VOLTTRON platform to be running\n"
-        )
-        return
     conn.server.vip.rpc.call(AUTH, "delete_authorization_failure",
                              opts.user_id).get(
         timeout=4
@@ -1308,6 +1315,7 @@ health_cache_timeout = 5
 health_cache = {}
 
 
+@needs_connection
 def update_health_cache(opts):
     global health_cache_timeout_date
 
@@ -1335,6 +1343,7 @@ def update_health_cache(opts):
             )
 
 
+@needs_connection
 def add_agent_rpc_authorizations(opts):
     """
     Adds authorizations to method in auth entry in auth file.
@@ -1370,6 +1379,7 @@ def add_agent_rpc_authorizations(opts):
     return
 
 
+@needs_connection
 def remove_agent_rpc_authorizations(opts):
     """
     Removes authorizations to method in auth entry in auth file.
@@ -1409,6 +1419,7 @@ def remove_agent_rpc_authorizations(opts):
     return
 
 
+@needs_connection
 def status_agents(opts):
     agents = {agent.uuid: agent for agent in _list_agents(opts.aip)}
     status = {}
@@ -1482,6 +1493,7 @@ def agent_health(opts):
         _stdout.write(f"{jsonapi.dumps(data, indent=4)}\n")
 
 
+@needs_connection
 def clear_status(opts):
     opts.connection.call("clear_status", opts.clear_all)
 
@@ -1519,6 +1531,7 @@ def disable_agent(opts):
                 opts.aip.prioritize_agent(agent.uuid, None)
 
 
+@needs_connection
 def start_agent(opts):
     call = opts.connection.call
     agents = _list_agents(opts.aip)
@@ -1536,6 +1549,7 @@ def start_agent(opts):
                 call("start_agent", agent.uuid)
 
 
+@needs_connection
 def stop_agent(opts):
     call = opts.connection.call
     agents = _list_agents(opts.aip)
@@ -1558,12 +1572,14 @@ def restart_agent(opts):
     start_agent(opts)
 
 
+@needs_connection
 def run_agent(opts):
     call = opts.connection.call
     for directory in opts.directory:
         call("run_agent", directory)
 
 
+@needs_connection
 def shutdown_agents(opts):
     if "rmq" == utils.get_messagebus():
         if not check_rabbit_status():
@@ -1630,6 +1646,7 @@ def _send_agent(connection, peer, path):
     return result
 
 
+@needs_connection
 def send_agent(opts):
     connection = opts.connection
     for wheel in opts.wheel:
@@ -1664,6 +1681,7 @@ def remove_known_host(opts):
         'host "{}" removed from {}\n'.format(opts.host, store.filename))
 
 
+@needs_connection
 def do_stats(opts):
     call = opts.connection.call
     if opts.op == "status":
@@ -1680,7 +1698,7 @@ def do_stats(opts):
         call("stats." + opts.op)
         _stdout.write("%sabled\n" % ("en" if call("stats.enabled") else "dis"))
 
-
+@needs_connection
 def show_serverkey(opts):
     """
     write serverkey to standard out.
@@ -1688,12 +1706,7 @@ def show_serverkey(opts):
     return 0 if success, 1 if false
     """
     conn = opts.connection
-    if not conn:
-        _stderr.write(
-            "VOLTTRON is not running. This command "
-            "requires VOLTTRON platform to be running\n"
-        )
-        return 1
+
     q = Query(conn.server.core)
     pk = q.query("serverkey").get(timeout=2)
     del q
@@ -1727,14 +1740,9 @@ def _print_two_columns(dict_, key_name, value_name):
             "{}{}{}\n".format(key, " " * (max_key_len - len(key)), value))
 
 
+@needs_connection
 def list_auth(opts, indices=None):
     conn = opts.connection
-    if not conn:
-        _stderr.write(
-            "VOLTTRON is not running. This command "
-            "requires VOLTTRON platform to be running\n"
-        )
-        return
 
     entries = conn.server.vip.rpc.call(AUTH, "auth_file.read").get()[
         "allow_list"]
@@ -1884,18 +1892,13 @@ def _parse_capabilities(line):
     return result
 
 
+@needs_connection
 def add_auth(opts):
     """Add authorization entry.
 
     If all options are None, then use interactive 'wizard.'
     """
     conn = opts.connection
-    if not conn:
-        _stderr.write(
-            "VOLTTRON is not running. This command "
-            "requires VOLTTRON platform to be running\n"
-        )
-        return
 
     fields = {
         "domain": opts.domain,
@@ -1966,6 +1969,7 @@ def _ask_yes_no(question, default="yes"):
         _stderr.write("Please respond with 'yes' or 'no'\n")
 
 
+@needs_connection
 def remove_auth(opts):
     conn = opts.connection
     if not conn:
@@ -1999,6 +2003,7 @@ def remove_auth(opts):
         _stderr.write("ERROR: %s\n" % str(err))
 
 
+@needs_connection
 def update_auth(opts):
     conn = opts.connection
     if not conn:
@@ -2028,14 +2033,9 @@ def update_auth(opts):
         _stderr.write("ERROR: %s\n" % str(err))
 
 
+@needs_connection
 def add_role(opts):
     conn = opts.connection
-    if not conn:
-        _stderr.write(
-            "VOLTTRON is not running. This command "
-            "requires VOLTTRON platform to be running\n"
-        )
-        return
 
     roles = conn.server.vip.rpc.call(AUTH, "auth_file.read").get()["roles"]
     if opts.role in roles:
@@ -2046,26 +2046,18 @@ def add_role(opts):
     _stdout.write('added role "{}"\n'.format(opts.role))
 
 
+@needs_connection
 def list_roles(opts):
     conn = opts.connection
-    if not conn:
-        _stderr.write(
-            "VOLTTRON is not running. This command "
-            "requires VOLTTRON platform to be running\n"
-        )
-        return
+
     roles = conn.server.vip.rpc.call(AUTH, "auth_file.read").get()["roles"]
     _print_two_columns(roles, "ROLE", "CAPABILITIES")
 
 
+@needs_connection
 def update_role(opts):
     conn = opts.connection
-    if not conn:
-        _stderr.write(
-            "VOLTTRON is not running. This command "
-            "requires VOLTTRON platform to be running\n"
-        )
-        return
+
     roles = conn.server.vip.rpc.call(AUTH, "auth_file.read").get()["roles"]
     if opts.role not in roles:
         _stderr.write('role "{}" does not exist\n'.format(opts.role))
@@ -2079,14 +2071,10 @@ def update_role(opts):
     _stdout.write('updated role "{}"\n'.format(opts.role))
 
 
+@needs_connection
 def remove_role(opts):
     conn = opts.connection
-    if not conn:
-        _stderr.write(
-            "VOLTTRON is not running. This command "
-            "requires VOLTTRON platform to be running\n"
-        )
-        return
+
     roles = conn.server.vip.rpc.call(AUTH, "auth_file.read").get()["roles"]
     if opts.role not in roles:
         _stderr.write('role "{}" does not exist\n'.format(opts.role))
@@ -2096,14 +2084,10 @@ def remove_role(opts):
     _stdout.write('removed role "{}"\n'.format(opts.role))
 
 
+@needs_connection
 def add_group(opts):
     conn = opts.connection
-    if not conn:
-        _stderr.write(
-            "VOLTTRON is not running. This command "
-            "requires VOLTTRON platform to be running\n"
-        )
-        return
+
     groups = conn.server.vip.rpc.call(AUTH, "auth_file.read").get()["groups"]
     if opts.group in groups:
         _stderr.write('group "{}" already exists\n'.format(opts.group))
@@ -2112,27 +2096,18 @@ def add_group(opts):
     conn.server.vip.rpc.call(AUTH, "auth_file.set_groups", groups)
     _stdout.write('added group "{}"\n'.format(opts.group))
 
-
+@needs_connection
 def list_groups(opts):
     conn = opts.connection
-    if not conn:
-        _stderr.write(
-            "VOLTTRON is not running. This command "
-            "requires VOLTTRON platform to be running\n"
-        )
-        return
+
     groups = conn.server.vip.rpc.call(AUTH, "auth_file.read").get()["groups"]
     _print_two_columns(groups, "GROUPS", "ROLES")
 
 
+@needs_connection
 def update_group(opts):
     conn = opts.connection
-    if not conn:
-        _stderr.write(
-            "VOLTTRON is not running. This command "
-            "requires VOLTTRON platform to be running\n"
-        )
-        return
+
     groups = conn.server.vip.rpc.call(AUTH, "auth_file.read").get()["groups"]
     if opts.group not in groups:
         _stderr.write('group "{}" does not exist\n'.format(opts.group))
@@ -2146,14 +2121,10 @@ def update_group(opts):
     _stdout.write('updated group "{}"\n'.format(opts.group))
 
 
+@needs_connection
 def remove_group(opts):
     conn = opts.connection
-    if not conn:
-        _stderr.write(
-            "VOLTTRON is not running. This command "
-            "requires VOLTTRON platform to be running\n"
-        )
-        return
+
     groups = conn.server.vip.rpc.call(AUTH, "auth_file.read").get()["groups"]
     if opts.group not in groups:
         _stderr.write('group "{}" does not exist\n'.format(opts.group))
@@ -2401,6 +2372,7 @@ def get_agent_publickey(opts):
     _show_filtered_agents(opts, "PUBLICKEY", get_key)
 
 
+@needs_connection
 def add_config_to_store(opts):
     opts.connection.peer = CONFIGURATION_STORE
     call = opts.connection.call
@@ -2416,6 +2388,7 @@ def add_config_to_store(opts):
     )
 
 
+@needs_connection
 def delete_config_from_store(opts):
     opts.connection.peer = CONFIGURATION_STORE
     call = opts.connection.call
@@ -2433,6 +2406,7 @@ def delete_config_from_store(opts):
     call("manage_delete_config", opts.identity, opts.name)
 
 
+@needs_connection
 def list_store(opts):
     opts.connection.peer = CONFIGURATION_STORE
     call = opts.connection.call
@@ -2446,6 +2420,7 @@ def list_store(opts):
         _stdout.write(item + "\n")
 
 
+@needs_connection
 def get_config(opts):
     opts.connection.peer = CONFIGURATION_STORE
     call = opts.connection.call
@@ -2461,6 +2436,7 @@ def get_config(opts):
             _stdout.write("\n")
 
 
+@needs_connection
 def edit_config(opts):
     opts.connection.peer = CONFIGURATION_STORE
     call = opts.connection.call
