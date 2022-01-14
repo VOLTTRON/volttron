@@ -607,6 +607,7 @@ class ControlService(BaseAgent):
             )
         _log.debug(f"Returning {agent_uuid}")
         return agent_uuid
+   
 
     @RPC.export
     def install_agent(
