@@ -76,7 +76,7 @@ def annotations(obj, kind, name):
     # pylint: disable=protected-access
     try:
         annotations = obj._annotations
-    except AttributeError:
+    except (AttributeError, KeyError):
         annotations = {}
     try:
         items = annotations[name]

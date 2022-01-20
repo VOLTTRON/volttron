@@ -49,7 +49,7 @@ from configparser import ConfigParser
 from urllib.parse import urlparse
 
 from ..utils.frozendict import FrozenDict
-__version__ = '8.1.2'
+__version__ = '8.1.3'
 
 _log = logging.getLogger(__name__)
 
