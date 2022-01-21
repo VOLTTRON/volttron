@@ -43,9 +43,9 @@ copyright = '2020, The VOLTTRON Community'
 author = 'The VOLTTRON Community'
 
 # The short X.Y version
-version = '8.1.2'
+version = '8.1.3'
 # The full version, including alpha/beta/rc tags
-release = '8.1.2'
+release = '8.1.3'
 
 
 # -- General configuration ---------------------------------------------------

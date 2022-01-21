@@ -109,7 +109,6 @@ def install_agent_directory(opts, publickey=None, secretkey=None):
         if agent_default_id_file.is_file():
             with open(str(agent_default_id_file)) as fin:
                 opts.vip_identity = fin.read().strip()
-    agent_uuid = None
 
     # Verify and load agent_config up from the opts.  agent_config will
     # be a yaml config file.
@@ -141,7 +140,8 @@ def install_agent_directory(opts, publickey=None, secretkey=None):
     except FileNotFoundError:
         raise InstallRuntimeError(f"File not found: {config_file}")
 
-    _send_and_intialize_agent(opts, publickey, secretkey)
+    agent_uuid = _send_and_intialize_agent(opts, publickey, secretkey)
+    return agent_uuid
     
 
 def _send_and_intialize_agent(opts, publickey, secretkey):
@@ -211,12 +211,27 @@ def _send_and_intialize_agent(opts, publickey, secretkey):
                 keyline += "%s" % keys[k]
                 valueline += "%s" % output_dict[keys[k]]
         sys.stdout.write("%s\n%s\n" % (keyline, valueline))
+    return agent_uuid
 
 
 def install_agent_vctl(opts, publickey=None, secretkey=None, callback=None):
     """
-    The `install_agent_vctl` function is called from the volttron-ctl or vctl install
-    sub-parser.
+    The `install_agent_vctl` function is called from the volttron-ctl or
+    vctl install sub-parser.
+    """
+
+    agent_uuid = install_agent_local(opts, publickey=publickey,
+                         secretkey=secretkey, callback=callback)
+    if agent_uuid:
+        return 0
+    else:
+        return 1
+
+
+def install_agent_local(opts, publickey=None, secretkey=None, callback=None):
+    """
+    Install agents via either directory or wheel
+    Used by VC and VCTL
     """
     try:
         install_path = opts.install_path
@@ -231,8 +246,10 @@ def install_agent_vctl(opts, publickey=None, secretkey=None, callback=None):
                 opts.connection.kill()
                 raise InstallRuntimeError("Identity already exists.  Pass --force option to re-install.")
 
+    agent_uuid = None
+
     if os.path.isdir(install_path):
-        install_agent_directory(opts, publickey, secretkey)
+        agent_uuid = install_agent_directory(opts, publickey, secretkey)
         if opts.connection is not None:
             opts.connection.kill()
     else:
@@ -240,7 +257,9 @@ def install_agent_vctl(opts, publickey=None, secretkey=None, callback=None):
         if not os.path.exists(opts.package):
             opts.connection.kill()
             raise FileNotFoundError(f"Invalid file {opts.package}")
-        _send_and_intialize_agent(opts, publickey, secretkey)
+        agent_uuid = _send_and_intialize_agent(opts, publickey, secretkey)
+
+    return agent_uuid
 
 
 def send_agent(connection: "ControlConnection", wheel_file: str, vip_identity: str , publickey: str, 
