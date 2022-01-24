@@ -373,7 +373,7 @@ class VUIEndpoints(object):
         # Resolve tags if the tag query parameter is set:
         if tag:
             try:
-                tag_list = self._rpc('platform.tagging', 'get_topics_by_tags', tag, external_platform=platform).get(timeout=5)
+                tag_list = self._rpc('platform.tagging', 'get_topics_by_tags', tag, external_platform=platform)
             except Timeout as e:
                 return Response(json.dumps({'error': f'Tagging Service timed out: {e}'}),
                                 504, content_type='application/json')
