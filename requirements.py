@@ -94,4 +94,5 @@ extras_require = {'crate': ['crate'],
                           'Jinja2',
                           'passlib',
                           'argon2-cffi',
-                          'Werkzeug']}
+                          'Werkzeug',
+                          'treelib']}
