@@ -194,7 +194,7 @@ def test_rpc(mock_platform_web_service):
 
 @pytest.mark.parametrize("method, status", gen_response_codes(['GET']))
 def test_handle_vui_root(mock_platform_web_service, method, status):
-    env = get_test_web_env('/vui', method=method)
+    env = get_test_web_env('/vui', method=method, HTTP_AUTHORIZATION='BEARER foo')
     vui_endpoints = VUIEndpoints(mock_platform_web_service)
     response = vui_endpoints.handle_vui_root(env, {})
     check_response_codes(response, status)
@@ -204,7 +204,7 @@ def test_handle_vui_root(mock_platform_web_service, method, status):
 
 @pytest.mark.parametrize("method, status", gen_response_codes(['GET']))
 def test_handle_platforms_status_code(mock_platform_web_service, method, status):
-    env = get_test_web_env('/vui/platforms', method=method)
+    env = get_test_web_env('/vui/platforms', method=method, HTTP_AUTHORIZATION='BEARER foo')
     vui_endpoints = VUIEndpoints(mock_platform_web_service)
     response = vui_endpoints.handle_platforms(env, {})
     check_response_codes(response, status)
@@ -220,7 +220,7 @@ def test_handle_platforms_status_code(mock_platform_web_service, method, status)
                          ])
 def test_handle_platforms_response(mock_platform_web_service, platforms):
     path = '/vui/platforms'
-    env = get_test_web_env(path, method='GET')
+    env = get_test_web_env(path, method='GET', HTTP_AUTHORIZATION='BEARER foo')
     vui_endpoints = VUIEndpoints(mock_platform_web_service)
     if type(platforms) is list:
         external_platforms_discovery_json = {p: {} for p in platforms}
@@ -241,7 +241,7 @@ def test_handle_platforms_response(mock_platform_web_service, platforms):
 
 @pytest.mark.parametrize("method, status", gen_response_codes(['GET']))
 def test_handle_platforms_platform_status_code(mock_platform_web_service, method, status):
-    env = get_test_web_env('/vui/platforms/my_instance_name', method=method)
+    env = get_test_web_env('/vui/platforms/my_instance_name', method=method, HTTP_AUTHORIZATION='BEARER foo')
     vui_endpoints = VUIEndpoints(mock_platform_web_service)
     response = vui_endpoints.handle_platforms_platform(env, {})
     check_response_codes(response, status)
@@ -250,7 +250,7 @@ def test_handle_platforms_platform_status_code(mock_platform_web_service, method
 @pytest.mark.parametrize("platform", ['my_instance_name', 'other_instance_name', 'not_a_platform'])
 def test_handle_platforms_platform_response(mock_platform_web_service, platform):
     path = f'/vui/platforms/{platform}'
-    env = get_test_web_env(path, method='GET')
+    env = get_test_web_env(path, method='GET', HTTP_AUTHORIZATION='BEARER foo')
     vui_endpoints = VUIEndpoints(mock_platform_web_service)
     with mock.patch('builtins.open', mock.mock_open(read_data=json.dumps({'other_instance_name': {}}))):
         response = vui_endpoints.handle_platforms_platform(env, {})
@@ -302,7 +302,7 @@ def test_get_agents(mock_platform_web_service, agent_state, include_hidden, expe
 
 @pytest.mark.parametrize("method, status", gen_response_codes(['GET']))
 def test_handle_platforms_agents_status_code(mock_platform_web_service, method, status):
-    env = get_test_web_env('/vui/platforms/my_instance_name/agents', method=method)
+    env = get_test_web_env('/vui/platforms/my_instance_name/agents', method=method, HTTP_AUTHORIZATION='BEARER foo')
     vui_endpoints = VUIEndpoints(mock_platform_web_service)
     response = vui_endpoints.handle_platforms_agents(env, {})
     check_response_codes(response, status)
@@ -319,7 +319,7 @@ def test_handle_platforms_agents_status_code(mock_platform_web_service, method, 
 @pytest.mark.parametrize("platform", ['my_instance_name', 'other_instance_name', 'not_a_platform'])
 def test_handle_platforms_agents_response(mock_platform_web_service, platform, agent_state, include_hidden, expected):
     path = f'/vui/platforms/{platform}/agents'
-    env = get_test_web_env(path, method='GET')
+    env = get_test_web_env(path, method='GET', HTTP_AUTHORIZATION='BEARER foo')
     env['QUERY_STRING'] = f'agent-state={agent_state}&include-hidden={str(include_hidden).lower()}'
     vui_endpoints = VUIEndpoints(mock_platform_web_service)
     vui_endpoints._rpc = _mock_agents_rpc
@@ -333,7 +333,8 @@ def test_handle_platforms_agents_response(mock_platform_web_service, platform, a
 
 @pytest.mark.parametrize("method, status", gen_response_codes(['GET']))
 def test_handle_platforms_agents_agent_status_code(mock_platform_web_service, method, status):
-    env = get_test_web_env('/vui/platforms/my_instance_name/agents/agent_vip', method=method)
+    env = get_test_web_env('/vui/platforms/my_instance_name/agents/agent_vip', method=method,
+                           HTTP_AUTHORIZATION='BEARER foo')
     vui_endpoints = VUIEndpoints(mock_platform_web_service)
     response = vui_endpoints.handle_platforms_agents_agent(env, {})
     check_response_codes(response, status)
@@ -345,7 +346,7 @@ def test_handle_platforms_agents_agent_status_code(mock_platform_web_service, me
     ])
 def test_handle_platforms_agents_agent_response(mock_platform_web_service, vip_identity, expected):
     path = f'/vui/platforms/my_instance_name/agents/{vip_identity}'
-    env = get_test_web_env(path, method='GET')
+    env = get_test_web_env(path, method='GET', HTTP_AUTHORIZATION='BEARER foo')
     vui_endpoints = VUIEndpoints(mock_platform_web_service)
     vui_endpoints.active_routes = ACTIVE_ROUTES
     vui_endpoints._get_agents = lambda platform, status: ['running.agent']
@@ -355,7 +356,8 @@ def test_handle_platforms_agents_agent_response(mock_platform_web_service, vip_i
 
 @pytest.mark.parametrize("method, status", gen_response_codes(['GET']))
 def test_handle_platforms_agents_rpc_status_code(mock_platform_web_service, method, status):
-    env = get_test_web_env('/vui/platforms/my_instance_name/agents/agent_vip/rpc', method=method)
+    env = get_test_web_env('/vui/platforms/my_instance_name/agents/agent_vip/rpc', method=method,
+                           HTTP_AUTHORIZATION='BEARER foo')
     vui_endpoints = VUIEndpoints(mock_platform_web_service)
     response = vui_endpoints.handle_platforms_agents_rpc(env, {})
     check_response_codes(response, status)
@@ -363,7 +365,7 @@ def test_handle_platforms_agents_rpc_status_code(mock_platform_web_service, meth
 
 def test_handle_platforms_agents_rpc_response(mock_platform_web_service):
     path = f'/vui/platforms/my_instance_name/agents/control/rpc'
-    env = get_test_web_env(path, method='GET')
+    env = get_test_web_env(path, method='GET', HTTP_AUTHORIZATION='BEARER foo')
     vui_endpoints = VUIEndpoints(mock_platform_web_service)
     vui_endpoints._rpc = _mock_agents_rpc
     response = vui_endpoints.handle_platforms_agents_rpc(env, {})
@@ -372,7 +374,8 @@ def test_handle_platforms_agents_rpc_response(mock_platform_web_service):
 
 @pytest.mark.parametrize("method, status", gen_response_codes(['GET', 'POST']))
 def test_handle_platforms_agents_rpc_method_status_code(mock_platform_web_service, method, status):
-    env = get_test_web_env('/vui/platforms/my_instance_name/agents/control/rpc/status_agents', method=method)
+    env = get_test_web_env('/vui/platforms/my_instance_name/agents/control/rpc/status_agents', method=method,
+                           HTTP_AUTHORIZATION='BEARER foo')
     vui_endpoints = VUIEndpoints(mock_platform_web_service)
     vui_endpoints._rpc = _mock_agents_rpc
     response = vui_endpoints.handle_platforms_agents_rpc_method(env, {})
@@ -380,7 +383,8 @@ def test_handle_platforms_agents_rpc_method_status_code(mock_platform_web_servic
 
 
 def test_handle_platforms_rpc_method_get_response(mock_platform_web_service):
-    env = get_test_web_env('/vui/platforms/my_instance_name/agents/control/rpc/status_agents', method='GET')
+    env = get_test_web_env('/vui/platforms/my_instance_name/agents/control/rpc/status_agents', method='GET',
+                           HTTP_AUTHORIZATION='BEARER foo')
     vui_endpoints = VUIEndpoints(mock_platform_web_service)
     vui_endpoints._rpc = _mock_agents_rpc
     response = vui_endpoints.handle_platforms_agents_rpc_method(env, {})
@@ -392,15 +396,18 @@ def test_handle_platforms_rpc_method_get_response(mock_platform_web_service):
 def test_handle_platforms_rpc_method_post_response(mock_platform_web_service):
     vui_endpoints = VUIEndpoints(mock_platform_web_service)
     vui_endpoints._rpc = _mock_agents_rpc
-    env = get_test_web_env('/vui/platforms/my_instance_name/agents/agents_rpc/rpc/kw_only', method='POST')
+    env = get_test_web_env('/vui/platforms/my_instance_name/agents/agents_rpc/rpc/kw_only', method='POST',
+                           HTTP_AUTHORIZATION='BEARER foo')
     response = vui_endpoints.handle_platforms_agents_rpc_method(env, {'foo': 1, 'bar': 2})
     body = json.loads(response.response[0])
     assert body == [1, 2]
-    env = get_test_web_env('/vui/platforms/my_instance_name/agents/agents_rpc/rpc/args_and_kw', method='POST')
+    env = get_test_web_env('/vui/platforms/my_instance_name/agents/agents_rpc/rpc/args_and_kw', method='POST',
+                           HTTP_AUTHORIZATION='BEARER foo')
     response = vui_endpoints.handle_platforms_agents_rpc_method(env, {'args': [1, 2], 'foo': 3, 'bar': 4})
     body = json.loads(response.response[0])
     assert body == [1, 2, 3, 4]
-    env = get_test_web_env('/vui/platforms/my_instance_name/agents/agents_rpc/rpc/args_only', method='POST')
+    env = get_test_web_env('/vui/platforms/my_instance_name/agents/agents_rpc/rpc/args_only', method='POST',
+                           HTTP_AUTHORIZATION='BEARER foo')
     response = vui_endpoints.handle_platforms_agents_rpc_method(env, [1, 2])
     body = json.loads(response.response[0])
     assert body == [1, 2]
@@ -426,7 +433,7 @@ def _mock_devices_rpc(peer, meth, *args, external_platform=None, **kwargs):
 def test_handle_platforms_devices_status_code(mock_platform_web_service, method, status):
     with mock.patch('volttron.platform.web.vui_endpoints.DeviceTree.from_store', return_value=pickle.loads(DEV_TREE)):
         env = get_test_web_env('/vui/platforms/my_instance_name/devices/Campus/Building1/Fake1/SampleWritableFloat1',
-                               method=method)
+                               method=method, HTTP_AUTHORIZATION='BEARER foo')
         vui_endpoints = VUIEndpoints(mock_platform_web_service)
         vui_endpoints._rpc = _mock_devices_rpc
         response = vui_endpoints.handle_platforms_devices(env, {'value': 1})
@@ -453,7 +460,7 @@ def test_handle_platforms_devices_get_response(mock_platform_web_service, topic,
                    f'&values={return_values}&config={return_config}'
     with mock.patch('volttron.platform.web.vui_endpoints.DeviceTree.from_store', return_value=pickle.loads(DEV_TREE)):
         env = get_test_web_env(f'/vui/platforms/my_instance_name/devices/{topic}', query_string=query_string,
-                               method='GET')
+                               method='GET', HTTP_AUTHORIZATION='BEARER foo')
         vui_endpoints = VUIEndpoints(mock_platform_web_service)
         vui_endpoints._rpc = _mock_devices_rpc
         response = vui_endpoints.handle_platforms_devices(env, {})
@@ -490,7 +497,7 @@ def test_handle_platforms_devices_put_response(mock_platform_web_service, topic,
     query_string = f'write-all={write_all}&confirm-values={confirm_values}'
     with mock.patch('volttron.platform.web.vui_endpoints.DeviceTree.from_store', return_value=pickle.loads(DEV_TREE)):
         env = get_test_web_env(f'/vui/platforms/my_instance_name/devices/{topic}', query_string=query_string,
-                               method='PUT')
+                               method='PUT', HTTP_AUTHORIZATION='BEARER foo')
         vui_endpoints = VUIEndpoints(mock_platform_web_service)
         vui_endpoints._rpc = _mock_devices_rpc
         response = vui_endpoints.handle_platforms_devices(env, {})
@@ -529,7 +536,7 @@ def test_handle_platforms_devices_delete_response(mock_platform_web_service, top
     query_string = f'write-all={write_all}&confirm-values={confirm_values}'
     with mock.patch('volttron.platform.web.vui_endpoints.DeviceTree.from_store', return_value=pickle.loads(DEV_TREE)):
         env = get_test_web_env(f'/vui/platforms/my_instance_name/devices/{topic}', query_string=query_string,
-                               method='DELETE')
+                               method='DELETE', HTTP_AUTHORIZATION='BEARER foo')
         vui_endpoints = VUIEndpoints(mock_platform_web_service)
         vui_endpoints._rpc = _mock_devices_rpc
         response = vui_endpoints.handle_platforms_devices(env, {})
@@ -584,7 +591,7 @@ def _mock_historians_rpc(peer, meth, *args, external_platform=None, **kwargs):
 
 @pytest.mark.parametrize("method, status", gen_response_codes(['GET']))
 def test_handle_platforms_historians_status_code(mock_platform_web_service, method, status):
-    env = get_test_web_env('/vui/platforms/my_instance_name/historians', method=method)
+    env = get_test_web_env('/vui/platforms/my_instance_name/historians', method=method, HTTP_AUTHORIZATION='BEARER foo')
     vui_endpoints = VUIEndpoints(mock_platform_web_service)
     response = vui_endpoints.handle_platforms_historians(env, {})
     check_response_codes(response, status)
@@ -592,7 +599,7 @@ def test_handle_platforms_historians_status_code(mock_platform_web_service, meth
 
 def test_handle_platforms_historians_response(mock_platform_web_service):
     path = f'/vui/platforms/my_instance_name/historians'
-    env = get_test_web_env(path, method='GET')
+    env = get_test_web_env(path, method='GET', HTTP_AUTHORIZATION='BEARER foo')
     vui_endpoints = VUIEndpoints(mock_platform_web_service)
     vui_endpoints._get_agents = lambda x: ['platform.other', 'foo.historian', 'random.agent', 'platform.historian']
     response = vui_endpoints.handle_platforms_historians(env, {})
@@ -601,7 +608,8 @@ def test_handle_platforms_historians_response(mock_platform_web_service):
 
 @pytest.mark.parametrize("method, status", gen_response_codes(['GET']))
 def test_handle_platforms_historians_historian_status_code(mock_platform_web_service, method, status):
-    env = get_test_web_env('/vui/platforms/my_instance_name/historians/my_instance_name', method=method)
+    env = get_test_web_env('/vui/platforms/my_instance_name/historians/my_instance_name', method=method,
+                           HTTP_AUTHORIZATION='BEARER foo')
     vui_endpoints = VUIEndpoints(mock_platform_web_service)
     response = vui_endpoints.handle_platforms_historians_historian(env, {})
     check_response_codes(response, status)
@@ -609,7 +617,7 @@ def test_handle_platforms_historians_historian_status_code(mock_platform_web_ser
 
 def test_handle_platforms_historians_historian_response(mock_platform_web_service):
     path = f'/vui/platforms/my_instance_name/historians/platform.historian'
-    env = get_test_web_env(path, method='GET')
+    env = get_test_web_env(path, method='GET', HTTP_AUTHORIZATION='BEARER foo')
     vui_endpoints = VUIEndpoints(mock_platform_web_service)
     response = vui_endpoints.handle_platforms_historians_historian(env, {})
     check_route_options_return(response, ['topics'], leading_path=path)
@@ -617,7 +625,8 @@ def test_handle_platforms_historians_historian_response(mock_platform_web_servic
 
 @pytest.mark.parametrize("method, status", gen_response_codes(['GET']))
 def test_handle_platforms_historians_historian_topics_status_code(mock_platform_web_service, method, status):
-    env = get_test_web_env('/vui/platforms/my_instance_name/historians/my_instance_name/topics', method=method)
+    env = get_test_web_env('/vui/platforms/my_instance_name/historians/my_instance_name/topics', method=method,
+                           HTTP_AUTHORIZATION='BEARER foo')
     vui_endpoints = VUIEndpoints(mock_platform_web_service)
     response = vui_endpoints.handle_platforms_historians_historian_topics(env, {})
     check_response_codes(response, status)
@@ -636,7 +645,7 @@ def test_handle_platforms_historians_historian_topics_get_response(mock_platform
                                                                    read_all, return_routes, return_values):
     query_string = f'read-all={read_all}&routes={return_routes}&values={return_values}'
     env = get_test_web_env(f'/vui/platforms/my_instance_name/historians/platform.historian/topics/{topic}',
-                           query_string=query_string, method='GET')
+                           query_string=query_string, method='GET', HTTP_AUTHORIZATION='BEARER foo')
     vui_endpoints = VUIEndpoints(mock_platform_web_service)
     vui_endpoints._rpc = _mock_historians_rpc
     response = vui_endpoints.handle_platforms_historians_historian_topics(env, {})

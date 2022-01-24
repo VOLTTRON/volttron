@@ -64,7 +64,7 @@ def get_test_web_env(path, input_data: bytes = None, query_string='', url_scheme
 
     # Use kwargs passed and add them to the stdvars and make them available
     # in the environment.
-    for k, v in kwargs:
+    for k, v in kwargs.items():
         stdenvvars[k] = v
 
     return stdenvvars
