@@ -45,8 +45,10 @@ from volttron.platform.agent.utils import execute_command
 from volttron.utils.rmq_setup import stop_rabbit
 from volttron.utils.rmq_config_params import RMQConfig
 
+pytestmark = [pytest.mark.xfail]
+
+
 @pytest.mark.rmq_shutdown
-@pytest.mark.xfail
 def test_vctl_shutdown_on_rmq_stop(request):
     """
     Test for fix issue# 1886

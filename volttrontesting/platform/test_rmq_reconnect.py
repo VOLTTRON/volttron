@@ -50,6 +50,8 @@ from volttron.utils.rmq_setup import start_rabbit, stop_rabbit
 from volttron.utils.rmq_config_params import RMQConfig
 from volttron.platform.vip.agent.errors import Unreachable
 
+pytestmark = [pytest.mark.xfail]
+
 
 @pytest.fixture(scope="module")
 def publisher_agent(request, volttron_instance_rmq):
@@ -88,7 +90,6 @@ def subscriber_agent(request, volttron_instance_rmq):
 
 
 @pytest.mark.rmq_reconnect
-@pytest.mark.xfail
 def test_on_rmq_reconnect(volttron_instance_rmq, publisher_agent, subscriber_agent):
     """
     Test the fix for issue# 1702
@@ -122,7 +123,6 @@ def test_on_rmq_reconnect(volttron_instance_rmq, publisher_agent, subscriber_age
 
 
 @pytest.mark.rmq_reconnect
-@pytest.mark.xfail
 def test_rmq_reconnect_with_publish(volttron_instance_rmq, publisher_agent, subscriber_agent):
     """
     Test the fix for issue# 1702
@@ -166,7 +166,6 @@ def test_rmq_reconnect_with_publish(volttron_instance_rmq, publisher_agent, subs
 
 
 @pytest.mark.rmq_reconnect
-@pytest.mark.xfail
 def test_resource_lock_condition(request, volttron_instance_rmq):
     agent1 = volttron_instance_rmq.build_agent(identity='agentx')
     agent2 = None
