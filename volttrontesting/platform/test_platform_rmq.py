@@ -71,6 +71,7 @@ def instance(request):
 
 
 @pytest.mark.wrapper
+@pytest.mark.xfail
 def test_vstart_without_rmq_init(request, instance):
     """
     Test error where volttron is started with message bus as rmq but without
@@ -97,6 +98,7 @@ def test_vstart_without_rmq_init(request, instance):
 
 @pytest.mark.timeout(200)
 @pytest.mark.wrapper
+@pytest.mark.xfail
 def test_vstart_expired_ca_cert(request, instance):
     """
     Test error when volttron is started with expired CA cert when rabbitmq
@@ -140,6 +142,7 @@ def test_vstart_expired_ca_cert(request, instance):
 
 
 @pytest.mark.wrapper
+@pytest.mark.xfail
 def test_vstart_expired_server_cert(request, instance):
     """
     Test error when volttron is started with expired server cert when RMQ
@@ -170,6 +173,7 @@ def test_vstart_expired_server_cert(request, instance):
 
 
 @pytest.mark.wrapper
+@pytest.mark.xfail
 def test_vstart_expired_admin_cert(request, instance):
     """
     Test error when volttron is started with expired admin cert when RMQ server
@@ -200,6 +204,7 @@ def test_vstart_expired_admin_cert(request, instance):
 
 @pytest.mark.timeout(500)
 @pytest.mark.wrapper
+@pytest.mark.xfail
 def test_expired_ca_cert_after_vstart(request, instance):
     """
     Test error when CA cert expires after volttron has started. Once CA cert expires, can't install agent or can't get
@@ -250,6 +255,7 @@ def test_expired_ca_cert_after_vstart(request, instance):
 
 @pytest.mark.timeout(400)
 @pytest.mark.wrapper
+@pytest.mark.xfail
 def test_expired_server_cert_after_vstart(request, instance):
     """
     Test error when server cert expires after volttron has started
