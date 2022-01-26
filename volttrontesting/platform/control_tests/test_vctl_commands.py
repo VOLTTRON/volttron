@@ -17,6 +17,18 @@ listener_agent_dir = get_examples("ListenerAgent")
 
 
 @pytest.mark.control
+def test_needs_connection_with_connection(volttron_instance):
+    # Verify peerlist command works when instance is running
+    p = subprocess.Popen(
+        ["volttron-ctl", "peerlist"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    stdout, stderr = p.communicate()
+    assert "VOLTTRON is not running." not in stderr.decode("utf-8")
+
+
+@pytest.mark.control
 def test_no_connection():
     # Test command that doesn't need instance running.
     p = subprocess.Popen(
@@ -40,18 +52,6 @@ def test_needs_connection():
     )
     stdout, stderr = p.communicate()
     assert "VOLTTRON is not running." in stderr.decode("utf-8")
-
-
-@pytest.mark.control
-def test_needs_connection_with_connection(volttron_instance):
-    # Verify peerlist command works when instance is running
-    p = subprocess.Popen(
-        ["volttron-ctl", "peerlist"],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-    stdout, stderr = p.communicate()
-    assert "VOLTTRON is not running." not in stderr.decode("utf-8")
 
 
 @pytest.mark.control
