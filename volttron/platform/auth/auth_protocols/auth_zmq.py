@@ -36,9 +36,17 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
+import logging
+import os
 import random
+from urllib.parse import urlsplit, parse_qs, urlunsplit
 import gevent
 from gevent import time
+from zmq import green as zmq
+from zmq.green import ZMQError, EAGAIN, ENOTSOCK
+from zmq.utils.monitor import recv_monitor_message
+from volttron.platform.auth.auth_protocols.auth_protocol import BaseAuthorization
+from volttron.platform.keystore import KeyStore, KnownHostsStore
 from volttron.platform.vip.agent.core import ZMQCore
 from volttron.platform.vip.socket import encode_key, BASE64_ENCODED_CURVE_KEY_LEN
 
@@ -46,6 +54,100 @@ _log = logging.getLogger(__name__)
 
 
 #ZMQAuthorization(BaseAuthorization)
+
+class ZMQAuthorization(BaseAuthorization):
+    def __init__(self) -> None:
+        super().__init__()
+        self.publickey = None
+        self.secretkey = None
+        self.address = None
+        self.agent_uuid = None
+        self.identity = None
+
+    def _set_keys(self):
+        """Implements logic for setting encryption keys and putting
+        those keys in the parameters of the VIP address
+        """
+        self._set_server_key()
+        self._set_public_and_secret_keys()
+
+        if self.publickey and self.secretkey and self.serverkey:
+            self._add_keys_to_addr()
+
+    def _add_keys_to_addr(self):
+        '''Adds public, secret, and server keys to query in VIP address if
+        they are not already present'''
+
+        def add_param(query_str, key, value):
+            query_dict = parse_qs(query_str)
+            if not value or key in query_dict:
+                return ''
+            # urlparse automatically adds '?', but we need to add the '&'s
+            return '{}{}={}'.format('&' if query_str else '', key, value)
+
+        url = list(urlsplit(self.address))
+
+        if url[0] in ['tcp', 'ipc']:
+            url[3] += add_param(url[3], 'publickey', self.publickey)
+            url[3] += add_param(url[3], 'secretkey', self.secretkey)
+            url[3] += add_param(url[3], 'serverkey', self.serverkey)
+            self.address = str(urlunsplit(url))
+    
+    def _get_keys_from_keystore(self):
+        '''Returns agent's public and secret key from keystore'''
+        if self.agent_uuid:
+            # this is an installed agent, put keystore in its dist-info
+            current_directory = os.path.abspath(os.curdir)
+            keystore_dir = os.path.join(current_directory,
+                                        "{}.dist-info".format(os.path.basename(current_directory)))
+        elif self.identity is None:
+            raise ValueError("Agent's VIP identity is not set")
+        else:
+            if not self.volttron_home:
+                raise ValueError('VOLTTRON_HOME must be specified.')
+            keystore_dir = os.path.join(
+                self.volttron_home, 'keystores',
+                self.identity)
+
+        keystore_path = os.path.join(keystore_dir, 'keystore.json')
+        keystore = KeyStore(keystore_path)
+        return keystore.public, keystore.secret
+    
+    def _set_public_and_secret_keys(self):
+        if self.publickey is None or self.secretkey is None:
+            self.publickey, self.secretkey, _ = self._get_keys_from_addr()
+        if self.publickey is None or self.secretkey is None:
+            self.publickey, self.secretkey = self._get_keys_from_keystore()
+
+    def _set_server_key(self):
+        if self.serverkey is None:
+            self.serverkey = self._get_keys_from_addr()[2]
+        known_serverkey = self._get_serverkey_from_known_hosts()
+
+        if (self.serverkey is not None and known_serverkey is not None
+                and self.serverkey != known_serverkey):
+            raise Exception("Provided server key ({}) for {} does "
+                            "not match known serverkey ({}).".format(
+                self.serverkey, self.address, known_serverkey))
+
+        # Until we have containers for agents we should not require all
+        # platforms that connect to be in the known host file.
+        # See issue https://github.com/VOLTTRON/volttron/issues/1117
+        if known_serverkey is not None:
+            self.serverkey = known_serverkey
+
+    def _get_serverkey_from_known_hosts(self):
+        known_hosts_file = os.path.join(self.volttron_home, 'known_hosts')
+        known_hosts = KnownHostsStore(known_hosts_file)
+        return known_hosts.serverkey(self.address)
+
+    def _get_keys_from_addr(self):
+        url = list(urlsplit(self.address))
+        query = parse_qs(url[3])
+        publickey = query.get('publickey', [None])[0]
+        secretkey = query.get('secretkey', [None])[0]
+        serverkey = query.get('serverkey', [None])[0]
+        return publickey, secretkey, serverkey
 #ZMQ/ZAPAuthentication(BaseAuthentication)
 
 def setup_zap(self, sender, **kwargs):
