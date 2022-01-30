@@ -38,7 +38,7 @@ def endpoint(func):
         from volttron.platform.web import get_bearer, NotAuthorized
         try:
             claims = self._agent.get_user_claims(get_bearer(env))
-        except (NotAuthorized, ExpiredSignatureError) as e:
+        except Exception as e:
             _log.warning(f"Unauthorized user attempted to connect to {env.get('PATH_INFO')}. Caught Exception: {e}")
             return Response(json.dumps({'error': 'Not Authorized'}), 401, content_type='app/json')
 
