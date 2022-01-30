@@ -45,7 +45,7 @@ def endpoint(func):
         # Only allow only users with API permissions:
         if 'vui' not in claims.get('groups'):
             _log.warning(f"Unauthorized user attempted to connect with 'vui' claim to {env.get('PATH_INFO')}.")
-            return Response(json.dumps({'error': 'Not Authorized'}), 401, content_type='app/json')
+            return Response(json.dumps({'error': 'Not Authorized'}), 403, content_type='app/json')
 
         # Dispatch endpoint:
         try:
