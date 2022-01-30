@@ -249,7 +249,8 @@ class RMQRouter(object):
         elif subsystem == 'quit':
             if sender == 'control':
                 self.stop()
-                raise KeyboardInterrupt()
+                return False
+                #raise KeyboardInterrupt()
         elif subsystem == 'agentstop':
             _log.debug("ROUTER received agent stop {}".format(sender))
             try:
