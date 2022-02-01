@@ -7,10 +7,8 @@ from gevent.timeout import Timeout
 from collections import defaultdict
 from typing import List, Union
 
-import jwt
 from werkzeug import Response
 from werkzeug.urls import url_decode
-from jwt import ExpiredSignatureError
 
 from volttron.platform.vip.agent.subsystems.query import Query
 from volttron.platform.jsonrpc import MethodNotFound
@@ -36,17 +34,17 @@ class LockError(Exception):
 def endpoint(func):
     @functools.wraps(func)
     def verify_and_dispatch(self, env, data):
-        from volttron.platform.web import get_bearer, NotAuthorized
+        from volttron.platform.web import get_bearer
         try:
             claims = self._agent.get_user_claims(get_bearer(env))
-        except (NotAuthorized, ExpiredSignatureError, jwt.InvalidSignatureError) as e:
+        except Exception as e:
             _log.warning(f"Unauthorized user attempted to connect to {env.get('PATH_INFO')}. Caught Exception: {e}")
             return Response(json.dumps({'error': 'Not Authorized'}), 401, content_type='app/json')
 
         # Only allow only users with API permissions:
         if 'vui' not in claims.get('groups'):
             _log.warning(f"Unauthorized user attempted to connect with 'vui' claim to {env.get('PATH_INFO')}.")
-            return Response(json.dumps({'error': 'Not Authorized'}), 401, content_type='app/json')
+            return Response(json.dumps({'error': 'Not Authorized'}), 403, content_type='app/json')
 
         # Dispatch endpoint:
         try:
