@@ -56,8 +56,8 @@ Path: `$VOLTTRON_HOME/rabbitmq_config.yml`
     # defaults to true
     ssl: 'true'
 
-    # defaults to ~/rabbitmq_server/rabbbitmq_server-3.7.7
-    rmq-home: "~/rabbitmq_server/rabbitmq_server-3.7.7"
+    # defaults to ~/rabbitmq_server/rabbbitmq_server-3.9.7
+    rmq-home: "~/rabbitmq_server/rabbitmq_server-3.9.7"
 
 Each VOLTTRON instance resides within a RabbitMQ virtual host.  The name of the virtual host needs to be unique per
 VOLTTRON instance if there are multiple virtual instances within a single host/machine.  The hostname needs to be able
