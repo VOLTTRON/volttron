@@ -6,6 +6,7 @@ import pytest
 from gevent import subprocess
 
 from volttron.platform import get_examples
+from volttron.platform.jsonrpc import RemoteError
 import sys
 
 
@@ -96,6 +97,37 @@ def test_can_get_publickey(volttron_instance):
     assert listener_identity in id_serverkey_map
     assert id_serverkey_map.get(listener_identity) is not None
     volttron_instance.remove_all_agents()
+
+
+@pytest.mark.control
+def test_prioritize_agent_valid_input(volttron_instance):
+    auuid = volttron_instance.install_agent(
+        agent_dir=get_examples("ListenerAgent"), start=True
+    )
+    assert auuid is not None
+
+    cn = volttron_instance.dynamic_agent
+    assert cn.vip.rpc.call('control', 'prioritize_agent', auuid, '0').get(timeout=2) is None
+    assert cn.vip.rpc.call('control', 'prioritize_agent', auuid, '99').get(timeout=2) is None
+
+
+@pytest.mark.xfail(reason="bytes() calls (control.py:390|398) raise: TypeError('string argument without an encoding').")
+@pytest.mark.parametrize('uuid, priority, expected', [
+    (34, '50', "expected a string for 'uuid'"),
+    ('34/7', '50', 'invalid agent'),
+    ('.', '50', 'invalid agent'),
+    ('..', '50', 'invalid agent'),
+    ('foo', 2, "expected a string or null for 'priority'"),
+    ('foo', '-1', 'Priority must be an integer from 0 - 99.'),
+    ('foo', '4.5', 'Priority must be an integer from 0 - 99.'),
+    ('foo', '100', 'Priority must be an integer from 0 - 99.'),
+    ('foo', 'foo', 'Priority must be an integer from 0 - 99.')
+])
+def test_prioritize_agent_invalid_input(volttron_instance, uuid, priority, expected):
+    cn = volttron_instance.dynamic_agent
+    with pytest.raises(RemoteError) as e:
+        cn.vip.rpc.call('control', 'prioritize_agent', uuid, priority).get(timeout=2)
+    assert expected in e.value.message
 
 
 @pytest.mark.control
