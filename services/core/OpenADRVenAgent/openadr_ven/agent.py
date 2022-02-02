@@ -263,7 +263,7 @@ class OpenADRVenAgent(Agent):
         )
         return jsonapi.loads(obj_string)
 
-    def _parse_config(self, config_path: str) -> dict:
+    def _parse_config(self, config_path: str) -> Dict:
         """Parses the OpenADR agent's configuration file.
 
         :param config_path: The path to the configuration file
