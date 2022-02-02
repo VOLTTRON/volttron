@@ -22,7 +22,6 @@ agent_module = f"{agent_package}.{MAIN_MODULE}"
 _temp = __import__(agent_module, globals(), locals(), ['__version__'], 0)
 __version__ = _temp.__version__
 
-
 setup(
     name=f"{agent_package}agent",
     version=__version__,
@@ -32,5 +31,13 @@ setup(
         "setuptools.installation": [
             f"eggsecutable = {agent_module}:main"
         ]
-    }
+    },
+    classifiers=["Development Status :: 3 - Alpha",
+                 "Intended Audience :: Developers",
+                 "Intended Audience :: Science/Research",
+                 "Topic :: Home Automation",
+                 "Topic :: Software Development :: Embedded Systems",
+                 "License :: OSI Approved :: Apache Software License",
+                 "Programming Language :: Python :: 3.8",
+                 "Programming Language :: Python :: 3.9"]
 )
