@@ -405,9 +405,10 @@ def do_message_bus():
     global config_opts
     bus_type = None
     valid_bus = False
+    current_bus = config_opts.get("message-bus", "zmq")
     while not valid_bus:
         prompt = 'What type of message bus (rmq/zmq)?'
-        new_bus = prompt_response(prompt, default='zmq')
+        new_bus = prompt_response(prompt, default=current_bus)
         valid_bus = is_valid_bus(new_bus)
         if valid_bus:
             bus_type = new_bus
