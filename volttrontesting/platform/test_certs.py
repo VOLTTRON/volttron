@@ -1,10 +1,12 @@
 import os
 import tempfile
 import shutil
-
 import pytest
+import json
+from pathlib import Path
 from volttron.platform.certs import Certs, Subject, CertError
 from volttron.platform.agent.utils import get_platform_instance_name
+from volttrontesting.platform.test_certs_utils import *
 
 INSTANCE_NAME = "VC"
 PLATFORM_CONFIG = """
@@ -66,6 +68,7 @@ def temp_volttron_home(request):
     """
     dirpath = tempfile.mkdtemp()
     os.environ['VOLTTRON_HOME'] = dirpath
+    debug_flag = os.environ.get('DEBUG', True)
     with open(os.path.join(dirpath, "platform_config.yml"), 'w') as fp:
         fp.write(PLATFORM_CONFIG)
 
@@ -73,8 +76,36 @@ def temp_volttron_home(request):
         fp.write("[volttron]\n")
         fp.write("instance-name = {}\n".format(INSTANCE_NAME))
     yield dirpath
-    shutil.rmtree(dirpath, ignore_errors=True)
-    assert not os.path.exists(dirpath)
+
+    if not debug_flag:
+        shutil.rmtree(dirpath, ignore_errors=True)
+        assert not os.path.exists(dirpath)
+
+    #shutil.rmtree(dirpath, ignore_errors=True)
+    #assert not os.path.exists(dirpath)
+
+
+@pytest.fixture(scope="function")
+def temp_csr(request):
+    """
+    Create a Certificate Signing Request (CSR) using the Certs class.
+    Use this CSR to test approving, denying, and deleting CSRs
+    """
+    # Create CSR with Volttron code
+    certs = Certs()
+    data = {'C': 'US',
+            'ST': 'Washington',
+            'L': 'Richland',
+            'O': 'pnnl',
+            'OU': 'volttron',
+            'CN': INSTANCE_NAME+"_root_ca"}
+    certs.create_root_ca(**data)
+    assert certs.ca_exists()
+
+    certs.create_signed_cert_files(name="FullyQualifiedIdentity", ca_name=certs.root_ca_name)
+
+    csr = certs.create_csr("FullyQualifiedIdentity", "RemoteInstanceName")
+    yield certs, csr
 
 
 def test_certificate_directories(temp_volttron_home):
@@ -91,6 +122,143 @@ def test_create_root_ca(temp_volttron_home):
     assert not certs.ca_exists()
     certs.create_root_ca()
     assert certs.ca_exists()
+    # TODO: need more robust testing here
+
+
+def test_create_signed_cert_files(temp_volttron_home):
+    certs = Certs()
+    assert not certs.cert_exists("test_cert")
+
+    data = {'C': 'US',
+            'ST': 'Washington',
+            'L': 'Richland',
+            'O': 'pnnl',
+            'OU': 'volttron',
+            'CN': INSTANCE_NAME+"_root_ca"}
+    certs.create_root_ca(**data)
+    assert certs.ca_exists()
+
+    certs.create_signed_cert_files("test_cert")
+    assert certs.cert_exists("test_cert")
+
+    existing_cert = certs.create_signed_cert_files("test_cert")
+    assert existing_cert[0] == certs.cert("test_cert")
+
+
+def test_create_csr(temp_volttron_home):
+    # Use TLS repo to create a CA
+    tls = TLSRepository(repo_dir=temp_volttron_home, openssl_cnffile="openssl.cnf", serverhost="FullyQualifiedIdentity")
+    tls.__create_ca__()
+
+    #tls_csr_file = temp_volttron_home + "/TLS_CSR.pem"
+    #tls_csr = tls.create_csr("FullyQualifiedIdentity", tls._openssl_cnf_file, tls.__get_key_file__("FullyQualifiedIdentity"), tls_csr_file)
+
+    certs_using_tls = Certs(temp_volttron_home)
+
+    assert certs_using_tls.cert_exists("VC-root-ca")
+    assert Path(certs_using_tls.cert_file("VC-root-ca")) == tls._ca_cert
+   
+    # Create Volttron CSR using TLS repo CA
+    csr = certs.create_csr("FullyQualifiedIdentity", "RemoteInstanceName")
+
+    # Write CSR to a file to verify
+    csr_file_path = os.path.join(certs_using_tls.cert_dir, "CSR.csr")
+    f = open(csr_file_path, "wb")
+    f.write(csr)
+    f.close()
+
+    # TODO: cant verify CSR because it starts with "BEGIN CERTIFICATE REQUEST" instead of "CERTIFICATE REQUEST"
+    print(tls.verify_csr(csr_file_path))
+
+
+def test_approve_csr(temp_volttron_home, temp_csr):
+    certs = temp_csr[0]
+    csr = temp_csr[1]
+
+    # Save pending CSR request into a CSR file
+    csr_file = certs.save_pending_csr_request("10.1.1.1", "test_csr", csr)
+    f = open(csr_file, "rb")
+    assert f.read() == csr
+    f.close()
+
+    # Check meta data saved in file for CSR
+    csr_meta_file = os.path.join(certs.csr_pending_dir, "test_csr.json")
+    f = open(csr_meta_file, "r")
+    data = f.read()
+    csr_meta_data = json.loads(data)
+    f.close()
+    assert csr_meta_data['status'] == "PENDING"
+    assert csr_meta_data['csr'] == csr.decode("utf-8")
+
+    # Approve the CSR
+    signed_cert = certs.approve_csr("test_csr")
+    f = open(csr_meta_file, "r")
+    updated_data = f.read()
+    approved_csr_meta_data = json.loads(updated_data)
+    f.close()
+    assert approved_csr_meta_data['status'] == "APPROVED"
+
+
+def test_deny_csr(temp_volttron_home, temp_csr):
+    certs = temp_csr[0]
+    csr = temp_csr[1]
+
+    # Save pending CSR request into a CSR file
+    csr_file = certs.save_pending_csr_request("10.1.1.1", "test_csr", csr)
+    f = open(csr_file, "rb")
+    assert f.read() == csr
+    f.close()
+
+    # Check meta data saved in file for CSR
+    csr_meta_file = os.path.join(certs.csr_pending_dir, "test_csr.json")
+    f = open(csr_meta_file, "r")
+    data = f.read()
+    csr_meta_data = json.loads(data)
+    f.close()
+    assert csr_meta_data['status'] == "PENDING"
+    assert csr_meta_data['csr'] == csr.decode("utf-8")
+
+    # Deny the CSR
+    certs.deny_csr("test_csr")
+    f = open(csr_meta_file, "r")
+    updated_data = f.read()
+    denied_csr_meta_data = json.loads(updated_data)
+    f.close()
+    # Check that the CSR was denied, the pending CSR files still exist, and the cert has been removed
+    assert denied_csr_meta_data['status'] == "DENIED"
+    assert os.path.exists(csr_meta_file)
+    assert os.path.exists(csr_file)
+    assert certs.cert_exists("test_csr") == False
+
+
+def test_delete_csr(temp_volttron_home, temp_csr):
+    certs = temp_csr[0]
+    csr = temp_csr[1]
+
+    # Save pending CSR request into a CSR file
+    csr_file = certs.save_pending_csr_request("10.1.1.1", "test_csr", csr)
+    f = open(csr_file, "rb")
+    assert f.read() == csr
+    f.close()
+
+    # Check meta data saved in file for CSR
+    csr_meta_file = os.path.join(certs.csr_pending_dir, "test_csr.json")
+    f = open(csr_meta_file, "r")
+    data = f.read()
+    csr_meta_data = json.loads(data)
+    f.close()
+    assert csr_meta_data['status'] == "PENDING"
+    assert csr_meta_data['csr'] == csr.decode("utf-8")
+
+    # Delete CSR
+    certs.delete_csr("test_csr")
+    # Check that the CSR files have been deleted and the cert has been removed
+    assert os.path.exists(csr_meta_file) == False
+    assert os.path.exists(csr_file) == False
+    assert certs.cert_exists("test_csr") == False
+
+    
+
 
 
 # def test_cadb_updated(temp_volttron_home):
