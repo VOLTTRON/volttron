@@ -50,6 +50,8 @@ from volttron.utils.rmq_setup import start_rabbit, stop_rabbit
 from volttron.utils.rmq_config_params import RMQConfig
 from volttron.platform.vip.agent.errors import Unreachable
 
+pytestmark = [pytest.mark.xfail]
+
 
 @pytest.fixture(scope="module")
 def publisher_agent(request, volttron_instance_rmq):

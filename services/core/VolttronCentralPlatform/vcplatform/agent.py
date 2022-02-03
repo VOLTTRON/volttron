@@ -48,6 +48,7 @@ import sys
 import tempfile
 import urllib.parse
 from collections import defaultdict
+from argparse import Namespace
 
 import gevent
 import gevent.event
@@ -55,6 +56,7 @@ import psutil
 from enum import Enum
 
 from volttron.platform.agent import utils
+from volttron.platform.install_agents import install_agent_local
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -127,7 +129,7 @@ class VolttronCentralPlatform(Agent):
     def __init__(self, reconnect_interval, vc_address,
                  vc_serverkey, instance_name, stats_publish_interval,
                  topic_replace_map, device_status_interval, platform_driver_ids, **kwargs):
-        super(VolttronCentralPlatform, self).__init__(**kwargs)
+        super(VolttronCentralPlatform, self).__init__(enable_channel=True, **kwargs)
 
         # This is scheduled after first call to the reconnect function
         self._scheduled_connection_event = None
@@ -1145,6 +1147,14 @@ class VolttronCentralPlatform(Agent):
         try:
             _log.debug('Installing agent FILEARGS: {}'.format(fileargs))
             vip_identity = fileargs.get('vip_identity', None)
+            agent_tag = fileargs.get('tag', None)
+            agent_enable = fileargs.get('enable', None)
+            agent_start = fileargs.get('start', None)
+            agent_priority = fileargs.get('priority', -1)
+            agent_force = fileargs.get('force', False)
+            agent_csv = fileargs.get('csv', None)
+            agent_json = fileargs.get('json', None)
+            agent_st = fileargs.get('st', 5)
             if 'local' in fileargs:
                 path = fileargs['file_name']
             else:
@@ -1162,9 +1172,19 @@ class VolttronCentralPlatform(Agent):
                             fileargs['file'].split(base64_sep)[1].encode('utf-8')
                         )
                     )
-            uuid = self.vip.rpc.call(CONTROL, 'install_agent_local',
-                                     path, vip_identity=vip_identity
-                                     ).get(timeout=30)
+            opts = Namespace(connection=self._vc_connection,
+                             install_path=path,
+                             vip_identity=vip_identity,
+                             tag=agent_tag,
+                             enable=agent_enable,
+                             start=agent_start,
+                             priority=agent_priority,
+                             force=agent_force,
+                             csv=agent_csv,
+                             json=agent_json,
+                             st=agent_st
+                             )
+            uuid = install_agent_local(opts)
             result = dict(uuid=uuid)
         except Exception as e:
             err_str = "EXCEPTION: " + str(e)

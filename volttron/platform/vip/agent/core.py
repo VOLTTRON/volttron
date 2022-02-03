@@ -36,7 +36,6 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-
 import heapq
 import inspect
 import logging
@@ -1008,6 +1007,7 @@ class RMQCore(Core):
                             binding['routing_key'] == router_key:
                         router_connected = True
                         break
+            router_connected = True
             # Connection retry attempt issue #1702.
             # If the agent detects that RabbitMQ broker is reconnected before the router, wait
             # for the router to connect before sending hello()

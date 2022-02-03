@@ -39,13 +39,17 @@
 # These need to be importable by bootstrap.py. If we put them in
 # setup.py the import may fail if setuptools in not installed
 # in the global python3.
+# wheel version 0.32 restructured package and removed many of the apis.
+# https://github.com/pypa/wheel/issues/255
+# wheel version 0.31 has removed metadata.json file
+# https://github.com/pypa/wheel/issues/195
+# so sticking to 0.30 for now. Could upgrade to wheel 0.31 with code changes
 option_requirements = [('wheel==0.30', []), ('pyzmq==22.2.1', ['--zmq=bundled'])]
 
 
 install_requires = ['gevent==20.6.1',
                     'greenlet==0.4.16',
                     'grequests',
-                    'idna<3,>=2.5',
                     'requests==2.23.0',
                     'ply',
                     'psutil',
@@ -55,8 +59,8 @@ install_requires = ['gevent==20.6.1',
                     'setuptools>=40.0.0',
                     # tzlocal 3.0 breaks without the backports.tzinfo package on python < 3.9 https://pypi.org/project/tzlocal/3.0/
                     'tzlocal==2.1',
-                    'pyOpenSSL==19.0.0',
-                    'cryptography==2.3',
+                    #'pyOpenSSL==19.0.0',
+                    'cryptography',
                     'watchdog-gevent']
 
 extras_require = {'crate': ['crate'],
@@ -87,11 +91,14 @@ extras_require = {'crate': ['crate'],
                               'pytest-rerunfailures',
                               'websocket-client',
                               'deepdiff',
-                              'docker'],
+                              'docker',
+                              'pytest_asyncio',
+                              'pytest_timeout'],
                   'weather': ['Pint'],
                   'web': ['ws4py',
                           'PyJWT==1.7.1',
                           'Jinja2',
                           'passlib',
                           'argon2-cffi',
-                          'Werkzeug']}
+                          'Werkzeug',
+                          'treelib']}
