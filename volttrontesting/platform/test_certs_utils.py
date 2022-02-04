@@ -126,6 +126,9 @@ class TLSRepository:
     def verify_csr(self, csr_file_path: str):
         return __openssl_verify_csr__(csr_file_path)
 
+    def verify_ca_cert(self, private_key_file: str, ca_cert_file: str):
+        return __verify_ca_certificate__(private_key_file, ca_cert_file)
+
     @property
     def client_list(self) -> List[str]:
         return list(self._hostnames.keys())
@@ -168,6 +171,12 @@ def __openssl_create_ca_certificate__(common_name: str, private_key_file: Path, 
            "-extensions", "v3_ca",
            "-key", str(private_key_file),
            "-out", str(ca_cert_file)]
+    return execute_command(cmd)
+
+
+def __verify_ca_certificate__(private_key_file: str, ca_cert_file: str):
+    #openssl verify -verbose -CAfile cacert.pem  server.crt
+    cmd = ["openssl", "verify", "-verbose", "-CAfile", private_key_file, ca_cert_file]
     return execute_command(cmd)
 
 

@@ -91,7 +91,6 @@ def temp_csr(request):
     Create a Certificate Signing Request (CSR) using the Certs class.
     Use this CSR to test approving, denying, and deleting CSRs
     """
-    # Create CSR with Volttron code
     certs = Certs()
     data = {'C': 'US',
             'ST': 'Washington',
@@ -122,7 +121,12 @@ def test_create_root_ca(temp_volttron_home):
     assert not certs.ca_exists()
     certs.create_root_ca()
     assert certs.ca_exists()
-    # TODO: need more robust testing here
+
+    private_key = certs.private_key_file("VC-root-ca")
+    cert_file = certs.cert_file("VC-root-ca")
+
+    tls = TLSRepository(repo_dir=temp_volttron_home, openssl_cnffile="openssl.cnf", serverhost="FullyQualifiedIdentity")
+    tls.verify_ca_cert(private_key, cert_file)
 
 
 def test_create_signed_cert_files(temp_volttron_home):
@@ -149,9 +153,6 @@ def test_create_csr(temp_volttron_home):
     # Use TLS repo to create a CA
     tls = TLSRepository(repo_dir=temp_volttron_home, openssl_cnffile="openssl.cnf", serverhost="FullyQualifiedIdentity")
     tls.__create_ca__()
-
-    #tls_csr_file = temp_volttron_home + "/TLS_CSR.pem"
-    #tls_csr = tls.create_csr("FullyQualifiedIdentity", tls._openssl_cnf_file, tls.__get_key_file__("FullyQualifiedIdentity"), tls_csr_file)
 
     certs_using_tls = Certs(temp_volttron_home)
 
@@ -224,6 +225,7 @@ def test_deny_csr(temp_volttron_home, temp_csr):
     updated_data = f.read()
     denied_csr_meta_data = json.loads(updated_data)
     f.close()
+    
     # Check that the CSR was denied, the pending CSR files still exist, and the cert has been removed
     assert denied_csr_meta_data['status'] == "DENIED"
     assert os.path.exists(csr_meta_file)
@@ -252,6 +254,7 @@ def test_delete_csr(temp_volttron_home, temp_csr):
 
     # Delete CSR
     certs.delete_csr("test_csr")
+
     # Check that the CSR files have been deleted and the cert has been removed
     assert os.path.exists(csr_meta_file) == False
     assert os.path.exists(csr_file) == False
