@@ -240,15 +240,13 @@ def _is_agent_installed(tag):
 def installs(agent_dir, tag, identity=None, post_install_func=None):
     def wrap(config_func):
         global available_agents
-        home = get_home()
         def func(*args, **kwargs):
             print('Configuring {}.'.format(agent_dir))
             config = config_func(*args, **kwargs)
             _update_config_file()
             #TODO: Optimize long vcfg install times
             #TODO: (potentially only starting the platform once per vcfg)
-            if not is_volttron_running(home):
-                _start_platform()
+            _start_platform()
 
             _install_agent(agent_dir, config, tag, identity)
 
@@ -1028,7 +1026,6 @@ def main():
     single_parser.add_argument('--config', help='Optional path to rabbitmq config yml', type=str)
     single_parser.set_defaults(is_rabbitmq=True)
 
-    #Add web?
     group.add_argument('--agent', nargs='+',
                         help='configure listed agents')
 
@@ -1056,14 +1053,14 @@ def main():
     _load_config()
     if args.instance_name:
         _update_config_file(instance_name=args.instance_name)
-    if args.list_agents: # Don't need instance running
+    if args.list_agents:
         print("Agents available to configure:{}".format(agent_list))
 
     elif args.secure_agent_users:
         config_opts['secure-agent-users'] = args.secure_agent_users
         _update_config_file()
     elif args.is_rabbitmq:
-        process_rmq_inputs(vars(args)) # Does not need volttron shutdown
+        process_rmq_inputs(vars(args))
     elif not args.agent:
         wizard()
 
