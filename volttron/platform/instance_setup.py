@@ -425,10 +425,6 @@ def do_message_bus():
             set_dependencies_rmq()
             print("Done!")
 
-        # if not _check_dependencies_met('rabbitmq'):
-        #     print("Rabbitmq dependencies not installed. Installing now...")
-        #     set_dependencies("rabbitmq")
-        #     print("Done!")
         try:
             check_rmq_setup()
         except AssertionError:
