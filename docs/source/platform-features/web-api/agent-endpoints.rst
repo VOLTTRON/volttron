@@ -1,0 +1,104 @@
+================
+Agents Endpoints
+================
+
+Agents endpoints expose functionality associated with applications
+running on a VOLTTRON platform.
+
+Agents endpoints currently include:
+
+    * `RPC <rpc-endpoints.html>`_: Endpoints allowing, discovery, inspection, and calling of remote procedure calls to agents running on the platform.
+
+.. attention::
+    All Agent endpoints require a JWT bearer token obtained through the
+    ``POST /authenticate`` or ``PUT /authenticate`` endpoints.
+
+--------------
+
+GET /platforms/:platform/agents
+===============================
+
+Return routes for the agents installed on the platform.
+
+Accepts a two query parameters:
+
+    * ``agent-state`` accepts one of three string values:
+
+        - *"running"* (default): Returns only those agents which are currently running.
+        - *"installed"*: Returns all installed agents.
+        - *"packaged"*: Returns filenames of packaged agents on the platform which can be installed.
+    * ``include-hidden`` (default=False): When True, includes system agents which would not normally be displayed by vctl status.
+
+Request:
+--------
+
+    -  Authorization: ``BEARER <jwt_access_token>``
+
+Response:
+---------
+
+    * **With valid BEARER token on success:** ``200 OK``
+        - Content Type: ``application/json``
+        - Body:
+
+            .. code-block:: JSON
+
+                {
+                    "route_options": {
+                        "<vip_identity>": "/platforms/:platform/agents/:vip_identity",
+                        "<vip_identity>": "/platforms/:platform/agents/:vip_identity"
+                    }
+                }
+
+    * **With valid BEARER token on failure:** ``400 Bad Request``
+        - Content Type: ``application/json``
+        - Body:
+
+            .. code-block:: JSON
+
+                {
+                    "error": "<Error Message>"
+                }
+
+    * **With invalid BEARER token:** ``401 Unauthorized``
+
+------------------------------------------------------------------------------------------
+
+GET /platforms/:platform/agents/:vip-identity
+=============================================
+
+Return routes for the supported endpoints for an agent installed on the platform.
+Currently implemented endpoints include `RPC <rpc-endpoints.html>`_.
+
+Request:
+--------
+
+    -  Authorization: ``BEARER <jwt_access_token>``
+
+Response:
+---------
+
+    * **With valid BEARER token on success:** ``200 OK``
+        - Content Type: ``application/json``
+        - Body:
+
+            .. code-block:: JSON
+
+                {
+                    "route_options": {
+                        "<vip_identity>": "/platforms/:platform/agents/:vip_identity/<endpoint1_name>",
+                        "<vip_identity>": "/platforms/:platform/agents/:vip_identity/<endpoint2_name>"
+                    }
+                }
+
+    * **With valid BEARER token on failure:** ``400 Bad Request``
+        - Content Type: ``application/json``
+        - Body:
+
+            .. code-block:: JSON
+
+                {
+                 "error": "<Error Message>"
+                }
+
+    * **With invalid BEARER token:** ``401 Unauthorized``

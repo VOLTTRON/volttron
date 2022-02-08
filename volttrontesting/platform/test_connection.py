@@ -6,6 +6,8 @@ from volttron.platform.vip.agent.connection import Connection
 from volttron.platform.vip.agent.utils import build_connection
 import os
 
+pytestmark = [pytest.mark.xfail]
+
 @pytest.fixture(scope="module")
 def setup_control_connection(request, get_volttron_instances):
     """ Creates a single instance of VOLTTRON for testing purposes

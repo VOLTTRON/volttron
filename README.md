@@ -109,7 +109,7 @@ You can deactivate the environment at any time by running `deactivate`.
 
 #### Steps for RabbitMQ
 
-##### 1. Install Erlang version 21 packages
+##### 1. Install Erlang version 24 packages
 
 For RabbitMQ based VOLTTRON, some RabbitMQ specific software packages must be installed.
 
@@ -118,17 +118,15 @@ For RabbitMQ based VOLTTRON, some RabbitMQ specific software packages must be in
 If you are running an Debian or CentOS system, you can install the RabbitMQ dependencies by running the rabbit 
   dependencies script, passing in the OS name and appropriate distribution as parameters. The following are supported:
 
--   `debian bionic` (for Ubuntu 18.04)
+- `debian focal` (for Ubuntu 20.04)
 
--   `debian xenial` (for Ubuntu 16.04)
+- `debian bionic` (for Ubuntu 18.04)
 
--   `debian xenial` (for Linux Mint 18.04)
+- `debian stretch` (for Debian Stretch)
 
--   `debian stretch` (for Debian Stretch)
+- `debian buster` (for Debian Buster)
 
--   `debian buster` (for Debian Buster)
-
--   `raspbian buster` (for Raspbian/Raspberry Pi OS buster)
+- `raspbian buster` (for Raspbian/Raspberry Pi OS buster)
 
 Example command:
 
@@ -163,17 +161,17 @@ python3 bootstrap.py --rabbitmq [optional install directory. defaults to
 This will build the platform and create a virtual Python environment and
 dependencies for RabbitMQ. It also installs RabbitMQ server as the current user.
 If an install path is provided, that path should exist and the user should have 
-write permissions. RabbitMQ will be installed under `<install dir>/rabbitmq_server-3.7.7`.
-The rest of the documentation refers to the directory `<install dir>/rabbitmq_server-3.7.7` as
+write permissions. RabbitMQ will be installed under `<install dir>/rabbitmq_server-<rmq-version>`.
+The rest of the documentation refers to the directory `<install dir>/rabbitmq_server-<rmq-version>` as
 `$RABBITMQ_HOME`
 
 You can check if the RabbitMQ server is installed by checking its status. Please
 note, the `RABBITMQ_HOME` environment variable can be set in ~/.bashrc. If doing so,
 it needs to be set to the RabbitMQ installation directory (default path is
-`<user_home>/rabbitmq_server/rabbitmq_server-3.7.7`)
+`<user_home>/rabbitmq_server/rabbitmq_server-<rmq-version>`)
 
 ```sh
-echo 'export RABBITMQ_HOME=$HOME/rabbitmq_server/rabbitmq_server-3.7.7'|sudo tee --append ~/.bashrc
+echo 'export RABBITMQ_HOME=$HOME/rabbitmq_server/rabbitmq_server-3.9.7'|sudo tee --append ~/.bashrc
 source ~/.bashrc
 
 $RABBITMQ_HOME/sbin/rabbitmqctl status
@@ -230,7 +228,7 @@ Your VOLTTRON_HOME currently set to: /home/vdev/new_vhome2
 
 Is this the volttron you are attempting to setup?  [Y]:
 Creating rmq config yml
-RabbitMQ server home: [/home/vdev/rabbitmq_server/rabbitmq_server-3.7.7]:
+RabbitMQ server home: [/home/vdev/rabbitmq_server/rabbitmq_server-3.9.7]:
 Fully qualified domain name of the system: [cs_cbox.pnl.gov]:
 
 Enable SSL Authentication: [Y]:
@@ -250,7 +248,7 @@ AMQPS (SSL) port RabbitMQ address: [5671]:
 https port for the RabbitMQ management plugin: [15671]:
 INFO:rmq_setup.pyc:Starting rabbitmq server
 Warning: PID file not written; -detached was passed.
-INFO:rmq_setup.pyc:**Started rmq server at /home/vdev/rabbitmq_server/rabbitmq_server-3.7.7
+INFO:rmq_setup.pyc:**Started rmq server at /home/vdev/rabbitmq_server/rabbitmq_server-3.9.7
 INFO:requests.packages.urllib3.connectionpool:Starting new HTTP connection (1): localhost
 INFO:requests.packages.urllib3.connectionpool:Starting new HTTP connection (1): localhost
 INFO:requests.packages.urllib3.connectionpool:Starting new HTTP connection (1): localhost
@@ -264,7 +262,7 @@ INFO:requests.packages.urllib3.connectionpool:Starting new HTTP connection (1): 
 INFO:requests.packages.urllib3.connectionpool:Starting new HTTP connection (1): localhost
 INFO:rmq_setup.pyc:**Stopped rmq server
 Warning: PID file not written; -detached was passed.
-INFO:rmq_setup.pyc:**Started rmq server at /home/vdev/rabbitmq_server/rabbitmq_server-3.7.7
+INFO:rmq_setup.pyc:**Started rmq server at /home/vdev/rabbitmq_server/rabbitmq_server-3.9.7
 INFO:rmq_setup.pyc:
 
 #######################

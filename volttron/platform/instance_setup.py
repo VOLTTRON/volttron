@@ -405,9 +405,10 @@ def do_message_bus():
     global config_opts
     bus_type = None
     valid_bus = False
+    current_bus = config_opts.get("message-bus", "zmq")
     while not valid_bus:
         prompt = 'What type of message bus (rmq/zmq)?'
-        new_bus = prompt_response(prompt, default='zmq')
+        new_bus = prompt_response(prompt, default=current_bus)
         valid_bus = is_valid_bus(new_bus)
         if valid_bus:
             bus_type = new_bus
@@ -951,6 +952,11 @@ def process_rmq_inputs(args_dict, instance_name=None):
     confirm_volttron_home()
     vhome = get_home()
 
+    if args_dict['installation-type'] in ['federation', 'shovel'] and not _check_dependencies_met('web'):
+        print("Web dependencies not installed. Installing now...")
+        set_dependencies('web')
+        print("Done!")
+
     if args_dict['config'] is not None:
         if not os.path.exists(vhome):
             os.makedirs(vhome, 0o755)
@@ -959,6 +965,7 @@ def process_rmq_inputs(args_dict, instance_name=None):
             if args_dict['config'] != vhome_config:
                 copy(args_dict['config'], vhome_config)
         elif args_dict['installation-type'] == 'federation':
+
             vhome_config = os.path.join(vhome, 'rabbitmq_federation_config.yml')
             if os.path.exists(vhome_config):
                 prompt = f"rabbitmq_federation_config.yml already exists in VOLTTRON_HOME: {vhome}.\n" \

@@ -42,7 +42,7 @@
 import logging
 
 from volttron.platform.agent.known_identities import (
-    VOLTTRON_CENTRAL)
+    VOLTTRON_CENTRAL, CONTROL)
 from volttron.platform.vip.agent import (Agent, RPC)
 
 _log = logging.getLogger(__name__)
@@ -59,6 +59,8 @@ class VCConnection(Agent):
         self._log = logging.getLogger(self.__class__.__name__)
         super(VCConnection, self).__init__(**kwargs)
         self._main_agent = None
+        self.server = None
+        self.peer = CONTROL
 
     def set_main_agent(self, main_agent):
         """
@@ -69,6 +71,7 @@ class VCConnection(Agent):
         :type VolttronCentralPlatform:
         """
         self._main_agent = main_agent
+        self.server = self._main_agent
 
     def publish_to_vc(self, topic, message=None, headers={}):
         """
@@ -287,6 +290,10 @@ class VCConnection(Agent):
     def call(self, platform_method, *args, **kwargs):
         return self._main_agent.call(platform_method, *args, **kwargs)
 
+    def kill(self):
+        """Dummy method to use install_agent_vctl"""
+        pass
+
     def is_connected(self):
         connected = self.vip.hello().get(timeout=5) is not None
         self._log.debug("is_connected returning {}".format(connected))
@@ -329,35 +336,6 @@ class VCConnection(Agent):
         return self._main_agent.get_instance_name()
 
     @RPC.export
-    def start_agent(self, agent_uuid):
-        """
-        Calls start_agent method on the vcp main agent instance.
-
-        .. note::
-
-            This method only valid for installed agents not dynamic agents.
-
-        :param agent_uuid:
-        :return:
-        """
-        self._main_agent.start_agent(agent_uuid)
-
-    @RPC.export
-    def stop_agent(self, agent_uuid):
-        """
-        Calls stop_agent method on the vcp main agent instance.
-
-        .. note::
-
-            This method only valid for installed agents not dynamic agents.
-
-        :param agent_uuid:
-        :return:
-        """
-        proc_result = self._main_agent.stop_agent(agent_uuid)
-        return proc_result
-
-    @RPC.export
     def restart_agent(self, agent_uuid):
         """
         Calls restart method on the vcp main agent instance.
@@ -370,33 +348,6 @@ class VCConnection(Agent):
         :return:
         """
         return self._main_agent.restart(agent_uuid)
-
-    @RPC.export
-    def agent_status(self, agent_uuid):
-        """
-        Calls agent_status method on the vcp main agent instance.
-
-        .. note::
-
-            This method only valid for installed agents not dynamic agents.
-
-        :param agent_uuid:
-        :return:
-        """
-        return self._main_agent.agent_status(agent_uuid)
-
-    @RPC.export
-    def status_agents(self):
-        """
-        Calls status_agents method on the vcp main agent instance.
-
-        .. note::
-
-            This method only valid for installed agents not dynamic agents.
-
-        :return:
-        """
-        return self._main_agent.status_agents()
 
     @RPC.export
     def list_agents(self):
