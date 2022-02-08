@@ -3,10 +3,10 @@ import tempfile
 import shutil
 import pytest
 import json
+import test_certs_utils
 from pathlib import Path
 from volttron.platform.certs import Certs, Subject, CertError
 from volttron.platform.agent.utils import get_platform_instance_name
-from volttrontesting.platform.test_certs_utils import *
 
 INSTANCE_NAME = "VC"
 PLATFORM_CONFIG = """
