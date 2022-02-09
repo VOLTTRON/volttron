@@ -59,7 +59,7 @@ def endpoint(func):
         except TimeoutError as e:
             return Response(json.dumps({'error': f'Request Timed Out: {e}'}), 504, content_type='application/json')
         except Exception as e:
-            return Response(json.dumps({'error' f'Unexpected Error: {e}'}), 500, content_type='application/json')
+            return Response(json.dumps({'error': f'Unexpected Error: {e}'}), 500, content_type='application/json')
     return verify_and_dispatch
 
 
