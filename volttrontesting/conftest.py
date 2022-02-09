@@ -27,7 +27,7 @@ test_to_instance = {}
 #
 #     #print("Kill all volttrons and beam.smp")
 
-
+'''
 def pytest_runtest_logstart(nodeid, location):
     before = 0
     print(f"test node: {nodeid} location: {location}")
@@ -52,3 +52,4 @@ def pytest_runtest_logfinish(nodeid, location):
         with open("volttron_test_output_count.txt", 'w') as fp:
             fp.write(jsonapi.dumps(test_to_instance, indent=2))
     # print(f"finished test nodeid: {nodeid} location: {location}")
+'''

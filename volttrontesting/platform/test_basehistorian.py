@@ -1,5 +1,6 @@
 from datetime import datetime
 
+import os
 import pytest
 import mock
 
@@ -12,6 +13,7 @@ from volttron.platform.vip.agent.results import AsyncResult
 from volttron.platform.vip.agent.subsystems.query import Query
 from volttrontesting.utils.utils import AgentMock
 from time import sleep
+from volttrontesting.platform.test_instance_setup import create_vcfg_vhome
 
 
 class QueryHelper:
@@ -88,38 +90,42 @@ def test_enable_and_disable_cache_only_through_config_store():
     # Make sure the update didn't get transferred to the state
     assert not agent.is_cache_only_enabled()
 
-@pytest.mark.xfail
-def test_cache_enable():
-    now = utils.format_timestamp(datetime.utcnow())
-    headers = {
-        header_mod.DATE: now,
-        header_mod.TIMESTAMP: now
-    }
-    agent = ConcreteHistorianAgent(cache_only_enabled=True)
-    assert agent is not None
-    device = "devices/testcampus/testbuilding/testdevice"
-    agent._capture_data(peer="foo",
-                        sender="test",
-                        bus="",
-                        topic=device,
-                        headers=headers,
-                        message={"OutsideAirTemperature": 52.5, "MixedAirTemperature": 58.5},
-                        device=device
-                        )
-    sleep(0.1)
-    # Should not have published to the concrete historian because we are in cache_only
-    assert not agent.has_published_items()
 
-    agent = ConcreteHistorianAgent(cache_only_enabled=False)  # , process_loop_in_greenlet=False)
-    agent._capture_data(peer="foo",
-                        sender="test",
-                        bus="",
-                        topic=device,
-                        headers=headers,
-                        message={"OutsideAirTemperature": 52.5, "MixedAirTemperature": 58.5},
-                        device=device
-                        )
-    sleep(0.1)
-    # give a small amount of time so that the queue can get empty
-    assert agent.has_published_items()
-    assert len(agent.get_publish_list()) == 2
+def test_cache_enable():
+    with create_vcfg_vhome() as vhome:
+        assert os.path.isdir(vhome)
+        os.chdir(vhome)
+
+        now = utils.format_timestamp(datetime.utcnow())
+        headers = {
+            header_mod.DATE: now,
+            header_mod.TIMESTAMP: now
+        }
+        agent = ConcreteHistorianAgent(cache_only_enabled=True)
+        assert agent is not None
+        device = "devices/testcampus/testbuilding/testdevice"
+        agent._capture_data(peer="foo",
+                            sender="test",
+                            bus="",
+                            topic=device,
+                            headers=headers,
+                            message={"OutsideAirTemperature": 52.5, "MixedAirTemperature": 58.5},
+                            device=device
+                            )
+        sleep(0.1)
+        # Should not have published to the concrete historian because we are in cache_only
+        assert not agent.has_published_items()
+
+        agent = ConcreteHistorianAgent(cache_only_enabled=False)  # , process_loop_in_greenlet=False)
+        agent._capture_data(peer="foo",
+                            sender="test",
+                            bus="",
+                            topic=device,
+                            headers=headers,
+                            message={"OutsideAirTemperature": 52.5, "MixedAirTemperature": 58.5},
+                            device=device
+                            )
+        sleep(0.1)
+        # give a small amount of time so that the queue can get empty
+        assert agent.has_published_items()
+        assert len(agent.get_publish_list()) == 2
