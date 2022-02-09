@@ -817,6 +817,8 @@ class AIPplatform(object):
         if priority is None:
             with ignore_enoent:
                 os.unlink(autostart)
+        elif not priority.isdigit() or not 0 <= int(priority) < 100:
+            raise ValueError(f'Priority must be an integer from 0 - 99. Received: {priority}.')
         else:
             with open(autostart, 'w') as file:
                 file.write(priority.strip())
