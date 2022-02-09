@@ -267,6 +267,7 @@ class VUIEndpoints(object):
                     active_routes['route_options'].pop('rpc')
             return Response(json.dumps(active_routes), 200, content_type='application/json')
 
+    @endpoint
     def handle_platforms_agents_enabled(self, env: dict, data: dict) -> Response:
         """
         Endpoints for /vui/platforms/:platform/agents/:vip_identity/enabled/
@@ -282,7 +283,6 @@ class VUIEndpoints(object):
         platform, vip_identity = re.match('^/vui/platforms/([^/]+)/agents/([^/]+)/enabled/?$', path_info).groups()
 
         if request_method == 'GET':
-
             try:
                 list_of_agents = self._rpc('control', 'list_agents', external_platform=platform)
                 result = next(item['priority'] for item in list_of_agents if item['identity'] == vip_identity)
@@ -293,26 +293,22 @@ class VUIEndpoints(object):
                 return Response(json.dumps({'error': f'Agent "{vip_identity}" not found.'}),
                                 400, content_type='application/json')
             except MethodNotFound or ValueError as e:
-                return Response(json.dumps({f'error': f'for agent {vip_identity}: {e}'}),
+                return Response(json.dumps({f'error': f'For agent {vip_identity}: {e}'}),
                                 400, content_type='application/json')
+
         elif request_method == 'PUT':
-            if priority.isnumeric():
-                priority_as_integer = int(priority)
-                if priority_as_integer in range(0, 100):
-                    try:
-                        _log.debug('VUI: request_method was "PUT')
-                        uuid = self._rpc('control', 'identity_exists', vip_identity, external_platform=platform)
-                        result = self._rpc('control', 'prioritize_agent', uuid, priority, external_platform=platform)
-                        return Response('Agent Enabled.', 204)
-                    except MethodNotFound or ValueError as e:
-                        return Response(json.dumps({f'error': f'for agent {vip_identity}: {e}'}),
-                                        400, content_type='application/json')
-                else:
-                    return Response(json.dumps('error: the priority needs to be a number from 0-100'),
-                                    400, content_type='application/json')
-            else:
-                return Response(json.dumps('error: the priority needs to be a number from 0-100'),
+            if not priority.isdigit() or not 0 <= int(priority) < 100:
+                error = {'error': f'Priority must be an integer from 0 - 99. Received: {priority}.'}
+                return Response(json.dumps(error), 400, content_type='application/json')
+            try:
+                _log.debug('VUI: request_method was "PUT')
+                uuid = self._rpc('control', 'identity_exists', vip_identity, external_platform=platform)
+                result = self._rpc('control', 'prioritize_agent', uuid, priority, external_platform=platform)
+                return Response('Agent Enabled.', 204)
+            except MethodNotFound or ValueError as e:
+                return Response(json.dumps({f'error': f'For agent {vip_identity}: {e}'}),
                                 400, content_type='application/json')
+
         elif request_method == 'DELETE':
             try:
                 _log.debug('VUI: request_method was "DELETE')
@@ -320,7 +316,7 @@ class VUIEndpoints(object):
                 result = self._rpc('control', 'prioritize_agent', uuid, None, external_platform=platform)
                 return Response('Agent Disabled.', 204)
             except MethodNotFound or ValueError as e:
-                return Response(json.dumps({f'error': f'for agent {vip_identity}: {e}'}),
+                return Response(json.dumps({f'error': f'For agent {vip_identity}: {e}'}),
                                 400, content_type='application/json')
 
     @endpoint

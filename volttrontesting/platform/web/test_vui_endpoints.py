@@ -384,19 +384,27 @@ def test_handle_platforms_agents_enabled_get_response(mock_platform_web_service,
     assert json.loads(response.response[0]) == expected
 
 
-@pytest.mark.parametrize('priority, expected', [('30', '30'), (None, '50')])
-def test_handle_platforms_agents_enabled_put_response(mock_platform_web_service, priority, expected):
-    query_string = f'priority={priority}' if priority else ''
+@pytest.mark.parametrize('priority_given, priority_passed, expected', [
+    ('30', '30', '204'),
+    (None, '50', '204'),
+    ('-1', None, '400'),
+    ('100', None, '400'),
+    ('foo', None, '400')
+])
+def test_handle_platforms_agents_enabled_put_response(mock_platform_web_service, priority_given, priority_passed,
+                                                      expected):
+    query_string = f'priority={priority_given}' if priority_given else ''
     path = f'/vui/platforms/my_instance_name/agents/run1/enabled'
     env = get_test_web_env(path, method='PUT', query_string=query_string, HTTP_AUTHORIZATION='Bearer foo')
     vui_endpoints = VUIEndpoints(mock_platform_web_service)
     vui_endpoints._rpc = MagicMock(wraps=_mock_agents_rpc)
     response = vui_endpoints.handle_platforms_agents_enabled(env, {})
-    check_response_codes(response, '204')
-    vui_endpoints._rpc.assert_has_calls([mock.call('control', 'identity_exists', 'run1',
-                                                   external_platform='my_instance_name'),
-                                         mock.call('control', 'prioritize_agent', '1', expected,
-                                                   external_platform='my_instance_name')])
+    check_response_codes(response, expected)
+    if expected == '204':
+        vui_endpoints._rpc.assert_has_calls([mock.call('control', 'identity_exists', 'run1',
+                                                       external_platform='my_instance_name'),
+                                             mock.call('control', 'prioritize_agent', '1', priority_passed,
+                                                       external_platform='my_instance_name')])
 
 
 def test_handle_platforms_agents_enabled_delete_response(mock_platform_web_service):
