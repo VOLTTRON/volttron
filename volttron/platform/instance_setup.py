@@ -217,7 +217,12 @@ def _install_agent(agent_dir, config, tag, identity):
         with open(cfg.name, 'w') as fout:
             fout.write(jsonapi.dumps(config))
         config_file = cfg.name
-    cmd_array = ['volttron-ctl', 'install', "--agent-config", config_file, "--tag", tag, "--force"]
+    # Allow a little extra time for VC to install, especially for RMQ
+    if tag == 'vc':
+        cmd_array = ['volttron-ctl', 'install', "--agent-config", config_file,
+                     "--tag", tag, "--timeout", "120", "--force"]
+    else:
+        cmd_array = ['volttron-ctl', 'install', "--agent-config", config_file, "--tag", tag, "--force"]
     if identity:
         cmd_array.extend(["--vip-identity", identity])
     cmd_array.append(agent_dir)
