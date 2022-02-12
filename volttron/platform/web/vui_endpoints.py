@@ -95,7 +95,7 @@ class VUIEndpoints(object):
                             'endpoint-active': True,
                         },
                         'running': {
-                            'endpoint-active': False,
+                            'endpoint-active': True,
                         },
                         'status': {
                             'endpoint-active': False,
@@ -167,6 +167,7 @@ class VUIEndpoints(object):
             (re.compile('^/vui/platforms/[^/]+/agents/[^/]+/enabled/?$'), 'callable', self.handle_platforms_agents_enabled),
             (re.compile('^/vui/platforms/[^/]+/agents/[^/]+/rpc/?$'), 'callable', self.handle_platforms_agents_rpc),
             (re.compile('^/vui/platforms/[^/]+/agents/[^/]+/rpc/[^/]+/?$'), 'callable', self.handle_platforms_agents_rpc_method),
+            (re.compile('^/vui/platforms/[^/]+/agents/[^/]+/running/?$'), 'callable', self.handle_platforms_agents_running),
             (re.compile('^/vui/platforms/[^/]+/devices/?$'), 'callable', self.handle_platforms_devices),
             (re.compile('^/vui/platforms/[^/]+/devices/.*/?$'), 'callable', self.handle_platforms_devices),
             (re.compile('^/vui/platforms/[^/]+/historians/?$'), 'callable', self.handle_platforms_historians),
@@ -246,6 +247,47 @@ class VUIEndpoints(object):
                 agents = self._get_agents(platform, agent_state, include_hidden)
                 return Response(json.dumps(self._route_options(path_info, agents)), 200,
                                 content_type='application/json')
+
+    @endpoint
+    def handle_platforms_agents_running(self, env: dict, data: dict) -> Response:
+        """
+        Endpoints for /vui/platforms/:platform/agents/running
+        :param env:
+        :param data:
+        :return:
+        """
+
+        _log.debug('VUI: In handle_platforms_agents_running')
+        path_info = env.get('PATH_INFO')
+        request_method = env.get("REQUEST_METHOD")
+        query_params = url_decode(env['QUERY_STRING'])
+        restart = self._to_bool(query_params.get('restart', 'false'))
+        platform, vip_identity = re.match('^/vui/platforms/([^/]+)/agents/([^/]+)/running/?$', path_info).groups()
+        uuid = self._rpc('control', 'identity_exists', vip_identity, external_platform=platform)
+        if not uuid:
+            return Response(json.dumps({'error': str(e)}), 400, content_type='application/json')
+
+        def _agent_running(vip_identity):
+            peerlist = self._rpc('control', 'peerlist')
+            return True if vip_identity in peerlist else False
+
+        if request_method == 'GET':
+                status = _agent_running(vip_identity)
+                return Response(json.dumps({'status': status}), 200, content_type='application/json')
+
+        elif request_method == 'PUT':
+            if restart:
+                self._rpc('control', 'restart_agent', uuid, external_platform=platform)
+            else:
+                if _agent_running(vip_identity):
+                    return Response(json.dumps({'error': f'Agent: {vip_identity} is already running.'}), 400,
+                                    content_type='application/json')
+                self._rpc('control', 'start_agent', uuid, external_platform=platform)
+            return Response(f'Agent started.', 204)
+
+        elif request_method == 'DELETE':
+            self._rpc('control', 'stop_agent', uuid, external_platform=platform)
+            return Response('Agent Stopped.', 204)
 
     @endpoint
     def handle_platforms_agents_agent(self, env: dict, data: dict) -> Response:
