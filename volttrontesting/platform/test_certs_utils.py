@@ -11,6 +11,35 @@ __all__ = ['TLSRepository']
 
 _log = logging.getLogger(__name__)
 
+def execute_command2(cmds, env=None, cwd=None, logger=None, err_prefix=None) -> str:
+    """ Executes a command as a subprocess, allows for piping
+    If the return code of the call is 0 then return stdout otherwise
+    raise a RuntimeError.  If logger is specified then write the exception
+    to the logger otherwise this call will remain silent.
+    :param cmds:list of commands to pass to subprocess.run
+    :param env: environment to run the command with
+    :param cwd: working directory for the command
+    :param logger: a logger to use if errors occure
+    :param err_prefix: an error prefix to allow better tracing through the error message
+    :return: stdout string if successful
+    :raises RuntimeError: if the return code is not 0 from suprocess.run
+    """
+
+    results = subprocess.run(cmds, env=env, cwd=cwd,
+                             stderr=subprocess.PIPE, stdout=subprocess.PIPE, shell=True)
+    if results.returncode != 0:
+        err_prefix = err_prefix if err_prefix is not None else "Error executing command"
+        err_message = "\n{}: Below Command failed with non zero exit code.\n" \
+                      "Command:{} \nStderr:\n{}\n".format(err_prefix,
+                                                          results.args,
+                                                          results.stderr)
+        if logger:
+            logger.exception(err_message)
+            raise RuntimeError()
+        else:
+            raise RuntimeError(err_message)
+
+    return results.stdout.decode('utf-8')
 
 def execute_command(cmds, env=None, cwd=None, logger=None, err_prefix=None) -> str:
     """ Executes a command as a subprocess
@@ -123,8 +152,8 @@ class TLSRepository:
         csr = __openssl_create_csr__(hostname, opensslcnf, private_key_file, csr_file)
         return csr
 
-    def verify_csr(self, csr_file_path: str):
-        return __openssl_verify_csr__(csr_file_path)
+    def verify_csr(self, csr_file_path: str, private_key_file: str):
+        return __openssl_verify_csr__(csr_file_path, private_key_file)
 
     def verify_ca_cert(self, private_key_file: str, ca_cert_file: str):
         return __verify_ca_certificate__(private_key_file, ca_cert_file)
@@ -176,8 +205,15 @@ def __openssl_create_ca_certificate__(common_name: str, private_key_file: Path, 
 
 def __verify_ca_certificate__(private_key_file: str, ca_cert_file: str):
     #openssl verify -verbose -CAfile cacert.pem  server.crt
-    cmd = ["openssl", "verify", "-verbose", "-CAfile", private_key_file, ca_cert_file]
-    return execute_command(cmd)
+    # openssl x509 -noout -modulus -in server.crt| openssl md5
+    # openssl rsa -noout -modulus -in server.key| openssl md5
+    cmd = ["openssl", "x509", "-noout", "-modulus", "-in", ca_cert_file, "|", "openssl", "md5"]
+    cert_md5 = execute_command2(cmd)
+    cmd = ["openssl", "rsa", "-noout", "-modulus", "-in", private_key_file, "|", "openssl", "md5"]
+    key_md5 = execute_command2(cmd)
+    return cert_md5 == key_md5
+    # cmd = ["openssl", "verify", "-verbose", "-CAfile", private_key_file, ca_cert_file]
+    # return execute_command(cmd)
 
 
 def __openssl_create_csr__(common_name: str, opensslcnf: Path, private_key_file: Path, server_csr_file: Path):
@@ -191,8 +227,8 @@ def __openssl_create_csr__(common_name: str, opensslcnf: Path, private_key_file:
     return execute_command(cmd)
 
 
-def __openssl_verify_csr__(csr_file_path: str):
-    cmd = ["openssl", "req", "-x509", "-text", "-noout", "-verify", "-in", csr_file_path]
+def __openssl_verify_csr__(csr_file_path: str, private_key_file: str):
+    cmd = ["openssl", "req", "-text", "-noout", "-verify", "-in", csr_file_path, "-key", private_key_file]
     return execute_command(cmd)
 
 
