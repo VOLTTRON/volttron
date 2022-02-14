@@ -762,41 +762,44 @@ def start_volttron_process(opts):
     mode = os.stat(opts.volttron_home).st_mode
     if mode & (stat.S_IWGRP | stat.S_IWOTH):
         _log.warning('insecure mode on directory: %s', opts.volttron_home)
-    # Get or generate encryption key
-    keystore = KeyStore()
-    _log.debug('using key-store file %s', keystore.filename)
-    if not keystore.isvalid():
-        _log.warning('key store is invalid; connections may fail')
-    st = os.stat(keystore.filename)
-    if st.st_mode & (stat.S_IRWXG | stat.S_IRWXO):
-        _log.warning('insecure mode on key file')
-    publickey = decode_key(keystore.public)
-    if publickey:
-        # Authorize the platform key:
-        entry = AuthEntry(credentials=encode_key(publickey),
-                          user_id=PLATFORM,
-                          capabilities=[{'edit_config_store': {'identity': '/.*/'}}],
+    # auth entries for agents
+    if opts.allow_auth:
+        # Get or generate encryption key
+        keystore = KeyStore()
+        _log.debug('using key-store file %s', keystore.filename)
+        if not keystore.isvalid():
+            _log.warning('key store is invalid; connections may fail')
+        st = os.stat(keystore.filename)
+        if st.st_mode & (stat.S_IRWXG | stat.S_IRWXO):
+            _log.warning('insecure mode on key file')
+        publickey = decode_key(keystore.public)
+        if publickey:
+            # Authorize the platform key:
+            entry = AuthEntry(credentials=encode_key(publickey),
+                              user_id=PLATFORM,
+                              capabilities=[{'edit_config_store': {'identity': '/.*/'}}],
+                              comments='Automatically added by platform on start')
+            AuthFile().add(entry, overwrite=True)
+            # Add platform key to known-hosts file:
+            known_hosts = KnownHostsStore()
+            known_hosts.add(opts.vip_local_address, encode_key(publickey))
+            for addr in opts.vip_address:
+                known_hosts.add(addr, encode_key(publickey))
+        secretkey = decode_key(keystore.secret)
+
+    if opts.allow_auth:
+        # Add the control.connection so that volttron-ctl can access the bus
+        control_conn_path = KeyStore.get_agent_keystore_path(CONTROL_CONNECTION)
+        os.makedirs(os.path.dirname(control_conn_path), exist_ok=True)
+        ks_control_conn = KeyStore(KeyStore.get_agent_keystore_path(CONTROL_CONNECTION))
+        entry = AuthEntry(credentials=encode_key(decode_key(ks_control_conn.public)),
+                          user_id=CONTROL_CONNECTION,
+                          identity=CONTROL_CONNECTION,
+                          capabilities=[{'edit_config_store': {'identity': '/.*/'}},
+                                        'modify_rpc_method_allowance',
+                                        'allow_auth_modifications'],
                           comments='Automatically added by platform on start')
         AuthFile().add(entry, overwrite=True)
-        # Add platform key to known-hosts file:
-        known_hosts = KnownHostsStore()
-        known_hosts.add(opts.vip_local_address, encode_key(publickey))
-        for addr in opts.vip_address:
-            known_hosts.add(addr, encode_key(publickey))
-    secretkey = decode_key(keystore.secret)
-
-    # Add the control.connection so that volttron-ctl can access the bus
-    control_conn_path = KeyStore.get_agent_keystore_path(CONTROL_CONNECTION)
-    os.makedirs(os.path.dirname(control_conn_path), exist_ok=True)
-    ks_control_conn = KeyStore(KeyStore.get_agent_keystore_path(CONTROL_CONNECTION))
-    entry = AuthEntry(credentials=encode_key(decode_key(ks_control_conn.public)),
-                      user_id=CONTROL_CONNECTION,
-                      identity=CONTROL_CONNECTION,
-                      capabilities=[{'edit_config_store': {'identity': '/.*/'}},
-                                    'modify_rpc_method_allowance',
-                                    'allow_auth_modifications'],
-                      comments='Automatically added by platform on start')
-    AuthFile().add(entry, overwrite=True)
 
     # The following line doesn't appear to do anything, but it creates
     # a context common to the green and non-green zmq modules.
