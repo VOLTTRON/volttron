@@ -131,7 +131,7 @@ def test_create_root_ca(temp_volttron_home):
 
     private_key = certs.private_key_file("VC-root-ca")
     cert_file = certs.cert_file("VC-root-ca")
-    tls = TLSRepository(repo_dir=temp_volttron_home, openssl_cnffile="openssl.cnf", serverhost="FullyQualifiedIdentity")
+    tls = test_certs_utils.TLSRepository(repo_dir=temp_volttron_home, openssl_cnffile="openssl.cnf", serverhost="FullyQualifiedIdentity")
     assert tls.verify_ca_cert(private_key, cert_file)
 
 
@@ -157,7 +157,7 @@ def test_create_signed_cert_files(temp_volttron_home):
 
 def test_create_csr(temp_volttron_home):
     # Use TLS repo to create a CA
-    tls = TLSRepository(repo_dir=temp_volttron_home, openssl_cnffile="openssl.cnf", serverhost="FullyQualifiedIdentity")
+    tls = test_certs_utils.TLSRepository(repo_dir=temp_volttron_home, openssl_cnffile="openssl.cnf", serverhost="FullyQualifiedIdentity")
     tls.__create_ca__()
     certs_using_tls = Certs(temp_volttron_home)
 
