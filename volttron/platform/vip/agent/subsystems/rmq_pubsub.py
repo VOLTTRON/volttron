@@ -142,13 +142,13 @@ class RMQPubSub(SubsystemBase):
                 if 'persistent' in queue_name:
                     durable = True
                     auto_delete = False
-                connection.channel.queue_declare(queue=queue_name,
+                connection.channel.queue_declare(queue_name,
                                                  durable=durable,
                                                  exclusive=True,
                                                  auto_delete=auto_delete,
                                                  callback=None)
-                connection.channel.queue_bind(exchange=connection.exchange,
-                                              queue=queue_name,
+                connection.channel.queue_bind(queue_name,
+                                              connection.exchange,
                                               routing_key=prefix,
                                               callback=None)
 
@@ -225,14 +225,14 @@ class RMQPubSub(SubsystemBase):
         self._logger.debug("RMQ PUBSUB subscribing to {}".format(routing_key))
 
         try:
-            connection.channel.queue_declare(callback=None,
-                                             queue=queue_name,
+            connection.channel.queue_declare(queue_name,
+                                             callback=None,
                                              durable=durable,
                                              exclusive=False,
                                              auto_delete=auto_delete)
-            connection.channel.queue_bind(callback=None,
+            connection.channel.queue_bind(queue_name,
+                                          callback=None,
                                           exchange=connection.exchange,
-                                          queue=queue_name,
                                           routing_key=routing_key)
             self._add_callback(connection, queue_name, callback)
         except AttributeError as ex:
@@ -252,8 +252,8 @@ class RMQPubSub(SubsystemBase):
         sub_msg = dict(prefix=prefix, bus=bus, all_platforms=True)
         # VIP format - [SENDER, RECIPIENT, PROTO, USER_ID, MSG_ID, SUBSYS, ARGS...]
         frames = [self.core().identity, '', 'VIP1', '', '', 'pubsub', 'subscribe', sub_msg]
-        connection.channel.basic_publish(exchange=connection.exchange,
-                                         routing_key=rkey,
+        connection.channel.basic_publish(connection.exchange,
+                                         rkey,
                                          body=jsonapi.dumps(frames, ensure_ascii=False))
 
     def _add_callback(self, connection, queue, callback):
@@ -275,12 +275,14 @@ class RMQPubSub(SubsystemBase):
                 bus = msg['bus']
                 sender = msg['sender']
                 self.core().spawn(callback, 'pubsub', sender, bus, topic, headers, message)
+                connection.channel.basic_ack(method.delivery_tag)
             except KeyError as esc:
                 self._logger.error("Missing keys in pubsub message {}".format(esc))
 
-        connection.channel.basic_consume(rmq_callback,
-                                         queue=queue,
-                                         no_ack=True)
+
+        connection.channel.basic_consume(queue,
+                                         rmq_callback
+                                         )
 
     @subscribe.classmethod
     def subscribe(cls, peer, prefix, bus='', all_platforms=False, persistent_queue=None):
@@ -402,10 +404,10 @@ class RMQPubSub(SubsystemBase):
         properties = pika.BasicProperties(**dct)
         json_msg = dict(sender=self.core().identity, bus=bus, headers=headers, message=message)
         try:
-            connection.channel.basic_publish(exchange=connection.exchange,
-                                         routing_key=routing_key,
-                                         properties=properties,
-                                         body=jsonapi.dumps(json_msg, ensure_ascii=False))
+            connection.channel.basic_publish(connection.exchange,
+                                             routing_key,
+                                             jsonapi.dumps(json_msg, ensure_ascii=False),
+                                             properties=properties)
         except (pika.exceptions.AMQPConnectionError,
                 pika.exceptions.AMQPChannelError) as exc:
             self._isconnected = False
@@ -484,8 +486,8 @@ class RMQPubSub(SubsystemBase):
             rkey = self.core().instance_name + '.proxy.router.pubsub'
             frames = [self.core().identity, '', 'VIP1', '', '', 'pubsub',
                       'unsubscribe', jsonapi.dumps(subscriptions)]
-            self.core().connection.channel.basic_publish(exchange=self.core().connection.exchange,
-                                                         routing_key=rkey,
+            self.core().connection.channel.basic_publish(self.core().connection.exchange,
+                                                         rkey,
                                                          body=frames)
         return result
 
@@ -496,7 +498,7 @@ class RMQPubSub(SubsystemBase):
         :param callback: callback method
         :return:
         """
-        self._logger.debug("DROP subscriptions: {}".format(routing_key))
+        #self._logger.debug("DROP subscriptions: {}".format(routing_key))
         topics = []
         remove = []
         remove_topics = []
@@ -505,8 +507,7 @@ class RMQPubSub(SubsystemBase):
                 for prefix in self._my_subscriptions:
                     subscriptions = self._my_subscriptions[prefix]
                     for queue_name in list(subscriptions):
-                        self.core().connection.channel.queue_delete(
-                            callback=None, queue=queue_name)
+                        self.core().connection.channel.queue_delete(queue_name, callback=None)
                         subscriptions.pop(queue_name)
                     topics.append(prefix)
             else:
@@ -523,7 +524,7 @@ class RMQPubSub(SubsystemBase):
                             topics.append(prefix)
                         if not callbacks:
                             # Delete queue
-                            self.core().connection.channel.queue_delete(callback=None, queue=queue_name)
+                            self.core().connection.channel.queue_delete(queue_name, callback=None)
                             remove.append(queue_name)
                     for que in remove:
                         del subscriptions[que]
@@ -534,7 +535,7 @@ class RMQPubSub(SubsystemBase):
                     del self._my_subscriptions[prefix]
                 if not topics:
                     raise KeyError('no such subscription')
-                self._logger.debug("my subscriptions: {0}".format(self._my_subscriptions))
+                #self._logger.debug("my subscriptions: {0}".format(self._my_subscriptions))
         else:
             # Search based on routing key
             if routing_key in self._my_subscriptions:
@@ -544,7 +545,7 @@ class RMQPubSub(SubsystemBase):
                 if callback is None:
                     for queue_name, callbacks in subscriptions.items():
                         self._logger.debug("RMQ queues {}".format(queue_name))
-                        self.core().connection.channel.queue_delete(callback=None, queue=queue_name)
+                        self.core().connection.channel.queue_delete(queue_name, callback=None)
                     del self._my_subscriptions[routing_key]
                 else:
                     self._logger.debug("topics: {0}".format(topics))
@@ -561,7 +562,7 @@ class RMQPubSub(SubsystemBase):
                         del subscriptions[que]
                     if not subscriptions:
                         del self._my_subscriptions[routing_key]
-            self._logger.debug("my subscriptions: {0}".format(self._my_subscriptions))
+            #self._logger.debug("my subscriptions: {0}".format(self._my_subscriptions))
         orig_topics = []
         # Strip '__pubsub__.<instance_name>' from the topic string
         for topic in topics:

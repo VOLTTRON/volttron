@@ -183,6 +183,7 @@ def _build_web_dir(vhome):
 
 
 @pytest.mark.web
+@pytest.mark.xfail
 def test_can_discover_info(volttron_instance_web):
     """
     Tests whether the web instance returns the key, instance name and
@@ -213,6 +214,7 @@ def test_can_discover_info(volttron_instance_web):
 
 
 @pytest.mark.web
+@pytest.mark.xfail
 def test_test_web_agent(web_instance):
     vi = web_instance
     assert vi.is_running()
@@ -250,6 +252,7 @@ def test_test_web_agent(web_instance):
 
 
 @pytest.mark.web
+@pytest.mark.xfail
 def test_register_path_route(web_instance):
     vi = web_instance
     assert vi.is_running()

@@ -261,8 +261,8 @@ Step 4 - Bootstrap the environment
 
 This will build the platform and create a virtual Python environment and dependencies for RabbitMQ.  It also installs
 RabbitMQ server as the current user.  If an install path is provided, that path should exist and the user should have
-write permissions.  RabbitMQ will be installed under `<install dir>/rabbitmq_server-3.7.7`. The rest of the
-documentation refers to the directory `<install dir>/rabbitmq_server-3.7.7` as `$RABBITMQ_HOME`.
+write permissions.  RabbitMQ will be installed under `<install dir>/rabbitmq_server-<rmq-version>`. The rest of the
+documentation refers to the directory `<install dir>/rabbitmq_server-<rmq-version>` as `$RABBITMQ_HOME`.
 
 .. note::
 
@@ -279,11 +279,11 @@ Thus, you can use $RABBITMQ_HOME to see if the RabbitMQ server is installed by c
 .. note::
 
     The `RABBITMQ_HOME` environment variable can be set in ~/.bashrc. If doing so, it needs to be set to the RabbitMQ
-    installation directory (default path is `<user_home>/rabbitmq_server/rabbitmq_server-3.7.7`)
+    installation directory (default path is `<user_home>/rabbitmq_server/rabbitmq_server-3.9.7`)
 
 .. code-block:: bash
 
-    echo 'export RABBITMQ_HOME=$HOME/rabbitmq_server/rabbitmq_server-3.7.7'|sudo tee --append ~/.bashrc
+    echo 'export RABBITMQ_HOME=$HOME/rabbitmq_server/rabbitmq_server-3.9.7'|sudo tee --append ~/.bashrc
     source ~/.bashrc
     $RABBITMQ_HOME/sbin/rabbitmqctl status
 
@@ -341,7 +341,7 @@ prompts for necessary details.
 
     Is this the volttron you are attempting to setup?  [Y]:
     Creating rmq config yml
-    RabbitMQ server home: [/home/vdev/rabbitmq_server/rabbitmq_server-3.7.7]:
+    RabbitMQ server home: [/home/vdev/rabbitmq_server/rabbitmq_server-3.9.7]:
     Fully qualified domain name of the system: [cs_cbox.pnl.gov]:
 
     Enable SSL Authentication: [Y]:
@@ -361,7 +361,7 @@ prompts for necessary details.
     https port for the RabbitMQ management plugin: [15671]:
     INFO:rmq_setup.pyc:Starting rabbitmq server
     Warning: PID file not written; -detached was passed.
-    INFO:rmq_setup.pyc:**Started rmq server at /home/vdev/rabbitmq_server/rabbitmq_server-3.7.7
+    INFO:rmq_setup.pyc:**Started rmq server at /home/vdev/rabbitmq_server/rabbitmq_server-3.9.7
     INFO:requests.packages.urllib3.connectionpool:Starting new HTTP connection (1): localhost
     INFO:requests.packages.urllib3.connectionpool:Starting new HTTP connection (1): localhost
     INFO:requests.packages.urllib3.connectionpool:Starting new HTTP connection (1): localhost
@@ -375,7 +375,7 @@ prompts for necessary details.
     INFO:requests.packages.urllib3.connectionpool:Starting new HTTP connection (1): localhost
     INFO:rmq_setup.pyc:**Stopped rmq server
     Warning: PID file not written; -detached was passed.
-    INFO:rmq_setup.pyc:**Started rmq server at /home/vdev/rabbitmq_server/rabbitmq_server-3.7.7
+    INFO:rmq_setup.pyc:**Started rmq server at /home/vdev/rabbitmq_server/rabbitmq_server-3.9.7
     INFO:rmq_setup.pyc:
 
     #######################

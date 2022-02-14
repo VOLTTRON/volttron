@@ -49,11 +49,11 @@ def test_jwt_encode(encryption_type):
         token = jwt.encode(claims, encoded_key, algorithm)
         if encryption_type == 'tls':
             decode_key = CertWrapper.get_cert_public_key(certs.server_certs[0].cert_file)
-            new_claimes = jwt.decode(token, decode_key, algorithm)
+            new_claims = jwt.decode(token, decode_key, algorithms=algorithm)
         else:
-            new_claimes = jwt.decode(token, encoded_key, algorithm)
+            new_claims = jwt.decode(token, encoded_key, algorithms=algorithm)
 
-        assert not DeepDiff(claims, new_claimes)
+        assert not DeepDiff(claims, new_claims)
 
 # Child of AuthenticateEndpoints.
 # Exactly the same but includes helper methods to set access and refresh token timeouts

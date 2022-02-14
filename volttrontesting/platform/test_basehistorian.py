@@ -88,7 +88,7 @@ def test_enable_and_disable_cache_only_through_config_store():
     # Make sure the update didn't get transferred to the state
     assert not agent.is_cache_only_enabled()
 
-
+@pytest.mark.xfail
 def test_cache_enable():
     now = utils.format_timestamp(datetime.utcnow())
     headers = {
