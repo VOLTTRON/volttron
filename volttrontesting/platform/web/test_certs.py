@@ -8,6 +8,12 @@ from volttron.platform.certs import Certs, Subject, CertError
 from volttron.platform.agent.utils import get_platform_instance_name
 from volttrontesting.utils.platformwrapper import create_volttron_home
 
+try:
+    import openssl
+    HAS_OPENSSL = True
+except ImportError:
+    HAS_OPENSSL = False
+
 INSTANCE_NAME = "VC"
 PLATFORM_CONFIG = """
 #host parameter is mandatory parameter. fully qualified domain name
@@ -102,8 +108,9 @@ def temp_csr(request):
 
     csr = certs.create_csr("FullyQualifiedIdentity", "RemoteInstanceName")
     yield certs, csr
-    del csr
-    del certs
+
+    shutil.rmtree(certs.default_certs_dir, ignore_errors=True)
+    assert not os.path.exists(certs.default_certs_dir)
 
 
 def test_certificate_directories(temp_volttron_home):
@@ -115,8 +122,7 @@ def test_certificate_directories(temp_volttron_home):
         assert os.path.exists(p)
 
 
-@pytest.mark.skipif('OpenSSL' not in os.listdir("/home/volttron/git/myvolttron/env/lib/python3.8/site-packages"),
-                    reason="Requires openssl")
+@pytest.mark.skipif(not HAS_OPENSSL, reason="Requires openssl")
 def test_create_root_ca(temp_volttron_home):
     certs = Certs()
     assert not certs.ca_exists()
@@ -155,8 +161,7 @@ def test_create_signed_cert_files(temp_volttron_home):
     assert existing_cert[0] == certs.cert("test_cert")
 
 
-@pytest.mark.skipif('OpenSSL' not in os.listdir("/home/volttron/git/myvolttron/env/lib/python3.8/site-packages"),
-                    reason="Requires openssl")
+@pytest.mark.skipif(not HAS_OPENSSL, reason="Requires openssl")
 def test_create_csr(temp_volttron_home):
     # Use TLS repo to create a CA
     tls = test_certs_utils.TLSRepository(repo_dir=temp_volttron_home, openssl_cnffile="openssl.cnf", serverhost="FullyQualifiedIdentity")
