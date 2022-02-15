@@ -773,7 +773,7 @@ def fix_sqlite3_datetime(sql=None):
     sql.register_converter("timestamp", parse)
 
 
-def execute_command(cmds, env=None, cwd=None, logger=None, err_prefix=None) -> str:
+def execute_command(cmds, env=None, cwd=None, logger=None, err_prefix=None, use_shell=False) -> str:
     """ Executes a command as a subprocess
 
     If the return code of the call is 0 then return stdout otherwise
@@ -791,7 +791,7 @@ def execute_command(cmds, env=None, cwd=None, logger=None, err_prefix=None) -> s
     """
 
     results = subprocess.run(cmds, env=env, cwd=cwd,
-                             stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+                             stderr=subprocess.PIPE, stdout=subprocess.PIPE, shell=use_shell)
     if results.returncode != 0:
         err_prefix = err_prefix if err_prefix is not None else "Error executing command"
         err_message = "\n{}: Below Command failed with non zero exit code.\n" \
