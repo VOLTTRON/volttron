@@ -1,12 +1,12 @@
-import os
-import tempfile
-import shutil
-import pytest
 import json
+import os
+import pytest
+import shutil
 import test_certs_utils
 from pathlib import Path
 from volttron.platform.certs import Certs, Subject, CertError
 from volttron.platform.agent.utils import get_platform_instance_name
+from volttrontesting.utils.platformwrapper import create_volttron_home
 
 INSTANCE_NAME = "VC"
 PLATFORM_CONFIG = """
@@ -66,7 +66,7 @@ def temp_volttron_home(request):
     Creates a volttron home, config, and platform_config.yml file
     for testing purposes.
     """
-    dirpath = tempfile.mkdtemp()
+    dirpath = create_volttron_home()
     os.environ['VOLTTRON_HOME'] = dirpath
     debug_flag = os.environ.get('DEBUG', True)
     with open(os.path.join(dirpath, "platform_config.yml"), 'w') as fp:
@@ -80,9 +80,6 @@ def temp_volttron_home(request):
     if not debug_flag:
         shutil.rmtree(dirpath, ignore_errors=True)
         assert not os.path.exists(dirpath)
-
-    #shutil.rmtree(dirpath, ignore_errors=True)
-    #assert not os.path.exists(dirpath)
 
 
 @pytest.fixture(scope="function")
@@ -105,6 +102,8 @@ def temp_csr(request):
 
     csr = certs.create_csr("FullyQualifiedIdentity", "RemoteInstanceName")
     yield certs, csr
+    del csr
+    del certs
 
 
 def test_certificate_directories(temp_volttron_home):
@@ -116,8 +115,9 @@ def test_certificate_directories(temp_volttron_home):
         assert os.path.exists(p)
 
 
+@pytest.mark.skipif('OpenSSL' not in os.listdir("/home/volttron/git/myvolttron/env/lib/python3.8/site-packages"),
+                    reason="Requires openssl")
 def test_create_root_ca(temp_volttron_home):
-
     certs = Certs()
     assert not certs.ca_exists()
     data = {'C': 'US',
@@ -155,6 +155,8 @@ def test_create_signed_cert_files(temp_volttron_home):
     assert existing_cert[0] == certs.cert("test_cert")
 
 
+@pytest.mark.skipif('OpenSSL' not in os.listdir("/home/volttron/git/myvolttron/env/lib/python3.8/site-packages"),
+                    reason="Requires openssl")
 def test_create_csr(temp_volttron_home):
     # Use TLS repo to create a CA
     tls = test_certs_utils.TLSRepository(repo_dir=temp_volttron_home, openssl_cnffile="openssl.cnf", serverhost="FullyQualifiedIdentity")
@@ -166,14 +168,15 @@ def test_create_csr(temp_volttron_home):
    
     # Create Volttron CSR using TLS repo CA
     csr = certs_using_tls.create_csr("FullyQualifiedIdentity", "RemoteInstanceName")
+
     # Write CSR to a file to verify
     csr_file_path = os.path.join(certs_using_tls.cert_dir, "CSR.csr")
     csr_private_key_path = certs_using_tls.private_key_file("FullyQualifiedIdentity")
     with open(csr_file_path, "wb") as f:
         f.write(csr)
 
-    # TODO: cant verify CSR because it starts with "BEGIN CERTIFICATE REQUEST" instead of "CERTIFICATE REQUEST"
-    print(tls.verify_csr(csr_file_path, csr_private_key_path))
+    csr_info = tls.verify_csr(csr_file_path, csr_private_key_path)
+    assert csr_info != None
 
 
 def test_approve_csr(temp_volttron_home, temp_csr):
