@@ -73,12 +73,13 @@ def test_should_not_remove_config_vhome_when_debugging(monkeypatch):
     assert not os.path.isdir(vhome)
 
 
-@pytest.mark.xfail
+#@pytest.mark.xfail
 def test_zmq_case_no_agents(monkeypatch):
     with create_vcfg_vhome() as vhome:
         monkeypatch.setenv("VOLTTRON_HOME", vhome)
         config_path = os.path.join(vhome, "config")
-
+        os.mkdir(config_path)
+        
         message_bus = "zmq"
         vip_address = "tcp://127.0.0.15"
         vip_port = "22916"
