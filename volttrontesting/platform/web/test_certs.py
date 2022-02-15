@@ -117,16 +117,22 @@ def test_certificate_directories(temp_volttron_home):
 
 
 def test_create_root_ca(temp_volttron_home):
+
     certs = Certs()
     assert not certs.ca_exists()
-    certs.create_root_ca()
+    data = {'C': 'US',
+            'ST': 'Washington',
+            'L': 'Richland',
+            'O': 'pnnl',
+            'OU': 'volttron',
+            'CN': INSTANCE_NAME+"_root_ca"}
+    certs.create_root_ca(**data)
     assert certs.ca_exists()
 
     private_key = certs.private_key_file("VC-root-ca")
     cert_file = certs.cert_file("VC-root-ca")
-
-    tls = TLSRepository(repo_dir=temp_volttron_home, openssl_cnffile="openssl.cnf", serverhost="FullyQualifiedIdentity")
-    tls.verify_ca_cert(private_key, cert_file)
+    tls = test_certs_utils.TLSRepository(repo_dir=temp_volttron_home, openssl_cnffile="openssl.cnf", serverhost="FullyQualifiedIdentity")
+    assert tls.verify_ca_cert(private_key, cert_file)
 
 
 def test_create_signed_cert_files(temp_volttron_home):
@@ -151,25 +157,23 @@ def test_create_signed_cert_files(temp_volttron_home):
 
 def test_create_csr(temp_volttron_home):
     # Use TLS repo to create a CA
-    tls = TLSRepository(repo_dir=temp_volttron_home, openssl_cnffile="openssl.cnf", serverhost="FullyQualifiedIdentity")
+    tls = test_certs_utils.TLSRepository(repo_dir=temp_volttron_home, openssl_cnffile="openssl.cnf", serverhost="FullyQualifiedIdentity")
     tls.__create_ca__()
-
     certs_using_tls = Certs(temp_volttron_home)
 
     assert certs_using_tls.cert_exists("VC-root-ca")
     assert Path(certs_using_tls.cert_file("VC-root-ca")) == tls._ca_cert
    
     # Create Volttron CSR using TLS repo CA
-    csr = certs.create_csr("FullyQualifiedIdentity", "RemoteInstanceName")
-
+    csr = certs_using_tls.create_csr("FullyQualifiedIdentity", "RemoteInstanceName")
     # Write CSR to a file to verify
     csr_file_path = os.path.join(certs_using_tls.cert_dir, "CSR.csr")
-    f = open(csr_file_path, "wb")
-    f.write(csr)
-    f.close()
+    csr_private_key_path = certs_using_tls.private_key_file("FullyQualifiedIdentity")
+    with open(csr_file_path, "wb") as f:
+        f.write(csr)
 
     # TODO: cant verify CSR because it starts with "BEGIN CERTIFICATE REQUEST" instead of "CERTIFICATE REQUEST"
-    print(tls.verify_csr(csr_file_path))
+    print(tls.verify_csr(csr_file_path, csr_private_key_path))
 
 
 def test_approve_csr(temp_volttron_home, temp_csr):
