@@ -23,9 +23,8 @@ Before we dive into the example, we establish the following concepts:
 The general steps to use Asyncio within the Volttron Agent framework are the following:
 
 1. Create an async method.
-2. Create a method that instantiates an Asyncio Event Loop, adds the async method created in the previous step to the Event Loop, and then starts the Event Loop.
-3. Create a method that will spawn a Greenlet and then run the Event Loop that was created in the previous step within the Greenlet.
-4. Add the method from the previous step as part of the agent's 'onstart' method.
+2. Create a method which creates and starts the Asyncio Event Loop.
+3. Use gevent.spawn (or spawn_later) to start a greenlet using the method in step 2.
 
 Below are code examples of how to implement the steps within an agent. For demonstration purposes, we name this agent, ExampleAsyncioAgent.
 
@@ -35,56 +34,39 @@ Step 1: Create an async method.
 
     class ExampleAsyncioAgent(Agent):
 
+        # This is the async method.
         async def handle_event(self, event):
-            # do things that include a blocking call
             ...
-
+            # releases control so other coroutines can run.
             await asyncio.sleep(1)
             return "hello!"
 
 
-Step 2. Create a method that instantiates an Asyncio Event Loop, adds the async method created in the previous step to the Event Loop, and then starts the Event Loop.
+Step 2. Create a method which creates and starts the Asyncio Event Loop.
 
 .. code-block:: python
 
     class ExampleAsyncioAgent(Agent):
 
+        # This is a wrapper method that is self contained for launching from gevent.
         def _start_asyncio_loop(self):
             loop = asyncio.get_event_loop()
             loop.create_task(self.handle_event)
             loop.run_forever()
 
 
-3. Create a method that will spawn a Greenlet and then run the Event Loop that was created in the previous step within the Greenlet.
-
-In this example, we will name this method 'self._configure_agent'. It contains code to configure our agent including running the Event Loop.
-When Volttron starts the agent, it will call this method. This method uses Gevent to spawn the Greenlet.
+Step 3. Create a method that will spawn a Greenlet and then run the Event Loop that was created in the previous step within the Greenlet.
 
 .. code-block:: python
 
     class ExampleAsyncioAgent(Agent):
 
-        def _configure_agent(self, config_name, action, contents):
-            # do some configuration
-            ...
-
-            gevent.spawn_later(3, self._start_asyncio_loop)
-
-4. Add the method from the previous step as part of the agent's 'onstart' method.
-
-The method to spawn the Greenlet can be placed anywhere in the agent. For this example, we want to spawn the Greenlet whenever
-the agent starts. Therefore, we will call the method that spawns the Greenlet inside the 'onstart' method.
-
-.. code-block:: python
-
-    class ExampleAsyncioAgent(Agent):
-
-        @Core.receiver("onstart")
+        @Core.receiver('onstart')
         def onstart(self, sender, **kwargs):
-            # do other startup tasks as required
-            ...
 
-            self._configure_agent(**kwargs)
+            # Spawn greenlet in 3 seconds, use self._start_asyncio_loop as a callback for executing
+            # the greenlet
+            gevent.spawn_later(3, self._start_asyncio_loop)
 
 
 To review, below is the complete agent class with all the relevant and aforementioned codeblocks:
@@ -98,15 +80,6 @@ To review, below is the complete agent class with all the relevant and aforement
 
         @Core.receiver("onstart")
         def onstart(self, sender, **kwargs):
-            # do other startup tasks as required
-            ...
-
-            self._configure_agent(**kwargs)
-
-        def _configure_agent(self, config_name, action, contents):
-            # do some configuration
-            ...
-
             gevent.spawn_later(3, self._start_asyncio_loop)
 
         def _start_asyncio_loop(self):
