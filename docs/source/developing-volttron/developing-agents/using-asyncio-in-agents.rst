@@ -55,7 +55,7 @@ Step 2. Create a method which creates and starts the Asyncio Event Loop.
             loop.run_forever()
 
 
-Step 3. Create a method that will spawn a Greenlet and then run the Event Loop that was created in the previous step within the Greenlet.
+Step 3.  Use gevent.spawn (or spawn_later) to start a greenlet using the method in step 2.
 
 .. code-block:: python
 
@@ -66,6 +66,9 @@ Step 3. Create a method that will spawn a Greenlet and then run the Event Loop t
 
             # Spawn greenlet in 3 seconds, use self._start_asyncio_loop as a callback for executing
             # the greenlet
+            #
+            # Does not have to be in onstart can be in any function, but must be after the agent
+            # has started up.
             gevent.spawn_later(3, self._start_asyncio_loop)
 
 
