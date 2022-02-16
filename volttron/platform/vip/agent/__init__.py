@@ -112,7 +112,8 @@ class Agent(object):
                                     reconnect_interval=reconnect_interval,
                                     version=version,
                                     volttron_central_address=volttron_central_address,
-                                    volttron_central_instance_name=volttron_central_instance_name)
+                                    volttron_central_instance_name=volttron_central_instance_name, 
+                                    enable_auth=enable_auth)
             else:
                 _log.debug("Creating ZMQ Core {}".format(identity))
                 self.core = ZMQCore(self, identity=identity, address=address,
@@ -121,7 +122,8 @@ class Agent(object):
                                     instance_name=instance_name,
                                     volttron_home=volttron_home, agent_uuid=agent_uuid,
                                     reconnect_interval=reconnect_interval,
-                                    version=version, enable_fncs=enable_fncs)
+                                    version=version, enable_fncs=enable_fncs, 
+                                    enable_auth=enable_auth)
             self.vip = Agent.Subsystems(self, self.core, heartbeat_autostart,
                                         heartbeat_period, enable_store, enable_web,
                                         enable_channel, enable_fncs, enable_auth, message_bus)

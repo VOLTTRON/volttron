@@ -36,12 +36,23 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
+import os
+import volttron.platform
 
 #BaseAuthorization class
 class BaseAuthorization(object):
-    def __init__(self) -> None:
+    def __init__(self, address=None, identity=None, 
+                 publickey=None, secretkey=None, serverkey=None,
+                 volttron_home=os.path.abspath(volttron.platform.get_home()),
+                 agent_uuid=None) -> None:
         super().__init__()
-
+        self.publickey = publickey
+        self.secretkey = secretkey
+        self.serverkey = serverkey
+        self.address = address
+        self.agent_uuid = agent_uuid
+        self.identity = identity
+        self.volttron_home = volttron_home
 
 #BaseAuthentication class
 class BaseAuthentication(object):

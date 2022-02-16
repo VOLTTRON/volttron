@@ -64,6 +64,7 @@ from volttron.platform import is_rabbitmq_available
 from volttron.platform.agent import utils
 from volttron.platform.agent.utils import load_platform_config, get_platform_instance_name
 from volttron.platform.keystore import KeyStore, KnownHostsStore
+from volttron.platform.auth.auth_protocols.auth_zmq import ZMQAuthorization
 from volttron.utils.rmq_mgmt import RabbitMQMgmt
 from .decorators import annotate, annotations, dualmethod
 from .dispatch import Signal
@@ -542,6 +543,7 @@ class Core(BasicCore):
     # when we are attempting to connect to a zmq bus from a rmq bus this will be used
     # to create the public and secret key for that connection or use it if it was already
     # created.
+    # TODO: Remove from here. Handled by ZMQAuthorization
     def _get_keys_from_keystore(self):
         '''Returns agent's public and secret key from keystore'''
         if self.agent_uuid:
@@ -634,11 +636,7 @@ class ZMQCore(Core):
                  volttron_home=os.path.abspath(platform.get_home()),
                  agent_uuid=None, reconnect_interval=None,
                  version='0.1', enable_fncs=False,
-                 instance_name=None, messagebus='zmq'):
-        #SN -- Testing
-        publickey = None
-        secretkey = None
-        serverkey = None
+                 instance_name=None, messagebus='zmq', auth_enabled=True):
         super(ZMQCore, self).__init__(owner, address=address, identity=identity,
                                       context=context, publickey=publickey, secretkey=secretkey,
                                       serverkey=serverkey, volttron_home=volttron_home,
@@ -648,8 +646,18 @@ class ZMQCore(Core):
         self.context = context or zmq.Context.instance()
         self._fncs_enabled = enable_fncs
         self.messagebus = messagebus
+        self.auth_enabled = auth_enabled
         #SN -- Testing
-        #self._set_keys()
+        zmq_auth = None
+        if self.auth_enabled:
+            zmq_auth = ZMQAuthorization(address=address, identity=identity, 
+                 publickey=publickey, secretkey=secretkey, serverkey=serverkey,
+                 volttron_home=volttron_home, agent_uuid=agent_uuid)
+            zmq_auth._set_keys()
+            self.publickey = zmq_auth.publickey
+            self.secretkey = zmq_auth.secretkey
+            self.serverkey = zmq_auth.serverkey
+            self.address = zmq_auth.address
 
         _log.debug("AGENT RUNNING on ZMQ Core {}".format(self.identity))
 
@@ -907,7 +915,7 @@ class RMQCore(Core):
                  agent_uuid=None, reconnect_interval=None,
                  version='0.1', instance_name=None, messagebus='rmq',
                  volttron_central_address=None,
-                 volttron_central_instance_name=None):
+                 volttron_central_instance_name=None, auth_enabled=True):
         super(RMQCore, self).__init__(owner, address=address, identity=identity,
                                       context=context, publickey=publickey, secretkey=secretkey,
                                       serverkey=serverkey, volttron_home=volttron_home,
@@ -937,6 +945,7 @@ class RMQCore(Core):
         self.messagebus = messagebus
         self.rmq_mgmt = RabbitMQMgmt()
         self.rmq_address = address
+        # TODO: Change for non-auth case
         # added so that it is available to auth subsytem when connecting
         # to remote instance
         if self.publickey is None or self.secretkey is None:
