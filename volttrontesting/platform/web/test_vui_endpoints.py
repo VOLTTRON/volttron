@@ -271,7 +271,7 @@ def _mock_agents_rpc(peer, meth, *args, external_platform=None, **kwargs):
         uuid = [a['uuid'] for a in list_of_agents if a['identity'] == args[0]]
         return uuid[0] if uuid else None
     elif peer == 'control' and meth == 'status_agents':
-        return [['1', '', ['', '']], ['2', '', ['', '']]]
+        return [['1', '', [10, None]], ['2', '', [11, None]], ['4', '', [12, 0]]]
     elif peer == 'control' and meth == 'peerlist':
         return ['run1', 'run2', 'hid1', 'hid2']
     elif peer == 'control' and meth == 'inspect':
@@ -479,7 +479,7 @@ def test_handle_platforms_rpc_method_post_response(mock_platform_web_service):
     assert body == [1, 2]
 
 
-@pytest.mark.parametrize("method, status", gen_response_codes(['GET'], ['PUT', 'DELETE']))
+@pytest.mark.parametrize("method, status", gen_response_codes(['GET'], []))
 def test_handle_platforms_agents_status_status_code(mock_platform_web_service, method, status):
     env = get_test_web_env('/vui/platforms/my_instance_name/agents/run1/status', method=method,
                            HTTP_AUTHORIZATION='Bearer foo')
@@ -491,11 +491,13 @@ def test_handle_platforms_agents_status_status_code(mock_platform_web_service, m
 
 @pytest.mark.parametrize('vip_identity, expected', [
     ('run1', {'name': 'rn1', 'uuid': '1', 'tag': 'r1', 'priority': None, 'running': True,
-              'enabled': False}),
+              'enabled': False, 'pid': 10, 'exit_code': None}),
     ('run2', {'name': 'rn2', 'uuid': '2', 'tag': 'r2', 'priority': 50, 'running': True,
-              'enabled': True}),
+              'enabled': True, 'pid': 11, 'exit_code': None}),
+    ('stopped1', {'name': 'stp1', 'uuid': '3', 'tag': 'st1', 'priority': None, 'running': False,
+                  'enabled': False, 'pid': None, 'exit_code': None}),
     ('stopped2', {'name': 'stp2', 'uuid': '4', 'tag': 'st2', 'priority': 35, 'running': False,
-                  'enabled': True}),
+                  'enabled': True, 'pid': 12, 'exit_code': 0}),
     ('not_exist', {'error': 'Agent "not_exist" not found.'})])
 def test_handle_platforms_agents_status_get_response(mock_platform_web_service, vip_identity, expected):
     path = f'/vui/platforms/my_instance_name/agents/{vip_identity}/status'
@@ -759,7 +761,7 @@ def test_handle_platforms_historians_historian_topics_get_response(mock_platform
             assert 'value' in keys if return_values else 'value' not in keys
 
 
-@pytest.mark.parametrize("method, status", gen_response_codes(['GET'], ['PUT', 'DELETE']))
+@pytest.mark.parametrize("method, status", gen_response_codes(['GET'], ['DELETE']))
 def test_handle_platforms_status_status_code(mock_platform_web_service, method, status):
     env = get_test_web_env('/vui/platforms/my_instance_name/status', method=method,
                            HTTP_AUTHORIZATION='Bearer foo')
@@ -771,13 +773,13 @@ def test_handle_platforms_status_status_code(mock_platform_web_service, method, 
 
 @pytest.mark.parametrize('expected', [{
     'run1': {'name': 'rn1', 'uuid': '1', 'tag': 'r1', 'priority': None, 'running': True,
-             'enabled': False},
+             'enabled': False, 'pid': 10, 'exit_code': None},
     'run2': {'name': 'rn2', 'uuid': '2', 'tag': 'r2', 'priority': 50, 'running': True,
-             'enabled': True},
+             'enabled': True, 'pid': 11, 'exit_code': None},
     'stopped1': {'name': 'stp1', 'uuid': '3', 'tag': 'st1', 'priority': None,  'running': False,
-                 'enabled': False},
+                 'enabled': False, 'pid': None, 'exit_code': None},
     'stopped2': {'name': 'stp2', 'uuid': '4', 'tag': 'st2', 'priority': 35, 'running': False,
-                 'enabled': True}}])
+                 'enabled': True, 'pid': 12, 'exit_code': 0}}])
 def test_handle_platforms_status_get_response(mock_platform_web_service, expected):
     path = f'/vui/platforms/my_instance_name/status'
     env = get_test_web_env(path, method='GET', HTTP_AUTHORIZATION='Bearer foo')
@@ -794,4 +796,5 @@ def test_handle_platforms_status_delete_response(mock_platform_web_service):
     vui_endpoints._rpc = MagicMock(wraps=_mock_agents_rpc)
     response = vui_endpoints.handle_platforms_status(env, {})
     check_response_codes(response, '204')
-    vui_endpoints._rpc.assert_has_calls([mock.call('control', 'clear_status', True)])
+    vui_endpoints._rpc.assert_has_calls([mock.call('control', 'clear_status', True,
+                                                   external_platform='my_instance_name')])

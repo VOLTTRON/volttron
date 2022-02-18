@@ -390,8 +390,8 @@ class VUIEndpoints(object):
 
         if request_method == 'GET':
             try:
-                list_of_agents = self._get_status_list(platform)
-                our_agent = list_of_agents[vip_identity]
+                status_dict = self._get_status(platform)
+                our_agent = status_dict[vip_identity]
                 return Response(json.dumps(our_agent), 200,
                                 content_type='application/json')
             except KeyError as e:
@@ -760,14 +760,14 @@ class VUIEndpoints(object):
 
         if request_method == 'GET':
             try:
-                list_of_agents = self._get_status_list(platform)
-                return Response(json.dumps(list_of_agents), 200,
+                status_dict = self._get_status(platform)
+                return Response(json.dumps(status_dict), 200,
                                 content_type='application/json')
             except MethodNotFound or ValueError as e:
                 return Response(json.dumps({f'error': f'For agent  {e}'}),
                                 400, content_type='application/json')
         if request_method == 'DELETE':
-            self._rpc('control', 'clear_status', True)
+            self._rpc('control', 'clear_status', True, external_platform=platform)
             return Response('Status Cleared', 204, content_type='application/json')
 
     def _find_active_sub_routes(self, segments: list, path_info: str = None, enclose=True) -> dict or list:
@@ -819,31 +819,21 @@ class VUIEndpoints(object):
         elif agent_state == 'packaged':
             return [os.path.splitext(a)[0] for a in os.listdir(f'{self._agent.core.volttron_home}/packaged')]
 
-    def _get_status_list(self, platform: str):
+    def _get_status(self, platform: str):
         list_of_agents = self._rpc('control', 'list_agents', external_platform=platform)
         running_agents = self._rpc('control', 'status_agents', external_platform=platform)
-        uuid_of_running_agents = []
-        agents_status_list = {}
-        number_of_item_searched = 0
-        for items in running_agents:
-            uuid_of_running_agents.append(items[0])
-        _log.debug(f'got all the uuid{uuid_of_running_agents}')
-        for items in list_of_agents:
-            agent_identity = list_of_agents[number_of_item_searched]['identity']
-            agents_status_list[agent_identity] = list_of_agents[number_of_item_searched]
-            _log.debug(f'assigned identity: {agents_status_list}')
-            del agents_status_list[agent_identity]['identity']
-            if items['uuid'] in uuid_of_running_agents:
-                _log.debug(f'is running<------------------------------------------------')
-                agents_status_list[agent_identity]['running'] = True
-            else:
-                agents_status_list[agent_identity]['running'] = False
-            if items['priority']:
-                agents_status_list[agent_identity]['enabled'] = True
-            else:
-                agents_status_list[agent_identity]['enabled'] = False
-            number_of_item_searched += 1
-        return agents_status_list
+        running_agents = {a[0]: {'pid': a[2][0], 'exit_code': a[2][1]} for a in running_agents}
+        ret_dict = {}
+        for la in list_of_agents:
+            ra = running_agents.get(la['uuid'])
+            agent_identity = la.pop('identity')
+            _log.debug(f'assigned identity: {ret_dict}')
+            la['running'] = True if ra and ra['exit_code'] is None else False
+            la['enabled'] = True if la['priority'] else False
+            la['pid'] = ra['pid'] if ra else None
+            la['exit_code'] = ra['exit_code'] if ra else None
+            ret_dict[agent_identity] = la
+        return ret_dict
 
     def _rpc(self, vip_identity, method, *args, external_platform=None, **kwargs):
         external_platform = {'external_platform': external_platform}\
