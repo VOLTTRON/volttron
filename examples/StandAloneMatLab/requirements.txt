@@ -12,6 +12,6 @@ pyzmq==22.2.1
 setuptools==39.0.1
 tzlocal==2.1
 pyOpenSSL==19.0.0
-cryptography==2.3
+cryptography==3.3.2
 watchdog-gevent==0.1.1
 wheel==0.30
