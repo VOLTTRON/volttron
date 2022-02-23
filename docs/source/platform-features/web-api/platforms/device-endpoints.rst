@@ -51,80 +51,78 @@ additional sub-topics matching the provided partial topic.  If a full topic is p
 points indicated by the topic. In addition to the ``tag`` and ``regex`` query parameters described
 in the *Use of Topics* section above, the following query parameters are accepted:
 
-    * ``read-all`` (default=false):
-        If true, the response will return entries for every point. These will be a set of JSON objects
-        with `route`, `writability`, and `value` unless the result is further filtered by the
-        corresponding query parameters.
-    * ``routes`` (default=true):
-        If true, the result will include the route to the points.
-    * ``writability`` (default=true):
-        If true, the result will include the writability of the points.
-    * ``values`` (default=true):
-        If true, the result will include the value of the points.
-    * ``config`` (default=false):
-        If true, the result will include information about the configuration of the point.
+* ``read-all`` (default=false):
+    If true, the response will return entries for every point. These will be a set of JSON objects
+    with `route`, `writability`, and `value` unless the result is further filtered by the
+    corresponding query parameters.
+* ``routes`` (default=true):
+    If true, the result will include the route to the points.
+* ``writability`` (default=true):
+    If true, the result will include the writability of the points.
+* ``values`` (default=true):
+    If true, the result will include the value of the points.
+* ``config`` (default=false):
+    If true, the result will include information about the configuration of the point.
 
 Request:
 --------
 
-    - Authorization: ``BEARER <jwt_access_token>``
+* Authorization: ``BEARER <jwt_access_token>``
 
 Response:
 ---------
 
-    * **With valid BEARER token on success:** ``200 OK``
-        -  Content Type: ``application/json``
-        -  Body:
+* **With valid BEARER token on success:** ``200 OK``
+    -  Content Type: ``application/json``
+    -  Body:
 
-            + For partial topics, where the ``read-all`` query parameter is false:
-
-                This example shows a partial topic, structured as `campus/building/device/point`,
-                where two segments were provided (the topic provided was `MyCampus/Building1`.
-                Devices within the building are returned:
-
-                .. code-block:: JSON
-
-                    {
-                        "route_options": {
-                            "<device1>": "/platforms/:platform/devices/MyCampus/Building1/<device1>",
-                            "<device2>": "/platforms/:platform/devices/MyCampus/Building1/<device2>"
-                        }
-                    }
-
-            + For full topics, or where a partial topic is provided and the ``read-all`` query parameter is true:
-
-                This example shows the result of a topic: `MyCampus/Building1/-/Point4`. Note that
-                the wildcard selects all devices in `Building1` with a point called `Point4`.
-                ``read-all`` does not need to be ``true`` for this case to get data, as a point segment was provided.
-                Other query parameters were not provided or were set to their default values.
-
-                .. code-block:: JSON
-
-                    {
-                        "MyCampus/Building1/Device1/Point4": {
-                            "route": "/platform/:platform/devices/MyCampus/Building1/Device1/Point4",
-                            "writable": true,
-                            "value": 42
-                        },
-                        {
-                        "MyCampus/Building1/Device2/Point4": {
-                            "route": "/platform/:platform/devices/MyCampus/Building1/Device2/Point4",
-                            "writable": false,
-                            "value": 23
-                        }
-                    }
-
-    * **With valid BEARER token on failure:** ``400 Bad Request``
-        - Content Type: ``application/json``
-        - Body:
+        + For partial topics, where the ``read-all`` query parameter is false:
+            This example shows a partial topic, structured as `campus/building/device/point`,
+            where two segments were provided (the topic provided was `MyCampus/Building1`.
+            Devices within the building are returned:
 
             .. code-block:: JSON
 
                 {
-                    "error": "<Error Message>"
+                    "route_options": {
+                        "<device1>": "/platforms/:platform/devices/MyCampus/Building1/<device1>",
+                        "<device2>": "/platforms/:platform/devices/MyCampus/Building1/<device2>"
+                    }
                 }
 
-    * **With invalid BEARER token:** ``401 Unauthorized``
+        + For full topics, or where a partial topic is provided and the ``read-all`` query parameter is true:
+            This example shows the result of a topic: `MyCampus/Building1/-/Point4`. Note that
+            the wildcard selects all devices in `Building1` with a point called `Point4`.
+            ``read-all`` does not need to be ``true`` for this case to get data, as a point segment was provided.
+            Other query parameters were not provided or were set to their default values.
+
+            .. code-block:: JSON
+
+                {
+                    "MyCampus/Building1/Device1/Point4": {
+                        "route": "/platform/:platform/devices/MyCampus/Building1/Device1/Point4",
+                        "writable": true,
+                        "value": 42
+                    },
+                    {
+                    "MyCampus/Building1/Device2/Point4": {
+                        "route": "/platform/:platform/devices/MyCampus/Building1/Device2/Point4",
+                        "writable": false,
+                        "value": 23
+                    }
+                }
+
+* **With valid BEARER token on failure:** ``400 Bad Request``
+    - Content Type: ``application/json``
+    - Body:
+
+      .. code-block:: JSON
+
+            {
+                "error": "<Error Message>"
+            }
+
+* **With invalid BEARER token:** ``401 Unauthorized``
 
 
 PUT /platforms/:platform/devices/:topic/
@@ -133,11 +131,11 @@ PUT /platforms/:platform/devices/:topic/
 Sets the value of the specified point and returns its new value and meta-data. In addition to the tag and regex query
 parameters described in the Use of Topics section above, the following query parameters are accepted:
 
-    * ``write-all`` (default=false):
-        If true, the response will write the given value to all points matching the topic. It is *always* necessary to
-        set write-all=true if more than one point is intended to be written in response to the request.
-    * ``confirm-values`` (default=false):
-        If true, the current value of any written points will be read and returned after the write.
+* ``write-all`` (default=false):
+    If true, the response will write the given value to all points matching the topic. It is *always* necessary to
+    set write-all=true if more than one point is intended to be written in response to the request.
+* ``confirm-values`` (default=false):
+    If true, the current value of any written points will be read and returned after the write.
 
 .. warning::
     If an attempt is made to set a point which is not writable, or if multiple points are selected
@@ -147,13 +145,13 @@ parameters described in the Use of Topics section above, the following query par
 Request:
 --------
 
-- Authorization: ``BEARER <jwt_access_token>``
+* Authorization: ``BEARER <jwt_access_token>``
 
-- Content Type: ``application/json``
+* Content Type: ``application/json``
 
-- Body:
+* Body:
 
-    .. code-block:: JSON
+  .. code-block:: JSON
 
         {
             "value": <value>
