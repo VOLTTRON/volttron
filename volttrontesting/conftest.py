@@ -6,6 +6,8 @@ from volttrontesting.fixtures.volttron_platform_fixtures import *
 # Add system path of the agent's directory
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
+os.environ["VOLTTRON_ROOT"] = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
+
 test_to_instance = {}
 
 

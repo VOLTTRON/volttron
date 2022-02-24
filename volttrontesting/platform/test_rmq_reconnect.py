@@ -50,7 +50,7 @@ from volttron.utils.rmq_setup import start_rabbit, stop_rabbit
 from volttron.utils.rmq_config_params import RMQConfig
 from volttron.platform.vip.agent.errors import Unreachable
 
-pytestmark = [pytest.mark.xfail]
+#pytestmark = [pytest.mark.xfail]
 
 
 @pytest.fixture(scope="module")
@@ -90,6 +90,7 @@ def subscriber_agent(request, volttron_instance_rmq):
 
 
 @pytest.mark.rmq_reconnect
+@pytest.mark.xfail
 def test_on_rmq_reconnect(volttron_instance_rmq, publisher_agent, subscriber_agent):
     """
     Test the fix for issue# 1702
@@ -118,11 +119,12 @@ def test_on_rmq_reconnect(volttron_instance_rmq, publisher_agent, subscriber_age
                                        topic='test/test_message',
                                        headers={},
                                        message="This is test message after rmq reconnect")
-    gevent.sleep(0.1)
+    gevent.sleep(0.5)
     assert subscriber_agent.callback.call_count == 2
 
 
 @pytest.mark.rmq_reconnect
+@pytest.mark.xfail
 def test_rmq_reconnect_with_publish(volttron_instance_rmq, publisher_agent, subscriber_agent):
     """
     Test the fix for issue# 1702
@@ -164,7 +166,7 @@ def test_rmq_reconnect_with_publish(volttron_instance_rmq, publisher_agent, subs
     gevent.sleep(0.1)
     assert subscriber_agent.callback.call_count >= 2
 
-
+# PASSING
 @pytest.mark.rmq_reconnect
 def test_resource_lock_condition(request, volttron_instance_rmq):
     agent1 = volttron_instance_rmq.build_agent(identity='agentx')
