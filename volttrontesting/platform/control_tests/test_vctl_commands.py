@@ -355,5 +355,67 @@ def test_agent_filters(volttron_instance):
         assert "listeneragent-3.3_1" in str(agent_list)
         assert "listeneragent-3.3_2" not in str(agent_list)
 
+@pytest.mark.control
+def test_all_tagged_option(volttron_instance: PlatformWrapper):
+    global listener_agent_dir
+    with with_os_environ(volttron_instance.env):
+        identity = "listener"
+        tag_name = "listener"
+        install_listener = [
+            "volttron-ctl",
+            "--json",
+            "install",
+            listener_agent_dir,
+            "--vip-identity",
+            identity,
+            "--tag",
+            tag_name
+        ]
+        install_listener2 = [
+            "volttron-ctl",
+            "--json",
+            "install",
+            listener_agent_dir,
+            "--vip-identity",
+            f"{identity}2",
+            "--tag",
+            tag_name
+        ]
+        
+        # install two tagged agents
+        jsonapi.loads(execute_command(install_listener, volttron_instance.env))
+        jsonapi.loads(execute_command(install_listener2, volttron_instance.env))
+         
+        check_all_status = ["vctl", "--json", "status"]
+        status = jsonapi.loads(execute_command(check_all_status, volttron_instance.env))
+        for v in status.values(): 
+            assert not v['health']
+            assert not v['status']
+            
+        # start all tagged
+        start_all_tagged = ["vctl", "start", "--all-tagged"]
+        execute_command(start_all_tagged, volttron_instance.env)
+        
+        status = jsonapi.loads(execute_command(check_all_status, volttron_instance.env))
+        for v in status.values():
+            assert v['health']
+            assert 'running' in v['status']
 
+        # stop all tagged
+        stop_all_tagged = ["vctl", "stop", "--all-tagged"]
+        execute_command(stop_all_tagged, volttron_instance.env)
 
+        status = jsonapi.loads(execute_command(check_all_status, volttron_instance.env))
+        for v in status.values(): 
+            assert not v['health']
+            assert not int(v['status']) # status is a '0' when agent is stopped 
+        
+        # restart all tagged
+        execute_command(start_all_tagged, volttron_instance.env)
+        restart_all_tagged = ["vctl", "restart", "--all-tagged", "listener"]
+        execute_command(restart_all_tagged, volttron_instance.env)
+        
+        status = jsonapi.loads(execute_command(check_all_status, volttron_instance.env))
+        for v in status.values():
+            assert v['health']
+            assert 'running' in v['status']
