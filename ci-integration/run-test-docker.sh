@@ -114,7 +114,7 @@ process_pid(){
                 if [[ ${FAST_FAIL} -eq 0 && -n ${CI} ]]; then
                     docker logs "${containernames[$index]}"
                 fi
-                if [ ${FAST_FAIL} ]; then
+                if [ "${FAST_FAIL}" ]; then
                     echo "Exiting cleanly now!"
                     exit_cleanly
                 else
@@ -141,7 +141,7 @@ process_pid(){
 #LOOP through set of directories and run bunch of test files in parallel
 for dir in "${testdirs[@]}"
 do
-    for file in $( find $dir -type f -name "test*.py" -o -name "*test.py" ! -name "*conftest.py" )
+    for file in $( find "$dir" -type f -name "test*.py" -o -name "*test.py" ! -name "*conftest.py" )
     do
         echo "$file";
         ignore=0
