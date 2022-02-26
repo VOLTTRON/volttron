@@ -45,7 +45,7 @@ on VOLTTRON proper. A VOLTTRON Central Agent must
 be running on the url passed to the constructor.
 """
 
-class VolttronWebRPC(object):
+class VolttronWebRPC:
     def __init__(self, url, username='admin', password='admin'):
         """
         :param url: Jsonrpc endpoint for posting data.

@@ -1775,7 +1775,7 @@ def _ask_for_auth_fields(
 ):
     """Prompts user for Auth Entry fields."""
 
-    class Asker(object):
+    class Asker:
         def __init__(self):
             self._fields = collections.OrderedDict()
 
@@ -2495,7 +2495,7 @@ def edit_config(opts):
         )
 
 
-class ControlConnection(object):
+class ControlConnection:
     def __init__(self, address, peer="control"):
         self.address = address
         self.peer = peer

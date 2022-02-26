@@ -100,7 +100,7 @@ def obix_history(config_path, **kwargs):
                        **kwargs)
 
 
-class Register(object):
+class Register:
 
     def __init__(self, url, device_topic, point_name, obix_point, last_read):
         self.url = url

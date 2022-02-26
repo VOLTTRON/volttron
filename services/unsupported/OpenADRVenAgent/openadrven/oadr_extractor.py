@@ -51,7 +51,7 @@ utils.setup_logging()
 _log = logging.getLogger(__name__)
 
 
-class OadrExtractor(object):
+class OadrExtractor:
     """Extract oadr model objects received from the VTN as XML."""
 
     def __init__(self, request=None, **kwargs):

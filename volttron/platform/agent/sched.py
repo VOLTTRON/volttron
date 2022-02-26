@@ -43,7 +43,7 @@ import heapq
 import time as time_mod
 
 
-class Event(object):
+class Event:
     '''Base class for schedulable objects.'''
 
     __slots__ = ['function', 'args', 'kwargs', 'canceled', 'finished']
@@ -87,7 +87,7 @@ class RecurringEvent(Event):
         self.finished = True
 
 
-class Queue(object):
+class Queue:
     def __init__(self):
         self._queue = []
 

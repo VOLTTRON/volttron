@@ -50,7 +50,7 @@ class Timeout(Exception):
     '''Raised in the thread when waiting on a queue times out.'''
 
 
-class WaitQueue(object):
+class WaitQueue:
     '''A holder for threads waiting on asynchronous data.'''
 
     def __init__(self, lock=None):

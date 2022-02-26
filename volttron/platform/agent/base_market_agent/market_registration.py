@@ -44,7 +44,7 @@ from volttron.platform.agent.base_market_agent.error_codes import NOT_FORMED
 _log = logging.getLogger(__name__)
 utils.setup_logging()
 
-class MarketRegistration(object):
+class MarketRegistration:
     def __init__(self, market_name, buyer_seller, reservation_callback, offer_callback,
                  aggregate_callback, price_callback, error_callback, verbose_logging = True):
         self.market_name = market_name

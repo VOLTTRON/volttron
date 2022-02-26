@@ -84,7 +84,7 @@ _log = logging.getLogger(__name__)
 """
 
 
-class RabbitMQMgmt(object):
+class RabbitMQMgmt:
     def __init__(self):
         self.rmq_config = RMQConfig()
         self.is_ssl = self.rmq_config.is_ssl

@@ -75,7 +75,7 @@ class Socket(_Socket, _zmq.Socket):
     _local_class = _local
 
 
-class BaseConnection(object):
+class BaseConnection:
     """
     Base connection class for message bus connection.
     """

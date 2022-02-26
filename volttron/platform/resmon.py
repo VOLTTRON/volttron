@@ -119,7 +119,7 @@ class ResourceError(Exception):
     pass
 
 # TODO is a simple import adequate
-# class ExecutionEnvironment(object):
+# class ExecutionEnvironment:
 #     '''Environment reserved for agent execution.
 #
 #     Deleting ExecutionEnvironment objects should cause the process to
@@ -140,7 +140,7 @@ class ResourceError(Exception):
 #         self.execute(*args, **kwargs)
 
 
-class ResourceMonitor(object):
+class ResourceMonitor:
     def __init__(self, env, **kwargs):
         pass
 

@@ -74,7 +74,7 @@ def write_to_config_file(filename, data):
         _log.error(f"Yaml Error: {filename}. Exception: {exc}")
 
 
-class RMQConfig(object):
+class RMQConfig:
     """
     Utility class to read/write RabbitMQ related configuration
     """
