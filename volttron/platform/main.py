@@ -289,7 +289,7 @@ class FramesFormatter(object):
 
 class Router(BaseRouter):
     '''Concrete VIP router.'''
-
+    # Add ZMQClientAuthentication - for building address using public/secretkey ?
     def __init__(self, local_address, addresses=(),
                  context=None, secretkey=None, publickey=None,
                  default_user_id=None, monitor=False, tracker=None,

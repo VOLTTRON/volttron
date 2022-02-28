@@ -48,6 +48,7 @@ from zmq import green as zmq
 from zmq.green import ZMQError, EAGAIN, ENOTSOCK
 from zmq.utils.monitor import recv_monitor_message
 import volttron.platform
+from volttron.platform.auth.auth_utils import dump_user, load_user
 from volttron.platform.auth.auth_protocols.auth_protocol import BaseAuthorization, BaseAuthentication
 from volttron.platform.keystore import KeyStore, KnownHostsStore
 from volttron.platform.vip.agent.core import ZMQCore
@@ -56,18 +57,27 @@ from volttron.platform.vip.socket import encode_key, BASE64_ENCODED_CURVE_KEY_LE
 _log = logging.getLogger(__name__)
 
 
-#ZMQAuthorization(BaseAuthorization)
-
-class ZMQAuthorization(BaseAuthorization):
-    def __init__(self, address=None, identity=None, 
+# ZMQAuthorization(BaseAuthorization)
+# ZMQClientAuthentication(BaseAuthentication) - Client create and verify keys
+# ZMQServerAuthentication(object) - Zap loop (Auth File Entries)
+# ZMQServerAuthorization - Approve, deny, delete certs
+# ZMQParameters(Parameters)
+class ZMQClientAuthentication(BaseAuthentication):
+    def __init__(self, params=Parameters), address=None, identity=None, 
                  publickey=None, secretkey=None, serverkey=None,
                  volttron_home=os.path.abspath(volttron.platform.get_home()),
                  agent_uuid=None) -> None:
-        super(ZMQAuthorization).__init__(self, address=address, identity=identity, 
+        super(ZMQAuthorization).__init__(self, params=Parameters)address=address, identity=identity, 
                  publickey=publickey, secretkey=secretkey, serverkey=serverkey,
                  volttron_home=volttron_home, agent_uuid=agent_uuid)
+                
+        # Zap Loop
+        self.zap_socket = None
+        self._zap_greenlet = None
+        self._is_connected = False
 
-    def _set_keys(self):
+# Make Common (set_parameters? - use Parameters class)
+    def _set_keys(self): 
         """Implements logic for setting encryption keys and putting
         those keys in the parameters of the VIP address
         """
@@ -154,151 +164,170 @@ class ZMQAuthorization(BaseAuthorization):
 
     # Handle Zap Loop
 
-    # def setup_zap(self, sender, **kwargs):
-    #     self.zap_socket = zmq.Socket(zmq.Context.instance(), zmq.ROUTER)
-    #     self.zap_socket.bind("inproc://zeromq.zap.01")
-    #     # if self.allow_any:
-    #     #     _log.warning("insecure permissive authentication enabled")
-    #     # if self.core.messagebus == "rmq":
-    #     #     self.vip.peerlist.onadd.connect(self._check_topic_rules)
+    def setup_zap(self, sender, **kwargs):
+        self.zap_socket = zmq.Socket(zmq.Context.instance(), zmq.ROUTER)
+        self.zap_socket.bind("inproc://zeromq.zap.01")
+        if self.allow_any:
+            _log.warning("insecure permissive authentication enabled")
+        self.read_auth_file()
+        self._read_protected_topics_file()
+        self.core.spawn(watch_file, self.auth_file_path, self.read_auth_file)
+        self.core.spawn(
+            watch_file,
+            self._protected_topics_file_path,
+            self._read_protected_topics_file,
+        )
+        if self.core.messagebus == "rmq":
+            self.vip.peerlist.onadd.connect(self._check_topic_rules)
+
+    def authenticate(self, domain, address, mechanism, credentials):
+        for entry in self.auth_entries:
+            if entry.match(domain, address, mechanism, credentials):
+                return entry.user_id or dump_user(
+                    domain, address, mechanism, *credentials[:1]
+                )
+        if mechanism == "NULL" and address.startswith("localhost:"):
+            parts = address.split(":")[1:]
+            if len(parts) > 2:
+                pid = int(parts[2])
+                agent_uuid = self.aip.agent_uuid_from_pid(pid)
+                if agent_uuid:
+                    return dump_user(domain, address, "AGENT", agent_uuid)
+            uid = int(parts[0])
+            if uid == os.getuid():
+                return dump_user(domain, address, mechanism, *credentials[:1])
+        if self.allow_any:
+            return dump_user(domain, address, mechanism, *credentials[:1])
+
+    def zap_loop(self, sender, **kwargs):
+        """
+        The zap loop is the starting of the authentication process for
+        the VOLTTRON zmq message bus.  It talks directly with the low
+        level socket so all responses must be byte like objects, in
+        this case we are going to send zmq frames across the wire.
+
+        :param sender:
+        :param kwargs:
+        :return:
+        """
+        self._is_connected = True
+        self._zap_greenlet = gevent.getcurrent()
+        sock = self.zap_socket
+        blocked = {}
+        wait_list = []
+        timeout = None
+
+        self._send_protected_update_to_pubsub(self._protected_topics)
+
+        while True:
+            events = sock.poll(timeout)
+            now = gevent.time.time()
+            if events:
+                zap = sock.recv_multipart()
+
+                version = zap[2]
+                if version != b"1.0":
+                    continue
+                domain, address, userid, kind = zap[4:8]
+                credentials = zap[8:]
+                if kind == b"CURVE":
+                    credentials[0] = encode_key(credentials[0])
+                elif kind not in [b"NULL", b"PLAIN"]:
+                    continue
+                response = zap[:4]
+                domain = domain.decode("utf-8")
+                address = address.decode("utf-8")
+                kind = kind.decode("utf-8")
+                user = self.authenticate(domain, address, kind, credentials)
+                _log.info(
+                    "AUTH: After authenticate user id: %r, %r", user, userid
+                )
+                if user:
+                    _log.info(
+                        "authentication success: userid=%r domain=%r, "
+                        "address=%r, "
+                        "mechanism=%r, credentials=%r, user=%r",
+                        userid,
+                        domain,
+                        address,
+                        kind,
+                        credentials[:1],
+                        user,
+                    )
+                    response.extend(
+                        [b"200", b"SUCCESS", user.encode("utf-8"), b""]
+                    )
+                    sock.send_multipart(response)
+                else:
+                    userid = str(uuid.uuid4())
+                    _log.info(
+                        "authentication failure: userid=%r, domain=%r, "
+                        "address=%r, "
+                        "mechanism=%r, credentials=%r",
+                        userid,
+                        domain,
+                        address,
+                        kind,
+                        credentials,
+                    )
+                    # If in setup mode, add/update auth entry
+                    if self._setup_mode:
+                        self._update_auth_entry(
+                            domain, address, kind, credentials[0], userid
+                        )
+                        _log.info(
+                            "new authentication entry added in setup mode: "
+                            "domain=%r, address=%r, "
+                            "mechanism=%r, credentials=%r, user_id=%r",
+                            domain,
+                            address,
+                            kind,
+                            credentials[:1],
+                            userid,
+                        )
+                        response.extend([b"200", b"SUCCESS", b"", b""])
+                        _log.debug("AUTH response: {}".format(response))
+                        sock.send_multipart(response)
+                    else:
+                        if type(userid) == bytes:
+                            userid = userid.decode("utf-8")
+                        self._update_auth_pending(
+                            domain, address, kind, credentials[0], userid
+                        )
+
+                    try:
+                        expire, delay = blocked[address]
+                    except KeyError:
+                        delay = random.random()
+                    else:
+                        if now >= expire:
+                            delay = random.random()
+                        else:
+                            delay *= 2
+                            if delay > 100:
+                                delay = 100
+                    expire = now + delay
+                    bisect.bisect(wait_list, (expire, address, response))
+                    blocked[address] = expire, delay
+            while wait_list:
+                expire, address, response = wait_list[0]
+                if now < expire:
+                    break
+                wait_list.pop(0)
+                response.extend([b"400", b"FAIL", b"", b""])
+                sock.send_multipart(response)
+                try:
+                    if now >= blocked[address][0]:
+                        blocked.pop(address)
+                except KeyError:
+                    pass
+            timeout = (wait_list[0][0] - now) if wait_list else None
 
 
-    # def zap_loop(self, sender, **kwargs):
-    #     """
-    #     The zap loop is the starting of the authentication process for
-    #     the VOLTTRON zmq message bus.  It talks directly with the low
-    #     level socket so all responses must be byte like objects, in
-    #     this case we are going to send zmq frames across the wire.
+    def stop_zap(self, sender, **kwargs):
+        if self._zap_greenlet is not None:
+            self._zap_greenlet.kill()
 
-    #     :param sender:
-    #     :param kwargs:
-    #     :return:
-    #     """
-    #     self._is_connected = True
-    #     self._zap_greenlet = gevent.getcurrent()
-    #     sock = self.zap_socket
-    #     blocked = {}
-    #     wait_list = []
-    #     timeout = None
-    #     if self.core.messagebus == "rmq":
-    #         # Check the topic permissions of all the connected agents
-    #         self._check_rmq_topic_permissions()
-    #     else:
-    #         self._send_protected_update_to_pubsub(self._protected_topics)
-
-    #     while True:
-    #         events = sock.poll(timeout)
-    #         now = gevent.time.time()
-    #         if events:
-    #             zap = sock.recv_multipart()
-
-    #             version = zap[2]
-    #             if version != b"1.0":
-    #                 continue
-    #             domain, address, userid, kind = zap[4:8]
-    #             credentials = zap[8:]
-    #             if kind == b"CURVE":
-    #                 credentials[0] = encode_key(credentials[0])
-    #             elif kind not in [b"NULL", b"PLAIN"]:
-    #                 continue
-    #             response = zap[:4]
-    #             domain = domain.decode("utf-8")
-    #             address = address.decode("utf-8")
-    #             kind = kind.decode("utf-8")
-    #             user = self.authenticate(domain, address, kind, credentials)
-    #             _log.info(
-    #                 "AUTH: After authenticate user id: %r, %r", user, userid
-    #             )
-    #             if user:
-    #                 _log.info(
-    #                     "authentication success: userid=%r domain=%r, "
-    #                     "address=%r, "
-    #                     "mechanism=%r, credentials=%r, user=%r",
-    #                     userid,
-    #                     domain,
-    #                     address,
-    #                     kind,
-    #                     credentials[:1],
-    #                     user,
-    #                 )
-    #                 response.extend(
-    #                     [b"200", b"SUCCESS", user.encode("utf-8"), b""]
-    #                 )
-    #                 sock.send_multipart(response)
-    #             else:
-    #                 userid = str(uuid.uuid4())
-    #                 _log.info(
-    #                     "authentication failure: userid=%r, domain=%r, "
-    #                     "address=%r, "
-    #                     "mechanism=%r, credentials=%r",
-    #                     userid,
-    #                     domain,
-    #                     address,
-    #                     kind,
-    #                     credentials,
-    #                 )
-    #                 # If in setup mode, add/update auth entry
-    #                 if self._setup_mode:
-    #                     self._update_auth_entry(
-    #                         domain, address, kind, credentials[0], userid
-    #                     )
-    #                     _log.info(
-    #                         "new authentication entry added in setup mode: "
-    #                         "domain=%r, address=%r, "
-    #                         "mechanism=%r, credentials=%r, user_id=%r",
-    #                         domain,
-    #                         address,
-    #                         kind,
-    #                         credentials[:1],
-    #                         userid,
-    #                     )
-    #                     response.extend([b"200", b"SUCCESS", b"", b""])
-    #                     _log.debug("AUTH response: {}".format(response))
-    #                     sock.send_multipart(response)
-    #                 else:
-    #                     if type(userid) == bytes:
-    #                         userid = userid.decode("utf-8")
-    #                     self._update_auth_pending(
-    #                         domain, address, kind, credentials[0], userid
-    #                     )
-
-    #                 try:
-    #                     expire, delay = blocked[address]
-    #                 except KeyError:
-    #                     delay = random.random()
-    #                 else:
-    #                     if now >= expire:
-    #                         delay = random.random()
-    #                     else:
-    #                         delay *= 2
-    #                         if delay > 100:
-    #                             delay = 100
-    #                 expire = now + delay
-    #                 bisect.bisect(wait_list, (expire, address, response))
-    #                 blocked[address] = expire, delay
-    #         while wait_list:
-    #             expire, address, response = wait_list[0]
-    #             if now < expire:
-    #                 break
-    #             wait_list.pop(0)
-    #             response.extend([b"400", b"FAIL", b"", b""])
-    #             sock.send_multipart(response)
-    #             try:
-    #                 if now >= blocked[address][0]:
-    #                     blocked.pop(address)
-    #             except KeyError:
-    #                 pass
-    #         timeout = (wait_list[0][0] - now) if wait_list else None
-
-
-    # def stop_zap(self, sender, **kwargs):
-    #     if self.is_zap_required and self._zap_greenlet is not None:
-    #         self._zap_greenlet.kill()
-
-    # def unbind_zap(self, sender, **kwargs):
-    #     if self.is_zap_required and self.zap_socket is not None:
-    #         self.zap_socket.unbind("inproc://zeromq.zap.01")
-
-    # def start_zap(self, sender, **kwargs):
-    #     if self.auth_protocol:
-    #         self.init_auth_protocol()
+    def unbind_zap(self, sender, **kwargs):
+        if self.zap_socket is not None:
+            self.zap_socket.unbind("inproc://zeromq.zap.01")
