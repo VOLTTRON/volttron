@@ -50,7 +50,6 @@ In another shell echo the volttron home to the proper file.
 
 """
 import os
-from pathlib import Path
 from typing import Optional
 
 import gevent
@@ -61,10 +60,11 @@ from volttron.platform.vip.agent.utils import build_agent
 
 
 def get_volttron_home():
-    if Path("/tmp/volttron_home.txt").exists():
-        with open("/tmp/volttron_home.txt") as fp:
+    try:
+        with open("/tmp/volttron_home.txt", "r") as fp:
             return fp.read().strip()
-    return None
+    except FileNotFoundError:
+        return None
 
 
 def get_public_private_key(volttron_home):
@@ -111,4 +111,3 @@ while True:
             print(last_output)
 
     gevent.sleep(0.1)
-
