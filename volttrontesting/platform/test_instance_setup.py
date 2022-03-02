@@ -12,6 +12,7 @@ from volttrontesting.fixtures.rmq_test_setup import create_rmq_volttron_setup
 from volttrontesting.utils.platformwrapper import create_volttron_home
 
 HAS_RMQ = is_rabbitmq_available()
+RMQ_TIMEOUT = 600
 
 '''
 Example variables to be used during each of the tests, depending on the prompts that will be asked
@@ -501,7 +502,7 @@ def test_zmq_case_web_vc_with_agents(monkeypatch):
 
 
 @pytest.mark.skipif(not HAS_RMQ, reason='RabbitMQ is not setup')
-@pytest.mark.timeout(360)
+@pytest.mark.timeout(RMQ_TIMEOUT)
 def test_rmq_case_no_agents(monkeypatch):
     with create_vcfg_vhome() as vhome:
         monkeypatch.setenv("VOLTTRON_HOME", vhome)
@@ -555,7 +556,7 @@ def test_rmq_case_no_agents(monkeypatch):
 
 
 @pytest.mark.skipif(not HAS_RMQ, reason='RabbitMQ is not setup')
-@pytest.mark.timeout(360)
+@pytest.mark.timeout(RMQ_TIMEOUT)
 def test_rmq_case_with_agents(monkeypatch):
     with create_vcfg_vhome() as vhome:
         monkeypatch.setenv("VOLTTRON_HOME", vhome)
@@ -621,7 +622,7 @@ def test_rmq_case_with_agents(monkeypatch):
 
 
 @pytest.mark.skipif(not HAS_RMQ, reason='RabbitMQ is not setup')
-@pytest.mark.timeout(360)
+@pytest.mark.timeout(RMQ_TIMEOUT)
 def test_rmq_case_web_no_agents(monkeypatch):
     with create_vcfg_vhome() as vhome:
         monkeypatch.setenv("VOLTTRON_HOME", vhome)
@@ -680,7 +681,7 @@ def test_rmq_case_web_no_agents(monkeypatch):
 
 
 @pytest.mark.skipif(not HAS_RMQ, reason='RabbitMQ is not setup')
-@pytest.mark.timeout(360)
+@pytest.mark.timeout(RMQ_TIMEOUT)
 def test_rmq_case_web_with_agents(monkeypatch):
     with create_vcfg_vhome() as vhome:
         monkeypatch.setenv("VOLTTRON_HOME", vhome)
@@ -749,7 +750,7 @@ def test_rmq_case_web_with_agents(monkeypatch):
 
 
 @pytest.mark.skipif(not HAS_RMQ, reason='RabbitMQ is not setup')
-@pytest.mark.timeout(360)
+@pytest.mark.timeout(RMQ_TIMEOUT)
 def test_rmq_case_web_vc(monkeypatch):
     with create_vcfg_vhome() as vhome:
         monkeypatch.setenv("VOLTTRON_HOME", vhome)
@@ -814,7 +815,7 @@ def test_rmq_case_web_vc(monkeypatch):
 
 
 @pytest.mark.skipif(not HAS_RMQ, reason='RabbitMQ is not setup')
-@pytest.mark.timeout(360)
+@pytest.mark.timeout(RMQ_TIMEOUT)
 def test_rmq_case_web_vc_with_agents(monkeypatch):
     with create_vcfg_vhome() as vhome:
         monkeypatch.setenv("VOLTTRON_HOME", vhome)

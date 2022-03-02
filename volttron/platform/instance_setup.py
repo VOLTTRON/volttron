@@ -230,7 +230,12 @@ def _install_agent(agent_dir, config, tag, identity):
         with open(cfg.name, 'w') as fout:
             fout.write(jsonapi.dumps(config))
         config_file = cfg.name
-    cmd_array = ['volttron-ctl', 'install', "--agent-config", config_file, "--tag", tag, "--force"]
+    # Allow a little extra time for VC to install, especially for RMQ
+    if tag == 'vc':
+        cmd_array = ['volttron-ctl', 'install', "--agent-config", config_file,
+                     "--tag", tag, "--timeout", "120", "--force"]
+    else:
+        cmd_array = ['volttron-ctl', 'install', "--agent-config", config_file, "--tag", tag, "--force"]
     if identity:
         cmd_array.extend(["--vip-identity", identity])
     cmd_array.append(agent_dir)
@@ -253,7 +258,6 @@ def _is_agent_installed(tag):
 def installs(agent_dir, tag, identity=None, post_install_func=None):
     def wrap(config_func):
         global available_agents
-
         def func(*args, **kwargs):
             global use_active
             print('Configuring {}.'.format(agent_dir))
@@ -372,7 +376,11 @@ def set_dependencies(requirement):
 
 def set_dependencies_rmq():
     install_rabbit(default_rmq_dir)
-
+    prompt = 'What OS are you running?'
+    user_os = prompt_response(prompt, default='debian')
+    prompt = 'Which distribution are you running?'
+    user_dist = prompt_response(prompt, default='bionic')
+    _cmd(["./scripts/rabbit_dependencies.sh", user_os, user_dist])
 
 def _create_web_certs():
     global config_opts
@@ -445,16 +453,10 @@ def do_message_bus():
     if bus_type == 'rmq':
         if not is_rabbitmq_available():
             print("RabbitMQ has not been set up!")
-            print("Please run scripts/rabbit_dependencies.sh and bootstrap --rabbitmq before running vcfg.")
-            sys.exit()
-            # print("Setting up now...")
-            # set_dependencies_rmq()
-            # print("Done!")
+            print("Setting up now...")
+            set_dependencies_rmq()
+            print("Done!")
 
-        # if not _check_dependencies_met('rabbitmq'):
-        #     print("Rabbitmq dependencies not installed. Installing now...")
-        #     set_dependencies("rabbitmq")
-        #     print("Done!")
         try:
             check_rmq_setup()
         except AssertionError:
