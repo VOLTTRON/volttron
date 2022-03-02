@@ -57,7 +57,6 @@ time so that subsequent requests with the same signature can use the cached resu
 if it has not expired.  In this case, the AsyncResult is set immediately.
 
 """
-from __future__ import print_function
 import gevent
 import gevent.event
 import gevent.queue

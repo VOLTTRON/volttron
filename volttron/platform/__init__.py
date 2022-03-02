@@ -201,7 +201,7 @@ def is_instance_running(volttron_home=None):
 
     return psutil.pid_exists(pid)
 
-
+# TODO: May want to make rmq check more robust
 def is_rabbitmq_available():
     rabbitmq_available = True
     try:

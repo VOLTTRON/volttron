@@ -36,8 +36,6 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-from __future__ import print_function
-
 """
 Pytest test cases for testing rabbitmq reconnect cases.
 """
@@ -181,5 +179,3 @@ def test_resource_lock_condition(request, volttron_instance_rmq):
         agent1.core.stop()
 
     request.addfinalizer(stop_agent)
-
-
