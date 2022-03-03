@@ -236,8 +236,9 @@ from volttron.platform.agent.base_aggregate_historian import AggregateHistorian
 from volttron.platform.agent.utils import process_timestamp, \
     fix_sqlite3_datetime, get_aware_utc_now, parse_timestamp_string
 from volttron.platform.messaging import topics, headers as headers_mod
-from volttron.platform.vip.agent import *
-from volttron.platform.vip.agent import compat
+from volttron.platform.vip.agent import Agent, compat
+from volttron.platform.vip.agent.core import Core
+from volttron.platform.vip.agent.subsystems import RPC
 from volttron.platform.vip.agent.subsystems.query import Query
 
 from volttron.platform.async_ import AsyncCall
