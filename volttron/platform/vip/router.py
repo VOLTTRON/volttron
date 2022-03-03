@@ -70,7 +70,7 @@ _INVALID_SUBSYSTEM = (
 )
 
 
-class BaseRouter(object):
+class BaseRouter:
     '''Abstract base class of VIP router implementation.
 
     Router implementers should inherit this class and implement the

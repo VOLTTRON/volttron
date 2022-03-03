@@ -54,7 +54,7 @@ def remove(duplicate):
     return final_list
 
 
-class PolyLineFactory(object):
+class PolyLineFactory:
     @staticmethod
     def combine(lines, increment):
 

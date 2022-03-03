@@ -278,6 +278,22 @@ def test_get_topic_map(get_sqlitefuncts):
 
 @pytest.mark.sqlitefuncts
 @pytest.mark.dbutils
+def test_get_topic_meta_map(get_sqlitefuncts):
+    sqlitefuncts, historian_version = get_sqlitefuncts
+    if historian_version == "<4.0.0":
+        pytest.skip("method applied only to version >=4.0.0")
+    else:
+        query = "INSERT INTO topics (topic_name) values ('football');" \
+                "INSERT INTO topics (topic_name, metadata) values ('netball', '{\"meta\":\"value\"}');"
+        query_db(query)
+        expected_topic_map = {1: None, 2: {"meta": "value"}}
+
+        actual_topic_meta_map = sqlitefuncts.get_topic_meta_map()
+
+        assert actual_topic_meta_map == expected_topic_map
+
+@pytest.mark.sqlitefuncts
+@pytest.mark.dbutils
 def test_get_agg_topics(get_sqlitefuncts):
     sqlitefuncts, historain_version = get_sqlitefuncts
     query = (

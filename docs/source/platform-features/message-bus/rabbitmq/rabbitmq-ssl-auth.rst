@@ -14,7 +14,7 @@ configurations can be seen by running the following command:
 
 .. code-block:: bash
 
-    cat ~/rabbitmq_server/rabbitmq_server-3.7.7/etc/rabbitmq/rabbitmq.conf
+    cat ~/rabbitmq_server/rabbitmq_server-3.9.7/etc/rabbitmq/rabbitmq.conf
 
 The configurations required to enable SSL:
 
@@ -78,8 +78,8 @@ To configure RabbitMQ-VOLTTRON to use SSL based authentication, we need to add S
     # defaults to true
     ssl: 'true'
 
-    # defaults to ~/rabbitmq_server/rabbbitmq_server-3.7.7
-    rmq-home: "~/rabbitmq_server/rabbitmq_server-3.7.7"
+    # defaults to ~/rabbitmq_server/rabbbitmq_server-3.9.7
+    rmq-home: "~/rabbitmq_server/rabbitmq_server-3.9.7"
 
 The parameters of interest for SSL based configuration are
 

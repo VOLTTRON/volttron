@@ -331,6 +331,22 @@ def test_get_topic_map_should_return_maps(get_container_func):
     assert actual == expected
 
 
+def test_get_topic_meta_map_should_return_maps(get_container_func):
+    container, sqlfuncts, connection_port, historian_version = get_container_func
+    if historian_version == "<4.0.0":
+        pytest.skip("method applied only to version >=4.0.0")
+    else:
+        query = """
+                   INSERT INTO topics (topic_name)
+                   VALUES ('football');
+                   INSERT INTO topics (topic_name, metadata)
+                   VALUES ('baseball', '{\\"meta\\":\\"value\\"}');
+                """
+        seed_database(container, query)
+        expected = {1: None, 2: {"meta": "value"}}
+        actual = sqlfuncts.get_topic_meta_map()
+        assert actual == expected
+
 def test_get_agg_topics_should_return_list(get_container_func):
     container, postgresqlfuncts, port_on_host, historian_version = get_container_func
     topic = "some_agg_topic"

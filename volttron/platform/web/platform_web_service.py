@@ -48,6 +48,7 @@ from collections import defaultdict
 
 import gevent
 import gevent.pywsgi
+import werkzeug
 import jwt
 from cryptography.hazmat.primitives import serialization
 from gevent import Greenlet
@@ -56,6 +57,7 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 from ws4py.server.geventserver import WSGIServer
 
 from .admin_endpoints import AdminEndpoints
+from .vui_endpoints import VUIEndpoints
 from .authenticate_endpoint import AuthenticateEndpoints
 from .csr_endpoints import CSREndpoints
 from .webapp import WebApplicationWrapper
@@ -165,6 +167,8 @@ class PlatformWebService(Agent):
         self._server_greenlet: Greenlet = None
         # noinspection PyTypeChecker
         self._admin_endpoints: AdminEndpoints = None
+
+        self._vui_endpoints: VUIEndpoints = None
 
     # pylint: disable=unused-argument
     @Core.receiver('onsetup')
@@ -472,7 +476,7 @@ class PlatformWebService(Agent):
         # if ws4pi.socket is set then this connection is a web socket
         # and so we return the websocket response.
 
-        if 'ws4py.socket' in env:
+        if 'ws4py.socket' in env and 'vui' not in path_info:
             return env['ws4py.socket'](env, start_response)
 
         for k, t, v in self.registeredroutes:
@@ -489,10 +493,11 @@ class PlatformWebService(Agent):
                         retvalue = v(env, start_response, data)
                     except TypeError:
                         response = v(env, data)
+                        _log.debug(f'VUI:  Response at app_routing is: {response.response}')
                         return response(env, start_response)
                         # retvalue = self.process_response(start_response, v(env, data))
 
-                    if isinstance(retvalue, Response):
+                    if isinstance(retvalue, werkzeug.Response):
                         return retvalue(env, start_response)
                     else:
                         return retvalue[0]
@@ -800,6 +805,11 @@ class PlatformWebService(Agent):
         # or not.
         for rt in self._admin_endpoints.get_routes():
             self.registeredroutes.append(rt)
+
+        # Register VUI endpoints:
+        self._vui_endpoints = VUIEndpoints(self)
+        _log.debug(f'VUI: adding routes - {self._vui_endpoints.get_routes()}')
+        self.registeredroutes.extend(self._vui_endpoints.get_routes())
 
         # Allow authentication endpoint from any https connection
         if parsed.scheme == 'https':

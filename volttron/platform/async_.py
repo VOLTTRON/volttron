@@ -55,7 +55,7 @@ __all__ = ['AsyncCall', 'GreenletExit']
 
 __author__ = 'Brandon Carpenter <brandon.carpenter@pnnl.gov>'
 
-class AsyncCall(object):
+class AsyncCall:
     '''Send functions to another thread's gevent hub for execution.'''
 
     def __init__(self, hub=None):

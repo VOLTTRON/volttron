@@ -13,7 +13,7 @@ HOME = os.environ.get('HOME')
 _log = logging.getLogger(__name__)
 
 
-class RabbitTestConfig(object):
+class RabbitTestConfig:
     def __init__(self):
         # Provides defaults for rabbitmq configuration file.
         self.rabbitmq_config = {
@@ -34,7 +34,7 @@ class RabbitTestConfig(object):
             # This is overwritten in the class below during
             # the create_rmq_volttron_setup function, but is
             # left here for completeness of the configuration.
-            'rmq-home': '~/rabbitmq_server-3.7.7',
+            'rmq-home': '~/rabbitmq_server-3.9.7',
             'reconnect-delay': 5
         }
 

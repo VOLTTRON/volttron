@@ -76,7 +76,7 @@ def closing(obj):
             _log.exception('An exception was raised while closing the cursor and is being ignored.')
 
 
-class DbDriver(object):
+class DbDriver:
     """
     Parent class used by :py:class:`sqlhistorian.historian.SQLHistorian` to
     do the database operations. This class is inherited by

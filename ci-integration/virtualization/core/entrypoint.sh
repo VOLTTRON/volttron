@@ -21,9 +21,9 @@ export HOME=${VOLTTRON_USER_HOME}
 # Add the pip user bin to the path since we aren't using the
 # virtualenv environment in the distribution.
 export PATH=$HOME/.local/bin:$PATH
-VOLTTRON_UID_ORIGINAL=`id -u volttron`
+VOLTTRON_UID_ORIGINAL=$(id -u volttron)
 
-if [ $VOLTTRON_UID_ORIGINAL != $USER_ID ]; then
+if [ "$VOLTTRON_UID_ORIGINAL" != "$USER_ID" ]; then
   echo "Changing volttron USER_ID to match passed LOCAL_USER_ID ${USER_ID} "
   usermod -u $USER_ID volttron
 fi

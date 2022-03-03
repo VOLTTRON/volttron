@@ -14,7 +14,7 @@ class DiscoveryError(Exception):
     pass
 
 
-class DiscoveryInfo(object):
+class DiscoveryInfo:
     """ A DiscoveryInfo class.
 
     The DiscoveryInfo class provides a wrapper around the return values from

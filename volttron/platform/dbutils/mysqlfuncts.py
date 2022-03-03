@@ -86,7 +86,7 @@ class MySqlFuncts(DbDriver):
 
     def init_microsecond_support(self):
         rows = self.select("SELECT version()", None)
-        p = re.compile('(\d+)\D+(\d+)\D+(\d+)\D*')
+        p = re.compile(r'(\d+)\D+(\d+)\D+(\d+)\D*')
         version_nums = p.match(rows[0][0]).groups()
         _log.debug(f"MYSQL version number components {version_nums}")
         self.MICROSECOND_SUPPORT = True
@@ -216,7 +216,7 @@ class MySqlFuncts(DbDriver):
                 start = start_str[:start_str.rfind('.')]
 
         if end is not None:
-            if end.tzinfo !=pytz.UTC:
+            if end.tzinfo != pytz.UTC:
                 end = end.astimezone(pytz.UTC)
             if not self.MICROSECOND_SUPPORT:
                 end_str = end.isoformat()
@@ -414,7 +414,7 @@ ON DUPLICATE KEY UPDATE value_string=VALUES(value_string);
         _log.debug("loading metadata from db")
         topic_meta_map = dict()
         for id, meta in rows:
-            topic_meta_map[id] = jsonapi.loads(meta)
+            topic_meta_map[id] = jsonapi.loads(meta) if meta else None
         return topic_meta_map
 
     def get_topic_map(self):

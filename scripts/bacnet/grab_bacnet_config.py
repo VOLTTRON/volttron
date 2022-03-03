@@ -220,11 +220,14 @@ def process_object(app, address, obj_type, index, max_range_report, config_write
     
         if not object_notes:
             enum_strings = []
-            for name in Enumerated.keylist(present_value_type(0)):
-                value = present_value_type.enumerations[name]
-                enum_strings.append(str(value) + '=' + name)
+            try:
+                for name in Enumerated.keylist(present_value_type(0)):
+                    value = present_value_type.enumerations[name]
+                    enum_strings.append(str(value) + '=' + name)
                 
-            object_notes = present_value_type.__name__ + ': ' + ', '.join(enum_strings)
+                object_notes = present_value_type.__name__ + ': ' + ', '.join(enum_strings)
+            except AttributeError:
+                pass
 
     elif issubclass(present_value_type, Boolean):
         object_units = 'Boolean'

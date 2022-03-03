@@ -49,7 +49,7 @@ from configparser import ConfigParser
 from urllib.parse import urlparse
 
 from ..utils.frozendict import FrozenDict
-__version__ = '8.1.1'
+__version__ = '8.1.3'
 
 _log = logging.getLogger(__name__)
 
@@ -201,7 +201,7 @@ def is_instance_running(volttron_home=None):
 
     return psutil.pid_exists(pid)
 
-
+# TODO: May want to make rmq check more robust
 def is_rabbitmq_available():
     rabbitmq_available = True
     try:

@@ -96,7 +96,7 @@ def _do_exit(self):
 ###########################################################################################
 
 
-class Server (object):
+class Server:
     """Base Modbus Server.
 
     Basic Modbus Server that implements both RTU and TCP. For setting up an RTU server, make sure 'port' is configured

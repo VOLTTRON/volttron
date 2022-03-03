@@ -49,8 +49,8 @@ from .... import platform
 from .... platform.agent.utils import is_valid_identity
 
 
-class Agent(object):
-    class Subsystems(object):
+class Agent:
+    class Subsystems:
         def __init__(self, owner, core, heartbeat_autostart,
                      heartbeat_period, enable_store, enable_web,
                      enable_channel, enable_fncs, enable_auth, message_bus):
@@ -134,7 +134,7 @@ class Agent(object):
             raise e
 
 
-class BasicAgent(object):
+class BasicAgent:
     def __init__(self, **kwargs):
         kwargs.pop('identity', None)
         super(BasicAgent, self).__init__(**kwargs)

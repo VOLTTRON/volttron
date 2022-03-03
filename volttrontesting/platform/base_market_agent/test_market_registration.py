@@ -96,7 +96,7 @@ def get_time():
     now = get_aware_utc_now()
     return now
 
-class MockAgent(object):
+class MockAgent:
     def __init__(self):
         self.reservation_made = False
         self.offer_made = False

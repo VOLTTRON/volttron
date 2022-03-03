@@ -787,7 +787,7 @@ def test_single_topic(aggregate_agent, query_agent):
 
 
 def compute_timediff_seconds(time1_str, time2_str):
-    if re.match('\+[0-9][0-9]:[0-9][0-9]', time1_str[-6:]):
+    if re.match(r'\+[0-9][0-9]:[0-9][0-9]', time1_str[-6:]):
         time1_str = time1_str[:-6]
         time2_str = time2_str[:-6]
     datetime1 = datetime.strptime(time1_str,

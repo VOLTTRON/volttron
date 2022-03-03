@@ -64,7 +64,7 @@ ALERT_KEY = "alert_key"
 _log = logging.getLogger(__name__)
 
 
-class Status(object):
+class Status:
     """
     The `Status` objects wraps the context status and last reported into a
     small object that can be serialized and sent across the zmq message bus.

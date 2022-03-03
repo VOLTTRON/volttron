@@ -57,7 +57,7 @@ from volttron.platform.vip.agent.utils import build_connection
 from volttron.platform import jsonapi
 
 
-class Platforms(object):
+class Platforms:
     """
     A class to manage the connections and interactions with external instances.
     """
@@ -270,7 +270,7 @@ class Platforms(object):
         return platform.address_hash, platform
 
 
-class PlatformHandler(object):
+class PlatformHandler:
     """
     This class is a wrapper around the communication between VC and a
     corresponding VCP on either this instance or another instance.

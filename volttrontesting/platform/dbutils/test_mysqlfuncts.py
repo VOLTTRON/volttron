@@ -263,6 +263,23 @@ def test_get_topic_map_should_succeed(get_container_func):
     assert actual == expected
 
 
+def test_get_topic_meta_map_should_succeed(get_container_func):
+    container, sqlfuncts, connection_port, historian_version = get_container_func
+    if historian_version == "<4.0.0":
+        pytest.skip("method applied only to version >=4.0.0")
+    else:
+        query = """
+                   INSERT INTO topics (topic_name)
+                   VALUES ('football');
+                   INSERT INTO topics (topic_name, metadata)
+                   VALUES ('baseball', '{\\"metadata\\":\\"value\\"}');                     
+                """
+        seed_database(container, query)
+        expected = {1: None, 2: {"metadata": "value"}}
+        actual = sqlfuncts.get_topic_meta_map()
+        assert actual == expected
+
+
 # fails for image:mysql:8.0.25 historian schema version >=4.0.0
 def test_get_agg_topic_map_should_return_dict(get_container_func):
     container, sqlfuncts, connection_port, historian_version = get_container_func

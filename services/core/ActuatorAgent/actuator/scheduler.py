@@ -59,7 +59,7 @@ DeviceState = namedtuple('DeviceState',
 _log = logging.getLogger(__name__)
 
 
-class TimeSlice(object):
+class TimeSlice:
     def __init__(self, start=None, end=None):
         if end is None:
             end = start
@@ -120,7 +120,7 @@ class TimeSlice(object):
         return other in self or other == self.start
 
 
-class Task(object):
+class Task:
     STATE_PRE_RUN = 'PRE_RUN'
     STATE_RUNNING = 'RUNNING'
     STATE_PREEMPTED = 'PREEMPTED'
@@ -242,7 +242,7 @@ class ScheduleError(Exception):
     pass
 
 
-class Schedule(object):
+class Schedule:
     def __init__(self):
         self.time_slots = []
 
@@ -323,7 +323,7 @@ class Schedule(object):
         pass
 
 
-class ScheduleManager(object):
+class ScheduleManager:
     def __init__(self, grace_time, now=None, save_state_callback=None, initial_state_string=None):
         self.tasks = {}
         self.running_tasks = set()

@@ -46,6 +46,7 @@ if is_rabbitmq_available():
 
 from volttron.platform.agent.utils import get_fq_identity
 
+
 import grequests
 import gevent
 import requests
@@ -83,7 +84,7 @@ _log = logging.getLogger(__name__)
 """
 
 
-class RabbitMQMgmt(object):
+class RabbitMQMgmt:
     def __init__(self):
         self.rmq_config = RMQConfig()
         self.is_ssl = self.rmq_config.is_ssl
@@ -104,9 +105,8 @@ class RabbitMQMgmt(object):
         kwargs.update(auth_args)
 
         try:
-            fn = getattr(grequests, method_name)
-            request = fn(url, **kwargs)
-            response = grequests.map([request])
+            request = grequests.request(method_name, url, **kwargs)
+            response = request.send().response
 
             if response and isinstance(response, list):
                 response[0].raise_for_status()
@@ -169,8 +169,11 @@ class RabbitMQMgmt(object):
 
     def _http_get_request(self, url, ssl_auth=True):
         response = self._call_grequest('get', url, ssl_auth)
-        if response and isinstance(response, list):
-            response = response[0].json()
+        if response:
+            if isinstance(response, requests.models.Response):
+                response = response.json()
+            elif isinstance(response, list):
+                response = response[0].json()
         return response
 
     def create_vhost(self, vhost='volttron', ssl_auth=None):
@@ -252,7 +255,10 @@ class RabbitMQMgmt(object):
         """
         ssl_auth = ssl_auth if ssl_auth is not None else self.is_ssl
         url = '/api/users/'
+        #_log.info("in get users")
+        #_log.info(f"{self._get_url_prefix(ssl_auth) + url} {self._get_authentication_args(True)}")
         response = self._http_get_request(url, ssl_auth)
+
         users = []
         if response:
             users = [u['name'] for u in response]
@@ -898,12 +904,18 @@ class RabbitMQMgmt(object):
 
         try:
             if ssl_auth:
-                ssl_options = dict(
-                    ssl_version=ssl.PROTOCOL_TLSv1,
-                    ca_certs=crt.cert_file(crt.trusted_ca_name),
-                    keyfile=crt.private_key_file(rmq_user),
-                    certfile=crt.cert_file(rmq_user),
-                    cert_reqs=ssl.CERT_REQUIRED)
+
+                context = ssl.create_default_context(cafile=crt.cert_file(crt.trusted_ca_name))
+                context.load_cert_chain(crt.cert_file(rmq_user),
+                                        crt.private_key_file(rmq_user))
+
+                ssl_options = pika.SSLOptions(context, self.rmq_config.hostname)
+                # ssl_options = dict(
+                #     ssl_version=ssl.PROTOCOL_TLSv1,
+                #     ca_certs=crt.cert_file(crt.trusted_ca_name),
+                #     keyfile=crt.private_key_file(rmq_user),
+                #     certfile=crt.cert_file(rmq_user),
+                #     cert_reqs=ssl.CERT_REQUIRED)
                 conn_params = pika.ConnectionParameters(
                     host=self.rmq_config.hostname,
                     port=int(self.rmq_config.amqp_port_ssl),
@@ -911,7 +923,6 @@ class RabbitMQMgmt(object):
                     connection_attempts=retry_attempt,
                     retry_delay=retry_delay,
                     heartbeat=heartbeat_interval,
-                    ssl=True,
                     ssl_options=ssl_options,
                     credentials=pika.credentials.ExternalCredentials())
             else:

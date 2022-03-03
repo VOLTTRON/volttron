@@ -44,7 +44,7 @@ from volttron.platform.scheduling import periodic
 _log = logging.getLogger(__name__)
 utils.setup_logging()
 
-class Director(object):
+class Director:
     def __init__(self, market_period, reservation_delay, offer_delay):
         _log.debug("Creating Director for MarketServiceAgent")
         self.market_period = market_period

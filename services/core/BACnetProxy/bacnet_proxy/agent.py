@@ -100,7 +100,7 @@ from volttron.platform.agent.known_identities import PLATFORM_DRIVER
 task_manager = TaskManager()
 
 
-class SubscriptionContext(object):
+class SubscriptionContext:
     """
     Object for maintaining BACnet change of value subscriptions with points on a device
     """

@@ -89,7 +89,7 @@ try:
     from generatedssuper import GeneratedsSuper
 except ImportError as exp:
 
-    class GeneratedsSuper(object):
+    class GeneratedsSuper:
         tzoff_pattern = re_.compile(r'(\+|-)((0\d|1[0-3]):[0-5]\d|14:00)$')
         class _FixedOffsetTZ(datetime_.tzinfo):
             def __init__(self, offset, name):  #pylint: disable=super-init-not-called
@@ -595,7 +595,7 @@ class MixedContainer:
             outfile.write(')\n')
 
 
-class MemberSpec_(object):
+class MemberSpec_:
     def __init__(self, name='', data_type='', container=0):
         self.name = name
         self.data_type = data_type

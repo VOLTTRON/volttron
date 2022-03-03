@@ -10,7 +10,7 @@ from volttron.platform.auth.certs import Certs
 _log = logging.getLogger(__name__)
 
 
-class CSREndpoints(object):
+class CSREndpoints:
 
     def __init__(self, core):
         self._core = weakref.ref(core)

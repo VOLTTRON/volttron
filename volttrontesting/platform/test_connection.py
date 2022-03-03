@@ -6,6 +6,7 @@ from volttron.platform.vip.agent.connection import Connection
 from volttron.platform.vip.agent.utils import build_connection
 import os
 
+
 @pytest.fixture(scope="module")
 def setup_control_connection(request, get_volttron_instances):
     """ Creates a single instance of VOLTTRON for testing purposes
@@ -20,6 +21,7 @@ def setup_control_connection(request, get_volttron_instances):
     assert wrapper.is_running()
 
     wrapper.allow_all_connections()
+    gevent.sleep(1)
 
     # Connect using keys
     ks = KeyStore()

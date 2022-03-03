@@ -24,7 +24,7 @@ Basic usage:
 __all__ = ['required', 'assertempty']
 
 
-class Required(object):
+class Required:
     '''Context manager to raise TypeError for missing required kwargs.'''
     __slots__ = ()
     @classmethod

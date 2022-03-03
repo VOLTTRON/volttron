@@ -166,8 +166,7 @@ def _mk_cacert(valid_days=DEFAULT_DAYS, **kwargs):
         x509.BasicConstraints(ca=True, path_length=1),
         critical=True
     ).serial_number(int(time.time())).add_extension(
-        x509.SubjectKeyIdentifier(
-            _create_fingerprint(key.public_key())),
+        x509.SubjectKeyIdentifier.from_public_key(key.public_key()),
         critical=False
     )
     cert_builder = cert_builder.add_extension(
@@ -255,7 +254,7 @@ def _get_cert_attribute_value(cert, attribute):
         raise ValueError("Error getting value of {} :{}".format(attribute, e))
 
 
-class Certs(object):
+class Certs:
     """A wrapper class around certificate creation, retrieval and verification.
 
     """
@@ -941,10 +940,7 @@ def _create_signed_certificate(ca_cert, ca_key, name, valid_days=DEFAULT_DAYS, t
     """
     issuer = ca_cert.subject
     # cryptography 2.7
-    # ski = x509.SubjectKeyIdentifier.from_public_key(ca_cert.public_key())
-    # crptography 2.2.2
-    ski = ca_cert.extensions.get_extension_for_class(
-        x509.SubjectKeyIdentifier)
+    ski = x509.SubjectKeyIdentifier.from_public_key(ca_cert.public_key())
     fqdn = kwargs.pop('fqdn', None)
 
     if csr:
@@ -973,7 +969,7 @@ def _create_signed_certificate(ca_cert, ca_key, name, valid_days=DEFAULT_DAYS, t
         # Our certificate will be valid for 3650 days
         datetime.datetime.utcnow() + datetime.timedelta(days=valid_days)
     ).add_extension(
-        x509.AuthorityKeyIdentifier.from_issuer_subject_key_identifier(ski),
+        x509.AuthorityKeyIdentifier.from_issuer_public_key(ca_cert.public_key()),
         critical=False
     )
     if type == 'CA':
@@ -982,15 +978,15 @@ def _create_signed_certificate(ca_cert, ca_key, name, valid_days=DEFAULT_DAYS, t
             x509.BasicConstraints(ca=True, path_length=0),
             critical=True
         ).add_extension(
-            x509.SubjectKeyIdentifier(
-                _create_fingerprint(public_key)),
+            x509.SubjectKeyIdentifier.from_public_key(key.public_key()),
             critical=False
         )
-        # cryptography 2.7
         # .add_extension(
-        #     x509.SubjectKeyIdentifier.from_public_key(key.public_key()),
+        #     x509.SubjectKeyIdentifier(
+        #         _create_fingerprint(public_key)),
         #     critical=False
         # )
+
     else:
         # if type is server or client.
         cert_builder = cert_builder.add_extension(
@@ -1083,7 +1079,7 @@ def build_subject(ca_cert, name, type="client", fqdn=None):
     return fqdn, hostname, subject
 
 
-class CertWrapper(object):
+class CertWrapper:
     """
     This class is a wrapper around the building of certificates.
     """

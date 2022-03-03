@@ -63,7 +63,7 @@ _log = logging.getLogger(__name__)
 SERVICE_HOURLY_FORECAST = "get_hourly_forecast"
 
 LAT_LONG_REGEX = re.compile(
-    "^-?[0-9]{1,3}(\.[0-9]{1,4})?,( |t?)-?[0-9]{1,3}(\.[0-9]{1,4})?$")
+    r"^-?[0-9]{1,3}(\.[0-9]{1,4})?,( |t?)-?[0-9]{1,3}(\.[0-9]{1,4})?$")
 STATION_REGEX = re.compile("^[Kk][a-zA-Z]{3}$")
 WFO_REGEX = re.compile("^[A-Z]{3}$")
 
