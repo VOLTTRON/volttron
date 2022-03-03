@@ -163,7 +163,7 @@ def test_authenticate_endpoint(scheme):
             assert not DeepDiff(expected_claims, claims)
 
 
-class MockQuery(object):
+class MockQuery:
     """
     The MockQuery object is used to be able to mock the .get() from AsyncResult()
     objects.
@@ -192,7 +192,7 @@ class MockQuery(object):
         """
         return MockQuery.InnerClass(self._kvargs[key])
 
-    class InnerClass(object):
+    class InnerClass:
         def __init__(self, value):
             self.value = value
 

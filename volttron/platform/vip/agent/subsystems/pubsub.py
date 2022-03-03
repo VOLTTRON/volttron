@@ -598,7 +598,7 @@ class PubSub(SubsystemBase):
         result.set_exception(error)
 
 
-class ProtectedPubSubTopics(object):
+class ProtectedPubSubTopics:
     """Simple class to contain protected pubsub topics"""
 
     def __init__(self):

@@ -287,7 +287,7 @@ class Monitor(threading.Thread):
             log.info('%s %s %s', event_name, event_value, endpoint)
 
 
-class FramesFormatter(object):
+class FramesFormatter:
     def __init__(self, frames):
         self.frames = frames
 

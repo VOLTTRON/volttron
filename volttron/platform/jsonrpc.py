@@ -113,7 +113,7 @@ class ParseError(Exception):
     pass
 
 
-class JsonRpcData(object):
+class JsonRpcData:
     """ A `JsonRpcData` reprepresents the data associated with an rpc request.
     """
     def __init__(self, id, version, method, params, authorization):
@@ -229,7 +229,7 @@ def exception_from_json(code, message, data=None):
     return Error(code, message, data)
 
 
-class Dispatcher(object):
+class Dispatcher:
     """Parses and directs JSON-RPC 2.0 requests/responses.
 
     Parses a JSON-RPC message conatained in a dictionary (JavaScript
@@ -329,7 +329,7 @@ class Dispatcher(object):
         else:
             response = json_error(
                 None, INVALID_REQUEST, 'invalid object type',
-                detail='expected a list or dictionary (object); '
+                detail='expected a list or dictionary ; '
                        'got a {!r} instead'.format(type(message).__name__))
         if response:
             try:
@@ -343,7 +343,7 @@ class Dispatcher(object):
             ident = msg.get('id')
         except AttributeError:
             return json_error(None, INVALID_REQUEST, 'invalid object type',
-                              detail='expected a dictionary (object); '
+                              detail='expected a dictionary ; '
                               'got a {!r} instead'.format(type(msg).__name__))
         try:
             version = msg['jsonrpc']
@@ -391,7 +391,7 @@ class Dispatcher(object):
             else:
                 return json_error(
                     None, INVALID_PARAMS, 'invalid object type',
-                    detail='expected a list or dictionary (object); '
+                    detail='expected a list or dictionary ; '
                            'got a {!r} instead'.format(type(params).__name__))
             try:
                 result = self.method(msg, ident, name, args, kwargs,

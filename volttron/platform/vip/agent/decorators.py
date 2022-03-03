@@ -94,7 +94,7 @@ def spawn(method):
     return wrapper
 
 
-class dualmethod(object):
+class dualmethod:
     '''Descriptor to allow class and instance methods of the same name.
 
     This class implements a descriptor that works similar to the
@@ -105,7 +105,7 @@ class dualmethod(object):
 
     Example:
 
-    >>> class Foo(object):
+    >>> class Foo:
     ...     @dualmethod
     ...     def bar(self):
     ...         print('instance method for', self)

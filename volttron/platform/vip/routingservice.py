@@ -67,7 +67,7 @@ _ROUTE_ERRORS = {
 _log = logging.getLogger(__name__)
 
 
-class RoutingService(object):
+class RoutingService:
     """
     This class maintains connection with external platforms.
     """

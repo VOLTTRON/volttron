@@ -94,7 +94,7 @@ try:
     from generatedssuper import GeneratedsSuper
 except ImportError as exp:
     
-    class GeneratedsSuper(object):
+    class GeneratedsSuper:
         tzoff_pattern = re_.compile(r'(\+|-)((0\d|1[0-3]):[0-5]\d|14:00)$')
         class _FixedOffsetTZ(datetime_.tzinfo):
             def __init__(self, offset, name):
@@ -671,7 +671,7 @@ class MixedContainer:
             outfile.write(')\n')
 
 
-class MemberSpec_(object):
+class MemberSpec_:
     def __init__(self, name='', data_type='', container=0,
             optional=0, child_attrs=None, choice=None):
         self.name = name
@@ -10442,7 +10442,7 @@ class Object(GeneratedsSuper):
 # end class Object
 
 
-class ServiceStatus(Object):
+class ServiceStatus:
     """Contains the current status of the service."""
     subclass = None
     superclass = Object
@@ -18264,7 +18264,7 @@ class LinearRingType(GeneratedsSuper):
 # end class LinearRingType
 
 
-class IdentifiedObject(Object):
+class IdentifiedObject:
     """This is a root class to provide common naming attributes for all
     classes needing naming attributes"""
     subclass = None
@@ -18344,7 +18344,7 @@ class IdentifiedObject(Object):
 # end class IdentifiedObject
 
 
-class DateTimeInterval(Object):
+class DateTimeInterval:
     """Interval of date and time. End is not included because it can be
     derived from the start and the duration."""
     subclass = None
@@ -18457,7 +18457,7 @@ class DateTimeInterval(Object):
 # end class DateTimeInterval
 
 
-class ServiceDeliveryPoint(Object):
+class ServiceDeliveryPoint:
     """[extension] Service Delivery Point is representation of revenue
     UsagePoint attributes"""
     subclass = None
@@ -18573,7 +18573,7 @@ class ServiceDeliveryPoint(Object):
 # end class ServiceDeliveryPoint
 
 
-class BatchItemInfo(Object):
+class BatchItemInfo:
     """Includes elements that make it possible to include multiple
     transactions in a single (batch) request."""
     subclass = None
@@ -18722,7 +18722,7 @@ class BatchItemInfo(Object):
 # end class BatchItemInfo
 
 
-class SummaryMeasurement(Object):
+class SummaryMeasurement:
     """An aggregated summary measurement reading."""
     subclass = None
     superclass = Object
@@ -18879,7 +18879,7 @@ class SummaryMeasurement(Object):
 # end class SummaryMeasurement
 
 
-class ServiceCategory(Object):
+class ServiceCategory:
     """Category of service provided to the customer."""
     subclass = None
     superclass = Object
@@ -18968,7 +18968,7 @@ class ServiceCategory(Object):
 # end class ServiceCategory
 
 
-class ReadingQuality(Object):
+class ReadingQuality:
     """Quality of a specific reading value or interval reading value. Note
     that more than one Quality may be applicable to a given Reading.
     Typically not used unless problems or unusual conditions occur
@@ -19061,7 +19061,7 @@ class ReadingQuality(Object):
 # end class ReadingQuality
 
 
-class IntervalReading(Object):
+class IntervalReading:
     """Specific value measured by a meter or other asset. Each Reading is
     associated with a specific ReadingType."""
     subclass = None

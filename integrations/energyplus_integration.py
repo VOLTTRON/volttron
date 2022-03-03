@@ -395,7 +395,7 @@ class EnergyPlusSimIntegration(BaseSimIntegration):
         return self.inputs
 
 
-class SocketServer(object):
+class SocketServer:
     """
     Socket Server class for connecting to EnergyPlus
     """

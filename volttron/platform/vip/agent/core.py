@@ -81,7 +81,7 @@ __all__ = ['BasicCore', 'Core', 'RMQCore', 'ZMQCore', 'killing']
 _log = logging.getLogger(__name__)
 
 
-class Periodic(object):  # pylint: disable=invalid-name
+class Periodic:  # pylint: disable=invalid-name
     ''' Decorator to set a method up as a periodic callback.
 
     The decorated method will be called with the given arguments every
@@ -129,7 +129,7 @@ class Periodic(object):  # pylint: disable=invalid-name
         return gevent.Greenlet(self._loop, method)
 
 
-class ScheduledEvent(object):
+class ScheduledEvent:
     '''Class returned from Core.schedule.'''
 
     def __init__(self, function, args=None, kwargs=None):
@@ -161,7 +161,7 @@ def findsignal(obj, owner, name):
     return signal
 
 
-class BasicCore(object):
+class BasicCore:
     delay_onstart_signal = False
     delay_running_event_set = False
 

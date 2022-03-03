@@ -52,7 +52,7 @@ utils.setup_logging()
 _log = logging.getLogger(__name__)
 
 
-class OadrBuilder(object):
+class OadrBuilder:
     """Abstract superclass. Build oadr model objects to send to the VTN."""
 
     def __init__(self, request_id=None, ven_id=None, **kwargs):

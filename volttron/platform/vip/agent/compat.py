@@ -48,7 +48,7 @@ from .subsystems.pubsub import encode_peer
 from volttron.platform.messaging.headers import Headers
 
 
-class CompatPubSub(object):
+class CompatPubSub:
     '''VOLTTRON 2.x compatible agent pub/sub message exchange bus.
 
     Accept multi-part messages from sockets connected to in_addr, which

@@ -54,7 +54,7 @@ class DNP3Exception(Exception):
     pass
 
 
-class PointDefinitions(object):
+class PointDefinitions:
     """In-memory repository of PointDefinitions."""
 
     def __init__(self, point_definitions_path=None):
@@ -221,7 +221,7 @@ class PointDefinitions(object):
         return point_list
 
 
-class BasePointDefinition(object):
+class BasePointDefinition:
     """Abstract superclass for PointDefinition data holders."""
 
     def __init__(self, element_def):
@@ -516,7 +516,7 @@ class ArrayPointDefinition(BasePointDefinition):
         return point_json
 
 
-class PointValue(object):
+class PointValue:
     """Data holder for a point value (DNP3 measurement or command) received by an outstation."""
 
     def __init__(self, command_type, function_code, value, point_def, index, op_type):
@@ -554,7 +554,7 @@ class PointValue(object):
             return self.value
 
 
-class PointArray(object):
+class PointArray:
     """Data holder for a MESA-ESS Array."""
 
     def __init__(self, point_def):

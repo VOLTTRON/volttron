@@ -36,7 +36,7 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-class Logging(object):
+class Logging:
     _logger = None
     def _debug(self, msg, *args, **kwargs):
         pass

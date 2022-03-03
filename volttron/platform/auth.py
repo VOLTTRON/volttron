@@ -1452,7 +1452,7 @@ class AuthEntryInvalid(AuthException):
     pass
 
 
-class AuthEntry(object):
+class AuthEntry:
     """
     An authentication entry contains fields for authenticating and
     granting permissions to an agent that connects to the platform.
@@ -1663,7 +1663,7 @@ class AuthEntry(object):
         AuthEntry.valid_credentials(self.credentials, self.mechanism)
 
 
-class AuthFile(object):
+class AuthFile:
     def __init__(self, auth_file=None):
         self.auth_data = {}
         if auth_file is None:

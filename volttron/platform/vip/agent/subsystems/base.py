@@ -37,6 +37,6 @@
 # }}}
 
 
-class SubsystemBase(object):
+class SubsystemBase:
     pass
 

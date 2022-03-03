@@ -179,7 +179,7 @@ def validate_published_device_data(expected_headers, expected_message,
         assert message[0][k] == pytest.approx(v)
 
 
-class AgentMock(object):
+class AgentMock:
     """
     The purpose for this parent class is to be used for unit
     testing of agents. It takes in the class methods of other

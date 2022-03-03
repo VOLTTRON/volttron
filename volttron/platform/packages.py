@@ -252,7 +252,7 @@ _all_record_re = re.compile(r'^(?:.*/)?RECORD(?:\.\d+)?(?:\.p7s)?$')
 # http://code.activestate.com/recipes/285211/ for an alternate solution
 # using M2Crypto.
 #
-class BasePackageVerifier(object):
+class BasePackageVerifier:
     '''Base class for implementing wheel package verification.
 
     Verifies wheel packages as defined in PEP-427. May be inherited with
@@ -364,7 +364,7 @@ class ZipPackageVerifier(BasePackageVerifier):
         return self._zipfile.open(path, 'r')
 
 
-class UnpackedPackage(object):
+class UnpackedPackage:
     '''Represents an package unpacked into a directory.
 
     Allows one access to the package metadata and methods to repack.

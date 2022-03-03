@@ -7,7 +7,7 @@ from .websocket import VolttronWebSocket
 _log = logging.getLogger(__name__)
 
 
-class WebApplicationWrapper(object):
+class WebApplicationWrapper:
     """ A container class that will hold all of the applications registered
     with it.  The class provides a container for managing the routing of
     websocket, static content, and rpc function calls.
