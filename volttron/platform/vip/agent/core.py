@@ -64,7 +64,7 @@ from volttron.platform import is_rabbitmq_available
 from volttron.platform.agent import utils
 from volttron.platform.agent.utils import load_platform_config, get_platform_instance_name
 from volttron.platform.keystore import KeyStore, KnownHostsStore
-from volttron.platform.auth.auth_protocols.auth_zmq import ZMQAuthorization
+from volttron.platform.auth.auth_protocols.auth_zmq import ZMQClientAuthentication, ZMQClientParameters
 from volttron.utils.rmq_mgmt import RabbitMQMgmt
 from .decorators import annotate, annotations, dualmethod
 from .dispatch import Signal
@@ -647,17 +647,20 @@ class ZMQCore(Core):
         self._fncs_enabled = enable_fncs
         self.messagebus = messagebus
         self.enable_auth = enable_auth
-        #SN -- Testing
         zmq_auth = None
-        if self.enable_auth:
-            zmq_auth = ZMQAuthorization(address=address, identity=identity, 
-                 publickey=publickey, secretkey=secretkey, serverkey=serverkey,
-                 volttron_home=volttron_home, agent_uuid=agent_uuid)
-            zmq_auth._set_keys()
-            self.publickey = zmq_auth.publickey
-            self.secretkey = zmq_auth.secretkey
-            self.serverkey = zmq_auth.serverkey
-            self.address = zmq_auth.address
+        if self.enable_auth:  
+            zmq_auth = ZMQClientAuthentication(
+                ZMQClientParameters(
+                    address=address, 
+                    identity=identity, 
+                    agent_uuid=agent_uuid,
+                    publickey=publickey, 
+                    secretkey=secretkey, 
+                    serverkey=serverkey, 
+                    volttron_home=volttron_home
+                )
+            )
+            self.address = zmq_auth.create_authenticated_address()
 
         _log.debug("AGENT RUNNING on ZMQ Core {}".format(self.identity))
 
@@ -884,7 +887,7 @@ class RMQCore(Core):
         # added so that it is available to auth subsytem when connecting
         # to remote instance
         if self.publickey is None or self.secretkey is None and self.enable_auth:
-            zmq_auth = ZMQAuthorization(address=address, identity=identity, 
+            zmq_auth = ZMQClientAuthentication(address=address, identity=identity, 
                  publickey=publickey, secretkey=secretkey, serverkey=serverkey,
                  volttron_home=volttron_home, agent_uuid=agent_uuid)
 

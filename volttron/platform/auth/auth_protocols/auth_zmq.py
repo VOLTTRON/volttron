@@ -37,6 +37,7 @@
 # }}}
 
 import logging
+from dataclasses import dataclass
 import os
 import random
 import uuid
@@ -44,6 +45,7 @@ import bisect
 from urllib.parse import urlsplit, parse_qs, urlunsplit
 import gevent
 import gevent.time
+from pytest import param
 from zmq import green as zmq
 from zmq.green import ZMQError, EAGAIN, ENOTSOCK
 from zmq.utils.monitor import recv_monitor_message
@@ -51,10 +53,23 @@ import volttron.platform
 from volttron.platform.auth.auth_utils import dump_user, load_user
 from volttron.platform.auth.auth_protocols.auth_protocol import BaseAuthorization, BaseAuthentication
 from volttron.platform.keystore import KeyStore, KnownHostsStore
+from volttron.platform.parameters import Parameters
 from volttron.platform.vip.agent.core import ZMQCore
 from volttron.platform.vip.socket import encode_key, BASE64_ENCODED_CURVE_KEY_LEN
+from volttron.platform.agent.utils import watch_file
 
 _log = logging.getLogger(__name__)
+
+@dataclass
+class ZMQClientParameters(Parameters):
+    address: str = None 
+    identity: str = None
+    publickey: str = None
+    secretkey: str = None
+    serverkey: str = None
+    volttron_home: str = os.path.abspath(volttron.platform.get_home())
+    agent_uuid: str = None
+
 
 
 # ZMQAuthorization(BaseAuthorization)
@@ -63,21 +78,18 @@ _log = logging.getLogger(__name__)
 # ZMQServerAuthorization - Approve, deny, delete certs
 # ZMQParameters(Parameters)
 class ZMQClientAuthentication(BaseAuthentication):
-    def __init__(self, params=Parameters), address=None, identity=None, 
-                 publickey=None, secretkey=None, serverkey=None,
-                 volttron_home=os.path.abspath(volttron.platform.get_home()),
-                 agent_uuid=None) -> None:
-        super(ZMQAuthorization).__init__(self, params=Parameters)address=address, identity=identity, 
-                 publickey=publickey, secretkey=secretkey, serverkey=serverkey,
-                 volttron_home=volttron_home, agent_uuid=agent_uuid)
-                
-        # Zap Loop
-        self.zap_socket = None
-        self._zap_greenlet = None
-        self._is_connected = False
+    def __init__(self, params=ZMQClientParameters()):
+        super(ZMQClientAuthentication).__init__(self, params=params)
+        self.address = params.address
+        self.identity = params.identity
+        self.agent_uuid = params.agent_uuid
+        self.publickey = params.publickey
+        self.secretkey = params.secretkey
+        self.serverkey = params.serverkey
+        self.volttron_home = params.volttron_home
 
 # Make Common (set_parameters? - use Parameters class)
-    def _set_keys(self): 
+    def create_authenticated_address(self):
         """Implements logic for setting encryption keys and putting
         those keys in the parameters of the VIP address
         """
@@ -86,7 +98,8 @@ class ZMQClientAuthentication(BaseAuthentication):
 
         if self.publickey and self.secretkey and self.serverkey:
             self._add_keys_to_addr()
-
+        return self.address
+        
     def _add_keys_to_addr(self):
         '''Adds public, secret, and server keys to query in VIP address if
         they are not already present'''
@@ -162,26 +175,37 @@ class ZMQClientAuthentication(BaseAuthentication):
         serverkey = query.get('serverkey', [None])[0]
         return publickey, secretkey, serverkey
 
-    # Handle Zap Loop
+class ZMQServerAuthentication(object):
+    """
+    Implementation of the Zap Loop used by AuthService 
+    for handling ZMQ Authentication on the VOLTTRON Server Instance
+    """
+    def __init__(self, auth_service=None) -> None:
+        self.auth_service = auth_service
+        self.zap_socket = None
+        self._zap_greenlet = None
+        self._is_connected = False
+
 
     def setup_zap(self, sender, **kwargs):
         self.zap_socket = zmq.Socket(zmq.Context.instance(), zmq.ROUTER)
         self.zap_socket.bind("inproc://zeromq.zap.01")
-        if self.allow_any:
+        if self.auth_service.allow_any:
             _log.warning("insecure permissive authentication enabled")
-        self.read_auth_file()
-        self._read_protected_topics_file()
-        self.core.spawn(watch_file, self.auth_file_path, self.read_auth_file)
-        self.core.spawn(
+        self.auth_service.read_auth_file()
+        self.auth_service._read_protected_topics_file()
+        self.auth_service.core.spawn(watch_file, self.auth_service.auth_file_path, self.auth_service.read_auth_file)
+        self.auth_service.core.spawn(
             watch_file,
-            self._protected_topics_file_path,
-            self._read_protected_topics_file,
+            self.auth_service._protected_topics_file_path,
+            self.auth_service._read_protected_topics_file,
         )
-        if self.core.messagebus == "rmq":
-            self.vip.peerlist.onadd.connect(self._check_topic_rules)
+        if self.auth_service.core.messagebus == "rmq":
+            self.auth_service.vip.peerlist.onadd.connect(self.auth_service._check_topic_rules)
+
 
     def authenticate(self, domain, address, mechanism, credentials):
-        for entry in self.auth_entries:
+        for entry in self.auth_service.auth_entries:
             if entry.match(domain, address, mechanism, credentials):
                 return entry.user_id or dump_user(
                     domain, address, mechanism, *credentials[:1]
@@ -190,13 +214,13 @@ class ZMQClientAuthentication(BaseAuthentication):
             parts = address.split(":")[1:]
             if len(parts) > 2:
                 pid = int(parts[2])
-                agent_uuid = self.aip.agent_uuid_from_pid(pid)
+                agent_uuid = self.auth_service.aip.agent_uuid_from_pid(pid)
                 if agent_uuid:
                     return dump_user(domain, address, "AGENT", agent_uuid)
             uid = int(parts[0])
             if uid == os.getuid():
                 return dump_user(domain, address, mechanism, *credentials[:1])
-        if self.allow_any:
+        if self.auth_service.allow_any:
             return dump_user(domain, address, mechanism, *credentials[:1])
 
     def zap_loop(self, sender, **kwargs):
@@ -217,7 +241,7 @@ class ZMQClientAuthentication(BaseAuthentication):
         wait_list = []
         timeout = None
 
-        self._send_protected_update_to_pubsub(self._protected_topics)
+        self.auth_service._send_protected_update_to_pubsub(self.auth_service._protected_topics)
 
         while True:
             events = sock.poll(timeout)
@@ -271,8 +295,8 @@ class ZMQClientAuthentication(BaseAuthentication):
                         credentials,
                     )
                     # If in setup mode, add/update auth entry
-                    if self._setup_mode:
-                        self._update_auth_entry(
+                    if self.auth_service._setup_mode:
+                        self.auth_service._update_auth_entry(
                             domain, address, kind, credentials[0], userid
                         )
                         _log.info(
@@ -291,7 +315,7 @@ class ZMQClientAuthentication(BaseAuthentication):
                     else:
                         if type(userid) == bytes:
                             userid = userid.decode("utf-8")
-                        self._update_auth_pending(
+                        self.auth_service._update_auth_pending(
                             domain, address, kind, credentials[0], userid
                         )
 

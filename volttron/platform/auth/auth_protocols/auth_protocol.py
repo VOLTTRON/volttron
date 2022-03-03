@@ -46,13 +46,18 @@ class BaseAuthorization:
 
 #BaseAuthentication class
 class BaseAuthentication:
-    def __init__(self, address=None, identity=None, 
-                 publickey=None, secretkey=None, serverkey=None,
-                 volttron_home=os.path.abspath(volttron.platform.get_home()),
-                 agent_uuid=None) -> None:
+    def __init__(self, params=None):
+        self.address = None
+        self.identity = None
+        pass
+    
+    def create_authenticated_address(self):
+        """
+        Used to create an authenticated address 
+        based on authentication protocol and message bus.
+        """
+        pass
 
-        self.address = address
-        self.agent_uuid = agent_uuid
-        self.identity = identity
-        self.volttron_home = volttron_home
-
+# API
+# Create Authenticated Connection ()
+#   zmq equiv

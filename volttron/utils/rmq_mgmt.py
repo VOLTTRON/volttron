@@ -917,7 +917,7 @@ class RabbitMQMgmt(object):
             else:
                 # TODO: How is this working? PlainCredentials(rmq_user,
                 # rmq_user) ?? My understanding is that non ssl mode is going to
-                #  be used only for testing - when using plain
+                # be used only for testing - when using plain
                 # credentials all agents use same password.
                 conn_params = pika.ConnectionParameters(
                     host=self.rmq_config.hostname,
