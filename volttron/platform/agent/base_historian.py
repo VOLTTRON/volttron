@@ -1218,6 +1218,7 @@ class BaseHistorianAgent(Agent):
 
                     try:
                         if not cache_only_enabled:
+                            # items should be published here when cache_only_enabled is false
                             self.publish_to_historian(to_publish_list)
                     except Exception as e:
                         _log.exception(
@@ -1264,7 +1265,7 @@ class BaseHistorianAgent(Agent):
 
                     self._successful_published = set()
                     now = datetime.utcnow()
-                    if now - start_time > self._max_time_publishing:
+                    if (now - start_time).total_seconds() > self._max_time_publishing:
                         wait_for_input = False
                         break
 
@@ -1748,18 +1749,20 @@ class BackupDatabase:
         _log.debug(f"Setting up backup DB. {os.getcwd()}")
         # we want to create it in the agent-data directory since agent will not have write access to any other
         # directory in secure mode
-        # TODO - revisit logic to get agent-data directory. Refer to aip.get_agent_data()
-        # Also take into account dynamic agents - especially for testing
-        backup_db = os.path.join(os.getcwd(), os.path.basename(os.getcwd()) + ".agent-data", 'backup.sqlite')
-
+        if os.path.exists(os.path.join(os.getcwd(), os.path.basename(os.getcwd()) + ".agent-data")):
+            backup_db = os.path.join(os.getcwd(), os.path.basename(os.getcwd()) + ".agent-data", 'backup.sqlite')
+        else:   
+            # means its a dynamic agent
+            backup_db = os.path.join(os.getcwd(), 'backup.sqlite')
+        
         _log.info(f"Creating  backup db at {backup_db}")
+        
         self._connection = sqlite3.connect(
             backup_db,
             detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES,
             check_same_thread=check_same_thread)
 
         c = self._connection.cursor()
-
         if self._backup_storage_limit_gb is not None:
             c.execute('''PRAGMA page_size''')
             page_size = c.fetchone()[0]
