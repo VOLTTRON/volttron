@@ -508,7 +508,6 @@ def test_handle_platforms_agents_status_get_response(mock_platform_web_service, 
     assert json.loads(response.response[0]) == expected
 
 
-
 def _mock_devices_rpc(peer, meth, *args, external_platform=None, **kwargs):
     if peer == 'platform.actuator' and meth == 'get_multiple_points':
         ret_val = [{}, {}]
