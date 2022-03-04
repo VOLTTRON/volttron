@@ -265,7 +265,8 @@ class VUIEndpoints(object):
         platform, vip_identity = re.match('^/vui/platforms/([^/]+)/agents/([^/]+)/running/?$', path_info).groups()
         uuid = self._rpc('control', 'identity_exists', vip_identity, external_platform=platform)
         if not uuid:
-            return Response(json.dumps({'error': str(e)}), 400, content_type='application/json')
+            return Response(json.dumps({'error': f'Agent "{vip_identity}" not found.'}), 400,
+                            content_type='application/json')
 
         def _agent_running(vip_identity):
             peerlist = self._rpc('control', 'peerlist')
@@ -273,7 +274,7 @@ class VUIEndpoints(object):
 
         if request_method == 'GET':
                 status = _agent_running(vip_identity)
-                return Response(json.dumps({'status': status}), 200, content_type='application/json')
+                return Response(json.dumps({'running': status}), 200, content_type='application/json')
 
         elif request_method == 'PUT':
             if restart:
