@@ -22,7 +22,7 @@ must pass enable_web=True to the agent constructor.
 
     class WebAgent(Agent):
         def __init__(self, **kwargs):
-            super(WebAgent, self).__init__(enable_web=True,**kwargs)
+            super().__init__(enable_web=True, **kwargs)
 
 
 MANIFEST File

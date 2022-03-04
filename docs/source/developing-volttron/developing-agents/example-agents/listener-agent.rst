@@ -36,7 +36,7 @@ initializes any Listener agent instance variable.  This is done through the agen
 .. code-block:: python
 
     def __init__(self, config_path, **kwargs):
-        super(ListenerAgent, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self.config = utils.load_config(config_path)
         self._agent_id = self.config.get('agentid', DEFAULT_AGENTID)
         log_level = self.config.get('log-level', 'INFO')

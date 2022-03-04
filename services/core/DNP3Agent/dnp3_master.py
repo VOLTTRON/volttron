@@ -198,7 +198,7 @@ class VisitorIndexedBinary(opendnp3.IVisitorIndexedBinary):
     """
 
     def __init__(self):
-        super(VisitorIndexedBinary, self).__init__()
+        super().__init__()
         self.index_and_value = []
 
     def OnValue(self, indexed_instance):
@@ -219,7 +219,7 @@ class VisitorIndexedDoubleBitBinary(opendnp3.IVisitorIndexedDoubleBitBinary):
     """
 
     def __init__(self):
-        super(VisitorIndexedDoubleBitBinary, self).__init__()
+        super().__init__()
         self.index_and_value = []
 
     def OnValue(self, indexed_instance):
@@ -239,7 +239,7 @@ class VisitorIndexedCounter(opendnp3.IVisitorIndexedCounter):
     """
 
     def __init__(self):
-        super(VisitorIndexedCounter, self).__init__()
+        super().__init__()
         self.index_and_value = []
 
     def OnValue(self, indexed_instance):
@@ -260,7 +260,7 @@ class VisitorIndexedFrozenCounter(opendnp3.IVisitorIndexedFrozenCounter):
     """
 
     def __init__(self):
-        super(VisitorIndexedFrozenCounter, self).__init__()
+        super().__init__()
         self.index_and_value = []
 
     def OnValue(self, indexed_instance):
@@ -280,7 +280,7 @@ class VisitorIndexedAnalog(opendnp3.IVisitorIndexedAnalog):
     """
 
     def __init__(self):
-        super(VisitorIndexedAnalog, self).__init__()
+        super().__init__()
         self.index_and_value = []
 
     def OnValue(self, indexed_instance):
@@ -301,7 +301,7 @@ class VisitorIndexedBinaryOutputStatus(opendnp3.IVisitorIndexedBinaryOutputStatu
     """
 
     def __init__(self):
-        super(VisitorIndexedBinaryOutputStatus, self).__init__()
+        super().__init__()
         self.index_and_value = []
 
     def OnValue(self, indexed_instance):
@@ -322,7 +322,7 @@ class VisitorIndexedAnalogOutputStatus(opendnp3.IVisitorIndexedAnalogOutputStatu
     """
 
     def __init__(self):
-        super(VisitorIndexedAnalogOutputStatus, self).__init__()
+        super().__init__()
         self.index_and_value = []
 
     def OnValue(self, indexed_instance):
@@ -343,7 +343,7 @@ class VisitorIndexedTimeAndInterval(opendnp3.IVisitorIndexedTimeAndInterval):
     """
 
     def __init__(self):
-        super(VisitorIndexedTimeAndInterval, self).__init__()
+        super().__init__()
         self.index_and_value = []
 
     def OnValue(self, indexed_instance):
@@ -365,7 +365,7 @@ class LogHandler(openpal.ILogHandler):
     """
 
     def __init__(self):
-        super(LogHandler, self).__init__()
+        super().__init__()
 
     def Log(self, entry):
         flag = opendnp3.LogFlagToString(entry.filters.GetBitfield())
@@ -381,7 +381,7 @@ class ChannelListener(asiodnp3.IChannelListener):
     """
 
     def __init__(self):
-        super(ChannelListener, self).__init__()
+        super().__init__()
 
     def OnStateChange(self, state):
         _log.debug('In AppChannelListener.OnStateChange: state={}'.format(opendnp3.ChannelStateToString(state)))
@@ -395,7 +395,7 @@ class SOEHandler(opendnp3.ISOEHandler):
     """
 
     def __init__(self):
-        super(SOEHandler, self).__init__()
+        super().__init__()
         self.result = {
             "Binary": {},
             "DoubleBitBinary": {},
@@ -443,7 +443,7 @@ class SOEHandler(opendnp3.ISOEHandler):
 
 class MasterApplication(opendnp3.IMasterApplication):
     def __init__(self):
-        super(MasterApplication, self).__init__()
+        super().__init__()
 
         # Overridden method
         def AssignClassDuringStartup(self):

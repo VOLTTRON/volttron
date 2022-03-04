@@ -60,7 +60,7 @@ class HELICSSimIntegration(BaseSimIntegration):
     The class is responsible for integration with HELICS co-simulation platform
     """
     def __init__(self, config, pubsub):
-        super(HELICSSimIntegration, self).__init__(config)
+        super().__init__(config)
         self.pubsub = weakref.ref(pubsub)
         self.fed = None
         self._work_callback = None

@@ -62,7 +62,7 @@ class DNP3Agent(BaseDNP3Agent):
 
     def _process_point_value(self, point_value):
         """DNP3Agent publishes each point value to the message bus as the value is received from the master."""
-        point_val = super(DNP3Agent, self)._process_point_value(point_value)
+        point_val = super()._process_point_value(point_value)
         if point_val:
             self.publish_point_value(point_value)
 

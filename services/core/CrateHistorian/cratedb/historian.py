@@ -140,7 +140,7 @@ class CrateHistorian(BaseHistorian):
 
         """
 
-        super(CrateHistorian, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         temp, table_names = self.parse_table_def(tables_def)
         self._data_table = table_names['data_table']
         self._topic_table = table_names['topics_table']

@@ -91,7 +91,7 @@ class DNP3Outstation(opendnp3.IOutstationApplication):
                         Possible values: ALL, ALL_APP_COMMS, ALL_COMMS, NORMAL, NOTHING
             threads_to_allocate: (integer) Threads to allocate in the manager's thread pool. Default: 1.
         """
-        super(DNP3Outstation, self).__init__()
+        super().__init__()
         self.local_ip = local_ip
         self.port = port
         self.set_outstation_config(outstation_config)
@@ -370,7 +370,7 @@ class AppChannelListener(asiodnp3.IChannelListener):
     """
 
     def __init__(self):
-        super(AppChannelListener, self).__init__()
+        super().__init__()
 
     def OnStateChange(self, state):
         """
@@ -388,7 +388,7 @@ class MyLogger(openpal.ILogHandler):
     """
 
     def __init__(self):
-        super(MyLogger, self).__init__()
+        super().__init__()
         self.tcp_client = None
 
     def Log(self, entry):

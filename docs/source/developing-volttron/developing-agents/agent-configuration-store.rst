@@ -259,7 +259,7 @@ The following example shows how to use set_default with a basic configuration an
 
     class MyAgent(Agent):
         def __init__(self, setting1=0, setting2=0.0, **kwargs):
-            super(MyAgent, self).__init__(**kwargs)
+            super().__init__(**kwargs)
 
             self.default_config = {"setting1": setting1,
                                    "setting2": setting2}

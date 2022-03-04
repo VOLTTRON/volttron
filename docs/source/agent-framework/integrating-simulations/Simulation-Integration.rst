@@ -16,7 +16,7 @@ https://helics.readthedocs.io/en/latest/installation/linux.html.
         HelicsExampleAgent demonstrates how VOLTTRON agent can interact with HELICS simulation environment
         """
         def __init__(self, config, **kwargs):
-            super(HelicsExample, self).__init__(enable_store=False, **kwargs)
+            super().__init__(enable_store=False, **kwargs)
                 self.config = config
                 self.helics_sim = HELICSSimIntegration(config, self.vip.pubsub)
 

@@ -87,7 +87,7 @@ class LightAgent(MarketAgent, FirstOrderZone):
     sells electricity for a single building at a fixed price.
     """
     def __init__(self, market_name,agent_name,k,qmax,Pabsnom,nonResponsive,verbose_logging,subscribing_topic, **kwargs):
-        super(LightAgent, self).__init__(verbose_logging, **kwargs)
+        super().__init__(verbose_logging, **kwargs)
         self.market_name = market_name
         self.agent_name = agent_name        
         self.k = k

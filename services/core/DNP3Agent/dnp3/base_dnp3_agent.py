@@ -75,7 +75,7 @@ class BaseDNP3Agent(Agent):
     def __init__(self, points=None, point_topic='', local_ip=None, port=None,
                  outstation_config=None, local_point_definitions_path=None, **kwargs):
         """Initialize the DNP3 agent."""
-        super(BaseDNP3Agent, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self.points = points
         self.point_topic = point_topic
         self.local_ip = local_ip

@@ -83,7 +83,7 @@ single request.  First create the csv interface class boilerplate.
 
     class Interface(BasicRevert, BaseInterface):
         def __init__(self, **kwargs):
-            super(Interface, self).__init__(**kwargs)
+            super().__init__(**kwargs)
 
         def configure(self, config_dict, registry_config_str):
             pass
@@ -124,7 +124,7 @@ For the CSV driver, create the register class boilerplate:
     class CsvRegister(BaseRegister):
         def __init__(self, csv_path, read_only, pointName, units, reg_type,
                      default_value=None, description=''):
-            super(CsvRegister, self).__init__("byte", read_only, pointName, units, description=description)
+            super().__init__("byte", read_only, pointName, units, description=description)
 
 This class should inherit from the BaseRegister.  The class should keep register metadata, and depending upon the
 requirements of the protocol/device, may perform the communication.
@@ -171,7 +171,7 @@ Name" specifying the name of the register, and "Point Value", the current value 
 
     class Interface(BasicRevert, BaseInterface):
         def __init__(self, **kwargs):
-            super(Interface, self).__init__(**kwargs)
+            super().__init__(**kwargs)
             self.csv_path = None
 
         def configure(self, config_dict, registry_config_str):
@@ -270,8 +270,8 @@ The Register class determines which file to read based on values passed from the
     class CsvRegister(BaseRegister):
         def __init__(self, csv_path, read_only, pointName, units, reg_type,
                      default_value=None, description=''):
-            super(CsvRegister, self).__init__("byte", read_only, pointName, units,
-                                              description=description)
+            super().__init__("byte", read_only, pointName, units,
+                                description=description)
             self.csv_path = csv_path
 
 To find its value the register will read the CSV file, iterate over each row until a row with the point name the same
@@ -440,7 +440,7 @@ an action based on a pubsub subscription to a single point:
         """
 
         def __init__(self, csv_topic="", **kwargs):
-            super(Csvdriveragent, self).__init__(**kwargs)
+            super().__init__(**kwargs)
             _log.debug("vip_identity: " + self.core.identity)
 
             self.agent_id = "csv_actuation_agent"

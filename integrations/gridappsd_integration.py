@@ -64,7 +64,7 @@ class GridAPPSDSimIntegration(BaseSimIntegration):
     receive messages, pause and resume simulation
     """
     def __init__(self, config, pubsub):
-        super(GridAPPSDSimIntegration, self).__init__(config)
+        super().__init__(config)
         self._work_callback = None
         self.config = config
         self.gridappsd = None

@@ -84,7 +84,7 @@ class DataCleaner(Agent):
 
     def __init__(self, period=300, points={},
                  **kwargs):
-        super(DataCleaner, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         _log.debug("vip_identity: " + self.core.identity)
 
         self.period = period

@@ -58,7 +58,7 @@ class ConfigActuation(Agent):
     """
 
     def __init__(self, config_path, **kwargs):
-        super(ConfigActuation, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
         self.vip.config.subscribe(self.configure, actions=["NEW", "UPDATE"])
 

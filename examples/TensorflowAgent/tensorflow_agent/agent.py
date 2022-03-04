@@ -56,7 +56,7 @@ class TensorflowAgent(Agent):
     """
 
     def __init__(self, config, hostport, **kwargs):
-        super(TensorflowAgent, self).__init__(enable_store=True, **kwargs)
+        super().__init__(enable_store=True, **kwargs)
         default_config = {
             "hostport": hostport,
             "model_name": "mnist",

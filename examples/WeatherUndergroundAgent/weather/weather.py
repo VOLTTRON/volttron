@@ -94,7 +94,7 @@ class Weather2Agent(Agent):
     TODO: Integrate NOAA and TMY3 data
     """
     def __init__(self, config_path, **kwargs):
-        super(Weather2Agent, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
         self.config = utils.load_config(config_path)
         self.wu_api_key = self.config.get('wu_api_key')

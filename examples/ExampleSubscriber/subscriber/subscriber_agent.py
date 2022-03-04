@@ -80,7 +80,7 @@ def subscriber_agent(config_path, **kwargs):
         '''
     
         def __init__(self, **kwargs):
-            super(ExampleSubscriber, self).__init__(**kwargs)
+            super().__init__(**kwargs)
     
         @Core.receiver('onsetup')
         def setup(self, sender, **kwargs):

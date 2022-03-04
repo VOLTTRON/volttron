@@ -64,7 +64,7 @@ PUBLISH_PERIOD = 1
 
 class CAgent(Agent):
     def __init__(self, config_path, **kwargs):
-        super(CAgent, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
         so_filename = __file__.rsplit('/', 1)[0] + '/' + 'libfoo.so'
 

@@ -78,7 +78,7 @@ class SampleElectricMeterAgent(MarketAgent):
     sells electricity for a single building at a fixed price.
     """
     def __init__(self, market_name, **kwargs):
-        super(SampleElectricMeterAgent, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self.market_name = market_name
         self.join_market(self.market_name, SELLER, None, self.offer_callback, None, self.price_callback, self.error_callback)
 

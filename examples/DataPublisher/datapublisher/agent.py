@@ -125,7 +125,7 @@ class Publisher(Agent):
                  reset_playback=False, topic_separator="/",
                  **kwargs):
         '''Initialize data publisher class attributes.'''
-        super(Publisher, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
         self._meta_data = {}  # maps from device topic to meta data map.
         self._name_map = {}  # maps from column name to (device topic, point name)

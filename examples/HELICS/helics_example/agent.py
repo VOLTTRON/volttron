@@ -80,7 +80,7 @@ class HelicsExample(Agent):
     """
 
     def __init__(self, config, **kwargs):
-        super(HelicsExample, self).__init__(enable_store=False, **kwargs)
+        super().__init__(enable_store=False, **kwargs)
         _log.debug("vip_identity: " + self.core.identity)
         self.config = config
         self.helics_sim = HELICSSimIntegration(config, self.vip.pubsub)

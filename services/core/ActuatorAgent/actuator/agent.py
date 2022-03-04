@@ -555,7 +555,7 @@ class ActuatorAgent(Agent):
                  allow_no_lock_write=True,
                  **kwargs):
 
-        super(ActuatorAgent, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         _log.debug("vip_identity: " + self.core.identity)
 
         self._update_event = None

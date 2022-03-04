@@ -58,7 +58,7 @@ def historian(config_path, **kwargs):
         '''
 
         def __init__(self, **kwargs):
-            super(NullHistorian, self).__init__(**kwargs)
+            super().__init__(**kwargs)
 
             if self._gather_timing_data:
                 self._turnaround_times = []

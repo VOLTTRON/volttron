@@ -36,10 +36,10 @@ matter how many standalone agents are in use, MatLabAgentV2 will record all of t
 
     class MatlabAgentV2(Agent):
 
-        def __init__(self,script_names=[], script_args=[], topics_to_matlab=[],
+        def __init__(self, script_names=[], script_args=[], topics_to_matlab=[],
                 topics_to_volttron=None,**kwargs):
 
-            super(MatlabAgentV2, self).__init__(**kwargs)
+            super().__init__(**kwargs)
             _log.debug("vip_identity: " + self.core.identity)
 
             self.script_names = script_names

@@ -86,7 +86,7 @@ class GridappsdExample(Agent):
     """
 
     def __init__(self, config, **kwargs):
-        super(GridappsdExample, self).__init__(enable_store=False, **kwargs)
+        super().__init__(enable_store=False, **kwargs)
         _log.debug("vip_identity: " + self.core.identity)
         self.config = config
         self.Gridappsd_sim = GridAPPSDSimIntegration(config, self.vip.pubsub)

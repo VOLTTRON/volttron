@@ -112,7 +112,7 @@ class InfluxdbHistorian(BaseHistorian):
         :param kwargs: additional keyword arguments. (optional identity and
                        topic_replace_list used by parent classes)
         """
-        super(InfluxdbHistorian, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self._connection_params = connection.get('params', {})
         self._host = self._connection_params.get('host', None)
         self._user = self._connection_params.get('user', None)

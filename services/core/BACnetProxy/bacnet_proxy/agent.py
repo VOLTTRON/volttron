@@ -442,7 +442,7 @@ class BACnetProxyAgent(Agent):
     """
     def __init__(self, device_address, max_apdu_len, seg_supported, obj_id, obj_name, ven_id, max_per_request,
                  request_check_interval=100, **kwargs):
-        super(BACnetProxyAgent, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
         async_call = AsyncCall()
         self.bacnet_application = None

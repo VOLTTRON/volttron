@@ -109,7 +109,7 @@ class Darksky(BaseWeatherAgent):
     """
 
     def __init__(self, performance_mode=True, **kwargs):
-        super(Darksky, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self.performance_mode = performance_mode
         if self.performance_mode:
             _log.info("Darksky agent staring in performance mode")

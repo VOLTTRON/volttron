@@ -87,7 +87,7 @@ class AHUAgent(MarketAgent, AhuChiller):
     sells electricity for a single building at a fixed price.
     """
     def __init__(self, air_market_name, electric_market_name, agent_name,subscribing_topic,c0,c1,c2,c3,COP,verbose_logging, **kwargs):
-        super(AHUAgent, self).__init__(verbose_logging, **kwargs)
+        super().__init__(verbose_logging, **kwargs)
 
         self.air_market_name = air_market_name
         self.electric_market_name = electric_market_name

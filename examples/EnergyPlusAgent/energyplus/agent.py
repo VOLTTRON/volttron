@@ -84,7 +84,7 @@ def energyplus_example(config_path, **kwargs):
 
 class EnergyPlusAgent(Agent):
     def __init__(self, config, **kwargs):
-        super(EnergyPlusAgent, self).__init__(enable_store=False, **kwargs)
+        super().__init__(enable_store=False, **kwargs)
         self.config = config
         self.inputs = []
         self.outputs = []

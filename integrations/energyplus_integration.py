@@ -59,7 +59,7 @@ class EnergyPlusSimIntegration(BaseSimIntegration):
     """
 
     def __init__(self, config, pubsub, core):
-        super(EnergyPlusSimIntegration, self).__init__(config)
+        super().__init__(config)
         self.pubsub = weakref.ref(pubsub)
         self.core = weakref.ref(core)
         self.current_time = 0

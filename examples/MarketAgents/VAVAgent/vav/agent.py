@@ -99,7 +99,7 @@ class VAVAgent(MarketAgent, FirstOrderZone):
     sells electricity for a single building at a fixed price.
     """
     def __init__(self, market_name,agent_name,x0,x1,x2,x3,x4,c0,c1,c2,c3,c4,tMinAdj,tMaxAdj,mDotMin,mDotMax,tIn,nonResponsive,verbose_logging,subscribing_topic, **kwargs):
-        super(VAVAgent, self).__init__(verbose_logging, **kwargs)
+        super().__init__(verbose_logging, **kwargs)
         self.market_name = market_name
         self.agent_name = agent_name		
         self.x0 = x0

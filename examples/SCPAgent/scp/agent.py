@@ -61,7 +61,7 @@ class WhichWayEnum(Enum):
 
 class ScpAgent(Agent):
     def __init__(self, config_path, **kwargs):
-        super(ScpAgent, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         config = load_config(config_path)
         self._remote_user = None
         self._ssh_id = None

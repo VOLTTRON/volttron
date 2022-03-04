@@ -79,7 +79,7 @@ def schedule_example(config_path, **kwargs):
     
     
         def __init__(self, **kwargs):
-            super(SchedulerExample, self).__init__(**kwargs)
+            super().__init__(**kwargs)
     
         @Core.receiver('onsetup')
         def setup(self, sender, **kwargs):

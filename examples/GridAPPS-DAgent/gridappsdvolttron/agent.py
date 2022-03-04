@@ -52,7 +52,7 @@ class GridAPPSDVolttron(Agent):
 
     def __init__(self, setting1=1, setting2="some/random/topic",
                  **kwargs):
-        super(GridAPPSDVolttron, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self._gapps = None
         self._publish_event = None
         self._test_topic = "/topic/data"

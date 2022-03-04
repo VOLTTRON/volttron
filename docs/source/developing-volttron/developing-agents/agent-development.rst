@@ -119,7 +119,7 @@ Descriptions of the features of this code as well as additional development help
         """
 
         def __init__(self, setting1=1, setting2="some/random/topic", **kwargs):
-            super(Tester, self).__init__(**kwargs)
+            super().__init__(**kwargs)
             _log.debug("vip_identity: " + self.core.identity)
 
             self.setting1 = setting1
@@ -281,7 +281,7 @@ a simple example of setting up default configuration store values and setting up
         """
 
         def __init__(self, setting1=1, setting2="some/random/topic", **kwargs):
-            super(Tester, self).__init__(**kwargs)
+            super().__init__(**kwargs)
             _log.debug("vip_identity: " + self.core.identity)
 
             self.setting1 = setting1

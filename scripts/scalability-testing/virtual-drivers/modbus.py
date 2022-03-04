@@ -109,7 +109,7 @@ class CallbackSequentialDataBlock(ModbusSequentialDataBlock):
     def __init__(self, callback, *args, **kwargs):
         '''
         '''
-        super(CallbackSequentialDataBlock, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.callback = callback
 
     def setValues(self, address, values):
@@ -118,7 +118,7 @@ class CallbackSequentialDataBlock(ModbusSequentialDataBlock):
         :param address: The starting address
         :param values: The new values to be set
         '''
-        super(CallbackSequentialDataBlock, self).setValues(address, values)
+        super().setValues(address, values)
         self.callback(address, values)
 
     def getValues(self, address, count=1):
@@ -127,7 +127,7 @@ class CallbackSequentialDataBlock(ModbusSequentialDataBlock):
         :param address: The starting address
         :param values: The new values to be set
         '''
-        results = super(CallbackSequentialDataBlock, self).getValues(address, count)
+        results = super().getValues(address, count)
         self.callback(address, results)
         return results
 

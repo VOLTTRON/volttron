@@ -24,7 +24,7 @@ ALL_REX = re.compile('.*/all$')
 
 class PrometheusScrapeAgent(Agent):
     def __init__(self, config_path, **kwargs):
-        super(PrometheusScrapeAgent, self).__init__(enable_web=True, **kwargs)
+        super().__init__(enable_web=True, **kwargs)
         if isinstance(config_path, dict):
             self._config_dict = config_path
         else:

@@ -93,7 +93,7 @@ def historian(config_path, **kwargs):
             self._num_failures = 0
             self._last_timeout = 0
             self._target_platform = None
-            super(DataPuller, self).__init__(**kwargs)
+            super().__init__(**kwargs)
 
         @Core.receiver("onstart")
         def starting_base(self, sender, **kwargs):

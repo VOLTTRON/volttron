@@ -51,7 +51,7 @@ __version__ = '0.0.1'
 
 class WebSocketAgent(Agent):
     def __init__(self, config_path, **kwargs):
-        super(WebSocketAgent, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self._websubsystem = None
 
     @Core.receiver("onstart")

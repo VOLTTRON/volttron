@@ -74,8 +74,8 @@ class CsvRegister(BaseRegister):
     def __init__(self, csv_path, read_only, pointName, units, reg_type,
                  default_value=None, description=''):
         # set inherited values
-        super(CsvRegister, self).__init__("byte", read_only, pointName, units,
-                                          description=description)
+        super().__init__("byte", read_only, pointName, units,
+                            description=description)
         # set the path to the CSV this register belongs to
         self.csv_path = csv_path
 
@@ -149,7 +149,7 @@ class Interface(BasicRevert, BaseInterface):
     """
     def __init__(self, **kwargs):
         # Configure the base interface
-        super(Interface, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         # We wont have a path to our "device" until we've been configured
         self.csv_path = None
 

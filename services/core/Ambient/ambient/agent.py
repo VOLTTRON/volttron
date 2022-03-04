@@ -108,7 +108,7 @@ class Ambient(BaseWeatherAgent):
     """
 
     def __init__(self, application_key="", **kwargs):
-        super(Ambient, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         _log.debug("vip_identity: " + self.core.identity)
         self.headers = {"Accept": "application/json",
                         "Accept-Language": "en-US"

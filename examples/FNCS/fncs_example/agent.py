@@ -58,7 +58,7 @@ class FncsExample(Agent):
     def __init__(self, topic_mapping, federate_name=None, broker_location="tcp://localhost:5570",
                  time_delta="1s",subscription_topic=None, simulation_start_time=None, sim_length="10s", 
                  stop_agent_when_sim_complete=False, **kwargs):
-        super(FncsExample, self).__init__(enable_fncs=True, enable_store=False, **kwargs)
+        super().__init__(enable_fncs=True, enable_store=False, **kwargs)
         _log.debug("vip_identity: " + self.core.identity)
 
         self._federate_name = federate_name

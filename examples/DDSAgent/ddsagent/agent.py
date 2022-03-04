@@ -52,7 +52,7 @@ import rticonnextdds_connector as rti
 
 class DDSAgent(Agent):
     def __init__(self, config_path, **kwargs):
-        super(DDSAgent, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
         self.reader = {}
         self.writer = {}

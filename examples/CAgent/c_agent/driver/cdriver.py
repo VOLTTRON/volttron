@@ -72,7 +72,7 @@ def so_lookup_function(shared_object, function_name):
 
 class CRegister(BaseRegister):
     def __init__(self,read_only, pointName, units, description = ''):
-        super(CRegister, self).__init__("byte", read_only, pointName, units, description = '')
+        super().__init__("byte", read_only, pointName, units, description = '')
 
 
 class Interface(BasicRevert, BaseInterface):
@@ -82,7 +82,7 @@ class Interface(BasicRevert, BaseInterface):
     support this.
     """
     def __init__(self, **kwargs):
-        super(Interface, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
     def configure(self, config_dict, registry_config_str):
         so_filename = config_dict['shared_object']

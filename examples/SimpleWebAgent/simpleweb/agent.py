@@ -71,8 +71,7 @@ class SimpleWebAgent(Agent):
     """
 
     def __init__(self, config_path, **kwargs):
-        super(SimpleWebAgent, self).__init__(enable_web=True,
-                                             **kwargs)
+        super().__init__(enable_web=True, **kwargs)
 
     @Core.receiver("onstart")
     def starting(self, sender, **kwargs):

@@ -41,9 +41,9 @@ MAX_QUEUE_SIZE = 50000
 QUEUE_BATCH_SIZE = 5000
 
 
-class TableQueue(queue.Queue, object):
+class TableQueue(queue.Queue):
     def __init__(self, table_name):
-        super(TableQueue, self).__init__()
+        super().__init__()
         self.table_name = table_name
 
 

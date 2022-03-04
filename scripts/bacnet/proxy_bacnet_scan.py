@@ -57,7 +57,7 @@ _log = logging.getLogger(__name__)
 
 class BACnetInteraction(Agent):
     def __init__(self, proxy_id, csv_writer=None, **kwargs):
-        super(BACnetInteraction, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self.proxy_id = proxy_id
         self.csv_writer = csv_writer
 

@@ -69,7 +69,7 @@ logging.basicConfig(
 class StandAloneFileWatchPublisher(Agent):
     ''' A standalone version of the FileWatcherPublisher'''
     def __init__(self, **kwargs):
-        super(StandAloneFileWatchPublisher, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self.config = config
         items = config[:]
         self.file_topic = {}

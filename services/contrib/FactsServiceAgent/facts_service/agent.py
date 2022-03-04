@@ -73,7 +73,7 @@ class FactsService(BaseHistorian):
         # Unless you need to interact with the VOLTTRON platform
         # leave this unchanged.
         kwargs["process_loop_in_greenlet"] = False
-        super(FactsService, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
         self._facts_service_base_api_url = None
         self._facts_service_username = None

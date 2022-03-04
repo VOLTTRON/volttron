@@ -79,7 +79,7 @@ class MeterAgent(MarketAgent):
     sells electricity for a single building at a fixed price.
     """
     def __init__(self, market_name, price, verbose_logging, **kwargs):
-        super(MeterAgent, self).__init__(verbose_logging, **kwargs)
+        super().__init__(verbose_logging, **kwargs)
         self.market_name = market_name
         self.price = price
         self.infinity=1000000

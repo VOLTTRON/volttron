@@ -95,7 +95,7 @@ class DataMover(BaseHistorian):
         kwargs["process_loop_in_greenlet"] = True
         self.destination_instance_name = kwargs.pop('destination_instance_name', None)
         self.destination_message_bus = kwargs.pop('destination_message_bus', 'zmq')
-        super(DataMover, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self.destination_vip = destination_vip
         self.destination_serverkey = destination_serverkey
         self.destination_historian_identity = destination_historian_identity

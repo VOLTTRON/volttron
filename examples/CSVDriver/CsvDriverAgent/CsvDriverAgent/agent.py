@@ -47,7 +47,7 @@ class Csvdriveragent(Agent):
 
     def __init__(self, csv_topic="", **kwargs):
         # Configure the base agent
-        super(Csvdriveragent, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         _log.debug("vip_identity: " + self.core.identity)
 
         # This agent is for testing purposes, so we'll default our ID

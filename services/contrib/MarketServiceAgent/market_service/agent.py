@@ -117,7 +117,7 @@ class MarketServiceAgent(Agent):
     ]
 
     def __init__(self, config_path, **kwargs):
-        super(MarketServiceAgent, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
         config = utils.load_config(config_path)
         self.agent_name = config.get('agent_name', 'MixMarketService')

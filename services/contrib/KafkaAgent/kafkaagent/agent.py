@@ -117,7 +117,7 @@ class KafkaAgent(Agent):
             Created: SungonLee, 2017-10-20
             Deleted: .
         '''
-        super(KafkaAgent, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
         # set config info
         self.services_topic_list = services_topic_list

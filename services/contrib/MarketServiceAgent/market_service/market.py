@@ -66,9 +66,9 @@ class MarketFailureError(Exception):
         if participant is not None:
             name = participant.identity
             role = participant.buyer_seller
-        super(MarketFailureError, self).__init__('The market {} is not accepting {} '
-                                                 'at this time. The state is {}. Participant info: {} {}.'.format(market_name,
-                                                 object_type, market_state, name, role))
+        super().__init__('The market {} is not accepting {} '
+                            'at this time. The state is {}. Participant info: {} {}.'.format(market_name,
+                            object_type, market_state, name, role))
 
 
 class Market:

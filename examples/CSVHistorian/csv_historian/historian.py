@@ -80,7 +80,7 @@ class CSVHistorian(BaseHistorian):
         self.csv_dict = None
         self.csv_file = None
         self.default_dir = "./data"
-        super(CSVHistorian, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
     def version(self):
         return __version__
