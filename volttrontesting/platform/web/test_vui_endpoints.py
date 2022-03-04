@@ -533,13 +533,12 @@ def test_handle_platforms_agents_tag_get_response(mock_platform_web_service, vip
     assert json.loads(response.response[0]) == expected
 
 
-@pytest.mark.parametrize('vip_identity, tag_given, tag_passed, expected', [
-    ('run1', '30', '30', '201'),
-    ('not_exists', None, '50', '400')
+@pytest.mark.parametrize('vip_identity, uuid, tag, expected', [
+    ('run1', '1', 'foo', '201'),
+    ('not_exists', None, 'foo', '400')
 ])
-def test_handle_platforms_agents_tag_put_response(mock_platform_web_service, vip_identity, tag_given, tag_passed,
-                                                  expected):
-    query_string = f'tag={tag_given}' if tag_given else ''
+def test_handle_platforms_agents_tag_put_response(mock_platform_web_service, vip_identity, uuid, tag, expected):
+    query_string = f'tag={tag}' if tag else ''
     path = f'/vui/platforms/my_instance_name/agents/{vip_identity}/tag'
     env = get_test_web_env(path, method='PUT', query_string=query_string, HTTP_AUTHORIZATION='Bearer foo')
     vui_endpoints = VUIEndpoints(mock_platform_web_service)
@@ -549,7 +548,7 @@ def test_handle_platforms_agents_tag_put_response(mock_platform_web_service, vip
     if expected == '201':
         vui_endpoints._rpc.assert_has_calls([mock.call('control', 'identity_exists', vip_identity,
                                                        external_platform='my_instance_name'),
-                                             mock.call('control', 'tag_agent', '1', tag_passed,
+                                             mock.call('control', 'tag_agent', uuid, tag,
                                                        external_platform='my_instance_name')])
     elif expected == '400':
         assert json.loads(response.response[0]) == {'error': "Agent 'not_exists' not found."}
