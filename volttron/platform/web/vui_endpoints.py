@@ -850,12 +850,10 @@ class VUIEndpoints(object):
 
     def _get_agents(self, platform: str, agent_state: str = "running", include_hidden=False) -> List[str]:
         agent_list = self._rpc('control', 'list_agents', external_platform=platform)
-        agent_status = self._rpc('control', 'status_agents', external_platform=platform)
-        running_uuids = [a[0] for a in agent_status]
+        peerlist = self._rpc('control', 'peerlist', external_platform=platform)
         for agent in agent_list:
-            agent['running'] = True if agent['uuid'] in running_uuids else False
+            agent['running'] = True if agent['identity'] in peerlist else False
         if include_hidden:
-            peerlist = self._rpc('control', 'peerlist', external_platform=platform)
             for p in peerlist:
                 if p not in [a['identity'] for a in agent_list]:
                     agent_list.append({'identity': p, 'running': True})
@@ -890,7 +888,7 @@ class VUIEndpoints(object):
 
     @staticmethod
     def _route_options(path_info, option_segments, enclosing_dict=True):
-        route_options =  {segment: normpath('/'.join([path_info, segment])) for segment in option_segments}
+        route_options = {segment: normpath('/'.join([path_info, segment])) for segment in option_segments}
         return route_options if not enclosing_dict else {'route_options': route_options}
 
     @staticmethod
