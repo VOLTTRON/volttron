@@ -508,6 +508,72 @@ def test_handle_platforms_agents_status_get_response(mock_platform_web_service, 
     assert json.loads(response.response[0]) == expected
 
 
+@pytest.mark.parametrize("method, status", gen_response_codes(['GET'], [ 'PUT', 'DELETE']))
+def test_handle_platforms_agents_tag_status_code(mock_platform_web_service, method, status):
+    env = get_test_web_env('/vui/platforms/my_instance_name/agents/run1/tag', method=method,
+                           HTTP_AUTHORIZATION='Bearer foo')
+    vui_endpoints = VUIEndpoints(mock_platform_web_service)
+    vui_endpoints._rpc = _mock_agents_rpc
+    response = vui_endpoints.handle_platforms_agents_tag(env, {})
+    check_response_codes(response, status)
+
+
+@pytest.mark.parametrize('vip_identity, expected', [
+    ('run1', {'tag': 'r1'}),
+    ('run2', {'tag': 'r2'}),
+    ('stopped1', {'tag': 'st1'}),
+    ('stopped2', {'tag': 'st2'}),
+    ('not_exist', {'error': "Agent 'not_exist' not found."})])
+def test_handle_platforms_agents_tag_get_response(mock_platform_web_service, vip_identity, expected):
+    path = f'/vui/platforms/my_instance_name/agents/{vip_identity}/tag'
+    env = get_test_web_env(path, method='GET', HTTP_AUTHORIZATION='Bearer foo')
+    vui_endpoints = VUIEndpoints(mock_platform_web_service)
+    vui_endpoints._rpc = _mock_agents_rpc
+    response = vui_endpoints.handle_platforms_agents_tag(env, {})
+    assert json.loads(response.response[0]) == expected
+
+
+@pytest.mark.parametrize('vip_identity, tag_given, tag_passed, expected', [
+    ('run1', '30', '30', '201'),
+    ('not_exists', None, '50', '400')
+])
+def test_handle_platforms_agents_tag_put_response(mock_platform_web_service, vip_identity, tag_given, tag_passed,
+                                                  expected):
+    query_string = f'tag={tag_given}' if tag_given else ''
+    path = f'/vui/platforms/my_instance_name/agents/{vip_identity}/tag'
+    env = get_test_web_env(path, method='PUT', query_string=query_string, HTTP_AUTHORIZATION='Bearer foo')
+    vui_endpoints = VUIEndpoints(mock_platform_web_service)
+    vui_endpoints._rpc = MagicMock(wraps=_mock_agents_rpc)
+    response = vui_endpoints.handle_platforms_agents_tag(env, {})
+    check_response_codes(response, expected)
+    if expected == '201':
+        vui_endpoints._rpc.assert_has_calls([mock.call('control', 'identity_exists', vip_identity,
+                                                       external_platform='my_instance_name'),
+                                             mock.call('control', 'tag_agent', '1', tag_passed,
+                                                       external_platform='my_instance_name')])
+    elif expected == '400':
+        assert json.loads(response.response[0]) == {'error': "Agent 'not_exists' not found."}
+
+
+@pytest.mark.parametrize('vip_identity, expected', [
+    ('run1', '204'),
+    ('not_exists', '400')
+])
+def test_handle_platforms_agents_tag_delete_response(mock_platform_web_service, vip_identity, expected):
+    path = f'/vui/platforms/my_instance_name/agents/{vip_identity}/tag'
+    env = get_test_web_env(path, method='DELETE', HTTP_AUTHORIZATION='Bearer foo')
+    vui_endpoints = VUIEndpoints(mock_platform_web_service)
+    vui_endpoints._rpc = MagicMock(wraps=_mock_agents_rpc)
+    response = vui_endpoints.handle_platforms_agents_tag(env, {})
+    check_response_codes(response, expected)
+    if expected == '204':
+        vui_endpoints._rpc.assert_has_calls([mock.call('control', 'identity_exists', vip_identity,
+                                                       external_platform='my_instance_name'),
+                                             mock.call('control', 'tag_agent', '1', None,
+                                                       external_platform='my_instance_name')])
+    elif expected == '400':
+        assert json.loads(response.response[0]) == {'error': "Agent 'not_exists' not found."}
+
 
 def _mock_devices_rpc(peer, meth, *args, external_platform=None, **kwargs):
     if peer == 'platform.actuator' and meth == 'get_multiple_points':
