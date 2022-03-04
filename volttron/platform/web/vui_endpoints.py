@@ -101,7 +101,7 @@ class VUIEndpoints(object):
                             'endpoint-active': True,
                         },
                         'tag': {
-                            'endpoint-active': False,
+                            'endpoint-active': True,
                         }
                     },
                     'auths': {
@@ -168,6 +168,8 @@ class VUIEndpoints(object):
             (re.compile('^/vui/platforms/[^/]+/agents/[^/]+/rpc/?$'), 'callable', self.handle_platforms_agents_rpc),
             (re.compile('^/vui/platforms/[^/]+/agents/[^/]+/rpc/[^/]+/?$'), 'callable', self.handle_platforms_agents_rpc_method),
             (re.compile('^/vui/platforms/[^/]+/agents/[^/]+/status/?$'), 'callable', self.handle_platforms_agents_status),
+            (re.compile('^/vui/platforms/[^/]+/agents/[^/]+/tag/?$'), 'callable',
+             self.handle_platforms_agents_tag),
             (re.compile('^/vui/platforms/[^/]+/devices/?$'), 'callable', self.handle_platforms_devices),
             (re.compile('^/vui/platforms/[^/]+/devices/.*/?$'), 'callable', self.handle_platforms_devices),
             (re.compile('^/vui/platforms/[^/]+/historians/?$'), 'callable', self.handle_platforms_historians),
@@ -400,6 +402,51 @@ class VUIEndpoints(object):
             except MethodNotFound or ValueError as e:
                 return Response(json.dumps({f'error': f'For agent  {e}'}),
                                 400, content_type='application/json')
+
+    @endpoint
+    def handle_platforms_agents_tag(self, env: dict, data: dict) -> Response:
+        """
+        Endpoints for /vui/platforms/:platform/agents/:vip_identity/tag/
+        :param env:
+        :param data:
+        :return:
+        """
+        _log.debug('VUI: In handle_platforms_agents_tag')
+        path_info = env.get('PATH_INFO')
+        request_method = env.get("REQUEST_METHOD")
+        query_params = url_decode(env['QUERY_STRING'])
+        tag = query_params.get('tag')
+        platform, vip_identity = re.match('^/vui/platforms/([^/]+)/agents/([^/]+)/tag/?$', path_info).groups()
+        list_of_agents = self._rpc('control', 'list_agents', external_platform=platform)
+        if request_method == 'GET':
+            try:
+                result = next(item['tag'] for item in list_of_agents if item['identity'] == vip_identity)
+                return Response(json.dumps({'tag': f"{result}"}), 200,
+                                content_type='application/json')
+            except StopIteration as e:
+                return Response(json.dumps({'error': f"Agent '{vip_identity}' not found."}),
+                                400, content_type='application/json')
+            except MethodNotFound or ValueError as e:
+                return Response(json.dumps({f'error': f"For agent '{vip_identity}': {e}"}),
+                                400, content_type='application/json')
+
+        elif request_method == 'PUT':
+            _log.debug('VUI: request_method was "PUT')
+            uuid = self._rpc('control', 'identity_exists', vip_identity, external_platform=platform)
+            if not uuid:
+                return Response(json.dumps({'error': f"Agent '{vip_identity}' not found."}),
+                                400, content_type='application/json')
+            self._rpc('control', 'tag_agent', uuid, tag, external_platform=platform)
+            return Response('Tag set.', 201)
+
+        elif request_method == 'DELETE':
+            _log.debug('VUI: request_method was "DELETE')
+            uuid = self._rpc('control', 'identity_exists', vip_identity, external_platform=platform)
+            if not uuid:
+                return Response(json.dumps({'error': f"Agent '{vip_identity}' not found."}),
+                                400, content_type='application/json')
+            self._rpc('control', 'tag_agent', uuid, None, external_platform=platform)
+            return Response('Tag Removed.', 204)
 
     @endpoint
     def handle_platforms_devices(self, env: dict, data: dict) -> Response:
