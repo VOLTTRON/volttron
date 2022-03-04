@@ -188,7 +188,7 @@ def test_rpc(mock_platform_web_service):
 
     vui_endpoints = VUIEndpoints(mock_platform_web_service)
     vui_endpoints._agent.vip.rpc.call = rpc_caller
-    assert vui_endpoints._rpc('a_vip_id', 'some_method', external_platform='sekhmet') is True
+    assert vui_endpoints._rpc('a_vip_id', 'some_method', external_platform='my_instance_name') is True
     assert vui_endpoints._rpc('a_vip_id', 'some_method', external_platform='other_platform') is True
 
 
