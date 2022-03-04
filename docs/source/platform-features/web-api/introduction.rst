@@ -138,6 +138,7 @@ following sections:
           platform.
         - `Status <platforms/agents/status-endpoints.html>`_: Endpoints for determining or clearing the status
           information for agents running on the platform.
+        - `Tag <platforms/agents/tag-endpoints.html>`_: Endpoints for getting, setting, and deleting the tag of agents.
     - `Devices <platforms/device-endpoints.html>`_: Endpoints for getting, setting, and resetting devices on the
       platform.
     - `Historians <platforms/historian-endpoints.html>`_: Endpoints for querying data from historians on the platform.

@@ -13,6 +13,7 @@ Platforms Agents endpoints currently include:
       calls to agents running on the platform.
     * `Status <agents/status-endpoints.html>`_: Endpoints for determining or clearing the status information for agents
       running on the platform.
+    * `Tag <platforms/agents/tag-endpoints.html>`_: Endpoints for getting, setting, and deleting the tag of agents.
 
 .. attention::
     All Platforms Agents endpoints require a JWT bearer token obtained through the
