@@ -80,7 +80,7 @@ modbus_logger.setLevel(logging.WARNING)
 
 MODBUS_REGISTER_SIZE = 2
 
-class Register(object):
+class Register:
     def __init__(self, address, register_type, read_only, register_struct=''):
         self.read_only = read_only
         self.register_type = register_type
@@ -132,7 +132,7 @@ class CallbackSequentialDataBlock(ModbusSequentialDataBlock):
         return results
 
 
-class DeviceAbstraction(object):
+class DeviceAbstraction:
     def __init__(self, config_file):
         self.build_register_map()
         self.build_ranges_map()

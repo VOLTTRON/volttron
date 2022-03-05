@@ -12,6 +12,7 @@ from volttrontesting.fixtures.rmq_test_setup import create_rmq_volttron_setup
 from volttrontesting.utils.platformwrapper import create_volttron_home
 
 HAS_RMQ = is_rabbitmq_available()
+RMQ_TIMEOUT = 600
 
 '''
 Example variables to be used during each of the tests, depending on the prompts that will be asked
@@ -73,12 +74,11 @@ def test_should_not_remove_config_vhome_when_debugging(monkeypatch):
     assert not os.path.isdir(vhome)
 
 
-@pytest.mark.xfail
 def test_zmq_case_no_agents(monkeypatch):
     with create_vcfg_vhome() as vhome:
         monkeypatch.setenv("VOLTTRON_HOME", vhome)
         config_path = os.path.join(vhome, "config")
-
+        
         message_bus = "zmq"
         vip_address = "tcp://127.0.0.15"
         vip_port = "22916"
@@ -102,6 +102,7 @@ def test_zmq_case_no_agents(monkeypatch):
 
         with subprocess.Popen(["vcfg", "--vhome", vhome],
                               env=os.environ,
+                              cwd=os.environ.get("VOLTTRON_ROOT"),
                               stdin=subprocess.PIPE,
                               stdout=subprocess.PIPE,
                               stderr=subprocess.PIPE,
@@ -125,7 +126,6 @@ def test_zmq_case_no_agents(monkeypatch):
         assert not is_volttron_running(vhome)
 
 
-@pytest.mark.xfail
 def test_zmq_case_with_agents(monkeypatch):
     with create_vcfg_vhome() as vhome:
         monkeypatch.setenv("VOLTTRON_HOME", vhome)
@@ -165,6 +165,7 @@ def test_zmq_case_with_agents(monkeypatch):
 
         with subprocess.Popen(["vcfg", "--vhome", vhome],
                               env=os.environ,
+                              cwd=os.environ.get("VOLTTRON_ROOT"),
                               stdin=subprocess.PIPE,
                               stdout=subprocess.PIPE,
                               stderr=subprocess.PIPE,
@@ -187,7 +188,6 @@ def test_zmq_case_with_agents(monkeypatch):
         assert not is_volttron_running(vhome)
 
 
-@pytest.mark.xfail
 def test_zmq_case_web_no_agents(monkeypatch):
     with create_vcfg_vhome() as vhome:
         monkeypatch.setenv("VOLTTRON_HOME", vhome)
@@ -236,6 +236,7 @@ def test_zmq_case_web_no_agents(monkeypatch):
 
         with subprocess.Popen(["vcfg", "--vhome", vhome],
                               env=os.environ,
+                              cwd=os.environ.get("VOLTTRON_ROOT"),
                               stdin=subprocess.PIPE,
                               stdout=subprocess.PIPE,
                               stderr=subprocess.PIPE,
@@ -260,7 +261,6 @@ def test_zmq_case_web_no_agents(monkeypatch):
         assert not is_volttron_running(vhome)
 
 
-@pytest.mark.xfail
 def test_zmq_case_web_with_agents(monkeypatch):
     with create_vcfg_vhome() as vhome:
         monkeypatch.setenv("VOLTTRON_HOME", vhome)
@@ -319,6 +319,7 @@ def test_zmq_case_web_with_agents(monkeypatch):
 
         with subprocess.Popen(["vcfg", "--vhome", vhome],
                               env=os.environ,
+                              cwd=os.environ.get("VOLTTRON_ROOT"),
                               stdin=subprocess.PIPE,
                               stdout=subprocess.PIPE,
                               stderr=subprocess.PIPE,
@@ -343,7 +344,6 @@ def test_zmq_case_web_with_agents(monkeypatch):
         assert not is_volttron_running(vhome)
 
 
-@pytest.mark.xfail
 def test_zmq_case_web_vc(monkeypatch):
     with create_vcfg_vhome() as vhome:
         monkeypatch.setenv("VOLTTRON_HOME", vhome)
@@ -394,6 +394,7 @@ def test_zmq_case_web_vc(monkeypatch):
 
         with subprocess.Popen(["vcfg", "--vhome", vhome],
                               env=os.environ,
+                              cwd=os.environ.get("VOLTTRON_ROOT"),
                               stdin=subprocess.PIPE,
                               stdout=subprocess.PIPE,
                               stderr=subprocess.PIPE,
@@ -419,7 +420,6 @@ def test_zmq_case_web_vc(monkeypatch):
         assert not is_volttron_running(vhome)
 
 
-@pytest.mark.xfail
 def test_zmq_case_web_vc_with_agents(monkeypatch):
     with create_vcfg_vhome() as vhome:
         monkeypatch.setenv("VOLTTRON_HOME", vhome)
@@ -475,6 +475,7 @@ def test_zmq_case_web_vc_with_agents(monkeypatch):
 
         with subprocess.Popen(["vcfg", "--vhome", vhome],
                               env=os.environ,
+                              cwd=os.environ.get("VOLTTRON_ROOT"),
                               stdin=subprocess.PIPE,
                               stdout=subprocess.PIPE,
                               stderr=subprocess.PIPE,
@@ -501,7 +502,7 @@ def test_zmq_case_web_vc_with_agents(monkeypatch):
 
 
 @pytest.mark.skipif(not HAS_RMQ, reason='RabbitMQ is not setup')
-@pytest.mark.timeout(360)
+@pytest.mark.timeout(RMQ_TIMEOUT)
 def test_rmq_case_no_agents(monkeypatch):
     with create_vcfg_vhome() as vhome:
         monkeypatch.setenv("VOLTTRON_HOME", vhome)
@@ -533,6 +534,7 @@ def test_rmq_case_no_agents(monkeypatch):
 
         with subprocess.Popen(["vcfg", "--vhome", vhome],
                               env=os.environ,
+                              cwd=os.environ.get("VOLTTRON_ROOT"),
                               stdin=subprocess.PIPE,
                               stdout=subprocess.PIPE,
                               stderr=subprocess.PIPE,
@@ -555,7 +557,7 @@ def test_rmq_case_no_agents(monkeypatch):
 
 
 @pytest.mark.skipif(not HAS_RMQ, reason='RabbitMQ is not setup')
-@pytest.mark.timeout(360)
+@pytest.mark.timeout(RMQ_TIMEOUT)
 def test_rmq_case_with_agents(monkeypatch):
     with create_vcfg_vhome() as vhome:
         monkeypatch.setenv("VOLTTRON_HOME", vhome)
@@ -598,6 +600,7 @@ def test_rmq_case_with_agents(monkeypatch):
 
         with subprocess.Popen(["vcfg", "--vhome", vhome],
                               env=os.environ,
+                              cwd=os.environ.get("VOLTTRON_ROOT"),
                               stdin=subprocess.PIPE,
                               stdout=subprocess.PIPE,
                               stderr=subprocess.PIPE,
@@ -621,7 +624,7 @@ def test_rmq_case_with_agents(monkeypatch):
 
 
 @pytest.mark.skipif(not HAS_RMQ, reason='RabbitMQ is not setup')
-@pytest.mark.timeout(360)
+@pytest.mark.timeout(RMQ_TIMEOUT)
 def test_rmq_case_web_no_agents(monkeypatch):
     with create_vcfg_vhome() as vhome:
         monkeypatch.setenv("VOLTTRON_HOME", vhome)
@@ -657,6 +660,7 @@ def test_rmq_case_web_no_agents(monkeypatch):
 
         with subprocess.Popen(["vcfg", "--vhome", vhome],
                               env=os.environ,
+                              cwd=os.environ.get("VOLTTRON_ROOT"),
                               stdin=subprocess.PIPE,
                               stdout=subprocess.PIPE,
                               stderr=subprocess.PIPE,
@@ -680,7 +684,7 @@ def test_rmq_case_web_no_agents(monkeypatch):
 
 
 @pytest.mark.skipif(not HAS_RMQ, reason='RabbitMQ is not setup')
-@pytest.mark.timeout(360)
+@pytest.mark.timeout(RMQ_TIMEOUT)
 def test_rmq_case_web_with_agents(monkeypatch):
     with create_vcfg_vhome() as vhome:
         monkeypatch.setenv("VOLTTRON_HOME", vhome)
@@ -727,6 +731,7 @@ def test_rmq_case_web_with_agents(monkeypatch):
 
         with subprocess.Popen(["vcfg", "--vhome", vhome],
                               env=os.environ,
+                              cwd=os.environ.get("VOLTTRON_ROOT"),
                               stdin=subprocess.PIPE,
                               stdout=subprocess.PIPE,
                               stderr=subprocess.PIPE,
@@ -749,7 +754,8 @@ def test_rmq_case_web_with_agents(monkeypatch):
 
 
 @pytest.mark.skipif(not HAS_RMQ, reason='RabbitMQ is not setup')
-@pytest.mark.timeout(360)
+@pytest.mark.timeout(RMQ_TIMEOUT)
+@pytest.mark.xfail
 def test_rmq_case_web_vc(monkeypatch):
     with create_vcfg_vhome() as vhome:
         monkeypatch.setenv("VOLTTRON_HOME", vhome)
@@ -763,8 +769,6 @@ def test_rmq_case_web_vc(monkeypatch):
         is_web_enabled = "Y"
         web_port = "8443"
         is_vc = "Y"
-        vc_admin_name = "test"
-        vc_admin_password = "test"
         is_vcp = "Y"
         install_historian = "N"
         install_driver = "N"
@@ -790,6 +794,7 @@ def test_rmq_case_web_vc(monkeypatch):
 
         with subprocess.Popen(["vcfg", "--vhome", vhome],
                               env=os.environ,
+                              cwd=os.environ.get("VOLTTRON_ROOT"),
                               stdin=subprocess.PIPE,
                               stdout=subprocess.PIPE,
                               stderr=subprocess.PIPE,
@@ -814,7 +819,8 @@ def test_rmq_case_web_vc(monkeypatch):
 
 
 @pytest.mark.skipif(not HAS_RMQ, reason='RabbitMQ is not setup')
-@pytest.mark.timeout(360)
+@pytest.mark.timeout(RMQ_TIMEOUT)
+@pytest.mark.xfail
 def test_rmq_case_web_vc_with_agents(monkeypatch):
     with create_vcfg_vhome() as vhome:
         monkeypatch.setenv("VOLTTRON_HOME", vhome)
@@ -858,6 +864,7 @@ def test_rmq_case_web_vc_with_agents(monkeypatch):
 
         with subprocess.Popen(["vcfg", "--vhome", vhome],
                               env=os.environ,
+                              cwd=os.environ.get("VOLTTRON_ROOT"),
                               stdin=subprocess.PIPE,
                               stdout=subprocess.PIPE,
                               stderr=subprocess.PIPE,
@@ -879,3 +886,56 @@ def test_rmq_case_web_vc_with_agents(monkeypatch):
         assert _is_agent_installed("vc ")
         assert _is_agent_installed("vcp")
         assert not is_volttron_running(vhome)
+
+
+def test_web_with_agents_volttron_running(monkeypatch, volttron_instance_web):
+    vhome = volttron_instance_web.volttron_home
+    monkeypatch.setenv("VOLTTRON_HOME", vhome)
+    config_path = os.path.join(vhome, "config")
+
+    is_running = "Y"
+    is_vcp = "Y"
+    default_vc_hostname = ""
+    default_vc_port = ""
+    install_historian = "Y"
+    install_driver = "Y"
+    install_fake_device = "Y"
+    install_listener = "Y"
+    agent_autostart = "N"
+    agent_overwrite = "N"
+    vcfg_args = "\n".join([is_running,
+                           is_vcp,
+                           default_vc_hostname,
+                           default_vc_port,
+                           agent_autostart,
+                           install_historian,
+                           agent_autostart,
+                           install_driver,
+                           install_fake_device,
+                           agent_autostart,
+                           install_listener,
+                           agent_autostart
+                           ])
+
+    with subprocess.Popen(["vcfg", "--vhome", vhome],
+                          env=os.environ,
+                          stdin=subprocess.PIPE,
+                          stdout=subprocess.PIPE,
+                          stderr=subprocess.PIPE,
+                          text=True
+                          ) as vcfg:
+        out, err = vcfg.communicate(vcfg_args)
+    print(f"OUT: {out}")
+    print(f"ERR: {err}")
+    assert os.path.exists(config_path)
+    config = ConfigParser()
+    config.read(config_path)
+    assert config.get('volttron', 'message-bus') == "zmq"
+    if volttron_instance_web.ssl_auth is True:
+        assert config.get('volttron', 'web-ssl-cert') == os.path.join(vhome, "certificates", "certs", "server0.crt")
+        assert config.get('volttron', 'web-ssl-key') == os.path.join(vhome, "certificates", "private", "server0.pem")
+    assert _is_agent_installed("listener")
+    assert _is_agent_installed("platform_driver")
+    assert _is_agent_installed("platform_historian")
+    assert _is_agent_installed("vcp")
+    assert is_volttron_running(vhome)

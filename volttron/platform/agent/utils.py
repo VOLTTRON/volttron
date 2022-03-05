@@ -77,7 +77,7 @@ from volttron.utils.prompt import prompt_response
 __all__ = ['load_config', 'run_agent', 'start_agent_thread',
            'is_valid_identity', 'load_platform_config', 'get_messagebus',
            'get_fq_identity', 'execute_command', 'get_aware_utc_now',
-           'is_secure_mode', 'wait_for_volttron_shutdown']
+           'is_secure_mode', 'wait_for_volttron_shutdown', 'is_volttron_running']
 
 __author__ = 'Brandon Carpenter <brandon.carpenter@pnnl.gov>'
 __copyright__ = 'Copyright (c) 2016, Battelle Memorial Institute'

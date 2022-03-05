@@ -254,7 +254,7 @@ def _get_cert_attribute_value(cert, attribute):
         raise ValueError("Error getting value of {} :{}".format(attribute, e))
 
 
-class Certs(object):
+class Certs:
     """A wrapper class around certificate creation, retrieval and verification.
 
     """
@@ -1079,7 +1079,7 @@ def build_subject(ca_cert, name, type="client", fqdn=None):
     return fqdn, hostname, subject
 
 
-class CertWrapper(object):
+class CertWrapper:
     """
     This class is a wrapper around the building of certificates.
     """

@@ -124,7 +124,7 @@ inotify_rm_watch.errcheck = _errcheck
 Event = namedtuple('Event', 'pathname mask cookie name')
 
 
-class _inotify(object):
+class _inotify:
     def __init__(self, flags=0):
         self._fd = inotify_init(flags)
         self._watch_wds = {}

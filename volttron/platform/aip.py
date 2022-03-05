@@ -152,7 +152,7 @@ def log_stream(name, agent, pid, path, stream):
             log.handle(record)
 
 
-class IgnoreErrno(object):
+class IgnoreErrno:
     ignore = []
 
     def __init__(self, errno, *more):
@@ -172,7 +172,7 @@ class IgnoreErrno(object):
 ignore_enoent = IgnoreErrno(errno.ENOENT)
 
 
-class ExecutionEnvironment(object):
+class ExecutionEnvironment:
     '''Environment reserved for agent execution.
 
     Deleting ExecutionEnvironment objects should cause the process to
@@ -217,7 +217,7 @@ class ExecutionEnvironment(object):
         self.execute(*args, **kwargs)
 
 
-class SecureExecutionEnvironment(object):
+class SecureExecutionEnvironment:
 
     def __init__(self, agent_user):
         self.process = None
@@ -252,7 +252,7 @@ class SecureExecutionEnvironment(object):
         self.execute(*args, **kwargs)
 
 
-class AIPplatform(object):
+class AIPplatform:
     """Manages the main workflow of receiving and sending agents."""
 
     def __init__(self, env, **kwargs):
@@ -817,6 +817,8 @@ class AIPplatform(object):
         if priority is None:
             with ignore_enoent:
                 os.unlink(autostart)
+        elif not priority.isdigit() or not 0 <= int(priority) < 100:
+            raise ValueError(f'Priority must be an integer from 0 - 99. Received: {priority}.')
         else:
             with open(autostart, 'w') as file:
                 file.write(priority.strip())

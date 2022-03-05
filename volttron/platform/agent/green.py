@@ -57,7 +57,7 @@ def sleep(timeout, create_timer):
     current.parent.switch()
 
 
-class WaitQueue(object):
+class WaitQueue:
     '''A holder for tasklets waiting on asynchronous data.'''
 
     def __init__(self, create_timer):

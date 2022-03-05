@@ -47,7 +47,7 @@ _log = logging.getLogger(__name__)
 utils.setup_logging()
 
 
-class RpcProxy(object):
+class RpcProxy:
     """
     The purpose of the RpcProxy is to allow the MarketRegistration to make
     RPC calls on the agent that subclasses of the agent can't see and therefore

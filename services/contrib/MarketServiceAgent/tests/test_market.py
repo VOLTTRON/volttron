@@ -80,7 +80,7 @@ def test_market_state_create_has_formed_true():
     assert market.has_market_formed()
 
 
-class Publisher(object):
+class Publisher:
     def __init__(self):
         pass
 

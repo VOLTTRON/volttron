@@ -61,7 +61,7 @@ def endpoint(func):
     return verify_and_dispatch
 
 
-class VUIEndpoints(object):
+class VUIEndpoints:
     def __init__(self, agent):
         self._agent = agent
         q = Query(self._agent.core)

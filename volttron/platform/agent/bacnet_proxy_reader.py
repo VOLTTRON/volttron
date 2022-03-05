@@ -55,7 +55,7 @@ MAX_RANGE_REPORT = 1.0e+20
 _log = logging.getLogger(__name__)
 
 
-class BACnetReader(object):
+class BACnetReader:
     """
     The BACnetReader
     """
