@@ -49,8 +49,6 @@ def endpoint(func):
         # Dispatch endpoint:
         try:
             response = func(self, env, data)
-            _log.debug('RESPONSE IN WRAPPER IS:')
-            _log.debug(response)
             if not response:
                 message = f"Endpoint {env['REQUEST_METHOD']} {env['PATH_INFO']} is not implemented."
                 return Response(json.dumps({"error": message}), status=501, content_type='application/json')
@@ -157,7 +155,6 @@ class VUIEndpoints(object):
         :return:
         """
         # TODO: Break this up into appends to allow configuration of which endpoints are available.
-        _log.debug('In VUIEndpoints.get_routes()')
         return [
             (re.compile('^/vui/?$'), 'callable', self.handle_vui_root),
             (re.compile('^/vui/platforms/?$'), 'callable', self.handle_platforms),
@@ -169,8 +166,7 @@ class VUIEndpoints(object):
             (re.compile('^/vui/platforms/[^/]+/agents/[^/]+/rpc/[^/]+/?$'), 'callable', self.handle_platforms_agents_rpc_method),
             (re.compile('^/vui/platforms/[^/]+/agents/[^/]+/running/?$'), 'callable', self.handle_platforms_agents_running),
             (re.compile('^/vui/platforms/[^/]+/agents/[^/]+/status/?$'), 'callable', self.handle_platforms_agents_status),
-            (re.compile('^/vui/platforms/[^/]+/agents/[^/]+/tag/?$'), 'callable',
-             self.handle_platforms_agents_tag),
+            (re.compile('^/vui/platforms/[^/]+/agents/[^/]+/tag/?$'), 'callable', self.handle_platforms_agents_tag),
             (re.compile('^/vui/platforms/[^/]+/devices/?$'), 'callable', self.handle_platforms_devices),
             (re.compile('^/vui/platforms/[^/]+/devices/.*/?$'), 'callable', self.handle_platforms_devices),
             (re.compile('^/vui/platforms/[^/]+/historians/?$'), 'callable', self.handle_platforms_historians),
@@ -190,17 +186,14 @@ class VUIEndpoints(object):
 
     @endpoint
     def handle_vui_root(self, env: dict, data: dict) -> Response:
-        _log.debug('VUI: In handle_vui_root')
         path_info = env.get('PATH_INFO')
         request_method = env.get("REQUEST_METHOD")
         if request_method == 'GET':
-            path_info = env.get('PATH_INFO')
             response = json.dumps(self._find_active_sub_routes(['vui'], path_info=path_info))
             return Response(response, 200, content_type='application/json')
 
     @endpoint
     def handle_platforms(self, env: dict, data: dict) -> Response:
-        _log.debug('VUI: In handle_platforms')
         path_info = env.get('PATH_INFO')
         request_method = env.get("REQUEST_METHOD")
         if request_method == 'GET':
@@ -210,7 +203,6 @@ class VUIEndpoints(object):
 
     @endpoint
     def handle_platforms_platform(self, env: dict, data: dict) -> Response:
-        _log.debug('VUI: In handle_platforms_platform')
         path_info = env.get('PATH_INFO')
         request_method = env.get("REQUEST_METHOD")
         if request_method == 'GET':
@@ -230,15 +222,12 @@ class VUIEndpoints(object):
         :param data:
         :return:
         """
-        _log.debug('VUI: In handle_platforms_agents')
         path_info = env.get('PATH_INFO')
         request_method = env.get("REQUEST_METHOD")
-        _log.debug(f'QUERY_STRING IS: {env["QUERY_STRING"]}')
         query_params = url_decode(env['QUERY_STRING'])
         platform = re.match('^/vui/platforms/([^/]+)/agents/?$', path_info).groups()[0]
         if request_method == 'GET':
             include_hidden = self._to_bool(query_params.get('include-hidden', False))
-            _log.debug(f'in handle_platforms_agents, include hidden is: {include_hidden}, {type(include_hidden)}')
             agent_state = query_params.get('agent-state', 'running')
             if agent_state not in ['running', 'installed']:
                 error = {'error': f'Unknown agent-state: {agent_state} -- must be "running", "installed",'
@@ -260,8 +249,6 @@ class VUIEndpoints(object):
         :param data:
         :return:
         """
-
-        _log.debug('VUI: In handle_platforms_agents_running')
         path_info = env.get('PATH_INFO')
         request_method = env.get("REQUEST_METHOD")
         query_params = url_decode(env['QUERY_STRING'])
@@ -277,8 +264,8 @@ class VUIEndpoints(object):
             return True if vip_identity in peerlist else False
 
         if request_method == 'GET':
-                status = _agent_running(vip_identity)
-                return Response(json.dumps({'running': status}), 200, content_type='application/json')
+            status = _agent_running(vip_identity)
+            return Response(json.dumps({'running': status}), 200, content_type='application/json')
 
         elif request_method == 'PUT':
             if restart:
@@ -288,11 +275,11 @@ class VUIEndpoints(object):
                     return Response(json.dumps({'error': f'Agent: {vip_identity} is already running.'}), 400,
                                     content_type='application/json')
                 self._rpc('control', 'start_agent', uuid, external_platform=platform)
-            return Response(f'Agent started.', 204)
+            return Response(status=204)
 
         elif request_method == 'DELETE':
             self._rpc('control', 'stop_agent', uuid, external_platform=platform)
-            return Response('Agent Stopped.', 204)
+            return Response(status=204)
 
     @endpoint
     def handle_platforms_agents_agent(self, env: dict, data: dict) -> Response:
@@ -302,7 +289,6 @@ class VUIEndpoints(object):
         :param data:
         :return:
         """
-        _log.debug('VUI: In handle_platforms_agents_agent')
         path_info = env.get('PATH_INFO')
         request_method = env.get("REQUEST_METHOD")
         platform, vip_identity = re.match('^/vui/platforms/([^/]+)/agents/([^/]+)/?$', path_info).groups()
@@ -322,7 +308,6 @@ class VUIEndpoints(object):
         :param data:
         :return:
         """
-        _log.debug('VUI: In handle_platforms_agents_enabled')
         path_info = env.get('PATH_INFO')
         request_method = env.get("REQUEST_METHOD")
         query_params = url_decode(env['QUERY_STRING'])
@@ -336,7 +321,7 @@ class VUIEndpoints(object):
                 status = True if result else False
                 return Response(json.dumps({'status': f'{status}', 'priority': f'{result}'}), 200,
                                 content_type='application/json')
-            except StopIteration as e:
+            except StopIteration:
                 return Response(json.dumps({'error': f'Agent "{vip_identity}" not found.'}),
                                 400, content_type='application/json')
             except MethodNotFound or ValueError as e:
@@ -348,20 +333,18 @@ class VUIEndpoints(object):
                 error = {'error': f'Priority must be an integer from 0 - 99. Received: {priority}.'}
                 return Response(json.dumps(error), 400, content_type='application/json')
             try:
-                _log.debug('VUI: request_method was "PUT')
                 uuid = self._rpc('control', 'identity_exists', vip_identity, external_platform=platform)
-                result = self._rpc('control', 'prioritize_agent', uuid, priority, external_platform=platform)
-                return Response('Agent Enabled.', 204)
+                self._rpc('control', 'prioritize_agent', uuid, priority, external_platform=platform)
+                return Response(status=204)
             except MethodNotFound or ValueError as e:
                 return Response(json.dumps({f'error': f'For agent {vip_identity}: {e}'}),
                                 400, content_type='application/json')
 
         elif request_method == 'DELETE':
             try:
-                _log.debug('VUI: request_method was "DELETE')
                 uuid = self._rpc('control', 'identity_exists', vip_identity, external_platform=platform)
-                result = self._rpc('control', 'prioritize_agent', uuid, None, external_platform=platform)
-                return Response('Agent Disabled.', 204)
+                self._rpc('control', 'prioritize_agent', uuid, None, external_platform=platform)
+                return Response(status=204)
             except MethodNotFound or ValueError as e:
                 return Response(json.dumps({f'error': f'For agent {vip_identity}: {e}'}),
                                 400, content_type='application/json')
@@ -374,7 +357,6 @@ class VUIEndpoints(object):
         :param data:
         :return:
         """
-        _log.debug('VUI: In handle_platforms_agents_rpc')
         path_info = env.get('PATH_INFO')
         request_method = env.get("REQUEST_METHOD")
         platform, vip_identity = re.match('^/vui/platforms/([^/]+)/agents/([^/]+)/rpc/?$', path_info).groups()
@@ -428,7 +410,6 @@ class VUIEndpoints(object):
         :param data:
         :return:
         """
-        _log.debug('VUI: In handle_platforms_status')
         path_info = env.get('PATH_INFO')
         request_method = env.get("REQUEST_METHOD")
         platform, vip_identity = re.match('^/vui/platforms/([^/]+)/agents/([^/]+)/status/?$', path_info).groups()
@@ -439,7 +420,7 @@ class VUIEndpoints(object):
                 our_agent = status_dict[vip_identity]
                 return Response(json.dumps(our_agent), 200,
                                 content_type='application/json')
-            except KeyError as e:
+            except KeyError:
                 return Response(json.dumps({'error': f'Agent "{vip_identity}" not found.'}),
                                 400, content_type='application/json')
             except MethodNotFound or ValueError as e:
@@ -454,7 +435,6 @@ class VUIEndpoints(object):
         :param data:
         :return:
         """
-        _log.debug('VUI: In handle_platforms_agents_tag')
         path_info = env.get('PATH_INFO')
         request_method = env.get("REQUEST_METHOD")
         platform, vip_identity = re.match('^/vui/platforms/([^/]+)/agents/([^/]+)/tag/?$', path_info).groups()
@@ -480,7 +460,6 @@ class VUIEndpoints(object):
             return Response(status=204)
 
         elif request_method == 'DELETE':
-            _log.debug('VUI: request_method was "DELETE')
             uuid = self._rpc('control', 'identity_exists', vip_identity, external_platform=platform)
             if not uuid:
                 return Response(json.dumps({'error': f"Agent '{vip_identity}' not found."}),
@@ -639,11 +618,11 @@ class VUIEndpoints(object):
             try:
                 for t_node in topic_nodes:
                     if t_node.is_device():
-                        self._rpc('platform.actuator', 'revert_device',
-                                  requester_id=self._agent.core.identity, topic=t_node.topic, external_platform=platform)
+                        self._rpc('platform.actuator', 'revert_device', requester_id=self._agent.core.identity,
+                                  topic=t_node.topic, external_platform=platform)
                     elif t_node.is_point() and t_node.topic not in unwritables:
-                        self._rpc('platform.actuator', 'revert_point',
-                                  requester_id=self._agent.core.identity, topic=t_node.topic, external_platform=platform)
+                        self._rpc('platform.actuator', 'revert_point', requester_id=self._agent.core.identity,
+                                  topic=t_node.topic, external_platform=platform)
 
                 ret_dict = defaultdict(dict)
                 for k in selected_routes.keys():
@@ -820,9 +799,10 @@ class VUIEndpoints(object):
 
                 else:
                     # All topics are not complete to points and read_all=False -- return route to next segments:
-                    ret_dict = {'route_options': historian_tree.get_children_dict([n.identifier for n in topic_nodes],
-                                                                replace_topic=f'{historian}/topics/{topic}',
-                                                                prefix=f'/vui/platforms/{platform}')}
+                    ret_dict = {
+                        'route_options': historian_tree.get_children_dict([n.identifier for n in topic_nodes],
+                                                                          replace_topic=f'{historian}/topics/{topic}',
+                                                                          prefix=f'/vui/platforms/{platform}')}
                     return Response(json.dumps(ret_dict), 200, content_type='application/json')
 
             except Timeout as e:
@@ -840,7 +820,6 @@ class VUIEndpoints(object):
         :param data:
         :return:
         """
-        _log.debug('VUI: In handle_platforms_status')
         path_info = env.get('PATH_INFO')
         request_method = env.get("REQUEST_METHOD")
         platform = re.match('^/vui/platforms/([^/]+)/status/?$', path_info).groups()[0]
@@ -855,7 +834,7 @@ class VUIEndpoints(object):
                                 400, content_type='application/json')
         if request_method == 'DELETE':
             self._rpc('control', 'clear_status', True, external_platform=platform)
-            return Response('Status Cleared', 204, content_type='application/json')
+            return Response(status=204)
 
     def _find_active_sub_routes(self, segments: list, path_info: str = None, enclose=True) -> dict or list:
         """
@@ -912,7 +891,6 @@ class VUIEndpoints(object):
         for la in list_of_agents:
             ra = running_agents.get(la['uuid'])
             agent_identity = la.pop('identity')
-            _log.debug(f'assigned identity: {ret_dict}')
             la['running'] = True if ra and ra['exit_code'] is None else False
             la['enabled'] = True if la['priority'] else False
             la['pid'] = ra['pid'] if ra else None
