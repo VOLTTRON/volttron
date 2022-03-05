@@ -607,18 +607,18 @@ def test_handle_platforms_agents_tag_get_response(mock_platform_web_service, vip
 
 
 @pytest.mark.parametrize('vip_identity, uuid, tag, expected', [
-    ('run1', '1', 'foo', '201'),
+    ('run1', '1', 'foo', '204'),
     ('not_exists', None, 'foo', '400')
 ])
 def test_handle_platforms_agents_tag_put_response(mock_platform_web_service, vip_identity, uuid, tag, expected):
-    query_string = f'tag={tag}' if tag else ''
+    data = {"tag": tag}
     path = f'/vui/platforms/my_instance_name/agents/{vip_identity}/tag'
-    env = get_test_web_env(path, method='PUT', query_string=query_string, HTTP_AUTHORIZATION='Bearer foo')
+    env = get_test_web_env(path, method='PUT', HTTP_AUTHORIZATION='Bearer foo')
     vui_endpoints = VUIEndpoints(mock_platform_web_service)
     vui_endpoints._rpc = MagicMock(wraps=_mock_agents_rpc)
-    response = vui_endpoints.handle_platforms_agents_tag(env, {})
+    response = vui_endpoints.handle_platforms_agents_tag(env, data)
     check_response_codes(response, expected)
-    if expected == '201':
+    if expected == '204':
         vui_endpoints._rpc.assert_has_calls([mock.call('control', 'identity_exists', vip_identity,
                                                        external_platform='my_instance_name'),
                                              mock.call('control', 'tag_agent', uuid, tag,

@@ -457,16 +457,13 @@ class VUIEndpoints(object):
         _log.debug('VUI: In handle_platforms_agents_tag')
         path_info = env.get('PATH_INFO')
         request_method = env.get("REQUEST_METHOD")
-        query_params = url_decode(env['QUERY_STRING'])
-        tag = query_params.get('tag')
         platform, vip_identity = re.match('^/vui/platforms/([^/]+)/agents/([^/]+)/tag/?$', path_info).groups()
         list_of_agents = self._rpc('control', 'list_agents', external_platform=platform)
         if request_method == 'GET':
             try:
                 result = next(item['tag'] for item in list_of_agents if item['identity'] == vip_identity)
-                return Response(json.dumps({'tag': f"{result}"}), 200,
-                                content_type='application/json')
-            except StopIteration as e:
+                return Response(json.dumps({'tag': f"{result}"}), 200, content_type='application/json')
+            except StopIteration:
                 return Response(json.dumps({'error': f"Agent '{vip_identity}' not found."}),
                                 400, content_type='application/json')
             except MethodNotFound or ValueError as e:
@@ -474,13 +471,13 @@ class VUIEndpoints(object):
                                 400, content_type='application/json')
 
         elif request_method == 'PUT':
-            _log.debug('VUI: request_method was "PUT')
+            tag = data.get('tag')
             uuid = self._rpc('control', 'identity_exists', vip_identity, external_platform=platform)
             if not uuid:
                 return Response(json.dumps({'error': f"Agent '{vip_identity}' not found."}),
                                 400, content_type='application/json')
             self._rpc('control', 'tag_agent', uuid, tag, external_platform=platform)
-            return Response('Tag set.', 201)
+            return Response(status=204)
 
         elif request_method == 'DELETE':
             _log.debug('VUI: request_method was "DELETE')
@@ -489,7 +486,7 @@ class VUIEndpoints(object):
                 return Response(json.dumps({'error': f"Agent '{vip_identity}' not found."}),
                                 400, content_type='application/json')
             self._rpc('control', 'tag_agent', uuid, None, external_platform=platform)
-            return Response('Tag Removed.', 204)
+            return Response(status=204)
 
     @endpoint
     def handle_platforms_devices(self, env: dict, data: dict) -> Response:

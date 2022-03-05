@@ -70,7 +70,7 @@ Request:
 Response:
 ---------
 
-* **With valid BEARER token on success:** ``201 No Created``
+* **With valid BEARER token on success:** ``204 No Content``
 * **With valid BEARER token on failure:** ``400 Bad Request``
     - Content Type: ``application/json``
     - Body:
