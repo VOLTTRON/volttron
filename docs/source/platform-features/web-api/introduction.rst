@@ -32,9 +32,9 @@ if https is used, it will also be necessary to include `web-ssl-cert` and `web-s
     web-ssl-cert = /home/volttron/.volttron/certificates/certs/platform_web-server.crt
     web-ssl-key = /home/volttron/.volttron/certificates/private/platform_web-server.pem
 
-The ``vctl`` tool may be used to make the changes to the $VOLTTRON_HOME/config file by choosing "Y" for the "Is this
+The ``vcfg`` tool may be used to make the changes to the $VOLTTRON_HOME/config file by choosing "Y" for the "Is this
 instance web enabled?" prompt. To use HTTPS, enter "https" when asked "What is the protocol for this instance?".
-The ``vctl`` tool will then give the option to generate the required SSL cert and key if these do not already exist.
+The ``vcfg`` tool will then give the option to generate the required SSL cert and key if these do not already exist.
 
 .. code-block:: console
 
@@ -127,21 +127,21 @@ Available Endpoints
 Endpoints which are currently provided by the API are described in detail in the
 following sections:
 
-- `Authentication <authentication-endpoints.html>`_: Endpoints for authenticating to the the API.
-- `Platforms <platform-endpoints.html>`_: Endpoints for working with a particular platform.
-    - `Agents <platforms/agent-endpoints.html>`_: Endpoints for working with agents on the platform.
-        - `Enabled <platforms/agents/enabled-endpoints.html>`_: Endpoints for enabling, disabling, and setting the
+- :ref:`Authentication <Authentication-Endpoints>`: Endpoints for authenticating to the the API.
+- :ref:`Platforms <Platforms-Endpoints>`: Endpoints for working with a particular platform.
+    - :ref:`Agents <Platforms-Agents-Endpoints>`: Endpoints for working with agents on the platform.
+        - :ref:`Enabled <Platforms-Agents-Enabled-Endpoints>`: Endpoints for enabling, disabling, and setting the
           start priority of agents on the platform.
-        - `RPC <platforms/agents/rpc-endpoints.html>`_: Endpoints allowing, discovery, inspection, and calling of
+        - :ref:`RPC <Platforms-Agents-Rpc-Endpoints>`: Endpoints allowing, discovery, inspection, and calling of
           remote procedure calls to agents running on the platform.
-        - `Running <platforms/agents/running-endpoints.html>`_: Endpoints for starting and stopping agents on the
+        - :ref:`Running <Platforms-Agents-Running-Endpoints>`: Endpoints for starting and stopping agents on the
           platform.
-        - `Status <platforms/agents/status-endpoints.html>`_: Endpoints for determining or clearing the status
+        - :ref:`Status <Platforms-Agents-Status-Endpoints>`: Endpoints for determining or clearing the status
           information for agents running on the platform.
-        - `Tag <platforms/agents/tag-endpoints.html>`_: Endpoints for getting, setting, and deleting the tag of agents.
-    - `Devices <platforms/device-endpoints.html>`_: Endpoints for getting, setting, and resetting devices on the
+        - :ref:`Tag <Platforms-Agents-Tag-Endpoints>`: Endpoints for getting, setting, and deleting the tag of agents.
+    - :ref:`Devices <Platforms-Devices-Endpoints>`: Endpoints for getting, setting, and resetting devices on the
       platform.
-    - `Historians <platforms/historian-endpoints.html>`_: Endpoints for querying data from historians on the platform.
-    - `Pubsub <platforms/pubsub-endpoints.html>`_: Endpoints for subscribing and publishing to the message bus on the
+    - :ref:`Historians <Platforms-Historians-Endpoints>`: Endpoints for querying data from historians on the platform.
+    - :ref:`Pubsub <Platforms-Pubsub-Endpoints>`: Endpoints for subscribing and publishing to the message bus on the
       platform.
-    - `Status <platforms/status-endpoints.html>`_: Endpoints for determining the status of all agents on the platform.
+    - :ref:`Status <Platforms-Status-Endpoints>`: Endpoints for determining the status of all agents on the platform.

@@ -1,3 +1,5 @@
+.. _Platforms-Agents-Running-Endpoints:
+
 ==================================
 Platforms Agents Running Endpoints
 ==================================

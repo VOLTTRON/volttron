@@ -1,6 +1,8 @@
-=================
-Devices Endpoints
-=================
+.. _Platforms-Devices-Endpoints:
+
+============================
+Platforms Devices Endpoints
+============================
 
 
 Platform Devices endpoints expose functionality associated with devices managed by a VOLTTRON

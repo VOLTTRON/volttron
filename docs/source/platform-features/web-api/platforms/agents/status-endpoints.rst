@@ -1,3 +1,5 @@
+.. _Platforms-Agents-Status-Endpoints:
+
 =================================
 Platforms Agents Status Endpoints
 =================================

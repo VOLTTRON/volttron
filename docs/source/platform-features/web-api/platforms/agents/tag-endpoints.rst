@@ -1,6 +1,8 @@
-==================================
+.. _Platforms-Agents-Tag-Endpoints:
+
+==============================
 Platforms Agents Tag Endpoints
-==================================
+==============================
 
 Platforms Agents Tag endpoints expose functionality associated with tags given to agents on the platform.
 Agent tags provide a short name which can be used to identify an agent.

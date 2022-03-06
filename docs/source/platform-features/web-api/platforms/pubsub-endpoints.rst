@@ -1,5 +1,8 @@
-PubSub Endpoints
-================
+.. _Platforms-Pubsub-Endpoints:
+
+==========================
+Platforms PubSub Endpoints
+==========================
 
 PubSub endpoints expose functionality associated with publication and
 subscription to topics on the VOLTTRON message bus.

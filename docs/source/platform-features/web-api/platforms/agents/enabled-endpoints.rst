@@ -1,3 +1,5 @@
+.. _Platforms-Agents-Enabled-Endpoints:
+
 ==================================
 Platforms Agents Enabled Endpoints
 ==================================

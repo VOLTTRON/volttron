@@ -1,3 +1,5 @@
+.. _Platforms-Agents-Health-Endpoints:
+
 ==================================
 Platforms Agents Health Endpoints
 ==================================

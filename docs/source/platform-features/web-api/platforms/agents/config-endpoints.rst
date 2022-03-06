@@ -1,3 +1,5 @@
+.. _Platforms-Agents-Configs-Endpoints:
+
 ==================================
 Platforms Agents Configs Endpoints
 ==================================

@@ -1,3 +1,5 @@
+.. _Platforms-Endpoints:
+
 ===================
 Platforms Endpoints
 ===================
@@ -14,10 +16,10 @@ convenience methods which refer to endpoints within /platforms.
 The platforms tree currently provides access to four major categories of endpoint, each of which are described in detail
 through the following links:
 
-* `Agents <platforms/agent-endpoints.html>`_: Endpoints pertaining to a specific agent (e.g. RPC)
-* `Devices <platforms/device-endpoints.html>`_: Endpoints for discovering, getting, and setting data about the current state of devices on the platform.
-* `Historians <platforms/historian-endpoints.html>`_: Endpoints for querying data from historians.
-* `PubSub <platforms/pubsub-endpoints.html>`_: Endpoints for subscription and publication to message bus topics.
+* :ref:`Agents <Platforms-Agents-Endpoints>`: Endpoints pertaining to a specific agent (e.g. RPC)
+* :ref:`Devices <Platforms-Devices-Endpoints>`: Endpoints for discovering, getting, and setting data about the current state of devices on the platform.
+* :ref:`Historians <Platforms-Historians-Endpoints>`: Endpoints for querying data from historians.
+* :ref:`PubSub <Platforms-Pubsub-Endpoints>`: Endpoints for subscription and publication to message bus topics.
 
 .. attention::
     All endpoints in this tree require authorization using a JWT bearer
@@ -77,9 +79,9 @@ A ``GET`` request to the ``/platforms/:platform`` endpoint (where ``:platform`` 
 platform) will return a JSON object containing routes to endpoints which are available for the requested platform.
 Available routes are included in a "route_options" object. The keys of the "route_options" object are the name of each
 endpoint which the platform supports, and the values contain a route to that endpoint for this platform. The currently
-implemented possibilities include: `agents <platforms/agent-endpoints.html>`_,
-`devices <platforms/device-endpoints.html>`_, `historians <platforms/historian-endpoints.html>`_,
-and `pubsub <platforms/pubsub-endpoints.html>`_.
+implemented possibilities include: :ref:`agents <Platforms-Agents-Endpoints>`,
+:ref:`devices <Platforms-Devices-Endpoints>`, :ref:`historians <Platforms-Historians-Endpoints>`,
+and :ref:`pubsub <Platforms-Pubsub-Endpoints>`.
 
 Request:
 --------

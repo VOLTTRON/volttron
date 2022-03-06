@@ -1,6 +1,8 @@
-==================================
+.. _Platforms-Health-Endpoints:
+
+==========================
 Platforms Health Endpoints
-==================================
+==========================
 
 Platforms Health endpoints expose functionality associated with getting health information for
 all agents running on a VOLTTRON platform.

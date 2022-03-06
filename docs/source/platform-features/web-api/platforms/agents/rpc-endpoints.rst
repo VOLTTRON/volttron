@@ -1,6 +1,8 @@
-=============
-RPC Endpoints
-=============
+.. _Platforms-Agents-Rpc-Endpoints:
+
+==============================
+Platforms Agents RPC Endpoints
+==============================
 
 
 RPC endpoints expose functionality associated with remote procedure calls to agents running on a VOLTTRON platform.

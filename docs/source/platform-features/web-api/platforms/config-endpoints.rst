@@ -1,10 +1,12 @@
+.. _Platforms-Configs-Endpoints:
+
 ==========================
 Platforms Configs Endpoints
 ==========================
 
 Platforms Configs endpoints expose functionality associated with platform configuration files.
 These endpoints are for platform-level configurations. Agent configurations are managed by
-the `Platforms Agents Configs <agents/configs.html>`_ endpoints.
+the :ref:`Platforms Agents Configs <Platforms-Agents-Configs-Endpoints>` endpoints.
 
 .. attention::
     All Platforms Configs endpoints require a JWT bearer token obtained through the

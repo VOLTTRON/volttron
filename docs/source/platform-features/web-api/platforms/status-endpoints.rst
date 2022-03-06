@@ -1,3 +1,5 @@
+.. _Platforms-Status-Endpoints:
+
 ==========================
 Platforms Status Endpoints
 ==========================

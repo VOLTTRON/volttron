@@ -1,3 +1,5 @@
+.. _Platforms-Agents-Endpoints:
+
 ==========================
 Platforms Agents Endpoints
 ==========================
@@ -6,14 +8,14 @@ Platforms Agents endpoints expose functionality associated with applications
 running on a VOLTTRON platform.
 
 Platforms Agents endpoints currently include:
-    * `Enabled <agents/enabled-endpoints.html>`_: Endpoints for enabling, disabling, and setting the start priority of
+    * :ref:`Enabled <Platforms-Agents-Enabled-Endpoints>`: Endpoints for enabling, disabling, and setting the start priority of
       agents on the platform.
-    * `Running <agents/running-endpoints.html>`_: Endpoints for starting and stopping agents on the platform.
-    * `RPC <agents/rpc-endpoints.html>`_: Endpoints allowing, discovery, inspection, and calling of remote procedure
+    * :ref:`Running <Platforms-Agents-Running-Endpoints>`: Endpoints for starting and stopping agents on the platform.
+    * :ref:`RPC <Platforms-Agents-Rpc-Endpoints>`: Endpoints allowing, discovery, inspection, and calling of remote procedure
       calls to agents running on the platform.
-    * `Status <agents/status-endpoints.html>`_: Endpoints for determining or clearing the status information for agents
+    * :ref:`Status <Platforms-Agents-Status-Endpoints>`: Endpoints for determining or clearing the status information for agents
       running on the platform.
-    * `Tag <platforms/agents/tag-endpoints.html>`_: Endpoints for getting, setting, and deleting the tag of agents.
+    * :ref:`Tag <Platforms-Agents-Tag-Endpoints>`: Endpoints for getting, setting, and deleting the tag of agents.
 
 .. attention::
     All Platforms Agents endpoints require a JWT bearer token obtained through the
@@ -73,7 +75,7 @@ GET /platforms/:platform/agents/:vip-identity
 =============================================
 
 Return routes for the supported endpoints for an agent installed on the platform.
-Currently implemented endpoints include `RPC <rpc-endpoints.html>`_.
+Currently implemented endpoints include :ref:`RPC <Platforms-Agents-Rpc-Endpoints>`.
 
 Request:
 --------
