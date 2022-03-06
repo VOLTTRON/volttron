@@ -17,9 +17,12 @@ The platforms tree currently provides access to four major categories of endpoin
 through the following links:
 
 * :ref:`Agents <Platforms-Agents-Endpoints>`: Endpoints pertaining to a specific agent (e.g. RPC)
-* :ref:`Devices <Platforms-Devices-Endpoints>`: Endpoints for discovering, getting, and setting data about the current state of devices on the platform.
+* :ref:`Devices <Platforms-Devices-Endpoints>`: Endpoints for discovering, getting, and setting data about the current
+  state of devices on the platform.
 * :ref:`Historians <Platforms-Historians-Endpoints>`: Endpoints for querying data from historians.
 * :ref:`PubSub <Platforms-Pubsub-Endpoints>`: Endpoints for subscription and publication to message bus topics.
+* :ref:`Status <Platforms-Status-Endpoints>`: Endpoints for retrieving and clearing status of all agents on the
+  platform.
 
 .. attention::
     All endpoints in this tree require authorization using a JWT bearer
@@ -81,7 +84,7 @@ Available routes are included in a "route_options" object. The keys of the "rout
 endpoint which the platform supports, and the values contain a route to that endpoint for this platform. The currently
 implemented possibilities include: :ref:`agents <Platforms-Agents-Endpoints>`,
 :ref:`devices <Platforms-Devices-Endpoints>`, :ref:`historians <Platforms-Historians-Endpoints>`,
-and :ref:`pubsub <Platforms-Pubsub-Endpoints>`.
+:ref:`pubsub <Platforms-Pubsub-Endpoints>` and :ref:`status <Platforms-Status-Endpoints>`.
 
 Request:
 --------

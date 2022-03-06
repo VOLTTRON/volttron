@@ -13,7 +13,7 @@ Platforms Agents endpoints currently include:
     * :ref:`Running <Platforms-Agents-Running-Endpoints>`: Endpoints for starting and stopping agents on the platform.
     * :ref:`RPC <Platforms-Agents-Rpc-Endpoints>`: Endpoints allowing, discovery, inspection, and calling of remote procedure
       calls to agents running on the platform.
-    * :ref:`Status <Platforms-Agents-Status-Endpoints>`: Endpoints for determining or clearing the status information for agents
+    * :ref:`Status <Platforms-Agents-Status-Endpoints>`: Endpoints for determining the status information for an agent
       running on the platform.
     * :ref:`Tag <Platforms-Agents-Tag-Endpoints>`: Endpoints for getting, setting, and deleting the tag of agents.
 

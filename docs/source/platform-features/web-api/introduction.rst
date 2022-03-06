@@ -17,10 +17,16 @@ bootstrap VOLTTRON within the virtual environment using the `--web` option:
 
     python boostrap.py --web
 
-Additionally, to enable the web service, it is necessary to add a `bind-web-address` key to the $VOLTTRON_HOME/config
-file. The value of this key represents address bound to by the  platform web service for handling HTTP(s) requests.
-Typical addresses would be ``https://<hostname>:8443`` or  ``http://<hostname>:8080``. HTTPS is recommended, though
-if https is used, it will also be necessary to include `web-ssl-cert` and `web-ssl-key` entries:
+Additionally, to enable the web service, it is necessary to add a `bind-web-address` key to the
+``$VOLTTRON_HOME/config`` file. The value of this key represents address bound to by the  platform web service for
+handling HTTP(s) requests. Typical addresses would be ``https://<hostname_or_ip>:8443`` or
+``http://<hostname_or_ip>:8080``.
+
+.. Note::
+    If a hostname is used, it must be resolvable for the service to work as expected.
+
+HTTPS is strongly recommended. When https is used, however, it will also be necessary to include `web-ssl-cert` and
+`web-ssl-key` entries in the ``$VOLTTRON_HOME/config`` file:
 
 .. code-block:: ini
 
@@ -32,7 +38,7 @@ if https is used, it will also be necessary to include `web-ssl-cert` and `web-s
     web-ssl-cert = /home/volttron/.volttron/certificates/certs/platform_web-server.crt
     web-ssl-key = /home/volttron/.volttron/certificates/private/platform_web-server.pem
 
-The ``vcfg`` tool may be used to make the changes to the $VOLTTRON_HOME/config file by choosing "Y" for the "Is this
+The ``vcfg`` tool may be used to make the changes to the ``$VOLTTRON_HOME/config`` file by choosing "Y" for the "Is this
 instance web enabled?" prompt. To use HTTPS, enter "https" when asked "What is the protocol for this instance?".
 The ``vcfg`` tool will then give the option to generate the required SSL cert and key if these do not already exist.
 
@@ -75,7 +81,7 @@ The ``vcfg`` tool will then give the option to generate the required SSL cert an
     If you need to change the instance configuration you can edit
     the config file is at /home/volttron/.volttron/config
 
-Finally, a user must be configured in the $VOLTTRON_HOME/web-users.json file to allow authentication to the API.
+Finally, a user must be configured in the ``$VOLTTRON_HOME/web-users.json`` file to allow authentication to the API.
 This file can be generated, if it does not exist, by navigating to `bind-web-address`/admin in a web browser and
 creating a user and password:
 
@@ -94,7 +100,9 @@ have access to the API:
     }
 
 Users with the "vui" claim in `groups` will now be able to use the API by sending requests
-to endpoints with paths on `bind-web-address` beginning with `/vui`:
+to endpoints with paths on `bind-web-address` beginning with `/vui`. For example, where `bind-web-address` has been
+set to ``https://localhost:8443`` the following HTTP request (with a proper
+:ref:`HTTP Authorization Header <Authentication-Endpoints>`) may be used to retrieve the root endpoint of the API:
 
 ::
 
@@ -136,12 +144,13 @@ following sections:
           remote procedure calls to agents running on the platform.
         - :ref:`Running <Platforms-Agents-Running-Endpoints>`: Endpoints for starting and stopping agents on the
           platform.
-        - :ref:`Status <Platforms-Agents-Status-Endpoints>`: Endpoints for determining or clearing the status
-          information for agents running on the platform.
+        - :ref:`Status <Platforms-Agents-Status-Endpoints>`: Endpoints for determining status information for agents
+          running on the platform.
         - :ref:`Tag <Platforms-Agents-Tag-Endpoints>`: Endpoints for getting, setting, and deleting the tag of agents.
     - :ref:`Devices <Platforms-Devices-Endpoints>`: Endpoints for getting, setting, and resetting devices on the
       platform.
     - :ref:`Historians <Platforms-Historians-Endpoints>`: Endpoints for querying data from historians on the platform.
     - :ref:`Pubsub <Platforms-Pubsub-Endpoints>`: Endpoints for subscribing and publishing to the message bus on the
       platform.
-    - :ref:`Status <Platforms-Status-Endpoints>`: Endpoints for determining the status of all agents on the platform.
+    - :ref:`Status <Platforms-Status-Endpoints>`: Endpoints for determining and clearing the status of all agents on
+      the platform.
