@@ -591,7 +591,7 @@ class BaseHistorianAgent(Agent):
         self._backup_storage_report = backup_storage_report
         self._retry_period = retry_period
         self._submit_size_limit = submit_size_limit
-        self._max_time_publishing = timedelta(seconds=max_time_publishing)
+        self._max_time_publishing = timedelta(seconds=max_time_publishing).total_seconds()
         self._history_limit_days = timedelta(days=history_limit_days) if history_limit_days else None
         self._storage_limit_gb = storage_limit_gb
         self._all_platforms = all_platforms
