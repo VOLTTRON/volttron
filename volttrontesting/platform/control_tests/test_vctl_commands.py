@@ -17,7 +17,19 @@ listener_agent_dir = get_examples("ListenerAgent")
 
 
 @pytest.mark.control
-def test_needs_connection_with_connection(volttron_instance):
+def test_needs_connection():
+    # Test command that needs instance running
+    p = subprocess.Popen(
+        ["volttron-ctl", "peerlist"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    stdout, stderr = p.communicate()
+    assert "VOLTTRON is not running." in stderr.decode("utf-8")
+
+
+@pytest.mark.control
+def test_needs_connection_with_connection(volttron_instance: PlatformWrapper):
     # Verify peerlist command works when instance is running
     p = subprocess.Popen(
         ["volttron-ctl", "peerlist"],
@@ -29,7 +41,7 @@ def test_needs_connection_with_connection(volttron_instance):
 
 
 @pytest.mark.control
-def test_no_connection():
+def test_no_connection(volttron_instance: PlatformWrapper):
     # Test command that doesn't need instance running.
     p = subprocess.Popen(
         ["volttron-ctl", "list"],
@@ -40,18 +52,6 @@ def test_no_connection():
     print(f"stdout: {stdout}")
     print(f"stderr: {stderr}")
     assert "VOLTTRON is not running." not in stderr.decode("utf-8")
-
-
-@pytest.mark.control
-def test_needs_connection():
-    # Test command that needs instance running
-    p = subprocess.Popen(
-        ["volttron-ctl", "peerlist"],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-    stdout, stderr = p.communicate()
-    assert "VOLTTRON is not running." in stderr.decode("utf-8")
 
 
 @pytest.mark.control
