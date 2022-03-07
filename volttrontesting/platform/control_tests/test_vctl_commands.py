@@ -35,7 +35,8 @@ def test_needs_connection_with_connection(volttron_instance: PlatformWrapper):
         p = subprocess.Popen(
             ["volttron-ctl", "peerlist"],
             stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
+            stderr=subprocess.PIPE,
+            env=volttron_instance.env
         )
         stdout, stderr = p.communicate()
         assert "VOLTTRON is not running." not in stderr.decode("utf-8")
