@@ -30,14 +30,16 @@ def test_needs_connection():
 
 @pytest.mark.control
 def test_needs_connection_with_connection(volttron_instance: PlatformWrapper):
-    # Verify peerlist command works when instance is running
-    p = subprocess.Popen(
-        ["volttron-ctl", "peerlist"],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-    stdout, stderr = p.communicate()
-    assert "VOLTTRON is not running." not in stderr.decode("utf-8")
+    with with_os_environ(volttron_instance.env):
+        # Verify peerlist command works when instance is running
+        p = subprocess.Popen(
+            ["volttron-ctl", "peerlist"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            env=volttron_instance.env
+        )
+        stdout, stderr = p.communicate()
+        assert "VOLTTRON is not running." not in stderr.decode("utf-8")
 
 
 @pytest.mark.control
