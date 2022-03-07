@@ -78,7 +78,7 @@ parser.add_argument('--device-id', help='specify the BACnet device id of the dev
 args = parser.parse_args()
 
 
-class Register(object):
+class Register:
     def __init__(self, point_name, instance_number, object_type, property_name, read_only):
         self.read_only = read_only
         self.register_type = "byte"
@@ -92,7 +92,7 @@ class Register(object):
         return self.register_type, self.read_only
 
 @bacpypes_debugging
-class DeviceAbstraction(object):
+class DeviceAbstraction:
     def __init__(self, interface_str, config_file):
         self.build_register_map()
         self.parse_config(config_file)

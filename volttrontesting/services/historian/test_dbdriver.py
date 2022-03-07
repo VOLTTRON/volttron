@@ -92,7 +92,7 @@ def drop_tables(names):
 
 
 @pytest.mark.historian
-class Suite(object):
+class Suite:
     #@pytest.fixture(scope='class', params=['', 'test'])
     @pytest.fixture(scope='class', params=[''])
     def state(self, request):

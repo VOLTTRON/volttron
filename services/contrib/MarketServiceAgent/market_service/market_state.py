@@ -39,7 +39,7 @@
 ACCEPT_RESERVATIONS = 0
 
 
-class MarketStateMachine(object):
+class MarketStateMachine:
 
     def __init__(self, market_name, reservation):
         self.market_name = market_name

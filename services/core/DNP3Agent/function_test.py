@@ -49,7 +49,7 @@ class FunctionTestException(Exception):
     pass
 
 
-class FunctionTest(object):
+class FunctionTest:
 
     def __init__(self, func_test_path='', func_test_json=None, func_def_path='', point_def_path=''):
         self.func_def_path = func_def_path or FUNCTION_DEF_PATH

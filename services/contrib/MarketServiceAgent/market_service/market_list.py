@@ -50,7 +50,7 @@ class NoSuchMarketError(Exception):
     pass
 
 
-class MarketList(object):
+class MarketList:
     def __init__(self, publish = None, verbose_logging = True):
         self.markets = {}
         self.publish = publish

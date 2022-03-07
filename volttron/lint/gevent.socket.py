@@ -41,7 +41,7 @@ SOCK_STREAM = 1
 SOL_SOCKET = 1
 
 
-class socket(object):
+class socket:
     def accept(self):
         return (socket(), ('', 0))
 

@@ -82,7 +82,7 @@ table_map = dict(
 )
 
 
-class CSVRegister(object):
+class CSVRegister:
     """
         Parses a row from the csv representing a modbus register.
     """
@@ -237,7 +237,7 @@ class CSVRegister(object):
                      self._mixed)
 
 
-class Map(object):
+class Map:
     """A Modbus register map read from CSV.
 
        The Map knows how to generate a subclass of modbus.Client with

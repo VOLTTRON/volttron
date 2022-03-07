@@ -62,7 +62,6 @@ def known_hosts_instance1(tmpdir_factory):
 
 
 @pytest.mark.keystore
-@pytest.mark.xfail
 def test_known_hosts_fetch(known_hosts_instance1):
     '''We should get what we put it'''
     host = known_hosts_instance1

@@ -84,7 +84,7 @@ class ModbusFieldException(Exception):
     pass
 
 
-class Field(object):
+class Field:
     """Describes/defines a logical modbus field.
 
         A logical field may be mapped to one or more modbus registers or coils.
@@ -328,7 +328,7 @@ class Field(object):
                 raise Exception("Modbus address out of range for table.")
 
 
-class Request (object):
+class Request:
     """
         Represents a contiguous set of logical fields, registers or coils.  The first
         field starts at self.address.
@@ -529,7 +529,7 @@ class Request (object):
 # one host - this will will prevent a single platform from being able to communicate to 2 slaves on one IP as each
 # instance of a Modbus_Tk driver creates a new Modbus master.
 # Issue on Modbus_Tk Github: https://github.com/ljean/modbus-tk/issues/124
-class Client (object):
+class Client:
 
     """
     Generic modbus master.  It functions as a traditional "client" making requests of

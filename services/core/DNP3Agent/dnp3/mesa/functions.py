@@ -157,7 +157,7 @@ class FunctionDefinitions(collections.abc.Mapping):
         _log.debug('Loaded {} FunctionDefinitions'.format(len(self)))
 
 
-class FunctionDefinition(object):
+class FunctionDefinition:
     """A MESA-ESS FunctionDefinition (aka mode, command)."""
 
     def __init__(self, point_definitions, function_def_dict):
@@ -273,7 +273,7 @@ class FunctionDefinition(object):
         return [point for point in self.all_points() if point and point.category == 'mode_enable']
 
 
-class StepDefinition(object):
+class StepDefinition:
     """Step definition in a MESA-ESS FunctionDefinition."""
 
     def __init__(self, point_definitions, function_id, step_def=None):
@@ -338,7 +338,7 @@ class StepDefinition(object):
                 ))
 
 
-class Step(object):
+class Step:
     """A MESA-ESS Step that has been received by an outstation."""
 
     def __init__(self, definition, func, value):
@@ -375,7 +375,7 @@ class FunctionException(Exception):
     pass
 
 
-class Function(object):
+class Function:
     """A MESA-ESS Function that has been received by an outstation."""
 
     def __init__(self, definition):

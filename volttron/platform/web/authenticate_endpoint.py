@@ -32,7 +32,7 @@ tplenv = Environment(
 )
 
 
-class AuthenticateEndpoints(object):
+class AuthenticateEndpoints:
 
     def __init__(self, tls_private_key=None, tls_public_key=None, web_secret_key=None):
 

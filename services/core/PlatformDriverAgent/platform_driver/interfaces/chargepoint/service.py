@@ -68,7 +68,7 @@ class CPAPIException(Exception):
         return '{0} : {1}'.format(self._responseCode, self._responseText)
 
 
-class CPOrganization(object):
+class CPOrganization:
     """Represents an organization within the ChargePoint network.
 
     :param cpn_id: Chargepoint Network ID.
@@ -89,7 +89,7 @@ class CPOrganization(object):
         return '{0}:{1}'.format(self._cpn_id, self._organization_id)
 
 
-class CPGroupManager(object):
+class CPGroupManager:
     """Manger for a Chargepoint group and its stations.
 
     :param cps: Chargepoint Service object.
@@ -112,7 +112,7 @@ class CPGroupManager(object):
                     station._data['stationLoadData'] = data
 
 
-class CPStationGroup(object):
+class CPStationGroup:
     """Wrapper around the getStationGroups() return by Chargepoint API.
 
     :param cps: Chargepoint Service object.
@@ -166,7 +166,7 @@ class CPStationGroup(object):
         return [s.stationID for s in self._groupsdata.stationData]
 
 
-class CPStation(object):
+class CPStation:
     """Wrapper around the getStations() return by Chargepoint API.
 
     Data surrounding a Chargepoint Station can generally be categorized as static or dynamic.  Chargepoint API has two
@@ -346,7 +346,7 @@ class CPStation(object):
         self._data['stationDataExtended'] = self._cps.getStation(stationID=self.id)[0]
 
 
-class CPPort(object):
+class CPPort:
     def __init__(self, data=None):
         self._data = data
 
@@ -375,7 +375,7 @@ class CPPort(object):
         return self._data.Power
 
 
-class CPAPIResponse(object):
+class CPAPIResponse:
     """Response object describing a chargepoint API call
 
     :param response: SOAP object containing the API response
@@ -768,7 +768,7 @@ class CPAPIGetLoadResponse(CPAPIResponse):
         return CPAPIResponse.get_attr_from_response('shedState', self.station_data, port)
 
 
-class CPService(object):
+class CPService:
     """
         Python wrapper around the Chargepoint WebServices API.
 

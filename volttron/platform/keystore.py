@@ -58,7 +58,7 @@ from volttron.platform import get_home
 _log = logging.getLogger(__name__)
 
 
-class BaseJSONStore(object):
+class BaseJSONStore:
     """JSON-file-backed store for dictionaries"""
 
     def __init__(self, filename, permissions=0o600):

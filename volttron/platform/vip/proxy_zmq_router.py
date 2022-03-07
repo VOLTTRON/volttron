@@ -36,8 +36,6 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-from __future__ import print_function, absolute_import
-
 import logging
 
 from zmq import green as zmq
