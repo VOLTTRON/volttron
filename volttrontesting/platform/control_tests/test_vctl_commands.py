@@ -569,3 +569,12 @@ def test_vctl_start_stop_restart_by_all_tagged_should_succeed(volttron_instance:
         assert not status[identity_no_tag]['status']
         
         volttron_instance.remove_all_agents()
+
+
+@pytest.mark.parametrize("subcommand", [("start"), ("stop"), ("restart")])
+def test_vctl_start_stop_restart_should_raise_error_on_invalid_options(volttron_instance: PlatformWrapper, subcommand):
+    invalid_options = ["--all", "--foo", "--anything", "--all-taggeD", "--TaG", "--n", "--u"]
+    with with_os_environ(volttron_instance.env):
+        with pytest.raises(RuntimeError):
+            for inval_opt in invalid_options:
+                execute_command(["vctl", subcommand, inval_opt], volttron_instance.env)
