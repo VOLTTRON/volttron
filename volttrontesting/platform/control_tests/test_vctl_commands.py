@@ -17,36 +17,6 @@ listener_agent_dir = get_examples("ListenerAgent")
 
 
 @pytest.mark.control
-def test_needs_connection_with_connection(volttron_instance):
-    # Verify peerlist command works when instance is running
-    p = subprocess.Popen(
-        ["volttron-ctl", "peerlist"],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-    stdout, stderr = p.communicate()
-    try: 
-        assert "VOLTTRON is not running." in stderr.decode("utf-8")
-    except AssertionError:
-        assert not stderr.decode("utf-8")
-
-
-@pytest.mark.control
-def test_no_connection():
-    # Test command that doesn't need instance running.
-    p = subprocess.Popen(
-        ["volttron-ctl", "list"],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-    stdout, stderr = p.communicate()
-    try: 
-        assert "No installed Agents found" in stderr.decode("utf-8")
-    except AssertionError:
-        assert not stderr.decode("utf-8")
-
-    
-@pytest.mark.control
 def test_needs_connection():
     # Test command that needs instance running
     p = subprocess.Popen(
@@ -55,10 +25,40 @@ def test_needs_connection():
         stderr=subprocess.PIPE,
     )
     stdout, stderr = p.communicate()
-    try: 
+    try:
         assert "VOLTTRON is not running. This command requires VOLTTRON platform to be running" in stderr.decode("utf-8")
     except AssertionError:
         assert not stderr.decode("utf-8")
+
+@pytest.mark.control
+def test_needs_connection_with_connection(volttron_instance: PlatformWrapper):
+    # Verify peerlist command works when instance is running
+    p = subprocess.Popen(
+        ["volttron-ctl", "peerlist"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    stdout, stderr = p.communicate()
+    try:
+        assert "VOLTTRON is not running." in stderr.decode("utf-8")
+    except AssertionError:
+        assert not stderr.decode("utf-8")
+
+
+@pytest.mark.control
+def test_no_connection(volttron_instance: PlatformWrapper):
+    # Test command that doesn't need instance running.
+    p = subprocess.Popen(
+        ["volttron-ctl", "list"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    stdout, stderr = p.communicate()
+    try:
+        assert "No installed Agents found" in stderr.decode("utf-8")
+    except AssertionError:
+        assert not stderr.decode("utf-8")
+
 
 @pytest.mark.control
 def test_install_same_identity(volttron_instance: PlatformWrapper):
@@ -380,16 +380,16 @@ def test_vctl_start_stop_restart_by_uuid_should_succeed(volttron_instance: Platf
         # install agent
         agent_uuid = jsonapi.loads(execute_command(install_listener, volttron_instance.env))['agent_uuid']
 
-        # check that agent has not been started 
+        # check that agent has not been started
         check_agent_status = ["vctl", "--json", "status", agent_uuid]
         agent_status = jsonapi.loads(execute_command(check_agent_status, volttron_instance.env))
         assert not agent_status[identity]['health']
         assert not agent_status[identity]['status']
-            
+
         # start agent
         start_agent_by_uuid = ["vctl", "start", agent_uuid]
         execute_command(start_agent_by_uuid, volttron_instance.env)
-        
+
         agent_status = jsonapi.loads(execute_command(check_agent_status, volttron_instance.env))
         assert agent_status[identity]['health']['message'] == 'GOOD'
         assert 'running' in agent_status[identity]['status']
@@ -400,14 +400,14 @@ def test_vctl_start_stop_restart_by_uuid_should_succeed(volttron_instance: Platf
 
         agent_status = jsonapi.loads(execute_command(check_agent_status, volttron_instance.env))
         assert not agent_status[identity]['health']
-        assert not int(agent_status[identity]['status']) # status is a '0' when agent is stopped 
+        assert not int(agent_status[identity]['status']) # status is a '0' when agent is stopped
 
         # restart agent
         # start the agent first so that restart agent will go through the entire flow of stopping, then starting an agent
         execute_command(start_agent_by_uuid, volttron_instance.env)
         restart_tagged_agent = ["vctl", "restart", agent_uuid]
         execute_command(restart_tagged_agent, volttron_instance.env)
-        
+
         agent_status = jsonapi.loads(execute_command(check_agent_status, volttron_instance.env))
         assert agent_status[identity]['health']['message'] == 'GOOD'
         assert 'running' in agent_status[identity]['status']
@@ -433,16 +433,16 @@ def test_vctl_start_stop_restart_by_tag_should_succeed(volttron_instance: Platfo
         # install tagged agent
         agent_uuid = jsonapi.loads(execute_command(install_listener, volttron_instance.env))['agent_uuid']
 
-        # check that agent have not been started 
+        # check that agent have not been started
         check_agent_status = ["vctl", "--json", "status", agent_uuid]
         agent_status = jsonapi.loads(execute_command(check_agent_status, volttron_instance.env))
         assert not agent_status[identity]['health']
         assert not agent_status[identity]['status']
-            
+
         # start tagged agent
         start_tagged_agent = ["vctl", "start", "--tag", tag_name]
         execute_command(start_tagged_agent, volttron_instance.env)
-        
+
         agent_status = jsonapi.loads(execute_command(check_agent_status, volttron_instance.env))
         assert agent_status[identity]['health']['message'] == 'GOOD'
         assert 'running' in agent_status[identity]['status']
@@ -453,14 +453,14 @@ def test_vctl_start_stop_restart_by_tag_should_succeed(volttron_instance: Platfo
 
         agent_status = jsonapi.loads(execute_command(check_agent_status, volttron_instance.env))
         assert not agent_status[identity]['health']
-        assert not int(agent_status[identity]['status']) # status is a '0' when agent is stopped 
+        assert not int(agent_status[identity]['status']) # status is a '0' when agent is stopped
 
         # restart tagged agent
         # start the agent first so that restart agent will go through the entire flow of stopping and then starting an agent
         execute_command(start_tagged_agent, volttron_instance.env)
         restart_tagged_agent = ["vctl", "restart", "--tag", tag_name]
         execute_command(restart_tagged_agent, volttron_instance.env)
-        
+
         agent_status = jsonapi.loads(execute_command(check_agent_status, volttron_instance.env))
         assert agent_status[identity]['health']['message'] == 'GOOD'
         assert 'running' in agent_status[identity]['status']
@@ -508,66 +508,66 @@ def test_vctl_start_stop_restart_by_all_tagged_should_succeed(volttron_instance:
         jsonapi.loads(execute_command(install_tagged_listener, volttron_instance.env))
         jsonapi.loads(execute_command(install_tagged_listener2, volttron_instance.env))
         jsonapi.loads(execute_command(install_listener_no_tag, volttron_instance.env))
-         
+
         check_all_status = ["vctl", "--json", "status"]
-        
-        # check that all three agents were installed and were not started 
+
+        # check that all three agents were installed and were not started
         status = jsonapi.loads(execute_command(check_all_status, volttron_instance.env))
         assert len(status) == 3
-        for agent_info in status.values(): 
+        for agent_info in status.values():
             assert not agent_info['health']
             assert not agent_info['status']
-            
+
         # start all tagged
         start_all_tagged = ["vctl", "start", "--all-tagged"]
         execute_command(start_all_tagged, volttron_instance.env)
-        
+
         # check that only tagged agents were started
         status = jsonapi.loads(execute_command(check_all_status, volttron_instance.env))
-        
+
         assert status[identity_tag]['health']
         assert 'running' in status[identity_tag]['status']
-        
+
         assert status[identity_tag2]['health']
         assert 'running' in status[identity_tag2]['status']
-        
+
         assert not status[identity_no_tag]['health']
         assert not status[identity_no_tag]['status']
-            
+
         # stop all tagged
         stop_all_tagged = ["vctl", "stop", "--all-tagged"]
         execute_command(stop_all_tagged, volttron_instance.env)
 
         # check that all agents were stopped
         status = jsonapi.loads(execute_command(check_all_status, volttron_instance.env))
-        
+
         assert not status[identity_tag]['health']
-        assert not int(status[identity_tag]['status']) # status is a '0' when agent is started and then stopped     
-        
+        assert not int(status[identity_tag]['status']) # status is a '0' when agent is started and then stopped
+
         assert not status[identity_tag2]['health']
-        assert not int(status[identity_tag2]['status']) # status is a '0' when agent is started and then stopped     
+        assert not int(status[identity_tag2]['status']) # status is a '0' when agent is started and then stopped
 
         assert not status[identity_no_tag]['health']
         assert not status[identity_no_tag]['status']
-        
+
         # restart all tagged
         # start all tagged agents first so that restart agent will go through the entire flow of stopping and then starting an agent
         execute_command(start_all_tagged, volttron_instance.env)
         restart_all_tagged = ["vctl", "restart", "--all-tagged"]
         execute_command(restart_all_tagged, volttron_instance.env)
-        
+
         # check that only tagged agents were restarted
         status = jsonapi.loads(execute_command(check_all_status, volttron_instance.env))
-        
+
         assert status[identity_tag]['health']
         assert 'running' in status[identity_tag]['status']
-        
+
         assert status[identity_tag2]['health']
         assert 'running' in status[identity_tag2]['status']
-        
+
         assert not status[identity_no_tag]['health']
         assert not status[identity_no_tag]['status']
-        
+
         volttron_instance.remove_all_agents()
 
 
