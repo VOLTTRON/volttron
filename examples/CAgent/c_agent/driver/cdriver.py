@@ -70,7 +70,7 @@ def so_lookup_function(shared_object, function_name):
     return function
 
 class CRegister(BaseRegister):
-    def __init__(self,read_only, pointName, units, description = ''):
+    def __init__(self, read_only, pointName, units, description=''):
         super(CRegister, self).__init__("byte", read_only, pointName, units, description = '')
 
 

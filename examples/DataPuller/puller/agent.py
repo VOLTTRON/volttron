@@ -139,7 +139,7 @@ def historian(config_path, **kwargs):
                     _log.debug("data in capture_data {}".format(data))
                 if isinstance(data, dict):
                     data = data
-                elif isinstance(data, (int,float)):
+                elif isinstance(data, (int, float)):
                     data = data
                     # else:
                     #     data = data[0]

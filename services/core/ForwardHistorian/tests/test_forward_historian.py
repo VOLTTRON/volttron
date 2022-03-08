@@ -549,7 +549,7 @@ def test_old_config(volttron_instances, forwarder):
 #         gevent.sleep(1)  # wait for topic to be forwarded and callback to happen
 #
 #         # assert query_agent.callback.call_count == 1
-#         print ('call args ', query_agent.callback.call_args_list)
+#         print('call args ', query_agent.callback.call_args_list)
 #         # assert query_agent.callback.call_args[0][1] == 'platform.actuator'
 #         assert query_agent.callback.call_args[0][3] == \
 #                topics.ACTUATOR_SCHEDULE_RESULT

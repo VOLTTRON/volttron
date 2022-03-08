@@ -36,13 +36,13 @@ local_dest_params = {
 
 
 def connect_mongodb(connection_params):
-    print ("setup mongodb")
+    print("setup mongodb")
     mongo_conn_str = 'mongodb://{user}:{passwd}@{host}:{port}/{database}'
     if connection_params.get('authSource'):
         mongo_conn_str = mongo_conn_str+ '?authSource={authSource}'
     params = connection_params
     mongo_conn_str = mongo_conn_str.format(**params)
-    print (mongo_conn_str)
+    print(mongo_conn_str)
     mongo_client = pymongo.MongoClient(mongo_conn_str)
     db = mongo_client[connection_params['database']]
     return db
@@ -118,7 +118,7 @@ def copy(source_params, dest_params, start_date, end_date):
         {'$and':
             [{'_id': {'$gte': ObjectId.from_datetime(start_date)}},
              {'_id': {'$lte': ObjectId.from_datetime(end_date)}}]})
-    print ("Record count from cursor {}".format(cursor.count()))
+    print("Record count from cursor {}".format(cursor.count()))
     for record in cursor:
         i += 1
         records.append(

@@ -47,55 +47,55 @@ except ImportError:
 
 @pytest.mark.market
 def test_poly_line_min():
-    min = PolyLine.min(1,2)
+    min = PolyLine.min(1, 2)
     assert min == 1
 
 
 @pytest.mark.market
 def test_poly_line_min_first_none():
-    min = PolyLine.min(None,2)
+    min = PolyLine.min(None, 2)
     assert min == 2
 
 
 @pytest.mark.market
 def test_poly_line_min_second_none():
-    min = PolyLine.min(1,None)
+    min = PolyLine.min(1, None)
     assert min == 1
 
 
 @pytest.mark.market
 def test_poly_line_max():
-    max = PolyLine.max(1,2)
+    max = PolyLine.max(1, 2)
     assert max == 2
 
 
 @pytest.mark.market
 def test_poly_line_max_first_none():
-    max = PolyLine.max(None,2)
+    max = PolyLine.max(None, 2)
     assert max == 2
 
 
 @pytest.mark.market
 def test_poly_line_max_second_none():
-    max = PolyLine.max(1,None)
+    max = PolyLine.max(1, None)
     assert max == 1
 
 
 @pytest.mark.market
 def test_poly_line_sum():
-    sum = PolyLine.sum(1,2)
+    sum = PolyLine.sum(1, 2)
     assert sum == 3
 
 
 @pytest.mark.market
 def test_poly_line_sum_first_none():
-    sum = PolyLine.sum(None,2)
+    sum = PolyLine.sum(None, 2)
     assert sum == 2
 
 
 @pytest.mark.market
 def test_poly_line_sum_second_none():
-    sum = PolyLine.sum(1,None)
+    sum = PolyLine.sum(1, None)
     assert sum == 1
 
 
@@ -108,23 +108,23 @@ def test_poly_line_init_points_none():
 @pytest.mark.market
 def test_poly_line_add_one_point():
     line = PolyLine()
-    line.add(Point(4,8))
+    line.add(Point(4, 8))
     assert len(line.points) == 1
 
 
 @pytest.mark.market
 def test_poly_line_add_two_points():
     line = PolyLine()
-    line.add(Point(4,8))
-    line.add(Point(2,4))
+    line.add(Point(4, 8))
+    line.add(Point(2, 4))
     assert len(line.points) == 2
 
 
 @pytest.mark.market
 def test_poly_line_add_points_is_sorted():
     line = PolyLine()
-    line.add(Point(4,8))
-    line.add(Point(2,4))
+    line.add(Point(4, 8))
+    line.add(Point(2, 4))
     assert line.points[0].x == 2
 
 
@@ -156,10 +156,10 @@ def create_supply_curve():
     supply_curve = PolyLine()
     price = 0
     quantity = 0
-    supply_curve.add(Point(price,quantity))
+    supply_curve.add(Point(price, quantity))
     price = 1000
     quantity = 1000
-    supply_curve.add(Point(price,quantity))
+    supply_curve.add(Point(price, quantity))
     return supply_curve
 
 
@@ -167,8 +167,8 @@ def create_demand_curve():
     demand_curve = PolyLine()
     price = 0
     quantity = 1000
-    demand_curve.add(Point(price,quantity))
+    demand_curve.add(Point(price, quantity))
     price = 1000
     quantity = 0
-    demand_curve.add(Point(price,quantity))
+    demand_curve.add(Point(price, quantity))
     return demand_curve

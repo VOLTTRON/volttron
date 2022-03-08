@@ -73,7 +73,7 @@ def federate_example(config_path):
     endid = {}
     subid = {}
     pubid = {}
-    for i in range(0,endpoint_count):
+    for i in range(0, endpoint_count):
         endid["m{}".format(i)] = h.helicsFederateGetEndpointByIndex(fed, i)
         end_name = h.helicsEndpointGetName(endid["m{}".format(i)])
         logger.info( 'Registered Endpoint ---> {}'.format(end_name))

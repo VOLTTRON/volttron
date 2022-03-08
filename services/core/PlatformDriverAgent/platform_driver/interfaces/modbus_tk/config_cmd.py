@@ -165,7 +165,7 @@ class ConfigCmd (cmd.Cmd):
             if file_dir:
                 while True:
                     if not os.path.exists("{0}/{1}".format(file_dir, file_name)):
-                        print ("'{0}' file '{1}' does not exist in the directory '{2}'".format(file_type,
+                        print("'{0}' file '{1}' does not exist in the directory '{2}'".format(file_type,
                                                                                                file_name,
                                                                                                file_dir))
                         if file_name == 'maps.yaml':
@@ -818,7 +818,7 @@ class ConfigCmd (cmd.Cmd):
             print("DRIVER NAME".ljust(16) + "| VOLTTRON PATH")
             for d in drivers.keys():
                 print("{0:15} | {1}".format(d, drivers[d]))
-            print ("\nEnter driver name to delete: ", end='')
+            print("\nEnter driver name to delete: ", end='')
             driver_name = input()
 
         if driver_name not in drivers:
