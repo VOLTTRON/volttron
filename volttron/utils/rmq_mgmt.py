@@ -1179,12 +1179,11 @@ class RabbitMQMgmt:
         :return:
         """
 
-        if not user:
-            user = admin_user
         if certs_dict is None:
-
             root_ca_name, server_cert, admin_user = \
                 certs.Certs.get_admin_cert_names(self.rmq_config.instance_name)
+            if not user:
+                user = admin_user
             ca_file = self.rmq_config.crts.cert_file(self.rmq_config.crts.trusted_ca_name)
             cert_file = self.rmq_config.crts.cert_file(user)
             key_file = self.rmq_config.crts.private_key_file(user)
