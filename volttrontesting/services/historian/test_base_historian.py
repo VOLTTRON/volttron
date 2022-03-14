@@ -54,7 +54,7 @@ from volttron.platform.agent.base_historian import (BaseHistorian,
                                                     STATUS_KEY_TIME_ERROR)
 from volttron.platform.agent import utils
 from volttron.platform.messaging import headers as headers_mod
-from volttron.platform.messaging.health import *
+from volttron.platform.messaging.health import STATUS_BAD, STATUS_GOOD, Status
 from volttron.platform.messaging import topics
 from volttron.platform.agent.known_identities import CONFIGURATION_STORE
 
