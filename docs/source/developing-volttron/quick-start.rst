@@ -156,12 +156,15 @@ Alternatively, you can use the following command to verify if the virtual enviro
        # expected output 1(virtual environment is up) or 0 (not up)
 
 
-To deactivate the virtual environment, i.e., :code:`deactivate volttron`. (if you run this command, remember to re-activate the virtual environment to follow the rest of the steps.)              
+To deactivate the virtual environment (if you run this command, remember to activate the virtual environment again to follow the rest of the steps.)              
 
-.. note::
+.. code-block:: bash
 
-   In this tutorial the VOLTTRON platform is deployed in `virtualenv <https://virtualenv.pypa.io/en/latest/>`_. In case you choose other virtual environment, make adjustment as needed.
+       # Uncomment, if you run this command,
+       # remember to activate the virtual environment again
+       # to follow the rest of the steps
 
+       # deactivate volttron
 
 4. Start VOLTTRON
 ------------------------------
