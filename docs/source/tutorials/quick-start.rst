@@ -156,7 +156,7 @@ Alternatively, you can use the following command to verify if the virtual enviro
        # expected output 1(virtual environment is up) or 0 (not up)
 
 
-To deactivate the virtual environment, i.e., :code:`deactivate volttron`. (if you run this command, remember to re-activate the virtual environment to follow the rest of the steps.)              
+Use `deactivate` command to deactivate the virtual environment, i.e., :code:`$ deactivate volttron`. Note: if you run this command, remember to re-activate the virtual environment to follow the rest of the steps.            
 
 .. note::
 
