@@ -50,10 +50,14 @@ from zmq import green as zmq
 from zmq.green import ZMQError, EAGAIN, ENOTSOCK
 from zmq.utils.monitor import recv_monitor_message
 import volttron.platform
+from volttron.platform import jsonapi
+from volttron.platform.auth.auth_entry import AuthEntry
+from volttron.platform.auth.auth_exception import AuthException
 from volttron.platform.auth.auth_utils import dump_user, load_user
-from volttron.platform.auth.auth_protocols.auth_protocol import BaseAuthorization, BaseAuthentication
+from volttron.platform.auth.auth_protocols.auth_protocol import BaseAuthorization, BaseAuthentication, BaseServerAuthentication
 from volttron.platform.keystore import KeyStore, KnownHostsStore
 from volttron.platform.parameters import Parameters
+from volttron.platform.vip.agent.errors import VIPError
 from volttron.platform.vip.agent.core import ZMQCore
 from volttron.platform.vip.socket import encode_key, BASE64_ENCODED_CURVE_KEY_LEN
 from volttron.platform.agent.utils import watch_file
@@ -78,7 +82,7 @@ class ZMQClientParameters(Parameters):
 # ZMQServerAuthorization - Approve, deny, delete certs
 # ZMQParameters(Parameters)
 class ZMQClientAuthentication(BaseAuthentication):
-    def __init__(self, params=ZMQClientParameters()):
+    def __init__(self, params: ZMQClientParameters):
         super(ZMQClientAuthentication).__init__(self, params=params)
         self.address = params.address
         self.identity = params.identity
@@ -175,37 +179,52 @@ class ZMQClientAuthentication(BaseAuthentication):
         serverkey = query.get('serverkey', [None])[0]
         return publickey, secretkey, serverkey
 
-class ZMQServerAuthentication(object):
+class ZMQServerAuthentication(BaseServerAuthentication):
     """
     Implementation of the Zap Loop used by AuthService 
     for handling ZMQ Authentication on the VOLTTRON Server Instance
     """
-    def __init__(self, auth_service=None) -> None:
-        self.auth_service = auth_service
+    def __init__(self, 
+                    auth_vip=None, 
+                    auth_core=None, 
+                    aip=None, 
+                    allow_any=False, 
+                    is_connected = False,
+                    setup_mode=False,
+                    auth_file=None,
+                    auth_entries=None,
+                    auth_pending=None,
+                    auth_approved=None,
+                    auth_denied=None) -> None:
+        self.auth_vip = auth_vip
+        self.auth_core = auth_core
+        self.aip = aip
         self.zap_socket = None
         self._zap_greenlet = None
-        self._is_connected = False
+        self._is_connected = is_connected
+        self._allow_any = allow_any
+        self._setup_mode = setup_mode
+        self.auth_file = auth_file
 
+        # Will change from auth service
+        self.auth_entries = auth_entries
+        self._auth_pending = auth_pending
+        self._auth_approved = auth_approved
+        self._auth_denied = auth_denied
 
-    def setup_zap(self, sender, **kwargs):
+        self.authorization = ZMQAuthorization(
+                                              self.auth_core,
+                                              self._is_connected,
+                                              self.auth_file,
+                                              self._auth_pending,
+                                              self._auth_approved,
+                                              self._auth_denied)
+    def setup_authentication(self):
         self.zap_socket = zmq.Socket(zmq.Context.instance(), zmq.ROUTER)
         self.zap_socket.bind("inproc://zeromq.zap.01")
-        if self.auth_service.allow_any:
-            _log.warning("insecure permissive authentication enabled")
-        self.auth_service.read_auth_file()
-        self.auth_service._read_protected_topics_file()
-        self.auth_service.core.spawn(watch_file, self.auth_service.auth_file_path, self.auth_service.read_auth_file)
-        self.auth_service.core.spawn(
-            watch_file,
-            self.auth_service._protected_topics_file_path,
-            self.auth_service._read_protected_topics_file,
-        )
-        if self.auth_service.core.messagebus == "rmq":
-            self.auth_service.vip.peerlist.onadd.connect(self.auth_service._check_topic_rules)
-
 
     def authenticate(self, domain, address, mechanism, credentials):
-        for entry in self.auth_service.auth_entries:
+        for entry in self.auth_entries:
             if entry.match(domain, address, mechanism, credentials):
                 return entry.user_id or dump_user(
                     domain, address, mechanism, *credentials[:1]
@@ -214,16 +233,16 @@ class ZMQServerAuthentication(object):
             parts = address.split(":")[1:]
             if len(parts) > 2:
                 pid = int(parts[2])
-                agent_uuid = self.auth_service.aip.agent_uuid_from_pid(pid)
+                agent_uuid = self.aip.agent_uuid_from_pid(pid)
                 if agent_uuid:
                     return dump_user(domain, address, "AGENT", agent_uuid)
             uid = int(parts[0])
             if uid == os.getuid():
                 return dump_user(domain, address, mechanism, *credentials[:1])
-        if self.auth_service.allow_any:
+        if self._allow_any:
             return dump_user(domain, address, mechanism, *credentials[:1])
 
-    def zap_loop(self, sender, **kwargs):
+    def handle_authentication(self, protected_topics):
         """
         The zap loop is the starting of the authentication process for
         the VOLTTRON zmq message bus.  It talks directly with the low
@@ -241,8 +260,7 @@ class ZMQServerAuthentication(object):
         wait_list = []
         timeout = None
 
-        self.auth_service._send_protected_update_to_pubsub(self.auth_service._protected_topics)
-
+        self.zmq_authorization.update_protected_topics(protected_topics)
         while True:
             events = sock.poll(timeout)
             now = gevent.time.time()
@@ -295,10 +313,9 @@ class ZMQServerAuthentication(object):
                         credentials,
                     )
                     # If in setup mode, add/update auth entry
-                    if self.auth_service._setup_mode:
-                        self.auth_service._update_auth_entry(
-                            domain, address, kind, credentials[0], userid
-                        )
+                    if self._setup_mode:
+                        self.zmq_authorization._update_auth_entry(
+                            domain, address, kind, credentials[0], userid)
                         _log.info(
                             "new authentication entry added in setup mode: "
                             "domain=%r, address=%r, "
@@ -315,7 +332,7 @@ class ZMQServerAuthentication(object):
                     else:
                         if type(userid) == bytes:
                             userid = userid.decode("utf-8")
-                        self.auth_service._update_auth_pending(
+                        self._update_auth_pending(
                             domain, address, kind, credentials[0], userid
                         )
 
@@ -348,10 +365,239 @@ class ZMQServerAuthentication(object):
             timeout = (wait_list[0][0] - now) if wait_list else None
 
 
-    def stop_zap(self, sender, **kwargs):
+    def stop_authentication(self):
         if self._zap_greenlet is not None:
             self._zap_greenlet.kill()
 
-    def unbind_zap(self, sender, **kwargs):
+    def unbind_authentication(self):
         if self.zap_socket is not None:
             self.zap_socket.unbind("inproc://zeromq.zap.01")
+
+    def _update_auth_pending(
+            self,
+            domain,
+            address,
+            mechanism,
+            credential,
+            user_id
+    ):
+        """Handles incoming pending auth entries."""
+        for entry in self._auth_denied:
+            # Check if failure entry has been denied. If so, increment the
+            # failure's denied count
+            if (
+                    (entry["domain"] == domain)
+                    and (entry["address"] == address)
+                    and (entry["mechanism"] == mechanism)
+                    and (entry["credentials"] == credential)
+            ):
+                entry["retries"] += 1
+                return
+
+        for entry in self._auth_pending:
+            # Check if failure entry exists. If so, increment the failure count
+            if (
+                    (entry["domain"] == domain)
+                    and (entry["address"] == address)
+                    and (entry["mechanism"] == mechanism)
+                    and (entry["credentials"] == credential)
+            ):
+                entry["retries"] += 1
+                return
+        # Add a new failure entry
+        fields = {
+            "domain": domain,
+            "address": address,
+            "mechanism": mechanism,
+            "credentials": credential,
+            "user_id": user_id,
+            "retries": 1,
+        }
+        self._auth_pending.append(dict(fields))
+        return
+
+class ZMQAuthorization(BaseAuthorization):
+    def __init__(self, auth_core=None,
+                       is_connected=False, 
+                       auth_file=None,
+                       auth_pending=None,
+                       auth_approved=None,
+                       auth_denied=None):
+        super(ZMQAuthorization).__init__()
+        self.auth_core = auth_core
+        self._is_connected = is_connected
+        self.auth_file = auth_file
+        self._auth_pending = auth_pending
+        self._auth_approved = auth_approved
+        self._auth_denied = auth_denied
+
+    def approve_authorization(self, user_id):
+        index = 0
+        matched_index = -1
+        for pending in self._auth_pending:
+            if user_id == pending["user_id"]:
+                self._update_auth_entry(
+                    pending["domain"],
+                    pending["address"],
+                    pending["mechanism"],
+                    pending["credentials"],
+                    pending["user_id"],
+                )
+                matched_index = index
+                break
+            index = index + 1
+        if matched_index >= 0:
+            del self._auth_pending[matched_index]
+
+        for pending in self._auth_denied:
+            if user_id == pending["user_id"]:
+                self.auth_file.approve_deny_credential(
+                    user_id, is_approved=True
+                )
+
+    def deny_authorization(self, user_id):
+        index = 0
+        matched_index = -1
+        for pending in self._auth_pending:
+            if user_id == pending["user_id"]:
+                self._update_auth_entry(
+                    pending["domain"],
+                    pending["address"],
+                    pending["mechanism"],
+                    pending["credentials"],
+                    pending["user_id"],
+                    is_allow=False,
+                )
+                matched_index = index
+                break
+            index = index + 1
+        if matched_index >= 0:
+            del self._auth_pending[matched_index]
+
+        for pending in self._auth_approved:
+            if user_id == pending["user_id"]:
+                self.auth_file.approve_deny_credential(
+                    user_id, is_approved=False
+                )
+
+    def delete_authorization(self, user_id):
+        index = 0
+        matched_index = -1
+        for pending in self._auth_pending:
+            if user_id == pending["user_id"]:
+                self._update_auth_entry(
+                    pending["domain"],
+                    pending["address"],
+                    pending["mechanism"],
+                    pending["credentials"],
+                    pending["user_id"],
+                )
+                matched_index = index
+                val_err = None
+                break
+            index = index + 1
+        if matched_index >= 0:
+            del self._auth_pending[matched_index]
+
+        index = 0
+        matched_index = -1
+        for pending in self._auth_pending:
+            if user_id == pending["user_id"]:
+                matched_index = index
+                val_err = None
+                break
+            index = index + 1
+        if matched_index >= 0:
+            del self._auth_pending[matched_index]
+
+        for pending in self._auth_approved:
+            if user_id == pending["user_id"]:
+                self._remove_auth_entry(pending["credentials"])
+                val_err = None
+
+        for pending in self._auth_denied:
+            if user_id == pending["user_id"]:
+                self._remove_auth_entry(pending["credentials"], is_allow=False)
+                val_err = None
+
+        # If the user_id supplied was not for a ZMQ credential, and the
+        # pending_csr check failed,
+        # output the ValueError message to the error log.
+        if val_err:
+            _log.error(f"{val_err}")
+
+    def update_user_capabilites(self, user_to_caps):
+        # Send auth update message to router
+        json_msg = jsonapi.dumpb(dict(capabilities=user_to_caps))
+        frames = [zmq.Frame(b"auth_update"), zmq.Frame(json_msg)]
+        # <recipient, subsystem, args, msg_id, flags>
+        self.auth_core.socket.send_vip(b"", b"pubsub", frames, copy=False)
+
+    def load_protected_topics(self, protected_topics_data):
+        protected_topics = super().load_protected_topics(protected_topics_data)
+        self.update_protected_topics(protected_topics)
+        return protected_topics
+
+    def update_protected_topics(self, protected_topics):
+        protected_topics_msg = jsonapi.dumpb(protected_topics)
+
+        frames = [
+            zmq.Frame(b"protected_update"),
+            zmq.Frame(protected_topics_msg),
+        ]
+        if self._is_connected:
+            try:
+                # <recipient, subsystem, args, msg_id, flags>
+                self.auth_core.socket.send_vip(b"", b"pubsub", frames, copy=False)
+            except VIPError as ex:
+                _log.error(
+                    "Error in sending protected topics update to clear "
+                    "PubSub: %s",
+                    ex,
+                )
+
+    def _update_auth_entry(
+            self,
+            domain,
+            address,
+            mechanism,
+            credential,
+            user_id,
+            is_allow=True
+    ):
+        """Adds a pending auth entry to AuthFile."""
+        # Make a new entry
+        fields = {
+            "domain": domain,
+            "address": address,
+            "mechanism": mechanism,
+            "credentials": credential,
+            "user_id": user_id,
+            "groups": "",
+            "roles": "",
+            "capabilities": "",
+            "rpc_method_authorizations": {},
+            "comments": "Auth entry added in setup mode",
+        }
+        new_entry = AuthEntry(**fields)
+
+        try:
+            self.auth_file.add(new_entry, overwrite=False, is_allow=is_allow)
+        except AuthException as err:
+            _log.error("ERROR: %s\n", str(err))
+
+    def _remove_auth_entry(self, credential, is_allow=True):
+        try:
+            self.auth_file.remove_by_credentials(credential, is_allow=is_allow)
+        except AuthException as err:
+            _log.error("ERROR: %s\n", str(err))
+
+
+    def get_pending_authorizations(self):
+        pass
+
+    def get_approved_authorizations(self):
+        pass
+
+    def get_denied_authorizations(self):
+        pass

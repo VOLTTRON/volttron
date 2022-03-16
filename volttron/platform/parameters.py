@@ -36,78 +36,11 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-import os
-import volttron.platform
-from volttron.platform import jsonapi
+from dataclasses import dataclass
 
-#BaseAuthorization class
-class BaseAuthorization:
-    def __init__(self, 
-                 auth_core=None, 
-                 ):
-        self.auth_core = auth_core
-        
-    def approve_authorization(self, user_id):
-        pass    
-
-    def deny_authorization(self, user_id):
-        pass
-
-    def delete_authorization(self, user_id):
-        pass
-
-    def get_pending_authorizations(self):
-        pass
-
-    def get_approved_authorizations(self):
-        pass
-
-    def get_denied_authorizations(self):
-        pass
-
-    def update_user_capabilites(self, user_to_caps):
-        pass
-    
-    def load_protected_topics(self, protected_topics_data):
-        return jsonapi.loads(protected_topics_data) if protected_topics_data else {}
-
-    def update_protected_topics(self, protected_topics):
-        pass
-
-
-#BaseAuthentication class
-class BaseAuthentication:
-    def __init__(self, params=None):
-        self.address = None
-        self.identity = None
-        pass
-
-    def create_authenticated_address(self):
-        """
-        Used to create an authenticated address 
-        based on authentication protocol and message bus.
-        """
-        pass
-
-
-class BaseServerAuthentication(BaseAuthentication):
-    def __init__(self) -> None:
-        self.authorization = None
-        self.auth_vip = None
-        self.auth_core = None
-
-    def setup_authentication(self):
-        pass
-
-    def handle_authentication(self, protected_topics):
-        pass
-
-    def stop_authentication(self):
-        pass
-
-    def unbind_authentication(self):
-        pass
-
-# API
-# Create Authenticated Connection ()
-#   zmq equiv
+@dataclass
+class Parameters:
+    """
+    Base class for use by Authentication and Authorization parameters.
+    """
+    pass

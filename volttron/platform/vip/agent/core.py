@@ -39,6 +39,7 @@
 import heapq
 import inspect
 import logging
+from multiprocessing.dummy import connection
 import os
 import platform as python_platform
 import signal
@@ -62,6 +63,7 @@ from volttron.platform import get_address
 from volttron.platform import is_rabbitmq_available
 from volttron.platform.agent import utils
 from volttron.platform.agent.utils import load_platform_config, get_platform_instance_name
+from volttron.platform.auth.auth_protocols.auth_rmq import RMQClientAuthentication, RMQConnectionAPI
 from volttron.platform.keystore import KeyStore, KnownHostsStore
 from volttron.platform.auth.auth_protocols.auth_zmq import ZMQClientAuthentication, ZMQClientParameters
 from volttron.utils.rmq_mgmt import RabbitMQMgmt
@@ -859,7 +861,7 @@ class RMQCore(Core):
                                       agent_uuid=agent_uuid, reconnect_interval=reconnect_interval,
                                       version=version, instance_name=instance_name, messagebus=messagebus)
         self.volttron_central_address = volttron_central_address
-
+        self.enable_auth = enable_auth
         # TODO Look at this and see if we really need this here.
         # if instance_name is specified as a parameter in this calls it will be because it is
         # a remote connection. So we load it from the platform configuration file
@@ -902,21 +904,21 @@ class RMQCore(Core):
         super(RMQCore, self).set_connected(value)
 
     connected = property(get_connected, set_connected)
-
+    # Replace with RMQConnectionParam (wraps around pika.Connection)
+    # Passed into RMQClientConnection()
     def _build_connection_parameters(self):
         param = None
 
         if self.identity is None:
             raise ValueError("Agent's VIP identity is not set")
         else:
+            connectionAPI = RMQConnectionAPI(url_address=self.address, ssl_auth=self.enable_auth)
+
             try:
                 if self.instance_name == get_platform_instance_name():
-                    param = self.rmq_mgmt.build_agent_connection(self.identity,
-                                                                 self.instance_name)
+                    param = connectionAPI.build_agent_connection(self.identity, self.instance_name)
                 else:
-                    param = self.rmq_mgmt.build_remote_connection_param(self.rmq_user,
-                                                                        self.rmq_address,
-                                                                        True)
+                    param = connectionAPI.build_remote_connection_param()
             except AttributeError:
                 _log.error("RabbitMQ broker may not be running. Restart the broker first")
                 param = None
@@ -924,7 +926,7 @@ class RMQCore(Core):
         return param
 
     def loop(self, running_event):
-        if not isinstance(self.rmq_address, pika.ConnectionParameters):
+        if not isinstance(self.rmq_address, pika.ConnectionParameters):            
             self.rmq_address = self._build_connection_parameters()
         # pre-setup
         self.connection = RMQConnection(self.rmq_address,

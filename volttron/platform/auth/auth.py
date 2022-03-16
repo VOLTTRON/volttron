@@ -64,8 +64,8 @@ from volttron.platform.agent.known_identities import (
 from volttron.platform.auth.auth_utils import dump_user, load_user
 from volttron.platform.auth.auth_entry import AuthEntry
 from volttron.platform.auth.auth_file import AuthFile
-from volttron.platform.auth.certs import Certs
-from volttron.platform.auth.auth_protocols.auth_zmq import ZMQServerAuthentication
+from volttron.platform.auth.auth_protocols.auth_zmq import ZMQAuthorization, ZMQServerAuthentication
+from volttron.platform.auth.auth_protocols.auth_rmq import RMQServerAuthentication
 from volttron.platform.auth.auth_exception import AuthException
 from volttron.platform.jsonrpc import RemoteError
 from volttron.platform.vip.agent.errors import VIPError, Unreachable
@@ -79,6 +79,13 @@ from volttron.platform.vip.agent import Agent, Core, RPC
 
 
 _log = logging.getLogger(__name__)
+
+# ZMQAuthService(AuthService)
+# self.authentication_server = ZMQServerAuthentication(self.vip, self.core, self.aip)
+# self.authorization_server = ZMQAuthorization(self.auth_file)
+# RMQAuthService(AuthService)
+# self.authentication_server = ZMQServerAuthentication(self.vip, self.core, self.aip)
+# self.authorization_server = ZMQAuthorization(self.auth_file)
 
 class AuthService(Agent):
     def __init__(
@@ -99,9 +106,6 @@ class AuthService(Agent):
         # This agent is started before the router so we need
         # to keep it from blocking.
         self.core.delay_running_event_set = False
-        self._certs = None
-        if get_messagebus() == "rmq":
-            self._certs = Certs()
         self.auth_file_path = os.path.abspath(auth_file)
         self.auth_file = AuthFile(self.auth_file_path)
         self.export_auth_file()
@@ -116,17 +120,14 @@ class AuthService(Agent):
         self._protected_topics_file_path = os.path.abspath(
             protected_topics_file
         )
+        self._protected_topics = {}
         self._protected_topics_for_rmq = ProtectedPubSubTopics()
         self._setup_mode = setup_mode
         self._auth_pending = []
         self._auth_denied = []
         self._auth_approved = []
-        self.authentication_server = ZMQServerAuthentication(self)
-
-        def topics():
-            return defaultdict(set)
-
-        self._user_to_permissions = topics()
+        self.authentication_server = None
+        self.authorization_server = None
 
     def export_auth_file(self):
         """
@@ -185,7 +186,41 @@ class AuthService(Agent):
 
     @Core.receiver("onsetup")
     def setup_authentication_server(self, sender, **kwargs):
-        self.authentication_server.setup_zap(sender, kwargs)
+        if self.allow_any:
+            _log.warning("insecure permissive authentication enabled")
+        self.read_auth_file()
+        self._read_protected_topics_file()
+        self.core.spawn(watch_file, self.auth_file_path, self.read_auth_file)
+        self.core.spawn(
+            watch_file,
+            self._protected_topics_file_path,
+            self._read_protected_topics_file,
+        )
+        self.authentication_server = ZMQServerAuthentication(self.vip, self.core, self.aip)
+        self.authorization_server = ZMQAuthorization(self.auth_file)
+        self.authentication_server.setup_authentication()
+
+    @Core.receiver("onstart")
+    def start_authentication_server(self):
+        self.authentication_server.handle_authentication(self._protected_topics)
+
+    @Core.receiver("onstop")
+    def stop_authentication_server(self):
+        self.authentication_server.stop_authentication()
+
+    @Core.receiver("onfinish")
+    def unbind_authentication_server(self):
+        self.authentication_server.unbind_authentication()
+
+    # def _update_entries(self, entries=None, pending=None, approved=None, denied=None):
+    #     if entries:
+    #         self.auth_entries=self.authentication_server.auth_entries=self.authorization_server.auth_entries=entries
+    #     if pending:
+    #         self._auth_pending=self.authentication_server._auth_pending=self.authorization_server._auth_pending=pending
+    #     if approved:
+    #         self._auth_approved=self.authentication_server._auth_approved=self.authorization_server._auth_approved=approved
+    #     if denied:
+    #         self._auth_denied=self.authentication_server._auth_denied=self.authorization_server._auth_denied=denied
 
     @RPC.export
     def update_id_rpc_authorizations(self, identity, rpc_methods):
@@ -540,15 +575,8 @@ class AuthService(Agent):
             with open(self._protected_topics_file) as fil:
                 # Use gevent FileObject to avoid blocking the thread
                 data = FileObject(fil, close=False).read()
-                self._protected_topics = jsonapi.loads(data) if data else {}
-                if self.core.messagebus == "rmq":
-                    self._load_protected_topics_for_rmq()
-                    # Deferring the RMQ topic permissions to after "onstart"
-                    # event
-                else:
-                    self._send_protected_update_to_pubsub(
-                        self._protected_topics
-                    )
+                self._protected_topics = self.authorization_server.load_protected_topics(data)
+
         except Exception:
             _log.exception("error loading %s", self._protected_topics_file)
 
@@ -599,48 +627,8 @@ class AuthService(Agent):
                 ).join(timeout=15)
             except gevent.Timeout:
                 _log.error("Timed out updating methods from auth file!")
-        if self.core.messagebus == "rmq":
-            self._check_rmq_topic_permissions()
-        else:
-            self._send_auth_update_to_pubsub()
+        self.authorization_server.update_user_capabilites(self.get_user_to_capabilities()))
 
-    def _send_auth_update_to_pubsub(self):
-        user_to_caps = self.get_user_to_capabilities()
-        # Send auth update message to router
-        json_msg = jsonapi.dumpb(dict(capabilities=user_to_caps))
-        frames = [zmq.Frame(b"auth_update"), zmq.Frame(json_msg)]
-        # <recipient, subsystem, args, msg_id, flags>
-        self.core.socket.send_vip(b"", b"pubsub", frames, copy=False)
-
-    def _send_protected_update_to_pubsub(self, contents):
-        protected_topics_msg = jsonapi.dumpb(contents)
-
-        frames = [
-            zmq.Frame(b"protected_update"),
-            zmq.Frame(protected_topics_msg),
-        ]
-        if self._is_connected:
-            try:
-                # <recipient, subsystem, args, msg_id, flags>
-                self.core.socket.send_vip(b"", b"pubsub", frames, copy=False)
-            except VIPError as ex:
-                _log.error(
-                    "Error in sending protected topics update to clear "
-                    "PubSub: %s",
-                    ex,
-                )
-
-    @Core.receiver("onstop")
-    def stop_authentication_server(self, sender, **kwargs):
-        self.authentication_server.stop_zap(sender, **kwargs)
-
-    @Core.receiver("onfinish")
-    def unbind_authentication_server(self, sender, **kwargs):
-        self.authentication_server.unbind_zap(sender, **kwargs)
-
-    @Core.receiver("onstart")
-    def start_authentication_server(self, sender, **kwargs):
-        self.authentication_server.zap_loop(sender, **kwargs)
 
     @RPC.export
     def get_user_to_capabilities(self):
@@ -692,59 +680,7 @@ class AuthService(Agent):
         common name for CSR
         :type user_id: str
         """
-
-        val_err = None
-        if self._certs:
-            # Will fail with ValueError when a zmq credential user_id is
-            # passed.
-            try:
-                self._certs.approve_csr(user_id)
-                permissions = self.core.rmq_mgmt.get_default_permissions(
-                    user_id
-                )
-
-                if "federation" in user_id:
-                    # federation needs more than
-                    # the current default permissions
-                    # TODO: Fix authorization in rabbitmq
-                    permissions = dict(configure=".*", read=".*", write=".*")
-                self.core.rmq_mgmt.create_user_with_permissions(
-                    user_id, permissions, True
-                )
-                _log.debug("Created cert and permissions for user: %r", user_id)
-            # Stores error message in case it is caused by an unexpected
-            # failure
-            except ValueError as err:
-                val_err = err
-        index = 0
-        matched_index = -1
-        for pending in self._auth_pending:
-            if user_id == pending["user_id"]:
-                self._update_auth_entry(
-                    pending["domain"],
-                    pending["address"],
-                    pending["mechanism"],
-                    pending["credentials"],
-                    pending["user_id"],
-                )
-                matched_index = index
-                val_err = None
-                break
-            index = index + 1
-        if matched_index >= 0:
-            del self._auth_pending[matched_index]
-
-        for pending in self._auth_denied:
-            if user_id == pending["user_id"]:
-                self.auth_file.approve_deny_credential(
-                    user_id, is_approved=True
-                )
-                val_err = None
-        # If the user_id supplied was not for a ZMQ credential, and the
-        # pending_csr check failed,
-        # output the ValueError message to the error log.
-        if val_err:
-            _log.error(f"{val_err}")
+        self.authorization_server.approve_authorization(user_id)
 
     @RPC.export
     @RPC.allow(capabilities="allow_auth_modifications")
@@ -760,48 +696,7 @@ class AuthService(Agent):
         :type user_id: str
         """
 
-        val_err = None
-        if self._certs:
-            # Will fail with ValueError when a zmq credential user_id is
-            # passed.
-            try:
-                self._certs.deny_csr(user_id)
-                _log.debug("Denied cert for user: {}".format(user_id))
-            # Stores error message in case it is caused by an unexpected
-            # failure
-            except ValueError as err:
-                val_err = err
-
-        index = 0
-        matched_index = -1
-        for pending in self._auth_pending:
-            if user_id == pending["user_id"]:
-                self._update_auth_entry(
-                    pending["domain"],
-                    pending["address"],
-                    pending["mechanism"],
-                    pending["credentials"],
-                    pending["user_id"],
-                    is_allow=False,
-                )
-                matched_index = index
-                val_err = None
-                break
-            index = index + 1
-        if matched_index >= 0:
-            del self._auth_pending[matched_index]
-
-        for pending in self._auth_approved:
-            if user_id == pending["user_id"]:
-                self.auth_file.approve_deny_credential(
-                    user_id, is_approved=False
-                )
-                val_err = None
-        # If the user_id supplied was not for a ZMQ credential, and the
-        # pending_csr check failed,
-        # output the ValueError message to the error log.
-        if val_err:
-            _log.error(f"{val_err}")
+        self.authorization_server.deny_authorization(user_id)
 
     @RPC.export
     @RPC.allow(capabilities="allow_auth_modifications")
@@ -817,62 +712,7 @@ class AuthService(Agent):
         :type user_id: str
         """
 
-        val_err = None
-        if self._certs:
-            # Will fail with ValueError when a zmq credential user_id is
-            # passed.
-            try:
-                self._certs.delete_csr(user_id)
-                _log.debug("Denied cert for user: {}".format(user_id))
-            # Stores error message in case it is caused by an unexpected
-            # failure
-            except ValueError as err:
-                val_err = err
-
-        index = 0
-        matched_index = -1
-        for pending in self._auth_pending:
-            if user_id == pending["user_id"]:
-                self._update_auth_entry(
-                    pending["domain"],
-                    pending["address"],
-                    pending["mechanism"],
-                    pending["credentials"],
-                    pending["user_id"],
-                )
-                matched_index = index
-                val_err = None
-                break
-            index = index + 1
-        if matched_index >= 0:
-            del self._auth_pending[matched_index]
-
-        index = 0
-        matched_index = -1
-        for pending in self._auth_pending:
-            if user_id == pending["user_id"]:
-                matched_index = index
-                val_err = None
-                break
-            index = index + 1
-        if matched_index >= 0:
-            del self._auth_pending[matched_index]
-
-        for pending in self._auth_approved:
-            if user_id == pending["user_id"]:
-                self._remove_auth_entry(pending["credentials"])
-                val_err = None
-
-        for pending in self._auth_denied:
-            if user_id == pending["user_id"]:
-                self._remove_auth_entry(pending["credentials"], is_allow=False)
-                val_err = None
-
-        # If the user_id supplied was not for a ZMQ credential, and the
-        # pending_csr check failed,
-        # output the ValueError message to the error log.
-        if val_err:
-            _log.error(f"{val_err}")
+        self.authorization_server.delete_authorization(user_id)
 
     @RPC.export
     def get_authorization_pending(self):
@@ -956,145 +796,3 @@ class AuthService(Agent):
         :rtype: list
         """
         return self._get_authorizations(user_id, 2)
-
-    def _update_auth_entry(
-            self,
-            domain,
-            address,
-            mechanism,
-            credential,
-            user_id,
-            is_allow=True
-    ):
-        """Adds a pending auth entry to AuthFile."""
-        # Make a new entry
-        fields = {
-            "domain": domain,
-            "address": address,
-            "mechanism": mechanism,
-            "credentials": credential,
-            "user_id": user_id,
-            "groups": "",
-            "roles": "",
-            "capabilities": "",
-            "rpc_method_authorizations": {},
-            "comments": "Auth entry added in setup mode",
-        }
-        new_entry = AuthEntry(**fields)
-
-        try:
-            self.auth_file.add(new_entry, overwrite=False, is_allow=is_allow)
-        except AuthException as err:
-            _log.error("ERROR: %s\n", str(err))
-
-    def _remove_auth_entry(self, credential, is_allow=True):
-        try:
-            self.auth_file.remove_by_credentials(credential, is_allow=is_allow)
-        except AuthException as err:
-            _log.error("ERROR: %s\n", str(err))
-
-    def _update_auth_pending(
-            self,
-            domain,
-            address,
-            mechanism,
-            credential,
-            user_id
-    ):
-        """Handles incoming pending auth entries."""
-        for entry in self._auth_denied:
-            # Check if failure entry has been denied. If so, increment the
-            # failure's denied count
-            if (
-                    (entry["domain"] == domain)
-                    and (entry["address"] == address)
-                    and (entry["mechanism"] == mechanism)
-                    and (entry["credentials"] == credential)
-            ):
-                entry["retries"] += 1
-                return
-
-        for entry in self._auth_pending:
-            # Check if failure entry exists. If so, increment the failure count
-            if (
-                    (entry["domain"] == domain)
-                    and (entry["address"] == address)
-                    and (entry["mechanism"] == mechanism)
-                    and (entry["credentials"] == credential)
-            ):
-                entry["retries"] += 1
-                return
-        # Add a new failure entry
-        fields = {
-            "domain": domain,
-            "address": address,
-            "mechanism": mechanism,
-            "credentials": credential,
-            "user_id": user_id,
-            "retries": 1,
-        }
-        self._auth_pending.append(dict(fields))
-        return
-
-
-    def _update_topic_permission_tokens(self, identity, not_allowed):
-        """
-        Make rules for read and write permission on topic (routing key)
-        for an agent based on protected topics setting.
-
-        :param identity: identity of the agent
-        :return:
-        """
-        read_tokens = [
-            "{instance}.{identity}".format(
-                instance=self.core.instance_name, identity=identity
-            ),
-            "__pubsub__.*",
-        ]
-        write_tokens = ["{instance}.*".format(instance=self.core.instance_name)]
-
-        if not not_allowed:
-            write_tokens.append(
-                "__pubsub__.{instance}.*".format(
-                    instance=self.core.instance_name
-                )
-            )
-        else:
-            not_allowed_string = "|".join(not_allowed)
-            write_tokens.append(
-                "__pubsub__.{instance}.".format(
-                    instance=self.core.instance_name
-                )
-                + "^(!({not_allow})).*$".format(not_allow=not_allowed_string)
-            )
-        current = self.core.rmq_mgmt.get_topic_permissions_for_user(identity)
-        # _log.debug("CURRENT for identity: {0}, {1}".format(identity,
-        # current))
-        if current and isinstance(current, list):
-            current = current[0]
-            dift = False
-            read_allowed_str = "|".join(read_tokens)
-            write_allowed_str = "|".join(write_tokens)
-            if re.search(current["read"], read_allowed_str):
-                dift = True
-                current["read"] = read_allowed_str
-            if re.search(current["write"], write_allowed_str):
-                dift = True
-                current["write"] = write_allowed_str
-                # _log.debug("NEW {0}, DIFF: {1} ".format(current, dift))
-                # if dift:
-                #     set_topic_permissions_for_user(current, identity)
-        else:
-            current = dict()
-            current["exchange"] = "volttron"
-            current["read"] = "|".join(read_tokens)
-            current["write"] = "|".join(write_tokens)
-            # _log.debug("NEW {0}, New string ".format(current))
-            # set_topic_permissions_for_user(current, identity)
-
-    def _check_token(self, actual, allowed):
-        pending = actual[:]
-        for tk in actual:
-            if tk in allowed:
-                pending.remove(tk)
-        return pending

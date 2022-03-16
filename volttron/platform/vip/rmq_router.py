@@ -44,6 +44,7 @@ from typing import Optional
 
 from volttron.platform import is_rabbitmq_available
 from volttron.platform import jsonapi
+from volttron.platform.auth.auth_protocols.auth_rmq import RMQConnectionAPI
 from volttron.utils.rmq_mgmt import RabbitMQMgmt
 from volttron.platform.vip.rmq_connection import RMQRouterConnection
 from volttron.platform.vip.router import BaseRouter
@@ -106,8 +107,7 @@ class RMQRouter:
         if self._identity is None:
             raise ValueError("Agent's VIP identity is not set")
         else:
-            param = self.rmq_mgmt.build_router_connection(self._identity,
-                                                          self._instance_name)
+            param = RMQConnectionAPI().build_router_connection(self._identity, self._instance_name)
         return param
 
     def start(self):
