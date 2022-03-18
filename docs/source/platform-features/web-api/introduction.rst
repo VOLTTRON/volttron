@@ -87,9 +87,6 @@ creating a user and password:
 
 .. image:: files/create_admin_user.png
 
-Once the web-users.json file exists, add a group called "vui" to the list of groups for any user which should
-have access to the API:
-
 .. code-block:: json
 
     {
@@ -107,6 +104,9 @@ set to ``https://localhost:8443`` the following HTTP request (with a proper
 ::
 
     GET https://localhost:8443/vui/
+
+Access to the API may be disabled by removing "vui" from the list of groups in ``$VOLTTRON_HOME/web-users.json`` for any user which should not have access
+to the API.
 
 Path Structure
 ---------------
