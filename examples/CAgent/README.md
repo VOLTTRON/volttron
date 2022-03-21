@@ -1,8 +1,4 @@
-.. C Driver and C Test Agent:
-
-==========
-C Driver
-==========
+## C Driver
 
 The C Driver is an example implementation of an interface that
 allows the platform driver to transparently call C code.
@@ -22,9 +18,7 @@ and the [Driver Development overview](https://volttron.readthedocs.io/en/main/dr
 for a more in-depth explanation of the driver framework, including configuration, 
 directory structure, etc.
 
-=====================
-C Test Agent
-=====================
+## C Test Agent
 
 This example agent calls functions from a shared object.
 
