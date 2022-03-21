@@ -183,7 +183,7 @@ def is_instance_running(volttron_home=None):
     if volttron_home is None:
         volttron_home = get_home()
 
-    instance_file = os.path.expanduser("~/.volttron_instances")
+    instance_file = os.path.join(volttron_home, ".volttron_instances")
     if not os.path.isfile(instance_file):
         return False
 
