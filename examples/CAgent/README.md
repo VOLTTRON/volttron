@@ -8,7 +8,7 @@ interfaces directory (/services/core/PlatformDriverAgent/platform_driver/interfa
 build the shared C object using the `make all` command (if not already done so), 
 add the path to the shared C object to the test_cdriver.config configuration file, 
 and then configure the platform driver normally using the test_cdriver.config configuration 
-file (see [here](https://volttron.readthedocs.io/en/main/driver-framework/platform-driver/platform-driver.html#adding-device-configurations-to-the-configuration-store))
+file (see [here](https://volttron.readthedocs.io/en/main/driver-framework/platform-driver/platform-driver.html#adding-device-configurations-to-the-configuration-store)
 for instructions on configuring the platform driver). To see that the C driver publishes, 
 start the platform driver, listener agent, and the C Agent described below, then view 
 the volttron.log file to confirm the driver is running.
