@@ -98,7 +98,7 @@ class MessageDebuggerAgent(Agent):
     _filters = {}
 
     def __init__(self, config_path, **kwargs):
-        super(self.__class__, self).__init__(**kwargs)
+        super(MessageDebuggerAgent, self).__init__(**kwargs)
         config = utils.load_config(config_path)
         self.default_config = dict(router_path=config.get('router_path', '$VOLTTRON_HOME/run/messagedebug'),
                                    monitor_path=config.get('monitor_path', '$VOLTTRON_HOME/run/messageviewer'),

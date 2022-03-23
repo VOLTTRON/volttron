@@ -63,7 +63,7 @@ class RedshiftFuncts(DbDriver):
                 cursor.execute('SET TIME ZONE UTC')
             return connection
         connect.__name__ = 'psycopg2'
-        super(self.__class__, self).__init__(connect)
+        super(RedshiftFuncts, self).__init__(connect)
 
     @contextlib.contextmanager
     def bulk_insert(self):
@@ -101,7 +101,7 @@ class RedshiftFuncts(DbDriver):
 
     def rollback(self):
         try:
-            return super(self.__class__, self).rollback()
+            return super(RedshiftFuncts, self).rollback()
         except InterfaceError:
             return False
 
