@@ -19,7 +19,7 @@ Setup
 
 **Then:**
 
- 1. Install the agent: "python scripts/install-agent.py -s examples/CSVHistorian -t csvhistorian"
+ 1. Install the agent: "vctl install examples/CSVHistorian/ --tag csvhistorian"
  2. Start the agent: "vctl start --tag csvhistorian"
  3. Check that the agent is running: "vctl status"
 
@@ -33,6 +33,8 @@ example above).
 
 **Verify the data:**
 
-The data files can be found at "<volttron home
-directory>/agents/<id>/csv_historianagent-1.0.1/csv-historianagent-1.0.1
-.agent-data/", where <id> is is the UUID of the agent.
+The data files can be found at "<volttron home directory>/
+agents/<id>/csv_historianagent-1.0.1/csv-historianagent-1.0.1.agent-data/" 
+or in the default directory "<volttron home directory>/
+agents/<id>/csv_historianagent-1.0.1/data", where <id> is the value that 
+begins with the UUID value for the agent.
