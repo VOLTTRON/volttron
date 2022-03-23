@@ -44,31 +44,31 @@ password again until the refresh token expires.
 
 Request:
 --------
-    - Content Type: ``application/json``
-    - Body:
+- Content Type: ``application/json``
+- Body:
 
-        .. code-block:: JSON
+  .. code-block:: JSON
 
-            {
-                "username": "<username>",
-                "password": "<password>"
-            }
+        {
+            "username": "<username>",
+            "password": "<password>"
+        }
 
 Response:
 ---------
 
-    * **With valid username and password:** ``200 OK``
-        - Content Type: ``application/json``
-        - Body:
+* **With valid username and password:** ``200 OK``
+    - Content Type: ``application/json``
+    - Body:
 
-            .. code-block:: JSON
+      .. code-block:: JSON
 
-                {
-                    "refresh_token": "<jwt_refresh_token>",
-                    "access_token": "<jwt_access_token>"
-                }
+            {
+                "refresh_token": "<jwt_refresh_token>",
+                "access_token": "<jwt_access_token>"
+            }
 
-    * **With invalid username and password:** ``401 Unauthorized``
+* **With invalid username and password:** ``401 Unauthorized``
 
 --------------
 
@@ -77,24 +77,24 @@ PUT /authenticate
 
 Renew access token.
 
-    The user provides a valid refresh token (provided by ``POST /authenticate``) in the
-    Authorization header to obtain a fresh access token. A current access token MAY also
-    be provided, as needed, in the request body to keep open any existing subscriptions.
-    All subsequent requests to any endpoint should include the new token, and the old
-    access token should be discarded.
+The user provides a valid refresh token (provided by ``POST /authenticate``) in the
+Authorization header to obtain a fresh access token. A current access token MAY also
+be provided, as needed, in the request body to keep open any existing subscriptions.
+All subsequent requests to any endpoint should include the new token, and the old
+access token should be discarded.
 
 Request:
 --------
 
-    - Content Type: ``application/json``
-    - Authorization: ``BEARER <jwt_refresh_token>``
-    - Body (optional):
+- Content Type: ``application/json``
+- Authorization: ``BEARER <jwt_refresh_token>``
+- Body (optional):
 
-        .. code-block:: JSON
+  .. code-block:: JSON
 
-            {
-              "current_access_token": "<jwt_access_token>"
-            }
+        {
+          "current_access_token": "<jwt_access_token>"
+        }
 
 Response:
 ---------
@@ -103,7 +103,7 @@ Response:
     - Content Type: ``application/json``
     - Body:
 
-        .. code-block:: JSON
+      .. code-block:: JSON
 
             {
                 "access_token": "<new_jwt_access_token>"

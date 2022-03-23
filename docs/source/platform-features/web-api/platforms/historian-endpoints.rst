@@ -1,6 +1,8 @@
-===================
-Historian Endpoints
-===================
+.. _Platforms-Historians-Endpoints:
+
+==============================
+Platforms Historians Endpoints
+==============================
 
 Platform Historian endpoints expose functionality related to historians
 running on a VOLTTRON platform.
