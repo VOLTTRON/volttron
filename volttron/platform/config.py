@@ -326,7 +326,7 @@ class ArgumentParser(_argparse.ArgumentParser):
 
     def __init__(self, *args, **kwargs):
         allow_in_config = kwargs.pop('allow_in_config', True)
-        super(ArgumentParser, self).__init__(*args, **kwargs)
+        super(ArgumentParser, self).__init__(allow_abbrev=False, *args, **kwargs)
         self.allow_in_config = allow_in_config
         self.register('action', 'add_const', AddConstAction)
         self.register('action', 'store_list', ListAction)

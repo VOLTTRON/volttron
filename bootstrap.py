@@ -38,7 +38,7 @@
 
 """bootstrap - Prepare a VOLTTRON virtual environment.
 
-Bootstrapping is broken into two stages. The first stage should only be
+Bootstrapping is done in two stages. The first stage should only be
 invoked once per virtual environment. It downloads virtualenv and
 creates a virtual Python environment in the virtual environment
 directory (defaults to a subdirectory named env in the same directory as
@@ -72,14 +72,15 @@ may be used. Look here for more information on configuring pip:
 import argparse
 import errno
 import logging
+import os
+import shutil
 import subprocess
 import sys
+import traceback
 from urllib.request import urlopen
 
-import os
-import traceback
-
 from requirements import extras_require, option_requirements
+
 
 _log = logging.getLogger(__name__)
 
@@ -96,7 +97,6 @@ def shescape(args):
 
 
 def bootstrap(dest, prompt='(volttron)', version=None, verbose=None):
-    import shutil
     args = [sys.executable, "-m", "venv", dest, "--prompt", prompt]
 
     complete = subprocess.run(args, stdout=subprocess.PIPE)

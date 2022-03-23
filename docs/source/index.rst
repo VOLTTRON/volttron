@@ -63,6 +63,7 @@ at our bi-weekly office-hours and on Slack. To be invited to office-hours or sla
    :titlesonly:
    :maxdepth: 1
 
+   developing-volttron/quick-start
    developing-volttron/community
    developing-volttron/development-environment/index
    developing-volttron/developing-agents/agent-development
@@ -136,7 +137,6 @@ at our bi-weekly office-hours and on Slack. To be invited to office-hours or sla
    platform-features/control/index
    platform-features/config-store/configuration-store
    platform-features/security/volttron-security
-   platform-features/web-api/introduction
 
 
 .. toctree::
@@ -168,6 +168,15 @@ at our bi-weekly office-hours and on Slack. To be invited to office-hours or sla
    Releases <volttron-topics/VOLTTRON-releases/index>
    volttron-topics/troubleshooting/index
    volttron-topics/volttron-applications/index
+
+   
+.. toctree::
+   :caption: Tutorials
+   :hidden:
+   :titlesonly:
+   :maxdepth: 1
+
+   tutorials/quick-start   
 
 
 Indices and tables

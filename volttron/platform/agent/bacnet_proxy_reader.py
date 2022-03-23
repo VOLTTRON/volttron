@@ -581,10 +581,10 @@ class BACnetReader:
                     _log.debug('Built bacnet Objects 1: {}'.format(objects))
                     self._emit_responses(device_id, target_address, objects)
                     count = 0
-                except Exception as ex:
-                    _log.error(repr(ex))
                 except RemoteError as e:
                     _log.error('REMOTE ERROR: {}'.format(e))
+                except Exception as ex:
+                    _log.error(repr(ex))
                 query_mapping = {}
             count += 1
 
