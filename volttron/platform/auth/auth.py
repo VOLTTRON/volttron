@@ -65,7 +65,7 @@ from volttron.platform.auth.auth_utils import dump_user, load_user
 from volttron.platform.auth.auth_entry import AuthEntry
 from volttron.platform.auth.auth_file import AuthFile
 from volttron.platform.auth.auth_protocols.auth_zmq import ZMQAuthorization, ZMQServerAuthentication
-from volttron.platform.auth.auth_protocols.auth_rmq import RMQServerAuthentication
+from volttron.platform.auth.auth_protocols.auth_rmq import RMQAuthorization, RMQServerAuthentication
 from volttron.platform.auth.auth_exception import AuthException
 from volttron.platform.jsonrpc import RemoteError
 from volttron.platform.vip.agent.errors import VIPError, Unreachable
@@ -150,7 +150,7 @@ class AuthService(Agent):
             Wrapper function to add entry to AuthFile
             :params: entry
             :return: None
-            """
+            """ 
             self.auth_file.add(AuthEntry(**entry))
 
         def auth_file_update_by_index(auth_entry, index, is_allow=True):
@@ -196,8 +196,12 @@ class AuthService(Agent):
             self._protected_topics_file_path,
             self._read_protected_topics_file,
         )
-        self.authentication_server = ZMQServerAuthentication(self.vip, self.core, self.aip)
-        self.authorization_server = ZMQAuthorization(self.auth_file)
+        if get_messagebus() == "zmq":
+            self.authentication_server = ZMQServerAuthentication(self.vip, self.core, self.aip)
+            self.authorization_server = ZMQAuthorization(self.auth_file)
+        else:
+            self.authentication_server = RMQServerAuthentication(self.vip, self.core, self.aip)
+            self.authorization_server = RMQAuthorization(self.auth_file)
         self.authentication_server.setup_authentication()
 
     @Core.receiver("onstart")
@@ -627,7 +631,7 @@ class AuthService(Agent):
                 ).join(timeout=15)
             except gevent.Timeout:
                 _log.error("Timed out updating methods from auth file!")
-        self.authorization_server.update_user_capabilites(self.get_user_to_capabilities()))
+        self.authorization_server.update_user_capabilites(self.get_user_to_capabilities())
 
 
     @RPC.export
@@ -669,7 +673,7 @@ class AuthService(Agent):
 
     @RPC.export
     @RPC.allow(capabilities="allow_auth_modifications")
-    def approve_authorization_failure(self, user_id):
+    def approve_authorization(self, user_id):
         """RPC method
 
         Approves a pending CSR or credential, based on provided identity.
@@ -684,7 +688,7 @@ class AuthService(Agent):
 
     @RPC.export
     @RPC.allow(capabilities="allow_auth_modifications")
-    def deny_authorization_failure(self, user_id):
+    def deny_authorization(self, user_id):
         """RPC method
 
         Denies a pending CSR or credential, based on provided identity.
@@ -700,7 +704,7 @@ class AuthService(Agent):
 
     @RPC.export
     @RPC.allow(capabilities="allow_auth_modifications")
-    def delete_authorization_failure(self, user_id):
+    def delete_authorization(self, user_id):
         """RPC method
 
         Deletes a pending CSR or credential, based on provided identity.
@@ -715,17 +719,51 @@ class AuthService(Agent):
         self.authorization_server.delete_authorization(user_id)
 
     @RPC.export
-    def get_authorization_pending(self):
+    @RPC.allow(capabilities="allow_auth_modifications")
+    def get_authorization(self, common_name):
+        """RPC method
+
+        Returns the cert of a pending CSR.
+        This method provides RPC access to the Certs class's
+        get_cert_from_csr method.
+        This method is only applicable for web-enabled, RMQ instances.
+        Currently, this method is only used by admin_endpoints.
+
+        :param common_name: Common name for CSR
+        :type common_name: str
+        :rtype: str
+        """
+        return self.authorization_server.get_authorization(common_name)
+
+    @RPC.export
+    @RPC.allow(capabilities="allow_auth_modifications")
+    def get_authorization_status(self, common_name):
+        """RPC method
+
+        Returns the status of a pending CSRs.
+        This method provides RPC access to the Certs class's get_csr_status
+        method.
+        This method is only applicable for web-enabled, RMQ instances.
+        Currently, this method is only used by admin_endpoints.
+
+        :param common_name: Common name for CSR
+        :type common_name: str
+        :rtype: str
+        """
+        return self.authorization_server.get_authorization_status(common_name)
+
+    @RPC.export
+    def get_pending_authorizations(self):
         """RPC method
 
         Returns a list of failed (pending) ZMQ credentials.
 
         :rtype: list
         """
-        return list(self._auth_pending)
+        return self.authorization_server.get_pending_authorizations()
 
     @RPC.export
-    def get_authorization_approved(self):
+    def get_approved_authorizations(self):
         """RPC method
 
         Returns a list of approved ZMQ credentials.
@@ -735,10 +773,10 @@ class AuthService(Agent):
 
         :rtype: list
         """
-        return list(self._auth_approved)
+        return self.authorization_server.get_approved_authorizations()
 
     @RPC.export
-    def get_authorization_denied(self):
+    def get_denied_authorizations(self):
         """RPC method
 
         Returns a list of denied ZMQ credentials.
@@ -748,8 +786,7 @@ class AuthService(Agent):
 
         :rtype: list
         """
-        return list(self._auth_denied)
-
+        return self.authorization_server.get_denied_authorizations()
 
     def _get_authorizations(self, user_id, index):
         """Convenience method for getting authorization component by index"""

@@ -42,7 +42,7 @@ import os
 import random
 import uuid
 import bisect
-from urllib.parse import urlsplit, parse_qs, urlunsplit
+from urllib.parse import urlsplit, parse_qs, urlunsplit, urlparse
 import gevent
 import gevent.time
 from pytest import param
@@ -54,13 +54,18 @@ from volttron.platform import jsonapi
 from volttron.platform.auth.auth_entry import AuthEntry
 from volttron.platform.auth.auth_exception import AuthException
 from volttron.platform.auth.auth_utils import dump_user, load_user
-from volttron.platform.auth.auth_protocols.auth_protocol import BaseAuthorization, BaseAuthentication, BaseServerAuthentication
+from volttron.platform.auth.auth_protocols.auth_protocol import BaseAuthentication, BaseClientAuthorization, BaseServerAuthentication, BaseServerAuthorization
 from volttron.platform.keystore import KeyStore, KnownHostsStore
 from volttron.platform.parameters import Parameters
 from volttron.platform.vip.agent.errors import VIPError
 from volttron.platform.vip.agent.core import ZMQCore
 from volttron.platform.vip.socket import encode_key, BASE64_ENCODED_CURVE_KEY_LEN
-from volttron.platform.agent.utils import watch_file
+from volttron.platform.agent.utils import (
+    watch_file,    
+    get_platform_instance_name,
+    get_fq_identity,
+    get_messagebus,
+)
 
 _log = logging.getLogger(__name__)
 
@@ -260,7 +265,7 @@ class ZMQServerAuthentication(BaseServerAuthentication):
         wait_list = []
         timeout = None
 
-        self.zmq_authorization.update_protected_topics(protected_topics)
+        self.authorization.update_protected_topics(protected_topics)
         while True:
             events = sock.poll(timeout)
             now = gevent.time.time()
@@ -314,7 +319,7 @@ class ZMQServerAuthentication(BaseServerAuthentication):
                     )
                     # If in setup mode, add/update auth entry
                     if self._setup_mode:
-                        self.zmq_authorization._update_auth_entry(
+                        self.authorization._update_auth_entry(
                             domain, address, kind, credentials[0], userid)
                         _log.info(
                             "new authentication entry added in setup mode: "
@@ -416,7 +421,7 @@ class ZMQServerAuthentication(BaseServerAuthentication):
         self._auth_pending.append(dict(fields))
         return
 
-class ZMQAuthorization(BaseAuthorization):
+class ZMQAuthorization(BaseServerAuthorization):
     def __init__(self, auth_core=None,
                        is_connected=False, 
                        auth_file=None,
@@ -592,12 +597,178 @@ class ZMQAuthorization(BaseAuthorization):
         except AuthException as err:
             _log.error("ERROR: %s\n", str(err))
 
+    def get_authorization(self, user_id):
+        for auth_entry in self._auth_pending:
+            if user_id == auth_entry.user_id:
+                return str(auth_entry.credentials)
+        for auth_entry in self._auth_approved:
+            if user_id == auth_entry.user_id:
+                return str(auth_entry.credentials)
+        for auth_entry in self._auth_denied:
+            if user_id == auth_entry.user_id:
+                return str(auth_entry.credentials)
+        return ""
+
+    def get_authorization_status(self, user_id):
+        for auth_entry in self._auth_pending:
+            if user_id == auth_entry.user_id:
+                return "PENDING"
+        for auth_entry in self._auth_approved:
+            if user_id == auth_entry.user_id:
+                return "APPROVED"
+        for auth_entry in self._auth_denied:
+            if user_id == auth_entry.user_id:
+                return "DENIED"
+        return "UNKOWN"
 
     def get_pending_authorizations(self):
-        pass
+        return list(self._auth_pending)
 
     def get_approved_authorizations(self):
-        pass
+        return list(self._auth_approved)
 
     def get_denied_authorizations(self):
-        pass
+        return list(self._auth_denied)
+
+
+class ZMQClientAuthorization(BaseClientAuthorization):
+    def __init__(self, owner=None, core=None):
+        super(ZMQClientAuthorization).__init__(self, owner=owner, core=core)
+
+    def connect_remote_platform(
+            self,
+            address,
+            serverkey=None,
+            agent_class=None
+    ):
+        """
+        Agent attempts to connect to a remote platform to exchange data.
+
+        address must start with http, https, tcp, ampq, or ampqs or a
+        ValueError will be
+        raised
+
+        If this function is successful it will return an instance of the
+        `agent_class`
+        parameter if not then this function will return None.
+
+        If the address parameter begins with http or https
+        TODO: use the known host functionality here
+        the agent will attempt to use Discovery to find the values
+        associated with it.
+
+        Discovery should return either an rmq-address or a vip-address or
+        both.  In
+        that situation the connection will be made using zmq.  In the event
+        that
+        fails then rmq will be tried.  If both fail then None is returned
+        from this
+        function.
+
+        """
+        from volttron.platform.vip.agent.utils import build_agent
+        from volttron.platform.vip.agent import Agent
+
+        if agent_class is None:
+            agent_class = Agent
+
+        parsed_address = urlparse(address)
+        _log.debug("Begining auth.connect_remote_platform: {}".format(address))
+
+        value = None
+        if parsed_address.scheme == "tcp":
+            # ZMQ connection
+            hosts = KnownHostsStore()
+            temp_serverkey = hosts.serverkey(address)
+            if not temp_serverkey:
+                _log.info(
+                    "Destination serverkey not found in known hosts file, "
+                    "using config"
+                )
+                destination_serverkey = serverkey
+            elif not serverkey:
+                destination_serverkey = temp_serverkey
+            else:
+                if temp_serverkey != serverkey:
+                    raise ValueError(
+                        "server_key passed and known hosts serverkey do not "
+                        ""
+                        "match!"
+                    )
+                destination_serverkey = serverkey
+
+            publickey, secretkey = (
+                self._core().publickey,
+                self._core().secretkey,
+            )
+            _log.debug(
+                "Connecting using: %s", get_fq_identity(self._core().identity)
+            )
+
+            value = build_agent(
+                agent_class=agent_class,
+                identity=get_fq_identity(self._core().identity),
+                serverkey=destination_serverkey,
+                publickey=publickey,
+                secretkey=secretkey,
+                message_bus="zmq",
+                address=address,
+            )
+        elif parsed_address.scheme in ("https", "http"):
+            from volttron.platform.web import DiscoveryInfo
+            from volttron.platform.web import DiscoveryError
+
+            try:
+                # TODO: Use known host instead of looking up for discovery
+                #  info if possible.
+
+                # We need to discover which type of bus is at the other end.
+                info = DiscoveryInfo.request_discovery_info(address)
+                remote_identity = "{}.{}.{}".format(
+                    info.instance_name,
+                    get_platform_instance_name(),
+                    self._core().identity,
+                )
+                # if the current message bus is zmq then we need
+                # to connect a zmq on the remote, whether that be the
+                # rmq router or proxy.  Also note that we are using the
+                # fully qualified
+                # version of the identity because there will be conflicts if
+                # volttron central has more than one platform.agent connecting
+                if not info.vip_address or not info.serverkey:
+                    err = (
+                        "Discovery from {} did not return serverkey "
+                        "and/or vip_address".format(address)
+                    )
+                    raise ValueError(err)
+
+                _log.debug(
+                    "Connecting using: %s",
+                    get_fq_identity(self._core().identity),
+                )
+
+                # use fully qualified identity
+                value = build_agent(
+                    identity=get_fq_identity(self._core().identity),
+                    address=info.vip_address,
+                    serverkey=info.serverkey,
+                    secretkey=self._core().secretkey,
+                    publickey=self._core().publickey,
+                    agent_class=agent_class,
+                )
+
+            except DiscoveryError:
+                _log.error(
+                    "Couldn't connect to %s or incorrect response returned "
+                    "response was %s",
+                    address,
+                    value,
+                )
+
+        else:
+            raise ValueError(
+                "Invalid configuration found the address: {} has an invalid "
+                "scheme".format(address)
+            )
+
+        return value
