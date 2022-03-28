@@ -102,7 +102,7 @@ function install_on_debian {
     rm erlang_solutions.asc
     if [[ -f "/etc/apt/sources.list.d/erlang.list" ]]; then
       echo "\n/etc/apt/sources.list.d/erlang.list exists. renaming current file to erlang.list.old\n"
-      mv /etc/apt/sources.list.d/erlang.list /etc/apt/sources.list.d/erlang.list.old
+      ${prefix} mv /etc/apt/sources.list.d/erlang.list /etc/apt/sources.list.d/erlang.list.old
       exit_on_error
     fi
     ## Add apt repository

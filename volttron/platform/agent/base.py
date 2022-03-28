@@ -110,7 +110,7 @@ def iter_periodics(obj):
             yield period, method, args, kwargs
 
 
-class Reactor(object):
+class Reactor:
     '''Implements the reactor pattern around a Poller instance.'''
 
     def __init__(self):
@@ -165,7 +165,7 @@ class Reactor(object):
         return list(self._poll(timeout))
 
 
-class AgentBase(object):
+class AgentBase:
     '''Base agent to consume standard arguments.'''
     def __init__(self, subscribe_address=None, publish_address=None,
                  config_path=None, **kwargs):

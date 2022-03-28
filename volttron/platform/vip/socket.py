@@ -120,7 +120,7 @@ def decode_key(key):
     raise ValueError('unknown key encoding')
 
 
-class Address(object):
+class Address:
     """Parse and hold a URL-style address.
 
     The URL given by address may contain optional query string
@@ -276,7 +276,7 @@ class ProtocolError(Exception):
     pass
 
 
-class Message(object):
+class Message:
     """Message object returned form Socket.recv_vip_object()."""
     def __init__(self, **kwargs):
         self.__dict__ = kwargs
@@ -290,7 +290,7 @@ class Message(object):
         return '%s(**{%s})' % (self.__class__.__name__, attrs)
 
 
-class _Socket(object):
+class _Socket:
     """Subclass of zmq.Socket to implement VIP protocol.
 
     Sockets are of type DEALER by default. If a ROUTER socket is used,

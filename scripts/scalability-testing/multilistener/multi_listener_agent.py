@@ -1,4 +1,3 @@
-from __future__ import print_function
 from multiprocessing import Process, Lock, JoinableQueue
 import os
 import argparse

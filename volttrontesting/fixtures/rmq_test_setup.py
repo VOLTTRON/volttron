@@ -13,7 +13,7 @@ HOME = os.environ.get('HOME')
 _log = logging.getLogger(__name__)
 
 
-class RabbitTestConfig(object):
+class RabbitTestConfig:
     def __init__(self):
         # Provides defaults for rabbitmq configuration file.
         self.rabbitmq_config = {

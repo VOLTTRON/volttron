@@ -49,7 +49,7 @@ utils.setup_logging()
 GREENLET_ENABLED = False
 
 
-class RegistrationManager(object):
+class RegistrationManager:
     """
     The ReservationManager manages a list of MarketReservations for the MarketAgents.
     This class exists to hide the features of the underlying collection that are not relevant to

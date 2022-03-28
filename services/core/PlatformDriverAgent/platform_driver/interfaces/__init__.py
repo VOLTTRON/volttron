@@ -178,7 +178,7 @@ class DriverInterfaceError(Exception):
     pass
 
 
-class BaseRegister(object):
+class BaseRegister:
     """
     Class for containing information about a point on a device.
     Should be extended to support the device protocol to
@@ -448,7 +448,7 @@ class BaseInterface(object, metaclass=abc.ABCMeta):
         return results
 
 
-class RevertTracker(object):
+class RevertTracker:
     """
     A helper class for tracking the state of writable points on a device.
     """

@@ -54,7 +54,7 @@ _ROUTE_ERRORS = {
 }
 
 
-class ExternalRPCService(object):
+class ExternalRPCService:
     """
     Class to manage routing of RPC calls between external platforms and internal agents(peers).
     """

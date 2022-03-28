@@ -71,7 +71,7 @@ def template_env(env):
     return env['JINJA2_TEMPLATE_ENV']
 
 
-class AdminEndpoints(object):
+class AdminEndpoints:
 
     def __init__(self, rmq_mgmt=None, ssl_public_key: bytes = None, rpc_caller=None):
 
@@ -135,7 +135,7 @@ class AdminEndpoints(object):
 
                 if pass1 == pass2 and pass1 is not None:
                     _log.debug("Setting administrator password")
-                    self.add_user(username, pass1, groups=['admin'])
+                    self.add_user(username, pass1, groups=['admin', 'vui'])
                     return Response('', status='302', headers={'Location': '/admin/login.html'})
 
             template = template_env(env).get_template('first.html')

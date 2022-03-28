@@ -6,7 +6,6 @@ from volttron.platform.vip.agent.connection import Connection
 from volttron.platform.vip.agent.utils import build_connection
 import os
 
-pytestmark = [pytest.mark.xfail]
 
 @pytest.fixture(scope="module")
 def setup_control_connection(request, get_volttron_instances):
@@ -22,6 +21,7 @@ def setup_control_connection(request, get_volttron_instances):
     assert wrapper.is_running()
 
     wrapper.allow_all_connections()
+    gevent.sleep(1)
 
     # Connect using keys
     ks = KeyStore()

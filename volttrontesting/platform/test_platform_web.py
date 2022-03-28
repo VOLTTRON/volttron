@@ -97,8 +97,6 @@ setup(
     # Create the agent.py file in the package directory.
     with open(os.path.join(package_dir, 'agent.py'), 'w') as fout:
         fout.write('''
-from __future__ import absolute_import, print_function
-
 import base64
 import logging
 import os

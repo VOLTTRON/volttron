@@ -47,7 +47,7 @@ _log = logging.getLogger(__name__)
 utils.setup_logging()
 
 
-class OfferManager(object):
+class OfferManager:
 
     def __init__(self):
         self._buy_offers = []

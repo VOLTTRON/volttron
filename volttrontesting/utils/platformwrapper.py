@@ -1534,7 +1534,7 @@ def mergetree(src, dst, symlinks=False, ignore=None):
                 shutil.copy2(s, d)
 
 
-class WebAdminApi(object):
+class WebAdminApi:
     def __init__(self, platform_wrapper: PlatformWrapper = None):
         if platform_wrapper is None:
             platform_wrapper = PlatformWrapper()

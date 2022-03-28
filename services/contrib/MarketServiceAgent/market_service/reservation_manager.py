@@ -42,7 +42,7 @@ class MarketReservationError(Exception):
     pass
 
 
-class ReservationManager(object):
+class ReservationManager:
 
     def __init__(self):
         self._buy_reservations = {}

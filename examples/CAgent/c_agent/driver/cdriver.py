@@ -47,10 +47,9 @@ need to be somewhere it can be found by this file.
 
 from io import StringIO
 from csv import DictReader
+from ctypes import CDLL, cdll
 
 from platform_driver.interfaces import BasicRevert, BaseInterface, BaseRegister
-
-from ctypes import *
 
 
 def so_lookup_function(shared_object, function_name):

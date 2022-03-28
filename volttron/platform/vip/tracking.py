@@ -68,7 +68,7 @@ def increment(prop, key):
         prop[key] = 1
 
 
-class Tracker(object):
+class Tracker:
     '''Object for sharing data between the router and control objects.'''
 
     def __init__(self):

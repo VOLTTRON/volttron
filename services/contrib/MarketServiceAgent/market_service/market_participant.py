@@ -39,7 +39,7 @@
 from volttron.platform.agent.base_market_agent.buy_sell import BUYER, SELLER
 
 
-class MarketParticipant(object):
+class MarketParticipant:
     def __init__(self, buyer_seller, identity):
         self.buyer_seller = buyer_seller
         self.identity = identity

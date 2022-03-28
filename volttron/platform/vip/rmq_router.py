@@ -36,9 +36,6 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-
-from __future__ import absolute_import
-
 import errno
 import logging
 import os
@@ -63,7 +60,7 @@ __all__ = ['RMQRouter']
 _log = logging.getLogger(__name__)
 
 
-class RMQRouter(object):
+class RMQRouter:
     """
     Concrete VIP Router for RabbitMQ message bus. It handles router specific
     messages and unrouteable messages.

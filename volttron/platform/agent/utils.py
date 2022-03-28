@@ -77,7 +77,7 @@ from volttron.utils.prompt import prompt_response
 __all__ = ['load_config', 'run_agent', 'start_agent_thread',
            'is_valid_identity', 'load_platform_config', 'get_messagebus',
            'get_fq_identity', 'execute_command', 'get_aware_utc_now',
-           'is_secure_mode', 'wait_for_volttron_shutdown']
+           'is_secure_mode', 'wait_for_volttron_shutdown', 'is_volttron_running']
 
 __author__ = 'Brandon Carpenter <brandon.carpenter@pnnl.gov>'
 __copyright__ = 'Copyright (c) 2016, Battelle Memorial Institute'
@@ -773,7 +773,7 @@ def fix_sqlite3_datetime(sql=None):
     sql.register_converter("timestamp", parse)
 
 
-def execute_command(cmds, env=None, cwd=None, logger=None, err_prefix=None) -> str:
+def execute_command(cmds, env=None, cwd=None, logger=None, err_prefix=None, use_shell=False) -> str:
     """ Executes a command as a subprocess
 
     If the return code of the call is 0 then return stdout otherwise
@@ -791,7 +791,7 @@ def execute_command(cmds, env=None, cwd=None, logger=None, err_prefix=None) -> s
     """
 
     results = subprocess.run(cmds, env=env, cwd=cwd,
-                             stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+                             stderr=subprocess.PIPE, stdout=subprocess.PIPE, shell=use_shell)
     if results.returncode != 0:
         err_prefix = err_prefix if err_prefix is not None else "Error executing command"
         err_message = "\n{}: Below Command failed with non zero exit code.\n" \
