@@ -405,7 +405,6 @@ class RoutingService(object):
 
         try:
             frames = serialize_frames(frames)
-            _log.debug(f"Frames sent to external {[x.bytes for x in frames]}")
             # Try sending the message to its recipient
             sock.send_multipart(frames, flags=NOBLOCK, copy=False)
         except ZMQError as exc:
