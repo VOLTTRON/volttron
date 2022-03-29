@@ -1568,9 +1568,9 @@ class WebAdminApi:
 
         if self._wrapper.ssl_auth:
             resp = grequests.post(url, data=data,
-                                 verify=self.certsobj.cert_file(self.certsobj.root_ca_name))
+                                 verify=self.certsobj.cert_file(self.certsobj.root_ca_name)).send().response
         else:
-            resp = grequests.post(url, data=data, verify=False)
+            resp = grequests.post(url, data=data, verify=False).send().response
         print(f"RESPONSE: {resp}")
         return resp
 
@@ -1583,7 +1583,7 @@ class WebAdminApi:
         # verify=self.certsobj.remote_cert_bundle_file())
         if self._wrapper.ssl_auth:
             resp = grequests.post(url, data=data,
-                                 verify=self.certsobj.cert_file(self.certsobj.root_ca_name))
+                                 verify=self.certsobj.cert_file(self.certsobj.root_ca_name)).send().response
         else:
-            resp = grequests.post(url, data=data, verify=False)
+            resp = grequests.post(url, data=data, verify=False).send().response
         return resp
