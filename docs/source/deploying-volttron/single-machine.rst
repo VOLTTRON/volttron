@@ -144,16 +144,16 @@ Install Agents and Historian
 
 Out of the box, VOLTTRON includes a number of agents which may be useful for single machine deployments:
 
-    * historians - Historians automatically record a data from a number of topics published to the bus.  For more
-      information on the historian framework or one of the included concrete implementations, view the
-      :ref:`docs <Historian-Framework>`
-    * Listener - This example agent can be useful for debugging drivers or other agents publishing to the bus.
-      :ref:`docs <Listener-Agent>`
+    * historians - Historians automatically record a data from a number of topics published to the bus.  For more information on the historian framework or one of the included concrete implementations, view the :ref:`Historian-Framework`
+																									  
+									   
+    * Listener - This example agent can be useful for debugging drivers or other agents publishing to the bus. For more details please read :ref:`Listener-Agent`
+								  
     * Platform Driver - The :ref:`Platform-Driver` is responsible for managing device communication on a platform instance.
-    * weather agents - weather agents can be used to collect weather data from sources like
-      :ref:`Weather.gov <Weather-Dot-Gov>`
+    * weather agents - weather agents can be used to collect weather data from sources like `weather.gov <https://www.weather.gov/>`_
+										  
 
-    .. note::
+.. note::
 
        The `services/core`, `services/ops`, and `examples` directories in the repository contain additional agents to
        use to fit individual use cases.
@@ -168,12 +168,16 @@ For a simple setup example, a Platform Driver, SQLite Historian, and Listener ar
     * :ref:`SQLite Historian <SQL-Historian>`
     * :ref:`Listener <Listener-Agent>`
 
-   For a simple example, the configurations can be copied as-is to the `configs` directory:
+For a simple example, the configurations can be copied as-is to the `configs` directory:
 
-   .. code-block:: bash
+.. code-block:: bash
 
-      cp services/core/PlatformDriverAgent/platform-driver.agent configs
-      cp services/core/SQLHistorian/config.sqlite configs
+      mkdir configs
+
+.. code-block:: bash
+
+      cp services/core/PlatformDriverAgent/platform-driver.agent configs/
+      cp services/core/SQLHistorian/config.sqlite configs/
       cp examples/ListenerAgent/config configs/listener.config
 
 #. Use the `install-agent.py` script to install the agent on the platform:
@@ -184,11 +188,11 @@ For a simple setup example, a Platform Driver, SQLite Historian, and Listener ar
    python scripts/install-agent.py -s services/core/PlatformDriverAgent -c configs/platform-driver.agent --tag platform_driver
    python scripts/install-agent.py -s examples/ListenerAgent -c configs/listener.config --tag listener
 
-   .. note::
+.. note::
 
       The `volttron.log` file will contain logging indicating that the agent has installed successfully.
 
-      .. code-block:: console
+.. code-block:: console
 
          2020-10-27 11:42:08,882 () volttron.platform.auth INFO: AUTH: After authenticate user id: control.connection, b'c61dff8e-f362-4906-964f-63c32b99b6d5'
          2020-10-27 11:42:08,882 () volttron.platform.auth INFO: authentication success: userid=b'c61dff8e-f362-4906-964f-63c32b99b6d5' domain='vip', address='localhost:1000:1000:3249', mechanism='CURVE', credentials=['ZrDvPG4JNLE26GoPUrTP22rV0PV8uGCnrXThrNFk_Ec'], user='control.connection'
@@ -237,8 +241,8 @@ concrete drivers such as the BACnet or Modbus drivers, view their respective doc
 
 .. code-block:: console
 
-   cp examples/configurations/drivers/fake.config configs
-   cp examples/configurations/drivers/fake.csv configs
+   cp examples/configurations/drivers/fake.config configs/
+   cp examples/configurations/drivers/fake.csv configs/
    vctl config store platform.driver devices/campus/building/fake configs/fake.config
    vctl config store platform.driver fake.csv configs/fake.csv --csv
 
