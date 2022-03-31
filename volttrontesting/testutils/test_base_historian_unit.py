@@ -41,12 +41,12 @@ def test_base_historian_agent_should_filter_duplicates(base_historian_agent):
         peer=None,
         sender=None,
         bus=None,
-        topic=f"unique_record_topic_1",
+        topic="unique_record_topic_1",
         headers={
-            "Date": f"2020-11-17 21:21:10.189393+00:00",
-            "TimeStamp": f"2020-11-17 21:21:10.189393+00:00",
+            "Date": "2020-11-17 21:21:10.189393+00:00",
+            "TimeStamp": "2020-11-17 21:21:10.189393+00:00",
         },
-        message=f"unique_record_1",
+        message="unique_record_1",
     )
 
     # Since this is a unit test, we have to "manually start" the base_historian to get the workflow going
