@@ -36,19 +36,18 @@ def test_base_historian_agent_should_filter_duplicates(base_historian_agent):
             message=f"last_duplicate_{num}",
         )
 
-    # Add unique records to queue
-    for num in range(2, 5):
-        base_historian_agent._capture_record_data(
-            peer=None,
-            sender=None,
-            bus=None,
-            topic=f"unique_record_topic{num}",
-            headers={
-                "Date": f"2020-11-17 21:2{num}:10.189393+00:00",
-                "TimeStamp": f"2020-11-17 21:2{num}:10.189393+00:00",
-            },
-            message=f"unique_record_{num}",
-        )
+    # Add a unique record to queue
+    base_historian_agent._capture_record_data(
+        peer=None,
+        sender=None,
+        bus=None,
+        topic=f"unique_record_topic_1",
+        headers={
+            "Date": f"2020-11-17 21:21:10.189393+00:00",
+            "TimeStamp": f"2020-11-17 21:21:10.189393+00:00",
+        },
+        message=f"unique_record_1",
+    )
 
     # Since this is a unit test, we have to "manually start" the base_historian to get the workflow going
     base_historian_agent.start_process_thread()
@@ -57,32 +56,34 @@ def test_base_historian_agent_should_filter_duplicates(base_historian_agent):
 
     expected_to_publish_list = [
         {
-            "_id": 3,
-            "timestamp": datetime.datetime(
-                2015, 11, 17, 21, 24, 10, 189393, tzinfo=UTC
-            ),
-            "source": "record",
-            "topic": "duplicate_topic",
-            "value": "last_duplicate_42",
-            "headers": {
-                "Date": "2015-11-17 21:24:10.189393+00:00",
-                "TimeStamp": "2015-11-17 21:24:10.189393+00:00",
-                "time_error": False
-            },
-            "meta": {},
+            '_id': 1,
+            'headers': {'Date': '2015-11-17 21:24:10.189393+00:00',
+                        'TimeStamp': '2015-11-17 21:24:10.189393+00:00',
+                        'time_error': False},
+            'meta': {},
+            'source': 'record',
+            'timestamp': datetime.datetime(2015, 11, 17, 21, 24, 10, 189393, tzinfo=UTC),
+            'topic': 'duplicate_topic',
+            'value': 'last_duplicate_40'
+        },
+        {
+            '_id': 4,
+            'headers': {'Date': '2020-11-17 21:21:10.189393+00:00',
+                        'TimeStamp': '2020-11-17 21:21:10.189393+00:00',
+                        'time_error': False},
+            'meta': {},
+            'source': 'record',
+            'timestamp': datetime.datetime(2020, 11, 17, 21, 21, 10, 189393, tzinfo=UTC),
+            'topic': 'unique_record_topic_1',
+            'value': 'unique_record_1'
         }
     ]
 
-
-    # When the base_historian is handling duplicates from the cache, the base_historian is expected to make multiple calls to publish_to_historian
-    # in which each call contains exactly one duplicate record. More importanly, the base_historian is also expected to make each call to publish_to_historian
-    # in the order in which the duplicates were initially inserted into the cache (i.e. First-in, First Out, FIFO)
-    # In this specific case, we have three duplicates that need to be processed. Thus, publish_to_historian will get called thrice.
-    # On the first call, publish_to_historian will publish 'unique_record_2', 'unique_record_3', 'unique_record_4' AND  'last_duplicate_40'
-    # On the second call, publish_to_historian will publish last_duplicate_41
-    # On the third and final call, publish_to_historian will publish last_duplicate_42
-    # Since it is difficult to validate every call except the last call, we will simply validate that the last call
-    # did indeed publish exactly one duplicate record that was the last duplicate record inserted into the cache.
+    # Whenever data comes in to the BaseHistorian, it is published to a Queue to be be processed by the publishing thread as soon as possible.
+    # As new data is published to the Queue, it will be saved to the cache. Data is batched into groups up to the value of `submit_size_limit` 
+    # (which defaults to 1000). As the data becomes available in the cache, the BaseHistorian agent will check for duplicate items in the order 
+    # they were added to the cache and omit them from the list to be published. Leaving only a list of unique items to be published, which in
+    # this case, is shown by the expected_to_publish_list.  
     assert base_historian_agent.last_to_publish_list == expected_to_publish_list
 
 
