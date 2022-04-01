@@ -18,8 +18,8 @@ except ImportError:
     pytest.mark.skip(reason="JWT is missing! Web is not enabled for this installation of VOLTTRON")
 
 from volttron.platform import is_rabbitmq_available
+from volttron.platform.auth import CertWrapper, Certs
 from volttron.platform.agent.known_identities import AUTH
-from volttron.platform.certs import CertWrapper, Certs
 from volttron.platform.vip.agent import Agent
 from volttron.utils import get_random_key
 from volttrontesting.utils.platformwrapper import create_volttron_home, with_os_environ

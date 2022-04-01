@@ -44,8 +44,7 @@ import collections
 from volttron.platform import get_home, jsonapi
 
 from volttron.platform.agent.known_identities import AUTH
-from volttron.platform.auth.auth_entry import AuthEntry
-from volttron.platform.auth.auth_exception import AuthException
+from volttron.platform.auth import AuthEntry, AuthException
 from volttron.platform.control.control_utils import _ask_yes_no, _print_two_columns, _show_filtered_agents
 from volttron.platform.keystore import KeyStore, KnownHostsStore
 from volttron.platform.vip.agent.subsystems.query import Query

@@ -192,7 +192,7 @@ volttron-cfg needs to be run from the volttron top level source directory.
 
 def _start_platform():
     vhome = get_home()
-    cmd = ['volttron', '-vv',
+    cmd = ['volttron', '-v', '-v',
            '-l', os.path.join(vhome, 'volttron.cfg.log')]
     print(cmd)
     if verbose:

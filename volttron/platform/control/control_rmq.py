@@ -45,7 +45,7 @@ from volttron.utils.rmq_mgmt import RabbitMQMgmt
 _stdout = sys.stdout
 _stderr = sys.stderr
 
-rmq_mgmt = RabbitMQMgmt()
+rmq_mgmt = None
 
 def add_vhost(opts):
     try:
@@ -677,6 +677,8 @@ def remove_policies(opts):
 
 
 def add_rabbitmq_parser(add_parser):
+    global rmq_mgmt
+    rmq_mgmt = RabbitMQMgmt()
     rabbitmq_cmds = add_parser("rabbitmq", help="manage rabbitmq")
     rabbitmq_subparsers = rabbitmq_cmds.add_subparsers(
         title="subcommands", metavar="", dest="store_commands"

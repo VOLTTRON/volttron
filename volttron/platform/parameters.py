@@ -39,7 +39,7 @@
 from dataclasses import dataclass
 
 @dataclass
-class Parameters:
+class Parameters(object):
     """
     Base class for use by Authentication and Authorization parameters.
     """

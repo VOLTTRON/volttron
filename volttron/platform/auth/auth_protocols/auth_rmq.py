@@ -8,14 +8,13 @@ from collections import defaultdict
 from urllib.parse import urlparse, urlsplit
 from dataclasses import dataclass
 from volttron.platform.auth import certs
-from volttron.platform.auth.auth_protocols.auth_protocol import BaseAuthentication, BaseClientAuthorization, BaseServerAuthentication, BaseServerAuthorization
+from volttron.platform.auth.auth_protocols import *
 from volttron.platform.parameters import Parameters
 from volttron.utils.rmq_config_params import RMQConfig
 from volttron.utils.rmq_mgmt import RabbitMQMgmt
 from volttron.platform import jsonapi
-from volttron.platform.vip.pubsubservice import ProtectedPubSubTopics
 from volttron.platform.agent.utils import get_fq_identity, get_platform_instance_name
-from volttron.platform.vip.agent.subsystems.health import BAD_STATUS, Status
+from volttron.platform.messaging.health import STATUS_BAD
 from volttron.platform import get_home
 
 from volttron.platform import is_rabbitmq_available
@@ -83,9 +82,9 @@ class RMQConnectionAPI(RMQConnectionWrapper):
                         retry_delay=2,
                         ssl_auth=True,
                         certs_dict=None) -> None:
-        super(RMQConnectionAPI).__init__(self, rmq_user=rmq_user, pwd=pwd, 
-                                         host=host, port=port, vhost=vhost, heartbeat=heartbeat,
-                                         retry_attempt=retry_attempt, retry_delay=retry_delay)
+        super(RMQConnectionAPI).__init__(rmq_user, pwd, 
+                                         host, port, vhost, heartbeat,
+                                         retry_attempt, retry_delay)
         self.ssl_auth = ssl_auth
         self.certs_dict = certs_dict
 
@@ -230,8 +229,8 @@ class RMQConnectionAPI(RMQConnectionWrapper):
 
 class RMQClientAuthentication(BaseAuthentication):
     def __init__(self, params: RMQClientParameters) -> None:
-        self.rmq_mgmt = RabbitMQMgmt()
         self.params = params
+        self.rmq_mgmt = RabbitMQMgmt()
 
     def _get_values_from_addr(self):
         url = urlsplit(self.params.url_address)
@@ -298,6 +297,7 @@ class RMQClientAuthentication(BaseAuthentication):
 
 class RMQServerAuthentication(BaseServerAuthentication):
     def __init__(self, auth_vip=None, auth_core=None) -> None:
+        from volttron.platform.vip.pubsubservice import ProtectedPubSubTopics
         self.auth_vip = auth_vip
         self.auth_core = auth_core
         self._protected_topics_for_rmq = ProtectedPubSubTopics()
@@ -492,6 +492,7 @@ class RMQAuthorization(BaseServerAuthorization):
             # set_topic_permissions_for_user(current, identity)
 
     def _load_rmq_protected_topics(self, protected_topics):
+        from volttron.platform.vip.pubsubservice import ProtectedPubSubTopics
         try:
             write_protect = protected_topics["write-protect"]
         except KeyError:
@@ -574,7 +575,7 @@ class RMQAuthorization(BaseServerAuthorization):
 
 class RMQClientAuthorization(BaseClientAuthorization):
     def __init__(self, owner=None, core=None):
-        super(RMQClientAuthorization).__init__(self, owner=owner, core=core)
+        super(RMQClientAuthorization).__init__(owner, core)
         self._certs = certs.Certs()
 
     def connect_remote_platform(
@@ -809,8 +810,9 @@ class RMQClientAuthorization(BaseClientAuthorization):
             _log.debug("Pending CSR request for {}".format(remote_cert_name))
         elif status == "DENIED":
             _log.error("Denied from remote machine.  Shutting down agent.")
+            from volttron.platform.vip.agent.subsystems.health import Status
             status = Status.build(
-                BAD_STATUS,
+                STATUS_BAD,
                 context="Administrator denied remote "
                 "connection.  "
                 "Shutting down",

@@ -37,38 +37,25 @@
 # }}}
 
 
-import bisect
 import logging
 import os
-import random
-import re
-import shutil
-from typing import Optional
 import copy
-import uuid
-from collections import defaultdict
 
 import gevent
 import gevent.core
 from gevent.fileobject import FileObject
-from zmq import green as zmq
 
-from volttron.platform import jsonapi, get_home
 from volttron.platform.agent.known_identities import (
-    VOLTTRON_CENTRAL_PLATFORM,
-    CONTROL,
     CONTROL_CONNECTION,
     PROCESS_IDENTITIES,
 )
 
-from volttron.platform.auth.auth_utils import dump_user, load_user
+from volttron.platform.auth.auth_utils import load_user
 from volttron.platform.auth.auth_entry import AuthEntry
 from volttron.platform.auth.auth_file import AuthFile
-from volttron.platform.auth.auth_protocols.auth_zmq import ZMQAuthorization, ZMQServerAuthentication
-from volttron.platform.auth.auth_protocols.auth_rmq import RMQAuthorization, RMQServerAuthentication
-from volttron.platform.auth.auth_exception import AuthException
+
 from volttron.platform.jsonrpc import RemoteError
-from volttron.platform.vip.agent.errors import VIPError, Unreachable
+from volttron.platform.vip.agent.errors import Unreachable
 from volttron.platform.vip.pubsubservice import ProtectedPubSubTopics
 from volttron.platform.agent.utils import (
     create_file_if_missing,
@@ -185,7 +172,7 @@ class AuthService(Agent):
         self.vip.rpc.export(self.auth_file.set_roles, "auth_file.set_roles")
 
     @Core.receiver("onsetup")
-    def setup_authentication_server(self, sender, **kwargs):
+    def setup_authentication_server(self):
         if self.allow_any:
             _log.warning("insecure permissive authentication enabled")
         self.read_auth_file()
@@ -197,10 +184,12 @@ class AuthService(Agent):
             self._read_protected_topics_file,
         )
         if get_messagebus() == "zmq":
+            from volttron.platform.auth.auth_protocols.auth_zmq import ZMQAuthorization, ZMQServerAuthentication
             self.authentication_server = ZMQServerAuthentication(self.vip, self.core, self.aip)
             self.authorization_server = ZMQAuthorization(self.auth_file)
         else:
-            self.authentication_server = RMQServerAuthentication(self.vip, self.core, self.aip)
+            from volttron.platform.auth.auth_protocols.auth_rmq import RMQAuthorization, RMQServerAuthentication
+            self.authentication_server = RMQServerAuthentication(self.vip, self.core)
             self.authorization_server = RMQAuthorization(self.auth_file)
         self.authentication_server.setup_authentication()
 

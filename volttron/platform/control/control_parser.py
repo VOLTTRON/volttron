@@ -37,18 +37,13 @@
 # }}}
 
 import argparse
-import base64
 import collections
-import hashlib
 import logging
 import logging.handlers
 import logging.config
 import os
-import shutil
 import sys
-import tarfile
-import tempfile
-from typing import Optional
+
 from datetime import timedelta, datetime
 
 import gevent
@@ -66,29 +61,25 @@ from volttron.platform.control.control_config import add_config_store_parser
 from volttron.platform.control.control_connection import ControlConnection
 from volttron.platform.control.control_rmq import add_rabbitmq_parser
 from volttron.platform.control.control_rpc import add_rpc_agent_parser
-from volttron.platform.control.control_utils import _list_agents, _show_filtered_agents, _show_filtered_agents_status, filter_agent, filter_agents, get_filtered_agents
+from volttron.platform.control.control_utils import (
+    _list_agents, 
+    _show_filtered_agents, 
+    _show_filtered_agents_status, 
+    filter_agent, 
+    filter_agents, 
+    get_filtered_agents
+    )
 from volttron.platform.agent import utils
-from volttron.platform.agent.known_identities import (
-    CONTROL_CONNECTION,
-    CONFIGURATION_STORE,
-    PLATFORM_HEALTH,
-    AUTH,
-)
-from volttron.platform.auth.auth_entry import AuthEntry
-from volttron.platform.auth.auth_file import AuthFile
-from volttron.platform.auth.auth import AuthException
+from volttron.platform.agent.known_identities import PLATFORM_HEALTH
 from volttron.platform.jsonrpc import RemoteError
 from volttron.platform.keystore import KeyStore, KnownHostsStore
-from volttron.platform.messaging.health import Status, STATUS_BAD
-from volttron.platform.scheduling import periodic
-from volttron.platform.vip.agent import Agent as BaseAgent, Core, RPC
+
 from volttron.platform.vip.agent.errors import VIPError, Unreachable
-from volttron.platform.vip.agent.subsystems.query import Query
+
 from volttron.utils.rmq_config_params import RMQConfig
 from volttron.utils.rmq_setup import check_rabbit_status
-from volttron.platform.agent.utils import is_secure_mode, \
-    wait_for_volttron_shutdown
-from volttron.platform.control.install_agents import add_install_agent_parser, InstallRuntimeError, install_agent_vctl
+from volttron.platform.agent.utils import is_secure_mode, wait_for_volttron_shutdown
+from volttron.platform.control.install_agents import add_install_agent_parser, InstallRuntimeError
 
 try:
     import volttron.restricted

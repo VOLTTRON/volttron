@@ -39,7 +39,6 @@
 import heapq
 import inspect
 import logging
-from multiprocessing.dummy import connection
 import os
 import platform as python_platform
 import signal
@@ -51,7 +50,6 @@ import warnings
 import weakref
 from contextlib import contextmanager
 from errno import ENOENT
-from urllib.parse import urlsplit, parse_qs, urlunsplit
 
 import gevent.event
 from gevent.queue import Queue
@@ -63,9 +61,6 @@ from volttron.platform import get_address
 from volttron.platform import is_rabbitmq_available
 from volttron.platform.agent import utils
 from volttron.platform.agent.utils import load_platform_config, get_platform_instance_name
-from volttron.platform.auth.auth_protocols.auth_rmq import RMQClientAuthentication, RMQConnectionAPI
-from volttron.platform.keystore import KeyStore, KnownHostsStore
-from volttron.platform.auth.auth_protocols.auth_zmq import ZMQClientAuthentication, ZMQClientParameters
 from volttron.utils.rmq_mgmt import RabbitMQMgmt
 from .decorators import annotate, annotations, dualmethod
 from .dispatch import Signal
@@ -650,18 +645,21 @@ class ZMQCore(Core):
         self.enable_auth = enable_auth
         zmq_auth = None
         if self.enable_auth:  
+            from volttron.platform.auth.auth_protocols.auth_zmq import ZMQClientAuthentication, ZMQClientParameters
             zmq_auth = ZMQClientAuthentication(
                 ZMQClientParameters(
-                    address=address, 
-                    identity=identity, 
-                    agent_uuid=agent_uuid,
-                    publickey=publickey, 
-                    secretkey=secretkey, 
-                    serverkey=serverkey, 
-                    volttron_home=volttron_home
+                    address=self.address, 
+                    identity=self.identity, 
+                    agent_uuid=self.agent_uuid,
+                    publickey=self.publickey, 
+                    secretkey=self.secretkey, 
+                    serverkey=self.serverkey, 
+                    volttron_home=self.volttron_home
                 )
             )
             self.address = zmq_auth.create_authenticated_address()
+            self.publickey = zmq_auth.publickey
+            self.secretkey = zmq_auth.secretkey
 
         _log.debug("AGENT RUNNING on ZMQ Core {}".format(self.identity))
 
@@ -888,11 +886,22 @@ class RMQCore(Core):
         # added so that it is available to auth subsytem when connecting
         # to remote instance
         if self.publickey is None or self.secretkey is None and self.enable_auth:
-            zmq_auth = ZMQClientAuthentication(address=address, identity=identity, 
-                 publickey=publickey, secretkey=secretkey, serverkey=serverkey,
-                 volttron_home=volttron_home, agent_uuid=agent_uuid)
+            from volttron.platform.auth.auth_protocols.auth_zmq import ZMQClientAuthentication, ZMQClientParameters
+            zmq_auth = ZMQClientAuthentication(
+                ZMQClientParameters(
+                    address=self.address, 
+                    identity=self.identity, 
+                    agent_uuid=self.agent_uuid,
+                    publickey=self.publickey, 
+                    secretkey=self.secretkey, 
+                    serverkey=self.serverkey, 
+                    volttron_home=self.volttron_home
+                )
+            )
 
-            self.publickey, self.secretkey = zmq_auth._get_keys_from_keystore()
+            zmq_auth._set_public_and_secret_keys()
+            self.publickey = zmq_auth.publickey
+            self.secretkey = zmq_auth.secretkey
 
     def _get_keys_from_addr(self):
         return None, None, None
@@ -912,6 +921,7 @@ class RMQCore(Core):
         if self.identity is None:
             raise ValueError("Agent's VIP identity is not set")
         else:
+            from volttron.platform.auth.auth_protocols.auth_rmq import RMQConnectionAPI
             connectionAPI = RMQConnectionAPI(url_address=self.address, ssl_auth=self.enable_auth)
 
             try:

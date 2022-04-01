@@ -45,26 +45,19 @@ import bisect
 from urllib.parse import urlsplit, parse_qs, urlunsplit, urlparse
 import gevent
 import gevent.time
-from pytest import param
 from zmq import green as zmq
-from zmq.green import ZMQError, EAGAIN, ENOTSOCK
-from zmq.utils.monitor import recv_monitor_message
-import volttron.platform
+from volttron.platform.auth.auth_protocols import *
+from volttron.platform import get_home
 from volttron.platform import jsonapi
 from volttron.platform.auth.auth_entry import AuthEntry
 from volttron.platform.auth.auth_exception import AuthException
-from volttron.platform.auth.auth_utils import dump_user, load_user
-from volttron.platform.auth.auth_protocols.auth_protocol import BaseAuthentication, BaseClientAuthorization, BaseServerAuthentication, BaseServerAuthorization
+from volttron.platform.auth.auth_utils import dump_user
 from volttron.platform.keystore import KeyStore, KnownHostsStore
 from volttron.platform.parameters import Parameters
-from volttron.platform.vip.agent.errors import VIPError
-from volttron.platform.vip.agent.core import ZMQCore
-from volttron.platform.vip.socket import encode_key, BASE64_ENCODED_CURVE_KEY_LEN
+from volttron.platform.vip.socket import encode_key
 from volttron.platform.agent.utils import (
-    watch_file,    
     get_platform_instance_name,
     get_fq_identity,
-    get_messagebus,
 )
 
 _log = logging.getLogger(__name__)
@@ -76,7 +69,7 @@ class ZMQClientParameters(Parameters):
     publickey: str = None
     secretkey: str = None
     serverkey: str = None
-    volttron_home: str = os.path.abspath(volttron.platform.get_home())
+    volttron_home: str = os.path.abspath(get_home())
     agent_uuid: str = None
 
 
@@ -87,15 +80,15 @@ class ZMQClientParameters(Parameters):
 # ZMQServerAuthorization - Approve, deny, delete certs
 # ZMQParameters(Parameters)
 class ZMQClientAuthentication(BaseAuthentication):
-    def __init__(self, params: ZMQClientParameters):
-        super(ZMQClientAuthentication).__init__(self, params=params)
-        self.address = params.address
-        self.identity = params.identity
-        self.agent_uuid = params.agent_uuid
-        self.publickey = params.publickey
-        self.secretkey = params.secretkey
-        self.serverkey = params.serverkey
-        self.volttron_home = params.volttron_home
+    def __init__(self, params):
+        self.params = params
+        self.address = self.params.address
+        self.identity = self.params.identity
+        self.agent_uuid = self.params.agent_uuid
+        self.publickey = self.params.publickey
+        self.secretkey = self.params.secretkey
+        self.serverkey = self.params.serverkey
+        self.volttron_home = self.params.volttron_home
 
 # Make Common (set_parameters? - use Parameters class)
     def create_authenticated_address(self):
@@ -544,6 +537,7 @@ class ZMQAuthorization(BaseServerAuthorization):
         return protected_topics
 
     def update_protected_topics(self, protected_topics):
+        from volttron.platform.vip.agent.errors import VIPError
         protected_topics_msg = jsonapi.dumpb(protected_topics)
 
         frames = [
@@ -633,7 +627,7 @@ class ZMQAuthorization(BaseServerAuthorization):
 
 class ZMQClientAuthorization(BaseClientAuthorization):
     def __init__(self, owner=None, core=None):
-        super(ZMQClientAuthorization).__init__(self, owner=owner, core=core)
+        super(ZMQClientAuthorization).__init__(owner, core)
 
     def connect_remote_platform(
             self,

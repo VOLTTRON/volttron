@@ -36,9 +36,7 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-import argparse
 import base64
-import collections
 import hashlib
 import logging
 import logging.handlers
@@ -49,7 +47,7 @@ import sys
 import tarfile
 import tempfile
 from typing import Optional
-from datetime import timedelta, datetime
+from datetime import timedelta
 
 import gevent
 import gevent.event
@@ -57,46 +55,15 @@ import gevent.event
 # noinspection PyUnresolvedReferences
 
 from volttron.platform import aip as aipmod
-from volttron.platform import config
-from volttron.platform import get_home, get_address
 from volttron.platform import jsonapi
-from volttron.platform.control.control_auth import add_auth_parser
-from volttron.platform.control.control_certs import add_certs_parser
-from volttron.platform.control.control_config import add_config_store_parser
-from volttron.platform.control.control_connection import ControlConnection
-from volttron.platform.control.control_rpc import add_rpc_agent_parser
-from volttron.platform.control.control_utils import _show_filtered_agents
 from volttron.platform.agent import utils
-from volttron.platform.agent.known_identities import (
-    CONTROL_CONNECTION,
-    CONFIGURATION_STORE,
-    PLATFORM_HEALTH,
-    AUTH,
-)
-from volttron.platform.auth.auth_entry import AuthEntry
-from volttron.platform.auth.auth_file import AuthFile
-from volttron.platform.auth.auth import AuthException
-from volttron.platform.jsonrpc import RemoteError
-from volttron.platform.keystore import KeyStore, KnownHostsStore
+
 from volttron.platform.messaging.health import Status, STATUS_BAD
 from volttron.platform.scheduling import periodic
 from volttron.platform.vip.agent import Agent as BaseAgent, Core, RPC
-from volttron.platform.vip.agent.errors import VIPError, Unreachable
 from volttron.platform.vip.agent.subsystems.query import Query
-from volttron.utils.rmq_config_params import RMQConfig
-from volttron.utils.rmq_setup import check_rabbit_status
-from volttron.platform.agent.utils import is_secure_mode, \
-    wait_for_volttron_shutdown
-from volttron.platform.control.install_agents import add_install_agent_parser, InstallRuntimeError
 
-try:
-    import volttron.restricted
-except ImportError:
-    HAVE_RESTRICTED = False
-else:
-    from volttron.restricted import cgroups
-
-    HAVE_RESTRICTED = True
+HAVE_RESTRICTED = True
 
 _stdout = sys.stdout
 _stderr = sys.stderr
@@ -139,17 +106,17 @@ class ControlService(BaseAgent):
         self.crashed_agents = {}
         self.agent_monitor_frequency = int(agent_monitor_frequency)
 
-        if self.core.publickey is None or self.core.secretkey is None:
-            (
-                self.core.publickey,
-                self.core.secretkey,
-                _,
-            ) = self.core._get_keys_from_addr()
-        if self.core.publickey is None or self.core.secretkey is None:
-            (
-                self.core.publickey,
-                self.core.secretkey,
-            ) = self.core._get_keys_from_keystore()
+        # if self.core.publickey is None or self.core.secretkey is None:
+        #     (
+        #         self.core.publickey,
+        #         self.core.secretkey,
+        #         _,
+        #     ) = self.core._get_keys_from_addr()
+        # if self.core.publickey is None or self.core.secretkey is None:
+        #     (
+        #         self.core.publickey,
+        #         self.core.secretkey,
+        #     ) = self.core._get_keys_from_keystore()
 
     @Core.receiver("onsetup")
     def _setup(self, sender, **kwargs):

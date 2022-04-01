@@ -676,7 +676,7 @@ def start_volttron_process(opts):
     opts.vip_local_address = config.expandall(opts.vip_local_address)
     opts.message_bus = config.expandall(opts.message_bus)
     if opts.allow_auth:
-        opts.allow_auth = config.expandall(opts.allow_auth)
+        opts.allow_auth = config.expandall(str(opts.allow_auth))
     if opts.web_ssl_key:
         opts.web_ssl_key = config.expandall(opts.web_ssl_key)
     if opts.web_ssl_cert:
@@ -734,7 +734,7 @@ def start_volttron_process(opts):
                 'volttron-central-address must begin with tcp, amqp, amqps, http or https.')
         opts.volttron_central_address = config.expandall(
             opts.volttron_central_address)
-    opts.volttron_central_serverkey = opts.volttron_central_serverkey
+        opts.volttron_central_serverkey = opts.volttron_central_serverkey
 
     # Log configuration options
     if getattr(opts, 'show_config', False):
@@ -774,6 +774,10 @@ def start_volttron_process(opts):
     mode = os.stat(opts.volttron_home).st_mode
     if mode & (stat.S_IWGRP | stat.S_IWOTH):
         _log.warning('insecure mode on directory: %s', opts.volttron_home)
+    
+    # Initialize public and secret keys for Non-auth.
+    publickey = None
+    secretkey = None
     # auth entries for agents
     if opts.allow_auth:
         # Get or generate encryption key
@@ -900,7 +904,7 @@ def start_volttron_process(opts):
         config_store = ConfigStoreService(address=address,
                                             identity=CONFIGURATION_STORE,
                                             message_bus=opts.message_bus,
-                                            enable_auth=allow_auth)
+                                            enable_auth=opts.allow_auth)
 
         # Launch additional services and wait for them to start before
         # auto-starting agents
@@ -910,7 +914,7 @@ def start_volttron_process(opts):
                            enable_store=False, enable_channel=True,
                            message_bus=opts.message_bus,
                            agent_monitor_frequency=opts.agent_monitor_frequency,
-                           enable_auth=allow_auth),
+                           enable_auth=opts.allow_auth),
 
             KeyDiscoveryAgent(address=address,
                               identity=KEY_DISCOVERY,
@@ -919,14 +923,14 @@ def start_volttron_process(opts):
                               bind_web_address=opts.bind_web_address,
                               enable_store=False,
                               message_bus='zmq',
-                              enable_auth=allow_auth)
+                              enable_auth=opts.allow_auth)
         ]
 
         health_service = HealthService(address=address,
                                        identity=PLATFORM_HEALTH, heartbeat_autostart=True,
                                        enable_store=False,
                                        message_bus=opts.message_bus,
-                                       enable_auth=allow_auth)
+                                       enable_auth=opts.allow_auth)
         notifier.register_peer_callback(health_service.peer_added, health_service.peer_dropped)
         services.append(health_service)
 
@@ -956,6 +960,7 @@ def start_volttron_process(opts):
             
             _log.info("Starting platform web service")
             services.append(PlatformWebService(
+                serverkey=publickey,
                 identity=PLATFORM_WEB,
                 address=address,
                 bind_web_address=opts.bind_web_address,
@@ -966,7 +971,7 @@ def start_volttron_process(opts):
                 web_ssl_key=opts.web_ssl_key,
                 web_ssl_cert=opts.web_ssl_cert,
                 web_secret_key=opts.web_secret_key,
-                enable_auth=allow_auth
+                enable_auth=opts.allow_auth
             ))
 
 
@@ -983,7 +988,7 @@ def start_volttron_process(opts):
                                 opts.setup_mode, opts.aip,
                                 address=address, identity=AUTH,
                                 enable_store=False, message_bus=opts.message_bus,
-                                enable_auth=allow_auth)
+                                enable_auth=opts.allow_auth)
 
             event = gevent.event.Event()
             auth_task = gevent.spawn(auth.core.run, event)

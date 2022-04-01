@@ -53,7 +53,6 @@ import requests
 from requests.packages.urllib3.connection import (ConnectionError,
                                                   NewConnectionError)
 import os
-from volttron.platform.auth import certs
 from volttron.platform import jsonapi, get_home
 from .rmq_config_params import RMQConfig, read_config_file, write_to_config_file
 
@@ -134,6 +133,7 @@ class RabbitMQMgmt:
         """
 
         if ssl_auth:
+            from volttron.platform.auth import certs
             root_ca_name, server_cert, client_cert = \
                 certs.Certs.get_admin_cert_names(self.rmq_config.instance_name)
 

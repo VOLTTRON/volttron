@@ -50,8 +50,7 @@ from volttron.platform.agent.known_identities import (
     CONTROL_CONNECTION,
     PLATFORM_HEALTH,
 )
-from volttron.platform.auth.auth_protocols.auth_zmq import ZMQClientAuthorization
-from volttron.platform.auth.auth_protocols.auth_rmq import RMQClientAuthorization
+
 from volttron.platform.agent.utils import get_messagebus
 from volttron.platform.jsonrpc import RemoteError, MethodNotFound
 
@@ -78,8 +77,10 @@ class Auth(SubsystemBase):
         self._csr_certs = dict()
         self.remote_certs_dir = None
         if get_messagebus() == "zmq":
+            from volttron.platform.auth.auth_protocols.auth_zmq import ZMQClientAuthorization
             self.client_authorization = ZMQClientAuthorization(owner=self._owner, core=self._core)
         else:
+            from volttron.platform.auth.auth_protocols.auth_rmq import RMQClientAuthorization
             self.client_authorization = RMQClientAuthorization(owner=self._owner, core=self._core)
         def onsetup(sender, **kwargs):
             rpc.export(self._update_capabilities, "auth.update")

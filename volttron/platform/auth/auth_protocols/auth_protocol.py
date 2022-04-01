@@ -92,14 +92,12 @@ class BaseClientAuthorization:
 
 #BaseAuthentication class
 class BaseAuthentication:
-    def __init__(self, params=None):
-        self.address = None
-        self.identity = None
+    def __init__(self):
         pass
 
     def create_authenticated_address(self):
         """
-        Used to create an authenticated address 
+        Used to create an authenticated address
         based on authentication protocol and message bus.
         """
         pass
