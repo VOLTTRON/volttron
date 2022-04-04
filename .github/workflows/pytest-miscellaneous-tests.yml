@@ -58,7 +58,7 @@ jobs:
         with:
           python_version: ${{ matrix.python-version }}
           os: ${{ matrix.os }}
-          test_path: volttrontesting/platform/test_certs.py
+          test_path: volttrontesting/platform/web/test_certs.py
           test_output_suffix: misc
       
       - name: Run core agent test on ${{ matrix.python-version }}, ${{ matrix.os }}

@@ -36,56 +36,37 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
+from os import path
+from setuptools import setup, find_packages
 
-from ctypes import CDLL, cdll, c_float
-from datetime import datetime
-import logging
-import sys
-import os
+MAIN_MODULE = 'agent'
 
-from volttron.platform.vip.agent import Agent, Core, PubSub, compat
-from volttron.platform.agent import utils
-from volttron.platform.messaging import headers as headers_mod
-from volttron.platform.scheduling import periodic
+# Find the agent package that contains the main module
+packages = find_packages('.')
+agent_package = ''
+for package in find_packages():
+    # Because there could be other packages such as tests
+    if path.isfile(package + '/' + MAIN_MODULE + '.py') is True:
+        agent_package = package
+if not agent_package:
+    raise RuntimeError('None of the packages under {dir} contain the file '
+                       '{main_module}'.format(main_module=MAIN_MODULE + '.py',
+                                              dir=path.abspath('.')))
 
-__docformat__ = 'reStructuredText'
-__version__ = '1.0'
+# Find the version number from the main module
+agent_module = agent_package + '.' + MAIN_MODULE
+_temp = __import__(agent_module, globals(), locals(), ['__version__'], 0)
+__version__ = _temp.__version__
 
-"""This example agent calls functions from a shared object via
-the ctypes module. The shared object must be built with make before
-installing.
-"""
-
-utils.setup_logging()
-_log = logging.getLogger(__name__)
-
-PUBLISH_PERIOD = 1
-
-class CAgent(Agent):
-    def __init__(self, config_path, **kwargs):
-        super(CAgent, self).__init__(**kwargs)
-
-        so_filename = __file__.rsplit('/', 1)[0] + '/' + 'libfoo.so'
-
-        cdll.LoadLibrary(so_filename)
-        self.shared_object = CDLL(so_filename)
-
-        self.get_water_temperature = self.shared_object.get_water_temperature
-        self.get_water_temperature.restype = c_float
-
-    @Core.schedule(periodic(PUBLISH_PERIOD))
-    def publish_water_temperature(self):
-        """Call the function from the shared object.
-        """
-        wt = self.get_water_temperature()
-        _log.debug(wt)
-        self.vip.pubsub.publish('pubsub', 'device/WATER_TEMP=' + str(wt))
-
-def main():
-    utils.vip_main(CAgent, version=__version__)
-
-if __name__ == '__main__':
-    try:
-        main()
-    except KeyboardInterrupt:
-        pass
+# Setup
+setup(
+    name=agent_package + 'agent',
+    version=__version__,
+    install_requires=['volttron'],
+    packages=packages,
+    entry_points={
+        'setuptools.installation': [
+            'eggsecutable = ' + agent_module + ':main',
+        ]
+    }
+)

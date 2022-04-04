@@ -64,7 +64,7 @@ from volttron.platform.certs import Certs
 from volttron.platform.jsonrpc import RemoteError, MethodNotFound
 from volttron.utils.rmq_config_params import RMQConfig
 from volttron.platform.keystore import KeyStore
-from volttron.platform.vip.agent.subsystems.health import BAD_STATUS, Status
+from volttron.platform.messaging.health import BAD_STATUS, Status
 from volttron.platform import get_home
 
 from .base import SubsystemBase
