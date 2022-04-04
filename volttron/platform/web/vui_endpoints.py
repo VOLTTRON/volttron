@@ -11,10 +11,9 @@ from werkzeug import Response
 from werkzeug.urls import url_decode
 
 from volttron.platform.vip.agent.subsystems.query import Query
-from volttron.platform.jsonrpc import MethodNotFound
+from volttron.platform.jsonrpc import MethodNotFound, RemoteError
 from volttron.platform.web.topic_tree import DeviceTree, TopicTree
 from volttron.platform.web.vui_pubsub import VUIPubsubManager
-from volttron.platform.jsonrpc import RemoteError
 
 
 import logging
@@ -162,10 +161,8 @@ class VUIEndpoints:
             (re.compile('^/vui/platforms/[^/]+/?$'), 'callable', self.handle_platforms_platform),
             (re.compile('^/vui/platforms/[^/]+/agents/?$'), 'callable', self.handle_platforms_agents),
             (re.compile('^/vui/platforms/[^/]+/agents/[^/]+/?$'), 'callable', self.handle_platforms_agents_agent),
-            (re.compile('^/vui/platforms/[^/]+/agents/[^/]+/configs/?$'), 'callable',
-             self.handle_platforms_agents_configs),
-            (re.compile('^/vui/platforms/[^/]+/agents/[^/]+/configs/.*/?$'), 'callable',
-             self.handle_platforms_agents_configs),
+            (re.compile('^/vui/platforms/[^/]+/agents/[^/]+/configs/?$'), 'callable', self.handle_platforms_agents_configs),
+            (re.compile('^/vui/platforms/[^/]+/agents/[^/]+/configs/.*/?$'), 'callable', self.handle_platforms_agents_configs),
             (re.compile('^/vui/platforms/[^/]+/agents/[^/]+/enabled/?$'), 'callable', self.handle_platforms_agents_enabled),
             (re.compile('^/vui/platforms/[^/]+/agents/[^/]+/rpc/?$'), 'callable', self.handle_platforms_agents_rpc),
             (re.compile('^/vui/platforms/[^/]+/agents/[^/]+/rpc/[^/]+/?$'), 'callable', self.handle_platforms_agents_rpc_method),
@@ -305,7 +302,7 @@ class VUIEndpoints:
                     active_routes['route_options'].pop('rpc')
             return Response(json.dumps(active_routes), 200, content_type='application/json')
 
-    #@endpoint
+    @endpoint
     def handle_platforms_agents_configs(self, env: dict, data: dict) -> Response:
         """
                 Endpoints for /vui/platforms/:platform/agents/:vip_identity/configs/:file_name
@@ -337,11 +334,11 @@ class VUIEndpoints:
                         return Response(json.dumps(route_dict), 200, content_type='application/json')
                     else:
                         list_of_agents = self._rpc('config.store', 'manage_list_stores', external_platform=platform)
-                        return Response(f'{list_of_agents}', 200, content_type='application/json')
+                        return Response(json.dumps(list_of_agents), 200, content_type='application/json')
                 elif not no_config_name:
                     setting_dict = self._rpc('config.store', 'manage_get', vip_identity, config_name,
                                              external_platform=platform)
-                    return Response(f'{setting_dict}', 200, content_type='application/json')
+                    return Response(json.dumps(setting_dict), 200, content_type='application/json')
             except RemoteError as e:
                 return Response(json.dumps({"Error": f"{e}"}), 400, content_type='application/json')
 

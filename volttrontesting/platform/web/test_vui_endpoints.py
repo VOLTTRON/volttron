@@ -9,13 +9,13 @@ from werkzeug import Response
 
 mock.patch('volttron.platform.web.vui_endpoints.endpoint', lambda x: x).start()
 
-from volttron.platform.web.vui_endpoints import VUIEndpoints
+from volttron.platform.jsonrpc import RemoteError
 from volttron.platform.vip.agent import Agent
+from volttron.platform.vip.agent.results import AsyncResult
 from volttron.platform.web.platform_web_service import PlatformWebService
+from volttron.platform.web.vui_endpoints import VUIEndpoints
 from volttrontesting.utils.utils import AgentMock
 from volttrontesting.utils.web_utils import get_test_web_env
-from volttron.platform.vip.agent.results import AsyncResult
-from volttron.platform.jsonrpc import RemoteError
 
 import logging  # TODO: Shouldn't need logger once this is complete.
 _log = logging.getLogger()
