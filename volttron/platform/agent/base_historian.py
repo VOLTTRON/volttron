@@ -1105,187 +1105,190 @@ class BaseHistorianAgent(Agent):
             raise
 
     def _do_process_loop(self):
+        try:
+            _log.debug("Starting process loop.")
+            current_published_count = 0
+            next_report_count = current_published_count + self._message_publish_count
 
-        _log.debug("Starting process loop.")
-        current_published_count = 0
-        next_report_count = current_published_count + self._message_publish_count
+            # Sets up the concrete historian
+            # call this method even in case of readonly mode in case historian
+            # is setting up connections that are shared for both query and write
+            # operations
 
-        # Sets up the concrete historian
-        # call this method even in case of readonly mode in case historian
-        # is setting up connections that are shared for both query and write
-        # operations
+            self._historian_setup()  # should be called even for readonly as this
+            # might load the topic id name map
 
-        self._historian_setup()  # should be called even for readonly as this
-        # might load the topic id name map
+            if self._readonly:
+                _log.info("Historian setup in readonly mode.")
+                return
 
-        if self._readonly:
-            _log.info("Historian setup in readonly mode.")
-            return
+            backupdb = BackupDatabase(self, self._backup_storage_limit_gb,
+                                      self._backup_storage_report)
+            self._update_status({STATUS_KEY_CACHE_COUNT: backupdb.get_backlog_count()})
 
-        backupdb = BackupDatabase(self, self._backup_storage_limit_gb,
-                                  self._backup_storage_report)
-        self._update_status({STATUS_KEY_CACHE_COUNT: backupdb.get_backlog_count()})
+            # now that everything is setup we need to make sure that the topics
+            # are synchronized between
 
-        # now that everything is setup we need to make sure that the topics
-        # are synchronized between
+            # Based on the state of the back log and whether or not successful
+            # publishing is currently happening (and how long it's taking)
+            # we may or may not want to wait on the event queue for more input
+            # before proceeding with the rest of the loop.
+            wait_for_input = not bool(backupdb.get_outstanding_to_publish(1))
 
-        # Based on the state of the back log and whether or not successful
-        # publishing is currently happening (and how long it's taking)
-        # we may or may not want to wait on the event queue for more input
-        # before proceeding with the rest of the loop.
-        wait_for_input = not bool(backupdb.get_outstanding_to_publish(1))
+            while True:
+                if not wait_for_input:
+                    self._update_status({STATUS_KEY_BACKLOGGED: True})
 
-        while True:
-            if not wait_for_input:
-                self._update_status({STATUS_KEY_BACKLOGGED: True})
+                try:
+                    # _log.debug("Reading from/waiting for queue.")
+                    new_to_publish = [
+                        self._event_queue.get(wait_for_input, self._retry_period)]
+                except Empty:
+                    _log.debug("Queue wait timed out. Falling out.")
+                    new_to_publish = []
+
+                if new_to_publish:
+                    # _log.debug("Checking for queue build up.")
+                    while True:
+                        try:
+                            new_to_publish.append(self._event_queue.get_nowait())
+                        except Empty:
+                            break
+
+                # We wake the thread after a configuration change by passing a None to the queue.
+                # Backup anything new before checking for a stop.
+                cache_full = backupdb.backup_new_data(new_to_publish, bool(self._time_tolerance))
+                backlog_count = backupdb.get_backlog_count()
+                if cache_full:
+                    self._send_alert({STATUS_KEY_CACHE_FULL: cache_full,
+                                      STATUS_KEY_BACKLOGGED: True,
+                                      STATUS_KEY_CACHE_COUNT: backlog_count,
+                                      STATUS_KEY_TIME_ERROR: backupdb.time_error_records},
+                                     "historian_cache_full")
+                else:
+                    old_backlog_state = self._current_status_context[STATUS_KEY_BACKLOGGED]
+                    state = {
+                        STATUS_KEY_CACHE_FULL: cache_full,
+                        STATUS_KEY_BACKLOGGED: old_backlog_state and backlog_count > 0,
+                        STATUS_KEY_CACHE_COUNT: backlog_count,
+                        STATUS_KEY_TIME_ERROR: backupdb.time_error_records}
+                    self._update_status(state)
+                    if backupdb.time_error_records:
+                        self._send_alert(
+                            state,
+                            "Historian received records with invalid timestamp. Please check records in time_error table.")
+
+                # Check for a stop for reconfiguration.
+                if self._stop_process_loop:
+                    break
+
+                if self._setup_failed:
+                    # if setup failed earlier, try again.
+                    self._historian_setup()
+
+                # if setup was successful proceed to publish loop
+                if not self._setup_failed:
+                    wait_for_input = True
+                    start_time = datetime.utcnow()
+
+                    while True:
+                        # use local variable that will be written only one time during this loop
+                        cache_only_enabled = self.is_cache_only_enabled()
+                        to_publish_list = backupdb.get_outstanding_to_publish(
+                            self._submit_size_limit)
+
+                        # Check to see if we are caught up.
+                        if not to_publish_list:
+                            if self._message_publish_count > 0 and next_report_count < current_published_count:
+                                _log.info("Historian processed {} total records.".format(current_published_count))
+                                next_report_count = current_published_count + self._message_publish_count
+                            self._update_status({STATUS_KEY_BACKLOGGED: False,
+                                                 STATUS_KEY_CACHE_COUNT: backupdb.get_backlog_count()})
+                            break
+
+                        # Check for a stop for reconfiguration.
+                        if self._stop_process_loop:
+                            break
+
+                        history_limit_timestamp = None
+                        if self._history_limit_days is not None:
+                            last_element = to_publish_list[-1]
+                            last_time_stamp = last_element["timestamp"]
+                            history_limit_timestamp = last_time_stamp - self._history_limit_days
+
+                        try:
+                            if not cache_only_enabled:
+                                # items should be published here when cache_only_enabled is false
+                                self.publish_to_historian(to_publish_list)
+                        except Exception as e:
+                            _log.exception(
+                                f"An unhandled exception occurred while publishing: {e}")
+
+                        try:
+                            self.manage_db_size(history_limit_timestamp, self._storage_limit_gb)
+                            self._update_status({STATUS_KEY_ERROR_MANAGE_DB_SIZE: False})
+                        except Exception as e:
+                            _log.exception(
+                                f"An unhandled exception occurred while attempting to managing db size: {e}")
+                            self._send_alert({STATUS_KEY_ERROR_MANAGE_DB_SIZE: True}, "error_managing_db_size")
+
+                        # if the success queue is empty then we need not remove
+                        # them from the database and we are probably having connection problems.
+                        # Update the status and send alert accordingly.
+                        if not self._successful_published and not cache_only_enabled:
+                            self._send_alert({STATUS_KEY_PUBLISHING: False}, "historian_not_publishing")
+                            break
+
+                        # _successful_published is set when publish_to_historian is called to the concrete
+                        # historian.  Because we don't call that function when cache_only_enabled is True
+                        # the _successful_published will be set().  Therefore we don't need to wrap
+                        # this call with check of cache_only_enabled
+                        backupdb.remove_successfully_published(
+                                self._successful_published, self._submit_size_limit)
+
+                        backlog_count = backupdb.get_backlog_count()
+                        old_backlog_state = self._current_status_context[STATUS_KEY_BACKLOGGED]
+                        self._update_status({STATUS_KEY_PUBLISHING: True,
+                                             STATUS_KEY_BACKLOGGED: old_backlog_state and backlog_count > 0,
+                                             STATUS_KEY_CACHE_COUNT: backlog_count,
+                                             STATUS_KEY_CACHE_ONLY: cache_only_enabled})
+
+                        if None in self._successful_published:
+                            current_published_count += len(to_publish_list)
+                        else:
+                            current_published_count += len(self._successful_published)
+
+                        if self._message_publish_count > 0:
+                            if current_published_count >= next_report_count:
+                                _log.info("Historian processed {} total records.".format(current_published_count))
+                                next_report_count = current_published_count + self._message_publish_count
+
+                        self._successful_published = set()
+                        now = datetime.utcnow()
+                        if (now - start_time).total_seconds() > self._max_time_publishing:
+                            wait_for_input = False
+                            break
+
+                        # Check for a stop for reconfiguration.
+                        if self._stop_process_loop:
+                            break
+
+                # Check for a stop for reconfiguration.
+                if self._stop_process_loop:
+                    break
+
+            backupdb.close()
 
             try:
-                # _log.debug("Reading from/waiting for queue.")
-                new_to_publish = [
-                    self._event_queue.get(wait_for_input, self._retry_period)]
-            except Empty:
-                _log.debug("Queue wait timed out. Falling out.")
-                new_to_publish = []
-
-            if new_to_publish:
-                # _log.debug("Checking for queue build up.")
-                while True:
-                    try:
-                        new_to_publish.append(self._event_queue.get_nowait())
-                    except Empty:
-                        break
-
-            # We wake the thread after a configuration change by passing a None to the queue.
-            # Backup anything new before checking for a stop.
-            cache_full = backupdb.backup_new_data(new_to_publish, bool(self._time_tolerance))
-            backlog_count = backupdb.get_backlog_count()
-            if cache_full:
-                self._send_alert({STATUS_KEY_CACHE_FULL: cache_full,
-                                  STATUS_KEY_BACKLOGGED: True,
-                                  STATUS_KEY_CACHE_COUNT: backlog_count,
-                                  STATUS_KEY_TIME_ERROR: backupdb.time_error_records},
-                                 "historian_cache_full")
-            else:
-                old_backlog_state = self._current_status_context[STATUS_KEY_BACKLOGGED]
-                state = {
-                    STATUS_KEY_CACHE_FULL: cache_full,
-                    STATUS_KEY_BACKLOGGED: old_backlog_state and backlog_count > 0,
-                    STATUS_KEY_CACHE_COUNT: backlog_count,
-                    STATUS_KEY_TIME_ERROR: backupdb.time_error_records}
-                self._update_status(state)
-                if backupdb.time_error_records:
-                    self._send_alert(
-                        state,
-                        "Historian received records with invalid timestamp. Please check records in time_error table.")
-
-            # Check for a stop for reconfiguration.
-            if self._stop_process_loop:
-                break
-
-            if self._setup_failed:
-                # if setup failed earlier, try again.
-                self._historian_setup()
-
-            # if setup was successful proceed to publish loop
-            if not self._setup_failed:
-                wait_for_input = True
-                start_time = datetime.utcnow()
-
-                while True:
-                    # use local variable that will be written only one time during this loop
-                    cache_only_enabled = self.is_cache_only_enabled()
-                    to_publish_list = backupdb.get_outstanding_to_publish(
-                        self._submit_size_limit)
-
-                    # Check to see if we are caught up.
-                    if not to_publish_list:
-                        if self._message_publish_count > 0 and next_report_count < current_published_count:
-                            _log.info("Historian processed {} total records.".format(current_published_count))
-                            next_report_count = current_published_count + self._message_publish_count
-                        self._update_status({STATUS_KEY_BACKLOGGED: False,
-                                             STATUS_KEY_CACHE_COUNT: backupdb.get_backlog_count()})
-                        break
-
-                    # Check for a stop for reconfiguration.
-                    if self._stop_process_loop:
-                        break
-
-                    history_limit_timestamp = None
-                    if self._history_limit_days is not None:
-                        last_element = to_publish_list[-1]
-                        last_time_stamp = last_element["timestamp"]
-                        history_limit_timestamp = last_time_stamp - self._history_limit_days
-
-                    try:
-                        if not cache_only_enabled:
-                            # items should be published here when cache_only_enabled is false
-                            self.publish_to_historian(to_publish_list)
-                    except Exception as e:
-                        _log.exception(
-                            f"An unhandled exception occurred while publishing: {e}")
-
-                    try:
-                        self.manage_db_size(history_limit_timestamp, self._storage_limit_gb)
-                        self._update_status({STATUS_KEY_ERROR_MANAGE_DB_SIZE: False})
-                    except Exception as e:
-                        _log.exception(
-                            f"An unhandled exception occurred while attempting to managing db size: {e}")
-                        self._send_alert({STATUS_KEY_ERROR_MANAGE_DB_SIZE: True}, "error_managing_db_size")
-
-                    # if the success queue is empty then we need not remove
-                    # them from the database and we are probably having connection problems.
-                    # Update the status and send alert accordingly.
-                    if not self._successful_published and not cache_only_enabled:
-                        self._send_alert({STATUS_KEY_PUBLISHING: False}, "historian_not_publishing")
-                        break
-
-                    # _successful_published is set when publish_to_historian is called to the concrete
-                    # historian.  Because we don't call that function when cache_only_enabled is True
-                    # the _successful_published will be set().  Therefore we don't need to wrap
-                    # this call with check of cache_only_enabled
-                    backupdb.remove_successfully_published(
-                            self._successful_published, self._submit_size_limit)
-
-                    backlog_count = backupdb.get_backlog_count()
-                    old_backlog_state = self._current_status_context[STATUS_KEY_BACKLOGGED]
-                    self._update_status({STATUS_KEY_PUBLISHING: True,
-                                         STATUS_KEY_BACKLOGGED: old_backlog_state and backlog_count > 0,
-                                         STATUS_KEY_CACHE_COUNT: backlog_count,
-                                         STATUS_KEY_CACHE_ONLY: cache_only_enabled})
-
-                    if None in self._successful_published:
-                        current_published_count += len(to_publish_list)
-                    else:
-                        current_published_count += len(self._successful_published)
-
-                    if self._message_publish_count > 0:
-                        if current_published_count >= next_report_count:
-                            _log.info("Historian processed {} total records.".format(current_published_count))
-                            next_report_count = current_published_count + self._message_publish_count
-
-                    self._successful_published = set()
-                    now = datetime.utcnow()
-                    if (now - start_time).total_seconds() > self._max_time_publishing:
-                        wait_for_input = False
-                        break
-
-                    # Check for a stop for reconfiguration.
-                    if self._stop_process_loop:
-                        break
-
-            # Check for a stop for reconfiguration.
-            if self._stop_process_loop:
-                break
-
-        backupdb.close()
-
-        try:
-            self.historian_teardown()
+                self.historian_teardown()
+            except Exception:
+                _log.exception("Historian teardown failed!")
         except Exception:
-            _log.exception("Historian teardown failed!")
-
-        _log.debug("Process loop stopped.")
-        self._stop_process_loop = False
+            _log.exception("Unexpected exception in process loop")
+            self._send_alert({STATUS_KEY_PUBLISHING: False}, "historian_not_publishing")
+        finally:
+            _log.debug("Process loop stopped.")
+            self._stop_process_loop = False
 
     def _historian_setup(self):
         try:
