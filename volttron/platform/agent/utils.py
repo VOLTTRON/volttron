@@ -237,6 +237,14 @@ def get_messagebus():
         message_bus = config.get('message-bus', 'zmq')
     return message_bus
 
+def is_auth_enabled():
+    """Get type of message bus - zeromq or rabbbitmq."""
+    allow_auth = os.environ.get('AUTH_ENABLED')
+    if not allow_auth:
+        config = load_platform_config()
+        allow_auth = config.get('allow-auth', 'True')
+    allow_auth = False if allow_auth == 'False' else True
+    return allow_auth
 
 def is_web_enabled():
     """Returns True if web enabled, False otherwise"""

@@ -69,7 +69,6 @@ import threading
 import uuid
 
 import gevent
-import gevent.monkey
 
 from volttron.platform.vip.healthservice import HealthService
 from volttron.platform.vip.servicepeer import ServicePeerNotifier
@@ -142,7 +141,7 @@ log_level_info = (
     'watchdog.observers.inotify_buffer',
     'volttron.platform.auth',
     'volttron.platform.store',
-    #'volttron.platform.control',
+    'volttron.platform.control',
     'volttron.platform.vip.agent.core',
     'volttron.utils',
     'volttron.platform.vip.router'
@@ -329,9 +328,9 @@ class Router(BaseRouter):
 
             assert parsed.scheme in ('http', 'https', 'tcp', 'amqp'), \
                 "volttron central address must begin with http(s) or tcp found"
-            # if parsed.scheme == 'tcp':
-            #     assert volttron_central_serverkey, \
-            #         "volttron central serverkey must be set if address is tcp."
+            if parsed.scheme == 'tcp':
+                assert volttron_central_serverkey, \
+                    "volttron central serverkey must be set if address is tcp."
         self._volttron_central_serverkey = volttron_central_serverkey
         self._instance_name = instance_name
         self._bind_web_address = bind_web_address
@@ -360,8 +359,10 @@ class Router(BaseRouter):
         if not addr.domain:
             addr.domain = 'vip'
 
-        #SN -- Testing
-        addr.server = 'NULL' #'CURVE'
+        if self._secretkey and self._publickey:
+            addr.server = 'CURVE'
+        else:
+            addr.server = 'NULL'
         addr.secretkey = self._secretkey
         _log.debug(f"Address properties: {addr}")
         addr.bind(sock)
@@ -377,7 +378,7 @@ class Router(BaseRouter):
             if not address.domain:
                 address.domain = 'vip'
             address.bind(sock)
-            _log.debug('Additional VIP router bound to %s' % address)
+            _log.info('Additional VIP router bound to %s' % address)
         self._ext_routing = None
 
         self._ext_routing = RoutingService(self.socket, self.context,
@@ -471,6 +472,14 @@ class Router(BaseRouter):
                         value = [self.local_address.base]
                 elif name == 'local_address':
                     value = self.local_address.base
+                # Allow the agents to know the serverkey.
+                elif name == 'serverkey':
+                    keystore = KeyStore()
+                    value = keystore.public
+                elif name == 'volttron-central-address':
+                    value = self._volttron_central_address
+                elif name == 'volttron-central-serverkey':
+                    value = self._volttron_central_serverkey
                 elif name == 'instance-name':
                     value = self._instance_name
                 elif name == 'bind-web-address':
@@ -675,8 +684,6 @@ def start_volttron_process(opts):
     opts.vip_address = [config.expandall(addr) for addr in opts.vip_address]
     opts.vip_local_address = config.expandall(opts.vip_local_address)
     opts.message_bus = config.expandall(opts.message_bus)
-    if opts.allow_auth:
-        opts.allow_auth = config.expandall(str(opts.allow_auth))
     if opts.web_ssl_key:
         opts.web_ssl_key = config.expandall(opts.web_ssl_key)
     if opts.web_ssl_cert:
@@ -696,6 +703,8 @@ def start_volttron_process(opts):
 
     os.environ['MESSAGEBUS'] = opts.message_bus
     os.environ['SECURE_AGENT_USERS'] = opts.secure_agent_users
+    os.environ['AUTH_ENABLED'] = opts.allow_auth
+    opts.allow_auth = False if opts.allow_auth == 'False' else True
     if opts.instance_name is None:
         if len(opts.vip_address) > 0:
             opts.instance_name = opts.vip_address[0]
@@ -844,11 +853,11 @@ def start_volttron_process(opts):
         try:
             _log.debug("Running zmq router")
             Router(opts.vip_local_address, opts.vip_address,
-                   #secretkey=secretkey, publickey=publickey,
-                   secretkey=None, publickey=None,
+                   secretkey=secretkey, publickey=publickey,
                    default_user_id='vip.service', monitor=opts.monitor,
                    tracker=tracker,
                    volttron_central_address=opts.volttron_central_address,
+                   volttron_central_serverkey=opts.volttron_central_serverkey,
                    instance_name=opts.instance_name,
                    bind_web_address=opts.bind_web_address,
                    protected_topics=protected_topics,
@@ -891,10 +900,6 @@ def start_volttron_process(opts):
         config_store_task = None
         proxy_router = None
         proxy_router_task = None
-        opts.allow_auth = None
-        allow_auth = False
-        if opts.allow_auth:
-            allow_auth = True
 
         _log.debug("********************************************************************")
         _log.debug("VOLTTRON PLATFORM RUNNING ON {} MESSAGEBUS".format(opts.message_bus))
@@ -1270,6 +1275,13 @@ def main(argv=sys.argv):
         '--volttron-central-address', default=None,
         help='The web address of a volttron central install instance.')
     agents.add_argument(
+        '--volttron-central-serverkey', default=None,
+        help='The serverkey of volttron central.')
+    agents.add_argument(
+        '--allow-auth', default='True',
+        help='Require authentication and authorization in VOLTTRON. Default=True'
+    )
+    agents.add_argument(
         '--instance-name', default=None,
         help='The name of the instance that will be reported to '
              'VOLTTRON central.')
@@ -1367,6 +1379,7 @@ def main(argv=sys.argv):
         # Used to contact volttron central when registering volttron central
         # platform agent.
         volttron_central_address=None,
+        volttron_central_serverkey=None,
         instance_name=None,
         # allow_root=False,
         # allow_users=None,
@@ -1380,7 +1393,12 @@ def main(argv=sys.argv):
         message_bus='zmq',
         # Volttron Central in AMQP address format is needed if running on RabbitMQ message bus
         volttron_central_rmq_address=None,
-        allow_auth=True
+        web_ssl_key=None,
+        web_ssl_cert=None,
+        web_ca_cert=None,
+        # If we aren't using ssl then we need a secret key available for us to use.
+        web_secret_key=None,
+        allow_auth='True'
     )
 
     # Parse and expand options

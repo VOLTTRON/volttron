@@ -421,7 +421,7 @@ class ZMQAuthorization(BaseServerAuthorization):
                        auth_pending=None,
                        auth_approved=None,
                        auth_denied=None):
-        super(ZMQAuthorization).__init__()
+        super().__init__()
         self.auth_core = auth_core
         self._is_connected = is_connected
         self.auth_file = auth_file
@@ -627,7 +627,7 @@ class ZMQAuthorization(BaseServerAuthorization):
 
 class ZMQClientAuthorization(BaseClientAuthorization):
     def __init__(self, owner=None, core=None):
-        super(ZMQClientAuthorization).__init__(owner, core)
+        super().__init__(owner, core)
 
     def connect_remote_platform(
             self,

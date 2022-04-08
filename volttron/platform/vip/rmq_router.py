@@ -44,16 +44,17 @@ from typing import Optional
 
 from volttron.platform import is_rabbitmq_available
 from volttron.platform import jsonapi
-from volttron.platform.auth.auth_protocols.auth_rmq import RMQConnectionAPI
 from volttron.utils.rmq_mgmt import RabbitMQMgmt
 from volttron.platform.vip.rmq_connection import RMQRouterConnection
 from volttron.platform.vip.router import BaseRouter
 from volttron.platform.vip.servicepeer import ServicePeerNotifier
 from volttron.platform.vip.socket import Message, Address
 from volttron.platform.keystore import KeyStore
+from volttron.platform.main import __version__
 
 if is_rabbitmq_available():
     import pika
+    from volttron.platform.auth.auth_protocols.auth_rmq import RMQConnectionAPI
 
 __all__ = ['RMQRouter']
 
@@ -71,8 +72,7 @@ class RMQRouter:
                  volttron_central_address=None,
                  volttron_central_serverkey=None,
                  bind_web_address=None,
-                 service_notifier=Optional[ServicePeerNotifier],
-                 platform_version=None
+                 service_notifier=Optional[ServicePeerNotifier]
                  ):
         """
         Initialize the object instance.
@@ -91,7 +91,6 @@ class RMQRouter:
         self._bind_web_address = bind_web_address
         self._instance_name = instance_name
         self._identity = identity
-        self.platform_version
         self.rmq_mgmt = RabbitMQMgmt()
         self.event_queue = Queue()
         self._service_notifier = service_notifier
@@ -287,7 +286,7 @@ class RMQRouter:
                 elif name == 'bind-web-address':
                     value = self._bind_web_address
                 elif name == 'platform-version':
-                    value = self.platform_version
+                    value = __version__
                 elif name == 'message-bus':
                     value = os.environ.get('MESSAGEBUS', 'zmq')
                 else:

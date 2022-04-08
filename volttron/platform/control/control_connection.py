@@ -47,12 +47,14 @@ class ControlConnection(object):
         self.address = address
         self.peer = peer
         message_bus = utils.get_messagebus()
+        allow_auth = utils.is_auth_enabled()
         self._server = BaseAgent(
             address=self.address,
             enable_store=False,
             identity=CONTROL_CONNECTION,
             message_bus=message_bus,
             enable_channel=True,
+            enable_auth=allow_auth
         )
         self._greenlet = None
 

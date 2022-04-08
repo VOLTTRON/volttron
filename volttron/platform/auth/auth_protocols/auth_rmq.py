@@ -82,9 +82,9 @@ class RMQConnectionAPI(RMQConnectionWrapper):
                         retry_delay=2,
                         ssl_auth=True,
                         certs_dict=None) -> None:
-        super(RMQConnectionAPI).__init__(rmq_user, pwd, 
-                                         host, port, vhost, heartbeat,
-                                         retry_attempt, retry_delay)
+        super().__init__(rmq_user, pwd, 
+                         host, port, vhost, heartbeat,
+                         retry_attempt, retry_delay)
         self.ssl_auth = ssl_auth
         self.certs_dict = certs_dict
 
@@ -575,7 +575,7 @@ class RMQAuthorization(BaseServerAuthorization):
 
 class RMQClientAuthorization(BaseClientAuthorization):
     def __init__(self, owner=None, core=None):
-        super(RMQClientAuthorization).__init__(owner, core)
+        super().__init__(owner, core)
         self._certs = certs.Certs()
 
     def connect_remote_platform(

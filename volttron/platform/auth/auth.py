@@ -172,10 +172,37 @@ class AuthService(Agent):
         self.vip.rpc.export(self.auth_file.set_roles, "auth_file.set_roles")
 
     @Core.receiver("onsetup")
-    def setup_authentication_server(self):
+    def setup_authentication_server(self, sender, **kwargs):
         if self.allow_any:
             _log.warning("insecure permissive authentication enabled")
         self.read_auth_file()
+        if get_messagebus() == "zmq":
+            from volttron.platform.auth.auth_protocols.auth_zmq import ZMQAuthorization, ZMQServerAuthentication
+            self.authentication_server = ZMQServerAuthentication(
+                    auth_vip=self.vip, 
+                    auth_core=self.core, 
+                    aip=self.aip, 
+                    allow_any=self.allow_any, 
+                    is_connected = self._is_connected,
+                    setup_mode=self._setup_mode,
+                    auth_file=self.auth_file,
+                    auth_entries=self.auth_entries,
+                    auth_pending=self._auth_pending,
+                    auth_approved=self._auth_approved,
+                    auth_denied=self._auth_denied
+            )
+            self.authorization_server = ZMQAuthorization(
+                    auth_core=self.core,
+                    is_connected=self._is_connected, 
+                    auth_file=self.auth_file,
+                    auth_pending=self._auth_pending,
+                    auth_approved=self._auth_approved,
+                    auth_denied=self._auth_denied
+            )
+        else:
+            from volttron.platform.auth.auth_protocols.auth_rmq import RMQAuthorization, RMQServerAuthentication
+            self.authentication_server = RMQServerAuthentication(self.vip, self.core)
+            self.authorization_server = RMQAuthorization(self.auth_file)
         self._read_protected_topics_file()
         self.core.spawn(watch_file, self.auth_file_path, self.read_auth_file)
         self.core.spawn(
@@ -183,26 +210,18 @@ class AuthService(Agent):
             self._protected_topics_file_path,
             self._read_protected_topics_file,
         )
-        if get_messagebus() == "zmq":
-            from volttron.platform.auth.auth_protocols.auth_zmq import ZMQAuthorization, ZMQServerAuthentication
-            self.authentication_server = ZMQServerAuthentication(self.vip, self.core, self.aip)
-            self.authorization_server = ZMQAuthorization(self.auth_file)
-        else:
-            from volttron.platform.auth.auth_protocols.auth_rmq import RMQAuthorization, RMQServerAuthentication
-            self.authentication_server = RMQServerAuthentication(self.vip, self.core)
-            self.authorization_server = RMQAuthorization(self.auth_file)
         self.authentication_server.setup_authentication()
 
     @Core.receiver("onstart")
-    def start_authentication_server(self):
+    def start_authentication_server(self, sender, **kwargs):
         self.authentication_server.handle_authentication(self._protected_topics)
 
     @Core.receiver("onstop")
-    def stop_authentication_server(self):
+    def stop_authentication_server(self, sender, **kwargs):
         self.authentication_server.stop_authentication()
 
     @Core.receiver("onfinish")
-    def unbind_authentication_server(self):
+    def unbind_authentication_server(self, sender, **kwargs):
         self.authentication_server.unbind_authentication()
 
     # def _update_entries(self, entries=None, pending=None, approved=None, denied=None):

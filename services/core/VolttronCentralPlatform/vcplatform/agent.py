@@ -56,7 +56,7 @@ import psutil
 from enum import Enum
 
 from volttron.platform.agent import utils
-from volttron.platform.install_agents import install_agent_local
+from volttron.platform.control.install_agents import install_agent_local
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
