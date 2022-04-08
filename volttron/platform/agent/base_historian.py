@@ -542,6 +542,8 @@ class BaseHistorianAgent(Agent):
             history_limit_days = config.get("history_limit_days")
             if history_limit_days:
                 history_limit_days = float(history_limit_days)
+            else:
+                history_limit_days = None
 
             submit_size_limit = int(config.get("submit_size_limit", 1000))
             max_time_publishing = float(config.get("max_time_publishing", 30.0))
@@ -591,8 +593,8 @@ class BaseHistorianAgent(Agent):
         self._backup_storage_report = backup_storage_report
         self._retry_period = retry_period
         self._submit_size_limit = submit_size_limit
-        self._max_time_publishing = timedelta(seconds=max_time_publishing)
-        self._history_limit_days = timedelta(days=history_limit_days) if history_limit_days else None
+        self._max_time_publishing = max_time_publishing
+        self._history_limit_days = history_limit_days
         self._storage_limit_gb = storage_limit_gb
         self._all_platforms = all_platforms
         self._readonly = readonly
@@ -1676,7 +1678,8 @@ class BackupDatabase:
                                successful_publishes))
                 self._record_count -= len(temp)
         finally:
-            # if we don't clear these attributes on every publish, we could possibly delete a non-existing record on the next publish
+            # if we don't clear these attributes on every publish,
+            # we could possibly delete a non-existing record on the next publish
             self._unique_ids.clear()
             self._dupe_ids.clear()
 
