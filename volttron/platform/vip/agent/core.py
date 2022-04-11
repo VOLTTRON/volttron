@@ -60,7 +60,7 @@ from zmq.utils.monitor import recv_monitor_message
 from volttron.platform import get_address
 from volttron.platform import is_rabbitmq_available
 from volttron.platform.agent import utils
-from volttron.platform.agent.utils import load_platform_config, get_platform_instance_name
+from volttron.platform.agent.utils import load_platform_config, get_platform_instance_name, is_auth_enabled
 from volttron.utils.rmq_mgmt import RabbitMQMgmt
 from .decorators import annotate, annotations, dualmethod
 from .dispatch import Signal

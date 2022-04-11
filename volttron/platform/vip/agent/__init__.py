@@ -46,7 +46,7 @@ from .errors import *
 from .decorators import *
 from .subsystems import *
 from .... import platform
-from .... platform.agent.utils import is_valid_identity
+from .... platform.agent.utils import is_valid_identity, is_auth_enabled
 
 
 class Agent:
@@ -87,7 +87,7 @@ class Agent:
                  enable_web=False, enable_channel=False,
                  reconnect_interval=None, version='0.1', enable_fncs=False,
                  instance_name=None, message_bus=None,
-                 volttron_central_address=None, volttron_central_instance_name=None, enable_auth=True):
+                 volttron_central_address=None, volttron_central_instance_name=None, enable_auth=is_auth_enabled()):
 
         if volttron_home is None:
             volttron_home = os.path.abspath(platform.get_home())

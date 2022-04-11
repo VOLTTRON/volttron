@@ -38,7 +38,10 @@
 
 from volttron.platform.auth.auth import AuthService
 from volttron.platform.auth.auth_entry import AuthEntry, AuthEntryInvalid
-from volttron.platform.auth.auth_file import AuthFile, AuthFileEntryAlreadyExists, AuthFileUserIdAlreadyExists
+from volttron.platform.auth.auth_file import (
+    AuthFile, AuthFileEntryAlreadyExists,
+    AuthFileUserIdAlreadyExists, AuthFileIndexError
+)
 from volttron.platform.auth.auth_exception import AuthException
 from volttron.platform.auth.certs import Certs, CertError, CertWrapper
 
@@ -50,7 +53,8 @@ __all__ = [ # Auth Service
             # Auth File
             "AuthFile", 
             "AuthFileEntryAlreadyExists", 
-            "AuthFileUserIdAlreadyExists", 
+            "AuthFileUserIdAlreadyExists",
+            "AuthFileIndexError"
             # Auth Exception
             "AuthException", 
             # Certs
