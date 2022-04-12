@@ -117,10 +117,11 @@ def test_insert_meta_query_should_succeed(get_container_func):
 
     if historian_version != "<4.0.0":
         pytest.skip("insert_meta() is called by historian only for schema <4.0.0")
-
+    print(f"current historian version is {historian_version}")
     topic_id = "44"
     metadata = "foobar44"
     expected_data = (44, '"foobar44"')
+    print(f"metadata table is {sqlfuncts.meta_table}")
     res = sqlfuncts.insert_meta(topic_id, metadata)
     assert res is True
     assert get_data_in_table(connection_port, "meta")[0] == expected_data
@@ -440,6 +441,7 @@ def get_container_func(request):
         sleep(5)
         # So that sqlfuncts class can check if metadata is in topics table and sets its variables accordingly
         mysqlfuncts.setup_historian_tables()
+        print("setup_historian_tables complete")
         yield container, mysqlfuncts, connection_port, historian_version
 
 
@@ -501,6 +503,7 @@ def create_historian_tables(container, historian_version):
 
     command = f'mysql --user="root" --password="{ROOT_PASSWORD}" {TEST_DATABASE} --execute="{query}"'
     container.exec_run(cmd=command, tty=True)
+    print("Created container and executed query {query}")
     return
 
 
