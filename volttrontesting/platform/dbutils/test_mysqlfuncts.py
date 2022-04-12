@@ -435,9 +435,11 @@ def get_container_func(request):
 
     with create_container(request.param[0], **kwargs) as container:
         wait_for_connection(container)
+        print("Cretaed container.")
         create_all_tables(container, historian_version)
-
+        print("Created tables")
         mysqlfuncts = get_mysqlfuncts(connection_port)
+        print("Created mysqlfuncts")
         sleep(5)
         # So that sqlfuncts class can check if metadata is in topics table and sets its variables accordingly
         mysqlfuncts.setup_historian_tables()
