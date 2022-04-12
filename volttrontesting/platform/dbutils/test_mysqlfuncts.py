@@ -471,29 +471,29 @@ def wait_for_connection(container):
 def create_historian_tables(container, historian_version):
     if historian_version == "<4.0.0":
         query = f"""
-                   CREATE TABLE IF NOT EXISTS {DATA_TABLE}
+                   CREATE TABLE {DATA_TABLE}
                    (ts timestamp NOT NULL,
                    topic_id INTEGER NOT NULL,
                    value_string TEXT NOT NULL,
                    UNIQUE(topic_id, ts));
-                   CREATE TABLE IF NOT EXISTS {TOPICS_TABLE}
+                   CREATE TABLE  {TOPICS_TABLE}
                    (topic_id INTEGER NOT NULL AUTO_INCREMENT,
                    topic_name varchar(512) NOT NULL,
                    PRIMARY KEY (topic_id),
                    UNIQUE(topic_name));
-                   CREATE TABLE IF NOT EXISTS {META_TABLE}
+                   CREATE TABLE  {META_TABLE}
                    (topic_id INTEGER NOT NULL,
                    metadata TEXT NOT NULL,
                    PRIMARY KEY(topic_id));
             """
     else:
         query = f"""
-                   CREATE TABLE IF NOT EXISTS {DATA_TABLE}
+                   CREATE TABLE  {DATA_TABLE}
                    (ts timestamp NOT NULL,
                    topic_id INTEGER NOT NULL,
                    value_string TEXT NOT NULL,
                    UNIQUE(topic_id, ts));
-                   CREATE TABLE IF NOT EXISTS {TOPICS_TABLE}
+                   CREATE TABLE  {TOPICS_TABLE}
                    (topic_id INTEGER NOT NULL AUTO_INCREMENT,
                    topic_name varchar(512) NOT NULL,
                     metadata TEXT,
@@ -503,7 +503,7 @@ def create_historian_tables(container, historian_version):
 
     command = f'mysql --user="root" --password="{ROOT_PASSWORD}" {TEST_DATABASE} --execute="{query}"'
     container.exec_run(cmd=command, tty=True)
-    print("Created container and executed query {query}")
+    print(f"Created container and executed query {query}")
     return
 
 
@@ -620,6 +620,7 @@ def drop_all_tables(port):
         print(f"table names {rows}")
         for columns in rows:
             cursor.execute("DROP TABLE " + columns[0])
+        cnx.commit()
     except Exception as e:
         print("Error deleting tables {}".format(e))
     finally:
