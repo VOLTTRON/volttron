@@ -501,6 +501,8 @@ def create_historian_tables(container, historian_version):
 
     command = f'mysql --user="root" --password="{ROOT_PASSWORD}" {TEST_DATABASE} --execute="{query}"'
     container.exec_run(cmd=command, tty=True)
+    sleep(4)
+    print(f"Created container and executed query {query}")
     return
 
 
