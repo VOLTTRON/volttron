@@ -62,18 +62,24 @@
 from datetime import datetime
 import collections
 import struct
+import gevent
 import serial
 import six.moves
 import logging
 import math
 
+from volttron.platform.agent import utils
 import modbus_tk.defines as modbus_constants
 import modbus_tk.modbus_tcp as modbus_tcp
 import modbus_tk.modbus_rtu as modbus_rtu
-from modbus_tk.exceptions import ModbusError
+from modbus_tk.exceptions import ModbusError, ModbusInvalidResponseError
+from master_driver.driver_locks import client_socket_locks
 
 from . import helpers
 
+
+utils.setup_logging()
+_log = logging.getLogger(__name__)
 logger = logging.getLogger(__name__)
 
 # In cache representation of modbus field.
@@ -324,7 +330,7 @@ class Field(object):
                 self._address = self._address - helpers.TABLE_ADDRESS[self._table]
             elif address_style == helpers.ADDRESS_OFFSET_PLUS_ONE:
                 self._address = self._address - 1
-            if self._address < 0 or self._address > 10000:
+            if self._address < 0 or self._address > (2 ** 16 - 1):
                 raise Exception("Modbus address out of range for table.")
 
 
@@ -622,6 +628,8 @@ class Client (object):
         self._error_count = 0
 
     def set_transport_tcp(self, hostname, port, timeout_in_sec=1.0):
+        self.device_address = hostname
+        self.port = port
         self.client = modbus_tcp.TcpMaster(host=hostname, port=int(port), timeout_in_sec=timeout_in_sec)
         return self
 
@@ -671,7 +679,7 @@ class Client (object):
         return self.__meta[helpers.META_REQUEST_MAP].get(field, None)
 
     def read_request(self, request):
-        logger.debug("Requesting: %s", request)
+        logger.debug(f"Requesting: {request} on {self.device_address}:{self.port}-{self.slave_address}")
         try:
             results = self.client.execute(
                 self.slave_address,
@@ -686,13 +694,32 @@ class Client (object):
             if "Exception code" in err.message:
                 raise Exception("{0}: {1}".format(err.message,
                                                   helpers.TABLE_EXCEPTION_CODE.get(err.message[-1], "UNDEFINED")))
-            logger.warning("modbus read_all() failure on request: %s\tError: %s", request, err)
+            _log.warning("modbus read_all() failure on request: %s\tError: %s", request, err)
 
     def read_all(self):
         requests = self.__meta[helpers.META_REQUESTS]
         self._data.clear()
-        for r in requests:
-            self.read_request(r)
+        with client_socket_locks(self.device_address, self.port):
+            _log.debug(f"entered lock for {self.device_address}:{self.port}-{self.slave_address}")
+            for r in requests:
+                retries = 3
+                while retries > 0:
+                    exception_flag = False
+                    try:
+                        self.read_request(r)
+                        continue
+                    except ConnectionResetError:
+                        exception_flag = True
+                        _log.warning("ConnectionResetError on read_all()")
+                    except ModbusInvalidResponseError:
+                        exception_flag = True
+                        _log.warning("ModbusInvalidResponseError on read_all()")
+                    if exception_flag:
+                        self.client.close()
+                        gevent.sleep(1.0)
+                        self.client.open()
+                    retries -= 1
+        _log.debug(f"left lock for {self.device_address}:{self.port}-{self.slave_address}")
 
     def dump_all(self):
         self.read_all()

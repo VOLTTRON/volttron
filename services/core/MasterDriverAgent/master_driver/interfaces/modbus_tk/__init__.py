@@ -41,6 +41,7 @@ from volttron.platform.agent import utils
 from master_driver.interfaces import BaseRegister, BaseInterface, BasicRevert
 from master_driver.interfaces.modbus_tk import helpers
 from master_driver.interfaces.modbus_tk.maps import Map
+from master_driver.driver_locks import configure_client_socket_lock
 
 import logging
 import struct
@@ -311,11 +312,13 @@ class Interface(BasicRevert, BaseInterface):
             endian=endian,
             registry_config_lst=selected_registry_config_lst
         ).get_class()
+        configure_client_socket_lock(device_address, port, max_connections=1)
 
         self.modbus_client = modbus_client_class(device_address=device_address,
                                                  port=port,
                                                  slave_address=slave_address,
-                                                 write_single_values=write_single_values)
+                                                 write_single_values=write_single_values,
+                                                 )
 
         # Set modbus client transport based on device configure
         if port:
