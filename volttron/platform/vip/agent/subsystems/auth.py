@@ -124,7 +124,7 @@ class Auth(SubsystemBase):
         core.onsetup.connect(onsetup, self)
 
     def connect_remote_platform(self, address, serverkey=None, agent_class=None):
-        self.client_authorization.connect_remote_platform(
+        return self.client_authorization.connect_remote_platform(
             address=address, serverkey=serverkey, agent_class=agent_class)
 
     def _fetch_capabilities(self):
