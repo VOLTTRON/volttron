@@ -78,8 +78,8 @@ from master_driver.driver_locks import client_socket_locks
 from . import helpers
 
 
-utils.setup_logging()
-_log = logging.getLogger(__name__)
+# utils.setup_logging()
+# _log = logging.getLogger(__name__)
 logger = logging.getLogger(__name__)
 
 # In cache representation of modbus field.
@@ -694,13 +694,13 @@ class Client (object):
             if "Exception code" in err.message:
                 raise Exception("{0}: {1}".format(err.message,
                                                   helpers.TABLE_EXCEPTION_CODE.get(err.message[-1], "UNDEFINED")))
-            _log.warning("modbus read_all() failure on request: %s\tError: %s", request, err)
+            logger.warning("modbus read_all() failure on request: %s\tError: %s", request, err)
 
     def read_all(self):
         requests = self.__meta[helpers.META_REQUESTS]
         self._data.clear()
         with client_socket_locks(self.device_address, self.port):
-            _log.debug(f"entered lock for {self.device_address}:{self.port}-{self.slave_address}")
+            logger.debug(f"entered lock for {self.device_address}:{self.port}-{self.slave_address}")
             for r in requests:
                 retries = 3
                 while retries > 0:
@@ -710,16 +710,16 @@ class Client (object):
                         continue
                     except ConnectionResetError:
                         exception_flag = True
-                        _log.warning("ConnectionResetError on read_all()")
+                        logger.warning("ConnectionResetError on read_all()")
                     except ModbusInvalidResponseError:
                         exception_flag = True
-                        _log.warning("ModbusInvalidResponseError on read_all()")
+                        logger.warning("ModbusInvalidResponseError on read_all()")
                     if exception_flag:
                         self.client.close()
                         gevent.sleep(1.0)
                         self.client.open()
                     retries -= 1
-        _log.debug(f"left lock for {self.device_address}:{self.port}-{self.slave_address}")
+        logger.debug(f"left lock for {self.device_address}:{self.port}-{self.slave_address}")
 
     def dump_all(self):
         self.read_all()
