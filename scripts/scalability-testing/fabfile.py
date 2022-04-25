@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -74,8 +74,8 @@ def build_configs():
         config_paths.extend(configs)
         command_lines.extend(commands)
         
-    #config_builder.build_master_config(test_settings.master_driver_file, config_dir, config_paths)
-    config_builder.build_master_config(test_settings.master_driver_file,
+    #config_builder.build_platform_config(test_settings.platform_driver_file, config_dir, config_paths)
+    config_builder.build_platform_config(test_settings.platform_driver_file,
                                        config_full_path,
                                        config_paths,
                                        True,

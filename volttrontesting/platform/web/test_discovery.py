@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -42,7 +42,7 @@ import os
 from volttron.platform.web import DiscoveryInfo
 
 from volttrontesting.utils.web_utils import get_test_web_env
-
+from volttrontesting.fixtures.volttron_platform_fixtures import volttron_instance_web
 
 def test_discovery_endpoint(volttron_instance_web):
     """
@@ -51,11 +51,11 @@ def test_discovery_endpoint(volttron_instance_web):
     :return:
         """
     wrapper = volttron_instance_web
+
+    # Both http and https start with http
+    assert wrapper.bind_web_address.startswith('http')
     if wrapper.messagebus == 'rmq':
-        assert wrapper.bind_web_address.startswith('https')
         os.environ['REQUESTS_CA_BUNDLE'] = wrapper.requests_ca_bundle
-    else:
-        assert wrapper.bind_web_address.startswith('http')
 
     info = DiscoveryInfo.request_discovery_info(wrapper.bind_web_address)
 

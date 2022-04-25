@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -71,10 +71,9 @@ from volttron.platform import jsonapi
 from volttron.platform import jsonrpc
 from volttron.platform.agent import utils
 from volttron.platform.agent.known_identities import (
-    VOLTTRON_CENTRAL, PLATFORM_HISTORIAN)
+    VOLTTRON_CENTRAL, PLATFORM_HISTORIAN, AUTH)
 from volttron.platform.agent.utils import (
     get_aware_utc_now, get_messagebus)
-from volttron.platform.auth import AuthFile, AuthEntry
 from volttron.platform.jsonrpc import (
     INVALID_REQUEST, METHOD_NOT_FOUND,
     UNHANDLED_EXCEPTION, UNAUTHORIZED,
@@ -245,10 +244,6 @@ class VolttronCentralAgent(Agent):
 
         self.vip.web.register_endpoint(r'/vc/jsonrpc', self.jsonrpc)
 
-        self.vip.web.register_websocket(r'/vc/ws',
-                                        self.open_authenticate_ws_endpoint,
-                                        self._ws_closed,
-                                        self._ws_received)
         self.vip.web.register_path(r'^/vc/.*',
                                    config.get('webroot'))
 
@@ -269,7 +264,7 @@ class VolttronCentralAgent(Agent):
         platform = self._platforms.add_platform(platform_vip_identity)
 
     def _handle_platform_disconnect(self, platform_vip_identity):
-        _log.warn("Handling disconnection of connection from identity: {}".format(
+        _log.warning("Handling disconnection of connection from identity: {}".format(
             platform_vip_identity
         ))
         # TODO send alert that there was a platform disconnect.
@@ -312,7 +307,7 @@ class VolttronCentralAgent(Agent):
 
     def open_authenticate_ws_endpoint(self, fromip, endpoint):
         """
-        Callback method from when websockets are opened.  The endpoine must
+        Callback method from when websockets are opened.  The endpoint must
         be '/' delimited with the second to last section being the session
         of a logged in user to volttron central itself.
 
@@ -416,7 +411,7 @@ class VolttronCentralAgent(Agent):
                 resp = requests.post(auth_url, json=args, verify=False)
 
                 if resp.ok and resp.text:
-                    claims = self.vip.web.get_user_claims(resp.text)
+                    claims = self.vip.web.get_user_claims(jsonapi.loads(resp.text)["access_token"])
                     # Because the web-user.json has the groups under a key and the
                     # groups is just passed into the session we need to make sure
                     # we pass in the proper thing to the _add_sesion function.
@@ -477,7 +472,7 @@ class VolttronCentralAgent(Agent):
         except Exception as e:
 
             return jsonrpc.json_error(
-                'NA', UNHANDLED_EXCEPTION, e
+                'NA', UNHANDLED_EXCEPTION, str(e)
             )
 
         return self._get_jsonrpc_response(rpcdata.id, result_or_error)
@@ -702,15 +697,15 @@ class VolttronCentralAgent(Agent):
             return jsonrpc.json_error(
                 id, UNAUTHORIZED,
                 "Admin access is required to enable setup mode")
-        auth_file = AuthFile()
-        entries = auth_file.find_by_credentials(".*")
+        entries = self.vip.rpc.call(AUTH, "auth_file.find_by_credentials", ".*")
         if len(entries) > 0:
             return "SUCCESS"
 
-        entry = AuthEntry(credentials="/.*/",
-                          comments="Un-Authenticated connections allowed here",
-                          user_id="unknown")
-        auth_file.add(entry)
+        entry = {"credentials": "/.*/",
+                 "comments": "Un-Authenticated connections allowed here",
+                 "user_id": "unknown"
+                }
+        self.vip.rpc.call(AUTH, "auth_file.add", entry)
         return "SUCCESS"
 
     def _disable_setup_mode(self, session_user, params):
@@ -720,8 +715,7 @@ class VolttronCentralAgent(Agent):
             return jsonrpc.json_error(
                 id, UNAUTHORIZED,
                 "Admin access is required to disable setup mode")
-        auth_file = AuthFile()
-        auth_file.remove_by_credentials("/.*/")
+        self.vip.rpc.call(AUTH, "auth_file.remove_by_credentials", "/.*/")
         return "SUCCESS"
 
     def _handle_management_endpoint(self, session_user, params):

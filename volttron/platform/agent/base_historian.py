@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -87,7 +87,6 @@ The new Agent must implement the following methods:
 If this historian has a corresponding  AggregateHistorian
 (see :py:class:`AggregateHistorian`) implement the following method in addition
 to the above ones:
-- :py:meth:`BaseQueryHistorianAgent.record_table_definitions`
 - :py:meth:`BaseQueryHistorianAgent.query_aggregate_topics`
 
 While not required this method may be overridden as needed:
@@ -116,10 +115,6 @@ At startup the publishing thread calls two methods:
 - :py:meth:`BaseHistorianAgent.historian_setup` to give the implemented
 historian a chance to setup any connections in the thread. This method can
 also be used to load an initial data into memory
-- :py:meth:`BaseQueryHistorianAgent.record_table_definitions` to give the
-implemented Historian a chance to record the table/collection names into a
-meta table/collection with the named passed as parameter. The implemented
-historian is responsible for creating the meta table if it does not exist.
 
 The process thread then enters the following logic loop:
 ::
@@ -140,9 +135,8 @@ The process thread then enters the following logic loop:
 The logic will also forgo waiting the `retry_period` for new data to appear
 when checking for new data if publishing has been successful and there is
 still data in the cache to be publish. If
-:py:meth:`BaseHistorianAgent.historian_setup` or
-:py:meth:`BaseQueryHistorianAgent.record_table_definitions` throw exception
-and alert is raised but the process loop continues to wait for data and
+:py:meth:`BaseHistorianAgent.historian_setup` throw exception
+and an alert is raised but the process loop continues to wait for data and
 caches it. The process loop will periodically try to call the two methods
 again until successful. Exception thrown by
 :py:meth:`BaseHistorianAgent.publish_to_historian` would also raise alerts
@@ -260,7 +254,7 @@ try:
 
     def dumps(data):
         try:
-            return ujson.dumps(data, double_precision=15)
+            return ujson.dumps(data)
         except Exception:
             return _dumps(data)
 
@@ -316,6 +310,9 @@ STATUS_KEY_BACKLOGGED = "backlogged"
 STATUS_KEY_CACHE_COUNT = "cache_count"
 STATUS_KEY_PUBLISHING = "publishing"
 STATUS_KEY_CACHE_FULL = "cache_full"
+STATUS_KEY_TIME_ERROR = "records_with_invalid_timestamp"
+STATUS_KEY_CACHE_ONLY = "cache_only_enabled"
+STATUS_KEY_ERROR_MANAGE_DB_SIZE = "error_managing_db_size"
 
 
 class BaseHistorianAgent(Agent):
@@ -368,6 +365,9 @@ class BaseHistorianAgent(Agent):
                  custom_topics={},
                  device_data_filter={},
                  all_platforms=False,
+                 time_tolerance=None,
+                 time_tolerance_topics=None,
+                 cache_only_enabled=False,
                  **kwargs):
 
         super(BaseHistorianAgent, self).__init__(**kwargs)
@@ -384,7 +384,6 @@ class BaseHistorianAgent(Agent):
 
         self.gather_timing_data = bool(gather_timing_data)
 
-        self.volttron_table_defs = 'volttron_table_definitions'
         self._backup_storage_limit_gb = backup_storage_limit_gb
         self._backup_storage_report = backup_storage_report
         self._retry_period = float(retry_period)
@@ -413,9 +412,25 @@ class BaseHistorianAgent(Agent):
             STATUS_KEY_CACHE_COUNT: 0,
             STATUS_KEY_BACKLOGGED: False,
             STATUS_KEY_PUBLISHING: True,
-            STATUS_KEY_CACHE_FULL: False
+            STATUS_KEY_CACHE_FULL: False,
+            STATUS_KEY_CACHE_ONLY: False,
+            STATUS_KEY_TIME_ERROR: False,
+            STATUS_KEY_ERROR_MANAGE_DB_SIZE: False
         }
         self._all_platforms = bool(all_platforms)
+        self._time_tolerance = float(time_tolerance) if time_tolerance else None
+        if self._time_tolerance is not None:
+            if time_tolerance_topics is None:
+                time_tolerance_topics = ["devices"]
+            elif not isinstance(time_tolerance_topics, list):
+                raise ValueError(f"time_tolerance_topic should a list of topics. Got value({time_tolerance_topics}) of "
+                                 f"type {type(time_tolerance_topics)}")
+        self._time_tolerance_topics = time_tolerance_topics
+        if str(cache_only_enabled) in ('True', 'False'):
+            self._cache_only_enabled = cache_only_enabled
+            self._current_status_context[STATUS_KEY_CACHE_ONLY] = cache_only_enabled
+        else:
+            raise ValueError(f"cache_only_enabled should be either True or False")
 
         self._default_config = {
                                 "retry_period":self._retry_period,
@@ -429,13 +444,16 @@ class BaseHistorianAgent(Agent):
                                 "capture_device_data": capture_device_data,
                                 "capture_log_data": capture_log_data,
                                 "capture_analysis_data": capture_analysis_data,
-                                "capture_record_data": capture_record_data,          
+                                "capture_record_data": capture_record_data,
                                 "message_publish_count": self._message_publish_count,
                                 "storage_limit_gb": storage_limit_gb,
                                 "history_limit_days": history_limit_days,
                                 "custom_topics": custom_topics,
                                 "device_data_filter": device_data_filter,
-                                "all_platforms": self._all_platforms
+                                "all_platforms": self._all_platforms,
+                                "time_tolerance": self._time_tolerance,
+                                "time_tolerance_topics": self._time_tolerance_topics,
+                                "cache_only_enabled": self._cache_only_enabled
                                }
 
         self.vip.config.set_default("config", self._default_config)
@@ -533,9 +551,28 @@ class BaseHistorianAgent(Agent):
 
             all_platforms = bool(config.get("all_platforms", False))
 
+            time_tolerance = config.get("time_tolerance")
+            time_tolerance_topics = config.get("time_tolerance_topics")
+            time_tolerance = float(time_tolerance) if time_tolerance else None
+            if time_tolerance is not None:
+                if time_tolerance_topics is None:
+                    time_tolerance_topics = ["devices"]
+                elif not isinstance(time_tolerance_topics, list):
+                    raise ValueError(
+                        f"time_tolerance_topic should a list of topics. Got value({time_tolerance_topics}) of "
+                        f"type {type(time_tolerance_topics)}")
+
+            cache_only_enabled = config.get("cache_only_enabled", False)
+            if str(cache_only_enabled) not in ('True', 'False'):
+                raise ValueError(f"cache_only_enabled should be either True or False")
+
+            self._cache_only_enabled = cache_only_enabled
+            self._current_status_context[STATUS_KEY_CACHE_ONLY] = cache_only_enabled
+            self._time_tolerance_topics = time_tolerance_topics
+
         except ValueError as e:
             self._backup_storage_report = 0.9
-            _log.error("Failed to load base historian settings. Settings not applied!")
+            _log.exception("Failed to load base historian settings. Settings not applied!")
             return
 
         query = Query(self.core)
@@ -560,6 +597,8 @@ class BaseHistorianAgent(Agent):
         self._all_platforms = all_platforms
         self._readonly = readonly
         self._message_publish_count = message_publish_count
+        self._time_tolerance = time_tolerance
+        self._time_tolerance_topics = time_tolerance_topics
 
         custom_topics_list = []
         for handler, topic_list in config.get("custom_topics", {}).items():
@@ -698,6 +737,10 @@ class BaseHistorianAgent(Agent):
                              "meta_table": "meta"}
         if not tables_def:
             tables_def = default_table_def
+        else:
+            default_table_def.update(tables_def)
+            tables_def = default_table_def
+
         table_names = dict(tables_def)
 
         table_prefix = tables_def.get('table_prefix', None)
@@ -746,6 +789,17 @@ class BaseHistorianAgent(Agent):
             _log.debug("Output topic after replacements {}".format(output_topic))
         return output_topic
 
+    def does_time_exceed_tolerance(self, topic, utc_timestamp):
+        if self._time_tolerance:
+            # If time tolerance is set, and it needs to be checked for this topic
+            # compare the incoming timestamp with the current time.
+            if topic.startswith(tuple(self._time_tolerance_topics)):
+                return abs(get_aware_utc_now() - utc_timestamp).seconds > self._time_tolerance
+        return False
+
+    def is_cache_only_enabled(self):
+        return self._cache_only_enabled
+
     def _capture_record_data(self, peer, sender, bus, topic, headers,
                              message):
         # _log.debug('Capture record data {}'.format(topic))
@@ -755,6 +809,7 @@ class BaseHistorianAgent(Agent):
         timestamp = get_aware_utc_now()
         if timestamp_string is not None:
             timestamp, my_tz = process_timestamp(timestamp_string, topic)
+            headers['time_error'] = self.does_time_exceed_tolerance(topic, timestamp)
 
         if sender == 'pubsub.compat':
             message = compat.unpack_legacy_message(headers, message)
@@ -813,6 +868,7 @@ class BaseHistorianAgent(Agent):
                 readings = [(get_aware_utc_now(), readings)]
             elif isinstance(readings[0], str):
                 my_ts, my_tz = process_timestamp(readings[0], topic)
+                headers['time_error'] = self.does_time_exceed_tolerance(topic, my_ts)
                 readings = [(my_ts, readings[1])]
                 if tz:
                     meta['tz'] = tz
@@ -907,6 +963,8 @@ class BaseHistorianAgent(Agent):
         timestamp = get_aware_utc_now()
         if timestamp_string is not None:
             timestamp, my_tz = process_timestamp(timestamp_string, topic)
+            headers['time_error'] = self.does_time_exceed_tolerance(topic, timestamp)
+
         try:
             # 2.0 agents compatability layer makes sender == pubsub.compat so
             # we can do the proper thing when it is here
@@ -1004,9 +1062,11 @@ class BaseHistorianAgent(Agent):
     @staticmethod
     def _get_status_from_context(context):
         status = STATUS_GOOD
-        if (context.get("backlogged") or
-                context.get("cache_full") or
-                not context.get("publishing")):
+        if (context.get(STATUS_KEY_BACKLOGGED) or
+                context.get(STATUS_KEY_CACHE_FULL) or
+                not context.get(STATUS_KEY_PUBLISHING) or
+                context.get(STATUS_KEY_TIME_ERROR) or
+                context.get(STATUS_KEY_ERROR_MANAGE_DB_SIZE)):
             status = STATUS_BAD
         return status
 
@@ -1097,18 +1157,26 @@ class BaseHistorianAgent(Agent):
 
             # We wake the thread after a configuration change by passing a None to the queue.
             # Backup anything new before checking for a stop.
-            cache_full = backupdb.backup_new_data((x for x in new_to_publish if x is not None))
+            cache_full = backupdb.backup_new_data(new_to_publish, bool(self._time_tolerance))
             backlog_count = backupdb.get_backlog_count()
             if cache_full:
                 self._send_alert({STATUS_KEY_CACHE_FULL: cache_full,
                                   STATUS_KEY_BACKLOGGED: True,
-                                  STATUS_KEY_CACHE_COUNT: backlog_count},
+                                  STATUS_KEY_CACHE_COUNT: backlog_count,
+                                  STATUS_KEY_TIME_ERROR: backupdb.time_error_records},
                                  "historian_cache_full")
             else:
                 old_backlog_state = self._current_status_context[STATUS_KEY_BACKLOGGED]
-                self._update_status({STATUS_KEY_CACHE_FULL: cache_full,
-                                     STATUS_KEY_BACKLOGGED: old_backlog_state and backlog_count > 0,
-                                     STATUS_KEY_CACHE_COUNT: backlog_count})
+                state = {
+                    STATUS_KEY_CACHE_FULL: cache_full,
+                    STATUS_KEY_BACKLOGGED: old_backlog_state and backlog_count > 0,
+                    STATUS_KEY_CACHE_COUNT: backlog_count,
+                    STATUS_KEY_TIME_ERROR: backupdb.time_error_records}
+                self._update_status(state)
+                if backupdb.time_error_records:
+                    self._send_alert(
+                        state,
+                        "Historian received records with invalid timestamp. Please check records in time_error table.")
 
             # Check for a stop for reconfiguration.
             if self._stop_process_loop:
@@ -1124,6 +1192,8 @@ class BaseHistorianAgent(Agent):
                 start_time = datetime.utcnow()
 
                 while True:
+                    # use local variable that will be written only one time during this loop
+                    cache_only_enabled = self.is_cache_only_enabled()
                     to_publish_list = backupdb.get_outstanding_to_publish(
                         self._submit_size_limit)
 
@@ -1147,27 +1217,40 @@ class BaseHistorianAgent(Agent):
                         history_limit_timestamp = last_time_stamp - self._history_limit_days
 
                     try:
-                        self.publish_to_historian(to_publish_list)
-                        self.manage_db_size(history_limit_timestamp, self._storage_limit_gb)
-                    except:
+                        if not cache_only_enabled:
+                            self.publish_to_historian(to_publish_list)
+                    except Exception as e:
                         _log.exception(
-                            "An unhandled exception occurred while publishing.")
+                            f"An unhandled exception occurred while publishing: {e}")
+
+                    try:
+                        self.manage_db_size(history_limit_timestamp, self._storage_limit_gb)
+                        self._update_status({STATUS_KEY_ERROR_MANAGE_DB_SIZE: False})
+                    except Exception as e:
+                        _log.exception(
+                            f"An unhandled exception occurred while attempting to managing db size: {e}")
+                        self._send_alert({STATUS_KEY_ERROR_MANAGE_DB_SIZE: True}, "error_managing_db_size")
 
                     # if the success queue is empty then we need not remove
                     # them from the database and we are probably having connection problems.
                     # Update the status and send alert accordingly.
-                    if not self._successful_published:
+                    if not self._successful_published and not cache_only_enabled:
                         self._send_alert({STATUS_KEY_PUBLISHING: False}, "historian_not_publishing")
                         break
 
+                    # _successful_published is set when publish_to_historian is called to the concrete
+                    # historian.  Because we don't call that function when cache_only_enabled is True
+                    # the _successful_published will be set().  Therefore we don't need to wrap
+                    # this call with check of cache_only_enabled
                     backupdb.remove_successfully_published(
-                        self._successful_published, self._submit_size_limit)
+                            self._successful_published, self._submit_size_limit)
 
                     backlog_count = backupdb.get_backlog_count()
                     old_backlog_state = self._current_status_context[STATUS_KEY_BACKLOGGED]
                     self._update_status({STATUS_KEY_PUBLISHING: True,
                                          STATUS_KEY_BACKLOGGED: old_backlog_state and backlog_count > 0,
-                                         STATUS_KEY_CACHE_COUNT: backlog_count})
+                                         STATUS_KEY_CACHE_COUNT: backlog_count,
+                                         STATUS_KEY_CACHE_ONLY: cache_only_enabled})
 
                     if None in self._successful_published:
                         current_published_count += len(to_publish_list)
@@ -1207,9 +1290,6 @@ class BaseHistorianAgent(Agent):
         try:
             _log.info("Trying to setup historian")
             self.historian_setup()
-            if not self._readonly:
-                # Record the names of data, topics, meta tables in a metadata table
-                self.record_table_definitions(self.volttron_table_defs)
             if self._setup_failed:
                 self._setup_failed = False
                 self._update_status({STATUS_KEY_PUBLISHING: True})
@@ -1302,19 +1382,6 @@ class BaseHistorianAgent(Agent):
         arrives from the config store.
         """
 
-    @abstractmethod
-    def record_table_definitions(self, meta_table_name):
-        """
-        Record the table or collection names in which data, topics and
-        metadata are stored into the metadata table.  This is essentially
-        information from information from configuration item
-        'table_defs'. The metadata table contents will be used by the
-        corresponding aggregate historian(if any)
-
-        :param meta_table_name: table name into which the table names and
-        table name prefix for data, topics, and meta tables should be inserted
-        """
-
 #TODO: Finish this.
 # from collections import deque
 #
@@ -1394,24 +1461,30 @@ class BackupDatabase:
         self._backup_cache = {}
         # Count of records in cache.
         self._record_count = 0
+        self.time_error_records = False
         self._meta_data = defaultdict(dict)
         self._owner = weakref.ref(owner)
         self._backup_storage_limit_gb = backup_storage_limit_gb
         self._backup_storage_report = backup_storage_report
         self._connection = None
         self._setupdb(check_same_thread)
+        self._dupe_ids = []
+        self._unique_ids = []
 
-    def backup_new_data(self, new_publish_list):
+    def backup_new_data(self, new_publish_list, time_tolerance_check=False):
         """
         :param new_publish_list: An iterable of records to cache to disk.
         :type new_publish_list: iterable
+        :param time_tolerance_check: Boolean to know if time tolerance check is enabled.default =False
         :returns: True if records the cache has reached a full state.
         :rtype: bool
         """
         #_log.debug("Backing up unpublished values.")
         c = self._connection.cursor()
-
+        self.time_error_records = False # will update at the end of the method
         for item in new_publish_list:
+            if item is None:
+                continue
             source = item['source']
             topic = item['topic']
             meta = item.get('meta', {})
@@ -1438,21 +1511,47 @@ class BackupDatabase:
                               (source, topic_id, name, value))
                     meta_dict[name] = value
 
-            for timestamp, value in readings:
-                if timestamp is None:
-                    timestamp = get_aware_utc_now()
-                try:
-                    c.execute(
-                        '''INSERT INTO outstanding
-                        values(NULL, ?, ?, ?, ?, ?)''',
-                        (timestamp, source, topic_id, dumps(value), dumps(headers)))
-                    self._record_count += 1
-                except sqlite3.IntegrityError:
-                    # In the case where we are upgrading an existing installed historian the
-                    # unique constraint may still exist on the outstanding database.
-                    # Ignore this case.
-                    _log.warning(f"sqlite3.Integrity error -- {e}")
-                    pass
+            # Check outside loop so that we do the check inside loop only if necessary
+            if time_tolerance_check:
+                for timestamp, value in readings:
+                    if timestamp is None:
+                        timestamp = get_aware_utc_now()
+                    elif headers["time_error"]:
+                        _log.warning(f"Found data with timestamp {timestamp} that is out of configured tolerance ")
+                        c.execute(
+                            '''INSERT INTO time_error
+                            values(NULL, ?, ?, ?, ?, ?)''',
+                            (timestamp, source, topic_id, dumps(value), dumps(headers)))
+                        self.time_error_records = True
+                        continue  # continue to the next record. don't record in outstanding
+                    try:
+                        c.execute(
+                            '''INSERT INTO outstanding
+                            values(NULL, ?, ?, ?, ?, ?)''',
+                            (timestamp, source, topic_id, dumps(value), dumps(headers)))
+                        self._record_count += 1
+                    except sqlite3.IntegrityError as e:
+                        # In the case where we are upgrading an existing installed historian the
+                        # unique constraint may still exist on the outstanding database.
+                        # Ignore this case.
+                        _log.warning(f"sqlite3.Integrity error -- {e}")
+                        pass
+            else:
+                for timestamp, value in readings:
+                    if timestamp is None:
+                        timestamp = get_aware_utc_now()
+                    try:
+                        c.execute(
+                            '''INSERT INTO outstanding
+                            values(NULL, ?, ?, ?, ?, ?)''',
+                            (timestamp, source, topic_id, dumps(value), dumps(headers)))
+                        self._record_count += 1
+                    except sqlite3.IntegrityError as e:
+                        # In the case where we are upgrading an existing installed historian the
+                        # unique constraint may still exist on the outstanding database.
+                        # Ignore this case.
+                        _log.warning(f"sqlite3.Integrity error -- {e}")
+                        pass
 
         cache_full = False
         if self._backup_storage_limit_gb is not None:
@@ -1476,39 +1575,66 @@ class BackupDatabase:
                 # page count doesnt update even after deleting all records
                 # and record count becomes zero. If we have deleted all record
                 # exit.
-                _log.debug(f"record count before check is {self._record_count} page count is {p}"
-                           f" free count is {f}")
+                # _log.debug(f"record count before check is {self._record_count} page count is {p}"
+                #            f" free count is {f}")
                 # max_pages  gets updated based on inserts but freelist_count doesn't
                 # enter delete loop based on page_count
                 min_free_pages = p - self.max_pages
+                error_record_count = 0
+                get_error_count_from_db = True
                 while p > self.max_pages:
                     cache_full = True
-                    c.execute(
-                        '''DELETE FROM outstanding
-                        WHERE ROWID IN
-                        (SELECT ROWID FROM outstanding
-                        ORDER BY ROWID ASC LIMIT 100)''')
-                    #self._connection.commit()
-                    if self._record_count < c.rowcount:
-                        self._record_count = 0
+                    if time_tolerance_check and get_error_count_from_db:
+                        # if time_tolerance_check is enabled and this the first time
+                        # we get into this loop, get the count from db
+                        c.execute("SELECT count(ts) from time_error")
+                        error_record_count = c.fetchone()[0]
+                        get_error_count_from_db = False # after this we will reduce count as we delete
+                    if error_record_count > 0:
+                        # if time_error table has records, try deleting those first before outstanding table
+                        _log.info("cache size exceeded limit Deleting data from time_error")
+                        c.execute(
+                            '''DELETE FROM time_error
+                            WHERE ROWID IN
+                            (SELECT ROWID FROM time_error
+                            ORDER BY ROWID ASC LIMIT 100)''')
+                        error_record_count -= c.rowcount
                     else:
-                        self._record_count -= c.rowcount
-                    p = page_count()  #page count doesn't reflect delete without commit
-                    f = free_count() # freelist count does. So using that to break from loop
+                        # error record count is 0, sp set time_error_records to False
+                        self.time_error_records = False
+                        _log.info("cache size exceeded limit Deleting data from outstanding")
+                        c.execute(
+                            '''DELETE FROM outstanding
+                            WHERE ROWID IN
+                            (SELECT ROWID FROM outstanding
+                            ORDER BY ROWID ASC LIMIT 100)''')
+                        if self._record_count < c.rowcount:
+                            self._record_count = 0
+                        else:
+                            self._record_count -= c.rowcount
+                    p = page_count()  # page count doesn't reflect delete without commit
+                    f = free_count()  # freelist count does. So using that to break from loop
                     if f >= min_free_pages:
                         break
                     _log.debug(f" Cleaning cache since we are over the limit. "
                                f"After delete of 100 records from cache"
-                               f" record count is {self._record_count} page count is {p} freelist count is{f}")
+                               f" record count is {self._record_count} time_error record count is {error_record_count} "
+                               f"page count is {p} freelist count is{f}")
 
-            except Exception as e:
-                _log.warning(f"Exception when check page count and deleting{e}")
+            except Exception:
+                _log.exception(f"Exception when checking page count and deleting")
 
         try:
             self._connection.commit()
-        except Exception as e:
-            _log.warning(f"Exception in committing after back db storage {e}")
+        except Exception:
+            _log.exception(f"Exception in committing after back db storage")
 
+        if time_tolerance_check and not self.time_error_records:
+            # No time error records in this batch. Check if there are records from earlier inserts
+            # that admin hasn't dealt with yet.
+            c.execute("SELECT ROWID FROM time_error LIMIT 1")
+            if c.fetchone():
+                self.time_error_records = True
         return cache_full
 
     def remove_successfully_published(self, successful_publishes,
@@ -1518,41 +1644,44 @@ class BackupDatabase:
         If None is found in `successful_publishes` we assume that everything
         was published.
 
-        :param successful_publishes: List of records that was published.
+        :param successful_publishes: Set of records that was published.
         :param submit_size: Number of things requested from previous call to
                             :py:meth:`get_outstanding_to_publish`
 
-        :type successful_publishes: list
+        :type successful_publishes: set
         :type submit_size: int
 
         """
 
-        #_log.debug("Cleaning up successfully published values.")
         c = self._connection.cursor()
-
-        if None in successful_publishes:
-            c.execute('''DELETE FROM outstanding
-                        WHERE ROWID IN
-                        (SELECT ROWID FROM outstanding
-                          ORDER BY ts LIMIT ?)''', (submit_size,))
-            if self._record_count < c.rowcount:
-                self._record_count = 0
+        try:
+            if None in successful_publishes:
+                c.executemany('''DELETE FROM outstanding
+                                          WHERE id = ?''',
+                              ((_id,) for _id in self._unique_ids))
+                if self._record_count < c.rowcount:
+                    self._record_count = 0
+                else:
+                    self._record_count -= len(self._unique_ids)
             else:
-                self._record_count -= c.rowcount
-        else:
-            temp = list(successful_publishes)
-            temp.sort()
-            c.executemany('''DELETE FROM outstanding
-                            WHERE id = ?''',
-                          ((_id,) for _id in
-                           successful_publishes))
-            self._record_count -= len(temp)
+                temp = list(successful_publishes)
+                temp.sort()
+                c.executemany('''DELETE FROM outstanding
+                                WHERE id = ?''',
+                              ((_id,) for _id in
+                               successful_publishes))
+                self._record_count -= len(temp)
+        finally:
+            # if we don't clear these attributes on every publish, we could possibly delete a non-existing record on the next publish
+            self._unique_ids.clear()
+            self._dupe_ids.clear()
 
         self._connection.commit()
 
     def get_outstanding_to_publish(self, size_limit):
         """
-        Retrieve up to `size_limit` records from the cache.
+        Retrieve up to `size_limit` records from the cache. Guarantees a unique list of records,
+        where unique is defined as (topic, timestamp).
 
         :param size_limit: Max number of records to retrieve.
         :type size_limit: int
@@ -1561,9 +1690,9 @@ class BackupDatabase:
         """
         # _log.debug("Getting oldest outstanding to publish.")
         c = self._connection.cursor()
-        c.execute('select * from outstanding order by ts limit ?',
-                  (size_limit,))
+        c.execute('select * from outstanding order by ts limit ?', (size_limit,))
         results = []
+        unique_records = set()
         for row in c:
             _id = row[0]
             timestamp = row[1]
@@ -1572,29 +1701,42 @@ class BackupDatabase:
             value = loads(row[4])
             headers = {} if row[5] is None else loads(row[5])
             meta = self._meta_data[(source, topic_id)].copy()
+            topic = self._backup_cache[topic_id]
+
+            # check for duplicates before appending row to results
+            if (topic_id, timestamp) in unique_records:
+                _log.debug(f"Found duplicate from cache: {row}")
+                self._dupe_ids.append(_id)
+                continue
+            unique_records.add((topic_id, timestamp))
+            self._unique_ids.append(_id)
+
             results.append({'_id': _id,
                             'timestamp': timestamp.replace(tzinfo=pytz.UTC),
                             'source': source,
-                            'topic': self._backup_cache[topic_id],
+                            'topic': topic,
                             'value': value,
                             'headers': headers,
                             'meta': meta})
 
         c.close()
-
         # If we were backlogged at startup and our initial estimate was
         # off this will correct it.
         if len(results) < size_limit:
             self._record_count = len(results)
 
+        # if we have duplicates, we must count them as part of the "real" total of _record_count
+        if self._dupe_ids:
+            _log.debug(f"Adding duplicates to the total record count: {self._dupe_ids}")
+            self._record_count += len(self._dupe_ids)
+
         return results
 
     def get_backlog_count(self):
         """
-        Retrieve the current number of records in the cashe.
+        Retrieve the current number of records in the cache.
         """
         return self._record_count
-
 
     def close(self):
         self._connection.close()
@@ -1603,13 +1745,13 @@ class BackupDatabase:
     def _setupdb(self, check_same_thread):
         """ Creates a backup database for the historian if doesn't exist."""
 
-        _log.debug("Setting up backup DB.")
-        if utils.is_secure_mode():
-            # we want to create it in the agent-data directory since agent will not have write access to any other
-            # directory in secure mode
-            backup_db = os.path.join(os.getcwd(), os.path.basename(os.getcwd()) + ".agent-data", 'backup.sqlite')
-        else:
-            backup_db = 'backup.sqlite'
+        _log.debug(f"Setting up backup DB. {os.getcwd()}")
+        # we want to create it in the agent-data directory since agent will not have write access to any other
+        # directory in secure mode
+        # TODO - revisit logic to get agent-data directory. Refer to aip.get_agent_data()
+        # Also take into account dynamic agents - especially for testing
+        backup_db = os.path.join(os.getcwd(), os.path.basename(os.getcwd()) + ".agent-data", 'backup.sqlite')
+
         _log.info(f"Creating  backup db at {backup_db}")
         self._connection = sqlite3.connect(
             backup_db,
@@ -1631,7 +1773,7 @@ class BackupDatabase:
         if c.fetchone() is None:
             _log.debug("Configuring backup DB for the first time.")
             self._connection.execute('''PRAGMA auto_vacuum = FULL''')
-            self._connection.execute('''CREATE TABLE outstanding
+            self._connection.execute('''CREATE TABLE IF NOT EXISTS outstanding
                                         (id INTEGER PRIMARY KEY,
                                          ts timestamp NOT NULL,
                                          source TEXT NOT NULL,
@@ -1681,10 +1823,25 @@ class BackupDatabase:
                                            ON outstanding (ts)''')
 
         c.execute("SELECT name FROM sqlite_master WHERE type='table' "
+                  "AND name='time_error';")
+
+        if c.fetchone() is None:
+            _log.debug("Configuring backup DB for the first time.")
+            self._connection.execute('''PRAGMA auto_vacuum = FULL''')
+            self._connection.execute('''CREATE TABLE IF NOT EXISTS time_error
+                                                (id INTEGER PRIMARY KEY,
+                                                 ts timestamp NOT NULL,
+                                                 source TEXT NOT NULL,
+                                                 topic_id INTEGER NOT NULL,
+                                                 value_string TEXT NOT NULL,
+                                                 header_string TEXT)''')
+            c.execute('''CREATE INDEX time_error_ts_index ON time_error (ts)''')
+
+        c.execute("SELECT name FROM sqlite_master WHERE type='table' "
                   "AND name='metadata';")
 
         if c.fetchone() is None:
-            self._connection.execute('''CREATE TABLE metadata
+            self._connection.execute('''CREATE TABLE IF NOT EXISTS metadata
                                         (source TEXT NOT NULL,
                                          topic_id INTEGER NOT NULL,
                                          name TEXT NOT NULL,
@@ -1699,7 +1856,7 @@ class BackupDatabase:
                   "AND name='topics';")
 
         if c.fetchone() is None:
-            self._connection.execute('''create table topics
+            self._connection.execute('''create table IF NOT EXISTS topics
                                         (topic_id INTEGER PRIMARY KEY,
                                          topic_name TEXT NOT NULL,
                                          UNIQUE(topic_name))''')
@@ -1758,6 +1915,7 @@ class BaseQueryHistorianAgent(Agent):
             else:
                 time_parser = yacc.yacc(write_tables=0)
         super(BaseQueryHistorianAgent, self).__init__(**kwargs)
+
     @RPC.export
     def get_version(self):
         """RPC call to get the version of the historian

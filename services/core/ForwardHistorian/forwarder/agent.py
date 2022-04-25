@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -66,10 +66,8 @@ def historian(config_path, **kwargs):
     custom_topic_list = config.pop('custom_topic_list', [])
     topic_replace_list = config.pop('topic_replace_list', [])
     destination_vip = config.pop('destination-vip', None)
-    destination_instance_name = config.pop('destination-instance-name', None)
     service_topic_list = config.pop('service_topic_list', None)
     destination_serverkey = None
-    # This will trigger rmq based forwarder
     try:
         destination_address = config.pop('destination-address')
     except KeyError:
@@ -107,7 +105,6 @@ def historian(config_path, **kwargs):
                             topic_replace_list=topic_replace_list,
                             required_target_agents=required_target_agents,
                             cache_only=cache_only,
-                            destination_instance_name=destination_instance_name,
                             destination_address=destination_address,
                             **kwargs)
 
@@ -123,7 +120,6 @@ class ForwardHistorian(BaseHistorian):
                  topic_replace_list=[],
                  required_target_agents=[],
                  cache_only=False,
-                 destination_instance_name=None,
                  destination_address=None,
                  **kwargs):
         kwargs["process_loop_in_greenlet"] = True
@@ -140,14 +136,12 @@ class ForwardHistorian(BaseHistorian):
         self.destination_serverkey = destination_serverkey
         self.required_target_agents = required_target_agents
         self.cache_only = cache_only
-        self.destination_instance_name = destination_instance_name
         self.destination_address = destination_address
         config = {
             "custom_topic_list": custom_topic_list,
             "topic_replace_list": self.topic_replace_list,
             "required_target_agents": self.required_target_agents,
             "destination_vip": self.destination_vip,
-            "destination_instance_name": self.destination_instance_name,
             "destination_serverkey": self.destination_serverkey,
             "cache_only": self.cache_only,
             "destination_address": self.destination_address
@@ -164,7 +158,6 @@ class ForwardHistorian(BaseHistorian):
         custom_topic_set = set(configuration.get('custom_topic_list', []))
         self.destination_vip = str(configuration.get('destination_vip', ""))
         self.destination_serverkey = str(configuration.get('destination_serverkey', ""))
-        self.destination_instance_name = str(configuration.get('destination_instance_name', ""))
         self.required_target_agents = configuration.get('required_target_agents', [])
         self.topic_replace_list = configuration.get('topic_replace_list', [])
         self.cache_only = configuration.get('cache_only', False)
@@ -302,7 +295,7 @@ class ForwardHistorian(BaseHistorian):
             # if the topic wasn't changed then we don't forward anything for
             # it.
             if topic == original_topic:
-                _log.warn(
+                _log.warning(
                     "Topic {} not published because not anonymized.".format(original_topic))
                 return
 
@@ -351,7 +344,7 @@ class ForwardHistorian(BaseHistorian):
             except Unreachable:
                 skip = "Skipping publish: Target platform not running " \
                        "required agent {}".format(vip_id)
-                _log.warn(skip)
+                _log.warning(skip)
                 self.vip.health.set_status(
                     STATUS_BAD, skip)
                 return

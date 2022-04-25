@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -219,9 +219,6 @@ class BACnetApplication(BIPSimpleApplication, RecurringTask):
 
     def _get_value_from_read_property_request(self, apdu, working_iocb):
         # find the datatype
-
-        #_log.debug("WIGGEDYWACKYO")
-
         datatype = get_datatype(apdu.objectIdentifier[0], apdu.propertyIdentifier)
         if not datatype:
             working_iocb.set_exception(TypeError("unknown datatype"))
@@ -517,7 +514,7 @@ class BACnetProxyAgent(Agent):
 
         def forward_cov_callback(point_name, apdu, result_dict):
             """
-            Asynchronous callback to forward cov values to the master driver
+            Asynchronous callback to forward cov values to the platform driver
             for gevent
             """
             async_call.send(None, self.forward_cov, point_name, apdu, result_dict)
@@ -595,13 +592,13 @@ class BACnetProxyAgent(Agent):
         self.who_is(device_id, device_id, target_address)
 
     def _cast_value(self, value, datatype):
-            if datatype is Integer:
-                value = int(value)
-            elif datatype is Real:
-                value = float(value)
-            elif datatype is Unsigned:
-                value = int(value)
-            return datatype(value)
+        if datatype is Integer:
+            value = int(value)
+        elif datatype is Real:
+            value = float(value)
+        elif datatype is Unsigned:
+            value = int(value)
+        return datatype(value)
 
     @RPC.export
     def write_property(self, target_address, value, object_type, instance_number, property_name, priority=None,

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -104,8 +104,8 @@ def test_multi_messagebus_forwarder(multi_messagebus_forwarder):
     subscriber_agent.callback = MagicMock(name="callback")
     subscriber_agent.callback.reset_mock()
     subscriber_agent.vip.pubsub.subscribe(peer='pubsub',
-                               prefix='devices',
-                               callback=subscriber_agent.callback).get()
+                                          prefix='devices',
+                                          callback=subscriber_agent.callback).get()
 
     subscriber_agent.analysis_callback = MagicMock(name="analysis_callback")
     subscriber_agent.analysis_callback.reset_mock()
@@ -165,7 +165,7 @@ def test_multi_messagebus_custom_topic_forwarder(multi_messagebus_forwarder):
         value = 78.5 + i
         publish(publish_agent, topic, headers, value)
         gevent.sleep(0.1)
-    gevent.sleep(1)
+    gevent.sleep(5)
     assert subscriber_agent.callback.call_count == 5
 
 
@@ -176,6 +176,7 @@ def test_multi_messagebus_forwarder_reconnection(multi_messagebus_forwarder):
     :return:
     """
     from_instance, to_instance = multi_messagebus_forwarder
+    orig_to_instance_skip_cleanup = to_instance.skip_cleanup
     to_instance.skip_cleanup = True
 
     # Restart target platform
@@ -183,6 +184,8 @@ def test_multi_messagebus_forwarder_reconnection(multi_messagebus_forwarder):
     gevent.sleep(3)
     to_instance.restart_platform()
     gevent.sleep(5)
+
+    to_instance.skip_cleanup = orig_to_instance_skip_cleanup
 
     publish_agent = from_instance.dynamic_agent
     subscriber_agent = to_instance.dynamic_agent
@@ -209,3 +212,4 @@ def test_multi_messagebus_forwarder_reconnection(multi_messagebus_forwarder):
 
     gevent.sleep(3)
     assert subscriber_agent.callback.call_count == 3
+

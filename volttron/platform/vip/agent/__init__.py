@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -78,14 +78,19 @@ class Agent(object):
 
     def __init__(self, identity=None, address=None, context=None,
                  publickey=None, secretkey=None, serverkey=None,
-                 heartbeat_autostart=False, heartbeat_period=60,
-                 volttron_home=os.path.abspath(platform.get_home()),
+                 # Since heartbeat is now 100% tied to status on the vctl change the defaults
+                 # to auto start the heartbeat.
+                 heartbeat_autostart=True, heartbeat_period=60,
+                 volttron_home=None,
                  agent_uuid=None, enable_store=True,
                  enable_web=False, enable_channel=False,
                  reconnect_interval=None, version='0.1', enable_fncs=False,
                  instance_name=None, message_bus=None,
                  volttron_central_address=None, volttron_central_instance_name=None):
 
+        if volttron_home is None:
+            volttron_home = os.path.abspath(platform.get_home())
+            
         try:
             self._version = version
 

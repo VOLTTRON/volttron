@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -44,7 +44,8 @@ from volttron.utils.rmq_mgmt import RabbitMQMgmt
 from mock import patch
 from urllib.parse import urlencode
 from volttrontesting.utils.web_utils import get_test_web_env
-from volttrontesting.fixtures.volttron_platform_fixtures import get_test_volttron_home
+from volttrontesting.fixtures.volttron_platform_fixtures import \
+    get_test_volttron_home, rmq_skipif
 
 from volttron.platform import jsonapi
 from passlib.hash import argon2
@@ -70,7 +71,7 @@ def test_admin_unauthorized():
 
 
 @pytest.mark.web
-def test_set_master_password_setup():
+def test_set_platform_password_setup():
     with get_test_volttron_home(messagebus='zmq') as vhome:
         # Note these passwords are not right so we expect to be redirected back to the
         # first.html
@@ -191,6 +192,7 @@ def test_add_user():
 
 
 @pytest.mark.web
+@rmq_skipif
 def test_construction():
 
     # within rabbitmq mgmt this is used

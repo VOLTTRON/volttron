@@ -11,15 +11,26 @@ def user_pass():
     yield 'admin', 'admin'
 
 
-def test_can_create_admin_user(volttron_instance_web, user_pass):
+def test_can_authenticate_admin_user(volttron_instance_web, user_pass):
     instance = volttron_instance_web
-
-    if instance.messagebus != 'rmq':
-        pytest.skip("Only for rmq at this point in time.")
-        return
 
     webadmin = instance.web_admin_api
 
+    user, password = user_pass
+
+    resp = webadmin.authenticate(user, password)
+    assert resp.ok
+    assert resp.headers.get('Content-Type') == 'application/json'
+
+    resp = webadmin.authenticate('fake', password)
+    assert resp.status_code == 401  # unauthorized
+    assert resp.headers.get('Content-Type') == 'text/html'
+
+
+@pytest.mark.skip(reason="Can't test using platformwrapper. Needs to be unit test")
+def test_can_create_admin_user(volttron_instance_web, user_pass):
+    instance = volttron_instance_web
+    webadmin = instance.web_admin_api
     user, password = user_pass
 
     resp = webadmin.create_web_admin(user, password)
@@ -29,10 +40,9 @@ def test_can_create_admin_user(volttron_instance_web, user_pass):
 
     resp = webadmin.authenticate(user, password)
     assert resp.ok
-    assert resp.headers.get('Content-Type') == 'text/plain'
+    assert resp.headers.get('Content-Type') == 'application/json'
 
     resp = webadmin.authenticate('fake', password)
     assert resp.status_code == 401  # unauthorized
     assert resp.headers.get('Content-Type') == 'text/html'
-
 

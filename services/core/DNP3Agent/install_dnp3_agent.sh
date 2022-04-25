@@ -7,7 +7,7 @@ export AGENT_MODULE=dnp3.agent
 
 cd $VOLTTRON_ROOT
 
-python scripts/install-agent.py -s $DNP3_ROOT -i dnp3agent -c $DNP3_ROOT/dnp3agent.config -t dnp3agent -f
+python scripts/install-agent.py -s $DNP3_ROOT -i dnp3agent -c $DNP3_ROOT/config -t dnp3agent -f
 
 # Put the agent's point definitions in the config store.
 cd $VOLTTRON_ROOT

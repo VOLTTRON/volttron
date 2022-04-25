@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -540,7 +540,7 @@ class ActuatorAgent(Agent):
         state to. This file is updated every time a schedule changes. 
     :param preempt_grace_time: Time in seconds after a schedule is preemted
         before it is actually cancelled. 
-    :param driver_vip_identity: VIP identity of the Master Driver Agent. 
+    :param driver_vip_identity: VIP identity of the Platform Driver Agent.
 
     :type heartbeat_interval: float
     :type schedule_publish_interval: float
@@ -603,7 +603,7 @@ class ActuatorAgent(Agent):
         self.schedule_publish_interval = schedule_publish_interval
         self.allow_no_lock_write = allow_no_lock_write
 
-        _log.debug("MasterDriver VIP IDENTITY: {}".format(self.driver_vip_identity))
+        _log.debug("PlatformDriver VIP IDENTITY: {}".format(self.driver_vip_identity))
         _log.debug("Schedule publish interval: {}".format(self.schedule_publish_interval))
 
         #Only restart the heartbeat if it changes.
@@ -661,7 +661,7 @@ class ActuatorAgent(Agent):
             self.vip.rpc.call(self.driver_vip_identity, 'heart_beat').get(
                 timeout=20.0)
         except Unreachable:
-            _log.warning("Master driver is not running")
+            _log.warning("Platform driver is not running")
         except (Exception, gevent.Timeout) as e:
             _log.warning(''.join([e.__class__.__name__, '(', str(e), ')']))
 
@@ -976,7 +976,7 @@ class ActuatorAgent(Agent):
         """RPC method
 
         Get multiple points on multiple devices. Makes a single
-        RPC call to the master driver per device.
+        RPC call to the platform driver per device.
 
         :param topics: List of topics or list of [device, point] pairs.
         :param \*\*kwargs: Any driver specific parameters
@@ -1020,7 +1020,7 @@ class ActuatorAgent(Agent):
         """RPC method
 
         Set multiple points on multiple devices. Makes a single
-        RPC call to the master driver per device.
+        RPC call to the platform driver per device.
 
         :param requester_id: Ignored, VIP Identity used internally
         :param topics_values: List of (topic, value) tuples

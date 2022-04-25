@@ -60,7 +60,7 @@ The **install_dnp3_agent.sh** script installs the agent:
     (volttron) $ export DNP3_ROOT=$VOLTTRON_ROOT/services/core/DNP3Agent
     (volttron) $ export AGENT_MODULE=dnp3.agent
     (volttron) $ cd $VOLTTRON_ROOT
-    (volttron) $ python scripts/install-agent.py -s $DNP3_ROOT -i dnp3agent -c $DNP3_ROOT/dnp3agent.config -t dnp3agent -f
+    (volttron) $ python scripts/install-agent.py -s $DNP3_ROOT -i dnp3agent -c $DNP3_ROOT/config -t dnp3agent -f
 
 (Note that $AGENT_MODULE directs the installer to use agent
 source code residing in the "dnp3" directory.)

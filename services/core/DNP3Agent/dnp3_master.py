@@ -47,7 +47,7 @@ class DNP3Master:
                  log_handler=asiodnp3.ConsoleLogger().Create(),
                  channel_listener=asiodnp3.PrintingChannelListener().Create(),
                  soe_handler=asiodnp3.PrintingSOEHandler().Create(),
-                 master_application=asiodnp3.DefaultMasterApplication().Create(),
+                 platform_application=asiodnp3.DefaultMasterApplication().Create(),
                  stack_config=None):
 
         self.log_levels = log_levels
@@ -57,7 +57,7 @@ class DNP3Master:
         self.log_handler = log_handler
         self.channel_listener = channel_listener
         self.soe_handler = soe_handler
-        self.master_application = master_application
+        self.platform_application = platform_application
 
         self.stackConfig = stack_config
         if not self.stackConfig:
@@ -90,7 +90,7 @@ class DNP3Master:
         # This returns a thread-safe interface used for sending commands.
         self.master = self.channel.AddMaster("master",
                                              self.soe_handler,
-                                             self.master_application,
+                                             self.platform_application,
                                              self.stackConfig)
 
         # Enable the master. This will start communications.
@@ -507,7 +507,7 @@ def main():
     dnp3_master = DNP3Master(log_handler=LogHandler(),
                              channel_listener=ChannelListener(),
                              soe_handler=SOEHandler(),
-                             master_application=MasterApplication())
+                             platform_application=MasterApplication())
     dnp3_master.connect()
     # Ad-hoc tests can be inserted here if desired.
     dnp3_master.shutdown()

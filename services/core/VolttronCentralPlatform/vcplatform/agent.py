@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -50,6 +50,7 @@ import sys
 import tempfile
 import urllib.parse
 from collections import defaultdict
+from argparse import Namespace
 
 import gevent
 import gevent.event
@@ -57,6 +58,7 @@ import psutil
 from enum import Enum
 
 from volttron.platform.agent import utils
+from volttron.platform.install_agents import install_agent_local
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -129,7 +131,7 @@ class VolttronCentralPlatform(Agent):
     def __init__(self, reconnect_interval, vc_address,
                  vc_serverkey, instance_name, stats_publish_interval,
                  topic_replace_map, device_status_interval, platform_driver_ids, **kwargs):
-        super(VolttronCentralPlatform, self).__init__(**kwargs)
+        super(VolttronCentralPlatform, self).__init__(enable_channel=True, **kwargs)
 
         # This is scheduled after first call to the reconnect function
         self._scheduled_connection_event = None
@@ -189,8 +191,8 @@ class VolttronCentralPlatform(Agent):
         self._platform_driver_ids = None
         self._device_publishes = {}
         self._devices = {}
-        # master driver config store stat times
-        self._master_driver_stat_times = {}
+        # platform driver config store stat times
+        self._platform_driver_stat_times = {}
 
         # instance id is the vip identity of this agent on the remote platform.
         self._instance_id = None
@@ -539,10 +541,10 @@ class VolttronCentralPlatform(Agent):
             return self._vc_connection
 
         if self._vc_address is None or self._vc_serverkey is None:
-            _log.warn('volttron_central_address is None in config store '
-                      'and volttron.central is not a peer.')
-            _log.warn('Recommend adding volttron.central address or adding a '
-                      '"config" file to the config store.')
+            _log.warning('volttron_central_address is None in config store '
+                         'and volttron.central is not a peer.')
+            _log.warning('Recommend adding volttron.central address or adding a '
+                         '"config" file to the config store.')
             return None
 
         self._vc_connection = build_agent(
@@ -750,7 +752,7 @@ class VolttronCentralPlatform(Agent):
         for a in agents:
             pinfo = None
             is_running = False
-            for uuid, name, proc_info in status_running:
+            for uuid, name, proc_info, _ in status_running:
                 if a['uuid'] == uuid:
                     is_running = proc_info[0] > 0 and proc_info[1] == None
                     pinfo = proc_info
@@ -802,10 +804,12 @@ class VolttronCentralPlatform(Agent):
                         "Couldn't reach agent identity {} uuid: {}".format(
                             identity, a['uuid']
                         ))
+
         for a in agents:
             if a['uuid'] in uuid_to_status:
                 _log.debug('UPDATING STATUS OF: {}'.format(a['uuid']))
                 a.update(uuid_to_status[a['uuid']])
+
         return agents
 
     def store_agent_config(self, agent_identity, config_name, raw_contents,
@@ -952,13 +956,13 @@ class VolttronCentralPlatform(Agent):
         for platform_driver_id in self._platform_driver_ids:
             fname = os.path.join(os.environ['VOLTTRON_HOME'], "configuration_store/{}.store".format(platform_driver_id))
             stat_time = os.stat(fname).st_mtime if os.path.exists(fname) else None
-            if self._master_driver_stat_times.get(platform_driver_id, None) != stat_time:
+            if self._platform_driver_stat_times.get(platform_driver_id, None) != stat_time:
                 config_changed = True
             found_a_platform_driver = found_a_platform_driver or stat_time
-            self._master_driver_stat_times[platform_driver_id] = stat_time
+            self._platform_driver_stat_times[platform_driver_id] = stat_time
 
         if not found_a_platform_driver:
-            _log.debug("No master driver currently on this platform.")
+            _log.debug("No platform driver currently on this platform.")
             return {}
 
         if not config_changed:
@@ -1145,6 +1149,14 @@ class VolttronCentralPlatform(Agent):
         try:
             _log.debug('Installing agent FILEARGS: {}'.format(fileargs))
             vip_identity = fileargs.get('vip_identity', None)
+            agent_tag = fileargs.get('tag', None)
+            agent_enable = fileargs.get('enable', None)
+            agent_start = fileargs.get('start', None)
+            agent_priority = fileargs.get('priority', -1)
+            agent_force = fileargs.get('force', False)
+            agent_csv = fileargs.get('csv', None)
+            agent_json = fileargs.get('json', None)
+            agent_st = fileargs.get('st', 5)
             if 'local' in fileargs:
                 path = fileargs['file_name']
             else:
@@ -1158,13 +1170,23 @@ class VolttronCentralPlatform(Agent):
                 # after base64,
                 with open(path, 'wb') as fout:
                     fout.write(
-                        base64.decodestring(
+                        base64.decodebytes(
                             fileargs['file'].split(base64_sep)[1].encode('utf-8')
                         )
                     )
-            uuid = self.vip.rpc.call(CONTROL, 'install_agent_local',
-                                     path, vip_identity=vip_identity
-                                     ).get(timeout=30)
+            opts = Namespace(connection=self._vc_connection,
+                             install_path=path,
+                             vip_identity=vip_identity,
+                             tag=agent_tag,
+                             enable=agent_enable,
+                             start=agent_start,
+                             priority=agent_priority,
+                             force=agent_force,
+                             csv=agent_csv,
+                             json=agent_json,
+                             st=agent_st
+                             )
+            uuid = install_agent_local(opts)
             result = dict(uuid=uuid)
         except Exception as e:
             err_str = "EXCEPTION: " + str(e)

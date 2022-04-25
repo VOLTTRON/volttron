@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -35,7 +35,7 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-
+import inspect
 import os
 import re
 
@@ -138,3 +138,15 @@ class AbsolutePathFileReloader(PatternMatchingEventHandler):
         except BaseException as e:
             _log.error("Exception in callback: {}".format(e))
         _log.debug("After callback on event {}".format(event))
+
+
+def print_stack():
+    """
+    Utility function to print the full frames stack of a function call.
+
+    The format of the stack is filename->function:lineno
+    """
+    called = 0
+    for x in inspect.stack():
+        _log.debug(f"stack: [{called}] {x.filename}->{x.function}:{x.lineno}")
+        called += 1

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -53,14 +53,14 @@ from requests.packages.urllib3.connection import (ConnectionError,
                                                   NewConnectionError)
 import os
 from volttron.platform import certs
-from volttron.platform import jsonapi
-from . rmq_config_params import RMQConfig
+from volttron.platform import jsonapi, get_home
+from .rmq_config_params import RMQConfig, read_config_file, write_to_config_file
+
 
 try:
     import yaml
 except ImportError:
     raise RuntimeError('PyYAML must be installed before running this script ')
-
 
 _log = logging.getLogger(__name__)
 
@@ -123,7 +123,6 @@ class RabbitMQMgmt(object):
                        "args {} : {}".format(url, kwargs, e))
             raise e
         return response
-
 
     def _get_authentication_args(self, ssl_auth):
         """
@@ -296,7 +295,7 @@ class RabbitMQMgmt(object):
         try:
             response = self._http_delete_request(url, ssl_auth)
         except requests.exceptions.HTTPError as e:
-            if not e.message.startswith("404 Client Error"):
+            if e.response.status_code == 404:
                 raise
 
     def delete_users_in_bulk(self, users, ssl_auth=None):
@@ -329,7 +328,7 @@ class RabbitMQMgmt(object):
             response = self._http_get_request(url, ssl_auth)
             return response
         except requests.exceptions.HTTPError as e:
-            if e.message.startswith("404 Client Error"):
+            if e.response.status_code == 404:
                 # No permissions are set for this user yet. Return none
                 # so caller can try to set permissions
                 return None
@@ -349,8 +348,8 @@ class RabbitMQMgmt(object):
         """
         ssl_auth = ssl_auth if ssl_auth is not None else self.is_ssl
         vhost = vhost if vhost else self.rmq_config.virtual_host
-        _log.debug("Create READ, WRITE and CONFIGURE permissions for the user: "
-                   "{}".format(user))
+        #_log.debug("Create READ, WRITE and CONFIGURE permissions for the user: "
+        #           "{}".format(user))
         url = '/api/permissions/{vhost}/{user}'.format(vhost=vhost, user=user)
         response = self._http_put_request(url, body=permissions, ssl_auth=ssl_auth)
 
@@ -692,6 +691,65 @@ class RabbitMQMgmt(object):
         response = self._http_get_request(url, ssl_auth)
         return response
 
+    def get_federation_links(self, ssl_auth=None):
+        """
+        List all federation links for a given virtual host
+        :param ssl: Flag for SSL connection
+        :return: list of federation links
+        """
+        ssl_auth = ssl_auth if ssl_auth is not None else self.is_ssl
+        url = '/api/federation-links/{vhost}'.format(
+            vhost=self.rmq_config.virtual_host)
+        response = self._http_get_request(url, ssl_auth)
+        links = []
+        if response:
+            for res in response:
+                lk = dict()
+                lk['name'] = res['upstream']
+                lk['status'] = res.get('status', 'Error in link')
+                links.append(lk)
+        return links
+
+    def get_shovel_link_status(self, name, ssl_auth=None):
+        state = 'error'
+        links = self.get_shovel_links(ssl_auth=ssl_auth)
+        for link in links:
+            if link['name'] == name:
+                state = link['status']
+                break
+        return state
+
+    def get_federation_link_status(self, name, ssl_auth=None):
+        state = 'error'
+        links = self.get_federation_links(ssl_auth=ssl_auth)
+        for link in links:
+            if link['name'] == name:
+                state = link['status']
+                break
+        return state
+
+    def get_shovel_links(self, ssl_auth=None):
+        """
+        List all shovel links for a given virtual host
+        :param ssl: Flag for SSL connection
+        :return: list of federation links
+        """
+        ssl_auth = ssl_auth if ssl_auth is not None else self.is_ssl
+        url = '/api/shovels/{vhost}'.format(
+            vhost=self.rmq_config.virtual_host)
+        response = self._http_get_request(url, ssl_auth)
+        links = []
+        if response:
+            for res in response:
+                lk = dict()
+                lk['name'] = res['name']
+                lk['status'] = res.get('state', 'Error in link')
+                lk['src_uri'] = res.get('src_uri', '')
+                lk['dest_uri'] = res.get('dest_uri', '')
+                lk['src_exchange_key'] = res.get('src_exchange_key', '')
+                links.append(lk)
+        return links
+
     # We need http address and port
     def init_rabbitmq_setup(self):
         """
@@ -751,7 +809,7 @@ class RabbitMQMgmt(object):
 
         return port == 15672 or port == 15671
 
-    def delete_multiplatform_parameter(self, component, parameter_name, vhost=None):
+    def delete_multiplatform_parameter(self, component, parameter_name, vhost=None, delete_certs=False):
         """
         Delete a component parameter
         :param component: component name
@@ -759,8 +817,73 @@ class RabbitMQMgmt(object):
         :param vhost: virtual host
         :return:
         """
+        shovel_names_for_host = []
         self.delete_parameter(component, parameter_name, vhost,
                               ssl_auth=self.rmq_config.is_ssl)
+        print(f"Deleted {component} parameter: {parameter_name}")
+
+        try:
+            if component == 'shovel':
+                parameter_parts = parameter_name.split('-')
+                shovel_links = self.get_shovel_links()
+                shovel_names = [link['name'] for link in shovel_links]
+                for name in shovel_names:
+                    name_parts = name.split('-')
+                    if parameter_parts[1] == name_parts[1]:
+                        shovel_names_for_host.append(name)
+                # Check if there are other shovel connections to remote platform. If yes, we
+                # cannot delete the certs since others will need them
+                if delete_certs and len(shovel_names_for_host) >= 1:
+                    print(f"Cannot delete certificates since there are other shovels "
+                          f"connected to remote host: {parameter_parts[1]}")
+                    return
+        except AttributeError as ex:
+            _log.error(f"Unable to reach RabbitMQ management API. Check if RabbitMQ server is running. "
+                       f"If not running, start the server using start-rabbitmq script in root of source directory.")
+            return
+
+        import os
+        vhome = get_home()
+        if component == 'shovel':
+            config_file = os.path.join(vhome, 'rabbitmq_shovel_config.yml')
+            key = 'shovel'
+        else:
+            config_file = os.path.join(vhome, 'rabbitmq_federation_config.yml')
+            key = 'federation-upstream'
+        config = read_config_file(config_file)
+
+        # Delete certs from VOLTTRON_HOME
+        if delete_certs:
+            print(f"Removing certificate paths from VOLTTRON_HOME and from the config file")
+            names = parameter_name.split("-")
+
+            certs_config = None
+            try:
+                certs_config = config[key][names[1]]['certificates']
+                del config[key][names[1]]['certificates']
+                write_to_config_file(config_file, config)
+            except (KeyError, IndexError) as e:
+                print(f"Error: Did not find certificates entry in {config_file}:{e}")
+                return
+            try:
+                private_key = certs_config['private_key']
+                public_cert = certs_config['public_cert']
+                remote_ca = certs_config['remote_ca']
+                if os.path.exists(private_key):
+                    os.remove(private_key)
+                private_dir, filename = os.path.split(private_key)
+                cert_name = filename[:-4] + '.crt'
+                cert_path = private_dir.replace('private', 'certs')+'/' + cert_name
+
+                if os.path.exists(cert_path):
+                    os.remove(cert_path)
+                if os.path.exists(public_cert):
+                    os.remove(public_cert)
+                if os.path.exists(remote_ca):
+                    os.remove(remote_ca)
+            except KeyError as e:
+                print(f"Error: Missing key in {config_file}: {e}")
+                pass
 
     def build_connection_param(self, rmq_user, ssl_auth=None, retry_attempt=30, retry_delay=2):
         """
@@ -771,7 +894,7 @@ class RabbitMQMgmt(object):
         """
         ssl_auth = ssl_auth if ssl_auth is not None else self.is_ssl
         crt = self.rmq_config.crts
-        heartbeat_interval = 20 #sec
+        heartbeat_interval = 20  # sec
 
         try:
             if ssl_auth:
@@ -815,8 +938,7 @@ class RabbitMQMgmt(object):
         :param ssl_auth: If SSL based connection or not
         :return:
         """
-
-        from  urllib import parse
+        from urllib import parse
 
         parsed_addr = parse.urlparse(rmq_address)
         ssl_auth = ssl_auth if ssl_auth is not None else self.is_ssl
@@ -826,6 +948,7 @@ class RabbitMQMgmt(object):
         try:
             if ssl_auth:
                 certfile = self.certs.cert_file(rmq_user, True)
+                _log.info("build_remote_connection_param: {}".format(certfile))
                 if cert_dir:
                     # remote cert file for agents will be in agent-data/remote-certs dir
                     certfile = os.path.join(cert_dir, os.path.basename(certfile))
@@ -865,7 +988,8 @@ class RabbitMQMgmt(object):
 
     def build_rmq_address(self, user=None, password=None,
                           host=None, port=None, vhost=None,
-                          ssl_auth=None, ssl_params=None):
+                          ssl_auth=None, ssl_params=None,
+                          certs_dict=None):
         """
         Build RMQ address for federation or shovel connection
         :param ssl_auth:
@@ -878,7 +1002,7 @@ class RabbitMQMgmt(object):
         host = host if host else self.rmq_config.hostname
         vhost = vhost if vhost else self.rmq_config.virtual_host
         if ssl_auth:
-            ssl_params = ssl_params if ssl_params else self.get_ssl_url_params()
+            ssl_params = ssl_params if ssl_params else self.get_ssl_url_params(user, certs_dict)
 
         rmq_address = None
         try:
@@ -892,7 +1016,6 @@ class RabbitMQMgmt(object):
                     vhost=vhost,
                     ssl_params=ssl_params)
             else:
-
                 rmq_address = "amqp://{user}:{pwd}@{host}:{port}/{vhost}".format(
                     user=user, pwd=password, host=host,
                     port=port,
@@ -951,8 +1074,7 @@ class RabbitMQMgmt(object):
             # vctl certs create-ssl-keypair should be used to create a cert/key pair
             # and then agents should be started.
             try:
-                _log.info("Creating ca signed certs for {}".format(rmq_user))
-                self.rmq_config.crts.create_signed_cert_files(rmq_user, overwrite=False)
+                c, k = self.rmq_config.crts.create_signed_cert_files(rmq_user, overwrite=False)
             except Exception as e:
                 _log.error("Exception creating certs. {}".format(e))
                 raise RuntimeError(e)
@@ -971,7 +1093,14 @@ class RabbitMQMgmt(object):
 
         return param
 
-    def build_shovel_connection(self, identity, instance_name, host, port, vhost, is_ssl):
+    def create_signed_certs(self, rmq_user):
+        try:
+            c, k = self.rmq_config.crts.create_signed_cert_files(rmq_user, overwrite=False)
+        except Exception as e:
+            _log.error("Exception creating certs. {}".format(e))
+            raise RuntimeError(e)
+
+    def build_remote_plugin_connection(self, rmq_user, host, port, vhost, is_ssl, certs_dict=None):
         """
         Check if RabbitMQ user and certs exists for this agent, if not
         create a new one. Add access control/permissions if necessary.
@@ -984,7 +1113,7 @@ class RabbitMQMgmt(object):
         :param is_ssl: Flag to indicate if SSL connection or not
         :return: Return connection uri
         """
-        rmq_user = instance_name + '.' + identity
+        #rmq_user = instance_name + '.' + identity
         config_access = "{user}|{user}.pubsub.*|{user}.zmq.*|amq.*".format(
             user=rmq_user)
         read_access = "volttron|{}".format(config_access)
@@ -994,12 +1123,19 @@ class RabbitMQMgmt(object):
 
         self.create_user_with_permissions(rmq_user, permissions)
         ssl_params = None
-        if is_ssl:
+        if certs_dict is None:
+            if is_ssl:
+                self.rmq_config.crts.create_signed_cert_files(rmq_user,
+                                                              overwrite=False)
+                ssl_params = self.get_ssl_url_params(user=rmq_user)
+            return self.build_rmq_address(rmq_user, self.rmq_config.admin_pwd,
+                                          host, port, vhost, is_ssl, ssl_params)
+        else:
             self.rmq_config.crts.create_signed_cert_files(rmq_user,
                                                           overwrite=False)
-            ssl_params = self.get_ssl_url_params(user=rmq_user)
-        return self.build_rmq_address(rmq_user, self.rmq_config.admin_pwd,
-                                      host, port, vhost, is_ssl, ssl_params)
+            return self.build_rmq_address(rmq_user, self.rmq_config.admin_pwd,
+                                          host, port, vhost, is_ssl, ssl_params,
+                                          certs_dict=certs_dict)
 
     def build_router_connection(self, identity, instance_name):
         """
@@ -1025,19 +1161,26 @@ class RabbitMQMgmt(object):
                                             retry_delay=2)
         return param
 
-    def get_ssl_url_params(self, user=None):
+
+    def get_ssl_url_params(self, user=None, certs_dict=None):
         """
         Return SSL parameter string
         :return:
         """
 
-        root_ca_name, server_cert, admin_user = \
-            certs.Certs.get_admin_cert_names(self.rmq_config.instance_name)
         if not user:
             user = admin_user
-        ca_file = self.rmq_config.crts.cert_file(self.rmq_config.crts.trusted_ca_name)
-        cert_file = self.rmq_config.crts.cert_file(user)
-        key_file = self.rmq_config.crts.private_key_file(user)
+        if certs_dict is None:
+
+            root_ca_name, server_cert, admin_user = \
+                certs.Certs.get_admin_cert_names(self.rmq_config.instance_name)
+            ca_file = self.rmq_config.crts.cert_file(self.rmq_config.crts.trusted_ca_name)
+            cert_file = self.rmq_config.crts.cert_file(user)
+            key_file = self.rmq_config.crts.private_key_file(user)
+        else:
+            ca_file = certs_dict['remote_ca']
+            cert_file = certs_dict['public_cert']
+            key_file = certs_dict['private_key']
         return "cacertfile={ca}&certfile={cert}&keyfile={key}" \
                "&verify=verify_peer&fail_if_no_peer_cert=true" \
                "&auth_mechanism=external".format(ca=ca_file,

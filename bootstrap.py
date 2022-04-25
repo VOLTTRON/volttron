@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -130,8 +130,14 @@ def update(operation, verbose=None, upgrade=False, offline=False, optional_requi
     path = os.path.dirname(__file__) or '.'
     _log.info('%sing required packages', 'Build' if wheeling else 'Install')
 
+    # We must install wheel first to eliminate a bunch of scary looking
+    # errors at first install.
+    # TODO Look towards fixing the packaging so that it works with 0.31
+    # option_requirements contains wheel as first entry
+
     # Build option_requirements separately to pass install options
     build_option = '--build-option' if wheeling else '--install-option'
+
     for requirement, options in option_requirements:
         args = []
         for opt in options:
@@ -142,9 +148,17 @@ def update(operation, verbose=None, upgrade=False, offline=False, optional_requi
     # Install local packages and remaining dependencies
     args = []
     target = path
+    if 'all' in optional_requirements or 'documentation' in optional_requirements:
+        option_set = set()
+
+        for requirement, options in extras_require.items():
+            option_set.add(requirement)
+
+        optional_requirements = list(option_set)
     if optional_requirements:
         target += '[' + ','.join(optional_requirements) + ']'
     args.extend(['--editable', target])
+    print(f"Target: {target}")
     pip(operation, args, verbose, upgrade, offline)
 
     try:
@@ -276,8 +290,11 @@ def main(argv=sys.argv):
     # variable at the end of the block.  If the option is set then it needs
     # to be passed on.
     po = parser.add_argument_group('Extra packaging options')
+    # If all is specified then install all of the different packages listed in requirements.py
+    po.add_argument('--all', action='append_const', const='all', dest='optional_args')
     for arg in extras_require:
-        po.add_argument('--'+arg, action='append_const', const=arg, dest="optional_args")
+        if 'dnp' not in arg:
+            po.add_argument('--'+arg, action='append_const', const=arg, dest="optional_args")
 
     # Add rmq download actions.
     rabbitmq = parser.add_argument_group('rabbitmq options')

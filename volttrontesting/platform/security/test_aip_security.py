@@ -1,23 +1,16 @@
 import pwd
-from datetime import datetime
-
 import gevent
 import pytest
+
 from mock import MagicMock
 
-from volttron.platform import get_home, is_rabbitmq_available
-from volttron.platform import get_services_core, get_examples
-from volttron.platform.agent import utils
+from volttron.platform import is_rabbitmq_available
+from volttron.platform import get_services_core
 from volttron.platform.agent.utils import execute_command
-from volttron.platform.messaging import headers as headers_mod
 from volttron.platform.vip.agent import *
-from volttrontesting.fixtures.volttron_platform_fixtures import \
-    build_wrapper, cleanup_wrapper, volttron_multi_messagebus
-from volttrontesting.utils.utils import get_hostname_and_random_port, get_rand_vip, get_rand_ip_and_port
+from volttrontesting.fixtures.volttron_platform_fixtures import build_wrapper, cleanup_wrapper, rmq_skipif
+from volttrontesting.utils.utils import get_rand_vip
 
-
-HAS_RMQ = is_rabbitmq_available()
-rmq_skipif = pytest.mark.skipif(not HAS_RMQ, reason='RabbitMQ is not setup')
 
 # skip if running on travis because initial secure_user_permissions scripts needs to be run as root/sudo
 # TODO: Should we spin a separate docker image just to test this one test case alone?
@@ -31,12 +24,13 @@ INSTANCE_NAME1 = "volttron1"
 INSTANCE_NAME2 = "volttron2"
 
 
-def get_agent_user_from_dir(agent_name, agent_uuid):
+def get_agent_user_from_dir(agent_uuid, home):
     """
+    :param home: path to volttron home
     :param agent_uuid:
     :return: Unix user ID if installed Volttron agent
     """
-    user_id_path = os.path.join(get_home(), "agents", agent_uuid, "USER_ID")
+    user_id_path = os.path.join(home, "agents", agent_uuid, "USER_ID")
     with open(user_id_path, 'r') as id_file:
         return id_file.readline()
 
@@ -89,7 +83,7 @@ def query_agent(request, secure_volttron_instance):
 def security_agent(request, secure_volttron_instance):
     agent = secure_volttron_instance.install_agent(
         vip_identity="security_agent",
-        agent_dir="volttrontesting/platform/security/SecurityAgent",
+        agent_dir=f"{secure_volttron_instance.volttron_root}/volttrontesting/platform/security/SecurityAgent",
         start=False,
         config_file=None)
 
@@ -98,8 +92,7 @@ def security_agent(request, secure_volttron_instance):
     assert secure_volttron_instance.is_agent_running(agent)
 
     users = [user[0] for user in pwd.getpwall()]
-    # TODO find an alternative for the agent name here
-    agent_user = get_agent_user_from_dir("securityagent-0.1", agent)
+    agent_user = get_agent_user_from_dir(agent, secure_volttron_instance.volttron_home)
     assert agent_user in users
 
     def stop_agent():
@@ -170,7 +163,7 @@ def test_agent_rpc(secure_volttron_instance, security_agent, query_agent):
     try:
         agent2 = secure_volttron_instance.install_agent(
             vip_identity="security_agent2",
-            agent_dir="volttrontesting/platform/security/SecurityAgent",
+            agent_dir=f"{secure_volttron_instance.volttron_root}/volttrontesting/platform/security/SecurityAgent",
             start=False,
             config_file=None)
 
@@ -287,7 +280,7 @@ def test_vhome_file_permissions(secure_volttron_instance, security_agent, query_
     try:
         agent2 = secure_volttron_instance.install_agent(
             vip_identity="security_agent2",
-            agent_dir="volttrontesting/platform/security/SecurityAgent",
+            agent_dir=f"{secure_volttron_instance.volttron_root}/volttrontesting/platform/security/SecurityAgent",
             start=False,
             config_file=None)
 
@@ -330,7 +323,7 @@ def test_config_store_access(secure_volttron_instance, security_agent, query_age
     try:
         agent2 = secure_volttron_instance.install_agent(
             vip_identity="security_agent2",
-            agent_dir="volttrontesting/platform/security/SecurityAgent",
+            agent_dir=f"{secure_volttron_instance.volttron_root}/volttrontesting/platform/security/SecurityAgent",
             start=False,
             config_file=None)
 

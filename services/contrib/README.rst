@@ -1,1 +1,0 @@
-This folder is meant for user contributed code.

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -71,7 +71,7 @@ class Connection(object):
         self._peer = peer
         self._serverkey = None
         if peer is None:
-            self._log.warn('Peer is non so must be passed in call method.')
+            self._log.warning('Peer is non so must be passed in call method.')
         self.volttron_home = volttron_home
 
         if self.volttron_home is None:
@@ -170,9 +170,7 @@ class Connection(object):
             self._connected_since = get_aware_utc_now()
             if self.peer:
                 if self.peer not in self._server.vip.peerlist().get(timeout=2):
-                    self._log.warn('peer {} not found connected to router.'.format(
-                        self.peer
-                    ))
+                    self._log.warning('peer {} not found connected to router.'.format(self.peer))
         return self._server
 
     def peers(self, timeout=DEFAULT_TIMEOUT):

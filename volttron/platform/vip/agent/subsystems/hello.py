@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -109,7 +109,7 @@ class Hello(SubsystemBase):
             return
         if op == 'hello':
             message.user = ''
-            message.args = ['welcome', '1.0', self.core.identity, message.peer]
+            message.args = ['welcome', '1.0', self.core().identity, message.peer]
             self.core().connection.send_vip_object(message, copy=False)
         elif op == 'welcome':
             try:

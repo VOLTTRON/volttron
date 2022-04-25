@@ -19,7 +19,7 @@ fi
 
 export FAST_FAIL=${FAST_FAIL:-true}
 
-pip list
+python3 -m pip list
 echo "RUNNING $NUM_PROCESSES PARALLEL PROCESSESS AT A TIME"
 echo "FAST_FAIL IS $FAST_FAIL"
 
@@ -70,9 +70,8 @@ run_test(){
     base_filename="$(basename "$filename")"
     # Start the docker run module.
     docker run -e "IGNORE_ENV_CHECK=1" -e "CI=$CI" --name "$base_filename" \
-            -t --network="host" -v /var/run/docker.sock:/var/run/docker.sock volttron_test_image \
-            pytest "$filename" > "$base_filename.result.txt" 2>&1 &
-
+       -t --network="host" -v /var/run/docker.sock:/var/run/docker.sock volttron_test_image \
+        pytest "$filename" > "$base_filename.result.txt" 2>&1 &
     runningprocs+=($!)
     outputfiles+=("$base_filename.result.txt")
     containernames+=("$base_filename")

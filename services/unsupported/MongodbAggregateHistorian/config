@@ -1,0 +1,30 @@
+{
+    "connection": {
+        "type": "mongodb",
+        "params": {
+            "host": "localhost",
+            "port": 27017,
+            "database": "test_historian",
+            "user": "historian",
+            "passwd": "historian"
+        }
+    },
+    "aggregations":[
+        {
+            "aggregation_period": "2m",
+            "use_calendar_time_periods": true,
+            "points": [
+                {
+                    "topic_name": "device1/out_temp",
+                    "aggregation_type": "sum",
+                    "min_count": 2
+                },
+                {
+                    "topic_name": "device1/in_temp",
+                    "aggregation_type": "sum",
+                    "min_count": 2
+                }
+            ]
+        }
+    ]
+}

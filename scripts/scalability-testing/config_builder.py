@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -43,7 +43,7 @@ import abc
 import argparse
 from shutil import copy, rmtree
 from test_settings import (virtual_device_host, device_types, config_dir, 
-                           volttron_install, master_driver_file,
+                           volttron_install, platform_driver_file,
                            host_config_location)
 from volttron.platform import jsonapi
 
@@ -180,12 +180,12 @@ def build_all_configs(device_type, host_address, count, reg_config, config_dir,
     
     command_lines = build_device_configs(device_type, host_address, count, reg_config_ref, config_dir, interval, devices_dir)
     
-    build_master_config(config_dir,
+    build_platform_config(config_dir,
                         scalability_test, scalability_test_iterations,
                         driver_scrape_interval, publish_only_depth_all)
         
     
-def build_master_config(config_dir,
+def build_platform_config(config_dir,
                         scalability_test, scalability_test_iterations,
                         driver_scrape_interval, publish_only_depth_all):
     """Takes the input from multiple called to build_device_configs and create the master config."""
@@ -213,7 +213,7 @@ if __name__ == "__main__":
                         help='number of devices to configure')
     
     parser.add_argument('--scalability-test', action='store_true', 
-                        help='Configure master driver for a scalability test')
+                        help='Configure platform driver for a scalability test')
     
     parser.add_argument('--publish-only-depth-all', action='store_true', 
                         help='Configure drivers to only publish depth first all.')

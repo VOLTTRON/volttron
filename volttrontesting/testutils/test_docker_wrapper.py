@@ -30,7 +30,7 @@ def test_docker_wrapper_should_throw_runtime_error_on_false_image_when_pull():
         with create_container("not_a_real_image", ports={"4200/tcp": 4200}) as container:
             container.logs()
 
-    assert "404 Client Error: Not Found" in str(execinfo.value)
+    assert "404 Client Error" in str(execinfo.value)
 
 
 @pytest.mark.skipif(SKIP_DOCKER, reason=SKIP_REASON)
@@ -41,5 +41,5 @@ def test_docker_wrapper_should_throw_runtime_error_when_ports_clash():
             with create_container("crate", ports={"4200/tcp": port}) as container2:
                 assert container2.status == 'running'
 
-    assert "500 Server Error: Internal Server Error" in str(execinfo.value)
+    assert "500 Server Error" in str(execinfo.value)
 

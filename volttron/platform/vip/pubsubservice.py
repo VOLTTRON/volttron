@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -493,6 +493,7 @@ class PubSubService(object):
                         frames = [publisher, '', proto, user_id, msg_id,
                                   'error', errnum, errmsg, platform_id, subsystem]
                         try:
+                            frames = serialize_frames(frames)
                             self._vip_sock.send_multipart(frames, flags=NOBLOCK, copy=False)
                         except ZMQError as exc:
                             # raise
@@ -543,9 +544,10 @@ class PubSubService(object):
                 self._logger.debug("EAGAIN error {}".format(subscriber))
                 # Only send EAGAIN errors
                 proto, user_id, msg_id, subsystem = frames[2:6]
-                frames = [publisher, b'', proto, user_id, msg_id,
-                          b'error', errnum, errmsg, subscriber, subsystem]
+                frames = [publisher, '', proto, user_id, msg_id,
+                          'error', errnum, errmsg, subscriber, subsystem]
                 try:
+                    frames = serialize_frames(frames)
                     self._vip_sock.send_multipart(frames, flags=NOBLOCK, copy=False)
                 except ZMQError as exc:
                     # raise
@@ -790,8 +792,8 @@ class PubSubService(object):
             # peer is not authorized to publish to the topic, send error message to the peer
             if errmsg is not None:
                 try:
-                    frames = [publisher, b'', proto, user_id, msg_id,
-                              subsystem, b'error', zmq.Frame(str(UNAUTHORIZED).encode("utf-8")),
+                    frames = [publisher, '', proto, user_id, msg_id,
+                              subsystem, 'error', zmq.Frame(str(UNAUTHORIZED).encode("utf-8")),
                               zmq.Frame(str(errmsg).encode("utf-8"))]
                     self._ext_router.send_external(publisher, frames)
                     return
@@ -808,7 +810,7 @@ class PubSubService(object):
             # There are no subscribers, send error message back to source platform
             if not subscribers_count:
                 try:
-                    frames = [publisher, b'', proto, user_id, msg_id,
+                    frames = [publisher, '', proto, user_id, msg_id,
                               subsystem, zmq.Frame(b'error'), zmq.Frame(str(INVALID_REQUEST).encode("utf-8")),
                               topic]
                     self._ext_router.send_external(publisher, frames)
@@ -826,7 +828,6 @@ class PubSubService(object):
         """
         # happens only in case of errors in multi platform use case
         _log.warning(f"In _handle_error of pubsub subsystem. Frames: {frames}")
-
 
     def publish_callback(self, peer, sender, bus, topic, headers, message):
         """

@@ -1,20 +1,60 @@
-![image](docs/source/images/VOLLTRON_Logo_Black_Horizontal_with_Tagline.png)
+![image](docs/source/files/VOLLTRON_Logo_Black_Horizontal_with_Tagline.png)
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/fcf58045b4804edf8f4d3ecde3016f76)](https://app.codacy.com/gh/VOLTTRON/volttron?utm_source=github.com&utm_medium=referral&utm_content=VOLTTRON/volttron&utm_campaign=Badge_Grade_Settings)
+
+![example workflow](https://github.com/volttron/volttron/actions/workflows/pytest-testutils.yml/badge.svg)
 
 VOLTTRON™ is an open source platform for distributed sensing and control. The
 platform provides services for collecting and storing data from buildings and
 devices and provides an environment for developing applications which interact
 with that data.
 
-[![Build Status](https://travis-ci.org/VOLTTRON/volttron.svg?branch=develop)](https://travis-ci.org/VOLTTRON/volttron)
+## Upgrading to VOLTTRON 8.x
+
+VOLTTRON 8 introduces three changes that require an explict upgrade step when upgrading from a earlier VOLTTRON version
+
+    1. Dynamic RPC authorization feature - This requires a modification to the auth file. If you have a pre-existing
+       instance of VOLTTRON running on an older version, the auth file will need to be updated.
+    2. Historian agents now store the cache database (backup.sqlite file) in
+       <volttron home>/agents/<agent uuid>/<agentname-version>/<agentname-version>.agent-data directory instead of
+       <volttron home>/agents/<agent uuid>/<agentname-version> directory. In future all core agents will write data only
+       to the <agentname-version>.agent-data subdirectory. This is because vctl install --force backs up and restores
+       only the contents of this directory.
+    3. SQLHistorians (historian version 4.0.0 and above) now use a new database schema where metadata is stored in
+       topics table instead of separate metadata table. SQLHistorians with version >= 4.0.0 can work with existing
+       database with older schema however the historian agent code should be upgraded to newer version (>=4.0.0) to run
+       with VOLTTRON 8 core.
+
+To upgrade:
+
+    1. If upgrading historian, make sure historians are not in auto start mode. To remove any historian from auto start
+       mode use the command 'vctl disable <uuid of historian that is currently enabled>. This is necessary so that the old
+       sqlhistorian does not automatically start after step 5. 
+    2. Update volttron source code version to VOLTTRON 8
+    3. activate the volttron environment, and run ```python bootstrap.py --force```. If you have 
+       any additional bootstrap options that you need (rabbitmq, web, drivers, etc.) include these in the above command.
+    4. Run ```volttron-upgrade``` to update the auth file and move historian cache files into agent-data directory. 
+       Note that the upgrade script will only move the backup.sqlite file and will not move sqlite historian's db file 
+       if they are within the install directory. If using a SQLite historian, please backup the database file of 
+       sqlite historian before upgrading to the latest historian version.
+    5. Start VOLTTRON
+    6. Run ```vctl install --force --vip-identity <vip id of existing historian> --agent-config <config>``` to upgrade 
+       to the  latest historian version. vctl install --force will backup the cache in <agent-version>.agent-data 
+       folder, installs the latest version of the historian and restore the contents of 
+       <agent-version>.agent-data folder.
+
+### Upgrading aggregate historians
+
+VOLTTRON 8 also comes with updated SQL aggregate historian schema. However, there is no automated upgrade path for
+aggregate historian. To upgrade an existing aggregate historian please refer to the CHANGELOG.md within 
+SQLAggregateHistorian source directory
 
 ## Features
 
--   [Message Bus](https://volttron.readthedocs.io/en/latest/core_services/messagebus/index.html#messagebus-index) allows agents to subcribe to data sources and publish results and messages.
--   [Driver framework](https://volttron.readthedocs.io/en/latest/core_services/drivers/index.html#volttron-driver-framework) for collecting data from and sending control actions to buildings and devices.
--   [Historian framework](https://volttron.readthedocs.io/en/latest/core_services/historians/index.html#historian-index) for storing data.
--   [Agent lifecycle managment](https://volttron.readthedocs.io/en/latest/core_services/control/AgentManagement.html#agentmanagement) in the platform
--   [Web UI](https://volttron.readthedocs.io/en/latest/core_services/service_agents/central_management/VOLTTRON-Central.html#volttron-central) for managing deployed instances from a single central instance.
+-   [Message Bus](https://volttron.readthedocs.io/en/latest/platform-features/message-bus/index.html) allows agents to subscribe to data sources and publish results and messages.
+-   [Driver framework](https://volttron.readthedocs.io/en/latest/driver-framework/drivers-overview.html) for collecting data from and sending control actions to buildings and devices.
+-   [Historian framework](https://volttron.readthedocs.io/en/latest/agent-framework/historian-agents/historian-framework.html) for storing data.
+-   [Agent lifecycle managment](https://volttron.readthedocs.io/en/latest/platform-features/control/agent-management-control.html) in the platform
+-   [Web UI](https://volttron.readthedocs.io/en/latest/agent-framework/core-service-agents/volttron-central/volttron-central-overview.html) for managing deployed instances from a single central instance.
 
 ## Installation
 
@@ -26,7 +66,7 @@ users unfamiliar with those technologies, the following resources are recommende
 
 ### 1. Install prerequisites
 
-(<https://volttron.readthedocs.io/en/latest/setup/VOLTTRON-Prerequisites.html#volttron-prerequisites>).
+[Requirements Reference](https://volttron.readthedocs.io/en/latest/introduction/platform-install.html#step-1-install-prerequisites)
 
 From version 7.0, VOLTTRON requires python 3 with a minimum version of 3.6; it is tested only systems supporting that as a native package.
 On Debian-based systems (Ubuntu bionic, debian buster, raspbian buster), these can all be installed with the following commands:
@@ -71,7 +111,7 @@ You can deactivate the environment at any time by running `deactivate`.
 
 ##### 1. Install Erlang version 21 packages
 
-For RabbitMQ based VOLTTRON, some of the RabbitMQ specific software packages have to be installed.
+For RabbitMQ based VOLTTRON, some RabbitMQ specific software packages must be installed.
 
 ###### On Debian based systems and CentOS 6/7
 
@@ -104,8 +144,8 @@ Also lock your version of Erlang using the [yum-plugin-versionlock](https://acce
 
 ##### 2. Configure hostname
 
-Make sure that your hostname is correctly configured in /etc/hosts.
-See (<https://stackoverflow.com/questions/24797947/os-x-and-rabbitmq-error-epmd-error-for-host-xxx-address-cannot-connect-to-ho>). If you are testing with VMs make please make sure to provide unique host names for each of the VM you are using. 
+Make sure that your hostname is correctly configured in /etc/hosts (See [this StackOverflow Post](https://stackoverflow.com/questions/24797947/os-x-and-rabbitmq-error-epmd-error-for-host-xxx-address-cannot-connect-to-ho)).
+If you are testing with VMs make please make sure to provide unique host names for each of the VM you are using. 
 
 The hostname should be resolvable to a valid IP when running on bridged mode. RabbitMQ checks for this during initial 
 boot. Without this (for example, when running on a VM in NAT mode) RabbitMQ  start would fail with the error "unable to 
@@ -150,18 +190,18 @@ You can deactivate the environment at any time by running `deactivate`.
 ##### 5. Create RabbitMQ setup for VOLTTRON:
 
 ```sh
-vcfg --rabbitmq single [optional path to rabbitmq_config.yml]
+vcfg rabbitmq single [--config optional path to rabbitmq_config.yml]
 ```
 
 Refer to [examples/configurations/rabbitmq/rabbitmq_config.yml](examples/configurations/rabbitmq/rabbitmq_config.yml)
 for a sample configuration file.
-At a minimum you will need to provide the host name and a unique common-name
+At a minimum you will need to provide the hostname and a unique common-name
 (under certificate-data) in the configuration file. Note: common-name must be
-unique and the general convention is to use `<voltttron instance name>-root-ca`.
+unique.  The general convention is to use `<voltttron instance name>-root-ca`.
 
 Running the above command without the optional configuration file parameter will
-cause the user user to be prompted for all the required data in the command prompt 
-vcfg will use that data to generate a rabbitmq_config.yml file in the `VOLTTRON_HOME` 
+cause the user to be prompted for all the required data in the command prompt. 
+`vcfg` will use that data to generate a rabbitmq_config.yml file in the `VOLTTRON_HOME` 
 directory.
 
 If the above configuration file is being used as a basis, be sure to update it with 
@@ -178,11 +218,11 @@ NOTE: We configure the RabbitMQ instance for a single volttron_home and
 volttron_instance. This script will confirm with the user the volttron_home to
 be configured. The VOLTTRON instance name will be read from volttron_home/config
 if available, if not the user will be prompted for VOLTTRON instance name. To
-run the scripts without any prompts, save the the VOLTTRON instance name in
+run the scripts without any prompts, save the VOLTTRON instance name in
 volttron_home/config file and pass the VOLTTRON home directory as a command line
-argument. For example: `vcfg --vhome /home/vdev/.new_vhome --rabbitmq single`
+argument. For example: `vcfg --vhome /home/vdev/.new_vhome rabbitmq single`
 
-The Following are the example inputs for `vcfg --rabbitmq single` command. Since no
+The Following are the example inputs for `vcfg rabbitmq single` command. Since no
 config file is passed the script prompts for necessary details.
 
 ```sh
@@ -246,9 +286,9 @@ Notes:
 ### 4. Test
 
 We are now ready to start the VOLTTRON instance. If configured with a RabbitMQ message bus a config file would have been
- generated in `$VOLTTRON\_HOME/config` with the entry `message-bus=rmq`. If you need to revert back to ZeroMQ based 
+ generated in `$VOLTTRON\_HOME/config` with the entry `message-bus=rmq`. If you need to revert to ZeroMQ based 
  VOLTTRON, you will have to either remove "message-bus" parameter or set it to default "zmq" in `$VOLTTRON\_HOME/config`
-  and restart the volttron process. The following command starts the VOLTTORN process in the background:
+  and restart the volttron process. The following command starts the VOLTTRON process in the background:
 
 ```sh
 volttron -vv -l volttron.log &
@@ -260,10 +300,10 @@ with a log file named volttron.log.
 Next, start an example listener to see it publish and subscribe to the message bus:
 
 ```sh
-scripts/core/upgrade-listener
+vctl install examples/ListenerAgent
 ```
 
-This script handles several different commands for installing and starting an agent after removing an old copy. This 
+This script handles several commands for installing and starting an agent after removing an old copy. This 
 simple agent publishes a heartbeat message and listens to everything on the message bus. Look at the VOLTTRON log to see 
 the activity:
 
@@ -288,12 +328,13 @@ To top the platform run the following command:
 
 ## Next Steps
 
-There are several [walkthroughs](https://volttron.readthedocs.io/en/latest/devguides/index.html#devguides-index) to explore additional aspects of the platform:
+There are several walkthroughs to explore additional aspects of the platform:
 
--   [Agent Development Walkthrough](https://volttron.readthedocs.io/en/latest/devguides/agent_development/Agent-Development.html#agent-development)
--   Demonstration of the [management UI](https://volttron.readthedocs.io/en/latest/devguides/walkthroughs/VOLTTRON-Central-Demo.html#volttron-central-demo)
--   RabbitMQ setup with Federation and Shovel plugins
--   Backward compatibility with the RabbitMQ message bus
+-   [Agent Development Walkthrough](https://volttron.readthedocs.io/en/latest/developing-volttron/developing-agents/agent-development.html)
+-   Demonstration of the [management UI](https://volttron.readthedocs.io/en/latest/deploying-volttron/multi-platform/volttron-central-deployment.html)
+-   [RabbitMQ setup with Federation and Shovel plugins](https://volttron.readthedocs.io/en/latest/deploying-volttron/multi-platform/multi-platform-rabbitmq-deployment.html)
+-   [Backward compatibility with the RabbitMQ message bus](https://volttron.readthedocs.io/en/latest/deploying-volttron/multi-platform/multi-platform-multi-bus.html)
+
 
 ## Acquiring Third Party Agent Code
 
@@ -308,21 +349,21 @@ git clone https://github.com/VOLTTRON/volttron-applications.git develop
 
 ## Contribute
 
-How to [contribute](http://volttron.readthedocs.io/en/latest/community_resources/index.html#contributing-back) back:
+How to [contribute](https://volttron.readthedocs.io/en/latest/developing-volttron/contributing-code.html) back:
 
--   Issue Tracker: <https://github.com/VOLTTRON/volttron/issues>
--   Source Code: <https://github.com/VOLTTRON/volttron>
+-   [Issue Tracker](https://github.com/VOLTTRON/volttron/issues)
+-   [Source Code](https://github.com/VOLTTRON/volttron) 
 
 ## Support
 
-There are several options for VOLTTRONTM [support](https://volttron.readthedocs.io/en/latest/community_resources/index.html#volttron-community).
+There are several options for VOLTTRONTM [support](https://volttron.readthedocs.io/en/latest/developing-volttron/community.html).
 
 -   A VOLTTRONTM office hours telecon takes place every other Friday at 11am Pacific over Zoom.
 -   A mailing list for announcements and reminders
 -   The VOLTTRONTM contact email for being added to office hours, the mailing list, and for inquiries is: volttron@pnnl.gov
--   The preferred method for questions is through stackoverflow since this is easily discoverable by others who may have the same issue. <https://stackoverflow.com/questions/tagged/volttron>
--   GitHub issue tracker for feature requests, bug reports, and following development activities <https://github.com/VOLTTRON/volttron/issues>
--   VOLTTRON now has a Slack channel - Sign up here: <https://volttron-community.signup.team/>
+-   The preferred method for questions is through [StackOverflow](https://stackoverflow.com/questions/tagged/volttron) since this is easily discoverable by others who may have the same issue.
+-   [GitHub issue tracker](https://github.com/VOLTTRON/volttron/issues) for feature requests, bug reports, and following development activities
+-   VOLTTRON now has a [Slack channel](https://volttron-community.slack.com/signup)
 
 ## License
 

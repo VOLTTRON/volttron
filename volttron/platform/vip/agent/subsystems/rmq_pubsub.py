@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -249,9 +249,7 @@ class RMQPubSub(SubsystemBase):
         """
         connection = self.core().connection
         rkey = self.core().instance_name + '.proxy.router.pubsub'
-        sub_msg = jsonapi.dumps(
-            dict(prefix=prefix, bus=bus, all_platforms=True)
-        )
+        sub_msg = dict(prefix=prefix, bus=bus, all_platforms=True)
         # VIP format - [SENDER, RECIPIENT, PROTO, USER_ID, MSG_ID, SUBSYS, ARGS...]
         frames = [self.core().identity, '', 'VIP1', '', '', 'pubsub', 'subscribe', sub_msg]
         connection.channel.basic_publish(exchange=connection.exchange,

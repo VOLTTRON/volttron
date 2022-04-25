@@ -1,6 +1,8 @@
 import pytest
 import requests
 
+from volttrontesting.fixtures.volttron_platform_fixtures import cleanup_wrapper
+
 
 @pytest.fixture
 def web_bound_correctly(volttron_multi_messagebus):
@@ -10,6 +12,9 @@ def web_bound_correctly(volttron_multi_messagebus):
     assert not source.bind_web_address, "Source should never have a web enabled"
 
     yield source, sink
+
+    cleanup_wrapper(source)
+    cleanup_wrapper(sink)
 
 
 def test_correct_number_of_instances(web_bound_correctly):

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -46,13 +46,14 @@ from volttron.platform.jsonrpc import RemoteError
 _log = logging.getLogger(__name__)
 utils.setup_logging()
 
+
 class RpcProxy(object):
     """
     The purpose of the RpcProxy is to allow the MarketRegistration to make
     RPC calls on the agent that subclasses of the agent can't see and therefore
     can't make.
     """
-    def __init__(self, rpc_call, verbose_logging = True):
+    def __init__(self, rpc_call, verbose_logging=True, timeout=60):
         """
         The initalization needs the rpc_call method to grant access to the RPC calls needed to
         communicate with the marketService.
@@ -60,6 +61,7 @@ class RpcProxy(object):
         """
         self.rpc_call = rpc_call
         self.verbose_logging = verbose_logging
+        self.timeout = timeout
 
     def make_reservation(self, market_name, buyer_seller):
         """
@@ -72,7 +74,7 @@ class RpcProxy(object):
         The agent shall use the pre-defined strings provided.
         """
         try:
-            self.rpc_call(PLATFORM_MARKET_SERVICE, 'make_reservation', market_name, buyer_seller).get(timeout=5.0)
+            self.rpc_call(PLATFORM_MARKET_SERVICE, 'make_reservation', market_name, buyer_seller).get(timeout=self.timeout)
             has_reservation = True
         except RemoteError as e:
             has_reservation = False
@@ -93,19 +95,19 @@ class RpcProxy(object):
         """
         try:
             self.rpc_call(PLATFORM_MARKET_SERVICE, 'make_offer', market_name, buyer_seller,
-                              curve.tuppleize()).get(timeout=5.0)
+                          curve.tuppleize()).get(timeout=self.timeout)
             result = (True, None)
             if self.verbose_logging:
                 _log.debug("Market: {} {} has made an offer Curve: {}".format(market_name,
-                                                                                       buyer_seller,
-                                                                                       curve.points))
+                                                                              buyer_seller,
+                                                                              curve.points))
         except RemoteError as e:
             result = (False, e.message)
             _log.info(
                 "Market: {} {} has had an offer rejected because {}".format(market_name, buyer_seller, e.message))
         except gevent.Timeout as e:
-            result = (False, str(e))
-            _log.info("Market: {} {} has had an offer rejected because {}".format(market_name, buyer_seller, e))
+            result = (False, e.message)
+            _log.info("Market: {} {} has had an offer rejected because {}".format(market_name, buyer_seller, e.message))
         return result
 
 

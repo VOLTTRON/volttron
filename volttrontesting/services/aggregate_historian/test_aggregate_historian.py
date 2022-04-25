@@ -89,7 +89,6 @@ sqlite_aggregator = {
 mysql_aggregator = {
     "source_historian": get_services_core("SQLHistorian"),
     "source_agg_historian": get_services_core("SQLAggregateHistorian"),
-    "agentid": "test",
     "connection": {
         "type": "mysql",
         "params": {
@@ -102,6 +101,28 @@ mysql_aggregator = {
     }
 }
 
+mysql_aggregator_with_table_names = {
+    "source_historian": get_services_core("SQLHistorian"),
+    "source_agg_historian": get_services_core("SQLAggregateHistorian"),
+    "connection": {
+        "type": "mysql",
+        "params": {
+            "host": "localhost",
+            "port": 3306,
+            "database": "test_historian",
+            "user": "historian",
+            "passwd": "historian"
+        }
+    },
+    "tables_def": {
+        "table_prefix": "volttron",
+        "data_table": "data_table",
+        "topics_table": "topics_table",
+        "meta_table": "meta_table",
+    }
+
+}
+
 mongo_aggregator = {
     "source_historian": get_services_core("MongodbHistorian"),
     "source_agg_historian": get_services_core("MongodbAggregateHistorian"),
@@ -111,8 +132,9 @@ mongo_aggregator = {
             "host": "localhost",
             "port": 27017,
             "database": "mongo_test",
-            "user": "test",
-            "passwd": "test"
+            "user": "historian",
+            "passwd": "historian",
+            "authSource": "test"
         }
     }
 }
@@ -123,13 +145,35 @@ postgresql_aggregator = {
     'connection': {
         'type': 'postgresql',
         'params': {
-            'dbname': 'historian_test',
-            'port': 5433,
-            'host': '127.0.0.1',
-            'user' : 'historian',
-            'password': 'volttron'
+            'dbname': 'test_historian',
+            'port': 5432,
+            'host': 'localhost',
+            'user': 'historian',
+            'password': 'historian'
         },
     },
+}
+
+postgresql_aggregator_with_table_names = {
+    'source_historian': get_services_core('SQLHistorian'),
+    "source_agg_historian": get_services_core("SQLAggregateHistorian"),
+    'connection': {
+        'type': 'postgresql',
+        'params': {
+            'dbname': 'test_historian',
+            'port': 5432,
+            'host': 'localhost',
+            'user': 'historian',
+            'password': 'historian'
+        },
+    },
+    "tables_def": {
+        "table_prefix": "volttron",
+        "data_table": "data_table",
+        "topics_table": "topics_table",
+        "meta_table": "meta_table",
+    }
+
 }
 
 redshift_aggregator = {
@@ -151,18 +195,7 @@ def setup_mysql(connection_params, table_names):
     print ("setup mysql")
     db_connection = mysql.connect(**connection_params)
     # clean up any rows from older runs
-    cursor = db_connection.cursor()
-    for t in (table_names['data_table'], table_names['topics_table'],
-              table_names['meta_table'],table_names['agg_topics_table'],
-              table_names['agg_meta_table']):
-        try:
-            cursor.execute("DELETE FROM " + t)
-        except MysqlError as err:
-            if err.errno == mysql_errorcodes.ER_NO_SUCH_TABLE:
-                continue
-            else:
-                raise
-    db_connection.commit()
+    cleanup_mysql(db_connection, None, drop_tables=True)
     return db_connection
 
 
@@ -172,68 +205,95 @@ def setup_sqlite(connection_params, table_names):
     print ("connecting to sqlite path " + database_path)
     db_connection = sqlite3.connect(database_path)
     print ("successfully connected to sqlite")
+    cleanup_sqlite(db_connection, None, drop_tables=True)
     db_connection.commit()
     return db_connection
 
 
 def setup_mongodb(connection_params, table_names):
-    print ("setup mongodb")
+    print("setup mongodb")
     mongo_conn_str = 'mongodb://{user}:{passwd}@{host}:{port}/{database}'
+    if "authSource" in connection_params:
+        mongo_conn_str = mongo_conn_str + "?authSource={authSource}"
     params = connection_params
     mongo_conn_str = mongo_conn_str.format(**params)
     mongo_client = pymongo.MongoClient(mongo_conn_str)
     db = mongo_client[connection_params['database']]
-    db[table_names['data_table']].remove()
-    db[table_names['topics_table']].remove()
-    db[table_names['meta_table']].remove()
-    db[table_names['agg_topics_table']].remove()
-    db[table_names['agg_meta_table']].remove()
+    collections = db.collection_names(include_system_collections=False)
+    for collection in collections:
+        db[collection].remove()
     return db
+
 
 def setup_postgresql(connection_params, table_names):
     print("setup postgresql", connection_params, table_names)
     connection = psycopg2.connect(**connection_params)
     connection.autocommit = True
-    prefix = table_names.get('table_prefix')
-    fmt = (prefix + '_{}' if prefix else '{}').format
-    truncate_tables = [fmt(name) for id_, name in table_names.items()
-                       if id_ != 'table_prefix' and name]
-    truncate_tables.append(fmt('volttron_table_definitions'))
     try:
-        cleanup_postgresql(connection, truncate_tables)
+        cleanup_postgresql(connection, None, drop_tables=True)
     except Exception as exc:
         print('Error truncating existing tables: {}'.format(exc))
     return connection
 
 setup_redshift = setup_postgresql
 
-def cleanup_sql(db_connection, truncate_tables):
+
+def cleanup_sql(db_connection, truncate_tables, drop_tables=False):
     cursor = db_connection.cursor()
-    for table in truncate_tables:
-        cursor.execute("DELETE FROM " + table)
+    if drop_tables:
+        for table in truncate_tables:
+            cursor.execute("DROP TABLE IF EXISTS " + table)
+    else:
+        for table in truncate_tables:
+            cursor.execute("DELETE FROM " + table)
     db_connection.commit()
 
 
-def cleanup_sqlite(db_connection, truncate_tables):
-    cleanup_sql(db_connection, truncate_tables)
+def cleanup_sqlite(db_connection, truncate_tables, drop_tables=False):
+    if truncate_tables is None:
+        cursor = db_connection.cursor()
+        cursor.execute("SELECT name FROM sqlite_master WHERE type ='table' AND name NOT LIKE 'sqlite_%';")
+        rows = cursor.fetchall()
+        print(f"table names {rows}")
+        truncate_tables = [columns[0] for columns in rows]
+    cleanup_sql(db_connection, truncate_tables, drop_tables)
+    db_connection.commit()
     pass
 
 
-def cleanup_mysql(db_connection, truncate_tables):
-    cleanup_sql(db_connection, truncate_tables)
+def cleanup_mysql(db_connection, truncate_tables, drop_tables=False):
+    if truncate_tables is None:
+        cursor = db_connection.cursor()
+        query = f"SHOW TABLES"
+        cursor.execute(query)
+        rows = cursor.fetchall()
+        print(f"table names {rows}")
+        truncate_tables = [columns[0] for columns in rows]
+    cleanup_sql(db_connection, truncate_tables, drop_tables)
 
 
-def cleanup_mongodb(db_connection, truncate_tables):
+def cleanup_mongodb(db_connection, truncate_tables, drop_tables=False):
     for collection in truncate_tables:
         db_connection[collection].remove()
 
-def cleanup_postgresql(connection, truncate_tables):
+
+def cleanup_postgresql(connection, truncate_tables, drop_tables=False):
     print('cleanup_postgreql({!r}, {!r})'.format(connection, truncate_tables))
+    if truncate_tables is None:
+        cursor = connection.cursor()
+        cursor.execute(f"""SELECT table_name FROM information_schema.tables
+                        WHERE table_catalog = 'test_historian' and table_schema = 'public'""")
+        rows = cursor.fetchall()
+        truncate_tables = [columns[0] for columns in rows]
     for table in truncate_tables:
         with connection.cursor() as cursor:
             try:
-                cursor.execute(pgsql.SQL('TRUNCATE TABLE {}').format(
-                    pgsql.Identifier(table)))
+                if drop_tables:
+                    cursor.execute(pgsql.SQL('DROP TABLE IF EXISTS {}').format(
+                        pgsql.Identifier(table)))
+                else:
+                    cursor.execute(pgsql.SQL('TRUNCATE TABLE {}').format(
+                        pgsql.Identifier(table)))
             except psycopg2.ProgrammingError as exc:
                 if exc.pgcode != psycopg2.errorcodes.UNDEFINED_TABLE:
                     raise
@@ -343,9 +403,10 @@ def query_agent(request, volttron_instance):
 @pytest.fixture(scope="module",
                 params=[
                     pytest.param(mysql_aggregator, marks=mysql_skipif),
+                    pytest.param(mysql_aggregator_with_table_names, marks=mysql_skipif),
                     sqlite_aggregator,
-                    pytest.param(mongo_aggregator, marks=pymongo_skipif),
                     pytest.param(postgresql_aggregator, marks=postgresql_skipif),
+                    pytest.param(postgresql_aggregator_with_table_names, marks=postgresql_skipif),
                     pytest.param(redshift_aggregator, marks=redshift_skipif),
                 ])
 def aggregate_agent(request, volttron_instance):
@@ -400,25 +461,25 @@ def aggregate_agent(request, volttron_instance):
     # agent that published to message bus
     def stop_agent():
         print("In teardown method of aggregate agent")
-        # if db_connection:
-        #     db_connection.close()
-        #     print("closed connection to db")
+
         if volttron_instance.is_running():
             volttron_instance.remove_agent(historian_uuid)
             volttron_instance.remove_agent(agg_agent_uuid)
         request.param['source_historian'] = source
         request.param['source_agg_historian'] = source_agg
+        cleanup(request.param['connection']['type'], None, drop_tables=True)
     request.addfinalizer(stop_agent)
     return request.param
 
 
-def cleanup(connection_type, truncate_tables):
+def cleanup(connection_type, truncate_tables, drop_tables=False):
     global db_connection, table_names
-    truncate_tables.append(table_names['data_table'])
-    truncate_tables.append(table_names['agg_topics_table'])
-    truncate_tables.append(table_names['agg_meta_table'])
+    if truncate_tables:
+        truncate_tables.append(table_names['data_table'])
+        truncate_tables.append(table_names['agg_topics_table'])
+        truncate_tables.append(table_names['agg_meta_table'])
     cleanup_function = globals()["cleanup_" + connection_type]
-    cleanup_function(db_connection, truncate_tables)
+    cleanup_function(db_connection, truncate_tables, drop_tables)
 
 
 @pytest.mark.aggregator
@@ -445,15 +506,13 @@ def test_get_supported_aggregations(aggregate_agent, query_agent):
     if conn:
         if conn.get("type") == "mysql":
             assert result == ['AVG', 'MIN', 'MAX', 'COUNT', 'SUM', 'BIT_AND',
-                              'BIT_OR', 'BIT_XOR', 'GROUP_CONCAT', 'STD',
+                              'BIT_OR', 'BIT_XOR', 'STD',
                               'STDDEV', 'STDDEV_POP', 'STDDEV_SAMP',
                               'VAR_POP', 'VAR_SAMP', 'VARIANCE']
         elif conn.get("type") == "sqlite":
-            assert result == ['AVG', 'MIN', 'MAX', 'COUNT', 'SUM', 'TOTAL',
-                              'GROUP_CONCAT']
+            assert result == ['AVG', 'MIN', 'MAX', 'COUNT', 'SUM', 'TOTAL']
         elif conn.get("type") == "mongodb":
-            assert result == ['SUM', 'COUNT', 'AVG', 'MIN', 'MAX',
-                              'STDDEVPOP', 'STDDEVSAMP']
+            assert result == ['SUM', 'COUNT', 'AVG', 'MIN', 'MAX', 'STDDEVPOP', 'STDDEVSAMP']
 
 
 @pytest.mark.aggregator

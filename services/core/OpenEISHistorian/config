@@ -1,0 +1,21 @@
+{
+    "connection": {
+        "type": "openeis",
+        "params": {
+            "uri": "http://localhost:8000",
+            "login": "volttron",
+            "password": "volttron"
+        }
+    },
+    "dataset_definitions": {
+        "ds1": {
+            "dataset_id": 1,
+			"ignore_unmapped_points": 0,
+            "points": [
+                {"campus1/building1/OutsideAirTemp": "campus1/building1/OutdoorAirTemperature"},
+                {"campus1/building1/HVACStatus": "campus1/building1/HVACStatus"},
+                {"campus1/building1/CompressorStatus": "campus1/building1/LightingStatus"}
+            ]
+        }
+    }
+}

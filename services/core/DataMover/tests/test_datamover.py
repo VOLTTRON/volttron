@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -35,12 +35,14 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
+
 import os
+import json
 import random
-from datetime import datetime
 import gevent
 import pytest
 from pytest import approx
+from datetime import datetime
 
 from volttron.platform import get_services_core
 from volttron.platform.agent import utils
@@ -48,6 +50,7 @@ from volttron.platform.messaging import headers as headers_mod
 from volttron.platform.messaging import topics
 from volttron.platform.vip.agent import Agent
 from volttron.platform.keystore import KnownHostsStore
+from volttron.platform.messaging.health import STATUS_GOOD
 
 datamover_uuid = None
 datamover_config = {
@@ -124,7 +127,6 @@ def sqlhistorian(request, volttron_instances):
 @pytest.fixture(scope="module")
 def forwarder(request, volttron_instances):
     global volttron_instance1, volttron_instance2
-
     global datamover_uuid, datamover_config
     # 1. Update destination address in forwarder configuration
 
@@ -167,12 +169,10 @@ def test_devices_topic(publish_agent, query_agent):
     another instance. Test if topic name substitutions happened.
     Publish to 'devices/PNNL/BUILDING_1/Device/all' in volttron_instance1 and query
     for topic 'devices/PNNL/BUILDING1_ANON/Device/all' in volttron_instance2
-
     :param publish_agent: Fake agent used to publish messages to bus in
     volttron_instance1. Calling this fixture makes sure all the dependant
     fixtures are called to setup and start volttron_instance1 and forwareder
     agent and returns the  instance of fake agent to publish
-
     :param query_agent: Fake agent used to query sqlhistorian in
     volttron_instance2. Calling this fixture makes sure all the dependant
     fixtures are called to setup and start volttron_instance2 and sqlhistorian
@@ -217,12 +217,10 @@ def test_record_topic(publish_agent, query_agent):
     """
     Test if record topic message is getting forwarded to historian running on
     another instance.
-
     :param publish_agent: Fake agent used to publish messages to bus in
     volttron_instance1. Calling this fixture makes sure all the dependant
     fixtures are called to setup and start volttron_instance1 and forwareder
     agent and returns the  instance of fake agent to publish
-
     :param query_agent: Fake agent used to query sqlhistorian in
     volttron_instance2. Calling this fixture makes sure all the dependant
     fixtures are called to setup and start volttron_instance2 and sqlhistorian
@@ -275,12 +273,10 @@ def test_record_topic_no_header(publish_agent, query_agent):
     """
     Test if record topic message is getting forwarded to historian running on
     another instance.
-
     :param publish_agent: Fake agent used to publish messages to bus in
     volttron_instance1. Calling this fixture makes sure all the dependant
     fixtures are called to setup and start volttron_instance1 and forwareder
     agent and returns the  instance of fake agent to publish
-
     :param query_agent: Fake agent used to query sqlhistorian in
     volttron_instance2. Calling this fixture makes sure all the dependant
     fixtures are called to setup and start volttron_instance2 and sqlhistorian
@@ -323,12 +319,10 @@ def test_analysis_topic(publish_agent, query_agent):
     'analysis/PNNL/BUILDING_1/Device/MixedAirTemperature' in volttron_instance1 and
     query for topic
     'PNNL/BUILDING1_ANON/Device/MixedAirTemperature' in volttron_instance2
-
     :param publish_agent: Fake agent used to publish messages to bus in
     volttron_instance1. Calling this fixture makes sure all the dependant
     fixtures are called to setup and start volttron_instance1 and forwareder
     agent and returns the  instance of fake agent to publish
-
     :param query_agent: Fake agent used to query sqlhistorian in
     volttron_instance2. Calling this fixture makes sure all the dependant
     fixtures are called to setup and start volttron_instance2 and sqlhistorian
@@ -391,12 +385,10 @@ def test_analysis_topic_no_header(publish_agent, query_agent):
     'analysis/PNNL/BUILDING_1/Device/MixedAirTemperature' in volttron_instance1 and
     query for topic
     'PNNL/BUILDING1_ANON/Device/MixedAirTemperature' in volttron_instance2
-
     :param publish_agent: Fake agent used to publish messages to bus in
     volttron_instance1. Calling this fixture makes sure all the dependant
     fixtures are called to setup and start volttron_instance1 and forwareder
     agent and returns the  instance of fake agent to publish
-
     :param query_agent: Fake agent used to query sqlhistorian in
     volttron_instance2. Calling this fixture makes sure all the dependant
     fixtures are called to setup and start volttron_instance2 and sqlhistorian
@@ -457,13 +449,10 @@ def test_log_topic(publish_agent, query_agent):
      Record should get entered into database with current time at time of
      insertion and should ignore timestamp in header. Topic name
      substitution should have happened
-
-
     :param publish_agent: Fake agent used to publish messages to bus in
     volttron_instance1. Calling this fixture makes sure all the dependant
     fixtures are called to setup and start volttron_instance1 and forwareder
     agent and returns the  instance of fake agent to publish
-
     :param query_agent: Fake agent used to query sqlhistorian in
     volttron_instance2. Calling this fixture makes sure all the dependant
     fixtures are called to setup and start volttron_instance2 and sqlhistorian
@@ -517,12 +506,10 @@ def test_log_topic_no_header(publish_agent, query_agent):
     query for topic
     'datalogger/PNNL/BUILDING1_ANON/Device/MixedAirTemperature' in
     volttron_instance2
-
     :param publish_agent: Fake agent used to publish messages to bus in
     volttron_instance1. Calling this fixture makes sure all the dependant
     fixtures are called to setup and start volttron_instance1 and forwareder
     agent and returns the  instance of fake agent to publish
-
     :param query_agent: Fake agent used to query sqlhistorian in
     volttron_instance2. Calling this fixture makes sure all the dependant
     fixtures are called to setup and start volttron_instance2 and sqlhistorian
@@ -581,3 +568,22 @@ def test_old_config(volttron_instances, forwarder):
     print("data_mover agent id: ", uuid)
 
 
+@pytest.mark.historian
+@pytest.mark.forwarder
+def test_default_config(volttron_instances):
+    """
+    Test the default configuration file included with the agent
+    """
+    publish_agent = volttron_instance1.build_agent(identity="test_agent")
+    gevent.sleep(1)
+
+    config_path = os.path.join(get_services_core("DataMover"), "config")
+    with open(config_path, "r") as config_file:
+        config_json = json.load(config_file)
+    assert isinstance(config_json, dict)
+    volttron_instance1.install_agent(
+        agent_dir=get_services_core("DataMover"),
+        config_file=config_json,
+        start=True,
+        vip_identity="health_test")
+    assert publish_agent.vip.rpc.call("health_test", "health.get_status").get(timeout=10).get('status') == STATUS_GOOD

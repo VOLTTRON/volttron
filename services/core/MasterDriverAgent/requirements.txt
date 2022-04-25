@@ -1,4 +1,0 @@
-bacpypes
-pymodbus
-modbus-tk
-pyserial

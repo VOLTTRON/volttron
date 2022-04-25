@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2019, Battelle Memorial Institute.
+# Copyright 2020, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -59,91 +59,6 @@ from volttrontesting.fixtures.volttron_platform_fixtures import get_rand_vip, \
     get_rand_ip_and_port
 from volttron.utils.rmq_setup import start_rabbit, stop_rabbit
 from volttron.platform.agent.utils import execute_command
-
-
-@pytest.fixture(scope="module")
-def federated_rmq_instances(request, **kwargs):
-    """
-    Create two rmq based volttron instances. One to act as producer of data and one to act as consumer of data
-
-    :return: 2 volttron instances - (producer, consumer) that are federated
-    """
-    upstream_vip = get_rand_vip()
-    upstream = build_wrapper(upstream_vip,
-                             ssl_auth=True,
-                             messagebus='rmq',
-                             should_start=False,
-                             **kwargs)
-
-    downstream_vip = get_rand_vip()
-    downstream = build_wrapper(downstream_vip,
-                               ssl_auth=True,
-                               messagebus='rmq',
-                               should_start=False,
-                               **kwargs)
-
-    # exchange CA certs
-    stop_rabbit(rmq_home=upstream.rabbitmq_config_obj.rmq_home, env=upstream.env, quite=True)
-    stop_rabbit(rmq_home=downstream.rabbitmq_config_obj.rmq_home, env=downstream.env, quite=True)
-
-    with open(os.path.join(upstream.certsobj.cert_dir, upstream.instance_name + "-root-ca.crt"), "r") as uf:
-        with open(os.path.join(downstream.certsobj.cert_dir, downstream.instance_name + "-trusted-cas.crt"), "a") as df:
-            df.write(uf.read())
-
-    with open(os.path.join(downstream.certsobj.cert_dir, downstream.instance_name + "-root-ca.crt"), "r") as df:
-        with open(os.path.join(upstream.certsobj.cert_dir, upstream.instance_name + "-trusted-cas.crt"), "a") as uf:
-            uf.write(df.read())
-
-    start_rabbit(rmq_home=downstream.rabbitmq_config_obj.rmq_home, env=downstream.env)
-    gevent.sleep(1)
-    start_rabbit(rmq_home=upstream.rabbitmq_config_obj.rmq_home, env=upstream.env)
-    gevent.sleep(1)
-
-    try:
-
-        # add downstream user ON UPSTREAM and give permissions
-        # ~/rabbitmq_server/rabbitmq_server-3.7.7/sbin/rabbitmqctl add_user <user> <password>
-        # ~/rabbitmq_server/rabbitmq_server-3.7.7/sbin/rabbitmqctl set_permissions -p <vhost> <user> ".*" ".*" ".*"
-        cmd = [os.path.join(upstream.rabbitmq_config_obj.rmq_home, "sbin/rabbitmqctl")]
-        cmd.extend(['add_user', downstream.instance_name + "-admin", "test"])
-        execute_command(cmd, env=upstream.env, err_prefix="Error creating user in upstream server")
-
-        cmd = [os.path.join(upstream.rabbitmq_config_obj.rabbitmq_config['rmq-home'], "sbin/rabbitmqctl")]
-        cmd.extend(['set_permissions', "-p", upstream.rabbitmq_config_obj.rabbitmq_config["virtual-host"]])
-        cmd.extend([downstream.instance_name + "-admin", ".*", ".*", ".*"])
-        execute_command(cmd, env=upstream.env, err_prefix="Error setting user permission in upstream server")
-        gevent.sleep(1)
-
-        upstream.startup_platform(upstream_vip)
-        gevent.sleep(2)
-        print("After upstream start")
-        downstream.startup_platform(downstream_vip)
-        gevent.sleep(2)
-
-        # create federation config and setup federation
-        content = """federation-upstream:
-        {host}:
-            port: {port}
-            virtual-host: {vhost}
-        """
-
-        config_path = os.path.join(downstream.volttron_home, "federation.config")
-        with open(config_path, 'w') as conf:
-            conf.write(content.format(host=upstream.rabbitmq_config_obj.rabbitmq_config["host"],
-                                      port=upstream.rabbitmq_config_obj.rabbitmq_config["amqp-port-ssl"],
-                                      vhost=upstream.rabbitmq_config_obj.rabbitmq_config["virtual-host"]))
-        downstream.setup_federation(config_path)
-
-    except Exception as e:
-        print("Exception setting up federation: {}".format(e))
-        upstream.shutdown_platform()
-        downstream.shutdown_platform()
-        raise e
-
-    yield upstream, downstream
-
-    upstream.shutdown_platform()
-    downstream.shutdown_platform()
 
 
 @pytest.fixture(scope="module")
@@ -383,7 +298,7 @@ def test_all_platform_subscription_rmq(request, federated_rmq_instances):
                                     DEVICES_ALL_TOPIC,
                                     headers=headers,
                                     message=all_message).get(timeout=10)
-        gevent.sleep(5)
+        gevent.sleep(10)
 
         ## Query from consumer to verify
 
