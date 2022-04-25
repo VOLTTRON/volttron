@@ -73,7 +73,7 @@ import modbus_tk.defines as modbus_constants
 import modbus_tk.modbus_tcp as modbus_tcp
 import modbus_tk.modbus_rtu as modbus_rtu
 from modbus_tk.exceptions import ModbusError, ModbusInvalidResponseError
-from master_driver.driver_locks import client_socket_locks
+from platform_driver.driver_locks import client_socket_locks
 
 from . import helpers
 
