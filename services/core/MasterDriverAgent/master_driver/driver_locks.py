@@ -36,8 +36,14 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
+from collections import defaultdict
+import logging
 from gevent.lock import BoundedSemaphore, DummySemaphore
 from contextlib import contextmanager
+
+from volttron.platform.agent import utils
+utils.setup_logging()
+_log = logging.getLogger(__name__)
 
 _socket_lock = None
 
@@ -82,4 +88,34 @@ def publish_lock():
         yield 
     finally:
         _publish_lock.release()
-    
+
+_client_socket_locks  = defaultdict(lambda: None)
+
+def configure_client_socket_lock(address, port, max_connections=0):
+    _log.debug("Configuring client socket lock for {}:{}".format(address, port))
+    global _client_socket_locks
+    if _client_socket_locks[(address, port)] is not None:
+        if isinstance(_client_socket_locks[(address, port)], DummySemaphore) or isinstance(_client_socket_locks[(address, port)], BoundedSemaphore):
+            _log.debug(f"Client socket lock already configured for {address}:{port}")
+            return
+        else:
+            raise RuntimeError("client socket lock already configured!")
+    if max_connections < 1:
+        _client_socket_locks[(address, port)] = DummySemaphore()
+    else:
+        _client_socket_locks[(address, port)] = BoundedSemaphore(max_connections)
+
+@contextmanager
+def client_socket_locks(address, port):
+    global _client_socket_locks
+    lock = _client_socket_locks[(address, port)]
+    _log.debug(f"Acquiring client socket lock ({type(lock)}) for {address}:{port} at {id(lock)}")
+    if lock is None:
+        _log.debug(f"socket_lock not configured {address}:{port}")
+        raise RuntimeError("socket_lock not configured!")
+    lock.acquire()
+    try:        
+        yield 
+    finally:
+        _log.debug(f"Releasing client socket lock ({type(lock)}) for {address}:{port} at {id(lock)}")
+        lock.release()

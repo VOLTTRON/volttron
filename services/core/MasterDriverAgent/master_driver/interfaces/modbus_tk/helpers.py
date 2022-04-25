@@ -192,7 +192,7 @@ def scale_decimal_int_signed(multiplier):
                 if value < 0:
                     return  (0 - (value / float(multiplier))) - 0xFFFF
                 else:
-                    return (value / float(multipliers))
+                    return (value / float(multiplier))
             except TypeError: #string
                 return value
         except ZeroDivisionError:

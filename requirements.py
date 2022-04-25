@@ -36,6 +36,9 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
+# These need to be importable by bootstrap.py. If we put them in
+# setup.py the import may fail if setuptools in not installed
+# in the global python3.
 
 extras_require = {   'crate': ['crate==0.26.0'],
     'databases': [   'mysql-connector-python-rf==2.2.2',
