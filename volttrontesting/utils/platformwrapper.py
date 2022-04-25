@@ -18,7 +18,7 @@ from subprocess import CalledProcessError
 
 import gevent
 import gevent.subprocess as subprocess
-import requests
+import grequests
 
 from volttron.platform.vip.socket import encode_key, decode_key
 from volttrontesting.fixtures.cert_fixtures import certs_profile_2
@@ -172,7 +172,7 @@ def start_wrapper_platform(wrapper, with_http=False, with_tcp=True,
                              volttron_central_serverkey=volttron_central_serverkey)
     if with_http:
         discovery = "{}/discovery/".format(vc_http)
-        response = requests.get(discovery)
+        response = grequests.get(discovery).send().response
         assert response.ok
 
     assert wrapper.is_running()
@@ -890,10 +890,11 @@ class PlatformWrapper:
                     times += 1
                     try:
                         if self.ssl_auth:
-                            resp = requests.get(self.discovery_address,
-                                                verify=self.certsobj.cert_file(self.certsobj.root_ca_name))
+                            resp = grequests.get(self.discovery_address,
+                                                verify=self.certsobj.cert_file(self.certsobj.root_ca_name)
+                                                ).send().response
                         else:
-                            resp = requests.get(self.discovery_address)
+                            resp = grequests.get(self.discovery_address).send().response
                         if resp.ok:
                             self.logit("Has discovery address for {}".format(self.discovery_address))
                             if self.requests_ca_bundle:
@@ -1134,7 +1135,7 @@ class PlatformWrapper:
 
             return agent_uuid
 
-    def __wait_for_control_connection_to_exit__(self, timeout: int = 20):
+    def __wait_for_control_connection_to_exit__(self, timeout: int = 10):
         """
         Call the dynamic agent's peerlist method until the control connection is no longer connected or
         timeout is reached
@@ -1150,13 +1151,15 @@ class PlatformWrapper:
                 disconnected = CONTROL_CONNECTION not in peers
                 if disconnected:
                     break
-                self.logit(f"Waiting for control connection to disconnect: {peers} time: {timer_start - time.time()} timeout is {timeout}")
                 if time.time() - timer_start > timeout:
-                    raise PlatformWrapperError(f"Failed for {CONTROL_CONNECTION} to exit in a timely manner.")
+                    # raise PlatformWrapperError(f"Failed for {CONTROL_CONNECTION} to exit in a timely manner.")
+                    # See https://githb.com/VOLTTRON/volttron/issues/2938
+                    self.logit("Control connection did not exit")
+                    break
                 time.sleep(0.5)
-
-            if not disconnected:
-                raise PlatformWrapperError("Control connection did not stop properly")
+            # See https://githb.com/VOLTTRON/volttron/issues/2938
+            # if not disconnected:
+            #     raise PlatformWrapperError("Control connection did not stop properly")
 
     def start_agent(self, agent_uuid):
         with with_os_environ(self.env):
@@ -1228,7 +1231,7 @@ class PlatformWrapper:
             try:
                 pid = self.agent_pid(agent_uuid)
             except RuntimeError:
-                self.logit("Runtime error occured successfully as it was expected")
+                self.logit("Runtime error occurred successfully as it was expected")
             finally:
                 if pid is not None:
                     raise RuntimeError(f"Expected runtime error for looking at removed agent. {agent_uuid}")
@@ -1564,10 +1567,10 @@ class WebAdminApi:
         # verify=self.certsobj.remote_cert_bundle_file())
 
         if self._wrapper.ssl_auth:
-            resp = requests.post(url, data=data,
-                                 verify=self.certsobj.cert_file(self.certsobj.root_ca_name))
+            resp = grequests.post(url, data=data,
+                                 verify=self.certsobj.cert_file(self.certsobj.root_ca_name)).send().response
         else:
-            resp = requests.post(url, data=data, verify=False)
+            resp = grequests.post(url, data=data, verify=False).send().response
         print(f"RESPONSE: {resp}")
         return resp
 
@@ -1579,8 +1582,8 @@ class WebAdminApi:
         # resp = requests.post(url, data=data,
         # verify=self.certsobj.remote_cert_bundle_file())
         if self._wrapper.ssl_auth:
-            resp = requests.post(url, data=data,
-                                 verify=self.certsobj.cert_file(self.certsobj.root_ca_name))
+            resp = grequests.post(url, data=data,
+                                 verify=self.certsobj.cert_file(self.certsobj.root_ca_name)).send().response
         else:
-            resp = requests.post(url, data=data, verify=False)
+            resp = grequests.post(url, data=data, verify=False).send().response
         return resp

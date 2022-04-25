@@ -150,8 +150,7 @@ def load_config(config_path):
         return {}
 
     if not os.path.exists(config_path):
-        _log.info("Config file specified by AGENT_CONFIG does not exist. load_config returning empty configuration.")
-        return {}
+        raise ValueError(f"Config file specified by AGENT_CONFIG path {config_path} does not exist.")
 
     # First attempt parsing the file with a yaml parser (allows comments natively)
     # Then if that fails we fallback to our modified json parser.
