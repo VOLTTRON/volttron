@@ -241,8 +241,8 @@ class AdminEndpoints:
         try:
             _log.debug("Creating cert and permissions for user: {}".format(common_name))
             self._rpc_caller.call(AUTH, 'approve_authorization', common_name).wait(timeout=4)
-            data = dict(status=self._rpc_caller.call(AUTH, "get_pending_csr_status", common_name).get(timeout=2),
-                        cert=self._rpc_caller.call(AUTH, "get_pending_csr_cert", common_name).get(timeout=2))
+            data = dict(status=self._rpc_caller.call(AUTH, "get_authorization_status", common_name).get(timeout=2),
+                        cert=self._rpc_caller.call(AUTH, "get_authorization", common_name).get(timeout=2))
         except ValueError as e:
             data = dict(status="ERROR", message=str(e))
 
@@ -290,7 +290,7 @@ class AdminEndpoints:
 
         try:
             data = [dict(common_name=x.common_name) for x in
-                    self._rpc_caller.call(AUTH, "get_all_pending_csr_subjects").get(timeout=2)]
+                    self._rpc_caller.call(AUTH, "get_approved_authorizations").get(timeout=2)]
 
         except TimeoutError as e:
             data = dict(status="ERROR", message=str(e))

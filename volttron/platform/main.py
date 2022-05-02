@@ -1037,6 +1037,7 @@ def start_volttron_process(opts):
             ks_masterweb = KeyStore(KeyStore.get_agent_keystore_path(PLATFORM_WEB))
             entry = AuthEntry(credentials=encode_key(decode_key(ks_masterweb.public)),
                             user_id=PLATFORM_WEB,
+                            identity=PLATFORM_WEB,
                             capabilities=['allow_auth_modifications'],
                             comments='Automatically added by platform on start')
             AuthFile().add(entry, overwrite=True)

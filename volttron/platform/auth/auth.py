@@ -178,26 +178,26 @@ class AuthService(Agent):
         self.read_auth_file()
         if get_messagebus() == "zmq":
             from volttron.platform.auth.auth_protocols.auth_zmq import ZMQAuthorization, ZMQServerAuthentication
-            self.authentication_server = ZMQServerAuthentication(
-                    auth_vip=self.vip, 
-                    auth_core=self.core, 
-                    aip=self.aip, 
-                    allow_any=self.allow_any, 
-                    is_connected = self._is_connected,
-                    setup_mode=self._setup_mode,
-                    auth_file=self.auth_file,
-                    auth_entries=self.auth_entries,
-                    auth_pending=self._auth_pending,
-                    auth_approved=self._auth_approved,
-                    auth_denied=self._auth_denied
+            self.authentication_server = ZMQServerAuthentication(auth_service=self
+                    # auth_vip=self.vip,
+                    # auth_core=self.core,
+                    # aip=self.aip,
+                    # allow_any=self.allow_any,
+                    # is_connected=self._is_connected,
+                    # setup_mode=self._setup_mode,
+                    # auth_file=self.auth_file,
+                    # auth_entries=self.auth_entries,
+                    # auth_pending=self._auth_pending,
+                    # auth_approved=self._auth_approved,
+                    # auth_denied=self._auth_denied
             )
-            self.authorization_server = ZMQAuthorization(
-                    auth_core=self.core,
-                    is_connected=self._is_connected, 
-                    auth_file=self.auth_file,
-                    auth_pending=self._auth_pending,
-                    auth_approved=self._auth_approved,
-                    auth_denied=self._auth_denied
+            self.authorization_server = ZMQAuthorization(auth_service=self
+                    # auth_core=self.core,
+                    # is_connected=self._is_connected,
+                    # auth_file=self.auth_file,
+                    # auth_pending=self._auth_pending,
+                    # auth_approved=self._auth_approved,
+                    # auth_denied=self._auth_denied
             )
         else:
             from volttron.platform.auth.auth_protocols.auth_rmq import RMQAuthorization, RMQServerAuthentication
@@ -558,7 +558,7 @@ class AuthService(Agent):
         self._update_auth_lists(entries)
         self._update_auth_lists(denied_entries, is_allow=False)
         entries = [entry for entry in entries if entry.enabled]
-        # sort the entries so the regex credentails follow the concrete creds
+        # sort the entries so the regex credentials follow the concrete creds
         entries.sort()
         self.auth_entries = entries
         if self._is_connected:

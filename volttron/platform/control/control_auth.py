@@ -123,24 +123,24 @@ def list_remotes(opts):
         return
 
     output_view = []
-    try:
-        pending_csrs = conn.server.vip.rpc.call(AUTH, "get_pending_csrs").get(
-            timeout=4)
-        for csr in pending_csrs:
-            output_view.append(
-                {
-                    "entry": {
-                        "user_id": csr["identity"],
-                        "address": csr["remote_ip_address"],
-                    },
-                    "status": csr["status"],
-                }
-            )
-    except TimeoutError:
-        print("Certs timed out")
+    # try:
+    #     pending_csrs = conn.server.vip.rpc.call(AUTH, "get_pending_csrs").get(
+    #         timeout=4)
+    #     for csr in pending_csrs:
+    #         output_view.append(
+    #             {
+    #                 "entry": {
+    #                     "user_id": csr["identity"],
+    #                     "address": csr["remote_ip_address"],
+    #                 },
+    #                 "status": csr["status"],
+    #             }
+    #         )
+    # except TimeoutError:
+    #     print("Certs timed out")
     try:
         approved_certs = conn.server.vip.rpc.call(
-            AUTH, "get_authorization_approved"
+            AUTH, "get_approved_authorizations"
         ).get(timeout=4)
         for value in approved_certs:
             output_view.append({"entry": value, "status": "APPROVED"})
@@ -148,7 +148,7 @@ def list_remotes(opts):
         print("Approved credentials timed out")
     try:
         denied_certs = conn.server.vip.rpc.call(AUTH,
-                                                "get_authorization_denied").get(
+                                                "get_denied_authorizations").get(
             timeout=4
         )
         for value in denied_certs:
@@ -157,7 +157,7 @@ def list_remotes(opts):
         print("Denied credentials timed out")
     try:
         pending_certs = conn.server.vip.rpc.call(AUTH,
-                                                 "get_authorization_pending").get(
+                                                 "get_pending_authorizations").get(
             timeout=4
         )
         for value in pending_certs:
@@ -241,7 +241,7 @@ def approve_remote(opts):
             "requires VOLTTRON platform to be running\n"
         )
         return
-    conn.server.vip.rpc.call(AUTH, "approve_authorization_failure",
+    conn.server.vip.rpc.call(AUTH, "approve_authorization",
                              opts.user_id).get(
         timeout=4
     )
@@ -260,7 +260,7 @@ def deny_remote(opts):
             "requires VOLTTRON platform to be running\n"
         )
         return
-    conn.server.vip.rpc.call(AUTH, "deny_authorization_failure",
+    conn.server.vip.rpc.call(AUTH, "deny_authorization",
                              opts.user_id).get(
         timeout=4
     )
@@ -279,7 +279,7 @@ def delete_remote(opts):
             "requires VOLTTRON platform to be running\n"
         )
         return
-    conn.server.vip.rpc.call(AUTH, "delete_authorization_failure",
+    conn.server.vip.rpc.call(AUTH, "delete_authorization",
                              opts.user_id).get(
         timeout=4
     )

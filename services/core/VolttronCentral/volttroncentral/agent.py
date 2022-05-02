@@ -388,6 +388,8 @@ class VolttronCentralAgent(Agent):
         :param object data: The JSON-RPC 2.0 method to call.
         :return object: An JSON-RPC 2.0 response.
         """
+        _log.info("GOT HERE ALPHA")
+        print("GOT HERE ALPHA")
         if env['REQUEST_METHOD'].upper() != 'POST':
             return jsonrpc.json_error('NA', INVALID_REQUEST,
                                       'Invalid request method, only POST allowed')

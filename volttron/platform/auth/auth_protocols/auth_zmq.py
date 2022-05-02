@@ -182,47 +182,55 @@ class ZMQServerAuthentication(BaseServerAuthentication):
     Implementation of the Zap Loop used by AuthService 
     for handling ZMQ Authentication on the VOLTTRON Server Instance
     """
-    def __init__(self, 
-                    auth_vip=None, 
-                    auth_core=None, 
-                    aip=None, 
-                    allow_any=False, 
-                    is_connected = False,
-                    setup_mode=False,
-                    auth_file=None,
-                    auth_entries=None,
-                    auth_pending=None,
-                    auth_approved=None,
-                    auth_denied=None) -> None:
-        self.auth_vip = auth_vip
-        self.auth_core = auth_core
-        self.aip = aip
+    def __init__(self, auth_service=None
+                    # auth_vip=None,
+                    # auth_core=None,
+                    # aip=None,
+                    # allow_any=False,
+                    # is_connected = False,
+                    # setup_mode=False,
+                    # auth_file=None,
+                    # auth_entries=None,
+                    # auth_pending=None,
+                    # auth_approved=None,
+                    # auth_denied=None
+                    ) -> None:
+        self.auth_service = auth_service
+        # self.auth_vip = auth_vip
+        # self.auth_core = auth_core
+        # self.aip = aip
         self.zap_socket = None
         self._zap_greenlet = None
-        self._is_connected = is_connected
-        self._allow_any = allow_any
-        self._setup_mode = setup_mode
-        self.auth_file = auth_file
+        # self._is_connected = is_connected
+        # self._allow_any = allow_any
+        # self._setup_mode = setup_mode
+        # self.auth_file = auth_file
+        #
+        # # Will change from auth service
+        # self.auth_entries = auth_entries
+        # self._auth_pending = auth_pending
+        # self._auth_approved = auth_approved
+        # self._auth_denied = auth_denied
 
-        # Will change from auth service
-        self.auth_entries = auth_entries
-        self._auth_pending = auth_pending
-        self._auth_approved = auth_approved
-        self._auth_denied = auth_denied
-
-        self.authorization = ZMQAuthorization(
-                                              self.auth_core,
-                                              self._is_connected,
-                                              self.auth_file,
-                                              self._auth_pending,
-                                              self._auth_approved,
-                                              self._auth_denied)
+        self.authorization = ZMQAuthorization(self.auth_service
+                                              # self.auth_core,
+                                              # self._is_connected,
+                                              # self.auth_file,
+                                              # self._auth_pending,
+                                              # self._auth_approved,
+                                              # self._auth_denied
+                                            )
     def setup_authentication(self):
         self.zap_socket = zmq.Socket(zmq.Context.instance(), zmq.ROUTER)
         self.zap_socket.bind("inproc://zeromq.zap.01")
 
     def authenticate(self, domain, address, mechanism, credentials):
-        for entry in self.auth_entries:
+        for entry in self.auth_service.auth_entries:
+            # _log.info(f"Auth entry: {entry}")
+            # _log.info(f"Incoming auth: \n"
+            #           f"domain: {domain}\n"
+            #           f"address: {address}\n"
+            #           f"mechanism: {mechanism}")
             if entry.match(domain, address, mechanism, credentials):
                 return entry.user_id or dump_user(
                     domain, address, mechanism, *credentials[:1]
@@ -231,13 +239,13 @@ class ZMQServerAuthentication(BaseServerAuthentication):
             parts = address.split(":")[1:]
             if len(parts) > 2:
                 pid = int(parts[2])
-                agent_uuid = self.aip.agent_uuid_from_pid(pid)
+                agent_uuid = self.auth_service.aip.agent_uuid_from_pid(pid)
                 if agent_uuid:
                     return dump_user(domain, address, "AGENT", agent_uuid)
             uid = int(parts[0])
             if uid == os.getuid():
                 return dump_user(domain, address, mechanism, *credentials[:1])
-        if self._allow_any:
+        if self.auth_service.allow_any:
             return dump_user(domain, address, mechanism, *credentials[:1])
 
     def handle_authentication(self, protected_topics):
@@ -251,7 +259,7 @@ class ZMQServerAuthentication(BaseServerAuthentication):
         :param kwargs:
         :return:
         """
-        self._is_connected = True
+        self.auth_service._is_connected = True
         self._zap_greenlet = gevent.getcurrent()
         sock = self.zap_socket
         blocked = {}
@@ -311,7 +319,7 @@ class ZMQServerAuthentication(BaseServerAuthentication):
                         credentials,
                     )
                     # If in setup mode, add/update auth entry
-                    if self._setup_mode:
+                    if self.auth_service._setup_mode:
                         self.authorization._update_auth_entry(
                             domain, address, kind, credentials[0], userid)
                         _log.info(
@@ -380,7 +388,7 @@ class ZMQServerAuthentication(BaseServerAuthentication):
             user_id
     ):
         """Handles incoming pending auth entries."""
-        for entry in self._auth_denied:
+        for entry in self.auth_service._auth_denied:
             # Check if failure entry has been denied. If so, increment the
             # failure's denied count
             if (
@@ -392,7 +400,7 @@ class ZMQServerAuthentication(BaseServerAuthentication):
                 entry["retries"] += 1
                 return
 
-        for entry in self._auth_pending:
+        for entry in self.auth_service._auth_pending:
             # Check if failure entry exists. If so, increment the failure count
             if (
                     (entry["domain"] == domain)
@@ -411,28 +419,31 @@ class ZMQServerAuthentication(BaseServerAuthentication):
             "user_id": user_id,
             "retries": 1,
         }
-        self._auth_pending.append(dict(fields))
+        self.auth_service._auth_pending.append(dict(fields))
         return
 
 class ZMQAuthorization(BaseServerAuthorization):
-    def __init__(self, auth_core=None,
-                       is_connected=False, 
-                       auth_file=None,
-                       auth_pending=None,
-                       auth_approved=None,
-                       auth_denied=None):
+    def __init__(self, auth_service=None
+                       # auth_core=None,
+                       # is_connected=False,
+                       # auth_file=None,
+                       # auth_pending=None,
+                       # auth_approved=None,
+                       # auth_denied=None
+                ):
         super().__init__()
-        self.auth_core = auth_core
-        self._is_connected = is_connected
-        self.auth_file = auth_file
-        self._auth_pending = auth_pending
-        self._auth_approved = auth_approved
-        self._auth_denied = auth_denied
+        self.auth_service=auth_service
+        # self.auth_core = auth_core
+        # self._is_connected = is_connected
+        # self.auth_file = auth_file
+        # self._auth_pending = auth_pending
+        # self._auth_approved = auth_approved
+        # self._auth_denied = auth_denied
 
     def approve_authorization(self, user_id):
         index = 0
         matched_index = -1
-        for pending in self._auth_pending:
+        for pending in self.auth_service._auth_pending:
             if user_id == pending["user_id"]:
                 self._update_auth_entry(
                     pending["domain"],
@@ -445,18 +456,18 @@ class ZMQAuthorization(BaseServerAuthorization):
                 break
             index = index + 1
         if matched_index >= 0:
-            del self._auth_pending[matched_index]
+            del self.auth_service._auth_pending[matched_index]
 
-        for pending in self._auth_denied:
+        for pending in self.auth_service._auth_denied:
             if user_id == pending["user_id"]:
-                self.auth_file.approve_deny_credential(
+                self.auth_service.auth_file.approve_deny_credential(
                     user_id, is_approved=True
                 )
 
     def deny_authorization(self, user_id):
         index = 0
         matched_index = -1
-        for pending in self._auth_pending:
+        for pending in self.auth_service._auth_pending:
             if user_id == pending["user_id"]:
                 self._update_auth_entry(
                     pending["domain"],
@@ -470,18 +481,18 @@ class ZMQAuthorization(BaseServerAuthorization):
                 break
             index = index + 1
         if matched_index >= 0:
-            del self._auth_pending[matched_index]
+            del self.auth_service._auth_pending[matched_index]
 
-        for pending in self._auth_approved:
+        for pending in self.auth_service._auth_approved:
             if user_id == pending["user_id"]:
-                self.auth_file.approve_deny_credential(
+                self.auth_service.auth_file.approve_deny_credential(
                     user_id, is_approved=False
                 )
 
     def delete_authorization(self, user_id):
         index = 0
         matched_index = -1
-        for pending in self._auth_pending:
+        for pending in self.auth_service._auth_pending:
             if user_id == pending["user_id"]:
                 self._update_auth_entry(
                     pending["domain"],
@@ -495,25 +506,25 @@ class ZMQAuthorization(BaseServerAuthorization):
                 break
             index = index + 1
         if matched_index >= 0:
-            del self._auth_pending[matched_index]
+            del self.auth_service._auth_pending[matched_index]
 
         index = 0
         matched_index = -1
-        for pending in self._auth_pending:
+        for pending in self.auth_service._auth_pending:
             if user_id == pending["user_id"]:
                 matched_index = index
                 val_err = None
                 break
             index = index + 1
         if matched_index >= 0:
-            del self._auth_pending[matched_index]
+            del self.auth_service._auth_pending[matched_index]
 
-        for pending in self._auth_approved:
+        for pending in self.auth_service._auth_approved:
             if user_id == pending["user_id"]:
                 self._remove_auth_entry(pending["credentials"])
                 val_err = None
 
-        for pending in self._auth_denied:
+        for pending in self.auth_service._auth_denied:
             if user_id == pending["user_id"]:
                 self._remove_auth_entry(pending["credentials"], is_allow=False)
                 val_err = None
@@ -529,7 +540,7 @@ class ZMQAuthorization(BaseServerAuthorization):
         json_msg = jsonapi.dumpb(dict(capabilities=user_to_caps))
         frames = [zmq.Frame(b"auth_update"), zmq.Frame(json_msg)]
         # <recipient, subsystem, args, msg_id, flags>
-        self.auth_core.socket.send_vip(b"", b"pubsub", frames, copy=False)
+        self.auth_service.core.socket.send_vip(b"", b"pubsub", frames, copy=False)
 
     def load_protected_topics(self, protected_topics_data):
         protected_topics = super().load_protected_topics(protected_topics_data)
@@ -544,10 +555,10 @@ class ZMQAuthorization(BaseServerAuthorization):
             zmq.Frame(b"protected_update"),
             zmq.Frame(protected_topics_msg),
         ]
-        if self._is_connected:
+        if self.auth_service._is_connected:
             try:
                 # <recipient, subsystem, args, msg_id, flags>
-                self.auth_core.socket.send_vip(b"", b"pubsub", frames, copy=False)
+                self.auth_service.core.socket.send_vip(b"", b"pubsub", frames, copy=False)
             except VIPError as ex:
                 _log.error(
                     "Error in sending protected topics update to clear "
@@ -581,48 +592,48 @@ class ZMQAuthorization(BaseServerAuthorization):
         new_entry = AuthEntry(**fields)
 
         try:
-            self.auth_file.add(new_entry, overwrite=False, is_allow=is_allow)
+            self.auth_service.auth_file.add(new_entry, overwrite=False, is_allow=is_allow)
         except AuthException as err:
             _log.error("ERROR: %s\n", str(err))
 
     def _remove_auth_entry(self, credential, is_allow=True):
         try:
-            self.auth_file.remove_by_credentials(credential, is_allow=is_allow)
+            self.auth_service.auth_file.remove_by_credentials(credential, is_allow=is_allow)
         except AuthException as err:
             _log.error("ERROR: %s\n", str(err))
 
     def get_authorization(self, user_id):
-        for auth_entry in self._auth_pending:
+        for auth_entry in self.auth_service._auth_pending:
             if user_id == auth_entry.user_id:
                 return str(auth_entry.credentials)
-        for auth_entry in self._auth_approved:
+        for auth_entry in self.auth_service._auth_approved:
             if user_id == auth_entry.user_id:
                 return str(auth_entry.credentials)
-        for auth_entry in self._auth_denied:
+        for auth_entry in self.auth_service._auth_denied:
             if user_id == auth_entry.user_id:
                 return str(auth_entry.credentials)
         return ""
 
     def get_authorization_status(self, user_id):
-        for auth_entry in self._auth_pending:
+        for auth_entry in self.auth_service._auth_pending:
             if user_id == auth_entry.user_id:
                 return "PENDING"
-        for auth_entry in self._auth_approved:
+        for auth_entry in self.auth_service._auth_approved:
             if user_id == auth_entry.user_id:
                 return "APPROVED"
-        for auth_entry in self._auth_denied:
+        for auth_entry in self.auth_service._auth_denied:
             if user_id == auth_entry.user_id:
                 return "DENIED"
         return "UNKOWN"
 
     def get_pending_authorizations(self):
-        return list(self._auth_pending)
+        return list(self.auth_service._auth_pending)
 
     def get_approved_authorizations(self):
-        return list(self._auth_approved)
+        return list(self.auth_service._auth_approved)
 
     def get_denied_authorizations(self):
-        return list(self._auth_denied)
+        return list(self.auth_service._auth_denied)
 
 
 class ZMQClientAuthorization(BaseClientAuthorization):

@@ -287,7 +287,7 @@ def test_deny_credential(volttron_instance_web):
         print(f"Auth pending is: {auth_pending}")
         assert len(auth_pending) == len_auth_pending + 1
 
-        auth_denied = instance.dynamic_agent.vip.rpc.call(AUTH, "get_pending_authorizations").get()
+        auth_denied = instance.dynamic_agent.vip.rpc.call(AUTH, "get_denied_authorizations").get()
         len_auth_denied = len(auth_denied)
         assert len_auth_denied == 0
 

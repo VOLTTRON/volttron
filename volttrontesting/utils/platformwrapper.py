@@ -452,13 +452,12 @@ class PlatformWrapper:
 
         # Make sure we have an identity or things will mess up
         identity = identity if identity else str(uuid.uuid4())
-
+        print(f"Publickey is: {publickey}\nServerkey is: {serverkey}")
         if serverkey is None:
             serverkey = self.serverkey
         if publickey is None:
             self.logit(f'generating new public secret key pair {KeyStore.get_agent_keystore_path(identity=identity)}')
             ks = KeyStore(KeyStore.get_agent_keystore_path(identity=identity))
-            # ks.generate()
             publickey = ks.public
             secretkey = ks.secret
 
@@ -479,15 +478,15 @@ class PlatformWrapper:
 
         if capabilities is None:
             capabilities = dict(edit_config_store=dict(identity=identity))
+        print(f"Publickey is: {publickey}\nServerkey is: {serverkey}")
         entry = AuthEntry(user_id=identity, identity=identity, credentials=publickey,
                           capabilities=capabilities,
                           comments="Added by platform wrapper")
-        authfile = AuthFile()
-        authfile.add(entry, overwrite=False, no_error=True)
+
+        AuthFile().add(entry, overwrite=False, no_error=True)
         # allow 2 seconds here for the auth to be updated in auth service
         # before connecting to the platform with the agent.
-        #
-        gevent.sleep(3)
+        gevent.sleep(6)
         agent = agent_class(address=address, identity=identity,
                             publickey=publickey, secretkey=secretkey,
                             serverkey=serverkey,
@@ -502,8 +501,21 @@ class PlatformWrapper:
             event = gevent.event.Event()
             gevent.spawn(agent.core.run, event)
             event.wait(timeout=2)
-            router_ping = agent.vip.ping("").get(timeout=30)
-            assert len(router_ping) > 0
+            has_control = False
+            times = 0
+            while not has_control and times < 10:
+                times += 1
+                try:
+                    has_control = CONTROL in \
+                                  agent.vip.peerlist().get(
+                        timeout=.2)
+                    self.logit("Has control? {}".format(has_control))
+                except gevent.Timeout:
+                    pass
+
+            if not has_control:
+                self.shutdown_platform()
+                raise Exception("Couldn't connect to core platform!")
 
         agent.publickey = publickey
         return agent
@@ -512,7 +524,7 @@ class PlatformWrapper:
         auth_path = os.path.join(self.volttron_home, 'auth.json')
         try:
             with open(auth_path, 'r') as fd:
-                data = strip_comments(FileObject(fd, close=False).read().decode('utf-8'))
+                data = strip_comments(FileObject(fd, close=False).read())
                 if data:
                     auth = jsonapi.loads(data)
                 else:
@@ -849,19 +861,19 @@ class PlatformWrapper:
                 self.dynamic_agent = self.build_agent(identity="dynamic_agent")
                 assert self.dynamic_agent is not None
                 assert isinstance(self.dynamic_agent, Agent)
-                has_control = False
-                times = 0
-                while not has_control and times < 10:
-                    times += 1
-                    try:
-                        has_control = CONTROL in self.dynamic_agent.vip.peerlist().get(timeout=.2)
-                        self.logit("Has control? {}".format(has_control))
-                    except gevent.Timeout:
-                        pass
-
-                if not has_control:
-                    self.shutdown_platform()
-                    raise Exception("Couldn't connect to core platform!")
+                # has_control = False
+                # times = 0
+                # while not has_control and times < 10:
+                #     times += 1
+                #     try:
+                #         has_control = CONTROL in self.dynamic_agent.vip.peerlist().get(timeout=.2)
+                #         self.logit("Has control? {}".format(has_control))
+                #     except gevent.Timeout:
+                #         pass
+                #
+                # if not has_control:
+                #     self.shutdown_platform()
+                #     raise Exception("Couldn't connect to core platform!")
 
                 # def subscribe_to_all(peer, sender, bus, topic, headers, messages):
                 #     logged = "{} --------------------Pubsub Message--------------------\n".format(

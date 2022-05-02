@@ -565,23 +565,8 @@ def mock_auth_service():
     AuthService.__bases__ = (AgentMock.imitate(Agent, Agent()), )
     auth_service = AuthService(
         auth_file=MagicMock(), protected_topics_file=MagicMock(), setup_mode=MagicMock(), aip=MagicMock())
-    auth_service.authentication_server = ZMQServerAuthentication(auth_vip=auth_service.vip,
-                    auth_core=auth_service.core,
-                    aip=auth_service.aip,
-                    allow_any=auth_service.allow_any,
-                    is_connected =auth_service._is_connected,
-                    setup_mode=auth_service._setup_mode,
-                    auth_file=auth_service.auth_file,
-                    auth_entries=auth_service.auth_entries,
-                    auth_pending=auth_service._auth_pending,
-                    auth_approved=auth_service._auth_approved,
-                    auth_denied=auth_service._auth_denied)
-    auth_service.authorization_server = ZMQAuthorization(auth_core=auth_service.core,
-                                                         is_connected=auth_service._is_connected,
-                                                         auth_file=auth_service.auth_file,
-                                                         auth_pending=auth_service._auth_pending,
-                                                         auth_approved=auth_service._auth_approved,
-                                                         auth_denied=auth_service._auth_denied)
+    auth_service.authentication_server = ZMQServerAuthentication(auth_service=auth_service)
+    auth_service.authorization_server = ZMQAuthorization(auth_service=auth_service)
     yield auth_service
 
 
