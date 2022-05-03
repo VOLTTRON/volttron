@@ -711,9 +711,10 @@ class Client (object):
                     except ConnectionResetError:
                         exception_flag = True
                         logger.warning("ConnectionResetError on read_all()")
-                    except ModbusInvalidResponseError:
+                    except ModbusInvalidResponseError as e:
                         exception_flag = True
                         logger.warning("ModbusInvalidResponseError on read_all()")
+                        logger.warning(f"The exception MSG: {e}")
                     if exception_flag:
                         self.client.close()
                         gevent.sleep(1.0)

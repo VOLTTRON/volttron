@@ -109,9 +109,12 @@ def configure_client_socket_lock(address, port, max_connections=0):
 def client_socket_locks(address, port):
     global _client_socket_locks
     lock = _client_socket_locks[(address, port)]
+    _log.debug(f"ADDRESS: {address}")
+    _log.debug(f"PORT: {port}")
     _log.debug(f"Acquiring client socket lock ({type(lock)}) for {address}:{port} at {id(lock)}")
     if lock is None:
         _log.debug(f"socket_lock not configured {address}:{port}")
+        _log.debug(f"lock is None: lock: {lock}, type: {type(lock)}, id ${id(lock)}")
         raise RuntimeError("socket_lock not configured!")
     lock.acquire()
     try:
