@@ -9,7 +9,7 @@ Setup:
 ```
 vctl auth keypair
 ```
-Update settings.py with the new public and secret keys
+Update settings.py with the generated public and secret keys
 
 3. Determine the public server key of the instance using this command: 
 ```
@@ -17,34 +17,18 @@ vctl auth serverkey
 ```
 Update settings.py with this server key
 
-5. Update the config section of settings.py with the files you want this agent to watch for and
+4. Update the config section of settings.py with the files this agent should watch for and
 which topics it should publish on for each file.  
 
-4. Add this standalone agent to volttron auth entry using this command:
-```
-vctl auth add
-```
-Provide the IP of the volttron instance when prompted for
-address[]: and  provide public key of standalone agent when prompted
-for credentials[]:<br/>
-For more details, see [here](https://volttron.readthedocs.io/en/main/platform-features/control/authentication-commands.html?highlight=%22agent%20authentication%22#how-to-authenticate-an-agent-to-communicate-with-volttron-platform)
+5. Install the agent using `vctl install <path to agent>`
 
-Example command:
+6. Add this standalone agent to volttron auth entry by inserting the agent's identity (which can be found using `vctl status`)
+and the generated public key to this command:
 ```
-(volttron)[vdev@cs_cbox myvolttron]$ vctl auth add
-domain []:
-address []: 127.0.0.1
-user_id []:
-capabilities (delimit multiple entries with comma) []:
-roles (delimit multiple entries with comma) []:
-groups (delimit multiple entries with comma) []:
-mechanism [CURVE]:
-credentials []: rn_V3vxTLMwaIRUEIAIHee4-qM8X70irDThcn_TX6FA
-comments []:
-enabled [True]:
+vctl auth add --user_id <agent_identity> --credentials <generated_publickey>
 ```
 
-5. With a volttron activated shell, this script can be run with: 
+7. With a volttron activated shell, this script can be run with: 
 ```
 python standalonefilewatchpublisher.py
 ```
