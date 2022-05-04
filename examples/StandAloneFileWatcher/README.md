@@ -1,19 +1,33 @@
 ## Stand Alone File Watcher example agent
 
-This python script will listen to the specified files and publishupdates to specific topics on the remote instance.
+This python script will listen to the specified files and publish updates to specific topics on the remote instance.
 
 Setup:
-1. Make sure volttron instance is running using tcp address. use vcfg
-    command to configure the volttron instance address.
+1. Make sure volttron instance is running using tcp address. Use vcfg command to configure the volttron instance address.
 
-2. Update settings.py
+2. Create a public and secret key pair for this agent using this command:
+```
+vctl auth keypair
+```
+Update settings.py with your public and secret keys
 
-3. Add this standalone agent to volttron auth entry using vctl auth add
-command. Provide ip of the volttron instance when prompted for
+3. Create a public server key using this command: 
+```
+vctl auth serverkey
+```
+Update settings.py with this server key
+
+5. Update the config section of settings.py with the files you want this agent to watch for and
+which topics it should publish on for each file.  
+
+4. Add this standalone agent to volttron auth entry using this command:
+```
+vctl auth add
+```
+Provide the IP of the volttron instance when prompted for
 address[]: and  provide public key of standalone agent when prompted
 for credentials[]:<br/>
-For more details see
-https://volttron.readthedocs.io/en/main/platform-features/control/authentication-commands.html?highlight=%22agent%20authentication%22#how-to-authenticate-an-agent-to-communicate-with-volttron-platform
+For more details, see [here](https://volttron.readthedocs.io/en/main/platform-features/control/authentication-commands.html?highlight=%22agent%20authentication%22#how-to-authenticate-an-agent-to-communicate-with-volttron-platform)
 
 Example command:
 ```
@@ -30,7 +44,7 @@ comments []:
 enabled [True]:
 ```
 
-4. With a volttron activated shell this script can be run with: 
+5. With a volttron activated shell, this script can be run with: 
 ```
 python standalonefilewatchpublisher.py
 ```
