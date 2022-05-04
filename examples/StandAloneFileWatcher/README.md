@@ -20,15 +20,12 @@ Update settings.py with this server key
 4. Update the config section of settings.py with the files this agent should watch for and
 which topics it should publish on for each file.  
 
-5. Install the agent using `vctl install <path to agent>`
-
-6. Add this standalone agent to volttron auth entry by inserting the agent's identity (which can be found using `vctl status`)
-and the generated public key to this command:
+5. Add this standalone agent to volttron auth entry by inserting the generated public key to this command:
 ```
-vctl auth add --user_id <agent_identity> --credentials <generated_publickey>
+vctl auth add --credentials <generated_publickey>
 ```
 
-7. With a volttron activated shell, this script can be run with: 
+6. With a volttron activated shell, this script can be run with: 
 ```
 python standalonefilewatchpublisher.py
 ```
