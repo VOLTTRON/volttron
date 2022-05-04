@@ -1,6 +1,6 @@
 ## Stand Alone File Watcher example agent
 
-This python script will listen to the specified files and publish updates to specific topics on the remote instance.
+This python script will listen to the specified files and publish updates to specific topics on a volttron instance.
 
 Setup:
 1. Make sure volttron instance is running using tcp address. Use vcfg command to configure the volttron instance address.
@@ -9,9 +9,9 @@ Setup:
 ```
 vctl auth keypair
 ```
-Update settings.py with your public and secret keys
+Update settings.py with the new public and secret keys
 
-3. Create a public server key using this command: 
+3. Determine the public server key of the instance using this command: 
 ```
 vctl auth serverkey
 ```
