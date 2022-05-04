@@ -12,9 +12,9 @@ command to configure volttron instance address,.
 ```
 vctl auth keypair
 ```
-Update settings.py with your public and secret keys
+Update settings.py with the new public and secret keys
 
-3. Create a public server key using this command: 
+3. Determine the public server key of the instance using this command: 
 ```
 vctl auth serverkey
 ```
