@@ -1,6 +1,5 @@
 {
-  "period": 900, # Post cleaned data every 15 minutes.
-  # Points to clean.
+  "period": 900,
   "points": {
     "fake0/OutsideAirTemperature1": {
       "min_value": 0,
