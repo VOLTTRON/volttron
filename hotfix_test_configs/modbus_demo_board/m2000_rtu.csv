@@ -1,0 +1,23 @@
+Volttron Point Name,Units,Writable,Point Address,Notes,Modbus Register,Multiplier
+SupplyTemp,degC,FALSE,0,,>H,100
+ReturnTemp,degC,FALSE,1,,>H,100
+OutsideTemp,degC,FALSE,2,,>H,100
+Occupancy,None,FALSE,3,,>H,1
+SecondStageCoolingStatus,None,FALSE,12,,>H,1
+FirstStageCoolingStatus,None,FALSE,4,,>H,1
+SupplyFanCommand,None,FALSE,15,,>H,1
+EconomizerPositionStatus,%,FALSE,17,,>H,1
+SupplyFanProof,None,FALSE,23,,>H,1
+Demand,%,FALSE,26,,>H,1
+CoolOverride1,None,TRUE,124,,>H,1
+CoolOVerride2,None,TRUE,125,,>H,1
+HeatOverride,None,TRUE,128,,>H,1
+ScheduleOverride,None,TRUE,131,,>H,1
+EconoChangeTemperature,degC,TRUE,150,,>H,100
+EconoChangeDifference,degC,TRUE,151,,>H,100
+MinimumOutdoorAirDamperSignal,%,TRUE,154,,>H,1
+EconomizerPositionOverride,%,TRUE,274,,>H,1
+EnableAbsoluteOverrides,None,TRUE,111,,>H,1
+SupplyFanOverride,None,TRUE,130,,>H,1
+FirstStageCoolingDemandSetPoint,None,TRUE,12,,>H,1
+SecondStageCoolingDemandSetPoint,None,TRUE,14,,>H,1

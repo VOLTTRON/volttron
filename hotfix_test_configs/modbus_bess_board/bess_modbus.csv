@@ -1,0 +1,2 @@
+Volttron Point Name,Point Address,Modbus Register,Units,Writable
+INV_REAL_PWR,136,int16,0.01*Watts,TRUE
