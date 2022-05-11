@@ -104,8 +104,8 @@ class SimpleWebAgent(Agent):
         # Endpoint will be available at http://localhost:8080/simple/text
         self.vip.web.register_endpoint("/simple/text", callback=self.text)
         
-        # Endpoint will be available at http://localhost:8080/simple/jsonrpc
-        self.vip.web.register_endpoint("/simple/jsonrpc", callback=self.rpcendpoint)
+        # Endpoint will be available at http://localhost:8080/simpleweb/jsonrpc
+        self.vip.web.register_endpoint("/simpleweb/jsonrpc", callback=self.rpcendpoint)
 
     def text(self, env, data):
         """
