@@ -110,7 +110,7 @@ def volttron_instance_module_web(request):
 @pytest.fixture(scope="module",
                 params=[
                     dict(messagebus='zmq', ssl_auth=False),
-                    # pytest.param(dict(messagebus='rmq', ssl_auth=True), marks=rmq_skipif),
+                    pytest.param(dict(messagebus='rmq', ssl_auth=True), marks=rmq_skipif),
                 ])
 def volttron_instance(request, **kwargs):
     """Fixture that returns a single instance of volttron platform for testing
@@ -250,7 +250,7 @@ def volttron_instance_rmq(request):
                 params=[
                     dict(messagebus='zmq', ssl_auth=False),
                     pytest.param(dict(messagebus='zmq', ssl_auth=True), marks=ci_skipif),
-                    #pytest.param(dict(messagebus='rmq', ssl_auth=True), marks=rmq_skipif),
+                    pytest.param(dict(messagebus='rmq', ssl_auth=True), marks=rmq_skipif),
                 ])
 def volttron_instance_web(request):
     print("volttron_instance_web (messagebus {messagebus} ssl_auth {ssl_auth})".format(**request.param))

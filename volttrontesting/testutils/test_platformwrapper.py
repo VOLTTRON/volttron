@@ -39,7 +39,7 @@ from configparser import ConfigParser
 import time
 import os
 
-import requests
+import grequests
 import gevent
 import pytest
 from mock import MagicMock
@@ -85,7 +85,9 @@ def test_can_create_web_enabled(messagebus: str, https_enabled: bool):
         http_address = get_rand_http_address(https=https_enabled)
         p.startup_platform(vip_address=get_rand_tcp_address(), bind_web_address=http_address)
         assert p.is_running()
-        response = requests.get(http_address, verify=False)
+        result = grequests.get(http_address, verify=False).send()
+        assert result
+        response = result.response
         assert response.ok
     finally:
         if p:
