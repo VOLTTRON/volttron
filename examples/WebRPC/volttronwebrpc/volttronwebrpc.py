@@ -37,6 +37,9 @@
 # }}}
 
 import requests
+import os
+from volttron.platform.certs import Certs
+from volttron.platform import get_home
 
 """
 This example exposes the VOLTTRON web API
@@ -56,6 +59,7 @@ class VolttronWebRPC:
         self._username = username
         self._password = password
 
+        self._certs_obj = Certs(os.path.join(get_home(), "certificates"))
         self._auth_token = None
         self._auth_token = self.get_auth_token()
 
@@ -74,7 +78,7 @@ class VolttronWebRPC:
             'id': '1'
         }
 
-        r = requests.post(self._url, json=data)
+        r = requests.post(self._url, json=data, verify=self._certs_obj.cert_file(self._certs_obj.root_ca_name))
         validate_response(r)
 
         return r.json()['result']

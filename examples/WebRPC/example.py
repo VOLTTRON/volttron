@@ -36,11 +36,11 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-from volttronwebrpc import VolttronWebRPC
+from volttronwebrpc import volttronwebrpc
 
-addr = "http://127.0.0.1:8080/jsonrpc"
+addr = "https://127.0.0.1:8443/vc/jsonrpc"
 
-volttron = VolttronWebRPC(addr, username='admin', password='admin')
+volttron = volttronwebrpc.VolttronWebRPC(addr, username='admin', password='admin')
 
 topics = volttron.do_rpc('historian.get_topic_list')
 

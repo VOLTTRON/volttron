@@ -36,4 +36,3 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-from .volttronwebrpc import VolttronWebRPC
