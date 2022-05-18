@@ -9,7 +9,7 @@ sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 os.environ["VOLTTRON_ROOT"] = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
 
 test_to_instance = {}
-
+collect_ignore = ["services/contrib/*", "services/unsupported/*"]
 
 # @pytest.fixture(scope="module", autouse=True)
 # def kill_outstanding_processes():
