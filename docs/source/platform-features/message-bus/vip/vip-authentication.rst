@@ -32,6 +32,27 @@ For example::
     (volttron)[user@home]$ volttron-ctl auth serverkey
     FSG7LHhy3v8tdNz3gK35G6-oxUcyln54pYRKu5fBJzU
 
+Authentication Implementation
+-----------------------------
+
+Authentication is handled on the server and client sides.
+The server authentication handles the setup and monitoring of incoming connection authentication.
+This verifies that the authentication method matches the appropriate auth protocol that has been implemented.
+The client authentication creates a connection address that contains all the necessary authentication meta data to 
+allow an agent to connect to a server. While the default authentication implementation is for Zap ZMQ, it is possible to 
+develop new authentication client and server designs. The server implementation is handled by the auth service, and client 
+authentication is handled by the agent core.
+
+Client Authentication:
+* create_authenticated_address
+
+Server Authentication:
+* setup_authentication
+* handle_authentication
+* stop_authentication
+* unbind_authentication
+
+
 Peer Authentication
 -------------------
 
