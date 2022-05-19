@@ -262,7 +262,7 @@ class VUIEndpoints:
                             content_type='application/json')
 
         def _agent_running(vip_identity):
-            peerlist = self._rpc('control', 'peerlist')
+            peerlist = self._rpc('control', 'peerlist', external_platform=platform)
             return True if vip_identity in peerlist else False
 
         if request_method == 'GET':
