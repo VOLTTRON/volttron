@@ -533,9 +533,9 @@ def test_handle_platforms_agents_enabled_status_code(mock_platform_web_service, 
 
 
 @pytest.mark.parametrize('vip_identity, expected', [
-    ('run1', {'status': 'False', 'priority': 'None'}),
-    ('run2', {'status': 'True', 'priority': '50'}),
-    ('stopped2', {'status': 'True', 'priority': '35'}),
+    ('run1', {'status': False, 'priority': None}),
+    ('run2', {'status': True, 'priority': 50}),
+    ('stopped2', {'status': True, 'priority': 35}),
     ('not_exist', {'error': 'Agent "not_exist" not found.'})])
 def test_handle_platforms_agents_enabled_get_response(mock_platform_web_service, vip_identity, expected):
     path = f'/vui/platforms/my_instance_name/agents/{vip_identity}/enabled'

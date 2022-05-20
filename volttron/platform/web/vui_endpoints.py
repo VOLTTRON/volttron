@@ -400,9 +400,10 @@ class VUIEndpoints:
             try:
                 list_of_agents = self._rpc('control', 'list_agents', external_platform=platform)
                 result = next(item['priority'] for item in list_of_agents if item['identity'] == vip_identity)
-                status = True if result else False
-                return Response(json.dumps({'status': f'{status}', 'priority': f'{result}'}), 200,
-                                content_type='application/json')
+                result = int(result) if result else result
+                status = True if result is not None else False
+                ret_val = {'status': status, 'priority': result}
+                return Response(json.dumps(ret_val), 200, content_type='application/json')
             except StopIteration:
                 return Response(json.dumps({'error': f'Agent "{vip_identity}" not found.'}),
                                 400, content_type='application/json')
