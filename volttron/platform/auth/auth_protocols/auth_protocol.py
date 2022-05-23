@@ -120,7 +120,3 @@ class BaseServerAuthentication(BaseAuthentication):
 
     def unbind_authentication(self):
         pass
-
-# API
-# Create Authenticated Connection ()
-#   zmq equiv

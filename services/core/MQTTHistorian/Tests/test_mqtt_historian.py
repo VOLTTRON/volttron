@@ -36,17 +36,23 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
+from ast import Import
 import os
 import json
 import gevent
 import pytest
-import paho.mqtt.client as mqtt_client
-from paho.mqtt.client import MQTTv311, MQTTv31
+try:
+    import paho.mqtt.client as mqtt_client
+    from paho.mqtt.client import MQTTv311, MQTTv31
+except ImportError:
+    pytest.skip("paho-mqtt not found!", allow_module_level=True)
 
 from volttron.platform import get_services_core
 from volttron.platform.agent import utils
 from volttron.platform.messaging import headers as headers_mod
 from volttron.platform.messaging.health import STATUS_GOOD
+
+
 
 default_config_path = os.path.join(get_services_core("MQTTHistorian"), "config")
 with open(default_config_path, "r") as config_file:
