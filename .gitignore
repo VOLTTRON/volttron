@@ -37,3 +37,9 @@ rabbitmq-server.download.tar.xz
 /MagicMock/mock/
 /docs/source/volttron_api/
 Pipfile
+modbus_configs
+modbus_tk_configs
+activateenv
+volttron.service
+upgrade-scripts
+volttron_modbus.log

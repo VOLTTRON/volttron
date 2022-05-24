@@ -77,7 +77,6 @@ from platform_driver.driver_locks import client_socket_locks
 
 from . import helpers
 
-
 # utils.setup_logging()
 # _log = logging.getLogger(__name__)
 logger = logging.getLogger(__name__)
@@ -679,28 +678,62 @@ class Client (object):
         return self.__meta[helpers.META_REQUEST_MAP].get(field, None)
 
     def read_request(self, request):
-        try:
-            results = self.client.execute(
-                self.slave_address,
-                request.read_function_code,
-                request.address,
-                quantity_of_x=request.count,
-                data_format=request.formatting,
-                threadsafe=False
-            )
-            logger.debug("Successfully read the request...")
-            self._data.update(request.parse_values(results))
-        except (AttributeError, ModbusError) as err:
-            if "Exception code" in err.message:
-                msg = "{0}: {1}".format(err.message,
-                                                  helpers.TABLE_EXCEPTION_CODE.get(err.message[-1], "UNDEFINED"))
-                logger.debug(msg)
-                raise Exception("{0}: {1}".format(msg))
-            logger.warning("modbus read_all() failure on request: %s\tError: %s", request, err)
+        results = self.client.execute(
+            self.slave_address,
+            request.read_function_code,
+            request.address,
+            quantity_of_x=request.count,
+            data_format=request.formatting,
+            threadsafe=False
+        )
+        logger.debug("Successfully read the request...")
+        self._data.update(request.parse_values(results))
+        # try:
+        #     results = self.client.execute(
+        #         self.slave_address,
+        #         request.read_function_code,
+        #         request.address,
+        #         quantity_of_x=request.count,
+        #         data_format=request.formatting,
+        #         threadsafe=False
+        #     )
+        #     logger.debug("Successfully read the request...")
+        #     self._data.update(request.parse_values(results))
+        # except (AttributeError, ModbusError) as err:
+        #     if "Exception code" in err.message:
+        #         msg = "{0}: {1}".format(err.message,
+        #                                           helpers.TABLE_EXCEPTION_CODE.get(err.message[-1], "UNDEFINED"))
+        #         logger.debug(msg)
+        #         raise Exception("{0}: {1}".format(msg))
+        #     logger.warning("modbus read_all() failure on request: %s\tError: %s", request, err)
 
+
+    def timer(slogger):
+        """Print the runtime of the decorated function"""
+        from functools import wraps
+        import time
+        def decorator_timer(func):
+            @wraps(func)
+            def wrapper_timer(*args, **kwargs):
+                start_time = datetime.now()  # 1
+                value = func(*args, **kwargs)
+                end_time = datetime.now()  # 2
+                run_time_sec = end_time - start_time
+                slogger.debug(
+                    f"Finished {func.__name__!r} in {run_time_sec.total_seconds()} seconds"
+                )
+                return value
+
+            return wrapper_timer
+
+        return decorator_timer
+
+    @timer(logger)
     def read_all(self):
+        logger.debug(f"READ_ALL Time now: {datetime.now()}")
         requests = self.__meta[helpers.META_REQUESTS]
         self._data.clear()
+        # gets the lock
         with client_socket_locks(self.device_address, self.port):
             logger.debug(f"Entered lock for {self.device_address}:{self.port}-{self.slave_address}")
             logger.debug(f"Total requests to be read: {len(requests)}")
@@ -712,7 +745,7 @@ class Client (object):
                     exception_flag = False
                     try:
                         self.read_request(r)
-                        break
+                        break # can use break or continue
                     except ConnectionResetError:
                         exception_flag = True
                         logger.warning("ConnectionResetError on read_request()")
@@ -721,19 +754,25 @@ class Client (object):
                         exception_flag = True
                         logger.warning("ModbusInvalidResponseError on read_request()")
                         logger.warning(f"Error response: {e}")
-                    if exception_flag:
-                        self.client.close()
-                        gevent.sleep(1.0)
-                        self.client.open()
+                    except Exception as e:
+                        exception_flag = True
+                        logger.warning("CATCHING ALL EXCEPTIONS")
+                        logger.warning(f"Error response: {e}")
+                    # if exception_flag:
+                    #     logger.warning("CLOSING SOCKET CONNECTION")
+                    #     self.client.close()
+                    #     gevent.sleep(1.0)
+                    #     logger.warning("OPENING SOCKET CONNECTION")
+                    #     self.client.open()
                     retries -= 1
                 
                 if retries == 0:
                     logger.debug(f"Failed to read request: {r}")
                 else:
                     logger.debug(f"Succesfully read the request on retry: {retries}")
-
         logger.debug(f"left lock for {self.device_address}:{self.port}-{self.slave_address}")
 
+    @timer(logger)    
     def dump_all(self):
         self.read_all()
         return [(f,

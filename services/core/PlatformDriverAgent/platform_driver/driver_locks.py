@@ -90,6 +90,7 @@ def publish_lock():
         _publish_lock.release()
 
 _client_socket_locks  = defaultdict(lambda: None)
+lock_counter = 0
 
 def configure_client_socket_lock(address, port, max_connections=0):
     _log.debug("Configuring client socket lock for {}:{}".format(address, port))
@@ -117,8 +118,14 @@ def client_socket_locks(address, port):
         _log.debug(f"lock is None: lock: {lock}, type: {type(lock)}, id ${id(lock)}")
         raise RuntimeError("socket_lock not configured!")
     lock.acquire()
+    global lock_counter
+    lock_counter +=1
+    _log.debug(f"lock_counter: {lock_counter}")
+
     try:
         yield
     finally:
         _log.debug(f"Releasing client socket lock ({type(lock)}) for {address}:{port} at {id(lock)}")
         lock.release()
+        lock_counter -=1
+        _log.debug(f"lock_counter after release: {lock_counter}")
