@@ -37,7 +37,7 @@ To upgrade:
        if they are within the install directory. If using a SQLite historian, please backup the database file of 
        sqlite historian before upgrading to the latest historian version.
     5. Start VOLTTRON
-    6. Run ```vctl install --force --vip-identity <vip id of existing historian> --agent-config <config>``` to upgrade 
+    6. Run ```vctl install --force --vip-identity <vip id of existing historian> --agent-config <config> <path-to-volttron-8 source>/services/SQLHistorian``` to upgrade 
        to the  latest historian version. vctl install --force will backup the cache in <agent-version>.agent-data 
        folder, installs the latest version of the historian and restore the contents of 
        <agent-version>.agent-data folder.
