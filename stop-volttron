@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-SCRIPT_DIR="$( cd "$( echo "${BASH_SOURCE[0]%/*}" )" && pwd )"
+SCRIPT_DIR=$( cd "${BASH_SOURCE[0]%/*}" && pwd ) || exit
 
 # Check to make sure the script is executed from the correct
 # directory and that the environment has been bootstrapped.
