@@ -85,7 +85,7 @@ class BaseClientAuthorization:
         self._owner = owner
         self._core = core
 
-    def connect_remote_platform():
+    def connect_remote_platform(self):
         pass
 
 
