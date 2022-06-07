@@ -11,7 +11,7 @@ from werkzeug import Response
 from werkzeug.urls import url_decode
 
 from volttron.platform.vip.agent.subsystems.query import Query
-from volttron.platform.jsonrpc import MethodNotFound
+from volttron.platform.jsonrpc import MethodNotFound, RemoteError
 from volttron.platform.web.topic_tree import DeviceTree, TopicTree
 from volttron.platform.web.vui_pubsub import VUIPubsubManager
 
@@ -75,7 +75,7 @@ class VUIEndpoints:
                     'agents': {
                         'endpoint-active': True,
                         'configs': {
-                            'endpoint-active': False,
+                            'endpoint-active': True,
                         },
                         'enabled': {
                             'endpoint-active': True,
@@ -161,6 +161,8 @@ class VUIEndpoints:
             (re.compile('^/vui/platforms/[^/]+/?$'), 'callable', self.handle_platforms_platform),
             (re.compile('^/vui/platforms/[^/]+/agents/?$'), 'callable', self.handle_platforms_agents),
             (re.compile('^/vui/platforms/[^/]+/agents/[^/]+/?$'), 'callable', self.handle_platforms_agents_agent),
+            (re.compile('^/vui/platforms/[^/]+/agents/[^/]+/configs/?$'), 'callable', self.handle_platforms_agents_configs),
+            (re.compile('^/vui/platforms/[^/]+/agents/[^/]+/configs/.*/?$'), 'callable', self.handle_platforms_agents_configs),
             (re.compile('^/vui/platforms/[^/]+/agents/[^/]+/enabled/?$'), 'callable', self.handle_platforms_agents_enabled),
             (re.compile('^/vui/platforms/[^/]+/agents/[^/]+/rpc/?$'), 'callable', self.handle_platforms_agents_rpc),
             (re.compile('^/vui/platforms/[^/]+/agents/[^/]+/rpc/[^/]+/?$'), 'callable', self.handle_platforms_agents_rpc_method),
@@ -260,7 +262,7 @@ class VUIEndpoints:
                             content_type='application/json')
 
         def _agent_running(vip_identity):
-            peerlist = self._rpc('control', 'peerlist')
+            peerlist = self._rpc('control', 'peerlist', external_platform=platform)
             return True if vip_identity in peerlist else False
 
         if request_method == 'GET':
@@ -301,6 +303,86 @@ class VUIEndpoints:
             return Response(json.dumps(active_routes), 200, content_type='application/json')
 
     @endpoint
+    def handle_platforms_agents_configs(self, env: dict, data: dict) -> Response:
+        """
+                Endpoints for /vui/platforms/:platform/agents/:vip_identity/configs/:file_name
+                :param env:
+                :param data:
+                :return:
+                """
+        _log.debug('VUI: In handle_platforms_agents_configs_config')
+        path_info = env.get('PATH_INFO')
+        request_method = env.get("REQUEST_METHOD")
+        config_type = env.get('CONTENT_TYPE')
+
+        no_config_name = re.match('^/vui/platforms/([^/]+)/agents/([^/]+)/configs/?$', path_info)
+        if no_config_name:
+            platform, vip_identity, config_name = tuple(no_config_name.groups()) + ('',)
+            query_params = url_decode(env['QUERY_STRING'])
+            config_name = query_params.get('config-name')
+        else:
+            platform, vip_identity, config_name = re.match('^/vui/platforms/([^/]+)/agents/([^/]+)/configs/(.*)/?$',
+                                                           path_info).groups()
+            config_name = config_name[:-1] if config_name[-1] == '/' else config_name
+        if request_method == 'GET':
+            try:
+                if no_config_name:
+                    if vip_identity != '-':
+                        setting_list = self._rpc('config.store', 'manage_list_configs', vip_identity,
+                                                 external_platform=platform)
+                        route_dict = self._route_options(path_info, setting_list)
+                        return Response(json.dumps(route_dict), 200, content_type='application/json')
+                    else:
+                        list_of_agents = self._rpc('config.store', 'manage_list_stores', external_platform=platform)
+                        return Response(json.dumps(list_of_agents), 200, content_type='application/json')
+                elif not no_config_name:
+                    setting_dict = self._rpc('config.store', 'manage_get', vip_identity, config_name,
+                                             external_platform=platform)
+                    return Response(json.dumps(setting_dict), 200, content_type='application/json')
+            except RemoteError as e:
+                return Response(json.dumps({"Error": f"{e}"}), 400, content_type='application/json')
+
+        elif request_method == 'PUT' and (not no_config_name):
+            if config_type in ['application/json', 'text/csv', 'text/plain']:
+                self._insert_config(config_type, data, vip_identity, config_name, platform)
+                return Response(None, 204, content_type='application/json')
+            else:
+                return Response(
+                    json.dumps({"Error": "The configuration type can only be 'JSON', 'CSV' and 'RAW.'"}), 400,
+                    content_type='application/json')
+
+        elif request_method == 'POST' and no_config_name:
+            if config_type in ['application/json', 'text/csv', 'text/plain']:
+                setting_list = self._rpc('config.store', 'manage_list_configs', vip_identity,
+                                         external_platform=platform)
+                if config_name in setting_list:
+                    e = {'Error': f'Configuration: "{config_name}" already exists for agent: "{vip_identity}"'}
+                    return Response(json.dumps(e), 409, content_type='application/json')
+                self._insert_config(config_type, data, vip_identity, config_name, platform)
+                response = Response(None, 201, content_type='application/json')
+                response.location = f'/platforms/{platform}/agents/{vip_identity}/configs/{config_name}'
+                return response
+            else:
+                return Response(
+                    json.dumps({"Error": "The configuration type can only be 'JSON', 'CSV' and 'RAW.'"}), 400,
+                    content_type='application/json')
+
+        elif request_method == 'DELETE':
+            if no_config_name:
+                try:
+                    self._rpc('config.store', 'manage_delete_store', vip_identity, external_platform=platform)
+                    return Response(None, 204, content_type='application/json')
+                except RemoteError as e:
+                    return Response(json.dumps({"Error": f"{e}"}), 400, content_type='application/json')
+            else:
+                try:
+                    self._rpc('config.store', 'manage_delete_config', vip_identity, config_name,
+                              external_platform=platform)
+                    return Response(None, 204, content_type='application/json')
+                except RemoteError as e:
+                    return Response(json.dumps({"Error": f"{e}"}), 400, content_type='application/json')
+
+    @endpoint
     def handle_platforms_agents_enabled(self, env: dict, data: dict) -> Response:
         """
         Endpoints for /vui/platforms/:platform/agents/:vip_identity/enabled/
@@ -318,9 +400,10 @@ class VUIEndpoints:
             try:
                 list_of_agents = self._rpc('control', 'list_agents', external_platform=platform)
                 result = next(item['priority'] for item in list_of_agents if item['identity'] == vip_identity)
-                status = True if result else False
-                return Response(json.dumps({'status': f'{status}', 'priority': f'{result}'}), 200,
-                                content_type='application/json')
+                result = int(result) if result else result
+                status = True if result is not None else False
+                ret_val = {'status': status, 'priority': result}
+                return Response(json.dumps(ret_val), 200, content_type='application/json')
             except StopIteration:
                 return Response(json.dumps({'error': f'Agent "{vip_identity}" not found.'}),
                                 400, content_type='application/json')
@@ -897,6 +980,15 @@ class VUIEndpoints:
             la['exit_code'] = ra['exit_code'] if ra else None
             ret_dict[agent_identity] = la
         return ret_dict
+
+    def _insert_config(self, config_type, data, vip_identity, config_name, platform):
+        config_type = re.search(r'([^\/]+$)', config_type).group() if config_type in ['application/json',
+                                                                                      'text/csv'] else 'raw'
+        if config_type == 'json':
+            data = json.dumps(data)
+        self._rpc('config.store', 'manage_store', vip_identity, config_name, data, config_type,
+                  external_platform=platform)
+        return None
 
     def _rpc(self, vip_identity, method, *args, external_platform=None, **kwargs):
         external_platform = {'external_platform': external_platform}\
