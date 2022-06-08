@@ -423,22 +423,12 @@ class ZMQServerAuthentication(BaseServerAuthentication):
         return
 
 class ZMQAuthorization(BaseServerAuthorization):
-    def __init__(self, auth_service=None
-                       # auth_core=None,
-                       # is_connected=False,
-                       # auth_file=None,
-                       # auth_pending=None,
-                       # auth_approved=None,
-                       # auth_denied=None
-                ):
+    def __init__(self, auth_service=None):
         super().__init__()
         self.auth_service=auth_service
-        # self.auth_core = auth_core
-        # self._is_connected = is_connected
-        # self.auth_file = auth_file
-        # self._auth_pending = auth_pending
-        # self._auth_approved = auth_approved
-        # self._auth_denied = auth_denied
+
+    def create_authenticated_address(self):
+        pass
 
     def approve_authorization(self, user_id):
         index = 0
