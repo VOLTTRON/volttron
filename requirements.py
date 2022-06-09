@@ -47,8 +47,7 @@
 option_requirements = [('wheel==0.30', []), ('pyzmq==22.2.1', ['--zmq=bundled'])]
 
 
-install_requires = ['gevent==20.6.1',
-                    'greenlet==0.4.16',
+install_requires = ['gevent==21.12.0',
                     'grequests',
                     'requests==2.23.0',
                     'ply',
