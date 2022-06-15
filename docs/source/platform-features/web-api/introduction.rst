@@ -138,6 +138,8 @@ following sections:
 - :ref:`Authentication <Authentication-Endpoints>`: Endpoints for authenticating to the the API.
 - :ref:`Platforms <Platforms-Endpoints>`: Endpoints for working with a particular platform.
     - :ref:`Agents <Platforms-Agents-Endpoints>`: Endpoints for working with agents on the platform.
+        - :ref:`Configs <Platforms-Agents-Configs-Endpoints>`: Endpoints for managing the configuration store for agents
+          on the platform.
         - :ref:`Enabled <Platforms-Agents-Enabled-Endpoints>`: Endpoints for enabling, disabling, and setting the
           start priority of agents on the platform.
         - :ref:`RPC <Platforms-Agents-Rpc-Endpoints>`: Endpoints allowing, discovery, inspection, and calling of
