@@ -47,21 +47,9 @@ across threads (or avoided all together). There is no locking around the
 state as there is with the gevent version in the green sub-module.
 """
 
-from gevent import monkey
-
-# At this point these are the only things that need to be patched
-# and the server and client are working harmoniously with this.
-patches = [
-    ('ssl', monkey.patch_ssl),
-    ('socket', monkey.patch_socket),
-    ('os', monkey.patch_os),
-]
-
-# patch modules if necessary.  Only if the module hasn't been patched before.
-# this could happen if the server code uses the client (which it does).
-for module, fn in patches:
-    if not monkey.is_module_patched(module):
-        fn()
+# Monkeypatch for gevent
+from volttron.utils import monkey_patch
+monkey_patch()
 
 from threading import local as _local
 

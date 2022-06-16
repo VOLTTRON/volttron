@@ -624,7 +624,7 @@ class RMQClientAuthorization(BaseClientAuthorization):
 
             try:
                 # TODO: Use known host instead of looking up for discovery
-                #  info if possible.
+                # info if possible.
 
                 # We need to discover which type of bus is at the other end.
                 info = DiscoveryInfo.request_discovery_info(address)

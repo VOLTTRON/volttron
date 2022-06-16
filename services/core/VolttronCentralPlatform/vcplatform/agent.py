@@ -393,7 +393,7 @@ class VolttronCentralPlatform(Agent):
 
             try:
 
-                self._vc_connection = self.vip.auth.connect_remote_platform(
+                self._vc_connection = self.core.connect_remote_platform(
                     address=self._vc_address,
                     serverkey=self._vc_serverkey,
                     agent_class=VCConnection
