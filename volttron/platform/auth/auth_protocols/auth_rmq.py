@@ -1,4 +1,4 @@
-#RMQAuthorization(BaseAuthorization)
+# RMQAuthorization(BaseAuthorization)
 import os
 import ssl
 import re
@@ -24,6 +24,7 @@ if is_rabbitmq_available():
 
 _log = logging.getLogger(__name__)
 
+
 @dataclass
 class RMQClientParameters(Parameters):
     rmq_user: str = None
@@ -35,60 +36,68 @@ class RMQClientParameters(Parameters):
     url_address: str = None
     certs_dict: dict = None
 
+
 class RMQConnectionWrapper:
-    def __init__(self,  rmq_user=None, 
-                        pwd=None, 
-                        host=None,
-                        port=None,
-                        vhost=None,
-                        heartbeat=20,
-                        retry_attempt=30,
-                        retry_delay=2,
-                        connection_params=None,
-                        url_address=None) -> None:     
+    def __init__(self, rmq_user=None,
+                 pwd=None,
+                 host=None,
+                 port=None,
+                 vhost=None,
+                 heartbeat=20,
+                 retry_attempt=30,
+                 retry_delay=2,
+                 connection_params=None,
+                 url_address=None) -> None:
         self.rmq_mgmt = RabbitMQMgmt()
         rmq_user = rmq_user if rmq_user else self.rmq_mgmt.rmq_config.admin_user
         pwd = pwd if pwd else self.rmq_mgmt.rmq_config.admin_pwd
         host = host if host else self.rmq_mgmt.rmq_config.hostname
-        port= port if port else int(self.rmq_mgmt.rmq_config.amqp_port)
+        if port:
+            port = port
+        else:
+            port = self.rmq_mgmt.rmq_config.amqp_port_ssl if self.rmq_mgmt.rmq_config.is_ssl else self.rmq_mgmt.rmq_config.amqp_port
+
         vhost = vhost if vhost else self.rmq_mgmt.rmq_config.virtual_host
         self.params = RMQClientParameters(
-            rmq_user = rmq_user, 
-            pwd = pwd, 
-            host = host, 
-            port = port, 
-            vhost = vhost, 
-            connection_params = connection_params if connection_params else pika.ConnectionParameters(
-                                                    host=host,
-                                                    port=port,
-                                                    virtual_host=vhost,
-                                                    connection_attempts=retry_attempt,
-                                                    retry_delay=retry_delay,
-                                                    heartbeat=heartbeat,
-                                                    credentials=pika.credentials.PlainCredentials(
-                                                        rmq_user, rmq_user)
+            rmq_user=rmq_user,
+            pwd=pwd,
+            host=host,
+            port=port,
+            vhost=vhost,
+            connection_params=connection_params if connection_params else pika.ConnectionParameters(
+                host=host,
+                port=port,
+                virtual_host=vhost,
+                connection_attempts=retry_attempt,
+                retry_delay=retry_delay,
+                heartbeat=heartbeat,
+                credentials=pika.credentials.PlainCredentials(
+                    rmq_user, rmq_user)
             ),
-            url_address = url_address if url_address else f"amqp://{rmq_user}:{pwd}@{host}:{port}/{vhost}"
+            url_address=url_address if url_address else f"amqp://{rmq_user}:{pwd}@{host}:{port}/{vhost}"
         )
 
+
 class RMQConnectionAPI(RMQConnectionWrapper):
-    def __init__(self, rmq_user=None, 
-                        pwd=None, 
-                        host=None,
-                        port=None,
-                        vhost=None,
-                        heartbeat=20,
-                        retry_attempt=30,
-                        retry_delay=2,
-                        ssl_auth=True,
-                        certs_dict=None) -> None:
-        super().__init__(rmq_user, pwd, 
+    def __init__(self, rmq_user=None,
+                 pwd=None,
+                 host=None,
+                 port=None,
+                 vhost=None,
+                 heartbeat=20,
+                 retry_attempt=30,
+                 retry_delay=2,
+                 ssl_auth=True,
+                 certs_dict=None,
+                 rmq_config=None,
+                 url_address=None) -> None:
+        super().__init__(rmq_user, pwd,
                          host, port, vhost, heartbeat,
                          retry_attempt, retry_delay)
         self.ssl_auth = ssl_auth
         self.certs_dict = certs_dict
 
-    def build_connection_param(self):            
+    def build_connection_param(self):
         if self.ssl_auth:
             authenticated_params, _ = RMQClientAuthentication(self.params).create_authenticated_address()
             return authenticated_params
@@ -117,9 +126,8 @@ class RMQConnectionAPI(RMQConnectionWrapper):
 
     def build_remote_connection_param(self, cert_dir=None):
         """
-        Build Pika Connection parameters
-        :param rmq_user: RabbitMQ user
-        :param ssl_auth: If SSL based connection or not
+        Build Pika Connection parameters for remote connection
+        :param cert_dir: certs directory
         :return:
         """
         from urllib import parse
@@ -192,7 +200,6 @@ class RMQConnectionAPI(RMQConnectionWrapper):
 
         return param
 
-
     def build_remote_plugin_connection(self):
         """
         Check if RabbitMQ user and certs exists for this agent, if not
@@ -206,7 +213,7 @@ class RMQConnectionAPI(RMQConnectionWrapper):
         :param is_ssl: Flag to indicate if SSL connection or not
         :return: Return connection uri
         """
-        #rmq_user = instance_name + '.' + identity
+        # rmq_user = instance_name + '.' + identity
         config_access = "{user}|{user}.pubsub.*|{user}.zmq.*|amq.*".format(
             user=self.params.rmq_user)
         read_access = "volttron|{}".format(config_access)
@@ -219,11 +226,11 @@ class RMQConnectionAPI(RMQConnectionWrapper):
         if self.ssl_auth:
             if self.certs_dict is None:
                 self.rmq_mgmt.rmq_config.crts.create_signed_cert_files(self.params.rmq_user,
-                                                              overwrite=False)
+                                                                       overwrite=False)
             _, self.params.url_address = RMQClientAuthentication(self.params).create_authenticated_address()
         else:
             self.rmq_mgmt.rmq_config.crts.create_signed_cert_files(self.params.rmq_user,
-                                                          overwrite=False)
+                                                                   overwrite=False)
             return self.params.url_address
 
 
@@ -257,11 +264,11 @@ class RMQClientAuthentication(BaseAuthentication):
                 self.params.connection_params.ssl_options = ssl_options
                 self.params.connection_params.credentials = pika.credentials.ExternalCredentials()
             # Update rmq address
-            if self.params.address: 
+            if self.params.url_address:
                 user, pwd, host, port, vhost = self._get_values_from_addr()
                 ssl_params = self.get_ssl_url_params(user, self.params.certs_dict)
-                self.params.address = "amqps://{host}:{port}/{vhost}?" \
-                    "{ssl_params}&server_name_indication={host}".format(
+                self.params.url_address = "amqps://{host}:{port}/{vhost}?" \
+                                      "{ssl_params}&server_name_indication={host}".format(
                     host=host,
                     port=port,
                     vhost=vhost,
@@ -302,7 +309,7 @@ class RMQServerAuthentication(BaseServerAuthentication):
         self.auth_core = auth_core
         self._protected_topics_for_rmq = ProtectedPubSubTopics()
         self.authorization = RMQAuthorization(self.auth_core, self.auth_vip)
-        
+
     def setup_authentication(self):
         self.auth_vip.peerlist.onadd.connect(self.authorization.check_topic_rules)
 
@@ -310,7 +317,7 @@ class RMQServerAuthentication(BaseServerAuthentication):
         self.authorization.update_protected_topics(protected_topics)
 
 
-#RMQAuthentication(BaseAuthentication)
+# RMQAuthentication(BaseAuthentication)
 class RMQAuthorization(BaseServerAuthorization):
     def __init__(self, auth_core=None, auth_vip=None) -> None:
         self.auth_core = auth_core
@@ -318,8 +325,10 @@ class RMQAuthorization(BaseServerAuthorization):
         self._certs = certs.Certs()
         self._user_to_caps = None
         self._protected_topics_for_rmq = None
+
         def topics():
             return defaultdict(set)
+
         self._user_to_permissions = topics()
 
     def approve_authorization(self, user_id):
@@ -507,7 +516,6 @@ class RMQAuthorization(BaseServerAuthorization):
         else:
             self._protected_topics_for_rmq = topics
 
-
     # def get_pending_csr_cert(self, common_name):
     def get_authorization(self, user_id):
         """RPC method
@@ -573,6 +581,7 @@ class RMQAuthorization(BaseServerAuthorization):
         csrs = [c for c in self._certs.get_pending_csr_requests() if c.get('status') == "DENIED"]
         return csrs
 
+
 class RMQClientAuthorization(BaseClientAuthorization):
     def __init__(self, owner=None, core=None):
         super().__init__(owner, core)
@@ -624,7 +633,7 @@ class RMQClientAuthorization(BaseClientAuthorization):
 
             try:
                 # TODO: Use known host instead of looking up for discovery
-                # info if possible.
+                #  info if possible.
 
                 # We need to discover which type of bus is at the other end.
                 info = DiscoveryInfo.request_discovery_info(address)
@@ -814,8 +823,8 @@ class RMQClientAuthorization(BaseClientAuthorization):
             status = Status.build(
                 STATUS_BAD,
                 context="Administrator denied remote "
-                "connection.  "
-                "Shutting down",
+                        "connection.  "
+                        "Shutting down",
             )
             self._owner.vip.health.set_status(status.status, status.context)
             self._owner.vip.health.send_alert(

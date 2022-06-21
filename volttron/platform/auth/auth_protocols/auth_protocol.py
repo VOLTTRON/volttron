@@ -80,6 +80,7 @@ class BaseServerAuthorization:
     def update_protected_topics(self, protected_topics):
         pass
 
+
 class BaseClientAuthorization:
     def __init__(self, owner=None, core=None):
         self._owner = owner
@@ -89,8 +90,7 @@ class BaseClientAuthorization:
         pass
 
 
-
-#BaseAuthentication class
+# BaseAuthentication class
 class BaseAuthentication:
     def __init__(self):
         pass

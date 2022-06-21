@@ -36,9 +36,21 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-# Monkeypatch for gevent
-from volttron.utils import monkey_patch
-monkey_patch()
+from gevent import monkey
+
+# At this point these are the only things that need to be patched
+# and the server and client are working harmoniously with this.
+patches = [
+    ('ssl', monkey.patch_ssl),
+    ('socket', monkey.patch_socket),
+    ('os', monkey.patch_os),
+]
+
+# patch modules if necessary.  Only if the module hasn't been patched before.
+# this could happen if the server code uses the client (which it does).
+for module, fn in patches:
+    if not monkey.is_module_patched(module):
+        fn()
 
 import argparse
 import errno
@@ -123,7 +135,7 @@ _log = logging.getLogger(os.path.basename(sys.argv[0])
 
 # Only show debug on the platform when really necessary!
 log_level_info = (
-    'volttron.platform.main',
+    #'volttron.platform.main',
     'volttron.platform.vip.zmq_connection',
     'urllib3.connectionpool',
     'watchdog.observers.inotify_buffer',
@@ -132,7 +144,7 @@ log_level_info = (
     'volttron.platform.control',
     'volttron.platform.vip.agent.core',
     'volttron.utils',
-    'volttron.platform.vip.router'
+    #'volttron.platform.vip.router'
 )
 
 for log_name in log_level_info:
@@ -352,7 +364,6 @@ class Router(BaseRouter):
         else:
             addr.server = 'NULL'
         addr.secretkey = self._secretkey
-        _log.debug(f"Address properties: {addr}")
         addr.bind(sock)
         _log.debug('Local VIP router bound to %s' % addr)
         for address in self.addresses:
@@ -366,7 +377,7 @@ class Router(BaseRouter):
             if not address.domain:
                 address.domain = 'vip'
             address.bind(sock)
-            _log.info('Additional VIP router bound to %s' % address)
+            _log.debug('Additional VIP router bound to %s' % address)
         self._ext_routing = None
 
         self._ext_routing = RoutingService(self.socket, self.context,
@@ -867,7 +878,7 @@ def start_volttron_process(opts):
             RMQRouter(opts.vip_address, opts.vip_local_address, opts.instance_name, opts.vip_address,
                       volttron_central_address=opts.volttron_central_address,
                       bind_web_address=opts.bind_web_address,
-                      service_notifier=notifier, platform_version=__version__
+                      service_notifier=notifier
                       ).run()
         except Exception:
             _log.exception('Unhandled exception in rmq router loop')
@@ -967,71 +978,18 @@ def start_volttron_process(opts):
                 enable_auth=opts.allow_auth
             ))
 
-
-        event = gevent.event.Event()
-        config_store_task = gevent.spawn(config_store.core.run, event)
-        event.wait()
-        del event
-        
-        # Auth Handling
-        # Ensure auth service is running before router
-        if opts.allow_auth:
-            auth_file = os.path.join(opts.volttron_home, 'auth.json')
-            auth = AuthService(auth_file, protected_topics_file,
-                                opts.setup_mode, opts.aip,
-                                address=address, identity=AUTH,
-                                enable_store=False, message_bus=opts.message_bus,
-                                enable_auth=opts.allow_auth)
+        if opts.message_bus == 'zmq':
+            # starting sequence is different for zmq and rmq
+            # Auth Handling
+            # Ensure auth service is running before router
+            if opts.allow_auth:
+                setup_auth_service(opts, address, services)
 
             event = gevent.event.Event()
-            auth_task = gevent.spawn(auth.core.run, event)
+            config_store_task = gevent.spawn(config_store.core.run, event)
             event.wait()
             del event
 
-            protected_topics = auth.get_protected_topics()
-            _log.debug("MAIN: protected topics content {}".format(protected_topics))
-
-            ks_auth = KeyStore(KeyStore.get_agent_keystore_path(AUTH))
-            entry = AuthEntry(
-                credentials=encode_key(decode_key(ks_auth.public)),
-                user_id=AUTH,
-                identity=AUTH,
-                capabilities=['modify_rpc_method_allowance'],
-                comments='Automatically added by platform on start')
-            AuthFile().add(entry, overwrite=True)
-
-            protected_topics_file = os.path.join(opts.volttron_home, 'protected_topics.json')
-            _log.debug('protected topics file %s', protected_topics_file)
-            external_address_file = os.path.join(opts.volttron_home, 'external_address.json')
-            _log.debug('external_address_file file %s', external_address_file)
-
-            entry = AuthEntry(credentials=services[0].core.publickey,
-                            user_id=CONTROL,
-                            identity=CONTROL,
-                            capabilities=[{'edit_config_store': {'identity': '/.*/'}},
-                                            'modify_rpc_method_allowance',
-                                            'allow_auth_modifications'],
-                            comments='Automatically added by platform on start')
-            AuthFile().add(entry, overwrite=True)
-
-            entry = AuthEntry(credentials=services[1].core.publickey,
-                            user_id=KEY_DISCOVERY,
-                            identity=KEY_DISCOVERY,
-                            comments='Automatically added by platform on start')
-            AuthFile().add(entry, overwrite=True)
-
-
-
-            ks_masterweb = KeyStore(KeyStore.get_agent_keystore_path(PLATFORM_WEB))
-            entry = AuthEntry(credentials=encode_key(decode_key(ks_masterweb.public)),
-                            user_id=PLATFORM_WEB,
-                            identity=PLATFORM_WEB,
-                            capabilities=['allow_auth_modifications'],
-                            comments='Automatically added by platform on start')
-            AuthFile().add(entry, overwrite=True)
-
-
-        if opts.message_bus == 'zmq':
             # Start ZMQ router in separate thread to remain responsive
             thread = threading.Thread(target=zmq_router, args=(config_store.core.stop,))
             thread.daemon = True
@@ -1059,8 +1017,6 @@ def start_volttron_process(opts):
                                "Check rabbitmq log for errors")
                     sys.exit()
 
-
-
             thread = threading.Thread(target=rmq_router, args=(config_store.core.stop,))
             thread.daemon = True
             thread.start()
@@ -1068,6 +1024,16 @@ def start_volttron_process(opts):
             gevent.sleep(0.1)
             if not thread.is_alive():
                 sys.exit()
+
+            # starting sequence is different for zmq and rmq
+            event = gevent.event.Event()
+            config_store_task = gevent.spawn(config_store.core.run, event)
+            event.wait()
+            del event
+            # Auth Handling
+            # Ensure auth service is running before router
+            if opts.allow_auth:
+                setup_auth_service(opts, address, services)
 
             # Spawn Greenlet friendly ZMQ router
             # Necessary for backward compatibility with ZMQ message bus
@@ -1165,6 +1131,61 @@ def start_volttron_process(opts):
         _log.debug("********************************************************************")
         _log.debug("VOLTTRON PLATFORM HAS SHUTDOWN")
         _log.debug("********************************************************************")
+
+
+def setup_auth_service(opts, address, services):
+    protected_topics_file = os.path.join(opts.volttron_home, 'protected_topics.json')
+    _log.debug('protected topics file %s', protected_topics_file)
+    auth_file = os.path.join(opts.volttron_home, 'auth.json')
+    auth = AuthService(auth_file, protected_topics_file,
+                       opts.setup_mode, opts.aip,
+                       address=address, identity=AUTH,
+                       enable_store=False, message_bus=opts.message_bus,
+                       enable_auth=opts.allow_auth)
+
+    event = gevent.event.Event()
+    auth_task = gevent.spawn(auth.core.run, event)
+    event.wait()
+    del event
+
+    protected_topics = auth.get_protected_topics()
+    _log.debug("MAIN: protected topics content {}".format(protected_topics))
+
+    ks_auth = KeyStore(KeyStore.get_agent_keystore_path(AUTH))
+    entry = AuthEntry(
+        credentials=encode_key(decode_key(ks_auth.public)),
+        user_id=AUTH,
+        identity=AUTH,
+        capabilities=['modify_rpc_method_allowance'],
+        comments='Automatically added by platform on start')
+    AuthFile().add(entry, overwrite=True)
+
+
+    external_address_file = os.path.join(opts.volttron_home, 'external_address.json')
+    _log.debug('external_address_file file %s', external_address_file)
+
+    entry = AuthEntry(credentials=services[0].core.publickey,
+                      user_id=CONTROL,
+                      identity=CONTROL,
+                      capabilities=[{'edit_config_store': {'identity': '/.*/'}},
+                                    'modify_rpc_method_allowance',
+                                    'allow_auth_modifications'],
+                      comments='Automatically added by platform on start')
+    AuthFile().add(entry, overwrite=True)
+
+    entry = AuthEntry(credentials=services[1].core.publickey,
+                      user_id=KEY_DISCOVERY,
+                      identity=KEY_DISCOVERY,
+                      comments='Automatically added by platform on start')
+    AuthFile().add(entry, overwrite=True)
+
+    ks_masterweb = KeyStore(KeyStore.get_agent_keystore_path(PLATFORM_WEB))
+    entry = AuthEntry(credentials=encode_key(decode_key(ks_masterweb.public)),
+                      user_id=PLATFORM_WEB,
+                      identity=PLATFORM_WEB,
+                      capabilities=['allow_auth_modifications'],
+                      comments='Automatically added by platform on start')
+    AuthFile().add(entry, overwrite=True)
 
 
 def main(argv=sys.argv):
