@@ -38,7 +38,6 @@
 
 import heapq
 import inspect
-import typing
 import logging
 import os
 import platform as python_platform
@@ -51,7 +50,6 @@ import warnings
 import weakref
 from contextlib import contextmanager
 from errno import ENOENT
-import grequests
 
 import gevent.event
 from gevent.queue import Queue
@@ -59,13 +57,10 @@ from zmq import green as zmq
 from zmq.green import ZMQError, EAGAIN, ENOTSOCK
 from zmq.utils.monitor import recv_monitor_message
 
-from volttron.platform import get_address, get_home, jsonapi
+from volttron.platform import get_address
 from volttron.platform import is_rabbitmq_available
 from volttron.platform.agent import utils
-from volttron.platform.agent.utils import get_fq_identity, load_platform_config, get_platform_instance_name, is_auth_enabled
-from volttron.platform.keystore import KnownHostsStore
-from volttron.platform.messaging.health import STATUS_BAD
-from volttron.utils.rmq_config_params import RMQConfig
+from volttron.platform.agent.utils import load_platform_config, get_platform_instance_name, is_auth_enabled
 from volttron.utils.rmq_mgmt import RabbitMQMgmt
 from .decorators import annotate, annotations, dualmethod
 from .dispatch import Signal
@@ -1066,13 +1061,14 @@ class RMQCore(Core):
             raise ValueError("Agent's VIP identity is not set")
         else:
             from volttron.platform.auth.auth_protocols.auth_rmq import RMQConnectionAPI
-            connectionAPI = RMQConnectionAPI(url_address=self.address, ssl_auth=self.enable_auth)
+            connection_api = RMQConnectionAPI(rmq_user=self.rmq_user,
+                                              ssl_auth=self.enable_auth)
 
             try:
                 if self.instance_name == get_platform_instance_name():
-                    param = connectionAPI.build_agent_connection(self.identity, self.instance_name)
+                    param = connection_api.build_agent_connection(self.identity, self.instance_name)
                 else:
-                    param = connectionAPI.build_remote_connection_param()
+                    param = connection_api.build_remote_connection_param()
             except AttributeError:
                 _log.error("RabbitMQ broker may not be running. Restart the broker first")
                 param = None
