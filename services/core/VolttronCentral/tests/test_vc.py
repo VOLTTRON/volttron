@@ -146,6 +146,7 @@ def test_websocket_open_authenticate(mock_vc_jsonrpc, mock_jsonrpc_env):
     assert True
 
 @pytest.mark.vc
+@pytest.mark.xfail(reason="VOLTTRON Central's default config is empty.")
 def test_default_config(volttron_instance):
     """
     Test the default configuration file included with the agent
