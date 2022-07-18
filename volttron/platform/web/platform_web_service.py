@@ -396,6 +396,8 @@ class PlatformWebService(Agent):
         if external_vip and self.serverkey:
             return_dict['serverkey'] = encode_key(self.serverkey)
             return_dict['vip-address'] = external_vip
+        elif external_vip:
+            return_dict['vip-address'] = external_vip
         elif not external_vip:
             _log.warning("There was no external vip-address specified in config file or command line.")
 
