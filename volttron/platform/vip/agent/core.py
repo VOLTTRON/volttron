@@ -53,16 +53,19 @@ from contextlib import contextmanager
 from errno import ENOENT
 
 import gevent.event
+import grequests
 from gevent.queue import Queue
 from volttron.platform.keystore import KnownHostsStore
 from zmq import green as zmq
 from zmq.green import ZMQError, EAGAIN, ENOTSOCK
 from zmq.utils.monitor import recv_monitor_message
 
-from volttron.platform import get_address
+from volttron.platform import get_address, get_home, jsonapi
 from volttron.platform import is_rabbitmq_available
 from volttron.platform.agent import utils
 from volttron.platform.agent.utils import get_fq_identity, load_platform_config, get_platform_instance_name, is_auth_enabled
+from volttron.platform.messaging.health import STATUS_BAD
+from volttron.utils.rmq_config_params import RMQConfig
 from volttron.utils.rmq_mgmt import RabbitMQMgmt
 from .decorators import annotate, annotations, dualmethod
 from .dispatch import Signal
@@ -1062,7 +1065,7 @@ class RMQCore(Core):
         if self.identity is None:
             raise ValueError("Agent's VIP identity is not set")
         else:
-            from volttron.platform.auth.auth_protocols.auth_rmq import RMQConnectionAPI
+            from volttron.platform.auth.auth_protocols.auth_rmq import RMQConnectionAPI, RMQClientAuthentication
             connection_api = RMQConnectionAPI(rmq_user=self.rmq_user,
                                               ssl_auth=self.enable_auth)
 
@@ -1243,11 +1246,11 @@ class RMQCore(Core):
                 remote_identity = "{}.{}.{}".format(
                     info.instance_name,
                     get_platform_instance_name(),
-                    self._core().identity,
+                    self.identity,
                 )
 
                 _log.debug("Both remote and local are rmq messagebus.")
-                fqid_local = get_fq_identity(self._core().identity)
+                fqid_local = get_fq_identity(self.identity)
 
                 # Check if we already have the cert, if so use it
                 # instead of requesting cert again
@@ -1293,7 +1296,7 @@ class RMQCore(Core):
                     _log.debug(
                         "REMOTE RMQ USER IS: %s", remote_rmq_user
                     )
-                    remote_rmq_address = self._core().rmq_mgmt.build_remote_connection_param(
+                    remote_rmq_address = self.rmq_mgmt.build_remote_connection_param(
                         remote_rmq_user,
                         info.rmq_address,
                         ssl_auth=True,
@@ -1304,8 +1307,8 @@ class RMQCore(Core):
                         identity=fqid_local,
                         address=remote_rmq_address,
                         instance_name=info.instance_name,
-                        publickey=self._core().publickey,
-                        secretkey=self._core().secretkey,
+                        publickey=self.publickey,
+                        secretkey=self.secretkey,
                         message_bus="rmq",
                         enable_store=False,
                         agent_class=agent_class,
@@ -1358,7 +1361,7 @@ class RMQCore(Core):
         # if info is None:
         #     info = DiscoveryInfo.request_discovery_info(csr_server)
 
-        csr_request = self._certs.create_csr(
+        csr_request = self.rmq_mgmt.certs.create_csr(
             fully_qualified_local_identity, discovery_info.instance_name
         )
         # The csr request requires the fully qualified identity that is
@@ -1403,7 +1406,7 @@ class RMQCore(Core):
         message = j.get("message", "")
         remote_certs_dir = self.get_remote_certs_dir()
         if status == "SUCCESSFUL" or status == "APPROVED":
-            self._certs.save_agent_remote_info(
+            self.rmq_mgmt.certs.save_agent_remote_info(
                 remote_certs_dir,
                 fully_qualified_local_identity,
                 remote_cert_name,
@@ -1431,9 +1434,9 @@ class RMQCore(Core):
             )
             self._owner.vip.health.set_status(status.status, status.context)
             self._owner.vip.health.send_alert(
-                self._core().identity + "_DENIED", status
+                self.identity + "_DENIED", status
             )
-            self._core().stop()
+            self.stop()
             return None
         elif status == "ERROR":
             err = "Error retrieving certificate from {}\n".format(
@@ -1453,7 +1456,7 @@ class RMQCore(Core):
     def get_remote_certs_dir(self):
         if not self.remote_certs_dir:
             install_dir = os.path.join(
-                get_home(), "agents", self._core().agent_uuid
+                get_home(), "agents", self.agent_uuid
             )
             files = os.listdir(install_dir)
             for f in files:
