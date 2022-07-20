@@ -193,12 +193,11 @@ def list_remotes(opts):
     if len(output_view) == 0:
         print(f"No {opts.status} remote certificates or credentials")
         return
-
     for output in output_view:
+        output["entry"] = {"user_id" if k == "identity" else "address" if "remote_ip_address" else k:v for k,v in output["entry"].items()}
         for value in output["entry"]:
             if not output["entry"][value]:
                 output["entry"][value] = "-"
-
     userid_width = max(
         5, max(len(str(output["entry"]["user_id"])) for output in output_view)
     )

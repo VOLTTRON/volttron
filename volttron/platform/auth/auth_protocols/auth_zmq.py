@@ -423,7 +423,7 @@ class ZMQServerAuthentication(BaseServerAuthentication):
         return
 
 class ZMQAuthorization(BaseServerAuthorization):
-    def __init__(self, auth_service=None):
+    def __init__(self, auth_service):
         super().__init__()
         self.auth_service=auth_service
 

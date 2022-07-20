@@ -149,14 +149,18 @@ class RMQConnectionAPI(RMQConnectionWrapper):
                 ca_file = self.rmq_mgmt.certs.cert_file(metadata['remote_ca_name'], True)
                 if cert_dir:
                     ca_file = os.path.join(cert_dir, os.path.basename(ca_file))
-
-                ssl_options = dict(
-                    ssl_version=ssl.PROTOCOL_TLSv1,
-                    ca_certs=ca_file,
-                    keyfile=self.rmq_mgmt.certs.private_key_file(local_keyfile),
-                    certfile=certfile,
-                    cert_reqs=ssl.CERT_REQUIRED)
+                context = ssl.create_default_context(cafile=ca_file)
+                context.load_cert_chain(certfile,
+                                        self.rmq_mgmt.certs.private_key_file(local_keyfile))
+                # ssl_options = dict(
+                #     ssl_version=ssl.PROTOCOL_TLSv1,
+                #     ca_certs=ca_file,
+                #     keyfile=self.rmq_mgmt.certs.private_key_file(local_keyfile),
+                #     certfile=certfile,
+                #     cert_reqs=ssl.CERT_REQUIRED)
+                ssl_options = pika.SSLOptions(context, self.rmq_mgmt.rmq_config.hostname) 
                 self.params.connection_params.ssl_options = ssl_options
+                self.params.connection_params.credentials = pika.credentials.ExternalCredentials()
         except KeyError:
             return None
         return self.params.connection_params
@@ -303,15 +307,14 @@ class RMQClientAuthentication(BaseAuthentication):
 
 
 class RMQServerAuthentication(BaseServerAuthentication):
-    def __init__(self, auth_vip=None, auth_core=None) -> None:
+    def __init__(self, auth_service) -> None:
         from volttron.platform.vip.pubsubservice import ProtectedPubSubTopics
-        self.auth_vip = auth_vip
-        self.auth_core = auth_core
+        self.auth_service = auth_service
         self._protected_topics_for_rmq = ProtectedPubSubTopics()
-        self.authorization = RMQAuthorization(self.auth_core, self.auth_vip)
+        self.authorization = RMQAuthorization(self.auth_service)
 
     def setup_authentication(self):
-        self.auth_vip.peerlist.onadd.connect(self.authorization.check_topic_rules)
+        self.auth_service.vip.peerlist.onadd.connect(self.authorization.check_topic_rules)
 
     def handle_authentication(self, protected_topics):
         self.authorization.update_protected_topics(protected_topics)
@@ -319,9 +322,8 @@ class RMQServerAuthentication(BaseServerAuthentication):
 
 # RMQAuthentication(BaseAuthentication)
 class RMQAuthorization(BaseServerAuthorization):
-    def __init__(self, auth_core=None, auth_vip=None) -> None:
-        self.auth_core = auth_core
-        self.auth_vip = auth_vip
+    def __init__(self, auth_service) -> None:
+        self.auth_service = auth_service
         self._certs = certs.Certs()
         self._user_to_caps = None
         self._protected_topics_for_rmq = None
@@ -334,7 +336,7 @@ class RMQAuthorization(BaseServerAuthorization):
     def approve_authorization(self, user_id):
         try:
             self._certs.approve_csr(user_id)
-            permissions = self.auth_core.rmq_mgmt.get_default_permissions(
+            permissions = self.auth_service.core.rmq_mgmt.get_default_permissions(
                 user_id
             )
 
@@ -343,7 +345,7 @@ class RMQAuthorization(BaseServerAuthorization):
                 # the current default permissions
                 # TODO: Fix authorization in rabbitmq
                 permissions = dict(configure=".*", read=".*", write=".*")
-            self.auth_core.rmq_mgmt.create_user_with_permissions(
+            self.auth_service.core.rmq_mgmt.create_user_with_permissions(
                 user_id, permissions, True
             )
             _log.debug("Created cert and permissions for user: %r", user_id)
@@ -385,7 +387,7 @@ class RMQAuthorization(BaseServerAuthorization):
 
     def check_topic_rules(self, sender, **kwargs):
         delay = 0.05
-        self.auth_core.spawn_later(delay, self._check_rmq_topic_permissions)
+        self.auth_service.core.spawn_later(delay, self._check_rmq_topic_permissions)
 
     def _check_rmq_topic_permissions(self):
         """
@@ -404,7 +406,7 @@ class RMQAuthorization(BaseServerAuthorization):
         topic_to_caps = self._protected_topics_for_rmq.get_topic_caps()  #
         # topic to caps
 
-        peers = self.auth_vip.peerlist().get(timeout=5)
+        peers = self.auth_service.vip.peerlist().get(timeout=5)
         # _log.debug("USER TO CAPS: {0}, TOPICS TO CAPS: {1}, {2}".format(
         # user_to_caps,
         # topic_to_caps,
@@ -455,27 +457,27 @@ class RMQAuthorization(BaseServerAuthorization):
         """
         read_tokens = [
             "{instance}.{identity}".format(
-                instance=self.auth_core.instance_name, identity=identity
+                instance=self.auth_service.core.instance_name, identity=identity
             ),
             "__pubsub__.*",
         ]
-        write_tokens = ["{instance}.*".format(instance=self.auth_core.instance_name)]
+        write_tokens = ["{instance}.*".format(instance=self.auth_service.core.instance_name)]
 
         if not not_allowed:
             write_tokens.append(
                 "__pubsub__.{instance}.*".format(
-                    instance=self.auth_core.instance_name
+                    instance=self.auth_service.core.instance_name
                 )
             )
         else:
             not_allowed_string = "|".join(not_allowed)
             write_tokens.append(
                 "__pubsub__.{instance}.".format(
-                    instance=self.auth_core.instance_name
+                    instance=self.auth_service.core.instance_name
                 )
                 + "^(!({not_allow})).*$".format(not_allow=not_allowed_string)
             )
-        current = self.auth_core.rmq_mgmt.get_topic_permissions_for_user(identity)
+        current = self.auth_service.core.rmq_mgmt.get_topic_permissions_for_user(identity)
         # _log.debug("CURRENT for identity: {0}, {1}".format(identity,
         # current))
         if current and isinstance(current, list):
@@ -559,7 +561,7 @@ class RMQAuthorization(BaseServerAuthorization):
 
         :rtype: list
         """
-        csrs = [c for c in self._certs.get_pending_csr_requests()]
+        csrs = [c for c in self._certs.get_pending_csr_requests() if c.get('status') == "PENDING"]
         return csrs
 
     def get_approved_authorizations(self):
@@ -690,7 +692,7 @@ class RMQClientAuthorization(BaseClientAuthorization):
                     _log.debug(
                         "REMOTE RMQ USER IS: %s", remote_rmq_user
                     )
-                    remote_rmq_address = self._core().rmq_mgmt.build_remote_connection_param(
+                    remote_rmq_address = self.build_remote_connection_param(
                         remote_rmq_user,
                         info.rmq_address,
                         ssl_auth=True,

@@ -190,20 +190,26 @@ class AdminEndpoints:
                     self._pending_auths = self._rpc_caller.call(AUTH, 'get_pending_authorizations').get(timeout=2)
                     self._denied_auths = self._rpc_caller.call(AUTH, 'get_denied_authorizations').get(timeout=2)
                     self._approved_auths = self._rpc_caller.call(AUTH, 'get_approved_authorizations').get(timeout=2)
+                    # RMQ CSR Mapping
+                    self._pending_auths = [{"user_id" if k == "identity" else "address" if "remote_ip_address" else k:v for k,v in output.items()} for output in self._pending_auths]
+                    self._denied_auths = [{"user_id" if k == "identity" else "address" if "remote_ip_address" else k:v for k,v in output.items()} for output in self._denied_auths]
+                    self._approved_auths = [{"user_id" if k == "identity" else "address" if "remote_ip_address" else k:v for k,v in output.items()} for output in self._approved_auths]
                 except TimeoutError:
                     self._pending_auths = []
                     self._denied_auths = []
                     self._approved_auths = []
+                except Exception as err:
+                    _log.error(f"Error message is: {err}")                    
                 # # When messagebus is rmq, include pending csrs in the output pending_auth_reqs.html page
                 # if self._rmq_mgmt is not None:
                 #     html = template.render(csrs=self._rpc_caller.call(AUTH, 'get_pending_csrs').get(timeout=4),
                 #                            auths=self._pending_auths,
                 #                            denied_auths=self._denied_auths,
                 #                            approved_auths=self._approved_auths)
-                else:
-                    html = template.render(auths=self._pending_auths,
-                                           denied_auths=self._denied_auths,
-                                           approved_auths=self._approved_auths)
+                # else:
+                html = template.render(auths=self._pending_auths,
+                                        denied_auths=self._denied_auths,
+                                        approved_auths=self._approved_auths)
             else:
                 # A template with no params.
                 html = template.render()

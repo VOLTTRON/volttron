@@ -201,8 +201,8 @@ class AuthService(Agent):
             )
         else:
             from volttron.platform.auth.auth_protocols.auth_rmq import RMQAuthorization, RMQServerAuthentication
-            self.authentication_server = RMQServerAuthentication(self.vip, self.core)
-            self.authorization_server = RMQAuthorization(self.auth_file)
+            self.authentication_server = RMQServerAuthentication(auth_service=self)
+            self.authorization_server = RMQAuthorization(auth_service=self)
         self._read_protected_topics_file()
         self.core.spawn(watch_file, self.auth_file_path, self.read_auth_file)
         self.core.spawn(

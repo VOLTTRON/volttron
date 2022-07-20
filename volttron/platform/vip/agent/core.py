@@ -1004,6 +1004,7 @@ class RMQCore(Core):
                                       version=version, instance_name=instance_name, messagebus=messagebus)
         self.volttron_central_address = volttron_central_address
         self.enable_auth = enable_auth
+        self.remote_certs_dir = None
         # TODO Look at this and see if we really need this here.
         # if instance_name is specified as a parameter in this calls it will be because it is
         # a remote connection. So we load it from the platform configuration file
@@ -1065,7 +1066,7 @@ class RMQCore(Core):
         if self.identity is None:
             raise ValueError("Agent's VIP identity is not set")
         else:
-            from volttron.platform.auth.auth_protocols.auth_rmq import RMQConnectionAPI, RMQClientAuthentication
+            from volttron.platform.auth.auth_protocols.auth_rmq import RMQConnectionAPI
             connection_api = RMQConnectionAPI(rmq_user=self.rmq_user,
                                               ssl_auth=self.enable_auth)
 
@@ -1231,11 +1232,12 @@ class RMQCore(Core):
             agent_class = Agent
 
         parsed_address = urllib.parse.urlparse(address)
-        _log.debug("Begining core.connect_remote_platform: {}".format(address))
+        _log.info("Begining core.connect_remote_platform: {}".format(address))
         value = None
         if parsed_address.scheme in ("https", "http"):
             from volttron.platform.web import DiscoveryInfo
             from volttron.platform.web import DiscoveryError
+            from volttron.platform.auth.auth_protocols.auth_rmq import RMQConnectionAPI
 
             try:
                 # TODO: Use known host instead of looking up for discovery
@@ -1249,7 +1251,7 @@ class RMQCore(Core):
                     self.identity,
                 )
 
-                _log.debug("Both remote and local are rmq messagebus.")
+                _log.info("Both remote and local are rmq messagebus.")
                 fqid_local = get_fq_identity(self.identity)
 
                 # Check if we already have the cert, if so use it
@@ -1269,7 +1271,7 @@ class RMQCore(Core):
                     )
 
                 if response is None:
-                    _log.error("there was no response from the server")
+                    _log.info("there was no response from the server")
                     value = None
                 elif isinstance(response, tuple):
                     if response[0] == "PENDING":
@@ -1293,15 +1295,13 @@ class RMQCore(Core):
                     remote_rmq_user = get_fq_identity(
                         fqid_local, info.instance_name
                     )
-                    _log.debug(
+                    _log.info(
                         "REMOTE RMQ USER IS: %s", remote_rmq_user
                     )
-                    remote_rmq_address = self.rmq_mgmt.build_remote_connection_param(
-                        remote_rmq_user,
-                        info.rmq_address,
-                        ssl_auth=True,
-                        cert_dir=self.get_remote_certs_dir(),
-                    )
+                    connection_api = RMQConnectionAPI(rmq_user=remote_rmq_user,
+                    url_address=info.rmq_address, ssl_auth=True)
+                    remote_rmq_address = connection_api.build_remote_connection_param(
+                        cert_dir=self.get_remote_certs_dir())
 
                     value = build_agent(
                         identity=fqid_local,
@@ -1319,7 +1319,7 @@ class RMQCore(Core):
                     )
 
             except DiscoveryError:
-                _log.error(
+                _log.info(
                     "Couldn't connect to %s or incorrect response returned "
                     "response was %s",
                     address,
@@ -1398,7 +1398,7 @@ class RMQCore(Core):
         #                          json=jsonapi.dumps(json_request),
         #                          verify=False)
 
-        _log.debug("The response: %s", response)
+        _log.info("The response: %s", response)
 
         j = response.json()
         status = j.get("status")
@@ -1417,14 +1417,14 @@ class RMQCore(Core):
             os.environ["REQUESTS_CA_BUNDLE"] = os.path.join(
                 remote_certs_dir, "requests_ca_bundle"
             )
-            _log.debug(
+            _log.info(
                 "Set os.environ requests ca bundle to %s",
                 os.environ["REQUESTS_CA_BUNDLE"],
             )
         elif status == "PENDING":
-            _log.debug("Pending CSR request for {}".format(remote_cert_name))
+            _log.info("Pending CSR request for {}".format(remote_cert_name))
         elif status == "DENIED":
-            _log.error("Denied from remote machine.  Shutting down agent.")
+            _log.info("Denied from remote machine.  Shutting down agent.")
             from volttron.platform.vip.agent.subsystems.health import Status
             status = Status.build(
                 STATUS_BAD,
