@@ -1251,7 +1251,7 @@ class RMQCore(Core):
                     self.identity,
                 )
 
-                _log.info("Both remote and local are rmq messagebus.")
+                _log.debug("Both remote and local are rmq messagebus.")
                 fqid_local = get_fq_identity(self.identity)
 
                 # Check if we already have the cert, if so use it
@@ -1271,7 +1271,7 @@ class RMQCore(Core):
                     )
 
                 if response is None:
-                    _log.info("there was no response from the server")
+                    _log.error("there was no response from the server")
                     value = None
                 elif isinstance(response, tuple):
                     if response[0] == "PENDING":
@@ -1295,7 +1295,7 @@ class RMQCore(Core):
                     remote_rmq_user = get_fq_identity(
                         fqid_local, info.instance_name
                     )
-                    _log.info(
+                    _log.debug(
                         "REMOTE RMQ USER IS: %s", remote_rmq_user
                     )
                     connection_api = RMQConnectionAPI(rmq_user=remote_rmq_user,
@@ -1319,7 +1319,7 @@ class RMQCore(Core):
                     )
 
             except DiscoveryError:
-                _log.info(
+                _log.error(
                     "Couldn't connect to %s or incorrect response returned "
                     "response was %s",
                     address,
@@ -1398,7 +1398,7 @@ class RMQCore(Core):
         #                          json=jsonapi.dumps(json_request),
         #                          verify=False)
 
-        _log.info("The response: %s", response)
+        _log.debug("The response: %s", response)
 
         j = response.json()
         status = j.get("status")
@@ -1417,14 +1417,14 @@ class RMQCore(Core):
             os.environ["REQUESTS_CA_BUNDLE"] = os.path.join(
                 remote_certs_dir, "requests_ca_bundle"
             )
-            _log.info(
+            _log.debug(
                 "Set os.environ requests ca bundle to %s",
                 os.environ["REQUESTS_CA_BUNDLE"],
             )
         elif status == "PENDING":
-            _log.info("Pending CSR request for {}".format(remote_cert_name))
+            _log.debug("Pending CSR request for {}".format(remote_cert_name))
         elif status == "DENIED":
-            _log.info("Denied from remote machine.  Shutting down agent.")
+            _log.error("Denied from remote machine.  Shutting down agent.")
             from volttron.platform.vip.agent.subsystems.health import Status
             status = Status.build(
                 STATUS_BAD,
