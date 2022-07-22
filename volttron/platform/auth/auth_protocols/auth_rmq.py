@@ -149,7 +149,9 @@ class RMQConnectionAPI(RMQConnectionWrapper):
                 ca_file = self.rmq_mgmt.certs.cert_file(metadata['remote_ca_name'], True)
                 if cert_dir:
                     ca_file = os.path.join(cert_dir, os.path.basename(ca_file))
-                context = ssl.create_default_context(cafile=ca_file)
+                # context = ssl.create_default_context(cafile=ca_file)
+                context = ssl.SSLContext(ssl.PROTOCOL_TLSv1)
+                context.load_verify_locations(cafile=ca_file)
                 context.load_cert_chain(certfile,
                                         self.rmq_mgmt.certs.private_key_file(local_keyfile))
                 # ssl_options = dict(
