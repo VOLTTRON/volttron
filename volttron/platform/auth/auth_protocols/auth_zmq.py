@@ -182,44 +182,12 @@ class ZMQServerAuthentication(BaseServerAuthentication):
     Implementation of the Zap Loop used by AuthService 
     for handling ZMQ Authentication on the VOLTTRON Server Instance
     """
-    def __init__(self, auth_service=None
-                    # auth_vip=None,
-                    # auth_core=None,
-                    # aip=None,
-                    # allow_any=False,
-                    # is_connected = False,
-                    # setup_mode=False,
-                    # auth_file=None,
-                    # auth_entries=None,
-                    # auth_pending=None,
-                    # auth_approved=None,
-                    # auth_denied=None
-                    ) -> None:
-        self.auth_service = auth_service
-        # self.auth_vip = auth_vip
-        # self.auth_core = auth_core
-        # self.aip = aip
+    def __init__(self, auth_service) -> None:
+        super().__init__(auth_service=auth_service)
         self.zap_socket = None
         self._zap_greenlet = None
-        # self._is_connected = is_connected
-        # self._allow_any = allow_any
-        # self._setup_mode = setup_mode
-        # self.auth_file = auth_file
-        #
-        # # Will change from auth service
-        # self.auth_entries = auth_entries
-        # self._auth_pending = auth_pending
-        # self._auth_approved = auth_approved
-        # self._auth_denied = auth_denied
-
-        self.authorization = ZMQAuthorization(self.auth_service
-                                              # self.auth_core,
-                                              # self._is_connected,
-                                              # self.auth_file,
-                                              # self._auth_pending,
-                                              # self._auth_approved,
-                                              # self._auth_denied
-                                            )
+        self.authorization = ZMQAuthorization(self.auth_service)
+        
     def setup_authentication(self):
         self.zap_socket = zmq.Socket(zmq.Context.instance(), zmq.ROUTER)
         self.zap_socket.bind("inproc://zeromq.zap.01")
@@ -424,9 +392,8 @@ class ZMQServerAuthentication(BaseServerAuthentication):
 
 class ZMQAuthorization(BaseServerAuthorization):
     def __init__(self, auth_service):
-        super().__init__()
-        self.auth_service=auth_service
-
+        super().__init__(auth_service=auth_service)
+        
     def create_authenticated_address(self):
         pass
 
@@ -627,143 +594,5 @@ class ZMQAuthorization(BaseServerAuthorization):
 
 
 class ZMQClientAuthorization(BaseClientAuthorization):
-    def __init__(self, owner=None, core=None):
-        super().__init__(owner, core)
-
-    def connect_remote_platform(
-            self,
-            address,
-            serverkey=None,
-            agent_class=None
-    ):
-        """
-        Agent attempts to connect to a remote platform to exchange data.
-
-        address must start with http, https, tcp, ampq, or ampqs or a
-        ValueError will be
-        raised
-
-        If this function is successful it will return an instance of the
-        `agent_class`
-        parameter if not then this function will return None.
-
-        If the address parameter begins with http or https
-        TODO: use the known host functionality here
-        the agent will attempt to use Discovery to find the values
-        associated with it.
-
-        Discovery should return either an rmq-address or a vip-address or
-        both.  In
-        that situation the connection will be made using zmq.  In the event
-        that
-        fails then rmq will be tried.  If both fail then None is returned
-        from this
-        function.
-
-        """
-        from volttron.platform.vip.agent.utils import build_agent
-        from volttron.platform.vip.agent import Agent
-
-        if agent_class is None:
-            agent_class = Agent
-
-        parsed_address = urlparse(address)
-        _log.debug("Begining auth.connect_remote_platform: {}".format(address))
-
-        value = None
-        if parsed_address.scheme == "tcp":
-            # ZMQ connection
-            hosts = KnownHostsStore()
-            temp_serverkey = hosts.serverkey(address)
-            if not temp_serverkey:
-                _log.info(
-                    "Destination serverkey not found in known hosts file, "
-                    "using config"
-                )
-                destination_serverkey = serverkey
-            elif not serverkey:
-                destination_serverkey = temp_serverkey
-            else:
-                if temp_serverkey != serverkey:
-                    raise ValueError(
-                        "server_key passed and known hosts serverkey do not "
-                        ""
-                        "match!"
-                    )
-                destination_serverkey = serverkey
-
-            publickey, secretkey = (
-                self._core().publickey,
-                self._core().secretkey,
-            )
-            _log.debug(
-                "Connecting using: %s", get_fq_identity(self._core().identity)
-            )
-
-            value = build_agent(
-                agent_class=agent_class,
-                identity=get_fq_identity(self._core().identity),
-                serverkey=destination_serverkey,
-                publickey=publickey,
-                secretkey=secretkey,
-                message_bus="zmq",
-                address=address,
-            )
-        elif parsed_address.scheme in ("https", "http"):
-            from volttron.platform.web import DiscoveryInfo
-            from volttron.platform.web import DiscoveryError
-
-            try:
-                # TODO: Use known host instead of looking up for discovery
-                #  info if possible.
-
-                # We need to discover which type of bus is at the other end.
-                info = DiscoveryInfo.request_discovery_info(address)
-                remote_identity = "{}.{}.{}".format(
-                    info.instance_name,
-                    get_platform_instance_name(),
-                    self._core().identity,
-                )
-                # if the current message bus is zmq then we need
-                # to connect a zmq on the remote, whether that be the
-                # rmq router or proxy.  Also note that we are using the
-                # fully qualified
-                # version of the identity because there will be conflicts if
-                # volttron central has more than one platform.agent connecting
-                if not info.vip_address or not info.serverkey:
-                    err = (
-                        "Discovery from {} did not return serverkey "
-                        "and/or vip_address".format(address)
-                    )
-                    raise ValueError(err)
-
-                _log.debug(
-                    "Connecting using: %s",
-                    get_fq_identity(self._core().identity),
-                )
-
-                # use fully qualified identity
-                value = build_agent(
-                    identity=get_fq_identity(self._core().identity),
-                    address=info.vip_address,
-                    serverkey=info.serverkey,
-                    secretkey=self._core().secretkey,
-                    publickey=self._core().publickey,
-                    agent_class=agent_class,
-                )
-
-            except DiscoveryError:
-                _log.error(
-                    "Couldn't connect to %s or incorrect response returned "
-                    "response was %s",
-                    address,
-                    value,
-                )
-
-        else:
-            raise ValueError(
-                "Invalid configuration found the address: {} has an invalid "
-                "scheme".format(address)
-            )
-
-        return value
+    def __init__(self, auth_service):
+        super().__init__(auth_service)

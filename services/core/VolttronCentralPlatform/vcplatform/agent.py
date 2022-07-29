@@ -383,7 +383,7 @@ class VolttronCentralPlatform(Agent):
         while not self._vc_connection:
 
             if self._vc_address is None:
-                _log.warning("Invalid volttron-central-address specified.  Please add to the platform.agent config "
+                _log.warning("No volttron-central-address specified.  Please add to the platform.agent config "
                              "store or to the main instance configuration")
                 return
 

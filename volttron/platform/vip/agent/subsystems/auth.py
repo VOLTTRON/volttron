@@ -76,12 +76,7 @@ class Auth(SubsystemBase):
         self._dirty = True
         self._csr_certs = dict()
         self.remote_certs_dir = None
-        if get_messagebus() == "zmq":
-            from volttron.platform.auth.auth_protocols.auth_zmq import ZMQClientAuthorization
-            self.client_authorization = ZMQClientAuthorization(owner=self._owner, core=self._core)
-        else:
-            from volttron.platform.auth.auth_protocols.auth_rmq import RMQClientAuthorization
-            self.client_authorization = RMQClientAuthorization(owner=self._owner, core=self._core)
+
         def onsetup(sender, **kwargs):
             rpc.export(self._update_capabilities, "auth.update")
             rpc.export(
@@ -122,10 +117,6 @@ class Auth(SubsystemBase):
                 gevent.spawn_later(1, self.update_rpc_method_capabilities)
 
         core.onsetup.connect(onsetup, self)
-
-    def connect_remote_platform(self, address, serverkey=None, agent_class=None):
-        return self.client_authorization.connect_remote_platform(
-            address=address, serverkey=serverkey, agent_class=agent_class)
 
     def _fetch_capabilities(self):
         while self._dirty:

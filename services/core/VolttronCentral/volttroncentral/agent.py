@@ -85,7 +85,8 @@ from .platforms import Platforms, PlatformHandler
 from .sessions import SessionHandler
 
 # must be after importing of utils which imports grequest.
-import requests
+# import requests
+import grequests
 
 __version__ = "5.2"
 
@@ -410,7 +411,8 @@ class VolttronCentralAgent(Agent):
                 args = {'username': rpcdata.params['username'],
                         'password': rpcdata.params['password'],
                         'ip': env['REMOTE_ADDR']}
-                resp = requests.post(auth_url, json=args, verify=False)
+                # resp = requests.post(auth_url, json=args, verify=False)
+                resp = grequests.post(auth_url, json=args, verify=False).send().response
 
                 if resp.ok and resp.text:
                     claims = self.vip.web.get_user_claims(jsonapi.loads(resp.text)["access_token"])

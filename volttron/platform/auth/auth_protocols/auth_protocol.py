@@ -43,9 +43,9 @@ from volttron.platform import jsonapi
 #BaseAuthorization class
 class BaseServerAuthorization:
     def __init__(self,
-                 auth_core=None
+                 auth_service=None
                  ):
-        self.auth_core = auth_core
+        self.auth_service = auth_service
         
     def approve_authorization(self, user_id):
         pass    
@@ -82,12 +82,8 @@ class BaseServerAuthorization:
 
 
 class BaseClientAuthorization:
-    def __init__(self, owner=None, core=None):
-        self._owner = owner
-        self._core = core
-
-    def connect_remote_platform(self):
-        pass
+    def __init__(self, auth_service=None):
+        self.auth_service = auth_service
 
 
 # BaseAuthentication class
@@ -104,10 +100,9 @@ class BaseAuthentication:
 
 
 class BaseServerAuthentication(BaseAuthentication):
-    def __init__(self) -> None:
+    def __init__(self, auth_service=None) -> None:
+        self.auth_service = auth_service
         self.authorization = None
-        self.auth_vip = None
-        self.auth_core = None
 
     def setup_authentication(self):
         pass

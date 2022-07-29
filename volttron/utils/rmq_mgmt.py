@@ -52,6 +52,7 @@ import gevent
 import requests
 from requests.packages.urllib3.connection import (ConnectionError,
                                                   NewConnectionError)
+from requests.exceptions import HTTPError
 import os
 from volttron.platform import jsonapi, get_home
 from .rmq_config_params import RMQConfig, read_config_file, write_to_config_file
@@ -113,7 +114,7 @@ class RabbitMQMgmt:
             _log.debug("Error connecting to {} with "
                        "args {}: {}".format(url, kwargs, e))
             raise e
-        except requests.exceptions.HTTPError as e:
+        except HTTPError as e:
             _log.debug("Exception when trying to make HTTP request to {} with "
                        "args {} : {}".format(url, kwargs, e))
             raise e
@@ -170,10 +171,10 @@ class RabbitMQMgmt:
     def _http_get_request(self, url, ssl_auth=True):
         response = self._call_grequest('get', url, ssl_auth)
         if response:
-            if isinstance(response, requests.models.Response):
-                response = response.json()
-            elif isinstance(response, list):
+            if isinstance(response, list):
                 response = response[0].json()
+            else:
+                response = response.json()
         return response
 
     def create_vhost(self, vhost='volttron', ssl_auth=None):
@@ -300,7 +301,7 @@ class RabbitMQMgmt:
         url = '/api/users/{user}'.format(user=user)
         try:
             response = self._http_delete_request(url, ssl_auth)
-        except requests.exceptions.HTTPError as e:
+        except HTTPError as e:
             if e.response.status_code == 404:
                 raise
 
@@ -333,7 +334,7 @@ class RabbitMQMgmt:
         try:
             response = self._http_get_request(url, ssl_auth)
             return response
-        except requests.exceptions.HTTPError as e:
+        except HTTPError as e:
             if e.response.status_code == 404:
                 # No permissions are set for this user yet. Return none
                 # so caller can try to set permissions
@@ -445,19 +446,13 @@ class RabbitMQMgmt:
         """
         Get all policies
         :param vhost: virtual host
-        :param ssl_auth_auth: Flag for ssl_auth connection
+        :param ssl_auth: Flag for ssl_auth connection
         :return:
         """
-        # TODO: check -  this is the only request call.. others ar grequest calls
         ssl_auth = ssl_auth if ssl_auth is not None else self.is_ssl
         vhost = vhost if vhost else self.rmq_config.virtual_host
-        prefix = self._get_url_prefix(ssl_auth)
-
-        url = '{prefix}/api/policies/{vhost}'.format(prefix=prefix,
-                                                     vhost=vhost)
-        kwargs = self._get_authentication_args(ssl_auth)
-        response = requests.get(url, **kwargs)
-        return response.json() if response else response
+        url = '/api/policies/{vhost}'.format(vhost=vhost)
+        return self._http_get_request(url, ssl_auth)
 
     def get_policy(self, name, vhost=None, ssl_auth=None):
         """
@@ -770,7 +765,7 @@ class RabbitMQMgmt:
         # Create a new "volttron" vhost
         try:
             response = self.create_vhost(vhost, ssl_auth=False)
-        except requests.exceptions.HTTPError:
+        except HTTPError:
             # Wait for few more seconds and retry again
             gevent.sleep(5)
             response = self.create_vhost(vhost, ssl_auth=False)
