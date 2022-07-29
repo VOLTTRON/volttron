@@ -161,8 +161,7 @@ class RMQConnectionAPI(RMQConnectionWrapper):
                     retry_delay=retry_delay,
                     ssl_options=ssl_options,
                     credentials=pika.credentials.ExternalCredentials())
-                self.params.connection_params.ssl_options = ssl_options
-                self.params.connection_params.credentials = pika.credentials.ExternalCredentials()
+
         except KeyError:
             return None
         return self.params.connection_params
