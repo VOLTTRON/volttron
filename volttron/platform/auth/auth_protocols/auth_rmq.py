@@ -241,6 +241,7 @@ class RMQConnectionAPI(RMQConnectionWrapper):
 
 class RMQClientAuthentication(BaseAuthentication):
     def __init__(self, params: RMQClientParameters) -> None:
+        super(RMQClientAuthentication, self).__init__()
         self.params = params
         self.rmq_mgmt = RabbitMQMgmt()
 
@@ -309,8 +310,8 @@ class RMQClientAuthentication(BaseAuthentication):
 
 class RMQServerAuthentication(BaseServerAuthentication):
     def __init__(self, auth_service) -> None:
+        super(RMQServerAuthentication, self).__init__(auth_service=auth_service)
         from volttron.platform.vip.pubsubservice import ProtectedPubSubTopics
-        self.auth_service = auth_service
         self._protected_topics_for_rmq = ProtectedPubSubTopics()
         self.authorization = RMQAuthorization(self.auth_service)
 
