@@ -230,7 +230,7 @@ def test_authorized_rpc_call2(volttron_instance, build_two_test_agents):
 
 
 @pytest.mark.auth
-@pytest.mark.xfail("test has to be updated. get_rpc_authorizations works only on annotated exports")
+@pytest.mark.xfail(reason="test has to be updated. get_rpc_authorizations works only on annotated exports")
 def test_get_rpc_method_authorizations(volttron_instance, build_two_test_agents):
     (agent1, agent2) = build_two_test_agents
     volttron_instance.add_capabilities(agent2.publickey, 'modify_rpc_method_allowance')
