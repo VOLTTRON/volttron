@@ -1234,7 +1234,44 @@ class RMQCore(Core):
         parsed_address = urllib.parse.urlparse(address)
         _log.info("Begining core.connect_remote_platform: {}".format(address))
         value = None
-        if parsed_address.scheme in ("https", "http"):
+        if parsed_address.scheme == "tcp":
+            # ZMQ connection
+            destination_serverkey = None
+            _log.debug(f"parsed address scheme is tcp. auth enabled = {self.enable_auth}")
+            if self.enable_auth:
+                hosts = KnownHostsStore()
+                temp_serverkey = hosts.serverkey(address)
+                if not temp_serverkey:
+                    _log.info(
+                        "Destination serverkey not found in known hosts file, "
+                        "using config"
+                    )
+                    destination_serverkey = serverkey
+                elif not serverkey:
+                    destination_serverkey = temp_serverkey
+                else:
+                    if temp_serverkey != serverkey:
+                        raise ValueError(
+                            "server_key passed and known hosts serverkey do not "
+                            ""
+                            "match!"
+                        )
+                    destination_serverkey = serverkey
+
+            _log.debug(
+                "Connecting using: %s", get_fq_identity(self.identity)
+            )
+
+            value = build_agent(
+                agent_class=agent_class,
+                identity=get_fq_identity(self.identity),
+                serverkey=destination_serverkey,
+                publickey=self.publickey,
+                secretkey=self.secretkey,
+                message_bus="zmq",
+                address=address,
+            )
+        elif parsed_address.scheme in ("https", "http"):
             from volttron.platform.web import DiscoveryInfo
             from volttron.platform.web import DiscoveryError
             from volttron.platform.auth.auth_protocols.auth_rmq import RMQConnectionAPI

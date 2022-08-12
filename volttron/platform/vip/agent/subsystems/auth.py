@@ -51,7 +51,6 @@ from volttron.platform.agent.known_identities import (
     PLATFORM_HEALTH,
 )
 
-from volttron.platform.agent.utils import get_messagebus
 from volttron.platform.jsonrpc import RemoteError, MethodNotFound
 
 from .base import SubsystemBase
@@ -288,16 +287,29 @@ class Auth(SubsystemBase):
                     method
                 )
         try:
-            updated_rpc_authorizations = (
-                self._rpc()
-                .call(
-                    AUTH,
-                    "update_id_rpc_authorizations",
-                    self._core().identity,
-                    rpc_method_authorizations,
+            from volttron.platform.agent.utils import load_platform_config
+            local_instance_name = load_platform_config().get("instance-name")
+            # if using ipc connection or if agent's connecting to same instance as the local instance update rpc auth
+            # if not agent is connecting to remote platform
+            if self._core().address.startswith("ipc") or local_instance_name == self._core().instance_name:
+                updated_rpc_authorizations = (
+                    self._rpc()
+                    .call(
+                        AUTH,
+                        "update_id_rpc_authorizations",
+                        self._core().identity,
+                        rpc_method_authorizations,
+                    )
+                    .get(timeout=4)
                 )
-                .get(timeout=4)
-            )
+            else:
+                _log.info(
+                    f"Skipping updating rpc auth capabilities for agent "
+                    f"{self._core().identity} connecting to remote address: {self._core().address} ")
+                updated_rpc_authorizations = None
+        except gevent.timeout.Timeout:
+            updated_rpc_authorizations = None
+            _log.warning(f"update_id_rpc_authorization rpc call timed out for {self._core().identity}   {rpc_method_authorizations}")
         except MethodNotFound:
             _log.warning("update_id_rpc_authorization method is missing from "
                          "AuthService! The VOLTTRON Instance you are "
