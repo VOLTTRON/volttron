@@ -112,3 +112,8 @@ Response:
           }
 
 * **With invalid BEARER token:** ``401 Unauthorized``
+
+.. toctree::
+    :hidden:
+
+    self

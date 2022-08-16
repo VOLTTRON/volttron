@@ -157,7 +157,8 @@ following sections:
     - :ref:`Status <Platforms-Status-Endpoints>`: Endpoints for determining and clearing the status of all agents on
       the platform.
 
-.. toctree::
+ .. toctree::
+    :hidden:
 
-    authentication-endpoints
-    platforms-endpoints
+    Authentication <authentication-endpoints>
+    Platforms <platform-endpoints>

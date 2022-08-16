@@ -118,3 +118,14 @@ Response:
             }
 
 * **With invalid BEARER token:** ``401 Unauthorized``
+
+.. toctree::
+    :hidden:
+
+    Agents <platforms/agent-endpoints>
+    Configs <platforms/config-endpoints>
+    Devices <platforms/device-endpoints>
+    Health <platforms/health-endpoints>
+    Historians <platforms/historian-endpoints>
+    Pubsub <platforms/pubsub-endpoints>
+    Status <platforms/status-endpoints>
