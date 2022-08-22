@@ -424,6 +424,7 @@ class RabbitMQMgmt:
             component=component, vhost=vhost, param=parameter_name)
         response = self._http_put_request(url, body=parameter_properties,
                                           ssl_auth=ssl_auth)
+        return response
 
     def delete_parameter(self, component, parameter_name, vhost=None, ssl_auth=None):
         """
@@ -483,6 +484,7 @@ class RabbitMQMgmt:
         vhost = vhost if vhost else self.rmq_config.virtual_host
         url = '/api/policies/{vhost}/{name}'.format(vhost=vhost, name=name)
         response = self._http_put_request(url, body=value, ssl_auth=ssl_auth)
+        return response
 
     def delete_policy(self, name, vhost=None, ssl_auth=None):
         """

@@ -316,6 +316,10 @@ class Auth(SubsystemBase):
                          "attempting to connect to is to old to support "
                          "dynamic RPC authorizations.")
             return
+        except Exception as e:
+            updated_rpc_authorizations = None
+            _log.exception(f"Exception when calling rpc method update_id_rpc_authorizations for identity: "
+                           f"{self._core().identity}  Exception:{e}")
         if updated_rpc_authorizations is None:
             _log.warning(
                 f"Auth entry not found for {self._core().identity}: "

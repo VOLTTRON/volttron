@@ -37,7 +37,10 @@ class RMQClientParameters(Parameters):
     certs_dict: dict = None
 
 
-class RMQConnectionWrapper:
+class RMQConnectionAPI:
+    """
+    Utility class to hold all connection parameters and connection creation methods.
+    """
     def __init__(self, rmq_user=None,
                  pwd=None,
                  host=None,
@@ -46,8 +49,9 @@ class RMQConnectionWrapper:
                  heartbeat=20,
                  retry_attempt=30,
                  retry_delay=2,
-                 url_address=None,
-                 connection_params=None) -> None:
+                 ssl_auth=True,
+                 certs_dict=None,
+                 url_address=None) -> None:
         self.rmq_mgmt = RabbitMQMgmt()
         rmq_user = rmq_user if rmq_user else self.rmq_mgmt.rmq_config.admin_user
         pwd = pwd if pwd else self.rmq_mgmt.rmq_config.admin_pwd
@@ -64,7 +68,7 @@ class RMQConnectionWrapper:
             host=host,
             port=port,
             vhost=vhost,
-            connection_params=connection_params if connection_params else pika.ConnectionParameters(
+            connection_params=pika.ConnectionParameters(
                 host=host,
                 port=port,
                 virtual_host=vhost,
@@ -74,32 +78,14 @@ class RMQConnectionWrapper:
                 credentials=pika.credentials.PlainCredentials(
                     rmq_user, rmq_user)
             ),
-            url_address=url_address if url_address else f"amqp://{rmq_user}:{pwd}@{host}:{port}/{vhost}"
+            url_address=url_address if url_address else f"amqp://{rmq_user}:{pwd}@{host}:{port}/{vhost}",
+            certs_dict=certs_dict
         )
-
-
-class RMQConnectionAPI(RMQConnectionWrapper):
-    def __init__(self, rmq_user=None,
-                 pwd=None,
-                 host=None,
-                 port=None,
-                 vhost=None,
-                 heartbeat=20,
-                 retry_attempt=30,
-                 retry_delay=2,
-                 ssl_auth=True,
-                 certs_dict=None,
-                 rmq_config=None,
-                 url_address=None) -> None:
-        super().__init__(rmq_user, pwd,
-                         host, port, vhost, heartbeat,
-                         retry_attempt, retry_delay, url_address)
         self.ssl_auth = ssl_auth
-        self.certs_dict = certs_dict
 
     def build_connection_param(self):
         if self.ssl_auth:
-            authenticated_params, _ = RMQClientAuthentication(self.params).create_authenticated_address()
+            authenticated_params, _ = RMQClientAuthentication(self.params).create_authentication_parameters()
             return authenticated_params
         else:
             return self.params.connection_params
@@ -110,8 +96,7 @@ class RMQConnectionAPI(RMQConnectionWrapper):
         create a new one. Add access control/permissions if necessary.
         Return connection parameters.
         :param identity: Identity of agent
-        :param permissions: Configure+Read+Write permissions
-        :param is_ssl: Flag to indicate if SSL connection or not
+        :param instance_name: name of the volttron instance
         :return:
         """
         self.params.rmq_user = instance_name + '.' + identity
@@ -128,7 +113,9 @@ class RMQConnectionAPI(RMQConnectionWrapper):
         """
         Build Pika Connection parameters for remote connection
         :param cert_dir: certs directory
-        :return:
+        :param retry_delay: pika connection parameter - delay between connection retry
+        :param retry_attempt: pika connection parameter - number of connection retry attempts
+        :return: instance of pika.ConnectionParameters
         """
         from urllib import parse
 
@@ -205,6 +192,20 @@ class RMQConnectionAPI(RMQConnectionWrapper):
 
         return param
 
+    def build_local_plugin_connection(self):
+        config_access = "{user}|{user}.pubsub.*|{user}.zmq.*|amq.*".format(
+            user=self.params.rmq_user)
+        read_access = "volttron|{}".format(config_access)
+        write_access = "volttron|{}".format(config_access)
+        permissions = dict(configure=config_access, read=read_access,
+                           write=write_access)
+
+        self.rmq_mgmt.create_user_with_permissions(self.params.rmq_user, permissions)
+        if self.ssl_auth:
+            self.rmq_mgmt.rmq_config.crts.create_signed_cert_files(self.params.rmq_user, overwrite=False)
+        _, self.params.url_address = RMQClientAuthentication(self.params).create_authentication_parameters()
+        return self.params.url_address
+
     def build_remote_plugin_connection(self):
         """
         Check if RabbitMQ user and certs exists for this agent, if not
@@ -218,25 +219,17 @@ class RMQConnectionAPI(RMQConnectionWrapper):
         :param is_ssl: Flag to indicate if SSL connection or not
         :return: Return connection uri
         """
-        # rmq_user = instance_name + '.' + identity
-        config_access = "{user}|{user}.pubsub.*|{user}.zmq.*|amq.*".format(
-            user=self.params.rmq_user)
-        read_access = "volttron|{}".format(config_access)
-        write_access = "volttron|{}".format(config_access)
-        permissions = dict(configure=config_access, read=read_access,
-                           write=write_access)
-
-        self.rmq_mgmt.create_user_with_permissions(self.params.rmq_user, permissions)
-        ssl_params = None
-        if self.ssl_auth:
-            if self.certs_dict is None:
-                self.rmq_mgmt.rmq_config.crts.create_signed_cert_files(self.params.rmq_user,
-                                                                       overwrite=False)
-            _, self.params.url_address = RMQClientAuthentication(self.params).create_authenticated_address()
+        if self.ssl_auth and self.params.certs_dict is not None:
+            client_auth = RMQClientAuthentication(self.params)
+            client_auth.params.connection_params = None
+            _, self.params.url_address = client_auth.create_authentication_parameters()
         else:
-            self.rmq_mgmt.rmq_config.crts.create_signed_cert_files(self.params.rmq_user,
-                                                                   overwrite=False)
-            return self.params.url_address
+            # should not come here. federation and shovel setup create certs before this method is called.
+            # ssl_auth should be true certs_dict should have ca, public and private key file path
+            raise Exception("For RMQ remote connection bost ssl certificates are mandatory. ssl_auth should be "
+                            "true and certs_dict should contain certificate details. passed values"
+                            f"ssl_auth={self.ssl_auth} certs_dict={self.params.certs_dict}")
+        return self.params.url_address
 
 
 class RMQClientAuthentication(BaseAuthentication):
@@ -253,7 +246,9 @@ class RMQClientAuthentication(BaseAuthentication):
         vhost = url.path.strip("/")
         return user, pwd, host, port, vhost
 
-    def create_authenticated_address(self):
+    # TODO: split into two methods. params.connection_params and url_address is never none so this always try to
+    # create both connection param and url address
+    def create_authentication_parameters(self):
         """
         Build Pika Connection parameters
         :return: Pika Connection, RMQ address
@@ -292,8 +287,6 @@ class RMQClientAuthentication(BaseAuthentication):
         if not user:
             user = self.rmq_mgmt.rmq_config.admin_user
         if certs_dict is None:
-            root_ca_name, server_cert, admin_user = \
-                certs.Certs.get_admin_cert_names(self.rmq_mgmt.rmq_config.instance_name)
             ca_file = self.rmq_mgmt.rmq_config.crts.cert_file(self.rmq_mgmt.rmq_config.crts.trusted_ca_name)
             cert_file = self.rmq_mgmt.rmq_config.crts.cert_file(user)
             key_file = self.rmq_mgmt.rmq_config.crts.private_key_file(user)

@@ -662,7 +662,7 @@ class ZMQCore(Core):
                     volttron_home=self.volttron_home
                 )
             )
-            self.address = zmq_auth.create_authenticated_address()
+            self.address = zmq_auth.create_authentication_parameters()
             self.publickey = zmq_auth.publickey
             self.secretkey = zmq_auth.secretkey
 

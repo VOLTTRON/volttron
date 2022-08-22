@@ -5,6 +5,7 @@ import shutil
 from typing import Optional
 from urllib.parse import urlparse
 
+import gevent
 import psutil
 import pytest
 
@@ -51,6 +52,8 @@ def build_wrapper(vip_address: str, should_start: bool = True, messagebus: str =
                               )
     if should_start:
         wrapper.startup_platform(vip_address=vip_address, **kwargs)
+        gevent.sleep(2)
+        assert wrapper.is_running()
     return wrapper
 
 
