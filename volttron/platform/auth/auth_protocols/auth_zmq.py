@@ -91,7 +91,7 @@ class ZMQClientAuthentication(BaseAuthentication):
         self.volttron_home = self.params.volttron_home
 
 # Make Common (set_parameters? - use Parameters class)
-    def create_authenticated_address(self):
+    def create_authentication_parameters(self):
         """Implements logic for setting encryption keys and putting
         those keys in the parameters of the VIP address
         """

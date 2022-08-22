@@ -514,7 +514,7 @@ class PlatformWrapper:
             self.logit(f'platformwrapper.build_agent spawning for identity {identity}')
             event = gevent.event.Event()
             gevent.spawn(agent.core.run, event)
-            event.wait(timeout=2)
+            event.wait(timeout=4)
             has_control = False
             times = 0
             while not has_control and times < 10:
@@ -879,7 +879,7 @@ class PlatformWrapper:
 
             # Use dynamic_agent so we can look and see the agent with peerlist.
             if not setupmode:
-                gevent.sleep(2)
+                gevent.sleep(5)
                 self.dynamic_agent = self.build_agent(identity="dynamic_agent")
                 assert self.dynamic_agent is not None
                 assert isinstance(self.dynamic_agent, Agent)
@@ -1373,7 +1373,7 @@ class PlatformWrapper:
                                     verbose=False,
                                     prompt=False,
                                     instance_name=self.instance_name,
-                                    rmq_conf_file=self.rabbitmq_config_obj.rmq_conf_file,
+                                    rmq_conf_file=config_path,
                                     max_retries=5,
                                     env=self.env)
 
@@ -1389,7 +1389,7 @@ class PlatformWrapper:
                                     verbose=False,
                                     prompt=False,
                                     instance_name=self.instance_name,
-                                    rmq_conf_file=self.rabbitmq_config_obj.rmq_conf_file,
+                                    rmq_conf_file=config_path,
                                     max_retries=5,
                                     env=self.env)
 
