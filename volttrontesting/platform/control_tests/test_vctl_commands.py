@@ -1,9 +1,9 @@
 import copy
 from pathlib import Path
 from typing import List
+import os
 
 import gevent
-import os
 import pytest
 from gevent import subprocess
 import yaml
@@ -26,12 +26,14 @@ def test_needs_connection():
     )
     stdout, stderr = p.communicate()
     try:
-        assert "VOLTTRON is not running. This command requires VOLTTRON platform to be running" in stderr.decode("utf-8")
+        assert "VOLTTRON is not running. This command requires VOLTTRON platform to be running" in stderr.decode(
+            "utf-8")
     except AssertionError:
         assert not stderr.decode("utf-8")
 
+
 @pytest.mark.control
-def test_needs_connection_with_connection(volttron_instance: PlatformWrapper):
+def test_needs_connection_with_connection():
     # Verify peerlist command works when instance is running
     p = subprocess.Popen(
         ["volttron-ctl", "peerlist"],
@@ -46,7 +48,7 @@ def test_needs_connection_with_connection(volttron_instance: PlatformWrapper):
 
 
 @pytest.mark.control
-def test_no_connection(volttron_instance: PlatformWrapper):
+def test_no_connection():
     # Test command that doesn't need instance running.
     p = subprocess.Popen(
         ["volttron-ctl", "list"],
@@ -131,15 +133,15 @@ def test_install_same_identity(volttron_instance: PlatformWrapper):
 
         volttron_instance.remove_all_agents()
 
+
 @pytest.mark.control
 def test_install_with_wheel(volttron_instance: PlatformWrapper):
-
     with with_os_environ(volttron_instance.env):
         global listener_agent_dir
         args = ["volttron-pkg", "package", listener_agent_dir]
         response = execute_command(args, volttron_instance.env)
         assert response.startswith("Package created at: ")
-        path = response[len("Package created at: ") :]
+        path = response[len("Package created at: "):]
         assert os.path.exists(path.strip())
         args = ["volttron-ctl", "--json", "install", path.strip()]
         response = execute_command(args, volttron_instance.env)
@@ -150,7 +152,6 @@ def test_install_with_wheel(volttron_instance: PlatformWrapper):
 
 @pytest.mark.control
 def test_install_with_wheel_bad_path(volttron_instance: PlatformWrapper):
-
     with with_os_environ(volttron_instance.env):
         bad_wheel_path = "foo/wheel.whl"
         args = ["volttron-ctl", "--json", "install", bad_wheel_path]
@@ -164,92 +165,92 @@ def test_install_with_wheel_bad_path(volttron_instance: PlatformWrapper):
 @pytest.mark.parametrize(
     "use_config,args",
     (
-        (True, ["install", listener_agent_dir, "--tag", "brewster", "--priority", "1"]),
-        (
-            True,
-            [
-                "install",
-                listener_agent_dir,
-                "--tag",
-                "brewster",
-                "--start",
-                "--priority",
-                "1",
-            ],
-        ),
-        (
-            True,
-            [
-                "install",
-                listener_agent_dir,
-                "--tag",
-                "brewster",
-                "--start",
-                "--priority",
-                "20",
-            ],
-        ),
-        (True, ["install", listener_agent_dir, "--tag", "brewster", "--priority", "1"]),
-        (
-            True,
-            [
-                "install",
-                listener_agent_dir,
-                "--tag",
-                "hoppy",
-                "--start",
-                "--priority",
-                "1",
-            ],
-        ),
-        (True, ["install", listener_agent_dir, "--tag", "brewster", "--priority", "1"]),
-        (True, ["install", listener_agent_dir]),
-        (
-            False,
-            [
-                "install",
-                listener_agent_dir,
-                "--tag",
-                "brewster",
-                "--start",
-                "--priority",
-                "1",
-            ],
-        ),
-        (
-            False,
-            [
-                "install",
-                listener_agent_dir,
-                "--tag",
-                "brewster",
-                "--start",
-                "--priority",
-                "20",
-            ],
-        ),
-        (
-            False,
-            ["install", listener_agent_dir, "--tag", "brewster", "--priority", "1"],
-        ),
-        (
-            False,
-            [
-                "install",
-                listener_agent_dir,
-                "--tag",
-                "hoppy",
-                "--start",
-                "--priority",
-                "1",
-            ],
-        ),
-        (True, ["install", listener_agent_dir]),
-        (True, ["install", listener_agent_dir, "--vip-identity", "ralph"]),
+            (True, ["install", listener_agent_dir, "--tag", "brewster", "--priority", "1"]),
+            (
+                    True,
+                    [
+                        "install",
+                        listener_agent_dir,
+                        "--tag",
+                        "brewster",
+                        "--start",
+                        "--priority",
+                        "1",
+                    ],
+            ),
+            (
+                    True,
+                    [
+                        "install",
+                        listener_agent_dir,
+                        "--tag",
+                        "brewster",
+                        "--start",
+                        "--priority",
+                        "20",
+                    ],
+            ),
+            (True, ["install", listener_agent_dir, "--tag", "brewster", "--priority", "1"]),
+            (
+                    True,
+                    [
+                        "install",
+                        listener_agent_dir,
+                        "--tag",
+                        "hoppy",
+                        "--start",
+                        "--priority",
+                        "1",
+                    ],
+            ),
+            (True, ["install", listener_agent_dir, "--tag", "brewster", "--priority", "1"]),
+            (True, ["install", listener_agent_dir]),
+            (
+                    False,
+                    [
+                        "install",
+                        listener_agent_dir,
+                        "--tag",
+                        "brewster",
+                        "--start",
+                        "--priority",
+                        "1",
+                    ],
+            ),
+            (
+                    False,
+                    [
+                        "install",
+                        listener_agent_dir,
+                        "--tag",
+                        "brewster",
+                        "--start",
+                        "--priority",
+                        "20",
+                    ],
+            ),
+            (
+                    False,
+                    ["install", listener_agent_dir, "--tag", "brewster", "--priority", "1"],
+            ),
+            (
+                    False,
+                    [
+                        "install",
+                        listener_agent_dir,
+                        "--tag",
+                        "hoppy",
+                        "--start",
+                        "--priority",
+                        "1",
+                    ],
+            ),
+            (True, ["install", listener_agent_dir]),
+            (True, ["install", listener_agent_dir, "--vip-identity", "ralph"]),
     ),
 )
 def test_install_arg_matrix(
-    volttron_instance: PlatformWrapper, args: List, use_config: bool
+        volttron_instance: PlatformWrapper, args: List, use_config: bool
 ):
     listener_config_file = get_examples("ListenerAgent/config")
 
@@ -364,6 +365,7 @@ def test_agent_filters(volttron_instance):
 
     volttron_instance.remove_all_agents()
 
+
 @pytest.mark.control
 def test_vctl_start_stop_restart_by_uuid_should_succeed(volttron_instance: PlatformWrapper):
     global listener_agent_dir
@@ -400,7 +402,7 @@ def test_vctl_start_stop_restart_by_uuid_should_succeed(volttron_instance: Platf
 
         agent_status = jsonapi.loads(execute_command(check_agent_status, volttron_instance.env))
         assert not agent_status[identity]['health']
-        assert not int(agent_status[identity]['status']) # status is a '0' when agent is stopped
+        assert not int(agent_status[identity]['status'])  # status is a '0' when agent is stopped
 
         # restart agent
         # start the agent first so that restart agent will go through the entire flow of stopping, then starting an agent
@@ -413,6 +415,7 @@ def test_vctl_start_stop_restart_by_uuid_should_succeed(volttron_instance: Platf
         assert 'running' in agent_status[identity]['status']
 
         volttron_instance.remove_all_agents()
+
 
 @pytest.mark.control
 def test_vctl_start_stop_restart_by_tag_should_succeed(volttron_instance: PlatformWrapper):
@@ -453,7 +456,7 @@ def test_vctl_start_stop_restart_by_tag_should_succeed(volttron_instance: Platfo
 
         agent_status = jsonapi.loads(execute_command(check_agent_status, volttron_instance.env))
         assert not agent_status[identity]['health']
-        assert not int(agent_status[identity]['status']) # status is a '0' when agent is stopped
+        assert not int(agent_status[identity]['status'])  # status is a '0' when agent is stopped
 
         # restart tagged agent
         # start the agent first so that restart agent will go through the entire flow of stopping and then starting an agent
@@ -466,6 +469,7 @@ def test_vctl_start_stop_restart_by_tag_should_succeed(volttron_instance: Platfo
         assert 'running' in agent_status[identity]['status']
 
         volttron_instance.remove_all_agents()
+
 
 @pytest.mark.control
 def test_vctl_start_stop_restart_by_all_tagged_should_succeed(volttron_instance: PlatformWrapper):
@@ -542,10 +546,10 @@ def test_vctl_start_stop_restart_by_all_tagged_should_succeed(volttron_instance:
         status = jsonapi.loads(execute_command(check_all_status, volttron_instance.env))
 
         assert not status[identity_tag]['health']
-        assert not int(status[identity_tag]['status']) # status is a '0' when agent is started and then stopped
+        assert not int(status[identity_tag]['status'])  # status is a '0' when agent is started and then stopped
 
         assert not status[identity_tag2]['health']
-        assert not int(status[identity_tag2]['status']) # status is a '0' when agent is started and then stopped
+        assert not int(status[identity_tag2]['status'])  # status is a '0' when agent is started and then stopped
 
         assert not status[identity_no_tag]['health']
         assert not status[identity_no_tag]['status']
