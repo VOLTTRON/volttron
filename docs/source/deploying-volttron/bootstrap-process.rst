@@ -63,14 +63,12 @@ The options for customizing the location of the virtual environment are as follo
     --prompt PROMPT       provide alternate prompt in activated environment
                           (default: volttron)
 
-Additional options are available for customizing where an environment will retrieve packages and/or upgrade
-existing packages installed.
+Additional options are available for customizing where an environment will retrieve packages installed.
 
 .. code-block:: bash
 
     update options:
       --offline             install from cache without downloading
-      -u, --upgrade         upgrade installed packages
       -w, --wheel           build wheels in the pip wheelhouse
 
 To help boostrap an environment in the shortest number of steps we have grouped dependency packages under named
