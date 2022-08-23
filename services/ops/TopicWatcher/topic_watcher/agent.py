@@ -105,7 +105,7 @@ class AlertAgent(Agent):
                     # rmq -> rmq enabled with web
                     # zmq -> zmq enabled with web
                     # rmq -> zmq enabled with web
-                    value = self.vip.auth.connect_remote_platform(self.remote_address,
+                    value = self.core.connect_remote_platform(self.remote_address,
                                                                   serverkey=self.remote_serverkey)
 
                     if isinstance(value, Agent):

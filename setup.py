@@ -64,10 +64,12 @@ if __name__ == '__main__':
         entry_points = {
             'console_scripts': [
                 'volttron = volttron.platform.main:_main',
-                'volttron-ctl = volttron.platform.control:_main',
+                'volttron-ctl = volttron.platform.control.control_parser:_main',
+                # 'volttron-ctl = volttron.platform.control_old:_main',
                 'volttron-pkg = volttron.platform.packaging:_main',
                 'volttron-cfg = volttron.platform.config:_main',
-                'vctl = volttron.platform.control:_main',
+                'vctl = volttron.platform.control.control_parser:_main',
+                # 'vctl = volttron.platform.control_old:_main',
                 'vpkg = volttron.platform.packaging:_main',
                 'vcfg = volttron.platform.config:_main',
                 'volttron-upgrade = volttron.platform.upgrade.upgrade_volttron:_main',

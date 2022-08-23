@@ -56,23 +56,23 @@ from gevent import subprocess
 from gevent.subprocess import PIPE
 from wheel.tool import unpack
 
-from volttron.platform import certs
 from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM
 from volttron.platform.agent.utils import get_fq_identity, is_secure_mode
 # Can't use zmq.utils.jsonapi because it is missing the load() method.
 from volttron.platform import jsonapi
-from volttron.platform.certs import Certs
+from volttron.platform.auth.certs import Certs
 from volttron.platform.keystore import KeyStore
 
-from .agent.utils import (is_valid_identity,
+from volttron.platform.agent.utils import (is_valid_identity,
                           get_messagebus,
                           get_platform_instance_name)
 from volttron.platform import get_home
 from volttron.platform.agent.utils import load_platform_config, \
     get_utc_seconds_from_epoch
-from .packages import UnpackedPackage
-from .vip.agent import Agent
-from .auth import AuthFile, AuthEntry, AuthFileEntryAlreadyExists
+from volttron.platform.packages import UnpackedPackage
+from volttron.platform.vip.agent import Agent
+from volttron.platform.auth.auth_entry import AuthEntry
+from volttron.platform.auth.auth_file import AuthFile, AuthFileEntryAlreadyExists
 from volttron.utils.rmq_mgmt import RabbitMQMgmt
 from volttron.platform import update_volttron_script_path
 
@@ -497,7 +497,7 @@ class AIPplatform:
         try:
             if auth is not None and self.env.verify_agents:
                 unpacker = auth.VolttronPackageWheelFile(agent_wheel,
-                                                         certsobj=certs.Certs())
+                                                         certsobj=Certs())
                 unpacker.unpack(dest=agent_path)
             else:
                 unpack(agent_wheel, dest=agent_path)
@@ -514,7 +514,7 @@ class AIPplatform:
             if self.message_bus == 'rmq':
                 rmq_user = get_fq_identity(final_identity,
                                            self.instance_name)
-                certs.Certs().create_signed_cert_files(rmq_user, overwrite=False)
+                Certs().create_signed_cert_files(rmq_user, overwrite=False)
 
             if self.secure_agent_user:
                 # When installing, we always create a new user, as anything
@@ -1002,11 +1002,11 @@ class AIPplatform:
 
             self.rmq_mgmt.create_user_with_permissions(rmq_user, self.rmq_mgmt.get_default_permissions(rmq_user),
                                                        ssl_auth=True)
-            key_file = certs.Certs().private_key_file(rmq_user)
+            key_file = Certs().private_key_file(rmq_user)
             if not os.path.exists(key_file):
                 # This could happen when user switches from zmq to rmq after installing agent
                 _log.info(f"agent certs don't exists. creating certs for agent")
-                certs.Certs().create_signed_cert_files(rmq_user, overwrite=False)
+                Certs().create_signed_cert_files(rmq_user, overwrite=False)
 
             if self.secure_agent_user:
                 # give read access to user to its own private key file.

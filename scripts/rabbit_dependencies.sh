@@ -96,21 +96,15 @@ function install_on_debian {
     ${prefix} apt-get update
     ${prefix} apt-get install -y gnupg apt-transport-https -y
     ${prefix} apt-get purge -yf erlang-base
-    # Add the signing key
-    wget https://packages.erlang-solutions.com/ubuntu/erlang_solutions.asc
-    sudo apt-key add erlang_solutions.asc
-    rm erlang_solutions.asc
+    # Adds erlang repository entry
+    wget https://packages.erlang-solutions.com/erlang-solutions_2.0_all.deb
+    sudo dpkg -i erlang-solutions_2.0_all.deb
+    rm erlang-solutions_2.0_all.deb
     if [[ -f "/etc/apt/sources.list.d/erlang.list" ]]; then
       echo "\n/etc/apt/sources.list.d/erlang.list exists. renaming current file to erlang.list.old\n"
       ${prefix} mv /etc/apt/sources.list.d/erlang.list /etc/apt/sources.list.d/erlang.list.old
       exit_on_error
     fi
-    ## Add apt repository
-    ${prefix} tee /etc/apt/sources.list.d/erlang.list <<EOF
-## Provides modern Erlang/OTP releases
-##
-deb https://packages.erlang-solutions.com/$OS $DIST contrib
-EOF
     version=${erlang_package_version}
     to_install="\
         erlang-base=$version\

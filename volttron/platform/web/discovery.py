@@ -3,7 +3,7 @@ import requests
 from urllib.parse import urlparse, urljoin
 
 from volttron.platform import jsonapi
-from volttron.platform.certs import Certs
+from volttron.platform.auth.certs import Certs
 
 _log = logging.getLogger(__name__)
 

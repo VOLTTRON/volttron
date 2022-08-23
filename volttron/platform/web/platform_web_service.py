@@ -66,8 +66,9 @@ from volttron.platform.agent.known_identities import \
     CONTROL, VOLTTRON_CENTRAL, AUTH
 from ..agent.utils import get_fq_identity
 from ..agent.web import Response, JsonResponse
-from ..auth import AuthEntry, AuthFile, AuthFileEntryAlreadyExists
-from ..certs import Certs, CertWrapper
+from volttron.platform.auth.auth_entry import AuthEntry
+from volttron.platform.auth.auth_file import AuthFile, AuthFileEntryAlreadyExists
+from volttron.platform.auth.certs import Certs, CertWrapper
 from ..jsonrpc import (json_result,
                        json_validate_request,
                        INVALID_REQUEST, METHOD_NOT_FOUND,
@@ -394,6 +395,8 @@ class PlatformWebService(Agent):
         # a tcp address in the <VOLTTRON_HOME>/config or --vip-address command line argument.
         if external_vip and self.serverkey:
             return_dict['serverkey'] = encode_key(self.serverkey)
+            return_dict['vip-address'] = external_vip
+        elif external_vip:
             return_dict['vip-address'] = external_vip
         elif not external_vip:
             _log.warning("There was no external vip-address specified in config file or command line.")

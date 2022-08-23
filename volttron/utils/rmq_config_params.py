@@ -45,7 +45,6 @@ try:
 except ImportError:
     raise RuntimeError('PyYAML must be installed before running this script ')
 
-from volttron.platform import certs
 from volttron.platform import get_home
 from volttron.platform.agent.utils import get_platform_instance_name
 
@@ -92,6 +91,7 @@ class RMQConfig:
             self.rabbitmq_server = os.path.expanduser("~/rabbitmq_server/rabbitmq_server-3.9.7/")
 
         assert os.path.isdir(self.rabbitmq_server), "Missing rabbitmq server directory{}".format(self.rabbitmq_server)
+        from volttron.platform.auth import certs
         self.crts = certs.Certs()
         self.volttron_home = get_home()
         self.volttron_rmq_config = os.path.join(self.volttron_home, 'rabbitmq_config.yml')

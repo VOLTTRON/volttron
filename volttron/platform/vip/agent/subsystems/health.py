@@ -37,7 +37,6 @@
 # }}}
 
 import logging
-import os
 import weakref
 
 from volttron.platform.agent.utils import (

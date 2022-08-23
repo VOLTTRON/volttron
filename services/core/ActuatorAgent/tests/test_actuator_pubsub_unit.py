@@ -45,7 +45,10 @@ import pytest
 from services.core.ActuatorAgent.actuator import agent
 from services.core.ActuatorAgent.actuator.agent import ActuatorAgent
 from services.core.ActuatorAgent.actuator.scheduler import RequestResult, DeviceState
-from services.core.ActuatorAgent.tests.actuator_fixtures import MockedAsyncResult, get_actuator_agent
+try:
+    from services.core.ActuatorAgent.tests.actuator_fixtures import MockedAsyncResult, get_actuator_agent
+except ImportError:
+    pytest.skip("actuator fixtures not found!", allow_module_level=True)
 from volttrontesting.utils.utils import AgentMock
 from volttron.platform.vip.agent import Agent
 

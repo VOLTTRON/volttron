@@ -77,7 +77,8 @@ from volttron.utils.prompt import prompt_response
 __all__ = ['load_config', 'run_agent', 'start_agent_thread',
            'is_valid_identity', 'load_platform_config', 'get_messagebus',
            'get_fq_identity', 'execute_command', 'get_aware_utc_now',
-           'is_secure_mode', 'wait_for_volttron_shutdown', 'is_volttron_running']
+           'is_secure_mode', 'is_web_enabled', 'is_auth_enabled',
+           'wait_for_volttron_shutdown', 'is_volttron_running']
 
 __author__ = 'Brandon Carpenter <brandon.carpenter@pnnl.gov>'
 __copyright__ = 'Copyright (c) 2016, Battelle Memorial Institute'
@@ -236,6 +237,14 @@ def get_messagebus():
         message_bus = config.get('message-bus', 'zmq')
     return message_bus
 
+def is_auth_enabled():
+    """Get type of message bus - zeromq or rabbbitmq."""
+    allow_auth = os.environ.get('AUTH_ENABLED')
+    if not allow_auth:
+        config = load_platform_config()
+        allow_auth = config.get('allow-auth', 'True')
+    allow_auth = False if allow_auth == 'False' else True
+    return allow_auth
 
 def is_web_enabled():
     """Returns True if web enabled, False otherwise"""
@@ -452,7 +461,7 @@ def vip_main(agent_class, identity=None, version='0.1', **kwargs):
         agent_uuid = os.environ.get('AGENT_UUID')
         volttron_home = get_home()
 
-        from volttron.platform.certs import Certs
+        from volttron.platform.auth.certs import Certs
         certs = Certs()
         agent = agent_class(config_path=config, identity=identity,
                             address=address, agent_uuid=agent_uuid,

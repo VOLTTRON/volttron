@@ -5,6 +5,7 @@ import subprocess
 import gevent
 import pytest
 from mock import MagicMock
+from volttron.platform.auth.auth_protocols.auth_zmq import ZMQAuthorization, ZMQServerAuthentication
 
 from volttrontesting.platform.auth_tests.conftest import assert_auth_entries_same
 from volttrontesting.utils.platformwrapper import with_os_environ
@@ -562,8 +563,11 @@ def _remove_known_host(platform, host):
 @pytest.fixture()
 def mock_auth_service():
     AuthService.__bases__ = (AgentMock.imitate(Agent, Agent()), )
-    yield AuthService(
+    auth_service = AuthService(
         auth_file=MagicMock(), protected_topics_file=MagicMock(), setup_mode=MagicMock(), aip=MagicMock())
+    auth_service.authentication_server = ZMQServerAuthentication(auth_service=auth_service)
+    auth_service.authorization_server = ZMQAuthorization(auth_service=auth_service)
+    yield auth_service
 
 
 @pytest.fixture()
@@ -585,9 +589,9 @@ def mock_zmq_credential():
 def test_get_authorization_pending(mock_auth_service, mock_zmq_credential):
     mock_auth = mock_auth_service
     auth = mock_zmq_credential
-    mock_auth._update_auth_pending(
+    mock_auth.authentication_server._update_auth_pending(
         auth['domain'], auth['address'], auth['mechanism'], auth['credentials'], auth['user_id'])
-    auth_pending = mock_auth.get_authorization_pending()[0]
+    auth_pending = mock_auth.get_pending_authorizations()[0]
     assert auth['domain'] == auth_pending['domain']
     assert auth['address'] == auth_pending['address']
     assert auth['mechanism'] == auth_pending['mechanism']
@@ -600,11 +604,11 @@ def test_get_authorization_pending(mock_auth_service, mock_zmq_credential):
 def test_approve_authorization_failure(mock_auth_service, mock_zmq_credential):
     mock_auth = mock_auth_service
     auth = mock_zmq_credential
-    mock_auth._update_auth_pending(
+    mock_auth.authentication_server._update_auth_pending(
         auth['domain'], auth['address'], auth['mechanism'], auth['credentials'], auth['user_id'])
     assert len(mock_auth._auth_pending) == 1
 
-    mock_auth.approve_authorization_failure(auth['user_id'])
+    mock_auth.approve_authorization(auth['user_id'])
     assert len(mock_auth.auth_entries) == 0
 
     mock_auth.read_auth_file()
@@ -617,17 +621,17 @@ def test_approve_authorization_failure(mock_auth_service, mock_zmq_credential):
 def test_deny_approved_authorization(mock_auth_service, mock_zmq_credential):
     mock_auth = mock_auth_service
     auth = mock_zmq_credential
-    mock_auth._update_auth_pending(
+    mock_auth.authentication_server._update_auth_pending(
         auth['domain'], auth['address'], auth['mechanism'], auth['credentials'], auth['user_id'])
     assert len(mock_auth._auth_pending) == 1
     assert len(mock_auth._auth_approved) == 0
 
-    mock_auth.approve_authorization_failure(auth['user_id'])
+    mock_auth.approve_authorization(auth['user_id'])
     mock_auth.read_auth_file()
     assert len(mock_auth.auth_entries) == 1
     assert len(mock_auth._auth_approved) == 1
 
-    mock_auth.deny_authorization_failure(auth['user_id'])
+    mock_auth.deny_authorization(auth['user_id'])
     mock_auth.read_auth_file()
     assert len(mock_auth._auth_denied) == 1
     assert len(mock_auth._auth_approved) == 0
@@ -638,19 +642,19 @@ def test_deny_approved_authorization(mock_auth_service, mock_zmq_credential):
 def test_delete_approved_authorization(mock_auth_service, mock_zmq_credential):
     mock_auth = mock_auth_service
     auth = mock_zmq_credential
-    mock_auth._update_auth_pending(
+    mock_auth.authentication_server._update_auth_pending(
         auth['domain'], auth['address'], auth['mechanism'], auth['credentials'], auth['user_id'])
     assert len(mock_auth._auth_pending) == 1
     assert len(mock_auth._auth_approved) == 0
 
-    mock_auth.approve_authorization_failure(auth['user_id'])
+    mock_auth.approve_authorization(auth['user_id'])
     assert len(mock_auth.auth_entries) == 0
     mock_auth.read_auth_file()
     assert len(mock_auth._auth_approved) == 1
     assert len(mock_auth._auth_pending) == 0
     assert len(mock_auth.auth_entries) == 1
 
-    mock_auth.delete_authorization_failure(auth['user_id'])
+    mock_auth.delete_authorization(auth['user_id'])
     mock_auth.read_auth_file()
     assert len(mock_auth._auth_approved) == 0
     assert len(mock_auth.auth_entries) == 0
@@ -660,17 +664,17 @@ def test_delete_approved_authorization(mock_auth_service, mock_zmq_credential):
 def test_approve_denied_authorization(mock_auth_service, mock_zmq_credential):
     mock_auth = mock_auth_service
     auth = mock_zmq_credential
-    mock_auth._update_auth_pending(
+    mock_auth.authentication_server._update_auth_pending(
         auth['domain'], auth['address'], auth['mechanism'], auth['credentials'], auth['user_id'])
     assert len(mock_auth._auth_pending) == 1
     assert len(mock_auth._auth_denied) == 0
 
-    mock_auth.deny_authorization_failure(auth['user_id'])
+    mock_auth.deny_authorization(auth['user_id'])
     mock_auth.read_auth_file()
     assert len(mock_auth._auth_denied) == 1
     assert len(mock_auth._auth_pending) == 0
 
-    mock_auth.approve_authorization_failure(auth['user_id'])
+    mock_auth.approve_authorization(auth['user_id'])
     assert len(mock_auth.auth_entries) == 0
     mock_auth.read_auth_file()
     assert len(mock_auth._auth_approved) == 1
@@ -682,12 +686,12 @@ def test_approve_denied_authorization(mock_auth_service, mock_zmq_credential):
 def test_deny_authorization_failure(mock_auth_service, mock_zmq_credential):
     mock_auth = mock_auth_service
     auth = mock_zmq_credential
-    mock_auth._update_auth_pending(
+    mock_auth.authentication_server._update_auth_pending(
         auth['domain'], auth['address'], auth['mechanism'], auth['credentials'], auth['user_id'])
     assert len(mock_auth._auth_pending) == 1
     assert len(mock_auth._auth_denied) == 0
 
-    mock_auth.deny_authorization_failure(auth['user_id'])
+    mock_auth.deny_authorization(auth['user_id'])
     mock_auth.read_auth_file()
     assert len(mock_auth._auth_denied) == 1
     assert len(mock_auth._auth_pending) == 0
@@ -697,11 +701,11 @@ def test_deny_authorization_failure(mock_auth_service, mock_zmq_credential):
 def test_delete_authorization_failure(mock_auth_service, mock_zmq_credential):
     mock_auth = mock_auth_service
     auth = mock_zmq_credential
-    mock_auth._update_auth_pending(
+    mock_auth.authentication_server._update_auth_pending(
         auth['domain'], auth['address'], auth['mechanism'], auth['credentials'], auth['user_id'])
     assert len(mock_auth._auth_pending) == 1
     assert len(mock_auth._auth_denied) == 0
-    mock_auth.delete_authorization_failure(auth['user_id'])
+    mock_auth.delete_authorization(auth['user_id'])
 
     assert len(mock_auth._auth_pending) == 0
     assert len(mock_auth._auth_denied) == 0
@@ -711,16 +715,16 @@ def test_delete_authorization_failure(mock_auth_service, mock_zmq_credential):
 def test_delete_denied_authorization(mock_auth_service, mock_zmq_credential):
     mock_auth = mock_auth_service
     auth = mock_zmq_credential
-    mock_auth._update_auth_pending(
+    mock_auth.authentication_server._update_auth_pending(
         auth['domain'], auth['address'], auth['mechanism'], auth['credentials'], auth['user_id'])
     assert len(mock_auth._auth_pending) == 1
     assert len(mock_auth._auth_denied) == 0
 
-    mock_auth.deny_authorization_failure(auth['user_id'])
+    mock_auth.deny_authorization(auth['user_id'])
     mock_auth.read_auth_file()
     assert len(mock_auth._auth_denied) == 1
     assert len(mock_auth._auth_pending) == 0
 
-    mock_auth.delete_authorization_failure(auth['user_id'])
+    mock_auth.delete_authorization(auth['user_id'])
     mock_auth.read_auth_file()
     assert len(mock_auth._auth_denied) == 0

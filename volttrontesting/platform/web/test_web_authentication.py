@@ -9,17 +9,14 @@ from deepdiff import DeepDiff
 
 import pytest
 
-from volttron.platform.web import PlatformWebService
-from volttrontesting.utils.utils import AgentMock
-
 try:
     import jwt
 except ImportError:
     pytest.mark.skip(reason="JWT is missing! Web is not enabled for this installation of VOLTTRON")
 
 from volttron.platform import is_rabbitmq_available
+from volttron.platform.auth import CertWrapper, Certs
 from volttron.platform.agent.known_identities import AUTH
-from volttron.platform.certs import CertWrapper, Certs
 from volttron.platform.vip.agent import Agent
 from volttron.utils import get_random_key
 from volttrontesting.utils.platformwrapper import create_volttron_home, with_os_environ
@@ -234,7 +231,7 @@ def test_authenticate_endpoint(scheme):
 @pytest.mark.web
 def test_get_credentials(volttron_instance_web):
     instance = volttron_instance_web
-    auth_pending = instance.dynamic_agent.vip.rpc.call(AUTH, "get_authorization_pending").get()
+    auth_pending = instance.dynamic_agent.vip.rpc.call(AUTH, "get_pending_authorizations").get()
     len_auth_pending = len(auth_pending)
     with with_os_environ(instance.env):
         pending_agent = Agent(identity="PendingAgent")
@@ -242,7 +239,7 @@ def test_get_credentials(volttron_instance_web):
         task.join(timeout=5)
         pending_agent.core.stop()
 
-    auth_pending = instance.dynamic_agent.vip.rpc.call(AUTH, "get_authorization_pending").get()
+    auth_pending = instance.dynamic_agent.vip.rpc.call(AUTH, "get_pending_authorizations").get()
     print(f"Auth pending is: {auth_pending}")
 
     assert len(auth_pending) == len_auth_pending + 1
@@ -251,7 +248,7 @@ def test_get_credentials(volttron_instance_web):
 @pytest.mark.web
 def test_accept_credential(volttron_instance_web):
     instance = volttron_instance_web
-    auth_pending = instance.dynamic_agent.vip.rpc.call(AUTH, "get_authorization_pending").get()
+    auth_pending = instance.dynamic_agent.vip.rpc.call(AUTH, "get_pending_authorizations").get()
     len_auth_pending = len(auth_pending)
     with with_os_environ(instance.env):
         pending_agent = Agent(identity="PendingAgent1")
@@ -259,18 +256,18 @@ def test_accept_credential(volttron_instance_web):
         task.join(timeout=5)
         pending_agent.core.stop()
 
-        auth_pending = instance.dynamic_agent.vip.rpc.call(AUTH, "get_authorization_pending").get()
+        auth_pending = instance.dynamic_agent.vip.rpc.call(AUTH, "get_pending_authorizations").get()
         print(f"Auth pending is: {auth_pending}")
         assert len(auth_pending) == len_auth_pending + 1
 
-        auth_approved = instance.dynamic_agent.vip.rpc.call(AUTH, "get_authorization_approved").get()
+        auth_approved = instance.dynamic_agent.vip.rpc.call(AUTH, "get_approved_authorizations").get()
         len_auth_approved = len(auth_approved)
         assert len_auth_approved == 0
 
         print(f"agent uuid: {pending_agent.core.agent_uuid}")
-        instance.dynamic_agent.vip.rpc.call(AUTH, "approve_authorization_failure", auth_pending[0]["user_id"]).wait(timeout=4)
+        instance.dynamic_agent.vip.rpc.call(AUTH, "approve_authorization", auth_pending[0]["user_id"]).wait(timeout=4)
         gevent.sleep(2)
-        auth_approved = instance.dynamic_agent.vip.rpc.call(AUTH, "get_authorization_approved").get()
+        auth_approved = instance.dynamic_agent.vip.rpc.call(AUTH, "get_pending_authorizations").get()
 
         assert len(auth_approved) == len_auth_approved + 1
 
@@ -278,7 +275,7 @@ def test_accept_credential(volttron_instance_web):
 @pytest.mark.web
 def test_deny_credential(volttron_instance_web):
     instance = volttron_instance_web
-    auth_pending = instance.dynamic_agent.vip.rpc.call(AUTH, "get_authorization_pending").get()
+    auth_pending = instance.dynamic_agent.vip.rpc.call(AUTH, "get_pending_authorizations").get()
     len_auth_pending = len(auth_pending)
     with with_os_environ(instance.env):
         pending_agent = Agent(identity="PendingAgent2")
@@ -286,18 +283,18 @@ def test_deny_credential(volttron_instance_web):
         task.join(timeout=5)
         pending_agent.core.stop()
 
-        auth_pending = instance.dynamic_agent.vip.rpc.call(AUTH, "get_authorization_pending").get()
+        auth_pending = instance.dynamic_agent.vip.rpc.call(AUTH, "get_pending_authorizations").get()
         print(f"Auth pending is: {auth_pending}")
         assert len(auth_pending) == len_auth_pending + 1
 
-        auth_denied = instance.dynamic_agent.vip.rpc.call(AUTH, "get_authorization_denied").get()
+        auth_denied = instance.dynamic_agent.vip.rpc.call(AUTH, "get_denied_authorizations").get()
         len_auth_denied = len(auth_denied)
         assert len_auth_denied == 0
 
         print(f"agent uuid: {pending_agent.core.agent_uuid}")
-        instance.dynamic_agent.vip.rpc.call(AUTH, "deny_authorization_failure", auth_pending[0]["user_id"]).wait(timeout=4)
+        instance.dynamic_agent.vip.rpc.call(AUTH, "deny_authorization", auth_pending[0]["user_id"]).wait(timeout=4)
         gevent.sleep(2)
-        auth_denied = instance.dynamic_agent.vip.rpc.call(AUTH, "get_authorization_denied").get()
+        auth_denied = instance.dynamic_agent.vip.rpc.call(AUTH, "get_denied_authorizations").get()
 
         assert len(auth_denied) == len_auth_denied + 1
 
@@ -305,7 +302,7 @@ def test_deny_credential(volttron_instance_web):
 @pytest.mark.web
 def test_delete_credential(volttron_instance_web):
     instance = volttron_instance_web
-    auth_pending = instance.dynamic_agent.vip.rpc.call(AUTH, "get_authorization_pending").get()
+    auth_pending = instance.dynamic_agent.vip.rpc.call(AUTH, "get_pending_authorizations").get()
     print(f"Auth pending is: {auth_pending}")
     len_auth_pending = len(auth_pending)
     with with_os_environ(instance.env):
@@ -314,12 +311,12 @@ def test_delete_credential(volttron_instance_web):
         task.join(timeout=5)
         pending_agent.core.stop()
 
-        auth_pending = instance.dynamic_agent.vip.rpc.call(AUTH, "get_authorization_pending").get()
+        auth_pending = instance.dynamic_agent.vip.rpc.call(AUTH, "get_pending_authorizations").get()
         print(f"Auth pending is: {auth_pending}")
         assert len(auth_pending) == len_auth_pending + 1
 
-        instance.dynamic_agent.vip.rpc.call(AUTH, "delete_authorization_failure", auth_pending[0]["user_id"]).wait(timeout=4)
+        instance.dynamic_agent.vip.rpc.call(AUTH, "delete_authorization", auth_pending[0]["user_id"]).wait(timeout=4)
         gevent.sleep(2)
-        auth_pending = instance.dynamic_agent.vip.rpc.call(AUTH, "get_authorization_pending").get()
+        auth_pending = instance.dynamic_agent.vip.rpc.call(AUTH, "get_pending_authorizations").get()
 
         assert len(auth_pending) == len_auth_pending

@@ -1,10 +1,9 @@
+import pytest
 try:
     import openleadr
 except ModuleNotFoundError as e:
-    print("Please install openleadr to run tests: pip install openleadr")
-    print(f"Original error message: {e}")
-
-import pytest
+    pytest.skip(f"openleadr not found! \nPlease install openleadr to run \
+    tests: pip install openleadr.\n Original error message: {e}", allow_module_level=True)
 
 from pathlib import Path
 from mock import MagicMock

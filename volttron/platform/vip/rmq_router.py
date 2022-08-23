@@ -45,15 +45,16 @@ from typing import Optional
 from volttron.platform import is_rabbitmq_available
 from volttron.platform import jsonapi
 from volttron.utils.rmq_mgmt import RabbitMQMgmt
-from .rmq_connection import RMQRouterConnection
-from .router import BaseRouter
-from .servicepeer import ServicePeerNotifier
-from .socket import Message, Address
-from ..keystore import KeyStore
-from ..main import __version__
+from volttron.platform.vip.rmq_connection import RMQRouterConnection
+from volttron.platform.vip.router import BaseRouter
+from volttron.platform.vip.servicepeer import ServicePeerNotifier
+from volttron.platform.vip.socket import Message, Address
+from volttron.platform.keystore import KeyStore
+from volttron.platform.main import __version__
 
 if is_rabbitmq_available():
     import pika
+    from volttron.platform.auth.auth_protocols.auth_rmq import RMQConnectionAPI
 
 __all__ = ['RMQRouter']
 
@@ -105,8 +106,7 @@ class RMQRouter:
         if self._identity is None:
             raise ValueError("Agent's VIP identity is not set")
         else:
-            param = self.rmq_mgmt.build_router_connection(self._identity,
-                                                          self._instance_name)
+            param = RMQConnectionAPI().build_router_connection(self._identity, self._instance_name)
         return param
 
     def start(self):

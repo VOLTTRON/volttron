@@ -28,7 +28,7 @@ from gevent.fileobject import FileObject
 from gevent.subprocess import Popen
 from volttron.platform import packaging, jsonapi
 from volttron.platform.agent.known_identities import PLATFORM_WEB, CONTROL, CONTROL_CONNECTION, PROCESS_IDENTITIES
-from volttron.platform.certs import Certs
+from volttron.platform.auth.certs import Certs
 from volttron.platform.agent import utils
 from volttron.platform.agent.utils import (strip_comments,
                                            load_platform_config,
@@ -223,7 +223,7 @@ def with_os_environ(update_env: dict):
 
 class PlatformWrapper:
     def __init__(self, messagebus=None, ssl_auth=False, instance_name=None,
-                 secure_agent_users=False, remote_platform_ca=None):
+                 secure_agent_users=False, remote_platform_ca=None, auth_enabled=True):
         """ Initializes a new VOLTTRON instance
 
         Creates a temporary VOLTTRON_HOME directory with a packaged directory
@@ -237,7 +237,7 @@ class PlatformWrapper:
         # multiple times.  For example if a fixture calls shutdown and a
         # lower level fixture calls shutdown, this won't hang.
         self._instance_shutdown = False
-
+        self.auth_enabled = auth_enabled
         self.volttron_home = create_volttron_home()
         # log file is one level above volttron_home now
         self.log_path = os.path.join(os.path.dirname(self.volttron_home), "volttron.log")
@@ -257,7 +257,7 @@ class PlatformWrapper:
             'VOLTTRON_HOME': self.volttron_home,
             'PACKAGED_DIR': self.packaged_dir,
             'DEBUG_MODE': os.environ.get('DEBUG_MODE', ''),
-            'DEBUG': os.environ.get('DEBUG', ''),
+            'DEBUG': os.environ.get('DEBUG', '1'),
             'SKIP_CLEANUP': os.environ.get('SKIP_CLEANUP', ''),
             'PATH': path,
             # RABBITMQ requires HOME env set
@@ -266,7 +266,8 @@ class PlatformWrapper:
             'LANG': "en_US.UTF-8",
             'LC_ALL': "en_US.UTF-8",
             'PYTHONDONTWRITEBYTECODE': '1',
-            'VOLTTRON_ROOT': VOLTTRON_ROOT
+            'VOLTTRON_ROOT': VOLTTRON_ROOT,
+            'AUTH_ENABLED': str(self.auth_enabled)
         }
         self.volttron_root = VOLTTRON_ROOT
         self.vctl_exe = 'volttron-ctl'
@@ -317,6 +318,16 @@ class PlatformWrapper:
 
             # Writes the main volttron config file for this instance.
             store_message_bus_config(self.messagebus, self.instance_name)
+
+            # Update volttron config file with non-auth setting if auth_enabled is False
+            if not self.auth_enabled:
+                config_path = os.path.join(self.volttron_home, "config")
+                if os.path.exists(config_path):
+                    config = configparser.ConfigParser()
+                    config.read(config_path)
+                    config.set('volttron', 'allow-auth', str(self.auth_enabled))
+                    with open(config_path, 'w') as configfile:
+                        config.write(configfile)
 
             self.remote_platform_ca = remote_platform_ca
             self.requests_ca_bundle = None
@@ -396,26 +407,27 @@ class PlatformWrapper:
             self.logit(
                 'Default address was None so setting to current instances')
             address = self.vip_address
-            serverkey = self.serverkey
-        if serverkey is None:
-            self.logit("serverkey wasn't set but the address was.")
-            raise Exception("Invalid state.")
+        if self.auth_enabled:
+            if address is None:
+                serverkey = self.serverkey
+            if serverkey is None:
+                self.logit("serverkey wasn't set but the address was.")
+                raise Exception("Invalid state.")
+            if publickey is None or secretkey is None:
+                self.logit('generating new public secret key pair')
+                keyfile = tempfile.mktemp(".keys", "agent", self.volttron_home)
+                keys = KeyStore(keyfile)
+                keys.generate()
+                publickey = keys.public
+                secretkey = keys.secret
 
-        if publickey is None or secretkey is None:
-            self.logit('generating new public secret key pair')
-            keyfile = tempfile.mktemp(".keys", "agent", self.volttron_home)
-            keys = KeyStore(keyfile)
-            keys.generate()
-            publickey = keys.public
-            secretkey = keys.secret
-
-            entry = AuthEntry(capabilities=capabilities,
-                              comments="Added by test",
-                              credentials=keys.public,
-                              user_id=identity,
-                              identity=identity)
-            file = AuthFile(self.volttron_home + "/auth.json")
-            file.add(entry)
+                entry = AuthEntry(capabilities=capabilities,
+                                comments="Added by test",
+                                credentials=keys.public,
+                                user_id=identity,
+                                identity=identity)
+                file = AuthFile(self.volttron_home + "/auth.json")
+                file.add(entry)
 
         conn = Connection(address=address, peer=peer, publickey=publickey,
                           secretkey=secretkey, serverkey=serverkey,
@@ -452,13 +464,12 @@ class PlatformWrapper:
 
         # Make sure we have an identity or things will mess up
         identity = identity if identity else str(uuid.uuid4())
-
+        print(f"Publickey is: {publickey}\nServerkey is: {serverkey}")
         if serverkey is None:
             serverkey = self.serverkey
         if publickey is None:
             self.logit(f'generating new public secret key pair {KeyStore.get_agent_keystore_path(identity=identity)}')
             ks = KeyStore(KeyStore.get_agent_keystore_path(identity=identity))
-            # ks.generate()
             publickey = ks.public
             secretkey = ks.secret
 
@@ -479,20 +490,22 @@ class PlatformWrapper:
 
         if capabilities is None:
             capabilities = dict(edit_config_store=dict(identity=identity))
-        entry = AuthEntry(user_id=identity, identity=identity, credentials=publickey,
-                          capabilities=capabilities,
-                          comments="Added by platform wrapper")
-        authfile = AuthFile()
-        authfile.add(entry, overwrite=False, no_error=True)
-        # allow 2 seconds here for the auth to be updated in auth service
-        # before connecting to the platform with the agent.
-        #
-        gevent.sleep(3)
+        print(f"Publickey is: {publickey}\nServerkey is: {serverkey}")
+        if self.auth_enabled:
+            entry = AuthEntry(user_id=identity, identity=identity, credentials=publickey,
+                            capabilities=capabilities,
+                            comments="Added by platform wrapper")
+
+            AuthFile().add(entry, overwrite=False, no_error=True)
+            # allow 4 seconds here for the auth to be updated in auth service
+            # before connecting to the platform with the agent.
+            gevent.sleep(4)
         agent = agent_class(address=address, identity=identity,
                             publickey=publickey, secretkey=secretkey,
                             serverkey=serverkey,
                             instance_name=self.instance_name,
                             volttron_home=self.volttron_home,
+                            enable_auth=self.auth_enabled,
                             message_bus=self.messagebus,
                             **kwargs)
         self.logit('platformwrapper.build_agent.address: {}'.format(address))
@@ -501,9 +514,22 @@ class PlatformWrapper:
             self.logit(f'platformwrapper.build_agent spawning for identity {identity}')
             event = gevent.event.Event()
             gevent.spawn(agent.core.run, event)
-            event.wait(timeout=2)
-            router_ping = agent.vip.ping("").get(timeout=30)
-            assert len(router_ping) > 0
+            event.wait(timeout=4)
+            has_control = False
+            times = 0
+            while not has_control and times < 10:
+                times += 1
+                try:
+                    has_control = CONTROL in \
+                                  agent.vip.peerlist().get(
+                        timeout=.2)
+                    self.logit("Has control? {}".format(has_control))
+                except gevent.Timeout:
+                    pass
+
+            if not has_control:
+                self.shutdown_platform()
+                raise Exception("Couldn't connect to core platform!")
 
         agent.publickey = publickey
         return agent
@@ -512,7 +538,7 @@ class PlatformWrapper:
         auth_path = os.path.join(self.volttron_home, 'auth.json')
         try:
             with open(auth_path, 'r') as fd:
-                data = strip_comments(FileObject(fd, close=False).read().decode('utf-8'))
+                data = strip_comments(FileObject(fd, close=False).read())
                 if data:
                     auth = jsonapi.loads(data)
                 else:
@@ -625,7 +651,7 @@ class PlatformWrapper:
             self.volttron_central_serverkey = volttron_central_serverkey
             self.bind_web_address = bind_web_address
 
-            if perform_preauth_service_agents:
+            if perform_preauth_service_agents and self.auth_enabled:
                 authfile = AuthFile()
                 if not authfile.read_allow_entries():
                     # if this is a brand new auth.json
@@ -683,18 +709,21 @@ class PlatformWrapper:
                 '@' if sys.platform.startswith('linux') else '',
                 self.volttron_home)
             self.local_vip_address = ipc + 'vip.socket'
-            self.set_auth_dict(auth_dict)
 
             web_ssl_cert = None
             web_ssl_key = None
-            if self.messagebus == 'rmq' and bind_web_address:
-                self.env['REQUESTS_CA_BUNDLE'] = self.certsobj.cert_file(self.certsobj.root_ca_name)
 
-            # Enable SSL for ZMQ
-            elif self.messagebus == 'zmq' and self.ssl_auth and bind_web_address:
-                web_certs = certs_profile_2(os.path.join(self.volttron_home, "certificates"))
-                web_ssl_cert = web_certs['server_certs'][0]['cert_file']
-                web_ssl_key = web_certs['server_certs'][0]['key_file']
+            if self.auth_enabled:
+                self.set_auth_dict(auth_dict)
+
+                if self.messagebus == 'rmq' and bind_web_address:
+                    self.env['REQUESTS_CA_BUNDLE'] = self.certsobj.cert_file(self.certsobj.root_ca_name)
+
+                # Enable SSL for ZMQ
+                elif self.messagebus == 'zmq' and self.ssl_auth and bind_web_address:
+                    web_certs = certs_profile_2(os.path.join(self.volttron_home, "certificates"))
+                    web_ssl_cert = web_certs['server_certs'][0]['cert_file']
+                    web_ssl_key = web_certs['server_certs'][0]['key_file']
             # # Add platform key to known-hosts file:
             # known_hosts = KnownHostsStore()
             # known_hosts.add(opts.vip_local_address, encode_key(publickey))
@@ -717,7 +746,7 @@ class PlatformWrapper:
                 self.jsonrpc_endpoint = "{}/vc/jsonrpc".format(
                     self.bind_web_address)
 
-            if self.remote_platform_ca:
+            if self.remote_platform_ca and self.auth_enabled:
                 ca_bundle_file = os.path.join(self.volttron_home, "cat_ca_certs")
                 with open(ca_bundle_file, 'w') as cf:
                     if self.ssl_auth:
@@ -749,7 +778,9 @@ class PlatformWrapper:
                          'autostart': True,
                          'log_level': logging.DEBUG,
                          'verboseness': logging.DEBUG,
-                         'web_ca_cert': self.requests_ca_bundle}
+                         'web_ca_cert': self.requests_ca_bundle,
+                         'allow_auth': str(self.auth_enabled)
+                         }
 
             pconfig = os.path.join(self.volttron_home, 'config')
             config = {}
@@ -786,6 +817,9 @@ class PlatformWrapper:
             if self.secure_agent_users:
                 parser.set('volttron', 'secure-agent-users',
                            str(self.secure_agent_users))
+            if self.auth_enabled is not None:
+                parser.set('volttron', 'allow-auth',
+                           str(self.auth_enabled))
             # In python3 option values must be strings.
             parser.set('volttron', 'agent-monitor-frequency',
                        str(agent_monitor_frequency))
@@ -845,23 +879,23 @@ class PlatformWrapper:
 
             # Use dynamic_agent so we can look and see the agent with peerlist.
             if not setupmode:
-                gevent.sleep(2)
+                gevent.sleep(5)
                 self.dynamic_agent = self.build_agent(identity="dynamic_agent")
                 assert self.dynamic_agent is not None
                 assert isinstance(self.dynamic_agent, Agent)
-                has_control = False
-                times = 0
-                while not has_control and times < 10:
-                    times += 1
-                    try:
-                        has_control = CONTROL in self.dynamic_agent.vip.peerlist().get(timeout=.2)
-                        self.logit("Has control? {}".format(has_control))
-                    except gevent.Timeout:
-                        pass
-
-                if not has_control:
-                    self.shutdown_platform()
-                    raise Exception("Couldn't connect to core platform!")
+                # has_control = False
+                # times = 0
+                # while not has_control and times < 10:
+                #     times += 1
+                #     try:
+                #         has_control = CONTROL in self.dynamic_agent.vip.peerlist().get(timeout=.2)
+                #         self.logit("Has control? {}".format(has_control))
+                #     except gevent.Timeout:
+                #         pass
+                #
+                # if not has_control:
+                #     self.shutdown_platform()
+                #     raise Exception("Couldn't connect to core platform!")
 
                 # def subscribe_to_all(peer, sender, bus, topic, headers, messages):
                 #     logged = "{} --------------------Pubsub Message--------------------\n".format(
@@ -1339,7 +1373,7 @@ class PlatformWrapper:
                                     verbose=False,
                                     prompt=False,
                                     instance_name=self.instance_name,
-                                    rmq_conf_file=self.rabbitmq_config_obj.rmq_conf_file,
+                                    rmq_conf_file=config_path,
                                     max_retries=5,
                                     env=self.env)
 
@@ -1355,7 +1389,7 @@ class PlatformWrapper:
                                     verbose=False,
                                     prompt=False,
                                     instance_name=self.instance_name,
-                                    rmq_conf_file=self.rabbitmq_config_obj.rmq_conf_file,
+                                    rmq_conf_file=config_path,
                                     max_retries=5,
                                     env=self.env)
 

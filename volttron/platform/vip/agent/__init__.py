@@ -46,14 +46,14 @@ from .errors import *
 from .decorators import *
 from .subsystems import *
 from .... import platform
-from .... platform.agent.utils import is_valid_identity
+from .... platform.agent.utils import is_valid_identity, is_auth_enabled
 
 
 class Agent:
     class Subsystems:
         def __init__(self, owner, core, heartbeat_autostart,
                      heartbeat_period, enable_store, enable_web,
-                     enable_channel, enable_fncs, message_bus):
+                     enable_channel, enable_fncs, enable_auth, message_bus):
             self.peerlist = PeerList(core)
             self.ping = Ping(core)
             self.rpc = RPC(core, owner, self.peerlist)
@@ -72,7 +72,8 @@ class Agent:
                 self.config = ConfigStore(owner, core, self.rpc)
             if enable_web:
                 self.web = WebSubSystem(owner, core, self.rpc)
-            self.auth = Auth(owner, core, self.rpc)
+            if enable_auth:
+                self.auth = Auth(owner, core, self.rpc)
             if enable_fncs:
                 self.fncs = FNCS(owner, core, self.pubsub)
 
@@ -86,7 +87,7 @@ class Agent:
                  enable_web=False, enable_channel=False,
                  reconnect_interval=None, version='0.1', enable_fncs=False,
                  instance_name=None, message_bus=None,
-                 volttron_central_address=None, volttron_central_instance_name=None):
+                 volttron_central_address=None, volttron_central_instance_name=None, enable_auth=is_auth_enabled()):
 
         if volttron_home is None:
             volttron_home = os.path.abspath(platform.get_home())
@@ -110,7 +111,8 @@ class Agent:
                                     reconnect_interval=reconnect_interval,
                                     version=version,
                                     volttron_central_address=volttron_central_address,
-                                    volttron_central_instance_name=volttron_central_instance_name)
+                                    volttron_central_instance_name=volttron_central_instance_name, 
+                                    enable_auth=enable_auth)
             else:
                 _log.debug("Creating ZMQ Core {}".format(identity))
                 self.core = ZMQCore(self, identity=identity, address=address,
@@ -119,10 +121,11 @@ class Agent:
                                     instance_name=instance_name,
                                     volttron_home=volttron_home, agent_uuid=agent_uuid,
                                     reconnect_interval=reconnect_interval,
-                                    version=version, enable_fncs=enable_fncs)
+                                    version=version, enable_fncs=enable_fncs, 
+                                    enable_auth=enable_auth)
             self.vip = Agent.Subsystems(self, self.core, heartbeat_autostart,
                                         heartbeat_period, enable_store, enable_web,
-                                        enable_channel, enable_fncs, message_bus)
+                                        enable_channel, enable_fncs, enable_auth, message_bus)
             self.core.setup()
             self.vip.rpc.export(self.core.version, 'agent.version')
         except Exception as e:

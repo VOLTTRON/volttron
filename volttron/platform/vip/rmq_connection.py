@@ -211,7 +211,6 @@ class RMQConnection(BaseConnection):
         """
         self.channel = channel
         self.add_on_channel_close_callback()
-
         # Check if VIP queue exists, if so delete the stale queue first
         self.channel.queue_declare(queue=self._vip_queue_name,
                                     durable=self._queue_properties['durable'],

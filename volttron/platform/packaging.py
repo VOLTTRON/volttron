@@ -54,7 +54,7 @@ from volttron.platform.packages import *
 from volttron.platform.agent import utils
 from volttron.platform import get_volttron_data, get_home
 from volttron.utils.prompt import prompt_response
-from volttron.platform import certs
+from volttron.platform.auth import certs
 from volttron.platform import config
 
 try:
