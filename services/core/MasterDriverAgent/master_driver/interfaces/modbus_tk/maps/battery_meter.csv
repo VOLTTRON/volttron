@@ -1,0 +1,75 @@
+Register Name,Address,Type,Units,Writable,Transform,Table,Mixed Endian
+ACCUMULATED REAL ENERGY NET (IMPORT-EXPORT) (kWh),399,float,kWh,TRUE,,analog_output_holding_registers,TRUE
+REAL ENERGY QUADRANTS 1-4 IMPORT (kWh),401,float,kWh,TRUE,,analog_output_holding_registers,TRUE
+REAL ENERGY QUADRANTS 2-3 EXPORT (kWh),403,float,kWh,TRUE,,analog_output_holding_registers,TRUE
+REACTIVE ENERGY - QUADRANT 1 IMPORT (kVARh),405,float,kVARh,TRUE,,analog_output_holding_registers,TRUE
+REACTIVE ENERGY - QUADRANT 2 IMPORT (kVARh),407,float,kVARh,TRUE,,analog_output_holding_registers,TRUE
+REACTIVE ENERGY - QUADRANT 3 EXPORT (kVARh),409,float,kVARh,TRUE,,analog_output_holding_registers,TRUE
+REACTIVE ENERGY - QUADRANT 4 EXPORT (kVARh),411,float,kVARh,TRUE,,analog_output_holding_registers,TRUE
+APPARENT ENERGY NET (IMPORT/EXPORT) (kVAh),413,float,kVAh,TRUE,,analog_output_holding_registers,TRUE
+APPARENT QUADRANTS 1-4 IMPORT (kVAh),415,float,kVAh,TRUE,,analog_output_holding_registers,TRUE
+APPARENT QUADRANTS 2-3 EXPORT (kVAh),417,float,kVAh,TRUE,,analog_output_holding_registers,TRUE
+TOTAL INSTANTANEOUS REAL POWER (kW),419,float,kW,TRUE,,analog_output_holding_registers,TRUE
+TOTAL INSTANTANEOUS REACTIVE POWER (kVAR),421,float,kVAR,TRUE,,analog_output_holding_registers,TRUE
+TOTAL INSTANTANEOUS APPARENT POWER (kVA),423,float,kVA,TRUE,,analog_output_holding_registers,TRUE
+TOTAL POWER FACTOR (-),425,float,,TRUE,,analog_output_holding_registers,TRUE
+AVERAGE VOLTAGE L-L (V),427,float,V,TRUE,,analog_output_holding_registers,TRUE
+AVERAGE VOLTAGE L-N (V),429,float,V,TRUE,,analog_output_holding_registers,TRUE
+AVERAGE CURRENT (A),431,float,A,TRUE,,analog_output_holding_registers,TRUE
+FREQUENCY (Hz),433,float,Hz,TRUE,,analog_output_holding_registers,TRUE
+TOTAL REAL POWER PRESENT DEMAND (kW),435,float,kW,TRUE,,analog_output_holding_registers,TRUE
+TOTAL REACTIVE POWER PRESENT DEMAND (kVAR),437,float,kVAR,TRUE,,analog_output_holding_registers,TRUE
+TOTAL APPARENT POWER PRESENT DEMAND (kVA),439,float,kVA,TRUE,,analog_output_holding_registers,TRUE
+TOTAL REAL POWER MAX. DEMAND IMPORT (kW),441,float,kW,TRUE,,analog_output_holding_registers,TRUE
+TOTAL REACTIVE POWER MAX. DEMAND IMPORT (kVAR),443,float,kVAR,TRUE,,analog_output_holding_registers,TRUE
+TOTAL APPARENT POWER MAX. DEMAND IMPORT (kVA),445,float,kVA,TRUE,,analog_output_holding_registers,TRUE
+TOTAL REAL POWER MAX. DEMAND EXPORT (kW),447,float,kW,TRUE,,analog_output_holding_registers,TRUE
+TOTAL REACTIVE POWER MAX. DEMAND EXPORT (kVAR),449,float,kVAR,TRUE,,analog_output_holding_registers,TRUE
+TOTAL APPARENT POWER MAX. DEMAND EXPORT (kVA),451,float,kVA,TRUE,,analog_output_holding_registers,TRUE
+PULSE COUNTER 1 (-),453,float,,TRUE,,analog_output_holding_registers,TRUE
+PULSE COUNTER 2 (-),455,float,,TRUE,,analog_output_holding_registers,TRUE
+ACCUMULATED REAL ENERGY PHASE A IMPORT (kWh),457,float,kWh,TRUE,,analog_output_holding_registers,TRUE
+ACCUMULATED REAL ENERGY PHASE B IMPORT (kWh),459,float,kWh,TRUE,,analog_output_holding_registers,TRUE
+ACCUMULATED REAL ENERGY PHASE C IMPORT (kWh),461,float,kWh,TRUE,,analog_output_holding_registers,TRUE
+ACCUMULATED REAL ENERGY PHASE A EXPORT (kWh),463,float,kWh,TRUE,,analog_output_holding_registers,TRUE
+ACCUMULATED REAL ENERGY PHASE B EXPORT (kWh),465,float,kWh,TRUE,,analog_output_holding_registers,TRUE
+ACCUMULATED REAL ENERGY PHASE C EXPORT (kWh),467,float,kWh,TRUE,,analog_output_holding_registers,TRUE
+ACCUMULATED Q1 REACTIVE ENERGY PHASE A IMPORT (kVARh),469,float,kVARh,TRUE,,analog_output_holding_registers,TRUE
+ACCUMULATED Q1 REACTIVE ENERGY PHASE B IMPORT (kVARh),471,float,kVARh,TRUE,,analog_output_holding_registers,TRUE
+ACCUMULATED Q1 REACTIVE ENERGY PHASE C IMPORT (kVARh),473,float,kVARh,TRUE,,analog_output_holding_registers,TRUE
+ACCUMULATED Q2 REACTIVE ENERGY PHASE A IMPORT (kVARh),475,float,kVARh,TRUE,,analog_output_holding_registers,TRUE
+ACCUMULATED Q2 REACTIVE ENERGY PHASE B IMPORT (kVARh),477,float,kVARh,TRUE,,analog_output_holding_registers,TRUE
+ACCUMULATED Q2 REACTIVE ENERGY PHASE C IMPORT (kVARh),479,float,kVARh,TRUE,,analog_output_holding_registers,TRUE
+ACCUMULATED Q3 REACTIVE ENERGY PHASE A EXPORT (kVARh),481,float,kVARh,TRUE,,analog_output_holding_registers,TRUE
+ACCUMULATED Q3 REACTIVE ENERGY PHASE B EXPORT (kVARh),483,float,kVARh,TRUE,,analog_output_holding_registers,TRUE
+ACCUMULATED Q3 REACTIVE ENERGY PHASE C EXPORT (kVARh),485,float,kVARh,TRUE,,analog_output_holding_registers,TRUE
+ACCUMULATED Q4 REACTIVE ENERGY PHASE A EXPORT (kVARh),487,float,kVARh,TRUE,,analog_output_holding_registers,TRUE
+ACCUMULATED Q4 REACTIVE ENERGY PHASE B EXPORT (kVARh),489,float,kVARh,TRUE,,analog_output_holding_registers,TRUE
+ACCUMULATED Q4 REACTIVE ENERGY PHASE C EXPORT (kVARh),491,float,kVARh,TRUE,,analog_output_holding_registers,TRUE
+ACCUMULATED APPARENT ENERGY PHASE A IMPORT (kVAh),493,float,kVAh,TRUE,,analog_output_holding_registers,TRUE
+ACCUMULATED APPARENT ENERGY PHASE B IMPORT (kVAh),495,float,kVAh,TRUE,,analog_output_holding_registers,TRUE
+ACCUMULATED APPARENT ENERGY PHASE C IMPORT (kVAh),497,float,kVAh,TRUE,,analog_output_holding_registers,TRUE
+ACCUMULATED APPARENT ENERGY PHASE A EXPORT (kVAh),499,float,kVAh,TRUE,,analog_output_holding_registers,TRUE
+ACCUMULATED APPARENT ENERGY PHASE B EXPORT (kVAh),501,float,kVAh,TRUE,,analog_output_holding_registers,TRUE
+ACCUMULATED APPARENT ENERGY PHASE C EXPORT (kVAh),503,float,kVAh,TRUE,,analog_output_holding_registers,TRUE
+REAL POWER PHASE A (kW),505,float,kW,TRUE,,analog_output_holding_registers,TRUE
+REAL POWER PHASE B (kW),507,float,kW,TRUE,,analog_output_holding_registers,TRUE
+REAL POWER PHASE C (kW),509,float,kW,TRUE,,analog_output_holding_registers,TRUE
+REACTIVE POWER PHASE A (kVAR),511,float,kVAR,TRUE,,analog_output_holding_registers,TRUE
+REACTIVE POWER PHASE B (kVAR),513,float,kVAR,TRUE,,analog_output_holding_registers,TRUE
+REACTIVE POWER PHASE C (kVAR),515,float,kVAR,TRUE,,analog_output_holding_registers,TRUE
+APPARENT POWER PHASE A (kVA),517,float,kVA,TRUE,,analog_output_holding_registers,TRUE
+APPARENT POWER PHASE B (kVA),519,float,kVA,TRUE,,analog_output_holding_registers,TRUE
+APPARENT POWER PHASE C (kVA),521,float,kVA,TRUE,,analog_output_holding_registers,TRUE
+POWER FACTOR PHASE A (-),523,float,,TRUE,,analog_output_holding_registers,TRUE
+POWER FACTOR PHASE B (-),525,float,,TRUE,,analog_output_holding_registers,TRUE
+POWER FACTOR PHASE C (-),527,float,,TRUE,,analog_output_holding_registers,TRUE
+VOLTAGE PHASE A-B (V),529,float,V,TRUE,,analog_output_holding_registers,TRUE
+VOLTAGE PHASE B-C (V),531,float,V,TRUE,,analog_output_holding_registers,TRUE
+VOLTAGE PHASE A-C (V),533,float,V,TRUE,,analog_output_holding_registers,TRUE
+VOLTAGE PHASE A-N (V),535,float,V,TRUE,,analog_output_holding_registers,TRUE
+VOLTAGE PHASE B-N (V),537,float,V,TRUE,,analog_output_holding_registers,TRUE
+VOLTAGE PHASE C-N (V),539,float,V,TRUE,,analog_output_holding_registers,TRUE
+CURRENT PHASE A (A),541,float,A,TRUE,,analog_output_holding_registers,TRUE
+CURRENT PHASE B (A),543,float,A,TRUE,,analog_output_holding_registers,TRUE
+CURRENT PHASE C (A),545,float,A,TRUE,,analog_output_holding_registers,TRUE
