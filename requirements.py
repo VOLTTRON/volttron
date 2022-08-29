@@ -72,9 +72,8 @@ extras_require = {'crate': ['crate==0.26.0'],
                           'Jinja2==3.0.1',
                           'passlib==1.7.4',
                           'argon2-cffi==20.1.0',
-                          'Werkzeug==2.0.1']}
-install_requires = ['gevent==20.6.1',
-                    'greenlet==0.4.16',
+                          'Werkzeug==2.1.2']}
+install_requires = ['greenlet==1.1.0',
                     'grequests==0.6.0',
                     'idna<3,>=2.5',
                     'requests==2.23.0',
@@ -86,7 +85,8 @@ install_requires = ['gevent==20.6.1',
                     'setuptools>=40.0.0',
                     'tzlocal==2.1',
                     'pyOpenSSL==19.0.0',
-                    'cryptography==2.3',
+                    'gevent==21.12.0',
+                    'cryptography==3.4.0',
                     'watchdog-gevent==0.1.1']
 
-option_requirements = [('wheel==0.30', []), ('pyzmq==22.2.1', ['--zmq=bundled'])]
+option_requirements = [('wheel==0.30', []), ('pyzmq==22.3.0', ['--zmq=bundled'])]
