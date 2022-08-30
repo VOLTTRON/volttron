@@ -878,6 +878,7 @@ def start_volttron_process(opts):
             RMQRouter(opts.vip_address, opts.vip_local_address, opts.instance_name, opts.vip_address,
                       volttron_central_address=opts.volttron_central_address,
                       bind_web_address=opts.bind_web_address,
+                      enable_auth=opts.allow_auth,
                       service_notifier=notifier
                       ).run()
         except Exception:
