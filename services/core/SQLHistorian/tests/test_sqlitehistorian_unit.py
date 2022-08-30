@@ -50,7 +50,7 @@ def test_historian_should_filter_duplicates(sql_historian):
     # When SQLHistorian is normally started on the platform, this attribute is set.
     # Since the SQLHistorian is being tested without the volttron platform,
     # this attribute must be set so that the test can run
-    sql_historian._max_time_publishing = timedelta(float(1))
+    sql_historian._max_time_publishing = float(1)
 
     sql_historian.start_process_thread()
     # give time for all databases to initialize and historian to process workflow
