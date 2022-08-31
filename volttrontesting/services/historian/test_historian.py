@@ -1455,7 +1455,7 @@ def test_invalid_query(request, historian, publish_agent, query_agent,
                                  topic=query_points['mixed_point'],
                                  start=now,
                                  count=20,
-                                 order="LAST_TO_FIRST").get(timeout=20)
+                                 order="LAST_TO_FIRST").get(timeout=10)
     except Exception as error:
         print("exception: {}".format(error))
         assert "No route to host:" in str(error)
