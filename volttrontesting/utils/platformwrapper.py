@@ -339,8 +339,8 @@ class PlatformWrapper:
                                                                      env=self.env,
                                                                      instance_name=self.instance_name,
                                                                      secure_agent_users=secure_agent_users)
-
-            self.certsobj = Certs(os.path.join(self.volttron_home, "certificates"))
+            if self.ssl_auth:
+                self.certsobj = Certs(os.path.join(self.volttron_home, "certificates"))
 
             self.debug_mode = self.env.get('DEBUG_MODE', False)
             if not self.debug_mode:
@@ -422,10 +422,10 @@ class PlatformWrapper:
                 secretkey = keys.secret
 
                 entry = AuthEntry(capabilities=capabilities,
-                                comments="Added by test",
-                                credentials=keys.public,
-                                user_id=identity,
-                                identity=identity)
+                                  comments="Added by test",
+                                  credentials=keys.public,
+                                  user_id=identity,
+                                  identity=identity)
                 file = AuthFile(self.volttron_home + "/auth.json")
                 file.add(entry)
 
@@ -493,8 +493,8 @@ class PlatformWrapper:
         print(f"Publickey is: {publickey}\nServerkey is: {serverkey}")
         if self.auth_enabled:
             entry = AuthEntry(user_id=identity, identity=identity, credentials=publickey,
-                            capabilities=capabilities,
-                            comments="Added by platform wrapper")
+                              capabilities=capabilities,
+                              comments="Added by platform wrapper")
 
             AuthFile().add(entry, overwrite=False, no_error=True)
             # allow 4 seconds here for the auth to be updated in auth service
@@ -522,7 +522,7 @@ class PlatformWrapper:
                 try:
                     has_control = CONTROL in \
                                   agent.vip.peerlist().get(
-                        timeout=.2)
+                                      timeout=.2)
                     self.logit("Has control? {}".format(has_control))
                 except gevent.Timeout:
                     pass
@@ -925,8 +925,8 @@ class PlatformWrapper:
                     try:
                         if self.ssl_auth:
                             resp = grequests.get(self.discovery_address,
-                                                verify=self.certsobj.cert_file(self.certsobj.root_ca_name)
-                                                ).send().response
+                                                 verify=self.certsobj.cert_file(self.certsobj.root_ca_name)
+                                                 ).send().response
                         else:
                             resp = grequests.get(self.discovery_address).send().response
                         if resp.ok:
@@ -945,7 +945,6 @@ class PlatformWrapper:
                     if error_was:
                         raise error_was
                     raise Exception("Couldn't connect to discovery platform.")
-
 
         if self.is_running():
             self._instance_shutdown = False
@@ -1028,7 +1027,6 @@ class PlatformWrapper:
         with with_os_environ(self.env):
             if not self.is_running():
                 raise PlatformWrapperError("Instance isn't running!")
-
 
             for path, config, start in agent_configs:
                 results = self.install_agent(agent_dir=path, config_file=config,
@@ -1377,7 +1375,6 @@ class PlatformWrapper:
                                     max_retries=5,
                                     env=self.env)
 
-
     def setup_shovel(self, config_path):
         """
         Set up shovel using the given config path
@@ -1392,7 +1389,6 @@ class PlatformWrapper:
                                     rmq_conf_file=config_path,
                                     max_retries=5,
                                     env=self.env)
-
 
     def restart_platform(self):
         with with_os_environ(self.env):
@@ -1602,7 +1598,7 @@ class WebAdminApi:
 
         if self._wrapper.ssl_auth:
             resp = grequests.post(url, data=data,
-                                 verify=self.certsobj.cert_file(self.certsobj.root_ca_name)).send().response
+                                  verify=self.certsobj.cert_file(self.certsobj.root_ca_name)).send().response
         else:
             resp = grequests.post(url, data=data, verify=False).send().response
         print(f"RESPONSE: {resp}")
@@ -1617,7 +1613,7 @@ class WebAdminApi:
         # verify=self.certsobj.remote_cert_bundle_file())
         if self._wrapper.ssl_auth:
             resp = grequests.post(url, data=data,
-                                 verify=self.certsobj.cert_file(self.certsobj.root_ca_name)).send().response
+                                  verify=self.certsobj.cert_file(self.certsobj.root_ca_name)).send().response
         else:
             resp = grequests.post(url, data=data, verify=False).send().response
         return resp

@@ -48,7 +48,7 @@ from .base import SubsystemBase
 
 from collections import defaultdict
 
-import requests
+from requests.exceptions import HTTPError
 from requests.packages.urllib3.connection import (ConnectionError,
                                                   NewConnectionError)
 
@@ -327,7 +327,7 @@ class RMQPubSub(SubsystemBase):
 
         try:
             bindings = self.core().rmq_mgmt.get_bindings('volttron')
-        except (requests.exceptions.HTTPError, ConnectionError, NewConnectionError) as e:
+        except (HTTPError, ConnectionError, NewConnectionError) as e:
             self._logger.error("Error making request to RabbitMQ Management interface.\n"
                           "Check Connection Parameters: {} \n".format(e))
         else:

@@ -37,7 +37,6 @@
 # }}}
 
 import logging
-import requests
 import random
 import os
 import grequests
@@ -45,6 +44,7 @@ from datetime import datetime, timedelta
 from zmq import ZMQError
 from volttron.platform import jsonapi
 from gevent.lock import Semaphore
+from requests.exceptions import HTTPError, Timeout
 
 from volttron.platform.agent import utils
 from .agent import Agent, Core, RPC
@@ -240,11 +240,11 @@ class KeyDiscoveryAgent(Agent):
             responses[0].raise_for_status()
             r = responses[0].json()
             return r
-        except requests.exceptions.HTTPError:
+        except HTTPError:
             raise DiscoveryError(
                     "Invalid discovery response from {}".format(real_url)
                 )
-        except requests.exceptions.Timeout:
+        except Timeout:
             raise DiscoveryError(
                     "Timeout error from {}".format(real_url)
                 )
