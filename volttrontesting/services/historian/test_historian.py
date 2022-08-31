@@ -612,17 +612,14 @@ def query_agent(request, volttron_instance):
 @pytest.fixture(scope="module",
                 params=itertools.product(
                     [
-
-                        # pytest.param(mysql_platform, marks=mysql_skipif),
-                        # sqlite_platform,
+                        pytest.param(crate_platform, marks=crate_skipif),
+                        pytest.param(mysql_platform, marks=mysql_skipif),
+                        sqlite_platform,
+                        pytest.param(mongo_platform, marks=pymongo_skipif),
                         pytest.param(postgresql_platform, marks=postgresql_skipif),
-                        # dbs not supported/maintained by core volttron team
-                        # pytest.param(redshift_platform, marks=redshift_skipif),
-                        # pytest.param(crate_platform, marks=crate_skipif),
-                        # pytest.param(mongo_platform, marks=pymongo_skipif),
+                        # pytest.param(redshift_platform, marks=redshift_skipif)
                     ],
-                    [
-                      "<4.0.0",
+                    ["<4.0.0",
                      ">=4.0.0"
                      ]
                 ))
