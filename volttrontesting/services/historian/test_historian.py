@@ -612,14 +612,17 @@ def query_agent(request, volttron_instance):
 @pytest.fixture(scope="module",
                 params=itertools.product(
                     [
-                        pytest.param(crate_platform, marks=crate_skipif),
-                        pytest.param(mysql_platform, marks=mysql_skipif),
-                        sqlite_platform,
-                        pytest.param(mongo_platform, marks=pymongo_skipif),
+
+                        # pytest.param(mysql_platform, marks=mysql_skipif),
+                        # sqlite_platform,
                         pytest.param(postgresql_platform, marks=postgresql_skipif),
-                        # pytest.param(redshift_platform, marks=redshift_skipif)
+                        # dbs not supported/maintained by core volttron team
+                        # pytest.param(redshift_platform, marks=redshift_skipif),
+                        # pytest.param(crate_platform, marks=crate_skipif),
+                        # pytest.param(mongo_platform, marks=pymongo_skipif),
                     ],
-                    ["<4.0.0",
+                    [
+                      "<4.0.0",
                      ">=4.0.0"
                      ]
                 ))
@@ -1455,7 +1458,7 @@ def test_invalid_query(request, historian, publish_agent, query_agent,
                                  topic=query_points['mixed_point'],
                                  start=now,
                                  count=20,
-                                 order="LAST_TO_FIRST").get(timeout=10)
+                                 order="LAST_TO_FIRST").get(timeout=20)
     except Exception as error:
         print("exception: {}".format(error))
         assert "No route to host:" in str(error)
