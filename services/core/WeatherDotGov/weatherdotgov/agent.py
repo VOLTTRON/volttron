@@ -299,12 +299,7 @@ class WeatherDotGovAgent(BaseWeatherAgent):
         else:
             raise ValueError('Invalid location. Expected format is:'
                              '{"station":"station_id_value"}')
-        grequest = [grequests.get(url, verify=requests.certs.where(),
-                                  headers=self.headers, timeout=5)]
-        gresponse = grequests.map(grequest)[0]
-        if gresponse is None:
-            raise RuntimeError("get request did not return any "
-                               "response")
+        gresponse = self.make_web_request(url)
         try:
             response = jsonapi.loads(gresponse.content)
             properties = response["properties"]
@@ -345,8 +340,15 @@ class WeatherDotGovAgent(BaseWeatherAgent):
         """
         if location.get('lat') and location.get('long'):
             formatted_location = self.get_location_string(location)
-            url = "https://api.weather.gov/points/{}/forecast/hourly".format(
+            url = "https://api.weather.gov/points/{}".format(
                 formatted_location)
+            gresponse = self.make_web_request(url)
+            try:
+                _log.info(f"{gresponse.content}")
+                response = jsonapi.loads(gresponse.content)
+                url = response["properties"]["forecastHourly"]
+            except ValueError:
+                self.generate_response_error(url, gresponse.status_code)
         elif location.get("wfo") and location.get("x") and location.get("y"):
             formatted_location = self.get_gridpoints_str(location)
             url = "https://api.weather.gov/" \
@@ -354,12 +356,19 @@ class WeatherDotGovAgent(BaseWeatherAgent):
         else:
             raise ValueError("Improperly formatted station ID was passed.")
         _log.debug("Request Url: {}".format(url))
+        gresponse = self.make_web_request(url)
+        return self.extract_forecast_data(url, gresponse)
+
+    def make_web_request(self, url):
         grequest = [grequests.get(url, verify=requests.certs.where(),
                                   headers=self.headers, timeout=3)]
         gresponse = grequests.map(grequest)[0]
         if gresponse is None:
             raise RuntimeError("get request did not return any "
                                "response")
+        return gresponse
+
+    def extract_forecast_data(self, url, gresponse):
         try:
             response = jsonapi.loads(gresponse.content)
             data = []
@@ -373,7 +382,6 @@ class WeatherDotGovAgent(BaseWeatherAgent):
             return generation_time, data
         except ValueError:
             self.generate_response_error(url, gresponse.status_code)
-
 
     def query_hourly_historical(self, location, start_date, end_date):
         """
