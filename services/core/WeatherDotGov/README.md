@@ -26,7 +26,18 @@ configuration parameters are optional.
     exceeds this size, data will get purged from cache until the cache
     is within the configured size.
 3.  \"poll_locations\" - list of locations to periodically poll for
-    current data
+    current data. 
+    1. For current weather, the only supported location format is station id.
+       Format: [{"station": "KLAX"}, {"station": "KBOI"}]
+    2. For hourly forecast supported  location formats are
+       1. wfo, x, y - Format: {"wfo": 'BOU', 'x': 54, 'y': 62}
+       2. latitude, longitude - Format: {"lat": 39.0693, "long": -94.6716}.  Weather agent will first lookup wfo,x,y 
+          for the given latitude and logitude and then get the forceast data based on wfo, x, y
+       3. station id - Format:  [{"station": "KLAX"}, {"station": "KBOI"}]
+       The input list can contain valid locations with different formats. For example,
+       ```[{"station": "KLAX"}, {"station": "KBOI"}, {"wfo": 'BOU', 'x': 54, 'y': 62}]``` is a valid input list for 
+       hourly forecast
+   
 4.  \"poll_interval\" - polling frequency or the number of seconds
     between each poll.
     
