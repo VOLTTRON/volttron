@@ -16,12 +16,13 @@ from volttrontesting.fixtures.cert_fixtures import certs_profile_1
 from volttrontesting.utils.platformwrapper import PlatformWrapper, with_os_environ
 from volttrontesting.utils.platformwrapper import create_volttron_home
 from volttrontesting.utils.utils import get_hostname_and_random_port, get_rand_vip, get_rand_ip_and_port
-from volttron.utils.rmq_mgmt import RabbitMQMgmt
-from volttron.utils.rmq_setup import start_rabbit
 
 PRINT_LOG_ON_SHUTDOWN = False
 HAS_RMQ = is_rabbitmq_available()
 HAS_WEB = is_web_available()
+if HAS_RMQ:
+    from volttron.utils.rmq_mgmt import RabbitMQMgmt
+    from volttron.utils.rmq_setup import start_rabbit
 
 ci_skipif = pytest.mark.skipif(os.getenv('CI', None) == 'true', reason='SSL does not work in CI')
 rmq_skipif = pytest.mark.skipif(not HAS_RMQ,
@@ -196,17 +197,17 @@ def get_volttron_instances(request):
 
     def cleanup():
         nonlocal instances
-        print(f"My instances: {get_n_volttron_instances.count}")
-        if isinstance(get_n_volttron_instances.instances, PlatformWrapper):
-            print('Shutting down instance: {}'.format(
-                get_n_volttron_instances.instances))
-            cleanup_wrapper(get_n_volttron_instances.instances)
-            return
-
-        for i in range(0, get_n_volttron_instances.count):
-            print('Shutting down instance: {}'.format(
-                get_n_volttron_instances.instances[i].volttron_home))
-            cleanup_wrapper(get_n_volttron_instances.instances[i])
+        # print(f"My instances: {get_n_volttron_instances.count}")
+        # if isinstance(get_n_volttron_instances.instances, PlatformWrapper):
+        #     print('Shutting down instance: {}'.format(
+        #         get_n_volttron_instances.instances))
+        #     cleanup_wrapper(get_n_volttron_instances.instances)
+        #     return
+        #
+        # for i in range(0, get_n_volttron_instances.count):
+        #     print('Shutting down instance: {}'.format(
+        #         get_n_volttron_instances.instances[i].volttron_home))
+        #     cleanup_wrapper(get_n_volttron_instances.instances[i])
 
     try:
         yield get_n_volttron_instances
