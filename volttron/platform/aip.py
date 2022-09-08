@@ -501,7 +501,6 @@ class AIPplatform:
             else:
                 unpack(agent_wheel, dest=agent_path)
 
-            # Is it ok to remove the wheel file after unpacking?
             os.remove(agent_wheel)
 
             final_identity = self._setup_agent_vip_id(

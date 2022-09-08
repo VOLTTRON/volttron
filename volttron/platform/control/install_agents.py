@@ -450,6 +450,9 @@ def send_agent(connection: "ControlConnection", wheel_file: str, vip_identity: s
     gevent.wait([result], timeout=300)
     _log.debug("Completed sending of agent across.")
     _log.debug(f"After wait result is {result}")
+    if os.path.exists(wheel_file):
+        # remove local wheel after sending
+        os.remove(wheel_file)
     return result
 
 

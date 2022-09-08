@@ -288,7 +288,7 @@ def test_vhome_file_permissions(secure_volttron_instance, security_agent, query_
         gevent.sleep(3)
         assert secure_volttron_instance.is_agent_running(agent2)
 
-        # Now verify that security_agent has read access to only its own files
+        # Now verify that security_agent has read access to only its own files and not the newly created agent files
         results = query_agent.vip.rpc.call("security_agent",
                                            "verify_vhome_file_permissions",
                                            INSTANCE_NAME1).get(timeout=10)
