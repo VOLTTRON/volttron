@@ -51,7 +51,6 @@ from gevent import subprocess
 from gevent.subprocess import Popen
 from zmq import green as zmq
 
-from bootstrap import install_rabbit, default_rmq_dir
 from requirements import extras_require
 from volttron.platform import is_rabbitmq_available
 from volttron.platform.auth import certs
@@ -61,10 +60,12 @@ from volttron.platform.agent.utils import get_platform_instance_name, wait_for_v
     is_volttron_running, wait_for_volttron_shutdown, setup_logging
 from volttron.utils import get_hostname
 from volttron.utils.prompt import prompt_response, y, n, y_or_n
-from volttron.utils.rmq_config_params import RMQConfig
-if is_rabbitmq_available():
-    from volttron.utils.rmq_setup import setup_rabbitmq_volttron
 from . import get_home, get_services_core, set_home
+
+if is_rabbitmq_available():
+    from bootstrap import install_rabbit, default_rmq_dir
+    from volttron.utils.rmq_config_params import RMQConfig
+    from volttron.utils.rmq_setup import setup_rabbitmq_volttron
 
 # Global configuration options.  Must be key=value strings.  No cascading
 # structure so that we can easily create/load from the volttron config file

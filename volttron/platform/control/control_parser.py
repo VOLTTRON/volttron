@@ -79,11 +79,12 @@ from volttron.platform.jsonrpc import RemoteError
 from volttron.platform.keystore import KeyStore, KnownHostsStore
 
 from volttron.platform.vip.agent.errors import VIPError, Unreachable
-
-from volttron.utils.rmq_config_params import RMQConfig
-from volttron.utils.rmq_setup import check_rabbit_status
 from volttron.platform.agent.utils import is_secure_mode, wait_for_volttron_shutdown
 from volttron.platform.control.install_agents import add_install_agent_parser, InstallRuntimeError
+from volttron.platform import is_rabbitmq_available
+if is_rabbitmq_available():
+    from volttron.utils.rmq_setup import check_rabbit_status
+    from volttron.utils.rmq_config_params import RMQConfig
 
 try:
     import volttron.restricted
