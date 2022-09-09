@@ -86,7 +86,7 @@ install_requires = ['greenlet==1.1.0',
                     'tzlocal==2.1',
                     'pyOpenSSL==19.0.0',
                     'gevent==21.12.0',
-                    'cryptography==3.4.0',
+                    'cryptography==35.0.0',
                     'watchdog-gevent==0.1.1']
 
 option_requirements = [('wheel==0.30', []), ('pyzmq==22.3.0', ['--zmq=bundled'])]
