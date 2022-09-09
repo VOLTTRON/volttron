@@ -62,7 +62,8 @@ from volttron.platform.agent.utils import get_platform_instance_name, wait_for_v
 from volttron.utils import get_hostname
 from volttron.utils.prompt import prompt_response, y, n, y_or_n
 from volttron.utils.rmq_config_params import RMQConfig
-from volttron.utils.rmq_setup import setup_rabbitmq_volttron
+if is_rabbitmq_available():
+    from volttron.utils.rmq_setup import setup_rabbitmq_volttron
 from . import get_home, get_services_core, set_home
 
 # Global configuration options.  Must be key=value strings.  No cascading
