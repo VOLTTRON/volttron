@@ -26,7 +26,7 @@ from .agent_additions import (add_volttron_central,
                               add_volttron_central_platform)
 from gevent.fileobject import FileObject
 from gevent.subprocess import Popen
-from volttron.platform import packaging, jsonapi
+from volttron.platform import packaging, jsonapi, is_rabbitmq_available
 from volttron.platform.agent.known_identities import PLATFORM_WEB, CONTROL, CONTROL_CONNECTION, PROCESS_IDENTITIES
 from volttron.platform.auth.certs import Certs
 from volttron.platform.agent import utils
@@ -42,9 +42,10 @@ from volttron.platform.vip.agent.connection import Connection
 from volttrontesting.utils.utils import get_rand_http_address, get_rand_vip, get_hostname_and_random_port, \
     get_rand_ip_and_port
 from volttrontesting.utils.utils import get_rand_tcp_address
-from volttrontesting.fixtures.rmq_test_setup import create_rmq_volttron_setup
-from volttron.utils.rmq_setup import start_rabbit, stop_rabbit
-from volttron.utils.rmq_setup import setup_rabbitmq_volttron
+if is_rabbitmq_available():
+    from volttrontesting.fixtures.rmq_test_setup import create_rmq_volttron_setup
+    from volttron.utils.rmq_setup import start_rabbit, stop_rabbit
+    from volttron.utils.rmq_setup import setup_rabbitmq_volttron
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
