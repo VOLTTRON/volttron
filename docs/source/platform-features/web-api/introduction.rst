@@ -1,7 +1,7 @@
 .. _Web-API:
 
 ======================================
-VOLTTRON User Interface API
+RESTful Web Interface
 ======================================
 
 The VOLTTRON User Interface API (VUI) is provided by the VOLTTRON Web Service, and is
@@ -156,3 +156,9 @@ following sections:
       platform.
     - :ref:`Status <Platforms-Status-Endpoints>`: Endpoints for determining and clearing the status of all agents on
       the platform.
+
+ .. toctree::
+    :hidden:
+
+    Authentication <authentication-endpoints>
+    Platforms <platform-endpoints>
