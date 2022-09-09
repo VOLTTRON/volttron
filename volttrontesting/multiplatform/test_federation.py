@@ -47,7 +47,9 @@ import pytest
 
 from volttron.platform import get_examples
 from volttron.platform.agent.known_identities import CONTROL
-
+from volttron.platform import is_rabbitmq_available
+if not is_rabbitmq_available():
+    pytest.skip("Pika is not installed", allow_module_level=True)
 
 @pytest.mark.federation
 def test_federation_pubsub(federated_rmq_instances):
