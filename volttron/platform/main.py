@@ -89,8 +89,7 @@ from volttron.platform import jsonapi
 from volttron.platform import aip
 from volttron.platform import __version__
 from volttron.platform import config
-from volttron.platform import vip
-from volttron.platform.vip.agent import Agent, Core
+
 from volttron.platform.vip.router import *
 from volttron.platform.vip.socket import decode_key, encode_key, Address
 from volttron.platform.vip.tracking import Tracker
@@ -118,8 +117,10 @@ from .vip.rmq_router import RMQRouter
 from volttron.platform.agent.utils import store_message_bus_config
 from zmq import green as _green
 from volttron.platform.vip.proxy_zmq_router import ZMQProxyRouter
-from volttron.utils.rmq_setup import start_rabbit
-from volttron.utils.rmq_config_params import RMQConfig
+from volttron.platform import is_rabbitmq_available
+if is_rabbitmq_available():
+    from volttron.utils.rmq_setup import start_rabbit
+    from volttron.utils.rmq_config_params import RMQConfig
 
 try:
     import volttron.restricted

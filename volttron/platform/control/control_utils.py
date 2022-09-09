@@ -41,7 +41,6 @@ import sys
 import re
 from volttron.platform import jsonapi
 from volttron.platform.agent.utils import is_secure_mode
-from volttron.platform.vip.agent import Agent
 
 _stdout = sys.stdout
 _stderr = sys.stderr

@@ -180,8 +180,10 @@ def assert_auth_entries_same(e1, e2):
     assert e1['capabilities'] == e2['capabilities']
 
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def auth_instance(volttron_instance):
+    if not volttron_instance.auth_enabled:
+        pytest.skip("AUTH tests are not applicable if auth is disabled")
     with open(os.path.join(volttron_instance.volttron_home, "auth.json"), 'r') as f:
         auth_file = jsonapi.load(f)
     print(auth_file)
