@@ -197,17 +197,17 @@ def get_volttron_instances(request):
 
     def cleanup():
         nonlocal instances
-        # print(f"My instances: {get_n_volttron_instances.count}")
-        # if isinstance(get_n_volttron_instances.instances, PlatformWrapper):
-        #     print('Shutting down instance: {}'.format(
-        #         get_n_volttron_instances.instances))
-        #     cleanup_wrapper(get_n_volttron_instances.instances)
-        #     return
-        #
-        # for i in range(0, get_n_volttron_instances.count):
-        #     print('Shutting down instance: {}'.format(
-        #         get_n_volttron_instances.instances[i].volttron_home))
-        #     cleanup_wrapper(get_n_volttron_instances.instances[i])
+        print(f"My instances: {get_n_volttron_instances.count}")
+        if isinstance(get_n_volttron_instances.instances, PlatformWrapper):
+            print('Shutting down instance: {}'.format(
+                get_n_volttron_instances.instances))
+            cleanup_wrapper(get_n_volttron_instances.instances)
+            return
+        
+        for i in range(0, get_n_volttron_instances.count):
+            print('Shutting down instance: {}'.format(
+                 get_n_volttron_instances.instances[i].volttron_home))
+            cleanup_wrapper(get_n_volttron_instances.instances[i])
 
     try:
         yield get_n_volttron_instances
