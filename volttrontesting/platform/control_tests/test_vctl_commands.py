@@ -17,6 +17,21 @@ listener_agent_dir = get_examples("ListenerAgent")
 
 
 @pytest.mark.control
+def test_no_connection():
+    # Test command that doesn't need instance running.
+    p = subprocess.Popen(
+        ["volttron-ctl", "list"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    stdout, stderr = p.communicate()
+    try:
+        assert "No installed Agents found" in stderr.decode("utf-8")
+    except AssertionError:
+        assert not stderr.decode("utf-8")
+
+
+@pytest.mark.control
 def test_needs_connection():
     # Test command that needs instance running
     p = subprocess.Popen(
@@ -43,21 +58,6 @@ def test_needs_connection_with_connection():
     stdout, stderr = p.communicate()
     try:
         assert "VOLTTRON is not running." in stderr.decode("utf-8")
-    except AssertionError:
-        assert not stderr.decode("utf-8")
-
-
-@pytest.mark.control
-def test_no_connection():
-    # Test command that doesn't need instance running.
-    p = subprocess.Popen(
-        ["volttron-ctl", "list"],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-    stdout, stderr = p.communicate()
-    try:
-        assert "No installed Agents found" in stderr.decode("utf-8")
     except AssertionError:
         assert not stderr.decode("utf-8")
 
@@ -579,6 +579,6 @@ def test_vctl_start_stop_restart_by_all_tagged_should_succeed(volttron_instance:
 def test_vctl_start_stop_restart_should_raise_error_on_invalid_options(volttron_instance: PlatformWrapper, subcommand):
     invalid_options = ["--all", "--foo", "--anything", "--all-taggeD", "--TaG", "--n", "--u"]
     with with_os_environ(volttron_instance.env):
-        with pytest.raises(RuntimeError):
-            for inval_opt in invalid_options:
+        for inval_opt in invalid_options:
+            with pytest.raises(RuntimeError):
                 execute_command(["vctl", subcommand, inval_opt], volttron_instance.env)
