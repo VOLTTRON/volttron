@@ -412,12 +412,10 @@ def get_mysqlfuncts(port):
 def get_container_func(request):
     global CONNECTION_HOST
     image, historian_version = request.param
-    print(f"image: {image} historian schema; version {historian_version}")
+    print(f"\nRunning test on historian version: {historian_version}, using image: {image}")
     if historian_version == "<4.0.0" and image.startswith("mysql:8"):
         pytest.skip(
-            msg=f"Default schema of historian version <4.0.0 "
-            f"will not work in mysql version > 5. Skipping tests "
-            f"for this parameter combination ",
+            reason=f"Default schema of historian version <4.0.0 will not work in mysql version > 5. Skipping tests for this parameter combination ",
             allow_module_level=True,
         )
     kwargs = {"env": ENV_MYSQL}
@@ -431,7 +429,6 @@ def get_container_func(request):
         kwargs["ports"] = ports_dict["ports"]
         connection_port = ports_dict["port_on_host"]
         CONNECTION_HOST = "localhost"
-
     with create_container(request.param[0], **kwargs) as container:
         wait_for_connection(container)
         create_all_tables(container, historian_version)
@@ -457,13 +454,14 @@ def wait_for_connection(container):
         )
         response = container.exec_run(command, tty=True)
         exit_code, output = response
-
         if exit_code == 1 and "Can't connect to local MySQL server" in output.decode():
             continue
         elif exit_code == 0:
             return
-
-    raise RuntimeError(f"Failed to make connection within allowed time {response}")
+    pytest.skip(
+        reason=f"Cannot connect to database within allowed time. Skipping test.",
+        allow_module_level=True,
+    )
 
 
 def create_historian_tables(container, historian_version):
@@ -502,7 +500,6 @@ def create_historian_tables(container, historian_version):
     command = f'mysql --user="root" --password="{ROOT_PASSWORD}" {TEST_DATABASE} --execute="{query}"'
     container.exec_run(cmd=command, tty=True)
     sleep(4)
-    print(f"Created container and executed query {query}")
     return
 
 
@@ -612,11 +609,10 @@ def drop_all_tables(port):
     """
     cnx, cursor = get_cnx_cursor(port)
     query = f"SHOW TABLES"
-    print(f"query {query}")
     try:
         cursor.execute(query)
         rows = cursor.fetchall()
-        print(f"table names {rows}")
+        print(f"Dropping the following tables as part of setup/teardown: {rows}")
         for columns in rows:
             cursor.execute("DROP TABLE " + columns[0])
     except Exception as e:
