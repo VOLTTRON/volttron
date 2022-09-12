@@ -386,7 +386,7 @@ def test_create_aggregate_store(get_sqlitefuncts):
     agg_type = "AVG"
     agg_time_period = "1984"
     expected_new_agg_table = "AVG_1984"
-    expected_indexes = ["0|idx_AVG_1984|0|c|0", "1|sqlite_autoindex_AVG_1984_1|1|u|0"]
+    expected_indexes = ['0|idx_AVG_1984|0', '1|sqlite_autoindex_AVG_1984_1|1']
 
     result = sqlitefuncts.create_aggregate_store(agg_type, agg_time_period)
 
