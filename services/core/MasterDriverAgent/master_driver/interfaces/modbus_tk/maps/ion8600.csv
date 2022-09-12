@@ -1,0 +1,12 @@
+Volttron Point Name,Register Name
+kWh del,kwh_del
+kWh rec,kwh_rec
+kWh del+rec,kwh_del_p_rec
+kWh del-rec,kwh_del_m_rec
+kVARh del,kvarh_del
+kVARh rec,kvarh_rec
+kVARh del+rec,kvarh_del_p_rec
+kVARh del-rec,kvarh_del_m_rec
+Vll_avg,vll_avg
+kW sum,kw_sum
+kVAR sum,kvar_sum

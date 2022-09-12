@@ -1,0 +1,2 @@
+Point Name,Volttron Point Name,Units,Writable,Notes,Default
+test_point,test_point,Units,True,Test point,forty two

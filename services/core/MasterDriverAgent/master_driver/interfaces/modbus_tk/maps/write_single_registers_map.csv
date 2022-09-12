@@ -1,0 +1,3 @@
+Register Name,Address,Type,Units,Writable,Default Value,Transform
+unsigned_short,0,uint16,None,TRUE,0,scale(10)
+sample_bool,16,bool,None,TRUE,False,
