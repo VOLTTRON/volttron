@@ -394,7 +394,9 @@ def test_create_aggregate_store(get_sqlitefuncts):
     assert expected_new_agg_table in get_tables()
 
     actual_indexes = get_indexes(expected_new_agg_table)
-    assert actual_indexes == expected_indexes
+    for idx, val in enumerate(actual_indexes):
+        assert val.startswith(expected_indexes[idx]) 
+    # assert actual_indexes == expected_indexes
 
 
 @pytest.mark.sqlitefuncts
