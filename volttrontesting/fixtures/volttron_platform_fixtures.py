@@ -3,7 +3,6 @@ import os
 from pathlib import Path
 import shutil
 from typing import Optional
-from urllib.parse import urlparse
 
 import gevent
 import psutil
@@ -128,7 +127,7 @@ def volttron_instance(request, **kwargs):
     """
     address = kwargs.pop("vip_address", get_rand_vip())
     wrapper = build_wrapper(address,
-                            messagebus=request.param.pop('messagebus','zmq'),
+                            messagebus=request.param.pop('messagebus', 'zmq'),
                             ssl_auth=request.param.pop('ssl_auth', False),
                             auth_enabled=request.param.pop('auth_enabled', True),
                             **kwargs)
@@ -183,8 +182,8 @@ def get_volttron_instances(request):
             address = kwargs.pop("vip_address", get_rand_vip())
 
             wrapper = build_wrapper(address, should_start=should_start,
-                                    messagebus=request.param.pop('messagebus','zmq'),
-                                    ssl_auth=request.param.pop('ssl_auth',False),
+                                    messagebus=request.param.pop('messagebus', 'zmq'),
+                                    ssl_auth=request.param.pop('ssl_auth', False),
                                     **kwargs)
             instances.append(wrapper)
         if should_start:
@@ -203,17 +202,16 @@ def get_volttron_instances(request):
                 get_n_volttron_instances.instances))
             cleanup_wrapper(get_n_volttron_instances.instances)
             return
-        
+
         for i in range(0, get_n_volttron_instances.count):
             print('Shutting down instance: {}'.format(
-                 get_n_volttron_instances.instances[i].volttron_home))
+                get_n_volttron_instances.instances[i].volttron_home))
             cleanup_wrapper(get_n_volttron_instances.instances[i])
 
     try:
         yield get_n_volttron_instances
     finally:
         cleanup()
-
 
 
 # Use this fixture when you want a single instance of volttron platform for zmq message bus
@@ -264,7 +262,8 @@ def volttron_instance_rmq():
                     pytest.param(dict(messagebus='rmq', ssl_auth=False, auth_enabled=False), marks=rmq_skipif),
                 ])
 def volttron_instance_web(request):
-    print(f"volttron_instance_web (messagebus {request.param.pop('messagebus', 'zmq')} ssl_auth {request.param.pop('ssl_auth', False)})")
+    print(
+        f"volttron_instance_web (messagebus {request.param.pop('messagebus', 'zmq')} ssl_auth {request.param.pop('ssl_auth', False)})")
     address = get_rand_vip()
 
     if request.param.pop('ssl_auth', False):
@@ -277,13 +276,15 @@ def volttron_instance_web(request):
                             ssl_auth=request.param.pop('ssl_auth', False),
                             messagebus=request.param.pop('messagebus', 'zmq'),
                             bind_web_address=web_address,
-                            volttron_central_address=web_address)
+                            volttron_central_address=web_address,
+                            auth_enabled=request.param.get('auth_enabled', True))
 
     yield wrapper
 
     cleanup_wrapper(wrapper)
 
-#TODO: Add functionality for http use case for tests
+
+# TODO: Add functionality for http use case for tests
 
 @pytest.fixture(scope="module",
                 params=[
@@ -380,6 +381,7 @@ def volttron_multi_messagebus(request):
             cleanup_wrapper(get_volttron_multi_msgbus_instances.sink)
         except AttributeError as e:
             print(e)
+
     request.addfinalizer(cleanup)
 
     return get_volttron_multi_msgbus_instances
@@ -593,7 +595,7 @@ def two_way_federated_rmq_instances(request, **kwargs):
     instance_1_vip = get_rand_vip()
     instance_1_hostname, instance_1_https_port = get_hostname_and_random_port()
     instance_1_web_address = 'https://{hostname}:{port}'.format(hostname=instance_1_hostname,
-                                                     port=instance_1_https_port)
+                                                                port=instance_1_https_port)
 
     instance_1 = build_wrapper(instance_1_vip,
                                ssl_auth=True,
@@ -703,5 +705,3 @@ def two_way_federated_rmq_instances(request, **kwargs):
                                                     instance_2_link_name)
     instance_1.shutdown_platform()
     instance_2.shutdown_platform()
-
-
