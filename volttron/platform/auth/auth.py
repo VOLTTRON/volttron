@@ -49,11 +49,9 @@ from volttron.platform.agent.known_identities import (
     CONTROL_CONNECTION,
     PROCESS_IDENTITIES,
 )
-
 from volttron.platform.auth.auth_utils import load_user
 from volttron.platform.auth.auth_entry import AuthEntry
 from volttron.platform.auth.auth_file import AuthFile
-
 from volttron.platform.jsonrpc import RemoteError
 from volttron.platform.vip.agent.errors import Unreachable
 from volttron.platform.vip.pubsubservice import ProtectedPubSubTopics
@@ -64,15 +62,8 @@ from volttron.platform.agent.utils import (
 )
 from volttron.platform.vip.agent import Agent, Core, RPC
 
-
 _log = logging.getLogger(__name__)
 
-# ZMQAuthService(AuthService)
-# self.authentication_server = ZMQServerAuthentication(self.vip, self.core, self.aip)
-# self.authorization_server = ZMQAuthorization(self.auth_file)
-# RMQAuthService(AuthService)
-# self.authentication_server = ZMQServerAuthentication(self.vip, self.core, self.aip)
-# self.authorization_server = ZMQAuthorization(self.auth_file)
 
 class AuthService(Agent):
     def __init__(
@@ -137,7 +128,7 @@ class AuthService(Agent):
             Wrapper function to add entry to AuthFile
             :params: entry
             :return: None
-            """ 
+            """
             self.auth_file.add(AuthEntry(**entry))
 
         def auth_file_update_by_index(auth_entry, index, is_allow=True):
@@ -178,27 +169,8 @@ class AuthService(Agent):
         self.read_auth_file()
         if get_messagebus() == "zmq":
             from volttron.platform.auth.auth_protocols.auth_zmq import ZMQAuthorization, ZMQServerAuthentication
-            self.authentication_server = ZMQServerAuthentication(auth_service=self
-                    # auth_vip=self.vip,
-                    # auth_core=self.core,
-                    # aip=self.aip,
-                    # allow_any=self.allow_any,
-                    # is_connected=self._is_connected,
-                    # setup_mode=self._setup_mode,
-                    # auth_file=self.auth_file,
-                    # auth_entries=self.auth_entries,
-                    # auth_pending=self._auth_pending,
-                    # auth_approved=self._auth_approved,
-                    # auth_denied=self._auth_denied
-            )
-            self.authorization_server = ZMQAuthorization(auth_service=self
-                    # auth_core=self.core,
-                    # is_connected=self._is_connected,
-                    # auth_file=self.auth_file,
-                    # auth_pending=self._auth_pending,
-                    # auth_approved=self._auth_approved,
-                    # auth_denied=self._auth_denied
-            )
+            self.authentication_server = ZMQServerAuthentication(auth_service=self)
+            self.authorization_server = ZMQAuthorization(auth_service=self)
         else:
             from volttron.platform.auth.auth_protocols.auth_rmq import RMQAuthorization, RMQServerAuthentication
             self.authentication_server = RMQServerAuthentication(auth_service=self)
@@ -223,16 +195,6 @@ class AuthService(Agent):
     @Core.receiver("onfinish")
     def unbind_authentication_server(self, sender, **kwargs):
         self.authentication_server.unbind_authentication()
-
-    # def _update_entries(self, entries=None, pending=None, approved=None, denied=None):
-    #     if entries:
-    #         self.auth_entries=self.authentication_server.auth_entries=self.authorization_server.auth_entries=entries
-    #     if pending:
-    #         self._auth_pending=self.authentication_server._auth_pending=self.authorization_server._auth_pending=pending
-    #     if approved:
-    #         self._auth_approved=self.authentication_server._auth_approved=self.authorization_server._auth_approved=approved
-    #     if denied:
-    #         self._auth_denied=self.authentication_server._auth_denied=self.authorization_server._auth_denied=denied
 
     @RPC.export
     def update_id_rpc_authorizations(self, identity, rpc_methods):
@@ -400,8 +362,8 @@ class AuthService(Agent):
                             rpc_auth
                             for rpc_auth in authorizations
                             if rpc_auth in authorizations
-                            and rpc_auth
-                            not in entry.rpc_method_authorizations[method]
+                               and rpc_auth
+                               not in entry.rpc_method_authorizations[method]
                         ]
                     )
                 self.auth_file.update_by_index(entry, entries.index(entry))
@@ -528,7 +490,7 @@ class AuthService(Agent):
                     else:
                         pass
                 if entry.identity not in [
-                        old_entry.identity for old_entry in old_entries
+                    old_entry.identity for old_entry in old_entries
                 ]:
                     modified_entries.append(entry)
             else:
@@ -640,7 +602,6 @@ class AuthService(Agent):
             except gevent.Timeout:
                 _log.error("Timed out updating methods from auth file!")
         self.authorization_server.update_user_capabilites(self.get_user_to_capabilities())
-
 
     @RPC.export
     def get_user_to_capabilities(self):
