@@ -14,7 +14,7 @@ from volttron.platform.auth import CertWrapper
 from volttron.platform.agent.known_identities import AUTH
 from volttron.platform.vip.agent import Agent
 from volttron.utils import get_random_key
-from volttrontesting.utils.platformwrapper import create_volttron_home, with_os_environ
+from volttrontesting.utils.platformwrapper import create_volttron_home, with_os_environ, PlatformWrapper
 from volttrontesting.utils.web_utils import get_test_web_env
 from volttron.platform.web.admin_endpoints import AdminEndpoints
 from volttron.platform.web.authenticate_endpoint import AuthenticateEndpoints
@@ -222,9 +222,14 @@ def test_authenticate_endpoint(scheme):
         assert 3 == len(response_data["access_token"].split('.'))
 
 
+def skip_non_auth(instance: PlatformWrapper):
+    if not instance.auth_enabled:
+        pytest.skip("Auth must be enabled for this test.")
+
+
 @pytest.mark.web
-def test_get_credentials(volttron_instance_web):
-    skip_non_auth()
+def test_get_credentials(volttron_instance_web: PlatformWrapper):
+    skip_non_auth(volttron_instance_web)
     instance = volttron_instance_web
     auth_pending = instance.dynamic_agent.vip.rpc.call(AUTH, "get_pending_authorizations").get()
     len_auth_pending = len(auth_pending)
@@ -242,6 +247,7 @@ def test_get_credentials(volttron_instance_web):
 
 @pytest.mark.web
 def test_accept_credential(volttron_instance_web):
+    skip_non_auth(volttron_instance_web)
     instance = volttron_instance_web
     auth_pending = instance.dynamic_agent.vip.rpc.call(AUTH, "get_pending_authorizations").get()
     len_auth_pending = len(auth_pending)
@@ -269,6 +275,7 @@ def test_accept_credential(volttron_instance_web):
 
 @pytest.mark.web
 def test_deny_credential(volttron_instance_web):
+    skip_non_auth(volttron_instance_web)
     instance = volttron_instance_web
     auth_pending = instance.dynamic_agent.vip.rpc.call(AUTH, "get_pending_authorizations").get()
     len_auth_pending = len(auth_pending)
@@ -296,6 +303,7 @@ def test_deny_credential(volttron_instance_web):
 
 @pytest.mark.web
 def test_delete_credential(volttron_instance_web):
+    skip_non_auth(volttron_instance_web)
     instance = volttron_instance_web
     auth_pending = instance.dynamic_agent.vip.rpc.call(AUTH, "get_pending_authorizations").get()
     print(f"Auth pending is: {auth_pending}")
