@@ -11,6 +11,7 @@ import pytest
 from volttron.platform import is_rabbitmq_available, is_web_available
 from volttron.platform import update_platform_config
 from volttron.utils import get_random_key
+from volttrontesting.skip_if_handlers import rmq_skipif, web_skipif
 from volttrontesting.fixtures.cert_fixtures import certs_profile_1
 from volttrontesting.utils.platformwrapper import PlatformWrapper, with_os_environ
 from volttrontesting.utils.platformwrapper import create_volttron_home
@@ -24,9 +25,6 @@ if HAS_RMQ:
     from volttron.utils.rmq_setup import start_rabbit
 
 ci_skipif = pytest.mark.skipif(os.getenv('CI', None) == 'true', reason='SSL does not work in CI')
-rmq_skipif = pytest.mark.skipif(not HAS_RMQ,
-                                reason='RabbitMQ is not setup and/or SSL does not work in CI')
-web_skipif = pytest.mark.skipif(not HAS_WEB, reason='Web libraries are not installed')
 
 
 def print_log(volttron_home):
@@ -48,11 +46,13 @@ def build_wrapper(vip_address: str, should_start: bool = True, messagebus: str =
                               instance_name=instance_name,
                               secure_agent_users=secure_agent_users,
                               remote_platform_ca=remote_platform_ca,
-                              auth_enabled=kwargs.pop('auth_enabled', True)
-                              )
+                              auth_enabled=kwargs.pop('auth_enabled', True))
     if should_start:
         wrapper.startup_platform(vip_address=vip_address, **kwargs)
-        gevent.sleep(2)
+        if wrapper.messagebus == 'rmq':
+            gevent.sleep(5)
+        else:
+            gevent.sleep(2)
         assert wrapper.is_running()
     return wrapper
 
@@ -258,26 +258,28 @@ def volttron_instance_rmq():
                     dict(messagebus='zmq', ssl_auth=False),
                     pytest.param(dict(messagebus='zmq', ssl_auth=True), marks=ci_skipif),
                     pytest.param(dict(messagebus='rmq', ssl_auth=True), marks=rmq_skipif),
-                    dict(messagebus='zmq', ssl_auth=False, auth_enabled=False),
-                    pytest.param(dict(messagebus='rmq', ssl_auth=False, auth_enabled=False), marks=rmq_skipif),
+                    dict(messagebus='zmq', ssl_auth=False, auth_enabled=False)
                 ])
 def volttron_instance_web(request):
     print(
-        f"volttron_instance_web (messagebus {request.param.pop('messagebus', 'zmq')} ssl_auth {request.param.pop('ssl_auth', False)})")
+        f"volttron_instance_web (messagebus {request.param.get('messagebus', 'zmq')} ssl_auth {request.param.get('ssl_auth', False)})")
     address = get_rand_vip()
 
-    if request.param.pop('ssl_auth', False):
+    if request.param.get('ssl_auth', False):
         hostname, port = get_hostname_and_random_port()
         web_address = 'https://{hostname}:{port}'.format(hostname=hostname, port=port)
     else:
         web_address = "http://{}".format(get_rand_ip_and_port())
 
+    instance_name = request.param.get('instance_name', 'volttron1')
+
     wrapper = build_wrapper(address,
-                            ssl_auth=request.param.pop('ssl_auth', False),
-                            messagebus=request.param.pop('messagebus', 'zmq'),
+                            ssl_auth=request.param.get('ssl_auth', False),
+                            messagebus=request.param.get('messagebus', 'zmq'),
                             bind_web_address=web_address,
                             volttron_central_address=web_address,
-                            auth_enabled=request.param.get('auth_enabled', True))
+                            auth_enabled=request.param.get('auth_enabled', True),
+                            instance_name=instance_name)
 
     yield wrapper
 

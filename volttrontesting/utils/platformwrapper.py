@@ -309,8 +309,19 @@ class PlatformWrapper:
         self.keystore = KeyStore(keystorefile)
         self.keystore.generate()
         self.messagebus = messagebus if messagebus else 'zmq'
+        # Regardless of what is passed in if using rmq we need auth and ssl.
+        if self.messagebus == 'rmq':
+            self.auth_enabled = True
+            self.ssl_auth = True
+        else:
+            self.ssl_auth = ssl_auth
+            self.auth_enabled = auth_enabled
+
         self.secure_agent_users = secure_agent_users
-        self.ssl_auth = ssl_auth
+        if self.ssl_auth:
+            certsdir = os.path.join(self.volttron_home, 'certificates')
+
+            self.certsobj = Certs(certsdir)
         self.instance_name = instance_name
         if not self.instance_name:
             self.instance_name = os.path.basename(os.path.dirname(self.volttron_home))
@@ -625,6 +636,48 @@ class PlatformWrapper:
             with open(os.path.join(self.volttron_home, 'auth.json'), 'w') as fd:
                 fd.write(jsonapi.dumps(auth_dict))
 
+    def initialize_web_certs(self):
+        cert_dir = os.path.join(self.volttron_home, "certificates")
+
+        self.certsobj = Certs(cert_dir)
+        # self.env['REQUESTS_CA_BUNDLE'] = self.certsobj.cert_file(self.certsobj.root_ca_name)
+        #
+        certs = self.certsobj
+        # if certs.ca_exists():
+        #     raise ValueError("web certs already initialized.")
+        #
+        # data = {'C': 'US',
+        #         'ST': 'Washington',
+        #         'L': 'Richland',
+        #         'O': 'pnnl',
+        #         'OU': 'volttron_test',
+        #         'CN': "myca"}
+        #
+        # ca_cert, ca_pk = certs.create_root_ca(**data)
+        # shutil.copy(certs.cert_file(certs.root_ca_name), certs.cert_file(certs.trusted_ca_name))
+        # ns = dict(ca_cert=ca_cert, ca_key=ca_pk, ca_cert_file=certs.cert_file(certs.root_ca_name),
+        #           ca_key_file=certs.private_key_file(certs.root_ca_name), server_certs=[], client_certs=[])
+        #
+        #certs.create_signed_cert_files(f"{self.instance_name}-server", cert_type="server")
+        certs.create_signed_cert_files("platform_web-server", cert_type="server")
+        #certs.create_signed_cert_files(f"{self.instance_name}-admin")
+        #
+        # for x in range(num_server_certs):
+        #     cert, key = certs.create_signed_cert_files(f"server{x}", cert_type="server", fqdn=fqdn)
+        #
+        #     cert_ns = dict(key=key, cert=cert, cert_file=certs.cert_file(f"server{x}"),
+        #                    key_file=certs.private_key_file(f"server{x}"))
+        #
+        #     ns['server_certs'].append(cert_ns)
+        #
+        # for x in range(num_client_certs):
+        #     cert, pk1 = certs.create_signed_cert_files(f"client{x}")
+        #     cert_ns = dict(key=pk1, cert=cert, cert_file=certs.cert_file(f"client{x}"),
+        #                    key_file=certs.private_key_file(f"client{x}"))
+        #     ns['client_certs'].append(cert_ns)
+
+        return ns
+
     def startup_platform(self, vip_address, auth_dict=None,
                          mode=UNRESTRICTED, bind_web_address=None,
                          volttron_central_address=None,
@@ -718,7 +771,9 @@ class PlatformWrapper:
                 self.set_auth_dict(auth_dict)
 
                 if self.messagebus == 'rmq' and bind_web_address:
-                    self.env['REQUESTS_CA_BUNDLE'] = self.certsobj.cert_file(self.certsobj.root_ca_name)
+                    # setup_rabbitmq_volttron('single', verbose=True, prompt=False, instance_name=self.instance_name,
+                    #                         rmq_conf_file=f"{self.volttron_home}/rabbitmq.conf")
+                    self.certsobj.create_signed_cert_files("platform_web-server", cert_type="server")
 
                 # Enable SSL for ZMQ
                 elif self.messagebus == 'zmq' and self.ssl_auth and bind_web_address:
@@ -761,6 +816,10 @@ class PlatformWrapper:
             # This file will be passed off to the main.py and available when
             # the platform starts up.
             self.requests_ca_bundle = self.env.get('REQUESTS_CA_BUNDLE')
+            if self.requests_ca_bundle is None and self.ssl_auth:
+                self.requests_ca_bundle = self.certsobj.cert_file(self.certsobj.root_ca_name)
+                self.env['REQUESTS_CA_BUNDLE'] = self.requests_ca_bundle
+                os.environ['REQUESTS_CA_BUNDLE'] = self.requests_ca_bundle
 
             self.opts = {'verify_agents': False,
                          'volttron_home': self.volttron_home,
@@ -829,26 +888,10 @@ class PlatformWrapper:
                 "Platform will run on message bus type {} ".format(self.messagebus))
             self.logit("writing config to: {}".format(pconfig))
 
-            if self.ssl_auth:
-                certsdir = os.path.join(self.volttron_home, 'certificates')
-
-                self.certsobj = Certs(certsdir)
-
             if self.mode == UNRESTRICTED:
                 with open(pconfig, 'w') as cfg:
                     parser.write(cfg)
 
-            elif self.mode == RESTRICTED:
-                if not RESTRICTED_AVAILABLE:
-                    raise ValueError("restricted is not available.")
-
-                certsdir = os.path.join(self.volttron_home, 'certificates')
-
-                print("certsdir", certsdir)
-                self.certsobj = Certs(certsdir)
-
-                with closing(open(pconfig, 'w')) as cfg:
-                    cfg.write(PLATFORM_CONFIG_RESTRICTED.format(**config))
             else:
                 raise PlatformWrapperError(
                     "Invalid platform mode specified: {}".format(mode))
