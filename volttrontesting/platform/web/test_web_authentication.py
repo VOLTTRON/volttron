@@ -227,9 +227,18 @@ def skip_non_auth(instance: PlatformWrapper):
         pytest.skip("Auth must be enabled for this test.")
 
 
+def xfail_auth_rmq(instance: PlatformWrapper):
+    if instance.messagebus == 'rmq':
+        pytest.xfail("RMQ creds test must be updated")
+        pytest.fail("RMQ creds test must be updated")
+
+
 @pytest.mark.web
 def test_get_credentials(volttron_instance_web: PlatformWrapper):
     skip_non_auth(volttron_instance_web)
+    if volttron_instance_web.messagebus == 'rmq':
+        pytest.xfail("RMQ creds test must be updated")
+        pytest.fail("RMQ creds test must be updated")
     instance = volttron_instance_web
     auth_pending = instance.dynamic_agent.vip.rpc.call(AUTH, "get_pending_authorizations").get()
     len_auth_pending = len(auth_pending)
@@ -248,6 +257,7 @@ def test_get_credentials(volttron_instance_web: PlatformWrapper):
 @pytest.mark.web
 def test_accept_credential(volttron_instance_web):
     skip_non_auth(volttron_instance_web)
+    xfail_auth_rmq(volttron_instance_web)
     instance = volttron_instance_web
     auth_pending = instance.dynamic_agent.vip.rpc.call(AUTH, "get_pending_authorizations").get()
     len_auth_pending = len(auth_pending)
@@ -276,6 +286,7 @@ def test_accept_credential(volttron_instance_web):
 @pytest.mark.web
 def test_deny_credential(volttron_instance_web):
     skip_non_auth(volttron_instance_web)
+    xfail_auth_rmq(volttron_instance_web)
     instance = volttron_instance_web
     auth_pending = instance.dynamic_agent.vip.rpc.call(AUTH, "get_pending_authorizations").get()
     len_auth_pending = len(auth_pending)
@@ -304,6 +315,7 @@ def test_deny_credential(volttron_instance_web):
 @pytest.mark.web
 def test_delete_credential(volttron_instance_web):
     skip_non_auth(volttron_instance_web)
+    xfail_auth_rmq(volttron_instance_web)
     instance = volttron_instance_web
     auth_pending = instance.dynamic_agent.vip.rpc.call(AUTH, "get_pending_authorizations").get()
     print(f"Auth pending is: {auth_pending}")

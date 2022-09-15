@@ -256,9 +256,9 @@ def volttron_instance_rmq():
 @pytest.fixture(scope="module",
                 params=[
                     dict(messagebus='zmq', ssl_auth=False),
+                    dict(messagebus='zmq', ssl_auth=False, auth_enabled=True),
                     pytest.param(dict(messagebus='zmq', ssl_auth=True), marks=ci_skipif),
-                    pytest.param(dict(messagebus='rmq', ssl_auth=True), marks=rmq_skipif),
-                    dict(messagebus='zmq', ssl_auth=False, auth_enabled=False)
+                    pytest.param(dict(messagebus='rmq', ssl_auth=True, auth_enabled=True), marks=rmq_skipif)
                 ])
 def volttron_instance_web(request):
     print(
@@ -296,7 +296,6 @@ def volttron_instance_web(request):
                     pytest.param(dict(sink='rmq_web', source='rmq', zmq_ssl=False), marks=rmq_skipif),
                     pytest.param(dict(sink='zmq_web', source='rmq', zmq_ssl=False), marks=rmq_skipif),
                     pytest.param(dict(sink='zmq_web', source='rmq', zmq_ssl=True), marks=rmq_skipif),
-
                 ])
 def volttron_multi_messagebus(request):
     """ This fixture allows multiple two message bus types to be configured to work together
