@@ -368,6 +368,9 @@ def volttron_multi_messagebus(request):
                                    messagebus=messagebus,
                                    volttron_central_address=sink.bind_web_address,
                                    instance_name='volttron2')
+        # Pass params through both source and sink.
+        source.param = request.param
+        sink.param = request.param
         get_volttron_multi_msgbus_instances.source = source
         get_volttron_multi_msgbus_instances.sink = sink
         return source, sink
