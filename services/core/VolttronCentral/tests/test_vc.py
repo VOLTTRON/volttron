@@ -147,22 +147,25 @@ def test_jsonrpc_is_unauthorized(mock_vc_jsonrpc, mock_jsonrpc_env):
 
 
 @pytest.mark.vc
-def test_installable(volttron_instance):
+def test_installable(volttron_instance_web):
     """
     Test the default configuration file included with the agent
     """
-    publish_agent = volttron_instance.dynamic_agent
+    publish_agent = volttron_instance_web.dynamic_agent
 
     # config_path = os.path.join(get_services_core("VolttronCentral"), "config")
     # with open(config_path, "r") as config_file:
     #     config_json = yaml.safe_load(config_file)
     # assert isinstance(config_json, dict)
 
-    volttron_instance.install_agent(
+    volttron_instance_web.install_agent(
         agent_dir=get_services_core("VolttronCentral"),
         # config_file=config_json,
         start=True,
         vip_identity="health_test")
+
+    if volttron_instance_web.messagebus == 'rmq':
+        gevent.sleep(10)
 
     assert publish_agent.vip.rpc.call("health_test", "health.get_status").get(timeout=10).get('status') == STATUS_GOOD
 

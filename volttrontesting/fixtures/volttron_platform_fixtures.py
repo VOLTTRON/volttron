@@ -261,8 +261,8 @@ def volttron_instance_rmq():
                     pytest.param(dict(messagebus='rmq', ssl_auth=True, auth_enabled=True), marks=rmq_skipif)
                 ])
 def volttron_instance_web(request):
-    print(
-        f"volttron_instance_web (messagebus {request.param.get('messagebus', 'zmq')} ssl_auth {request.param.get('ssl_auth', False)})")
+    print(f"Starting instance web: {pytest.param}")
+
     address = get_rand_vip()
 
     if request.param.get('ssl_auth', False):
