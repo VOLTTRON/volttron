@@ -43,8 +43,8 @@ py.test cases for global override settings.
 import pytest
 import os
 
-from volttron.platform import get_services_core, get_volttron_root
-from volttron.platform.agent.known_identities import PLATFORM_DRIVER, CONFIGURATION_STORE
+from volttron.platform import get_services_core, get_volttron_root, jsonapi
+from volttron.platform.agent.known_identities import PLATFORM_DRIVER
 import gevent
 from volttron.platform.jsonrpc import RemoteError
 
@@ -52,121 +52,109 @@ TEST_AGENT = 'test-agent'
 TEST1_AGENT = 'test1-agent'
 SET_FAILURE = 0.0
 REVERT_FAILURE = 0.0
-platform_uuid = ''
-fake_device_config = """
-{{
-    "driver_config": {{}},
+PLATFORM_UUID = ''
+
+FAKE_DEVICE_CONFIG = {
+    "driver_config": {},
     "registry_config":"config://fake.csv",
     "interval": 1,
     "timezone": "US/Pacific",
     "heart_beat_point": "Heartbeat",
     "driver_type": "fakedriver"
-}}
-"""
+}
 
-platform_driver_config = """
-{{
+PLATFORM_DRIVER_CONFIG = {
     "driver_scrape_interval": 0.05,
-    "publish_breadth_first_all": false,
-    "publish_depth_first_all": true,
-    "publish_depth_first": false,
-    "publish_breadth_first": false
-}}
-"""
-
-
-# registry_config_string = """Point Name,Volttron Point Name,Units,Units Details,Writable,Starting Value,Type,Notes
-# Float,Float,F,-100 to 300,TRUE,50,float,CO2 Reading 0.00-2000.0 ppm
-# FloatNoDefault,FloatNoDefault,F,-100 to 300,TRUE,,float,CO2 Reading 0.00-2000.0 ppm
-# """
+    "publish_breadth_first_all": False,
+    "publish_depth_first_all": True,
+    "publish_depth_first": False,
+    "publish_breadth_first": False
+}
 
 
 @pytest.fixture(scope="module")
-def config_store_connection(request, volttron_instance):
-    capabilities = [{'edit_config_store': {'identity': PLATFORM_DRIVER}}]
-    connection = volttron_instance.build_connection(peer=CONFIGURATION_STORE, capabilities=capabilities)
+def test_agent(volttron_instance):
+    """
+    Build PlatformDriverAgent, add Modbus driver & csv configurations
+    """
+    
+    # Build a test agent
+    md_agent = volttron_instance.build_agent(identity="test_md_agent")
     gevent.sleep(1)
-    # Reset platform driver config store
-    connection.call("manage_delete_store", PLATFORM_DRIVER)
+    
+    if volttron_instance.auth_enabled:
+        capabilities = {'edit_config_store': {'identity': PLATFORM_DRIVER}}
+        volttron_instance.add_capabilities(md_agent.core.publickey, capabilities)
+    
+    # Clean out platform driver configurations
+    # wait for it to return before adding new config
+    md_agent.vip.rpc.call('config.store',
+                          'manage_delete_store',
+                          PLATFORM_DRIVER).get()
+    
+    # Add configuration for platform driver
+    md_agent.vip.rpc.call('config.store',
+                        'manage_store',
+                        PLATFORM_DRIVER,
+                        "config", 
+                        jsonapi.dumps(PLATFORM_DRIVER_CONFIG),
+                        config_type='json')    
 
-    # Start the platform driver agent which would in turn start the fake driver
-    #  using the configs created above
-    global platform_uuid
-    platform_uuid = volttron_instance.install_agent(
-        agent_dir=get_services_core("PlatformDriverAgent"),
-        config_file={},
-        start=True)
-    gevent.sleep(2)  # wait for the agent to start and start the devices
-
-    def stop_agent():
-        volttron_instance.stop_agent(platform_uuid)
-        volttron_instance.remove_agent(platform_uuid)
-        connection.kill()
-
-    request.addfinalizer(stop_agent)
-
-    return connection
-
-
-@pytest.fixture(scope="function")
-def config_store(request, config_store_connection):
-    # Always have fake.csv ready to go.
-
-    # Add up fake.csv to config store
+    # Add fake.csv to config store
     config_path = os.path.join(get_volttron_root(), "scripts/scalability-testing/fake_unit_testing.csv")
     with open(config_path, 'r') as f:
         registry_config_string = f.read()
+    md_agent.vip.rpc.call('config.store',
+                        'manage_store',
+                        PLATFORM_DRIVER,
+                        "fake.csv", 
+                        registry_config_string, 
+                        config_type='csv')    
 
-    config_store_connection.call("manage_store", PLATFORM_DRIVER, "fake.csv", registry_config_string, config_type="csv")
+    # Add 4 driver configurations to config store
+    for i in range(4):
+        config_name = f"devices/fakedriver{i}"
+        md_agent.vip.rpc.call('config.store',
+                                'manage_store',
+                                PLATFORM_DRIVER,
+                                config_name, 
+                                jsonapi.dumps(FAKE_DEVICE_CONFIG), 
+                                config_type='json')    
+            
+    # Install a PlatformDriverAgent
+    global PLATFORM_UUID
+    PLATFORM_UUID = volttron_instance.install_agent(
+        agent_dir=get_services_core("PlatformDriverAgent"),
+        config_file={},
+        start=True)
 
-    def cleanup():
-        # Reset platform driver config store
-        print("Wiping out store.")
-        config_store_connection.call("manage_delete_store", PLATFORM_DRIVER)
-        gevent.sleep(0.1)
+    gevent.sleep(10)  # wait for the agent to start and start the devices
 
-    request.addfinalizer(cleanup)
+    yield md_agent
 
-    return config_store_connection
-
-
-def setup_config(config_store, config_name, config_string, **kwargs):
-    config = config_string.format(**kwargs)
-    print("Adding", config_name, "to store")
-    config_store.call("manage_store", PLATFORM_DRIVER, config_name, config, config_type="json")
-
-
-@pytest.fixture(scope="module")
-def test_agent(request, volttron_instance):
-    test_agent = volttron_instance.build_agent(identity=TEST_AGENT)
-
-    def stop_agent():
-        test_agent.core.stop()
-
-    # Add a tear down method to stop test agent
-    request.addfinalizer(stop_agent)
-    return test_agent
+    volttron_instance.stop_agent(PLATFORM_UUID)
+    md_agent.core.stop()
 
 
 @pytest.mark.driver
-def test_set_override(config_store, test_agent):
-    setup_config(config_store, "config", platform_driver_config)
-    for i in range(4):
-        config_name = "devices/fakedriver{}".format(i)
-        setup_config(config_store, config_name, fake_device_config)
+def test_set_override(test_agent):
     device_path = "fakedriver1"
-    gevent.sleep(1.1)
+    duration = 2
+    sleep_time = 1.1
+
     # set override feature on device
     test_agent.vip.rpc.call(
         PLATFORM_DRIVER,  # Target agent
         'set_override_on',  # Method
         device_path,  # Override Pattern
-        2,  # Duration for override in secs
+        duration,  # Duration for override in secs
         True,  # Revert to default state is required
         True  # Staggered revert
     ).get(timeout=10)
-    # Give it enough time to send the override request.
-    gevent.sleep(1.1)
+    
+    # Give it enough time to send the override request but not enough time so that the override request will fail,
+    # i.e. 'sleep_time' should be less than 'duration' to ensure that the override request fails
+    gevent.sleep(sleep_time)
 
     try:
         # set point after override
@@ -190,7 +178,6 @@ def test_set_override(config_store, test_agent):
             'revert_device',  # Method
             device_path  # device path
         ).get(timeout=10)
-
         pytest.fail("Expecting Override Error. Code returned: {}".format(result))
     except RemoteError as e:
         assert e.exc_info['exc_type'] == '__main__.OverrideError'
@@ -198,25 +185,24 @@ def test_set_override(config_store, test_agent):
 
 
 @pytest.mark.driver
-def test_set_point_after_override_elapsed_interval(config_store, test_agent):
-    setup_config(config_store, "config", platform_driver_config)
-    for i in range(4):
-        config_name = "devices/fakedriver{}".format(i)
-        setup_config(config_store, config_name, fake_device_config)
-
+def test_set_point_after_override_elapsed_interval(test_agent):
     device_path = 'fakedriver1'
+    duration = 1
+    sleep_time = 2
+    
     # set override feature on device
     test_agent.vip.rpc.call(
         PLATFORM_DRIVER,  # Target agent
         'set_override_on',  # Method
         device_path,  # Override Pattern
-        1,  # Duration for override in secs
+        duration,  # Duration for override in secs
         True,  # revert to default
         True  # staggered revert
     ).get(timeout=10)
 
-    # Give it enough time to send the override request and override interval to timeout
-    gevent.sleep(2)
+    # Give it enough time to send the override request and override interval to timeout,
+    # i.e., 'sleep_time' must be greater than 'duration'
+    gevent.sleep(sleep_time)
 
     try:
         point = 'SampleWritableShort1'
@@ -235,13 +221,8 @@ def test_set_point_after_override_elapsed_interval(config_store, test_agent):
         pytest.fail("Expecting successful set point. Code raised OverrideError: {}".format(e.message))
 
 
-#
 @pytest.mark.driver
-def test_set_hierarchical_override(config_store, test_agent):
-    setup_config(config_store, "config", platform_driver_config)
-    for i in range(4):
-        config_name = "devices/fakedriver{}".format(i)
-        setup_config(config_store, config_name, fake_device_config)
+def test_set_hierarchical_override(test_agent):
     device_path = '*'
     # set override feature on device
     test_agent.vip.rpc.call(
@@ -272,11 +253,7 @@ def test_set_hierarchical_override(config_store, test_agent):
 
 
 @pytest.mark.driver
-def test_set_override_no_revert(config_store, test_agent):
-    setup_config(config_store, "config", platform_driver_config)
-    for i in range(4):
-        config_name = "devices/fakedriver{}".format(i)
-        setup_config(config_store, config_name, fake_device_config)
+def test_set_override_no_revert(test_agent):
     device_path = 'fakedriver1'
     point = 'SampleWritableFloat1'
     old_value = 0.0
@@ -309,11 +286,7 @@ def test_set_override_no_revert(config_store, test_agent):
 
 
 @pytest.mark.driver
-def test_set_override_off(config_store, test_agent):
-    setup_config(config_store, "config", platform_driver_config)
-    for i in range(4):
-        config_name = "devices/fakedriver{}".format(i)
-        setup_config(config_store, config_name, fake_device_config)
+def test_set_override_off(test_agent):
     device_path = 'fakedriver1'
 
     # Set override feature on device
@@ -382,11 +355,7 @@ def test_set_override_off(config_store, test_agent):
 
 
 @pytest.mark.driver
-def test_overlapping_override_onoff(config_store, test_agent):
-    for i in range(4):
-        config_name = "devices/fakedriver{}".format(i)
-        setup_config(config_store, config_name, fake_device_config)
-
+def test_overlapping_override_onoff(test_agent):
     fakedriver1_device_path = 'fakedriver1'
     # Set override feature on device
     test_agent.vip.rpc.call(
@@ -471,10 +440,7 @@ def test_overlapping_override_onoff(config_store, test_agent):
 
 
 @pytest.mark.driver
-def test_overlapping_override_onoff2(config_store, test_agent):
-    for i in range(4):
-        config_name = "devices/fakedriver{}".format(i)
-        setup_config(config_store, config_name, fake_device_config)
+def test_overlapping_override_onoff2(test_agent):
     all_device_path = '*'
     # Set override feature on device
     test_agent.vip.rpc.call(
@@ -561,10 +527,7 @@ def test_overlapping_override_onoff2(config_store, test_agent):
 
 
 @pytest.mark.driver
-def test_duplicate_override_on(config_store, test_agent):
-    for i in range(4):
-        config_name = "devices/fakedriver{}".format(i)
-        setup_config(config_store, config_name, fake_device_config)
+def test_duplicate_override_on(test_agent):
     all_device_path = '*'
     # Set override feature on device
     test_agent.vip.rpc.call(
@@ -607,10 +570,7 @@ def test_duplicate_override_on(config_store, test_agent):
 
 
 @pytest.mark.driver
-def test_indefinite_override_on(config_store, test_agent):
-    for i in range(4):
-        config_name = "devices/fakedriver{}".format(i)
-        setup_config(config_store, config_name, fake_device_config)
+def test_indefinite_override_on(test_agent):
     device_path = 'fakedriver2'
     # Set override feature on device
     test_agent.vip.rpc.call(
@@ -656,15 +616,8 @@ def test_indefinite_override_on(config_store, test_agent):
 
 
 @pytest.mark.driver
-def test_indefinite_override_after_restart(config_store, test_agent, volttron_instance):
-
-    # previously platform UUID hadn't been set, so nothing was being restarted
-    assert isinstance(platform_uuid, str) and len(platform_uuid)
-    assert volttron_instance.is_agent_running(platform_uuid)
-
-    for i in range(4):
-        config_name = "devices/fakedriver{}".format(i)
-        setup_config(config_store, config_name, fake_device_config)
+def test_indefinite_override_after_restart(test_agent, volttron_instance):
+    assert volttron_instance.is_agent_running(PLATFORM_UUID)
 
     # start up fake drivers
     gevent.sleep(1)
@@ -681,15 +634,14 @@ def test_indefinite_override_after_restart(config_store, test_agent, volttron_in
 
     # Give it enough time to set indefinite override.
     gevent.sleep(1)
-    volttron_instance.stop_agent(platform_uuid)
+    volttron_instance.stop_agent(PLATFORM_UUID)
     gevent.sleep(0.5)
     # Start the platform driver agent which would in turn start the fake driver
     #  using the configs created above
-    volttron_instance.start_agent(platform_uuid)
+    volttron_instance.start_agent(PLATFORM_UUID)
     gevent.sleep(1)  # wait for the agent to start and start the devices
 
     device = 'fakedriver1'
-    device_path = 'devices/' + device
     point = 'SampleWritableFloat1'
 
     try:
@@ -712,14 +664,12 @@ def test_indefinite_override_after_restart(config_store, test_agent, volttron_in
 
 
 @pytest.mark.driver
-def test_override_pattern(config_store, test_agent):
-    setup_config(config_store, "config", platform_driver_config)
-    # add a fake driver
+def test_override_pattern(test_agent):
     config_path = "devices/{}"
     device_path = "fakedriver1"
     config_name = config_path.format(device_path)
-    setup_config(config_store, config_name, fake_device_config)
     gevent.sleep(1.1)
+
     # set override feature on device
     test_agent.vip.rpc.call(PLATFORM_DRIVER, 'set_override_on', device_path, 2, True, True).get(timeout=10)
     # Give it enough time to send the override request, then ensure that it has created the override
@@ -739,7 +689,12 @@ def test_override_pattern(config_store, test_agent):
 
     # add another device to the store using the same string with different casing
     config_name = config_path.format(camel_device_path)
-    setup_config(config_store, config_name, fake_device_config)
+    test_agent.vip.rpc.call('config.store',
+                        'manage_store',
+                        PLATFORM_DRIVER,
+                        config_name, 
+                        jsonapi.dumps(FAKE_DEVICE_CONFIG), 
+                        config_type='json')    
     gevent.sleep(1.1)
     # set override feature on device
     test_agent.vip.rpc.call(PLATFORM_DRIVER, 'set_override_on', camel_device_path, 2, True, True).get(timeout=10)
