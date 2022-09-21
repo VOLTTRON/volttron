@@ -191,7 +191,6 @@ def test_vstart_expired_admin_cert(request, instance):
 
         crts.create_signed_cert_files(admin_cert_name, cert_type='client',
                                       fqdn=fqdn, valid_days=0.0001)
-        gevent.sleep(20)
         instance.startup_platform(vip_address=get_rand_vip())
         gevent.sleep(5)
         assert instance.is_running()
