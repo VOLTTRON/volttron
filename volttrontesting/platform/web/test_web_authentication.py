@@ -243,7 +243,7 @@ def test_get_credentials(volttron_instance_web: PlatformWrapper):
     skip_non_auth(volttron_instance_web)
     skip_auth_rmq(volttron_instance_web)
     instance = volttron_instance_web
-    auth_pending = instance.dynamic_agent.vip.rpc.call(AUTH, "get_pending_authoriHations").get()
+    auth_pending = instance.dynamic_agent.vip.rpc.call(AUTH, "get_pending_authorizations").get()
     len_auth_pending = len(auth_pending)
     with with_os_environ(instance.env):
         pending_agent = Agent(identity="PendingAgent")
