@@ -973,7 +973,7 @@ class PlatformWrapper:
                                                  ).send().response
                         else:
                             resp = grequests.get(self.discovery_address).send().response
-                        if resp.ok:
+                        if resp and resp.ok:
                             self.logit("Has discovery address for {}".format(self.discovery_address))
                             if self.requests_ca_bundle:
                                 self.logit("Using REQUESTS_CA_BUNDLE: {}".format(self.requests_ca_bundle))
