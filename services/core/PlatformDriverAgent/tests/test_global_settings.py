@@ -44,7 +44,7 @@ import pytest
 import gevent
 
 from volttron.platform import get_services_core
-from volttron.platform.agent.known_identities import CONFIGURATION_STORE, PLATFORM_DRIVER
+from volttron.platform.agent.known_identities import PLATFORM_DRIVER
 from volttron.platform.vip.agent import Agent
 from volttron.platform.messaging import topics
 
@@ -66,18 +66,21 @@ class _subscriber_agent(Agent):
         self.publish_results.add(topic)
 
 
+# def subscriber_agent(request, volttron_instance):
 @pytest.fixture(scope="module")
 def subscriber_agent(request, volttron_instance):
 
-    agent = volttron_instance.build_agent(identity='subscriber_agent', agent_class=_subscriber_agent)
+    agent = volttron_instance.build_agent(
+        identity="subscriber_agent", agent_class=_subscriber_agent
+    )
 
-    agent.vip.pubsub.subscribe(peer='pubsub', prefix=topics.DRIVER_TOPIC_BASE, callback=agent.add_result).get()
+    agent.vip.pubsub.subscribe(
+        peer="pubsub", prefix=topics.DRIVER_TOPIC_BASE, callback=agent.add_result
+    ).get()
 
-    def cleanup():
-        agent.core.stop()
+    yield agent
 
-    request.addfinalizer(cleanup)
-    return agent
+    agent.core.stop()
 
 
 fake_device_config = """
@@ -142,67 +145,70 @@ Float,Float,F,-100 to 300,TRUE,50,float,CO2 Reading 0.00-2000.0 ppm
 FloatNoDefault,FloatNoDefault,F,-100 to 300,TRUE,,float,CO2 Reading 0.00-2000.0 ppm
 """
 
-depth_all_set = set(['devices/fake/all'])
-breadth_all_set = set(['devices/all/fake'])
-depth_set = set(['devices/fake/Float', 'devices/fake/FloatNoDefault'])
-breadth_set = set(['devices/Float/fake', 'devices/FloatNoDefault/fake'])
+depth_all_set = set(["devices/fake/all"])
+breadth_all_set = set(["devices/all/fake"])
+depth_set = set(["devices/fake/Float", "devices/fake/FloatNoDefault"])
+breadth_set = set(["devices/Float/fake", "devices/FloatNoDefault/fake"])
 
 
 @pytest.fixture(scope="module")
-def config_store_connection(request, volttron_instance):
-    capabilities = [{'edit_config_store': {'identity': PLATFORM_DRIVER}}]
-    connection = volttron_instance.build_connection(peer=CONFIGURATION_STORE, capabilities=capabilities)
+def test_agent(volttron_instance):
+    """
+    Build a test_agent, PlatformDriverAgent
+    """
+
+    # Build a test agent
+    md_agent = volttron_instance.build_agent(identity="test_md_agent")
     gevent.sleep(1)
-    # Reset platform driver config store
-    connection.call("manage_delete_store", PLATFORM_DRIVER)
 
-    # Start the platform driver agent which would in turn start the fake driver
-    #  using the configs created above
+    if volttron_instance.auth_enabled:
+        capabilities = {"edit_config_store": {"identity": PLATFORM_DRIVER}}
+        volttron_instance.add_capabilities(md_agent.core.publickey, capabilities)
+
+    # Clean out platform driver configurations
+    # wait for it to return before adding new config
+    md_agent.vip.rpc.call("config.store", "manage_delete_store", PLATFORM_DRIVER).get()
+
+    # Add a fake.csv to the config store
+    md_agent.vip.rpc.call(
+        "config.store",
+        "manage_store",
+        PLATFORM_DRIVER,
+        "fake.csv",
+        registry_config_string,
+        config_type="csv",
+    ).get()
+
+    # install the PlatformDriver
     platform_uuid = volttron_instance.install_agent(
-        agent_dir=get_services_core("PlatformDriverAgent"),
-        config_file={},
-        start=True)
-    print("agent id: ", platform_uuid)
-    gevent.sleep(2)  # wait for the agent to start and start the devices
+        agent_dir=get_services_core("PlatformDriverAgent"), config_file={}, start=True
+    )
 
-    def stop_agent():
-        volttron_instance.stop_agent(platform_uuid)
-        volttron_instance.remove_agent(platform_uuid)
-        connection.kill()
+    gevent.sleep(10)  # wait for the agent to start and start the devices
 
-    request.addfinalizer(stop_agent)
+    yield md_agent
 
-    return connection
+    volttron_instance.stop_agent(platform_uuid)
+    md_agent.core.stop()
 
 
-@pytest.fixture(scope="function")
-def config_store(request, config_store_connection):
-    # Always have fake.csv ready to go.
-    print("Adding fake.csv into store")
-    config_store_connection.call("manage_store", PLATFORM_DRIVER, "fake.csv", registry_config_string, config_type="csv")
-
-    def cleanup():
-        # Reset platform driver config store
-        print("Wiping out store.")
-        config_store_connection.call("manage_delete_store", PLATFORM_DRIVER)
-        gevent.sleep(0.1)
-
-    request.addfinalizer(cleanup)
-
-    return config_store_connection
-
-
-def setup_config(config_store, config_name, config_string, **kwargs):
+def setup_config(test_agent, config_name, config_string, **kwargs):
     config = config_string.format(**kwargs)
     print("Adding", config_name, "to store")
-    config_store.call("manage_store", PLATFORM_DRIVER, config_name, config, config_type="json")
+    test_agent.vip.rpc.call(
+        "config.store",
+        "manage_store",
+        PLATFORM_DRIVER,
+        config_name,
+        config,
+        config_type="json",
+    ).get()
 
 
 @pytest.mark.driver
-def test_default_publish(config_store, subscriber_agent):
-    setup_config(config_store, "config", platform_driver_config_default)
-    setup_config(config_store, "devices/fake", fake_device_config)
-
+def test_default_publish(test_agent, subscriber_agent):
+    setup_config(test_agent, "config", platform_driver_config_default)
+    setup_config(test_agent, "devices/fake", fake_device_config)
     subscriber_agent.reset_results()
 
     # Give it enough time to publish at least once.
@@ -214,13 +220,17 @@ def test_default_publish(config_store, subscriber_agent):
 
 
 @pytest.mark.driver
-def test_default_global_off(config_store, subscriber_agent):
-    setup_config(config_store, "config", platform_driver_config,
-                 breadth_all="false",
-                 depth_all="false",
-                 breadth="false",
-                 depth="false")
-    setup_config(config_store, "devices/fake", fake_device_config)
+def test_default_global_off(test_agent, subscriber_agent):
+    setup_config(
+        test_agent,
+        "config",
+        platform_driver_config,
+        breadth_all="false",
+        depth_all="false",
+        breadth="false",
+        depth="false",
+    )
+    setup_config(test_agent, "devices/fake", fake_device_config)
 
     subscriber_agent.reset_results()
 
@@ -233,13 +243,17 @@ def test_default_global_off(config_store, subscriber_agent):
 
 
 @pytest.mark.driver
-def test_default_global_breadth_all(config_store, subscriber_agent):
-    setup_config(config_store, "config", platform_driver_config,
-                 breadth_all="true",
-                 depth_all="false",
-                 breadth="false",
-                 depth="false")
-    setup_config(config_store, "devices/fake", fake_device_config)
+def test_default_global_breadth_all(test_agent, subscriber_agent):
+    setup_config(
+        test_agent,
+        "config",
+        platform_driver_config,
+        breadth_all="true",
+        depth_all="false",
+        breadth="false",
+        depth="false",
+    )
+    setup_config(test_agent, "devices/fake", fake_device_config)
 
     subscriber_agent.reset_results()
 
@@ -252,13 +266,17 @@ def test_default_global_breadth_all(config_store, subscriber_agent):
 
 
 @pytest.mark.driver
-def test_default_global_depth_all(config_store, subscriber_agent):
-    setup_config(config_store, "config", platform_driver_config,
-                 breadth_all="false",
-                 depth_all="true",
-                 breadth="false",
-                 depth="false")
-    setup_config(config_store, "devices/fake", fake_device_config)
+def test_default_global_depth_all(test_agent, subscriber_agent):
+    setup_config(
+        test_agent,
+        "config",
+        platform_driver_config,
+        breadth_all="false",
+        depth_all="true",
+        breadth="false",
+        depth="false",
+    )
+    setup_config(test_agent, "devices/fake", fake_device_config)
 
     subscriber_agent.reset_results()
 
@@ -271,13 +289,17 @@ def test_default_global_depth_all(config_store, subscriber_agent):
 
 
 @pytest.mark.driver
-def test_default_global_depth(config_store, subscriber_agent):
-    setup_config(config_store, "config", platform_driver_config,
-                 breadth_all="false",
-                 depth_all="false",
-                 breadth="false",
-                 depth="true")
-    setup_config(config_store, "devices/fake", fake_device_config)
+def test_default_global_depth(test_agent, subscriber_agent):
+    setup_config(
+        test_agent,
+        "config",
+        platform_driver_config,
+        breadth_all="false",
+        depth_all="false",
+        breadth="false",
+        depth="true",
+    )
+    setup_config(test_agent, "devices/fake", fake_device_config)
 
     subscriber_agent.reset_results()
 
@@ -290,13 +312,17 @@ def test_default_global_depth(config_store, subscriber_agent):
 
 
 @pytest.mark.driver
-def test_default_global_breadth(config_store, subscriber_agent):
-    setup_config(config_store, "config", platform_driver_config,
-                 breadth_all="false",
-                 depth_all="false",
-                 breadth="true",
-                 depth="false")
-    setup_config(config_store, "devices/fake", fake_device_config)
+def test_default_global_breadth(test_agent, subscriber_agent):
+    setup_config(
+        test_agent,
+        "config",
+        platform_driver_config,
+        breadth_all="false",
+        depth_all="false",
+        breadth="true",
+        depth="false",
+    )
+    setup_config(test_agent, "devices/fake", fake_device_config)
 
     subscriber_agent.reset_results()
 
@@ -309,18 +335,26 @@ def test_default_global_breadth(config_store, subscriber_agent):
 
 
 @pytest.mark.driver
-def test_default_override_all(config_store, subscriber_agent):
-    setup_config(config_store, "config", platform_driver_config,
-                 breadth_all="false",
-                 depth_all="false",
-                 breadth="false",
-                 depth="false")
+def test_default_override_all(test_agent, subscriber_agent):
+    setup_config(
+        test_agent,
+        "config",
+        platform_driver_config,
+        breadth_all="false",
+        depth_all="false",
+        breadth="false",
+        depth="false",
+    )
 
-    setup_config(config_store, "devices/fake", fake_device_config_override,
-                 breadth_all="true",
-                 depth_all="true",
-                 breadth="true",
-                 depth="true")
+    setup_config(
+        test_agent,
+        "devices/fake",
+        fake_device_config_override,
+        breadth_all="true",
+        depth_all="true",
+        breadth="true",
+        depth="true",
+    )
 
     subscriber_agent.reset_results()
 
@@ -333,18 +367,26 @@ def test_default_override_all(config_store, subscriber_agent):
 
 
 @pytest.mark.driver
-def test_default_override_breadth_all(config_store, subscriber_agent):
-    setup_config(config_store, "config", platform_driver_config,
-                 breadth_all="false",
-                 depth_all="false",
-                 breadth="false",
-                 depth="false")
+def test_default_override_breadth_all(test_agent, subscriber_agent):
+    setup_config(
+        test_agent,
+        "config",
+        platform_driver_config,
+        breadth_all="false",
+        depth_all="false",
+        breadth="false",
+        depth="false",
+    )
 
-    setup_config(config_store, "devices/fake", fake_device_config_override,
-                 breadth_all="true",
-                 depth_all="false",
-                 breadth="false",
-                 depth="false")
+    setup_config(
+        test_agent,
+        "devices/fake",
+        fake_device_config_override,
+        breadth_all="true",
+        depth_all="false",
+        breadth="false",
+        depth="false",
+    )
 
     subscriber_agent.reset_results()
 
@@ -357,18 +399,26 @@ def test_default_override_breadth_all(config_store, subscriber_agent):
 
 
 @pytest.mark.driver
-def test_default_override_depth_all(config_store, subscriber_agent):
-    setup_config(config_store, "config", platform_driver_config,
-                 breadth_all="false",
-                 depth_all="false",
-                 breadth="false",
-                 depth="false")
+def test_default_override_depth_all(test_agent, subscriber_agent):
+    setup_config(
+        test_agent,
+        "config",
+        platform_driver_config,
+        breadth_all="false",
+        depth_all="false",
+        breadth="false",
+        depth="false",
+    )
 
-    setup_config(config_store, "devices/fake", fake_device_config_override,
-                 breadth_all="false",
-                 depth_all="true",
-                 breadth="false",
-                 depth="false")
+    setup_config(
+        test_agent,
+        "devices/fake",
+        fake_device_config_override,
+        breadth_all="false",
+        depth_all="true",
+        breadth="false",
+        depth="false",
+    )
 
     subscriber_agent.reset_results()
 
@@ -381,18 +431,26 @@ def test_default_override_depth_all(config_store, subscriber_agent):
 
 
 @pytest.mark.driver
-def test_default_override_depth(config_store, subscriber_agent):
-    setup_config(config_store, "config", platform_driver_config,
-                 breadth_all="false",
-                 depth_all="false",
-                 breadth="false",
-                 depth="false")
+def test_default_override_depth(test_agent, subscriber_agent):
+    setup_config(
+        test_agent,
+        "config",
+        platform_driver_config,
+        breadth_all="false",
+        depth_all="false",
+        breadth="false",
+        depth="false",
+    )
 
-    setup_config(config_store, "devices/fake", fake_device_config_override,
-                 breadth_all="false",
-                 depth_all="false",
-                 breadth="false",
-                 depth="true")
+    setup_config(
+        test_agent,
+        "devices/fake",
+        fake_device_config_override,
+        breadth_all="false",
+        depth_all="false",
+        breadth="false",
+        depth="true",
+    )
 
     subscriber_agent.reset_results()
 
@@ -405,18 +463,26 @@ def test_default_override_depth(config_store, subscriber_agent):
 
 
 @pytest.mark.driver
-def test_default_override_breadth(config_store, subscriber_agent):
-    setup_config(config_store, "config", platform_driver_config,
-                 breadth_all="false",
-                 depth_all="false",
-                 breadth="false",
-                 depth="false")
+def test_default_override_breadth(test_agent, subscriber_agent):
+    setup_config(
+        test_agent,
+        "config",
+        platform_driver_config,
+        breadth_all="false",
+        depth_all="false",
+        breadth="false",
+        depth="false",
+    )
 
-    setup_config(config_store, "devices/fake", fake_device_config_override,
-                 breadth_all="false",
-                 depth_all="false",
-                 breadth="true",
-                 depth="false")
+    setup_config(
+        test_agent,
+        "devices/fake",
+        fake_device_config_override,
+        breadth_all="false",
+        depth_all="false",
+        breadth="true",
+        depth="false",
+    )
 
     subscriber_agent.reset_results()
 
@@ -429,15 +495,23 @@ def test_default_override_breadth(config_store, subscriber_agent):
 
 
 @pytest.mark.driver
-def test_default_override_single_breadth_all(config_store, subscriber_agent):
-    setup_config(config_store, "config", platform_driver_config,
-                 breadth_all="false",
-                 depth_all="false",
-                 breadth="false",
-                 depth="false")
+def test_default_override_single_breadth_all(test_agent, subscriber_agent):
+    setup_config(
+        test_agent,
+        "config",
+        platform_driver_config,
+        breadth_all="false",
+        depth_all="false",
+        breadth="false",
+        depth="false",
+    )
 
-    setup_config(config_store, "devices/fake", fake_device_config_single_override,
-                 override_param='"publish_breadth_first_all": true')
+    setup_config(
+        test_agent,
+        "devices/fake",
+        fake_device_config_single_override,
+        override_param='"publish_breadth_first_all": true',
+    )
 
     subscriber_agent.reset_results()
 
@@ -450,15 +524,23 @@ def test_default_override_single_breadth_all(config_store, subscriber_agent):
 
 
 @pytest.mark.driver
-def test_default_override_single_depth_all(config_store, subscriber_agent):
-    setup_config(config_store, "config", platform_driver_config,
-                 breadth_all="false",
-                 depth_all="false",
-                 breadth="false",
-                 depth="false")
+def test_default_override_single_depth_all(test_agent, subscriber_agent):
+    setup_config(
+        test_agent,
+        "config",
+        platform_driver_config,
+        breadth_all="false",
+        depth_all="false",
+        breadth="false",
+        depth="false",
+    )
 
-    setup_config(config_store, "devices/fake", fake_device_config_single_override,
-                 override_param='"publish_depth_first_all": true')
+    setup_config(
+        test_agent,
+        "devices/fake",
+        fake_device_config_single_override,
+        override_param='"publish_depth_first_all": true',
+    )
 
     subscriber_agent.reset_results()
 
@@ -471,15 +553,23 @@ def test_default_override_single_depth_all(config_store, subscriber_agent):
 
 
 @pytest.mark.driver
-def test_default_override_single_depth(config_store, subscriber_agent):
-    setup_config(config_store, "config", platform_driver_config,
-                 breadth_all="false",
-                 depth_all="false",
-                 breadth="false",
-                 depth="false")
+def test_default_override_single_depth(test_agent, subscriber_agent):
+    setup_config(
+        test_agent,
+        "config",
+        platform_driver_config,
+        breadth_all="false",
+        depth_all="false",
+        breadth="false",
+        depth="false",
+    )
 
-    setup_config(config_store, "devices/fake", fake_device_config_single_override,
-                 override_param='"publish_depth_first": true')
+    setup_config(
+        test_agent,
+        "devices/fake",
+        fake_device_config_single_override,
+        override_param='"publish_depth_first": true',
+    )
 
     subscriber_agent.reset_results()
 
@@ -492,15 +582,23 @@ def test_default_override_single_depth(config_store, subscriber_agent):
 
 
 @pytest.mark.driver
-def test_default_override_single_breadth(config_store, subscriber_agent):
-    setup_config(config_store, "config", platform_driver_config,
-                 breadth_all="false",
-                 depth_all="false",
-                 breadth="false",
-                 depth="false")
+def test_default_override_single_breadth(test_agent, subscriber_agent):
+    setup_config(
+        test_agent,
+        "config",
+        platform_driver_config,
+        breadth_all="false",
+        depth_all="false",
+        breadth="false",
+        depth="false",
+    )
 
-    setup_config(config_store, "devices/fake", fake_device_config_single_override,
-                 override_param='"publish_breadth_first": true')
+    setup_config(
+        test_agent,
+        "devices/fake",
+        fake_device_config_single_override,
+        override_param='"publish_breadth_first": true',
+    )
 
     subscriber_agent.reset_results()
 
