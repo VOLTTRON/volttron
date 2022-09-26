@@ -150,8 +150,11 @@ class RMQConfig:
             # agents should be able to read this config file
             os.chmod(self.volttron_rmq_config, 0o744)
         except IOError as exc:
-            _log.error("Error writing to rabbitmq_config.yml file. Please"
-                       "check VOLTTRON_HOME".format(self.volttron_home))
+            msg = (
+                "Error writing to rabbitmq_config.yml file. "
+                "Please check {VOLTTRON_HOME}".format(VOLTTRON_HOME=self.volttron_home)
+            )
+            _log.error(msg)
         except yaml.YAMLError as exc:
             raise
 
