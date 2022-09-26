@@ -145,6 +145,7 @@ def get_normalized_time_offset(time_string):
     ts = parse_timestamp_string(time_string)
     return ts.microsecond // 100000
 
+
 class _subscriber_agent(Agent):
     def __init__(self, **kwargs):
         super(_subscriber_agent, self).__init__(**kwargs)
@@ -159,15 +160,19 @@ class _subscriber_agent(Agent):
 
     def add_result(self, peer, sender, bus, topic, headers, message):
         print("message published to", topic)
-        self.publish_results[topic] = get_normalized_time_offset(headers['TimeStamp'])
+        self.publish_results[topic] = get_normalized_time_offset(headers["TimeStamp"])
 
 
 @pytest.fixture(scope="module")
 def subscriber_agent(volttron_instance):
 
-    agent = volttron_instance.build_agent(identity='subscriber_agent', agent_class=_subscriber_agent)
+    agent = volttron_instance.build_agent(
+        identity="subscriber_agent", agent_class=_subscriber_agent
+    )
 
-    agent.vip.pubsub.subscribe(peer='pubsub', prefix=topics.DRIVER_TOPIC_BASE, callback=agent.add_result).get()
+    agent.vip.pubsub.subscribe(
+        peer="pubsub", prefix=topics.DRIVER_TOPIC_BASE, callback=agent.add_result
+    ).get()
 
     yield agent
 
@@ -214,6 +219,7 @@ def test_agent(volttron_instance):
     volttron_instance.stop_agent(platform_uuid)
     md_agent.core.stop()
 
+
 def setup_config(test_agent, config_name, config_string, **kwargs):
     config = config_string.format(**kwargs)
     print("Adding", config_name, "to store")
@@ -226,11 +232,9 @@ def setup_config(test_agent, config_name, config_string, **kwargs):
         config_type="json",
     ).get()
 
+
 def remove_config(test_agent, config_name):
     print("Removing", config_name, "from store")
     test_agent.vip.rpc.call(
-        "config.store",
-        "manage_delete_config",
-        PLATFORM_DRIVER,
-        config_name
+        "config.store", "manage_delete_config", PLATFORM_DRIVER, config_name
     ).get()
