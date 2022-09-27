@@ -37,7 +37,7 @@
 # }}}
 
 """
-py.test cases for global platform driver settings.
+a single py.test case for global platform driver settings.
 """
 
 import pytest
@@ -48,6 +48,95 @@ from volttron.platform.agent.known_identities import PLATFORM_DRIVER
 from volttron.platform.vip.agent import Agent
 from volttron.platform.messaging import topics
 from volttron.platform.agent.utils import parse_timestamp_string
+
+fake_device_config = """
+{{
+    "driver_config": {{}},
+    "registry_config":"config://fake.csv",
+    "interval": 1,
+    "timezone": "US/Pacific",
+    "heart_beat_point": "Heartbeat",
+    "driver_type": "fakedriver",
+    "group": {group}
+
+}}
+"""
+
+platform_driver_config = """
+{{
+    "driver_scrape_interval": 0.1,
+    "group_offset_interval": {interval},
+    "publish_breadth_first_all": false,
+    "publish_depth_first_all": true,
+    "publish_depth_first": false,
+    "publish_breadth_first": false
+}}
+"""
+
+registry_config_string = """Point Name,Volttron Point Name,Units,Units Details,Writable,Starting Value,Type,Notes
+Float,Float,F,-100 to 300,TRUE,50,float,CO2 Reading 0.00-2000.0 ppm
+FloatNoDefault,FloatNoDefault,F,-100 to 300,TRUE,,float,CO2 Reading 0.00-2000.0 ppm
+"""
+
+
+@pytest.mark.driver
+def test_add_remove_drivers(test_agent, subscriber_agent):
+    setup_config(test_agent, "config", platform_driver_config, interval=0.5)
+    setup_config(test_agent, "devices/fake0_0", fake_device_config, group=0)
+    setup_config(test_agent, "devices/fake0_1", fake_device_config, group=0)
+    setup_config(test_agent, "devices/fake0_2", fake_device_config, group=0)
+    setup_config(test_agent, "devices/fake1_0", fake_device_config, group=1)
+    setup_config(test_agent, "devices/fake1_1", fake_device_config, group=1)
+    setup_config(test_agent, "devices/fake1_2", fake_device_config, group=1)
+
+    subscriber_agent.reset_results()
+
+    # Give it enough time to publish at least once.
+    gevent.sleep(2)
+
+    results = subscriber_agent.get_results()
+
+    assert results["devices/fake0_0/all"] == 0
+    assert results["devices/fake0_1/all"] == 1
+    assert results["devices/fake0_2/all"] == 2
+    assert results["devices/fake1_0/all"] == 5
+    assert results["devices/fake1_1/all"] == 6
+    assert results["devices/fake1_2/all"] == 7
+
+    remove_config(test_agent, "devices/fake0_1")
+    remove_config(test_agent, "devices/fake1_1")
+
+    subscriber_agent.reset_results()
+
+    # Give it enough time to publish at least once.
+    gevent.sleep(2)
+
+    results = subscriber_agent.get_results()
+
+    assert results["devices/fake0_0/all"] == 0
+    assert results["devices/fake0_2/all"] == 2
+    assert results["devices/fake1_0/all"] == 5
+    assert results["devices/fake1_2/all"] == 7
+
+    assert "devices/fake0_1/all" not in results
+    assert "devices/fake1_1/all" not in results
+
+    setup_config(test_agent, "devices/fake0_1", fake_device_config, group=0)
+    setup_config(test_agent, "devices/fake1_1", fake_device_config, group=1)
+
+    subscriber_agent.reset_results()
+
+    # Give it enough time to publish at least once.
+    gevent.sleep(2)
+
+    results = subscriber_agent.get_results()
+
+    assert results["devices/fake0_0/all"] == 0
+    assert results["devices/fake0_1/all"] == 1
+    assert results["devices/fake0_2/all"] == 2
+    assert results["devices/fake1_0/all"] == 5
+    assert results["devices/fake1_1/all"] == 6
+    assert results["devices/fake1_2/all"] == 7
 
 
 def get_normalized_time_offset(time_string):
@@ -88,36 +177,6 @@ def subscriber_agent(volttron_instance):
     yield agent
 
     agent.core.stop()
-
-
-fake_device_config = """
-{{
-    "driver_config": {{}},
-    "registry_config":"config://fake.csv",
-    "interval": 1,
-    "timezone": "US/Pacific",
-    "heart_beat_point": "Heartbeat",
-    "driver_type": "fakedriver",
-    "group": {group}
-
-}}
-"""
-
-platform_driver_config = """
-{{
-    "driver_scrape_interval": 0.1,
-    "group_offset_interval": {interval},
-    "publish_breadth_first_all": false,
-    "publish_depth_first_all": true,
-    "publish_depth_first": false,
-    "publish_breadth_first": false
-}}
-"""
-
-registry_config_string = """Point Name,Volttron Point Name,Units,Units Details,Writable,Starting Value,Type,Notes
-Float,Float,F,-100 to 300,TRUE,50,float,CO2 Reading 0.00-2000.0 ppm
-FloatNoDefault,FloatNoDefault,F,-100 to 300,TRUE,,float,CO2 Reading 0.00-2000.0 ppm
-"""
 
 
 @pytest.fixture(scope="module")
@@ -179,60 +238,3 @@ def remove_config(test_agent, config_name):
     test_agent.vip.rpc.call(
         "config.store", "manage_delete_config", PLATFORM_DRIVER, config_name
     ).get()
-
-
-@pytest.mark.driver
-def test_no_groups(test_agent, subscriber_agent):
-    setup_config(test_agent, "config", platform_driver_config, interval=0)
-    setup_config(test_agent, "devices/fake0", fake_device_config, group=0)
-    setup_config(test_agent, "devices/fake1", fake_device_config, group=0)
-    setup_config(test_agent, "devices/fake2", fake_device_config, group=0)
-
-    subscriber_agent.reset_results()
-
-    # Give it enough time to publish at least once.
-    gevent.sleep(2)
-
-    results = subscriber_agent.get_results()
-
-    assert results["devices/fake0/all"] == 0
-    assert results["devices/fake1/all"] == 1
-    assert results["devices/fake2/all"] == 2
-
-
-@pytest.mark.driver
-def test_groups_no_interval(test_agent, subscriber_agent):
-    setup_config(test_agent, "config", platform_driver_config, interval=0)
-    setup_config(test_agent, "devices/fake0", fake_device_config, group=0)
-    setup_config(test_agent, "devices/fake1", fake_device_config, group=1)
-    setup_config(test_agent, "devices/fake2", fake_device_config, group=2)
-
-    subscriber_agent.reset_results()
-
-    # Give it enough time to publish at least once.
-    gevent.sleep(2)
-
-    results = subscriber_agent.get_results()
-
-    assert results["devices/fake0/all"] == 0
-    assert results["devices/fake1/all"] == 0
-    assert results["devices/fake2/all"] == 0
-
-
-@pytest.mark.driver
-def test_groups_interval(test_agent, subscriber_agent):
-    setup_config(test_agent, "config", platform_driver_config, interval=0.5)
-    setup_config(test_agent, "devices/fake0", fake_device_config, group=0)
-    setup_config(test_agent, "devices/fake1", fake_device_config, group=1)
-    setup_config(test_agent, "devices/fake2", fake_device_config, group=1)
-
-    subscriber_agent.reset_results()
-
-    # Give it enough time to publish at least once.
-    gevent.sleep(2)
-
-    results = subscriber_agent.get_results()
-
-    assert results["devices/fake0/all"] == 0
-    assert results["devices/fake1/all"] == 5
-    assert results["devices/fake2/all"] == 6
