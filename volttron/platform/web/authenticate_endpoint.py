@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 import json
 
 import jwt
-from jinja2 import Environment, FileSystemLoader, select_autoescape, TemplateNotFound
+from jinja2 import Environment, FileSystemLoader, select_autoescape
 from passlib.hash import argon2
 from watchdog_gevent import Observer
 
