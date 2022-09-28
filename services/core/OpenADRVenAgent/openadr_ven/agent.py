@@ -42,7 +42,7 @@ import gevent
 
 from pathlib import Path
 from pprint import pformat
-from datetime import timedelta
+from datetime import timedelta, datetime, date, time, timezone
 from typing import Callable, Dict, Any
 
 from openleadr.enums import OPT, REPORT_NAME, MEASUREMENTS
@@ -242,26 +242,39 @@ class OpenADRVenAgent(Agent):
             peer="pubsub",
             topic=f"{topics.OPENADR_EVENT}/{self.ven_client.ven_name}",
             headers={headers.TIMESTAMP: format_timestamp(get_aware_utc_now())},
-            message=OpenADRVenAgent._parse_event(event),
+            message=self._parse_event(event),
         )
 
         return
 
     # ***************** Helper methods ********************
-    @staticmethod
-    def _parse_event(obj: Event) -> Any:
-        """Parse event so that it properly displays on message bus.
+    def _parse_event(self, obj: Event) -> Any:
+            """Parse event so that it properly displays on message bus.
 
-        :param obj: The event received from a VTN
-        :return: A deserialized Event that is converted into a python object
-        """
-        obj_string = jsonapi.dumps(
-            obj,
-            default=lambda x: int(x.total_seconds())
-            if isinstance(x, timedelta)
-            else None,
-        )
-        return jsonapi.loads(obj_string)
+            :param obj: The event received from a VTN
+            :return: A deserialized Event that is converted into a python object
+            """
+
+            # function that gets called for objects that can’t otherwise be serialized.
+            def _default_serialzer(x):
+                if isinstance(x, timedelta):
+                    return int(x.total_seconds())
+                elif isinstance(x, datetime):
+                    return format_timestamp(x)
+                elif isinstance(x, date):
+                    return x.isoformat()
+                elif isinstance(x, time):
+                    return x.isoformat()
+                elif isinstance(x, timezone):
+                    return int(x.utcoffset().total_seconds())
+                else:
+                    return None
+
+            obj_string = jsonapi.dumps(
+                obj,
+                default=_default_serialzer
+            )
+            return jsonapi.loads(obj_string)
 
     def _parse_config(self, config_path: str) -> Dict:
         """Parses the OpenADR agent's configuration file.
