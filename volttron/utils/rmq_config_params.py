@@ -151,7 +151,7 @@ class RMQConfig:
             os.chmod(self.volttron_rmq_config, 0o744)
         except IOError as exc:
             _log.error("Error writing to rabbitmq_config.yml file. Please"
-                       "check VOLTTRON_HOME".format(self.volttron_home))
+                       "check {VOLTTRON_HOME}".format(VOLTTRON_HOME=self.volttron_home))
         except yaml.YAMLError as exc:
             raise
 
