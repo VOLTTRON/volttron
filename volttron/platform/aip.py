@@ -237,7 +237,7 @@ class SecureExecutionEnvironment:
 
     def stop(self):
         if self.process.poll() is None:
-            cmd = ["sudo", update_volttron_script_path("scripts/secure_stop_agent.sh"), self.agent_user, str(self.process.pid)]
+            cmd = ["sudo", update_volttron_script_path("scripts/stop_agent_running_in_isolation.sh"), self.agent_user, str(self.process.pid)]
             _log.debug("In aip secureexecutionenv {}".format(cmd))
             process = subprocess.Popen(cmd, stdout=PIPE, stderr=PIPE)
             stdout, stderr = process.communicate()
