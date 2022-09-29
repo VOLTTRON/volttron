@@ -15,11 +15,11 @@ and see the current offerings of the interface.
 
 VOLTTRON Central will allow you to:
 
-    *   See a list of platforms being managed.
-    *   Add and remove platforms.
-    *   Install, start and stop agents on the managed platforms.
-    *   Create dynamic graphs from the historians based upon data points.
-    *   Execute functions on remote platforms.
+    * See a list of platforms being managed.
+    * Add and remove platforms.
+    * Install, start and stop agents on the managed platforms.
+    * Create dynamic graphs from the historians based upon data points.
+    * Execute functions on remote platforms.
 
 
 Volttron Central Agent
