@@ -49,7 +49,6 @@ from volttron.platform.agent.utils import get_fq_identity
 
 import grequests
 import gevent
-import requests
 from requests.packages.urllib3.connection import (ConnectionError,
                                                   NewConnectionError)
 from requests.exceptions import HTTPError

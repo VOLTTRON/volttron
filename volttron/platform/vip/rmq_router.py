@@ -72,6 +72,7 @@ class RMQRouter:
                  volttron_central_address=None,
                  volttron_central_serverkey=None,
                  bind_web_address=None,
+                 enable_auth=True,
                  service_notifier=Optional[ServicePeerNotifier]
                  ):
         """
@@ -94,6 +95,7 @@ class RMQRouter:
         self.rmq_mgmt = RabbitMQMgmt()
         self.event_queue = Queue()
         self._service_notifier = service_notifier
+        self.enable_auth = enable_auth
         param = self._build_connection_parameters()
         self.connection = RMQRouterConnection(param,
                                               identity,
@@ -106,7 +108,12 @@ class RMQRouter:
         if self._identity is None:
             raise ValueError("Agent's VIP identity is not set")
         else:
-            param = RMQConnectionAPI().build_router_connection(self._identity, self._instance_name)
+            if self.enable_auth:
+                param = RMQConnectionAPI().build_router_connection(self._identity, self._instance_name)
+            else:
+                # if auth is disabled then connection to rmq router will not use ssl. All connection to rmq will be
+                # through rmq admin user and password
+                param = RMQConnectionAPI(ssl_auth=False).build_router_connection(self._identity, self._instance_name)
         return param
 
     def start(self):

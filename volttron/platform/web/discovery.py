@@ -1,5 +1,7 @@
 import logging
-import requests
+import grequests
+from requests.exceptions import RequestException
+
 from urllib.parse import urlparse, urljoin
 
 from volttron.platform import jsonapi
@@ -62,7 +64,7 @@ class DiscoveryInfo:
 
             real_url = urljoin(web_address, "/discovery/")
             _log.info('Connecting to: {}'.format(real_url))
-            response = requests.get(real_url, verify=False)
+            response = grequests.get(real_url, verify=False).send().response
 
             if not response.ok:
                 raise DiscoveryError(
@@ -73,7 +75,7 @@ class DiscoveryInfo:
                 "Invalid web_address passed {}"
                 .format(web_address)
             )
-        except requests.exceptions.RequestException as e:
+        except RequestException as e:
             raise DiscoveryError(
                 "Connection to {} not available".format(real_url)
             )

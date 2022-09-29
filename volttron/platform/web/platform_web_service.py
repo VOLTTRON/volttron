@@ -83,9 +83,6 @@ from ...platform.aip import AIPplatform
 from ...utils import is_ip_private
 from ...utils.rmq_config_params import RMQConfig
 
-# must be after importing of utils which imports grequest.
-import requests
-
 _log = logging.getLogger(__name__)
 
 

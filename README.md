@@ -9,7 +9,7 @@ with that data.
 
 ## Upgrading to VOLTTRON 8.x
 
-VOLTTRON 8 introduces three changes that require an explict upgrade step when upgrading from a earlier VOLTTRON version
+VOLTTRON 8 introduces three changes that require an explict upgrade step when upgrading from an earlier VOLTTRON version
 
     1. Dynamic RPC authorization feature - This requires a modification to the auth file. If you have a pre-existing
        instance of VOLTTRON running on an older version, the auth file will need to be updated.

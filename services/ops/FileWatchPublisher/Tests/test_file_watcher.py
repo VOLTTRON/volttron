@@ -107,7 +107,7 @@ def test_file_watcher(volttron_instance, publish_agent):
     with open(test_path, "w+") as textfile:
         textfile.write("more test_data")
 
-    gevent.sleep(1)
+    gevent.sleep(2)
 
     assert publish_agent.callback.call_count == 1
     print(publish_agent.callback.call_args)

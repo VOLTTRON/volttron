@@ -801,10 +801,13 @@ def setup_rabbitmq_volttron(setup_type, verbose=False, prompt=False, instance_na
                   "In order for setup to proceed it must be removed.\n"
         if os.path.exists(rmq_conf_file):
             print(message)
-            while os.path.exists(rmq_conf_file):
-                value = prompt_response(f"Remove {rmq_conf_file}? ", y_or_n)
-                if value in y:
-                    os.remove(rmq_conf_file)
+            if prompt:
+                while os.path.exists(rmq_conf_file):
+                    value = prompt_response(f"Remove {rmq_conf_file}? ", y_or_n)
+                    if value in y:
+                        os.remove(rmq_conf_file)
+            else:
+                os.remove(rmq_conf_file)
 
         _start_rabbitmq_without_ssl(rmq_config, rmq_conf_file, env=env)
         _log.debug("Creating rabbitmq virtual hosts and required users for "
@@ -1549,6 +1552,8 @@ def start_rabbit(rmq_home, env=None):
             if start:
                 _log.debug("Rabbitmq is not running. Attempting to start")
                 msg = "Error starting rabbitmq at {}".format(rmq_home)
+                _log.debug(f"ENV: {env}")
+                _log.debug(f"START_CMD: {start_cmd}")
                 # attempt to start once
                 execute_command(start_cmd, env=env, err_prefix=msg, logger=_log)
                 start = False
