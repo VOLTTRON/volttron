@@ -151,10 +151,10 @@ class WeatherDotGovAgent(BaseWeatherAgent):
         :return: string describing the function of the api endpoint, along with
         rpc call usage for the weather agent.
         """
-        if service_name is "get_current_weather":
+        if service_name == "get_current_weather":
             return "Provides current weather observations by station via RPC " \
                    "(Requires {'station': <station id>}"
-        elif service_name is "get_hourly_forecast":
+        elif service_name == "get_hourly_forecast":
             return "Provides <hours> (optional) hours of forecast " \
                    "predictions by lat/long or gridpoint location " \
                    "via RPC (Requires {'wfo': <wfo string>, 'x': <x " \
@@ -214,7 +214,7 @@ class WeatherDotGovAgent(BaseWeatherAgent):
         if service_name == "get_current_weather":
             return self.validate_location_formats(("station",), location)
         else:
-            return self.validate_location_formats(("gridpoints", "lat/long"),
+            return self.validate_location_formats(("gridpoints", "lat/long", "station"),
                                                   location)
 
     def validate_location_formats(self, accepted_formats, location):
@@ -299,12 +299,7 @@ class WeatherDotGovAgent(BaseWeatherAgent):
         else:
             raise ValueError('Invalid location. Expected format is:'
                              '{"station":"station_id_value"}')
-        grequest = [grequests.get(url, verify=requests.certs.where(),
-                                  headers=self.headers, timeout=5)]
-        gresponse = grequests.map(grequest)[0]
-        if gresponse is None:
-            raise RuntimeError("get request did not return any "
-                               "response")
+        gresponse = self.make_web_request(url)
         try:
             response = jsonapi.loads(gresponse.content)
             properties = response["properties"]
@@ -343,10 +338,26 @@ class WeatherDotGovAgent(BaseWeatherAgent):
         :return: time of forecast prediction as a timestamp string,
         and a list of
         """
-        if location.get('lat') and location.get('long'):
-            formatted_location = self.get_location_string(location)
-            url = "https://api.weather.gov/points/{}/forecast/hourly".format(
-                formatted_location)
+
+        # TODO: cache mapping between station id - lat/long - wfo,x,y to improve performance
+        if location.get('station'):
+            # Two step process.
+            # 1. get lat,long for station id
+            url = "https://api.weather.gov/stations/{}".format(
+                location.get('station').strip())
+            _log.info(f"STATIONS url:{url}")
+            gresponse = self.make_web_request(url)
+            try:
+                _log.info(f"{gresponse.content}")
+                response = jsonapi.loads(gresponse.content)
+                long_lat_list = response["geometry"]["coordinates"]
+                # . get the url to query hourly forecast data -i.e. get wfo,x, y based on  lat, long
+                url = self.get_forecast_url({"lat": long_lat_list[1], 'long': long_lat_list[0]})
+            except ValueError:
+                self.generate_response_error(url, gresponse.status_code)
+        elif location.get('lat') and location.get('long'):
+            #  get the url to query hourly forecast data -i.e. get wfo,x, y for give lat, long
+            url = self.get_forecast_url(location)
         elif location.get("wfo") and location.get("x") and location.get("y"):
             formatted_location = self.get_gridpoints_str(location)
             url = "https://api.weather.gov/" \
@@ -354,12 +365,32 @@ class WeatherDotGovAgent(BaseWeatherAgent):
         else:
             raise ValueError("Improperly formatted station ID was passed.")
         _log.debug("Request Url: {}".format(url))
+        gresponse = self.make_web_request(url)
+        return self.extract_forecast_data(url, gresponse)
+
+    def get_forecast_url(self, location):
+        formatted_location = self.get_location_string(location)
+        url = "https://api.weather.gov/points/{}".format(
+            formatted_location)
+        gresponse = self.make_web_request(url)
+        try:
+            _log.info(f" after get forecast url for lat lon: response is{gresponse.content}")
+            response = jsonapi.loads(gresponse.content)
+            url = response["properties"]["forecastHourly"]
+        except ValueError:
+            self.generate_response_error(url, gresponse.status_code)
+        return url
+
+    def make_web_request(self, url):
         grequest = [grequests.get(url, verify=requests.certs.where(),
                                   headers=self.headers, timeout=3)]
         gresponse = grequests.map(grequest)[0]
         if gresponse is None:
             raise RuntimeError("get request did not return any "
                                "response")
+        return gresponse
+
+    def extract_forecast_data(self, url, gresponse):
         try:
             response = jsonapi.loads(gresponse.content)
             data = []
@@ -373,7 +404,6 @@ class WeatherDotGovAgent(BaseWeatherAgent):
             return generation_time, data
         except ValueError:
             self.generate_response_error(url, gresponse.status_code)
-
 
     def query_hourly_historical(self, location, start_date, end_date):
         """

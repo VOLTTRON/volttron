@@ -227,7 +227,7 @@ class SecurityAgent(Agent):
                 else:
                     if os.access(file_path, os.R_OK):
                         return "Agent user has read access to file {}" \
-                            "Should have read access only to {}".format(file_path, paths)
+                            "\nShould have read access only to {}".format(file_path, paths)
 
                 if os.access(file_path, os.W_OK):
                         return "Agent user has write access to file {}".format(file_path)

@@ -44,14 +44,12 @@ import os
 from pathlib import Path
 import sys
 import tempfile
-import traceback
-import uuid
 
 import gevent
 import yaml
 
 from volttron.platform.vip.agent.results import AsyncResult
-from volttron.platform import agent, config, jsonapi, get_home
+from volttron.platform import jsonapi, get_home
 from volttron.platform.agent.utils import execute_command
 from volttron.platform.packaging import add_files_to_package, create_package
 
@@ -450,6 +448,9 @@ def send_agent(connection: "ControlConnection", wheel_file: str, vip_identity: s
     gevent.wait([result], timeout=300)
     _log.debug("Completed sending of agent across.")
     _log.debug(f"After wait result is {result}")
+    if os.path.exists(wheel_file):
+        # remove local wheel after sending
+        os.remove(wheel_file)
     return result
 
 

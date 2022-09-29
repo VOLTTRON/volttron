@@ -52,9 +52,15 @@ from volttrontesting.fixtures.volttron_platform_fixtures import get_rand_vip
 from volttrontesting.utils.platformwrapper import PlatformWrapper
 from volttron.platform.auth.certs import Certs
 from volttron.platform import get_examples
-from volttron.utils.rmq_setup import stop_rabbit, start_rabbit, restart_ssl
 
-fqdn=None
+from volttron.platform import is_rabbitmq_available
+
+if is_rabbitmq_available():
+    from volttron.utils.rmq_setup import stop_rabbit, restart_ssl
+else:
+    pytest.skip("Pika is not installed", allow_module_level=True)
+
+fqdn = None
 with open('/etc/hostname', 'r') as f:
     fqdn = f.read().strip()
 
@@ -65,7 +71,7 @@ def instance(request):
     yield instance
 
     if instance.is_running():
-       instance.shutdown_platform()
+        instance.shutdown_platform()
     # In case platform was just killed
     stop_rabbit(rmq_home=instance.rabbitmq_config_obj.rmq_home, env=instance.env, quite=True)
 
@@ -84,7 +90,7 @@ def test_vstart_without_rmq_init(request, instance):
         os.rename(
             os.path.join(instance.volttron_home, "certificates"),
             os.path.join(instance.volttron_home, "certs_backup")
-            )
+        )
         try:
             instance.startup_platform(vip_address=get_rand_vip())
             pytest.fail("Instance should not start without certs, but it does!")
@@ -116,7 +122,7 @@ def test_vstart_expired_ca_cert(request, instance):
                 'L': 'Richland',
                 'O': 'pnnl',
                 'OU': 'volttron',
-                'CN': instance.instance_name+"_root_ca"}
+                'CN': instance.instance_name + "_root_ca"}
         crts.create_root_ca(valid_days=0.0001, **data)
         copy(crts.cert_file(crts.root_ca_name),
              crts.cert_file(crts.trusted_ca_name))
@@ -185,7 +191,6 @@ def test_vstart_expired_admin_cert(request, instance):
 
         crts.create_signed_cert_files(admin_cert_name, cert_type='client',
                                       fqdn=fqdn, valid_days=0.0001)
-        gevent.sleep(20)
         instance.startup_platform(vip_address=get_rand_vip())
         gevent.sleep(5)
         assert instance.is_running()
@@ -193,7 +198,7 @@ def test_vstart_expired_admin_cert(request, instance):
         # MGMT PLUGIN DOES NOT COMPLAIN ABOUT EXPIRED ADMIN CERT?? May be because we send the password too ?
         cmd = ['volttron-ctl', 'rabbitmq', 'list-users']
         process = subprocess.Popen(cmd, env=instance.env,
-                        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     except Exception as e:
         pytest.fail("Test failed with exception: {}".format(e))
 
@@ -285,7 +290,6 @@ def test_expired_server_cert_after_vstart(request, instance):
             pytest.fail("Agent install should fail")
         assert exec_info.type is RuntimeError
 
-
         # Restore server cert and restart rmq ssl, wait for 30 seconds for volttron to reconnect
         crts.create_signed_cert_files(server_cert_name, cert_type='server', fqdn=fqdn)
         restart_ssl(rmq_home=instance.rabbitmq_config_obj.rmq_home, env=instance.env)
@@ -298,4 +302,3 @@ def test_expired_server_cert_after_vstart(request, instance):
         instance.remove_agent(agent)
     except Exception as e:
         pytest.fail("Test failed with exception: {}".format(e))
-

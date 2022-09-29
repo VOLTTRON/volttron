@@ -1585,7 +1585,7 @@ def test_get_multiple_points_captures_errors_on_nonexistent_point(publish_agent,
 
     assert results == {}
     assert errors['fakedriver0/nonexistentpoint'] == \
-           "DriverInterfaceError('Point not configured on device: nonexistentpoint',)"
+           "DriverInterfaceError('Point not configured on device: nonexistentpoint')"
 
 
 @pytest.mark.parametrize("invalid_topics, topic_key", [
@@ -1596,7 +1596,7 @@ def test_get_multiple_points_captures_errors_on_nonexistent_point(publish_agent,
 def test_get_multiple_points_captures_errors_on_invalid_topic(publish_agent, cancel_schedules, invalid_topics, topic_key):
     results, errors = publish_agent.vip.rpc.call('platform.actuator', 'get_multiple_points', invalid_topics).get(timeout=10)
     assert results == {}
-    assert errors[topic_key] == f"ValueError('Invalid topic: {topic_key}',)"
+    assert errors[topic_key] == f"ValueError('Invalid topic: {topic_key}')"
 
 
 @pytest.mark.parametrize(
@@ -1733,8 +1733,7 @@ def test_set_multiple_points_captures_errors_on_invalid_topic(publish_agent, can
         'set_multiple_points',
         agentid,
         [(invalid_topics, 42.42)]).get(timeout=10)
-
-    assert result[topic_key] == f"ValueError('Invalid topic: {topic_key}',)"
+    assert result[topic_key] == f"ValueError('Invalid topic: {topic_key}')"
 
 
 @pytest.mark.actuator

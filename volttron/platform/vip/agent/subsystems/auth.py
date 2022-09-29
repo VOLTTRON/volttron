@@ -292,16 +292,19 @@ class Auth(SubsystemBase):
             # if using ipc connection or if agent's connecting to same instance as the local instance update rpc auth
             # if not agent is connecting to remote platform
             if self._core().address.startswith("ipc") or local_instance_name == self._core().instance_name:
-                updated_rpc_authorizations = (
-                    self._rpc()
-                    .call(
-                        AUTH,
-                        "update_id_rpc_authorizations",
-                        self._core().identity,
-                        rpc_method_authorizations,
+                try:
+                    updated_rpc_authorizations = (
+                        self._rpc()
+                        .call(
+                            AUTH,
+                            "update_id_rpc_authorizations",
+                            self._core().identity,
+                            rpc_method_authorizations,
+                        )
+                        .get(timeout=4)
                     )
-                    .get(timeout=4)
-                )
+                except gevent.Timeout:
+                    _log.warning(f"Couldn't update authorization for {self._core().identity} in a timely manner.")
             else:
                 _log.info(
                     f"Skipping updating rpc auth capabilities for agent "

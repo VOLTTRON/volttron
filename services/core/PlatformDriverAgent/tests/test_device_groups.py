@@ -44,7 +44,7 @@ import pytest
 import gevent
 
 from volttron.platform import get_services_core
-from volttron.platform.agent.known_identities import CONFIGURATION_STORE, PLATFORM_DRIVER
+from volttron.platform.agent.known_identities import PLATFORM_DRIVER
 from volttron.platform.vip.agent import Agent
 from volttron.platform.messaging import topics
 from volttron.platform.agent.utils import parse_timestamp_string
@@ -71,15 +71,19 @@ class _subscriber_agent(Agent):
 
     def add_result(self, peer, sender, bus, topic, headers, message):
         print("message published to", topic)
-        self.publish_results[topic] = get_normalized_time_offset(headers['TimeStamp'])
+        self.publish_results[topic] = get_normalized_time_offset(headers["TimeStamp"])
 
 
 @pytest.fixture(scope="module")
 def subscriber_agent(volttron_instance):
 
-    agent = volttron_instance.build_agent(identity='subscriber_agent', agent_class=_subscriber_agent)
+    agent = volttron_instance.build_agent(
+        identity="subscriber_agent", agent_class=_subscriber_agent
+    )
 
-    agent.vip.pubsub.subscribe(peer='pubsub', prefix=topics.DRIVER_TOPIC_BASE, callback=agent.add_result).get()
+    agent.vip.pubsub.subscribe(
+        peer="pubsub", prefix=topics.DRIVER_TOPIC_BASE, callback=agent.add_result
+    ).get()
 
     yield agent
 
@@ -110,7 +114,6 @@ platform_driver_config = """
 }}
 """
 
-
 registry_config_string = """Point Name,Volttron Point Name,Units,Units Details,Writable,Starting Value,Type,Notes
 Float,Float,F,-100 to 300,TRUE,50,float,CO2 Reading 0.00-2000.0 ppm
 FloatNoDefault,FloatNoDefault,F,-100 to 300,TRUE,,float,CO2 Reading 0.00-2000.0 ppm
@@ -118,59 +121,72 @@ FloatNoDefault,FloatNoDefault,F,-100 to 300,TRUE,,float,CO2 Reading 0.00-2000.0 
 
 
 @pytest.fixture(scope="module")
-def config_store_connection(volttron_instance):
-    capabilities = [{'edit_config_store': {'identity': PLATFORM_DRIVER}}]
-    connection = volttron_instance.build_connection(peer=CONFIGURATION_STORE, capabilities=capabilities)
+def test_agent(volttron_instance):
+    """
+    Build a test_agent, PlatformDriverAgent
+    """
+
+    # Build a test agent
+    md_agent = volttron_instance.build_agent(identity="test_md_agent")
     gevent.sleep(1)
-    # Reset platform driver config store
-    connection.call("manage_delete_store", PLATFORM_DRIVER)
 
-    # Start the platform driver agent which would in turn start the fake driver
-    #  using the configs created above
+    if volttron_instance.auth_enabled:
+        capabilities = {"edit_config_store": {"identity": PLATFORM_DRIVER}}
+        volttron_instance.add_capabilities(md_agent.core.publickey, capabilities)
+
+    # Clean out platform driver configurations
+    # wait for it to return before adding new config
+    md_agent.vip.rpc.call("config.store", "manage_delete_store", PLATFORM_DRIVER).get()
+
+    # Add a fake.csv to the config store
+    md_agent.vip.rpc.call(
+        "config.store",
+        "manage_store",
+        PLATFORM_DRIVER,
+        "fake.csv",
+        registry_config_string,
+        config_type="csv",
+    ).get()
+
+    # install the PlatformDriver
     platform_uuid = volttron_instance.install_agent(
-        agent_dir=get_services_core("PlatformDriverAgent"),
-        config_file={},
-        start=True)
-    print("agent id: ", platform_uuid)
-    gevent.sleep(2)  # wait for the agent to start and start the devices
+        agent_dir=get_services_core("PlatformDriverAgent"), config_file={}, start=True
+    )
 
-    yield connection
+    gevent.sleep(10)  # wait for the agent to start and start the devices
+
+    yield md_agent
 
     volttron_instance.stop_agent(platform_uuid)
-    volttron_instance.remove_agent(platform_uuid)
-    connection.kill()
+    md_agent.core.stop()
 
 
-@pytest.fixture(scope="function")
-def config_store(config_store_connection):
-    # Always have fake.csv ready to go.
-    print("Adding fake.csv into store")
-    config_store_connection.call("manage_store", PLATFORM_DRIVER, "fake.csv", registry_config_string, config_type="csv")
-
-    yield config_store_connection
-
-    print("Resetting platform driver config store")
-    config_store_connection.call("manage_delete_store", PLATFORM_DRIVER)
-    gevent.sleep(0.1)
-
-
-def setup_config(config_store, config_name, config_string, **kwargs):
+def setup_config(test_agent, config_name, config_string, **kwargs):
     config = config_string.format(**kwargs)
     print("Adding", config_name, "to store")
-    config_store.call("manage_store", PLATFORM_DRIVER, config_name, config, config_type="json")
+    test_agent.vip.rpc.call(
+        "config.store",
+        "manage_store",
+        PLATFORM_DRIVER,
+        config_name,
+        config,
+        config_type="json",
+    ).get()
 
 
-def remove_config(config_store, config_name):
+def remove_config(test_agent, config_name):
     print("Removing", config_name, "from store")
-    config_store.call("manage_delete_config", PLATFORM_DRIVER, config_name)
+    test_agent.vip.rpc.call(
+        "config.store", "manage_delete_config", PLATFORM_DRIVER, config_name
+    ).get()
 
 
 @pytest.mark.driver
-def test_no_groups(config_store, subscriber_agent):
-    setup_config(config_store, "config", platform_driver_config, interval=0)
-    setup_config(config_store, "devices/fake0", fake_device_config, group=0)
-    setup_config(config_store, "devices/fake1", fake_device_config, group=0)
-    setup_config(config_store, "devices/fake2", fake_device_config, group=0)
+def test_no_groups(test_agent, subscriber_agent):
+    setup_config(test_agent, "config", platform_driver_config, interval=0)
+    setup_config(test_agent, "devices/fake0", fake_device_config, group=0)
+    setup_config(test_agent, "devices/fake1", fake_device_config, group=0)
+    setup_config(test_agent, "devices/fake2", fake_device_config, group=0)
 
     subscriber_agent.reset_results()
 
@@ -185,11 +201,11 @@ def test_no_groups(config_store, subscriber_agent):
 
 
 @pytest.mark.driver
-def test_groups_no_interval(config_store, subscriber_agent):
-    setup_config(config_store, "config", platform_driver_config, interval=0)
-    setup_config(config_store, "devices/fake0", fake_device_config, group=0)
-    setup_config(config_store, "devices/fake1", fake_device_config, group=1)
-    setup_config(config_store, "devices/fake2", fake_device_config, group=2)
+def test_groups_no_interval(test_agent, subscriber_agent):
+    setup_config(test_agent, "config", platform_driver_config, interval=0)
+    setup_config(test_agent, "devices/fake0", fake_device_config, group=0)
+    setup_config(test_agent, "devices/fake1", fake_device_config, group=1)
+    setup_config(test_agent, "devices/fake2", fake_device_config, group=2)
 
     subscriber_agent.reset_results()
 
@@ -204,11 +220,11 @@ def test_groups_no_interval(config_store, subscriber_agent):
 
 
 @pytest.mark.driver
-def test_groups_interval(config_store, subscriber_agent):
-    setup_config(config_store, "config", platform_driver_config, interval=0.5)
-    setup_config(config_store, "devices/fake0", fake_device_config, group=0)
-    setup_config(config_store, "devices/fake1", fake_device_config, group=1)
-    setup_config(config_store, "devices/fake2", fake_device_config, group=1)
+def test_groups_interval(test_agent, subscriber_agent):
+    setup_config(test_agent, "config", platform_driver_config, interval=0.5)
+    setup_config(test_agent, "devices/fake0", fake_device_config, group=0)
+    setup_config(test_agent, "devices/fake1", fake_device_config, group=1)
+    setup_config(test_agent, "devices/fake2", fake_device_config, group=1)
 
     subscriber_agent.reset_results()
 
@@ -220,64 +236,3 @@ def test_groups_interval(config_store, subscriber_agent):
     assert results["devices/fake0/all"] == 0
     assert results["devices/fake1/all"] == 5
     assert results["devices/fake2/all"] == 6
-
-
-@pytest.mark.driver
-def test_add_remove_drivers(config_store, subscriber_agent):
-    setup_config(config_store, "config", platform_driver_config, interval=0.5)
-    setup_config(config_store, "devices/fake0_0", fake_device_config, group=0)
-    setup_config(config_store, "devices/fake0_1", fake_device_config, group=0)
-    setup_config(config_store, "devices/fake0_2", fake_device_config, group=0)
-    setup_config(config_store, "devices/fake1_0", fake_device_config, group=1)
-    setup_config(config_store, "devices/fake1_1", fake_device_config, group=1)
-    setup_config(config_store, "devices/fake1_2", fake_device_config, group=1)
-
-    subscriber_agent.reset_results()
-
-    # Give it enough time to publish at least once.
-    gevent.sleep(2)
-
-    results = subscriber_agent.get_results()
-
-    assert results["devices/fake0_0/all"] == 0
-    assert results["devices/fake0_1/all"] == 1
-    assert results["devices/fake0_2/all"] == 2
-    assert results["devices/fake1_0/all"] == 5
-    assert results["devices/fake1_1/all"] == 6
-    assert results["devices/fake1_2/all"] == 7
-
-    remove_config(config_store, "devices/fake0_1")
-    remove_config(config_store, "devices/fake1_1")
-
-    subscriber_agent.reset_results()
-
-    # Give it enough time to publish at least once.
-    gevent.sleep(2)
-
-    results = subscriber_agent.get_results()
-
-    assert results["devices/fake0_0/all"] == 0
-    assert results["devices/fake0_2/all"] == 2
-    assert results["devices/fake1_0/all"] == 5
-    assert results["devices/fake1_2/all"] == 7
-
-    assert "devices/fake0_1/all" not in results
-    assert "devices/fake1_1/all" not in results
-
-    setup_config(config_store, "devices/fake0_1", fake_device_config, group=0)
-    setup_config(config_store, "devices/fake1_1", fake_device_config, group=1)
-
-    subscriber_agent.reset_results()
-
-    # Give it enough time to publish at least once.
-    gevent.sleep(2)
-
-    results = subscriber_agent.get_results()
-
-    assert results["devices/fake0_0/all"] == 0
-    assert results["devices/fake0_1/all"] == 1
-    assert results["devices/fake0_2/all"] == 2
-    assert results["devices/fake1_0/all"] == 5
-    assert results["devices/fake1_1/all"] == 6
-    assert results["devices/fake1_2/all"] == 7
-

@@ -40,9 +40,8 @@
 import os
 
 from volttron.platform.web import DiscoveryInfo
+from volttrontesting.platform.web.test_web_authentication import skip_non_auth
 
-from volttrontesting.utils.web_utils import get_test_web_env
-from volttrontesting.fixtures.volttron_platform_fixtures import volttron_instance_web
 
 def test_discovery_endpoint(volttron_instance_web):
     """
@@ -50,11 +49,12 @@ def test_discovery_endpoint(volttron_instance_web):
     :param volttron_instance_web:
     :return:
         """
+    skip_non_auth(volttron_instance_web)
     wrapper = volttron_instance_web
 
     # Both http and https start with http
     assert wrapper.bind_web_address.startswith('http')
-    if wrapper.messagebus == 'rmq':
+    if wrapper.messagebus == 'rmq' or wrapper.bind_web_address.startswith('https'):
         os.environ['REQUESTS_CA_BUNDLE'] = wrapper.requests_ca_bundle
 
     info = DiscoveryInfo.request_discovery_info(wrapper.bind_web_address)

@@ -59,7 +59,7 @@ def certs_profile_2(certificate_dir, fqdn=None, num_server_certs=1, num_client_c
 
     Usage:
 
-        certs = certs_profile_1("/tmp/abc", 1, 2)
+        certs = certs_profile_2("/tmp/abc", 1, 2)
             ...
 
     :param certificate_dir:

@@ -44,17 +44,19 @@ When all_platforms=True, historian will subscribe to topics from all connected p
 
 import gevent
 import pytest
-from urllib.parse import urlparse
 import os
 
 from volttron.platform import get_examples
 from volttron.platform.agent.known_identities import CONTROL
 from volttrontesting.fixtures.volttron_platform_fixtures import build_wrapper
-from volttrontesting.utils.utils import get_hostname_and_random_port, get_rand_vip, get_rand_ip_and_port
-from volttron.utils import rmq_mgmt
+from volttrontesting.utils.utils import get_hostname_and_random_port, get_rand_vip
 from volttrontesting.utils.platformwrapper import with_os_environ
-from volttron.utils.rmq_mgmt import RabbitMQMgmt
-from volttron.utils.rmq_setup import start_rabbit
+from volttron.platform import is_rabbitmq_available
+if is_rabbitmq_available():
+    from volttron.utils.rmq_mgmt import RabbitMQMgmt
+    from volttron.utils.rmq_setup import start_rabbit
+else:
+    pytest.skip("Pika is not installed", allow_module_level=True)
 
 
 @pytest.fixture(scope="module")

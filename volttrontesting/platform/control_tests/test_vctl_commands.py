@@ -11,7 +11,7 @@ import yaml
 from volttron.platform import get_examples
 from volttron.platform import jsonapi
 from volttron.platform.agent.utils import execute_command
-from volttrontesting.utils.platformwrapper import with_os_environ, PlatformWrapper
+from volttrontesting.utils.platformwrapper import with_os_environ, PlatformWrapper, create_volttron_home
 
 listener_agent_dir = get_examples("ListenerAgent")
 
@@ -26,14 +26,12 @@ def test_needs_connection():
     )
     stdout, stderr = p.communicate()
     try:
-        assert "VOLTTRON is not running. This command requires VOLTTRON platform to be running" in stderr.decode(
-            "utf-8")
+        assert "VOLTTRON is not running. This command requires VOLTTRON platform to be running" in stderr.decode("utf-8")
     except AssertionError:
         assert not stderr.decode("utf-8")
 
-
 @pytest.mark.control
-def test_needs_connection_with_connection():
+def test_needs_connection_with_connection(volttron_instance: PlatformWrapper):
     # Verify peerlist command works when instance is running
     p = subprocess.Popen(
         ["volttron-ctl", "peerlist"],
@@ -48,12 +46,16 @@ def test_needs_connection_with_connection():
 
 
 @pytest.mark.control
-def test_no_connection():
+def test_no_connection(volttron_instance: PlatformWrapper):
     # Test command that doesn't need instance running.
+    wrapper = PlatformWrapper(ssl_auth=False,
+                              auth_enabled=False
+                              )
     p = subprocess.Popen(
         ["volttron-ctl", "list"],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
+        env=wrapper.env
     )
     stdout, stderr = p.communicate()
     try:
@@ -435,10 +437,10 @@ def test_vctl_start_stop_restart_by_tag_should_succeed(volttron_instance: Platfo
         ]
         # install tagged agent
         agent_uuid = jsonapi.loads(execute_command(install_listener, volttron_instance.env))['agent_uuid']
-
         # check that agent have not been started
         check_agent_status = ["vctl", "--json", "status", agent_uuid]
         agent_status = jsonapi.loads(execute_command(check_agent_status, volttron_instance.env))
+        print(agent_status)
         assert not agent_status[identity]['health']
         assert not agent_status[identity]['status']
 
@@ -575,10 +577,19 @@ def test_vctl_start_stop_restart_by_all_tagged_should_succeed(volttron_instance:
         volttron_instance.remove_all_agents()
 
 
-@pytest.mark.parametrize("subcommand", [("start"), ("stop"), ("restart")])
-def test_vctl_start_stop_restart_should_raise_error_on_invalid_options(volttron_instance: PlatformWrapper, subcommand):
-    invalid_options = ["--all", "--foo", "--anything", "--all-taggeD", "--TaG", "--n", "--u"]
-    with with_os_environ(volttron_instance.env):
+@pytest.mark.parametrize("subcommand, invalid_option", [
+        ("start", "--all-taggeD"), ("stop","--all-taggeD"), ("restart","--all-taggeD"),
+        ("start", "--all"), ("stop","--all"), ("restart","--all")
+        ]
+    )
+def test_vctl_start_stop_restart_should_raise_error_on_invalid_options(volttron_instance: PlatformWrapper, subcommand, invalid_option):
+    with with_os_environ(volttron_instance.env):        
         with pytest.raises(RuntimeError):
-            for inval_opt in invalid_options:
-                execute_command(["vctl", subcommand, inval_opt], volttron_instance.env)
+            execute_command(["vctl", subcommand, invalid_option], volttron_instance.env)
+
+@pytest.mark.parametrize("subcommand, valid_option", [("start", "--all-tagged"), ("stop","--all-tagged"), ("restart","--all-tagged")])
+def test_vctl_start_stop_restart_should_not_fail_on_when_no_agents_are_installed(volttron_instance: PlatformWrapper, subcommand, valid_option):
+    with with_os_environ(volttron_instance.env):            
+        execute_command(["vctl", subcommand, valid_option], volttron_instance.env)
+        assert not jsonapi.loads(execute_command(["vctl", "--json", "status"], volttron_instance.env))
+        

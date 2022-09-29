@@ -41,7 +41,6 @@ import sys
 import re
 from volttron.platform import jsonapi
 from volttron.platform.agent.utils import is_secure_mode
-from volttron.platform.vip.agent import Agent
 
 _stdout = sys.stdout
 _stderr = sys.stderr
@@ -111,35 +110,38 @@ def _print_two_columns(dict_, key_name, value_name):
 
 
 def filter_agents(agents, patterns, opts):
-    by_name, by_tag, by_uuid = opts.by_name, opts.by_tag, opts.by_uuid
+    by_name, by_tag, by_uuid, by_all_tagged = opts.by_name, opts.by_tag, opts.by_uuid, opts.by_all_tagged
     for pattern in patterns:
         regex, _ = escape(pattern)
-        result = set()
-
+        filtered_agents = set()
+        
         # if no option is selected, try matching based on uuid
-        if not (by_uuid or by_name or by_tag):
+        if not (by_uuid or by_name or by_tag or by_all_tagged):
             reobj = re.compile(regex)
             matches = [agent for agent in agents if reobj.match(agent.uuid)]
             if len(matches) == 1:
-                result.update(matches)
+                filtered_agents.update(matches)
             # if no match is found based on uuid, try matching on agent name
             elif len(matches) == 0:
                 matches = [agent for agent in agents if
                            reobj.match(agent.name)]
                 if len(matches) >= 1:
-                    result.update(matches)
+                    filtered_agents.update(matches)
         else:
             reobj = re.compile(regex + "$")
             if by_uuid:
-                result.update(
+                filtered_agents.update(
                     agent for agent in agents if reobj.match(agent.uuid))
             if by_name:
-                result.update(
+                filtered_agents.update(
                     agent for agent in agents if reobj.match(agent.name))
             if by_tag:
-                result.update(
+                filtered_agents.update(
                     agent for agent in agents if reobj.match(agent.tag or ""))
-        yield pattern, result
+            if by_all_tagged:
+                filtered_agents.update(
+                    agent for agent in agents if reobj.match(agent.tag))
+        yield pattern, filtered_agents
 
 
 def filter_agent(agents, pattern, opts):

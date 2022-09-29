@@ -1,11 +1,6 @@
-from configparser import ConfigParser
-import contextlib
-import os
-import shutil
 from io import BytesIO
-from mock import Mock
 
-from volttrontesting.utils.platformwrapper import create_volttron_home
+from mock import Mock
 
 
 def get_test_web_env(path, input_data: bytes = None, query_string='', url_scheme='http', method='GET',
@@ -48,7 +43,7 @@ def get_test_web_env(path, input_data: bytes = None, query_string='', url_scheme
         'HTTP_HOST': 'v2:8080',
         'HTTP_CONNECTION': 'keep-alive',
         'HTTP_CACHE_CONTROL': 'max-age=0',
-        'HTTP_UPGRADE_INSECURE_REQUESTS':  '1',
+        'HTTP_UPGRADE_INSECURE_REQUESTS': '1',
         'HTTP_USER_AGENT': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/76.0.3809.132 Safari/537.36',
         'HTTP_ACCEPT': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3',
         'HTTP_ACCEPT_ENCODING': 'gzip, deflate',
@@ -68,30 +63,3 @@ def get_test_web_env(path, input_data: bytes = None, query_string='', url_scheme
         stdenvvars[k] = v
 
     return stdenvvars
-
-#
-# @contextlib.contextmanager
-# def get_test_volttron_home(volttron_config_params: dict = None, volttron_home=None):
-#     if volttron_home is None:
-#         volttron_home = create_volttron_home()
-#     # Because we also can take in a volttron_home we want to make sure that
-#     # we have made the directory before going on.
-#     os.makedirs(volttron_home, exist_ok=True)
-#     original_home = os.environ.get('VOLTTRON_HOME')
-#     os.environ['VOLTTRON_HOME'] = volttron_home
-#     if volttron_config_params:
-#         config_path = os.path.join(volttron_home, "config")
-#         conf = ConfigParser()
-#         conf.add_section("volttron")
-#         for k, v in volttron_config_params.items():
-#             conf.set("volttron", k, v)
-#         with open(config_path, 'w') as fp:
-#             conf.write(fp)
-#
-#     yield volttron_home
-#
-#     if original_home is None:
-#         os.environ.unsetenv('VOLTTRON_HOME')
-#     else:
-#         os.environ['VOLTTRON_HOME'] = original_home
-#     shutil.rmtree(volttron_home, ignore_errors=True)

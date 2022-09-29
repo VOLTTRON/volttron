@@ -43,10 +43,6 @@ import logging
 from volttron.platform.agent.known_identities import CONTROL_CONNECTION, PROCESS_IDENTITIES
 from volttron.platform.agent.utils import format_timestamp
 from volttron.platform.vip.agent import Agent, Core, RPC
-from volttron.platform.agent import utils
-from datetime import timedelta
-from volttron.utils.rmq_config_params import RMQConfig
-from volttron.utils.rmq_setup import start_rabbit, RabbitMQStartError
 
 _log = logging.getLogger(__name__)
 

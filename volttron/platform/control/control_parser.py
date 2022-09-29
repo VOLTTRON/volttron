@@ -79,11 +79,12 @@ from volttron.platform.jsonrpc import RemoteError
 from volttron.platform.keystore import KeyStore, KnownHostsStore
 
 from volttron.platform.vip.agent.errors import VIPError, Unreachable
-
-from volttron.utils.rmq_config_params import RMQConfig
-from volttron.utils.rmq_setup import check_rabbit_status
 from volttron.platform.agent.utils import is_secure_mode, wait_for_volttron_shutdown
 from volttron.platform.control.install_agents import add_install_agent_parser, InstallRuntimeError
+from volttron.platform import is_rabbitmq_available
+if is_rabbitmq_available():
+    from volttron.utils.rmq_setup import check_rabbit_status
+    from volttron.utils.rmq_config_params import RMQConfig
 
 try:
     import volttron.restricted
@@ -343,42 +344,53 @@ def disable_agent(opts):
 
 
 def start_agent(opts):
-    call = opts.connection.call
-    agents = _list_agents(opts.aip)
-    for pattern, match in filter_agents(agents, opts.pattern, opts):
-        if not match:
-            _stderr.write(
-                "{}: error: agent not found: {}\n".format(opts.command,
-                                                          pattern)
-            )
-        for agent in match:
-            pid, status = call("agent_status", agent.uuid)
-            if pid is None or status is not None:
-                _stdout.write(
-                    "Starting {} {}\n".format(agent.uuid, agent.name))
-                call("start_agent", agent.uuid)
+    act_on_agent("start_agent", opts)
 
 
 def stop_agent(opts):
-    call = opts.connection.call
-    agents = _list_agents(opts.aip)
-    for pattern, match in filter_agents(agents, opts.pattern, opts):
-        if not match:
-            _stderr.write(
-                "{}: error: agent not found: {}\n".format(opts.command,
-                                                          pattern)
-            )
-        for agent in match:
-            pid, status = call("agent_status", agent.uuid)
-            if pid and status is None:
-                _stdout.write(
-                    "Stopping {} {}\n".format(agent.uuid, agent.name))
-                call("stop_agent", agent.uuid)
+    act_on_agent("stop_agent", opts)
 
 
 def restart_agent(opts):
     stop_agent(opts)
     start_agent(opts)
+
+
+def act_on_agent(action, opts):
+    call = opts.connection.call
+    agents = _list_agents(opts.aip)
+    pattern_to_use = opts.pattern
+
+    if not opts.by_all_tagged and not opts.pattern:
+        raise ValueError("Missing search pattern.")
+    
+    if opts.by_all_tagged and not agents:
+        return
+
+    # when all-tagged option is used, prefilter agents that are tagged and set search pattern to *
+    if opts.by_all_tagged and not opts.pattern:
+        agents, pattern_to_use = [a for a in agents if a.tag is not None], '*'
+    
+    # filter agents and update regex pattern
+    for pattern, filtered_agents in filter_agents(agents, pattern_to_use, opts):
+        if not filtered_agents:
+            _stderr.write(f"Agents NOT found using 'vctl {opts.command}' on pattern: {pattern}\n")
+        for agent in filtered_agents:
+            pid, status = call("agent_status", agent.uuid)
+            _call_action_on_agent(agent, pid, status, call,  action)
+
+def _call_action_on_agent(agent, pid, status, call, action):
+    if action == "start_agent":
+        if pid is None or status is not None:
+            _stdout.write(f"Starting {agent.uuid} {agent.name}\n")
+            call(action, agent.uuid)
+            return
+
+    if action == "stop_agent":
+        if pid and status is None:
+            _stdout.write(f"Stopping {agent.uuid} {agent.name}\n")
+            call(action, agent.uuid)
+            return
 
 
 def run_agent(opts):
@@ -561,12 +573,16 @@ def main():
         help="filter/search by tag name"
     )
     filterable.add_argument(
+        "--all-tagged", dest="by_all_tagged", action="store_true",
+        help="filter/search by all tagged agents"
+    )
+    filterable.add_argument(
         "--uuid",
         dest="by_uuid",
         action="store_true",
         help="filter/search by UUID (default)",
     )
-    filterable.set_defaults(by_name=False, by_tag=False, by_uuid=False)
+    filterable.set_defaults(by_name=False, by_tag=False, by_all_tagged=False, by_uuid=False)
 
     parser = config.ArgumentParser(
         prog=os.path.basename(sys.argv[0]),
@@ -722,7 +738,7 @@ def main():
 
     start = add_parser("start", parents=[filterable],
                        help="start installed agent")
-    start.add_argument("pattern", nargs="+", help="UUID or name of agent")
+    start.add_argument("pattern", nargs="*", help="UUID or name of agent", default='')
     if HAVE_RESTRICTED:
         start.add_argument(
             "--verify",
@@ -739,11 +755,11 @@ def main():
     start.set_defaults(func=start_agent)
 
     stop = add_parser("stop", parents=[filterable], help="stop agent")
-    stop.add_argument("pattern", nargs="+", help="UUID or name of agent")
+    stop.add_argument("pattern", nargs="*", help="UUID or name of agent", default='')
     stop.set_defaults(func=stop_agent)
 
     restart = add_parser("restart", parents=[filterable], help="restart agent")
-    restart.add_argument("pattern", nargs="+", help="UUID or name of agent")
+    restart.add_argument("pattern", nargs="*", help="UUID or name of agent", default='')
     restart.set_defaults(func=restart_agent)
 
     run = add_parser("run", help="start any agent by path")

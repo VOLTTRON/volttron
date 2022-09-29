@@ -1,12 +1,8 @@
-import os
 import json
 from urllib.parse import urlencode
 
 import gevent
-from datetime import datetime, timedelta
-from mock import MagicMock
 from deepdiff import DeepDiff
-
 import pytest
 
 try:
@@ -14,22 +10,16 @@ try:
 except ImportError:
     pytest.mark.skip(reason="JWT is missing! Web is not enabled for this installation of VOLTTRON")
 
-from volttron.platform import is_rabbitmq_available
-from volttron.platform.auth import CertWrapper, Certs
+from volttron.platform.auth import CertWrapper
 from volttron.platform.agent.known_identities import AUTH
 from volttron.platform.vip.agent import Agent
 from volttron.utils import get_random_key
-from volttrontesting.utils.platformwrapper import create_volttron_home, with_os_environ
+from volttrontesting.utils.platformwrapper import create_volttron_home, with_os_environ, PlatformWrapper
 from volttrontesting.utils.web_utils import get_test_web_env
 from volttron.platform.web.admin_endpoints import AdminEndpoints
 from volttron.platform.web.authenticate_endpoint import AuthenticateEndpoints
 from volttrontesting.fixtures.cert_fixtures import certs_profile_1
-from volttrontesting.fixtures.volttron_platform_fixtures import get_test_volttron_home, volttron_instance_web
-
-# HAS_RMQ = is_rabbitmq_available()
-# ci_skipif = pytest.mark.skipif(os.getenv('CI', None) == 'true', reason='SSL does not work in CI')
-# rmq_skipif = pytest.mark.skipif(not HAS_RMQ,
-#                                 reason='RabbitMQ is not setup and/or SSL does not work in CI')
+from volttrontesting.fixtures.volttron_platform_fixtures import get_test_volttron_home
 
 
 @pytest.mark.parametrize("encryption_type", ("private_key", "tls"))
@@ -52,13 +42,16 @@ def test_jwt_encode(encryption_type):
 
         assert not DeepDiff(claims, new_claims)
 
+
 # Child of AuthenticateEndpoints.
 # Exactly the same but includes helper methods to set access and refresh token timeouts
 class MockAuthenticateEndpoints(AuthenticateEndpoints):
     def set_refresh_token_timeout(self, timeout):
         self.refresh_token_timeout = timeout
+
     def set_access_token_timeout(self, timeout):
         self.access_token_timeout = timeout
+
 
 # Setup test values for authenticate tests
 def set_test_admin():
@@ -70,6 +63,7 @@ def set_test_admin():
     gevent.sleep(1)
     return authorize_ep, test_user
 
+
 def test_authenticate_get_request_fails():
     with get_test_volttron_home(messagebus='zmq'):
         authorize_ep, test_user = set_test_admin()
@@ -77,6 +71,7 @@ def test_authenticate_get_request_fails():
         response = authorize_ep.handle_authenticate(env, test_user)
         assert ('Content-Type', 'text/plain') in response.headers.items()
         assert '405 Method Not Allowed' in response.status
+
 
 def test_authenticate_post_request():
     with get_test_volttron_home(messagebus='zmq'):
@@ -94,7 +89,6 @@ def test_authenticate_post_request():
 
 def test_authenticate_put_request():
     with get_test_volttron_home(messagebus='zmq'):
-
         authorize_ep, test_user = set_test_admin()
         # Get tokens for test
         env = get_test_web_env('/authenticate', method='POST')
@@ -113,7 +107,6 @@ def test_authenticate_put_request():
 
 def test_authenticate_put_request_access_expires():
     with get_test_volttron_home(messagebus='zmq'):
-
         authorize_ep, test_user = set_test_admin()
         # Get tokens for test
         env = get_test_web_env('/authenticate', method='POST')
@@ -131,9 +124,9 @@ def test_authenticate_put_request_access_expires():
         assert '200 OK' in response.status
         assert access_token != json.loads(response.response[0].decode('utf-8'))["access_token"]
 
+
 def test_authenticate_put_request_refresh_expires():
     with get_test_volttron_home(messagebus='zmq'):
-
         authorize_ep, test_user = set_test_admin()
         # Get tokens for test
         env = get_test_web_env('/authenticate', method='POST')
@@ -149,6 +142,7 @@ def test_authenticate_put_request_refresh_expires():
         response = authorize_ep.handle_authenticate(env, data={})
         assert ('Content-Type', 'text/html') in response.headers.items()
         assert "401 Unauthorized" in response.status
+
 
 def test_authenticate_delete_request():
     with get_test_volttron_home(messagebus='zmq'):
@@ -228,8 +222,26 @@ def test_authenticate_endpoint(scheme):
         assert 3 == len(response_data["access_token"].split('.'))
 
 
+def skip_non_auth(instance: PlatformWrapper):
+    if not instance.auth_enabled:
+        pytest.skip("Auth must be enabled for this test.")
+
+
+def skip_auth_rmq(instance: PlatformWrapper):
+    if instance.messagebus == 'rmq':
+        pytest.skip("Skipping for auth on the same platform.  Not an error")
+
+
+def xfail_auth_rmq(instance: PlatformWrapper):
+    if instance.messagebus == 'rmq':
+        pytest.xfail("RMQ creds test must be updated")
+        pytest.fail("RMQ creds test must be updated")
+
+
 @pytest.mark.web
-def test_get_credentials(volttron_instance_web):
+def test_get_credentials(volttron_instance_web: PlatformWrapper):
+    skip_non_auth(volttron_instance_web)
+    skip_auth_rmq(volttron_instance_web)
     instance = volttron_instance_web
     auth_pending = instance.dynamic_agent.vip.rpc.call(AUTH, "get_pending_authorizations").get()
     len_auth_pending = len(auth_pending)
@@ -247,6 +259,8 @@ def test_get_credentials(volttron_instance_web):
 
 @pytest.mark.web
 def test_accept_credential(volttron_instance_web):
+    skip_non_auth(volttron_instance_web)
+    skip_auth_rmq(volttron_instance_web)
     instance = volttron_instance_web
     auth_pending = instance.dynamic_agent.vip.rpc.call(AUTH, "get_pending_authorizations").get()
     len_auth_pending = len(auth_pending)
@@ -274,6 +288,8 @@ def test_accept_credential(volttron_instance_web):
 
 @pytest.mark.web
 def test_deny_credential(volttron_instance_web):
+    skip_non_auth(volttron_instance_web)
+    skip_auth_rmq(volttron_instance_web)
     instance = volttron_instance_web
     auth_pending = instance.dynamic_agent.vip.rpc.call(AUTH, "get_pending_authorizations").get()
     len_auth_pending = len(auth_pending)
@@ -301,6 +317,8 @@ def test_deny_credential(volttron_instance_web):
 
 @pytest.mark.web
 def test_delete_credential(volttron_instance_web):
+    skip_non_auth(volttron_instance_web)
+    skip_auth_rmq(volttron_instance_web)
     instance = volttron_instance_web
     auth_pending = instance.dynamic_agent.vip.rpc.call(AUTH, "get_pending_authorizations").get()
     print(f"Auth pending is: {auth_pending}")

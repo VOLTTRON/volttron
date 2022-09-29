@@ -436,7 +436,8 @@ class ControlService(BaseAgent):
         Install the agent through the rmq message bus.
         """
         peer = self.vip.rpc.context.vip_message.peer
-        protocol_request_size = 8192
+        # 1 megabyte
+        protocol_request_size = int(1e6)  # 102400
         protocol_message = None
         protocol_headers = None
         response_received = False
@@ -665,7 +666,7 @@ class ControlService(BaseAgent):
 
             try:
                 request_checksum = jsonapi.dumpb(["checksum"])
-                request_fetch = jsonapi.dumpb(["fetch", 1024])
+                request_fetch = jsonapi.dumpb(["fetch", int(1e6)])
                 while True:
 
                     # request a chunk of the file
