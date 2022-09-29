@@ -1,5 +1,4 @@
 # TODO: Add treelib to requirements.
-from copy import deepcopy
 from typing import Union, Iterable
 from treelib import Tree, Node
 from treelib.exceptions import DuplicatedNodeIdError, NodeIDAbsentError

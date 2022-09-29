@@ -2,9 +2,8 @@ import json
 from weakref import WeakValueDictionary
 from collections import defaultdict
 
-from volttron.platform.web.websocket import VolttronWebSocket
 from ws4py.server.geventserver import WebSocketWSGIApplication
-from ws4py.websocket import WebSocket, EchoWebSocket
+from ws4py.websocket import WebSocket
 import logging
 
 _log = logging.getLogger()
