@@ -161,7 +161,7 @@ Optional Arguments
   - **--list-agents** - Display a list of configurable agents (Listener, Platform Driver, Platform Historian, VOLTTRON
     Central, VOLTTRON Central Platform)
   - **--agent AGENT [AGENT ...]** - Configure listed agents
-  - **--secure-agent-users** - Require that agents run as their own Unix users (this requires running
+  - **--agent-isolation-mode** - Require that agents run as their own Unix users (this requires running
     `scripts/secure_user_permissions.sh` as `sudo`)
 
 RabbitMQ Arguments

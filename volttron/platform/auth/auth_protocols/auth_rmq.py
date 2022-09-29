@@ -170,7 +170,7 @@ class RMQConnectionAPI:
         permissions = self.rmq_mgmt.get_default_permissions(self.params.rmq_user)
 
         if self.ssl_auth:
-            # This could fail with permission error when running in secure mode
+            # This could fail with permission error when running in agent isolation mode
             # and agent was installed when volttron was running on ZMQ instance
             # and then switched to RMQ instance. In that case
             # vctl certs create-ssl-keypair should be used to create a cert/key pair

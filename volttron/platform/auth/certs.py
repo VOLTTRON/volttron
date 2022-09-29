@@ -696,7 +696,7 @@ class Certs:
 
     def create_requests_ca_bundle(self, agent_remote_cert_dir):
         # if this is called by agent there will be an agent specific
-        # remote cert dir in secure mode
+        # remote cert dir in agent isolation mode
         bundle_file = os.path.join(agent_remote_cert_dir, "requests_ca_bundle")
 
         with open(bundle_file, 'wb') as fp:
@@ -723,7 +723,7 @@ class Certs:
 
     def save_remote_cert(self, name, cert_string, remote_cert_dir=None):
         if remote_cert_dir:
-            # agent has its own remote cert dir in secure mode
+            # agent has its own remote cert dir in agent isolation mode
             cert_file = os.path.join(remote_cert_dir, name + ".crt")
         else:
             # default platform remote cert dir

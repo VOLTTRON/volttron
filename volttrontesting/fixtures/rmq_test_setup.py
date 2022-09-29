@@ -114,7 +114,7 @@ class RabbitTestConfig:
 
 
 def create_rmq_volttron_setup(vhome=None, ssl_auth=False, env=None,
-                              instance_name=None, secure_agent_users=False) -> RabbitTestConfig:
+                              instance_name=None, agent_isolation_mode=False) -> RabbitTestConfig:
     """
         Set-up rabbitmq broker for volttron testing:
             - Install config and rabbitmq_config.yml in VOLTTRON_HOME
@@ -130,7 +130,7 @@ def create_rmq_volttron_setup(vhome=None, ssl_auth=False, env=None,
     else:
         vhome = get_home()
 
-    if secure_agent_users:
+    if agent_isolation_mode:
         os.umask(0o007)
 
     # Build default config file object, which we will then update to fit the

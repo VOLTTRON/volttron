@@ -1,8 +1,8 @@
-.. _Running-Agents-as-Unique-Unix-User:
+.. _Agent-Isolation-Mode:
 
-============================
-Running Agents as Unix Users
-============================
+====================
+Agent Isolation Mode
+====================
 
 This VOLTTRON feature will cause the platform to create a new, unique Unix user(agent users) on the host machine for
 each agent installed on the platform.  This user will have restricted permissions for the file system, and will be used
@@ -19,9 +19,9 @@ VOLTTRON platform.
 All files and folder created by the VOLTTRON process in this mode would not have any access to others by default.
 Permission for Unix group others would be provided to specific files and folder based on VOLTTRON process requirement.
 
-It is recommended that you use a new :term:`VOLTTRON_HOME` to run VOLTTRON in secure mode.  Converting a existing
-VOLTTRON instance to secure mode is also possible but would involve some manual changes.  Please see the section
-`Porting existing volttron home to secure mode`_.
+It is recommended that you use a new :term:`VOLTTRON_HOME` to run VOLTTRON in agent isolation mode.  Converting a existing
+VOLTTRON instance to agent isolation mode is also possible but would involve some manual changes.  Please see the section
+`Porting existing volttron home to agent isolation mode`_.
 
 .. note::
 
@@ -86,13 +86,13 @@ Setup agents to run using unique users
 Creating new Agents
 ===================
 
-In this secure mode, agents will only have read write access to the agent-data directory under the agent install
+In agent isolation mode, agents will only have read write access to the agent-data directory under the agent install
 directory - `VOLTTRON_HOME/agents/<agent_uuid>/<agent_name>/<agent_name>.agent-data`. Attempting to write in any other
 folder under `VOLTTRON_HOME` **will result in permission errors**.
 
 
-Changes to existing agents in secure mode
-=========================================
+Changes to existing agents in agent isolation mode
+==================================================
 
 Due to the above change, **SQL historian has been modified to create its database by default under its agent-data
 directory** if no path is given in the config file.  If providing a path to the database in the config file, please
@@ -100,17 +100,18 @@ provide a directory where agent will have write access.  This can be an external
 (`recorded in VOLTTRON_HOME/agents/<agent-uuid>/USER_ID`) has *read, write, and execute* access.
 
 
-Porting existing VOLTTRON home to secure mode
-=============================================
+Porting existing VOLTTRON home to agent isolation mode
+======================================================
 
 When running `scripts/secure_users_permissions.sh` you will be prompted for a `VOLTTRON_HOME` directory.  If this
 directory exists and contains a volttron config file, the script will update the file locations and permissions of
 existing VOLTTRON files including installed directories.  However this step has the following limitations:
 
-#. **You will NOT be able to revert to insecure mode once the changes are done.** - Once setup is complete, changing the
-   config file manually to make parameter `secure-agent-users` to `False`, may result inconsistent VOLTTRON behavior
+#. **You will NOT be able to revert from agent isolation mode once the changes are done.** - Once setup is complete,
+   changing the config file manually to make parameter `agent-isolation-mode` to `False`, may result inconsistent
+   VOLTTRON behavior
 #. The VOLTTRON process and all agents have to be restarted to take effect
-#. **Agents can only to write to its own agent-data dir.** - If your agents writes to any directory outside
+#. **Agents can only write to its own agent-data dir.** - If your agents writes to any directory outside
    `$VOLTTRON_HOME/agents/<agent-uuid>/<agent-name>/agent-name.agent-data` move existing files and update the agent
    configuration such that the agent writes to the `agent-name.agent-data` dir.  For example, if you have a
    `SQLHistorian` which writes a `.sqlite` file to a subdirectory under `VOLTTRON_HOME` that is not

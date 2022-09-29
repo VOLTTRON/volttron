@@ -29,7 +29,7 @@ stop_process_and_wait(){
 user=$1
 pid=$2
 
-#  Verify script is run as root or using sudo because agents will be running as root in secure mode
+#  Verify script is run as root or using sudo because agents will be running as root in agent isolation mode
 if [ -z "$UID" ] || [ $UID -ne 0 ]; then
   echo "Script should be run as root user or as sudo <path to this script>/secure_stop_agent.sh"
   exit
