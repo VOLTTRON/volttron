@@ -45,7 +45,7 @@ from volttron.platform.agent.known_identities import PLATFORM_WEB, AUTH
 from volttron.platform.jsonrpc import RemoteError
 
 try:
-    from jinja2 import Environment, FileSystemLoader, select_autoescape, TemplateNotFound
+    from jinja2 import FileSystemLoader, select_autoescape, TemplateNotFound
 except ImportError:
     logging.getLogger().warning("Missing jinja2 library in admin_endpoints.py")
 
@@ -59,7 +59,6 @@ from volttron.platform.agent.web import Response
 
 from volttron.platform import get_home
 from volttron.platform import jsonapi
-from volttron.platform.auth.certs import Certs
 from volttron.utils import VolttronHomeFileReloader
 from volttron.utils.persistance import PersistentDict
 
