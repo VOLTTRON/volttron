@@ -35,7 +35,6 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-import os
 import sys
 import shutil
 from pathlib import Path
@@ -143,7 +142,7 @@ def main():
     """Upgrade auth file to function with dynamic rpc authorizations"""
     vhome = Path(get_home())
     install_dir = vhome.joinpath("agents")
-    if not os.path.exists(install_dir):
+    if not install_dir.exists():
         print("No installed agents for auth update.")
         return
     fail_if_instance_running()

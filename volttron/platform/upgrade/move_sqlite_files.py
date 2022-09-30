@@ -35,7 +35,6 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-import os
 import sys
 import shutil
 from pathlib import Path
@@ -90,8 +89,8 @@ def move_historian_cache_files(aip):
 
 def main():
     """Moves backup cache of historian (backup.sqlite files) into corresponding agent-data directory"""
-
-    if not os.path.exists(os.path.join(get_home(), "agents")):
+    install_dir = Path(get_home()).joinpath("agents")
+    if not install_dir.exists():
         print("No historians to upgrade")
         return
     fail_if_instance_running()
