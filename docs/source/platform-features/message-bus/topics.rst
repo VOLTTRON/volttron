@@ -27,15 +27,12 @@ Agents should set the `From` header.  This will allow agents to filter on the `T
 Topics
 ======
 
-
-In VOLTTRON
------------
-
 - **alerts** - Base topic for alerts published by agents and subsystems, such as agent health alerts
 - **analysis** - Base topic for analytics being used with building data
 - **config** - Base topic for managing agent configuration
-- **devices** - Base topic for data being published by drivers
 - **datalogger** - Base topic for agents wishing to record time series data
+- **devices** - Base topic for data being published by drivers
+- **devices/actuators** - Base topic used  by actuator agent for all device control actions and response
 - **heartbeat** - Topic for publishing periodic "heartbeat" or "keep-alive"
 - **market** - Base topics for market agent communication
 - **record** - Base topic for agents to record data in an arbitrary format
@@ -45,11 +42,5 @@ In VOLTTRON
 
    Other more specific topics may exist for specific agents or purposes.  Please review the documentation for the
    specific feature for more information.
-
-
-Controller Agent Topics
------------------------
-
-See the documentation for the :ref:`Actuator Agent <Actuator-Agent>`.
 
 .. |VOLTTRON| unicode:: VOLTTRON U+2122
