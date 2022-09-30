@@ -35,7 +35,6 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-
 import sys
 import shutil
 from pathlib import Path
@@ -59,11 +58,6 @@ def get_aip():
 
 
 def move_historian_cache_files(aip):
-    """
-    Moves any keystore.json from agent-data to dist-info.
-    Only applies to agents in auth file.
-    """
-
     vhome = Path(aip.env.volttron_home)
     install_dir = vhome.joinpath("agents")
     # pattern example - (/vhome/agents/uuid/agentname-version/)(backup.sqlite)
@@ -94,8 +88,11 @@ def move_historian_cache_files(aip):
 
 
 def main():
-    """Upgrade auth file to function with dynamic rpc authorizations"""
-
+    """Moves backup cache of historian (backup.sqlite files) into corresponding agent-data directory"""
+    install_dir = Path(get_home()).joinpath("agents")
+    if not install_dir.exists():
+        print("No historians to upgrade")
+        return
     fail_if_instance_running()
     aip = get_aip()
     move_historian_cache_files(aip)
