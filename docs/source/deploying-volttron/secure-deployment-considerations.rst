@@ -177,5 +177,5 @@ that agent user such that agent has write access only to its own agent-data fold
 prevents agents from accidentally or intentionally editing/deleting other volttron process or other agents' files or
 system files outside of VOLTTRON_HOME
 
-For more information, refer to :ref:`Running-Agents-as-Unique-Unix-User`.
+For more information, refer to :ref:`Agent Isolation Mode: Running Users as unique Unix user<Agent-Isolation-Mode>`.
 

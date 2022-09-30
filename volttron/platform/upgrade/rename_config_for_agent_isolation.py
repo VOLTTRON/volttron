@@ -35,30 +35,32 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-
+import os.path
 import sys
-from gevent import monkey as curious_george
-curious_george.patch_all(thread=False, select=False)
 
-from . import update_auth_file
-from . import move_sqlite_files
-from . import rename_config_for_agent_isolation
+from volttron.platform.instance_setup import fail_if_instance_running
+from volttron.platform import get_home
+
+
+def rename_config():
+    """Check if configuration 'secure-agent-users' configuration exists and if so rename to
+       agent-isolation-mode"""
+    config_path = os.path.join(get_home(), "config")
+    if os.path.exists(config_path):
+        with open(config_path, 'r') as f:
+            data = f.read()
+        data = data.replace('secure-agent-users', 'agent-isolation-mode')
+        with open(config_path, 'w') as f:
+            f.write(data)
 
 
 def main():
-    # Upgrade auth file to function with dynamic rpc authorizations
-    update_auth_file.main()
-    print("")
-    # Moves backup cache of historian (backup.sqlite files) into corresponding agent-data directory so that
-    # historian agents other than sqlitehistorian, can be upgraded to latest version using
-    # vctl install --force without losing cache data. vctl install --force will backup and restore
-    # contents of <agent-install-dir>/<agentname-version>/<agentname-version>.agent-data directory
-    # If using sqlite historian manually backup and restore sqlite historian's db before upgrading to historian version
-    # 4.0.0 or later
-    move_sqlite_files.main()
-    print("")
-    # In VOLTTRON 8.2 - secure-agent-user config has been renamed to agent-isolation-mode
-    rename_config_for_agent_isolation.main()
+    """Check if configuration 'secure-agent-users' configuration exists and if so rename to
+       agent-isolation-mode"""
+    fail_if_instance_running()
+    rename_config()
+    print("Checked for secure-agent-users configuration")
+
 
 def _main():
     """ Wrapper for main function"""
@@ -66,6 +68,7 @@ def _main():
         sys.exit(main())
     except KeyboardInterrupt:
         sys.exit(1)
+
 
 if __name__ == "__main__":
     _main()

@@ -29,9 +29,9 @@ stop_process_and_wait(){
 user=$1
 pid=$2
 
-#  Verify script is run as root or using sudo because agents will be running as root in secure mode
+#  Verify script is run as root or using sudo because agents will be running as root in agent isolation mode
 if [ -z "$UID" ] || [ $UID -ne 0 ]; then
-  echo "Script should be run as root user or as sudo <path to this script>/secure_stop_agent.sh"
+  echo "Script should be run as root user or as sudo <path to this script>/stop_agent_running_in_isolation.sh"
   exit
 fi
 
@@ -40,7 +40,7 @@ fi
 re='volttron_[0-9]+'
 if ! [[ $user =~ $re ]]; then
     echo "Invalid user $user"
-    echo "Usage: <path>/secure_stop_agent.sh <user name of requester> <pid of agent to be stopped>"
+    echo "Usage: <path>/stop_agent_running_in_isolation.sh <user name of requester> <pid of agent to be stopped>"
     exit 1
 fi
 
@@ -48,7 +48,7 @@ fi
 re='^[0-9]+$'
 if [ -z "$pid" ] || ! [[ $pid =~ $re ]]; then
     echo "Invalid process id..."
-    echo "Usage: <path>/secure_stop_agent.sh <user name of requester> <pid of agent to be stopped>"
+    echo "Usage: <path>/stop_agent_running_in_isolation.sh <user name of requester> <pid of agent to be stopped>"
     exit 2
 fi
 
@@ -59,7 +59,7 @@ exit_code="$?"
 # If exit code is not 0 for the ps command then no such pid exists
 if [ $exit_code -ne 0 ]; then
     echo "Invalid process id $pid. Process id does not correspond to any valid agent process"
-    echo "Usage: <path>/secure_stop_agent.sh <user name of requester> <pid of agent to be stopped>"
+    echo "Usage: <path>/stop_agent_running_in_isolation.sh <user name of requester> <pid of agent to be stopped>"
     exit 3
 fi
 
@@ -70,7 +70,7 @@ fi
 re="^sudo -E -u $user /.+/python.* -m .+"
 if [[ ! $command =~ $re ]]; then
     echo "Invalid process id. pid does not correspond to a volttron agent owned by user $user"
-    echo "Usage: <path>/secure_stop_agent.sh <user name of requester> <pid of agent to be stopped>"
+    echo "Usage: <path>/stop_agent_running_in_isolation.sh <user name of requester> <pid of agent to be stopped>"
     exit 4
 fi
 
@@ -80,7 +80,7 @@ exit_code="$?"
 # If exit code is not 0 for the ps command then no such pid exists
 if [ $exit_code -ne 0 ]; then
     echo "Invalid process id $pid. Process id does not have valid child process"
-    echo "Usage: <path>/secure_stop_agent.sh <user name of requester> <pid of agent to be stopped>"
+    echo "Usage: <path>/stop_agent_running_in_isolation.sh <user name of requester> <pid of agent to be stopped>"
     exit 5
 fi
 

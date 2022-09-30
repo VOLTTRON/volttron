@@ -76,18 +76,17 @@ def agent(request, volttron_instance):
         vip_identity=PLATFORM_TOPIC_WATCHER
     )
     gevent.sleep(2)
-    if volttron_instance.secure_agent_users:
+    if volttron_instance.agent_isolation_mode:
         db_path = os.path.join(volttron_instance.volttron_home, 'agents',
                                alert_uuid, 'topic_watcheragent-' + agent_version,
                                'topic-watcheragent-' + agent_version + '.agent-data',
                                'alert_log.sqlite')
     else:
-        # agent keeps the same path in insecure mode for backward compatibility
         db_path = os.path.join(volttron_instance.volttron_home, 'agents',
                                alert_uuid, 'topic_watcheragent-' + agent_version,
                                'alert_log.sqlite')
 
-    print ("DB PATH: {}".format(db_path))
+    print("DB PATH: {}".format(db_path))
     db_connection = sqlite3.connect(
         db_path,
         detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)

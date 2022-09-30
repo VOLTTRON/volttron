@@ -1754,7 +1754,7 @@ class BackupDatabase:
 
         _log.debug(f"Setting up backup DB. {os.getcwd()}")
         # we want to create it in the agent-data directory since agent will not have write access to any other
-        # directory in secure mode
+        # directory in agent isolation mode
         if os.path.exists(os.path.join(os.getcwd(), os.path.basename(os.getcwd()) + ".agent-data")):
             backup_db = os.path.join(os.getcwd(), os.path.basename(os.getcwd()) + ".agent-data", 'backup.sqlite')
         else:   

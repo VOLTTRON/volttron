@@ -188,7 +188,7 @@ def create_volttron_home() -> str:
     :return: str: the temp directory
     """
     volttron_home = tempfile.mkdtemp()
-    # This is needed to run tests with volttron's secure mode. Without this
+    # This is needed to run tests with volttron's agent isolation mode. Without this
     # default permissions for folders under /tmp directory doesn't not have read or execute for group or others
     os.chmod(volttron_home, 0o755)
     # Move volttron_home to be one level below the mkdir so that
@@ -224,7 +224,7 @@ def with_os_environ(update_env: dict):
 
 class PlatformWrapper:
     def __init__(self, messagebus=None, ssl_auth=False, instance_name=None,
-                 secure_agent_users=False, remote_platform_ca=None, auth_enabled=True):
+                 agent_isolation_mode=False, remote_platform_ca=None, auth_enabled=True):
         """ Initializes a new VOLTTRON instance
 
         Creates a temporary VOLTTRON_HOME directory with a packaged directory
@@ -317,7 +317,7 @@ class PlatformWrapper:
             self.ssl_auth = ssl_auth
             self.auth_enabled = auth_enabled
 
-        self.secure_agent_users = secure_agent_users
+        self.agent_isolation_mode = agent_isolation_mode
         if self.ssl_auth:
             certsdir = os.path.join(self.volttron_home, 'certificates')
 
@@ -350,7 +350,7 @@ class PlatformWrapper:
                                                                      ssl_auth=self.ssl_auth,
                                                                      env=self.env,
                                                                      instance_name=self.instance_name,
-                                                                     secure_agent_users=secure_agent_users)
+                                                                     agent_isolation_mode=agent_isolation_mode)
             if self.ssl_auth:
                 self.certsobj = Certs(os.path.join(self.volttron_home, "certificates"))
 
@@ -676,7 +676,7 @@ class PlatformWrapper:
         #                    key_file=certs.private_key_file(f"client{x}"))
         #     ns['client_certs'].append(cert_ns)
 
-        return ns
+        # return ns
 
     def startup_platform(self, vip_address, auth_dict=None,
                          mode=UNRESTRICTED, bind_web_address=None,
@@ -830,7 +830,7 @@ class PlatformWrapper:
                          'bind_web_address': bind_web_address,
                          'volttron_central_address': volttron_central_address,
                          'volttron_central_serverkey': volttron_central_serverkey,
-                         'secure_agent_users': self.secure_agent_users,
+                         'agent_isolation_mode': self.agent_isolation_mode,
                          'platform_name': None,
                          'log': self.log_path,
                          'log_config': None,
@@ -874,9 +874,9 @@ class PlatformWrapper:
             if self.messagebus:
                 parser.set('volttron', 'message-bus',
                            self.messagebus)
-            if self.secure_agent_users:
-                parser.set('volttron', 'secure-agent-users',
-                           str(self.secure_agent_users))
+            if self.agent_isolation_mode:
+                parser.set('volttron', 'agent-isolation-mode',
+                           str(self.agent_isolation_mode))
             if self.auth_enabled is not None:
                 parser.set('volttron', 'allow-auth',
                            str(self.auth_enabled))

@@ -155,7 +155,7 @@ def _is_bound_already(address):
     return already_bound
 
 
-def fail_if_instance_running(args):
+def fail_if_instance_running():
 
     home = get_home()
 
@@ -1093,7 +1093,7 @@ def main():
     group.add_argument('--agent', nargs='+',
                         help='configure listed agents')
 
-    group.add_argument('--secure-agent-users', action='store_true', dest='secure_agent_users',
+    group.add_argument('--agent-isolation-mode', action='store_true', dest='agent_isolation_mode',
                        help='Require that agents run with their own users (this requires running '
                             'scripts/secure_user_permissions.sh as sudo)')
 
@@ -1111,7 +1111,7 @@ def main():
         set_home(args.vhome)
         prompt_vhome = False
     # if not args.rabbitmq or args.rabbitmq[0] in ["single"]:
-    fail_if_instance_running(args)
+    fail_if_instance_running()
     fail_if_not_in_src_root()
     if use_active in n:
         atexit.register(_cleanup_on_exit)
@@ -1121,8 +1121,8 @@ def main():
     if args.list_agents:
         print("Agents available to configure:{}".format(agent_list))
 
-    elif args.secure_agent_users:
-        config_opts['secure-agent-users'] = args.secure_agent_users
+    elif args.agent_isolation_mode:
+        config_opts['agent-isolation-mode'] = args.agent_isolation_mode
         _update_config_file()
     elif args.is_rabbitmq:
         process_rmq_inputs(vars(args))

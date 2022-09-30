@@ -40,11 +40,11 @@ def print_log(volttron_home):
 
 def build_wrapper(vip_address: str, should_start: bool = True, messagebus: str = 'zmq',
                   remote_platform_ca: Optional[str] = None,
-                  instance_name: Optional[str] = None, secure_agent_users: bool = False, **kwargs):
+                  instance_name: Optional[str] = None, agent_isolation_mode: bool = False, **kwargs):
     wrapper = PlatformWrapper(ssl_auth=kwargs.pop('ssl_auth', False),
                               messagebus=messagebus,
                               instance_name=instance_name,
-                              secure_agent_users=secure_agent_users,
+                              agent_isolation_mode=agent_isolation_mode,
                               remote_platform_ca=remote_platform_ca,
                               auth_enabled=kwargs.pop('auth_enabled', True))
     if should_start:
