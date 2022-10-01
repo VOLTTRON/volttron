@@ -432,7 +432,7 @@ VOLTTRON installation:
 
 ..
 
-    https://bitbucket.org/jurko/suds
+    https://pypi.org/project/suds-jurko/
 
 
 Is there a mechanism for drivers to specify their own requirements.txt ?

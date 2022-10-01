@@ -184,7 +184,7 @@ More Resources
 --------------
 
 `NumPy for Matlab Users
-<https://docs.scipy.org/doc/numpy-dev/user/numpy-for-matlab-users.html>`_
+<https://numpy.org/doc/stable/user/numpy-for-matlab-users.html>`_
 Has a nice list of common operations in Matlab and NumPy.
 
 `NumPy Homepage

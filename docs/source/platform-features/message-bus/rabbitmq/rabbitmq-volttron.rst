@@ -67,7 +67,7 @@ These needs to be set appropriately if the default ports are not used.
 
 The 'ssl' flag indicates if SSL based authentication is required or not.  If set to `True`, information regarding SSL
 certificates needs to be also provided.  SSL based authentication is described in detail in
-`Authentication And Authorization With RabbitMQ Message Bus <RabbitMQ-Auth>`_.
+:ref:`Authentication And Authorization With RabbitMQ Message Bus <RabbitMQ-Auth>`.
 
 To configure the VOLTTRON instance to use RabbitMQ message bus, run the following command:
 
