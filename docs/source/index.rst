@@ -56,7 +56,6 @@ at our bi-weekly office-hours and on Slack. To be invited to office-hours or sla
    introduction/definitions
    introduction/license
 
-
 .. toctree::
    :caption: Platform Features
    :hidden:
@@ -68,7 +67,6 @@ at our bi-weekly office-hours and on Slack. To be invited to office-hours or sla
    platform-features/config-store/configuration-store
    platform-features/security/volttron-security
    platform-features/web-api/introduction
-
 
 .. toctree::
    :caption: Agent Framework
@@ -86,7 +84,6 @@ at our bi-weekly office-hours and on Slack. To be invited to office-hours or sla
    agent-framework/platform-service-standardization
    agent-framework/third-party-agents
 
-
 .. toctree::
    :caption: Developing in VOLTTRON
    :hidden:
@@ -101,7 +98,6 @@ at our bi-weekly office-hours and on Slack. To be invited to office-hours or sla
    developing-volttron/contributing-documentation
    developing-volttron/jupyter/jupyter-notebooks
    developing-volttron/python-for-matlab-users
-
 
 .. toctree::
    :caption: Deploying VOLTTRON
@@ -118,18 +114,6 @@ at our bi-weekly office-hours and on Slack. To be invited to office-hours or sla
    deploying-volttron/linux-system-hardening
    deploying-volttron/recipe-deployment
 
-
-
-.. toctree::
-   :caption: Driver Framework
-   :hidden:
-   :titlesonly:
-   :maxdepth: 1
-
-   driver-framework/drivers-overview
-
-
-
 .. toctree::
    :caption: VOLTTRON Core Service Agents
    :hidden:
@@ -138,7 +122,6 @@ at our bi-weekly office-hours and on Slack. To be invited to office-hours or sla
    :glob:
 
    volttron-api/services/*/modules
-
 
 .. toctree::
    :caption: VOLTTRON Core Operations Agents
@@ -149,7 +132,6 @@ at our bi-weekly office-hours and on Slack. To be invited to office-hours or sla
 
    volttron-api/ops/*/modules
 
-
 .. toctree::
    :caption: VOLTTRON Topics
    :hidden:
@@ -159,7 +141,6 @@ at our bi-weekly office-hours and on Slack. To be invited to office-hours or sla
    Releases <volttron-topics/VOLTTRON-releases/index>
    volttron-topics/troubleshooting/index
    volttron-topics/volttron-applications/index
-
    
 .. toctree::
    :caption: Tutorials
@@ -167,7 +148,7 @@ at our bi-weekly office-hours and on Slack. To be invited to office-hours or sla
    :titlesonly:
    :maxdepth: 1
 
-   tutorials/quick-start   
+   tutorials/quick-start
 
 
 Indices and tables
