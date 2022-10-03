@@ -38,7 +38,7 @@
 
 from platform_driver.interfaces.modbus_tk.client import Field, Client
 from platform_driver.interfaces.modbus_tk import helpers
-from collections import Mapping
+from collections.abc import Mapping
 
 import csv
 import re

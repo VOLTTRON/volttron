@@ -261,12 +261,12 @@ def is_web_enabled():
 
 
 def is_secure_mode():
-    """Returns True if running in secure mode, False otherwise"""
-    string_value = os.environ.get('SECURE_AGENT_USERS')
+    """Returns True if running in agent isolation mode, False otherwise"""
+    string_value = os.environ.get('AGENT_ISOLATION_MODE')
     _log.debug("value from env {}".format(string_value))
     if not string_value:
         config = load_platform_config()
-        string_value = config.get('secure-agent-users', 'False')
+        string_value = config.get('agent-isolation-mode', 'False')
         _log.debug("value from config {}".format(string_value))
 
     if string_value == "True":

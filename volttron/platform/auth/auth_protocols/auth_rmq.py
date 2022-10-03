@@ -49,17 +49,19 @@ class RMQConnectionAPI:
                  heartbeat=20,
                  retry_attempt=30,
                  retry_delay=2,
-                 ssl_auth=True,
+                 ssl_auth=None,
                  certs_dict=None,
                  url_address=None) -> None:
         self.rmq_mgmt = RabbitMQMgmt()
         rmq_user = rmq_user if rmq_user else self.rmq_mgmt.rmq_config.admin_user
         pwd = pwd if pwd else self.rmq_mgmt.rmq_config.admin_pwd
         host = host if host else self.rmq_mgmt.rmq_config.hostname
+        if ssl_auth is None:
+            ssl_auth = self.rmq_mgmt.rmq_config.is_ssl
         if port:
             port = port
         else:
-            port = self.rmq_mgmt.rmq_config.amqp_port_ssl if self.rmq_mgmt.rmq_config.is_ssl else self.rmq_mgmt.rmq_config.amqp_port
+            port = self.rmq_mgmt.rmq_config.amqp_port_ssl if ssl_auth else self.rmq_mgmt.rmq_config.amqp_port
 
         vhost = vhost if vhost else self.rmq_mgmt.rmq_config.virtual_host
         self.params = RMQClientParameters(
@@ -76,7 +78,7 @@ class RMQConnectionAPI:
                 retry_delay=retry_delay,
                 heartbeat=heartbeat,
                 credentials=pika.credentials.PlainCredentials(
-                    rmq_user, rmq_user)
+                    rmq_user, pwd)
             ),
             url_address=url_address if url_address else f"amqp://{rmq_user}:{pwd}@{host}:{port}/{vhost}",
             certs_dict=certs_dict
@@ -168,7 +170,7 @@ class RMQConnectionAPI:
         permissions = self.rmq_mgmt.get_default_permissions(self.params.rmq_user)
 
         if self.ssl_auth:
-            # This could fail with permission error when running in secure mode
+            # This could fail with permission error when running in agent isolation mode
             # and agent was installed when volttron was running on ZMQ instance
             # and then switched to RMQ instance. In that case
             # vctl certs create-ssl-keypair should be used to create a cert/key pair

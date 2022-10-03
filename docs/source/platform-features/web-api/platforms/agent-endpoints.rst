@@ -111,3 +111,14 @@ Response:
             }
 
 * **With invalid BEARER token:** ``401 Unauthorized``
+
+.. toctree::
+    :hidden:
+
+    ConfigStore <agents/config-endpoints>
+    Enabled <agents/enabled-endpoints>
+    Health <agents/health-endpoints>
+    RPC <agents/rpc-endpoints>
+    Running <agents/running-endpoints>
+    Status <agents/status-endpoints>
+    Tag <agents/tag-endpoints>

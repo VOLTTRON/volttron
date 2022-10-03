@@ -9,7 +9,7 @@ with that data.
 
 ## Upgrading to VOLTTRON 8.x
 
-VOLTTRON 8 introduces three changes that require an explict upgrade step when upgrading from a earlier VOLTTRON version
+VOLTTRON 8 introduces four changes that require an explict upgrade step when upgrading from an earlier VOLTTRON version
 
     1. Dynamic RPC authorization feature - This requires a modification to the auth file. If you have a pre-existing
        instance of VOLTTRON running on an older version, the auth file will need to be updated.
@@ -22,6 +22,10 @@ VOLTTRON 8 introduces three changes that require an explict upgrade step when up
        topics table instead of separate metadata table. SQLHistorians with version >= 4.0.0 can work with existing
        database with older schema however the historian agent code should be upgraded to newer version (>=4.0.0) to run
        with VOLTTRON 8 core.
+    4. VOLTTRON feature to run individual agents as unique Unix users is now named "agent-isolation-mode" and is 
+       consistently referred to using this name in code, configuration, and documentation. Before VOLTTRON 8.2 this 
+       configuration parameter was called "secure-agent-users" and related documentation referred to this mode as 
+       "secure mode".  
 
 To upgrade:
 
@@ -31,9 +35,10 @@ To upgrade:
     2. Update volttron source code version to VOLTTRON 8
     3. activate the volttron environment, and run ```python bootstrap.py --force```. If you have 
        any additional bootstrap options that you need (rabbitmq, web, drivers, etc.) include these in the above command.
-    4. Run ```volttron-upgrade``` to update the auth file and move historian cache files into agent-data directory. 
-       Note that the upgrade script will only move the backup.sqlite file and will not move sqlite historian's db file 
-       if they are within the install directory. If using a SQLite historian, please backup the database file of 
+    4. Run ```volttron-upgrade``` to update the auth file, move historian cache files into agent-data directory, and 
+       rename the config parameter "secure-agent-users" in VOLTTRON_HOME/config to "agent-isolation-mode"
+       **Note** that the upgrade script will only move the backup.sqlite file and will not move sqlite historian's db  
+       file if they are within the install directory. If using a SQLite historian, please backup the database file of 
        sqlite historian before upgrading to the latest historian version.
     5. Start VOLTTRON
     6. Run ```vctl install --force --vip-identity <vip id of existing historian> --agent-config <config>``` to upgrade 

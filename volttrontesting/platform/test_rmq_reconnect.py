@@ -43,10 +43,13 @@ Pytest test cases for testing rabbitmq reconnect cases.
 import gevent
 import pytest
 from mock import MagicMock
-
-from volttron.utils.rmq_setup import start_rabbit, stop_rabbit
-from volttron.utils.rmq_config_params import RMQConfig
-from volttron.platform.vip.agent.errors import Unreachable
+from volttron.platform import is_rabbitmq_available
+if is_rabbitmq_available():
+    from volttron.utils.rmq_setup import start_rabbit, stop_rabbit
+    from volttron.utils.rmq_config_params import RMQConfig
+    from volttron.platform.vip.agent.errors import Unreachable
+else:
+    pytest.skip("Pika is not installed", allow_module_level=True)
 
 
 @pytest.fixture(scope="module")

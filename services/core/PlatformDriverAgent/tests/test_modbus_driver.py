@@ -71,9 +71,12 @@ def agent(request, volttron_instance):
 
     # Build platform driver agent
     md_agent = volttron_instance.build_agent(identity="test_md_agent")
-    capabilities = {'edit_config_store': {'identity': PLATFORM_DRIVER}}
-    volttron_instance.add_capabilities(md_agent.core.publickey, capabilities)
     gevent.sleep(1)
+    
+    if volttron_instance.auth_enabled:
+        capabilities = {'edit_config_store': {'identity': PLATFORM_DRIVER}}
+        volttron_instance.add_capabilities(md_agent.core.publickey, capabilities)
+    
     # Clean out platform driver configurations
     # wait for it to return before adding new config
     md_agent.vip.rpc.call('config.store',

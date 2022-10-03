@@ -35,7 +35,6 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-
 import sys
 import shutil
 from pathlib import Path
@@ -141,7 +140,11 @@ def set_auth_identities(agent_credential_map):
 
 def main():
     """Upgrade auth file to function with dynamic rpc authorizations"""
-
+    vhome = Path(get_home())
+    install_dir = vhome.joinpath("agents")
+    if not install_dir.exists():
+        print("No installed agents for auth update.")
+        return
     fail_if_instance_running()
     aip = get_aip()
     upgrade_old_agents(aip)

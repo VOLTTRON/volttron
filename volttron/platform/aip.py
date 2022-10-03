@@ -49,7 +49,6 @@ import signal
 import sys
 import uuid
 
-import requests
 import gevent
 import gevent.event
 from gevent import subprocess
@@ -238,7 +237,7 @@ class SecureExecutionEnvironment:
 
     def stop(self):
         if self.process.poll() is None:
-            cmd = ["sudo", update_volttron_script_path("scripts/secure_stop_agent.sh"), self.agent_user, str(self.process.pid)]
+            cmd = ["sudo", update_volttron_script_path("scripts/stop_agent_running_in_isolation.sh"), self.agent_user, str(self.process.pid)]
             _log.debug("In aip secureexecutionenv {}".format(cmd))
             process = subprocess.Popen(cmd, stdout=PIPE, stderr=PIPE)
             stdout, stderr = process.communicate()
@@ -398,8 +397,8 @@ class AIPplatform:
                 os.makedirs(path)
                 os.chmod(path, 0o755)
         # Create certificates directory and its subdirectory at start of platform
-        # so if volttron is run in secure mode, the first agent install would already have
-        # the directories ready. In secure mode, agents will be run as separate user and will
+        # so if volttron is run in agent isolation mode, the first agent install would already have
+        # the directories ready. In agent isolation mode, agents will be run as separate user and will
         # not have access to create these directories
         Certs()
 
@@ -502,7 +501,6 @@ class AIPplatform:
             else:
                 unpack(agent_wheel, dest=agent_path)
 
-            # Is it ok to remove the wheel file after unpacking?
             os.remove(agent_wheel)
 
             final_identity = self._setup_agent_vip_id(
@@ -672,12 +670,13 @@ class AIPplatform:
         msg_bus = self.message_bus
         identity = self.agent_identity(agent_uuid)
         if msg_bus == 'rmq':
+            from requests.exceptions import HTTPError
             # Delete RabbitMQ user for the agent
             instance_name = self.instance_name
             rmq_user = instance_name + '.' + identity
             try:
                 self.rmq_mgmt.delete_user(rmq_user)
-            except requests.exceptions.HTTPError as e:
+            except HTTPError as e:
                 _log.error(f"RabbitMQ user {rmq_user} is not available to delete. Going ahead and removing agent directory")
         self.agents.pop(agent_uuid, None)
         agent_directory = os.path.join(self.install_dir, agent_uuid)
@@ -971,7 +970,7 @@ class AIPplatform:
                 _log.info("No existing volttron agent user was found at {} due "
                           "to {}".format(user_id_path, err))
 
-                # May be switched from normal to secure mode with existing agents. To handle this case
+                # May be switched from normal to agent isolation mode with existing agents. To handle this case
                 # create users and also set permissions again for existing files
                 agent_user = self.add_agent_user(name, agent_dir)
                 self.set_agent_user_permissions(agent_user,
@@ -980,7 +979,7 @@ class AIPplatform:
 
                 # additionally give permissions to contents of agent-data dir.
                 # This is needed only for agents installed before switching to
-                # secure mode. Agents installed in secure mode will own files
+                # agent isolation mode. Agents installed in agent isolation mode will own files
                 # in agent-data dir
                 # Moved this to the top so that "agent-data" directory gets
                 # created in the beginning

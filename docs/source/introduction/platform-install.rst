@@ -10,7 +10,7 @@ Installing the Platform
 VOLTTRON is written in Python 3.6+ and runs on Linux Operating Systems.  For users unfamiliar with those technologies,
 the following resources are recommended:
 
--   `Python 3.6 Tutorial <https://docs.python.org/3.6/tutorial/>`_
+-   `Python 3.6 Tutorial <https://docs.python.org/3.6/tutorial>`_
 -   `Linux Tutorial <http://ryanstutorials.net/linuxtutorial>`_
 
 This guide will specify commands to use to successfully install the platform on supported Linux distributions, but a
@@ -195,22 +195,17 @@ Step 2 - Install Erlang packages
 For RabbitMQ based VOLTTRON, some of the RabbitMQ specific software packages have to be installed.
 
 
-On Debian based systems and CentOS 6/7
-""""""""""""""""""""""""""""""""""""""
+On Debian based systems and CentOS 8
+""""""""""""""""""""""""""""""""""""
 
-If you are running a Debian or CentOS system, you can install the RabbitMQ dependencies by running the
+If you are running a Debian or CentOS 8 system, you can install the RabbitMQ dependencies by running the
 "rabbit_dependencies.sh" script, passing in the OS name and appropriate distribution as parameters. The
 following are supported:
 
 *   `debian bionic` (for Ubuntu 18.04)
 
-*   `debian xenial` (for Ubuntu 16.04 or  Linux Mint 18.04)
+*   `debian focal` (for Ubuntu 20.04)
 
-*   `debian stretch` (for Debian Stretch)
-
-*   `debian buster` (for Debian Buster)
-
-*   `raspbian buster` (for Raspbian/Raspberry Pi OS Buster)
 
 Example command:
 
@@ -228,10 +223,8 @@ Also lock your version of Erlang using the `yum-plugin-versionlock <https://acce
 
 .. note::
     Currently VOLTTRON only officially supports specific versions of Erlang for each operating system:
-          * 1:22.1.8.1-1 for Debian
-          * 1:21.2.6+dfsg-1 for Raspbian
-          * Specific Erlang 21.x versions correspond to CentOS versions 6, 7, and 8, these can be found
-            `here <https://dl.bintray.com/rabbitmq-erlang/rpm/erlang>`_
+          * 1:24.1.7-1 for Debian
+          * 24.2-1.el8 for CentOS 8
 
 
 Step 3 - Configure hostname

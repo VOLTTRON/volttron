@@ -1,38 +1,12 @@
-import logging
+import random
 
-import gevent
+import requests
 
 from volttron.platform.agent.known_identities import PLATFORM_WEB
 from volttron.platform.vip.agent import Agent
 from volttrontesting.utils.platformwrapper import start_wrapper_platform
 from volttron.utils import get_hostname
-from volttron.platform import jsonapi
-import pytest
-import random
-import requests
-import os
-import tempfile
-
 from volttrontesting.fixtures.volttron_platform_fixtures import *
-
-logging.basicConfig(level=logging.DEBUG)
-from volttrontesting.utils.build_agent import build_agent, build_agent_with_key
-
-
-@pytest.fixture(scope="module")
-def web_instance(request, get_volttron_instances):
-
-    instance = get_volttron_instances(1, should_start=False)
-    start_wrapper_platform(instance, with_http=True)
-
-    # Create a web enabled agent to test with.  Cleanup will happen in the
-    # shutdown_platform method of the instance.
-    web_agent = _build_web_agent(instance.volttron_home)
-
-    gevent.sleep(1)
-    instance.install_agent(agent_dir=web_agent)
-
-    yield instance
 
 
 def _build_web_agent(vhome):
@@ -42,7 +16,7 @@ def _build_web_agent(vhome):
     :param vhome:
     :return: The directory of the agent to be installed.
     """
-    agent_dir = os.path.join(vhome, "Agent{}".format(random.randint(1,100)))
+    agent_dir = os.path.join(vhome, "Agent{}".format(random.randint(1, 100)))
 
     package = "webagent"
     os.makedirs(agent_dir)
@@ -125,7 +99,8 @@ class WebAgent(Agent):
         self.vip.web.register_path("/web", WEBROOT)
 
     def text(self, env, data):
-        ret = ("200 OK", base64.b64encode(b"This is some text").decode("ascii"), [('Content-Type', 'text/plain')])
+        ret = "200 OK", "this is some text", [
+            ('Content-Type', 'text/plain')]
         _log.debug('returning: {}'.format(ret))
         return ret
 
@@ -181,7 +156,6 @@ def _build_web_dir(vhome):
 
 
 @pytest.mark.web
-@pytest.mark.xfail
 def test_can_discover_info(volttron_instance_web):
     """
     Tests whether the web instance returns the key, instance name and
@@ -190,78 +164,84 @@ def test_can_discover_info(volttron_instance_web):
 
     vi = volttron_instance_web
 
-    # must sleep because the web server takes a bit to get going.
-    gevent.sleep(1)
-    url = "{}/discovery/".format(vi.bind_web_address)
-    res = requests.get(url)
-    assert res.ok
+    with with_os_environ(vi.env):
+        url = "{}/discovery/".format(vi.bind_web_address)
+        res = requests.get(url)
+        assert res.ok
 
-    d = res.json()
-    if vi.messagebus == 'zmq':
-        assert vi.serverkey == d['serverkey']
-        assert d['vip-address']
+        d = res.json()
+        if vi.messagebus == 'zmq' and vi.auth_enabled:
+            assert vi.serverkey == d['serverkey']
+            assert d['vip-address']
 
-    assert d['instance-name']
+        assert d['instance-name']
 
-    if vi.messagebus == 'rmq':
-        rmq_config = vi.rabbitmq_config_obj
+        if vi.messagebus == 'rmq':
+            rmq_config = vi.rabbitmq_config_obj
 
-        assert vi.certsobj.ca_cert(public_bytes=True).decode('utf-8') == d['rmq-ca-cert']
-        assert f"amqps://{get_hostname()}:{rmq_config.rmq_port_ssl}/{rmq_config.virtual_host}" == \
-               d["rmq-address"]
-
-
-@pytest.mark.web
-@pytest.mark.xfail
-def test_test_web_agent(web_instance):
-    vi = web_instance
-    assert vi.is_running()
-    agent_list = vi.list_agents()
-    assert len(agent_list) == 1
-
-    base_address = vi.bind_web_address
-    index = base_address + "/web/index.html"
-    text = base_address + "/web/text"
-    rpc = base_address + "/web/jsonrpc"
-    resp = requests.get(index)
-    assert "<h1>The body is good</h1>" in resp.text
-    assert "<html>" in resp.text
-    assert "</html>" in resp.text
-    assert resp.headers['Content-type'] == 'text/html'
-
-    resp = requests.get(text)
-    assert resp.ok
-    print("*" * 50)
-    print(resp.headers)
-    assert "This is some text" == resp.text
-    assert resp.headers['Content-type'] == 'text/plain'
-
-    # now test for json rpc
-    payload = {"data": "value", "one": 5, "three": {"two": 1.0}}
-    resp = requests.post(rpc, json=payload)
-    assert resp.ok
-    assert resp.headers['Content-type'] == 'application/json'
-    jsonresp = resp.json()['result']
-
-    print(jsonresp)
-
-    for k, v in payload.items():
-        assert v == jsonresp[k]
+            assert vi.certsobj.ca_cert(public_bytes=True).decode('utf-8') == d['rmq-ca-cert']
+            assert f"amqps://{get_hostname()}:{rmq_config.rmq_port_ssl}/{rmq_config.virtual_host}" == \
+                   d["rmq-address"]
 
 
 @pytest.mark.web
-@pytest.mark.xfail
+@pytest.mark.xfail(reason="The web install test has some issues that need to be resolved")
+def test_test_web_agent(volttron_instance_web):
+    vi = volttron_instance_web
+
+    with with_os_environ(vi.env):
+        assert vi.is_running()
+        web_agent = _build_web_agent(vi.volttron_home)
+        vi.install_agent(agent_dir=web_agent)
+        agent_list = vi.list_agents()
+        assert len(agent_list) == 1
+        gevent.sleep(3)
+        base_address = vi.bind_web_address
+        index = base_address + "/web/index.html"
+        text = base_address + "/web/text"
+        rpc = base_address + "/web/jsonrpc"
+        resp = requests.get(index)
+        assert "<h1>The body is good</h1>" in resp.text
+        assert "<html>" in resp.text
+        assert "</html>" in resp.text
+        assert resp.headers['Content-type'] == 'text/html'
+
+        print(f"URL: {text}")
+        resp = requests.get(text)
+        assert resp.ok
+        print("*" * 50)
+        print(resp.headers)
+        assert "This is some text" == resp.text
+        assert resp.headers['Content-type'] == 'text/plain'
+
+        # now test for json rpc
+        payload = {"data": "value", "one": 5, "three": {"two": 1.0}}
+        print(f"URL: {rpc}")
+        resp = requests.post(rpc, json=payload)
+        assert resp.ok
+        assert resp.headers['Content-type'] == 'application/json'
+        jsonresp = resp.json()['result']
+
+        print(jsonresp)
+
+        for k, v in payload.items():
+            assert v == jsonresp[k]
+
+
+@pytest.mark.web
 def test_register_path_route(web_instance):
     vi = web_instance
-    assert vi.is_running()
-    gevent.sleep(1)
 
-    webdir, index_html = _build_web_dir(vi.volttron_home)
-    agent = vi.build_agent(use_ipc=True)
-    agent.vip.rpc.call(PLATFORM_WEB,
-                       'register_path_route', '', webdir).get(timeout=5)
-    response = requests.get(vi.bind_web_address+"/index.html")
-    assert index_html == response.text
+    with with_os_environ(vi.env):
+        assert vi.is_running()
+        gevent.sleep(1)
+
+        webdir, index_html = _build_web_dir(vi.volttron_home)
+        agent = vi.build_agent(use_ipc=True)
+        agent.vip.rpc.call(PLATFORM_WEB,
+                           'register_path_route', '', webdir).get(timeout=5)
+        response = requests.get(vi.bind_web_address + "/index.html")
+        assert index_html == response.text
 
 
 @pytest.mark.web
@@ -287,5 +267,5 @@ def test_register_agent_route(web_instance):
     agent.vip.web.register_endpoint("/foo", agent.agent_route_callback)
     gevent.sleep(2)
     payload = {"data": "value", "one": 5, "three": {"two": 1.0}}
-    response = requests.post(vi.bind_web_address+"/foo", json=payload)
+    response = requests.post(vi.bind_web_address + "/foo", json=payload)
     assert response.ok

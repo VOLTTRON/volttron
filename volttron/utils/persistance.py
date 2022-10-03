@@ -3,7 +3,6 @@
 import csv
 import os
 import shutil
-import shelve
 import logging
 import pickle
 

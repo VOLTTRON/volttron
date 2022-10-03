@@ -26,7 +26,7 @@ from .agent_additions import (add_volttron_central,
                               add_volttron_central_platform)
 from gevent.fileobject import FileObject
 from gevent.subprocess import Popen
-from volttron.platform import packaging, jsonapi
+from volttron.platform import packaging, jsonapi, is_rabbitmq_available
 from volttron.platform.agent.known_identities import PLATFORM_WEB, CONTROL, CONTROL_CONNECTION, PROCESS_IDENTITIES
 from volttron.platform.auth.certs import Certs
 from volttron.platform.agent import utils
@@ -42,9 +42,10 @@ from volttron.platform.vip.agent.connection import Connection
 from volttrontesting.utils.utils import get_rand_http_address, get_rand_vip, get_hostname_and_random_port, \
     get_rand_ip_and_port
 from volttrontesting.utils.utils import get_rand_tcp_address
-from volttrontesting.fixtures.rmq_test_setup import create_rmq_volttron_setup
-from volttron.utils.rmq_setup import start_rabbit, stop_rabbit
-from volttron.utils.rmq_setup import setup_rabbitmq_volttron
+if is_rabbitmq_available():
+    from volttrontesting.fixtures.rmq_test_setup import create_rmq_volttron_setup
+    from volttron.utils.rmq_setup import start_rabbit, stop_rabbit
+    from volttron.utils.rmq_setup import setup_rabbitmq_volttron
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -187,7 +188,7 @@ def create_volttron_home() -> str:
     :return: str: the temp directory
     """
     volttron_home = tempfile.mkdtemp()
-    # This is needed to run tests with volttron's secure mode. Without this
+    # This is needed to run tests with volttron's agent isolation mode. Without this
     # default permissions for folders under /tmp directory doesn't not have read or execute for group or others
     os.chmod(volttron_home, 0o755)
     # Move volttron_home to be one level below the mkdir so that
@@ -223,7 +224,7 @@ def with_os_environ(update_env: dict):
 
 class PlatformWrapper:
     def __init__(self, messagebus=None, ssl_auth=False, instance_name=None,
-                 secure_agent_users=False, remote_platform_ca=None, auth_enabled=True):
+                 agent_isolation_mode=False, remote_platform_ca=None, auth_enabled=True):
         """ Initializes a new VOLTTRON instance
 
         Creates a temporary VOLTTRON_HOME directory with a packaged directory
@@ -308,8 +309,19 @@ class PlatformWrapper:
         self.keystore = KeyStore(keystorefile)
         self.keystore.generate()
         self.messagebus = messagebus if messagebus else 'zmq'
-        self.secure_agent_users = secure_agent_users
-        self.ssl_auth = ssl_auth
+        # Regardless of what is passed in if using rmq we need auth and ssl.
+        if self.messagebus == 'rmq':
+            self.auth_enabled = True
+            self.ssl_auth = True
+        else:
+            self.ssl_auth = ssl_auth
+            self.auth_enabled = auth_enabled
+
+        self.agent_isolation_mode = agent_isolation_mode
+        if self.ssl_auth:
+            certsdir = os.path.join(self.volttron_home, 'certificates')
+
+            self.certsobj = Certs(certsdir)
         self.instance_name = instance_name
         if not self.instance_name:
             self.instance_name = os.path.basename(os.path.dirname(self.volttron_home))
@@ -338,9 +350,9 @@ class PlatformWrapper:
                                                                      ssl_auth=self.ssl_auth,
                                                                      env=self.env,
                                                                      instance_name=self.instance_name,
-                                                                     secure_agent_users=secure_agent_users)
-
-            self.certsobj = Certs(os.path.join(self.volttron_home, "certificates"))
+                                                                     agent_isolation_mode=agent_isolation_mode)
+            if self.ssl_auth:
+                self.certsobj = Certs(os.path.join(self.volttron_home, "certificates"))
 
             self.debug_mode = self.env.get('DEBUG_MODE', False)
             if not self.debug_mode:
@@ -422,10 +434,10 @@ class PlatformWrapper:
                 secretkey = keys.secret
 
                 entry = AuthEntry(capabilities=capabilities,
-                                comments="Added by test",
-                                credentials=keys.public,
-                                user_id=identity,
-                                identity=identity)
+                                  comments="Added by test",
+                                  credentials=keys.public,
+                                  user_id=identity,
+                                  identity=identity)
                 file = AuthFile(self.volttron_home + "/auth.json")
                 file.add(entry)
 
@@ -493,8 +505,8 @@ class PlatformWrapper:
         print(f"Publickey is: {publickey}\nServerkey is: {serverkey}")
         if self.auth_enabled:
             entry = AuthEntry(user_id=identity, identity=identity, credentials=publickey,
-                            capabilities=capabilities,
-                            comments="Added by platform wrapper")
+                              capabilities=capabilities,
+                              comments="Added by platform wrapper")
 
             AuthFile().add(entry, overwrite=False, no_error=True)
             # allow 4 seconds here for the auth to be updated in auth service
@@ -522,7 +534,7 @@ class PlatformWrapper:
                 try:
                     has_control = CONTROL in \
                                   agent.vip.peerlist().get(
-                        timeout=.2)
+                                      timeout=.2)
                     self.logit("Has control? {}".format(has_control))
                 except gevent.Timeout:
                     pass
@@ -624,6 +636,48 @@ class PlatformWrapper:
             with open(os.path.join(self.volttron_home, 'auth.json'), 'w') as fd:
                 fd.write(jsonapi.dumps(auth_dict))
 
+    def initialize_web_certs(self):
+        cert_dir = os.path.join(self.volttron_home, "certificates")
+
+        self.certsobj = Certs(cert_dir)
+        # self.env['REQUESTS_CA_BUNDLE'] = self.certsobj.cert_file(self.certsobj.root_ca_name)
+        #
+        certs = self.certsobj
+        # if certs.ca_exists():
+        #     raise ValueError("web certs already initialized.")
+        #
+        # data = {'C': 'US',
+        #         'ST': 'Washington',
+        #         'L': 'Richland',
+        #         'O': 'pnnl',
+        #         'OU': 'volttron_test',
+        #         'CN': "myca"}
+        #
+        # ca_cert, ca_pk = certs.create_root_ca(**data)
+        # shutil.copy(certs.cert_file(certs.root_ca_name), certs.cert_file(certs.trusted_ca_name))
+        # ns = dict(ca_cert=ca_cert, ca_key=ca_pk, ca_cert_file=certs.cert_file(certs.root_ca_name),
+        #           ca_key_file=certs.private_key_file(certs.root_ca_name), server_certs=[], client_certs=[])
+        #
+        #certs.create_signed_cert_files(f"{self.instance_name}-server", cert_type="server")
+        certs.create_signed_cert_files("platform_web-server", cert_type="server")
+        #certs.create_signed_cert_files(f"{self.instance_name}-admin")
+        #
+        # for x in range(num_server_certs):
+        #     cert, key = certs.create_signed_cert_files(f"server{x}", cert_type="server", fqdn=fqdn)
+        #
+        #     cert_ns = dict(key=key, cert=cert, cert_file=certs.cert_file(f"server{x}"),
+        #                    key_file=certs.private_key_file(f"server{x}"))
+        #
+        #     ns['server_certs'].append(cert_ns)
+        #
+        # for x in range(num_client_certs):
+        #     cert, pk1 = certs.create_signed_cert_files(f"client{x}")
+        #     cert_ns = dict(key=pk1, cert=cert, cert_file=certs.cert_file(f"client{x}"),
+        #                    key_file=certs.private_key_file(f"client{x}"))
+        #     ns['client_certs'].append(cert_ns)
+
+        # return ns
+
     def startup_platform(self, vip_address, auth_dict=None,
                          mode=UNRESTRICTED, bind_web_address=None,
                          volttron_central_address=None,
@@ -717,7 +771,9 @@ class PlatformWrapper:
                 self.set_auth_dict(auth_dict)
 
                 if self.messagebus == 'rmq' and bind_web_address:
-                    self.env['REQUESTS_CA_BUNDLE'] = self.certsobj.cert_file(self.certsobj.root_ca_name)
+                    # setup_rabbitmq_volttron('single', verbose=True, prompt=False, instance_name=self.instance_name,
+                    #                         rmq_conf_file=f"{self.volttron_home}/rabbitmq.conf")
+                    self.certsobj.create_signed_cert_files("platform_web-server", cert_type="server")
 
                 # Enable SSL for ZMQ
                 elif self.messagebus == 'zmq' and self.ssl_auth and bind_web_address:
@@ -760,6 +816,10 @@ class PlatformWrapper:
             # This file will be passed off to the main.py and available when
             # the platform starts up.
             self.requests_ca_bundle = self.env.get('REQUESTS_CA_BUNDLE')
+            if self.requests_ca_bundle is None and self.ssl_auth:
+                self.requests_ca_bundle = self.certsobj.cert_file(self.certsobj.root_ca_name)
+                self.env['REQUESTS_CA_BUNDLE'] = self.requests_ca_bundle
+                os.environ['REQUESTS_CA_BUNDLE'] = self.requests_ca_bundle
 
             self.opts = {'verify_agents': False,
                          'volttron_home': self.volttron_home,
@@ -770,7 +830,7 @@ class PlatformWrapper:
                          'bind_web_address': bind_web_address,
                          'volttron_central_address': volttron_central_address,
                          'volttron_central_serverkey': volttron_central_serverkey,
-                         'secure_agent_users': self.secure_agent_users,
+                         'agent_isolation_mode': self.agent_isolation_mode,
                          'platform_name': None,
                          'log': self.log_path,
                          'log_config': None,
@@ -814,9 +874,9 @@ class PlatformWrapper:
             if self.messagebus:
                 parser.set('volttron', 'message-bus',
                            self.messagebus)
-            if self.secure_agent_users:
-                parser.set('volttron', 'secure-agent-users',
-                           str(self.secure_agent_users))
+            if self.agent_isolation_mode:
+                parser.set('volttron', 'agent-isolation-mode',
+                           str(self.agent_isolation_mode))
             if self.auth_enabled is not None:
                 parser.set('volttron', 'allow-auth',
                            str(self.auth_enabled))
@@ -828,26 +888,10 @@ class PlatformWrapper:
                 "Platform will run on message bus type {} ".format(self.messagebus))
             self.logit("writing config to: {}".format(pconfig))
 
-            if self.ssl_auth:
-                certsdir = os.path.join(self.volttron_home, 'certificates')
-
-                self.certsobj = Certs(certsdir)
-
             if self.mode == UNRESTRICTED:
                 with open(pconfig, 'w') as cfg:
                     parser.write(cfg)
 
-            elif self.mode == RESTRICTED:
-                if not RESTRICTED_AVAILABLE:
-                    raise ValueError("restricted is not available.")
-
-                certsdir = os.path.join(self.volttron_home, 'certificates')
-
-                print("certsdir", certsdir)
-                self.certsobj = Certs(certsdir)
-
-                with closing(open(pconfig, 'w')) as cfg:
-                    cfg.write(PLATFORM_CONFIG_RESTRICTED.format(**config))
             else:
                 raise PlatformWrapperError(
                     "Invalid platform mode specified: {}".format(mode))
@@ -925,11 +969,11 @@ class PlatformWrapper:
                     try:
                         if self.ssl_auth:
                             resp = grequests.get(self.discovery_address,
-                                                verify=self.certsobj.cert_file(self.certsobj.root_ca_name)
-                                                ).send().response
+                                                 verify=self.certsobj.cert_file(self.certsobj.root_ca_name)
+                                                 ).send().response
                         else:
                             resp = grequests.get(self.discovery_address).send().response
-                        if resp.ok:
+                        if resp and resp.ok:
                             self.logit("Has discovery address for {}".format(self.discovery_address))
                             if self.requests_ca_bundle:
                                 self.logit("Using REQUESTS_CA_BUNDLE: {}".format(self.requests_ca_bundle))
@@ -945,7 +989,6 @@ class PlatformWrapper:
                     if error_was:
                         raise error_was
                     raise Exception("Couldn't connect to discovery platform.")
-
 
         if self.is_running():
             self._instance_shutdown = False
@@ -1028,7 +1071,6 @@ class PlatformWrapper:
         with with_os_environ(self.env):
             if not self.is_running():
                 raise PlatformWrapperError("Instance isn't running!")
-
 
             for path, config, start in agent_configs:
                 results = self.install_agent(agent_dir=path, config_file=config,
@@ -1377,7 +1419,6 @@ class PlatformWrapper:
                                     max_retries=5,
                                     env=self.env)
 
-
     def setup_shovel(self, config_path):
         """
         Set up shovel using the given config path
@@ -1392,7 +1433,6 @@ class PlatformWrapper:
                                     rmq_conf_file=config_path,
                                     max_retries=5,
                                     env=self.env)
-
 
     def restart_platform(self):
         with with_os_environ(self.env):
@@ -1602,7 +1642,7 @@ class WebAdminApi:
 
         if self._wrapper.ssl_auth:
             resp = grequests.post(url, data=data,
-                                 verify=self.certsobj.cert_file(self.certsobj.root_ca_name)).send().response
+                                  verify=self.certsobj.cert_file(self.certsobj.root_ca_name)).send().response
         else:
             resp = grequests.post(url, data=data, verify=False).send().response
         print(f"RESPONSE: {resp}")
@@ -1617,7 +1657,7 @@ class WebAdminApi:
         # verify=self.certsobj.remote_cert_bundle_file())
         if self._wrapper.ssl_auth:
             resp = grequests.post(url, data=data,
-                                 verify=self.certsobj.cert_file(self.certsobj.root_ca_name)).send().response
+                                  verify=self.certsobj.cert_file(self.certsobj.root_ca_name)).send().response
         else:
             resp = grequests.post(url, data=data, verify=False).send().response
         return resp

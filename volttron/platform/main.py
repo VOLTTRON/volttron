@@ -89,8 +89,7 @@ from volttron.platform import jsonapi
 from volttron.platform import aip
 from volttron.platform import __version__
 from volttron.platform import config
-from volttron.platform import vip
-from volttron.platform.vip.agent import Agent, Core
+
 from volttron.platform.vip.router import *
 from volttron.platform.vip.socket import decode_key, encode_key, Address
 from volttron.platform.vip.tracking import Tracker
@@ -118,8 +117,10 @@ from .vip.rmq_router import RMQRouter
 from volttron.platform.agent.utils import store_message_bus_config
 from zmq import green as _green
 from volttron.platform.vip.proxy_zmq_router import ZMQProxyRouter
-from volttron.utils.rmq_setup import start_rabbit
-from volttron.utils.rmq_config_params import RMQConfig
+from volttron.platform import is_rabbitmq_available
+if is_rabbitmq_available():
+    from volttron.utils.rmq_setup import start_rabbit
+    from volttron.utils.rmq_config_params import RMQConfig
 
 try:
     import volttron.restricted
@@ -672,11 +673,11 @@ def start_volttron_process(opts):
             _log.error('{}: {}'.format(*error))
             sys.exit(1)
 
-    if opts.secure_agent_users == "True":
-        _log.info("VOLTTRON starting in secure mode")
+    if opts.agent_isolation_mode == "True":
+        _log.info("VOLTTRON starting in agent isolation mode")
         os.umask(0o007)
     else:
-        opts.secure_agent_users = 'False'
+        opts.agent_isolation_mode = 'False'
 
     opts.publish_address = config.expandall(opts.publish_address)
     opts.subscribe_address = config.expandall(opts.subscribe_address)
@@ -701,7 +702,7 @@ def start_volttron_process(opts):
     # and opts.web_ssl_cert
 
     os.environ['MESSAGEBUS'] = opts.message_bus
-    os.environ['SECURE_AGENT_USERS'] = opts.secure_agent_users
+    os.environ['AGENT_ISOLATION_MODE'] = opts.agent_isolation_mode
     os.environ['AUTH_ENABLED'] = opts.allow_auth
     opts.allow_auth = False if opts.allow_auth == 'False' else True
     if opts.instance_name is None:
@@ -778,10 +779,10 @@ def start_volttron_process(opts):
     opts.aip = aip.AIPplatform(opts)
     opts.aip.setup()
 
-    # Check for secure mode/permissions on VOLTTRON_HOME directory
+    # Check for agent isolation mode/permissions on VOLTTRON_HOME directory
     mode = os.stat(opts.volttron_home).st_mode
     if mode & (stat.S_IWGRP | stat.S_IWOTH):
-        _log.warning('insecure mode on directory: %s', opts.volttron_home)
+        _log.warning('insecure access control on directory: %s', opts.volttron_home)
     
     # Initialize public and secret keys for Non-auth.
     publickey = None
@@ -795,7 +796,7 @@ def start_volttron_process(opts):
             _log.warning('key store is invalid; connections may fail')
         st = os.stat(keystore.filename)
         if st.st_mode & (stat.S_IRWXG | stat.S_IRWXO):
-            _log.warning('insecure mode on key file')
+            _log.warning('insecure access restriction on key file')
         publickey = decode_key(keystore.public)
         if publickey:
             # Authorize the platform key:
@@ -878,6 +879,7 @@ def start_volttron_process(opts):
             RMQRouter(opts.vip_address, opts.vip_local_address, opts.instance_name, opts.vip_address,
                       volttron_central_address=opts.volttron_central_address,
                       bind_web_address=opts.bind_web_address,
+                      enable_auth=opts.allow_auth,
                       service_notifier=notifier
                       ).run()
         except Exception:
@@ -1312,7 +1314,7 @@ def main(argv=sys.argv):
         help='How often should the platform check for crashed agents and '
              'attempt to restart. Units=seconds. Default=600')
     agents.add_argument(
-        '--secure-agent-users', default=False,
+        '--agent-isolation-mode', default=False,
         help='Require that agents run with their own users (this requires '
              'running scripts/secure_user_permissions.sh as sudo)')
 

@@ -61,7 +61,6 @@ from .vui_endpoints import VUIEndpoints
 from .authenticate_endpoint import AuthenticateEndpoints
 from .csr_endpoints import CSREndpoints
 from .webapp import WebApplicationWrapper
-from volttron.platform.agent import utils
 from volttron.platform.agent.known_identities import \
     CONTROL, VOLTTRON_CENTRAL, AUTH
 from ..agent.utils import get_fq_identity
@@ -71,7 +70,7 @@ from volttron.platform.auth.auth_file import AuthFile, AuthFileEntryAlreadyExist
 from volttron.platform.auth.certs import Certs, CertWrapper
 from ..jsonrpc import (json_result,
                        json_validate_request,
-                       INVALID_REQUEST, METHOD_NOT_FOUND,
+                       INVALID_REQUEST,
                        UNHANDLED_EXCEPTION, UNAUTHORIZED,
                        UNAVAILABLE_PLATFORM, INVALID_PARAMS,
                        UNAVAILABLE_AGENT, INTERNAL_ERROR, RemoteError)
@@ -79,13 +78,10 @@ from ..jsonrpc import (json_result,
 from ..vip.agent import Agent, Core, RPC, Unreachable
 from ..vip.agent.subsystems import query
 from ..vip.socket import encode_key
-from ...platform import jsonapi, jsonrpc, get_platform_config
+from ...platform import jsonapi, jsonrpc
 from ...platform.aip import AIPplatform
 from ...utils import is_ip_private
 from ...utils.rmq_config_params import RMQConfig
-
-# must be after importing of utils which imports grequest.
-import requests
 
 _log = logging.getLogger(__name__)
 
