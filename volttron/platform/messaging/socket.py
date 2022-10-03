@@ -39,9 +39,6 @@
 '''VOLTTRON platform™ messaging classes.'''
 
 
-
-import collections
-
 import zmq
 from volttron.platform import jsonapi
 

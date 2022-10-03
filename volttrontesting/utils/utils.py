@@ -17,7 +17,11 @@ from volttron.platform.messaging import headers as headers_mod
 def is_running_in_container():
     # type: () -> bool
     """ Determines if we're running in an lxc/docker container. """
-    out = subprocess.check_output('cat /proc/1/sched', shell=True)
+    try:
+        out = subprocess.check_output('cat /proc/1/sched', shell=True)
+    # Raises exception if non-zero output is returned.
+    except subprocess.CalledProcessError:
+        return False
     out = out.decode('utf-8').lower()
     checks = [
         'docker' in out,
@@ -179,7 +183,7 @@ def validate_published_device_data(expected_headers, expected_message,
         assert message[0][k] == pytest.approx(v)
 
 
-class AgentMock(object):
+class AgentMock:
     """
     The purpose for this parent class is to be used for unit
     testing of agents. It takes in the class methods of other

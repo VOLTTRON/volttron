@@ -8,6 +8,10 @@ This document describes the interaction between web enabled agents and the Platf
 
 The web framework enables agent developers to expose JSON, static, and websocket endpoints.
 
+.. note::
+    The Platform Web Service Agent also provides a RESTful API which can be used to interact
+    with the VOLTTRON Platform, the documentation for which can be found :ref:`here <Web-API>`.
+
 Web SubSystem
 =============
 

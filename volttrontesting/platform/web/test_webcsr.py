@@ -1,8 +1,10 @@
 import pytest
 
 from volttrontesting.fixtures.volttron_platform_fixtures import volttron_instance_web
+from volttrontesting.skip_if_handlers import skip_zmq
 
 
+@pytest.mark.skip("proxy issues.")
 def test_can_change_auto_allow_csr(volttron_instance_web):
     """ Test the functionality of the platform wrapper's enable_auto_csr
 
@@ -12,11 +14,8 @@ def test_can_change_auto_allow_csr(volttron_instance_web):
 
         note this will only work with an rmq instance.
     """
+    skip_zmq(volttron_instance_web)
     instance = volttron_instance_web
-
-    if not instance.messagebus == 'rmq':
-        pytest.skip("Only available for rmq message buses")
-        return
 
     # Should be off by default
     assert not instance.is_auto_csr_enabled()

@@ -1,11 +1,8 @@
 import contextlib
-from cryptography.hazmat.primitives import serialization
-import os
 from types import SimpleNamespace
 
-from volttron.platform.certs import CertWrapper
-from volttron.platform.certs import Certs, _load_key
-
+from volttron.platform.auth import Certs
+from volttron.platform.auth.certs import _load_key
 #TODO: Combine cert_profile_1 and cert_profile_2
 # Verify whether we need it as dictionary or SimpleNamespace
 
@@ -62,7 +59,7 @@ def certs_profile_2(certificate_dir, fqdn=None, num_server_certs=1, num_client_c
 
     Usage:
 
-        certs = certs_profile_1("/tmp/abc", 1, 2)
+        certs = certs_profile_2("/tmp/abc", 1, 2)
             ...
 
     :param certificate_dir:

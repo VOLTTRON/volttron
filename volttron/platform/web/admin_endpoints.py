@@ -45,7 +45,7 @@ from volttron.platform.agent.known_identities import PLATFORM_WEB, AUTH
 from volttron.platform.jsonrpc import RemoteError
 
 try:
-    from jinja2 import Environment, FileSystemLoader, select_autoescape, TemplateNotFound
+    from jinja2 import FileSystemLoader, select_autoescape, TemplateNotFound
 except ImportError:
     logging.getLogger().warning("Missing jinja2 library in admin_endpoints.py")
 
@@ -57,11 +57,10 @@ except ImportError:
 from watchdog_gevent import Observer
 from volttron.platform.agent.web import Response
 
-from ...platform import get_home
-from ...platform import jsonapi
-from ...platform.certs import Certs
-from ...utils import VolttronHomeFileReloader
-from ...utils.persistance import PersistentDict
+from volttron.platform import get_home
+from volttron.platform import jsonapi
+from volttron.utils import VolttronHomeFileReloader
+from volttron.utils.persistance import PersistentDict
 
 
 _log = logging.getLogger(__name__)
@@ -71,7 +70,7 @@ def template_env(env):
     return env['JINJA2_TEMPLATE_ENV']
 
 
-class AdminEndpoints(object):
+class AdminEndpoints:
 
     def __init__(self, rmq_mgmt=None, ssl_public_key: bytes = None, rpc_caller=None):
 
@@ -135,7 +134,7 @@ class AdminEndpoints(object):
 
                 if pass1 == pass2 and pass1 is not None:
                     _log.debug("Setting administrator password")
-                    self.add_user(username, pass1, groups=['admin'])
+                    self.add_user(username, pass1, groups=['admin', 'vui'])
                     return Response('', status='302', headers={'Location': '/admin/login.html'})
 
             template = template_env(env).get_template('first.html')
@@ -187,23 +186,29 @@ class AdminEndpoints(object):
 
             if page == 'pending_auth_reqs.html':
                 try:
-                    self._pending_auths = self._rpc_caller.call(AUTH, 'get_authorization_pending').get(timeout=2)
-                    self._denied_auths = self._rpc_caller.call(AUTH, 'get_authorization_denied').get(timeout=2)
-                    self._approved_auths = self._rpc_caller.call(AUTH, 'get_authorization_approved').get(timeout=2)
+                    self._pending_auths = self._rpc_caller.call(AUTH, 'get_pending_authorizations').get(timeout=2)
+                    self._denied_auths = self._rpc_caller.call(AUTH, 'get_denied_authorizations').get(timeout=2)
+                    self._approved_auths = self._rpc_caller.call(AUTH, 'get_approved_authorizations').get(timeout=2)
+                    # RMQ CSR Mapping
+                    self._pending_auths = [{"user_id" if k == "identity" else "address" if "remote_ip_address" else k:v for k,v in output.items()} for output in self._pending_auths]
+                    self._denied_auths = [{"user_id" if k == "identity" else "address" if "remote_ip_address" else k:v for k,v in output.items()} for output in self._denied_auths]
+                    self._approved_auths = [{"user_id" if k == "identity" else "address" if "remote_ip_address" else k:v for k,v in output.items()} for output in self._approved_auths]
                 except TimeoutError:
                     self._pending_auths = []
                     self._denied_auths = []
                     self._approved_auths = []
-                # When messagebus is rmq, include pending csrs in the output pending_auth_reqs.html page
-                if self._rmq_mgmt is not None:
-                    html = template.render(csrs=self._rpc_caller.call(AUTH, 'get_pending_csrs').get(timeout=4),
-                                           auths=self._pending_auths,
-                                           denied_auths=self._denied_auths,
-                                           approved_auths=self._approved_auths)
-                else:
-                    html = template.render(auths=self._pending_auths,
-                                           denied_auths=self._denied_auths,
-                                           approved_auths=self._approved_auths)
+                except Exception as err:
+                    _log.error(f"Error message is: {err}")                    
+                # # When messagebus is rmq, include pending csrs in the output pending_auth_reqs.html page
+                # if self._rmq_mgmt is not None:
+                #     html = template.render(csrs=self._rpc_caller.call(AUTH, 'get_pending_csrs').get(timeout=4),
+                #                            auths=self._pending_auths,
+                #                            denied_auths=self._denied_auths,
+                #                            approved_auths=self._approved_auths)
+                # else:
+                html = template.render(auths=self._pending_auths,
+                                        denied_auths=self._denied_auths,
+                                        approved_auths=self._approved_auths)
             else:
                 # A template with no params.
                 html = template.render()
@@ -240,49 +245,49 @@ class AdminEndpoints(object):
     def __approve_csr_api(self, common_name):
         try:
             _log.debug("Creating cert and permissions for user: {}".format(common_name))
-            self._rpc_caller.call(AUTH, 'approve_authorization_failure', common_name).wait(timeout=4)
-            data = dict(status=self._rpc_caller.call(AUTH, "get_pending_csr_status", common_name).get(timeout=2),
-                        cert=self._rpc_caller.call(AUTH, "get_pending_csr_cert", common_name).get(timeout=2))
+            self._rpc_caller.call(AUTH, 'approve_authorization', common_name).wait(timeout=4)
+            data = dict(status=self._rpc_caller.call(AUTH, "get_authorization_status", common_name).get(timeout=2),
+                        cert=self._rpc_caller.call(AUTH, "get_authorization", common_name).get(timeout=2))
         except ValueError as e:
-            data = dict(status="ERROR", message=e.message)
+            data = dict(status="ERROR", message=str(e))
 
         except TimeoutError as e:
-            data = dict(status="ERROR", message=e.message)
+            data = dict(status="ERROR", message=str(e))
 
         return Response(jsonapi.dumps(data), content_type="application/json")
 
     def __deny_csr_api(self, common_name):
         try:
-            self._rpc_caller.call(AUTH, 'deny_authorization_failure', common_name).wait(timeout=2)
+            self._rpc_caller.call(AUTH, 'deny_authorization', common_name).wait(timeout=2)
             data = dict(status="DENIED",
                         message="The administrator has denied the request")
         except ValueError as e:
-            data = dict(status="ERROR", message=e.message)
+            data = dict(status="ERROR", message=str(e))
 
         except TimeoutError as e:
-            data = dict(status="ERROR", message=e.message)
+            data = dict(status="ERROR", message=str(e))
 
         return Response(jsonapi.dumps(data), content_type="application/json")
 
     def __delete_csr_api(self, common_name):
         try:
-            self._rpc_caller.call(AUTH, 'delete_authorization_failure', common_name).wait(timeout=2)
+            self._rpc_caller.call(AUTH, 'delete_authorization', common_name).wait(timeout=2)
             data = dict(status="DELETED",
                         message="The administrator has denied the request")
         except ValueError as e:
-            data = dict(status="ERROR", message=e.message)
+            data = dict(status="ERROR", message=str(e))
 
         except TimeoutError as e:
-            data = dict(status="ERROR", message=e.message)
+            data = dict(status="ERROR", message=str(e))
 
         return Response(jsonapi.dumps(data), content_type="application/json")
 
     def __pending_csrs_api(self):
         try:
-            data = self._rpc_caller.call(AUTH, 'get_pending_csrs').get(timeout=4)
+            data = self._rpc_caller.call(AUTH, 'get_pending_authorizations').get(timeout=4)
 
         except TimeoutError as e:
-            data = dict(status="ERROR", message=e.message)
+            data = dict(status="ERROR", message=str(e))
 
         return Response(jsonapi.dumps(data), content_type="application/json")
 
@@ -290,50 +295,50 @@ class AdminEndpoints(object):
 
         try:
             data = [dict(common_name=x.common_name) for x in
-                    self._rpc_caller.call(AUTH, "get_all_pending_csr_subjects").get(timeout=2)]
+                    self._rpc_caller.call(AUTH, "get_approved_authorizations").get(timeout=2)]
 
         except TimeoutError as e:
-            data = dict(status="ERROR", message=e.message)
+            data = dict(status="ERROR", message=str(e))
 
         return Response(jsonapi.dumps(data), content_type="application/json")
 
     def __approve_credential_api(self, user_id):
         try:
             _log.debug("Creating credential and permissions for user: {}".format(user_id))
-            self._rpc_caller.call(AUTH, 'approve_authorization_failure', user_id).wait(timeout=4)
+            self._rpc_caller.call(AUTH, 'approve_authorization', user_id).wait(timeout=4)
             data = dict(status='APPROVED',
                         message="The administrator has approved the request")
         except ValueError as e:
-            data = dict(status="ERROR", message=e.message)
+            data = dict(status="ERROR", message=str(e))
 
         except TimeoutError as e:
-            data = dict(status="ERROR", message=e.message)
+            data = dict(status="ERROR", message=str(e))
 
         return Response(jsonapi.dumps(data), content_type="application/json")
 
     def __deny_credential_api(self, user_id):
         try:
-            self._rpc_caller.call(AUTH, 'deny_authorization_failure', user_id).wait(timeout=2)
+            self._rpc_caller.call(AUTH, 'deny_authorization', user_id).wait(timeout=2)
             data = dict(status="DENIED",
                         message="The administrator has denied the request")
         except ValueError as e:
-            data = dict(status="ERROR", message=e.message)
+            data = dict(status="ERROR", message=str(e))
 
         except TimeoutError as e:
-            data = dict(status="ERROR", message=e.message)
+            data = dict(status="ERROR", message=str(e))
 
         return Response(jsonapi.dumps(data), content_type="application/json")
 
     def __delete_credential_api(self, user_id):
         try:
-            self._rpc_caller.call(AUTH, 'delete_authorization_failure', user_id).wait(timeout=2)
+            self._rpc_caller.call(AUTH, 'delete_authorization', user_id).wait(timeout=2)
             data = dict(status="DELETED",
                         message="The administrator has denied the request")
         except ValueError as e:
-            data = dict(status="ERROR", message=e.message)
+            data = dict(status="ERROR", message=str(e))
 
         except TimeoutError as e:
-            data = dict(status="ERROR", message=e.message)
+            data = dict(status="ERROR", message=str(e))
 
         return Response(jsonapi.dumps(data), content_type="application/json")
 

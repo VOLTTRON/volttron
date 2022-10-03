@@ -47,6 +47,10 @@ across threads (or avoided all together). There is no locking around the
 state as there is with the gevent version in the green sub-module.
 """
 
+# Monkeypatch for gevent
+from volttron.utils import monkey_patch
+monkey_patch()
+
 from threading import local as _local
 
 import zmq as _zmq
@@ -54,13 +58,12 @@ import zmq as _zmq
 from .socket import *
 from .socket import _Socket
 
-
 class Socket(_Socket, _zmq.Socket):
     _context_class = _zmq.Context
     _local_class = _local
 
 
-class BaseConnection(object):
+class BaseConnection:
     """
     Base connection class for message bus connection.
     """

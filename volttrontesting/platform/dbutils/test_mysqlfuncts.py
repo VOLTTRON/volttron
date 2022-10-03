@@ -272,7 +272,7 @@ def test_get_topic_meta_map_should_succeed(get_container_func):
                    INSERT INTO topics (topic_name)
                    VALUES ('football');
                    INSERT INTO topics (topic_name, metadata)
-                   VALUES ('baseball', '{"metadata":"value"}');                     
+                   VALUES ('baseball', '{\\"metadata\\":\\"value\\"}');                     
                 """
         seed_database(container, query)
         expected = {1: None, 2: {"metadata": "value"}}
@@ -501,6 +501,8 @@ def create_historian_tables(container, historian_version):
 
     command = f'mysql --user="root" --password="{ROOT_PASSWORD}" {TEST_DATABASE} --execute="{query}"'
     container.exec_run(cmd=command, tty=True)
+    sleep(4)
+    print(f"Created container and executed query {query}")
     return
 
 

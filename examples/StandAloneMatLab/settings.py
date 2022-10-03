@@ -14,19 +14,19 @@ _params = {
     'port': 22916,
 
     # public and secret key for the standalone_matlab agent.
-    # These can be created using the command:  volttron-ctl auth keypair
+    # These can be created using the command:  vctl auth keypair
     # public key should also be added to the volttron instance auth
     # configuration to enable standalone agent access to volttron instance. Use
     # command 'vctl auth add' Provide this agent's public key when prompted
     # for credential.
 
-    'agent_public': 'qtYEDEqN7G0MAuw-HhxXFc5lTyTaqCoYdgLHL5WZBBc',
-    'agent_secret': 'Qq9AI5ZeL5cFS9_-ZtTklnxCHeeq-rk4gXzl5pKaJLk',
+    'agent_public': 'LHnktj94SRg2YaJ2rr_iFCNxwlb2s4w6om6xGjhYV1U',
+    'agent_secret': '_XCJmdfCKoo1e-fnczd3Shs1NajWkSz9ngxI5DEEYko',
 
     # Public server key from the remote platform.  This can be
     # obtained using the command:
-    # volttron-ctl auth serverkey
-    'server_key': '4e-WQpYCsvyamj23k44OO9673aWGY4blR98b2vC7yQ4'
+    # vctl auth serverkey
+    'server_key': '2in4jOWAanEOiKtgYKrhzJoWeZSdfP9S9NeKHvrJACY'
 
 }
 

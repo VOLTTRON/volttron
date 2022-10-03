@@ -45,7 +45,6 @@ try:
 except ImportError:
     raise RuntimeError('PyYAML must be installed before running this script ')
 
-from volttron.platform import certs
 from volttron.platform import get_home
 from volttron.platform.agent.utils import get_platform_instance_name
 
@@ -74,7 +73,7 @@ def write_to_config_file(filename, data):
         _log.error(f"Yaml Error: {filename}. Exception: {exc}")
 
 
-class RMQConfig(object):
+class RMQConfig:
     """
     Utility class to read/write RabbitMQ related configuration
     """
@@ -89,9 +88,10 @@ class RMQConfig(object):
             with open(os.path.expanduser("~/.volttron_rmq_home")) as f:
                 self.rabbitmq_server = f.read().strip()
         else:
-            self.rabbitmq_server = os.path.expanduser("~/rabbitmq_server/rabbitmq_server-3.7.7/")
+            self.rabbitmq_server = os.path.expanduser("~/rabbitmq_server/rabbitmq_server-3.9.7/")
 
         assert os.path.isdir(self.rabbitmq_server), "Missing rabbitmq server directory{}".format(self.rabbitmq_server)
+        from volttron.platform.auth import certs
         self.crts = certs.Certs()
         self.volttron_home = get_home()
         self.volttron_rmq_config = os.path.join(self.volttron_home, 'rabbitmq_config.yml')
@@ -118,7 +118,7 @@ class RMQConfig(object):
         self.config_opts.setdefault('reconnect-delay', 30)
         self.config_opts.setdefault('user', self.instance_name + '-admin')
         rmq_home = os.path.join(os.path.expanduser("~"),
-                                "rabbitmq_server/rabbitmq_server-3.7.7")
+                                "rabbitmq_server/rabbitmq_server-3.9.7")
         self.config_opts.setdefault('rabbitmq-service', False)
         self.config_opts.setdefault("rmq-home", rmq_home)
 
@@ -150,8 +150,11 @@ class RMQConfig(object):
             # agents should be able to read this config file
             os.chmod(self.volttron_rmq_config, 0o744)
         except IOError as exc:
-            _log.error("Error writing to rabbitmq_config.yml file. Please"
-                       "check VOLTTRON_HOME".format(self.volttron_home))
+            msg = (
+                "Error writing to rabbitmq_config.yml file. "
+                "Please check {VOLTTRON_HOME}".format(VOLTTRON_HOME=self.volttron_home)
+            )
+            _log.error(msg)
         except yaml.YAMLError as exc:
             raise
 

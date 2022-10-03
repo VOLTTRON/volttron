@@ -18,7 +18,7 @@ _params = {
 	'port': 22916,
 	
 	# public and secret key for the standalonelistener agent.
-	# These can be created using the command:  volttron-ctl auth keypair
+	# These can be created using the command: vctl auth keypair
 	# public key should also be added to the volttron instance auth
 	# configuration to enable standalone agent access to volttron instance. Use
 	# command 'vctl auth add' Provide this agent's public key when prompted
@@ -29,7 +29,7 @@ _params = {
 	
 	# Public server key from the remote platform.  This can be
 	# obtained using the command:
-	# volttron-ctl auth serverkey
+	# vctl auth serverkey
 	'server_key': 'R2aY0t4gAMnpl0dL44bmrTdMmgXN16hvconvIiHFows'
 }
 

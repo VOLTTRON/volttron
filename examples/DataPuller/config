@@ -9,6 +9,6 @@
         "devices", "analysis", "record", "datalogger", "actuators"
     ],
     "topic_replace_list": [
-	    #{"from": "FromString", "to": "ToString"}
+        #{"from": "FromString", "to": "ToString"}
     ]
 }

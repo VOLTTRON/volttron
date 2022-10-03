@@ -49,7 +49,7 @@ def secure_volttron_instance(request):
                             instance_name=request.param['instance_name'],
                             messagebus=request.param['messagebus'],
                             ssl_auth=request.param['ssl_auth'],
-                            secure_agent_users=True)
+                            agent_isolation_mode=True)
 
     gevent.sleep(3)
 
@@ -148,9 +148,9 @@ def publish(publish_agent, topic, header, message):
 @pytest.mark.secure
 def test_agent_rpc(secure_volttron_instance, security_agent, query_agent):
     """
-    Test agent running in secure mode can make RPC calls without any errors
+    Test agent running in agent isolation mode can make RPC calls without any errors
     :param secure_volttron_instance: secure volttron instance
-    :param security_agent: Test agent which runs secure mode as a user other than platform user
+    :param security_agent: Test agent which runs agent isolation mode as a user other than platform user
     :param query_agent: Fake agent to do rpc calls to test agent
     """
     """if multiple copies of an agent can be installed successfully"""
@@ -185,9 +185,9 @@ def test_agent_rpc(secure_volttron_instance, security_agent, query_agent):
 def test_agent_pubsub(secure_volttron_instance, security_agent,
                       query_agent):
     """
-    Test agent running in secure mode can publish and subscribe to message bus without any errors
+    Test agent running in agent isolation mode can publish and subscribe to message bus without any errors
     :param secure_volttron_instance: secure volttron instance
-    :param security_agent: Test agent which runs secure mode as a user other than platform user
+    :param security_agent: Test agent which runs agent isolation mode as a user other than platform user
     :param query_agent: Fake agent to do rpc calls to test agent
     """
     query_agent.vip.rpc.call("security_agent", "can_publish_to_pubsub")
@@ -215,7 +215,7 @@ def test_install_dir_permissions(secure_volttron_instance, security_agent, query
     Test to make sure agent user only has read and execute permissions for all sub folders of agent install directory
     except <agent>.agent-data directory. Agent user should have rwx to agent-data directory
     :param secure_volttron_instance: secure volttron instance
-    :param security_agent: Test agent which runs secure mode as a user other than platform user
+    :param security_agent: Test agent which runs agent isolation mode as a user other than platform user
     :param query_agent: Fake agent to do rpc calls to test agent
     """
     assert secure_volttron_instance.is_agent_running(security_agent)
@@ -231,7 +231,7 @@ def test_install_dir_file_permissions(secure_volttron_instance, security_agent, 
     <agent>.agent-data directory. Agent user will be the owner of files in agent-data directory and hence we
     need not check files in this dir
     :param secure_volttron_instance: secure volttron instance
-    :param security_agent: Test agent which runs secure mode as a user other than platform user
+    :param security_agent: Test agent which runs agent isolation mode as a user other than platform user
     :param query_agent: Fake agent to do rpc calls to test agent
     """
     results = query_agent.vip.rpc.call("security_agent", "verify_install_dir_file_permissions").get(timeout=5)
@@ -248,7 +248,7 @@ def test_vhome_dir_permissions(secure_volttron_instance, security_agent, query_a
         - vhome
         - vhome/certificates and its subfolders
     :param secure_volttron_instance: secure volttron instance
-    :param security_agent: Test agent which runs secure mode as a user other than platform user
+    :param security_agent: Test agent which runs agent isolation mode as a user other than platform user
     :param query_agent: Fake agent to do rpc calls to test agent
     """
     assert secure_volttron_instance.is_agent_running(security_agent)
@@ -270,7 +270,7 @@ def test_vhome_file_permissions(secure_volttron_instance, security_agent, query_
         - vhome/certificates/private/<agent_vip_id>.<instance_name>.pem
 
     :param secure_volttron_instance: secure volttron instance
-    :param security_agent: Test agent which runs secure mode as a user other than platform user
+    :param security_agent: Test agent which runs agent isolation mode as a user other than platform user
     :param query_agent: Fake agent to do rpc calls to test agent
     """
     assert secure_volttron_instance.is_agent_running(security_agent)
@@ -288,7 +288,7 @@ def test_vhome_file_permissions(secure_volttron_instance, security_agent, query_
         gevent.sleep(3)
         assert secure_volttron_instance.is_agent_running(agent2)
 
-        # Now verify that security_agent has read access to only its own files
+        # Now verify that security_agent has read access to only its own files and not the newly created agent files
         results = query_agent.vip.rpc.call("security_agent",
                                            "verify_vhome_file_permissions",
                                            INSTANCE_NAME1).get(timeout=10)
@@ -313,7 +313,7 @@ def test_config_store_access(secure_volttron_instance, security_agent, query_age
         - vhome/certificates/certs/<agent_vip_id>.<instance_name>.crt
         - vhome/certificates/private/<agent_vip_id>.<instance_name>.pem
     :param secure_volttron_instance: secure volttron instance
-    :param security_agent: Test agent which runs secure mode as a user other than platform user
+    :param security_agent: Test agent which runs agent isolation mode as a user other than platform user
     :param query_agent: Fake agent to do rpc calls to test agent
     """
     assert secure_volttron_instance.is_agent_running(security_agent)

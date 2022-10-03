@@ -13,7 +13,7 @@ HOME = os.environ.get('HOME')
 _log = logging.getLogger(__name__)
 
 
-class RabbitTestConfig(object):
+class RabbitTestConfig:
     def __init__(self):
         # Provides defaults for rabbitmq configuration file.
         self.rabbitmq_config = {
@@ -34,7 +34,7 @@ class RabbitTestConfig(object):
             # This is overwritten in the class below during
             # the create_rmq_volttron_setup function, but is
             # left here for completeness of the configuration.
-            'rmq-home': '~/rabbitmq_server-3.7.7',
+            'rmq-home': '~/rabbitmq_server-3.9.7',
             'reconnect-delay': 5
         }
 
@@ -114,7 +114,7 @@ class RabbitTestConfig(object):
 
 
 def create_rmq_volttron_setup(vhome=None, ssl_auth=False, env=None,
-                              instance_name=None, secure_agent_users=False) -> RabbitTestConfig:
+                              instance_name=None, agent_isolation_mode=False) -> RabbitTestConfig:
     """
         Set-up rabbitmq broker for volttron testing:
             - Install config and rabbitmq_config.yml in VOLTTRON_HOME
@@ -130,7 +130,7 @@ def create_rmq_volttron_setup(vhome=None, ssl_auth=False, env=None,
     else:
         vhome = get_home()
 
-    if secure_agent_users:
+    if agent_isolation_mode:
         os.umask(0o007)
 
     # Build default config file object, which we will then update to fit the

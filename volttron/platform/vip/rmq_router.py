@@ -36,9 +36,6 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-
-from __future__ import absolute_import
-
 import errno
 import logging
 import os
@@ -48,22 +45,23 @@ from typing import Optional
 from volttron.platform import is_rabbitmq_available
 from volttron.platform import jsonapi
 from volttron.utils.rmq_mgmt import RabbitMQMgmt
-from .rmq_connection import RMQRouterConnection
-from .router import BaseRouter
-from .servicepeer import ServicePeerNotifier
-from .socket import Message, Address
-from ..keystore import KeyStore
-from ..main import __version__
+from volttron.platform.vip.rmq_connection import RMQRouterConnection
+from volttron.platform.vip.router import BaseRouter
+from volttron.platform.vip.servicepeer import ServicePeerNotifier
+from volttron.platform.vip.socket import Message, Address
+from volttron.platform.keystore import KeyStore
+from volttron.platform.main import __version__
 
 if is_rabbitmq_available():
     import pika
+    from volttron.platform.auth.auth_protocols.auth_rmq import RMQConnectionAPI
 
 __all__ = ['RMQRouter']
 
 _log = logging.getLogger(__name__)
 
 
-class RMQRouter(object):
+class RMQRouter:
     """
     Concrete VIP Router for RabbitMQ message bus. It handles router specific
     messages and unrouteable messages.
@@ -74,6 +72,7 @@ class RMQRouter(object):
                  volttron_central_address=None,
                  volttron_central_serverkey=None,
                  bind_web_address=None,
+                 enable_auth=True,
                  service_notifier=Optional[ServicePeerNotifier]
                  ):
         """
@@ -96,6 +95,7 @@ class RMQRouter(object):
         self.rmq_mgmt = RabbitMQMgmt()
         self.event_queue = Queue()
         self._service_notifier = service_notifier
+        self.enable_auth = enable_auth
         param = self._build_connection_parameters()
         self.connection = RMQRouterConnection(param,
                                               identity,
@@ -108,8 +108,12 @@ class RMQRouter(object):
         if self._identity is None:
             raise ValueError("Agent's VIP identity is not set")
         else:
-            param = self.rmq_mgmt.build_router_connection(self._identity,
-                                                          self._instance_name)
+            if self.enable_auth:
+                param = RMQConnectionAPI().build_router_connection(self._identity, self._instance_name)
+            else:
+                # if auth is disabled then connection to rmq router will not use ssl. All connection to rmq will be
+                # through rmq admin user and password
+                param = RMQConnectionAPI(ssl_auth=False).build_router_connection(self._identity, self._instance_name)
         return param
 
     def start(self):
@@ -249,7 +253,8 @@ class RMQRouter(object):
         elif subsystem == 'quit':
             if sender == 'control':
                 self.stop()
-                raise KeyboardInterrupt()
+                return False
+                #raise KeyboardInterrupt()
         elif subsystem == 'agentstop':
             _log.debug("ROUTER received agent stop {}".format(sender))
             try:

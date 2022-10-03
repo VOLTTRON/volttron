@@ -49,30 +49,29 @@ import signal
 import sys
 import uuid
 
-import requests
 import gevent
 import gevent.event
 from gevent import subprocess
 from gevent.subprocess import PIPE
 from wheel.tool import unpack
 
-from volttron.platform import certs
 from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM
 from volttron.platform.agent.utils import get_fq_identity, is_secure_mode
 # Can't use zmq.utils.jsonapi because it is missing the load() method.
 from volttron.platform import jsonapi
-from volttron.platform.certs import Certs
+from volttron.platform.auth.certs import Certs
 from volttron.platform.keystore import KeyStore
 
-from .agent.utils import (is_valid_identity,
+from volttron.platform.agent.utils import (is_valid_identity,
                           get_messagebus,
                           get_platform_instance_name)
 from volttron.platform import get_home
 from volttron.platform.agent.utils import load_platform_config, \
     get_utc_seconds_from_epoch
-from .packages import UnpackedPackage
-from .vip.agent import Agent
-from .auth import AuthFile, AuthEntry, AuthFileEntryAlreadyExists
+from volttron.platform.packages import UnpackedPackage
+from volttron.platform.vip.agent import Agent
+from volttron.platform.auth.auth_entry import AuthEntry
+from volttron.platform.auth.auth_file import AuthFile, AuthFileEntryAlreadyExists
 from volttron.utils.rmq_mgmt import RabbitMQMgmt
 from volttron.platform import update_volttron_script_path
 
@@ -152,7 +151,7 @@ def log_stream(name, agent, pid, path, stream):
             log.handle(record)
 
 
-class IgnoreErrno(object):
+class IgnoreErrno:
     ignore = []
 
     def __init__(self, errno, *more):
@@ -172,7 +171,7 @@ class IgnoreErrno(object):
 ignore_enoent = IgnoreErrno(errno.ENOENT)
 
 
-class ExecutionEnvironment(object):
+class ExecutionEnvironment:
     '''Environment reserved for agent execution.
 
     Deleting ExecutionEnvironment objects should cause the process to
@@ -217,7 +216,7 @@ class ExecutionEnvironment(object):
         self.execute(*args, **kwargs)
 
 
-class SecureExecutionEnvironment(object):
+class SecureExecutionEnvironment:
 
     def __init__(self, agent_user):
         self.process = None
@@ -238,7 +237,7 @@ class SecureExecutionEnvironment(object):
 
     def stop(self):
         if self.process.poll() is None:
-            cmd = ["sudo", update_volttron_script_path("scripts/secure_stop_agent.sh"), self.agent_user, str(self.process.pid)]
+            cmd = ["sudo", update_volttron_script_path("scripts/stop_agent_running_in_isolation.sh"), self.agent_user, str(self.process.pid)]
             _log.debug("In aip secureexecutionenv {}".format(cmd))
             process = subprocess.Popen(cmd, stdout=PIPE, stderr=PIPE)
             stdout, stderr = process.communicate()
@@ -252,7 +251,7 @@ class SecureExecutionEnvironment(object):
         self.execute(*args, **kwargs)
 
 
-class AIPplatform(object):
+class AIPplatform:
     """Manages the main workflow of receiving and sending agents."""
 
     def __init__(self, env, **kwargs):
@@ -398,8 +397,8 @@ class AIPplatform(object):
                 os.makedirs(path)
                 os.chmod(path, 0o755)
         # Create certificates directory and its subdirectory at start of platform
-        # so if volttron is run in secure mode, the first agent install would already have
-        # the directories ready. In secure mode, agents will be run as separate user and will
+        # so if volttron is run in agent isolation mode, the first agent install would already have
+        # the directories ready. In agent isolation mode, agents will be run as separate user and will
         # not have access to create these directories
         Certs()
 
@@ -497,12 +496,11 @@ class AIPplatform(object):
         try:
             if auth is not None and self.env.verify_agents:
                 unpacker = auth.VolttronPackageWheelFile(agent_wheel,
-                                                         certsobj=certs.Certs())
+                                                         certsobj=Certs())
                 unpacker.unpack(dest=agent_path)
             else:
                 unpack(agent_wheel, dest=agent_path)
 
-            # Is it ok to remove the wheel file after unpacking?
             os.remove(agent_wheel)
 
             final_identity = self._setup_agent_vip_id(
@@ -514,7 +512,7 @@ class AIPplatform(object):
             if self.message_bus == 'rmq':
                 rmq_user = get_fq_identity(final_identity,
                                            self.instance_name)
-                certs.Certs().create_signed_cert_files(rmq_user, overwrite=False)
+                Certs().create_signed_cert_files(rmq_user, overwrite=False)
 
             if self.secure_agent_user:
                 # When installing, we always create a new user, as anything
@@ -672,12 +670,13 @@ class AIPplatform(object):
         msg_bus = self.message_bus
         identity = self.agent_identity(agent_uuid)
         if msg_bus == 'rmq':
+            from requests.exceptions import HTTPError
             # Delete RabbitMQ user for the agent
             instance_name = self.instance_name
             rmq_user = instance_name + '.' + identity
             try:
                 self.rmq_mgmt.delete_user(rmq_user)
-            except requests.exceptions.HTTPError as e:
+            except HTTPError as e:
                 _log.error(f"RabbitMQ user {rmq_user} is not available to delete. Going ahead and removing agent directory")
         self.agents.pop(agent_uuid, None)
         agent_directory = os.path.join(self.install_dir, agent_uuid)
@@ -817,6 +816,8 @@ class AIPplatform(object):
         if priority is None:
             with ignore_enoent:
                 os.unlink(autostart)
+        elif not priority.isdigit() or not 0 <= int(priority) < 100:
+            raise ValueError(f'Priority must be an integer from 0 - 99. Received: {priority}.')
         else:
             with open(autostart, 'w') as file:
                 file.write(priority.strip())
@@ -969,7 +970,7 @@ class AIPplatform(object):
                 _log.info("No existing volttron agent user was found at {} due "
                           "to {}".format(user_id_path, err))
 
-                # May be switched from normal to secure mode with existing agents. To handle this case
+                # May be switched from normal to agent isolation mode with existing agents. To handle this case
                 # create users and also set permissions again for existing files
                 agent_user = self.add_agent_user(name, agent_dir)
                 self.set_agent_user_permissions(agent_user,
@@ -978,7 +979,7 @@ class AIPplatform(object):
 
                 # additionally give permissions to contents of agent-data dir.
                 # This is needed only for agents installed before switching to
-                # secure mode. Agents installed in secure mode will own files
+                # agent isolation mode. Agents installed in agent isolation mode will own files
                 # in agent-data dir
                 # Moved this to the top so that "agent-data" directory gets
                 # created in the beginning
@@ -1000,11 +1001,11 @@ class AIPplatform(object):
 
             self.rmq_mgmt.create_user_with_permissions(rmq_user, self.rmq_mgmt.get_default_permissions(rmq_user),
                                                        ssl_auth=True)
-            key_file = certs.Certs().private_key_file(rmq_user)
+            key_file = Certs().private_key_file(rmq_user)
             if not os.path.exists(key_file):
                 # This could happen when user switches from zmq to rmq after installing agent
                 _log.info(f"agent certs don't exists. creating certs for agent")
-                certs.Certs().create_signed_cert_files(rmq_user, overwrite=False)
+                Certs().create_signed_cert_files(rmq_user, overwrite=False)
 
             if self.secure_agent_user:
                 # give read access to user to its own private key file.

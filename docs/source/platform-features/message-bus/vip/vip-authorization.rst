@@ -9,6 +9,31 @@ VOLTTRON platform that agent proves its identity to the platform.  Once authenti
 the :ref:`message bus <Message-Bus>`.  VIP authorization is about giving a platform owner the ability to limit
 the capabilities of authenticated agents.
 
+Authorization Implementation
+----------------------------
+
+Authorization has client and server implementations. On the client side, 
+authorization is used to connect the auth subsystem to the auth service.
+This provides the connection needed to manage capabilites and protected topics.
+The server authorization is used to manage pending credentials and certificates that
+are handled by authentication, as well as managing capabilties and protected topics.
+
+BaseServerAuthorization:
+* approve_authorization
+* deny_authorization
+* delete_authorization
+* get_authorization
+* get_authorization_status
+* get_pending_authorizations
+* get_approved_authorizations
+* get_denied_authorizations
+* update_user_capabilites
+* load_protected_topics
+* update_protected_topics
+
+BaseClientAuthorization
+* connect_remote_platform
+
 There are two parts to authorization:
 
 #. Required capabilities (specified in agent's code)

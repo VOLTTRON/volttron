@@ -73,10 +73,10 @@ def is_ip_private(vip_address):
 
     # https://en.wikipedia.org/wiki/Private_network
 
-    priv_lo = re.compile("^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$")
-    priv_24 = re.compile("^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$")
-    priv_20 = re.compile("^192\.168\.\d{1,3}.\d{1,3}$")
-    priv_16 = re.compile("^172.(1[6-9]|2[0-9]|3[0-1]).[0-9]{1,3}.[0-9]{1,3}$")
+    priv_lo = re.compile(r"^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$")
+    priv_24 = re.compile(r"^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$")
+    priv_20 = re.compile(r"^192\.168\.\d{1,3}.\d{1,3}$")
+    priv_16 = re.compile(r"^172.(1[6-9]|2[0-9]|3[0-1]).[0-9]{1,3}.[0-9]{1,3}$")
 
     return priv_lo.match(ip) is not None or priv_24.match(
         ip) is not None or priv_20.match(ip) is not None or priv_16.match(
@@ -90,6 +90,22 @@ def get_hostname():
     assert hostname
     return hostname
 
+def monkey_patch():
+    from gevent import monkey
+
+    # At this point these are the only things that need to be patched
+    # and the server and client are working harmoniously with this.
+    patches = [
+        ('ssl', monkey.patch_ssl),
+        ('socket', monkey.patch_socket),
+        ('os', monkey.patch_os),
+    ]
+
+    # patch modules if necessary.  Only if the module hasn't been patched before.
+    # this could happen if the server code uses the client (which it does).
+    for module, fn in patches:
+        if not monkey.is_module_patched(module):
+            fn()
 
 class VolttronHomeFileReloader(PatternMatchingEventHandler):
     """

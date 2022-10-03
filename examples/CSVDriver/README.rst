@@ -10,7 +10,9 @@ driver is an example driver for development purposes only.
 In order to run this driver, put the csvdriver.py file into the platform driver's
 interfaces directory, then configure the platform driver normally using the
 included csv_driver.config configuration file and csv_registers.csv registry
-configuration file (see devguides > walkthroughs > Driver-Creation-Walkthrough
+configuration file (see the 
+[Driver Framework overview](https://volttron.readthedocs.io/en/main/driver-framework/drivers-overview.html) 
+and the [Driver Development overview](https://volttron.readthedocs.io/en/main/driver-framework/drivers-overview.html) 
 for a more in-depth explanation of the driver framework, including configuration
 , directory structure, etc.) To see csv driver publishes, start the platform
 driver and listener agents.
@@ -35,11 +37,11 @@ example driver. This agent performs 2 functions:
 To use this agent as-is, install it as normal with the provided configuration
 file ("config" in the agent's directory), install an actuator agent instance
 (minimal or no configuration is necessary in the easiest case), and install a
-listener agent instance. If the driver code file is in the platform driver's
-interfaces directory the user should see publishes via the listener agent and
-logging from this agent which indicates that the driver is functioning (some
-values in the scrape_all publish should oscillate to demonstrate that the driver
-is working).
+listener agent instance. Then start the agents. If the driver code file is in 
+the platform driver's interfaces directory the user should see publishes via 
+the listener agent and logging from this agent which indicates that the driver 
+is functioning (some values in the scrape_all publish should oscillate to 
+demonstrate that the driver is working).
 
 This agent is not intended for any kind of production use, and it may require
 additional adaptation based on the testing needs of a given driver. This agent

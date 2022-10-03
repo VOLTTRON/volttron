@@ -48,6 +48,7 @@ from collections import defaultdict
 
 import gevent
 import gevent.pywsgi
+import werkzeug
 import jwt
 from cryptography.hazmat.primitives import serialization
 from gevent import Greenlet
@@ -56,19 +57,20 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 from ws4py.server.geventserver import WSGIServer
 
 from .admin_endpoints import AdminEndpoints
+from .vui_endpoints import VUIEndpoints
 from .authenticate_endpoint import AuthenticateEndpoints
 from .csr_endpoints import CSREndpoints
 from .webapp import WebApplicationWrapper
-from volttron.platform.agent import utils
 from volttron.platform.agent.known_identities import \
     CONTROL, VOLTTRON_CENTRAL, AUTH
 from ..agent.utils import get_fq_identity
 from ..agent.web import Response, JsonResponse
-from ..auth import AuthEntry, AuthFile, AuthFileEntryAlreadyExists
-from ..certs import Certs, CertWrapper
+from volttron.platform.auth.auth_entry import AuthEntry
+from volttron.platform.auth.auth_file import AuthFile, AuthFileEntryAlreadyExists
+from volttron.platform.auth.certs import Certs, CertWrapper
 from ..jsonrpc import (json_result,
                        json_validate_request,
-                       INVALID_REQUEST, METHOD_NOT_FOUND,
+                       INVALID_REQUEST,
                        UNHANDLED_EXCEPTION, UNAUTHORIZED,
                        UNAVAILABLE_PLATFORM, INVALID_PARAMS,
                        UNAVAILABLE_AGENT, INTERNAL_ERROR, RemoteError)
@@ -76,13 +78,10 @@ from ..jsonrpc import (json_result,
 from ..vip.agent import Agent, Core, RPC, Unreachable
 from ..vip.agent.subsystems import query
 from ..vip.socket import encode_key
-from ...platform import jsonapi, jsonrpc, get_platform_config
+from ...platform import jsonapi, jsonrpc
 from ...platform.aip import AIPplatform
 from ...utils import is_ip_private
 from ...utils.rmq_config_params import RMQConfig
-
-# must be after importing of utils which imports grequest.
-import requests
 
 _log = logging.getLogger(__name__)
 
@@ -164,6 +163,8 @@ class PlatformWebService(Agent):
         self._server_greenlet: Greenlet = None
         # noinspection PyTypeChecker
         self._admin_endpoints: AdminEndpoints = None
+
+        self._vui_endpoints: VUIEndpoints = None
 
     # pylint: disable=unused-argument
     @Core.receiver('onsetup')
@@ -391,6 +392,8 @@ class PlatformWebService(Agent):
         if external_vip and self.serverkey:
             return_dict['serverkey'] = encode_key(self.serverkey)
             return_dict['vip-address'] = external_vip
+        elif external_vip:
+            return_dict['vip-address'] = external_vip
         elif not external_vip:
             _log.warning("There was no external vip-address specified in config file or command line.")
 
@@ -471,7 +474,7 @@ class PlatformWebService(Agent):
         # if ws4pi.socket is set then this connection is a web socket
         # and so we return the websocket response.
 
-        if 'ws4py.socket' in env:
+        if 'ws4py.socket' in env and 'vui' not in path_info:
             return env['ws4py.socket'](env, start_response)
 
         for k, t, v in self.registeredroutes:
@@ -488,10 +491,11 @@ class PlatformWebService(Agent):
                         retvalue = v(env, start_response, data)
                     except TypeError:
                         response = v(env, data)
+                        _log.debug(f'VUI:  Response at app_routing is: {response.response}')
                         return response(env, start_response)
                         # retvalue = self.process_response(start_response, v(env, data))
 
-                    if isinstance(retvalue, Response):
+                    if isinstance(retvalue, werkzeug.Response):
                         return retvalue(env, start_response)
                     else:
                         return retvalue[0]
@@ -799,6 +803,11 @@ class PlatformWebService(Agent):
         # or not.
         for rt in self._admin_endpoints.get_routes():
             self.registeredroutes.append(rt)
+
+        # Register VUI endpoints:
+        self._vui_endpoints = VUIEndpoints(self)
+        _log.debug(f'VUI: adding routes - {self._vui_endpoints.get_routes()}')
+        self.registeredroutes.extend(self._vui_endpoints.get_routes())
 
         # Allow authentication endpoint from any https connection
         if parsed.scheme == 'https':

@@ -42,6 +42,7 @@ curious_george.patch_all(thread=False, select=False)
 
 from . import update_auth_file
 from . import move_sqlite_files
+from . import rename_config_for_agent_isolation
 
 
 def main():
@@ -55,7 +56,9 @@ def main():
     # If using sqlite historian manually backup and restore sqlite historian's db before upgrading to historian version
     # 4.0.0 or later
     move_sqlite_files.main()
-
+    print("")
+    # In VOLTTRON 8.2 - secure-agent-user config has been renamed to agent-isolation-mode
+    rename_config_for_agent_isolation.main()
 
 def _main():
     """ Wrapper for main function"""

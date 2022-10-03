@@ -539,7 +539,7 @@ class MessageViewerCmd(Cmd):
         return monitor_socket
 
 
-class MessageViewer(object):
+class MessageViewer:
     """
         View MessageDebugger messages by issuing RPC calls to MessageDebuggerAgent.
 
@@ -661,7 +661,7 @@ class MessageViewer(object):
         return debugger_connection.call(method_name, *args, **kwargs)
 
 
-class ViewerConnection(object):
+class ViewerConnection:
     """
         This is a copy of volttron.platform.control.ControlConnection.
         ControlConnection could not be used directly because it has a hard-coded
@@ -710,7 +710,7 @@ class ViewerConnection(object):
 LEFT, CENTER, RIGHT = list(range(3))
 
 
-class TextFormatter(object):
+class TextFormatter:
     """
         Formats text into columns.
 
@@ -753,7 +753,7 @@ class TextFormatter(object):
                           ed.
     """
 
-    class Column(object):
+    class Column:
 
         def __init__(self, width=75, alignment=RIGHT, margin=1, fill=1, pad=1):
             self.width = width

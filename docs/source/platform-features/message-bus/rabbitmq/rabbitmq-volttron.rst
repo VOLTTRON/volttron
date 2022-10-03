@@ -56,8 +56,8 @@ Path: `$VOLTTRON_HOME/rabbitmq_config.yml`
     # defaults to true
     ssl: 'true'
 
-    # defaults to ~/rabbitmq_server/rabbbitmq_server-3.7.7
-    rmq-home: "~/rabbitmq_server/rabbitmq_server-3.7.7"
+    # defaults to ~/rabbitmq_server/rabbbitmq_server-3.9.7
+    rmq-home: "~/rabbitmq_server/rabbitmq_server-3.9.7"
 
 Each VOLTTRON instance resides within a RabbitMQ virtual host.  The name of the virtual host needs to be unique per
 VOLTTRON instance if there are multiple virtual instances within a single host/machine.  The hostname needs to be able
@@ -67,7 +67,7 @@ These needs to be set appropriately if the default ports are not used.
 
 The 'ssl' flag indicates if SSL based authentication is required or not.  If set to `True`, information regarding SSL
 certificates needs to be also provided.  SSL based authentication is described in detail in
-`Authentication And Authorization With RabbitMQ Message Bus <RabbitMQ-Auth>`_.
+:ref:`Authentication And Authorization With RabbitMQ Message Bus <RabbitMQ-Auth>`.
 
 To configure the VOLTTRON instance to use RabbitMQ message bus, run the following command:
 

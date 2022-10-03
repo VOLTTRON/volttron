@@ -36,7 +36,7 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-class Offer(object):
+class Offer:
 
     BUY = 'BUY'
     SELL = 'SELL'

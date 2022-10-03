@@ -11,7 +11,10 @@ collected on a potentially less secure/powerful board.
 Given this use case, it is not optimized for batching large amounts of data when "live-ness" is not needed.  For this
 use case, please see the :ref:`Data Mover Historian <Data-Mover-Historian>`.
 
-The Forward Historian can be found in the `services/core directory`.
+.. note::
+   The Forward Historian is located within the **core** directory. ::
+
+      services/core/ForwardHistorian/
 
 Forward Historian can be used to forward data between two ZMQ instances, two RMQ instances, or between ZMQ and
 RMQ instances. For Forward Historian to establish a successful connection to the destination VOLTTRON instance:

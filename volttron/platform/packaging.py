@@ -54,7 +54,7 @@ from volttron.platform.packages import *
 from volttron.platform.agent import utils
 from volttron.platform import get_volttron_data, get_home
 from volttron.utils.prompt import prompt_response
-from volttron.platform import certs
+from volttron.platform.auth import certs
 from volttron.platform import config
 
 try:
@@ -348,13 +348,25 @@ def _create_initial_package(agent_dir_to_package, wheelhouse, identity=None):
         tmpdir = tempfile.mkdtemp()
 
         builddir = os.path.join(tmpdir, 'pkg')
-        distdir = os.path.join(builddir, 'dist')
         shutil.copytree(agent_dir_to_package, builddir)
+        distdir = os.path.join(builddir, 'dist')
+        # Remove any existing wheels in 'dist' directory
+        if os.path.exists(distdir):
+            shutil.rmtree(distdir)
+
         cmd = [sys.executable, 'setup.py', '--no-user-cfg', 'bdist_wheel']
         response = subprocess.run(cmd, cwd=builddir, stderr=subprocess.PIPE,
                                   stdout=subprocess.PIPE)
         if response.returncode != 0:
             raise ValueError(f"Couldn't compile agent directory: {response.stderr}")
+
+        import glob
+        g = glob.glob(distdir + "/*.whl")
+        wheel_name = None
+        if g:
+            wheel_name = os.path.basename(g[0])
+        if wheel_name is None:
+            raise ValueError(f"Unable to create wheel file")
 
         wheel_name = os.listdir(distdir)[0]
         wheel_path = os.path.join(distdir, wheel_name)

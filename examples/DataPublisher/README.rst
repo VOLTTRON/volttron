@@ -10,7 +10,17 @@ emulation of the actuator agent for testing agents that expect to be able to set
 Installation notes
 ------------------
 
-In order to simulate the actuator you must install the agent with the VIP identity of `platform.actuator`.
+In order to simulate the actuator you must install the agent with the VIP identity of 'platform.actuator'.
+To install the agent, use this command:
+```
+vctl install --vip-identity platform.actuator -c <path to config> <path to agent folder>
+```
+
+Startup
+------------------
+
+In order to check that the data is being published to the message bus, install and run a Listener Agent. Run the 
+DataPublisher agent and then check the volttron.log file to see the output. 
 
 Configuration
 -------------

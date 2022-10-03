@@ -37,8 +37,6 @@
 # }}}
 
 
-
-
 import base64
 import datetime
 import hashlib
@@ -58,7 +56,7 @@ import psutil
 from enum import Enum
 
 from volttron.platform.agent import utils
-from volttron.platform.install_agents import install_agent_local
+from volttron.platform.control.install_agents import install_agent_local
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -71,7 +69,8 @@ from volttron.platform.agent.known_identities import (
 from volttron.platform.agent.utils import (get_aware_utc_now)
 from volttron.platform.agent.utils import (get_utc_seconds_from_epoch,
                                            format_timestamp, normalize_identity)
-from volttron.platform.auth import AuthEntry, AuthFile
+from volttron.platform.auth.auth_entry import AuthEntry
+from volttron.platform.auth.auth_file import AuthFile
 from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS)
 from volttron.platform.messaging import topics
 from volttron.platform.messaging.health import GOOD_STATUS
@@ -384,7 +383,7 @@ class VolttronCentralPlatform(Agent):
         while not self._vc_connection:
 
             if self._vc_address is None:
-                _log.warning("Invalid volttron-central-address specified.  Please add to the platform.agent config "
+                _log.warning("No volttron-central-address specified.  Please add to the platform.agent config "
                              "store or to the main instance configuration")
                 return
 
@@ -394,7 +393,7 @@ class VolttronCentralPlatform(Agent):
 
             try:
 
-                self._vc_connection = self.vip.auth.connect_remote_platform(
+                self._vc_connection = self.core.connect_remote_platform(
                     address=self._vc_address,
                     serverkey=self._vc_serverkey,
                     agent_class=VCConnection

@@ -120,7 +120,7 @@ def decode_key(key):
     raise ValueError('unknown key encoding')
 
 
-class Address(object):
+class Address:
     """Parse and hold a URL-style address.
 
     The URL given by address may contain optional query string
@@ -242,11 +242,11 @@ class Address(object):
         try:
             (bind_fn or sock.bind)(self.base)
             self.base = sock.last_endpoint.decode("utf-8")
-        except ZMQError:
-            message = 'Attempted to bind Volttron to already bound address {}, stopping'
-            message = message.format(self.base)
-            _log.error(message)
-            print("\n" + message + "\n")
+        except ZMQError as exc:
+            urlmsg = f'Attempt to bind ZMQ socket to address: {self.base}'
+            errcodemsg = f'Returned socket error code: {exc.errno}, exiting.'
+            _log.error(f'{urlmsg} {errcodemsg}')
+            print(f"\n{urlmsg} {errcodemsg}\n")
             sys.exit(1)
 
     def connect(self, sock, connect_fn=None):
@@ -276,7 +276,7 @@ class ProtocolError(Exception):
     pass
 
 
-class Message(object):
+class Message:
     """Message object returned form Socket.recv_vip_object()."""
     def __init__(self, **kwargs):
         self.__dict__ = kwargs
@@ -290,7 +290,7 @@ class Message(object):
         return '%s(**{%s})' % (self.__class__.__name__, attrs)
 
 
-class _Socket(object):
+class _Socket:
     """Subclass of zmq.Socket to implement VIP protocol.
 
     Sockets are of type DEALER by default. If a ROUTER socket is used,

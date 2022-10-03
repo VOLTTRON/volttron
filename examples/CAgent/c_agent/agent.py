@@ -37,8 +37,7 @@
 # }}}
 
 
-
-from ctypes import *
+from ctypes import CDLL, cdll, c_float
 from datetime import datetime
 import logging
 import sys

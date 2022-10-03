@@ -47,7 +47,7 @@ if [ ! -d $volttron_home ]; then
 else
     echo -n "
 **WARNING** You are using a existing directory as volttron home."
-    echo -n " You will NOT be able to revert to insecure mode once the changes \
+    echo -n " You will NOT be able to revert out of agent isolation mode once the changes \
 are done. Changing the config file manually might result inconsistent \
 volttron behavior. If you would like to continue please note the following,
        1. This script will manually restrict permissions for existing files and directory.
@@ -58,7 +58,7 @@ move existing files and update configuration such that agent writes to agent-nam
        4. If you have agents that **connect to remote RMQ instances** the script will attempt to move the \
 remote instance signed certificate into corresponding agent's agent-data directory
 "
-    echo -n "Would you like to transition this existing VOLTTRON_HOME to secure mode (Y/N)"
+    echo -n "Would you like to transition this existing VOLTTRON_HOME to agent isolation mode (Y/N)"
     read continue
     if [ $continue == "Y" ] || [ $continue == "y" ]; then
 
@@ -185,7 +185,7 @@ remote instance signed certificate into corresponding agent's agent-data directo
                 chown ${volttron_user} $data_dir/$file_name
             done
         fi
-        echo "####Completed volttron home permission changes and file organization for secure mode"
+        echo "####Completed volttron home permission changes and file organization for agent isolation mode"
         echo  " "
 
     else
@@ -194,18 +194,18 @@ remote instance signed certificate into corresponding agent's agent-data directo
 fi
 
 if [ -f $volttron_home/config ]; then
-    line=`grep secure-agent-users $volttron_home/config`
+    line=`grep agent-isolation-mode $volttron_home/config`
     if [ -z "$line" ]; then
         # append to end of file
-        echo "entry for secure-agent-users does not exists. appending to end of file"
-        echo "secure-agent-users = True" >> $volttron_home/config
+        echo "entry for agent-isolation-mode does not exists. appending to end of file"
+        echo "agent-isolation-mode = True" >> $volttron_home/config
     else
         # replace false to true
-        sed -i 's/secure-agent-users = False/secure-agent-users = True/' $volttron_home/config
+        sed -i 's/agent-isolation-mode = False/agent-isolation-mode = True/' $volttron_home/config
     fi
 else
     echo "[volttron]" > $volttron_home/config
-    echo "secure-agent-users = True" >> $volttron_home/config
+    echo "agent-isolation-mode = True" >> $volttron_home/config
     chown $volttron_user $volttron_home/config
 fi
 
@@ -237,13 +237,13 @@ while true; do
                 if [ $continue == "N" ] || [ $continue == "n" ]; then
                     # write instance-name to config file
                     echo "instance-name = $name" >> $volttron_home/config
-                    echo "Volttron secure mode setup is complete"
+                    echo "Volttron agent isolation mode setup is complete"
                     exit 0
                 else
                     name=""
                 fi
             else
-                echo "Volttron secure mode setup is complete"
+                echo "Volttron agent isolation mode setup is complete"
                 exit 0
             fi
         else
@@ -268,11 +268,11 @@ done
 echo "$volttron_user ALL= NOPASSWD: /usr/sbin/groupadd volttron_$name" | sudo EDITOR='tee -a' visudo -f /etc/sudoers.d/volttron_$name
 echo "$volttron_user ALL= NOPASSWD: /usr/sbin/usermod -a -G volttron_$name $USER" | sudo EDITOR='tee -a' visudo -f /etc/sudoers.d/volttron_$name
 echo "$volttron_user ALL= NOPASSWD: /usr/sbin/useradd volttron_[1-9]* -r -G volttron_$name" | sudo EDITOR='tee -a' visudo -f /etc/sudoers.d/volttron_$name
-echo "$volttron_user ALL= NOPASSWD: $source_dir/scripts/secure_stop_agent.sh volttron_[1-9]* [1-9]*" | sudo EDITOR='tee -a' visudo -f /etc/sudoers.d/volttron_$name
+echo "$volttron_user ALL= NOPASSWD: $source_dir/scripts/stop_agent_running_in_isolation.sh volttron_[1-9]* [1-9]*" | sudo EDITOR='tee -a' visudo -f /etc/sudoers.d/volttron_$name
 
 # TODO want delete only users with pattern of particular group
 echo "$volttron_user ALL= NOPASSWD: /usr/sbin/userdel volttron_[1-9]*" | sudo EDITOR='tee -a' visudo -f /etc/sudoers.d/volttron_$name
 # allow user to run all non-sudo commands for all volttron agent users
 echo "$volttron_user ALL=(%volttron_$name) NOPASSWD: ALL" | sudo EDITOR='tee -a' visudo -f /etc/sudoers.d/volttron_$name
 echo "Permissions set for $volttron_user"
-echo "Volttron secure mode setup is complete"
+echo "Volttron agent isolation mode setup is complete"

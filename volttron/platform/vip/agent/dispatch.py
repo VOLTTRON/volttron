@@ -44,7 +44,7 @@ import weakref
 __all__ = ['Signal']
 
 
-class Signal(object):
+class Signal:
     def __init__(self):
         self._receivers = weakref.WeakValueDictionary()
 

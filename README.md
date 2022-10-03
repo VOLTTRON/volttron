@@ -1,7 +1,6 @@
 ![image](docs/source/files/VOLLTRON_Logo_Black_Horizontal_with_Tagline.png)
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/fcf58045b4804edf8f4d3ecde3016f76)](https://app.codacy.com/gh/VOLTTRON/volttron?utm_source=github.com&utm_medium=referral&utm_content=VOLTTRON/volttron&utm_campaign=Badge_Grade_Settings)
 
-![example workflow](https://github.com/volttron/volttron/actions/workflows/pytest-testutils.yml/badge.svg)
 
 VOLTTRON™ is an open source platform for distributed sensing and control. The
 platform provides services for collecting and storing data from buildings and
@@ -10,7 +9,7 @@ with that data.
 
 ## Upgrading to VOLTTRON 8.x
 
-VOLTTRON 8 introduces three changes that require an explict upgrade step when upgrading from a earlier VOLTTRON version
+VOLTTRON 8 introduces four changes that require an explict upgrade step when upgrading from an earlier VOLTTRON version
 
     1. Dynamic RPC authorization feature - This requires a modification to the auth file. If you have a pre-existing
        instance of VOLTTRON running on an older version, the auth file will need to be updated.
@@ -23,6 +22,10 @@ VOLTTRON 8 introduces three changes that require an explict upgrade step when up
        topics table instead of separate metadata table. SQLHistorians with version >= 4.0.0 can work with existing
        database with older schema however the historian agent code should be upgraded to newer version (>=4.0.0) to run
        with VOLTTRON 8 core.
+    4. VOLTTRON feature to run individual agents as unique Unix users is now named "agent-isolation-mode" and is 
+       consistently referred to using this name in code, configuration, and documentation. Before VOLTTRON 8.2 this 
+       configuration parameter was called "secure-agent-users" and related documentation referred to this mode as 
+       "secure mode".  
 
 To upgrade:
 
@@ -32,9 +35,10 @@ To upgrade:
     2. Update volttron source code version to VOLTTRON 8
     3. activate the volttron environment, and run ```python bootstrap.py --force```. If you have 
        any additional bootstrap options that you need (rabbitmq, web, drivers, etc.) include these in the above command.
-    4. Run ```volttron-upgrade``` to update the auth file and move historian cache files into agent-data directory. 
-       Note that the upgrade script will only move the backup.sqlite file and will not move sqlite historian's db file 
-       if they are within the install directory. If using a SQLite historian, please backup the database file of 
+    4. Run ```volttron-upgrade``` to update the auth file, move historian cache files into agent-data directory, and 
+       rename the config parameter "secure-agent-users" in VOLTTRON_HOME/config to "agent-isolation-mode"
+       **Note** that the upgrade script will only move the backup.sqlite file and will not move sqlite historian's db  
+       file if they are within the install directory. If using a SQLite historian, please backup the database file of 
        sqlite historian before upgrading to the latest historian version.
     5. Start VOLTTRON
     6. Run ```vctl install --force --vip-identity <vip id of existing historian> --agent-config <config>``` to upgrade 
@@ -109,7 +113,7 @@ You can deactivate the environment at any time by running `deactivate`.
 
 #### Steps for RabbitMQ
 
-##### 1. Install Erlang version 21 packages
+##### 1. Install Erlang version 24 packages
 
 For RabbitMQ based VOLTTRON, some RabbitMQ specific software packages must be installed.
 
@@ -118,17 +122,15 @@ For RabbitMQ based VOLTTRON, some RabbitMQ specific software packages must be in
 If you are running an Debian or CentOS system, you can install the RabbitMQ dependencies by running the rabbit 
   dependencies script, passing in the OS name and appropriate distribution as parameters. The following are supported:
 
--   `debian bionic` (for Ubuntu 18.04)
+- `debian focal` (for Ubuntu 20.04)
 
--   `debian xenial` (for Ubuntu 16.04)
+- `debian bionic` (for Ubuntu 18.04)
 
--   `debian xenial` (for Linux Mint 18.04)
+- `debian stretch` (for Debian Stretch)
 
--   `debian stretch` (for Debian Stretch)
+- `debian buster` (for Debian Buster)
 
--   `debian buster` (for Debian Buster)
-
--   `raspbian buster` (for Raspbian/Raspberry Pi OS buster)
+- `raspbian buster` (for Raspbian/Raspberry Pi OS buster)
 
 Example command:
 
@@ -163,17 +165,17 @@ python3 bootstrap.py --rabbitmq [optional install directory. defaults to
 This will build the platform and create a virtual Python environment and
 dependencies for RabbitMQ. It also installs RabbitMQ server as the current user.
 If an install path is provided, that path should exist and the user should have 
-write permissions. RabbitMQ will be installed under `<install dir>/rabbitmq_server-3.7.7`.
-The rest of the documentation refers to the directory `<install dir>/rabbitmq_server-3.7.7` as
+write permissions. RabbitMQ will be installed under `<install dir>/rabbitmq_server-<rmq-version>`.
+The rest of the documentation refers to the directory `<install dir>/rabbitmq_server-<rmq-version>` as
 `$RABBITMQ_HOME`
 
 You can check if the RabbitMQ server is installed by checking its status. Please
 note, the `RABBITMQ_HOME` environment variable can be set in ~/.bashrc. If doing so,
 it needs to be set to the RabbitMQ installation directory (default path is
-`<user_home>/rabbitmq_server/rabbitmq_server-3.7.7`)
+`<user_home>/rabbitmq_server/rabbitmq_server-<rmq-version>`)
 
 ```sh
-echo 'export RABBITMQ_HOME=$HOME/rabbitmq_server/rabbitmq_server-3.7.7'|sudo tee --append ~/.bashrc
+echo 'export RABBITMQ_HOME=$HOME/rabbitmq_server/rabbitmq_server-3.9.7'|sudo tee --append ~/.bashrc
 source ~/.bashrc
 
 $RABBITMQ_HOME/sbin/rabbitmqctl status
@@ -230,7 +232,7 @@ Your VOLTTRON_HOME currently set to: /home/vdev/new_vhome2
 
 Is this the volttron you are attempting to setup?  [Y]:
 Creating rmq config yml
-RabbitMQ server home: [/home/vdev/rabbitmq_server/rabbitmq_server-3.7.7]:
+RabbitMQ server home: [/home/vdev/rabbitmq_server/rabbitmq_server-3.9.7]:
 Fully qualified domain name of the system: [cs_cbox.pnl.gov]:
 
 Enable SSL Authentication: [Y]:
@@ -250,7 +252,7 @@ AMQPS (SSL) port RabbitMQ address: [5671]:
 https port for the RabbitMQ management plugin: [15671]:
 INFO:rmq_setup.pyc:Starting rabbitmq server
 Warning: PID file not written; -detached was passed.
-INFO:rmq_setup.pyc:**Started rmq server at /home/vdev/rabbitmq_server/rabbitmq_server-3.7.7
+INFO:rmq_setup.pyc:**Started rmq server at /home/vdev/rabbitmq_server/rabbitmq_server-3.9.7
 INFO:requests.packages.urllib3.connectionpool:Starting new HTTP connection (1): localhost
 INFO:requests.packages.urllib3.connectionpool:Starting new HTTP connection (1): localhost
 INFO:requests.packages.urllib3.connectionpool:Starting new HTTP connection (1): localhost
@@ -264,7 +266,7 @@ INFO:requests.packages.urllib3.connectionpool:Starting new HTTP connection (1): 
 INFO:requests.packages.urllib3.connectionpool:Starting new HTTP connection (1): localhost
 INFO:rmq_setup.pyc:**Stopped rmq server
 Warning: PID file not written; -detached was passed.
-INFO:rmq_setup.pyc:**Started rmq server at /home/vdev/rabbitmq_server/rabbitmq_server-3.7.7
+INFO:rmq_setup.pyc:**Started rmq server at /home/vdev/rabbitmq_server/rabbitmq_server-3.9.7
 INFO:rmq_setup.pyc:
 
 #######################
