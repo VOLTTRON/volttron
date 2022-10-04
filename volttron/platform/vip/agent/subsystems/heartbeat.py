@@ -45,7 +45,7 @@ from volttron.platform.messaging.headers import TIMESTAMP
 from volttron.platform.agent.utils import (get_aware_utc_now,
                                            format_timestamp)
 from volttron.platform.scheduling import periodic
-from ..errors import Unreachable, VIPError
+from ..errors import Unreachable
 
 """The heartbeat subsystem adds an optional periodic publish to all agents.
 Heartbeats can be started with agents and toggled on and off at runtime.
