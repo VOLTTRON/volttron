@@ -53,7 +53,6 @@ from volttron.platform.agent.utils import get_platform_instance_name
 from volttron.utils.frame_serialization import serialize_frames
 
 green.Context._instance = green.Context.shadow(zmq.Context.instance().underlying)
-from volttron.platform import get_home
 from .agent.subsystems.pubsub import ProtectedPubSubTopics
 from volttron.platform.jsonrpc import (INVALID_REQUEST, UNAUTHORIZED)
 from volttron.platform import jsonapi

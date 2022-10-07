@@ -43,7 +43,7 @@ from mock import MagicMock
 
 from volttron.platform.messaging.health import STATUS_GOOD
 from volttron.platform.vip.agent import Agent
-from volttron.platform import get_ops, get_home
+from volttron.platform import get_ops
 
 test_config = {
     "analysis_interval_sec": 2,

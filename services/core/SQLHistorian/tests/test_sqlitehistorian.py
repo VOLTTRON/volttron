@@ -43,7 +43,7 @@ import sqlite3
 import gevent
 import pytest
 from pytest import approx
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from volttron.platform import get_services_core
 from volttron.platform.agent import utils
