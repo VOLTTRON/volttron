@@ -42,7 +42,6 @@ import logging
 import weakref
 
 from .base import SubsystemBase
-from ..errors import VIPError
 from ..results import ResultsDictionary
 from zmq import ZMQError
 from zmq.green import ENOTSOCK

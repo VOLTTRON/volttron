@@ -53,7 +53,7 @@ from sqlalchemy.orm import relationship, sessionmaker
 
 from volttron.platform.agent import utils
 from volttron.platform import jsonapi
-from volttron.platform.control import ControlConnection, KnownHostsStore, KeyStore
+from volttron.platform.control import KnownHostsStore, KeyStore
 from volttron.platform.vip.agent import Agent, RPC, Core
 from volttron.platform.vip.router import ERROR, UNROUTABLE, INCOMING, OUTGOING
 

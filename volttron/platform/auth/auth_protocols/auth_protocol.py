@@ -36,7 +36,6 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-import os
 import volttron.platform
 from volttron.platform import jsonapi
 
