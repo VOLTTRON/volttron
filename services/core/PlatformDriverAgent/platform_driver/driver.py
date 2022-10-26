@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2020, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -39,6 +39,7 @@
 from volttron.platform.vip.agent import BasicAgent, Core
 from volttron.platform.agent import utils
 import logging
+import time
 import random
 import gevent
 import traceback
@@ -237,6 +238,7 @@ class DriverAgent(BasicAgent):
         self.periodic_read_event = self.core.schedule(next_scrape_time, self.periodic_read, next_scrape_time)
 
         _log.debug("scraping device: " + self.device_name)
+        start_time = time.time()
 
         self.parent.scrape_starting(self.device_name)
 
@@ -249,8 +251,12 @@ class DriverAgent(BasicAgent):
         except (Exception, gevent.Timeout) as ex:
             tb = traceback.format_exc()
             _log.error('Failed to scrape ' + self.device_name + ':\n' + tb)
-            return
-
+        end_time = time.time()
+        scrape_time = end_time-start_time
+        metric_string = f"""performance_metrics{{device={self.device_name}}} {scrape_time}"""
+        _log.info(metric_string)
+        #temporarily moving return out of Excelt clause for testing
+        return 
         # XXX: Does a warning need to be printed?
         if not results:
             return
