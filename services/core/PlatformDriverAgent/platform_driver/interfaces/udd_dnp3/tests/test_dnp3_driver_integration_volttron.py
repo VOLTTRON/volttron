@@ -149,7 +149,11 @@ def dnp3_tester_agent(request, volttron_instance):
     # Build platform driver agent
     tester_agent = volttron_instance.build_agent(identity="test_dnp3_agent")
     capabilities = {'edit_config_store': {'identity': PLATFORM_DRIVER}}
-    volttron_instance.add_capabilities(tester_agent.core.publickey, capabilities)
+    # Note: commented out the add_capabilities due to complained by volttron_instance fixture, i.e.,
+    # pytest.param(dict(messagebus='rmq', ssl_auth=True),
+    #              marks=rmq_skipif),  # complain add_capabilities
+    #              dict(messagebus='zmq', auth_enabled=False), # complain add_capabilities
+    # volttron_instance.add_capabilities(tester_agent.core.publickey, capabilities)
 
     # Clean out platform driver configurations
     # wait for it to return before adding new config
