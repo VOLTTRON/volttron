@@ -1,15 +1,8 @@
-# from platform_driver.interfaces.driver_wrapper import WrapperInterface, WrapperRegister
-# from platform_driver.interfaces.driver_wrapper import ImplementedRegister, RegisterValue
 from .driver_wrapper import WrapperInterface, WrapperRegister
 from .driver_wrapper import ImplementedRegister, RegisterValue
 from typing import List, Optional, Dict
-# import numpy as np
-import random
-import requests
 
 from dnp3_python.dnp3station.master_new import MyMasterNew
-
-from .driver_wrapper import WrapperInterfaceNew
 
 # TODO-developer: Your code here
 # Add dependency as needed, and update in requirements
@@ -21,25 +14,14 @@ import sys
 
 from datetime import datetime
 
-
 stdout_stream = logging.StreamHandler(sys.stdout)
 stdout_stream.setFormatter(logging.Formatter('%(asctime)s\t%(name)s\t%(levelname)s\t%(message)s'))
 
 _log = logging.getLogger(__name__)
-# _log = logging.getLogger("data_retrieval_demo")
 _log.addHandler(stdout_stream)
 _log.setLevel(logging.DEBUG)
 _log.setLevel(logging.WARNING)
 _log.setLevel(logging.ERROR)
-
-
-# try:
-#     from pydnp3 import opendnp3
-#     # from .dnp3_python.master_new import MyMasterNew
-#     from .pydnp3.src.dnp3_python.master_new import MyMasterNew
-#     # from .dnp3_python.outstation_new import MyOutStationNew
-# except ImportError as e:
-#     _log.error(e)
 
 
 # TODO-developer: Your code here
@@ -55,7 +37,7 @@ class UserDevelopRegisterDnp3(WrapperRegister):
 
     def get_register_value(self) -> RegisterValue:
         # TODO-developer: Your code here
-        # Implemet get-register-value logic here
+        # Implement get-register-value logic here
         # Note: Keep the method name as it is including the signatures.
         # Use a helper method if needed.
 
@@ -117,7 +99,6 @@ class UserDevelopRegisterDnp3(WrapperRegister):
 
             return val
         except Exception as e:
-            # print(f"!!!!!!!!!!!!!!!!!!!!{e}")
             _log.error(e)
             _log.warning("udd_dnp3 driver (master) couldn't set value for the outstation.")
 
@@ -168,8 +149,6 @@ class Interface(WrapperInterface):
         -------
 
         """
-        # driver_config: dict = self.driver_config
-        # print(f"=============driver_config {driver_config}")
 
         master_application = MyMasterNew(
             masterstation_ip_str=driver_config.get("master_ip"),
@@ -179,7 +158,6 @@ class Interface(WrapperInterface):
             outstation_id_int=driver_config.get("outstation_id"),
         )
         # master_application.start()
-        # self.master_application = master_application
         return master_application
 
     def create_register(self, driver_config,
