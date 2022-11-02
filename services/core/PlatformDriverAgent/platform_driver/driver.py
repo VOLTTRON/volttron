@@ -53,6 +53,10 @@ from volttron.platform.vip.agent.errors import VIPError, Again
 from .driver_locks import publish_lock
 import datetime
 
+from prometheus_client import Gauge, Summary, Histogram, CollectorRegistry, write_to_textfile
+
+PROMETHEUS_METRICS_FILE = "/opt/packages/prometheus_exporter/scrape_files/scrape_metrics.prom"
+
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
@@ -169,6 +173,10 @@ class DriverAgent(BasicAgent):
         next_periodic_read = self.find_starting_datetime(utils.get_aware_utc_now())
 
         self.periodic_read_event = self.core.schedule(next_periodic_read, self.periodic_read, next_periodic_read)
+        self.collector_registry = CollectorRegistry()
+        self.performance_histogram = Histogram("device_scrape_time_histogram", "Time taken to scrape given device - histogram", registry=self.collector_registry)
+        self.performance_summary = Summary("device_scrape_time_summary", "Time taken to scrape device - summary", registry=self.collector_registry)
+        self.performance_gauge = Gauge("device_scrape_time", "Time taken to scrape device", ['device'], registry=self.collector_registry)
 
         self.all_path_depth, self.all_path_breadth = self.get_paths_for_point(DRIVER_TOPIC_ALL)
 
@@ -181,7 +189,6 @@ class DriverAgent(BasicAgent):
         registry_config = config.get("registry_config")
 
         self.heart_beat_point = config.get("heart_beat_point")
-
 
 
         self.interface = self.get_interface(driver_type, driver_config, registry_config)
@@ -239,7 +246,6 @@ class DriverAgent(BasicAgent):
 
         _log.debug("scraping device: " + self.device_name)
         start_time = time.time()
-
         self.parent.scrape_starting(self.device_name)
 
         try:
@@ -251,12 +257,16 @@ class DriverAgent(BasicAgent):
         except (Exception, gevent.Timeout) as ex:
             tb = traceback.format_exc()
             _log.error('Failed to scrape ' + self.device_name + ':\n' + tb)
+            return 
         end_time = time.time()
         scrape_time = end_time-start_time
-        metric_string = f"""performance_metrics{{device={self.device_name}}} {scrape_time}"""
+        metric_string = f"""performance_metrics{{device=\"{self.device_name}\"}} {scrape_time}"""
         _log.info(metric_string)
+        labels = {'device_name': self.device_name}
+        self.performance_histogram.observe(scrape_time)
+        self.performance_gauge.labels(device=self.device_name).set(scrape_time)
+        write_to_textfile(PROMETHEUS_METRICS_FILE, self.collector_registry)
         #temporarily moving return out of Excelt clause for testing
-        return 
         # XXX: Does a warning need to be printed?
         if not results:
             return
