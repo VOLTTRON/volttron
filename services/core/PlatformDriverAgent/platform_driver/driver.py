@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright 2020, Battelle Memorial Institute.
+# Copyright 2019, Battelle Memorial Institute.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -39,6 +39,7 @@
 from volttron.platform.vip.agent import BasicAgent, Core
 from volttron.platform.agent import utils
 import logging
+import time
 import random
 import gevent
 import traceback
@@ -51,6 +52,10 @@ from volttron.platform.messaging.topics import (DRIVER_TOPIC_BASE,
 from volttron.platform.vip.agent.errors import VIPError, Again
 from .driver_locks import publish_lock
 import datetime
+
+from prometheus_client import Gauge, Summary, Counter, Histogram, CollectorRegistry, write_to_textfile
+
+PROMETHEUS_METRICS_FILE = "/opt/packages/prometheus_exporter/scrape_files/scrape_metrics.prom"
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -168,6 +173,11 @@ class DriverAgent(BasicAgent):
         next_periodic_read = self.find_starting_datetime(utils.get_aware_utc_now())
 
         self.periodic_read_event = self.core.schedule(next_periodic_read, self.periodic_read, next_periodic_read)
+        self.collector_registry = CollectorRegistry()
+        self.performance_histogram = Histogram("device_scrape_time_histogram", "Time taken to scrape given device - histogram", registry=self.collector_registry)
+        self.performance_summary = Summary("device_scrape_time_summary", "Time taken to scrape device - summary", registry=self.collector_registry)
+        self.performance_gauge = Gauge("device_scrape_time", "Time taken to scrape device", ['device'], registry=self.collector_registry)
+        self.error_counter = Gauge("device_error_count", "Number of errors per device", ['device'], registry=self.collector_registry)
 
         self.all_path_depth, self.all_path_breadth = self.get_paths_for_point(DRIVER_TOPIC_ALL)
 
@@ -180,7 +190,6 @@ class DriverAgent(BasicAgent):
         registry_config = config.get("registry_config")
 
         self.heart_beat_point = config.get("heart_beat_point")
-
 
 
         self.interface = self.get_interface(driver_type, driver_config, registry_config)
@@ -197,6 +206,8 @@ class DriverAgent(BasicAgent):
                     ts_type = 'float'
                 elif register.python_type is str:
                     ts_type = 'string'
+                else: 
+                    _log.debug(f"ts_type is of type {register.python_type}")
 
             self.meta_data[point] = {'units': register.get_units(),
                                      'type': ts_type,
@@ -237,7 +248,7 @@ class DriverAgent(BasicAgent):
         self.periodic_read_event = self.core.schedule(next_scrape_time, self.periodic_read, next_scrape_time)
 
         _log.debug("scraping device: " + self.device_name)
-
+        start_time = time.time()
         self.parent.scrape_starting(self.device_name)
 
         try:
@@ -248,9 +259,19 @@ class DriverAgent(BasicAgent):
                 _log.error("Failed to scrape point: "+depth_first_topic)
         except (Exception, gevent.Timeout) as ex:
             tb = traceback.format_exc()
+            self.error_counter.labels(device=self.device_name).inc()
+            write_to_textfile(PROMETHEUS_METRICS_FILE, self.collector_registry)
             _log.error('Failed to scrape ' + self.device_name + ':\n' + tb)
-            return
-
+            return 
+        end_time = time.time()
+        scrape_time = end_time-start_time
+        metric_string = f"""performance_metrics{{device=\"{self.device_name}\"}} {scrape_time}"""
+        _log.info(metric_string)
+        labels = {'device_name': self.device_name}
+        self.performance_histogram.observe(scrape_time)
+        self.performance_gauge.labels(device=self.device_name).set(scrape_time)
+        write_to_textfile(PROMETHEUS_METRICS_FILE, self.collector_registry)
+        #temporarily moving return out of Excelt clause for testing
         # XXX: Does a warning need to be printed?
         if not results:
             return

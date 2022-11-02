@@ -1,3 +1,0 @@
-modbus-tk==0.5.8
-pyserial==3.4
-PyYAML==3.12
