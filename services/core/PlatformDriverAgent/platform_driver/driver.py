@@ -53,7 +53,7 @@ from volttron.platform.vip.agent.errors import VIPError, Again
 from .driver_locks import publish_lock
 import datetime
 
-from prometheus_client import Gauge, Summary, Histogram, CollectorRegistry, write_to_textfile
+from prometheus_client import Gauge, Summary, Counter, Histogram, CollectorRegistry, write_to_textfile
 
 PROMETHEUS_METRICS_FILE = "/opt/packages/prometheus_exporter/scrape_files/scrape_metrics.prom"
 
@@ -177,6 +177,7 @@ class DriverAgent(BasicAgent):
         self.performance_histogram = Histogram("device_scrape_time_histogram", "Time taken to scrape given device - histogram", registry=self.collector_registry)
         self.performance_summary = Summary("device_scrape_time_summary", "Time taken to scrape device - summary", registry=self.collector_registry)
         self.performance_gauge = Gauge("device_scrape_time", "Time taken to scrape device", ['device'], registry=self.collector_registry)
+        self.error_counter = Gauge("device_error_count", "Number of errors per device", ['device'], registry=self.collector_registry)
 
         self.all_path_depth, self.all_path_breadth = self.get_paths_for_point(DRIVER_TOPIC_ALL)
 
@@ -205,6 +206,8 @@ class DriverAgent(BasicAgent):
                     ts_type = 'float'
                 elif register.python_type is str:
                     ts_type = 'string'
+                else: 
+                    _log.debug(f"ts_type is of type {register.python_type}")
 
             self.meta_data[point] = {'units': register.get_units(),
                                      'type': ts_type,
@@ -256,6 +259,8 @@ class DriverAgent(BasicAgent):
                 _log.error("Failed to scrape point: "+depth_first_topic)
         except (Exception, gevent.Timeout) as ex:
             tb = traceback.format_exc()
+            self.error_counter.labels(device=self.device_name).inc()
+            write_to_textfile(PROMETHEUS_METRICS_FILE, self.collector_registry)
             _log.error('Failed to scrape ' + self.device_name + ':\n' + tb)
             return 
         end_time = time.time()
