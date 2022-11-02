@@ -352,7 +352,7 @@ class PostgreSqlFuncts(DbDriver):
         rows = self.select(query)
 
         meta_map = {}
-        for tid,meta in rows:
+        for tid, meta in rows:
             if meta:
                 if isinstance(meta, dict):
                     meta_map[tid] = meta
