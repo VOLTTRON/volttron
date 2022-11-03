@@ -75,7 +75,7 @@ class TestDnp3DriverRPC:
         time.sleep(2)
 
         res_val = dnp3_tester_agent.vip.rpc.call("platform.driver", "get_point",
-                                                 "campus-vm/building-vm/Dnp3-port30000",
+                                                 "campus-vm/building-vm/Dnp3-port20000",
                                                  "AnalogInput_index0").get(timeout=5)
 
         print(f"======res_val {res_val}")
@@ -89,7 +89,7 @@ class TestDnp3DriverRPC:
         val_set = 8.342 + random.random()
 
         res_val = dnp3_tester_agent.vip.rpc.call("platform.driver", "set_point",
-                                                 "campus-vm/building-vm/Dnp3-port30000",
+                                                 "campus-vm/building-vm/Dnp3-port20000",
                                                  "AnalogOutput_index0", val_set).get(timeout=5)
 
         # print(f"======res_val {res_val}")
@@ -159,7 +159,7 @@ def dnp3_tester_agent(request, volttron_instance):
     # wait for it to return before adding new config
     tester_agent.vip.rpc.call(peer='config.store',
                               method='manage_delete_store',
-                              identity=PLATFORM_DRIVER).get()
+                              identity=PLATFORM_DRIVER).get(timeout=5)
 
     json_config_path = Path("./testing_data/udd-Dnp3.config")
     json_config_path = Path(TEST_DIR, json_config_path)
@@ -182,7 +182,7 @@ def dnp3_tester_agent(request, volttron_instance):
     tester_agent.vip.rpc.call('config.store',
                               method='manage_store',
                               identity=PLATFORM_DRIVER,
-                              config_name="devices/campus-vm/building-vm/Dnp3-port30000",
+                              config_name="devices/campus-vm/building-vm/Dnp3-port20000",
                               raw_contents=json_str_p20000,
                               config_type='json'
                               ).get(timeout=5)
