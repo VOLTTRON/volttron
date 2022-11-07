@@ -41,7 +41,7 @@ import sys
 import gevent
 from collections import defaultdict
 
-from prometheus_client import CollectorRegistry, Gauge, Histogram, write_to_textfile
+from prometheus_client import CollectorRegistry, Gauge, Counter, Histogram, write_to_textfile
 from volttron.platform.vip.agent import Agent, RPC
 from volttron.platform.agent import utils
 from volttron.platform.agent import math_utils
@@ -172,7 +172,7 @@ class PlatformDriverAgent(Agent):
         self.collector_registry = CollectorRegistry()
         self.performance_histogram = Histogram("device_scrape_time_histogram", "Time taken to scrape given device - histogram", ['device'], registry=self.collector_registry)
         self.performance_gauge = Gauge("device_scrape_time", "Time taken to scrape device", ['device'], registry=self.collector_registry)
-        self.error_counter = Gauge("device_error_count", "Number of errors per device", ['device'], registry=self.collector_registry)
+        self.error_counter = Counter("device_error_count", "Number of errors per device", ['device'], registry=self.collector_registry)
 
         self.publish_depth_first_all = bool(publish_depth_first_all)
         self.publish_breadth_first_all = bool(publish_breadth_first_all)
