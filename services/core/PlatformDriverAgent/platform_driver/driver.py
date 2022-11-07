@@ -53,10 +53,6 @@ from volttron.platform.vip.agent.errors import VIPError, Again
 from .driver_locks import publish_lock
 import datetime
 
-from prometheus_client import Gauge, Summary, Counter, Histogram, CollectorRegistry, write_to_textfile
-
-PROMETHEUS_METRICS_FILE = "/opt/packages/prometheus_exporter/scrape_files/scrape_metrics.prom"
-
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
@@ -173,11 +169,6 @@ class DriverAgent(BasicAgent):
         next_periodic_read = self.find_starting_datetime(utils.get_aware_utc_now())
 
         self.periodic_read_event = self.core.schedule(next_periodic_read, self.periodic_read, next_periodic_read)
-        self.collector_registry = CollectorRegistry()
-        self.performance_histogram = Histogram("device_scrape_time_histogram", "Time taken to scrape given device - histogram", registry=self.collector_registry)
-        self.performance_summary = Summary("device_scrape_time_summary", "Time taken to scrape device - summary", registry=self.collector_registry)
-        self.performance_gauge = Gauge("device_scrape_time", "Time taken to scrape device", ['device'], registry=self.collector_registry)
-        self.error_counter = Gauge("device_error_count", "Number of errors per device", ['device'], registry=self.collector_registry)
 
         self.all_path_depth, self.all_path_breadth = self.get_paths_for_point(DRIVER_TOPIC_ALL)
 
@@ -191,7 +182,6 @@ class DriverAgent(BasicAgent):
 
         self.heart_beat_point = config.get("heart_beat_point")
 
-
         self.interface = self.get_interface(driver_type, driver_config, registry_config)
         self.meta_data = {}
 
@@ -204,9 +194,12 @@ class DriverAgent(BasicAgent):
                     ts_type = 'integer'
                 elif register.python_type is float:
                     ts_type = 'float'
+                elif register.python_type is bool:
+                    ts_type = 'boolean'
                 elif register.python_type is str:
                     ts_type = 'string'
                 else: 
+                    ts_type = 'string'
                     _log.debug(f"ts_type is of type {register.python_type}")
 
             self.meta_data[point] = {'units': register.get_units(),
@@ -259,18 +252,18 @@ class DriverAgent(BasicAgent):
                 _log.error("Failed to scrape point: "+depth_first_topic)
         except (Exception, gevent.Timeout) as ex:
             tb = traceback.format_exc()
-            self.error_counter.labels(device=self.device_name).inc()
-            write_to_textfile(PROMETHEUS_METRICS_FILE, self.collector_registry)
+            self.parent.error_counter.labels(device=self.device_name).inc()
             _log.error('Failed to scrape ' + self.device_name + ':\n' + tb)
+            self.parent.last_scraped = datetime.datetime.now()
             return 
         end_time = time.time()
         scrape_time = end_time-start_time
         metric_string = f"""performance_metrics{{device=\"{self.device_name}\"}} {scrape_time}"""
         _log.info(metric_string)
         labels = {'device_name': self.device_name}
-        self.performance_histogram.observe(scrape_time)
-        self.performance_gauge.labels(device=self.device_name).set(scrape_time)
-        write_to_textfile(PROMETHEUS_METRICS_FILE, self.collector_registry)
+        self.parent.performance_histogram.labels(device=self.device_name).observe(scrape_time)
+        self.parent.performance_gauge.labels(device=self.device_name).set(scrape_time)
+        self.parent.last_scraped = datetime.datetime.now()
         #temporarily moving return out of Excelt clause for testing
         # XXX: Does a warning need to be printed?
         if not results:

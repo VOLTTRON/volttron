@@ -40,10 +40,13 @@ import logging
 import sys
 import gevent
 from collections import defaultdict
+
+from prometheus_client import CollectorRegistry, Gauge, Histogram, write_to_textfile
 from volttron.platform.vip.agent import Agent, RPC
 from volttron.platform.agent import utils
 from volttron.platform.agent import math_utils
 from volttron.platform.agent.known_identities import PLATFORM_DRIVER
+from volttron.platform.vip.agent.core import Core
 from .driver import DriverAgent
 import resource
 from datetime import datetime, timedelta
@@ -57,6 +60,8 @@ utils.setup_logging()
 _log = logging.getLogger(__name__)
 __version__ = '4.0'
 
+
+PROMETHEUS_METRICS_FILE = "/opt/packages/prometheus_exporter/scrape_files/scrape_metrics.prom"
 
 class OverrideError(DriverInterfaceError):
     """Error raised when the user tries to set/revert point when global override is set."""
@@ -164,6 +169,11 @@ class PlatformDriverAgent(Agent):
         self.group_counts = defaultdict(int)
         self._name_map = {}
 
+        self.collector_registry = CollectorRegistry()
+        self.performance_histogram = Histogram("device_scrape_time_histogram", "Time taken to scrape given device - histogram", ['device'], registry=self.collector_registry)
+        self.performance_gauge = Gauge("device_scrape_time", "Time taken to scrape device", ['device'], registry=self.collector_registry)
+        self.error_counter = Gauge("device_error_count", "Number of errors per device", ['device'], registry=self.collector_registry)
+
         self.publish_depth_first_all = bool(publish_depth_first_all)
         self.publish_breadth_first_all = bool(publish_breadth_first_all)
         self.publish_depth_first = bool(publish_depth_first)
@@ -171,6 +181,8 @@ class PlatformDriverAgent(Agent):
         self._override_devices = set()
         self._override_patterns = None
         self._override_interval_events = {}
+        self.last_written = datetime.now()
+        self.last_scraped = datetime.now()
 
         if scalability_test:
             self.waiting_to_finish = set()
@@ -194,6 +206,12 @@ class PlatformDriverAgent(Agent):
         self.vip.config.subscribe(self.update_driver, actions=["NEW", "UPDATE"], pattern="devices/*")
         self.vip.config.subscribe(self.remove_driver, actions="DELETE", pattern="devices/*")
         
+    @Core.periodic(10)
+    def flush_metrics(self):
+        if self.last_written < self.last_scraped:
+            self.last_written = datetime.now()
+            write_to_textfile(PROMETHEUS_METRICS_FILE, self.collector_registry)
+
     def configure_main(self, config_name, action, contents):
         config = self.default_config.copy()
         config.update(contents)
@@ -649,6 +667,11 @@ class PlatformDriverAgent(Agent):
         Get a list of all the override patterns.
         """
         return list(self._override_patterns)
+
+    @RPC.export
+    @RPC.allow('platform_driver_config')
+    def update_config_store(self, config_name, contents):
+        self.vip.config.set(config_name, contents)
 
     def _set_override_off(self, pattern):
         """Turn off override condition on all devices matching the pattern. It removes the pattern from the override
