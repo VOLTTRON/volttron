@@ -170,9 +170,12 @@ class PlatformDriverAgent(Agent):
         self._name_map = {}
 
         self.collector_registry = CollectorRegistry()
-        self.performance_histogram = Histogram("device_scrape_time_histogram", "Time taken to scrape given device - histogram", ['device'], registry=self.collector_registry)
+        new_buckets = (.005, .01, .025, .05, .075, .1, .25, .5, .75, 1.0, 2.5, 5.0, 7.5, 10.0, 30, float("inf"))
+        self.performance_histogram = Histogram("device_scrape_time_histogram", "Time taken to scrape given device - histogram", ['device'], registry=self.collector_registry, buckets=new_buckets)
         self.performance_gauge = Gauge("device_scrape_time", "Time taken to scrape device", ['device'], registry=self.collector_registry)
         self.error_counter = Counter("device_error_count", "Number of errors per device", ['device'], registry=self.collector_registry)
+        self.failed_point_scrape = Counter("failed_point_scrape", "Failed scrape for existing point", ['point', 'device'], registry=self.collector_registry)
+        self.point_count = Gauge("point_count", "Number of points per device", ['device'], registry=self.collector_registry)
 
         self.publish_depth_first_all = bool(publish_depth_first_all)
         self.publish_breadth_first_all = bool(publish_breadth_first_all)
