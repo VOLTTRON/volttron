@@ -246,8 +246,11 @@ class DriverAgent(BasicAgent):
 
         try:
             results = self.interface.scrape_all()
+            self.parent.point_count.labels(device=self.device_name).set(len(results))
+            _log.debug(len(results))
             register_names = self.interface.get_register_names_view()
             for point in (register_names - results.keys()):
+                self.parent.failed_point_scrape.labels(point=depth_first_topic, device=self.device_name).inc()
                 depth_first_topic = self.base_topic(point=point)
                 _log.error("Failed to scrape point: "+depth_first_topic)
         except (Exception, gevent.Timeout) as ex:
@@ -258,9 +261,6 @@ class DriverAgent(BasicAgent):
             return 
         end_time = time.time()
         scrape_time = end_time-start_time
-        metric_string = f"""performance_metrics{{device=\"{self.device_name}\"}} {scrape_time}"""
-        _log.info(metric_string)
-        labels = {'device_name': self.device_name}
         self.parent.performance_histogram.labels(device=self.device_name).observe(scrape_time)
         self.parent.performance_gauge.labels(device=self.device_name).set(scrape_time)
         self.parent.last_scraped = datetime.datetime.now()
