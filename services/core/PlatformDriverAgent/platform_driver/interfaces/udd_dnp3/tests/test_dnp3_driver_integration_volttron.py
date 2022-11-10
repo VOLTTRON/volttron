@@ -20,6 +20,7 @@ TEST_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 # TODO: add IP, port pool to avoid conflict
+# TODO: make sleep more robust and flexible. (Currently relies on manually setup sleep time.)
 
 
 class TestDummy:
@@ -43,7 +44,7 @@ def outstation_app_p20000():
     port = 20000
     outstation_appl = MyOutStationNew(port=port)  # Note: using default port 20000
     outstation_appl.start()
-    time.sleep(2)
+    gevent.sleep(10)
     yield outstation_appl
 
     outstation_appl.shutdown()
@@ -148,12 +149,14 @@ def dnp3_tester_agent(request, volttron_instance):
 
     # Build platform driver agent
     tester_agent = volttron_instance.build_agent(identity="test_dnp3_agent")
+    gevent.sleep(1)
     capabilities = {'edit_config_store': {'identity': PLATFORM_DRIVER}}
     # Note: commented out the add_capabilities due to complained by volttron_instance fixture, i.e.,
     # pytest.param(dict(messagebus='rmq', ssl_auth=True),
     #              marks=rmq_skipif),  # complain add_capabilities
     #              dict(messagebus='zmq', auth_enabled=False), # complain add_capabilities
-    # volttron_instance.add_capabilities(tester_agent.core.publickey, capabilities)
+    if volttron_instance.auth_enabled:
+        volttron_instance.add_capabilities(tester_agent.core.publickey, capabilities)
 
     # Clean out platform driver configurations
     # wait for it to return before adding new config
@@ -192,7 +195,7 @@ def dnp3_tester_agent(request, volttron_instance):
         config_file={},
         start=True)
 
-    # gevent.sleep(10)  # wait for the agent to start and start the devices
+    gevent.sleep(10)  # Note: important, wait for the agent to start and start the devices, otherwise rpc call may fail.
     # time.sleep(10)  # wait for the agent to start and start the devices
 
     def stop():
