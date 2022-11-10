@@ -57,7 +57,13 @@ from volttrontesting.utils.utils import get_rand_vip, get_hostname_and_random_po
 from volttrontesting.utils.platformwrapper import PlatformWrapper
 from volttrontesting.fixtures.volttron_platform_fixtures import get_rand_vip, \
     get_rand_ip_and_port
-from volttron.utils.rmq_setup import start_rabbit, stop_rabbit
+
+from volttron.platform import is_rabbitmq_available
+if is_rabbitmq_available():
+    from volttron.utils.rmq_setup import start_rabbit, stop_rabbit
+else:
+    pytest.skip("Pika is not installed", allow_module_level=True)
+
 from volttron.platform.agent.utils import execute_command
 
 

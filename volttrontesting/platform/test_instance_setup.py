@@ -8,11 +8,17 @@ from volttron.platform import is_rabbitmq_available
 from volttron.platform.instance_setup import _is_agent_installed
 from volttron.utils import get_hostname
 from volttron.platform.agent.utils import is_volttron_running
-from volttrontesting.fixtures.rmq_test_setup import create_rmq_volttron_setup
+from volttron.platform import is_rabbitmq_available
+
+RMQ_TIMEOUT = 600
+HAS_RMQ = is_rabbitmq_available()
+if HAS_RMQ:
+    from volttrontesting.fixtures.rmq_test_setup import create_rmq_volttron_setup
+else:
+    pytest.skip("Pika is not installed", allow_module_level=True)
+
 from volttrontesting.utils.platformwrapper import create_volttron_home
 
-HAS_RMQ = is_rabbitmq_available()
-RMQ_TIMEOUT = 600
 
 '''
 Example variables to be used during each of the tests, depending on the prompts that will be asked
