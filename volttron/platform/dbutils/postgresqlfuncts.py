@@ -350,7 +350,17 @@ class PostgreSqlFuncts(DbDriver):
             'SELECT topic_id, metadata '
             'FROM {}').format(Identifier(self.meta_table))
         rows = self.select(query)
-        meta_map = {tid: jsonapi.loads(meta) if meta else None for tid, meta in rows}
+
+        meta_map = {}
+        for tid, meta in rows:
+            if meta:
+                if isinstance(meta, dict):
+                    meta_map[tid] = meta
+                else:
+                    meta_map[tid] = jsonapi.loads(meta)
+            else:
+                meta_map[tid] = None
+            
         return meta_map
 
     def get_agg_topics(self):
