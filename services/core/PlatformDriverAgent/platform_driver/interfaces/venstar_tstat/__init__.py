@@ -38,7 +38,6 @@ import grequests
 from volttron.platform.agent import utils
 from platform_driver.interfaces import BaseRegister, BaseInterface, BasicRevert
 from volttron.platform.vip.agent import Agent, Core, RPC, PubSub
-from cojourn.api_mock.apis.types import *
 
 _log = logging.getLogger("venstar_tstat")
 #VENSTAR_LOGGER.setLevel(logging.WARNING)
@@ -129,10 +128,10 @@ class Interface(BasicRevert, BaseInterface):
 
     def _build_url_encode_venstar(self, points):
         VENSTAR_MODE_MAP = { 
-            ThermostatMode.OFF: 0,
-            ThermostatMode.HEAT: 1,
-            ThermostatMode.COOL: 2,
-            ThermostatMode.AUTO: 3,
+            "off": 0,
+            "heat": 1,
+            "cool": 2,
+            "auto": 3,
             "ERROR": 4
         }
         data = ""
