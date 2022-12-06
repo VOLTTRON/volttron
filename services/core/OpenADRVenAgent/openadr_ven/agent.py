@@ -144,7 +144,7 @@ class OpenADRVenAgent(Agent):
             key=config.get(KEY),
             passphrase=config.get(PASSPHRASE),
             vtn_fingerprint=config.get(VTN_FINGERPRINT),
-            show_fingerprint=config.get(SHOW_FINGERPRINT),
+            show_fingerprint=config.get(SHOW_FINGERPRINT, True),
             ca_file=config.get(CA_FILE),
             ven_id=config.get(VEN_ID),
             disable_signature=config.get(DISABLE_SIGNATURE),
@@ -282,7 +282,7 @@ class OpenADRVenAgent(Agent):
         :param config_path: The path to the configuration file
         :return: The configuration
         """
-        try:
+        try:    
             config = load_config(config_path)
         except NameError as err:
             _log.exception(err)
@@ -300,7 +300,7 @@ class OpenADRVenAgent(Agent):
             self._check_required_key(required_key, key_actual)
             req_keys_actual[required_key] = key_actual
 
-            # optional configurations
+        # optional configurations
         debug = config.get(DEBUG)
 
         # keypair paths
@@ -310,13 +310,16 @@ class OpenADRVenAgent(Agent):
         key = config.get(KEY)
         if key:
             key = str(Path(key).expanduser().resolve(strict=True))
-
+        ca_file = config.get(CA_FILE)
+        if ca_file:
+            ca_file = str(Path(ca_file).expanduser().resolve(strict=True))
+        
         ven_name = config.get(VEN_NAME)
         vtn_url = config.get(VTN_URL)
         passphrase = config.get(PASSPHRASE)
         vtn_fingerprint = config.get(VTN_FINGERPRINT)
-        show_fingerprint = bool(config.get(SHOW_FINGERPRINT))
-        ca_file = config.get(CA_FILE)
+        show_fingerprint = bool(config.get(SHOW_FINGERPRINT, True))
+        
         ven_id = config.get(VEN_ID)
         disable_signature = bool(config.get(DISABLE_SIGNATURE))
         openadr_client_type = config.get(OPENADR_CLIENT_TYPE)
