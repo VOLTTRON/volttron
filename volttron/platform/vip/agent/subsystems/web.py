@@ -36,7 +36,6 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-from collections import defaultdict
 import logging
 import weakref
 from enum import Enum

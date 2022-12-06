@@ -150,6 +150,15 @@ at our bi-weekly office-hours and on Slack. To be invited to office-hours or sla
 
    tutorials/quick-start
 
+   
+.. toctree::
+   :caption: Tutorials
+   :hidden:
+   :titlesonly:
+   :maxdepth: 1
+
+   tutorials/quick-start   
+
 
 Indices and tables
 ==================

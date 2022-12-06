@@ -48,7 +48,7 @@ from dnp3 import DEFAULT_POINT_TOPIC, DEFAULT_OUTSTATION_STATUS_TOPIC
 from dnp3 import DEFAULT_LOCAL_IP, DEFAULT_PORT
 from dnp3 import DATA_TYPE_ANALOG_INPUT, DATA_TYPE_BINARY_INPUT
 from dnp3 import PUBLISH_AND_RESPOND
-from dnp3.points import PointDefinitions, PointDefinition, PointArray
+from dnp3.points import PointDefinitions, PointArray
 from dnp3.points import DNP3Exception
 
 utils.setup_logging()

@@ -47,7 +47,7 @@ from gevent.lock import Semaphore
 from requests.exceptions import HTTPError, Timeout
 
 from volttron.platform.agent import utils
-from .agent import Agent, Core, RPC
+from .agent import Agent, Core
 from requests.packages.urllib3.connection import (ConnectionError,
                                                   NewConnectionError)
 from urllib.parse import urlparse, urljoin

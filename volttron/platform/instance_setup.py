@@ -155,7 +155,7 @@ def _is_bound_already(address):
     return already_bound
 
 
-def fail_if_instance_running():
+def fail_if_instance_running(args):
 
     home = get_home()
 
@@ -1111,7 +1111,7 @@ def main():
         set_home(args.vhome)
         prompt_vhome = False
     # if not args.rabbitmq or args.rabbitmq[0] in ["single"]:
-    fail_if_instance_running()
+    fail_if_instance_running(args)
     fail_if_not_in_src_root()
     if use_active in n:
         atexit.register(_cleanup_on_exit)

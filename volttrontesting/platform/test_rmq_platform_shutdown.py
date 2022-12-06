@@ -52,6 +52,9 @@ else:
 pytestmark = [pytest.mark.xfail]
 
 
+pytestmark = [pytest.mark.xfail]
+
+
 @pytest.mark.rmq_shutdown
 def test_vctl_shutdown_on_rmq_stop(request):
     """
