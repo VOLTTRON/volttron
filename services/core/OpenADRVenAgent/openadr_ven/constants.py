@@ -48,7 +48,4 @@ SHOW_FINGERPRINT = "show_fingerprint"
 CA_FILE = "ca_file"
 VEN_ID = "ven_id"
 DISABLE_SIGNATURE = "disable_signature"
-OPENADR_CLIENT_TYPE = "openadr_client_type"
-REQUIRED_KEYS = [VEN_NAME, VTN_URL, OPENADR_CLIENT_TYPE]
-
-IDENTITY = "openadr_ven"
+REQUIRED_KEYS = [VEN_NAME, VTN_URL]

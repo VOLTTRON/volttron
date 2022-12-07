@@ -1,2 +1,1 @@
-openleadr==0.5.24
-lxml==4.6.4
+openleadr==0.5.27
