@@ -40,175 +40,30 @@ from csv import DictReader
 import logging
 import requests
 
-from platform_driver.interfaces import (BaseInterface,
-                                      BaseRegister,
-                                      BasicRevert,
-                                      DriverInterfaceError)
+from platform_driver.interfaces import (
+    BaseInterface,
+    BaseRegister,
+    BasicRevert,
+    DriverInterfaceError,
+)
 
-_log = logging.getLogger(__name__)
+_log = logging.getLogger("rainforest_eagle")
 
-# This driver uses the Rainforest Eagle REST API available on
-# rainforestautomation.com/developer
-
-## Accessible operations
-# get_network_status
-# get_instantaneous_demand
-# get_price
-# get_current_summation - implemented as two registers
-# get_demand_peaks - implemeted as two registers
-
-## Not implemented
-# get_network_info
-# list_network
-# get_message
-# confirm_message
-# get_history_data
-# reboot
-# set_schedule
-# get_schedule
 
 auth = None
 macid = None
 address = None
 
 
-class NetworkStatus(BaseRegister):
-    def __init__(self):
-        super(NetworkStatus, self).__init__('byte', True, 'NetworkStatus', 'string')
-
-    def value(self):
-        command = '<Command>\
-                     <Name>get_network_status</Name>\
-                     <Format>JSON</Format>\
-                   </Command>'
-        result = requests.post(address, auth=auth, data=command)
-
-        if result.status_code != requests.codes.ok:
-            return str(result.status_code)
-
-        result = result.json()['NetworkStatus']
-        return result['Status']
-
-
-class InstantaneousDemand(BaseRegister):
-    def __init__(self):
-        super(InstantaneousDemand, self).__init__('byte', True, 'InstantaneousDemand', 'float')
-
-    def value(self):
-        command = '<Command>\
-                     <Name>get_instantaneous_demand</Name>\
-                     <MacId>{}</MacId>\
-                     <Format>JSON</Format>\
-                   </Command>'.format(macid)
-        result = requests.post(address, auth=auth, data=command)
-
-        result = result.json()['InstantaneousDemand']
-        demand = float(int(result['Demand'], 16))
-
-        multiplier = float(int(result['Multiplier'], 16))
-        if multiplier == 0:
-            multiplier = 1
-
-        divisor = float(int(result['Divisor'], 16))
-        if divisor == 0:
-            divisor = 1
-
-        return demand * (multiplier / divisor)
-
-
-class PriceCluster(BaseRegister):
-    def __init__(self):
-        super(PriceCluster, self).__init__('byte', True, 'PriceCluster', 'float')
-
-    def value(self):
-        command = '<Command>\
-                     <Name>get_price</Name>\
-                     <MacId>{}</MacId>\
-                     <Format>JSON</Format>\
-                   </Command>'.format(macid)
-        result = requests.post(address, auth=auth, data=command)
-
-        result = result.json()['PriceCluster']
-        price = float(int(result['Price'], 16))
-        trailing_digits = int(result['TrailingDigits'], 16)
-
-        return price / (10 ** trailing_digits)
-
-
-def get_summation(key):
-    command = '<Command>\
-                 <Name>get_current_summation</Name>\
-                 <MacId>{}</MacId>\
-                 <Format>JSON</Format>\
-               </Command>'.format(macid)
-    result = requests.post(address, auth=auth, data=command)
-
-    result = result.json()['CurrentSummation']
-    summation = float(int(result[key], 16))
-
-    multiplier = float(int(result['Multiplier'], 16))
-    if multiplier == 0:
-        multiplier = 1
-
-    divisor = float(int(result['Divisor'], 16))
-    if divisor == 0:
-        divisor = 1
-
-    return summation * (multiplier / divisor)
-
-
-class SummationDelivered(BaseRegister):
-    def __init__(self):
-        super(SummationDelivered, self).__init__('byte', True, 'SummationDelivered', 'float')
-
-    def value(self):
-        return get_summation(self.__class__.__name__)
-
-
-class SummationReceived(BaseRegister):
-    def __init__(self):
-        super(SummationReceived, self).__init__('byte', True, 'SummationReceived', 'float')
-
-    def value(self):
-        return get_summation(self.__class__.__name__)
-
-
-def get_demand_peaks(key):
-    command = '<Command>\
-                 <Name>get_demand_peaks</Name>\
-                 <Format>JSON</Format>\
-               </Command>'
-    result = requests.post(address, auth=auth, data=command)
-
-    result = result.json()['DemandPeaks']
-    return float(result[key])
-
-
-class PeakDelivered(BaseRegister):
-    def __init__(self):
-        super(PeakDelivered, self).__init__('byte', True, 'PeakDelivered', 'float')
-
-    def value(self):
-        return get_demand_peaks(self.__class__.__name__)
-
-
-class PeakReceived(BaseRegister):
-    def __init__(self):
-        super(PeakReceived, self).__init__('byte', True, 'PeakReceived', 'float')
-
-    def value(self):
-        return get_demand_peaks(self.__class__.__name__)
-
-
-eagle_registers = {
-    'NetworkStatus': NetworkStatus,
-    'InstantaneousDemand': InstantaneousDemand,
-    'PriceCluster': PriceCluster,
-    'SummationDelivered': SummationDelivered,
-    'SummationReceived': SummationReceived,
-    'PeakDelivered': PeakDelivered,
-    'PeakReceived': PeakReceived
-}
+class Register(BaseRegister):
+    def __init__(self, name, units, description):
+        super(Register, self).__init__(
+            register_type="byte",
+            read_only=True,
+            pointName=name,
+            units=units,
+            description=description,
+        )
 
 
 class Interface(BasicRevert, BaseInterface):
@@ -217,45 +72,142 @@ class Interface(BasicRevert, BaseInterface):
 
     def configure(self, config_dict, register_config):
         global auth, macid, address
+        _log.debug(f"configuring rainforest gateway: {config_dict=} {register_config=}")
 
-        username = config_dict['username']
-        password = config_dict['password']
+        username = config_dict["username"]
+        password = config_dict["password"]
         auth = (username, password)
+        macid = config_dict["macid"]
+        address = config_dict["address"]
 
-        macid = config_dict['macid']
-        address = config_dict['address']
+        device_list = self.get_device_list()
+        power_meter = {}
+        for device in device_list.values():
+            if device["ModelId"] == "electric_meter":
+                power_meter = device
 
-        if register_config is None:
-            register_config = []
+        var_list = [
+            "zigbee:CurrentSummationDelivered",
+            "zigbee:CurrentSummationReceived",
+            "zigbee:InstantaneousDemand",
+        ]
 
-        for name in register_config:
-            register = eagle_registers[name]
-            self.insert_register(register())
+        get_variables_dict = self.get_variables_list(power_meter, var_list)
+        _log.debug(f"{get_variables_dict=}")
+        var_metadata = {}
+        var_values = {}
+        for d in get_variables_dict:
+            # remove zigbee: prefix
+            name = d["Name"][7:]
+            units = d["Units"]
+            description = d["Description"]
+            self.insert_register(Register(name, units, description))
 
-        # Always add a network status register
-        try:
-            self.get_register_by_name('NetworkStatus')
-        except DriverInterfaceError:
-            self.insert_register(NetworkStatus())
+        _log.debug(f"{var_values=}")
 
     def get_point(self, point_name):
-        register = self.get_register_by_name(point_name)
-        return register.value()
+        return self.get_variable(self, point_name)
+
+    def get_variable(self, device, variable):
+        _log.debug(f"getting {variable} from {device}")
+        command = f"""<Command>
+                        <Name>device_query</Name>
+                        <Format>JSON</Format>
+                        <DeviceDetails>
+                            <HardwareAddress>{device['HardwareAddress']}</HardwareAddress>
+                        </DeviceDetails>
+                        <Components>
+                            <Component>
+                                <Name>Main</Name>
+                                <Variables>
+                                    <Variable>
+                                        <Name>{variable}</Name>
+                                    </Variable>
+                                </Variables>
+                            </Component>
+                        </Components>
+                    </Command>
+                    """
+
+        result = requests.post(address, auth=auth, data=command)
+        if result.status_code != requests.codes.ok:
+            return str(result.status_code)
+        _log.info(f"Queried device {device['Name']} for variable {variable}: {result=}")
+        device_result = result.json()
+        requested_values = device_result["Device"]["Components"]["Component"][
+            "Variables"
+        ]
+        return requested_values["Variable"]
+
+    def get_variables_list(self, device, var_list):
+        returned_vars = []
+        for variable in var_list:
+            command = f"""<Command>
+                            <Name>device_query</Name>
+                            <Format>JSON</Format>
+                            <DeviceDetails>
+                                <HardwareAddress>{device['HardwareAddress']}</HardwareAddress>
+                            </DeviceDetails>
+                            <Components>
+                                <Component>
+                                    <Name>Main</Name>
+                                    <Variables>
+                                        <Variable>
+                                            <Name>{variable}</Name>
+                                        </Variable>
+                                    </Variables>
+                                </Component>
+                            </Components>
+                        </Command>
+                        """
+            result = requests.post(address, auth=auth, data=command).json()
+            returned_vars.append(
+                result["Device"]["Components"]["Component"]["Variables"]["Variable"]
+            )
+        return returned_vars
+
+    def get_device_list(self):
+        # consider using dicttoxml to set up command as dictionary?
+        command = """<Command>
+                     <Name>device_list</Name>
+                     <Format>JSON</Format>
+                   </Command>"""
+        result = requests.post(address, auth=auth, data=command)
+
+        if result.status_code != requests.codes.ok:
+            return str(result.status_code)
+
+        device_list = result.json()["DeviceList"]
+        _log.debug(f"{device_list=}")
+        return device_list
+
+    def scrape_power_meter(self):
+        device_list = self.get_device_list()
+        power_meter = {}
+        for device in device_list.values():
+            if device["ModelId"] == "electric_meter":
+                power_meter = device
+
+        var_list = [
+            "zigbee:CurrentSummationDelivered",
+            "zigbee:CurrentSummationReceived",
+            "zigbee:InstantaneousDemand",
+        ]
+        values = {}
+        for d in self.get_variables_list(power_meter, var_list):
+            # remove zigbee: prefix
+            name = d["Name"][7:]
+            values[name] = d['Value']
+        return values
 
     def _set_point(self, point_name, value):
         pass
 
-    def _scrape_all(self):
-        # skip the scrape if there are anomalous network conditions
-        ns_register = self.get_register_by_name('NetworkStatus')
-        network_status = ns_register.value()
-        if network_status != 'Connected':
-            return {ns_register.point_name: network_status}
+    def scrape_all(self):
+        return self._scrape_all()
 
+    def _scrape_all(self) -> dict:
         # scrape points
-        result = {}
-        registers = self.get_registers_by_type('byte', True)
-        for r in registers:
-            result[r.point_name] = r.value()
-
+        result = self.scrape_power_meter()
+        _log.debug(f"{result=}")
         return result
