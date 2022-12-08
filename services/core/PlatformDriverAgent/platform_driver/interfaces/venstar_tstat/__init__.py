@@ -85,12 +85,15 @@ class Interface(BasicRevert, BaseInterface):
         standard layout for the thermostat properties
         """
         _log.debug(f"{config_dict=}")
-        #self.device_address = config_dict['driver_config']['device_address']
         self.device_address = config_dict['device_address']
         self.timeout = config_dict.get('timeout', 5)
-        self.track_totalizers = config_dict.get('track_totalizers', True)
         self.init_time = time.time()
 
+        for entry in self.get_data()[0]:
+            if entry == 'name':
+                continue
+            _log.debug(f"inserting register {entry=}")
+            self.insert_register(Register(entry, "", ""))
 
     def _get_tstat_configuration(self):
         """
@@ -106,19 +109,6 @@ class Interface(BasicRevert, BaseInterface):
         config = {}
         return config
     
-    def insert_register(self, register):
-        """
-        We override the default insert_register behavior so that we can
-        automatically create additional totalized registers when 
-        ``track_totalizers`` is True
-        """
-        super(Interface, self).insert_register(register)
-        if self.track_totalizers:
-            if register.units == 'kWh':
-                totalized_register = copy.deepcopy(register)
-                totalized_register.point_name = register.point_name + "_totalized"
-                super(Interface, self).insert_register(totalized_register)
-
     def _create_registers(self, ted_config):
         """
         Processes the config scraped from the device and generates
@@ -151,7 +141,6 @@ class Interface(BasicRevert, BaseInterface):
         points = points['data']
         _log.debug(f"setting {points=}")
 
-
         #all control requests with mode must have cooltemp and heattemp, and setpointdelta must be respected
         if not points.get('cooltemp') or not points.get('heattemp'):
             _log.error("cooltemp and heattemp must both be provided")
@@ -177,10 +166,6 @@ class Interface(BasicRevert, BaseInterface):
 
 
     def _set_point(self, point_name, value):
-        """
-        TED has no writable points, so skipping set_point method
-        """
-        _log.debug(f"calling venstar _set_point")
         self._set_points({point_name: value})
 
 
@@ -190,14 +175,6 @@ class Interface(BasicRevert, BaseInterface):
 
 
     def get_data(self):
-        """
-        returns a tuple of ETree objects corresponding to the three aapi endpoints
-        """
-        # requests = [grequests.get(url, auth=(self.username, self.password), timeout=self.timeout) for url in (
-        #     "http://{tstat_host}/query/info".format(
-        #         tstat_host=self.device_address),
-        # )
-        # ]
         requests = [grequests.get(url, timeout=self.timeout) for url in (
             "http://{tstat_host}/query/info".format(
                 tstat_host=self.device_address),
