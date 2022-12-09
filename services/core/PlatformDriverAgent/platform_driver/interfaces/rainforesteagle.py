@@ -54,6 +54,11 @@ auth = None
 macid = None
 address = None
 
+ZIGBEE_REGISTER_LIST = [
+    "zigbee:CurrentSummationDelivered",
+    "zigbee:CurrentSummationReceived",
+    "zigbee:InstantaneousDemand",
+]
 
 class Register(BaseRegister):
     def __init__(self, name, units, description):
@@ -80,33 +85,27 @@ class Interface(BasicRevert, BaseInterface):
         macid = config_dict["macid"]
         address = config_dict["address"]
 
-        device_list = self.get_device_list()
-        power_meter = {}
-        for device in device_list.values():
-            if device["ModelId"] == "electric_meter":
-                power_meter = device
+        self.power_meter = self.get_power_meter()
 
-        var_list = [
-            "zigbee:CurrentSummationDelivered",
-            "zigbee:CurrentSummationReceived",
-            "zigbee:InstantaneousDemand",
-        ]
-
-        get_variables_dict = self.get_variables_list(power_meter, var_list)
-        _log.debug(f"{get_variables_dict=}")
-        var_metadata = {}
-        var_values = {}
-        for d in get_variables_dict:
+        variable_list = self.get_variables_list(self.power_meter, ZIGBEE_REGISTER_LIST)
+        for d in variable_list:
             # remove zigbee: prefix
             name = d["Name"][7:]
             units = d["Units"]
             description = d["Description"]
             self.insert_register(Register(name, units, description))
 
-        _log.debug(f"{var_values=}")
+        _log.info(f"Interface configuration complete. Found {variable_list=}")
+
+    def get_power_meter(self):
+        self.device_list = self.get_device_list()
+        power_meter = {}
+        for device in self.device_list.values():
+            if device["ModelId"] == "electric_meter":
+                return device
 
     def get_point(self, point_name):
-        return self.get_variable(self, point_name)
+        return self.get_variable(self, self.power_meter, point_name)
 
     def get_variable(self, device, variable):
         _log.debug(f"getting {variable} from {device}")
@@ -182,19 +181,8 @@ class Interface(BasicRevert, BaseInterface):
         return device_list
 
     def scrape_power_meter(self):
-        device_list = self.get_device_list()
-        power_meter = {}
-        for device in device_list.values():
-            if device["ModelId"] == "electric_meter":
-                power_meter = device
-
-        var_list = [
-            "zigbee:CurrentSummationDelivered",
-            "zigbee:CurrentSummationReceived",
-            "zigbee:InstantaneousDemand",
-        ]
         values = {}
-        for d in self.get_variables_list(power_meter, var_list):
+        for d in self.get_variables_list(self.power_meter, ZIGBEE_REGISTER_LIST):
             # remove zigbee: prefix
             name = d["Name"][7:]
             values[name] = d['Value']
