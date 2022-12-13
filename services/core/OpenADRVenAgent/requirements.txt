@@ -1,1 +1,2 @@
 openleadr==0.5.27
+cryptography==37.0.4

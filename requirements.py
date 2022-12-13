@@ -60,7 +60,7 @@ install_requires = ['gevent==21.12.0',
                     # tzlocal 3.0 breaks without the backports.tzinfo package on python < 3.9 https://pypi.org/project/tzlocal/3.0/
                     'tzlocal==2.1',
                     #'pyOpenSSL==19.0.0',
-                    'cryptography==38.0.4',
+                    'cryptography==37.0.4',
                     'watchdog-gevent==0.1.1']
 
 extras_require = {'crate': ['crate==0.27.1'],
