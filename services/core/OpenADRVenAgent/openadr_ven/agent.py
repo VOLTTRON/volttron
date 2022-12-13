@@ -55,6 +55,7 @@ from volttron.platform.messaging import topics, headers
 from volttron.platform.vip.agent import Agent, RPC
 from .volttron_openadr_client import (
     VolttronOpenADRClient,
+    OpenADRClientInterface, 
     OpenADREvent,
     OpenADRReportName,
     OpenADRMeasurements,
@@ -96,12 +97,12 @@ class OpenADRVenAgent(Agent):
 
     def __init__(self, config_path: str, **kwargs) -> None:
         # adding 'fake_ven_client' to support dependency injection and preventing call to super class for unit testing
+        self.ven_client: OpenADRClientInterface
         if kwargs.get("fake_ven_client"):
             self.ven_client = kwargs["fake_ven_client"]
         else:
-            self.ven_client: VolttronOpenADRClient
             super(OpenADRVenAgent, self).__init__(enable_web=True, **kwargs)
-
+            
         self.default_config = self._parse_config(config_path)
 
         # SubSystem/ConfigStore
