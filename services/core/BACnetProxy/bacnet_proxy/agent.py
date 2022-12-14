@@ -767,8 +767,12 @@ class BACnetProxyAgent(Agent):
 
                 iocb = self.iocb_class(request)
                 self.bacnet_application.submit_request(iocb)
-                bacnet_results = iocb.ioResult.get(10)
-
+                try:
+                    bacnet_results = iocb.ioResult.get(10)
+                except Exception as e:
+                    _log.error(f"{e} {target_address=}")
+                    raise e
+                    
                 _log.debug("Received read response from {target} count: {count}".format(
                     count=count, target=target_address))
 
