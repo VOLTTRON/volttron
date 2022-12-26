@@ -14,4 +14,4 @@ tzlocal==2.1
 pyOpenSSL==19.0.0
 cryptography
 watchdog-gevent==0.1.1
-wheel==0.30
+wheel==0.38.1
