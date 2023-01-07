@@ -47,8 +47,7 @@ from volttron.platform import jsonrpc
 from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM
 from volttron.platform.agent.utils import format_timestamp, get_aware_utc_now, \
     get_utc_seconds_from_epoch
-from volttron.platform.jsonrpc import INVALID_PARAMS, UNAVAILABLE_PLATFORM, \
-    INTERNAL_ERROR, RemoteError
+from volttron.platform.jsonrpc import INVALID_PARAMS, INTERNAL_ERROR, RemoteError
 from volttron.platform.messaging.health import Status, UNKNOWN_STATUS, \
     GOOD_STATUS, BAD_STATUS
 from volttron.platform.vip.agent.utils import build_connection

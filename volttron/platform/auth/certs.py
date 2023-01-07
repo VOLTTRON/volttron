@@ -43,7 +43,7 @@ import os
 import six
 import time
 from shutil import copyfile
-from socket import gethostname, getfqdn, getaddrinfo, AI_CANONNAME
+from socket import gethostname, getfqdn, AI_CANONNAME
 import subprocess
 
 from cryptography import x509
@@ -58,7 +58,6 @@ from cryptography.x509.oid import NameOID, ExtendedKeyUsageOID
 from volttron.platform import jsonapi
 from volttron.platform import get_home
 from volttron.platform.agent.utils import (get_platform_instance_name,
-                                           get_fq_identity,
                                            execute_command)
 
 _log = logging.getLogger(__name__)
