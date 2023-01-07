@@ -43,13 +43,16 @@ except ImportError:
     HAS_HELICS = False
     RuntimeError('HELICS must be installed before running this script ')
 
-import os
+from copy import deepcopy
 import logging
-import gevent
+import os
 import weakref
+
+import gevent
+
 from volttron.platform.agent.base_simulation_integration.base_sim_integration import BaseSimIntegration
 from volttron.platform import jsonapi
-from copy import deepcopy
+
 
 _log = logging.getLogger(__name__)
 __version__ = '1.0'
@@ -351,5 +354,3 @@ class HELICSSimIntegration(BaseSimIntegration):
             h.helicsCloseLibrary()
         except h._helics.HelicsException as e:
             _log.exception("Error stopping HELICS federate {}".format(e))
-
-
