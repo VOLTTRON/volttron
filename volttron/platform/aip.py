@@ -66,8 +66,7 @@ from volttron.platform.agent.utils import (is_valid_identity,
                           get_messagebus,
                           get_platform_instance_name)
 from volttron.platform import get_home
-from volttron.platform.agent.utils import load_platform_config, \
-    get_utc_seconds_from_epoch
+from volttron.platform.agent.utils import get_utc_seconds_from_epoch
 from volttron.platform.packages import UnpackedPackage
 from volttron.platform.vip.agent import Agent
 from volttron.platform.auth.auth_entry import AuthEntry

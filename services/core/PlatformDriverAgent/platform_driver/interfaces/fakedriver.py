@@ -43,8 +43,6 @@ import math
 from math import pi
 
 from platform_driver.interfaces import BaseInterface, BaseRegister, BasicRevert
-from csv import DictReader
-from io import StringIO
 import logging
 
 _log = logging.getLogger(__name__)

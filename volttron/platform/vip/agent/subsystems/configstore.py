@@ -40,7 +40,6 @@ import traceback
 import os
 import weakref
 import fnmatch
-import greenlet
 import inspect
 
 from .base import SubsystemBase

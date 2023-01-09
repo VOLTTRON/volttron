@@ -59,7 +59,7 @@ from volttron.platform.auth import certs
 from volttron.platform import get_home
 from volttron.platform.agent.utils import (store_message_bus_config,
                                            execute_command)
-from volttron.utils.prompt import prompt_response, y, n, y_or_n
+from volttron.utils.prompt import prompt_response, y, y_or_n
 from volttron.platform import jsonapi
 from urllib.parse import urlparse
 from volttron.platform.agent.utils import get_platform_instance_name, get_fq_identity
