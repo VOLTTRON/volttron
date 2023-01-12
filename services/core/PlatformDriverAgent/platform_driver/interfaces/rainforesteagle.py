@@ -1,42 +1,8 @@
-# -*- coding: utf-8 -*- {{{
-# vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
-#
-# Copyright 2020, Battelle Memorial Institute.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-#
-# This material was prepared as an account of work sponsored by an agency of
-# the United States Government. Neither the United States Government nor the
-# United States Department of Energy, nor Battelle, nor any of their
-# employees, nor any jurisdiction or organization that has cooperated in the
-# development of these materials, makes any warranty, express or
-# implied, or assumes any legal liability or responsibility for the accuracy,
-# completeness, or usefulness or any information, apparatus, product,
-# software, or process disclosed, or represents that its use would not infringe
-# privately owned rights. Reference herein to any specific commercial product,
-# process, or service by trade name, trademark, manufacturer, or otherwise
-# does not necessarily constitute or imply its endorsement, recommendation, or
-# favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors expressed
-# herein do not necessarily state or reflect those of the
-# United States Government or any agency thereof.
-#
-# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
-# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
-# under Contract DE-AC05-76RL01830
-# }}}
+# Ace IoT Solutions
+"""
+    Platform Driver interface implementation for rainforest eagle 200 gateway
+"""
 
-from csv import DictReader
 import logging
 import requests
 
@@ -60,6 +26,7 @@ ZIGBEE_REGISTER_LIST = [
     "zigbee:InstantaneousDemand",
 ]
 
+
 class Register(BaseRegister):
     def __init__(self, name, units, description):
         super(Register, self).__init__(
@@ -74,10 +41,11 @@ class Register(BaseRegister):
 class Interface(BasicRevert, BaseInterface):
     def __init__(self, **kwargs):
         super(Interface, self).__init__(**kwargs)
+        self.power_meter = {}
 
     def configure(self, config_dict, register_config):
         global auth, macid, address
-        _log.debug(f"configuring rainforest gateway: {config_dict=} {register_config=}")
+        _log.info(f"configuring rainforest gateway: {config_dict=} {register_config=}")
 
         username = config_dict["username"]
         password = config_dict["password"]
@@ -87,28 +55,36 @@ class Interface(BasicRevert, BaseInterface):
 
         self.power_meter = self.get_power_meter()
 
+        if not self.power_meter:
+            _log.error("Could not find connected power meter")
+            return
+        # query for variable values to build units and description for registers
         variable_list = self.get_variables_list(self.power_meter, ZIGBEE_REGISTER_LIST)
         for d in variable_list:
             # remove zigbee: prefix
-            name = d["Name"][7:]
+            name = d["Name"][7:].lower()
             units = d["Units"]
             description = d["Description"]
             self.insert_register(Register(name, units, description))
 
         _log.info(f"Interface configuration complete. Found {variable_list=}")
 
-    def get_power_meter(self):
+    def get_power_meter(self) -> dict:
         self.device_list = self.get_device_list()
-        power_meter = {}
-        for device in self.device_list.values():
-            if device["ModelId"] == "electric_meter":
-                return device
+        for devices in self.device_list.values():
+            for device in devices:
+                if (
+                    device["ModelId"] == "electric_meter"
+                    and device["ConnectionStatus"] == "Connected"
+                ):
+                    _log.info(f"found active power meter {device}")
+                    return device
 
     def get_point(self, point_name):
-        return self.get_variable(self, self.power_meter, point_name)
+        return self.get_variable(self.power_meter, point_name)
 
     def get_variable(self, device, variable):
-        _log.debug(f"getting {variable} from {device}")
+        _log.info(f"getting {variable} from {device}")
         command = f"""<Command>
                         <Name>device_query</Name>
                         <Format>JSON</Format>
@@ -140,29 +116,8 @@ class Interface(BasicRevert, BaseInterface):
 
     def get_variables_list(self, device, var_list):
         returned_vars = []
-        for variable in var_list:
-            command = f"""<Command>
-                            <Name>device_query</Name>
-                            <Format>JSON</Format>
-                            <DeviceDetails>
-                                <HardwareAddress>{device['HardwareAddress']}</HardwareAddress>
-                            </DeviceDetails>
-                            <Components>
-                                <Component>
-                                    <Name>Main</Name>
-                                    <Variables>
-                                        <Variable>
-                                            <Name>{variable}</Name>
-                                        </Variable>
-                                    </Variables>
-                                </Component>
-                            </Components>
-                        </Command>
-                        """
-            result = requests.post(address, auth=auth, data=command).json()
-            returned_vars.append(
-                result["Device"]["Components"]["Component"]["Variables"]["Variable"]
-            )
+        for var in var_list:
+            returned_vars.append(self.get_variable(device, var))
         return returned_vars
 
     def get_device_list(self):
@@ -177,15 +132,19 @@ class Interface(BasicRevert, BaseInterface):
             return str(result.status_code)
 
         device_list = result.json()["DeviceList"]
-        _log.debug(f"{device_list=}")
         return device_list
 
     def scrape_power_meter(self):
         values = {}
         for d in self.get_variables_list(self.power_meter, ZIGBEE_REGISTER_LIST):
             # remove zigbee: prefix
-            name = d["Name"][7:]
-            values[name] = d['Value']
+            name = d["Name"][7:].lower()
+            if not d["Value"]:
+                _log.warning(f"Variable {d['Name']} has no value. skipping")
+                continue
+            values[name] = d["Value"]
+
+        _log.info(f"Scraped power meter: {values=}")
         return values
 
     def _set_point(self, point_name, value):
@@ -197,5 +156,4 @@ class Interface(BasicRevert, BaseInterface):
     def _scrape_all(self) -> dict:
         # scrape points
         result = self.scrape_power_meter()
-        _log.debug(f"{result=}")
         return result
