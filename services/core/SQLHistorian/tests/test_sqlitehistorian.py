@@ -237,7 +237,7 @@ def test_sqlite_timeout(request, publish_agent, volttron_instance, config):
         assert (len(result['values']) == 1)
         (now_date, now_time) = now.split("T")
         assert result['values'][0][0] == now_date + 'T' + now_time + '+00:00'
-        assert (result['values'][0][1] == approx(oat_reading))
+        assert result['values'][0][1] == approx(oat_reading)
         assert set(result['metadata'].items()) == set(float_meta.items())
     except Exception as e:
         print(e)

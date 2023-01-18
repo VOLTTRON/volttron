@@ -93,13 +93,13 @@ class Interface(BasicRevert, BaseInterface):
         args = parser.parse_args()
         self._verboseness = args.verbosity
 
-        if (self._verboseness == 0):
+        if self._verboseness == 0:
             verbiage = logging.ERROR
-        if (self._verboseness == 1):
+        if self._verboseness == 1:
             verbiage = logging.WARNING  # '-v'
-        elif (self._verboseness == 2):
+        elif self._verboseness == 2:
             verbiage = logging.INFO  # '-vv'
-        elif (self._verboseness >= 3):
+        elif self._verboseness >= 3:
             verbiage = logging.DEBUG  # '-vvv'
         _log.setLevel(verbiage)
 
@@ -156,15 +156,15 @@ class Interface(BasicRevert, BaseInterface):
                     vip.heartbeat
                     vip.config
             '''
-            if (device_type == "heater"):
+            if device_type == "heater":
                 self.agent = HeaterDriver(None, config_dict['device_id'])
-            elif (device_type == "meter"):
+            elif device_type == "meter":
                 self.agent = MeterDriver(None, config_dict['device_id'], )
-            elif (device_type == "thermostat"):
+            elif device_type == "thermostat":
                 self.agent = ThermostatDriver(None, config_dict['device_id'])
-            elif (device_type == "blinds"):
+            elif device_type == "blinds":
                 self.agent = BlindsDriver(None, config_dict['device_id'])
-            elif (device_type == "vehicle"):
+            elif device_type == "vehicle":
                 self.agent = VehicleDriver(None, config_dict['device_id'])
             else:
                 raise RuntimeError("Unsupported Device Type: '{}'".format(device_type))
@@ -201,7 +201,7 @@ class Interface(BasicRevert, BaseInterface):
         if register.read_only:
             raise IOError("Trying to write to a point configured read only: " + point_name)
 
-        if (self.agent.SetPoint(register, value)):
+        if self.agent.SetPoint(register, value):
             register._value = register.reg_type(value)
             self.point_map[point_name]._value = register._value
         return register._value
@@ -213,7 +213,7 @@ class Interface(BasicRevert, BaseInterface):
         read_registers = self.get_registers_by_type("byte", True)
         write_registers = self.get_registers_by_type("byte", False)
         for register in read_registers + write_registers:
-            if (self._verboseness == 2):
+            if self._verboseness == 2:
                 _log.info("Universal Scraping Value for '{}': {}".format(register.point_name, register._value))
             result[register.point_name] = register._value
         return result
@@ -226,7 +226,7 @@ class Interface(BasicRevert, BaseInterface):
             old_value = register._value
             register._value = register._default_value
             # _log.info( "point_map[register]._value = {}".format(self.point_map[register.point_name]._value))
-            if (self._verboseness == 2):
+            if self._verboseness == 2:
                 _log.info("Hardware not reachable, Resetting Value for '{}' from {} to {}".format(register.point_name,
                                                                                                   old_value,
                                                                                                   register._value))
