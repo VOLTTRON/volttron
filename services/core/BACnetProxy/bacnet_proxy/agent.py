@@ -50,7 +50,7 @@ _log = logging.getLogger(__name__)
 
 bacnet_logger = logging.getLogger("bacpypes")
 bacnet_logger.setLevel(logging.WARNING)
-__version__ = '0.5'
+__version__ = '0.5.1'
 
 from collections import defaultdict
 
@@ -685,7 +685,11 @@ class BACnetProxyAgent(Agent):
         request.pduDestination = Address(target_address)
         iocb = self.iocb_class(request)
         self.bacnet_application.submit_request(iocb)
-        bacnet_results = iocb.ioResult.get(10)
+        try:
+            bacnet_results = iocb.ioResult.get(10)
+        except RuntimeError as error:
+            _log.error(f"could not read {property_name} from device {target_address}")
+            return None
         return bacnet_results
 
     def _get_access_spec(self, obj_data, properties):
