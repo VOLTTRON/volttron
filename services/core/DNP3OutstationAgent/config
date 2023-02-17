@@ -1,0 +1,4 @@
+{'outstation_ip_str': '0.0.0.0',
+'port': 20000,
+'masterstation_id_int': 2,
+'outstation_id_int': 1}
