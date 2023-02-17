@@ -13,7 +13,7 @@ layer, and transport layer. Also, DNP3 can be transmitted over a serial bus conn
 
 # Prerequisites
 
-* > Python 3.8, < Python 4.0
+* Python 3.8 + 
 
 # Installation
 
@@ -93,7 +93,7 @@ Below is an example configuration can be found at [example-config.json](example-
     'port': 20000,
     'masterstation_id_int': 2,
     'outstation_id_int': 1
-}
+    }
 ```
 
 Note: as part of the Volttron configuration framework, this file will be added to
