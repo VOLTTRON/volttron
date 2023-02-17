@@ -87,7 +87,7 @@ layer, and transport layer. Also, DNP3 can be transmitted over a serial bus conn
 The required parameters for this agent are "outstation_ip_str", "port", "masterstation_id_int", and "outstation_id_int".
 Below is an example configuration can be found at [example-config.json](example-config.json).
 
-```json
+```
     {
     'outstation_ip_str': '0.0.0.0',
     'port': 20000,
