@@ -472,6 +472,12 @@ def vip_main(agent_class, identity=None, version='0.1', **kwargs):
         agent_uuid = os.environ.get('AGENT_UUID')
         volttron_home = get_home()
 
+        publickey = os.environ.get("AGENT_PUBLICKEY", None)
+        secretkey = os.environ.get("AGENT_SECRETKEY", None)
+
+        publickey = kwargs.pop('publickey', publickey)
+        secretkey = kwargs.pop('secretkey', secretkey)
+
         from volttron.platform.auth.certs import Certs
         certs = Certs()
         agent = agent_class(config_path=config,
@@ -480,8 +486,11 @@ def vip_main(agent_class, identity=None, version='0.1', **kwargs):
                             agent_uuid=agent_uuid,
                             volttron_home=volttron_home,
                             version=version,
-                            message_bus=message_bus, **kwargs)
-        
+                            message_bus=message_bus,
+                            publickey=publickey,
+                            secretkey=secretkey,
+                            **kwargs)
+
         try:
             run = agent.run
         except AttributeError:
