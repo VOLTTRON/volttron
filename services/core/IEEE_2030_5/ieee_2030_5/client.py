@@ -10,10 +10,9 @@ from os import PathLike
 from pathlib import Path
 from threading import Timer
 from typing import Dict, Optional, Tuple
-import xsdata
 
 import ieee_2030_5.models as m
-
+import xsdata
 
 _log = logging.getLogger(__name__)
 
@@ -32,15 +31,17 @@ class IEEE2030_5_Client:
 
         cafile = cafile if isinstance(cafile, PathLike) else Path(cafile)
         keyfile = keyfile if isinstance(keyfile, PathLike) else Path(keyfile)
-        certfile = certfile if isinstance(certfile, PathLike) else Path(certfile)
+        certfile = certfile if isinstance(certfile,
+                                          PathLike) else Path(certfile)
 
         self._key = keyfile
         self._cert = certfile
         self._ca = cafile
 
-        assert cafile.exists(), f"cafile doesn't exist ({cafile})"
-        assert keyfile.exists(), f"keyfile doesn't exist ({keyfile})"
-        assert certfile.exists(), f"certfile doesn't exist ({certfile})"
+        # We know that these are Path objects now and have a .exists() function based upon above code.
+        assert cafile.exists(), f"cafile doesn't exist ({cafile})" # type: ignore[attr-defined]
+        assert keyfile.exists(), f"keyfile doesn't exist ({keyfile})"  # type: ignore[attr-defined]
+        assert certfile.exists(), f"certfile doesn't exist ({certfile})"  # type: ignore[attr-defined]
 
         self._ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
         self._ssl_context.check_hostname = False
@@ -76,7 +77,9 @@ class IEEE2030_5_Client:
     def register_end_device(self) -> str:
         lfid = utils.get_lfdi_from_cert(self._cert)
         sfid = utils.get_sfdi_from_lfdi(lfid)
-        response = self.__post__(dcap.EndDeviceListLink.href, data=utils.dataclass_to_xml(m.EndDevice(sFDI=sfid)))
+        response = self.__post__(dcap.EndDeviceListLink.href,
+                                 data=utils.dataclass_to_xml(
+                                     m.EndDevice(sFDI=sfid)))
         print(response)
 
         if response.status in (200, 201):
@@ -84,10 +87,8 @@ class IEEE2030_5_Client:
 
         raise werkzeug.exceptions.Forbidden()
 
-
-
-
-    def is_end_device_registered(self, end_device: m.EndDevice, pin: int) -> bool:
+    def is_end_device_registered(self, end_device: m.EndDevice,
+                                 pin: int) -> bool:
         reg = self.registration(end_device)
         return reg.pIN == pin
 
@@ -96,7 +97,8 @@ class IEEE2030_5_Client:
         return res
 
     def end_devices(self) -> m.EndDeviceListLink:
-        self._end_devices = self.__get_request__(self._device_cap.EndDeviceListLink.href)
+        self._end_devices = self.__get_request__(
+            self._device_cap.EndDeviceListLink.href)
         return self._end_devices
 
     def end_device(self, index: Optional[int] = 0) -> m.EndDevice:
@@ -112,7 +114,8 @@ class IEEE2030_5_Client:
         return self.__get_request__(self._device_cap.SelfDeviceLink.href)
 
     def function_set_assignment(self) -> m.FunctionSetAssignmentsListLink:
-        fsa_list = self.__get_request__(self.end_device().FunctionSetAssignmentsListLink.href)
+        fsa_list = self.__get_request__(
+            self.end_device().FunctionSetAssignmentsListLink.href)
         return fsa_list
 
     def poll_timer(self, fn, args):
@@ -140,17 +143,21 @@ class IEEE2030_5_Client:
         return timexml
 
     def der_program_list(self, device: m.EndDevice) -> m.DERProgramList:
-        fsa: m.FunctionSetAssignments = self.__get_request__(device.FunctionSetAssignmentsListLink.href)
-        der_programs_list: m.DERProgramList = self.__get_request__(fsa.DERProgramListLink.href)
+        fsa: m.FunctionSetAssignments = self.__get_request__(
+            device.FunctionSetAssignmentsListLink.href)
+        der_programs_list: m.DERProgramList = self.__get_request__(
+            fsa.DERProgramListLink.href)
 
         return der_programs_list
 
     def mirror_usage_point_list(self) -> m.MirrorUsagePointList:
-        self._mup = self.__get_request__(self._device_cap.MirrorUsagePointListLink.href)
+        self._mup = self.__get_request__(
+            self._device_cap.MirrorUsagePointListLink.href)
         return self._mup
 
     def usage_point_list(self) -> m.UsagePointList:
-        self._upt = self.__get_request__(self._device_cap.UsagePointListLink.href)
+        self._upt = self.__get_request__(
+            self._device_cap.UsagePointListLink.href)
         return self._upt
 
     def registration(self, end_device: m.EndDevice) -> m.Registration:
@@ -167,7 +174,10 @@ class IEEE2030_5_Client:
         self._dcap_timer.cancel()
         IEEE2030_5_Client.clients.remove(self)
 
-    def request(self, endpoint: str, body: dict = None, method: str = "GET",
+    def request(self,
+                endpoint: str,
+                body: dict = None,
+                method: str = "GET",
                 headers: dict = None):
 
         if method.upper() == 'GET':
@@ -177,17 +187,24 @@ class IEEE2030_5_Client:
             print("Doing post")
             return self.__post__(endpoint, body, headers=headers)
 
-    def create_mirror_usage_point(self, mirror_usage_point: m.MirrorUsagePoint) -> Tuple[int, str]:
+    def create_mirror_usage_point(
+            self, mirror_usage_point: m.MirrorUsagePoint) -> Tuple[int, str]:
         data = dataclass_to_xml(mirror_usage_point)
-        resp = self.__post__(self._device_cap.MirrorUsagePointListLink.href, data=data)
+        resp = self.__post__(self._device_cap.MirrorUsagePointListLink.href,
+                             data=data)
         return resp.status, resp.headers['Location']
 
-    def __post__(self, url: str, data=None, headers: Optional[Dict[str, str]]=None):
+    def __post__(self,
+                 url: str,
+                 data=None,
+                 headers: Optional[Dict[str, str]] = None):
         if not headers:
             headers = {'Content-Type': 'text/xml'}
 
-        self.http_conn.request(method="POST", headers=headers,
-                               url=url, body=data)
+        self.http_conn.request(method="POST",
+                               headers=headers,
+                               url=url,
+                               body=data)
         response = self._http_conn.getresponse()
         # response_data = response.read().decode("utf-8")
 
@@ -195,12 +212,18 @@ class IEEE2030_5_Client:
 
     def __get_request__(self, url: str, body=None, headers: dict = None):
         if headers is None:
-            headers = {"Connection": "keep-alive", "keep-alive": "timeout=30, max=1000"}
+            headers = {
+                "Connection": "keep-alive",
+                "keep-alive": "timeout=30, max=1000"
+            }
 
         if self._debug:
             print(f"----> GET REQUEST")
             print(f"url: {url} body: {body}")
-        self.http_conn.request(method="GET", url=url, body=body, headers=headers)
+        self.http_conn.request(method="GET",
+                               url=url,
+                               body=body,
+                               headers=headers)
         response = self._http_conn.getresponse()
         response_data = response.read().decode("utf-8")
         print(response.headers)
@@ -253,8 +276,7 @@ if __name__ == '__main__':
     KEY_FILE = Path("~/tls/private/dev1.pem").expanduser().resolve()
     CERT_FILE = Path("~/tls/certs/dev1.crt").expanduser().resolve()
 
-    headers = {'Connection': 'Keep-Alive',
-               'Keep-Alive': "max=1000,timeout=30"}
+    headers = {'Connection': 'Keep-Alive', 'Keep-Alive': "max=1000,timeout=30"}
 
     h = IEEE2030_5_Client(cafile=SERVER_CA_CERT,
                           server_hostname="127.0.0.1",
@@ -272,7 +294,6 @@ if __name__ == '__main__':
         ed_href = h.register_end_device()
     my_ed = h.end_devices()
 
-
     # ed = h.end_devices()[0]
     # resp = h.request("/dcap", headers=headers)
     # print(resp)
@@ -288,7 +309,6 @@ if __name__ == '__main__':
     # print(dcap.mirror_usage_point_list_link)
     # # print(h.request(dcap.mirror_usage_point_list_link.href))
     # print(h.request("/dcap", method="post"))
-
 
     # tl = h.timelink()
     #print(IEEE2030_5_Client.clients)
