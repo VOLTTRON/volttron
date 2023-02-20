@@ -1,0 +1,15 @@
+# required parameters
+cacertfile: ~/tls/certs/ca.pem
+keyfile: ~/tls/private/dev1.pem
+certfile: ~/tls/certs/dev1.pem
+server_hostname: localhost
+# the pin number is used to verify the server is the correct server
+pin: 12345
+
+# SSL defaults to 443
+server_ssl_port: 8443
+# http port defaults to none
+server_http_port: 8080
+
+subscriptions:
+  - devices/inverter1/all
