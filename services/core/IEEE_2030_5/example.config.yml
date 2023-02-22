@@ -7,9 +7,47 @@ server_hostname: localhost
 pin: 12345
 
 # SSL defaults to 443
-server_ssl_port: 8443
+server_ssl_port: 7443
 # http port defaults to none
 server_http_port: 8080
 
+MirrorUsagePointList:
+  # MirrorMeterReading based on Table E.2 IEEE Std 2030.5-18
+  - subscription_point: p_ac
+    mRID: 5509D69F8B3535950000000000009182
+    description: DER Inverter Real Power
+    roleFlags: 49
+    serviceCategoryKind: 0
+    status: 0
+    MirrorMeterReading:
+      mRID: 5509D69F8B3535950000000000009183
+      description: Real Power(W) Set
+      ReadingType:
+        accumulationBehavior: 12
+        commodity: 1
+        dataQualifier: 2
+        intervalLength: 300
+        powerOfTenMultiplier: 0
+        uom: 38
+  - subscription_point: q_ac
+    mRID: 5509D69F8B3535950000000000009184
+    description: DER Inverter Reactive Power
+    roleFlags: 49
+    serviceCategoryKind: 0
+    status: 0
+    MirrorMeterReading:
+      mRID: 5509D69F8B3535950000000000009185
+      description: Reactive Power(VAr) Set
+      ReadingType:
+        accumulationBehavior: 12
+        commodity: 1
+        dataQualifier: 2
+        intervalLength: 300
+        powerOfTenMultiplier: 0
+        uom: 38
+
+# publishes on the following subscriptions will
+# be available to create and POST readings to the
+# 2030.5 server.
 subscriptions:
   - devices/inverter1/all

@@ -3,16 +3,19 @@ from __future__ import annotations
 import atexit
 import logging
 import ssl
+import subprocess
 import threading
 import xml.dom.minidom
-from http.client import HTTPSConnection
+from http.client import HTTPMessage, HTTPSConnection
 from os import PathLike
 from pathlib import Path
 from threading import Timer
 from typing import Dict, Optional, Tuple
+from uuid import uuid4
 
 import ieee_2030_5.models as m
 import xsdata
+from ieee_2030_5 import dataclass_to_xml, xml_to_dataclass
 
 _log = logging.getLogger(__name__)
 
@@ -26,17 +29,18 @@ class IEEE2030_5_Client:
                  server_hostname: str,
                  keyfile: PathLike,
                  certfile: PathLike,
+                 pin: str,
                  server_ssl_port: Optional[int] = 443,
                  debug: bool = True):
 
         cafile = cafile if isinstance(cafile, PathLike) else Path(cafile)
         keyfile = keyfile if isinstance(keyfile, PathLike) else Path(keyfile)
-        certfile = certfile if isinstance(certfile,
-                                          PathLike) else Path(certfile)
+        certfile = certfile if isinstance(certfile, PathLike) else Path(certfile)
 
-        self._key = keyfile
-        self._cert = certfile
-        self._ca = cafile
+        self._keyfile = keyfile
+        self._certfile = certfile
+        self._cafile = cafile
+        self._pin = pin
 
         # We know that these are Path objects now and have a .exists() function based upon above code.
         assert cafile.exists(), f"cafile doesn't exist ({cafile})" # type: ignore[attr-defined]
@@ -55,37 +59,83 @@ class IEEE2030_5_Client:
         self._http_conn = HTTPSConnection(host=server_hostname,
                                           port=server_ssl_port,
                                           context=self._ssl_context)
-        self._device_cap: Optional[m.DeviceCapability] = None
-        self._mup: Optional[m.MirrorUsagePointList] = None
-        self._upt: Optional[m.UsagePointList] = None
-        self._edev: Optional[m.EndDeviceListLink] = None
-        self._end_devices: Optional[m.EndDeviceListLink] = None
-        self._fsa_list: Optional[m.FunctionSetAssignmentsListLink] = None
+        self._response_headers: HTTPMessage
+        self._response_status = None
+        
+        self._device_cap: m.DeviceCapability = m.DeviceCapability()
+        self._mup: m.MirrorUsagePointList = m.MirrorUsagePointList()
+        self._upt: m.UsagePointList = m.UsagePointList()
+        self._edev: m.EndDeviceListLink = m.EndDeviceListLink()
+        self._end_devices: m.EndDeviceList = m.EndDeviceList()
+        self._fsa_list: m.FunctionSetAssignmentsList = m.FunctionSetAssignmentsList()
+        self._der_programs: m.DERProgramList = m.DERProgramList()
+        self._mup: m.MirrorUsagePoint = m.MirrorUsagePoint()
         self._debug = debug
         self._dcap_poll_rate: int = 0
         self._dcap_timer: Optional[Timer] = None
         self._disconnect: bool = False
+    
+        # Starts a timer
+        self.update_state()
 
         IEEE2030_5_Client.clients.add(self)
+        
+    @property
+    def lfdi(self) -> str:
+        cmd = ["openssl", "x509", "-in", str(self._certfile), "-noout", "-fingerprint", "-sha256"]
+        ret_value = subprocess.check_output(cmd, text=True)
+        if "=" in ret_value:
+            ret_value = ret_value.split("=")[1].strip()
+        
+        fp = ret_value.replace(":", "")
+        lfdi = fp[:40]
+        return lfdi
 
     @property
     def http_conn(self) -> HTTPSConnection:
         if self._http_conn.sock is None:
             self._http_conn.connect()
         return self._http_conn
+    
+    @property
+    def enddevices(self) -> m.EndDeviceList:
+        return self._end_devices
+    
+    @property
+    def enddevice(self, index: int = 0) -> m.EndDevice:
+        return self._end_devices.EndDevice[index]
+        
+    
+    def __hash__(self) -> int:
+        return self._keyfile.read_text().__hash__() # type: ignore[attr-defined]
+    
+    
+    def update_state(self) -> None:
+        self._device_cap = self.device_capability()
+        self._end_devices = self.get_enddevices()
+        ed = self.enddevice
+        if ed.FunctionSetAssignmentsListLink.href:
+            self._fsa_list: m.FunctionSetAssignmentsList = self.request(endpoint=ed.FunctionSetAssignmentsListLink.href)
+            if len(self._fsa_list.FunctionSetAssignments) > 1:
+                raise ValueError("Server responded with more than one function set assignment.")
+            for fsa in self._fsa_list.FunctionSetAssignments:
+                if fsa.DERProgramListLink.href:
+                    self._der_programs = self.request(fsa.DERProgramListLink.href)
+                
+            
 
-    def register_end_device(self) -> str:
-        lfid = utils.get_lfdi_from_cert(self._cert)
-        sfid = utils.get_sfdi_from_lfdi(lfid)
-        response = self.__post__(dcap.EndDeviceListLink.href,
-                                 data=utils.dataclass_to_xml(
-                                     m.EndDevice(sFDI=sfid)))
-        print(response)
+    # def register_end_device(self) -> str:
+    #     lfid = utils.get_lfdi_from_cert(self._cert)
+    #     sfid = utils.get_sfdi_from_lfdi(lfid)
+    #     response = self.__post__(dcap.EndDeviceListLink.href,
+    #                              data=utils.dataclass_to_xml(
+    #                                  m.EndDevice(sFDI=sfid)))
+    #     print(response)
 
-        if response.status in (200, 201):
-            return response.headers.get("Location")
+    #     if response.status in (200, 201):
+    #         return response.headers.get("Location")
 
-        raise werkzeug.exceptions.Forbidden()
+    #     raise werkzeug.exceptions.Forbidden()
 
     def is_end_device_registered(self, end_device: m.EndDevice,
                                  pin: int) -> bool:
@@ -95,11 +145,13 @@ class IEEE2030_5_Client:
     def new_uuid(self, url: str = "/uuid") -> str:
         res = self.__get_request__(url)
         return res
+    
+    def get_enddevices(self) -> m.EndDeviceList:
+        return self.__get_request__(self._device_cap.EndDeviceListLink.href)
 
-    def end_devices(self) -> m.EndDeviceListLink:
-        self._end_devices = self.__get_request__(
-            self._device_cap.EndDeviceListLink.href)
-        return self._end_devices
+    # def end_devices(self) -> m.EndDeviceList:
+    #     self._end_devices = self.__get_request__(self._device_cap.EndDeviceListLink.href)
+    #     return self._end_devices
 
     def end_device(self, index: Optional[int] = 0) -> m.EndDevice:
         if not self._end_devices:
@@ -134,8 +186,9 @@ class IEEE2030_5_Client:
         _log.debug(f"devcap id {id(self._device_cap)}")
         _log.debug(threading.currentThread().name)
         _log.debug(f"DCAP: Poll rate: {self._dcap_poll_rate}")
-        # self._dcap_timer = Timer(self._dcap_poll_rate, self.poll_timer, (self.device_capability, url))
-        # self._dcap_timer.start()
+        self._dcap_timer = Timer(self._dcap_poll_rate, self.poll_timer, (self.device_capability, url))
+        self._dcap_timer.start()
+        
         return self._device_cap
 
     def time(self) -> m.Time:
@@ -150,6 +203,9 @@ class IEEE2030_5_Client:
 
         return der_programs_list
 
+    def post_mirror_reading(self, reading: m.MirrorMeterReading):
+        print(reading)
+        
     def mirror_usage_point_list(self) -> m.MirrorUsagePointList:
         self._mup = self.__get_request__(
             self._device_cap.MirrorUsagePointListLink.href)
@@ -210,7 +266,7 @@ class IEEE2030_5_Client:
 
         return response
 
-    def __get_request__(self, url: str, body=None, headers: dict = None):
+    def __get_request__(self, url: str, body=None, headers: Optional[Dict] = None):
         if headers is None:
             headers = {
                 "Connection": "keep-alive",
@@ -224,13 +280,15 @@ class IEEE2030_5_Client:
                                url=url,
                                body=body,
                                headers=headers)
+        
         response = self._http_conn.getresponse()
         response_data = response.read().decode("utf-8")
-        print(response.headers)
+        self._response_headers = response.headers
+        self._response_status = response.status
 
         response_obj = None
         try:
-            response_obj = utils.xml_to_dataclass(response_data)
+            response_obj = xml_to_dataclass(response_data)
             resp_xml = xml.dom.minidom.parseString(response_data)
             if resp_xml and self._debug:
                 print(f"<---- GET RESPONSE")
