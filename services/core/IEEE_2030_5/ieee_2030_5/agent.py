@@ -13,12 +13,14 @@
 # under the License.
 from __future__ import annotations
 
-import datetime
 import logging
 import sys
+from datetime import datetime
 from pathlib import Path
 from pprint import pformat
+from typing import Dict
 
+import ieee_2030_5.models as m
 from ieee_2030_5 import AllPoints
 from ieee_2030_5.client import IEEE2030_5_Client
 
@@ -58,17 +60,28 @@ class IEEE_2030_5_Agent(Agent):
         self._cacertfile = Path(config['cacertfile']).expanduser()
         self._keyfile = Path(config['keyfile']).expanduser()
         self._certfile = Path(config['certfile']).expanduser()
+        self._pin = config['pin']
         self._subscriptions = config["subscriptions"]
         self._server_hostname = config["server_hostname"]
         self._server_ssl_port = config.get("server_ssl_port", 443)
         self._server_http_port = config.get("server_http_port", None)
-        self._default_config = {"subscriptions": self._subscriptions}
-
+        self._mirror_usage_point_list = config.get("MirrorUsagePointList", [])
+        self._default_config = {"subscriptions": self._subscriptions, "MirrorUsagePointList": self._mirror_usage_point_list }
+        self._server_usage_points: m.UsagePointList
         self._client = IEEE2030_5_Client(cafile=self._cacertfile,
                                          server_hostname=self._server_hostname,
                                          keyfile=self._keyfile,
                                          certfile=self._certfile,
-                                         server_ssl_port=self._server_ssl_port)
+                                         server_ssl_port=self._server_ssl_port,
+                                         pin=self._pin)
+        
+        _log.info(self._client.enddevice)
+        assert self._client.enddevice
+        self._point_to_reading_set: Dict[str, str] = {}
+        self._mirror_usage_points: Dict[str, m.MirrorUsagePoint] = {}
+        self._mup_readings: Dict[str, m.MirrorMeterReading] = {}
+                
+        #assert self._client.is_end_device_registered(), "End device is not registered."
 
         # Set a default configuration to ensure that self.configure is called immediately to setup
         # the agent.
@@ -92,6 +105,16 @@ class IEEE_2030_5_Agent(Agent):
 
         try:
             subscriptions = config['subscriptions']
+            new_usage_points: Dict[str, m.MirrorUsagePoint] = {}
+            
+            for mup in config.get("MirrorUsagePointList", []):
+                subscription_point = mup.pop('subscription_point')
+                new_usage_points[mup['mRID']] = m.MirrorUsagePoint(**mup)
+                new_usage_points[mup['mRID']].deviceLFDI = self._client.lfdi
+                new_usage_points[mup['mRID']].MirrorMeterReading = []
+                new_usage_points[mup['mRID']].MirrorMeterReading.append(m.MirrorMeterReading(**mup['MirrorMeterReading']))
+                mup['subscription_point'] = subscription_point
+            
         except ValueError as e:
             _log.error("ERROR PROCESSING CONFIGURATION: {}".format(e))
             return
@@ -103,6 +126,35 @@ class IEEE_2030_5_Agent(Agent):
                                         callback=self._data_published)
 
         self._subscriptions = subscriptions
+        
+        self._mup_readings.clear()
+        self._mirror_usage_points.clear()
+        
+        self._mirror_usage_points.update(new_usage_points)
+        server_usage_points = self._client.mirror_usage_point_list()
+        if server_usage_points.all == 0 and len(self._mirror_usage_point_list) > 0:
+            for mRID, mup in self._mirror_usage_points.items():
+                response = self._client.create_mirror_usage_point(mup)
+                mup_reading = m.MirrorMeterReading(mRID=mup.MirrorMeterReading[0].mRID,
+                                                   description=mup.MirrorMeterReading[0].description)
+                # new mrid is based upon the mirror reading.
+                mup_reading.MirrorReadingSet = m.MirrorReadingSet(mRID=mup_reading.mRID + "1", 
+                                                                  timePeriod=m.DateTimeInterval())
+                mup_reading.MirrorReadingSet.timePeriod.start = int(round(datetime.utcnow().timestamp()))
+                self._mup_readings[mup_reading.mRID] = mup_reading
+                                        
+        self._server_usage_points = self._client.mirror_usage_point_list()
+        
+        # for server_mup in self._server_usage_points.MirrorUsagePoint:
+        #     # TODO: Make the config file  have a list of meter readings for the points subscription
+        #     mup_reading = m.MirrorMeterReading(mRID=server_mup.MirrorMeterReading[0].mRID,
+        #                                        description=server_mup.MirrorMeterReading[0].description)
+        #     # new mrid is based upon the mirror reading.
+        #     mup_reading.MirrorReadingSet = m.MirrorReadingSet(mrid=mup_reading.mRID + "1")
+        #     mup_reading.MirrorReadingSet.timePeriod.start = int(round(datetime.utcnow().timestamp()))
+            
+        #     self._mup_readings[server_mup.MirrorMeterReading.mRID] = mup_reading
+        
 
         for sub in self._subscriptions:
             _log.info(f"Subscribing to: {sub}")
@@ -114,50 +166,61 @@ class IEEE_2030_5_Agent(Agent):
         """
         Callback triggered by the subscription setup using the topic from the agent's config file
         """
+        _log.debug("DATA Published")
         points = AllPoints.frombus(message)
+        
+        for pt in self._mirror_usage_point_list:
+            if pt["subscription_point"] in points.points:
+                reading_mRID = pt["MirrorMeterReading"]['mRID']
+                reading = self._mup_readings[reading_mRID]
+                reading.MirrorReadingSet.Reading.append(m.Reading(value=points.points[pt["subscription_point"]]))
+                start = reading.MirrorReadingSet.timePeriod.start
+                reading.MirrorReadingSet.timePeriod.duration = int(round(datetime.utcnow().timestamp())) - start
+                self._client.post_mirror_reading(reading)
+        
         _log.debug(points.__dict__)
 
-    @Core.receiver("onstart")
-    def onstart(self, sender, **kwargs):
-        """
-        This is method is called once the Agent has successfully connected to the platform.
-        This is a good place to setup subscriptions if they are not dynamic or
-        do any other startup activities that require a connection to the message bus.
-        Called after any configurations methods that are called at startup.
+    # @Core.receiver("onstart")
+    # def onstart(self, sender, **kwargs):
+    #     """
+    #     This is method is called once the Agent has successfully connected to the platform.
+    #     This is a good place to setup subscriptions if they are not dynamic or
+    #     do any other startup activities that require a connection to the message bus.
+    #     Called after any configurations methods that are called at startup.
 
-        Usually not needed if using the configuration store.
-        """
-        # Example publish to pubsub
-        # self.vip.pubsub.publish('pubsub', "some/random/topic", message="HI!")
+    #     Usually not needed if using the configuration store.
+    #     """
+    #     # Example publish to pubsub
+    #     # self.vip.pubsub.publish('pubsub', "some/random/topic", message="HI!")
 
-        # Example RPC call
-        # self.vip.rpc.call("some_agent", "some_method", arg1, arg2)
-        pass
+    #     # Example RPC call
+    #     # self.vip.rpc.call("some_agent", "some_method", arg1, arg2)
+    #     pass
 
-    @Core.receiver("onstop")
-    def onstop(self, sender, **kwargs):
-        """
-        This method is called when the Agent is about to shutdown, but before it disconnects from
-        the message bus.
-        """
-        pass
+    # @Core.receiver("onstop")
+    # def onstop(self, sender, **kwargs):
+    #     """
+    #     This method is called when the Agent is about to shutdown, but before it disconnects from
+    #     the message bus.
+    #     """
+    #     pass
 
-    @RPC.export
-    def rpc_method(self, arg1, arg2, kwarg1=None, kwarg2=None):
-        """
-        RPC method
+    # @RPC.export
+    # def rpc_method(self, arg1, arg2, kwarg1=None, kwarg2=None):
+    #     """
+    #     RPC method
 
-        May be called from another agent via self.vip.rpc.call
-        """
-        return self.setting1 + arg1 - arg2
+    #     May be called from another agent via self.vip.rpc.call
+    #     """
+    #     return self.setting1 + arg1 - arg2
 
-    @PubSub.subscribe('pubsub', '', all_platforms=True)
-    def on_match(self, peer, sender, bus, topic, headers, message):
-        """Use match_all to receive all messages and print them out."""
-        _log.debug(
-            "Peer: {0}, Sender: {1}:, Bus: {2}, Topic: {3}, Headers: {4}, "
-            "Message: \n{5}".format(peer, sender, bus, topic, headers,
-                                    pformat(message)))
+    # @PubSub.subscribe('pubsub', '', all_platforms=True)
+    # def on_match(self, peer, sender, bus, topic, headers, message):
+    #     """Use match_all to receive all messages and print them out."""
+    #     _log.debug(
+    #         "Peer: {0}, Sender: {1}:, Bus: {2}, Topic: {3}, Headers: {4}, "
+    #         "Message: \n{5}".format(peer, sender, bus, topic, headers,
+    #                                 pformat(message)))
 
 
 def main():
