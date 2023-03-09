@@ -44,7 +44,7 @@ import requests
 import json
 from xml.dom.minidom import parseString, Node
 
-from master_driver.interfaces import BaseInterface, BaseRegister, BasicRevert
+from platform_driver.interfaces import BaseInterface, BaseRegister, BasicRevert
 
 #Logging is completely configured by now.
 _log = logging.getLogger(__name__)
