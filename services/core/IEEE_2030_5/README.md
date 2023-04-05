@@ -1,7 +1,7 @@
 # VOLTTRON 2030.5 Agent
 
 The VOLTTRON 2030.5 agent communicates with a 2030.5 server using the IEEE 2030.5(2018) protocol.  The primary concern of
-this agent is to handle the communication between the PlatformDriverAgent and the 2030.5 server.  The agent will create MirrorUsagePoints and readings to the 2030.5 server.
+this agent is to handle the communication between the PlatformDriverAgent and the 2030.5 server.  The agent will create MirrorUsagePoints and readings to the 2030.5 server and send control actions to the message bus during DERControl events.
 
 The following diagram illistrates the data flow for the 2030.5 agent from the PlatformDriverAgent to the 2030.5 server.
 

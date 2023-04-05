@@ -1,10 +1,8 @@
 ---
-#server_hostname: 0.0.0.0:8443
-
 server: 127.0.0.1
 # Only include if we need to have dcap be available
 # http_port: 8080
-https_port: 7443
+https_port: 8443
 
 tls_repository: "~/tls"
 openssl_cnf: "openssl.cnf"
