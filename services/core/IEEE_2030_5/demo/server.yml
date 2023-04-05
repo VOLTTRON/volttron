@@ -1,0 +1,93 @@
+---
+#server_hostname: 0.0.0.0:8443
+
+server: 127.0.0.1
+# Only include if we need to have dcap be available
+# http_port: 8080
+https_port: 7443
+
+tls_repository: "~/tls"
+openssl_cnf: "openssl.cnf"
+
+server_mode: enddevices_create_on_start
+
+# lfdi_mode: Determines what piece of information is used to calculate the lfdi
+#
+# Options:
+#   lfdi_mode_from_file             - sha256 hash of certificate file's content.
+#   lfdi_mode_from_cert_fingerprint - sha256 hash of the certificates fingerprint.
+#
+# default: lfdi_mode_from_cert_fingerprint
+#lfdi_mode: lfdi_mode_from_file
+lfdi_mode: lfdi_mode_from_cert_fingerprint
+
+# Create an administrator certificate that can be used from
+# browser/api to connect to the platform.
+#
+# this is important for the demo
+generate_admin_cert: True
+
+log_event_list_poll_rate: 60
+device_capability_poll_rate: 60
+# derp_poll_rate: 10
+
+# End Device
+devices:
+  # SolarEdge SE6000H HD-Wave SetApp Enabled Inverter
+  - id: dev1
+    # DeviceCategoryType from ieee_2030_5.models.device_category
+    deviceCategory: FUEL_CELL
+    pin: 111115
+
+    programs:
+      - description: Program 1
+
+    # nameplate:
+    #   rtgMaxW: 6000
+    ders:
+      - capabilities:
+        modesSupported: "1110000000000000"
+        type: 83
+
+programs:
+  - description: Program 1
+    default_control: Control 1
+    controls:
+      - Control 2
+      - Control 3
+    curves:
+      - Curve 1
+    primacy: 89
+
+  # - description: Program 2
+  #   default_control: Control 2
+  # - description: Program 3
+  #   default_control: Control 2
+
+controls:
+  - description: Control 1
+    setESDelay: 30
+    base:
+      opModConnect: True
+      opModMaxLimW: 9500
+
+  - description: Control 2
+  - description: Control 3
+
+events:
+  - control: 0
+
+curves:
+  - description: Curve 1
+    curveType: opModVoltVar
+    CurveData:
+      - xvalue: 5
+        yvalue: 5
+
+  - description: Curve 2
+    curveType: opModFreqWatt
+    CurveData:
+      # exitation is only available if yvalue is power factor
+      - exitation: 10
+        xvalue: 5
+        yvalue: 5
