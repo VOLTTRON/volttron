@@ -18,11 +18,11 @@ import sys
 from datetime import datetime
 from pathlib import Path
 from pprint import pformat
-from typing import Dict
+from typing import Dict, List
 
 import ieee_2030_5.models as m
 from ieee_2030_5 import AllPoints
-from ieee_2030_5.client import IEEE2030_5_Client
+from ieee_2030_5.client import IEEE_2030_5_Client
 
 try:  # for modular
     from volttron import utils
@@ -66,23 +66,33 @@ class IEEE_2030_5_Agent(Agent):
         self._server_ssl_port = config.get("server_ssl_port", 443)
         self._server_http_port = config.get("server_http_port", None)
         self._mirror_usage_point_list = config.get("MirrorUsagePointList", [])
-        self._default_config = {"subscriptions": self._subscriptions, "MirrorUsagePointList": self._mirror_usage_point_list }
+        self._der_capabilities_info = config.get("DERCapability")
+        self._der_settings_info = config.get("DERSettings")
+        self._der_status_info = config.get("DERStatus")
+        self._default_config = {"subscriptions": self._subscriptions, 
+                                "MirrorUsagePointList": self._mirror_usage_point_list }
         self._server_usage_points: m.UsagePointList
-        self._client = IEEE2030_5_Client(cafile=self._cacertfile,
+        self._client = IEEE_2030_5_Client(cafile=self._cacertfile,
                                          server_hostname=self._server_hostname,
                                          keyfile=self._keyfile,
                                          certfile=self._certfile,
                                          server_ssl_port=self._server_ssl_port,
                                          pin=self._pin)
         
+        # Hook up events so we can respond to them appropriately        
+        self._client.der_control_event_started(self._control_event_started)
+        self._client.der_control_event_ended(self._control_event_ended)
+        
+        self._client.start()
         _log.info(self._client.enddevice)
         assert self._client.enddevice
         self._point_to_reading_set: Dict[str, str] = {}
         self._mirror_usage_points: Dict[str, m.MirrorUsagePoint] = {}
         self._mup_readings: Dict[str, m.MirrorMeterReading] = {}
+        self._mup_pollRate: int = 60
+        self._times_published: Dict[str, int] = {}
                 
-        #assert self._client.is_end_device_registered(), "End device is not registered."
-
+        
         # Set a default configuration to ensure that self.configure is called immediately to setup
         # the agent.
         self.vip.config.set_default("config", self._default_config)
@@ -90,6 +100,34 @@ class IEEE_2030_5_Agent(Agent):
         self.vip.config.subscribe(self.configure,
                                   actions=["NEW", "UPDATE"],
                                   pattern="config")
+    
+    @RPC.export
+    def update_der_settings(self, href: str, new_settings: m.DERSettings) -> int:
+        resp = self._client.put_der_settings(href, new_settings)
+        return resp
+    
+    @RPC.export
+    def update_der_availability(self, href: str, new_availability: m.DERAvailability) -> int:
+        resp = self._client.put_der_availability(href, new_availability)
+        return resp
+    
+    @RPC.export
+    def update_der_status(self, href: str, new_availability: m.DERAvailability) -> int:
+        resp = self._client.put_der_status(href, new_availability)
+        return resp
+        
+    @RPC.export
+    def get_der_references(self) -> List[str]:
+        return self._client.get_der_hrefs()
+    
+    def _control_event_started(self, sender, **kwargs):
+        _log.debug(f"Control event started {kwargs}")
+    
+    def _control_event_ended(self, sender, **kwargs):
+        _log.debug(f"Control event ended {kwargs}")
+    
+    def dcap_updated(self, sender):
+        _log.debug(f"Dcap was updated by {sender}")
 
     def configure(self, config_name, action, contents):
         """
@@ -130,18 +168,31 @@ class IEEE_2030_5_Agent(Agent):
         self._mup_readings.clear()
         self._mirror_usage_points.clear()
         
+        ed = self._client.end_device
         self._mirror_usage_points.update(new_usage_points)
         server_usage_points = self._client.mirror_usage_point_list()
-        if server_usage_points.all == 0 and len(self._mirror_usage_point_list) > 0:
-            for mRID, mup in self._mirror_usage_points.items():
-                response = self._client.create_mirror_usage_point(mup)
+        self._mup_pollRate = server_usage_points.pollRate if server_usage_points.pollRate else self._mup_pollRate
+        
+        for mup in self._mirror_usage_points.values():
+            try:
+                found = next(filter(lambda x: x.mRID == mup.mRID, server_usage_points.MirrorUsagePoint))
+            except StopIteration:
+                # TODO Create new usage point
+                location = self._client.create_mirror_usage_point(mup)
                 mup_reading = m.MirrorMeterReading(mRID=mup.MirrorMeterReading[0].mRID,
+                                                   href=location,
                                                    description=mup.MirrorMeterReading[0].description)
-                # new mrid is based upon the mirror reading.
-                mup_reading.MirrorReadingSet = m.MirrorReadingSet(mRID=mup_reading.mRID + "1", 
+                rs = m.MirrorReadingSet(mRID=mup_reading.mRID + "1", 
                                                                   timePeriod=m.DateTimeInterval())
-                mup_reading.MirrorReadingSet.timePeriod.start = int(round(datetime.utcnow().timestamp()))
+                rs.timePeriod.start = int(round(datetime.utcnow().timestamp()))
+                rs.timePeriod.duration = self._mup_pollRate
+
+                # new mrid is based upon the mirror reading.
+                mup_reading.MirrorReadingSet.append(rs)
+                rs.Reading = []
+                
                 self._mup_readings[mup_reading.mRID] = mup_reading
+            
                                         
         self._server_usage_points = self._client.mirror_usage_point_list()
         
@@ -169,14 +220,27 @@ class IEEE_2030_5_Agent(Agent):
         _log.debug("DATA Published")
         points = AllPoints.frombus(message)
         
-        for pt in self._mirror_usage_point_list:
+        
+        
+        for index, pt in enumerate(self._mirror_usage_point_list):
             if pt["subscription_point"] in points.points:
                 reading_mRID = pt["MirrorMeterReading"]['mRID']
                 reading = self._mup_readings[reading_mRID]
-                reading.MirrorReadingSet.Reading.append(m.Reading(value=points.points[pt["subscription_point"]]))
-                start = reading.MirrorReadingSet.timePeriod.start
-                reading.MirrorReadingSet.timePeriod.duration = int(round(datetime.utcnow().timestamp())) - start
-                self._client.post_mirror_reading(reading)
+                for rs_index, rs in enumerate(reading.MirrorReadingSet):
+                    rs = reading.MirrorReadingSet[rs_index]
+                    rs.Reading.append(m.Reading(value=points.points[pt["subscription_point"]]))
+                    start = rs.timePeriod.start
+                    if start + self._mup_pollRate * 1000 > int(round(datetime.utcnow().timestamp())):
+                        self._times_published[reading_mRID] = self._times_published.get(reading_mRID, 0) + 1
+                        rs.mRID = "_".join([reading_mRID, str(self._times_published[reading_mRID])])
+
+                        new_reading_href = self._client.post_mirror_reading(reading)
+                        _log.debug(f"New readings available: {new_reading_href}")
+                        rs.Reading.clear()
+                        rs.timePeriod.start = int(round(datetime.utcnow().timestamp()))
+                        rs.timePeriod.duration = self._mup_pollRate
+                                     
+                    
         
         _log.debug(points.__dict__)
 

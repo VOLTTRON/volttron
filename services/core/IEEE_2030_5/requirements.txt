@@ -1,2 +1,3 @@
 xsdata
 xsdata[cli]
+blinker

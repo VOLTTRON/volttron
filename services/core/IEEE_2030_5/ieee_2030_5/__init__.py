@@ -1,10 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Any, Dict, List
-from dataclasses import dataclass, is_dataclass
+from dataclasses import dataclass, field, is_dataclass
 from pathlib import Path
-from typing import Type, Optional
+from typing import Any, Dict, List, Optional, Type
 
 from xsdata.formats.dataclass.context import XmlContext
 from xsdata.formats.dataclass.parsers.config import ParserConfig
@@ -65,3 +63,5 @@ class AllPoints:
             points.add(name=k, value=v, meta=message[1].get(k))
 
         return points
+    
+import ieee_2030_5.models as models
