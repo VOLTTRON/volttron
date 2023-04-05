@@ -8,11 +8,16 @@ The following diagram illistrates the data flow for the 2030.5 agent from the Pl
 ```mermaid
   sequenceDiagram
     Client->>Server: Creates MirrorUsagePoints
+    Server-->>Client: 201 OK
     Client->>PlatformDriverAgent: Subscribes to Device Data
     PlatformDriverAgent->>Client: Publishes Device Data
     Client->>Server: Posts MeterReadings(Device Data)
-    Server-->Client: 200 OK
+    Server-->>Client: 201 OK
+    Client->>Server: Polls for active DERControls
+    Client->>PlatformDriverAgent: Publishes Event Controls
 ```
+
+To better visualize how this works please try out the [Agent Demo](AGENT_DEMO.md).
 
 ## Agent Config File
 
