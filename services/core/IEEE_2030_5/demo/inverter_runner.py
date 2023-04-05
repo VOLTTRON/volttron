@@ -73,14 +73,12 @@ def run_inverter(timesteps=50) -> Generator:
     weather_path = Path("~/weather.txt").expanduser()
     if weather_path.exists():
         header = [
-            "time(UTC)", "temp_air", "relative_humidity", "ghi", "dni", "dhi",
-            "IR(h)", "wind_speed", "wind_direction", "pressure"
+            "time(UTC)", "temp_air", "relative_humidity", "ghi", "dni", "dhi", "IR(h)",
+            "wind_speed", "wind_direction", "pressure"
         ]
         weather = pd.read_csv(weather_path)
     else:
-        weather = pvlib.iotools.get_pvgis_tmy(latitude,
-                                              longitude,
-                                              map_variables=True)[0]
+        weather = pvlib.iotools.get_pvgis_tmy(latitude, longitude, map_variables=True)[0]
         result = weather.to_csv(weather_path, header=True)
         print(f"The result is: {result}")
 
@@ -96,8 +94,7 @@ def run_inverter(timesteps=50) -> Generator:
         q_ac = math.sqrt(p_ac**2 + s_ac**2)
         i_ac = (s_ac / v_ac) * 1000
         print(
-            f"p_ac = {p_ac}, s_ac = {s_ac}, q_ac= {q_ac}, PF = {PF}, v_ac = {v_ac}, i_ac = {i_ac}"
-        )
+            f"p_ac = {p_ac}, s_ac = {s_ac}, q_ac= {q_ac}, PF = {PF}, v_ac = {v_ac}, i_ac = {i_ac}")
         yield dict(v_mp=dc['v_mp'],
                    p_mp=dc['p_mp'],
                    i_x=dc['i_x'],
@@ -155,24 +152,19 @@ if __name__ == '__main__':
 
     yaml.safe_load()
 
-    parser.add_argument(
-        "--tls-repo",
-        help="TLS repository directory to use, defaults to ~/tls",
-        default="~/tls")
-    parser.add_argument("--server-host",
-                        help="Reference to the utilities server for data.")
+    parser.add_argument("--tls-repo",
+                        help="TLS repository directory to use, defaults to ~/tls",
+                        default="~/tls")
+    parser.add_argument("--server-host", help="Reference to the utilities server for data.")
     parser.add_argument("--server-port",
                         type=int,
                         default=443,
                         help="Port the server is listening on, default to 443")
-    parser.add_argument("--device-id",
-                        help="The id of the device for this inverter")
+    parser.add_argument("--device-id", help="The id of the device for this inverter")
     parser.add_argument(
         "--pin",
         type=int,
-        help=
-        "PIN for the client to validate that it is connecting to the correct server."
-    )
+        help="PIN for the client to validate that it is connecting to the correct server.")
 
     opts = parser.parse_args()
 
@@ -186,19 +178,17 @@ if __name__ == '__main__':
                              clear=False)
 
     if opts.device_id not in tls_repo.client_list:
-        raise ValueError(
-            f"device_id: ({opts.device_id}) not in tls repository")
+        raise ValueError(f"device_id: ({opts.device_id}) not in tls repository")
 
     # print(new_tls_repository.client_list)
     for p in tls_repo.client_list:
         if p == opts.device_id:
-            IEEE2030_5_Client(
-                cafile=tls_repo.ca_cert_file,
-                keyfile=tls_repo.__get_key_file__(opts.device_id),
-                certfile=tls_repo.__get_cert_file__(opts.device_id),
-                hostname=p,
-                server_hostname=opts.server_host,
-                server_ssl_port=opts.server_port)
+            IEEE2030_5_Client(cafile=tls_repo.ca_cert_file,
+                              keyfile=tls_repo.__get_key_file__(opts.device_id),
+                              certfile=tls_repo.__get_cert_file__(opts.device_id),
+                              hostname=p,
+                              server_hostname=opts.server_host,
+                              server_ssl_port=opts.server_port)
 
     # Start up a client from the available in the config file.
     client = list(IEEE2030_5_Client.clients)[0]

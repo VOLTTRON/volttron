@@ -4,6 +4,8 @@ This readme walks through a demo of an inverter publishing points to the VOLTTRO
 
 The demo will require three terminal windows to be open.  The first will be for executing the main VOLTTRON process.  The second will be for executing the 2030.5 server.  The third will be for executing the agent demo through a web interface.  For the rest of this document, VOLTTRON_ROOT is assumed to be where one has cloned the volttron repository.
 
+First configure the server then the VOLTTRON instance and findally the web based demo.
+
 ## 2030.5 Server
 
 For the server software we will be using a server from a team at PNNL.  The GridAPPS-D team has created a 2030.5 server and it is available at <https://pypi.org/project/gridappsd-2030-5/>.  The source code is still in a private repo, but will be released at some time in the future.
@@ -31,6 +33,10 @@ For the server software we will be using a server from a team at PNNL.  The Grid
         server.yml
     ```
 
+1. Modify the openssl.cnf to include the correct values for [req_distinguished_name].  Or use the defaults.  The server will create self-signed certificates for the client to use.
+
+1. Modify the server.yml file.  The default server.yml file contains a device (id: dev1) and DERProgram.  **dev1 must be present for the demo to run smoothly.**
+
 1. Start the server from the activated serverenv **This step will create development certificates for you**.  By default the certificates will be generated and stored in ~/tls.  One can change this location in the server.yml configuration file.
 
     ```bash
@@ -50,17 +56,21 @@ For this demo, start a VOLTTRON default instance from the command line.  The fol
     > cd $VOLTTRON_ROOT
     > source env/bin/activate
     (volttron)> ./start-volttron
+    # Watch the volttron log
+    (volttron)> tail -f volttron.log
     ```
 
-1. Using the same terminal as the previous command install the demo requirements as follows.
+1. Open another terminal to start the demo server in.  
 
     ```bash
+    > cd $VOLTTRON_ROOT
+    > source env/bin/activate
     (volttron) > cd service/core/IEEE_2030_5
     (volttron) > pip install -r requirements_demo.txt
     ...
     ```
 
-1. Run the webgui.py script using the python interpretor.  This should open a webpage allowing one to test the functionality of the 2030.5 agent.
+1. Run the webgui.py script using the python interpretor.  This should open a webpage allowing one to test the functionality of the 2030.5 agent.  By default it will open at <http://0.0.0.0:8080>.
 
     ```bash
     (volttron)> python demo/webgui.py

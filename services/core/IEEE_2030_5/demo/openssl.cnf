@@ -56,6 +56,7 @@ commonName                      = Common Name (eg, your name or your server\'s h
 commonName_max                  = 64
 emailAddress                    = Email Address
 emailAddress_max                = 64
+
 [ v3_req ]
 # Extensions to add to a certificate request
 basicConstraints = CA:FALSE
