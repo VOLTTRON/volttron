@@ -47,6 +47,7 @@ class PostgreSqlFuncts(DbDriver):
     def __init__(self, connect_params, table_names):
         if table_names:
             self.data_table = table_names['data_table']
+            self.db_name = connect_params.get('dbname')
             self.topics_table = table_names['topics_table']
             self.meta_table = table_names['meta_table']
             self.agg_topics_table = table_names.get('agg_topics_table')
@@ -147,7 +148,7 @@ class PostgreSqlFuncts(DbDriver):
 
     def setup_historian_tables(self):
         rows = self.select(f"""SELECT table_name FROM information_schema.tables
-                            WHERE table_catalog = 'test_historian' and table_schema = 'public' 
+                            WHERE table_catalog = '{self.db_name}' and table_schema = 'public' 
                             AND table_name = '{self.data_table}'""")
         if rows:
             _log.debug("Found table {}. Historian table exists".format(
