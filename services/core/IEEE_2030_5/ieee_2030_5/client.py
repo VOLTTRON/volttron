@@ -150,9 +150,9 @@ class IEEE_2030_5_Client:
         TimerThread.tick.connect(self._tick)
     
     def _tick(self, timestamp):
-        if timestamp % 5 == 0:
+        if timestamp % 20 == 0:
             for derp in self._der_program_map.items():
-                print(self.__get_request__(f"/derp_0_derc"))
+                print(self.__get_request__(f"/derp_0_derc_0"))
             
         #_log.debug(f"Tick: {timestamp}")
     

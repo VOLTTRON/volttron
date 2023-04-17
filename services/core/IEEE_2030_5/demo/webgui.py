@@ -70,8 +70,27 @@ inverter_p = "Not Set"
 inverter_q = "Not Set"
 in_real = False
 in_reactive = False
+in_control = False
 def new_agent_output(line: str):
-    global inverter_q, inverter_p, in_real, in_reactive
+    global inverter_q, inverter_p, in_real, in_reactive, in_control, control_status
+    
+    if '<EventStatus>' in line:
+        in_control = True
+        
+    if in_control:
+        if "<currentStatus>" in line:
+            status_value = int(re.search(r'<currentStatus>(.*?)</currentStatus>', line).group(1))
+            if status_value == -1:
+                control_status = "Control Complete"
+            elif status_value == 0:
+                control_status = "Control Scheduled"
+            elif status_value == 1:
+                control_status = "Active"
+            else:
+                control_status = "Not Set"
+            in_control = False    
+            
+            status.content = updated_markdown()
     
     if "url: /mup_1" in line:
         in_reactive = True
@@ -105,16 +124,17 @@ def _change_power_factor(new_pf):
     ctrl.randomizeDuration = 180
     ctrl.randomizeStart = 180
     ctrl.DERControlBase.opModFixedW = 500
-    ctrl.DERControlBase.opModFixedPFInjectW = m.PowerFactor(int(pf.value))
+    ctrl.DERControlBase.opModFixedPFInjectW = m.PowerFactorWithExcitation(displacement=int(pf.value))
 
     posted = dataclass_to_xml(ctrl)
     utility_log.push(f"Event Posted to Change opModFixedPFInjectW to {pf.value}")
     utility_log.push(posted)
     resp = session.post(get_url("derp/0/derc"), data=posted)
     resp = session.get(get_url(resp.headers.get('Location'), not_admin=True))
-    pfingect = xml_to_dataclass(resp.text)
-    inverter_pf = pfingect.DERControlBase.opModFixedPFIngectW
+    pfingect: m.DERControl = xml_to_dataclass(resp.text)
+    inverter_pf = pfingect.DERControlBase.opModFixedPFInjectW.displacement
     status.content = updated_markdown()
+    
     
 
     
@@ -217,8 +237,7 @@ commands = [
 ]
 
 def updated_markdown() -> str:
-    return f"""## Status
-                    DER Program: {derp}
+    return f"""#### Status
                     Control: {control_status}
                     Real Power (p): {inverter_p}
                     Reactive Power (q): {inverter_q}
@@ -244,17 +263,17 @@ with ui.column():
     #     xml_text = ui.textarea(label="xml", value=get_control_event_default()).props('rows=20').props('cols=120').classes('w-full, h-80')
     with ui.row():
         ui.label("Inverter Log")
-        inverter_log = ui.log().props('cols=120').classes('w-full h-20')
+        inverter_log = ui.log(max_lines=2000).props('cols=120').classes('w-full h-20')
     # with ui.row():
     #     ui.label("Proxy Log")
     #     proxy_log = ui.log().props('cols=120').classes('w-full h-80')
     with ui.row():
         ui.label("Agent Log")
-        agent_log = ui.log().props('cols=120').classes('w-full h-80')
+        agent_log = ui.log(max_lines=2000).props('cols=120').classes('w-full h-80')
     
     with ui.row():
         ui.label("Utility Log")
-        utility_log = ui.log().props('cols=120').classes('w-full h-20')
+        utility_log = ui.log(max_lines=2000).props('cols=120').classes('w-full h-20')
             
 
     

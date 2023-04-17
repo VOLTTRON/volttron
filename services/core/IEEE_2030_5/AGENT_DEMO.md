@@ -65,9 +65,26 @@ For this demo, start a VOLTTRON default instance from the command line.  The fol
     ```bash
     > cd $VOLTTRON_ROOT
     > source env/bin/activate
-    (volttron) > cd service/core/IEEE_2030_5
-    (volttron) > pip install -r requirements_demo.txt
+    (volttron)> cd service/core/IEEE_2030_5
+    (volttron)> pip install -r requirements_demo.txt
     ...
+    ```
+
+1. Create an agent keypair for the 2030.5 agent to use (only needed for demo in real mode installing the agent would create this).
+
+    ```bash
+    (volttron)> vctl keypair > demo/keypair.json
+    (volttron)> cat demo/keypair.json
+    {
+      "public": "YrRnX1ifv5hkctAtNsLMut1j3qr7dPf0gppvwH_53wE",
+      "secret": "C55SSFUKAM38dXZKjMSolRvFVfILbSTF9JkUQWlP8II"
+    }
+    ```
+
+1. Add the publickey to VOLTTRON auth mechanism
+
+    ```bash
+    (volttron)> vctl auth add --credentials "YrRnX1ifv5hkctAtNsLMut1j3qr7dPf0gppvwH_53wE" --user_id inverter1
     ```
 
 1. Run the webgui.py script using the python interpretor.  This should open a webpage allowing one to test the functionality of the 2030.5 agent.  By default it will open at <http://0.0.0.0:8080>.
