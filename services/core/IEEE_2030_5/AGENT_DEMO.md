@@ -95,4 +95,18 @@ For this demo, start a VOLTTRON default instance from the command line.  The fol
 
 ## The Demo
 
-Insert pictures here.
+The initial demo screen.
+
+![Startup Page](./demo/images/initial_conditions.png)
+
+Clicking on the Start Inverter and Start Agent buttons the status of Real and Reactive power should update based upon what is posted to the MirrorUsagePoints.
+
+![Agent and Inverter Started](./demo/images/start_agent_and_inverter.png)
+
+Changing the power factor to 80 and clicking on the Change Power Factor button (3) will show the scheduling, activating and completion of the event.
+
+![Scheduling Events Schedule](./demo/images/control_scheduled.png)
+
+![Scheduling Events Active](./demo/images/control_active.png)
+
+![Scheduling Events Complete](./demo/images/control_complete.png)
