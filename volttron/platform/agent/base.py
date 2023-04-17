@@ -41,7 +41,7 @@
 
 
 import random
-import string
+import secrets
 import time as time_mod
 
 import zmq
@@ -62,11 +62,9 @@ __license__ = 'Apache 2.0'
 min_compatible_version = '1'
 max_compatible_version = '2'
 
-_COOKIE_CHARS = string.ascii_letters + string.digits
 
-
-def random_cookie(length=40, choices=_COOKIE_CHARS):
-    return ''.join(random.choice(choices) for i in range(length))
+def random_cookie(length=40):
+    return secrets.token_hex(length)
 
 
 def remove_matching(test, items):
