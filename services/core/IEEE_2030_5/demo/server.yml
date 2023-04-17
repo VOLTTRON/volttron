@@ -50,9 +50,6 @@ devices:
 programs:
   - description: Program 1
     default_control: Control 1
-    controls:
-      - Control 2
-      - Control 3
     curves:
       - Curve 1
     primacy: 89
@@ -68,9 +65,6 @@ controls:
     base:
       opModConnect: True
       opModMaxLimW: 9500
-
-  - description: Control 2
-  - description: Control 3
 
 events:
   - control: 0

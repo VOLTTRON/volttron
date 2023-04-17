@@ -158,7 +158,6 @@ class IEEE_2030_5_Agent(Agent):
             return
 
         for sub in self._subscriptions:
-            _log.info(f"Removing subscription: {sub}")
             self.vip.pubsub.unsubscribe(peer="pubsub",
                                         prefix=sub,
                                         callback=self._data_published)
@@ -196,19 +195,8 @@ class IEEE_2030_5_Agent(Agent):
                                         
         self._server_usage_points = self._client.mirror_usage_point_list()
         
-        # for server_mup in self._server_usage_points.MirrorUsagePoint:
-        #     # TODO: Make the config file  have a list of meter readings for the points subscription
-        #     mup_reading = m.MirrorMeterReading(mRID=server_mup.MirrorMeterReading[0].mRID,
-        #                                        description=server_mup.MirrorMeterReading[0].description)
-        #     # new mrid is based upon the mirror reading.
-        #     mup_reading.MirrorReadingSet = m.MirrorReadingSet(mrid=mup_reading.mRID + "1")
-        #     mup_reading.MirrorReadingSet.timePeriod.start = int(round(datetime.utcnow().timestamp()))
-            
-        #     self._mup_readings[server_mup.MirrorMeterReading.mRID] = mup_reading
-        
 
         for sub in self._subscriptions:
-            _log.info(f"Subscribing to: {sub}")
             self.vip.pubsub.subscribe(peer="pubsub",
                                       prefix=sub,
                                       callback=self._data_published)
@@ -219,6 +207,8 @@ class IEEE_2030_5_Agent(Agent):
         """
         _log.debug("DATA Published")
         points = AllPoints.frombus(message)
+        
+        _log.debug(points)
         
         
         
@@ -243,49 +233,6 @@ class IEEE_2030_5_Agent(Agent):
                     
         
         _log.debug(points.__dict__)
-
-    # @Core.receiver("onstart")
-    # def onstart(self, sender, **kwargs):
-    #     """
-    #     This is method is called once the Agent has successfully connected to the platform.
-    #     This is a good place to setup subscriptions if they are not dynamic or
-    #     do any other startup activities that require a connection to the message bus.
-    #     Called after any configurations methods that are called at startup.
-
-    #     Usually not needed if using the configuration store.
-    #     """
-    #     # Example publish to pubsub
-    #     # self.vip.pubsub.publish('pubsub', "some/random/topic", message="HI!")
-
-    #     # Example RPC call
-    #     # self.vip.rpc.call("some_agent", "some_method", arg1, arg2)
-    #     pass
-
-    # @Core.receiver("onstop")
-    # def onstop(self, sender, **kwargs):
-    #     """
-    #     This method is called when the Agent is about to shutdown, but before it disconnects from
-    #     the message bus.
-    #     """
-    #     pass
-
-    # @RPC.export
-    # def rpc_method(self, arg1, arg2, kwarg1=None, kwarg2=None):
-    #     """
-    #     RPC method
-
-    #     May be called from another agent via self.vip.rpc.call
-    #     """
-    #     return self.setting1 + arg1 - arg2
-
-    # @PubSub.subscribe('pubsub', '', all_platforms=True)
-    # def on_match(self, peer, sender, bus, topic, headers, message):
-    #     """Use match_all to receive all messages and print them out."""
-    #     _log.debug(
-    #         "Peer: {0}, Sender: {1}:, Bus: {2}, Topic: {3}, Headers: {4}, "
-    #         "Message: \n{5}".format(peer, sender, bus, topic, headers,
-    #                                 pformat(message)))
-
 
 def main():
     """

@@ -162,8 +162,7 @@ if __name__ == '__main__':
             points = AllPoints()
 
             for k, v in inv.items():
-                if k == 'PF':
-                    points.add(k, pf)
+                points.add(k, v)
             # publish
             agent.vip.pubsub.publish(peer="pubsub",
                                     topic=f"{topic_to_publish}",
