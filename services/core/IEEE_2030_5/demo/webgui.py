@@ -2,56 +2,121 @@
 from __future__ import annotations
 
 import asyncio
+import atexit
 import json
-import os.path
+import os
 import platform
+import re
 import shlex
 import sys
 import time
 import uuid
+from asyncio.subprocess import Process
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Optional
 
+import yaml
+
+from volttron.platform import get_volttron_root
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+import subprocess
+
 import ieee_2030_5.models as m
-from nicegui import background_tasks, ui
+import requests
+from nicegui import app, background_tasks, ui
 
 from services.core.IEEE_2030_5.ieee_2030_5 import dataclass_to_xml, xml_to_dataclass
+
+session = requests.Session()
+tlsdir = Path("~/tls").expanduser()
+session.cert = (str(tlsdir.joinpath("certs/admin.pem")), str(tlsdir.joinpath("private/admin.pem")))
+session.verify = str(tlsdir.joinpath("certs/ca.pem"))
+
+def get_url(endpoint, not_admin: bool = False) -> str:
+    if endpoint.startswith('/'):
+        endpoint = endpoint[1:]
+    if not_admin:
+        return f"https://127.0.0.1:8443/{endpoint}"
+    return f"https://127.0.0.1:8443/admin/{endpoint}"
+
+filedirectory =  Path(__file__).parent
+pkfile = filedirectory.joinpath("keypair.json")
+if not pkfile.exists():
+    print(f"Key file not found in demo directory {pkfile}.")
+    sys.exit(0)
+
+pk_data = yaml.safe_load(pkfile.open().read())
+
+os.environ['AGENT_PUBLICKEY'] = pk_data['public']
+os.environ['AGENT_SECRETEKY'] = pk_data['secret']
+os.environ['AGENT_VIP_IDENTITY'] = "inverter1"
+os.environ['AGENT_CONFIG'] = str(filedirectory.parent.joinpath('example.config.yml'))
+agent_py = str(filedirectory.parent.joinpath("ieee_2030_5/agent.py"))
+py_launch = str(Path(get_volttron_root()).joinpath("scripts/pycharm-launch.py"))
 
 tasks = []
 
 def add_my_task(task):
     tasks.append(task)
+    
+control_status = "None"
+derp = "Not Set"
+inverter_pf = "Not Set"
+inverter_p = "Not Set"
+inverter_q = "Not Set"
+in_real = False
+in_reactive = False
+def new_agent_output(line: str):
+    global inverter_q, inverter_p, in_real, in_reactive
+    
+    if "url: /mup_1" in line:
+        in_reactive = True
+    
+    if in_reactive:
+        if line.startswith("<value>"):
+            inverter_q = re.search(r'<value>(.*?)</value>', line).group(1)
+            in_reactive = False
+            status.content = updated_markdown()
+    
+    if "url: /mup_1" in line:
+        in_real = True
+    
+    if in_real:
+        if line.startswith("<value>"):
+            inverter_p = re.search(r'<value>(.*?)</value>', line).group(1)
+            in_real = False
+            status.content = updated_markdown()
+            
 
-    
-def _send_control_event():
-    default_pf = 0.99
-    import requests
-    session = requests.Session()
-    session.cert = ('/home/os2004/tls/certs/admin.pem', '/home/os2004/tls/private/admin.pem')
-    session.verify = "/home/os2004/tls/certs/ca.pem"
 
-    control_path = Path('inverter.ctl')
-    derc: m.DERControl = xml_to_dataclass(xml_text.value)
-       
+def _change_power_factor(new_pf):
+    global inverter_pf
     
-    time_now = int(time.mktime((datetime.utcnow()).timetuple()))
+    current_time = int(time.mktime(datetime.utcnow().timetuple()))
+
+    ctrl_base = m.DERControlBase(opModConnect=True, opModMaxLimW=9500)
+    ctrl = m.DERControl(mRID="ctrl1mrdi", description="A control for the control list")
+    ctrl.DERControlBase = ctrl_base
+    ctrl.interval = m.DateTimeInterval(start=current_time + 10, duration=20)
+    ctrl.randomizeDuration = 180
+    ctrl.randomizeStart = 180
+    ctrl.DERControlBase.opModFixedW = 500
+    ctrl.DERControlBase.opModFixedPFInjectW = m.PowerFactor(int(pf.value))
+
+    posted = dataclass_to_xml(ctrl)
+    utility_log.push(f"Event Posted to Change opModFixedPFInjectW to {pf.value}")
+    utility_log.push(posted)
+    resp = session.post(get_url("derp/0/derc"), data=posted)
+    resp = session.get(get_url(resp.headers.get('Location'), not_admin=True))
+    pfingect = xml_to_dataclass(resp.text)
+    inverter_pf = pfingect.DERControlBase.opModFixedPFIngectW
+    status.content = updated_markdown()
     
-    while time_now < derc.interval.start:
-        time.sleep(0.1)
-        time_now = int(time.mktime((datetime.utcnow()).timetuple()))
-        
-    with open(str(control_path), 'wt') as fp:
-        fp.write(json.dumps(dict(pf=derc.DERControlBase.opModFixedPFInjectW)))
-    
-    while time_now < derc.interval.start + derc.interval.duration:
-        time.sleep(0.1)
-        time_now = int(time.mktime((datetime.utcnow()).timetuple()))
-        
-    control_path.write(json.dump(dict(pf=default_pf)))
+
     
     
     
@@ -64,26 +129,7 @@ def get_control_event_default():
                 description="New DER Control Event",                
                 DERControlBase=derbase,
                 interval=m.DateTimeInterval(duration=10, start=time_plus_10))
-                            
-
-                # setESLowVolt=0.917,
-                # setESHighVolt=1.05,
-                # setESLowFreq=59.5,
-                # setESHighFreq=60.1,
-                # setESRampTms=300,
-                # setESRandomDelay=0,
-                #DERControlBase=derbase)
-    # dderc = m.DefaultDERControl(href=hrefs.get_dderc_href(),
-    #                             mRID=str(uuid.uuid4()),
-    #                             description="Default DER Control Mode",
-    #                             setESDelay=300,
-    #                             setESLowVolt=0.917,
-    #                             setESHighVolt=1.05,
-    #                             setESLowFreq=59.5,
-    #                             setESHighFreq=60.1,
-    #                             setESRampTms=300,
-    #                             setESRandomDelay=0,
-    #                             DERControlBase=derbase)
+                 
     return dataclass_to_xml(derc)
 
 
@@ -98,25 +144,26 @@ def _setup_event(element):
                 interval=m.DateTimeInterval(duration=10, start=time_plus_60))
     element.value=dataclass_to_xml(derc)
     
-
-async def _reset_tasks():
-    for task in tasks:
-        print(task.cancel())
-
-        await asyncio.sleep(0.1)
+    #background_tasks.running_tasks.clear()
     
-        # while not task.cancelled():
-        #     asyncio.sleep(0.1)
-        #     print(task.cancelled())
-        
-        
+async def _exit_background_tasks():
+    for item in tasks:
+        if isinstance(item, Process):
+            try:
+                item.kill() # .cancel()
+            except ProcessLookupError:
+                pass
+        else:
+            item.cancel()
+    # async for proc, command in tasks:
+    #     print(f"Stoping {command.label}")
+    #     proc.cancel()
+    
     tasks.clear()
     agent_log.clear()
-    proxy_log.clear()
     inverter_log.clear()
-    
-    #background_tasks.running_tasks.clear()
-
+    utility_log.clear()
+        
 async def run_command(command: LabeledCommand) -> None:
     '''Run a command in the background and display the output in the pre-created dialog.'''
     
@@ -126,6 +173,8 @@ async def run_command(command: LabeledCommand) -> None:
         cwd=command.working_dir
     )
     
+    add_my_task(process)
+    
     # NOTE we need to read the output in chunks, otherwise the process will block
     output = ''
     while True:
@@ -133,6 +182,8 @@ async def run_command(command: LabeledCommand) -> None:
         if not new:
             break
         output = new.decode()
+        if command.agent_output:
+            new_agent_output(output.strip())
         
         try:
             jsonparsed = json.loads(output)
@@ -145,9 +196,6 @@ async def run_command(command: LabeledCommand) -> None:
         # NOTE the content of the markdown element is replaced every time we have new output
         #result.content = f'```\n{output}\n```'
 
-with ui.dialog() as dialog, ui.card():
-    result = ui.markdown()
-
 @dataclass
 class LabeledCommand:
     label: str
@@ -155,14 +203,27 @@ class LabeledCommand:
     output_element: Any
     working_dir: str = str(Path(__file__).parent)
     output_only_json: bool = True
+    agent_output: bool = False
 
 commands = [
-    LabeledCommand("Start Inverter", f'{sys.executable} inverter_runner.py', lambda: inverter_log),
-    LabeledCommand("Start Proxy", f'/home/os2004/repos/gridappsd-2030_5/.venv/bin/python -m ieee_2030_5.basic_proxy config.yml ', lambda: proxy_log, "/home/os2004/repos/gridappsd-2030_5",
-                   output_only_json=False),
-    LabeledCommand("Start Agent", f'{sys.executable} -m ieee_2030_5.agent', lambda: agent_log, "/home/os2004/repos/volttron/services/core/IEEE_2030_5",
-                   output_only_json=False),
+    LabeledCommand("Start Inverter", 
+                   f'{sys.executable} inverter_runner.py', 
+                   lambda: inverter_log),
+    LabeledCommand("Start Agent", 
+                   f"{sys.executable} {py_launch} {agent_py}", 
+                   lambda: agent_log, filedirectory.parent,
+                   output_only_json=False,
+                   agent_output=True)
 ]
+
+def updated_markdown() -> str:
+    return f"""## Status
+                    DER Program: {derp}
+                    Control: {control_status}
+                    Real Power (p): {inverter_p}
+                    Reactive Power (q): {inverter_q}
+                    Power Factor (pf): {inverter_pf}
+                    """
 
 with ui.column():
     # commands = [f'{sys.executable} inverter_runner.py']
@@ -170,22 +231,37 @@ with ui.column():
         
         for command in commands:
             ui.button(command.label, on_click=lambda _, c=command: add_my_task(background_tasks.create(run_command(c)))).props('no-caps')
-            
-        ui.button("Reset", on_click=lambda: _reset_tasks()).props('no-caps')
+        
+        pf = ui.select(options=[70, 80, 90], value=70, label="Power Factor").classes('w-32')
+        ui.button("Change Power Factor", on_click=lambda: _change_power_factor(pf.value)).props('no-caps')    
+        ui.button("Reset", on_click=_exit_background_tasks).props('no-caps')
+        
+    with ui.row():
+        status = ui.markdown(updated_markdown())
         #ui.button("Update Control Time", on_click=lambda: _setup_event(xml_text)).props('no-caps')
         #ui.button("Send Control", on_click=lambda: _send_control_event()).props('no-caps')
     # with ui.row():
     #     xml_text = ui.textarea(label="xml", value=get_control_event_default()).props('rows=20').props('cols=120').classes('w-full, h-80')
     with ui.row():
         ui.label("Inverter Log")
-        inverter_log = ui.log(10).props('rows=5').props('cols=120').classes('w-full h-80')
-    with ui.row():
-        ui.label("Proxy Log")
-        proxy_log = ui.log(10).props('rows=5').props('cols=120').classes('w-full h-80')
+        inverter_log = ui.log().props('cols=120').classes('w-full h-20')
+    # with ui.row():
+    #     ui.label("Proxy Log")
+    #     proxy_log = ui.log().props('cols=120').classes('w-full h-80')
     with ui.row():
         ui.label("Agent Log")
-        agent_log = ui.log(10).props('rows=5').props('cols=120').classes('w-full h-80')
+        agent_log = ui.log().props('cols=120').classes('w-full h-80')
     
+    with ui.row():
+        ui.label("Utility Log")
+        utility_log = ui.log().props('cols=120').classes('w-full h-20')
+            
+
     
-# NOTE on windows reload must be disabled to make asyncio.create_subprocess_exec work (see https://github.com/zauberzeug/nicegui/issues/486)
-ui.run(reload=platform.system() != "Windows")
+        
+#atexit.register(_exit_background_tasks)
+app.on_shutdown(_exit_background_tasks)
+
+# NOTE on windows reload must be disabled to make asyncio.create_subprocess_exec work 
+# (see https://github.com/zauberzeug/nicegui/issues/486)
+ui.run(reload=platform.system() != "Windows", )

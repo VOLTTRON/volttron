@@ -5,23 +5,50 @@ import logging
 import ssl
 import subprocess
 import threading
+import time
 import xml.dom.minidom
+from datetime import datetime
 from http.client import HTTPMessage, HTTPSConnection
 from os import PathLike
 from pathlib import Path
 from threading import Timer
-from typing import Dict, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 from uuid import uuid4
 
 import ieee_2030_5.models as m
 import xsdata
+from blinker import Signal
 from ieee_2030_5 import dataclass_to_xml, xml_to_dataclass
 
 _log = logging.getLogger(__name__)
 
+TimeType = int
 
-class IEEE2030_5_Client:
-    clients: set[IEEE2030_5_Client] = set()
+class _TimerThread(threading.Thread):
+    tick = Signal("tick")
+    
+    def __init__(self):
+        super().__init__()
+        self._tick = 0
+        
+    @staticmethod
+    def user_readable(timestamp: int):
+        dt = datetime.fromtimestamp(timestamp)
+        return dt.strftime("%m/%d/%Y, %H:%M:%S")
+    
+    def run(self) -> None:
+        
+        while True:
+            self._tick = int(time.mktime(datetime.utcnow().timetuple()))
+            _TimerThread.tick.send(self._tick)
+            time.sleep(1)
+            
+TimerThread = _TimerThread()
+TimerThread.daemon = True
+TimerThread.start()
+
+class IEEE_2030_5_Client:
+    clients: set[IEEE_2030_5_Client] = set()
 
     # noinspection PyUnresolvedReferences
     def __init__(self,
@@ -31,7 +58,8 @@ class IEEE2030_5_Client:
                  certfile: PathLike,
                  pin: str,
                  server_ssl_port: Optional[int] = 443,
-                 debug: bool = True):
+                 debug: bool = True,
+                 device_capabilities_endpoint: str = "/dcap"):
 
         cafile = cafile if isinstance(cafile, PathLike) else Path(cafile)
         keyfile = keyfile if isinstance(keyfile, PathLike) else Path(keyfile)
@@ -61,24 +89,243 @@ class IEEE2030_5_Client:
                                           context=self._ssl_context)
         self._response_headers: HTTPMessage
         self._response_status = None
-        
-        self._device_cap: m.DeviceCapability = m.DeviceCapability()
-        self._mup: m.MirrorUsagePointList = m.MirrorUsagePointList()
-        self._upt: m.UsagePointList = m.UsagePointList()
-        self._edev: m.EndDeviceListLink = m.EndDeviceListLink()
-        self._end_devices: m.EndDeviceList = m.EndDeviceList()
-        self._fsa_list: m.FunctionSetAssignmentsList = m.FunctionSetAssignmentsList()
-        self._der_programs: m.DERProgramList = m.DERProgramList()
-        self._mup: m.MirrorUsagePoint = m.MirrorUsagePoint()
         self._debug = debug
+        
+                
+        self._mup: m.MirrorUsagePointList = None # type: ignore
+        self._upt: m.UsagePointList = None # type: ignore
+               
+        
         self._dcap_poll_rate: int = 0
         self._dcap_timer: Optional[Timer] = None
         self._disconnect: bool = False
-    
-        # Starts a timer
-        self.update_state()
+        
+        self._timers: Set[Timer] = set()
 
-        IEEE2030_5_Client.clients.add(self)
+        # Offset between local udt and server udt
+        self._time_offset: int = 0
+        
+        self._end_device_map: Dict[str, m.EndDeviceList] = {}
+        self._end_devices: Dict[str, m.EndDevice] = {}
+        
+        self._fsa_map: Dict[str, m.FunctionSetAssignmentsList] = {}
+        self._fsa: Dict[str, m.FunctionSetAssignments] = {}
+        
+        self._der_map: Dict[str, m.DERList] = {}
+        self._der: Dict[str, m.DER] = {}
+        
+        self._der_program_map: Dict[str, m.DERProgramList] = {}
+        self._der_program: Dict[str, m.DERProgram] = {}
+        
+        self._mirror_usage_point_map: Dict[str, m.MirrorUsagePointList] = {}
+        self._mirror_usage_point: Dict[str, m.MirrorUsagePoint] = {}
+        
+        self._usage_point_map: Dict[str, m.UsagePointList] = {}
+        self._usage_point: Dict[str, m.UsagePoint] = {}
+    
+        self._before_dcap_update_signal = Signal('before-dcap-request')
+        self._after_dcap_update_signal = Signal('before-dcap-request')
+        self._before_client_start_signal = Signal('before-client-start')
+        self._after_client_start_signal = Signal('after-client-start')
+        
+        self._der_control_event_started_signal = Signal('der-control-event-started')
+        self._der_control_event_ended_signal = Signal('der-control-event-ended')
+        
+        self._before_event_start_signal = Signal('before-event-start')
+        self._after_event_end_signal = Signal('after-event-end')
+        
+        
+        self._dcap_endpoint = device_capabilities_endpoint  
+        # Starts a timer
+        # self._update_dcap_tree(device_capabilities_endpoint)
+
+        IEEE_2030_5_Client.clients.add(self)
+        
+    def start(self):
+        """Starts the client connection to the 2030.5 server configured during construction.
+        """
+        self._before_client_start_signal.send(self)
+        self._update_dcap_tree()
+        self._after_client_start_signal.send(self)
+        TimerThread.tick.connect(self._tick)
+    
+    def _tick(self, timestamp):
+        if timestamp % 5 == 0:
+            for derp in self._der_program_map.items():
+                print(self.__get_request__(f"/derp_0_derc"))
+            
+        #_log.debug(f"Tick: {timestamp}")
+    
+    def der_control_event_started(self, fun: Callable):
+        self._der_control_event_started_signal.connect(fun)
+    
+    def der_control_event_ended(self, fun: Callable):
+        self._der_control_event_ended_signal.connect(fun)        
+        
+    def before_dcap_update(self, fun: Callable):
+        self._before_dcap_update_signal.connect(fun)
+        
+    def after_dcap_update(self, fun: Callable):
+        self._after_dcap_update_signal.connect(fun)
+    
+    def after_client_start(self, fun: Callable):
+        self._after_client_start_signal.connect(fun)
+    
+    def before_client_start(self, fun: Callable):
+        self._before_client_start_signal.connect(fun)
+        
+    @property
+    def server_time(self) -> TimeType:
+        return int(time.mktime(datetime.utcnow().timetuple())) + self._time_offset
+
+        
+    @property
+    def _is_ok(self):
+        return self._response_status == 200
+    
+    def get_der_hrefs(self) -> List[str]:
+        return list(self._der.keys())
+    
+    def get_der(self, href: str) -> Optional[m.DER]:
+        return self._der.get(href)
+    
+    def put_der_availability(self, der_href: str,  new_availability: m.DERAvailability) -> int:
+        resp = self.__put__(der_href, dataclass_to_xml(new_availability))
+        return resp.status
+    
+    def put_der_capability(self, der_href: str, new_capability: m.DERCapability) -> int:
+        resp = self.__put__(der_href, dataclass_to_xml(new_capability))
+        return resp.status
+    
+    def put_der_settings(self, der_href: str, new_settings: m.DERSettings) -> int:
+        resp = self.__put__(der_href, dataclass_to_xml(new_settings))
+        return resp.status
+    
+    def put_der_status(self, der_href: str, new_status: m.DERStatus) -> int:
+        resp = self.__put__(der_href, dataclass_to_xml(new_status))
+        return resp.status
+            
+    def _update_dcap_tree(self, endpoint: Optional[str] = None):
+        """Retrieve the DeviceCapability and downstream link objects.
+        
+        Currently supports the following:
+        
+
+        
+        Args:
+
+            endpoint - /dcap by default but can be passed if there is a different entry point into hte
+                       system.
+        """
+        if not endpoint:
+            endpoint = self._dcap_endpoint
+            if not endpoint:
+                raise ValueError("Invalid device_capability_endpoint specified in constructor.")
+        
+        self._before_dcap_update_signal.send(self)
+        
+        # retrieve device capabilities from the server
+        dcap: m.DeviceCapability = self.__get_request__(endpoint)
+        if not self._is_ok:
+            raise RuntimeError(dcap)
+        
+        self._after_dcap_update_signal.send(self)
+        
+        # if time is available then grab and create an offset
+        if dcap.TimeLink is not None and dcap.TimeLink.href:
+            _time: m.Time = self.__get_request__(dcap.TimeLink.href)
+            self._time_offset = int(time.mktime(datetime.utcnow().timetuple())) - _time.currentTime
+        
+        if dcap.EndDeviceListLink is not None and dcap.EndDeviceListLink.all > 0:
+                        
+            self._update_list(dcap.EndDeviceListLink.href, "EndDevice", self._end_device_map, self._end_devices)
+                        
+            for ed in self._end_devices.values():
+                if not self.is_end_device_registered(ed, self._pin):
+                    raise ValueError(f"Device is not registered on this server!")
+                self._update_list(ed.FunctionSetAssignmentsListLink.href, 
+                                  "FunctionSetAssignments", self._fsa_map, self._fsa)
+                
+                if ed.DERListLink:
+                    derlist: m.DERList = self.__get_request__(ed.DERListLink.href)
+                    self._der_map[derlist.href] = derlist
+                    for index, der in enumerate(derlist.DER):
+                        self._der[der.href] = der
+            
+            for fsa in self._fsa.values():
+                if fsa.DERProgramListLink:
+                    self._der_program_map[fsa.DERProgramListLink.href] = self.__get_request__(fsa.DERProgramListLink.href)
+                    
+            
+                            
+        if dcap.MirrorUsagePointListLink is not None and dcap.MirrorUsagePointListLink.href:
+            self._update_list(dcap.MirrorUsagePointListLink.href, "MirrorUsagePoint", self._mirror_usage_point_map, self._mirror_usage_point)
+        
+        
+        # if dcap.UsagePointListLink is not None and dcap.UsagePointListLink.href:
+        #     self._update_list(dcap.UsagePointListLink.href, "UsagePoint", self._usage_point_map, self._usage_point)
+        
+        self._dcap = dcap 
+        
+        
+    def post_log_event(self, end_device: m.EndDevice, log_event: m.LogEvent):
+        if not log_event.createdDateTime:
+            log_event.createdDateTime = self.server_time
+        
+        self.request(end_device.LogEventListLink.href, method="POST")    
+        
+                
+                
+    def _update_list(self, path: str, list_prop: str, outer_map: Dict, inner_map: Dict):
+        """Update mappings using 2030.5 list nomoclature.
+        
+        Example structure for EndDeviceListLink
+        
+            EndDeviceListLink.href points to EndDeviceList.
+            EndDeviceList.EndDevice points to a list of EndDevice objects.
+            
+        Args:
+        
+            path: Original path of the list (in example EndDeviceListLink.href)
+            list_prop: The property on the object that holds a list of elements (in example EndDevice)
+            outer_mapping: Mapping where the original list object is stored by href
+            inner_mapping: Mapping where the inner objects are stored by href
+        
+        """
+        my_response = self.__get_request__(path)
+        
+        if not self._is_ok:
+            raise RuntimeError(my_response)
+        
+        if my_response is not None:
+            href = getattr(my_response, "href")
+            outer_map[href] = my_response
+            for inner in getattr(my_response, list_prop):
+                href = getattr(inner, "href")
+                inner_map[href] = inner
+            
+        
+    def _get_device_capabilities(self, endpoint: str) -> m.DeviceCapability:
+        dcap: m.DeviceCapability = self.__get_request__(endpoint)
+        if self._response_status != 200:
+            raise RuntimeError(dcap)
+        
+        self._dcap = dcap
+        
+        
+        if self._device_cap.pollRate is not None:
+            self._dcap_poll_rate = self._device_cap.pollRate
+        else:
+            self._dcap_poll_rate = 600
+
+        _log.debug(f"devcap id {id(self._device_cap)}")
+        _log.debug(threading.currentThread().name)
+        _log.debug(f"DCAP: Poll rate: {self._dcap_poll_rate}")
+        self._dcap_timer = Timer(self._dcap_poll_rate, self.poll_timer, (self.device_capability, url))
+        self._dcap_timer.start()
+        
+        return self._device_cap
+        
         
     @property
     def lfdi(self) -> str:
@@ -102,41 +349,24 @@ class IEEE2030_5_Client:
         return self._end_devices
     
     @property
-    def enddevice(self, index: int = 0) -> m.EndDevice:
-        return self._end_devices.EndDevice[index]
+    def enddevice(self, href: str = "") -> m.EndDevice:
+        """Retrieve a client's end device based upon the href of the end device.
+        
+        Args:
+        
+            href: If "" then in single client mode and return the only end device available.
+        """
+        if not href:
+            href = list(self._end_devices.keys())[0]
+        
+        end_device = self._end_devices.get(href)        
+            
+        return end_device
         
     
     def __hash__(self) -> int:
         return self._keyfile.read_text().__hash__() # type: ignore[attr-defined]
     
-    
-    def update_state(self) -> None:
-        self._device_cap = self.device_capability()
-        self._end_devices = self.get_enddevices()
-        ed = self.enddevice
-        if ed.FunctionSetAssignmentsListLink.href:
-            self._fsa_list: m.FunctionSetAssignmentsList = self.request(endpoint=ed.FunctionSetAssignmentsListLink.href)
-            if len(self._fsa_list.FunctionSetAssignments) > 1:
-                raise ValueError("Server responded with more than one function set assignment.")
-            for fsa in self._fsa_list.FunctionSetAssignments:
-                if fsa.DERProgramListLink.href:
-                    self._der_programs = self.request(fsa.DERProgramListLink.href)
-                
-            
-
-    # def register_end_device(self) -> str:
-    #     lfid = utils.get_lfdi_from_cert(self._cert)
-    #     sfid = utils.get_sfdi_from_lfdi(lfid)
-    #     response = self.__post__(dcap.EndDeviceListLink.href,
-    #                              data=utils.dataclass_to_xml(
-    #                                  m.EndDevice(sFDI=sfid)))
-    #     print(response)
-
-    #     if response.status in (200, 201):
-    #         return response.headers.get("Location")
-
-    #     raise werkzeug.exceptions.Forbidden()
-
     def is_end_device_registered(self, end_device: m.EndDevice,
                                  pin: int) -> bool:
         reg = self.registration(end_device)
@@ -203,13 +433,23 @@ class IEEE2030_5_Client:
 
         return der_programs_list
 
-    def post_mirror_reading(self, reading: m.MirrorMeterReading):
-        print(reading)
+    def post_mirror_reading(self, reading: m.MirrorMeterReading) -> str:
+        data = dataclass_to_xml(reading)
+        resp = self.__post__(reading.href, data=data)
+        
+        if not int(resp.status) >= 200 and int(resp.status) < 300:
+            _log.error(f"Posting to {reading.href}")
+            _log.error(f"Response status: {resp.status}")
+            _log.error(f"{resp.read().decode('utf-8')}")
+            
+        
+        return resp.headers['Location']
+        
         
     def mirror_usage_point_list(self) -> m.MirrorUsagePointList:
-        self._mup = self.__get_request__(
-            self._device_cap.MirrorUsagePointListLink.href)
-        return self._mup
+        mupl = self._mirror_usage_point_map.get(self._dcap.MirrorUsagePointListLink.href)
+        
+        return mupl
 
     def usage_point_list(self) -> m.UsagePointList:
         self._upt = self.__get_request__(
@@ -228,7 +468,7 @@ class IEEE2030_5_Client:
     def disconnect(self):
         self._disconnect = True
         self._dcap_timer.cancel()
-        IEEE2030_5_Client.clients.remove(self)
+        IEEE_2030_5_Client.clients.remove(self)
 
     def request(self,
                 endpoint: str,
@@ -244,25 +484,62 @@ class IEEE2030_5_Client:
             return self.__post__(endpoint, body, headers=headers)
 
     def create_mirror_usage_point(
-            self, mirror_usage_point: m.MirrorUsagePoint) -> Tuple[int, str]:
+            self, mirror_usage_point: m.MirrorUsagePoint) -> str:
+        """Create a new mirror usage point on the server.
+        
+        Args:
+        
+            mirror_usage_point: Minimal type for MirrorUsagePoint
+            
+        Return:
+        
+            The location of the new usage point href for posting to.
+        """
         data = dataclass_to_xml(mirror_usage_point)
-        resp = self.__post__(self._device_cap.MirrorUsagePointListLink.href,
+        resp = self.__post__(self._dcap.MirrorUsagePointListLink.href,
                              data=data)
-        return resp.status, resp.headers['Location']
+        return resp.headers['Location']
 
+    def __put__(self, 
+                url: str,
+                data: Any,
+                headers: Optional[Dict[str, str]] = None):
+        if not headers:
+            headers = {'Content-Type': 'text/xml'}
+            
+        if self._debug:
+            print(f"----> POST REQUEST")
+            print(f"url: {url} body: {data}")
+        
+        self.http_conn.request(method="POST",
+                               headers=headers,
+                               url=url,
+                               body=data)
+        response = self._http_conn.getresponse()
+        return response    
+            
     def __post__(self,
                  url: str,
                  data=None,
                  headers: Optional[Dict[str, str]] = None):
         if not headers:
             headers = {'Content-Type': 'text/xml'}
+            
+        if self._debug:
+            print(f"----> POST REQUEST")
+            print(f"url: {url} body: {data}")
 
         self.http_conn.request(method="POST",
                                headers=headers,
                                url=url,
                                body=data)
         response = self._http_conn.getresponse()
+        response_data = response.read().decode("utf-8")
         # response_data = response.read().decode("utf-8")
+        if response_data and self._debug:
+            print(f"<---- POST RESPONSE")
+            print(f"{response_data}")  # toprettyxml()}")
+
 
         return response
 
@@ -310,9 +587,9 @@ class IEEE2030_5_Client:
 
 # noinspection PyTypeChecker
 def __release_clients__():
-    for x in IEEE2030_5_Client.clients:
+    for x in IEEE_2030_5_Client.clients:
         x.__close__()
-    IEEE2030_5_Client.clients = None
+    IEEE_2030_5_Client.clients = None
 
 
 atexit.register(__release_clients__)
@@ -336,7 +613,7 @@ if __name__ == '__main__':
 
     headers = {'Connection': 'Keep-Alive', 'Keep-Alive': "max=1000,timeout=30"}
 
-    h = IEEE2030_5_Client(cafile=SERVER_CA_CERT,
+    h = IEEE_2030_5_Client(cafile=SERVER_CA_CERT,
                           server_hostname="127.0.0.1",
                           server_ssl_port=8070,
                           keyfile=KEY_FILE,
