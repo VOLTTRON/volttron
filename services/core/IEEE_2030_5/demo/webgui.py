@@ -190,7 +190,8 @@ async def run_command(command: LabeledCommand) -> None:
     process = await asyncio.create_subprocess_exec(
         *shlex.split(command.command),
         stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT,
-        cwd=command.working_dir
+        cwd=command.working_dir,
+        env=dict(os.environ)
     )
     
     add_my_task(process)
