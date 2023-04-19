@@ -2,5 +2,4 @@ pvlib
 nicegui
 requests
 xsdata
-xsdata[cli]
 blinker
