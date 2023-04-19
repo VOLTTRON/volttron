@@ -1,3 +1,4 @@
 pvlib
 nicegui
 requests
+xsdata
