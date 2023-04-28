@@ -32,27 +32,30 @@ from volttron.platform.vip.agent.utils import build_agent
 #     secretkey: str
 #     serverkey: str = None
 
+
 class MyInverterAgent(Agent):
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        
+
         self._points = {}
         self._points['pf'] = 0.99
         self._generator = None
-    
+
     @RPC.export
     def set_point(self, point, value):
         self._generator = None
         self._points[point] = value
-        
+
     @RPC.export
     def get_point(self, point):
         return self._points.get(point)
-    
+
     @property
     def reset(self):
         return self._generator is not None
-        
+
+
 def run_inverter(timesteps=50, pf=0.99, latitude=32, longitude=-111.0) -> Generator:
     # PV module
     sandia_modules = pvlib.pvsystem.retrieve_sam('SandiaMod')
@@ -73,16 +76,13 @@ def run_inverter(timesteps=50, pf=0.99, latitude=32, longitude=-111.0) -> Genera
     weather_path = Path(__file__).parent.joinpath("weather.txt")
     if weather_path.exists():
         header = [
-            "time(UTC)", "temp_air", "relative_humidity", "ghi", "dni", "dhi",
-            "IR(h)", "wind_speed", "wind_direction", "pressure"
+            "time(UTC)", "temp_air", "relative_humidity", "ghi", "dni", "dhi", "IR(h)",
+            "wind_speed", "wind_direction", "pressure"
         ]
         weather = pd.read_csv(weather_path)
     else:
-        weather = pvlib.iotools.get_pvgis_tmy(latitude,
-                                            longitude,
-                                            map_variables=True)[0]
+        weather = pvlib.iotools.get_pvgis_tmy(latitude, longitude, map_variables=True)[0]
         result = weather.to_csv(weather_path, header=True)
-        
 
     total_solar_radiance = weather['ghi']
     # assumed that the total solar radiance is equal to ghi(global horizontal irradiance)
@@ -106,13 +106,13 @@ def run_inverter(timesteps=50, pf=0.99, latitude=32, longitude=-111.0) -> Genera
                        i_x=dc['i_x'],
                        i_xx=dc['i_xx'],
                        v_oc=dc['v_oc'],
-                       i_sc=dc['i_sc'],                       
-                       s_ac=p_ac,                       
+                       i_sc=dc['i_sc'],
+                       s_ac=p_ac,
                        v_ac=v_ac,
                        i_ac=i_ac)
         print(json.dumps(results))
         yield results
-        # single phase circuit calculation    
+        # single phase circuit calculation
 
 
 @dataclass
@@ -136,28 +136,28 @@ class AllPoints:
         for k, v in message[0].items():
             points.add(name=k, value=v, meta=message[1].get(k))
 
-        return points    
+        return points
 
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
     logging.getLogger('volttron.platform.vip.agent.core').setLevel(logging.WARNING)
-    
+
     from pathlib import Path
 
     # Impersonate the platform driver which is going to publish all messages
     # to the bus.
     agent = build_agent(identity='platform.driver', agent_class=MyInverterAgent)
-    
+
     control_path = Path('inverter.ctl')
-        
+
     while True:
-    
+
         gen = run_inverter()
 
         topic_to_publish = "devices/inverter1/all"
         pf = 0.99
-        
+
         for inv in gen:
             points = AllPoints()
 
@@ -165,20 +165,17 @@ if __name__ == '__main__':
                 points.add(k, v)
             # publish
             agent.vip.pubsub.publish(peer="pubsub",
-                                    topic=f"{topic_to_publish}",
-                                    message=points.forbus())
+                                     topic=f"{topic_to_publish}",
+                                     message=points.forbus())
             gevent.sleep(10)
-            
+
             if control_path.exists():
                 data = control_path.open().read()
                 try:
                     obj = json.loads(data)
                 except json.decoder.JSONDecodeError:
                     obj = dict(pf=0.99)
-                
+
                 pf = obj.get('pf', 0.99)
-                
-                
-            
-        
+
     agent.core.stop()
