@@ -28,7 +28,7 @@ def serialize_dataclass(obj) -> str:
     """
     if not is_dataclass(obj):
         raise ValueError("Invalid object, must be a dataclass object.")
-    
+
     return __serializer__.render(obj, ns_map=__ns_map__)
 
 
@@ -65,3 +65,6 @@ class AllPoints:
             points.add(name=k, value=v, meta=message[1].get(k))
 
         return points
+
+
+import ieee_2030_5.models as models
