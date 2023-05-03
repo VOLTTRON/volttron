@@ -11,15 +11,15 @@ The following diagram illistrates the data flow for the 2030.5 agent from the Pl
     Client->>Server: Creates MirrorUsagePoints
     Server-->>Client: 201 OK
     Agent->>PlatformDriverAgent: Subscribes to Device Data
-    PlatformDriverAgent->>Agent: Publishes Device Data
-    Agent->>Client: Update Data
+    PlatformDriverAgent->>Agent: Agent Receives Device Data
+    Agent->>Client: Update Data in Client
     Client->>Server: Posts MeterReadings(Device Data)
     Server-->>Client: 201 OK
     Client->>Server: Polls for active DERControls
     Agent->>PlatformDriverAgent: Publishes Event Controls
 ```
 
-To better visualize how this works please try out the [Agent Demo](AGENT_DEMO.md).
+To see this process in action, please try out the [Agent Demo](AGENT_DEMO.md).
 
 ## Agent Config File
 
@@ -40,6 +40,9 @@ certfile: ~/tls/certs/dev1.pem
 # the pin number is used to verify the server is the correct server
 pin: 111115
 
+# Log the request and responses from the server.
+log_req_resp: true
+
 # SSL defaults to 443
 server_ssl_port: 8443
 
@@ -51,6 +54,9 @@ MirrorUsagePointList:
   # 
   # NOTE: The subscription point will be a member of an "all" message from
   #       the PlatformDriverAgent.
+  #
+  # NOTE: MRID must be hex digits meaning A-F and numeric values only and the
+  #       mRID for the MirrorUsagePoint and MirrorMeterReading are the same.
   - subscription_point: p_ac
     mRID: 5509D69F8B3535950000000000009182
     description: DER Inverter Real Power
@@ -95,10 +101,10 @@ subscriptions:
 
 ## Agent Installation
 
-The 2030.5 agent can be installed using an activated terminal from the root of the volttron git repository:
+The 2030.5 agent can be installed and started using an activated terminal from the root of the volttron git repository:
 
 ```bash
-(volttron)>vctl install service/core/IEEE_2030_5 --agent-config example.config.yml --vip-identity inverter1
+vctl install services/core/IEEE_2030_5 --start --agent-config services/core/IEEE_2030_5/example.config.yml --vip-identity inverter1
 ```
 
 ## 2030.5 Protocol

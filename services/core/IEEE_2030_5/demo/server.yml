@@ -27,6 +27,7 @@ generate_admin_cert: True
 
 log_event_list_poll_rate: 60
 device_capability_poll_rate: 60
+usage_point_post_rate: 60
 # derp_poll_rate: 10
 
 # End Device

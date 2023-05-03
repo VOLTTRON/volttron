@@ -106,7 +106,7 @@ if not agent_identity:
     sys.stderr.write("AGENT_VIP_IDENTITY MUST be set in environment\n")
     sys.exit(10)
 
-valid_chars = "_.%s%s" % (string.ascii_letters, string.digits)
+valid_chars = "_.-%s%s" % (string.ascii_letters, string.digits)
 
 for c in agent_identity:
     if c not in valid_chars:
