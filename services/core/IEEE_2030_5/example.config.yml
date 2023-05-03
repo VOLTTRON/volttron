@@ -6,6 +6,9 @@ server_hostname: 127.0.0.1
 # the pin number is used to verify the server is the correct server
 pin: 111115
 
+# Log the request and responses from the server.
+log_req_resp: true
+
 # SSL defaults to 443
 server_ssl_port: 8443
 # http port defaults to none

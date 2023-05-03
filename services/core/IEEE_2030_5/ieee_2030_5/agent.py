@@ -61,6 +61,7 @@ class IEEE_2030_5_Agent(Agent):
         self._keyfile = Path(config['keyfile']).expanduser()
         self._certfile = Path(config['certfile']).expanduser()
         self._pin = config['pin']
+        self._log_req_resp = bool(config.get('log_req_resp', False))
         self._subscriptions = config["subscriptions"]
         self._server_hostname = config["server_hostname"]
         self._server_ssl_port = config.get("server_ssl_port", 443)
@@ -74,18 +75,24 @@ class IEEE_2030_5_Agent(Agent):
             "MirrorUsagePointList": self._mirror_usage_point_list
         }
         self._server_usage_points: m.UsagePointList
+
         self._client = IEEE_2030_5_Client(cafile=self._cacertfile,
                                           server_hostname=self._server_hostname,
                                           keyfile=self._keyfile,
                                           certfile=self._certfile,
                                           server_ssl_port=self._server_ssl_port,
-                                          pin=self._pin)
+                                          pin=self._pin,
+                                          log_req_resp=self._log_req_resp)
 
         # Hook up events so we can respond to them appropriately
         self._client.der_control_event_started(self._control_event_started)
         self._client.der_control_event_ended(self._control_event_ended)
 
-        self._client.start()
+        try:
+            self._client.start()
+        except ConnectionRefusedError:
+            _log.error(f"Could not connect to server {self._server_hostname} agent exiting.")
+            sys.exit(1)
         _log.info(self._client.enddevice)
         assert self._client.enddevice
         self._point_to_reading_set: Dict[str, str] = {}
@@ -201,10 +208,8 @@ class IEEE_2030_5_Agent(Agent):
         """
         Callback triggered by the subscription setup using the topic from the agent's config file
         """
-        _log.debug("DATA Published")
+        _log.debug(f"DATA Received from {sender}")
         points = AllPoints.frombus(message)
-
-        _log.debug(points)
 
         for index, pt in enumerate(self._mirror_usage_point_list):
             if pt["subscription_point"] in points.points:
@@ -214,20 +219,19 @@ class IEEE_2030_5_Agent(Agent):
                     rs = reading.MirrorReadingSet[rs_index]
                     rs.Reading.append(m.Reading(value=points.points[pt["subscription_point"]]))
                     start = rs.timePeriod.start
-                    if start + self._mup_pollRate * 1000 > int(round(
-                            datetime.utcnow().timestamp())):
+                    if start + self._mup_pollRate < self._client.server_time:
                         self._times_published[reading_mRID] = self._times_published.get(
                             reading_mRID, 0) + 1
                         rs.mRID = "_".join(
                             [reading_mRID, str(self._times_published[reading_mRID])])
 
                         new_reading_href = self._client.post_mirror_reading(reading)
-                        _log.debug(f"New readings available: {new_reading_href}")
+                        _log.info(
+                            f"New readings({len(rs.Reading)}) posted available at: {new_reading_href}"
+                        )
                         rs.Reading.clear()
-                        rs.timePeriod.start = int(round(datetime.utcnow().timestamp()))
+                        rs.timePeriod.start = self._client.server_time
                         rs.timePeriod.duration = self._mup_pollRate
-
-        _log.debug(points.__dict__)
 
 
 def main():

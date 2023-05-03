@@ -7,12 +7,13 @@ import subprocess
 import threading
 import time
 import xml.dom.minidom
+from dataclasses import dataclass, field
 from datetime import datetime
 from http.client import HTTPMessage, HTTPSConnection
 from os import PathLike
 from pathlib import Path
-from threading import Timer
-from typing import Any, Callable, Dict, List, Optional, Set, Tuple
+from threading import Semaphore, Timer
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 from uuid import uuid4
 
 import ieee_2030_5.models as m
@@ -21,8 +22,47 @@ from blinker import Signal
 from ieee_2030_5 import dataclass_to_xml, xml_to_dataclass
 
 _log = logging.getLogger(__name__)
+_log_req_resp = logging.getLogger(f"{__name__}.req_resp")
 
 TimeType = int
+StrPath = Union[str, Path]
+
+
+@dataclass
+class TimerSpec:
+    trigger_after_seconds: int
+    fn: Callable
+    args: List = field(default_factory=list)
+    kwargs: Dict = field(default_factory=dict)
+    enabled: bool = True
+    trigger_count: int = 0
+    last_trigger_time: int = int(time.mktime(datetime.utcnow().timetuple()))
+
+    def disable(self):
+        self.enabled = False
+
+    def enable(self):
+        self.enabled = True
+
+    def reset_count(self):
+        self.trigger_count = 0
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, TimerSpec):
+            raise NotImplementedError(
+                f"Comparison between {self.__class__.__name__} and {type(other)} not implemented")
+        return self.fn is other.fn
+
+    def trigger(self, current_time: int):
+        if self.last_trigger_time + self.trigger_after_seconds < current_time:
+            if self.args and self.kwargs:
+                self.fn(args=self.args, kwargs=self.kwargs)
+            elif self.args:
+                self.fn(args=self.args)
+            else:
+                self.fn()
+            self.trigger_count += 1
+            self.last_trigger_time = current_time
 
 
 class _TimerThread(threading.Thread):
@@ -55,34 +95,33 @@ class IEEE_2030_5_Client:
 
     # noinspection PyUnresolvedReferences
     def __init__(self,
-                 cafile: PathLike,
+                 cafile: StrPath,
                  server_hostname: str,
-                 keyfile: PathLike,
-                 certfile: PathLike,
+                 keyfile: StrPath,
+                 certfile: StrPath,
                  pin: str,
                  server_ssl_port: Optional[int] = 443,
                  debug: bool = True,
-                 device_capabilities_endpoint: str = "/dcap"):
+                 device_capabilities_endpoint: str = "/dcap",
+                 log_req_resp: bool = True):
 
-        cafile = cafile if isinstance(cafile, PathLike) else Path(cafile)
-        keyfile = keyfile if isinstance(keyfile, PathLike) else Path(keyfile)
-        certfile = certfile if isinstance(certfile, PathLike) else Path(certfile)
+        self._cafile: Path = cafile if isinstance(cafile, Path) else Path(cafile)
+        self._keyfile: Path = keyfile if isinstance(keyfile, Path) else Path(keyfile)
+        self._certfile: Path = certfile if isinstance(certfile, Path) else Path(certfile)
 
-        self._keyfile = keyfile
-        self._certfile = certfile
-        self._cafile = cafile
         self._pin = pin
 
         # We know that these are Path objects now and have a .exists() function based upon above code.
-        assert cafile.exists(), f"cafile doesn't exist ({cafile})"    # type: ignore[attr-defined]
-        assert keyfile.exists(
+        assert self._cafile.exists(
+        ), f"cafile doesn't exist ({cafile})"    # type: ignore[attr-defined]
+        assert self._keyfile.exists(
         ), f"keyfile doesn't exist ({keyfile})"    # type: ignore[attr-defined]
-        assert certfile.exists(
+        assert self._certfile.exists(
         ), f"certfile doesn't exist ({certfile})"    # type: ignore[attr-defined]
 
         self._ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
         self._ssl_context.check_hostname = False
-        self._ssl_context.verify_mode = ssl.CERT_OPTIONAL    #  ssl.CERT_REQUIRED
+        self._ssl_context.verify_mode = ssl.CERT_REQUIRED
         self._ssl_context.load_verify_locations(cafile=cafile)
 
         # Loads client information from the passed cert and key files. For
@@ -95,6 +134,9 @@ class IEEE_2030_5_Client:
         self._response_headers: HTTPMessage
         self._response_status = None
         self._debug = debug
+        self._debug = log_req_resp
+        if not self._debug:
+            _log_req_resp.setLevel(logging.WARNING)
 
         self._mup: m.MirrorUsagePointList = None    # type: ignore
         self._upt: m.UsagePointList = None    # type: ignore
@@ -103,7 +145,7 @@ class IEEE_2030_5_Client:
         self._dcap_timer: Optional[Timer] = None
         self._disconnect: bool = False
 
-        self._timers: Set[Timer] = set()
+        self._timer_specs: Dict[str, TimerSpec] = {}
 
         # Offset between local udt and server udt
         self._time_offset: int = 0
@@ -138,8 +180,8 @@ class IEEE_2030_5_Client:
         self._after_event_end_signal = Signal('after-event-end')
 
         self._dcap_endpoint = device_capabilities_endpoint
-        # Starts a timer
-        # self._update_dcap_tree(device_capabilities_endpoint)
+
+        self._lock = Semaphore()
 
         IEEE_2030_5_Client.clients.add(self)
 
@@ -151,12 +193,16 @@ class IEEE_2030_5_Client:
         self._after_client_start_signal.send(self)
         TimerThread.tick.connect(self._tick)
 
-    def _tick(self, timestamp):
-        if timestamp % 20 == 0:
-            for derp in self._der_program_map.items():
-                print(self.__get_request__(f"/derp_0_derc_0"))
+    def _tick(self, timestamp: int):
+        """Handles the timer event thread for the client.
 
-        #_log.debug(f"Tick: {timestamp}")
+        :param timestamp: The current timestamp
+        :type timestamp: int
+        """
+        if self._lock.acquire(blocking=False):
+            for ts in self._timer_specs.values():
+                ts.trigger(timestamp)
+            self._lock.release()
 
     def der_control_event_started(self, fun: Callable):
         self._der_control_event_started_signal.connect(fun)
@@ -178,11 +224,15 @@ class IEEE_2030_5_Client:
 
     @property
     def server_time(self) -> TimeType:
-        return int(time.mktime(datetime.utcnow().timetuple())) + self._time_offset
+        """Returns the time on the server
+        
+        Uses an offset value from the 2030.5 Time function set to determine the
+        current time on the server.  
 
-    @property
-    def _is_ok(self):
-        return self._response_status == 200
+        :return: A calculated server_time including offset from time endpoint
+        :rtype: TimeType
+        """
+        return int(time.mktime(datetime.utcnow().timetuple())) + self._time_offset
 
     def get_der_hrefs(self) -> List[str]:
         return list(self._der.keys())
@@ -207,16 +257,13 @@ class IEEE_2030_5_Client:
         return resp.status
 
     def _update_dcap_tree(self, endpoint: Optional[str] = None):
-        """Retrieve the DeviceCapability and downstream link objects.
-        
-        Currently supports the following:
-        
+        """Retrieve device capability 
 
-        
-        Args:
-
-            endpoint - /dcap by default but can be passed if there is a different entry point into hte
-                       system.
+        :param endpoint: _description_, defaults to None
+        :type endpoint: Optional[str], optional
+        :raises ValueError: _description_
+        :raises RuntimeError: _description_
+        :raises ValueError: _description_
         """
         if not endpoint:
             endpoint = self._dcap_endpoint
@@ -227,10 +274,15 @@ class IEEE_2030_5_Client:
 
         # retrieve device capabilities from the server
         dcap: m.DeviceCapability = self.__get_request__(endpoint)
-        if not self._is_ok:
+        if self._response_status != 200:
             raise RuntimeError(dcap)
 
         self._after_dcap_update_signal.send(self)
+
+        if dcap.pollRate is None:
+            dcap.pollRate = 900
+
+        self._update_timer_spec("dcap", dcap.pollRate, self._update_dcap_tree)
 
         # if time is available then grab and create an offset
         if dcap.TimeLink is not None and dcap.TimeLink.href:
@@ -243,6 +295,7 @@ class IEEE_2030_5_Client:
                               self._end_devices)
 
             for ed in self._end_devices.values():
+
                 if not self.is_end_device_registered(ed, self._pin):
                     raise ValueError(f"Device is not registered on this server!")
                 self._update_list(ed.FunctionSetAssignmentsListLink.href, "FunctionSetAssignments",
@@ -260,13 +313,28 @@ class IEEE_2030_5_Client:
                         fsa.DERProgramListLink.href)
 
         if dcap.MirrorUsagePointListLink is not None and dcap.MirrorUsagePointListLink.href:
+            print(self._mirror_usage_point)
+            print(self._mirror_usage_point_map)
+            print(id(self._mirror_usage_point))
+            print(id(self._mirror_usage_point_map))
             self._update_list(dcap.MirrorUsagePointListLink.href, "MirrorUsagePoint",
                               self._mirror_usage_point_map, self._mirror_usage_point)
+            print(id(self._mirror_usage_point))
+            print(id(self._mirror_usage_point_map))
+            # for mup in self._mirror_usage_point.values():
+            #     if mup.postRate is not None:
+            #         self._update_timer_spec(mup.href, mup.postRate, self.m._mi)
 
         # if dcap.UsagePointListLink is not None and dcap.UsagePointListLink.href:
         #     self._update_list(dcap.UsagePointListLink.href, "UsagePoint", self._usage_point_map, self._usage_point)
 
         self._dcap = dcap
+
+    def _update_timer_spec(self, spec_name: str, rate: int, fn: Callable, *args, **kwargs):
+        ts = self._timer_specs.get(spec_name)
+        if ts is None:
+            ts = self._timer_specs[spec_name] = TimerSpec(rate, fn, args, kwargs)
+        ts.trigger_after_seconds = rate
 
     def post_log_event(self, end_device: m.EndDevice, log_event: m.LogEvent):
         if not log_event.createdDateTime:
@@ -292,7 +360,7 @@ class IEEE_2030_5_Client:
         """
         my_response = self.__get_request__(path)
 
-        if not self._is_ok:
+        if self._response_status != 200:
             raise RuntimeError(my_response)
 
         if my_response is not None:
@@ -460,13 +528,12 @@ class IEEE_2030_5_Client:
         self._dcap_timer.cancel()
         IEEE_2030_5_Client.clients.remove(self)
 
-    def request(self, endpoint: str, body: dict = None, method: str = "GET", headers: dict = None):
+    def request(self, endpoint: str, body: dict = {}, method: str = "GET", headers: dict = {}):
 
         if method.upper() == 'GET':
             return self.__get_request__(endpoint, body, headers=headers)
 
         if method.upper() == 'POST':
-            print("Doing post")
             return self.__post__(endpoint, body, headers=headers)
 
     def create_mirror_usage_point(self, mirror_usage_point: m.MirrorUsagePoint) -> str:
@@ -489,10 +556,9 @@ class IEEE_2030_5_Client:
             headers = {'Content-Type': 'text/xml'}
 
         if self._debug:
-            print(f"----> POST REQUEST")
-            print(f"url: {url} body: {data}")
+            _log_req_resp.debug(f"----> PUT REQUEST\nurl: {url}\nbody: {data}")
 
-        self.http_conn.request(method="POST", headers=headers, url=url, body=data)
+        self.http_conn.request(method="PUT", headers=headers, url=url, body=data)
         response = self._http_conn.getresponse()
         return response
 
@@ -501,16 +567,14 @@ class IEEE_2030_5_Client:
             headers = {'Content-Type': 'text/xml'}
 
         if self._debug:
-            print(f"----> POST REQUEST")
-            print(f"url: {url} body: {data}")
+            _log_req_resp.debug(f"----> POST REQUEST\nurl: {url}\nbody: {data}")
 
         self.http_conn.request(method="POST", headers=headers, url=url, body=data)
         response = self._http_conn.getresponse()
         response_data = response.read().decode("utf-8")
         # response_data = response.read().decode("utf-8")
         if response_data and self._debug:
-            print(f"<---- POST RESPONSE")
-            print(f"{response_data}")    # toprettyxml()}")
+            _log_req_resp.debug(f"<---- POST RESPONSE\n{response_data}")
 
         return response
 
@@ -519,8 +583,7 @@ class IEEE_2030_5_Client:
             headers = {"Connection": "keep-alive", "keep-alive": "timeout=30, max=1000"}
 
         if self._debug:
-            print(f"----> GET REQUEST")
-            print(f"url: {url} body: {body}")
+            _log_req_resp.debug(f"----> GET REQUEST\nurl: {url}\nbody: {body}")
         self.http_conn.request(method="GET", url=url, body=body, headers=headers)
 
         response = self._http_conn.getresponse()
@@ -533,13 +596,11 @@ class IEEE_2030_5_Client:
             response_obj = xml_to_dataclass(response_data)
             resp_xml = xml.dom.minidom.parseString(response_data)
             if resp_xml and self._debug:
-                print(f"<---- GET RESPONSE")
-                print(f"{response_data}")    # toprettyxml()}")
+                _log_req_resp.debug(f"<---- GET RESPONSE\n{response_data}")    # toprettyxml()}")
 
         except xsdata.exceptions.ParserError as ex:
             if self._debug:
-                print(f"<---- GET RESPONSE")
-                print(f"{response_data}")
+                _log_req_resp.debug("<---- GET RESPONSE\n{response_data}")
             response_obj = response_data
 
         return response_obj
