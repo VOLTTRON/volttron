@@ -50,7 +50,7 @@ _log = logging.getLogger(__name__)
 
 bacnet_logger = logging.getLogger("bacpypes")
 bacnet_logger.setLevel(logging.WARNING)
-__version__ = '0.5.1'
+__version__ = '0.5.2'
 
 from collections import defaultdict
 
@@ -59,6 +59,7 @@ from queue import Queue, Empty
 from bacpypes.task import RecurringTask
 
 import bacpypes.core
+from bacpypes.basetypes import ErrorCode
 
 import threading
 
@@ -117,6 +118,14 @@ class SubscriptionContext(object):
         self.monitoredObjectIdentifier = (object_type, instance_number)
         self.lifetime = lifetime
 
+
+class PointErrorException(Exception):
+    def __init__(self, address=None, object_type=None, instance_number=None) -> None:
+        super().__init__()
+        self.address = address
+        self.object_type = object_type
+        self.instance_number = instance_number
+        self.message = f"PointErrorException: {self.address}/{self.object_type}/{self.instance_number}"
 
 class BACnetApplication(BIPSimpleApplication, RecurringTask):
     def __init__(self, i_am_callback, send_cov_subscription_callback, forward_cov_callback, request_check_interval,
@@ -188,8 +197,8 @@ class BACnetApplication(BIPSimpleApplication, RecurringTask):
 
         try:
             self.request(apdu)
-        except Exception as e:
-            iocb.set_exception(e)
+        except Exception as exc:
+            iocb.set_exception(exc)
 
     def _get_iocb_key_for_apdu(self, apdu):
         return apdu.pduSource, apdu.apduInvokeID
@@ -671,8 +680,8 @@ class BACnetProxyAgent(Agent):
             try:
                 results[point] = self.read_property(
                     target_address, object_type, instance_number, property_name, property_index)
-            except Exception as e:
-                _log.error("Error reading point {} from {}: {}".format(point, target_address, e))
+            except Exception as exc:
+                _log.error(f"Error reading {property_name} on {object_type}-{instance_number} from device {target_address}: {exc=}")
 
         return results
 
@@ -688,8 +697,8 @@ class BACnetProxyAgent(Agent):
         try:
             bacnet_results = iocb.ioResult.get(10)
         except RuntimeError as error:
-            _log.error(f"could not read {property_name} from device {target_address}")
-            return None
+            _log.error(f"could not read {property_name} on {object_type}-{instance_number} from device {target_address}:")
+            raise error
         return bacnet_results
 
     def _get_access_spec(self, obj_data, properties):
@@ -728,6 +737,31 @@ class BACnetProxyAgent(Agent):
             reverse_point_map[object_type, instance_number, property_name, property_index] = name
 
         return object_property_map, reverse_point_map
+
+    def find_error_object(self, read_access_list: list, target_address: str):
+        """
+        Find specific point failing for device
+        """
+        for entry in read_access_list:
+            request = ReadPropertyMultipleRequest(listOfReadAccessSpecs=[entry])
+            request.pduDestination = Address(target_address)
+            iocb = self.iocb_class(request)
+            self.bacnet_application.submit_request(iocb)
+            bacnet_results = []
+            try:
+                bacnet_results.append(iocb.ioResult.get(10))
+            except Exception as exc:
+                # _log.error(f"{exc} {target_address=} {request=}")
+                _log.debug(
+                    f"Point failing: {target_address}/{entry.objectIdentifier[0]}/{entry.objectIdentifier[1]}"
+                )
+                _log.debug(exc)
+                # _log.debug(f"{dir(entry)=}")
+                self.vip.pubsub.publish(peer="pubsub",
+                                        topic="errors/bacnet",
+                                        message=f"{target_address}/{entry.objectIdentifier[0]}/{entry.objectIdentifier[1]}")
+                raise PointErrorException(target_address, entry.objectIdentifier[0], entry.objectIdentifier[1]) from exc
+        return bacnet_results
 
     @RPC.export
     def read_properties(self, target_address, point_map, max_per_request=None, use_read_multiple=True):
@@ -773,9 +807,18 @@ class BACnetProxyAgent(Agent):
                 self.bacnet_application.submit_request(iocb)
                 try:
                     bacnet_results = iocb.ioResult.get(10)
-                except Exception as e:
-                    _log.error(f"{e} {target_address=}")
-                    raise e
+                # except RuntimeError as exc:
+                #     try:
+                #         bacnet_results = self.find_error_object(read_access_spec_list, target_address)
+                #     except PointErrorException as exc_e:
+                #         exc_e.message = f"failed to scrape: {exc_e.address}/{exc_e.object_type}/{exc_e.instance_number}"
+                #         _log.debug(exc_e.message)
+                #         raise exc_e from exc
+                except Exception as exc:
+                    bacnet_results = self.find_error_object(read_access_spec_list, target_address)
+                    _log.error(f"{exc} {target_address=} {request=}")
+                    _log.debug(f"{dir(request)=}")
+                    raise exc
                     
                 _log.debug("Received read response from {target} count: {count}".format(
                     count=count, target=target_address))

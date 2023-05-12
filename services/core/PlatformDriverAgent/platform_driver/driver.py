@@ -174,7 +174,6 @@ class DriverAgent(BasicAgent):
 
 
     def setup_device(self):
-
         config = self.config
         driver_config = config["driver_config"]
         driver_type = config["driver_type"]
@@ -184,7 +183,6 @@ class DriverAgent(BasicAgent):
 
         self.interface = self.get_interface(driver_type, driver_config, registry_config)
         self.meta_data = {}
-
         for point in self.interface.get_register_names():
             register = self.interface.get_register_by_name(point)
             if register.register_type == 'bit':
@@ -247,16 +245,16 @@ class DriverAgent(BasicAgent):
         try:
             results = self.interface.scrape_all()
             self.parent.point_count.labels(device=self.device_name).set(len(results))
-            _log.debug(len(results))
+            _log.debug(f"{len(results)=}")
             register_names = self.interface.get_register_names_view()
             for point in (register_names - results.keys()):
                 self.parent.failed_point_scrape.labels(point=depth_first_topic, device=self.device_name).inc()
                 depth_first_topic = self.base_topic(point=point)
                 _log.error("Failed to scrape point: "+depth_first_topic)
-        except (Exception, gevent.Timeout) as ex:
+        except (Exception, gevent.Timeout) as exc:
             tb = traceback.format_exc()
             self.parent.error_counter.labels(device=self.device_name).inc()
-            _log.error('Failed to scrape ' + self.device_name + ':\n' + tb)
+            _log.error(f"Failed to scrape {self.device_name}. {exc=} traceback: {tb}")
             self.parent.last_scraped = datetime.datetime.now()
             return 
         end_time = time.time()
@@ -267,6 +265,7 @@ class DriverAgent(BasicAgent):
         #temporarily moving return out of Excelt clause for testing
         # XXX: Does a warning need to be printed?
         if not results:
+            _log.warning(f"no results for {self.device_name}")
             return
 
         utcnow = utils.get_aware_utc_now()
