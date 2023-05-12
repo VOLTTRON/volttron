@@ -42,7 +42,7 @@ layer, and transport layer. Also, DNP3 can be transmitted over a serial bus conn
    Install the DNP3 Outstation agent with the following command:
 
     ```shell
-    (volttron) $ vctl install -s services/core/DNP3OutstationAgent/ \
+    (volttron) $ vctl install services/core/DNP3OutstationAgent/ \
     --agent-config <path-to-config-file> \
     --tag  <dnp3-agent-tag> \
     --vip-identity <dnp3-agent-identity> \
@@ -54,7 +54,7 @@ layer, and transport layer. Also, DNP3 can be transmitted over a serial bus conn
    dnp3-outstation-agent".
 
     ```shell
-    (volttron) $ vctl install services/core/DNP3OutstationAgent/ \
+    (volttron) $ vctl install ./services/core/DNP3OutstationAgent/ \
     --agent-config services/core/DNP3OutstationAgent/example-config.json \
     --tag dnp3-outstation-agent \
     --vip-identity dnp3-outstation-agent \
@@ -84,15 +84,15 @@ layer, and transport layer. Also, DNP3 can be transmitted over a serial bus conn
 
 # Agent Configuration
 
-The required parameters for this agent are "outstation_ip_str", "port", "masterstation_id_int", and "outstation_id_int".
+The required parameters for this agent are "outstation_ip", "port", "master_id", and "outstation_id".
 Below is an example configuration can be found at [example-config.json](example-config.json).
 
 ```
     {
-    'outstation_ip_str': '0.0.0.0',
+    'outstation_ip': '0.0.0.0',
     'port': 20000,
-    'masterstation_id_int': 2,
-    'outstation_id_int': 1
+    'master_id': 2,
+    'outstation_id': 1
     }
 ```
 
@@ -113,21 +113,7 @@ to [dnp3demo-Module.md](https://github.com/VOLTTRON/dnp3-python/blob/develop/doc
 
 ## Setup DNP3 Master
 
-1. Clone this repo.
-
-
-1. Verify the dnp3demo module is installed and working properly:
-
-   Note that the dnp3demo module is part of the dnp3-python dependency and should be available once the DNP3 Outstation
-   Agent is installed. To verify, run the following commands and expect similar output (note that the version might be
-   different) :
-
-    ```shell
-    python -m venv env
-    source env/bin/activate
-    ```
-
-1. Install [openleadr](https://pypi.org/project/openleadr/):
+1. Verify [dnp3-python](https://pypi.org/project/dnp3-python/) is installed properly:
 
     ```shell
     (volttron)  $ pip list | grep dnp3

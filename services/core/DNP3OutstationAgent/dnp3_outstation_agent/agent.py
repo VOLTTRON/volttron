@@ -9,7 +9,7 @@ import sys
 from volttron.platform.agent import utils
 from volttron.platform.vip.agent import Agent, Core, RPC
 
-from dnp3_python.dnp3station.outstation_new import MyOutStationNew
+from dnp3_python.dnp3station.outstation import MyOutStation
 from pydnp3 import opendnp3
 
 
@@ -72,20 +72,20 @@ class Dnp3Agent(Agent):
         # TODO: new-feature: load_config from config store
         # config_at_configstore =
 
-        self.default_config = {'outstation_ip_str': '0.0.0.0', 'port': 21000,
-                               'masterstation_id_int': 2, 'outstation_id_int': 1}
+        self.default_config = {'outstation_ip': '0.0.0.0', 'port': 20000,
+                               'master_id': 2, 'outstation_id': 1}
         # agent configuration using volttron config framework
         # get_volttron_cofig, set_volltron_config
         self._volttron_config: dict
 
         # for dnp3 features
         try:
-            self.outstation_application = MyOutStationNew(**config_when_installed)
+            self.outstation_application = MyOutStation(**config_when_installed)
             _log.info(f"init dnp3 outstation with {config_when_installed}")
             self._volttron_config = config_when_installed
         except Exception as e:
             _log.error(e)
-            self.outstation_application = MyOutStationNew(**self.default_config)
+            self.outstation_application = MyOutStation(**self.default_config)
             _log.info(f"init dnp3 outstation with {self.default_config}")
             self._volttron_config = self.default_config
         # self.outstation_application.start()  # moved to onstart
@@ -103,12 +103,12 @@ class Dnp3Agent(Agent):
     def _set_volttron_config(self, **kwargs):
         """set self._volttron_config using **kwargs.
         EXAMPLE
-        self.default_config = {'outstation_ip_str': '0.0.0.0', 'port': 21000,
-                               'masterstation_id_int': 2, 'outstation_id_int': 1}
+        self.default_config = {'outstation_ip': '0.0.0.0', 'port': 21000,
+                               'master_id': 2, 'outstation_id': 1}
         set_volttron_config(port=30000, unused_key="unused")
         # outcome
-        self.default_config = {'outstation_ip_str': '0.0.0.0', 'port': 30000,
-                               'masterstation_id_int': 2, 'outstation_id_int': 1,
+        self.default_config = {'outstation_ip': '0.0.0.0', 'port': 30000,
+                               'master_id': 2, 'outstation_id': 1,
                                'unused_key': 'unused'}
                                """
         self._volttron_config.update(kwargs)
@@ -123,7 +123,7 @@ class Dnp3Agent(Agent):
         Note: will start a new outstation instance and the old database data will lose"""
         self._set_volttron_config(**kwargs)
         try:
-            outstation_app_new = MyOutStationNew(**self._volttron_config)
+            outstation_app_new = MyOutStation(**self._volttron_config)
             self.outstation_application.shutdown()
             self.outstation_application = outstation_app_new
             self.outstation_application.start()
@@ -144,43 +144,6 @@ class Dnp3Agent(Agent):
     def outstation_get_is_connected(self):
         """expose is_connected, note: status, property"""
         return self.outstation_application.is_connected
-
-    # @RPC.export
-    # def demo_config_store(self):
-    #     """
-    #     Example return
-    #     {'config_list': "['config', 'testagent.config']",
-    #     'config': "{'setting1': 2, 'setting2': 'some/random/topic2'}",
-    #     'testagent.config': "{'setting1': 2, 'setting2': 'some/random/topic2',
-    #     'setting3': True, 'setting4': False, 'setting5': 5.1, 'setting6': [1, 2, 3, 4],
-    #     'setting7': {'setting7a': 'a', 'setting7b': 'b'}}"}
-    #
-    #     on command line
-    #     vctl config store test-agent testagent.config /home/kefei/project-local/volttron/services/core/DNP3OutstationAgent/config
-    #     vctl config get test-agent testagent.config
-    #     """
-    #
-    #     msg_dict = dict()
-    #     # vip.config.set()
-    #     # config_demo = {"set1": "setting1-xxxxxxxxx",
-    #     #                   "set2": "setting2-xxxxxxxxx"}
-    #     # # Set a default configuration to ensure that self.configure is called immediately to setup
-    #     # # the agent.
-    #     # # self.vip.config.set_default("config", default_config)  # set_default can only be used before onstart
-    #     # self.vip.config.set(config_name="config_2", contents=config_demo,
-    #     #                     trigger_callback=False, send_update=True)
-    #
-    #     # vip.config.list()
-    #     config_list = self.vip.config.list()
-    #     msg_dict["config_list"] = str(config_list)
-    #
-    #     # vip.config.get()
-    #     if config_list:
-    #         for config_name in config_list:
-    #             config = self.vip.config.get(config_name)
-    #             msg_dict[config_name] = str(config)
-    #
-    #     return msg_dict
 
     @RPC.export
     def outstation_apply_update_analog_input(self, val, index):
@@ -242,16 +205,6 @@ class Dnp3Agent(Agent):
     @RPC.export
     def outstation_display_db(self):
         return self.outstation_application.db_handler.db
-
-    # @RPC.export
-    # def playground(self, val, index):
-    #     pass
-    #
-    #
-    #
-    #     _log.debug("====================")
-    #
-    #     return self.outstation_display_db()
 
     def configure(self, config_name, action, contents):
         """
