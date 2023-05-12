@@ -16,11 +16,12 @@ import os
 from volttron.platform.vip.agent.utils import build_agent
 from time import sleep
 import datetime
-from dnp3_outstation.agent import Dnp3OutstationAgent
+# from dnp3_outstation.agent import Dnp3OutstationAgent
+from services.core.DNP3OutstationAgent.dnp3_outstation_agent.agent import Dnp3Agent as Dnp3OutstationAgent
 from dnp3_python.dnp3station.outstation_new import MyOutStationNew
 import random
 import subprocess
-from volttron.utils import is_volttron_running
+# from volttron.utils import is_volttron_running
 import json
 # from utils.testing_utils import *
 from volttrontesting.fixtures.volttron_platform_fixtures import volttron_instance
@@ -32,19 +33,19 @@ logging_logger = logging.getLogger(__name__)
 dnp3_vip_identity = "dnp3_outstation"
 
 
-@pytest.fixture(scope="module")
-def volttron_home():
-    """
-    VOLTTRON_HOME environment variable suggested to setup at pytest.ini [env]
-    """
-    volttron_home: str = os.getenv("VOLTTRON_HOME")
-    assert volttron_home
-    return volttron_home
-
-
-def test_volttron_home_fixture(volttron_home):
-    assert volttron_home
-    print(volttron_home)
+# @pytest.fixture(scope="module")
+# def volttron_home():
+#     """
+#     VOLTTRON_HOME environment variable suggested to setup at pytest.ini [env]
+#     """
+#     volttron_home: str = os.getenv("VOLTTRON_HOME")
+#     assert volttron_home
+#     return volttron_home
+#
+#
+# def test_volttron_home_fixture(volttron_home):
+#     assert volttron_home
+#     print(volttron_home)
 
 
 def test_testing_file_path():

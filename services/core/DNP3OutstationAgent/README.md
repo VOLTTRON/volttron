@@ -297,3 +297,32 @@ shown in the "Master Operation MENU" and should be self-explanatory. Here we can
    Note: [run_dnp3_outstation_agent_script.py](demo-scripts/run_dnp3_outstation_agent_script.py) script is a wrapper on
    the dnp3demo outstation submodle. For details about the interactive dnp3 station operations, please refer
    to [dnp3demo-Module.md](https://github.com/VOLTTRON/dnp3-python/blob/develop/docs/dnp3demo-Module.md)
+
+# Run Tests
+
+1. Install volttron testing dependencies
+    ```shell
+    (volttron) $ python bootstrap.py --testing
+    UPDATE: ['testing']
+    Installing required packages
+    + pip install --upgrade --no-deps wheel==0.30
+    Requirement already satisfied: wheel==0.30 in ./env/lib/python3.10/site-packages (0.30.0)
+    + pip install --upgrade --install-option --zmq=bundled --no-deps pyzmq==22.2.1
+    WARNING: Disabling all use of wheels due to the use of --build-option / --global-option / --install-option.
+    ...
+    ```
+
+1. Run pytest
+    ```shell
+    (volttron) $ pytest services/core/DNP3OutstationAgent/tests/.
+    ===================================================================================================== test session starts =====================================================================================================
+    platform linux -- Python 3.10.6, pytest-7.1.2, pluggy-1.0.0 -- /home/kefei/project/volttron/env/bin/python
+    cachedir: .pytest_cache
+    rootdir: /home/kefei/project/volttron, configfile: pytest.ini
+    plugins: rerunfailures-10.2, asyncio-0.19.0, timeout-2.1.0
+    asyncio: mode=auto
+    timeout: 300.0s
+    timeout method: signal
+    timeout func_only: False
+    collected 40 items                                                
+    ```
