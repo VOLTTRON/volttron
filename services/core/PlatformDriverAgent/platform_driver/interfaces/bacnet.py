@@ -168,9 +168,9 @@ class Interface(BaseInterface):
                 result = self.vip.rpc.call(self.proxy_address, 'read_properties',
                                            self.target_address, point_map,
                                            self.max_per_request, self.use_read_multiple).get(timeout=self.timeout)
-            except gevent.timeout.Timeout:
+            except gevent.timeout.Timeout as exc:
                 _log.error(f"Timed out reading target {self.target_address}")
-                continue
+                raise exc
             except RemoteError as e:
                 if "segmentationNotSupported" in e.message:
                     if self.max_per_request <= 1:
