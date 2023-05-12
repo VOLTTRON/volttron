@@ -1,310 +1,251 @@
-# -*- coding: utf-8 -*- {{{
-# vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
-#
-# Copyright 2018, SLAC / Kisensum.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-#
-# This material was prepared as an account of work sponsored by an agency of
-# the United States Government. Neither the United States Government nor the
-# United States Department of Energy, nor SLAC, nor Kisensum, nor any of their
-# employees, nor any jurisdiction or organization that has cooperated in the
-# development of these materials, makes any warranty, express or
-# implied, or assumes any legal liability or responsibility for the accuracy,
-# completeness, or usefulness or any information, apparatus, product,
-# software, or process disclosed, or represents that its use would not infringe
-# privately owned rights. Reference herein to any specific commercial product,
-# process, or service by trade name, trademark, manufacturer, or otherwise
-# does not necessarily constitute or imply its endorsement, recommendation, or
-# favoring by the United States Government or any agency thereof, or
-# SLAC, or Kisensum. The views and opinions of authors expressed
-# herein do not necessarily state or reflect those of the
-# United States Government or any agency thereof.
-# }}}
+"""
+This test suits focus on the exposed RPC calls.
+It utilizes a vip agent to evoke the RPC calls.
+The volltron instance and dnp3-agent is start manually.
+Note: several fixtures are used
+    volttron_platform_wrapper
+    vip_agent
+    dnp3_outstation_agent
+"""
+import pathlib
 
+import gevent
 import pytest
-# try:
-#     import dnp3
-# except ImportError:
-#     pytest.skip("pydnp3 not found!", allow_module_level=True)
-#
-# import gevent
-# import os
-# import pytest
-#
-# from volttron.platform import get_services_core, jsonapi
-# from volttron.platform.agent.utils import strip_comments
-#
-# # from dnp3.points import PointDefinitions
-# # from mesa_master_test import MesaMasterTest
-#
-# from pydnp3 import asiodnp3, asiopal, opendnp3, openpal
+import os
+# from volttron.client.vip.agent import build_agent
+from volttron.platform.vip.agent.utils import build_agent
+from time import sleep
+import datetime
+from dnp3_outstation.agent import Dnp3OutstationAgent
+from dnp3_python.dnp3station.outstation_new import MyOutStationNew
+import random
+import subprocess
+from volttron.utils import is_volttron_running
+import json
+# from utils.testing_utils import *
+from volttrontesting.fixtures.volttron_platform_fixtures import volttron_instance
 
-FILTERS = opendnp3.levels.NORMAL | opendnp3.levels.ALL_COMMS
-HOST = "127.0.0.1"
-LOCAL = "0.0.0.0"
-PORT = 20000
+import logging
 
-DNP3_AGENT_ID = 'dnp3_outstation_agent'
-POINT_TOPIC = "dnp3/point"
-TEST_GET_POINT_NAME = 'DCTE.WinTms.AO11'
-TEST_SET_POINT_NAME = 'DCTE.WinTms.AI55'
+logging_logger = logging.getLogger(__name__)
 
-input_group_map = {
-    1: "Binary",
-    2: "Binary",
-    30: "Analog",
-    31: "Analog",
-    32: "Analog",
-    33: "Analog",
-    34: "Analog"
-}
-
-DNP3_AGENT_CONFIG = {
-    "points": "config://mesa_points.config",
-    "point_topic": POINT_TOPIC,
-    "outstation_config": {
-        "log_levels": ["NORMAL", "ALL_APP_COMMS"]
-    },
-    "local_ip": "0.0.0.0",
-    "port": 20000
-}
-
-# Get point definitions from the files in the test directory.
-POINT_DEFINITIONS_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), 'data', 'mesa_points.config'))
-
-pdefs = PointDefinitions(point_definitions_path=POINT_DEFINITIONS_PATH)
-
-AGENT_CONFIG = {
-    "points": "config://mesa_points.config",
-    "outstation_config": {
-        "database_sizes": 700,
-        "log_levels": ["NORMAL"]
-    },
-    "local_ip": "0.0.0.0",
-    "port": 20000
-}
-
-messages = {}
+dnp3_vip_identity = "dnp3_outstation"
 
 
-def onmessage(peer, sender, bus, topic, headers, message):
-    """Callback: As DNP3Agent publishes mesa/point messages, store them in a multi-level global dictionary."""
-    global messages
-    messages[topic] = {'headers': headers, 'message': message}
-
-
-def dict_compare(source_dict, target_dict):
-    """Assert that the value for each key in source_dict matches the corresponding value in target_dict.
-
-       Ignores keys in target_dict that are not in source_dict.
+@pytest.fixture(scope="module")
+def volttron_home():
     """
-    for name, source_val in source_dict.items():
-        target_val = target_dict.get(name, None)
-        assert source_val == target_val, "Source value of {}={}, target value={}".format(name, source_val, target_val)
+    VOLTTRON_HOME environment variable suggested to setup at pytest.ini [env]
+    """
+    volttron_home: str = os.getenv("VOLTTRON_HOME")
+    assert volttron_home
+    return volttron_home
 
 
-def add_definitions_to_config_store(test_agent):
-    """Add PointDefinitions to the mesaagent's config store."""
-    with open(POINT_DEFINITIONS_PATH, 'r') as f:
-        points_json = jsonapi.loads(strip_comments(f.read()))
-    test_agent.vip.rpc.call('config.store', 'manage_store', DNP3_AGENT_ID,
-                            'mesa_points.config', points_json, config_type='raw')
+def test_volttron_home_fixture(volttron_home):
+    assert volttron_home
+    print(volttron_home)
 
 
-@pytest.fixture(scope="module")
-def agent(request, volttron_instance):
-    """Build the test agent for rpc call."""
+def test_testing_file_path():
+    parent_path = os.getcwd()
+    dnp3_agent_config_path = os.path.join(parent_path, "dnp3-outstation-config.json")
+    # print(dnp3_agent_config_path)
+    logging_logger.info(f"test_testing_file_path {dnp3_agent_config_path}")
 
-    test_agent = volttron_instance.build_agent(identity="test_agent")
-    capabilities = {'edit_config_store': {'identity': 'dnp3_outstation_agent'}}
-    volttron_instance.add_capabilities(test_agent.core.publickey, capabilities)
-    add_definitions_to_config_store(test_agent)
 
-    print('Installing DNP3Agent')
-    os.environ['AGENT_MODULE'] = 'dnp3.agent'
-    agent_id = volttron_instance.install_agent(agent_dir=get_services_core("DNP3Agent"),
-                                               config_file=AGENT_CONFIG,
-                                               vip_identity=DNP3_AGENT_ID,
-                                               start=True)
-
-    # Subscribe to DNP3 point publication
-    test_agent.vip.pubsub.subscribe(peer='pubsub', prefix=POINT_TOPIC, callback=onmessage)
-
-    def stop():
-        """Stop test agent."""
-        if volttron_instance.is_running():
-            volttron_instance.stop_agent(agent_id)
-            volttron_instance.remove_agent(agent_id)
-            test_agent.core.stop()
-
-    gevent.sleep(12)        # wait for agents and devices to start
-
-    request.addfinalizer(stop)
-
-    return test_agent
-
-def test_agent(agent):
-    print(agent)
-
-def test_agent():
-    print("agent")
+def test_volttron_instance_fixture(volttron_instance):
+    print(volttron_instance)
+    logging_logger.info(f"=========== volttron_instance_new.volttron_home: {volttron_instance.volttron_home}")
+    logging_logger.info(f"=========== volttron_instance_new.skip_cleanup: {volttron_instance.skip_cleanup}")
+    logging_logger.info(f"=========== volttron_instance_new.vip_address: {volttron_instance.vip_address}")
 
 
 @pytest.fixture(scope="module")
-def run_master(request):
-    """Run Mesa master application."""
-    master = MesaMasterTest(local_ip=AGENT_CONFIG['local_ip'], port=AGENT_CONFIG['port'])
-    master.connect()
-
-    def stop():
-        master.shutdown()
-
-    request.addfinalizer(stop)
-
-    return master
+def vip_agent(volttron_instance):
+    # build a vip agent
+    a = volttron_instance.build_agent()
+    print(a)
+    return a
 
 
-@pytest.fixture(scope="function")
-def reset(agent):
-    """Reset agent and global variable messages before running every test."""
-    global messages
-    messages = {}
-    agent.vip.rpc.call(DNP3_AGENT_ID, 'reset').get()
+def test_vip_agent_fixture(vip_agent):
+    print(vip_agent)
+    logging_logger.info(f"=========== vip_agent: {vip_agent}")
+    logging_logger.info(f"=========== vip_agent.core.identity: {vip_agent.core.identity}")
+    logging_logger.info(f"=========== vip_agent.vip.peerlist().get(): {vip_agent.vip.peerlist().get()}")
 
 
-class TestDummy:
+@pytest.fixture(scope="module")
+def dnp3_outstation_agent(volttron_instance) -> dict:
+    """
+    Install and start a dnp3-outstation-agent, return its vip-identity
+    """
+    # install a dnp3-outstation-agent
+    # TODO: improve the following hacky path resolver
+    parent_path = pathlib.Path(__file__)
+    dnp3_outstation_package_path = pathlib.Path(parent_path).parent.parent
+    dnp3_agent_config_path = str(os.path.join(parent_path, "dnp3-outstation-config.json"))
+    config = {
+        "outstation_ip": "0.0.0.0",
+        "master_id": 2,
+        "outstation_id": 1,
+        "port": 20000
+    }
+    agent_vip_id = dnp3_vip_identity
+    uuid = volttron_instance.install_agent(
+        agent_dir=dnp3_outstation_package_path,
+        # agent_dir="volttron-dnp3-outastion",
+        config_file=config,
+        start=False,  # Note: for some reason, need to set to False, then start
+        vip_identity=agent_vip_id)
+    # start agent with retry
+    # pid = retry_call(volttron_instance.start_agent, f_kwargs=dict(agent_uuid=uuid), max_retries=5, delay_s=2,
+    #                  wait_before_call_s=2)
 
-    @staticmethod
-    def get_point_definitions(agent, point_names):
-        """Ask DNP3Agent for a list of point definitions."""
-        return agent.vip.rpc.call(DNP3_AGENT_ID, 'get_point_definitions', point_names).get(timeout=10)
-
-    def get_point_definition(self, agent, point_name):
-        """Confirm that the agent has a point definition named point_name. Return the definition."""
-        point_defs = self.get_point_definitions(agent, [point_name])
-        point_def = point_defs.get(point_name, None)
-        assert point_def is not None, "Agent has no point definition for {}".format(TEST_GET_POINT_NAME)
-        return point_def
-
-    def test_fixture_run_master(self, run_master):
-        pass
-        print(f"=====run_master {run_master}")
-
-    def test_fixture_agent(self, agent):
-        pass
-        print(f"=====agent {agent}")
-
-    def test_fixture_reset(self, reset):
-        pass
-        print(f"=====agent {reset}")
-
-    def test_get_point_definition(self, run_master, agent, reset):
-        """Ask the agent whether it has a point definition for a point name."""
-        self.get_point_definition(agent, TEST_GET_POINT_NAME)
+    # # check if running with retry
+    # retry_call(volttron_instance.is_agent_running, f_kwargs=dict(agent_uuid=uuid), max_retries=5, delay_s=2,
+    #            wait_before_call_s=2)
+    gevent.sleep(5)
+    pid = volttron_instance.start_agent(uuid)
+    gevent.sleep(5)
+    logging_logger.info(
+        f"=========== volttron_instance.is_agent_running(uuid): {volttron_instance.is_agent_running(uuid)}")
+    # TODO: get retry_call back
+    return {"uuid": uuid, "pid": pid}
 
 
-class TestDNP3Agent:
-    """Regression tests for (non-MESA) DNP3Agent."""
+def test_install_dnp3_outstation_agent_fixture(dnp3_outstation_agent, vip_agent, volttron_instance):
+    puid = dnp3_outstation_agent
+    print(puid)
+    logging_logger.info(f"=========== dnp3_outstation_agent ids: {dnp3_outstation_agent}")
+    logging_logger.info(f"=========== vip_agent.vip.peerlist().get(): {vip_agent.vip.peerlist().get()}")
+    logging_logger.info(f"=========== volttron_instance_new.is_agent_running(puid): "
+                        f"{volttron_instance.is_agent_running(dnp3_outstation_agent['uuid'])}")
 
-    @staticmethod
-    def get_point(agent, point_name):
-        """Ask DNP3Agent for a point value for a DNP3 resource."""
-        return agent.vip.rpc.call(DNP3_AGENT_ID, 'get_point', point_name).get(timeout=10)
 
-    @staticmethod
-    def get_point_definitions(agent, point_names):
-        """Ask DNP3Agent for a list of point definitions."""
-        return agent.vip.rpc.call(DNP3_AGENT_ID, 'get_point_definitions', point_names).get(timeout=10)
+def test_dummy(vip_agent, dnp3_outstation_agent):
+    peer = dnp3_vip_identity
+    method = Dnp3OutstationAgent.rpc_dummy
+    peer_method = method.__name__  # "rpc_dummy"
+    rs = vip_agent.vip.rpc.call(peer, peer_method).get(timeout=5)
+    print(datetime.datetime.now(), "rs: ", rs)
 
-    @staticmethod
-    def get_point_by_index(agent, data_type, index):
-        """Ask DNP3Agent for a point value for a DNP3 resource."""
-        return agent.vip.rpc.call(DNP3_AGENT_ID, 'get_point_by_index', data_type, index).get(timeout=10)
 
-    @staticmethod
-    def set_point(agent, point_name, value):
-        """Use DNP3Agent to set a point value for a DNP3 resource."""
-        response = agent.vip.rpc.call(DNP3_AGENT_ID, 'set_point', point_name, value).get(timeout=10)
-        gevent.sleep(5)     # Give the Master time to receive an echoed point value back from the Outstation.
-        return response
+def test_outstation_reset(vip_agent, dnp3_outstation_agent):
 
-    @staticmethod
-    def set_points(agent, point_dict):
-        """Use DNP3Agent to set point values for a DNP3 resource."""
-        return agent.vip.rpc.call(DNP3_AGENT_ID, 'set_points', point_dict).get(timeout=10)
+    peer = dnp3_vip_identity
+    method = Dnp3OutstationAgent.reset_outstation
+    peer_method = method.__name__  # "reset_outstation"
+    # note: reset_outstation returns None, check if raise or time out instead
+    try:
+        rs = vip_agent.vip.rpc.call(peer, peer_method).get(timeout=5)
+        print(datetime.datetime.now(), "rs: ", rs)
+    except BaseException as e:
+        assert False
 
-    @staticmethod
-    def send_single_point(master, point_name, point_value):
-        """
-            Send a point name and value from the Master to DNP3Agent.
 
-            Return a dictionary with an exception key and error, empty if successful.
-        """
-        try:
-            master.send_single_point(pdefs, point_name, point_value)
-            return {}
-        except Exception as err:
-            exception = {'key': type(err).__name__, 'error': str(err)}
-            print("Exception sending point from master: {}".format(exception))
-            return exception
+def test_outstation_get_db(vip_agent, dnp3_outstation_agent):
+    peer = dnp3_vip_identity
+    method = Dnp3OutstationAgent.display_outstation_db
+    peer_method = method.__name__  # "display_outstation_db"
+    rs = vip_agent.vip.rpc.call(peer, peer_method).get(timeout=5)
+    print(datetime.datetime.now(), "rs: ", rs)
+    assert rs == {
+        'Analog': {'0': None, '1': None, '2': None, '3': None, '4': None, '5': None, '6': None, '7': None, '8': None,
+                   '9': None},
+        'AnalogOutputStatus': {'0': None, '1': None, '2': None, '3': None, '4': None, '5': None, '6': None, '7': None,
+                               '8': None, '9': None},
+        'Binary': {'0': None, '1': None, '2': None, '3': None, '4': None, '5': None, '6': None, '7': None, '8': None,
+                   '9': None},
+        'BinaryOutputStatus': {'0': None, '1': None, '2': None, '3': None, '4': None, '5': None, '6': None, '7': None,
+                               '8': None, '9': None}}
 
-    @staticmethod
-    def get_value_from_master(master, point_name):
-        """Get value of the point from master after being set by test agent."""
-        try:
-            pdef = pdefs.point_named(point_name)
-            group = input_group_map[pdef.group]
-            index = pdef.index
-            return master.soe_handler.result[group][index]
-        except KeyError:
-            return None
 
-    def get_point_definition(self, agent, point_name):
-        """Confirm that the agent has a point definition named point_name. Return the definition."""
-        point_defs = self.get_point_definitions(agent, [point_name])
-        point_def = point_defs.get(point_name, None)
-        assert point_def is not None, "Agent has no point definition for {}".format(TEST_GET_POINT_NAME)
-        return point_def
+def test_outstation_get_config(vip_agent, dnp3_outstation_agent):
+    peer = dnp3_vip_identity
+    method = Dnp3OutstationAgent.get_outstation_config
+    peer_method = method.__name__  # "get_outstation_config"
+    rs = vip_agent.vip.rpc.call(peer, peer_method).get(timeout=5)
+    print(datetime.datetime.now(), "rs: ", rs)
+    assert rs == {'outstation_ip_str': '0.0.0.0', 'port': 20000, 'masterstation_id_int': 2, 'outstation_id_int': 1}
 
-    @staticmethod
-    def subscribed_points():
-        """Return point values published by DNP3Agent using the dnp3/point topic."""
-        return messages[POINT_TOPIC].get('message', {})
 
-    # **********
-    # ********** OUTPUT TESTS (send data from Master to Agent to ControlAgent) ************
-    # **********
+def test_outstation_is_connected(vip_agent, dnp3_outstation_agent):
+    peer = dnp3_vip_identity
+    method = Dnp3OutstationAgent.is_outstation_connected
+    peer_method = method.__name__  # "is_outstation_connected"
+    rs = vip_agent.vip.rpc.call(peer, peer_method).get(timeout=5)
+    print(datetime.datetime.now(), "rs: ", rs)
+    assert rs in [True, False]
 
-    def test_get_point_definition(self, run_master, agent, reset):
-        """Ask the agent whether it has a point definition for a point name."""
-        self.get_point_definition(agent, TEST_GET_POINT_NAME)
 
-    def test_send_point(self, run_master, agent, reset):
-        """Send a point from the master and get its value from DNP3Agent."""
-        exceptions = self.send_single_point(run_master, TEST_GET_POINT_NAME, 45)
-        assert exceptions == {}
-        received_point = self.get_point(agent, TEST_GET_POINT_NAME)
-        # Confirm that the agent's received point value matches the value that was sent.
-        assert received_point == 45, "Expected {} = {}, got {}".format(TEST_GET_POINT_NAME, 45, received_point)
-        dict_compare({TEST_GET_POINT_NAME: 45}, self.subscribed_points())
+def test_outstation_apply_update_analog_input(vip_agent, dnp3_outstation_agent):
+    peer = dnp3_vip_identity
+    method = Dnp3OutstationAgent.apply_update_analog_input
+    peer_method = method.__name__  # "apply_update_analog_input"
+    val, index = random.random(), random.choice(range(5))
+    print(f"val: {val}, index: {index}")
+    rs = vip_agent.vip.rpc.call(peer, peer_method, val, index).get(timeout=5)
+    print(datetime.datetime.now(), "rs: ", rs)
 
-    # **********
-    # ********** INPUT TESTS (send data from ControlAgent to Agent to Master) ************
-    # **********
+    # verify
+    val_new = rs.get("Analog").get(str(index))
+    assert val_new == val
 
-    def test_set_point(self, run_master, agent, reset):
-        """Test set an input point and confirm getting the same value for that point."""
-        self.set_point(agent, TEST_SET_POINT_NAME, 45)
-        received_val = self.get_value_from_master(run_master, TEST_SET_POINT_NAME)
-        assert received_val == 45, "Expected {} = {}, got {}".format(TEST_SET_POINT_NAME, 45, received_val)
+
+def test_outstation_apply_update_analog_output(vip_agent, dnp3_outstation_agent):
+    peer = dnp3_vip_identity
+    method = Dnp3OutstationAgent.apply_update_analog_output
+    peer_method = method.__name__  # "apply_update_analog_output"
+    val, index = random.random(), random.choice(range(5))
+    print(f"val: {val}, index: {index}")
+    rs = vip_agent.vip.rpc.call(peer, peer_method, val, index).get(timeout=5)
+    print(datetime.datetime.now(), "rs: ", rs)
+
+    # verify
+    val_new = rs.get("AnalogOutputStatus").get(str(index))
+    assert val_new == val
+
+
+def test_outstation_apply_update_binary_input(vip_agent, dnp3_outstation_agent):
+    peer = dnp3_vip_identity
+    method = Dnp3OutstationAgent.apply_update_binary_input
+    peer_method = method.__name__  # "apply_update_binary_input"
+    val, index = random.choice([True, False]), random.choice(range(5))
+    print(f"val: {val}, index: {index}")
+    rs = vip_agent.vip.rpc.call(peer, peer_method, val, index).get(timeout=5)
+    print(datetime.datetime.now(), "rs: ", rs)
+
+    # verify
+    val_new = rs.get("Binary").get(str(index))
+    assert val_new == val
+
+
+def test_outstation_apply_update_binary_output(vip_agent, dnp3_outstation_agent):
+    peer = dnp3_vip_identity
+    method = Dnp3OutstationAgent.apply_update_binary_output
+    peer_method = method.__name__  # "apply_update_binary_output"
+    val, index = random.choice([True, False]), random.choice(range(5))
+    print(f"val: {val}, index: {index}")
+    rs = vip_agent.vip.rpc.call(peer, peer_method, val, index).get(timeout=5)
+    print(datetime.datetime.now(), "rs: ", rs)
+
+    # verify
+    val_new = rs.get("BinaryOutputStatus").get(str(index))
+    assert val_new == val
+
+
+def test_outstation_update_config_with_restart(vip_agent, dnp3_outstation_agent):
+    peer = dnp3_vip_identity
+    method = Dnp3OutstationAgent.update_outstation
+    peer_method = method.__name__  # "update_outstation"
+    port_to_set = 20001
+    rs = vip_agent.vip.rpc.call(peer, peer_method, port=port_to_set).get(timeout=5)
+    print(datetime.datetime.now(), "rs: ", rs)
+
+    # verify
+    rs = vip_agent.vip.rpc.call(peer, "get_outstation_config").get(timeout=5)
+    port_new = rs.get("port")
+    # print(f"========= port_new {port_new}")
+    assert port_new == port_to_set

@@ -37,12 +37,18 @@ layer, and transport layer. Also, DNP3 can be transmitted over a serial bus conn
     2f platform_driveragent-4.0         platform.driver       platform_driver
     ```
 
+1. (If not satisfied yet,) install [dnp3-python](https://pypi.org/project/dnp3-python/) dependency.
+
+    ```shell
+    (volttron) $ pip install dnp3-python==0.3.0b1
+    ```
+
 1. Install and start the DNP3 Outstation Agent.
 
    Install the DNP3 Outstation agent with the following command:
 
     ```shell
-    (volttron) $ vctl install services/core/DNP3OutstationAgent/ \
+    (volttron) $ vctl install <path-to-agent-wheel-or-directory-for-agent-installation> \
     --agent-config <path-to-config-file> \
     --tag  <dnp3-agent-tag> \
     --vip-identity <dnp3-agent-identity> \
