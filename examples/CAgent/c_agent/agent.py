@@ -40,8 +40,8 @@
 from ctypes import CDLL, cdll, c_float
 from datetime import datetime
 import logging
-import sys
 import os
+import sys
 
 from volttron.platform.vip.agent import Agent, Core, PubSub, compat
 from volttron.platform.agent import utils

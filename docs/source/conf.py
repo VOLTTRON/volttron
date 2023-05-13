@@ -16,11 +16,11 @@
 # import sys
 # sys.path.insert(0, os.path.abspath('.'))
 
-import subprocess
-import sys
-import os
 from glob import glob
 from mock import Mock as MagicMock
+import os
+import subprocess
+import sys
 import yaml
 
 from volttron.platform.agent.utils import execute_command

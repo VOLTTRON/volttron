@@ -35,12 +35,14 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-from pathlib import Path
-import os
-import shutil
 
 import argparse
+import os
+from pathlib import Path
+import shutil
+
 import gevent
+
 from volttron.platform.vip.agent.utils import build_agent
 
 

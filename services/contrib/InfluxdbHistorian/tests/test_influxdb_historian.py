@@ -42,12 +42,11 @@ import pytest
 import gevent
 import pytz
 import os
-import json
 from pytest import approx
 from datetime import datetime, timedelta
 from dateutil import parser
 
-from volttron.platform import get_services_core, jsonapi
+from volttron.platform import jsonapi
 from volttron.platform.agent.utils import format_timestamp, parse_timestamp_string, get_aware_utc_now
 from volttron.platform.messaging import headers as headers_mod
 

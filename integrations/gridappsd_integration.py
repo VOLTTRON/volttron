@@ -46,10 +46,11 @@ except ImportError:
     HAS_GAPPSD = False
     RuntimeError('GridAPPSD must be installed before running this script ')
 
-import os
 import logging
-import gevent
+import os
 import weakref
+
+import gevent
 
 from volttron.platform.agent.base_simulation_integration.base_sim_integration import BaseSimIntegration
 

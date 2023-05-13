@@ -1,16 +1,14 @@
 from datetime import datetime
+import logging
 import os
 import sys
 
 import gevent
-import logging
-
 
 from volttron.platform.vip.agent import Agent, PubSub, RPC, Core
 from volttron.platform.agent import utils
 from volttron.platform.agent.utils import watch_file_with_fullpath
 from volttron.platform import jsonapi
-
 
 # These are the options that can be set from the settings module.
 from settings import remote_url, config

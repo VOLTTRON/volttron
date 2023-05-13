@@ -36,10 +36,12 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-import os
-from platform_driver.interfaces import BaseInterface, BaseRegister, BasicRevert
 from csv import DictReader, DictWriter
 import logging
+import os
+
+from platform_driver.interfaces import BaseInterface, BaseRegister, BasicRevert
+
 
 # Use the csv fields and default dictionary to create a CSV "device" for testing
 CSV_FIELDNAMES = ["Point Name", "Point Value"]

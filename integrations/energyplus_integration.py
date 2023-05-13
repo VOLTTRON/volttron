@@ -36,14 +36,16 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-import os
 import logging
-from gevent import monkey, sleep
-import weakref
+from calendar import monthrange
+from datetime import datetime
+import os
 import socket
 import subprocess
-from datetime import datetime
-from calendar import monthrange
+import weakref
+
+from gevent import monkey, sleep
+
 from volttron.platform.agent.base_simulation_integration.base_sim_integration import BaseSimIntegration
 
 monkey.patch_socket()

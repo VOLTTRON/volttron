@@ -3,19 +3,15 @@ import os
 import ssl
 import re
 import logging
-import grequests
 from collections import defaultdict
 from urllib.parse import urlparse, urlsplit
 from dataclasses import dataclass
 from volttron.platform.auth import certs
 from volttron.platform.auth.auth_protocols import *
 from volttron.platform.parameters import Parameters
-from volttron.utils.rmq_config_params import RMQConfig
 from volttron.utils.rmq_mgmt import RabbitMQMgmt
 from volttron.platform import jsonapi
-from volttron.platform.agent.utils import get_fq_identity, get_platform_instance_name
-from volttron.platform.messaging.health import STATUS_BAD
-from volttron.platform import get_home
+from volttron.platform.agent.utils import get_fq_identity
 
 from volttron.platform import is_rabbitmq_available
 
@@ -119,9 +115,7 @@ class RMQConnectionAPI:
         :param retry_attempt: pika connection parameter - number of connection retry attempts
         :return: instance of pika.ConnectionParameters
         """
-        from urllib import parse
-
-        parsed_addr = parse.urlparse(self.params.url_address)
+        parsed_addr = urlparse(self.params.url_address)
         _, virtual_host = parsed_addr.path.split('/')
 
         try:

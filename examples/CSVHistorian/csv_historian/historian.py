@@ -36,14 +36,13 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
+import csv
+import logging
 import os
 import sys
-import logging
 
 from volttron.platform.agent import utils
 from volttron.platform.agent.base_historian import BaseHistorian
-
-import csv
 
 
 utils.setup_logging()
