@@ -164,12 +164,12 @@ def dnp3_tester_agent(request, volttron_instance):
                               method='manage_delete_store',
                               identity=PLATFORM_DRIVER).get(timeout=5)
 
-    json_config_path = Path("./testing_data/udd-Dnp3.config")
+    json_config_path = Path("../examples/dnp3.config")
     json_config_path = Path(TEST_DIR, json_config_path)
     with open(json_config_path, "r") as f:
         json_str_p20000 = f.read()
 
-    csv_config_path = Path("./testing_data/udd-Dnp3.csv")
+    csv_config_path = Path("../examples/dnp3.csv")
     csv_config_path = Path(TEST_DIR, csv_config_path)
     with open(csv_config_path, "r") as f:
         csv_str = f.read()
@@ -177,7 +177,7 @@ def dnp3_tester_agent(request, volttron_instance):
     tester_agent.vip.rpc.call(peer='config.store',
                               method='manage_store',
                               identity=PLATFORM_DRIVER,
-                              config_name="udd-Dnp3.csv",
+                              config_name="dnp3.csv",
                               raw_contents=csv_str,
                               config_type='csv'
                               ).get(timeout=5)

@@ -8,10 +8,10 @@ from pathlib import Path
 import random
 
 from services.core.PlatformDriverAgent.platform_driver.interfaces. \
-    udd_dnp3 import UserDevelopRegisterDnp3
+    dnp3 import UserDevelopRegisterDnp3
 from pydnp3 import opendnp3
 from services.core.PlatformDriverAgent.platform_driver.interfaces. \
-    udd_dnp3.udd_dnp3 import Interface as DNP3Interface
+    dnp3.dnp3 import Interface as DNP3Interface
 
 from dnp3_python.dnp3station.master_new import MyMasterNew
 from dnp3_python.dnp3station.outstation_new import MyOutStationNew
