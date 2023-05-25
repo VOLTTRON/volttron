@@ -1,0 +1,88 @@
+[
+    {
+        "Point Name": "light.philips_440400982842_huelight",
+        "Volttron Point Name": "light.philips_440400982842_huelight",
+        "Units": "On / Off",
+        "Units Details": "on/off",
+        "Writable": true,
+        "Starting Value": true,
+        "Type": "boolean",
+        "Notes": "lights hallway",
+        "Attributes": {
+            "brightness": "brightness",
+            "temperature": "color_temp",
+            "Color temp": "color_temp_kelvin",
+            "Color": "rgb_color"
+        }
+    },
+    {
+        "Point Name": "climate.thermostat",
+        "Volttron Point Name": "climate.thermostat",
+        "Units": "On / Off",
+        "Units Details": "on/off",
+        "Writable": true,
+        "Starting Value": true,
+        "Type": "boolean",
+        "Notes": "lights bedroom",
+        "Attributes": {
+            "temperature": "current_temperature",
+            "humidity": "current_humidity"
+        }
+    },
+    {
+        "Point Name": "climate.resideo",
+        "Volttron Point Name": "climate.resideo",
+        "Units": "On / Off",
+        "Units Details": "on/off",
+        "Writable": true,
+        "Starting Value": true,
+        "Type": "boolean",
+        "Notes": "Honeywell ",
+        "Attributes": {
+            "temperature": "current_temperature",
+            "humidity": "hvac_action"
+        }
+    },
+    {
+        "Point Name": "weather.forecast_iotcoe",
+        "Volttron Point Name": "weather.forecast_iotcoe",
+        "Units": "°F",
+        "Units Details": "°F",
+        "Writable": true,
+        "Starting Value": 20,
+        "Type": "float",
+        "Notes": "Local Weather",
+        "Attributes": {
+            "temperature": "temperature",
+            "humidity": "humidity",
+            "wind_speed": "wind_speed"
+        }
+    },
+    {
+        "Point Name": "sensor.average_humidity_1621",
+        "Volttron Point Name": "sensor.average_humidity_1621",
+        "Units": "%",
+        "Units Details": "%",
+        "Writable": true,
+        "Starting Value": 20,
+        "Type": "float",
+        "Notes": "Average humidity of 1621",
+        "Attributes": {
+            "state_replace": "humidity"
+        }
+    },
+    {
+        "Point Name": "sensor.4_in_1_sensor_air_temperature",
+        "Volttron Point Name": "sensor.4_in_1_sensor_air_temperature",
+        "Units": "%",
+        "Units Details": "%",
+        "Writable": true,
+        "Starting Value": 20,
+        "Type": "float",
+        "Notes": "Average humidity of 1621",
+        "Attributes": {
+            "state_replace": "temperature"
+            
+        }
+    }
+]
