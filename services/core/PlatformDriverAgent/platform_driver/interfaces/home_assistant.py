@@ -193,45 +193,6 @@ class Interface(BasicRevert, BaseInterface):
 
         return result
 
-    def change_thermostat_mode(self, thermostat_entity_id, mode):
-        url = f"http://{self.ip_address}:8123/api/services/climate/set_hvac_mode"
-        headers = {
-                "Authorization": f"Bearer {self.access_token}",
-                "content-type": "application/json",
-        }
-        
-        data = {
-            "entity_id": thermostat_entity_id,
-            "hvac_mode": mode,
-        }
-        
-        response = requests.post(url, headers=headers, json=data)
-        
-        if response.status_code == 200:
-            print(f"Successfully changed the mode of {thermostat_entity_id} to {mode}")
-        else:
-            print(f"Failed to change the mode of {thermostat_entity_id}. Response: {response.text}")
-        
-    
-    def set_thermostat_temperature(self, entity_id, temperature):
-        headers = {
-            "Authorization": f"Bearer {self.access_token}",
-            "Content-Type": "application/json",
-        }
-        url = f"http://{self.ip_address}:8123/api/services/climate/set_temperature"
-        payload = {
-            "entity_id": entity_id,
-            "temperature": temperature,
-        }
-        response = requests.post(url, headers=headers, data=json.dumps(payload))
-        if response.status_code == 200:
-            _log.info(f"Set temperature for {entity_id} to {temperature}")
-        else:
-            _log.error(f"Failed to set temperature for {entity_id}: {response.text}")
- 
-    
-
-
     def parse_config(self, configDict):
 
         def turn_on_lights(brightness_level):
@@ -245,7 +206,7 @@ class Interface(BasicRevert, BaseInterface):
             for entity in point_names:
                 if entity.startswith("light"): # this will ensure that only lights are conrolled and not other devices
                     try:
-                        brightness_level = 255 # ranges from 0 - 255 for most lights
+                     # ranges from 0 - 255 for most lights
                         payload = {
                             "entity_id": f"{entity}",
                             "brightness": brightness_level,
@@ -282,11 +243,57 @@ class Interface(BasicRevert, BaseInterface):
                 else:
                     continue
         
+        def change_thermostat_mode(mode):
+            url = f"http://{self.ip_address}:8123/api/services/climate/set_hvac_mode"
+            headers = {
+                    "Authorization": f"Bearer {self.access_token}",
+                    "content-type": "application/json",
+            }
+            point_names = point_name.split('\n')
+            for entity in point_names:
+                if entity.startswith("climate."):
+                    data = {
+                        "entity_id": entity,
+                        "hvac_mode": mode,
+                    }
+                    response = requests.post(url, headers=headers, json=data)
+            
+                    if response.status_code == 200:
+                        print(f"Successfully changed the mode of {entity} to {mode}")
+                    else:
+                        print(f"Failed to change the mode of {entity}. Response: {response.text}")
+        def set_thermostat_temperature(temperature):
+            url = f"http://{self.ip_address}:8123/api/services/climate/set_temperature"
+            headers = {
+                    "Authorization": f"Bearer {self.access_token}",
+                    "content-type": "application/json",
+            }
+            point_names = point_name.split('\n')
+            for entity in point_names:
+                if entity.startswith("climate."):
+                    if units == "C":
+                        converted_temp = round((temperature - 32) * 5/9, 1)
+                        print(f"converted temp {converted_temp}")
+                        data = {
+                            "entity_id": entity,
+                            "temperature": converted_temp,
+                        }
+                        response = requests.post(url, headers=headers, json=data)
+                    else:
+                        data2 = {
+                            "entity_id": entity,
+                            "temperature": temperature,
+                        }
+                        response = requests.post(url, headers=headers, json=data2)
+            
+                    if response.status_code == 200:
+                        print(f"Successfully changed the temp of {entity} to {temperature}")
+                    else:
+                        print(f"Failed to change the temp of {entity}. Response: {response.text}")
 
         if configDict is None:
             return
         for regDef in configDict:
-            print(f"regdef = {regDef}")
             # Skip lines that have no address yet.
             if not regDef['Point Name']:
                 continue
@@ -295,27 +302,26 @@ class Interface(BasicRevert, BaseInterface):
 
             point_name = regDef['Volttron Point Name']
             print(f"Extracted point name: {point_name}")
+            units = regDef['Units']
 
             #get_ha_values(point_name) # calling get_ha_values
-            brightness_level = 255 # 0 - 255
+            brightness_level = 100 # 0 - 255
             turn_on_lights(brightness_level)
             # turn_off_lights()
-            self.change_thermostat_mode('climate.thermostat', 'off') # heat, cool, auto, off
-            self.set_thermostat_temperature('climate.thermostat', 29)
-
-            self.change_thermostat_mode('climate.resedio', 'heat') # heat, cool, auto, off
-            self.set_thermostat_temperature('climate.resedio', 80)
+            set_thermostat_temperature(71)
+            change_thermostat_mode("cool") # heat, cool, auto, off
+            #set_thermostat_temperature(29)
                         
             self.new = regDef['Volttron Point Name']
             description = regDef.get('Notes', '')
-            units = regDef['Units']
+            
             default_value = str(regDef.get("Starting Value", 'sin')).strip()
             if not default_value:
                 default_value = None
             type_name = regDef.get("Type", 'string')
             reg_type = type_mapping.get(type_name, str)
             attributes = regDef.get('Attributes', None)
-            register_type = FakeRegister if not point_name.startswith('EKG') else EKGregister
+            register_type = FakeRegister
 
             register = register_type(
                 read_only,
@@ -330,7 +336,6 @@ class Interface(BasicRevert, BaseInterface):
                 self.set_default(point_name, register.value)
 
             self.insert_register(register)
-
 
         
         self._create_subscriptions(self.volttron_topic) # running function to subscribe to topic specified in config
