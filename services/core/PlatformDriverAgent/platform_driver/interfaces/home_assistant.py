@@ -294,7 +294,7 @@ class Interface(BasicRevert, BaseInterface):
         if configDict is None:
             return
         for regDef in configDict:
-            # Skip lines that have no address yet.
+            # Skip lines that have no address yet
             if not regDef['Point Name']:
                 continue
 
@@ -308,7 +308,7 @@ class Interface(BasicRevert, BaseInterface):
             brightness_level = 100 # 0 - 255
             turn_on_lights(brightness_level)
             # turn_off_lights()
-            set_thermostat_temperature(71)
+            set_thermostat_temperature(65)
             change_thermostat_mode("cool") # heat, cool, auto, off
             #set_thermostat_temperature(29)
                         
