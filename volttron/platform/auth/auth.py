@@ -36,45 +36,31 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-
+import copy
 import logging
 import os
-import copy
 
 import gevent
 import gevent.core
 from gevent.fileobject import FileObject
 
-from volttron.platform.agent.known_identities import (
-    CONTROL_CONNECTION,
-    PROCESS_IDENTITIES,
-)
-from volttron.platform.auth.auth_utils import load_user
+from volttron.platform.agent.known_identities import CONTROL_CONNECTION, PROCESS_IDENTITIES
+from volttron.platform.agent.utils import create_file_if_missing, get_messagebus, watch_file
 from volttron.platform.auth.auth_entry import AuthEntry
 from volttron.platform.auth.auth_file import AuthFile
+from volttron.platform.auth.auth_utils import load_user
 from volttron.platform.jsonrpc import RemoteError
+from volttron.platform.vip.agent import RPC, Agent, Core
 from volttron.platform.vip.agent.errors import Unreachable
 from volttron.platform.vip.pubsubservice import ProtectedPubSubTopics
-from volttron.platform.agent.utils import (
-    create_file_if_missing,
-    watch_file,
-    get_messagebus,
-)
-from volttron.platform.vip.agent import Agent, Core, RPC
 
 _log = logging.getLogger(__name__)
 
 
 class AuthService(Agent):
-    def __init__(
-            self,
-            auth_file,
-            protected_topics_file,
-            setup_mode,
-            aip,
-            *args,
-            **kwargs
-    ):
+
+    def __init__(self, auth_file, protected_topics_file, setup_mode, aip,
+                 *args, **kwargs):
         """Initializes AuthService, and prepares AuthFile."""
         self.allow_any = kwargs.pop("allow_any", False)
         self.is_zap_required = kwargs.pop('zap_required', True)
@@ -96,8 +82,7 @@ class AuthService(Agent):
         self._is_connected = False
         self._protected_topics_file = protected_topics_file
         self._protected_topics_file_path = os.path.abspath(
-            protected_topics_file
-        )
+            protected_topics_file)
         self._protected_topics = {}
         self._protected_topics_for_rmq = ProtectedPubSubTopics()
         self._setup_mode = setup_mode
@@ -137,28 +122,23 @@ class AuthService(Agent):
             :params: auth_entry, index, is_allow
             :return: None
             """
-            self.auth_file.update_by_index(
-                AuthEntry(**auth_entry), index, is_allow
-            )
+            self.auth_file.update_by_index(AuthEntry(**auth_entry), index,
+                                           is_allow)
 
         self.vip.rpc.export(auth_file_read, "auth_file.read")
-        self.vip.rpc.export(
-            self.auth_file.find_by_credentials, "auth_file.find_by_credentials"
-        )
+        self.vip.rpc.export(self.auth_file.find_by_credentials,
+                            "auth_file.find_by_credentials")
         self.vip.rpc.export(auth_file_add, "auth_file.add")
-        self.vip.rpc.export(
-            auth_file_update_by_index, "auth_file.update_by_index"
-        )
+        self.vip.rpc.export(auth_file_update_by_index,
+                            "auth_file.update_by_index")
         self.vip.rpc.export(
             self.auth_file.remove_by_credentials,
             "auth_file.remove_by_credentials",
         )
-        self.vip.rpc.export(
-            self.auth_file.remove_by_index, "auth_file.remove_by_index"
-        )
-        self.vip.rpc.export(
-            self.auth_file.remove_by_indices, "auth_file.remove_by_indices"
-        )
+        self.vip.rpc.export(self.auth_file.remove_by_index,
+                            "auth_file.remove_by_index")
+        self.vip.rpc.export(self.auth_file.remove_by_indices,
+                            "auth_file.remove_by_indices")
         self.vip.rpc.export(self.auth_file.set_groups, "auth_file.set_groups")
         self.vip.rpc.export(self.auth_file.set_roles, "auth_file.set_roles")
 
@@ -169,11 +149,13 @@ class AuthService(Agent):
         self.read_auth_file()
         if get_messagebus() == "zmq":
             from volttron.platform.auth.auth_protocols.auth_zmq import ZMQAuthorization, ZMQServerAuthentication
-            self.authentication_server = ZMQServerAuthentication(auth_service=self)
+            self.authentication_server = ZMQServerAuthentication(
+                auth_service=self)
             self.authorization_server = ZMQAuthorization(auth_service=self)
         else:
             from volttron.platform.auth.auth_protocols.auth_rmq import RMQAuthorization, RMQServerAuthentication
-            self.authentication_server = RMQServerAuthentication(auth_service=self)
+            self.authentication_server = RMQServerAuthentication(
+                auth_service=self)
             self.authorization_server = RMQAuthorization(auth_service=self)
         self._read_protected_topics_file()
         self.core.spawn(watch_file, self.auth_file_path, self.read_auth_file)
@@ -186,7 +168,8 @@ class AuthService(Agent):
 
     @Core.receiver("onstart")
     def start_authentication_server(self, sender, **kwargs):
-        self.authentication_server.handle_authentication(self._protected_topics)
+        self.authentication_server.handle_authentication(
+            self._protected_topics)
 
     @Core.receiver("onstop")
     def stop_authentication_server(self, sender, **kwargs):
@@ -220,27 +203,22 @@ class AuthService(Agent):
                         # Create it and set it to have the provided
                         # rpc capabilities
                         entry.rpc_method_authorizations[method] = rpc_methods[
-                            method
-                        ]
+                            method]
                         is_updated = True
                     # Check if the rpc method does not have any
                     # rpc capabilities
                     if not entry.rpc_method_authorizations[method]:
                         # Set it to have the provided rpc capabilities
                         entry.rpc_method_authorizations[method] = rpc_methods[
-                            method
-                        ]
+                            method]
                         is_updated = True
                     # Check if the rpc method's capabilities match
                     # what have been provided
-                    if (
-                            entry.rpc_method_authorizations[method]
-                            != rpc_methods[method]
-                    ):
+                    if (entry.rpc_method_authorizations[method]
+                            != rpc_methods[method]):
                         # Update rpc_methods based on auth entries
                         updated_rpc_methods[
-                            method
-                        ] = entry.rpc_method_authorizations[method]
+                            method] = entry.rpc_method_authorizations[method]
                 # Update auth file if changed and return rpc_methods
                 if is_updated:
                     self.auth_file.update_by_index(entry, entries.index(entry))
@@ -256,14 +234,11 @@ class AuthService(Agent):
         rpc_method_authorizations = {}
         try:
             rpc_method_authorizations = self.vip.rpc.call(
-                identity, "auth.get_all_rpc_authorizations"
-            ).get()
+                identity, "auth.get_all_rpc_authorizations").get()
             _log.debug(f"RPC Methods are: {rpc_method_authorizations}")
         except Unreachable:
-            _log.warning(
-                f"{identity} "
-                f"is unreachable while attempting to get rpc methods"
-            )
+            _log.warning(f"{identity} "
+                         f"is unreachable while attempting to get rpc methods")
 
         return rpc_method_authorizations
 
@@ -276,11 +251,9 @@ class AuthService(Agent):
         """
         for entry in entries:
             # Skip if core agent
-            if (
-                    entry.identity is not None
+            if (entry.identity is not None
                     and entry.identity not in PROCESS_IDENTITIES
-                    and entry.identity != CONTROL_CONNECTION
-            ):
+                    and entry.identity != CONTROL_CONNECTION):
                 # Collect all modified methods
                 modified_methods = {}
                 for method in entry.rpc_method_authorizations:
@@ -291,8 +264,7 @@ class AuthService(Agent):
                         # if no capabilities in auth file
                         continue
                     modified_methods[method] = entry.rpc_method_authorizations[
-                        method
-                    ]
+                        method]
                 if modified_methods:
                     method_error = True
                     try:
@@ -303,11 +275,9 @@ class AuthService(Agent):
                         ).wait(timeout=4)
                         method_error = False
                     except gevent.Timeout:
-                        _log.error(
-                            f"{entry.identity} "
-                            f"has timed out while attempting "
-                            f"to update rpc_method_authorizations"
-                        )
+                        _log.error(f"{entry.identity} "
+                                   f"has timed out while attempting "
+                                   f"to update rpc_method_authorizations")
                         method_error = False
                     except RemoteError:
                         method_error = True
@@ -320,18 +290,14 @@ class AuthService(Agent):
                                     entry.identity,
                                     "auth.set_rpc_authorizations",
                                     method_str=method,
-                                    capabilities=
-                                    entry.rpc_method_authorizations[
-                                        method
-                                    ],
+                                    capabilities=entry.
+                                    rpc_method_authorizations[method],
                                 )
                             except gevent.Timeout:
-                                _log.error(
-                                    f"{entry.identity} "
-                                    f"has timed out while attempting "
-                                    f"to update "
-                                    f"rpc_method_authorizations"
-                                )
+                                _log.error(f"{entry.identity} "
+                                           f"has timed out while attempting "
+                                           f"to update "
+                                           f"rpc_method_authorizations")
                             except RemoteError:
                                 _log.error(f"Method {method} does not exist.")
 
@@ -357,27 +323,19 @@ class AuthService(Agent):
                 elif not entry.rpc_method_authorizations[method]:
                     entry.rpc_method_authorizations[method] = authorizations
                 else:
-                    entry.rpc_method_authorizations[method].extend(
-                        [
-                            rpc_auth
-                            for rpc_auth in authorizations
-                            if rpc_auth in authorizations
-                               and rpc_auth
-                               not in entry.rpc_method_authorizations[method]
-                        ]
-                    )
+                    entry.rpc_method_authorizations[method].extend([
+                        rpc_auth for rpc_auth in authorizations
+                        if rpc_auth in authorizations and rpc_auth not in
+                        entry.rpc_method_authorizations[method]
+                    ])
                 self.auth_file.update_by_index(entry, entries.index(entry))
                 return
         _log.error("Agent identity not found in auth file!")
         return
 
     @RPC.export
-    def delete_rpc_authorizations(
-            self,
-            identity,
-            method,
-            denied_authorizations
-    ):
+    def delete_rpc_authorizations(self, identity, method,
+                                  denied_authorizations):
         """
         Removes authorizations to method in auth entry in auth file.
 
@@ -396,44 +354,34 @@ class AuthService(Agent):
                 if method not in entry.rpc_method_authorizations:
                     _log.error(
                         f"{entry.identity} does not have a method called "
-                        f"{method}"
-                    )
+                        f"{method}")
                 elif not entry.rpc_method_authorizations[method]:
-                    _log.error(
-                        f"{entry.identity}.{method} does not have any "
-                        f"authorized capabilities."
-                    )
+                    _log.error(f"{entry.identity}.{method} does not have any "
+                               f"authorized capabilities.")
                 else:
                     any_match = False
                     for rpc_auth in denied_authorizations:
-                        if (
-                                rpc_auth
-                                not in entry.rpc_method_authorizations[method]
-                        ):
+                        if (rpc_auth not in
+                                entry.rpc_method_authorizations[method]):
                             _log.error(
                                 f"{rpc_auth} is not an authorized capability "
-                                f"for {method}"
-                            )
+                                f"for {method}")
                         else:
                             any_match = True
                     if any_match:
                         entry.rpc_method_authorizations[method] = [
-                            rpc_auth
-                            for rpc_auth in entry.rpc_method_authorizations[
-                                method
-                            ]
+                            rpc_auth for rpc_auth in
+                            entry.rpc_method_authorizations[method]
                             if rpc_auth not in denied_authorizations
                         ]
                         if not entry.rpc_method_authorizations[method]:
                             entry.rpc_method_authorizations[method] = [""]
-                        self.auth_file.update_by_index(
-                            entry, entries.index(entry)
-                        )
+                        self.auth_file.update_by_index(entry,
+                                                       entries.index(entry))
                     else:
                         _log.error(
                             f"No matching authorized capabilities provided "
-                            f"for {method}"
-                        )
+                            f"for {method}")
                 return
         _log.error("Agent identity not found in auth file!")
         return
@@ -441,16 +389,14 @@ class AuthService(Agent):
     def _update_auth_lists(self, entries, is_allow=True):
         auth_list = []
         for entry in entries:
-            auth_list.append(
-                {
-                    "domain": entry.domain,
-                    "address": entry.address,
-                    "mechanism": entry.mechanism,
-                    "credentials": entry.credentials,
-                    "user_id": entry.user_id,
-                    "retries": 0,
-                }
-            )
+            auth_list.append({
+                "domain": entry.domain,
+                "address": entry.address,
+                "mechanism": entry.mechanism,
+                "credentials": entry.credentials,
+                "user_id": entry.user_id,
+                "retries": 0,
+            })
         if is_allow:
             self._auth_approved = [
                 entry for entry in auth_list if entry["address"] is not None
@@ -472,25 +418,21 @@ class AuthService(Agent):
         """
         modified_entries = []
         for entry in new_entries:
-            if (
-                    entry.identity is not None
+            if (entry.identity is not None
                     and entry.identity not in PROCESS_IDENTITIES
-                    and entry.identity != CONTROL_CONNECTION
-            ):
+                    and entry.identity != CONTROL_CONNECTION):
 
                 for old_entry in old_entries:
                     if entry.identity == old_entry.identity:
-                        if (
-                                entry.rpc_method_authorizations
-                                != old_entry.rpc_method_authorizations
-                        ):
+                        if (entry.rpc_method_authorizations
+                                != old_entry.rpc_method_authorizations):
                             modified_entries.append(entry)
                         else:
                             pass
                     else:
                         pass
                 if entry.identity not in [
-                    old_entry.identity for old_entry in old_entries
+                        old_entry.identity for old_entry in old_entries
                 ]:
                     modified_entries.append(entry)
             else:
@@ -498,7 +440,7 @@ class AuthService(Agent):
         return modified_entries
 
     def read_auth_file(self):
-        _log.info("loading auth file %s", self.auth_file_path)
+        _log.debug("loading auth file %s", self.auth_file_path)
         # Update from auth file into memory
         if self.auth_file.auth_data:
             old_entries = self.auth_file.read_allow_entries().copy()
@@ -531,12 +473,9 @@ class AuthService(Agent):
                 gevent.sleep(2)
                 self._send_update(modified_entries)
             except BaseException as err:
-                _log.error(
-                    "Exception sending auth updates to peer. %r",
-                    err
-                )
+                _log.error("Exception sending auth updates to peer. %r", err)
                 raise err
-        _log.info("auth file %s loaded", self.auth_file_path)
+        _log.debug("auth file %s loaded", self.auth_file_path)
 
     def get_protected_topics(self):
         protected = self._protected_topics
@@ -549,7 +488,8 @@ class AuthService(Agent):
             with open(self._protected_topics_file) as fil:
                 # Use gevent FileObject to avoid blocking the thread
                 data = FileObject(fil, close=False).read()
-                self._protected_topics = self.authorization_server.load_protected_topics(data)
+                self._protected_topics = self.authorization_server.load_protected_topics(
+                    data)
 
         except Exception:
             _log.exception("error loading %s", self._protected_topics_file)
@@ -576,7 +516,8 @@ class AuthService(Agent):
                 peers = self.vip.peerlist().get(timeout=0.5)
             except BaseException as err:
                 _log.warning(
-                    "Attempt %i to get peerlist failed with " "exception %s",
+                    "Attempt %i to get peerlist failed with "
+                    "exception %s",
                     i,
                     err,
                 )
@@ -596,12 +537,12 @@ class AuthService(Agent):
         # Update RPC method authorizations on agents
         if modified_entries:
             try:
-                gevent.spawn(
-                    self.update_rpc_authorizations, modified_entries
-                ).join(timeout=15)
+                gevent.spawn(self.update_rpc_authorizations,
+                             modified_entries).join(timeout=15)
             except gevent.Timeout:
                 _log.error("Timed out updating methods from auth file!")
-        self.authorization_server.update_user_capabilites(self.get_user_to_capabilities())
+        self.authorization_server.update_user_capabilites(
+            self.get_user_to_capabilities())
 
     @RPC.export
     def get_user_to_capabilities(self):
