@@ -45,6 +45,8 @@ import os
 import subprocess
 import sys
 import warnings
+from pathlib import Path
+from typing import Callable
 
 try:
     HAS_SYSLOG = True
@@ -64,6 +66,7 @@ import yaml
 from dateutil.parser import parse
 from dateutil.tz import tzoffset, tzutc
 from tzlocal import get_localzone
+from watchdog.events import FileClosedEvent, FileSystemEventHandler
 from watchdog_gevent import Observer
 
 from volttron.platform import get_address, get_home, jsonapi
@@ -465,8 +468,7 @@ def vip_main(agent_class, identity=None, version='0.1', **kwargs):
             if not is_valid_identity(identity):
                 _log.warning('Deprecation warining')
                 _log.warning(
-                    'All characters in {identity} are not in the valid set.'.
-                    format(idenity=identity))
+                    f'All characters in {identity} are not in the valid set.')
 
         address = get_address()
         agent_uuid = os.environ.get('AGENT_UUID')
@@ -720,20 +722,34 @@ def process_timestamp(timestamp_string, topic=''):
     return timestamp, original_tz
 
 
-def watch_file(fullpath, callback):
-    """Run callback method whenever the file changes
-
-        Not available on OS X/MacOS.
+def watch_file(path: str, callback: Callable):
+    """Run callback method whenever `path` changes.
+    
+    If `path` is not rooted the function assumes relative to the $VOLTTRON_HOME
+    environmental variable
+    
+    The watch_file will create a watchdog event handler and will trigger when
+    the close event happens for writing to the file.
+    
+    Not available on OS X/MacOS.
     """
+    file_path = Path(path)
+    if not file_path.is_absolute():
+        file_path = Path(get_home()) / file_path
 
-    dirname, filename = os.path.split(fullpath)
-    _log.info("Adding file watch for %s dirname=%s, filename=%s", fullpath,
-              get_home(), filename)
+    class Reloader(FileSystemEventHandler):
+
+        def on_closed(self, event):
+            """ Only called after a write to file has been closed
+            """
+            callback()
+
+    _log.debug(f"Watch file added for filename {file_path}")
     observer = Observer()
-    observer.schedule(VolttronHomeFileReloader(filename, callback),
-                      path=get_home())
+
+    observer.schedule(Reloader(), str(file_path))
     observer.start()
-    _log.info("Added file watch for %s", fullpath)
+    _log.debug("Added file watch for %s", path)
 
 
 def watch_file_with_fullpath(fullpath, callback):
