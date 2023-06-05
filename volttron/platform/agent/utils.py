@@ -35,24 +35,24 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-
 """VOLTTRON platform™ agent helper classes/functions."""
-
 
 import argparse
 import calendar
 import errno
 import logging
-import warnings
 import os
-
 import subprocess
 import sys
+import warnings
+
 try:
     HAS_SYSLOG = True
     import syslog
 except ImportError:
     HAS_SYSLOG = False
+import re
+import stat
 import traceback
 from configparser import ConfigParser
 from datetime import datetime
@@ -60,25 +60,22 @@ from datetime import datetime
 import gevent
 import psutil
 import pytz
-import re
-import stat
 import yaml
 from dateutil.parser import parse
-from dateutil.tz import tzutc, tzoffset
+from dateutil.tz import tzoffset, tzutc
 from tzlocal import get_localzone
 from watchdog_gevent import Observer
 
-from volttron.platform import get_home, get_address
-from volttron.platform import jsonapi
-from volttron.utils import VolttronHomeFileReloader, AbsolutePathFileReloader
+from volttron.platform import get_address, get_home, jsonapi
+from volttron.utils import AbsolutePathFileReloader, VolttronHomeFileReloader
 from volttron.utils.prompt import prompt_response
 
-
-__all__ = ['load_config', 'run_agent', 'start_agent_thread',
-           'is_valid_identity', 'load_platform_config', 'get_messagebus',
-           'get_fq_identity', 'execute_command', 'get_aware_utc_now',
-           'is_secure_mode', 'is_web_enabled', 'is_auth_enabled',
-           'wait_for_volttron_shutdown', 'is_volttron_running']
+__all__ = [
+    'load_config', 'run_agent', 'start_agent_thread', 'is_valid_identity',
+    'load_platform_config', 'get_messagebus', 'get_fq_identity',
+    'execute_command', 'get_aware_utc_now', 'is_secure_mode', 'is_web_enabled',
+    'is_auth_enabled', 'wait_for_volttron_shutdown', 'is_volttron_running'
+]
 
 __author__ = 'Brandon Carpenter <brandon.carpenter@pnnl.gov>'
 __copyright__ = 'Copyright (c) 2016, Battelle Memorial Institute'
@@ -146,11 +143,15 @@ def strip_comments(string):
 def load_config(config_path):
     """Load a JSON-encoded configuration file."""
     if config_path is None:
-        _log.info("AGENT_CONFIG does not exist in environment. load_config returning empty configuration.")
+        _log.info(
+            "AGENT_CONFIG does not exist in environment. load_config returning empty configuration."
+        )
         return {}
 
     if not os.path.exists(config_path):
-        raise ValueError(f"Config file specified by AGENT_CONFIG path {config_path} does not exist.")
+        raise ValueError(
+            f"Config file specified by AGENT_CONFIG path {config_path} does not exist."
+        )
 
     # First attempt parsing the file with a yaml parser (allows comments natively)
     # Then if that fails we fallback to our modified json parser.
@@ -194,7 +195,8 @@ def get_platform_instance_name(vhome=None, prompt=False):
         if not instance_name:
             instance_name = 'volttron1'
         instance_name = prompt_response("Name of this volttron instance:",
-                                        mandatory=True, default=instance_name)
+                                        mandatory=True,
+                                        default=instance_name)
     else:
         if not instance_name:
             _log.warning("Using hostname as instance name.")
@@ -237,6 +239,7 @@ def get_messagebus():
         message_bus = config.get('message-bus', 'zmq')
     return message_bus
 
+
 def is_auth_enabled():
     """Get type of message bus - zeromq or rabbbitmq."""
     allow_auth = os.environ.get('AUTH_ENABLED')
@@ -245,6 +248,7 @@ def is_auth_enabled():
         allow_auth = config.get('allow-auth', 'True')
     allow_auth = False if allow_auth == 'False' else True
     return allow_auth
+
 
 def is_web_enabled():
     """Returns True if web enabled, False otherwise"""
@@ -294,7 +298,7 @@ def store_message_bus_config(message_bus, instance_name):
         config = ConfigParser()
         config.read(config_path)
         config.set('volttron', 'message-bus', message_bus)
-        config.set('volttron','instance-name', instance_name)
+        config.set('volttron', 'instance-name', instance_name)
         with open(config_path, 'w') as configfile:
             config.write(configfile)
     else:
@@ -354,8 +358,11 @@ def parse_json_config(config_str):
     return jsonapi.loads(strip_comments(config_str))
 
 
-def run_agent(cls, subscribe_address=None, publish_address=None,
-              config_path=None, **kwargs):
+def run_agent(cls,
+              subscribe_address=None,
+              publish_address=None,
+              config_path=None,
+              **kwargs):
     """Instantiate an agent and run it in the current thread.
 
     Attempts to get keyword parameters from the environment if they
@@ -395,8 +402,11 @@ def isapipe(fd):
     return stat.S_ISFIFO(os.fstat(fd).st_mode)
 
 
-def default_main(agent_class, description=None, argv=sys.argv,
-                 parser_class=argparse.ArgumentParser, **kwargs):
+def default_main(agent_class,
+                 description=None,
+                 argv=sys.argv,
+                 parser_class=argparse.ArgumentParser,
+                 **kwargs):
     """Default main entry point implementation for legacy agents.
 
     description and parser_class are depricated. Please avoid using them.
@@ -413,8 +423,8 @@ def default_main(agent_class, description=None, argv=sys.argv,
             sub_addr = os.environ['AGENT_SUB_ADDR']
             pub_addr = os.environ['AGENT_PUB_ADDR']
         except KeyError as exc:
-            sys.stderr.write(
-                'missing environment variable: {}\n'.format(exc.args[0]))
+            sys.stderr.write('missing environment variable: {}\n'.format(
+                exc.args[0]))
             sys.exit(1)
         if sub_addr.startswith('ipc://') and sub_addr[6:7] != '@':
             if not os.path.exists(sub_addr[6:]):
@@ -427,7 +437,8 @@ def default_main(agent_class, description=None, argv=sys.argv,
         config = os.environ.get('AGENT_CONFIG')
         agent = agent_class(subscribe_address=sub_addr,
                             publish_address=pub_addr,
-                            config_path=config, **kwargs)
+                            config_path=config,
+                            **kwargs)
         agent.run()
     except KeyboardInterrupt:
         pass
@@ -445,7 +456,7 @@ def vip_main(agent_class, identity=None, version='0.1', **kwargs):
 
         # Quiet printing of KeyboardInterrupt by greenlets
         Hub = gevent.hub.Hub
-        Hub.NOT_ERROR = Hub.NOT_ERROR + (KeyboardInterrupt,)
+        Hub.NOT_ERROR = Hub.NOT_ERROR + (KeyboardInterrupt, )
 
         config = os.environ.get('AGENT_CONFIG')
         identity = os.environ.get('AGENT_VIP_IDENTITY', identity)
@@ -454,8 +465,8 @@ def vip_main(agent_class, identity=None, version='0.1', **kwargs):
             if not is_valid_identity(identity):
                 _log.warning('Deprecation warining')
                 _log.warning(
-                    'All characters in {identity} are not in the valid set.'
-                    .format(idenity=identity))
+                    'All characters in {identity} are not in the valid set.'.
+                    format(idenity=identity))
 
         address = get_address()
         agent_uuid = os.environ.get('AGENT_UUID')
@@ -463,12 +474,15 @@ def vip_main(agent_class, identity=None, version='0.1', **kwargs):
 
         from volttron.platform.auth.certs import Certs
         certs = Certs()
-        agent = agent_class(config_path=config, identity=identity,
-                            address=address, agent_uuid=agent_uuid,
+        agent = agent_class(config_path=config,
+                            identity=identity,
+                            address=address,
+                            agent_uuid=agent_uuid,
                             volttron_home=volttron_home,
                             version=version,
-                            message_bus=message_bus, **kwargs)
-        
+                            message_bus=message_bus,
+                            **kwargs)
+
         try:
             run = agent.run
         except AttributeError:
@@ -485,20 +499,24 @@ def vip_main(agent_class, identity=None, version='0.1', **kwargs):
 # Keep the ability to have system log output for linux
 # this will fail on windows because no syslog.
 if HAS_SYSLOG:
+
     class SyslogFormatter(logging.Formatter):
-        _level_map = {logging.DEBUG: syslog.LOG_DEBUG,
-                      logging.INFO: syslog.LOG_INFO,
-                      logging.WARNING: syslog.LOG_WARNING,
-                      logging.ERROR: syslog.LOG_ERR,
-                      logging.CRITICAL: syslog.LOG_CRIT}
+        _level_map = {
+            logging.DEBUG: syslog.LOG_DEBUG,
+            logging.INFO: syslog.LOG_INFO,
+            logging.WARNING: syslog.LOG_WARNING,
+            logging.ERROR: syslog.LOG_ERR,
+            logging.CRITICAL: syslog.LOG_CRIT
+        }
 
         def format(self, record):
             level = self._level_map.get(record.levelno, syslog.LOG_INFO)
-            return '<{}>'.format(level) + super(SyslogFormatter, self).format(
-                record)
+            return '<{}>'.format(level) + super(SyslogFormatter,
+                                                self).format(record)
 
 
 class JsonFormatter(logging.Formatter):
+
     def format(self, record):
         dct = record.__dict__.copy()
         dct["msg"] = record.getMessage()
@@ -510,6 +528,7 @@ class JsonFormatter(logging.Formatter):
 
 
 class AgentFormatter(logging.Formatter):
+
     def __init__(self, fmt=None, datefmt=None):
         if fmt is None:
             fmt = '%(asctime)s %(composite_name)s %(levelname)s: %(message)s'
@@ -517,12 +536,12 @@ class AgentFormatter(logging.Formatter):
 
     def composite_name(self, record):
         if record.name == 'agents.log':
-            cname = '(%(processName)s %(process)d) %(remote_name)s'
+            cname = '(%(processName)s %(process)d [%(lineno)d]) %(remote_name)s'
         elif record.name.startswith('agents.std'):
-            cname = '(%(processName)s %(process)d) <{}>'.format(
+            cname = '(%(processName)s %(process)d [%(lineno)d]) <{}>'.format(
                 record.name.split('.', 2)[1])
         else:
-            cname = '() %(name)s'
+            cname = '() %(name)s [%(lineno)d]'
         return cname % record.__dict__
 
     def format(self, record):
@@ -544,9 +563,10 @@ def setup_logging(level=logging.DEBUG, console=False):
             handler.setFormatter(JsonFormatter())
         elif console:
             # Below format is more readable for console
-            handler.setFormatter(logging.Formatter('%(levelname)s: %(message)s'))
+            handler.setFormatter(
+                logging.Formatter('%(levelname)s: %(message)s'))
         else:
-            fmt = '%(asctime)s %(name)s %(levelname)s: %(message)s'
+            fmt = '%(asctime)s %(name)s %(lineno)d %(levelname)s: %(message)s'
             handler.setFormatter(logging.Formatter(fmt))
         if level != logging.DEBUG:
             # import it here so that when urllib3 imports the requests package, ssl would already got
@@ -615,7 +635,8 @@ def parse_timestamp_string(time_stamp_str):
         try:
             base_time_stamp_str = time_stamp_str[:26]
             time_zone_str = time_stamp_str[26:]
-            time_stamp = datetime.strptime(base_time_stamp_str, "%Y-%m-%dT%H:%M:%S.%f")
+            time_stamp = datetime.strptime(base_time_stamp_str,
+                                           "%Y-%m-%dT%H:%M:%S.%f")
             # Handle most common case.
             if time_zone_str == "+00:00":
                 return time_stamp.replace(tzinfo=pytz.UTC)
@@ -685,8 +706,9 @@ def process_timestamp(timestamp_string, topic=''):
     try:
         timestamp = parse_timestamp_string(timestamp_string)
     except (ValueError, TypeError):
-        _log.error("message for {topic} bad timetamp string: {ts_string}"
-                   .format(topic=topic, ts_string=timestamp_string))
+        _log.error(
+            "message for {topic} bad timetamp string: {ts_string}".format(
+                topic=topic, ts_string=timestamp_string))
         return
 
     if timestamp.tzinfo is None:
@@ -705,12 +727,11 @@ def watch_file(fullpath, callback):
     """
 
     dirname, filename = os.path.split(fullpath)
-    _log.info("Adding file watch for %s dirname=%s, filename=%s", fullpath, get_home(), filename)
+    _log.info("Adding file watch for %s dirname=%s, filename=%s", fullpath,
+              get_home(), filename)
     observer = Observer()
-    observer.schedule(
-        VolttronHomeFileReloader(filename, callback),
-        path=get_home()
-    )
+    observer.schedule(VolttronHomeFileReloader(filename, callback),
+                      path=get_home())
     observer.start()
     _log.info("Added file watch for %s", fullpath)
 
@@ -723,10 +744,7 @@ def watch_file_with_fullpath(fullpath, callback):
     dirname, filename = os.path.split(fullpath)
     _log.info("Adding file watch for %s", fullpath)
     _observer = Observer()
-    _observer.schedule(
-        AbsolutePathFileReloader(fullpath, callback),
-        dirname
-    )
+    _observer.schedule(AbsolutePathFileReloader(fullpath, callback), dirname)
     _log.info("Added file watch for %s", fullpath)
     _observer.start()
 
@@ -751,7 +769,8 @@ def create_file_if_missing(path, permission=0o660, contents=None):
         success = False
         try:
             if contents:
-                contents = contents if isinstance(contents, bytes) else contents.encode("utf-8")
+                contents = contents if isinstance(
+                    contents, bytes) else contents.encode("utf-8")
                 os.write(fd, contents)
                 success = True
         except Exception as e:
@@ -777,11 +796,17 @@ def fix_sqlite3_datetime(sql=None):
 
     def parse(time_stamp_bytes):
         return parse_timestamp_string(time_stamp_bytes.decode("utf-8"))
+
     sql.register_adapter(datetime, format_timestamp)
     sql.register_converter("timestamp", parse)
 
 
-def execute_command(cmds, env=None, cwd=None, logger=None, err_prefix=None, use_shell=False) -> str:
+def execute_command(cmds,
+                    env=None,
+                    cwd=None,
+                    logger=None,
+                    err_prefix=None,
+                    use_shell=False) -> str:
     """ Executes a command as a subprocess
 
     If the return code of the call is 0 then return stdout otherwise
@@ -798,8 +823,12 @@ def execute_command(cmds, env=None, cwd=None, logger=None, err_prefix=None, use_
     :raises RuntimeError: if the return code is not 0 from suprocess.run
     """
 
-    results = subprocess.run(cmds, env=env, cwd=cwd,
-                             stderr=subprocess.PIPE, stdout=subprocess.PIPE, shell=use_shell)
+    results = subprocess.run(cmds,
+                             env=env,
+                             cwd=cwd,
+                             stderr=subprocess.PIPE,
+                             stdout=subprocess.PIPE,
+                             shell=use_shell)
     if results.returncode != 0:
         err_prefix = err_prefix if err_prefix is not None else "Error executing command"
         err_message = "\n{}: Below Command failed with non zero exit code.\n" \
@@ -813,6 +842,7 @@ def execute_command(cmds, env=None, cwd=None, logger=None, err_prefix=None, use_
             raise RuntimeError(err_message)
 
     return results.stdout.decode('utf-8')
+
 
 #
 # def execute_command_p(cmds, env=None, cwd=None, logger=None, err_prefix=None):
@@ -876,7 +906,9 @@ def wait_for_volttron_startup(vhome, timeout):
         gevent.sleep(3)
         sleep_time += 3
     if sleep_time >= timeout:
-        raise Exception("Platform startup failed. Please check volttron.log in {}".format(vhome))
+        raise Exception(
+            "Platform startup failed. Please check volttron.log in {}".format(
+                vhome))
 
 
 def wait_for_volttron_shutdown(vhome, timeout):
@@ -886,4 +918,6 @@ def wait_for_volttron_shutdown(vhome, timeout):
         gevent.sleep(1)
         sleep_time += 1
     if sleep_time >= timeout:
-        raise Exception("Platform shutdown failed. Please check volttron.cfg.log in {}".format(vhome))
+        raise Exception(
+            "Platform shutdown failed. Please check volttron.cfg.log in {}".
+            format(vhome))
