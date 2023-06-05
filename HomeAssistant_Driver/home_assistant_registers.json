@@ -18,8 +18,8 @@
     {
         "Point Name": "climate.thermostat",
         "Volttron Point Name": "climate.thermostat",
-        "Units": "On / Off",
-        "Units Details": "on/off",
+        "Units": "C",
+        "Units Details": "C",
         "Writable": true,
         "Starting Value": true,
         "Type": "boolean",
@@ -32,15 +32,15 @@
     {
         "Point Name": "climate.resideo",
         "Volttron Point Name": "climate.resideo",
-        "Units": "On / Off",
-        "Units Details": "on/off",
+        "Units": "F",
+        "Units Details": "F",
         "Writable": true,
         "Starting Value": true,
         "Type": "boolean",
-        "Notes": "Honeywell ",
+        "Notes": "Honeywell",
         "Attributes": {
             "temperature": "current_temperature",
-            "humidity": "hvac_action"
+            "hvac_action": "hvac_action"
         }
     },
     {
@@ -74,15 +74,121 @@
     {
         "Point Name": "sensor.4_in_1_sensor_air_temperature",
         "Volttron Point Name": "sensor.4_in_1_sensor_air_temperature",
+        "Units": "C",
+        "Units Details": "C",
+        "Writable": true,
+        "Starting Value": 20,
+        "Type": "float",
+        "Notes": "4-in-1 Z-wave sensor",
+        "Attributes": {
+            "state_replace": "temperature"
+            
+        }
+    },
+    {
+        "Point Name": "sensor.4_in_1_sensor_humidity",
+        "Volttron Point Name": "sensor.4_in_1_sensor_humidity",
         "Units": "%",
         "Units Details": "%",
         "Writable": true,
         "Starting Value": 20,
         "Type": "float",
-        "Notes": "Average humidity of 1621",
+        "Notes": "4-in-1 Z-wave sensor",
+        "Attributes": {
+            "state_replace": "humidity"
+            
+        }
+    },
+    {
+        "Point Name": "sensor.average_humidity_1629",
+        "Volttron Point Name": "sensor.average_humidity_1629",
+        "Units": "%",
+        "Units Details": "%",
+        "Writable": true,
+        "Starting Value": 20,
+        "Type": "float",
+        "Notes": "Average humidity of 1629",
+        "Attributes": {
+            "state_replace": "humidity"
+        }
+
+    },
+    {
+        "Point Name": "sensor.q_motion_plus_temperature_672085",
+        "Volttron Point Name": "sensor.q_motion_plus_temperature_672085",
+        "Units": "C",
+        "Units Details": "C",
+        "Writable": true,
+        "Starting Value": 20,
+        "Type": "float",
+        "Notes": "Quantum lab modbus sensor",
         "Attributes": {
             "state_replace": "temperature"
-            
+        }
+    },
+    {
+        "Point Name": "sensor.kasa_3_current",
+        "Volttron Point Name": "sensor.kasa_3_current",
+        "Units": "A",
+        "Units Details": "A",
+        "Writable": true,
+        "Starting Value": 20,
+        "Type": "float",
+        "Notes": "Smart plug",
+        "Attributes": {
+            "state_replace": "amps"
+        }
+    },
+    {
+        "Point Name": "sensor.kasa_3_current_consumption",
+        "Volttron Point Name": "sensor.kasa_3_current_consumption",
+        "Units": "W",
+        "Units Details": "W",
+        "Writable": true,
+        "Starting Value": 20,
+        "Type": "float",
+        "Notes": "Smart plug",
+        "Attributes": {
+            "state_replace": "watts"
+        }
+    },
+    {
+        "Point Name": "sensor.eve_energy_d03e_amps",
+        "Volttron Point Name": "sensor.eve_energy_d03e_amps",
+        "Units": "A",
+        "Units Details": "A",
+        "Writable": true,
+        "Starting Value": 20,
+        "Type": "float",
+        "Notes": "Smart plug",
+        "Attributes": {
+            "state_replace": "amps"
+        }
+    },
+    {
+        "Point Name": "sensor.eve_energy_ce77_energy_kwh",
+        "Volttron Point Name": "sensor.eve_energy_ce77_energy_kwh",
+        "Units": "KWH",
+        "Units Details": "KWH",
+        "Writable": true,
+        "Starting Value": 20,
+        "Type": "float",
+        "Notes": "Smart plug",
+        "Attributes": {
+            "state_replace": "kwh"
+        }
+    },
+    {
+        "Point Name": "sensor.iotcoe_energy_current",
+        "Volttron Point Name": "sensor.iotcoe_energy_current",
+        "Units": "W",
+        "Units Details": "W",
+        "Writable": true,
+        "Starting Value": 20,
+        "Type": "float",
+        "Notes": "This is an average of lots of energy sensors in the iot lab",
+        "Attributes": {
+            "state_replace": "watts"
         }
     }
 ]

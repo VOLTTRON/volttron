@@ -304,13 +304,12 @@ class Interface(BasicRevert, BaseInterface):
             print(f"Extracted point name: {point_name}")
             units = regDef['Units']
 
-            #get_ha_values(point_name) # calling get_ha_values
+
             brightness_level = 100 # 0 - 255
             turn_on_lights(brightness_level)
-            # turn_off_lights()
             set_thermostat_temperature(65)
             change_thermostat_mode("cool") # heat, cool, auto, off
-            #set_thermostat_temperature(29)
+
                         
             self.new = regDef['Volttron Point Name']
             description = regDef.get('Notes', '')
@@ -352,9 +351,6 @@ class Interface(BasicRevert, BaseInterface):
                                   prefix=topic,
                                   callback=self._handle_publish)    
     def _handle_publish(self, peer, sender, bus, topic, headers, message):
-    
-        
-        # values_to_pull = ["EKG", "EKG_Cos"]
         for value in self.points_to_grab_from_topic:
             for element in message:
                 if value in element:
