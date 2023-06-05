@@ -597,7 +597,7 @@ class PubSubService:
             self._logger.exception('invalid format for protected topics ')
         else:
             self._protected_topics = topics
-            self._logger.info('protected-topics loaded')
+            self._logger.debug('protected-topics loaded')
 
     def handle_subsystem(self, frames, user_id=''):
         """
