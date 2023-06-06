@@ -1,4 +1,7 @@
-Volttron Home Assistant Driver. 
+**Volttron Home Assistant Driver.** 
+
+Please see the README for the platfrom driver.
+[services/core/PlatformDriverAgent/README.md](https://github.com/riley206/Rileys_volttron/blob/55146b78d3ab7f53d08598df272cdda2d0aa8d3d/services/core/PlatformDriverAgent/README.md)
 ```mermaid
   sequenceDiagram
     HomeAssistant Driver->>HomeAssistant: Retrieve Entity Data (REST API)
