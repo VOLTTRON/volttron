@@ -62,10 +62,10 @@ type_mapping = {"string": str,
                 "boolean": bool}
 
 
-class FakeRegister(BaseRegister):
+class HomeAssistantRegister(BaseRegister):
     def __init__(self, read_only, pointName, units, reg_type, attributes,
                  default_value=None, description=''):
-        super(FakeRegister, self).__init__("byte", read_only, pointName, units,
+        super(HomeAssistantRegister, self).__init__("byte", read_only, pointName, units,
                                            description='')
         self.reg_type = reg_type
         self.attributes = attributes
@@ -78,52 +78,19 @@ class FakeRegister(BaseRegister):
             except ValueError:
                 self.value = self.reg_type()
 
-class EKGregister(BaseRegister):
-
-    def __init__(self, read_only, pointName, units, reg_type,
-                 default_value=None, description=''):
-        super(EKGregister, self).__init__("byte", read_only, pointName, units,
-                                          description='')
-        self._value = 1;
-
-        math_functions = ('acos', 'acosh', 'asin', 'asinh', 'atan', 'atan2',
-                          'atanh', 'sin', 'sinh', 'sqrt', 'tan', 'tanh')
-        if default_value in math_functions:
-            self.math_func = getattr(math, default_value)
-        else:
-            _log.error('Invalid default_value in EKGregister.')
-            _log.warning('Defaulting to sin(x)')
-            self.math_func = math.sin
-
-    @property
-    def value(self):
-        now = datetime.datetime.now()
-        seconds_in_radians = pi * float(now.second) / 30.0
-
-        yval = self.math_func(seconds_in_radians)
-
-        return self._value * yval
-
-    @value.setter
-    def value(self, x):
-        self._value = x
-
 class Interface(BasicRevert, BaseInterface):
     def __init__(self, **kwargs):
         super(Interface, self).__init__(**kwargs)
         self.point_name = None
-
-
-        
+  
     def configure(self, config_dict, registry_config_str): # grabbing from config
         self.ip_address = config_dict.get("ip_address", "0.0.0.0")
         self.access_token = config_dict.get("access_token", "cool")
         self.volttron_topic = config_dict.get("volttron_topic", "devices")
         self.points_to_grab_from_topic = config_dict.get("points_to_grab_from_topic", "points_to_grab_from_topic")
+        self.port = config_dict.get("port", "port")
         self.registry_config = config_dict.get("registry_config","registry_config")
         self.parse_config(registry_config_str) 
-        #print(self.registry_config)
-        
 
     def get_point(self, point_name):
         register = self.get_register_by_name(point_name)
@@ -131,7 +98,6 @@ class Interface(BasicRevert, BaseInterface):
 
     def _set_point(self, point_name, value):
         register = self.get_register_by_name(point_name)
-        print(f"point name {point_name}, {register}")
         if register.read_only:
             raise RuntimeError(
                 "Trying to write to a point configured read only: " + point_name)
@@ -149,7 +115,7 @@ class Interface(BasicRevert, BaseInterface):
                 "Authorization": f"Bearer {self.access_token}",
                 "Content-Type": "application/json",
             }
-            url = f"http://{self.ip_address}:8123/api/states/{entity_id}" # the /states grabs cuurent state AND attributes of a specific entity
+            url = f"http://{self.ip_address}:{self.port}/api/states/{entity_id}" # the /states grabs cuurent state AND attributes of a specific entity
             response = requests.get(url, headers=headers)
             if response.status_code == 200:
                 return response.json() # return the json attributes from entity
@@ -162,7 +128,6 @@ class Interface(BasicRevert, BaseInterface):
             entity_id = register.point_name
             attributes = register.attributes
             entity_data = get_entity_data(entity_id) # assign arrtributes to entity_data  
-
 
             if entity_data is not None: # if not none extract the state and entity id
                 state = entity_data.get("state", None)
@@ -196,7 +161,7 @@ class Interface(BasicRevert, BaseInterface):
     def parse_config(self, configDict):
 
         def turn_on_lights(brightness_level):
-            url2 = f"http://{self.ip_address}:8123/api/services/light/turn_on"
+            url2 = f"http://{self.ip_address}:{self.port}/api/services/light/turn_on"
             
             headers = {
                     "Authorization": f"Bearer {self.access_token}",
@@ -218,9 +183,9 @@ class Interface(BasicRevert, BaseInterface):
                         continue
                 else:
                     continue
-                    #print(f"entity {entity} not a light")
+
         def turn_off_lights():
-            url2 = f"http://{self.ip_address}:8123/api/services/light/turn_off"
+            url2 = f"http://{self.ip_address}:{self.port}/api/services/light/turn_off"
             
             headers = {
                     "Authorization": f"Bearer {self.access_token}",
@@ -244,7 +209,7 @@ class Interface(BasicRevert, BaseInterface):
                     continue
         
         def change_thermostat_mode(mode):
-            url = f"http://{self.ip_address}:8123/api/services/climate/set_hvac_mode"
+            url = f"http://{self.ip_address}:{self.port}/api/services/climate/set_hvac_mode"
             headers = {
                     "Authorization": f"Bearer {self.access_token}",
                     "content-type": "application/json",
@@ -259,11 +224,11 @@ class Interface(BasicRevert, BaseInterface):
                     response = requests.post(url, headers=headers, json=data)
             
                     if response.status_code == 200:
-                        print(f"Successfully changed the mode of {entity} to {mode}")
+                        _log.info(f"Successfully changed the mode of {entity} to {mode}")
                     else:
-                        print(f"Failed to change the mode of {entity}. Response: {response.text}")
+                        _log.info(f"Failed to change the mode of {entity}. Response: {response.text}")
         def set_thermostat_temperature(temperature):
-            url = f"http://{self.ip_address}:8123/api/services/climate/set_temperature"
+            url = f"http://{self.ip_address}:{self.port}/api/services/climate/set_temperature"
             headers = {
                     "Authorization": f"Bearer {self.access_token}",
                     "content-type": "application/json",
@@ -273,7 +238,7 @@ class Interface(BasicRevert, BaseInterface):
                 if entity.startswith("climate."):
                     if units == "C":
                         converted_temp = round((temperature - 32) * 5/9, 1)
-                        print(f"converted temp {converted_temp}")
+                        _log.info(f"converted temp {converted_temp}")
                         data = {
                             "entity_id": entity,
                             "temperature": converted_temp,
@@ -287,21 +252,20 @@ class Interface(BasicRevert, BaseInterface):
                         response = requests.post(url, headers=headers, json=data2)
             
                     if response.status_code == 200:
-                        print(f"Successfully changed the temp of {entity} to {temperature}")
+                        _log.info(f"Successfully changed the temp of {entity} to {temperature}")
                     else:
-                        print(f"Failed to change the temp of {entity}. Response: {response.text}")
+                        _log.info(f"Failed to change the temp of {entity}. Response: {response.text}")
 
         if configDict is None:
             return
-        for regDef in configDict:
-            # Skip lines that have no address yet
+        for regDef in configDict: # go through items in config and skip if its not point name
+
             if not regDef['Point Name']:
                 continue
 
             read_only = str(regDef.get('Writable', '')).lower() != 'true' #convert writeable to string and it worked!
 
             point_name = regDef['Volttron Point Name']
-            print(f"Extracted point name: {point_name}")
             units = regDef['Units']
 
 
@@ -319,8 +283,8 @@ class Interface(BasicRevert, BaseInterface):
                 default_value = None
             type_name = regDef.get("Type", 'string')
             reg_type = type_mapping.get(type_name, str)
-            attributes = regDef.get('Attributes', None)
-            register_type = FakeRegister
+            attributes = regDef.get('Attributes', {})
+            register_type = HomeAssistantRegister
 
             register = register_type(
                 read_only,
@@ -354,11 +318,9 @@ class Interface(BasicRevert, BaseInterface):
         for value in self.points_to_grab_from_topic:
             for element in message:
                 if value in element:
-                    print("element", value)
                     data1 = json.dumps(element[f"{value}"]) #data 1 is the json dump of the member from member as a string
-                    print("data1", data1)
                     _log.info(f"Matching Value Found: {value} with data: {data1}")
-                    url = f"http://{self.ip_address}:8123/api/states/sensor.{value}"
+                    url = f"http://{self.ip_address}:{self.port}/api/states/sensor.{value}"
                     headers = {
                         "Authorization": f"Bearer {self.access_token}",
                         "Content-Type": "application/json",
