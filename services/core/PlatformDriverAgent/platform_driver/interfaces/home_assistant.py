@@ -167,7 +167,7 @@ class Interface(BasicRevert, BaseInterface):
                     "Authorization": f"Bearer {self.access_token}",
                     "Content-Type": "application/json",
                 }
-            point_names = point_name.split('\n')
+            point_names = [y.strip() for y in point_name.split('\n')]
             for entity in point_names:
                 if entity.startswith("light"): # this will ensure that only lights are conrolled and not other devices
                     try:
@@ -191,7 +191,7 @@ class Interface(BasicRevert, BaseInterface):
                     "Authorization": f"Bearer {self.access_token}",
                     "Content-Type": "application/json",
                 }
-            point_names = point_name.split('\n')
+            point_names = [y.strip() for y in point_name.split('\n')]
             for entity in point_names:
                 if entity.startswith("light"):
                     try:
@@ -214,7 +214,7 @@ class Interface(BasicRevert, BaseInterface):
                     "Authorization": f"Bearer {self.access_token}",
                     "content-type": "application/json",
             }
-            point_names = point_name.split('\n')
+            point_names = [y.strip() for y in point_name.split('\n')]
             for entity in point_names:
                 if entity.startswith("climate."):
                     data = {
@@ -233,7 +233,7 @@ class Interface(BasicRevert, BaseInterface):
                     "Authorization": f"Bearer {self.access_token}",
                     "content-type": "application/json",
             }
-            point_names = point_name.split('\n')
+            point_names = [y.strip() for y in point_name.split('\n')]
             for entity in point_names:
                 if entity.startswith("climate."):
                     if units == "C":
