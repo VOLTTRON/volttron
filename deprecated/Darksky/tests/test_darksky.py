@@ -365,11 +365,10 @@ def test_success_forecast(volttron_instance, cleanup_cache, weather, query_agent
         num_records = cursor.fetchone()[0]
         if service_name == service:
             assert num_records is records_amount * len(locations)
+        elif identity == 'platform.darksky_perf':
+            assert num_records is 0
         else:
-            if identity == 'platform.darksky_perf':
-                assert num_records is 0
-            else:
-                assert num_records is records_amount * len(locations)
+            assert num_records is records_amount * len(locations)
 
     assert len(query_data) == len(locations)
 

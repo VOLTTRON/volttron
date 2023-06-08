@@ -2103,11 +2103,10 @@ class BaseQueryHistorianAgent(Agent):
                 raise TypeError("You should provide both aggregation type"
                                 "(agg_type) and aggregation time period"
                                 "(agg_period) to query aggregate data")
-        else:
-            if agg_period:
-                raise TypeError("You should provide both aggregation type"
-                                "(agg_type) and aggregation time period"
-                                "(agg_period) to query aggregate data")
+        elif agg_period:
+            raise TypeError("You should provide both aggregation type"
+                            "(agg_type) and aggregation time period"
+                            "(agg_period) to query aggregate data")
 
         if agg_period:
             agg_period = AggregateHistorian.normalize_aggregation_time_period(

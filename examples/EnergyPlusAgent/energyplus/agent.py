@@ -371,20 +371,19 @@ class EnergyPlusAgent(Agent):
                                         self.tns_actuate,
                                         headers={},
                                         message={}).get(timeout=10)
-        else:
-            if self.EnergyPlus_sim.hour > self.EnergyPlus_sim.currenthour or self.EnergyPlus_sim.passtime:
-                self.EnergyPlus_sim.passtime = True
-                self.cosim_sync_counter += timestep
-                if self.cosim_sync_counter < self.EnergyPlus_sim.co_sim_timestep:
-                    self.advance_simulation(None, None, None, None, None, None)
-                else:
-                    self.cosim_sync_counter = 0
-                    self.vip.pubsub.publish('pubsub',
-                                            self.tns_actuate,
-                                            headers={},
-                                            message={}).get(timeout=10)
-            else:
+        elif self.EnergyPlus_sim.hour > self.EnergyPlus_sim.currenthour or self.EnergyPlus_sim.passtime:
+            self.EnergyPlus_sim.passtime = True
+            self.cosim_sync_counter += timestep
+            if self.cosim_sync_counter < self.EnergyPlus_sim.co_sim_timestep:
                 self.advance_simulation(None, None, None, None, None, None)
+            else:
+                self.cosim_sync_counter = 0
+                self.vip.pubsub.publish('pubsub',
+                                        self.tns_actuate,
+                                        headers={},
+                                        message={}).get(timeout=10)
+        else:
+            self.advance_simulation(None, None, None, None, None, None)
 
         return
 

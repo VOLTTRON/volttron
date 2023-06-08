@@ -1602,10 +1602,9 @@ def mergetree(src, dst, symlinks=False, ignore=None):
         d = os.path.join(dst, item)
         if os.path.isdir(s):
             mergetree(s, d, symlinks, ignore)
-        else:
-            if not os.path.exists(d) or os.stat(src).st_mtime - os.stat(
+        elif not os.path.exists(d) or os.stat(src).st_mtime - os.stat(
                     dst).st_mtime > 1:
-                shutil.copy2(s, d)
+            shutil.copy2(s, d)
 
 
 class WebAdminApi:

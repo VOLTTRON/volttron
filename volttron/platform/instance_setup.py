@@ -356,11 +356,10 @@ def _check_dependencies_met(requirement):
                 pass
             else:
                 return False
+        elif dependency.split("==")[0] in [r.split("==")[0] for r in current_dependencies]:
+            pass
         else:
-            if dependency.split("==")[0] in [r.split("==")[0] for r in current_dependencies]:
-                pass
-            else:
-                return False
+            return False
     return True
 
 

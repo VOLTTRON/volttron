@@ -207,17 +207,16 @@ class Market:
             error_code = BAD_STATE
             error_message = 'Programming error in Market class. State of {} and clear market signal arrived. ' \
                             'This represents a logic error.'.format(self.state)
+        elif not self.has_market_formed():
+            error_code = NOT_FORMED
+            error_message = 'The market {} has not received a buy and a sell reservation.'.format(self.market_name)
         else:
-            if not self.has_market_formed():
-                error_code = NOT_FORMED
-                error_message = 'The market {} has not received a buy and a sell reservation.'.format(self.market_name)
-            else:
-                quantity, price, aux = self.offers.settle()
-                _log.info("Clearing mixmarket: {} Price: {} Qty: {}".format(self.market_name, price, quantity))
-                aux = {}
-                if price is None or quantity is None:
-                    error_code = NO_INTERSECT
-                    error_message = "Error: The supply and demand curves do not intersect. The market {} failed to clear.".format(self.market_name)
+            quantity, price, aux = self.offers.settle()
+            _log.info("Clearing mixmarket: {} Price: {} Qty: {}".format(self.market_name, price, quantity))
+            aux = {}
+            if price is None or quantity is None:
+                error_code = NO_INTERSECT
+                error_message = "Error: The supply and demand curves do not intersect. The market {} failed to clear.".format(self.market_name)
         _log.info("Clearing price for Market: {} Price: {} Qty: {}".format(self.market_name, price, quantity))
         timestamp = self._get_time()
         timestamp_string = utils.format_timestamp(timestamp)

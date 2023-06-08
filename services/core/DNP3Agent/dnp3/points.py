@@ -293,11 +293,10 @@ class BasePointDefinition:
                 raise ValueError('Missing selector_block_end for block named {}'.format(self.name))
             if self.selector_block_start > self.selector_block_end:
                 raise ValueError('Selector block end index < start index for block named {}'.format(self.name))
-        else:
-            if self.selector_block_start is not None:
-                raise ValueError('selector_block_start defined for non-selector-block point {}'.format(self.name))
-            if self.selector_block_end is not None:
-                raise ValueError('selector_block_end defined for non-selector-block point {}'.format(self.name))
+        elif self.selector_block_start is not None:
+            raise ValueError('selector_block_start defined for non-selector-block point {}'.format(self.name))
+        elif self.selector_block_end is not None:
+            raise ValueError('selector_block_end defined for non-selector-block point {}'.format(self.name))
 
     def as_json(self):
         """Return a json description of the PointDefinition."""
