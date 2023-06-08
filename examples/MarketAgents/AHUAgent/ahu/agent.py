@@ -79,14 +79,16 @@ def ahu_agent(config_path, **kwargs):
     c3= config.get('c3')
     COP= config.get('COP')	
     verbose_logging= config.get('verbose_logging', True)
-    return AHUAgent(air_market_name,electric_market_name,agent_name,subscribing_topic,c0,c1,c2,c3,COP,verbose_logging, **kwargs)
+    return AHUAgent(air_market_name, electric_market_name, agent_name,
+        subscribing_topic, c0, c1, c2, c3, COP, verbose_logging, **kwargs)
 
 class AHUAgent(MarketAgent, AhuChiller):
     """
     The SampleElectricMeterAgent serves as a sample of an electric meter that
     sells electricity for a single building at a fixed price.
     """
-    def __init__(self, air_market_name, electric_market_name, agent_name,subscribing_topic,c0,c1,c2,c3,COP,verbose_logging, **kwargs):
+    def __init__(self, air_market_name, electric_market_name, agent_name,
+            subscribing_topic, c0, c1, c2, c3, COP, verbose_logging, **kwargs):
         super(AHUAgent, self).__init__(verbose_logging, **kwargs)
 
         self.air_market_name = air_market_name
@@ -155,10 +157,10 @@ class AHUAgent(MarketAgent, AhuChiller):
         supply_curve = PolyLine()
         price = 65
         quantity = 100000
-        supply_curve.add(Point(price=price,quantity=quantity))
+        supply_curve.add(Point(price=price, quantity=quantity))
         price = 65
         quantity = 0 # negative quantities are not real -1*10000
-        supply_curve.add(Point(price=price,quantity=quantity))
+        supply_curve.add(Point(price=price, quantity=quantity))
         return supply_curve
 		
     def create_electric_demand_curve(self, aggregate_air_demand):

@@ -164,7 +164,7 @@ def subscriber_agent(config_path, **kwargs):
                                            order = "FIRST_TO_LAST").get(timeout=10)
                 print('Query Result', result)
             except Exception as e:
-                print ("Could not contact historian. Is it running?")
+                print("Could not contact historian. Is it running?")
                 print(e)
 
         @Core.schedule(periodic(10))
@@ -176,9 +176,9 @@ def subscriber_agent(config_path, **kwargs):
             '''
             
             #Make some random readings
-            oat_reading = random.uniform(30,100)
-            mixed_reading = oat_reading + random.uniform(-5,5)
-            damper_reading = random.uniform(0,100)
+            oat_reading = random.uniform(30, 100)
+            mixed_reading = oat_reading + random.uniform(-5, 5)
+            damper_reading = random.uniform(0, 100)
             
             # Create a message for all points.
             all_message = [{'OutsideAirTemperature': oat_reading, 'MixedAirTemperature': mixed_reading, 

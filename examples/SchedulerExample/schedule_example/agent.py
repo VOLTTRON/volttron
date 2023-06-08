@@ -95,7 +95,7 @@ def schedule_example(config_path, **kwargs):
         @PubSub.subscribe('pubsub', topics.ACTUATOR_SCHEDULE_ANNOUNCE(campus='campus',
                                              building='building',unit='unit'))
         def actuate(self, peer, sender, bus,  topic, headers, message):
-            print ("response:",topic,headers,message)
+            print("response:", topic, headers, message)
             if headers[headers_mod.REQUESTER_ID] != agent_id:
                 return
             '''Match the announce for our fake device with our ID
