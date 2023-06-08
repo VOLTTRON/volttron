@@ -44,8 +44,7 @@ import sys
 import gevent
 from gevent.select import select
 
-from . import _inotify, __all__, _main
-from . import *
+from . import IN_NONBLOCK, _inotify, _main
 import logging
 
 _log = logging.getLogger(__name__)

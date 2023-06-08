@@ -58,7 +58,6 @@ from gevent.lock import RLock as _RLock
 from zmq.green import NOBLOCK, POLLOUT
 from zmq import green as _green
 
-from . import *
 from .router import BaseRouter as _BaseRouter
 from .socket import _Socket
 
