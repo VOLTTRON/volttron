@@ -147,7 +147,7 @@ class Market:
             _log.debug("Make offer Market: {} {} entered in state {}".format(self.market_name,
                                                                              participant.buyer_seller,
                                                                              self.state))
-        if (participant.buyer_seller == SELLER):
+        if participant.buyer_seller == SELLER:
             self.receive_sell_offer()
         else:
             self.receive_buy_offer()
@@ -163,7 +163,7 @@ class Market:
                        participant.buyer_seller, offer_count, curve.tuppleize()))
         self.offers.make_offer(participant.buyer_seller, curve)
         if self.all_satisfied(participant.buyer_seller):
-            if (participant.buyer_seller == SELLER):
+            if participant.buyer_seller == SELLER:
                 self.last_sell_offer()
             else:
                 self.last_buy_offer()
@@ -199,11 +199,11 @@ class Market:
         error_code = None
         error_message = None
         aux = {}
-        if (self.state in [ACCEPT_ALL_OFFERS, ACCEPT_BUY_OFFERS, ACCEPT_SELL_OFFERS]):
+        if self.state in [ACCEPT_ALL_OFFERS, ACCEPT_BUY_OFFERS, ACCEPT_SELL_OFFERS]:
             error_code = SHORT_OFFERS
             error_message = 'The market {} failed to receive all the expected offers. ' \
                             'The state is {}.'.format(self.market_name, self.state)
-        elif (self.state != MARKET_DONE):
+        elif self.state != MARKET_DONE:
             error_code = BAD_STATE
             error_message = 'Programming error in Market class. State of {} and clear market signal arrived. ' \
                             'This represents a logic error.'.format(self.state)
@@ -241,9 +241,9 @@ class Market:
 
     def all_satisfied(self, buyer_seller):
         are_satisfied = False
-        if (buyer_seller == BUYER):
+        if buyer_seller == BUYER:
             are_satisfied = self.reservations.buyer_count() == self.offers.buyer_count()
-        if (buyer_seller == SELLER):
+        if buyer_seller == SELLER:
             are_satisfied = self.reservations.seller_count() == self.offers.seller_count()
         return are_satisfied
 

@@ -49,7 +49,7 @@ class ReservationManager:
         self._sell_reservations = {}
 
     def make_reservation(self, participant):
-        if (participant.is_buyer()):
+        if participant.is_buyer():
             self._make_buy_reservation(participant.identity)
         else:
             self._make_sell_reservation(participant.identity)
@@ -68,7 +68,7 @@ class ReservationManager:
         self._add_reservation(self._sell_reservations, owner, 'sell')
 
     def take_reservation(self, participant):
-        if (participant.is_buyer()):
+        if participant.is_buyer():
             self._take_buy_reservation(participant.identity)
         else:
             self._take_sell_reservation(participant.identity)
