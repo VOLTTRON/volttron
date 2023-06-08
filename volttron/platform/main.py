@@ -53,7 +53,6 @@ for module, fn in patches:
         fn()
 
 import argparse
-import errno
 import logging
 import logging.config
 import os

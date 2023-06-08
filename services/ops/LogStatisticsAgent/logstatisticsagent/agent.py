@@ -42,7 +42,7 @@ import os
 import sys
 import statistics
 
-from volttron.platform.vip.agent import Agent, RPC, Core
+from volttron.platform.vip.agent import Agent, Core
 from volttron.platform.agent import utils
 from volttron.platform.agent.utils import get_aware_utc_now
 

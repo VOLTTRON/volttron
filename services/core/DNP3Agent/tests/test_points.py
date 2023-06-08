@@ -8,7 +8,7 @@ import copy
 
 from dnp3.points import PointDefinition, ArrayHeadPointDefinition, PointDefinitions, PointValue
 
-from test_mesa_agent import POINT_DEFINITIONS_PATH, FUNCTION_DEFINITIONS_PATH
+from test_mesa_agent import POINT_DEFINITIONS_PATH
 
 
 AO_4 = {

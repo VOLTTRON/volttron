@@ -54,7 +54,7 @@ from volttron.utils.persistance import PersistentDict
 from volttron.platform.agent.utils import parse_json_config
 from volttron.platform.vip.agent import errors
 from volttron.platform.jsonrpc import RemoteError, MethodNotFound
-from volttron.platform.agent.utils import parse_timestamp_string, format_timestamp, get_aware_utc_now
+from volttron.platform.agent.utils import format_timestamp, get_aware_utc_now
 from volttron.platform.storeutils import check_for_recursion, strip_config_name, store_ext
 from .vip.agent import Agent, Core, RPC
 
