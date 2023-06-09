@@ -44,22 +44,19 @@ import logging
 import random
 import re
 import weakref
-import sys
 import gevent
 
 from zmq import green as zmq
 from zmq import SNDMORE
 from volttron.platform import jsonapi
-from volttron.utils.frame_serialization import serialize_frames
 from .base import SubsystemBase
 from ..decorators import annotate, annotations, dualmethod, spawn
-from ..errors import Unreachable, VIPError, UnknownSubsystem
+from ..errors import Unreachable
 from .... import jsonrpc
-from volttron.platform.agent import utils
+
 from ..results import ResultsDictionary
-from gevent.queue import Queue, Empty
+from gevent.queue import Queue
 from collections import defaultdict
-from datetime import timedelta
 
 __all__ = ['PubSub']
 

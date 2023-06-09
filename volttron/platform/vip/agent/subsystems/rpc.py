@@ -48,16 +48,13 @@ import re
 import gevent.local
 from gevent.event import AsyncResult
 from volttron.platform import jsonapi
-from volttron.platform.agent.utils import get_messagebus
 
 from .base import SubsystemBase
-from ..errors import VIPError
 from ..results import counter, ResultsDictionary
 from ..decorators import annotate, annotations, dualmethod, spawn
 from .... import jsonrpc
-from volttron.platform.vip.socket import Message
 
-from zmq import Frame, NOBLOCK, ZMQError, EINVAL, EHOSTUNREACH
+from zmq import ZMQError
 from zmq.green import ENOTSOCK
 
 
