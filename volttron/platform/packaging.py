@@ -50,9 +50,9 @@ import traceback
 import errno
 
 from wheel.install import WheelFile
-from volttron.platform.packages import *
 from volttron.platform.agent import utils
 from volttron.platform import get_volttron_data, get_home
+from volttron.platform.packages import UnpackedPackage, VolttronPackageWheelFileNoSign
 from volttron.utils.prompt import prompt_response
 from volttron.platform.auth import certs
 from volttron.platform import config

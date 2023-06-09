@@ -46,11 +46,12 @@ from urllib.parse import urlsplit, parse_qs, urlunsplit, urlparse
 import gevent
 import gevent.time
 from zmq import green as zmq
-from volttron.platform.auth.auth_protocols import *
 from volttron.platform import get_home
 from volttron.platform import jsonapi
 from volttron.platform.auth.auth_entry import AuthEntry
 from volttron.platform.auth.auth_exception import AuthException
+from volttron.platform.auth.auth_protocols import (
+    BaseAuthentication, BaseClientAuthorization, BaseServerAuthentication, BaseServerAuthorization)
 from volttron.platform.auth.auth_utils import dump_user
 from volttron.platform.keystore import KeyStore, KnownHostsStore
 from volttron.platform.parameters import Parameters

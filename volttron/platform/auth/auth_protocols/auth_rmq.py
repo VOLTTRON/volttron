@@ -7,7 +7,8 @@ from collections import defaultdict
 from urllib.parse import urlparse, urlsplit
 from dataclasses import dataclass
 from volttron.platform.auth import certs
-from volttron.platform.auth.auth_protocols import *
+from volttron.platform.auth.auth_protocols import (
+    BaseAuthentication, BaseClientAuthorization, BaseServerAuthentication, BaseServerAuthorization)
 from volttron.platform.parameters import Parameters
 from volttron.utils.rmq_mgmt import RabbitMQMgmt
 from volttron.platform import jsonapi
