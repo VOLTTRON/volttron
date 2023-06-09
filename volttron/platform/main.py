@@ -69,7 +69,7 @@ from urllib.parse import urlparse
 
 import gevent
 import zmq
-from zmq import ZMQError, green
+from zmq import ZMQError, green, NOBLOCK
 
 from volttron.platform.agent.utils import get_platform_instance_name
 # Create a context common to the green and non-green zmq modules.
@@ -86,7 +86,7 @@ from volttron.platform.auth.auth import AuthService
 from volttron.platform.auth.auth_entry import AuthEntry
 from volttron.platform.auth.auth_file import AuthFile
 from volttron.platform.control.control import ControlService
-from volttron.platform.vip.router import *
+from volttron.platform.vip.router import BaseRouter, ERROR, INCOMING, UNROUTABLE
 from volttron.platform.vip.socket import Address, decode_key, encode_key
 from volttron.platform.vip.tracking import Tracker
 
@@ -109,7 +109,6 @@ from .agent.known_identities import (AUTH, CONFIGURATION_STORE, CONTROL,
                                      PROXY_ROUTER)
 from .keystore import KeyStore, KnownHostsStore
 from .store import ConfigStoreService
-from .vip.agent.subsystems.pubsub import ProtectedPubSubTopics
 from .vip.externalrpcservice import ExternalRPCService
 from .vip.keydiscovery import KeyDiscoveryAgent
 from .vip.pubsubservice import PubSubService
