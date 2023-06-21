@@ -16,6 +16,38 @@
         }
     },
     {
+        "Point Name": "light.philips_hue_2_huelight_2",
+        "Volttron Point Name": "light.philips_hue_2_huelight_2",
+        "Units": "on / off",
+        "Units Details": "on/off",
+        "Writable": true,
+        "Starting Value": true,
+        "Type": "boolean",
+        "Notes": "lights",
+        "Attributes": {
+            "brightness": "brightness",
+            "temperature": "color_temp",
+            "Color temp": "color_temp_kelvin",
+            "Color": "rgb_color"
+        }
+    },
+    {
+        "Point Name": "light.philips_hue_light_3_huelight",
+        "Volttron Point Name": "light.philips_hue_light_3_huelight",
+        "Units": "on / off",
+        "Units Details": "on/off",
+        "Writable": true,
+        "Starting Value": true,
+        "Type": "boolean",
+        "Notes": "lights",
+        "Attributes": {
+            "brightness": "brightness",
+            "temperature": "color_temp",
+            "Color temp": "color_temp_kelvin",
+            "Color": "rgb_color"
+        }
+    },
+    {
         "Point Name": "climate.thermostat",
         "Volttron Point Name": "climate.thermostat",
         "Units": "C",

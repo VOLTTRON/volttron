@@ -82,10 +82,11 @@ class Interface(BasicRevert, BaseInterface):
     def __init__(self, **kwargs):
         super(Interface, self).__init__(**kwargs)
         self.point_name = None
+        self.previous_states = {} # storing previous states to only send commands when changed 
   
     def configure(self, config_dict, registry_config_str): # grabbing from config
         self.ip_address = config_dict.get("ip_address", "0.0.0.0")
-        self.access_token = config_dict.get("access_token", "cool")
+        self.access_token = config_dict.get("access_token", "access_token")
         self.volttron_topic = config_dict.get("volttron_topic", "devices")
         self.points_to_grab_from_topic = config_dict.get("points_to_grab_from_topic", "points_to_grab_from_topic")
         self.port = config_dict.get("port", "port")
@@ -101,8 +102,11 @@ class Interface(BasicRevert, BaseInterface):
         if register.read_only:
             raise RuntimeError(
                 "Trying to write to a point configured read only: " + point_name)
-
+        
+        previous_value = register.value # store the previous value 
         register.value = register.reg_type(value) # setting the value
+        print(f"{previous_value} {register}")
+
         return register.value
 
     def _scrape_all(self):
@@ -157,104 +161,9 @@ class Interface(BasicRevert, BaseInterface):
                 }
 
         return result
+    
 
     def parse_config(self, configDict):
-
-        def turn_on_lights(brightness_level):
-            url2 = f"http://{self.ip_address}:{self.port}/api/services/light/turn_on"
-            
-            headers = {
-                    "Authorization": f"Bearer {self.access_token}",
-                    "Content-Type": "application/json",
-                }
-            point_names = [y.strip() for y in point_name.split('\n')]
-            for entity in point_names:
-                if entity.startswith("light"): # this will ensure that only lights are conrolled and not other devices
-                    try:
-                     # ranges from 0 - 255 for most lights
-                        payload = {
-                            "entity_id": f"{entity}",
-                            "brightness": brightness_level,
-                        }
-                        response = requests.post(url2, headers=headers, data=json.dumps(payload))
-                        if response.status_code == 200:
-                            _log.info(f"Turned on {entity}")
-                    except:
-                        continue
-                else:
-                    continue
-
-        def turn_off_lights():
-            url2 = f"http://{self.ip_address}:{self.port}/api/services/light/turn_off"
-            
-            headers = {
-                    "Authorization": f"Bearer {self.access_token}",
-                    "Content-Type": "application/json",
-                }
-            point_names = [y.strip() for y in point_name.split('\n')]
-            for entity in point_names:
-                if entity.startswith("light"):
-                    try:
-                        
-                        payload = {
-                            "entity_id": f"{entity}",
-                            
-                        }
-                        response = requests.post(url2, headers=headers, data=json.dumps(payload))
-                        if response.status_code == 200:
-                            _log.info(f"Turned on {entity}")
-                    except:
-                        continue
-                else:
-                    continue
-        
-        def change_thermostat_mode(mode):
-            url = f"http://{self.ip_address}:{self.port}/api/services/climate/set_hvac_mode"
-            headers = {
-                    "Authorization": f"Bearer {self.access_token}",
-                    "content-type": "application/json",
-            }
-            point_names = [y.strip() for y in point_name.split('\n')]
-            for entity in point_names:
-                if entity.startswith("climate."):
-                    data = {
-                        "entity_id": entity,
-                        "hvac_mode": mode,
-                    }
-                    response = requests.post(url, headers=headers, json=data)
-            
-                    if response.status_code == 200:
-                        _log.info(f"Successfully changed the mode of {entity} to {mode}")
-                    else:
-                        _log.info(f"Failed to change the mode of {entity}. Response: {response.text}")
-        def set_thermostat_temperature(temperature):
-            url = f"http://{self.ip_address}:{self.port}/api/services/climate/set_temperature"
-            headers = {
-                    "Authorization": f"Bearer {self.access_token}",
-                    "content-type": "application/json",
-            }
-            point_names = [y.strip() for y in point_name.split('\n')]
-            for entity in point_names:
-                if entity.startswith("climate."):
-                    if units == "C":
-                        converted_temp = round((temperature - 32) * 5/9, 1)
-                        _log.info(f"converted temp {converted_temp}")
-                        data = {
-                            "entity_id": entity,
-                            "temperature": converted_temp,
-                        }
-                        response = requests.post(url, headers=headers, json=data)
-                    else:
-                        data2 = {
-                            "entity_id": entity,
-                            "temperature": temperature,
-                        }
-                        response = requests.post(url, headers=headers, json=data2)
-            
-                    if response.status_code == 200:
-                        _log.info(f"Successfully changed the temp of {entity} to {temperature}")
-                    else:
-                        _log.info(f"Failed to change the temp of {entity}. Response: {response.text}")
 
         if configDict is None:
             return
@@ -265,14 +174,11 @@ class Interface(BasicRevert, BaseInterface):
 
             read_only = str(regDef.get('Writable', '')).lower() != 'true' #convert writeable to string and it worked!
 
-            point_name = regDef['Volttron Point Name']
-            units = regDef['Units']
+            self.point_name = regDef['Volttron Point Name']
+            self.units = regDef['Units']
 
-
-            brightness_level = 100 # 0 - 255
-            turn_on_lights(brightness_level)
-            set_thermostat_temperature(65)
-            change_thermostat_mode("cool") # heat, cool, auto, off
+            #set_thermostat_temperature(65)
+            #change_thermostat_mode("cool") # heat, cool, auto, off
 
                         
             self.new = regDef['Volttron Point Name']
@@ -288,21 +194,105 @@ class Interface(BasicRevert, BaseInterface):
 
             register = register_type(
                 read_only,
-                point_name,
-                units,
+                self.point_name,
+                self.units,
                 reg_type,
                 attributes,
                 default_value=default_value,
                 description=description)
 
             if default_value is not None:
-                self.set_default(point_name, register.value)
+                self.set_default(self.point_name, register.value)
 
             self.insert_register(register)
 
         
         self._create_subscriptions(self.volttron_topic) # running function to subscribe to topic specified in config
+
+
+    def turn_off_lights(self, entity_id):
+        url = f"http://{self.ip_address}:{self.port}/api/services/light/turn_off"
+        headers = {
+            "Authorization": f"Bearer {self.access_token}",
+            "Content-Type": "application/json",
+        }
+
+        try:
+            payload = {
+                "entity_id": entity_id,
+            }
+            response = requests.post(url, headers=headers, data=json.dumps(payload))
+            if response.status_code == 200:
+                _log.info(f"Turned off {entity_id}")
+        except:
+            pass
+
+    def turn_on_lights(self, entity_id, brightness_level):
+        url2 = f"http://{self.ip_address}:{self.port}/api/services/light/turn_on"
+        headers = {
+                "Authorization": f"Bearer {self.access_token}",
+                "Content-Type": "application/json",
+        }
+        try:
+            # ranges from 0 - 255 for most lights
+            payload = {
+                "entity_id": f"{entity_id}",
+                "brightness": brightness_level,
+            }
+            response = requests.post(url2, headers=headers, data=json.dumps(payload))
+            if response.status_code == 200:
+                    _log.info(f"Turned on {entity_id}")
+        except:
+            pass
+
+    def change_thermostat_mode(self, mode):
+        url = f"http://{self.ip_address}:{self.port}/api/services/climate/set_hvac_mode"
+        headers = {
+                "Authorization": f"Bearer {self.access_token}",
+                "content-type": "application/json",
+        }
+        point_names = [y.strip() for y in self.point_name.split('\n')]
+        for entity in point_names:
+            if entity.startswith("climate."):
+                data = {
+                    "entity_id": entity,
+                    "hvac_mode": mode,
+                }
+                response = requests.post(url, headers=headers, json=data)
         
+                if response.status_code == 200:
+                    _log.info(f"Successfully changed the mode of {entity} to {mode}")
+                else:
+                    _log.info(f"Failed to change the mode of {entity}. Response: {response.text}")
+
+    def set_thermostat_temperature(self, temperature):
+        url = f"http://{self.ip_address}:{self.port}/api/services/climate/set_temperature"
+        headers = {
+                "Authorization": f"Bearer {self.access_token}",
+                "content-type": "application/json",
+        }
+        point_names = [y.strip() for y in self.point_name.split('\n')]
+        for entity in point_names:
+            if entity.startswith("climate."):
+                if self.units == "C":
+                    converted_temp = round((temperature - 32) * 5/9, 1)
+                    _log.info(f"converted temp {converted_temp}")
+                    data = {
+                        "entity_id": entity,
+                        "temperature": converted_temp,
+                    }
+                    response = requests.post(url, headers=headers, json=data)
+                else:
+                    data2 = {
+                        "entity_id": entity,
+                        "temperature": temperature,
+                    }
+                    response = requests.post(url, headers=headers, json=data2)
+        
+                if response.status_code == 200:
+                    _log.info(f"Successfully changed the temp of {entity} to {temperature}")
+                else:
+                    _log.info(f"Failed to change the temp of {entity}. Response: {response.text}")
 
     def _create_subscriptions(self, topic):
         """
@@ -314,31 +304,60 @@ class Interface(BasicRevert, BaseInterface):
         self.vip.pubsub.subscribe(peer='pubsub',
                                   prefix=topic,
                                   callback=self._handle_publish)    
-    def _handle_publish(self, peer, sender, bus, topic, headers, message):
-        for value in self.points_to_grab_from_topic:
-            for element in message:
-                if value in element:
-                    data1 = json.dumps(element[f"{value}"]) #data 1 is the json dump of the member from member as a string
-                    _log.info(f"Matching Value Found: {value} with data: {data1}")
-                    url = f"http://{self.ip_address}:{self.port}/api/states/sensor.{value}"
-                    headers = {
-                        "Authorization": f"Bearer {self.access_token}",
-                        "Content-Type": "application/json",
-                    }                 
-                    data2 = f'{{"state": {data1}}}'
-                    try: # it wont connect and wont throw a status code if you are on the wrong network or have the wrong ip. 
-                        response = requests.post(url, headers=headers, data=data2) # posted data to HA is data2. maybe create a try
-                        if response.status_code == 200:
-                            _log.info(f"----------Sent {data2} from {value} successfully----------")
+    def _handle_publish(self, peer, sender, bus, topic, headers, messages):
+        for message in messages:
+            for entity_id, entity_data in message.items():
+
+                state = entity_data.get("state", None)
+                brightness = entity_data.get("brightness", None)
+                temperature = entity_data.get("temperature", None)
+
+                previous_state = self.previous_states.get(entity_id, None)
+                previous_brightness = self.previous_states.get(f"{entity_id}_brightness", None)
+                previous_temperature = self.previous_states.get(f"{entity_id}_temperature", None)
+
+                #LIGHTS
+                if entity_id.startswith("light."):
+                    if state != previous_state:  # if state changed
+                        if state == "on":
+                            _log.info(f"{entity_id} value has been detected as on")
+                            self.turn_on_lights(entity_id, 255 if brightness is None else brightness)
+                        elif state == "off":
+                            _log.info(f"{entity_id} detected as off!")
+                            self.turn_off_lights(entity_id)
                         else:
-                            _log.info(f"Failed to send {data2} to Home Assistant")
-                    except requests.exceptions.ConnectionError as e:
-                        _log.info(f"\n-----Connection Error, make sure you are on the same network as home assistant and have correct IP----- {e}\n")
-                    break
+                            continue
+
+                    # this handles brightness change even when state doesn't change
+                    if brightness != previous_brightness:
+                        print(f"{entity_id} brightness has been detected and changed to {brightness} / 254")
+                        self.turn_on_lights(entity_id, brightness)
+
+                    self.previous_states[entity_id] = state
+                    self.previous_states[f"{entity_id}_brightness"] = brightness # example previous_states[light.entity_brightness] = brightness
+
+                # THERMOSTATS
+                elif entity_id.startswith("climate."):
+
+                    if state != previous_state:
+                        if state == "cool":
+                            self.change_thermostat_mode("cool")
+                            _log.info(f"{entity_id} value has been changed to cool")
+                        elif state == "heat":
+                            _log.info(f"{entity_id} value has been changed to heat")
+                            self.change_thermostat_mode("heat")
+                        elif state == "off":
+                            _log.info(f"{entity_id} value has been changed to off")
+                            self.change_thermostat_mode("off")
+                        else: 
+                            continue
+                    if temperature != previous_temperature:
+                        print(f"{entity_id} temperature has been detected and changed to {temperature} degrees F")
+                        self.set_thermostat_temperature(temperature)
+
+                    self.previous_states[entity_id] = state
+                    self.previous_states[f"{entity_id}_temperature"] = temperature # example previous_states[light.entity_brightness] = brightness
                 else:
-                    _log.error(f"{value} not in {element}")
-            else:        
-                _log.error(f"{element} not in {message}")
+                    continue
+
         
-
-
