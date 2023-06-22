@@ -41,13 +41,14 @@ import logging
 import re
 import sys
 
-from volttron.platform.vip.agent import *
 from volttron.platform.agent import utils
 from volttron.platform.messaging.utils import normtopic
 from volttron.platform.messaging import headers as headers_mod
+from volttron.platform.vip.agent import Agent, RPC
 import gevent
 
 from collections import defaultdict
+
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
