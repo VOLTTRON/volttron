@@ -54,7 +54,7 @@ from .driver_locks import publish_lock
 import datetime
 
 utils.setup_logging()
-_log = logging.getLogger(__name__)
+_log = logging.getLogger("driver_interface")
 
 
 class DriverAgent(BasicAgent):
@@ -248,15 +248,15 @@ class DriverAgent(BasicAgent):
             _log.debug(f"{len(results)=}")
             register_names = self.interface.get_register_names_view()
             for point in (register_names - results.keys()):
-                self.parent.failed_point_scrape.labels(point=depth_first_topic, device=self.device_name).inc()
                 depth_first_topic = self.base_topic(point=point)
+                self.parent.failed_point_scrape.labels(point=depth_first_topic, device=self.device_name).inc()
                 _log.error("Failed to scrape point: "+depth_first_topic)
         except (Exception, gevent.Timeout) as exc:
             tb = traceback.format_exc()
             self.parent.error_counter.labels(device=self.device_name).inc()
             _log.error(f"Failed to scrape {self.device_name}. {exc=} traceback: {tb}")
             self.parent.last_scraped = datetime.datetime.now()
-            return 
+            return
         end_time = time.time()
         scrape_time = end_time-start_time
         self.parent.performance_histogram.labels(device=self.device_name).observe(scrape_time)
