@@ -38,16 +38,12 @@
 
 
 import random
-import datetime
-import math
 from math import pi
 import json
 import sys
 from platform_driver.interfaces import BaseInterface, BaseRegister, BasicRevert
 from volttron.platform.agent import utils #added this to pull from config store 
 from volttron.platform.vip.agent import Agent
-from csv import DictReader
-from io import StringIO
 import logging
 import requests
 from requests import get
@@ -83,6 +79,7 @@ class Interface(BasicRevert, BaseInterface):
         super(Interface, self).__init__(**kwargs)
         self.point_name = None
         self.previous_states = {} # storing previous states to only send commands when changed 
+        self.first_pass = True # first pass
   
     def configure(self, config_dict, registry_config_str): # grabbing from config
         self.ip_address = config_dict.get("ip_address", "0.0.0.0")
@@ -94,8 +91,9 @@ class Interface(BasicRevert, BaseInterface):
         self.parse_config(registry_config_str) 
 
     def get_point(self, point_name):
-        register = self.get_register_by_name(point_name)
-        return register.value
+        data = self.get_entity_data(point_name)
+        data = data.get("attributes", {})
+        return data
 
     def _set_point(self, point_name, value):
         register = self.get_register_by_name(point_name)
@@ -105,33 +103,34 @@ class Interface(BasicRevert, BaseInterface):
         
         previous_value = register.value # store the previous value 
         register.value = register.reg_type(value) # setting the value
-        print(f"{previous_value} {register}")
-
         return register.value
+    
+    def get_entity_data(self, entity_id):
+        headers = {
+            "Authorization": f"Bearer {self.access_token}",
+            "Content-Type": "application/json",
+        }
+        url = f"http://{self.ip_address}:{self.port}/api/states/{entity_id}" # the /states grabs cuurent state AND attributes of a specific entity
+        response = requests.get(url, headers=headers)
+        if response.status_code == 200:
+            return response.json() # return the json attributes from entity
+        else:
+            _log.error(f"Request failed with status code {response.status_code}: {entity_id} {response.text}")
+            return None
 
     def _scrape_all(self):
         result = {}
         read_registers = self.get_registers_by_type("byte", True)
         write_registers = self.get_registers_by_type("byte", False)
 
-        def get_entity_data(entity_id):
-            headers = {
-                "Authorization": f"Bearer {self.access_token}",
-                "Content-Type": "application/json",
-            }
-            url = f"http://{self.ip_address}:{self.port}/api/states/{entity_id}" # the /states grabs cuurent state AND attributes of a specific entity
-            response = requests.get(url, headers=headers)
-            if response.status_code == 200:
-                return response.json() # return the json attributes from entity
-            else:
-                _log.error(f"Request failed with status code {response.status_code}: {entity_id} {response.text}")
-                return None
+
 
         for register in read_registers + write_registers:
+           
             
             entity_id = register.point_name
             attributes = register.attributes
-            entity_data = get_entity_data(entity_id) # assign arrtributes to entity_data  
+            entity_data = self.get_entity_data(entity_id) # assign arrtributes to entity_data  
 
             if entity_data is not None: # if not none extract the state and entity id
                 state = entity_data.get("state", None)
@@ -145,7 +144,6 @@ class Interface(BasicRevert, BaseInterface):
                 state_replace = attributes.get('state_replace')
 
                 result[entity_id] = { # creating new entry in result dictionary using the point name
-                    #"value": state, # redundent
                     "entity_id": entity_id,
                     state_replace if state_replace else "state": state # the if checks if its not none if it finds something state_replace is the key. state_replace is a string and state is at the end. 
                 }
@@ -155,6 +153,7 @@ class Interface(BasicRevert, BaseInterface):
                     attribute_value = entity_data["attributes"].get(attribute_key, None)
                     if attribute_value is not None:
                         result[entity_id][attribute_name] = attribute_value
+
             else:
                 result[entity_id] = { # dictionary in a dictionary
                     "value": register.value
@@ -176,10 +175,6 @@ class Interface(BasicRevert, BaseInterface):
 
             self.point_name = regDef['Volttron Point Name']
             self.units = regDef['Units']
-
-            #set_thermostat_temperature(65)
-            #change_thermostat_mode("cool") # heat, cool, auto, off
-
                         
             self.new = regDef['Volttron Point Name']
             description = regDef.get('Notes', '')
@@ -304,10 +299,11 @@ class Interface(BasicRevert, BaseInterface):
         self.vip.pubsub.subscribe(peer='pubsub',
                                   prefix=topic,
                                   callback=self._handle_publish)    
+        
     def _handle_publish(self, peer, sender, bus, topic, headers, messages):
-        for message in messages:
+        for message in messages: #subscribes to itself then stores states and if they change it runs the commands 
             for entity_id, entity_data in message.items():
-
+                
                 state = entity_data.get("state", None)
                 brightness = entity_data.get("brightness", None)
                 temperature = entity_data.get("temperature", None)
@@ -317,7 +313,7 @@ class Interface(BasicRevert, BaseInterface):
                 previous_temperature = self.previous_states.get(f"{entity_id}_temperature", None)
 
                 #LIGHTS
-                if entity_id.startswith("light."):
+                if entity_id.startswith("light.") and not self.first_pass: #if it starts with light and its not the first pass to store previous values. 
                     if state != previous_state:  # if state changed
                         if state == "on":
                             _log.info(f"{entity_id} value has been detected as on")
@@ -330,14 +326,14 @@ class Interface(BasicRevert, BaseInterface):
 
                     # this handles brightness change even when state doesn't change
                     if brightness != previous_brightness:
-                        print(f"{entity_id} brightness has been detected and changed to {brightness} / 254")
+                        _log.info(f"{entity_id} brightness has been detected and changed to {brightness} / 254")
                         self.turn_on_lights(entity_id, brightness)
 
                     self.previous_states[entity_id] = state
                     self.previous_states[f"{entity_id}_brightness"] = brightness # example previous_states[light.entity_brightness] = brightness
 
                 # THERMOSTATS
-                elif entity_id.startswith("climate."):
+                elif entity_id.startswith("climate.") and not self.first_pass:
 
                     if state != previous_state:
                         if state == "cool":
@@ -352,12 +348,14 @@ class Interface(BasicRevert, BaseInterface):
                         else: 
                             continue
                     if temperature != previous_temperature:
-                        print(f"{entity_id} temperature has been detected and changed to {temperature} degrees F")
+                        _log.info(f"{entity_id} temperature has been detected and changed to {temperature} degrees F")
                         self.set_thermostat_temperature(temperature)
 
                     self.previous_states[entity_id] = state
                     self.previous_states[f"{entity_id}_temperature"] = temperature # example previous_states[light.entity_brightness] = brightness
                 else:
                     continue
+            if self.first_pass:
+                self.first_pass = False
 
         

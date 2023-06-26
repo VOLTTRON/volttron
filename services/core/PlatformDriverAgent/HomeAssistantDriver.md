@@ -167,9 +167,9 @@ We also assume that light entities start with "light" since in Home Assistant al
                     continue
 ```
 
-**Sending Data from VOLTTRON**
+**Reaacting to changes**
 
-Sending data to Home Assistant from VOLTTRON happens in the _create_subscriptions and the _handle_publish functions. 
+Reacting to changes happens in the _create_subscriptions and _handle_publish functions. 
 
 ```python
     def _create_subscriptions(self, topic):
@@ -182,31 +182,64 @@ Sending data to Home Assistant from VOLTTRON happens in the _create_subscription
         self.vip.pubsub.subscribe(peer='pubsub',
                                   prefix=topic,
                                   callback=self._handle_publish)    
-    def _handle_publish(self, peer, sender, bus, topic, headers, message):
-        for value in self.points_to_grab_from_topic:
-            for element in message:
-                if value in element:
-                    data1 = json.dumps(element[f"{value}"]) #data 1 is the json dump of the member from member as a string
-                    _log.info(f"Matching Value Found: {value} with data: {data1}")
-                    url = f"http://{self.ip_address}:{self.port}/api/states/sensor.{value}"
-                    headers = {
-                        "Authorization": f"Bearer {self.access_token}",
-                        "Content-Type": "application/json",
-                    }                 
-                    data2 = f'{{"state": {data1}}}'
-                    try: # it wont connect and wont throw a status code if you are on the wrong network or have the wrong ip. 
-                        response = requests.post(url, headers=headers, data=data2) # posted data to HA is data2. maybe create a try
-                        if response.status_code == 200:
-                            _log.info(f"----------Sent {data2} from {value} successfully----------")
+        
+    def _handle_publish(self, peer, sender, bus, topic, headers, messages):
+        for message in messages: #subscribes to itself then stores states and if they change it runs the commands 
+            for entity_id, entity_data in message.items():
+                
+                state = entity_data.get("state", None)
+                brightness = entity_data.get("brightness", None)
+                temperature = entity_data.get("temperature", None)
+
+                previous_state = self.previous_states.get(entity_id, None)
+                previous_brightness = self.previous_states.get(f"{entity_id}_brightness", None)
+                previous_temperature = self.previous_states.get(f"{entity_id}_temperature", None)
+
+                #LIGHTS
+                if entity_id.startswith("light.") and not self.first_pass: #if it starts with light and its not the first pass to store previous values. 
+                    if state != previous_state:  # if state changed
+                        if state == "on":
+                            _log.info(f"{entity_id} value has been detected as on")
+                            self.turn_on_lights(entity_id, 255 if brightness is None else brightness)
+                        elif state == "off":
+                            _log.info(f"{entity_id} detected as off!")
+                            self.turn_off_lights(entity_id)
                         else:
-                            _log.info(f"Failed to send {data2} to Home Assistant")
-                    except requests.exceptions.ConnectionError as e:
-                        _log.info(f"\n-----Connection Error, make sure you are on the same network as home assistant and have correct IP----- {e}\n")
-                    break
+                            continue
+
+                    # this handles brightness change even when state doesn't change
+                    if brightness != previous_brightness:
+                        _log.info(f"{entity_id} brightness has been detected and changed to {brightness} / 254")
+                        self.turn_on_lights(entity_id, brightness)
+
+                    self.previous_states[entity_id] = state
+                    self.previous_states[f"{entity_id}_brightness"] = brightness # example previous_states[light.entity_brightness] = brightness
+
+                # THERMOSTATS
+                elif entity_id.startswith("climate.") and not self.first_pass:
+
+                    if state != previous_state:
+                        if state == "cool":
+                            self.change_thermostat_mode("cool")
+                            _log.info(f"{entity_id} value has been changed to cool")
+                        elif state == "heat":
+                            _log.info(f"{entity_id} value has been changed to heat")
+                            self.change_thermostat_mode("heat")
+                        elif state == "off":
+                            _log.info(f"{entity_id} value has been changed to off")
+                            self.change_thermostat_mode("off")
+                        else: 
+                            continue
+                    if temperature != previous_temperature:
+                        _log.info(f"{entity_id} temperature has been detected and changed to {temperature} degrees F")
+                        self.set_thermostat_temperature(temperature)
+
+                    self.previous_states[entity_id] = state
+                    self.previous_states[f"{entity_id}_temperature"] = temperature # example previous_states[light.entity_brightness] = brightness
                 else:
-                    _log.error(f"{value} not in {element}")
-            else:        
-                _log.error(f"{element} not in {message}")
+                    continue
+            if self.first_pass:
+                self.first_pass = False
 ```
 
-This code subscribes to the device specified in the config file, then loops through the points in the device and the point specified in the config. If the value is in the element, meaning if the point in the config is one of the points on the device, it will send the data of that point to Home Assistant and create a new sensor with the name of the point as the name of the sensor in home assistant. For example, if you add EKG as a point and its in the fake driver, then you will have a new sensor in Home Assistant called sensor.ekg with the values of ekg. 
+This is not the ideal setup and will most likely be updated in the future. This works by subscribing to its own point on the message bus and storing its values during the first run, after the second run of the code it will check if the values have changed and if they have it will call the Home Assistant control functions to take action. For example, if a light goes from on to off, it will run the turn_off_lights function. 
