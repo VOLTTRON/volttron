@@ -23,18 +23,15 @@ Next, you can either clone this repository as is, or manually grab the three fil
 
 The three files you will need are HomeAssistant_Driver/home_assistant.config, HomeAssistant_Driver/home_assistant_registers.json, and services/core/PlatformDriverAgent/platform_driver/interfaces/home_assistant.py
 
-Once you have these files in the same place (or you just cloned this) you can add what you need to the config file and the registers file. The config file stores your IP address, your port, and your access token from Home Assistant. If you would like to send data from VOLTTRON to Home Assistant, you can change "devices/fake-device/all" to whatever device running in VOLTTRON. You can then add the points in the points_to_grab_from_topic. This will take point values from devices running in VOLTTRON and send them to Home Assistant. If you do not want anything to be sent you can leave default or leave blank.
-
-For example if you are running the fake driver in VOLTTRON and want to send data, the volttron_topic would be "devices/fake-device/all" and you can grab points such as EKG and EKG_Cos to send to Home Assistant.
+Once you have these files in the same place (or you just cloned this) you can add what you need to the config file and the registers file. The config file stores your IP address, your port, and your access token from Home Assistant. As of now please keep the VOLTTRON topic the same, this allows for the detection of changes on the message bus. Will be fixed later. 
 
 ```json
 {
     "driver_config": {
         "ip_address": "Your Home Assistant IP",
         "access_token": "Your Home Assistant Access Token",
-        "volttron_topic": "devices/fake-device/all",
-        "points_to_grab_from_topic": ["EKG", "EKG_Cos"],
-        "port": "Your Home Assistant Port"
+        "volttron_topic": "devices/ha/all",
+        "port": "Your Port"
     },
     "driver_type": "home_assistant",
     "registry_config":"config://home_assistant_registers.json",
@@ -98,7 +95,7 @@ Once this is complete you should be able to start the platform driver and tail t
 
 Pulling Data from Home Assistant:
 
-Pulling data from Home Assistant is managed by the get_entity_data function, which is called within the _scrape_all function. The get_entity_data function starts by creating the headers used for the REST API which includes your access token for authorization. We then create the URL with the last segment of the URL being the entitiy_id we have retireved through the registers file. This will grab the JSON data about that entity and return the response. 
+Pulling data from Home Assistant is managed by the get_entity_data function,. The get_entity_data function starts by creating the headers used for the REST API which includes your access token for authorization. We then create the URL with the last segment of the URL being the entitiy_id we have retireved through the registers file. This will grab the JSON data about that entity and return the response. 
 
 ```python
     def _scrape_all(self):
