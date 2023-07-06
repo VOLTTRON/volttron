@@ -39,6 +39,7 @@
 import logging
 import sys
 import datetime
+import json
 
 from volttron.platform.vip.agent import Agent, RPC
 from volttron.platform.async_ import AsyncCall
@@ -50,7 +51,7 @@ _log = logging.getLogger(__name__)
 
 bacnet_logger = logging.getLogger("bacpypes")
 bacnet_logger.setLevel(logging.WARNING)
-__version__ = '0.5.2'
+__version__ = '0.5.3'
 
 from collections import defaultdict
 
@@ -663,7 +664,20 @@ class BACnetProxyAgent(Agent):
             return value
         raise RuntimeError("Failed to set value: " + str(result))
 
+    def is_valid_json(self, element):
+        """
+        Checks to make sure element is valid JSON
+        """
+        try:
+            json.dumps(element)
+            return True
+        except TypeError:
+            return False
+
     def read_using_single_request(self, target_address, point_map):
+        """
+        Iteratively reads points from a device one at a time
+        """
         results = {}
 
         for point, properties in point_map.items():
@@ -678,12 +692,33 @@ class BACnetProxyAgent(Agent):
                 continue
 
             try:
-                results[point] = self.read_property(
+                prop = self.read_property(
                     target_address, object_type, instance_number, property_name, property_index)
+                if not prop:
+                    continue
+                if not self.is_valid_json(prop):
+                    _log.debug(f"not valid JSON: {dir(prop)} on prop")
+                    prop = self.to_json(prop)
+                results[point] = prop
             except Exception as exc:
                 _log.error(f"Error reading {property_name} on {object_type}-{instance_number} from device {target_address}: {exc=}")
+                continue
 
+        _log.debug(f"results for address {target_address} reading with single requests: {results}")
         return results
+
+    def to_json(self, entry):
+        """
+        Convert arbitrary data types to valid JSON
+        """
+        if isinstance(entry, bacpypes.basetypes.PriorityArray):
+            _log.debug(f"found priority array: {entry.decode('utf-8')}")
+            return entry.decode('utf-8')
+        elif isinstance(entry, bacpypes.basetypes.DeviceObjectPropertyReference):
+            return entry
+        else:
+            _log.debug(f"found {entry} of type {type(entry)}")
+            return json.dumps(entry, default=lambda o: o.__dict__, sort_keys=True, indent=4)
 
     @RPC.export
     def read_property(self, target_address, object_type, instance_number, property_name, property_index=None):
@@ -696,9 +731,10 @@ class BACnetProxyAgent(Agent):
         self.bacnet_application.submit_request(iocb)
         try:
             bacnet_results = iocb.ioResult.get(10)
-        except RuntimeError as error:
-            _log.error(f"could not read {property_name} on {object_type}-{instance_number} from device {target_address}:")
-            raise error
+        except RuntimeError:
+            _log.error(f"could not read {property_name} on {object_type}-{instance_number} from device {target_address}")
+            return None
+        _log.debug(f"found {bacnet_results} for {property_name} on {object_type}-{instance_number} from device {target_address}")
         return bacnet_results
 
     def _get_access_spec(self, obj_data, properties):
@@ -770,7 +806,9 @@ class BACnetProxyAgent(Agent):
         """
 
         if not use_read_multiple:
-            return self.read_using_single_request(target_address, point_map)
+            props = self.read_using_single_request(target_address, point_map)
+            _log.debug(f"found {len(props)} results using single requests")
+            return props
 
         # Set max_per_request really high if not set.
         if max_per_request is None:
@@ -807,13 +845,16 @@ class BACnetProxyAgent(Agent):
                 self.bacnet_application.submit_request(iocb)
                 try:
                     bacnet_results = iocb.ioResult.get(10)
-                # except RuntimeError as exc:
-                #     try:
-                #         bacnet_results = self.find_error_object(read_access_spec_list, target_address)
-                #     except PointErrorException as exc_e:
-                #         exc_e.message = f"failed to scrape: {exc_e.address}/{exc_e.object_type}/{exc_e.instance_number}"
-                #         _log.debug(exc_e.message)
-                #         raise exc_e from exc
+                except RuntimeError as exc:
+                    try:
+                        bacnet_results = self.find_error_object(read_access_spec_list, target_address)
+                    except PointErrorException as exc_e:
+                        if "Segmentation not supported" in str(exc):
+                            exc_e.message = f"failed to scrape: {exc_e.address}/{exc_e.object_type}/{exc_e.instance_number} - segmentationNotSupported"
+                        else:
+                            exc_e.message = f"failed to scrape: {exc_e.address}/{exc_e.object_type}/{exc_e.instance_number}"
+                        _log.debug(exc_e.message)
+                        raise exc_e from exc
                 except Exception as exc:
                     bacnet_results = self.find_error_object(read_access_spec_list, target_address)
                     _log.error(f"{exc} {target_address=} {request=}")
@@ -823,9 +864,14 @@ class BACnetProxyAgent(Agent):
                 _log.debug("Received read response from {target} count: {count}".format(
                     count=count, target=target_address))
 
-                for prop_tuple, value in bacnet_results.items():
-                    name = reverse_point_map[prop_tuple]
-                    result_dict[name] = value
+                try:
+                    for prop_tuple, value in bacnet_results.items():
+                        name = reverse_point_map[prop_tuple]
+                        result_dict[name] = value
+                except AttributeError as exc:
+                    for prop_tuple, value in bacnet_results[0].items():
+                        name = reverse_point_map[prop_tuple]
+                        result_dict[name] = value
 
         return result_dict
 
