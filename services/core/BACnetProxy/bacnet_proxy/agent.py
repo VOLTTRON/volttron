@@ -51,7 +51,7 @@ _log = logging.getLogger(__name__)
 
 bacnet_logger = logging.getLogger("bacpypes")
 bacnet_logger.setLevel(logging.WARNING)
-__version__ = '0.5.3'
+__version__ = '0.5.4'
 
 from collections import defaultdict
 
