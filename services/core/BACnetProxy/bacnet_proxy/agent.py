@@ -743,8 +743,8 @@ def bacnet_proxy_agent(config_path, **kwargs):
     foreignbbmd = config.get("foreignbbmd", None)
     foreignttl = config.get("foreignttl", None)
 
-    return BACnetProxyAgent(device_address, max_apdu_len, seg_supported, obj_id, obj_name, ven_id, max_per_request,
-                            request_check_interval=request_check_interval, heartbeat_autostart=True, foreignbbmd, foreignttl **kwargs)
+    return BACnetProxyAgent(device_address, max_apdu_len, seg_supported, obj_id, obj_name, ven_id, max_per_request, foreignbbmd, foreignttl,
+                            request_check_interval=request_check_interval, heartbeat_autostart=True, **kwargs)
 
 
 class BACnetProxyAgent(Agent):
