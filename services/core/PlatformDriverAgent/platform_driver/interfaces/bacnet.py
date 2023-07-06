@@ -170,14 +170,10 @@ class Interface(BaseInterface):
 
         while True:
             try:
-                if self.target_address == "10.170.121.161" or self.target_address == "10.170.12.119":
-                    _log.debug(f"making RPC on device {self.target_address}")
                 result = self.vip.rpc.call(self.proxy_address, 'read_properties',
                                            self.target_address, point_map,
                                            self.max_per_request, self.use_read_multiple).get(timeout=180)
                 
-                if self.target_address == "10.170.121.161" or self.target_address == "10.170.12.119":
-                    _log.debug(f"found results from RPC: {result}")
                 _log.debug(f"found {len(result)} results in platform driver")
             except gevent.timeout.Timeout as exc:
                 _log.error(f"Timed out reading target {self.target_address}")
@@ -209,8 +205,6 @@ class Interface(BaseInterface):
                 raise
             else:
                 break
-        if self.target_address == "10.170.121.161" or self.target_address == "10.170.12.119":
-            _log.debug(f"returning {result=} from scrape_all")
         _log.debug(f"{self.target_address=}")
         return result
 
