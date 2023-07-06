@@ -740,9 +740,11 @@ def bacnet_proxy_agent(config_path, **kwargs):
     ven_id = config.get("vendor_id", 15)
     max_per_request = config.get("default_max_per_request", 1000000)
     request_check_interval = config.get("request_check_interval", 100)
+    foreignbbmd = config.get("foreignbbmd", None)
+    foreignttl = config.get("foreignttl", None)
 
     return BACnetProxyAgent(device_address, max_apdu_len, seg_supported, obj_id, obj_name, ven_id, max_per_request,
-                            request_check_interval=request_check_interval, heartbeat_autostart=True, **kwargs)
+                            request_check_interval=request_check_interval, heartbeat_autostart=True, foreignbbmd, foreignttl **kwargs)
 
 
 class BACnetProxyAgent(Agent):
