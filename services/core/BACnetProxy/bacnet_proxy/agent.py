@@ -743,7 +743,7 @@ def bacnet_proxy_agent(config_path, **kwargs):
     foreignbbmd = config.get("foreignbbmd", None)
     foreignttl = config.get("foreignttl", None)
 
-    return BACnetProxyAgent(device_address, max_apdu_len, seg_supported, obj_id, obj_name, ven_id, max_per_request, foreignbbmd, foreignttl,
+    return BACnetProxyAgent(device_address, max_apdu_len, seg_supported, obj_id, obj_name, ven_id, max_per_request, foreignbbmd=None, foreignttl=None,
                             request_check_interval=request_check_interval, heartbeat_autostart=True, **kwargs)
 
 
@@ -751,8 +751,8 @@ class BACnetProxyAgent(Agent):
     """
     This agent creates a virtual bacnet device that is used by the bacnet driver interface to communicate with devices.
     """
-    def __init__(self, device_address, max_apdu_len, seg_supported, obj_id, obj_name, ven_id, max_per_request,
-                 request_check_interval=100, foreignbbmd=None, foreignttl=None, **kwargs):
+    def __init__(self, device_address, max_apdu_len, seg_supported, obj_id, obj_name, ven_id, max_per_request, foreignbbmd=None, foreignttl=None,
+                 request_check_interval=100, **kwargs):
         super(BACnetProxyAgent, self).__init__(**kwargs)
 
         async_call = AsyncCall()
