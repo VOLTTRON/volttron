@@ -131,6 +131,7 @@ class PointErrorException(Exception):
 class BACnetForeignApplication(BIPForeignApplication, RecurringTask):
     def __init__(self, i_am_callback, send_cov_subscription_callback, forward_cov_callback, request_check_interval,
                  *args):
+        _log.debug("Initializating BIPForeignApplication")
         BIPForeignApplication.__init__(self, *args)
         RecurringTask.__init__(self, request_check_interval)
 
@@ -430,6 +431,7 @@ class BACnetForeignApplication(BIPForeignApplication, RecurringTask):
 class BACnetApplication(BIPSimpleApplication, RecurringTask):
     def __init__(self, i_am_callback, send_cov_subscription_callback, forward_cov_callback, request_check_interval,
                  *args):
+        _log.debug("Initializating BIPSimpleApplication")
         BIPSimpleApplication.__init__(self, *args)
         RecurringTask.__init__(self, request_check_interval)
 
