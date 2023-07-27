@@ -39,6 +39,7 @@
 
 import logging
 import gevent
+import traceback
 from datetime import datetime, timedelta
 
 from platform_driver.driver_exceptions import DriverConfigError
@@ -75,6 +76,7 @@ class Interface(BaseInterface):
         self.register_count = 10000
         self.register_count_divisor = 1
         self.cov_points = []
+        self.use_read_multiple = True
 
     def configure(self, config_dict, registry_config_str):
         self.min_priority = config_dict.get("min_priority", 8)
@@ -116,6 +118,9 @@ class Interface(BaseInterface):
 
         except errors.VIPError:
             _log.warning("Error trying to ping device.")
+        
+        except gevent.timeout.Timeout:
+            _log.warning(f"Timeout trying to ping device {self.target_address}. Scheduling to retry")
 
         self.scheduled_ping = None
 
@@ -167,12 +172,14 @@ class Interface(BaseInterface):
             try:
                 result = self.vip.rpc.call(self.proxy_address, 'read_properties',
                                            self.target_address, point_map,
-                                           self.max_per_request, self.use_read_multiple).get(timeout=self.timeout)
+                                           self.max_per_request, self.use_read_multiple).get(timeout=180)
+                
+                _log.debug(f"found {len(result)} results in platform driver")
             except gevent.timeout.Timeout as exc:
                 _log.error(f"Timed out reading target {self.target_address}")
                 raise exc
-            except RemoteError as e:
-                if "segmentationNotSupported" in e.message:
+            except RemoteError as exc:
+                if "segmentationNotSupported" in exc.message:
                     if self.max_per_request <= 1:
                         _log.error("Receiving a segmentationNotSupported error with 'max_per_request' setting of 1.")
                         raise
@@ -180,12 +187,17 @@ class Interface(BaseInterface):
                     self.max_per_request = max(int(self.register_count/self.register_count_divisor), 1)
                     _log.info("Device requires a lower max_per_request setting. Trying: "+str(self.max_per_request))
                     continue
-                elif e.message.endswith("rejected the request: 9") and self.use_read_multiple:
+                elif exc.message.endswith("rejected the request: 9") and self.use_read_multiple:
                     _log.info("Device rejected request with 'unrecognized-service' error, attempting to access with use_read_multiple false")
                     self.use_read_multiple = False
                     continue
+                elif self.use_read_multiple:
+                    self.use_read_multiple = False
+                    continue
                 else:
-                    raise
+                    trace = traceback.format_exc()
+                    _log.error(f"Error reading target {self.target_address}: {trace}")
+                    raise exc
             except errors.Unreachable:
                 # If the Proxy is not running bail.
                 _log.warning("Unable to reach BACnet proxy.")
@@ -193,7 +205,7 @@ class Interface(BaseInterface):
                 raise
             else:
                 break
-
+        _log.debug(f"{self.target_address=}")
         return result
 
     def revert_all(self, priority=None):
