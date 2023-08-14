@@ -162,19 +162,20 @@ class ConfigStoreService(Agent):
 
     @RPC.export
     @RPC.allow('edit_config_store')
-    def manage_store(self, identity, config_name, raw_contents, config_type="raw"):
+    def set_config(self, identity, config_name, raw_contents, config_type="raw", trigger_callback=True,
+                   send_update=True):
         contents = process_raw_config(raw_contents, config_type)
         self._add_config_to_store(identity, config_name, raw_contents, contents, config_type,
-                                  trigger_callback=True)
+                                  trigger_callback=trigger_callback, send_update=send_update)
 
     @RPC.export
     @RPC.allow('edit_config_store')
-    def manage_delete_config(self, identity, config_name):
-        self.delete(identity, config_name, trigger_callback=True)
+    def delete_config(self, identity, config_name, trigger_callback=True, send_update=True):
+        self.delete(identity, config_name, trigger_callback=trigger_callback, send_update=send_update)
 
     @RPC.export
     @RPC.allow('edit_config_store')
-    def manage_delete_store(self, identity):
+    def delete_store(self, identity):
         agent_store = self.store.get(identity)
         if agent_store is None:
             return
@@ -211,19 +212,19 @@ class ConfigStoreService(Agent):
             self.store.pop(identity, None)
 
     @RPC.export
-    def manage_list_configs(self, identity):
+    def list_configs(self, identity):
         result = list(self.store.get(identity, {}).get("store", {}).keys())
         result.sort()
         return result
 
     @RPC.export
-    def manage_list_stores(self):
+    def list_stores(self):
         result = list(self.store.keys())
         result.sort()
         return result
 
     @RPC.export
-    def manage_get(self, identity, config_name, raw=True):
+    def get_config(self, identity, config_name, raw=True):
         agent_store = self.store.get(identity)
         if agent_store is None:
             raise KeyError('No configuration file "{}" for VIP IDENTIY {}'.format(config_name, identity))
@@ -246,7 +247,7 @@ class ConfigStoreService(Agent):
         return agent_configs[real_config_name]
 
     @RPC.export
-    def manage_get_metadata(self, identity, config_name):
+    def get_metadata(self, identity, config_name):
         agent_store = self.store.get(identity)
         if agent_store is None:
             raise KeyError('No configuration file "{}" for VIP IDENTIY {}'.format(config_name, identity))
@@ -270,21 +271,15 @@ class ConfigStoreService(Agent):
 
         return real_config
 
+    @RPC.allow('initialize_agent_config')
     @RPC.export
-    def set_config(self, config_name, contents, trigger_callback=False, send_update=True):
-        identity = self.vip.rpc.context.vip_message.peer
-        self.store_config(identity, config_name, contents, trigger_callback=trigger_callback, send_update=send_update)
-
-
-    @RPC.export
-    def get_configs(self):
+    def initialize_configs(self, identity):
         """
         Called by an Agent at startup to trigger initial configuration state
         push.
         """
-        identity = self.vip.rpc.context.vip_message.peer
 
-        #We need to create store and lock if it doesn't exist in case someone
+        # We need to create store and lock if it doesn't exist in case someone
         # tries to add a configuration while we are sending the initial state.
         agent_store = self.store.get(identity)
 
@@ -320,13 +315,6 @@ class ConfigStoreService(Agent):
         # were informing the agent) then remove it from the global store.
         if not agent_disk_store:
             self.store.pop(identity, None)
-
-    @RPC.export
-    def delete_config(self, config_name, trigger_callback=False, send_update=True):
-        """Called by an Agent to delete a configuration."""
-        identity = self.vip.rpc.context.vip_message.peer
-        self.delete(identity, config_name, trigger_callback=trigger_callback,
-                    send_update=send_update)
 
     # Helper method to allow the local services to delete configs before message
     # bus in online.
