@@ -215,7 +215,7 @@ def test_request_new_schedule(publish_agent, cancel_schedules, taskid, expected_
     :param cancel_schedules: fixture used to cancel the schedule at the end of
     test so that other tests can use the same device and time slot
     """
-    print ("\n**** test_schedule_success ****")
+    print("\n**** test_schedule_success ****")
     # used by cancel_schedules
     agentid = TEST_AGENT
     cancel_schedules.append({'agentid': agentid, 'taskid': taskid})
@@ -460,7 +460,7 @@ def test_request_new_schedule_should_suceed_on_preempt_active_task(publish_agent
     :param cancel_schedules: fixture used to cancel the schedule at the end
     of test so that other tests can use the same device and time slot
     """
-    print ("\n**** test_schedule_preempt_active_task ****")
+    print("\n**** test_schedule_preempt_active_task ****")
     # used by cancel_schedules
     agentid = 'new_agent'
     taskid = 'task_high_priority2'
@@ -656,7 +656,7 @@ def test_request_new_schedule_should_return_failure_on_preempt_active_task(publi
     :param cancel_schedules: fixture used to cancel the schedule at the end
     of test so that other tests can use the same device and time slot
     """
-    print ("\n**** test_schedule_preempt_error_active_task ****")
+    print("\n**** test_schedule_preempt_error_active_task ****")
     # used by cancel_schedules
     agentid = TEST_AGENT
     taskid = 'task_low_priority3'
@@ -713,7 +713,7 @@ def test_request_new_schedule_should_succeed_on_preempt_future_task(publish_agen
     :param cancel_schedules: fixture used to cancel the schedule at the end
     of test so that other tests can use the same device and time slot
     """
-    print ("\n**** test_schedule_preempt_future_task ****")
+    print("\n**** test_schedule_preempt_future_task ****")
     # used by cancel_schedules
     agentid = 'new_agent'
     taskid = 'task_high_priority4'
@@ -789,7 +789,7 @@ def test_request_new_schedule_should_return_failure_on_conflicting_time_slots(pu
     :param publish_agent: fixture invoked to setup all agents necessary and
     returns an instance of Agent object used for publishing
     """
-    print ("\n**** test_schedule_conflict_self ****")
+    print("\n**** test_schedule_conflict_self ****")
     # used by cancel_schedules
     taskid = 'task_self_conflict'
     start = str(datetime.now())
@@ -868,7 +868,7 @@ def test_request_new_schedule_should_succeed_on_overlap_time_slots(publish_agent
     :param cancel_schedules: fixture used to cancel the schedule at the end
     of test so that other tests can use the same device and time slot
     """
-    print ("\n**** test_schedule_overlap_success ****")
+    print("\n**** test_schedule_overlap_success ****")
     # set agentid and task id for  cancel_schedules fixture
     agentid = TEST_AGENT
     taskid = 'task_overlap'
@@ -902,7 +902,7 @@ def test_request_cancel_schedule_should_succeed(publish_agent):
     :param publish_agent: fixture invoked to setup all agents necessary and
     returns an instance of Agent object used for publishing
     """
-    print ("\n**** test_cancel_success ****")
+    print("\n**** test_cancel_success ****")
 
     start = str(datetime.now())
     end = str(datetime.now() + timedelta(seconds=2))
@@ -940,7 +940,7 @@ def test_request_cancel_schedule_should_return_failure_on_invalid_taskid(publish
     returns an instance
     of Agent object used for publishing
     """
-    print ("\n**** test_cancel_error_invalid_taskid ****")
+    print("\n**** test_cancel_error_invalid_taskid ****")
     result = publish_agent.vip.rpc.call(
         PLATFORM_ACTUATOR,
         REQUEST_CANCEL_SCHEDULE,
@@ -963,7 +963,7 @@ def test_get_point_should_succeed(publish_agent):
     :param publish_agent: fixture invoked to setup all agents necessary and
     returns an instance of Agent object used for publishing
     """
-    print ("\n**** test_get_default ****")
+    print("\n**** test_get_default ****")
 
     result = publish_agent.vip.rpc.call(
         PLATFORM_ACTUATOR,  # Target agent
@@ -1072,7 +1072,7 @@ def test_revert_point_should_succeed(publish_agent, cancel_schedules):
     :param cancel_schedules: fixture used to cancel the schedule at the end
     of test so that other tests can use the same device and time slot
     """
-    print ("\n**** test_set_float_value ****")
+    print("\n**** test_set_float_value ****")
     taskid = 'test_revert_point'
     agentid = TEST_AGENT
     cancel_schedules.append({'agentid': agentid, 'taskid': taskid})
@@ -1136,7 +1136,7 @@ def test_revert_point_with_point_should_succeed(publish_agent, cancel_schedules)
     :param cancel_schedules: fixture used to cancel the schedule at the end
     of test so that other tests can use the same device and time slot
     """
-    print ("\n**** test_set_float_value ****")
+    print("\n**** test_set_float_value ****")
     taskid = 'test_revert_point'
     agentid = TEST_AGENT
     cancel_schedules.append({'agentid': agentid, 'taskid': taskid})
@@ -1380,7 +1380,7 @@ def test_set_point_raises_value_error(publish_agent, cancel_schedules):
     :param cancel_schedules: fixture used to cancel the schedule at the end
     of test so that other tests can use the same device and time slot
     """
-    print ("\n**** test_set_value_error ****")
+    print("\n**** test_set_value_error ****")
     agentid = TEST_AGENT
     taskid = 'task_set_value_error'
     cancel_schedules.append({'agentid': agentid, 'taskid': taskid})
@@ -1562,7 +1562,7 @@ def test_set_point_raises_remote_error_on_lock_failure(publish_agent, cancel_sch
     :param cancel_schedules: fixture used to cancel the schedule at the end
     of test so that other tests can use the same device and time slot
     """
-    print ("\n**** test_set_float_value ****")
+    print("\n**** test_set_float_value ****")
     agentid = TEST_AGENT
 
     with pytest.raises(RemoteError):

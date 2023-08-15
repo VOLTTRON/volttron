@@ -135,7 +135,7 @@ def test_basic(agent):
     """
     global alert_messages, db_connection
     publish_time = get_aware_utc_now()
-    print (f"publish time is {publish_time}")
+    print(f"publish time is {publish_time}")
     for _ in range(5):
         alert_messages.clear()
         agent.vip.pubsub.publish(peer='pubsub',

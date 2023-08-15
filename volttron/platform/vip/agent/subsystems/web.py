@@ -222,9 +222,8 @@ class WebSubSystem(SubsystemBase):
         if callbacks is None:
             _log.error('Websocket endpoint {} is not available'.format(
                 endpoint))
-        else:
-            if callbacks[0]:
-                return callbacks[0](fromip, endpoint)
+        elif callbacks[0]:
+            return callbacks[0](fromip, endpoint)
 
         return False
 
@@ -235,9 +234,8 @@ class WebSubSystem(SubsystemBase):
         if callbacks is None:
             _log.error('Websocket endpoint {} is not available'.format(
                 endpoint))
-        else:
-            if callbacks[1]:
-                callbacks[1](endpoint)
+        elif callbacks[1]:
+            callbacks[1](endpoint)
 
     def _message(self, endpoint, message):
 
@@ -245,6 +243,5 @@ class WebSubSystem(SubsystemBase):
         if callbacks is None:
             _log.error('Websocket endpoint {} is not available'.format(
                 endpoint))
-        else:
-            if callbacks[2]:
-                callbacks[2](endpoint, message)
+        elif callbacks[2]:
+            callbacks[2](endpoint, message)

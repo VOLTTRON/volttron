@@ -38,7 +38,6 @@
 
 import logging
 import urllib.parse
-import uuid
 import os
 
 import gevent
@@ -226,5 +225,5 @@ class Connection:
     def kill(self, *args, **kwargs):
         if self._greenlet is not None:
             self._greenlet.kill(*args, **kwargs)
-            del(self._greenlet)
+            del self._greenlet
             self._greenlet = None

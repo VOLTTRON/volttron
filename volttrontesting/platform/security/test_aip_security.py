@@ -7,7 +7,6 @@ from mock import MagicMock
 from volttron.platform import is_rabbitmq_available
 from volttron.platform import get_services_core
 from volttron.platform.agent.utils import execute_command
-from volttron.platform.vip.agent import *
 from volttrontesting.fixtures.volttron_platform_fixtures import build_wrapper, cleanup_wrapper, rmq_skipif
 from volttrontesting.utils.utils import get_rand_vip
 

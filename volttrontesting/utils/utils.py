@@ -134,7 +134,7 @@ def build_devices_header_and_message(points=['abc', 'def']):
 
     for point in points:
         data[point] = random() * 10
-        meta_data[point] = meta_templates[randint(0,len(meta_templates)-1)]
+        meta_data[point] = meta_templates[randint(0, len(meta_templates)-1)]
 
     time1 = utils.format_timestamp( datetime.utcnow())
     headers = {

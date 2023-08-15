@@ -37,9 +37,6 @@
 # }}}
 
 
-
-from collections import defaultdict
-
 # Import the email modules we'll need
 from email.mime.text import MIMEText
 import logging
@@ -51,7 +48,7 @@ import sys
 
 import gevent
 from volttron.platform.agent.utils import get_utc_seconds_from_epoch
-from volttron.platform.vip.agent import Agent, Core, PubSub, compat
+from volttron.platform.vip.agent import Agent, PubSub, compat
 from volttron.platform.agent import utils
 from volttron.platform.messaging import topics
 from volttron.platform.messaging.health import ALERT_KEY, STATUS_BAD, Status, \

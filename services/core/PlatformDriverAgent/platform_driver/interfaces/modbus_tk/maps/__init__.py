@@ -197,11 +197,10 @@ class CSVRegister:
                 return table_map[table]
             except KeyError:
                 raise Exception("Invalid modbus table '{0}' for register '{1}'".format(table, self._name))
+        elif self._datatype == helpers.BOOL:
+            return helpers.COIL_READ_WRITE if self._writable else helpers.COIL_READ_ONLY
         else:
-            if self._datatype == helpers.BOOL:
-                return helpers.COIL_READ_WRITE if self._writable else helpers.COIL_READ_ONLY
-            else:
-                return helpers.REGISTER_READ_WRITE if self._writable else helpers.REGISTER_READ_ONLY
+            return helpers.REGISTER_READ_WRITE if self._writable else helpers.REGISTER_READ_ONLY
 
     @property
     def _op_mode(self):

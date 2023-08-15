@@ -103,10 +103,10 @@ class _config_test_agent(MarketAgent):
         supply_curve = PolyLine()
         price = 100
         quantity = 0
-        supply_curve.add(Point(price,quantity))
+        supply_curve.add(Point(price, quantity))
         price = 100
         quantity = 1000
-        supply_curve.add(Point(price,quantity))
+        supply_curve.add(Point(price, quantity))
         return supply_curve
 
     def create_demand_curve(self):

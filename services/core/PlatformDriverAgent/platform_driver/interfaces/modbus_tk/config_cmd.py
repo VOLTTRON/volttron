@@ -165,7 +165,7 @@ class ConfigCmd (cmd.Cmd):
             if file_dir:
                 while True:
                     if not os.path.exists("{0}/{1}".format(file_dir, file_name)):
-                        print ("'{0}' file '{1}' does not exist in the directory '{2}'".format(file_type,
+                        print("'{0}' file '{1}' does not exist in the directory '{2}'".format(file_type,
                                                                                                file_name,
                                                                                                file_dir))
                         if file_name == 'maps.yaml':
@@ -268,20 +268,19 @@ class ConfigCmd (cmd.Cmd):
                     print("No change made to '{0}'".format(dir_key))
                 else:
                     self._directories[dir_key] = dir
+        elif line not in self._directories:
+            print("Directory type '{0}' does not exist".format(line))
+            print("Please select another directory type from: {0}".format([k for k in self._directories.keys()]))
+            print("Enter a directory type. Press <Enter> if edit all: ", end='')
+            self.do_edit_directories(input().lower())
         else:
-            if line not in self._directories:
-                print("Directory type '{0}' does not exist".format(line))
-                print("Please select another directory type from: {0}".format([k for k in self._directories.keys()]))
-                print("Enter a directory type. Press <Enter> if edit all: ", end='')
-                self.do_edit_directories(input().lower())
+            print("Enter the directory path for {0}. Press <Enter> if no change needed: ".format(line), end='')
+            dir_path = input()
+            dir = self.get_existed_directory(dir_path, line) if dir_path else None
+            if not dir or dir == self._directories[line]:
+                print("No change made to {0}".format(line))
             else:
-                print("Enter the directory path for {0}. Press <Enter> if no change needed: ".format(line), end='')
-                dir_path = input()
-                dir = self.get_existed_directory(dir_path, line) if dir_path else None
-                if not dir or dir == self._directories[line]:
-                    print("No change made to {0}".format(line))
-                else:
-                    self._directories[line] = dir
+                self._directories[line] = dir
 
         self.do_list_directories('')
 
@@ -818,7 +817,7 @@ class ConfigCmd (cmd.Cmd):
             print("DRIVER NAME".ljust(16) + "| VOLTTRON PATH")
             for d in drivers.keys():
                 print("{0:15} | {1}".format(d, drivers[d]))
-            print ("\nEnter driver name to delete: ", end='')
+            print("\nEnter driver name to delete: ", end='')
             driver_name = input()
 
         if driver_name not in drivers:

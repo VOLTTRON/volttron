@@ -40,7 +40,6 @@ import traceback
 import os
 import weakref
 import fnmatch
-import greenlet
 import inspect
 
 from .base import SubsystemBase
@@ -460,7 +459,7 @@ class ConfigStore(SubsystemBase):
         actions = set(action.upper() for action in actions)
 
         invalid_actions = actions - VALID_ACTIONS
-        if (invalid_actions):
+        if invalid_actions:
             raise ValueError("Invalid actions: " + list(invalid_actions))
 
         pattern = pattern.lower()

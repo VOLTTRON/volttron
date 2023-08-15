@@ -42,7 +42,6 @@
 
 import logging
 import sys
-import uuid
 import unittest
 import mock
 from mock import Mock

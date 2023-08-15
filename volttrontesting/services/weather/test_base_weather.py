@@ -48,7 +48,7 @@ from mock import MagicMock
 from volttron.platform.agent import utils
 from volttron.platform.agent.base_weather import BaseWeatherAgent
 from volttron.platform.agent.utils import get_fq_identity
-from volttron.platform.messaging.health import *
+from volttron.platform.messaging.health import STATUS_BAD, STATUS_GOOD
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)

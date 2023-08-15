@@ -217,7 +217,7 @@ def test_devices_topic(publish_agent, query_agent):
     assert (len(result['values']) == 1)
     (time1_date, time1_time) = time1.split("T")
     assert (result['values'][0][0] == time1_date + 'T' + time1_time + '+00:00')
-    assert (result['values'][0][1] == approx(oat_reading))
+    assert result['values'][0][1] == approx(oat_reading)
     assert set(result['metadata'].items()) == set(float_meta.items())
 
 
@@ -283,8 +283,8 @@ def test_analysis_topic(publish_agent, query_agent):
     (now_date, now_time) = now.split("T")
     if now_time[-1:] == 'Z':
         now_time = now_time[:-1]
-    assert (result['values'][0][0] == now_date + 'T' + now_time + '+00:00')
-    assert (result['values'][0][1] == approx(mixed_reading))
+    assert result['values'][0][0] == now_date + 'T' + now_time + '+00:00'
+    assert result['values'][0][1] == approx(mixed_reading)
 
 
 @pytest.mark.historian
@@ -342,8 +342,8 @@ def test_analysis_topic_no_header(publish_agent, query_agent):
         start=now,
         order="LAST_TO_FIRST").get(timeout=10)
     print('Query Result', result)
-    assert (len(result['values']) == 1)
-    assert (result['values'][0][1] == approx(mixed_reading))
+    assert len(result['values']) == 1
+    assert result['values'][0][1] == approx(mixed_reading)
 
 
 @pytest.mark.historian
@@ -404,8 +404,8 @@ def test_log_topic(publish_agent, query_agent):
         topic="datalogger/PNNL/BUILDING1_ANON/Device/MixedAirTemperature",
         order="LAST_TO_FIRST").get(timeout=10)
     print('Query Result', result)
-    assert (len(result['values']) == 1)
-    assert (result['values'][0][1] == approx(mixed_reading))
+    assert len(result['values']) == 1
+    assert result['values'][0][1] == approx(mixed_reading)
 
 
 @pytest.mark.historian
@@ -452,8 +452,8 @@ def test_log_topic_no_header(publish_agent, query_agent):
         start=current_time,
         order="LAST_TO_FIRST").get(timeout=10)
     print('Query Result', result)
-    assert (len(result['values']) == 1)
-    assert (result['values'][0][1] == approx(mixed_reading))
+    assert len(result['values']) == 1
+    assert result['values'][0][1] == approx(mixed_reading)
 
 
 @pytest.mark.historian
@@ -549,7 +549,7 @@ def test_old_config(volttron_instances, forwarder):
 #         gevent.sleep(1)  # wait for topic to be forwarded and callback to happen
 #
 #         # assert query_agent.callback.call_count == 1
-#         print ('call args ', query_agent.callback.call_args_list)
+#         print('call args ', query_agent.callback.call_args_list)
 #         # assert query_agent.callback.call_args[0][1] == 'platform.actuator'
 #         assert query_agent.callback.call_args[0][3] == \
 #                topics.ACTUATOR_SCHEDULE_RESULT
@@ -737,5 +737,5 @@ def test_default_config(volttron_instances, query_agent):
     assert (len(result['values']) == 1)
     (time1_date, time1_time) = time1.split("T")
     assert (result['values'][0][0] == time1_date + 'T' + time1_time + '+00:00')
-    assert (result['values'][0][1] == approx(oat_reading))
+    assert result['values'][0][1] == approx(oat_reading)
     assert set(result['metadata'].items()) == set(float_meta.items())

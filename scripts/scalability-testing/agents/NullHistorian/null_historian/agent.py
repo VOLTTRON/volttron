@@ -39,10 +39,10 @@
 import logging
 import sys
 
-from volttron.platform.vip.agent import *
 from volttron.platform.agent.base_historian import BaseHistorian, add_timing_data_to_header
 from volttron.platform.agent import utils
 from volttron.platform.agent import math_utils
+from volttron.platform.vip.agent.core import Core
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
