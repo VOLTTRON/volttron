@@ -136,7 +136,7 @@ work out-of-the-box. Please feel free to refer to related documentations for det
 
     ```
     vctl config store platform_driver_for_dnp3 devices/campus/building/dnp3 services/core/PlatformDriverAgent/platform_driver/interfaces/udd_dnp3/examples/dnp3.config
-    vctl config store platform_driver_for_dnp3 services/core/PlatformDriverAgent/platform_driver/interfaces/udd_dnp3/examples/dnp3.csv --csv
+    vctl config store platform_driver_for_dnp3 dnp3.csv services/core/PlatformDriverAgent/platform_driver/interfaces/udd_dnp3/examples/dnp3.csv --csv
     ```
 
     <details>
