@@ -165,7 +165,7 @@ def driver_config_in_json_config():
     associated with `driver_config` in driver-config.config (json-like file)
                     user inputs are put here, e.g., IP address, url, etc.
     """
-    json_path = Path("./testing_data/udd-Dnp3.config")
+    json_path = Path("./testing_data/dnp3.config")
     json_path = Path(TEST_DIR, json_path)
     with open(json_path) as json_f:
         driver_config = json.load(json_f)
@@ -178,7 +178,7 @@ def csv_config():
     """
     associated with the whole driver-config.csv file
     """
-    csv_path = Path("./testing_data/udd-Dnp3.csv")
+    csv_path = Path("./testing_data/dnp3.csv")
     csv_path = Path(TEST_DIR, csv_path)
     with open(csv_path) as f:
         reader = csv.DictReader(f, delimiter=',')
