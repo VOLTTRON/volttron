@@ -32,12 +32,12 @@ def multi_messagebus_vc_vcp(volttron_multi_messagebus):
     # capabilities = {'edit_config_store': {'identity': VOLTTRON_CENTRAL_PLATFORM}}
     # vcp_instance.add_capabilities(vcp_instance.dynamic_agent.core.publickey, capabilities)
     vcp_instance.dynamic_agent.vip.rpc.call(CONFIGURATION_STORE,
-                                            "manage_store",
+                                            "set_config",
                                             VOLTTRON_CENTRAL_PLATFORM,
                                             "config",
                                             config,
                                             "json").get()
-    # "manage_store", opts.identity, opts.name, file_contents, config_type = opts.config_type
+    # "set_config", opts.identity, opts.name, file_contents, config_type = opts.config_type
     # Allows connections between platforms to be established.
     gevent.sleep(20)
     yield vcp_instance, vc_instance, vcp_uuid

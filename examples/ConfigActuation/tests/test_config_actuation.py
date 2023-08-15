@@ -157,7 +157,7 @@ def test_thing(publish_agent):
     assert value == 10.0
 
     publish_agent.vip.rpc.call(CONFIGURATION_STORE,
-                               "manage_store",
+                               "set_config",
                                "config_actuation",
                                "fakedriver",
                                jsonapi.dumps({"SampleWritableFloat1": 42.0}),

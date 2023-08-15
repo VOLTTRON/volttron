@@ -82,19 +82,19 @@ def agent(request, volttron_instance):
     capabilities = {'edit_config_store': {'identity': PLATFORM_DRIVER}}
     volttron_instance.add_capabilities(agent.core.publickey, capabilities)
     agent.vip.rpc.call(CONFIGURATION_STORE,
-                       'manage_delete_store',
+                       'delete_store',
                        PLATFORM_DRIVER).get(timeout=10)
 
     # Add test configurations.
     agent.vip.rpc.call(CONFIGURATION_STORE,
-                       'manage_store',
+                       'set_config',
                        PLATFORM_DRIVER,
                        "devices/campus/building/unit",
                        driver_config_dict_string,
                        "json").get(timeout=10)
 
     agent.vip.rpc.call(CONFIGURATION_STORE,
-                       'manage_store',
+                       'set_config',
                        PLATFORM_DRIVER,
                        "restful.csv",
                        restful_csv_string,

@@ -490,7 +490,7 @@ def test_get_supported_aggregations(aggregate_agent, query_agent):
     :param query_agent: fake agent used to query historian
     :return:
     """
-    query_agent.vip.rpc.call(CONFIGURATION_STORE, "manage_store",
+    query_agent.vip.rpc.call(CONFIGURATION_STORE, "set_config",
                              AGG_AGENT_VIP, "config",
                              aggregate_agent).get()
     gevent.sleep(1)
@@ -565,7 +565,7 @@ def test_single_topic_pattern(aggregate_agent, query_agent):
              ]
              }
         ]
-        query_agent.vip.rpc.call(CONFIGURATION_STORE, "manage_store",
+        query_agent.vip.rpc.call(CONFIGURATION_STORE, "set_config",
                                  AGG_AGENT_VIP, "config",
                                  new_config).get()
         gevent.sleep(1)
@@ -668,7 +668,7 @@ def test_single_topic(aggregate_agent, query_agent):
                 ]
             }
         ]
-        query_agent.vip.rpc.call(CONFIGURATION_STORE, "manage_store",
+        query_agent.vip.rpc.call(CONFIGURATION_STORE, "set_config",
                                  AGG_AGENT_VIP, "config",
                                  new_config).get()
         gevent.sleep(3 * 60)  # sleep till we see two rows in aggregate table
@@ -841,7 +841,7 @@ def test_multiple_topic_pattern(aggregate_agent, query_agent):
              }
         ]
 
-        query_agent.vip.rpc.call(CONFIGURATION_STORE, "manage_store",
+        query_agent.vip.rpc.call(CONFIGURATION_STORE, "set_config",
                                  AGG_AGENT_VIP, "config",
                                  new_config).get()
         gevent.sleep(1)
@@ -914,7 +914,7 @@ def test_multiple_topic_list(aggregate_agent, query_agent):
              }
         ]
 
-        query_agent.vip.rpc.call(CONFIGURATION_STORE, "manage_store",
+        query_agent.vip.rpc.call(CONFIGURATION_STORE, "set_config",
                                  AGG_AGENT_VIP, "config",
                                  new_config).get()
         gevent.sleep(1)
@@ -991,7 +991,7 @@ def test_topic_reconfiguration(aggregate_agent, query_agent):
              }
         ]
 
-        query_agent.vip.rpc.call(CONFIGURATION_STORE, "manage_store",
+        query_agent.vip.rpc.call(CONFIGURATION_STORE, "set_config",
                                  AGG_AGENT_VIP, "config",
                                  new_config).get()
         gevent.sleep(2)
@@ -1037,7 +1037,7 @@ def test_topic_reconfiguration(aggregate_agent, query_agent):
 
         print("Before reinstall current time is {}".format(datetime.utcnow()))
 
-        query_agent.vip.rpc.call(CONFIGURATION_STORE, "manage_store",
+        query_agent.vip.rpc.call(CONFIGURATION_STORE, "set_config",
                                  AGG_AGENT_VIP, "config",
                                  new_config).get()
 

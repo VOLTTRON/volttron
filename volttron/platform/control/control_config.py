@@ -57,7 +57,7 @@ def add_config_to_store(opts):
     file_contents = opts.infile.read()
 
     call(
-        "manage_store",
+        "set_config",
         opts.identity,
         opts.name,
         file_contents,
@@ -69,7 +69,7 @@ def delete_config_from_store(opts):
     opts.connection.peer = CONFIGURATION_STORE
     call = opts.connection.call
     if opts.delete_store:
-        call("manage_delete_store", opts.identity)
+        call("delete_store", opts.identity)
         return
 
     if opts.name is None:
@@ -79,7 +79,7 @@ def delete_config_from_store(opts):
         )
         return
 
-    call("manage_delete_config", opts.identity, opts.name)
+    call("delete_config", opts.identity, opts.name)
 
 
 def list_store(opts):
@@ -87,9 +87,9 @@ def list_store(opts):
     call = opts.connection.call
     results = []
     if opts.identity is None:
-        results = call("manage_list_stores")
+        results = call("list_stores")
     else:
-        results = call("manage_list_configs", opts.identity)
+        results = call("list_configs", opts.identity)
 
     for item in results:
         _stdout.write(item + "\n")
@@ -98,7 +98,7 @@ def list_store(opts):
 def get_config(opts):
     opts.connection.peer = CONFIGURATION_STORE
     call = opts.connection.call
-    results = call("manage_get", opts.identity, opts.name, raw=opts.raw)
+    results = call("get_config", opts.identity, opts.name, raw=opts.raw)
 
     if opts.raw:
         _stdout.write(results)
@@ -119,7 +119,7 @@ def edit_config(opts):
         raw_data = ""
     else:
         try:
-            results = call("manage_get_metadata", opts.identity, opts.name)
+            results = call("get_metadata", opts.identity, opts.name)
             config_type = results["type"]
             raw_data = results["data"]
         except RemoteError as e:
@@ -159,7 +159,7 @@ def edit_config(opts):
             return
 
         call(
-            "manage_store",
+            "set_config",
             opts.identity,
             opts.name,
             new_raw_data,

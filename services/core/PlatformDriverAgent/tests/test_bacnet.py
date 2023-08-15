@@ -184,7 +184,7 @@ def config_store(config_store_connection):
 
     # registry config
     config_store_connection.call(
-        "manage_store",
+        "set_config",
         PLATFORM_DRIVER,
         registry_config,
         registry_string,
@@ -201,7 +201,7 @@ def config_store(config_store_connection):
     }
 
     config_store_connection.call(
-        "manage_store",
+        "set_config",
         PLATFORM_DRIVER,
         BACNET_DEVICE_TOPIC,
         driver_config,
@@ -210,5 +210,5 @@ def config_store(config_store_connection):
     yield config_store_connection
 
     print("Wiping out store.")
-    config_store_connection.call("manage_delete_store", PLATFORM_DRIVER)
+    config_store_connection.call("delete_store", PLATFORM_DRIVER)
     gevent.sleep(0.1)

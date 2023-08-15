@@ -88,12 +88,12 @@ def test_agent(volttron_instance):
 
     # Clean out platform driver configurations
     # wait for it to return before adding new config
-    md_agent.vip.rpc.call("config.store", "manage_delete_store", PLATFORM_DRIVER).get()
+    md_agent.vip.rpc.call("config.store", "delete_store", PLATFORM_DRIVER).get()
 
     # Add configuration for platform driver
     md_agent.vip.rpc.call(
         "config.store",
-        "manage_store",
+        "set_config",
         PLATFORM_DRIVER,
         "config",
         jsonapi.dumps(PLATFORM_DRIVER_CONFIG),
@@ -108,7 +108,7 @@ def test_agent(volttron_instance):
         registry_config_string = f.read()
     md_agent.vip.rpc.call(
         "config.store",
-        "manage_store",
+        "set_config",
         PLATFORM_DRIVER,
         "fake.csv",
         registry_config_string,
@@ -120,7 +120,7 @@ def test_agent(volttron_instance):
         config_name = f"devices/fakedriver{i}"
         md_agent.vip.rpc.call(
             "config.store",
-            "manage_store",
+            "set_config",
             PLATFORM_DRIVER,
             config_name,
             jsonapi.dumps(FAKE_DEVICE_CONFIG),
@@ -790,7 +790,7 @@ def test_override_pattern(test_agent):
     config_name = config_path.format(camel_device_path)
     test_agent.vip.rpc.call(
         "config.store",
-        "manage_store",
+        "set_config",
         PLATFORM_DRIVER,
         config_name,
         jsonapi.dumps(FAKE_DEVICE_CONFIG),
