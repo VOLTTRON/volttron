@@ -90,7 +90,9 @@ class ConfigStore(SubsystemBase):
 
         def onsetup(sender, **kwargs):
             rpc.export(self._update_config, 'config.update')
+            rpc.allow('config.update', 'sync_agent_config')
             rpc.export(self._initial_update, 'config.initial_update')
+            rpc.allow('config.initial_update', 'sync_agent_config')
 
         core.onsetup.connect(onsetup, self)
         core.configuration.connect(self._onconfig, self)
