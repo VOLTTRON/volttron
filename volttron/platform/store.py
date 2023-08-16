@@ -271,7 +271,7 @@ class ConfigStoreService(Agent):
 
         return real_config
 
-    @RPC.allow('initialize_agent_config')
+    @RPC.allow('edit_config_store')
     @RPC.export
     def initialize_configs(self, identity):
         """
