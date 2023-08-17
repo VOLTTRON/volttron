@@ -103,7 +103,7 @@ def add_definitions_to_config_store(test_agent):
     test_agent.vip.rpc.call('config.store', 'manage_store', MESA_AGENT_ID,
                             'mesa_points.config', points_json, config_type='raw')
     with open(FUNCTION_DEFINITIONS_PATH, 'r') as f:
-        functions_json = yaml.load(f.read())
+        functions_json = yaml.safe_load(f.read())
     test_agent.vip.rpc.call('config.store', 'manage_store', MESA_AGENT_ID,
                             'mesa_functions.config', functions_json, config_type='raw')
 

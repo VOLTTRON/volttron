@@ -232,7 +232,7 @@ def configure_logging(conf_path):
                 return (conf_path, 'PyYAML must be installed before '
                         'loading logging configuration from a YAML file.')
             try:
-                conf_dict = yaml.load(conf_file)
+                conf_dict = yaml.safe_load(conf_file)
             except yaml.YAMLError as exc:
                 return conf_path, exc
     try:

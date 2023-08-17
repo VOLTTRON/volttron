@@ -110,7 +110,7 @@ class FunctionDefinitions(collections.abc.Mapping):
             self._functions = {}
             try:
                 with open(fdef_path, 'r') as f:
-                    self.load_functions(yaml.load(f)['functions'])
+                    self.load_functions(yaml.safe_load(f)['functions'])
             except Exception as err:
                 raise ValueError('Problem parsing {}. Error={}'.format(fdef_path, err))
         _log.debug('Loaded {} FunctionDefinitions'.format(len(self._functions.keys())))

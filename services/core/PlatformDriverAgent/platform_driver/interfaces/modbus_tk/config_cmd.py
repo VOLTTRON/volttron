@@ -79,7 +79,7 @@ class ConfigCmd (cmd.Cmd):
         yaml_file = "{0}/{1}".format(self._directories['map_dir'], file_name)
         if file_name and os.stat(yaml_file).st_size:
             with open("{0}/maps.yaml".format(self._directories['map_dir'])) as yaml_file:
-                device_type_maps = yaml.load(yaml_file)
+                device_type_maps = yaml.safe_load(yaml_file)
         return device_type_maps
 
     def _sh(self, shell_command):
