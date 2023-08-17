@@ -137,7 +137,7 @@ def update(operation, verbose=None, offline=False, optional_requirements=[], rab
     # option_requirements contains wheel as first entry
 
     # Build option_requirements separately to pass install options
-    build_option = '--build-option' if wheeling else '--install-option'
+    build_option = '--build-option' if wheeling else '--config-settings'
 
     for requirement, options in option_requirements:
         args = []
