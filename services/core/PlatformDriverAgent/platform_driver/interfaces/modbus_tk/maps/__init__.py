@@ -329,7 +329,7 @@ class Catalog(Mapping):
                 yaml_path = os.path.dirname(__file__) + '/' + yaml_path
 
             with open(yaml_path, 'rb') as yaml_file:
-                for map in yaml.load(yaml_file):
+                for map in yaml.safe_load(yaml_file):
                     map = dict((k.lower(), v) for k, v in map.items())
                     Catalog._data[map['name']] = Map(file=map.get('file', ''),
                                                      map_dir=os.path.dirname(__file__),
