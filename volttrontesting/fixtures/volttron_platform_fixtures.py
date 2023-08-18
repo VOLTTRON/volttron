@@ -127,9 +127,9 @@ def volttron_instance(request, **kwargs):
     """
     address = kwargs.pop("vip_address", get_rand_vip())
     wrapper = build_wrapper(address,
-                            messagebus=request.param.pop('messagebus', 'zmq'),
-                            ssl_auth=request.param.pop('ssl_auth', False),
-                            auth_enabled=request.param.pop('auth_enabled', True),
+                            messagebus=request.param.get('messagebus', 'zmq'),
+                            ssl_auth=request.param.get('ssl_auth', False),
+                            auth_enabled=request.param.get('auth_enabled', True),
                             **kwargs)
     wrapper_pid = wrapper.p_process.pid
 
@@ -182,8 +182,8 @@ def get_volttron_instances(request):
             address = kwargs.pop("vip_address", get_rand_vip())
 
             wrapper = build_wrapper(address, should_start=should_start,
-                                    messagebus=request.param.pop('messagebus', 'zmq'),
-                                    ssl_auth=request.param.pop('ssl_auth', False),
+                                    messagebus=request.param.get('messagebus', 'zmq'),
+                                    ssl_auth=request.param.get('ssl_auth', False),
                                     **kwargs)
             instances.append(wrapper)
         if should_start:
