@@ -603,6 +603,9 @@ class PlatformWrapper:
         assert not self.is_auto_csr_enabled()
 
     def add_capabilities(self, publickey, capabilities):
+        if not self.auth_enabled:
+            self.logit("Auth is not enabled, so ignore and return False")
+            return False
         with with_os_environ(self.env):
             if isinstance(capabilities, str) or isinstance(capabilities, dict):
                 capabilities = [capabilities]
@@ -623,17 +626,21 @@ class PlatformWrapper:
             # when invoked in quick succession. add_capabilities updates auth.json, gets the peerlist and calls all peers'
             # auth.update rpc call. So sleeping here instead expecting individual test cases to sleep for long
             gevent.sleep(2)
+            return True
 
-    @staticmethod
-    def add_capability(entry, capabilites):
+    def add_capability(self, entry, capabilities):
+        if not self.auth_enabled:
+            self.logit("Auth is not enabled, so ignore and return False")
+            return False
         if isinstance(entry, str):
-            if entry not in capabilites:
-                capabilites[entry] = None
+            if entry not in capabilities:
+                capabilities[entry] = None
         elif isinstance(entry, dict):
-            capabilites.update(entry)
+            capabilities.update(entry)
         else:
             raise ValueError("Invalid capability {}. Capability should be string or dictionary or list of string"
                              "and dictionary.")
+        return True
 
     def set_auth_dict(self, auth_dict):
         if auth_dict:
