@@ -281,17 +281,19 @@ def build_vip_address_string(vip_root, serverkey, publickey, secretkey):
 
     :raises ValueError if one of the parameters is None.
     """
+    from volttron.platform.agent.utils import is_auth_enabled
+
     _log.debug("root: {}, serverkey: {}, publickey: {}, secretkey: {}".format(
         vip_root, serverkey, publickey, secretkey))
     parsed = urlparse(vip_root)
-    if parsed.scheme == 'tcp':
+    if parsed.scheme == 'tcp' and is_auth_enabled():
         if not (serverkey and publickey and secretkey and vip_root):
             raise ValueError("All parameters must be entered.")
 
         root = "{}?serverkey={}&publickey={}&secretkey={}".format(
             vip_root, serverkey, publickey, secretkey)
 
-    elif parsed.scheme == 'ipc':
+    elif parsed.scheme == 'ipc' or not is_auth_enabled():
         root = vip_root
     else:
         raise ValueError('Invalid vip root specified!')
