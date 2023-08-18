@@ -42,7 +42,7 @@ import os
 import random
 import uuid
 import bisect
-from urllib.parse import urlsplit, parse_qs, urlunsplit, urlparse
+from urllib.parse import urlsplit, parse_qs, urlunsplit
 import gevent
 import gevent.time
 from zmq import green as zmq
@@ -56,10 +56,7 @@ from volttron.platform.auth.auth_utils import dump_user
 from volttron.platform.keystore import KeyStore, KnownHostsStore
 from volttron.platform.parameters import Parameters
 from volttron.platform.vip.socket import encode_key
-from volttron.platform.agent.utils import (
-    get_platform_instance_name,
-    get_fq_identity,
-)
+
 
 _log = logging.getLogger(__name__)
 

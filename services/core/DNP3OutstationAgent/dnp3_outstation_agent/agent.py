@@ -12,7 +12,7 @@ from volttron.platform.vip.agent import Agent, Core, RPC
 # from dnp3_python.dnp3station.outstation import MyOutStation as MyOutStationNew
 from dnp3_python.dnp3station.outstation_new import MyOutStationNew
 from pydnp3 import opendnp3
-from typing import Callable, Dict
+from typing import Dict
 
 
 

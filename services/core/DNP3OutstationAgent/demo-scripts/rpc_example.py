@@ -7,7 +7,6 @@ Pre-requisite:
 - platform-driver is up and running
 """
 
-import random
 from volttron.platform.vip.agent.utils import build_agent
 from time import sleep
 import datetime

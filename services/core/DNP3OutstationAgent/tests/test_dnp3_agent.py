@@ -12,20 +12,12 @@ import pathlib
 import gevent
 import pytest
 import os
-# from volttron.client.vip.agent import build_agent
-from volttron.platform.vip.agent.utils import build_agent
-from time import sleep
 import datetime
 # from dnp3_outstation.agent import Dnp3OutstationAgent
 from services.core.DNP3OutstationAgent.dnp3_outstation_agent.agent import Dnp3Agent as Dnp3OutstationAgent
 from dnp3_python.dnp3station.outstation_new import MyOutStationNew
 import random
 import subprocess
-# from volttron.utils import is_volttron_running
-import json
-# from utils.testing_utils import *
-from volttrontesting.fixtures.volttron_platform_fixtures import volttron_instance
-
 import logging
 
 logging_logger = logging.getLogger(__name__)
