@@ -52,16 +52,36 @@ _log = logging.getLogger(__name__)
 
 DEFAULT_COV_LIFETIME = 180
 COV_UPDATE_BUFFER = 3
-BACNET_TYPE_MAPPING = {"multiStateValue": int, "multiStateInput": int, "multiStateOutput": int,
-                       "analogValue": float, "analogInput": float, "analogOutput": float,
-                       "binaryValue": bool, "binaryInput": bool, "binaryOutput": bool
-                      }
+BACNET_TYPE_MAPPING = {
+    "multiStateValue": int,
+    "multiStateInput": int,
+    "multiStateOutput": int,
+    "accumulator": int,
+    "analogValue": float,
+    "analogInput": float,
+    "analogOutput": float,
+    "binaryValue": bool,
+    "binaryInput": bool,
+    "binaryOutput": bool,
+}
 
 
 class Register(BaseRegister):
-    def __init__(self, instance_number, object_type, property_name, read_only, point_name, units,
-                 description='', priority=None, list_index=None):
-        super(Register, self).__init__("byte", read_only, point_name, units, description=description)
+    def __init__(
+        self,
+        instance_number,
+        object_type,
+        property_name,
+        read_only,
+        point_name,
+        units,
+        description="",
+        priority=None,
+        list_index=None,
+    ):
+        super(Register, self).__init__(
+            "byte", read_only, point_name, units, description=description
+        )
         self.instance_number = int(instance_number)
         self.object_type = object_type
         self.property = property_name
@@ -89,7 +109,9 @@ class Interface(BaseInterface):
         self.use_read_multiple = config_dict.get("use_read_multiple", True)
         self.timeout = float(config_dict.get("timeout", 30.0))
 
-        self.ping_retry_interval = timedelta(seconds=config_dict.get("ping_retry_interval", 5.0))
+        self.ping_retry_interval = timedelta(
+            seconds=config_dict.get("ping_retry_interval", 5.0)
+        )
         self.scheduled_ping = None
 
         self.ping_target()
@@ -111,16 +133,20 @@ class Interface(BaseInterface):
 
         pinged = False
         try:
-            self.vip.rpc.call(self.proxy_address, 'ping_device', self.target_address, self.device_id).get(timeout=self.timeout)
+            self.vip.rpc.call(
+                self.proxy_address, "ping_device", self.target_address, self.device_id
+            ).get(timeout=self.timeout)
             pinged = True
         except errors.Unreachable:
             _log.warning("Unable to reach BACnet proxy.")
 
         except errors.VIPError:
             _log.warning("Error trying to ping device.")
-        
+
         except gevent.timeout.Timeout:
-            _log.warning(f"Timeout trying to ping device {self.target_address}. Scheduling to retry")
+            _log.warning(
+                f"Timeout trying to ping device {self.target_address}. Scheduling to retry"
+            )
 
         self.scheduled_ping = None
 
@@ -132,28 +158,44 @@ class Interface(BaseInterface):
         register = self.get_register_by_name(point_name)
         property_name = "priorityArray" if get_priority_array else register.property
         register_index = None if get_priority_array else register.index
-        result = self.vip.rpc.call(self.proxy_address, 'read_property',
-                                   self.target_address, register.object_type,
-                                   register.instance_number, property_name, register_index).get(timeout=self.timeout)
+        result = self.vip.rpc.call(
+            self.proxy_address,
+            "read_property",
+            self.target_address,
+            register.object_type,
+            register.instance_number,
+            property_name,
+            register_index,
+        ).get(timeout=self.timeout)
         return result
 
     def set_point(self, point_name, value, priority=None):
         # TODO: support writing from an array.
         register = self.get_register_by_name(point_name)
         if register.read_only:
-            raise  IOError("Trying to write to a point configured read only: " + point_name)
+            raise IOError(
+                "Trying to write to a point configured read only: " + point_name
+            )
 
         if priority is not None and priority < self.min_priority:
-            raise  IOError("Trying to write with a priority lower than the minimum of " + str(self.min_priority))
+            raise IOError(
+                "Trying to write with a priority lower than the minimum of "
+                + str(self.min_priority)
+            )
 
         # We've already validated the register priority against the min priority.
-        args = [self.target_address, value,
-                register.object_type,
-                register.instance_number,
-                register.property,
-                priority if priority is not None else register.priority,
-                register.index]
-        result = self.vip.rpc.call(self.proxy_address, 'write_property', *args).get(timeout=self.timeout)
+        args = [
+            self.target_address,
+            value,
+            register.object_type,
+            register.instance_number,
+            register.property,
+            priority if priority is not None else register.priority,
+            register.index,
+        ]
+        result = self.vip.rpc.call(self.proxy_address, "write_property", *args).get(
+            timeout=self.timeout
+        )
         return result
 
     def scrape_all(self):
@@ -163,17 +205,24 @@ class Interface(BaseInterface):
         write_registers = self.get_registers_by_type("byte", False)
 
         for register in read_registers + write_registers:
-            point_map[register.point_name] = [register.object_type,
-                                              register.instance_number,
-                                              register.property,
-                                              register.index]
+            point_map[register.point_name] = [
+                register.object_type,
+                register.instance_number,
+                register.property,
+                register.index,
+            ]
 
         while True:
             try:
-                result = self.vip.rpc.call(self.proxy_address, 'read_properties',
-                                           self.target_address, point_map,
-                                           self.max_per_request, self.use_read_multiple).get(timeout=180)
-                
+                result = self.vip.rpc.call(
+                    self.proxy_address,
+                    "read_properties",
+                    self.target_address,
+                    point_map,
+                    self.max_per_request,
+                    self.use_read_multiple,
+                ).get(timeout=180)
+
                 _log.debug(f"found {len(result)} results in platform driver")
             except gevent.timeout.Timeout as exc:
                 _log.error(f"Timed out reading target {self.target_address}")
@@ -181,14 +230,26 @@ class Interface(BaseInterface):
             except RemoteError as exc:
                 if "segmentationNotSupported" in exc.message:
                     if self.max_per_request <= 1:
-                        _log.error("Receiving a segmentationNotSupported error with 'max_per_request' setting of 1.")
+                        _log.error(
+                            "Receiving a segmentationNotSupported error with 'max_per_request' setting of 1."
+                        )
                         raise
                     self.register_count_divisor += 1
-                    self.max_per_request = max(int(self.register_count/self.register_count_divisor), 1)
-                    _log.info("Device requires a lower max_per_request setting. Trying: "+str(self.max_per_request))
+                    self.max_per_request = max(
+                        int(self.register_count / self.register_count_divisor), 1
+                    )
+                    _log.info(
+                        "Device requires a lower max_per_request setting. Trying: "
+                        + str(self.max_per_request)
+                    )
                     continue
-                elif exc.message.endswith("rejected the request: 9") and self.use_read_multiple:
-                    _log.info("Device rejected request with 'unrecognized-service' error, attempting to access with use_read_multiple false")
+                elif (
+                    exc.message.endswith("rejected the request: 9")
+                    and self.use_read_multiple
+                ):
+                    _log.info(
+                        "Device rejected request with 'unrecognized-service' error, attempting to access with use_read_multiple false"
+                    )
                     self.use_read_multiple = False
                     continue
                 elif self.use_read_multiple:
@@ -231,19 +292,19 @@ class Interface(BaseInterface):
 
         for regDef in configDict:
             # Skip lines that have no address yet.
-            if not regDef.get('Volttron Point Name'):
+            if not regDef.get("Volttron Point Name"):
                 continue
 
-            io_type = regDef.get('BACnet Object Type')
-            read_only = regDef.get('Writable').lower() != 'true'
-            point_name = regDef.get('Volttron Point Name')
+            io_type = regDef.get("BACnet Object Type")
+            read_only = regDef.get("Writable").lower() != "true"
+            point_name = regDef.get("Volttron Point Name")
 
             # checks if the point is flagged for change of value
-            is_cov = regDef.get("COV Flag", 'false').lower() == "true"
+            is_cov = regDef.get("COV Flag", "false").lower() == "true"
 
-            index = int(regDef.get('Index'))
+            index = int(regDef.get("Index"))
 
-            list_index = regDef.get('Array Index', '')
+            list_index = regDef.get("Array Index", "")
             list_index = list_index.strip()
 
             if not list_index:
@@ -251,7 +312,7 @@ class Interface(BaseInterface):
             else:
                 list_index = int(list_index)
 
-            priority = regDef.get('Write Priority', '')
+            priority = regDef.get("Write Priority", "")
             priority = priority.strip()
             if not priority:
                 priority = None
@@ -260,25 +321,34 @@ class Interface(BaseInterface):
 
                 if priority < self.min_priority:
                     message = "{point} configured with a priority {priority} which is lower than than minimum {min}."
-                    raise DriverConfigError(message.format(point=point_name,
-                                                           priority=priority,
-                                                           min=self.min_priority))
+                    raise DriverConfigError(
+                        message.format(
+                            point=point_name, priority=priority, min=self.min_priority
+                        )
+                    )
 
-            description = regDef.get('Notes', '')
-            units = regDef.get('Units')
-            property_name = regDef.get('Property')
+            description = regDef.get("Notes", "")
+            units = regDef.get("Units")
+            property_name = regDef.get("Property")
 
-            register = Register(index,
-                                io_type,
-                                property_name,
-                                read_only,
-                                point_name,
-                                units,
-                                description=description,
-                                priority=priority,
-                                list_index=list_index)
+            try:
+                register = Register(
+                    index,
+                    io_type,
+                    property_name,
+                    read_only,
+                    point_name,
+                    units,
+                    description=description,
+                    priority=priority,
+                    list_index=list_index,
+                )
 
-            self.insert_register(register)
+                self.insert_register(register)
+            except Exception as exc: # pylint: disable=broad-except
+                _log.error(
+                    f"Error parsing register definition: {regDef=} {exc=}"
+                )
 
             if is_cov:
                 self.cov_points.append(point_name)
@@ -293,12 +363,28 @@ class Interface(BaseInterface):
         """
         register = self.get_register_by_name(point_name)
         try:
-            self.vip.rpc.call(self.proxy_address, 'create_cov_subscription', self.target_address, self.device_path,
-                              point_name, register.object_type, register.instance_number, lifetime=lifetime)
+            self.vip.rpc.call(
+                self.proxy_address,
+                "create_cov_subscription",
+                self.target_address,
+                self.device_path,
+                point_name,
+                register.object_type,
+                register.instance_number,
+                lifetime=lifetime,
+            )
         except errors.Unreachable:
-            _log.warning("Unable to establish a subscription via the bacnet proxy as it was unreachable.")
+            _log.warning(
+                "Unable to establish a subscription via the bacnet proxy as it was unreachable."
+            )
         # Schedule COV resubscribe
         if renew and (lifetime > COV_UPDATE_BUFFER):
             now = datetime.now()
             next_sub_update = now + timedelta(seconds=(lifetime - COV_UPDATE_BUFFER))
-            self.core.schedule(next_sub_update, self.establish_cov_subscription, point_name, lifetime, renew)
+            self.core.schedule(
+                next_sub_update,
+                self.establish_cov_subscription,
+                point_name,
+                lifetime,
+                renew,
+            )
