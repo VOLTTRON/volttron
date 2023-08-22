@@ -39,7 +39,7 @@
 
 import logging
 import re
-from typing import Optional
+from typing import Optional, Union
 import uuid
 
 from volttron.platform.vip.socket import BASE64_ENCODED_CURVE_KEY_LEN
@@ -114,7 +114,7 @@ class AuthEntry(object):
             identity=None,
             groups=None,
             roles=None,
-            capabilities: Optional[dict] = None,
+            capabilities: Optional[Union[dict, str, list[Union[str, dict]]]] = None,
             rpc_method_authorizations=None,
             comments=None,
             enabled=True,
@@ -165,7 +165,7 @@ class AuthEntry(object):
         return List(String(elem) for elem in value)
 
     @staticmethod
-    def build_capabilities_field(value: Optional[dict]):
+    def build_capabilities_field(value: Union[dict, str, list[Union[str, dict]]]):
         # _log.debug("_build_capabilities {}".format(value))
 
         if not value:

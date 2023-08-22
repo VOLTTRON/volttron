@@ -47,6 +47,8 @@ from volttron.platform.storeutils import list_unique_links, check_for_config_lin
 from volttron.platform.vip.agent import errors
 from volttron.platform.agent.known_identities import CONFIGURATION_STORE
 from volttron.platform import jsonapi
+from volttron.platform.agent.utils import is_auth_enabled
+
 
 from collections import defaultdict
 from copy import deepcopy
@@ -90,9 +92,10 @@ class ConfigStore(SubsystemBase):
 
         def onsetup(sender, **kwargs):
             rpc.export(self._update_config, 'config.update')
-            rpc.allow('config.update', 'sync_agent_config')
             rpc.export(self._initial_update, 'config.initial_update')
-            rpc.allow('config.initial_update', 'sync_agent_config')
+            if is_auth_enabled():
+                rpc.allow('config.update', 'sync_agent_config')
+                rpc.allow('config.initial_update', 'sync_agent_config')
 
         core.onsetup.connect(onsetup, self)
         core.configuration.connect(self._onconfig, self)

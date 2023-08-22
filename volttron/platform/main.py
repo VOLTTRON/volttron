@@ -986,6 +986,14 @@ def start_volttron_process(opts):
                                           message_bus=opts.message_bus,
                                           enable_auth=opts.allow_auth)
 
+        if opts.allow_auth:
+            entry = AuthEntry(credentials=config_store.core.publickey,
+                              user_id=CONFIGURATION_STORE,
+                              identity=CONFIGURATION_STORE,
+                              capabilities='sync_agent_config',
+                              comments='Automatically added by platform on start')
+            AuthFile().add(entry, overwrite=True)
+
         # Launch additional services and wait for them to start before
         # auto-starting agents
         services = [
@@ -1277,12 +1285,13 @@ def setup_auth_service(opts, address, services):
     entry = AuthEntry(credentials=services[0].core.publickey,
                       user_id=CONTROL,
                       identity=CONTROL,
-                      capabilities=[{
-                          'edit_config_store': {
-                              'identity': '/.*/'
-                          }
-                      }, 'modify_rpc_method_allowance',
-                                    'allow_auth_modifications'],
+                      capabilities=[
+                          {
+                           'edit_config_store': {
+                              'identity': '/.*/'}
+                          },
+                          'modify_rpc_method_allowance',
+                          'allow_auth_modifications'],
                       comments='Automatically added by platform on start')
     AuthFile().add(entry, overwrite=True)
 
