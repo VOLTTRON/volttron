@@ -1049,7 +1049,7 @@ class BACnetProxyAgent(Agent):
         except RuntimeError:
             _log.error(f"could not read {property_name} on {object_type}-{instance_number} from device {target_address}")
             return None
-        _log.debug(f"found {bacnet_results} for {property_name} on {object_type}-{instance_number} from device {target_address}")
+        # _log.debug(f"found {bacnet_results} for {property_name} on {object_type}-{instance_number} from device {target_address}")
         return bacnet_results
 
     def _get_access_spec(self, obj_data, properties):
@@ -1099,28 +1099,32 @@ class BACnetProxyAgent(Agent):
 
         bacnet_results = {}
         for entry in read_access_list:
-            request = ReadPropertyMultipleRequest(listOfReadAccessSpecs=[entry])
-            request.pduDestination = Address(target_address)
-            iocb = self.iocb_class(request)
-            self.bacnet_application.submit_request(iocb)
-            try:
-                bacnet_results.update(iocb.ioResult.get(10))
-            except Exception as exc:
-                # _log.error(f"{exc} {target_address=} {request=}")
-                if "Segmentation not supported" in str(exc) or "segmentationNotSupported" in str(exc):
-                    exc.message = f"failed to scrape: {target_address}/{entry.objectIdentifier[0]}/{entry.objectIdentifier[1]} - segmentationNotSupported"
-                else:
-                    exc.message = f"failed to scrape: {target_address}/{entry.objectIdentifier[0]}/{entry.objectIdentifier[1]}"
-                _log.debug(
-                    f"Point failing: {target_address}/{entry.objectIdentifier[0]}/{entry.objectIdentifier[1]} {exc=}"
-                )
-                message = {"target_address": target_address,
-                           "object_type": entry.objectIdentifier[0],
-                           "instance_number": entry.objectIdentifier[1],
-                           "exception": f"{exc}"}
-                self.vip.pubsub.publish(peer="pubsub",
-                                        topic="errors/bacnet",
-                                        message=message)
+            for prop in entry.listOfPropertyReferences:
+                request = ReadPropertyRequest(objectIdentifier=entry.objectIdentifier,
+                                              propertyIdentifier=prop.propertyIdentifier,
+                                              propertyArrayIndex=prop.propertyArrayIndex
+                                              )
+                request.pduDestination = Address(target_address)
+                iocb = self.iocb_class(request)
+                self.bacnet_application.submit_request(iocb)
+                try:
+                    bacnet_results.update(iocb.ioResult.get(10))
+                except Exception as exc:
+                    _log.error(f"{exc} {target_address=} {request=}")
+                    if "Segmentation not supported" in str(exc) or "segmentationNotSupported" in str(exc):
+                        exc.message = f"failed to scrape: {target_address}/{entry.objectIdentifier[0]}/{entry.objectIdentifier[1]} - segmentationNotSupported"
+                    else:
+                        exc.message = f"failed to scrape: {target_address}/{entry.objectIdentifier[0]}/{entry.objectIdentifier[1]}"
+                    _log.error(
+                        f"Point failing: {target_address}/{entry.objectIdentifier[0]}/{entry.objectIdentifier[1]} {exc=}"
+                    )
+                    message = {"target_address": target_address,
+                            "object_type": entry.objectIdentifier[0],
+                            "instance_number": entry.objectIdentifier[1],
+                            "exception": f"{exc}"}
+                    self.vip.pubsub.publish(peer="pubsub",
+                                            topic="errors/bacnet",
+                                            message=message)
         return bacnet_results
 
     @RPC.export
@@ -1171,8 +1175,10 @@ class BACnetProxyAgent(Agent):
                     bacnet_results = iocb.ioResult.get(10)
                 except RuntimeError as exc:
                     try:
+                        _log.debug(f"finding error object: {exc}")
                         bacnet_results = self.find_error_object(read_access_spec_list, target_address, exc)
                     except PointErrorException as exc_e:
+                        _log.debug(exc_e.message)
                         if not hasattr(exc, "message"):
                             _log.warning(f"exception has no message: {exc=}")
                             # raise exc_e from exc
