@@ -121,6 +121,18 @@ def test_set_config_json(default_config_test_agent):
 
 
 @pytest.mark.config_store
+def test_manage_store_json(default_config_test_agent):
+    json_config = """{"value":1}"""
+    default_config_test_agent.vip.rpc.call(CONFIGURATION_STORE, 'manage_store',
+                                           "config_test_agent", "config", json_config, config_type="json").get()
+
+    results = default_config_test_agent.callback_results
+    assert len(results) == 1
+    first = results[0]
+    assert first == ("config", "NEW", {"value": 1})
+
+
+@pytest.mark.config_store
 def test_set_config_csv(default_config_test_agent):
     csv_config = "value\n1"
     default_config_test_agent.vip.rpc.call(CONFIGURATION_STORE, 'set_config',
@@ -182,7 +194,7 @@ def test_delete_config(default_config_test_agent):
 
 
 @pytest.mark.config_store
-def test_delete_store(default_config_test_agent):
+def test_manage_delete_config(default_config_test_agent):
     json_config = """{"value":1}"""
     default_config_test_agent.vip.rpc.call(CONFIGURATION_STORE, 'set_config',
                                            "config_test_agent", "config", json_config, config_type="json").get()
@@ -191,7 +203,42 @@ def test_delete_store(default_config_test_agent):
     assert len(results) == 1
     first = results[0]
     assert first == ("config", "NEW", {"value": 1})
+    default_config_test_agent.vip.rpc.call(CONFIGURATION_STORE, 'manage_delete_config',
+                                           "config_test_agent", "config").get()
+    assert len(results) == 2
+    second = results[1]
+    assert second == ("config", "DELETE", None)
+
+
+@pytest.mark.config_store
+def test_delete_store(default_config_test_agent):
+    json_config = """{"value":1}"""
+    default_config_test_agent.vip.rpc.call(CONFIGURATION_STORE, 'set_config',
+                                           "config_test_agent", "config", json_config, config_type="json").get()
+
+    results = default_config_test_agent.callback_results
+    print(f"callback results is {results}")
+    assert len(results) == 1
+    first = results[0]
+    assert first == ("config", "NEW", {"value": 1})
     default_config_test_agent.vip.rpc.call(CONFIGURATION_STORE, 'delete_store', "config_test_agent").get()
+    assert len(results) == 2
+    second = results[1]
+    assert second == ("config", "DELETE", None)
+
+
+@pytest.mark.config_store
+def test_manage_delete_store(default_config_test_agent):
+    json_config = """{"value":1}"""
+    default_config_test_agent.vip.rpc.call(CONFIGURATION_STORE, 'set_config',
+                                           "config_test_agent", "config", json_config, config_type="json").get()
+
+    results = default_config_test_agent.callback_results
+    print(f"callback results is {results}")
+    assert len(results) == 1
+    first = results[0]
+    assert first == ("config", "NEW", {"value": 1})
+    default_config_test_agent.vip.rpc.call(CONFIGURATION_STORE, 'manage_delete_store', "config_test_agent").get()
     assert len(results) == 2
     second = results[1]
     assert second == ("config", "DELETE", None)
@@ -210,12 +257,74 @@ def test_get_config(config_test_agent):
 
 
 @pytest.mark.config_store
+def test_manage_get_config(config_test_agent):
+    json_config = """{"value":1}"""
+    config_test_agent.vip.rpc.call(CONFIGURATION_STORE, 'set_config',
+                                   "config_test_agent", "config", json_config, config_type="json").get()
+
+    config = config_test_agent.vip.rpc.call(CONFIGURATION_STORE, 'manage_get',
+                                            "config_test_agent", "config", raw=False).get()
+
+    assert config == {"value": 1}
+
+
+@pytest.mark.config_store
+def test_get_metadata(config_test_agent):
+    json_config = """{"value":1}"""
+    config_test_agent.vip.rpc.call(CONFIGURATION_STORE, 'set_config',
+                                   "config_test_agent", "config", json_config, config_type="json").get()
+
+    config = config_test_agent.vip.rpc.call(CONFIGURATION_STORE, 'get_config',
+                                            "config_test_agent", "config", raw=False).get()
+
+    assert config == {"value": 1}
+
+    metadata = config_test_agent.vip.rpc.call(CONFIGURATION_STORE, 'get_metadata',
+                                              "config_test_agent", "config").get()
+    print(f"Metadata {metadata}")
+    assert metadata["type"] == "json"
+    assert metadata["modified"]
+    assert metadata["data"] == '{"value":1}'
+
+
+@pytest.mark.config_store
+def test_manage_get_metadata(config_test_agent):
+    json_config = """{"value":1}"""
+    config_test_agent.vip.rpc.call(CONFIGURATION_STORE, 'set_config',
+                                   "config_test_agent", "config", json_config, config_type="json").get()
+
+    config = config_test_agent.vip.rpc.call(CONFIGURATION_STORE, 'manage_get',
+                                            "config_test_agent", "config", raw=False).get()
+
+    assert config == {"value": 1}
+
+    metadata = config_test_agent.vip.rpc.call(CONFIGURATION_STORE, 'manage_get_metadata',
+                                              "config_test_agent", "config").get()
+    print(f"Metadata {metadata}")
+    assert metadata["type"] == "json"
+    assert metadata["modified"]
+    assert metadata["data"] == '{"value":1}'
+
+
+@pytest.mark.config_store
 def test_get_raw_config(config_test_agent):
     json_config = """{"value":1}"""
     config_test_agent.vip.rpc.call(CONFIGURATION_STORE, 'set_config',
                                    "config_test_agent", "config", json_config, config_type="json").get()
 
     config = config_test_agent.vip.rpc.call(CONFIGURATION_STORE, 'get_config',
+                                            "config_test_agent", "config", raw=True).get()
+
+    assert config == json_config
+
+
+@pytest.mark.config_store
+def test_manage_get_raw_config(config_test_agent):
+    json_config = """{"value":1}"""
+    config_test_agent.vip.rpc.call(CONFIGURATION_STORE, 'set_config',
+                                   "config_test_agent", "config", json_config, config_type="json").get()
+
+    config = config_test_agent.vip.rpc.call(CONFIGURATION_STORE, 'manage_get',
                                             "config_test_agent", "config", raw=True).get()
 
     assert config == json_config
@@ -240,12 +349,41 @@ def test_list_config(config_test_agent):
 
 
 @pytest.mark.config_store
+def test_manage_list_config(config_test_agent):
+    json_config = """{"value":1}"""
+    config_test_agent.vip.rpc.call(CONFIGURATION_STORE, 'set_config',
+                                   "config_test_agent", "config1", json_config, config_type="json").get()
+    json_config = """{"value":2}"""
+    config_test_agent.vip.rpc.call(CONFIGURATION_STORE, 'set_config',
+                                   "config_test_agent", "config2", json_config, config_type="json").get()
+    json_config = """{"value":3}"""
+    config_test_agent.vip.rpc.call(CONFIGURATION_STORE, 'set_config',
+                                   "config_test_agent", "config3", json_config, config_type="json").get()
+
+    config_list = config_test_agent.vip.rpc.call(CONFIGURATION_STORE, 'manage_list_configs',
+                                                 "config_test_agent").get()
+
+    assert config_list == ['config1', 'config2', 'config3']
+
+
+@pytest.mark.config_store
 def test_list_store(config_test_agent):
     json_config = """{"value":1}"""
     config_test_agent.vip.rpc.call(CONFIGURATION_STORE, 'set_config',
                                    "config_test_agent", "config1", json_config, config_type="json").get()
 
     config_list = config_test_agent.vip.rpc.call(CONFIGURATION_STORE, 'list_stores').get()
+
+    assert "config_test_agent" in config_list
+
+
+@pytest.mark.config_store
+def test_manage_list_store(config_test_agent):
+    json_config = """{"value":1}"""
+    config_test_agent.vip.rpc.call(CONFIGURATION_STORE, 'set_config',
+                                   "config_test_agent", "config1", json_config, config_type="json").get()
+
+    config_list = config_test_agent.vip.rpc.call(CONFIGURATION_STORE, 'manage_list_stores').get()
 
     assert "config_test_agent" in config_list
 
