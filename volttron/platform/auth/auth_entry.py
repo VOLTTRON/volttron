@@ -114,7 +114,7 @@ class AuthEntry(object):
             identity=None,
             groups=None,
             roles=None,
-            capabilities: Optional[Union[dict, str, list[Union[str, dict]]]] = None,
+            capabilities=None,
             rpc_method_authorizations=None,
             comments=None,
             enabled=True,
@@ -127,13 +127,10 @@ class AuthEntry(object):
         self.credentials = AuthEntry._build_field(credentials)
         self.groups = AuthEntry._build_field(groups) or []
         self.roles = AuthEntry._build_field(roles) or []
-        self.capabilities = (
-            AuthEntry.build_capabilities_field(capabilities) or {}
-        )
-        self.rpc_method_authorizations = (
-            AuthEntry.build_rpc_authorizations_field(rpc_method_authorizations)
-            or {}
-        )
+        self.capabilities = AuthEntry.build_capabilities_field(capabilities) or {}
+
+        self.rpc_method_authorizations = AuthEntry.build_rpc_authorizations_field(rpc_method_authorizations) or {}
+
         self.comments = AuthEntry._build_field(comments)
         if user_id is None:
             user_id = str(uuid.uuid4())
@@ -165,7 +162,7 @@ class AuthEntry(object):
         return List(String(elem) for elem in value)
 
     @staticmethod
-    def build_capabilities_field(value: Union[dict, str, list[Union[str, dict]]]):
+    def build_capabilities_field(value):
         # _log.debug("_build_capabilities {}".format(value))
 
         if not value:
