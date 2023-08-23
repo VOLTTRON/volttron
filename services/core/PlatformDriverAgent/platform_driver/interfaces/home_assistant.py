@@ -91,6 +91,7 @@ class Interface(BasicRevert, BaseInterface):
         self.parse_config(registry_config_str) 
 
     def get_point(self, point_name):
+        
         data = self.get_entity_data(point_name)
         data = data.get("attributes", {})
         return data
@@ -118,102 +119,13 @@ class Interface(BasicRevert, BaseInterface):
             _log.error(f"Request failed with status code {response.status_code}: {entity_id} {response.text}")
             return None
         
-    # def _scrape_all(self): # point names as keys. redundent probably delete 
-    #     result = {}
-    #     read_registers = self.get_registers_by_type("byte", True)
-    #     write_registers = self.get_registers_by_type("byte", False)
-
-    #     for register in read_registers + write_registers:
-    #         entity_id = register.point_name
-    #         attributes = register.attributes
-    #         entity_data = self.get_entity_data(entity_id) # assign attributes to entity_data  
-
-    #         if entity_data is not None: # if not none extract the state and entity id
-    #             state = entity_data.get("state", None)
-                
-    #             if state == "unavailable": # check if the state it unavailable in home assistant
-    #                 _log.error(f"{entity_id} is unavailable")
-    #             else:
-    #                 # Create an entry for the device if it doesn't exist
-    #                 if entity_id not in result:
-    #                     result[entity_id] = {}
-
-    #                 result[entity_id]["state"] = state
-    
-    #                 # Loop through the attributes of the register and fetch corresponding values from entity_data
-    #                 for attribute_name, attribute_key in attributes.items():
-    #                     attribute_value = entity_data["attributes"].get(attribute_key, None)
-    #                     if attribute_value is not None:
-    #                         result[entity_id][attribute_name] = attribute_value
-
-    #         else:
-    #             # If entity_data is None, simply add register's value with a key of 'value
-    #             if entity_id not in result:
-    #                 result[entity_id] = {}
-    #             result[entity_id]["value"] = register.value
-    #             _log.info(f"Entity: {entity_id} data is None")
-
-    #     return result
-
-
-    # def _scrape_all(self): # publish data on root level 
-    #     result = {}
-    #     read_registers = self.get_registers_by_type("byte", True)
-    #     write_registers = self.get_registers_by_type("byte", False)
-
-    #     for register in read_registers + write_registers:
-           
-    #         entity_id = register.point_name
-    #         attributes = register.attributes
-    #         entity_data = self.get_entity_data(entity_id) # assign arrtributes to entity_data  
-
-    #         if entity_data is not None: # if not none extract the state and entity id
-    #             state = entity_data.get("state", None)
-    #             entity_id = entity_data.get("entity_id", None)
-
-    #             if state == "unavailable": # check if the state it unavailable in home assistant. 
-    #                 print("\n")
-    #                 _log.error(f"{entity_id} is unavailable\n")
-    #             else:
-    #                 result[f"{entity_id}/state"] = state
- 
-    #             # Loop through the attributes of the register and fetch corresponding values from entity_data
-    #             for attribute_name, attribute_key in attributes.items():
-    #                 attribute_value = entity_data["attributes"].get(attribute_key, None)
-    #                 if attribute_value is not None:
-    #                     # Using the entity_id as prefix for the attribute name
-    #                     result[f"{entity_id}/{attribute_name}"] = attribute_value
-    #     else:
-    #         # This will simply add register's value with a prefix of entity_id
-    #         result[f"{entity_id}_value"] = register.value
-    #         _log.info(f"Entity: {entity_id} data is None")
-
-    #     return result
-    def flatten_entity_data(self, entity_data): # publish data in nests and logical devices using pubsub 
-        flattened_data = {}
-        
-        # Extract attributes and add them to the root level if they exist
-        attributes = entity_data.get('attributes', {})
-        if attributes:
-            for attr_key, attr_value in attributes.items():
-                flattened_data[attr_key] = attr_value
-            entity_data.pop('attributes', None)  # Remove the attributes key
-
-        # Add the remaining keys and values to the flattened data
-        for key, value in entity_data.items():
-            flattened_data[key] = value
-
-        _log.info(f"flattedned data: {flattened_data}")
-        return flattened_data
-
-    
-    def _scrape_all(self):
+    def _scrape_all(self): # publish data on root level 
         result = {}
         read_registers = self.get_registers_by_type("byte", True)
         write_registers = self.get_registers_by_type("byte", False)
 
         for register in read_registers + write_registers:
-            
+           
             entity_id = register.point_name
             attributes = register.attributes
             entity_data = self.get_entity_data(entity_id) # assign arrtributes to entity_data  
@@ -221,34 +133,23 @@ class Interface(BasicRevert, BaseInterface):
             if entity_data is not None: # if not none extract the state and entity id
                 state = entity_data.get("state", None)
                 entity_id = entity_data.get("entity_id", None)
-                print("state", state)
-
-                result[register.point_name] = state
 
                 if state == "unavailable": # check if the state it unavailable in home assistant. 
                     print("\n")
                     _log.error(f"{entity_id} is unavailable\n")
-                
-                ##check if state_replace is in the register attributes 
-                state_replace = attributes.get('state_replace')
-
-                result[entity_id] = { # creating new entry in result dictionary using the point name
-                    "entity_id": entity_id,
-                    state_replace if state_replace else "state": state # the if checks if its not none if it finds something state_replace is the key. state_replace is a string and state is at the end. 
-                }
-
+                else:
+                    result[entity_id] = state
+ 
                 # Loop through the attributes of the register and fetch corresponding values from entity_data
                 for attribute_name, attribute_key in attributes.items():
                     attribute_value = entity_data["attributes"].get(attribute_key, None)
                     if attribute_value is not None:
-                        result[entity_id][attribute_name] = attribute_value
-
+                        # Using the entity_id as prefix for the attribute name
+                        result[attribute_name] = attribute_value
             else:
-                result[entity_id] = { # dictionary in a dictionary
-                    "value": register.value
-                }
-            flattened_data = self.flatten_entity_data(entity_data)
-            #self.vip.pubsub.publish('pubsub', f'pnnl/csf/{entity_id}', {}, flattened_data) # testing logical devices. 
+                # This will simply add register's value with a prefix of entity_id
+                result[entity_id] = register.value
+                _log.info(f"Entity: {entity_id} data is None")
 
         return result
 
@@ -291,9 +192,7 @@ class Interface(BasicRevert, BaseInterface):
 
             self.insert_register(register)
 
-        
         self._create_subscriptions(self.volttron_topic) # running function to subscribe to topic specified in config
-
 
     def turn_off_lights(self, entity_id):
         url = f"http://{self.ip_address}:{self.port}/api/services/light/turn_off"

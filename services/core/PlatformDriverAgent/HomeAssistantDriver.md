@@ -30,7 +30,7 @@ Once you have these files in the same place (or you just cloned this) you can ad
     "driver_config": {
         "ip_address": "Your Home Assistant IP",
         "access_token": "Your Home Assistant Access Token",
-        "volttron_topic": "devices/ha/all",
+        "volttron_topic": "your volttron topic",
         "port": "Your Port"
     },
     "driver_type": "home_assistant",
@@ -39,7 +39,7 @@ Once you have these files in the same place (or you just cloned this) you can ad
     "timezone": "UTC"
 }
 ```
-Your register file will contain the entities along with their attributes. For devices with no attributes lets say for example a humidity sensor, this driver will label the humidity as state since its the only value being pulled. If you would like to change this to another value you can add the attribute state_replace and the name of what it should be. For example "state_replace": "humidity". Since this sensor only pulls one value it will replace state: 50% with humidity: 50%.
+Your register file will can contain multiple entities but is best used with one. Using one keeps everything more organized.
 
 ```json
     {
@@ -51,13 +51,10 @@ Your register file will contain the entities along with their attributes. For de
         "Starting Value": 20,
         "Type": "float",
         "Notes": "Average humidity of 1621",
-        "Attributes": {
-            "state_replace": "humidity"
-        }
     },
 ```
 
-Other devices such as thermostats will have multiple attributes, simply add the attributes in the attributes field so we can keep values the same. 
+Other devices such as thermostats will have multiple attributes, simply add the attributes in the attributes field.
 
 ```json
     {
@@ -70,12 +67,12 @@ Other devices such as thermostats will have multiple attributes, simply add the 
         "Type": "boolean",
         "Notes": "lights bedroom",
         "Attributes": {
-            "temperature": "current_temperature",
-            "humidity": "current_humidity"
+            "current_temperature": "current_temperature",
+            "current_humidity": "current_humidity"
         }
     },
 ```
-For example, let's consider a thermostat with an attribute called "current_temperature" in Home Assistant. In order to keep data continuity and ensure consistency, we can map this attribute to the key "temperature" in VOLTTRON. This means that in VOLTTRON the attribute will show as "temperature" while it actually corresponds to the attribute "current_temperature" in Home Assistant. 
+
 
 Attributes can be found in developer tools or by opening the device in the GUI of Home Assistant. 
 
@@ -84,7 +81,7 @@ Attributes can be found in developer tools or by opening the device in the GUI o
 
 We are now ready to get the driver running. Right now you can install the listener agent and a historian if you are looking to store data and view in VOLTTRON. Install the platform driver and make sure the home_assistant.py is in the interfaces folder. 
 
-Add the registers file and the config file into the VOLTTRON config store. 
+Add the registers files and the config files into the VOLTTRON config store. 
 
 here are examples:  vctl config store platform.driver home_assistant_registers.csv HomeAssistant_Driver/home_assistant_registers.json --json
                     vctl config store platform.driver devices/fakedevice examples/configurations/driver/fake.config
