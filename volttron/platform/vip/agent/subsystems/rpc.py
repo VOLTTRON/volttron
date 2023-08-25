@@ -304,9 +304,9 @@ class RPC(SubsystemBase):
         def checked_method(*args, **kwargs):
             user = str(self.context.vip_message.user)
             if self._message_bus == "rmq":
-                # When we address issue #2107 external platform user should
-                # have instance name also included in username.
-                user = user.split(".")[1]
+                # remove platform instance name. rmq user names are of the format <instance name>.<user>
+                user = user[user.index(".")+1:]
+
             user_capabilites = self._owner.vip.auth.get_capabilities(user)
             _log.debug("**user caps is: {}".format(user_capabilites))
             if user_capabilites:
