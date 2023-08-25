@@ -1,0 +1,58 @@
+# This file is a template, and might need editing before it works on your project.
+# You can copy and paste this template into a new `.gitlab-ci.yml` file.
+# You should not add this template to an existing `.gitlab-ci.yml` file by using the `include:` keyword.
+#
+# To contribute improvements to CI/CD templates, please follow the Development guide at:
+# https://docs.gitlab.com/ee/development/cicd/templates.html
+# This specific template is located at:
+# https://gitlab.com/gitlab-org/gitlab/-/blob/master/lib/gitlab/ci/templates/Bash.gitlab-ci.yml
+
+# See https://docs.gitlab.com/ee/ci/yaml/index.html for all available options
+
+# you can delete this line if you're not using Docker
+# image: busybox:latest
+
+22.04 job:
+    tags:
+        - ubuntu2204
+
+    before_script:
+    - echo "Before script section"
+    - echo "For example you might run an update here or install a build dependency"
+    - echo "Or perhaps you might print out some debugging details"
+    - echo "python3 bootstrap.py --all"
+
+    after_script:
+    - echo "After script section"
+    - echo "For example you might do some cleanup here"
+    - echo "Removing volttron and temp files"
+    - rm -rf dist 
+    - rm -rf /tmp/tmp* 
+    - rm -rf env
+
+    script:
+        - env/bin/activate
+        - pytest volttrontesting
+
+20.04 job:
+    tags:
+        - ubuntu2004
+
+    before_script:
+    - echo "Before script section"
+    - echo "For example you might run an update here or install a build dependency"
+    - echo "Or perhaps you might print out some debugging details"
+    - echo "python3 bootstrap.py --all"
+
+    after_script:
+    - echo "After script section"
+    - echo "For example you might do some cleanup here"
+    - echo "Removing volttron and temp files"
+    - rm -rf *.egg-info
+    - rm -rf /tmp/tmp* 
+    - rm -rf env
+
+    script:
+        - env/bin/activate
+        - pytest volttrontesting
+
