@@ -36,10 +36,6 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 import abc
-import random
-import datetime
-import math
-from math import pi
 
 from platform_driver.interfaces import BaseInterface, BaseRegister, BasicRevert
 # from ...platform_driver.interfaces import BaseInterface, BaseRegister, BasicRevert

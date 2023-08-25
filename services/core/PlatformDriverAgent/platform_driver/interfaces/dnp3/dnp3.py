@@ -6,13 +6,10 @@ from dnp3_python.dnp3station.master_new import MyMasterNew
 
 # TODO-developer: Your code here
 # Add dependency as needed, and update in requirements
-import json
 
 import logging
-import random
 import sys
 
-from datetime import datetime
 
 stdout_stream = logging.StreamHandler(sys.stdout)
 stdout_stream.setFormatter(logging.Formatter('%(asctime)s\t%(name)s\t%(levelname)s\t%(message)s'))

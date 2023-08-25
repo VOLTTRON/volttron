@@ -43,7 +43,7 @@ import os
 import six
 import time
 from shutil import copyfile
-from socket import gethostname, getfqdn, AI_CANONNAME
+from socket import gethostname, getfqdn
 import subprocess
 
 from cryptography import x509

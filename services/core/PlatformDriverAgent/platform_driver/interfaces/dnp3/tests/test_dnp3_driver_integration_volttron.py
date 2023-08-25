@@ -13,7 +13,6 @@ from pydnp3 import opendnp3
 from dnp3_python.dnp3station.outstation_new import MyOutStationNew
 from pathlib import Path
 
-import sys
 import os
 
 TEST_DIR = os.path.dirname(os.path.abspath(__file__))
