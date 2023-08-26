@@ -984,7 +984,8 @@ def start_volttron_process(opts):
         config_store = ConfigStoreService(address=address,
                                           identity=CONFIGURATION_STORE,
                                           message_bus=opts.message_bus,
-                                          enable_auth=opts.allow_auth)
+                                          enable_auth=opts.allow_auth,
+                                          enable_store=False)
 
         if opts.allow_auth:
             entry = AuthEntry(credentials=config_store.core.publickey,
