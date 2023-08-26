@@ -17,15 +17,9 @@
         - ubuntu2204
 
     before_script:
-    - echo "Before script section"
-    - echo "For example you might run an update here or install a build dependency"
-    - echo "Or perhaps you might print out some debugging details"
-    - echo "python3 bootstrap.py --all"
+    - python3 bootstrap.py --all
 
     after_script:
-    - echo "After script section"
-    - echo "For example you might do some cleanup here"
-    - echo "Removing volttron and temp files"
     - rm -rf dist 
     - rm -rf /tmp/tmp* 
     - rm -rf env
@@ -39,16 +33,10 @@
         - ubuntu2004
 
     before_script:
-    - echo "Before script section"
-    - echo "For example you might run an update here or install a build dependency"
-    - echo "Or perhaps you might print out some debugging details"
-    - echo "python3 bootstrap.py --all"
+    - python3 bootstrap.py --all
 
     after_script:
-    - echo "After script section"
-    - echo "For example you might do some cleanup here"
-    - echo "Removing volttron and temp files"
-    - rm -rf *.egg-info
+    - rm -rf dist 
     - rm -rf /tmp/tmp* 
     - rm -rf env
 
