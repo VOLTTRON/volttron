@@ -812,21 +812,21 @@ class VolttronCentralPlatform(Agent):
     def store_agent_config(self, agent_identity, config_name, raw_contents,
                            config_type='raw'):
         _log.debug("Storeing configuration file: {}".format(config_name))
-        self.vip.rpc.call(CONFIGURATION_STORE, "manage_store", agent_identity,
+        self.vip.rpc.call(CONFIGURATION_STORE, "set_config", agent_identity,
                           config_name, raw_contents, config_type)
 
     def list_agent_configs(self, agent_identity):
-        return self.vip.rpc.call(CONFIGURATION_STORE, "manage_list_configs",
+        return self.vip.rpc.call(CONFIGURATION_STORE, "list_configs",
                                  agent_identity).get(timeout=5)
 
     def get_agent_config(self, agent_identity, config_name, raw=True):
-        data = self.vip.rpc.call(CONFIGURATION_STORE, "manage_get",
+        data = self.vip.rpc.call(CONFIGURATION_STORE, "get_config",
                                  agent_identity, config_name, raw).get(
             timeout=5)
         return data or ""
 
     def delete_agent_config(self, agent_identity, config_name):
-        data = self.vip.rpc.call(CONFIGURATION_STORE, "manage_delete_config",
+        data = self.vip.rpc.call(CONFIGURATION_STORE, "delete_config",
                                  agent_identity, config_name).get(
             timeout=5)
         return data or ""
@@ -977,7 +977,7 @@ class VolttronCentralPlatform(Agent):
         devices = defaultdict(dict)
         for platform_driver_id in self._platform_driver_ids:
             config_list = self.vip.rpc.call(CONFIGURATION_STORE,
-                                            'manage_list_configs',
+                                            'list_configs',
                                             platform_driver_id).get(timeout=5)
             _log.debug('Config list is: {}'.format(config_list))
 
@@ -987,7 +987,7 @@ class VolttronCentralPlatform(Agent):
                     continue
 
                 device_config = self.vip.rpc.call(CONFIGURATION_STORE,
-                                                  'manage_get',
+                                                  'get_config',
                                                   platform_driver_id,
                                                   cfg_name,
                                                   raw=False).get(timeout=5)
@@ -999,7 +999,7 @@ class VolttronCentralPlatform(Agent):
                     reg_cfg_name
                 ))
                 registry_config = self.vip.rpc.call(CONFIGURATION_STORE,
-                                                    'manage_get',
+                                                    'get_config',
                                                     platform_driver_id,
                                                     reg_cfg_name,
                                                     raw=False).get(timeout=5)

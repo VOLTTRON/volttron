@@ -305,9 +305,6 @@ class PlatformWrapper:
         # with older 2.0 agents.
         self.opts = None
 
-        keystorefile = os.path.join(self.volttron_home, 'keystore')
-        self.keystore = KeyStore(keystorefile)
-        self.keystore.generate()
         self.messagebus = messagebus if messagebus else 'zmq'
         # Regardless of what is passed in if using rmq we need auth and ssl.
         if self.messagebus == 'rmq':

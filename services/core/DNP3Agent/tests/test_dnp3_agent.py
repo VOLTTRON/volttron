@@ -118,7 +118,7 @@ def add_definitions_to_config_store(test_agent):
     """Add PointDefinitions to the mesaagent's config store."""
     with open(POINT_DEFINITIONS_PATH, 'r') as f:
         points_json = jsonapi.loads(strip_comments(f.read()))
-    test_agent.vip.rpc.call('config.store', 'manage_store', DNP3_AGENT_ID,
+    test_agent.vip.rpc.call('config.store', 'set_config', DNP3_AGENT_ID,
                             'mesa_points.config', points_json, config_type='raw')
 
 

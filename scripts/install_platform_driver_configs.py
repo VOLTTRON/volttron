@@ -89,13 +89,13 @@ def install_configs(input_directory, keep=False):
     if not keep:
         print("Deleting old Platform Driver store")
         agent.vip.rpc.call(CONFIGURATION_STORE,
-                           'manage_delete_store',
+                           'delete_store',
                            PLATFORM_DRIVER).get(timeout=10)
 
     with open("config") as f:
         print("Storing main configuration")
         agent.vip.rpc.call(CONFIGURATION_STORE,
-                           'manage_store',
+                           'set_config',
                            PLATFORM_DRIVER,
                            'config',
                            f.read(),
@@ -105,7 +105,7 @@ def install_configs(input_directory, keep=False):
         with open(name) as f:
             print("Storing configuration:", name)
             agent.vip.rpc.call(CONFIGURATION_STORE,
-                               'manage_store',
+                               'set_config',
                                PLATFORM_DRIVER,
                                name,
                                f.read(),
@@ -117,7 +117,7 @@ def install_configs(input_directory, keep=False):
             with open(name) as f:
                 print("Storing configuration:", name)
                 agent.vip.rpc.call(CONFIGURATION_STORE,
-                                   'manage_store',
+                                   'set_config',
                                    PLATFORM_DRIVER,
                                    name,
                                    f.read(),

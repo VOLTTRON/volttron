@@ -74,7 +74,7 @@ def get_configs(config_id, output_directory):
     event.wait()
 
     config_list = agent.vip.rpc.call(CONFIGURATION_STORE,
-                           'manage_list_configs',
+                           'list_configs',
                            config_id).get(timeout=10)
 
     if not config_list:
@@ -88,7 +88,7 @@ def get_configs(config_id, output_directory):
     for config in config_list:
         print("Retrieving configuration", config)
         raw_config = agent.vip.rpc.call(CONFIGURATION_STORE,
-                           'manage_get',
+                           'get_config',
                            config_id,
                            config, raw=True).get(timeout=10)
 

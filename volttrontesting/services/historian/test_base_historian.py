@@ -388,7 +388,7 @@ def test_time_tolerance_check(request, volttron_instance, client_agent):
         # Change config to modify topic for time tolerance check
         historian.publish_sleep = 0
         json_config = """{"time_tolerance_topics":["record"]}"""
-        historian.vip.rpc.call(CONFIGURATION_STORE, 'manage_store',
+        historian.vip.rpc.call(CONFIGURATION_STORE, 'set_config',
                                identity, "config", json_config, config_type="json").get()
         gevent.sleep(2)
 

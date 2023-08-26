@@ -62,6 +62,7 @@ from volttron.platform.auth.auth_entry import AuthEntry, AuthEntryInvalid
 
 _log = logging.getLogger(__name__)
 
+
 class AuthFile(object):
     def __init__(self, auth_file=None):
         self.auth_data = {}
@@ -74,7 +75,7 @@ class AuthFile(object):
 
     @property
     def version(self):
-        return {"major": 1, "minor": 3}
+        return {"major": 1, "minor": 4}
 
     def _check_for_upgrade(self):
         auth_data = self._read()
@@ -268,6 +269,11 @@ class AuthFile(object):
             version["minor"] = 2
         if version["major"] == 1 and version["minor"] == 2:
             allow_list = upgrade_1_2_to_1_3(allow_list)
+            version["minor"] = 3
+        if version["major"] == 1 and version["minor"] == 3:
+            # on start a new entry for config.store should have got created automatically
+            # so just update version
+            version["minor"] = 4
 
         allow_entries, deny_entries = self._get_entries(allow_list, deny_list)
         self._write(allow_entries, deny_entries, groups, roles)

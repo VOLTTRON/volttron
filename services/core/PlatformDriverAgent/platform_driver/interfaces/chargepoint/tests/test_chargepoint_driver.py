@@ -157,7 +157,7 @@ def agent(request, volttron_instance):
     md_agent = volttron_instance.build_agent()
     # Clean out platform driver configurations.
     md_agent.vip.rpc.call('config.store',
-                          'manage_delete_store',
+                          'delete_store',
                           'platform.driver').get(timeout=10)
 
     driver1_config = DRIVER1_CONFIG_STRING % os.environ.get('CHARGEPOINT_PASSWORD', 'Must set a password')
@@ -166,21 +166,21 @@ def agent(request, volttron_instance):
 
     # Add test configurations.
     md_agent.vip.rpc.call('config.store',
-                          'manage_store',
+                          'set_config',
                           'platform.driver',
                           'devices/chargepoint1',
                           driver1_config,
                           'json').get(timeout=10)
 
     md_agent.vip.rpc.call('config.store',
-                          'manage_store',
+                          'set_config',
                           'platform.driver',
                           'devices/chargepoint2',
                           driver2_config,
                           'json').get(timeout=10)
 
     md_agent.vip.rpc.call('config.store',
-                          'manage_store',
+                          'set_config',
                           'platform.driver',
                           'chargepoint.csv',
                           REGISTRY_CONFIG_STRING,
