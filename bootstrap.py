@@ -86,7 +86,7 @@ _log = logging.getLogger(__name__)
 
 _WINDOWS = sys.platform.startswith('win')
 default_rmq_dir = os.path.join(os.path.expanduser("~"), "rabbitmq_server")
-rmq_version = "3.9.7"
+rmq_version = "3.9.29"
 rabbitmq_server = f"rabbitmq_server-{rmq_version}"
 
 
