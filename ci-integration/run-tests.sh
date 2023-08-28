@@ -46,7 +46,7 @@ echo "bootstrapping RABBITMQ"
 python bootstrap.py --rabbitmq --market
 
 echo "rabbitmq status"
-"$HOME/rabbitmq_server/rabbitmq_server-3.9.7/sbin/rabbitmqctl" status
+"$HOME/rabbitmq_server/rabbitmq_server-3.9.29/sbin/rabbitmqctl" status
 
 echo "TestDirs"
 for dir in $testdirs; do

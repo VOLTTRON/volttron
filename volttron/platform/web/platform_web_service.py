@@ -806,7 +806,7 @@ class PlatformWebService(Agent):
 
         # Register VUI endpoints:
         self._vui_endpoints = VUIEndpoints(self)
-        _log.debug(f'VUI: adding routes - {self._vui_endpoints.get_routes()}')
+        #_log.debug(f'VUI: adding routes - {self._vui_endpoints.get_routes()}')
         self.registeredroutes.extend(self._vui_endpoints.get_routes())
 
         # Allow authentication endpoint from any https connection

@@ -113,36 +113,30 @@ You can deactivate the environment at any time by running `deactivate`.
 
 #### Steps for RabbitMQ
 
-##### 1. Install Erlang version 24 packages
+##### 1. Install Erlang version 25 packages
 
-For RabbitMQ based VOLTTRON, some RabbitMQ specific software packages must be installed.
-
-###### On Debian based systems and CentOS 6/7
-
-If you are running an Debian or CentOS system, you can install the RabbitMQ dependencies by running the rabbit 
-  dependencies script, passing in the OS name and appropriate distribution as parameters. The following are supported:
-
-- `debian focal` (for Ubuntu 20.04)
-
-- `debian bionic` (for Ubuntu 18.04)
-
-- `debian stretch` (for Debian Stretch)
-
-- `debian buster` (for Debian Buster)
-
-- `raspbian buster` (for Raspbian/Raspberry Pi OS buster)
-
-Example command:
-
-```sh
-./scripts/rabbit_dependencies.sh debian xenial
+###### Install Erlang pre-requisites
+```shell
+sudo apt-get update
+sudo apt-get install -y gnupg apt-transport-https libsctp1 
 ```
 
-###### Alternatively
+###### Purge previous versions of Erlang
+```shell
+sudo apt-get purge -yf erlang-base
+```
 
-You can download and install Erlang from [Erlang Solutions](https://www.erlang-solutions.com/resources/download.html).
-Please include OTP/components - ssl, public_key, asn1, and crypto.
-Also lock your version of Erlang using the [yum-plugin-versionlock](https://access.redhat.com/solutions/98873)
+###### Install Erlang
+
+Download and install ErlangOTP from [Erlang Solutions](https://www.erlang-solutions.com/downloads/).
+RMQ uses components - ssl, public_key, asn1, and crypto. These are by default included in the OTP
+RabbitMQ 3.9.29 is compatible with Erlang versions 24.3.4.2 to 25.2. VOLTTRON was tested with Erlang version 25.2-1
+
+Example:
+```shell
+wget https://binaries2.erlang-solutions.com/ubuntu/pool/contrib/e/esl-erlang/esl-erlang_25.2-1~ubuntu~jammy_amd64.deb
+sudo dpkg -i esl-erlang_25.2-1~ubuntu~jammy_amd64.deb
+```
 
 ##### 2. Configure hostname
 
@@ -175,7 +169,7 @@ it needs to be set to the RabbitMQ installation directory (default path is
 `<user_home>/rabbitmq_server/rabbitmq_server-<rmq-version>`)
 
 ```sh
-echo 'export RABBITMQ_HOME=$HOME/rabbitmq_server/rabbitmq_server-3.9.7'|sudo tee --append ~/.bashrc
+echo 'export RABBITMQ_HOME=$HOME/rabbitmq_server/rabbitmq_server-3.9.29'|sudo tee --append ~/.bashrc
 source ~/.bashrc
 
 $RABBITMQ_HOME/sbin/rabbitmqctl status
@@ -232,7 +226,7 @@ Your VOLTTRON_HOME currently set to: /home/vdev/new_vhome2
 
 Is this the volttron you are attempting to setup?  [Y]:
 Creating rmq config yml
-RabbitMQ server home: [/home/vdev/rabbitmq_server/rabbitmq_server-3.9.7]:
+RabbitMQ server home: [/home/vdev/rabbitmq_server/rabbitmq_server-3.9.29]:
 Fully qualified domain name of the system: [cs_cbox.pnl.gov]:
 
 Enable SSL Authentication: [Y]:
@@ -252,7 +246,7 @@ AMQPS (SSL) port RabbitMQ address: [5671]:
 https port for the RabbitMQ management plugin: [15671]:
 INFO:rmq_setup.pyc:Starting rabbitmq server
 Warning: PID file not written; -detached was passed.
-INFO:rmq_setup.pyc:**Started rmq server at /home/vdev/rabbitmq_server/rabbitmq_server-3.9.7
+INFO:rmq_setup.pyc:**Started rmq server at /home/vdev/rabbitmq_server/rabbitmq_server-3.9.29
 INFO:requests.packages.urllib3.connectionpool:Starting new HTTP connection (1): localhost
 INFO:requests.packages.urllib3.connectionpool:Starting new HTTP connection (1): localhost
 INFO:requests.packages.urllib3.connectionpool:Starting new HTTP connection (1): localhost
@@ -266,7 +260,7 @@ INFO:requests.packages.urllib3.connectionpool:Starting new HTTP connection (1): 
 INFO:requests.packages.urllib3.connectionpool:Starting new HTTP connection (1): localhost
 INFO:rmq_setup.pyc:**Stopped rmq server
 Warning: PID file not written; -detached was passed.
-INFO:rmq_setup.pyc:**Started rmq server at /home/vdev/rabbitmq_server/rabbitmq_server-3.9.7
+INFO:rmq_setup.pyc:**Started rmq server at /home/vdev/rabbitmq_server/rabbitmq_server-3.9.29
 INFO:rmq_setup.pyc:
 
 #######################

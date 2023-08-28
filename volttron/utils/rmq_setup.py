@@ -90,13 +90,13 @@ def _start_rabbitmq_without_ssl(rmq_config, conf_file, env=None):
     rmq_home = rmq_config.rmq_home
     if not rmq_home:
         rmq_home = os.path.join(os.path.expanduser("~"),
-                                "rabbitmq_server/rabbitmq_server-3.9.7")
+                                "rabbitmq_server/rabbitmq_server-3.9.29")
         if os.path.exists(rmq_home):
             os.environ['RABBITMQ_HOME'] = rmq_home
         else:
             _log.error("\nMissing key 'rmq_home' in RabbitMQ config and RabbitMQ is "
                        "not installed in default path: \n"
-                       "~/rabbitmq_server/rabbitmq_server-3.9.7 \n"
+                       "~/rabbitmq_server/rabbitmq_server-3.9.29 \n"
                        "Please set the correct RabbitMQ installation path in "
                        "rabbitmq_config.yml")
             exit(1)

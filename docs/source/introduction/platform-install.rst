@@ -194,37 +194,31 @@ Step 2 - Install Erlang packages
 
 For RabbitMQ based VOLTTRON, some of the RabbitMQ specific software packages have to be installed.
 
+Install Erlang pre-requisites
++++++++++++++++++++++++++++++
+.. code-block:: bash
+    sudo apt-get update
+    sudo apt-get install -y gnupg apt-transport-https libsctp1
 
-On Debian based systems and CentOS 8
-""""""""""""""""""""""""""""""""""""
-
-If you are running a Debian or CentOS 8 system, you can install the RabbitMQ dependencies by running the
-"rabbit_dependencies.sh" script, passing in the OS name and appropriate distribution as parameters. The
-following are supported:
-
-*   `debian bionic` (for Ubuntu 18.04)
-
-*   `debian focal` (for Ubuntu 20.04)
-
-
-Example command:
+Purge previous versions of Erlang
++++++++++++++++++++++++++++++++++
 
 .. code-block:: bash
 
-    ./scripts/rabbit_dependencies.sh debian xenial
+    sudo apt-get purge -yf erlang-base
 
+Install Erlang
+++++++++++++++
 
-Alternatively
-"""""""""""""
+Download and install ErlangOTP from [Erlang Solutions](https://www.erlang-solutions.com/downloads/).
+RMQ uses components - ssl, public_key, asn1, and crypto. These are by default included in the OTP
+RabbitMQ 3.9.29 is compatible with Erlang versions 24.3.4.2 to 25.2. VOLTTRON was tested with Erlang version 25.2-1
 
-You can download and install Erlang from `Erlang Solutions <https://www.erlang-solutions.com/resources/download.html>`_.
-Please include OTP/components - ssl, public_key, asn1, and crypto.
-Also lock your version of Erlang using the `yum-plugin-versionlock <https://access.redhat.com/solutions/98873>`_.
+Example:
+.. code-block:: bash
 
-.. note::
-    Currently VOLTTRON only officially supports specific versions of Erlang for each operating system:
-          * 1:24.1.7-1 for Debian
-          * 24.2-1.el8 for CentOS 8
+    wget https://binaries2.erlang-solutions.com/ubuntu/pool/contrib/e/esl-erlang/esl-erlang_25.2-1~ubuntu~jammy_amd64.deb
+    sudo dpkg -i esl-erlang_25.2-1~ubuntu~jammy_amd64.deb
 
 
 Step 3 - Configure hostname
@@ -272,11 +266,11 @@ Thus, you can use $RABBITMQ_HOME to see if the RabbitMQ server is installed by c
 .. note::
 
     The `RABBITMQ_HOME` environment variable can be set in ~/.bashrc. If doing so, it needs to be set to the RabbitMQ
-    installation directory (default path is `<user_home>/rabbitmq_server/rabbitmq_server-3.9.7`)
+    installation directory (default path is `<user_home>/rabbitmq_server/rabbitmq_server-3.9.29`)
 
 .. code-block:: bash
 
-    echo 'export RABBITMQ_HOME=$HOME/rabbitmq_server/rabbitmq_server-3.9.7'|sudo tee --append ~/.bashrc
+    echo 'export RABBITMQ_HOME=$HOME/rabbitmq_server/rabbitmq_server-3.9.29'|sudo tee --append ~/.bashrc
     source ~/.bashrc
     $RABBITMQ_HOME/sbin/rabbitmqctl status
 
@@ -334,7 +328,7 @@ prompts for necessary details.
 
     Is this the volttron you are attempting to setup?  [Y]:
     Creating rmq config yml
-    RabbitMQ server home: [/home/vdev/rabbitmq_server/rabbitmq_server-3.9.7]:
+    RabbitMQ server home: [/home/vdev/rabbitmq_server/rabbitmq_server-3.9.29]:
     Fully qualified domain name of the system: [cs_cbox.pnl.gov]:
 
     Enable SSL Authentication: [Y]:
@@ -354,7 +348,7 @@ prompts for necessary details.
     https port for the RabbitMQ management plugin: [15671]:
     INFO:rmq_setup.pyc:Starting rabbitmq server
     Warning: PID file not written; -detached was passed.
-    INFO:rmq_setup.pyc:**Started rmq server at /home/vdev/rabbitmq_server/rabbitmq_server-3.9.7
+    INFO:rmq_setup.pyc:**Started rmq server at /home/vdev/rabbitmq_server/rabbitmq_server-3.9.29
     INFO:requests.packages.urllib3.connectionpool:Starting new HTTP connection (1): localhost
     INFO:requests.packages.urllib3.connectionpool:Starting new HTTP connection (1): localhost
     INFO:requests.packages.urllib3.connectionpool:Starting new HTTP connection (1): localhost
@@ -368,7 +362,7 @@ prompts for necessary details.
     INFO:requests.packages.urllib3.connectionpool:Starting new HTTP connection (1): localhost
     INFO:rmq_setup.pyc:**Stopped rmq server
     Warning: PID file not written; -detached was passed.
-    INFO:rmq_setup.pyc:**Started rmq server at /home/vdev/rabbitmq_server/rabbitmq_server-3.9.7
+    INFO:rmq_setup.pyc:**Started rmq server at /home/vdev/rabbitmq_server/rabbitmq_server-3.9.29
     INFO:rmq_setup.pyc:
 
     #######################
