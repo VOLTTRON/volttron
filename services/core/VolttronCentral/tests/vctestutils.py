@@ -1,7 +1,5 @@
 import requests
 
-from volttron.platform import jsonapi
-
 
 class APITester:
     def __init__(self, wrapper, username='admin', password='admin'):

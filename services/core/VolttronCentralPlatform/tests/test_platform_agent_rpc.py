@@ -226,7 +226,7 @@ def test_can_change_topic_map(setup_platform, vc_agent):
 
     # now update the config store for vcp
     vc.vip.rpc.call(CONFIGURATION_STORE,
-                    'manage_store',
+                    'set_config',
                     VOLTTRON_CENTRAL_PLATFORM,
                     'config',
                     jsonapi.dumps(replace_map),
@@ -247,7 +247,7 @@ def test_can_change_topic_map(setup_platform, vc_agent):
 
     # now update the config store for vcp
     vc.vip.rpc.call(CONFIGURATION_STORE,
-                    'manage_store',
+                    'set_config',
                     VOLTTRON_CENTRAL_PLATFORM,
                     'config',
                     jsonapi.dumps(replace_map),

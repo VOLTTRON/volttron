@@ -106,8 +106,8 @@ def agent(request, volttron_instance_module_web):
     capabilities = {'edit_config_store': {'identity': PLATFORM_DRIVER}}
     volttron_instance_module_web.add_capabilities(test_agent.core.publickey, capabilities)
     # Configure a IEEE 2030.5 device in the Platform Driver
-    test_agent.vip.rpc.call('config.store', 'manage_delete_store', PLATFORM_DRIVER).get(timeout=10)
-    test_agent.vip.rpc.call('config.store', 'manage_store', PLATFORM_DRIVER,
+    test_agent.vip.rpc.call('config.store', 'delete_store', PLATFORM_DRIVER).get(timeout=10)
+    test_agent.vip.rpc.call('config.store', 'set_config', PLATFORM_DRIVER,
                             'devices/{}'.format(DRIVER_NAME),
                             """{
                                 "driver_config": {
@@ -124,7 +124,7 @@ def agent(request, volttron_instance_module_web):
                                 "heart_beat_point": "Heartbeat"
                             }""",
                             'json').get(timeout=10)
-    test_agent.vip.rpc.call('config.store', 'manage_store', PLATFORM_DRIVER,
+    test_agent.vip.rpc.call('config.store', 'set_config', PLATFORM_DRIVER,
                             'IEEE2030_5.csv',
                             REGISTRY_CONFIG_STRING,
                             'csv').get(timeout=10)

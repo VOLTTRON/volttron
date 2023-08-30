@@ -97,21 +97,21 @@ def main():
     agent = build_agent(**get_keys())
 
     files = agent.vip.rpc.call(CONFIGURATION_STORE,
-                               'manage_list_configs',
+                               'list_configs',
                                vip_id).get(timeout=10)
 
     if filename not in files:
         config = {key: value}
     else:
         config = agent.vip.rpc.call(CONFIGURATION_STORE,
-                                    'manage_get',
+                                    'get_config',
                                     vip_id,
                                     filename).get(timeout=10)
         config = jsonapi.loads(config)
         config[key] = value
 
     agent.vip.rpc.call(CONFIGURATION_STORE,
-                       'manage_store',
+                       'set_config',
                        vip_id,
                        filename,
                        jsonapi.dumps(config),

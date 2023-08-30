@@ -202,19 +202,19 @@ def agent(volttron_instance):
     volttron_instance.add_capabilities(agent.core.publickey, capabilities)
     # Clean out platform driver configurations.
     agent.vip.rpc.call(CONFIGURATION_STORE,
-                       'manage_delete_store',
+                       'delete_store',
                        PLATFORM_DRIVER).get(timeout=10)
 
     # Add test configurations.
     agent.vip.rpc.call(CONFIGURATION_STORE,
-                       'manage_store',
+                       'set_config',
                        PLATFORM_DRIVER,
                        "devices/campus/building/unit",
                        driver_config_string,
                        "json").get(timeout=10)
 
     agent.vip.rpc.call(CONFIGURATION_STORE,
-                       'manage_store',
+                       'set_config',
                        PLATFORM_DRIVER,
                        "eagle.json",
                        register_config_string,

@@ -242,7 +242,7 @@ def main(argv=sys.argv):
 
     # Python3 for life!
     if sys.version_info.major < 3 or sys.version_info.minor < 6:
-        sys.stderr.write('error: Python >= 3.6 is required\n')
+        sys.stderr.write('error: Python >= 3.8 is required\n')
         sys.exit(1)
 
     # Build the parser

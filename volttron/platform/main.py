@@ -69,7 +69,7 @@ from urllib.parse import urlparse
 
 import gevent
 import zmq
-from zmq import ZMQError, green
+from zmq import ZMQError, green, NOBLOCK
 
 from volttron.platform.agent.utils import get_platform_instance_name
 # Create a context common to the green and non-green zmq modules.
@@ -86,7 +86,7 @@ from volttron.platform.auth.auth import AuthService
 from volttron.platform.auth.auth_entry import AuthEntry
 from volttron.platform.auth.auth_file import AuthFile
 from volttron.platform.control.control import ControlService
-from volttron.platform.vip.router import *
+from volttron.platform.vip.router import BaseRouter, ERROR, INCOMING, UNROUTABLE
 from volttron.platform.vip.socket import Address, decode_key, encode_key
 from volttron.platform.vip.tracking import Tracker
 
@@ -109,7 +109,6 @@ from .agent.known_identities import (AUTH, CONFIGURATION_STORE, CONTROL,
                                      PROXY_ROUTER)
 from .keystore import KeyStore, KnownHostsStore
 from .store import ConfigStoreService
-from .vip.agent.subsystems.pubsub import ProtectedPubSubTopics
 from .vip.externalrpcservice import ExternalRPCService
 from .vip.keydiscovery import KeyDiscoveryAgent
 from .vip.pubsubservice import PubSubService
@@ -232,7 +231,7 @@ def configure_logging(conf_path):
                 return (conf_path, 'PyYAML must be installed before '
                         'loading logging configuration from a YAML file.')
             try:
-                conf_dict = yaml.load(conf_file)
+                conf_dict = yaml.safe_load(conf_file)
             except yaml.YAMLError as exc:
                 return conf_path, exc
     try:
@@ -985,7 +984,16 @@ def start_volttron_process(opts):
         config_store = ConfigStoreService(address=address,
                                           identity=CONFIGURATION_STORE,
                                           message_bus=opts.message_bus,
-                                          enable_auth=opts.allow_auth)
+                                          enable_auth=opts.allow_auth,
+                                          enable_store=False)
+
+        if opts.allow_auth:
+            entry = AuthEntry(credentials=config_store.core.publickey,
+                              user_id=CONFIGURATION_STORE,
+                              identity=CONFIGURATION_STORE,
+                              capabilities='sync_agent_config',
+                              comments='Automatically added by platform on start')
+            AuthFile().add(entry, overwrite=True)
 
         # Launch additional services and wait for them to start before
         # auto-starting agents
@@ -1278,12 +1286,13 @@ def setup_auth_service(opts, address, services):
     entry = AuthEntry(credentials=services[0].core.publickey,
                       user_id=CONTROL,
                       identity=CONTROL,
-                      capabilities=[{
-                          'edit_config_store': {
-                              'identity': '/.*/'
-                          }
-                      }, 'modify_rpc_method_allowance',
-                                    'allow_auth_modifications'],
+                      capabilities=[
+                          {
+                           'edit_config_store': {
+                              'identity': '/.*/'}
+                          },
+                          'modify_rpc_method_allowance',
+                          'allow_auth_modifications'],
                       comments='Automatically added by platform on start')
     AuthFile().add(entry, overwrite=True)
 

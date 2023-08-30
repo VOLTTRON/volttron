@@ -80,7 +80,7 @@ def agent(request, volttron_instance):
     test_agent = volttron_instance.build_agent()
 
     def update_config(agent_id, name, value, cfg_type):
-        test_agent.vip.rpc.call('config.store', 'manage_store', agent_id, name, value, config_type=cfg_type)
+        test_agent.vip.rpc.call('config.store', 'set_config', agent_id, name, value, config_type=cfg_type)
 
     capabilities = {'edit_config_store': {'identity': PLATFORM_DRIVER}}
     volttron_instance.add_capabilities(test_agent.core.publickey, capabilities)
@@ -95,7 +95,7 @@ def agent(request, volttron_instance):
 
     # Build and start PlatformDriverAgent
 
-    test_agent.vip.rpc.call('config.store', 'manage_delete_store', PLATFORM_DRIVER)
+    test_agent.vip.rpc.call('config.store', 'delete_store', PLATFORM_DRIVER)
 
     platform_uuid = volttron_instance.install_agent(agent_dir=get_services_core("PlatformDriverAgent"),
                                                   config_file={},

@@ -544,14 +544,14 @@ def test_multiplatform_configstore_rpc(request, get_volttron_instances):
     test_agent = p2.build_agent()
     kwargs = {"external_platform": p1.instance_name}
     test_agent.vip.rpc.call(CONFIGURATION_STORE,
-                            'manage_store',
+                            'set_config',
                             'platform.thresholddetection',
                             'config',
                             jsonapi.dumps(updated_config),
                             'json',
                             **kwargs).get(timeout=10)
     config = test_agent.vip.rpc.call(CONFIGURATION_STORE,
-                                     'manage_get',
+                                     'get_config',
                                      'platform.thresholddetection',
                                      'config',
                                      raw=True,

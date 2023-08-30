@@ -61,7 +61,8 @@ install_requires = ['gevent==21.12.0',
                     'tzlocal==2.1',
                     #'pyOpenSSL==19.0.0',
                     'cryptography==37.0.4',
-                    'watchdog-gevent==0.1.1']
+                    'watchdog-gevent==0.1.1',
+                    'deprecated==1.2.14']
 
 extras_require = {'crate': ['crate==0.27.1'],
                   'databases': ['mysql-connector-python==8.0.30',

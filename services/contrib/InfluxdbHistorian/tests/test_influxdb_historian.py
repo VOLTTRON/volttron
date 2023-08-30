@@ -1332,7 +1332,7 @@ def test_update_config_store(volttron_instance, influxdb_client):
         publish_some_fake_data(publisher, 5)
 
         # Update config store
-        publisher.vip.rpc.call('config.store', 'manage_store', 'influxdb.historian', 'config',
+        publisher.vip.rpc.call('config.store', 'set_config', 'influxdb.historian', 'config',
                                jsonapi.dumps(updated_influxdb_config), config_type="json").get(timeout=10)
         publish_some_fake_data(publisher, 5)
 

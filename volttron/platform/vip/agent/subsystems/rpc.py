@@ -48,16 +48,13 @@ import re
 import gevent.local
 from gevent.event import AsyncResult
 from volttron.platform import jsonapi
-from volttron.platform.agent.utils import get_messagebus
 
 from .base import SubsystemBase
-from ..errors import VIPError
 from ..results import counter, ResultsDictionary
 from ..decorators import annotate, annotations, dualmethod, spawn
 from .... import jsonrpc
-from volttron.platform.vip.socket import Message
 
-from zmq import Frame, NOBLOCK, ZMQError, EINVAL, EHOSTUNREACH
+from zmq import ZMQError
 from zmq.green import ENOTSOCK
 
 
@@ -307,9 +304,9 @@ class RPC(SubsystemBase):
         def checked_method(*args, **kwargs):
             user = str(self.context.vip_message.user)
             if self._message_bus == "rmq":
-                # When we address issue #2107 external platform user should
-                # have instance name also included in username.
-                user = user.split(".")[1]
+                # remove platform instance name. rmq user names are of the format <instance name>.<user>
+                user = user[user.index(".")+1:]
+
             user_capabilites = self._owner.vip.auth.get_capabilities(user)
             _log.debug("**user caps is: {}".format(user_capabilites))
             if user_capabilites:

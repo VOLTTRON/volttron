@@ -109,7 +109,7 @@ class AlertWatcher(Agent):
 
     def reset_store(self):
         self.vip.rpc.call(CONFIGURATION_STORE,
-                          'manage_store',
+                          'set_config',
                           'platform.thresholddetection',
                           'config',
                           jsonapi.dumps(_test_config),
@@ -137,7 +137,7 @@ def threshold_tester_agent(volttron_instance):
 
     agent.reset_store()
     # agent.vip.rpc.call(CONFIGURATION_STORE,
-    #                    'manage_store',
+    #                    'set_config',
     #                    'platform.thresholddetection',
     #                    'config',
     #                    jsonapi.dumps(_test_config),
@@ -146,7 +146,7 @@ def threshold_tester_agent(volttron_instance):
     yield agent
 
     agent.vip.rpc.call(CONFIGURATION_STORE,
-                       'manage_delete_store',
+                       'delete_store',
                        'platform.thresholddetection').get()
     volttron_instance.remove_agent(threshold_detection_uuid)
 
@@ -211,7 +211,7 @@ def test_update_config(threshold_tester_agent):
     # threshold_tester_agent.vip.pubsub.publish('pubsub', topic="alerts/woot", headers={"foo": "bar"})
     # threshold_tester_agent.vip .config.set('config', updated_config, True)
     threshold_tester_agent.vip.rpc.call(CONFIGURATION_STORE,
-                                        'manage_store',
+                                        'set_config',
                                         'platform.thresholddetection',
                                         'config',
                                         jsonapi.dumps(updated_config),
@@ -254,7 +254,7 @@ def test_device_publish(threshold_tester_agent):
 
 def test_remove_from_config_store(threshold_tester_agent):
     threshold_tester_agent.vip.rpc.call(CONFIGURATION_STORE,
-                                        'manage_delete_config',
+                                        'delete_config',
                                         'platform.thresholddetection',
                                         'config').get()
     publish(threshold_tester_agent, _test_config, lambda x: x+1)

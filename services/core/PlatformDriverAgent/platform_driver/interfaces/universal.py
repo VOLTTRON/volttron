@@ -112,7 +112,7 @@ class Interface(BasicRevert, BaseInterface):
             which calls volttron/platform/store.py: def get_configs(self):
                 self.vip.rpc.call(identity, "config.initial_update" sets list of registry_configs
                 
-    scripts/install_platform_driver_configs.py calls 'manage_store' rpc, which is in volttron/platform/store.py
+    scripts/install_platform_driver_configs.py calls 'set_config' rpc, which is in volttron/platform/store.py
                     which calls process_raw_config(), which stores it as a dict.
                     process_raw_config() is also called by process_store() in store.py 
                     when the platform starts ( class ConfigStoreService):

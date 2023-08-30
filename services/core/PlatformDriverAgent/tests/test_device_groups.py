@@ -136,12 +136,12 @@ def test_agent(volttron_instance):
 
     # Clean out platform driver configurations
     # wait for it to return before adding new config
-    md_agent.vip.rpc.call("config.store", "manage_delete_store", PLATFORM_DRIVER).get()
+    md_agent.vip.rpc.call("config.store", "delete_store", PLATFORM_DRIVER).get()
 
     # Add a fake.csv to the config store
     md_agent.vip.rpc.call(
         "config.store",
-        "manage_store",
+        "set_config",
         PLATFORM_DRIVER,
         "fake.csv",
         registry_config_string,
@@ -166,7 +166,7 @@ def setup_config(test_agent, config_name, config_string, **kwargs):
     print("Adding", config_name, "to store")
     test_agent.vip.rpc.call(
         "config.store",
-        "manage_store",
+        "set_config",
         PLATFORM_DRIVER,
         config_name,
         config,
@@ -177,7 +177,7 @@ def setup_config(test_agent, config_name, config_string, **kwargs):
 def remove_config(test_agent, config_name):
     print("Removing", config_name, "from store")
     test_agent.vip.rpc.call(
-        "config.store", "manage_delete_config", PLATFORM_DRIVER, config_name
+        "config.store", "delete_config", PLATFORM_DRIVER, config_name
     ).get()
 
 
