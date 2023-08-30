@@ -40,7 +40,7 @@ layer, and transport layer. Also, DNP3 can be transmitted over a serial bus conn
 1. (If not satisfied yet,) install [dnp3-python](https://pypi.org/project/dnp3-python/) dependency.
 
     ```shell
-    (volttron) $ pip install dnp3-python==0.3.0b1
+    (volttron) $ pip install dnp3-python==0.2.3b3
     ```
 
 1. Install and start the DNP3 Outstation Agent.
