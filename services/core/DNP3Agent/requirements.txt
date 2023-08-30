@@ -1,1 +1,1 @@
-pydnp3==0.1.0
+dnp3-python==0.2.3b3
