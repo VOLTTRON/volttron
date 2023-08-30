@@ -138,7 +138,7 @@ class Interface(BasicRevert, BaseInterface):
                     print("\n")
                     _log.error(f"{entity_id} is unavailable\n")
                 else:
-                    result[entity_id] = state
+                    result["state"] = state
  
                 # Loop through the attributes of the register and fetch corresponding values from entity_data
                 for attribute_name, attribute_key in attributes.items():
@@ -192,7 +192,7 @@ class Interface(BasicRevert, BaseInterface):
 
             self.insert_register(register)
 
-        self._create_subscriptions(self.volttron_topic) # running function to subscribe to topic specified in config
+        #self._create_subscriptions(self.volttron_topic) # running function to subscribe to topic specified in config
 
     def turn_off_lights(self, entity_id):
         url = f"http://{self.ip_address}:{self.port}/api/services/light/turn_off"
@@ -278,73 +278,73 @@ class Interface(BasicRevert, BaseInterface):
                 else:
                     _log.info(f"Failed to change the temp of {entity}. Response: {response.text}")
 
-    def _create_subscriptions(self, topic):
-        """
-        Unsubscribe from all pub/sub topics and create a subscription to a topic in the configuration which triggers
-        the _handle_publish callback
-        """
-        self.vip.pubsub.unsubscribe("pubsub", None, None)
+    # def _create_subscriptions(self, topic):
+    #     """
+    #     Unsubscribe from all pub/sub topics and create a subscription to a topic in the configuration which triggers
+    #     the _handle_publish callback
+    #     """
+    #     self.vip.pubsub.unsubscribe("pubsub", None, None)
 
-        self.vip.pubsub.subscribe(peer='pubsub',
-                                  prefix=topic,
-                                  callback=self._handle_publish)    
+    #     self.vip.pubsub.subscribe(peer='pubsub',
+    #                               prefix=topic,
+    #                               callback=self._handle_publish)    
         
-    def _handle_publish(self, peer, sender, bus, topic, headers, messages):
-        for message in messages: #subscribes to itself then stores states and if they change it runs the commands 
-            for entity_id, entity_data in message.items():
+    # def _handle_publish(self, peer, sender, bus, topic, headers, messages):
+    #     for message in messages: #subscribes to itself then stores states and if they change it runs the commands 
+    #         for entity_id, entity_data in message.items():
                 
-                state = entity_data.get("state", None)
-                brightness = entity_data.get("brightness", None)
-                temperature = entity_data.get("temperature", None)
+    #             state = entity_data.get("state", None)
+    #             brightness = entity_data.get("brightness", None)
+    #             temperature = entity_data.get("temperature", None)
 
-                previous_state = self.previous_states.get(entity_id, None)
-                previous_brightness = self.previous_states.get(f"{entity_id}_brightness", None)
-                previous_temperature = self.previous_states.get(f"{entity_id}_temperature", None)
+    #             previous_state = self.previous_states.get(entity_id, None)
+    #             previous_brightness = self.previous_states.get(f"{entity_id}_brightness", None)
+    #             previous_temperature = self.previous_states.get(f"{entity_id}_temperature", None)
 
-                #LIGHTS
-                if entity_id.startswith("light.") and not self.first_pass: #if it starts with light and its not the first pass to store previous values. 
-                    if state != previous_state:  # if state changed
-                        if state == "on":
-                            _log.info(f"{entity_id} value has been detected as on")
-                            self.turn_on_lights(entity_id, 255 if brightness is None else brightness)
-                        elif state == "off":
-                            _log.info(f"{entity_id} detected as off!")
-                            self.turn_off_lights(entity_id)
-                        else:
-                            continue
+    #             #LIGHTS
+    #             if entity_id.startswith("light.") and not self.first_pass: #if it starts with light and its not the first pass to store previous values. 
+    #                 if state != previous_state:  # if state changed
+    #                     if state == "on":
+    #                         _log.info(f"{entity_id} value has been detected as on")
+    #                         self.turn_on_lights(entity_id, 255 if brightness is None else brightness)
+    #                     elif state == "off":
+    #                         _log.info(f"{entity_id} detected as off!")
+    #                         self.turn_off_lights(entity_id)
+    #                     else:
+    #                         continue
 
-                    # this handles brightness change even when state doesn't change
-                    if brightness != previous_brightness:
-                        _log.info(f"{entity_id} brightness has been detected and changed to {brightness} / 254")
-                        self.turn_on_lights(entity_id, brightness)
+    #                 # this handles brightness change even when state doesn't change
+    #                 if brightness != previous_brightness:
+    #                     _log.info(f"{entity_id} brightness has been detected and changed to {brightness} / 254")
+    #                     self.turn_on_lights(entity_id, brightness)
 
-                    self.previous_states[entity_id] = state
-                    self.previous_states[f"{entity_id}_brightness"] = brightness # example previous_states[light.entity_brightness] = brightness
+    #                 self.previous_states[entity_id] = state
+    #                 self.previous_states[f"{entity_id}_brightness"] = brightness # example previous_states[light.entity_brightness] = brightness
 
-                # THERMOSTATS
-                elif entity_id.startswith("climate.") and not self.first_pass:
+    #             # THERMOSTATS
+    #             elif entity_id.startswith("climate.") and not self.first_pass:
 
-                    if state != previous_state:
-                        if state == "cool":
-                            self.change_thermostat_mode("cool")
-                            _log.info(f"{entity_id} value has been changed to cool")
-                        elif state == "heat":
-                            _log.info(f"{entity_id} value has been changed to heat")
-                            self.change_thermostat_mode("heat")
-                        elif state == "off":
-                            _log.info(f"{entity_id} value has been changed to off")
-                            self.change_thermostat_mode("off")
-                        else: 
-                            continue
-                    if temperature != previous_temperature:
-                        _log.info(f"{entity_id} temperature has been detected and changed to {temperature} degrees F")
-                        self.set_thermostat_temperature(temperature)
+    #                 if state != previous_state:
+    #                     if state == "cool":
+    #                         self.change_thermostat_mode("cool")
+    #                         _log.info(f"{entity_id} value has been changed to cool")
+    #                     elif state == "heat":
+    #                         _log.info(f"{entity_id} value has been changed to heat")
+    #                         self.change_thermostat_mode("heat")
+    #                     elif state == "off":
+    #                         _log.info(f"{entity_id} value has been changed to off")
+    #                         self.change_thermostat_mode("off")
+    #                     else: 
+    #                         continue
+    #                 if temperature != previous_temperature:
+    #                     _log.info(f"{entity_id} temperature has been detected and changed to {temperature} degrees F")
+    #                     self.set_thermostat_temperature(temperature)
 
-                    self.previous_states[entity_id] = state
-                    self.previous_states[f"{entity_id}_temperature"] = temperature # example previous_states[light.entity_brightness] = brightness
-                else:
-                    continue
-            if self.first_pass:
-                self.first_pass = False
+    #                 self.previous_states[entity_id] = state
+    #                 self.previous_states[f"{entity_id}_temperature"] = temperature # example previous_states[light.entity_brightness] = brightness
+    #             else:
+    #                 continue
+    #         if self.first_pass:
+    #             self.first_pass = False
 
         
