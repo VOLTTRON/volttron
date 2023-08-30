@@ -7,9 +7,9 @@ DNP3 and MESA specifications, located in VOLTTRON readthedocs
 under http://volttron.readthedocs.io/en/develop/specifications/dnp3_agent.html
 and http://volttron.readthedocs.io/en/develop/specifications/mesa_agent.html.
 
-These agents depend on the dnp3-python==0.2.3b3 library, which must be installed in the VOLTTRON virtual environment:
+These agents depend on the pydnp3 library, which must be installed in the VOLTTRON virtual environment:
 
-    (volttron) $ pip install dnp3-python==0.2.3b3
+    (volttron) $ pip install pydnp3
 
 Installing MesaAgent
 --------------------
