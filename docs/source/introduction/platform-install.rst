@@ -214,11 +214,18 @@ Download and install ErlangOTP from [Erlang Solutions](https://www.erlang-soluti
 RMQ uses components - ssl, public_key, asn1, and crypto. These are by default included in the OTP
 RabbitMQ 3.9.29 is compatible with Erlang versions 24.3.4.2 to 25.2. VOLTTRON was tested with Erlang version 25.2-1
 
-Example:
+Example: Ubuntu 22.04
 .. code-block:: bash
 
     wget https://binaries2.erlang-solutions.com/ubuntu/pool/contrib/e/esl-erlang/esl-erlang_25.2-1~ubuntu~jammy_amd64.deb
     sudo dpkg -i esl-erlang_25.2-1~ubuntu~jammy_amd64.deb
+
+
+Example: Ubuntu 20.04
+.. code-block:: bash
+
+    wget https://binaries2.erlang-solutions.com/ubuntu/pool/contrib/e/esl-erlang/esl-erlang_25.2-1~ubuntu~focal_amd64.deb
+    sudo dpkg -i esl-erlang_25.2-1~ubuntu~focal_amd64.deb
 
 
 Step 3 - Configure hostname
@@ -240,10 +247,13 @@ to connect to empd (port 4369) on <hostname>."
 
 Step 4 - Bootstrap the environment
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Remove older version of rabbitmq_server directory. Defaults to <user_home>/rabbitmq_server/rabbitmq_server-3.9.7
 
+Run the rabbitmq bootstrap step from within an VOLTTRON activated environment.
 .. code-block:: bash
 
     cd volttron
+    source env/bin/activate
     python3 bootstrap.py --rabbitmq [optional install directory. defaults to <user_home>/rabbitmq_server]
 
 This will build the platform and create a virtual Python environment and dependencies for RabbitMQ.  It also installs
