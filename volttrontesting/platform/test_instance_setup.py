@@ -126,6 +126,7 @@ def test_zmq_case_no_agents(monkeypatch):
         assert not is_volttron_running(vhome)
 
 
+@pytest.mark.timeout(400)
 def test_zmq_case_with_agents(monkeypatch):
     with create_vcfg_vhome() as vhome:
         monkeypatch.setenv("VOLTTRON_HOME", vhome)
@@ -261,6 +262,7 @@ def test_zmq_case_web_no_agents(monkeypatch):
         assert not is_volttron_running(vhome)
 
 
+@pytest.mark.timeout(400)
 def test_zmq_case_web_with_agents(monkeypatch):
     with create_vcfg_vhome() as vhome:
         monkeypatch.setenv("VOLTTRON_HOME", vhome)

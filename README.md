@@ -133,10 +133,20 @@ RMQ uses components - ssl, public_key, asn1, and crypto. These are by default in
 RabbitMQ 3.9.29 is compatible with Erlang versions 24.3.4.2 to 25.2. VOLTTRON was tested with Erlang version 25.2-1
 
 Example:
+
+On Ubuntu 22.04:
+
 ```shell
 wget https://binaries2.erlang-solutions.com/ubuntu/pool/contrib/e/esl-erlang/esl-erlang_25.2-1~ubuntu~jammy_amd64.deb
 sudo dpkg -i esl-erlang_25.2-1~ubuntu~jammy_amd64.deb
 ```
+
+On Ubuntu 20.04:
+```shell
+wget https://binaries2.erlang-solutions.com/ubuntu/pool/contrib/e/esl-erlang/esl-erlang_25.2-1~ubuntu~focal_amd64.deb
+sudo dpkg -i esl-erlang_25.2-1~ubuntu~focal_amd64.deb
+```
+
 
 ##### 2. Configure hostname
 
@@ -149,9 +159,13 @@ connect to empd (port 4369) on <hostname>." Note: RabbitMQ startup error would s
 and not in RabbitMQ logs (/var/log/rabbitmq/rabbitmq@hostname.log)
 
 ##### 3. Bootstrap
+Remove older version of rabbitmq_server directory. Defaults to <user_home>/rabbitmq_server/rabbitmq_server-3.9.7
+
+Run the rabbitmq boostrap command within an activated VOLTTRON environment
 
 ```sh
 cd volttron
+source env/bin/activate
 python3 bootstrap.py --rabbitmq [optional install directory. defaults to
 <user_home>/rabbitmq_server]
 ```

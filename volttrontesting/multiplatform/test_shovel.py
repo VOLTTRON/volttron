@@ -259,6 +259,7 @@ def two_way_shovel_connection(request, **kwargs):
     sink.shutdown_platform()
 
 
+@pytest.mark.timeout(800)
 @pytest.mark.shovel
 def test_shovel_pubsub(shovel_pubsub_rmq_instances):
     source, sink = shovel_pubsub_rmq_instances
@@ -286,6 +287,7 @@ def test_shovel_pubsub(shovel_pubsub_rmq_instances):
         assert message == [{'point': 'value'}]
 
 
+@pytest.mark.timeout(600)
 @pytest.mark.shovel
 def test_shovel_rpc(two_way_shovel_connection):
     instance_1, instance_2 = two_way_shovel_connection

@@ -1,7 +1,7 @@
 import pwd
 import gevent
 import pytest
-
+import os
 from mock import MagicMock
 
 from volttron.platform import is_rabbitmq_available
@@ -19,8 +19,9 @@ pytestmark = pytest.mark.skipif(os.environ.get("CI") is not None,
                                        "setup script before running test case")
 
 # Run as root or sudo scripts/secure_user_permissions.sh for both the below instance names before running these tests
-INSTANCE_NAME1 = "volttron1"
-INSTANCE_NAME2 = "volttron2"
+# also make sure your test environment has acl installed (sudo apt-get install acl)
+INSTANCE_NAME1 = "svolttron1"
+INSTANCE_NAME2 = "svolttron2"
 
 
 def get_agent_user_from_dir(agent_uuid, home):

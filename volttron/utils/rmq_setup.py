@@ -1543,7 +1543,7 @@ def start_rabbit(rmq_home, env=None):
             execute_command(status_cmd, env=env)
             if not start:
                 # if we have attempted started already
-                gevent.sleep(1)  # give a second just to be sure
+                gevent.sleep(2)  # give couple of seconds just to be sure
             started = True
             _log.info("Rmq server at {} is running at ".format(rmq_home))
         except RuntimeError as e:
