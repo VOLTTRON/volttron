@@ -47,7 +47,7 @@ from volttron.platform.vip.agent import Agent
 import logging
 import requests
 from requests import get
-
+from collections.abc import MutableMapping
 
 _log = logging.getLogger(__name__)
 type_mapping = {"string": str,
@@ -57,6 +57,15 @@ type_mapping = {"string": str,
                 "bool": bool,
                 "boolean": bool}
 
+# def flatten_dict(d: MutableMapping, parent_key: str = '', sep: str ='.') -> MutableMapping:
+#     items = []
+#     for k, v in d.items():
+#         new_key = parent_key + sep + k if parent_key else k
+#         if isinstance(v, MutableMapping):
+#             items.extend(flatten_dict(v, new_key, sep=sep).items())
+#         else:
+#             items.append((new_key, v))
+#     return dict(items)
 
 class HomeAssistantRegister(BaseRegister):
     def __init__(self, read_only, pointName, units, reg_type, attributes,
@@ -73,6 +82,7 @@ class HomeAssistantRegister(BaseRegister):
                 self.value = self.reg_type(default_value)
             except ValueError:
                 self.value = self.reg_type()
+
 
 class Interface(BasicRevert, BaseInterface):
     def __init__(self, **kwargs):
@@ -103,10 +113,10 @@ class Interface(BasicRevert, BaseInterface):
             self.turn_on_lights(point_name)
         elif register.value == False:
             self.turn_off_lights(point_name)
-
         return register.value
     
     def get_entity_data(self, point_name):
+
         headers = {
             "Authorization": f"Bearer {self.access_token}",
             "Content-Type": "application/json",
@@ -118,6 +128,20 @@ class Interface(BasicRevert, BaseInterface):
         else:
             _log.error(f"Request failed with status code {response.status_code}: {point_name} {response.text}")
             return None
+        
+    # def _scrape_all(self): #publish everything, we need to flatten in. 
+    #     result = {}
+    #     read_registers = self.get_registers_by_type("byte", True)
+    #     write_registers = self.get_registers_by_type("byte", False)
+
+    #     for register in read_registers + write_registers:
+    #         entity_data = self.get_entity_data(register.point_name)
+            
+    #         if entity_data is not None:
+    #             flat_data = flatten_dict(entity_data)
+    #             result[register.point_name] = flat_data
+
+    #     return result
         
     def _scrape_all(self):
         result = {}
@@ -142,7 +166,7 @@ class Interface(BasicRevert, BaseInterface):
                 for attribute_name, attribute_key in register.attributes.items():
                     attribute_value = entity_data["attributes"].get(attribute_key, None)
                     if attribute_value is not None:
-                        result[attribute_name] = attribute_value
+                        result[f"{attribute_name}_{register.point_name}"] = attribute_value
             else:
                 result[register.point_name] = register.value
                 _log.info(f"Entity: {register.point_name} data is None")
@@ -187,8 +211,6 @@ class Interface(BasicRevert, BaseInterface):
                 self.set_default(self.point_name, register.value)
 
             self.insert_register(register)
-
-        #self._create_subscriptions(self.volttron_topic) # running function to subscribe to topic specified in config
 
     def turn_off_lights(self, point_name):
         url = f"http://{self.ip_address}:{self.port}/api/services/light/turn_off"
