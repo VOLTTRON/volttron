@@ -98,6 +98,8 @@ class Interface(BasicRevert, BaseInterface):
 
     def _set_point(self, point_name, value):
         register = self.get_register_by_name(point_name)
+        print(f"point name: {point_name}")
+        print(f"Value: {value}")
         if register.read_only:
             raise RuntimeError(
                 "Trying to write to a point configured read only: " + point_name)
@@ -106,50 +108,47 @@ class Interface(BasicRevert, BaseInterface):
         register.value = register.reg_type(value) # setting the value
         return register.value
     
-    def get_entity_data(self, entity_id):
+    def get_entity_data(self, point_name):
         headers = {
             "Authorization": f"Bearer {self.access_token}",
             "Content-Type": "application/json",
         }
-        url = f"http://{self.ip_address}:{self.port}/api/states/{entity_id}" # the /states grabs cuurent state AND attributes of a specific entity
+        url = f"http://{self.ip_address}:{self.port}/api/states/{point_name}" # the /states grabs cuurent state AND attributes of a specific entity
         response = requests.get(url, headers=headers)
         if response.status_code == 200:
             return response.json() # return the json attributes from entity
         else:
-            _log.error(f"Request failed with status code {response.status_code}: {entity_id} {response.text}")
+            _log.error(f"Request failed with status code {response.status_code}: {point_name} {response.text}")
             return None
         
-    def _scrape_all(self): # publish data on root level 
+    def _scrape_all(self):
         result = {}
         read_registers = self.get_registers_by_type("byte", True)
         write_registers = self.get_registers_by_type("byte", False)
 
         for register in read_registers + write_registers:
            
-            entity_id = register.point_name
-            attributes = register.attributes
-            entity_data = self.get_entity_data(entity_id) # assign arrtributes to entity_data  
+            entity_data = self.get_entity_data(register.point_name) # assign arrtributes to entity_data  
 
             if entity_data is not None: # if not none extract the state and entity id
                 state = entity_data.get("state", None)
-                entity_id = entity_data.get("entity_id", None)
+                #entity_id = entity_data.get("entity_id", None)
 
                 if state == "unavailable": # check if the state it unavailable in home assistant. 
                     print("\n")
-                    _log.error(f"{entity_id} is unavailable\n")
+                    _log.error(f"{register.point_name} is unavailable\n")
                 else:
                     result["state"] = state
  
                 # Loop through the attributes of the register and fetch corresponding values from entity_data
-                for attribute_name, attribute_key in attributes.items():
+                for attribute_name, attribute_key in register.attributes.items():
                     attribute_value = entity_data["attributes"].get(attribute_key, None)
                     if attribute_value is not None:
-                        # Using the entity_id as prefix for the attribute name
                         result[attribute_name] = attribute_value
             else:
                 # This will simply add register's value with a prefix of entity_id
-                result[entity_id] = register.value
-                _log.info(f"Entity: {entity_id} data is None")
+                result[register.point_name] = register.value
+                _log.info(f"Entity: {register.point_name} data is None")
 
         return result
 
