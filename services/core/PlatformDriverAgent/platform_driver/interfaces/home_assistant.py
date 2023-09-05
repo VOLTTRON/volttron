@@ -89,23 +89,28 @@ class Interface(BasicRevert, BaseInterface):
         self.port = config_dict.get("port", "port")
         self.registry_config = config_dict.get("registry_config","registry_config")
         self.parse_config(registry_config_str) 
-
-    def get_point(self, point_name):
         
-        data = self.get_entity_data(point_name)
-        data = data.get("attributes", {})
-        return data
+    def get_point(self, point_name):
+        register = self.get_register_by_name(point_name)
+        return register.value
+
 
     def _set_point(self, point_name, value):
+        print(f"Attempting to set point: {point_name} with value: {value}")
         register = self.get_register_by_name(point_name)
-        print(f"point name: {point_name}")
-        print(f"Value: {value}")
         if register.read_only:
+            print(f"Cannot set point: {point_name} because it is read-only.")
             raise RuntimeError(
                 "Trying to write to a point configured read only: " + point_name)
-        
-        previous_value = register.value # store the previous value 
+        print(f"Current value of point: {point_name} is {register.value}")
         register.value = register.reg_type(value) # setting the value
+
+        if register.value == True:
+            self.turn_on_lights(point_name)
+        elif register.value == False:
+            self.turn_off_lights(point_name)
+        print(f"New value of point: {point_name} is {register.value}")
+
         return register.value
     
     def get_entity_data(self, point_name):
@@ -127,7 +132,6 @@ class Interface(BasicRevert, BaseInterface):
         write_registers = self.get_registers_by_type("byte", False)
 
         for register in read_registers + write_registers:
-           
             entity_data = self.get_entity_data(register.point_name) # assign arrtributes to entity_data  
 
             if entity_data is not None: # if not none extract the state and entity id
@@ -138,7 +142,8 @@ class Interface(BasicRevert, BaseInterface):
                     print("\n")
                     _log.error(f"{register.point_name} is unavailable\n")
                 else:
-                    result["state"] = state
+                    register.value = state
+                    result[register.point_name] = state
  
                 # Loop through the attributes of the register and fetch corresponding values from entity_data
                 for attribute_name, attribute_key in register.attributes.items():
@@ -193,7 +198,7 @@ class Interface(BasicRevert, BaseInterface):
 
         #self._create_subscriptions(self.volttron_topic) # running function to subscribe to topic specified in config
 
-    def turn_off_lights(self, entity_id):
+    def turn_off_lights(self, point_name):
         url = f"http://{self.ip_address}:{self.port}/api/services/light/turn_off"
         headers = {
             "Authorization": f"Bearer {self.access_token}",
@@ -202,29 +207,27 @@ class Interface(BasicRevert, BaseInterface):
 
         try:
             payload = {
-                "entity_id": entity_id,
+                "entity_id": point_name,
             }
             response = requests.post(url, headers=headers, data=json.dumps(payload))
             if response.status_code == 200:
-                _log.info(f"Turned off {entity_id}")
+                _log.info(f"Turned off {point_name}")
         except:
             pass
 
-    def turn_on_lights(self, entity_id, brightness_level):
+    def turn_on_lights(self, point_name):
         url2 = f"http://{self.ip_address}:{self.port}/api/services/light/turn_on"
         headers = {
                 "Authorization": f"Bearer {self.access_token}",
                 "Content-Type": "application/json",
         }
         try:
-            # ranges from 0 - 255 for most lights
             payload = {
-                "entity_id": f"{entity_id}",
-                "brightness": brightness_level,
+                "entity_id": f"{point_name}"
             }
             response = requests.post(url2, headers=headers, data=json.dumps(payload))
             if response.status_code == 200:
-                    _log.info(f"Turned on {entity_id}")
+                    _log.info(f"Turned on {point_name}")
         except:
             pass
 
