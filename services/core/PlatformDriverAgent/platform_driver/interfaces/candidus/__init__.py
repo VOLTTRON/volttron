@@ -31,47 +31,30 @@ The Candidus Driver allows control and monitoring of Candidus devices via Candid
 
 import logging
 import time
-import copy
 
 import grequests
 
-from volttron.platform.agent import utils
 from platform_driver.interfaces import BaseRegister, BaseInterface, BasicRevert
-from volttron.platform.vip.agent import Agent, Core, RPC, PubSub
 
 
 _log = logging.getLogger("candidus")
 
 CANDIDUS_REGISTER_MAP = {'lightLevelPercent': {'units': '%',
     'description': 'commanded light control level'},
-    'ppfdTarget': {'units': 'PPFD',
+    'canopyLightLevel': {'units': 'PPFD',
         'description': 'set point for desired PPFD'},
     'cumulativeSunDLI': {'units': 'PPF',
         'description': 'cumulative value of natural daylight PPF'},
     'cumulativeLEDDLI': {'units': 'PPF',
         'description': 'cumulative value of LED PPF'},
-    'sensorPPFD': {'units': 'PPFD',
+    'sunSensorReading': {'units': 'PPFD',
         'description': 'current PPFD at sensor'}
     }
 
 
 class Register(BaseRegister):
     """
-    Generic class for containing information about the points exposed by the Venstar API
-
-
-    :param register_type: Type of the register. Either "bit" or "byte". Usually "byte".
-    :param pointName: Name of the register.
-    :param units: Units of the value of the register.
-    :param description: Description of the register.
-
-    :type register_type: str
-    :type pointName: str
-    :type units: str
-    :type description: str
-
-    The TED Meter Driver does not expose the read_only parameter, as the TED API does not
-    support writing data.
+    Register class for Candidus API
     """
 
     def __init__(self, volttron_point_name, units, description):
@@ -83,7 +66,8 @@ class Register(BaseRegister):
 
 
 class Interface(BasicRevert, BaseInterface):
-    """Create an interface for the Venstar Thermostat using the standard BaseInterface convention
+    """
+    Candidus API interface
     """
 
     def __init__(self, **kwargs):
@@ -96,20 +80,16 @@ class Interface(BasicRevert, BaseInterface):
         stanza and registry config file, we ignore the registry config, using 
         standard layout for the thermostat properties
         """
-        _log.debug(f"{config_dict=}")
-        #self.device_address = config_dict['driver_config']['device_address']
         self.device_address = config_dict['device_address']
         self.zone_no = config_dict['zone']
         self.timeout = config_dict.get('timeout', 5)
         self.init_time = time.time()
         self._create_registers()
-        # self.ted_config = self._get_ted_configuration()
-        # self._create_registers(self.ted_config)
-        # if self.track_totalizers:
-        #     self._get_totalizer_state()
-
 
     def _get_candidus_data(self):
+        """
+        Query API for all available data points
+        """
         def exception_handler(request, exception):
             _log.debug(f"Request failed: {exception} while loading {request}")
         output = {}
@@ -123,10 +103,6 @@ class Interface(BasicRevert, BaseInterface):
 
         return output
 
-
-
-
-    
     def _create_registers(self):
         """
         Processes the config scraped from the TED Pro device and generates
@@ -136,26 +112,27 @@ class Interface(BasicRevert, BaseInterface):
         for reg, regDef in CANDIDUS_REGISTER_MAP.items():
             self.insert_register(Register(reg, regDef["units"], regDef["description"]))
 
-
     def _set_points(self, points):
+        """
+        no writable points, so skipping set_points method
+        """
         pass
-
-
 
     def _set_point(self, point_name, value):
         """
-        TED has no writable points, so skipping set_point method
+        no writable points, so skipping set_point method
         """
-        _log.debug(f"calling venstar _set_point")
         pass
 
-
     def get_point(self, point_name):
+        """
+        Return a desired point
+        """
         points = self._scrape_all()
         return points.get(point_name)
 
-
-
     def _scrape_all(self):
+        """
+        Get all candidus data points
+        """
         return self._get_candidus_data()
-
