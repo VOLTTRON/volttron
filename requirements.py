@@ -69,7 +69,7 @@ extras_require = {'crate': ['crate==0.27.1'],
                                 'pymongo==4.2.0',
                                 'crate==0.27.1',
                                 'influxdb==5.3.1',
-                                'psycopg2-binary==2.8.6'],
+                                'psycopg2-binary==2.9.7'],
                   'documentation': ['mock==4.0.3',
                                     'docutils<0.18',
                                     'sphinx-rtd-theme==1.0.0',
@@ -84,7 +84,7 @@ extras_require = {'crate': ['crate==0.27.1'],
                   'mongo': ['pymongo==4.2.0'],
                   'mysql': ['mysql-connector-python==8.0.30'],
                   'pandas': ['numpy==1.23.1', 'pandas==1.4.3'],
-                  'postgres': ['psycopg2-binary==2.8.6'],
+                  'postgres': ['psycopg2-binary==2.9.7'],
                   # This is installed in bootstrap.py itself so we don't
                   # include here, though we include the version number here
                   #
