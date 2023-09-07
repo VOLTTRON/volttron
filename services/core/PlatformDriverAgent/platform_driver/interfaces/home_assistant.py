@@ -142,28 +142,29 @@ class Interface(BasicRevert, BaseInterface):
         for register in read_registers + write_registers:
 
             if "_brightness" in register.point_name:
-                actual_point_name = register.point_name.replace("_brightness", "") # removing _brightness to match actual entity_id
+                actual_point_name = register.point_name.replace("_brightness", "").replace("__", ".") # removing _brightness to extract real data
                 entity_data = self.get_entity_data(actual_point_name)
 
-                brightness = entity_data.get("attributes", {}).get("brightness", None)
+                brightness = entity_data.get("attributes", {}).get("brightness", 0)
 
                 register.value = brightness
                 result[register.point_name] = brightness
+            elif "light__" in register.point_name:
+                actual_point_name = register.point_name.replace("__", ".")
+                entity_data = self.get_entity_data(actual_point_name)
+
+                state = entity_data.get("state", None)
+
+                register.value = state
+                result[register.point_name] = state
             else:
-                entity_data = self.get_entity_data(register.point_name) # assign attributes to entity_data  
+                actual_point_name = register.point_name.replace("__", ".")
+                entity_data = self.get_entity_data(actual_point_name)
 
-                if entity_data is not None: # if not none extract the state and entity id
-                    state = entity_data.get("state", None)
-
-                    if state == "unavailable": # check if the state it unavailable in home assistant. 
-                        print("\n")
-                        _log.error(f"{register.point_name} is unavailable\n")
-                    else:
-                        register.value = state
-                        result[register.point_name] = state  # add state to result
-                else:
-                    result[register.point_name] = register.value
-                    _log.info(f"Entity: {register.point_name} data is None")
+                state = entity_data.get("state", None)
+                
+                register.value = state
+                result[register.point_name] = state  # add state to result
 
         return result
 
@@ -225,17 +226,18 @@ class Interface(BasicRevert, BaseInterface):
 
     def turn_on_lights(self, point_name):
         url2 = f"http://{self.ip_address}:{self.port}/api/services/light/turn_on"
+        actual_point_name = point_name.replace("_brightness", "").replace("__", ".")
         headers = {
                 "Authorization": f"Bearer {self.access_token}",
                 "Content-Type": "application/json",
         }
         try:
             payload = {
-                "entity_id": f"{point_name}"
+                "entity_id": f"{actual_point_name}"
             }
             response = requests.post(url2, headers=headers, data=json.dumps(payload))
             if response.status_code == 200:
-                    _log.info(f"Turned on {point_name}")
+                    _log.info(f"Turned on {actual_point_name}")
         except:
             pass
 
@@ -290,7 +292,7 @@ class Interface(BasicRevert, BaseInterface):
 
     def change_brightness(self, point_name, value):
         url2 = f"http://{self.ip_address}:{self.port}/api/services/light/turn_on"
-        actual_point_name = point_name.replace("_brightness", "")
+        actual_point_name = point_name.replace("_brightness", "").replace("__", ".")
         headers = {
                 "Authorization": f"Bearer {self.access_token}",
                 "Content-Type": "application/json",
