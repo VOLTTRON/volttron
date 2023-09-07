@@ -43,7 +43,7 @@ import re
 import sys
 import grequests
 import datetime
-import pkg_resources
+from importlib.resources import files as get_resource_files
 from volttron.platform.agent.base_weather import BaseWeatherAgent
 from volttron.platform.agent import utils
 from volttron.utils.docs import doc_inherit
@@ -52,7 +52,6 @@ from volttron.platform import jsonapi
 
 # requests should be imported after grequests
 # as grequests monkey patches ssl and requests imports ssl
-# TODO do we need the requests at all.. TODO test with RMQ
 import requests
 
 __version__ = "2.0.0"
@@ -121,7 +120,7 @@ class WeatherDotGovAgent(BaseWeatherAgent):
         """
         # returning resource file instead of stream, as csv.DictReader require file path or file like object opened in
         # text mode.
-        return pkg_resources.get_resource_filename(__name__, "data/name_mapping.csv")
+        return str(get_resource_files("weatherdotgov").joinpath("data/name_mapping.csv"))
 
     def get_location_string(self, location):
         """
@@ -300,8 +299,10 @@ class WeatherDotGovAgent(BaseWeatherAgent):
             raise ValueError('Invalid location. Expected format is:'
                              '{"station":"station_id_value"}')
         gresponse = self.make_web_request(url)
+        _log.debug(f"get current- url is {url}")
         try:
             response = jsonapi.loads(gresponse.content)
+            _log.debug(f"Response: {response}")
             properties = response["properties"]
             observation_time = properties["timestamp"]
             return observation_time, properties
@@ -382,13 +383,11 @@ class WeatherDotGovAgent(BaseWeatherAgent):
         return url
 
     def make_web_request(self, url):
-        grequest = [grequests.get(url, verify=requests.certs.where(),
-                                  headers=self.headers, timeout=3)]
-        gresponse = grequests.map(grequest)[0]
-        if gresponse is None:
+        response = requests.get(url, headers=self.headers, verify=requests.certs.where())
+        if response is None:
             raise RuntimeError("get request did not return any "
                                "response")
-        return gresponse
+        return response
 
     def extract_forecast_data(self, url, gresponse):
         try:
