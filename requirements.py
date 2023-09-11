@@ -106,4 +106,5 @@ extras_require = {'crate': ['crate==0.27.1'],
                           'passlib==1.7.4',
                           'argon2-cffi==21.3.0',
                           'Werkzeug==2.2.1',
-                          'treelib==1.6.1']}
+                          'treelib==1.6.1'],
+                  'dnp3': ['dnp3-python==0.2.3b3']}
