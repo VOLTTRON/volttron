@@ -12,35 +12,93 @@
 # you can delete this line if you're not using Docker
 # image: busybox:latest
 
-22.04 job:
-    tags:
-        - ubuntu2204
+stages:
+    - build
+    - test
 
-    before_script:
-    - python3 bootstrap.py --all
+.parallel-tests:
+    parallel:
+        matrix:
+            - TEST:
+                - services/core/ActuatorAgent/tests
+                - services/core/DataMover/tests/
+                - services/core/DNP3OutstationAgent/tests
+                - services/core/ForwardHistorian/tests
 
-    after_script:
-    - rm -rf dist 
-    - rm -rf /tmp/tmp* 
-    - rm -rf env
+# build 22.04:
+#     stage: build
+#     tags:
+#         - ubuntu2204
 
-    script:
-        - env/bin/activate
-        - pytest volttrontesting
+#     before_script:
+#         #- killall -9 volttron beam.smp python
+#         - rm -rf dist ~/.volttron ~/.volttron_instances
+#         - rm -rf /tmp/tmp*
+#         - rm -rf ~/rabbitmq_server
 
-20.04 job:
+#     script:
+#         - python3 bootstrap.py --all
+#         - source env/bin/activate
+#         - python3 bootstrap.py --rabbitmq
+#         - echo "BUILD_DIR_22_04=`pwd`" >> build.env
+#         - echo "$BUILD_DIR_22_04"
+#         - echo `pwd`
+
+#     artifacts:
+#         reports:
+#             dotenv: build.env
+
+build 20.04:
+    stage: build
     tags:
         - ubuntu2004
 
     before_script:
-    - python3 bootstrap.py --all
-
-    after_script:
-    - rm -rf dist 
-    - rm -rf /tmp/tmp* 
-    - rm -rf env
+        #- killall -9 volttron beam.smp python
+        - rm -rf dist ~/.volttron ~/.volttron_instances
+        - rm -rf /tmp/tmp*
+        - rm -rf ~/rabbitmq_server
 
     script:
-        - env/bin/activate
-        - pytest volttrontesting
+        - python3 bootstrap.py --all
+        - source env/bin/activate
+        - python3 bootstrap.py --rabbitmq
+        - echo "BUILD_DIR_20_04=`pwd`" >> build.env
+        - echo "$BUILD_DIR_20_04"
+        - echo `pwd`
+
+    artifacts:
+        reports:
+            dotenv: build.env
+
+
+# test 22.04:
+#     stage: test
+#     needs: [build 22.04]
+#     variables:
+#             GIT_CHECKOUT: "false"
+#     tags:
+#         - ubuntu2204
+#     extends: .parallel-tests
+#     script:
+#             - cd $BUILD_DIR_22_04
+#             - echo `pwd`
+#             - source env/bin/activate
+#             - pytest $TEST
+
+
+test 20.04:
+    stage: test
+    needs: [build 20.04]
+    variables:
+            GIT_CHECKOUT: "false"
+    tags:
+        - ubuntu2004
+    extends: .parallel-tests
+    script:
+            - cd $BUILD_DIR_20_04
+            - echo `pwd`
+            - source env/bin/activate
+            - pytest $TEST
+
 
