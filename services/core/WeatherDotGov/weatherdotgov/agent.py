@@ -299,10 +299,8 @@ class WeatherDotGovAgent(BaseWeatherAgent):
             raise ValueError('Invalid location. Expected format is:'
                              '{"station":"station_id_value"}')
         gresponse = self.make_web_request(url)
-        _log.debug(f"get current- url is {url}")
         try:
             response = jsonapi.loads(gresponse.content)
-            _log.debug(f"Response: {response}")
             properties = response["properties"]
             observation_time = properties["timestamp"]
             return observation_time, properties
