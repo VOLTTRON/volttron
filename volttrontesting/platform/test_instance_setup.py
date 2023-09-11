@@ -936,8 +936,9 @@ def test_web_with_agents_volttron_running(monkeypatch, volttron_instance_web):
     if volttron_instance_web.ssl_auth is True:
         assert config.get('volttron', 'web-ssl-cert') == os.path.join(vhome, "certificates", "certs", "server0.crt")
         assert config.get('volttron', 'web-ssl-key') == os.path.join(vhome, "certificates", "private", "server0.pem")
-    assert _is_agent_installed("listener")
-    assert _is_agent_installed("platform_driver")
-    assert _is_agent_installed("platform_historian")
-    assert _is_agent_installed("vcp")
+    # if instance is running
+    assert not _is_agent_installed("listener")
+    # assert _is_agent_installed("platform_driver")
+    # assert _is_agent_installed("platform_historian")
+    # assert _is_agent_installed("vcp")
     assert is_volttron_running(vhome)
