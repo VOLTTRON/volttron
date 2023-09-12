@@ -47,7 +47,6 @@ from volttron.platform.vip.agent import Agent
 import logging
 import requests
 from requests import get
-from collections.abc import MutableMapping
 
 _log = logging.getLogger(__name__)
 type_mapping = {"string": str,
@@ -57,23 +56,14 @@ type_mapping = {"string": str,
                 "bool": bool,
                 "boolean": bool}
 
-# def flatten_dict(d: MutableMapping, parent_key: str = '', sep: str ='.') -> MutableMapping:
-#     items = []
-#     for k, v in d.items():
-#         new_key = parent_key + sep + k if parent_key else k
-#         if isinstance(v, MutableMapping):
-#             items.extend(flatten_dict(v, new_key, sep=sep).items())
-#         else:
-#             items.append((new_key, v))
-#     return dict(items)
-
 class HomeAssistantRegister(BaseRegister):
-    def __init__(self, read_only, pointName, units, reg_type, attributes,
+    def __init__(self, read_only, pointName, units, reg_type, attributes, entity_id,
                  default_value=None, description=''):
         super(HomeAssistantRegister, self).__init__("byte", read_only, pointName, units,
                                            description='')
         self.reg_type = reg_type
         self.attributes = attributes
+        self.entity_id = entity_id
 
         if default_value is None:
             self.value = self.reg_type(random.uniform(0, 100))
@@ -82,7 +72,6 @@ class HomeAssistantRegister(BaseRegister):
                 self.value = self.reg_type(default_value)
             except ValueError:
                 self.value = self.reg_type()
-
 
 class Interface(BasicRevert, BaseInterface):
     def __init__(self, **kwargs):
@@ -108,20 +97,20 @@ class Interface(BasicRevert, BaseInterface):
             raise RuntimeError(
                 "Trying to write to a point configured read only: " + point_name)
         register.value = register.reg_type(value) # setting the value
-
-
+        
+        # Changing lights values in home assistant based off of register value. 
+        entity_id = register.entity_id
         if register.value == True:
-            self.turn_on_lights(point_name)
+            self.turn_on_lights(entity_id)
         elif register.value == False:
-            self.turn_off_lights(point_name)
+            self.turn_off_lights(entity_id)
         elif isinstance(register.value, int):
             value = register.value
-            self.change_brightness(point_name, value)
-            print(f"Changed brightness of {point_name} to {register.value}")
+            self.change_brightness(entity_id, value)
+            print(f"Changed brightness of {entity_id} to {register.value}")
         return register.value
     
     def get_entity_data(self, point_name):
-
         headers = {
             "Authorization": f"Bearer {self.access_token}",
             "Content-Type": "application/json",
@@ -140,31 +129,20 @@ class Interface(BasicRevert, BaseInterface):
         write_registers = self.get_registers_by_type("byte", False)
 
         for register in read_registers + write_registers:
+            entity_id = register.entity_id 
+            entity_data = self.get_entity_data(entity_id) # Using Entity ID to get data
 
-            if "_brightness" in register.point_name:
-                actual_point_name = register.point_name.replace("_brightness", "").replace("__", ".") # removing _brightness to extract real data
-                entity_data = self.get_entity_data(actual_point_name)
-
-                brightness = entity_data.get("attributes", {}).get("brightness", 0)
-
-                register.value = brightness
-                result[register.point_name] = brightness
-            elif "light__" in register.point_name:
-                actual_point_name = register.point_name.replace("__", ".")
-                entity_data = self.get_entity_data(actual_point_name)
-
+            # Assigning state 
+            if register.point_name == "state":
+                
                 state = entity_data.get("state", None)
-
                 register.value = state
                 result[register.point_name] = state
+            # Assigning attributes
             else:
-                actual_point_name = register.point_name.replace("__", ".")
-                entity_data = self.get_entity_data(actual_point_name)
-
-                state = entity_data.get("state", None)
-                
-                register.value = state
-                result[register.point_name] = state  # add state to result
+                attribute = entity_data.get("attributes", {}).get(f"{register.point_name}", 0)
+                register.value = attribute
+                result[register.point_name] = attribute
 
         return result
 
@@ -172,17 +150,15 @@ class Interface(BasicRevert, BaseInterface):
 
         if configDict is None:
             return
-        for regDef in configDict: # go through items in config and skip if its not point name
+        for regDef in configDict:
 
-            if not regDef['Point Name']:
+            if not regDef['Entity ID']:
                 continue
 
             read_only = str(regDef.get('Writable', '')).lower() != 'true' #convert writeable to string and it worked!
-
+            entity_id = regDef['Entity ID']
             self.point_name = regDef['Volttron Point Name']
             self.units = regDef['Units']
-                        
-            self.new = regDef['Volttron Point Name']
             description = regDef.get('Notes', '')
             
             default_value = str(regDef.get("Starting Value", 'sin')).strip()
@@ -199,6 +175,7 @@ class Interface(BasicRevert, BaseInterface):
                 self.units,
                 reg_type,
                 attributes,
+                entity_id,
                 default_value=default_value,
                 description=description)
 
@@ -224,20 +201,19 @@ class Interface(BasicRevert, BaseInterface):
         except:
             pass
 
-    def turn_on_lights(self, point_name):
+    def turn_on_lights(self, entity_id):
         url2 = f"http://{self.ip_address}:{self.port}/api/services/light/turn_on"
-        actual_point_name = point_name.replace("_brightness", "").replace("__", ".")
         headers = {
                 "Authorization": f"Bearer {self.access_token}",
                 "Content-Type": "application/json",
         }
         try:
             payload = {
-                "entity_id": f"{actual_point_name}"
+                "entity_id": f"{entity_id}"
             }
             response = requests.post(url2, headers=headers, data=json.dumps(payload))
             if response.status_code == 200:
-                    _log.info(f"Turned on {actual_point_name}")
+                    _log.info(f"Turned on {entity_id}")
         except:
             pass
 
