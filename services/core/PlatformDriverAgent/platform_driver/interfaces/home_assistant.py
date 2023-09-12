@@ -72,9 +72,21 @@ class Interface(BasicRevert, BaseInterface):
         self.point_name = None
   
     def configure(self, config_dict, registry_config_str): # grabbing from config
-        self.ip_address = config_dict.get("ip_address", "0.0.0.0")
+        self.ip_address = config_dict.get("ip_address", None)
         self.access_token = config_dict.get("access_token", None)
         self.port = config_dict.get("port", None)
+
+        # Check for None values
+        if self.ip_address is None:
+            _log.error("IP address is not set.")
+            raise ValueError("IP address is required.")
+        if self.access_token is None:
+            _log.error("Access token is not set.")
+            raise ValueError("Access token is required.")
+        if self.port is None:
+            _log.error("Port is not set.")
+            raise ValueError("Port is required.")
+        
         self.parse_config(registry_config_str) 
         
     def get_point(self, point_name):
