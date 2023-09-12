@@ -64,14 +64,7 @@ class HomeAssistantRegister(BaseRegister):
         self.reg_type = reg_type
         self.attributes = attributes
         self.entity_id = entity_id
-
-        if default_value is None:
-            self.value = self.reg_type(random.uniform(0, 100))
-        else:
-            try:
-                self.value = self.reg_type(default_value)
-            except ValueError:
-                self.value = self.reg_type()
+        self.value = None
 
 class Interface(BasicRevert, BaseInterface):
     def __init__(self, **kwargs):
