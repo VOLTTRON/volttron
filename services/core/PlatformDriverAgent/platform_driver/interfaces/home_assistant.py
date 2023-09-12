@@ -73,11 +73,8 @@ class Interface(BasicRevert, BaseInterface):
   
     def configure(self, config_dict, registry_config_str): # grabbing from config
         self.ip_address = config_dict.get("ip_address", "0.0.0.0")
-        self.access_token = config_dict.get("access_token", "access_token")
-        self.volttron_topic = config_dict.get("volttron_topic", "devices")
-        self.points_to_grab_from_topic = config_dict.get("points_to_grab_from_topic", "points_to_grab_from_topic")
-        self.port = config_dict.get("port", "port")
-        self.registry_config = config_dict.get("registry_config","registry_config")
+        self.access_token = config_dict.get("access_token", None)
+        self.port = config_dict.get("port", None)
         self.parse_config(registry_config_str) 
         
     def get_point(self, point_name):
