@@ -38,40 +38,33 @@
 
 
 import bisect
+import copy
+import hashlib
 import logging
 import os
 import random
 import re
 import shutil
-from typing import Optional
-import copy
 import uuid
 from collections import defaultdict
+from typing import Optional
 
 import gevent
 import gevent.core
 from gevent.fileobject import FileObject
 from zmq import green as zmq
 
-from volttron.platform import jsonapi, get_home
-from volttron.platform.agent.known_identities import (
-    VOLTTRON_CENTRAL_PLATFORM,
-    CONTROL,
-    CONTROL_CONNECTION,
-    PROCESS_IDENTITIES,
-)
+from volttron.platform import get_home, jsonapi
+from volttron.platform.agent.known_identities import (CONTROL, CONTROL_CONNECTION, PROCESS_IDENTITIES,
+                                                      VOLTTRON_CENTRAL_PLATFORM)
 from volttron.platform.certs import Certs
 from volttron.platform.jsonrpc import RemoteError
-from volttron.platform.vip.agent.errors import VIPError, Unreachable
+from volttron.platform.vip.agent.errors import Unreachable, VIPError
 from volttron.platform.vip.pubsubservice import ProtectedPubSubTopics
-from .agent.utils import (
-    strip_comments,
-    create_file_if_missing,
-    watch_file,
-    get_messagebus,
-)
-from .vip.agent import Agent, Core, RPC
-from .vip.socket import encode_key, BASE64_ENCODED_CURVE_KEY_LEN
+
+from .agent.utils import create_file_if_missing, get_messagebus, strip_comments, watch_file
+from .vip.agent import RPC, Agent, Core
+from .vip.socket import BASE64_ENCODED_CURVE_KEY_LEN, encode_key
 
 _log = logging.getLogger(__name__)
 
@@ -519,45 +512,46 @@ class AuthService(Agent):
         return modified_entries
 
     def read_auth_file(self):
-        _log.info("loading auth file %s", self.auth_file_path)
-        # Update from auth file into memory
-        if self.auth_file.auth_data:
-            old_entries = self.auth_file.read_allow_entries().copy()
-            self.auth_file.load()
-            entries = self.auth_file.read_allow_entries()
-            count = 0
-            # Allow for multiple tries to ensure auth file is read
-            while not entries and count < 3:
+        if self.auth_file.is_updated():
+            _log.info("loading auth file %s", self.auth_file_path)
+            # Update from auth file into memory
+            if self.auth_file.auth_data:
+                old_entries = self.auth_file.read_allow_entries().copy()
                 self.auth_file.load()
                 entries = self.auth_file.read_allow_entries()
-                count += 1
-            modified_entries = self._get_updated_entries(old_entries, entries)
-            denied_entries = self.auth_file.read_deny_entries()
-        else:
-            self.auth_file.load()
-            entries = self.auth_file.read_allow_entries()
-            denied_entries = self.auth_file.read_deny_entries()
-        # Populate auth lists with current entries
-        self._update_auth_lists(entries)
-        self._update_auth_lists(denied_entries, is_allow=False)
-        entries = [entry for entry in entries if entry.enabled]
-        # sort the entries so the regex credentails follow the concrete creds
-        entries.sort()
-        self.auth_entries = entries
-        if self._is_connected:
-            try:
-                _log.debug("Sending auth updates to peers")
-                # Give it few seconds for platform to startup or for the
-                # router to detect agent install/remove action
-                gevent.sleep(2)
-                self._send_update(modified_entries)
-            except BaseException as err:
-                _log.error(
-                    "Exception sending auth updates to peer. %r",
-                    err
-                )
-                raise err
-        _log.info("auth file %s loaded", self.auth_file_path)
+                count = 0
+                # Allow for multiple tries to ensure auth file is read
+                while not entries and count < 3:
+                    self.auth_file.load()
+                    entries = self.auth_file.read_allow_entries()
+                    count += 1
+                modified_entries = self._get_updated_entries(old_entries, entries)
+                denied_entries = self.auth_file.read_deny_entries()
+            else:
+                self.auth_file.load()
+                entries = self.auth_file.read_allow_entries()
+                denied_entries = self.auth_file.read_deny_entries()
+            # Populate auth lists with current entries
+            self._update_auth_lists(entries)
+            self._update_auth_lists(denied_entries, is_allow=False)
+            entries = [entry for entry in entries if entry.enabled]
+            # sort the entries so the regex credentails follow the concrete creds
+            entries.sort()
+            self.auth_entries = entries
+            if self._is_connected:
+                try:
+                    _log.debug("Sending auth updates to peers")
+                    # Give it few seconds for platform to startup or for the
+                    # router to detect agent install/remove action
+                    gevent.sleep(2)
+                    self._send_update(modified_entries)
+                except BaseException as err:
+                    _log.error(
+                        "Exception sending auth updates to peer. %r",
+                        err
+                    )
+                    raise err
+            _log.info("auth file %s loaded", self.auth_file_path)
 
     def get_protected_topics(self):
         protected = self._protected_topics
@@ -1666,6 +1660,7 @@ class AuthEntry(object):
 class AuthFile(object):
     def __init__(self, auth_file=None):
         self.auth_data = {}
+        self.hash = None
         if auth_file is None:
             auth_file_dir = get_home()
             auth_file = os.path.join(auth_file_dir, "auth.json")
@@ -1695,6 +1690,22 @@ class AuthFile(object):
                     "this file.",
                     self.auth_file
                 )
+
+    def get_hash(self):
+        with open(self.auth_file, "rb") as fil:
+            return hashlib.sha256(fil.read()).hexdigest()
+    
+    def compare_hash(self, hash):
+        return self.get_hash() == hash
+    
+    def is_updated(self):
+        if self.compare_hash(self.hash):
+            return False
+        else:
+            self.hash = self.get_hash()
+            return True
+
+
 
     def _read(self):
         auth_data = {}
