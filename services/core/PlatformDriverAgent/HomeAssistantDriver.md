@@ -31,7 +31,6 @@ Once you have cloned the repo, fill out your configuration files. Each device wi
     "driver_config": {
         "ip_address": "Your Home Assistant IP",
         "access_token": "Your Home Assistant Access Token",
-        "volttron_topic": "your volttron topic",
         "port": "Your Port"
     },
     "driver_type": "home_assistant",
