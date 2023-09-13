@@ -99,17 +99,19 @@ class Interface(BasicRevert, BaseInterface):
             raise RuntimeError(
                 "Trying to write to a point configured read only: " + point_name)
         register.value = register.reg_type(value) # setting the value
-        
+
         # Changing lights values in home assistant based off of register value. 
-        entity_id = register.entity_id
-        if register.value == True:
-            self.turn_on_lights(entity_id)
-        elif register.value == False:
-            self.turn_off_lights(entity_id)
-        elif isinstance(register.value, int):
-            value = register.value
-            self.change_brightness(entity_id, value)
-            print(f"Changed brightness of {entity_id} to {register.value}")
+        if "light." in register.entity_id:
+            if point_name == "state":
+                if register.value == True:
+                    self.turn_on_lights(register.entity_id)
+
+                elif register.value == False:
+                    self.turn_off_lights(register.entity_id)
+
+            elif point_name == "brightness":
+                self.change_brightness(register.entity_id, register.value)
+
         return register.value
     
     def get_entity_data(self, point_name):
@@ -186,7 +188,7 @@ class Interface(BasicRevert, BaseInterface):
 
             self.insert_register(register)
 
-    def turn_off_lights(self, point_name):
+    def turn_off_lights(self, entity_id):
         url = f"http://{self.ip_address}:{self.port}/api/services/light/turn_off"
         headers = {
             "Authorization": f"Bearer {self.access_token}",
@@ -195,11 +197,11 @@ class Interface(BasicRevert, BaseInterface):
 
         try:
             payload = {
-                "entity_id": point_name,
+                "entity_id": entity_id,
             }
             response = requests.post(url, headers=headers, data=json.dumps(payload))
             if response.status_code == 200:
-                _log.info(f"Turned off {point_name}")
+                _log.info(f"Turned off {entity_id}")
         except:
             pass
 
@@ -268,9 +270,8 @@ class Interface(BasicRevert, BaseInterface):
                 else:
                     _log.info(f"Failed to change the temp of {entity}. Response: {response.text}")
 
-    def change_brightness(self, point_name, value):
+    def change_brightness(self, entity_id, value):
         url2 = f"http://{self.ip_address}:{self.port}/api/services/light/turn_on"
-        actual_point_name = point_name.replace("_brightness", "").replace("__", ".")
         headers = {
                 "Authorization": f"Bearer {self.access_token}",
                 "Content-Type": "application/json",
@@ -278,11 +279,11 @@ class Interface(BasicRevert, BaseInterface):
         try:
             # ranges from 0 - 255 for most lights
             payload = {
-                "entity_id": f"{actual_point_name}",
+                "entity_id": f"{entity_id}",
                 "brightness": value,
             }
             response = requests.post(url2, headers=headers, data=json.dumps(payload))
             if response.status_code == 200:
-                    _log.info(f"Turned on {actual_point_name}")
+                    _log.info(f"Turned on {entity_id}")
         except:
-            pass      
+            pass
