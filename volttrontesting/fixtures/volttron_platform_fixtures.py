@@ -62,6 +62,8 @@ def cleanup_wrapper(wrapper):
     # if wrapper.is_running():
     #     wrapper.remove_all_agents()
     # Shutdown handles case where the platform hasn't started.
+    if not wrapper.is_running():
+        return
     wrapper_pid = wrapper.p_process.pid
     wrapper.shutdown_platform()
     if wrapper.p_process is not None:
@@ -200,17 +202,10 @@ def get_volttron_instances(request):
 
     def cleanup():
         nonlocal instances
-        print(f"My instances: {get_n_volttron_instances.count}")
-        if isinstance(get_n_volttron_instances.instances, PlatformWrapper):
+        for i in range(0, len(instances)):
             print('Shutting down instance: {}'.format(
-                get_n_volttron_instances.instances))
-            cleanup_wrapper(get_n_volttron_instances.instances)
-            return
-
-        for i in range(0, get_n_volttron_instances.count):
-            print('Shutting down instance: {}'.format(
-                get_n_volttron_instances.instances[i].volttron_home))
-            cleanup_wrapper(get_n_volttron_instances.instances[i])
+                instances[i].volttron_home))
+            cleanup_wrapper(instances[i])
 
     try:
         yield get_n_volttron_instances

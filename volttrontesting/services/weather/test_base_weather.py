@@ -40,7 +40,7 @@ import csv
 import datetime
 import os
 import sqlite3
-
+import logging
 import gevent
 import pytest
 from mock import MagicMock
@@ -49,6 +49,8 @@ from volttron.platform.agent import utils
 from volttron.platform.agent.base_weather import BaseWeatherAgent
 from volttron.platform.agent.utils import get_fq_identity
 from volttron.platform.messaging.health import STATUS_BAD, STATUS_GOOD
+from volttron.platform import jsonapi
+from volttron.platform.agent.utils import format_timestamp
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -524,6 +526,7 @@ def test_manage_unit_conversion_fail(weather, from_units, start, to_units,
     [{"location": "fake_location1"}, {"location": "fake_location2"}]
 ])
 def test_get_current_valid_locations(weather, fake_locations):
+    clear_api_calls(weather)
     conn = weather._cache._sqlite_conn
     cursor = conn.cursor()
     weather.set_update_interval("get_current_weather",
