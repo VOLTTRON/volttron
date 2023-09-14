@@ -51,7 +51,7 @@ echo "rabbitmq status"
 echo "TestDirs"
 for dir in $testdirs; do
   echo "*********TESTDIR: $dir"
-  py.test -s -v "$dir"
+  pytest -s -v "$dir"
 
   tmp_code=$?
   exit_code=$tmp_code
@@ -79,7 +79,7 @@ for dir in $splitdirs; do
 
         if [ -d "${D}" ]; then
             echo "*********SPLITDIR: $D"
-            py.test -s -v "${D}"
+            pytest -s -v "${D}"
             tmp_code=$?
             if [ $tmp_code -ne 0 ]; then
               if [ $tmp_code -ne 5 ]; then
@@ -100,7 +100,7 @@ for dir in $filedirs; do
   for testfile in "$dir"/*.py; do
     echo "Using testfile: $testfile"
     if [ "$testfile" != "volttrontesting/platform/packaging-tests.py" ]; then
-       py.test -s -v "$testfile"
+       pytest -s -v "$testfile"
 
        tmp_code=$?
        exit_code=$tmp_code
