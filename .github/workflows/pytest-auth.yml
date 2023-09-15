@@ -23,29 +23,25 @@ jobs:
     # https://docs.github.com/en/free-pro-team@l.atest/actions/reference/workflow-syntax-for-github-actions#jobsjob_idstrategy
     strategy:
       fail-fast: false
-      matrix:
-        # Each entry in the os and python-version matrix will be run so for the 3 x 4 there will be 12 jobs run
-        os: [ ubuntu-20.04 ]
-        python-version: [ 3.8 ]
 
     # Run-on determines the operating system available to run on
     # - At the current time there is only ubuntu machines between 16.04 and 20.04 available
     # - This uses the matrix os from the strategy above
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ ubuntu-20.04, ubuntu-22.04 }}
 
     # Each step will be run in order of listing.
     steps:
       # checkout the volttron repository and set current direectory to it
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       # setup the python environment for the operating system
-      - name: Set up Python ${{matrix.os}} ${{ matrix.python-version }}
-        uses: actions/setup-python@v2
-        with:
-          python-version: ${{ matrix.python-version }}
+#      - name: Set up Python ${{matrix.os}} ${{ matrix.python-version }}
+#        uses: actions/setup-python@v2
+#        with:
+#          python-version: ${{ matrix.python-version }}
 
       # Run the specified tests and save the results to a unique file that can be archived for later analysis.
-      - name: Run pytest on ${{ matrix.python-version }}, ${{ matrix.os }}
+      - name: Run pytest on ${{ env.RUNNER_OS }}
         uses: volttron/volttron-build-action@v4
         with:
             python_version: ${{ matrix.python-version }}
@@ -59,7 +55,7 @@ jobs:
         if: always()
         with:
           name: pytest-report
-          path: output/test-auth-${{matrix.os}}-${{ matrix.python-version }}-results.xml
+          path: output/test-auth-${{ env.RUNNER_OS }}-results.xml
     
 #       - name: Publish Unit Test Results
 #         uses: EnricoMi/publish-unit-test-result-action@v1.5
