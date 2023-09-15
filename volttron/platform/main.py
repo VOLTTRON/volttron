@@ -135,7 +135,6 @@ _log = logging.getLogger(
 log_level_info = (
     #'volttron.platform.main',
     'volttron.platform.vip.zmq_connection',
-    'urllib3.connectionpool',
     'watchdog.observers.inotify_buffer',
     'volttron.platform.auth',
     'volttron.platform.store',
@@ -147,6 +146,8 @@ log_level_info = (
 
 for log_name in log_level_info:
     logging.getLogger(log_name).setLevel(logging.INFO)
+
+logging.getLogger('urllib3.connectionpool').setLevel(logging.WARNING)
 
 VOLTTRON_INSTANCES = '~/.volttron_instances'
 
