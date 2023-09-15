@@ -23,11 +23,15 @@ jobs:
     # https://docs.github.com/en/free-pro-team@l.atest/actions/reference/workflow-syntax-for-github-actions#jobsjob_idstrategy
     strategy:
       fail-fast: false
+      matrix:
+        # Each entry in the os and python-version matrix will be run so for the 3 x 4 there will be 12 jobs run
+        os: [ ubuntu-20.04 ]
+        python-version: [ 3.8 ]
 
     # Run-on determines the operating system available to run on
     # - At the current time there is only ubuntu machines between 16.04 and 20.04 available
     # - This uses the matrix os from the strategy above
-    runs-on: [ubuntu-20.04, ubuntu-22.04]
+    runs-on: ${{ matrix.os }}
 
     # Each step will be run in order of listing.
     steps:
@@ -35,13 +39,13 @@ jobs:
       - uses: actions/checkout@v4
 
       # setup the python environment for the operating system
-#      - name: Set up Python ${{matrix.os}} ${{ matrix.python-version }}
-#        uses: actions/setup-python@v2
-#        with:
-#          python-version: ${{ matrix.python-version }}
+      - name: Set up Python ${{matrix.os}} ${{ matrix.python-version }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
 
       # Run the specified tests and save the results to a unique file that can be archived for later analysis.
-      - name: Run pytest on ${{ env.RUNNER_OS }}
+      - name: Run pytest on ${{ matrix.python-version }}, ${{ matrix.os }}
         uses: volttron/volttron-build-action@v4
         with:
             python_version: ${{ matrix.python-version }}
@@ -55,4 +59,24 @@ jobs:
         if: always()
         with:
           name: pytest-report
-          path: output/test-auth-${{ env.RUNNER_OS }}-results.xml
+          path: output/test-auth-${{matrix.os}}-${{ matrix.python-version }}-results.xml
+
+#       - name: Publish Unit Test Results
+#         uses: EnricoMi/publish-unit-test-result-action@v1.5
+#         if: always()
+#         with:
+#           github_token: ${{ secrets.WORKFLOW_ACCESS_TOKEN }}
+#           files: output/test-testutils*.xml
+
+
+#-cov=com --cov-report=xml --cov-report=html
+# pytest tests.py --doctest-modules --junitxml=junit/test-results.xml --cov=com --cov-report=xml --cov-report=html
+#    - name: Lint with flake8
+#      run: |
+#        # stop the build if there are Python syntax errors or undefined names
+#        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+#        # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
+#        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+#    - name: Test with pytest
+#      run: |
+#        pytest --junitxml=junit/test-results.xml --cov=com --cov-report=xml --cov-report=html
