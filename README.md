@@ -159,7 +159,8 @@ connect to empd (port 4369) on <hostname>." Note: RabbitMQ startup error would s
 and not in RabbitMQ logs (/var/log/rabbitmq/rabbitmq@hostname.log)
 
 ##### 3. Bootstrap
-Remove older version of rabbitmq_server directory. Defaults to <user_home>/rabbitmq_server/rabbitmq_server-3.9.7
+Remove older version of rabbitmq_server directory if you are upgrading from a older version. 
+Defaults to <user_home>/rabbitmq_server/rabbitmq_server-3.9.7
 
 Run the rabbitmq boostrap command within an activated VOLTTRON environment
 
