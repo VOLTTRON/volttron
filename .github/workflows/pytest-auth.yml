@@ -36,17 +36,17 @@ jobs:
     # Each step will be run in order of listing.
     steps:
       # checkout the volttron repository and set current direectory to it
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       # setup the python environment for the operating system
       - name: Set up Python ${{matrix.os}} ${{ matrix.python-version }}
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
 
       # Run the specified tests and save the results to a unique file that can be archived for later analysis.
       - name: Run pytest on ${{ matrix.python-version }}, ${{ matrix.os }}
-        uses: volttron/volttron-build-action@v4
+        uses: volttron/volttron-build-action@erlang_update
         with:
             python_version: ${{ matrix.python-version }}
             os: ${{ matrix.os }}
