@@ -247,7 +247,8 @@ to connect to empd (port 4369) on <hostname>."
 
 Step 4 - Bootstrap the environment
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Remove older version of rabbitmq_server directory. Defaults to <user_home>/rabbitmq_server/rabbitmq_server-3.9.7
+Remove older version of rabbitmq_server directory if you are upgrading from a older version. Defaults to
+<user_home>/rabbitmq_server/rabbitmq_server-3.9.7
 
 Run the rabbitmq bootstrap step from within an VOLTTRON activated environment.
 .. code-block:: bash
