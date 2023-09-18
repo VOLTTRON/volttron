@@ -23,9 +23,7 @@ pytestmark = [pytest.mark.mysqlfuncts, pytest.mark.dbutils, pytest.mark.unit]
 
 
 IMAGES = [
-    "mysql:8.0",
-    "mysql:5.7.35",
-    "mysql:5.6"
+    "mysql:8.0"
 ]
 
 CONNECTION_HOST = "localhost"
