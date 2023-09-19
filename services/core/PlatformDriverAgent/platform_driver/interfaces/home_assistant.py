@@ -112,6 +112,23 @@ class Interface(BasicRevert, BaseInterface):
             elif point_name == "brightness":
                 self.change_brightness(register.entity_id, register.value)
 
+        # Changing thermostat values. 
+        elif "climate." in register.entity_id:
+            if point_name == "state":
+                if register.value == 1:
+                    self.change_thermostat_mode(entity_id=register.entity_id, mode="off")
+                elif register.value == 2:
+                    self.change_thermostat_mode(entity_id=register.entity_id, mode="heat")
+                elif register.value == 3:
+                    self.change_thermostat_mode(entity_id=register.entity_id, mode="cool")
+                elif register.value == 4:
+                    self.change_thermostat_mode(entity_id=register.entity_id, mode="auto")
+                else:
+                    _log.error(f"{register.value} is not a supported thermostat mode. (1: Off, 2: heat, 3: Cool, 4: Auto)")
+            elif point_name == "temperature":
+                self.set_thermostat_temperature(entity_id=register.entity_id, temperature=register.value)
+        else:
+            pass
         return register.value
     
     def get_entity_data(self, point_name):
@@ -119,7 +136,7 @@ class Interface(BasicRevert, BaseInterface):
             "Authorization": f"Bearer {self.access_token}",
             "Content-Type": "application/json",
         }
-        url = f"http://{self.ip_address}:{self.port}/api/states/{point_name}" # the /states grabs cuurent state AND attributes of a specific entity
+        url = f"http://{self.ip_address}:{self.port}/api/states/{point_name}" # the /states grabs current state AND attributes of a specific entity
         response = requests.get(url, headers=headers)
         if response.status_code == 200:
             return response.json() # return the json attributes from entity
@@ -135,18 +152,36 @@ class Interface(BasicRevert, BaseInterface):
         for register in read_registers + write_registers:
             entity_id = register.entity_id 
             entity_data = self.get_entity_data(entity_id) # Using Entity ID to get data
+            if "climate." in entity_id: # handling thermostats. 
+                if register.point_name == "state":
+                    state = entity_data.get("state", None)
 
-            # Assigning state 
-            if register.point_name == "state":
-                
-                state = entity_data.get("state", None)
-                register.value = state
-                result[register.point_name] = state
-            # Assigning attributes
-            else:
-                attribute = entity_data.get("attributes", {}).get(f"{register.point_name}", 0)
-                register.value = attribute
-                result[register.point_name] = attribute
+                    # Giving thermostat states an equivilent number. 
+                    if state == "off":
+                        register.value = 1
+                        result[register.point_name] = 1
+                    elif state == "heat":
+                        register.value = 2
+                        result[register.point_name] = 2
+                    elif state == "cool":
+                        register.value = 3
+                        result[register.point_name] = 3
+                # Assigning attributes
+                else:
+                    attribute = entity_data.get("attributes", {}).get(f"{register.point_name}", 0)
+                    register.value = attribute
+                    result[register.point_name] = attribute
+            else: # handling everything else
+                if register.point_name == "state":
+                    
+                    state = entity_data.get("state", None)
+                    register.value = state
+                    result[register.point_name] = state
+                # Assigning attributes
+                else:
+                    attribute = entity_data.get("attributes", {}).get(f"{register.point_name}", 0)
+                    register.value = attribute
+                    result[register.point_name] = attribute
 
         return result
 
@@ -159,7 +194,7 @@ class Interface(BasicRevert, BaseInterface):
             if not regDef['Entity ID']:
                 continue
 
-            read_only = str(regDef.get('Writable', '')).lower() != 'true' #convert writeable to string and it worked!
+            read_only = str(regDef.get('Writable', '')).lower() != 'true'
             entity_id = regDef['Entity ID']
             self.point_name = regDef['Volttron Point Name']
             self.units = regDef['Units']
@@ -221,54 +256,60 @@ class Interface(BasicRevert, BaseInterface):
         except:
             pass
 
-    def change_thermostat_mode(self, mode):
+    def change_thermostat_mode(self, entity_id, mode):
+        # Check if enttiy_id startswith climate.
+        if not entity_id.startswith("climate."):
+            _log.error(f"{entity_id} is not a valid thermostat entity ID.")
+            return
+        # Build header
         url = f"http://{self.ip_address}:{self.port}/api/services/climate/set_hvac_mode"
         headers = {
                 "Authorization": f"Bearer {self.access_token}",
                 "content-type": "application/json",
         }
-        point_names = [y.strip() for y in self.point_name.split('\n')]
-        for entity in point_names:
-            if entity.startswith("climate."):
-                data = {
-                    "entity_id": entity,
-                    "hvac_mode": mode,
-                }
-                response = requests.post(url, headers=headers, json=data)
-        
-                if response.status_code == 200:
-                    _log.info(f"Successfully changed the mode of {entity} to {mode}")
-                else:
-                    _log.info(f"Failed to change the mode of {entity}. Response: {response.text}")
+        # Build data
+        data = {
+            "entity_id": entity_id,
+            "hvac_mode": mode,
+        }
+        # Post data
+        response = requests.post(url, headers=headers, json=data)
+        if response.status_code == 200:
+            _log.info(f"Successfully changed the mode of {entity_id} to {mode}")
+        else:
+            _log.info(f"Failed to change the mode of {entity_id}. Response: {response.text}")
 
-    def set_thermostat_temperature(self, temperature):
+    def set_thermostat_temperature(self, entity_id, temperature):
+        # Check if the provided entity_id starts with "climate."
+        if not entity_id.startswith("climate."):
+            _log.error(f"{entity_id} is not a valid thermostat entity ID.")
+            return
+
         url = f"http://{self.ip_address}:{self.port}/api/services/climate/set_temperature"
         headers = {
-                "Authorization": f"Bearer {self.access_token}",
-                "content-type": "application/json",
+            "Authorization": f"Bearer {self.access_token}",
+            "content-type": "application/json",
         }
-        point_names = [y.strip() for y in self.point_name.split('\n')]
-        for entity in point_names:
-            if entity.startswith("climate."):
-                if self.units == "C":
-                    converted_temp = round((temperature - 32) * 5/9, 1)
-                    _log.info(f"converted temp {converted_temp}")
-                    data = {
-                        "entity_id": entity,
-                        "temperature": converted_temp,
-                    }
-                    response = requests.post(url, headers=headers, json=data)
-                else:
-                    data2 = {
-                        "entity_id": entity,
-                        "temperature": temperature,
-                    }
-                    response = requests.post(url, headers=headers, json=data2)
         
-                if response.status_code == 200:
-                    _log.info(f"Successfully changed the temp of {entity} to {temperature}")
-                else:
-                    _log.info(f"Failed to change the temp of {entity}. Response: {response.text}")
+        if self.units == "C":
+            converted_temp = round((temperature - 32) * 5/9, 1)
+            _log.info(f"Converted temperature {converted_temp}")
+            data = {
+                "entity_id": entity_id,
+                "temperature": converted_temp,
+            }
+        else:
+            data = {
+                "entity_id": entity_id,
+                "temperature": temperature,
+            }
+        
+        response = requests.post(url, headers=headers, json=data)
+        
+        if response.status_code == 200:
+            _log.info(f"Successfully changed the temperature of {entity_id} to {temperature}")
+        else:
+            _log.error(f"Failed to change the temperature of {entity_id}. Response: {response.text}")
 
     def change_brightness(self, entity_id, value):
         url2 = f"http://{self.ip_address}:{self.port}/api/services/light/turn_on"
