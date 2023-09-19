@@ -74,7 +74,8 @@ class Interface(BasicRevert, BaseInterface):
         for devices in self.device_list.values():
             for device in devices:
                 if (
-                    device["ModelId"] == "electric_meter"
+                    isinstance(device, dict)
+                    and device["ModelId"] == "electric_meter"
                     and device["ConnectionStatus"] == "Connected"
                 ):
                     _log.info(f"found active power meter {device}")
