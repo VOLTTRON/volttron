@@ -23,9 +23,9 @@ Listener agent: https://volttron.readthedocs.io/en/main/introduction/platform-in
 
 Platform driver agent: https://volttron.readthedocs.io/en/main/agent-framework/core-service-agents/platform-driver/platform-driver-agent.html?highlight=platform%20driver%20isntall#configuring-the-platform-driver
 
-Once you have cloned the repo, fill out your configuration files. Each device will have 2. Make sure your registry_config points to your devices registry file from the config store.
+Once you have cloned the repo, fill out your configuration files. Each device will have 2. Make sure your registry_config points to your devices registry file from the config store. Below there are examples for lights and thermostats. 
 
-**light.example.config**
+**lights**
 ```json
 {
     "driver_config": {
@@ -63,6 +63,43 @@ Your register file will contain one device, with the ability to add attributes. 
         "Starting Value": 0,
         "Type": "int",
         "Notes": "brightness control, 0 - 255"
+    }
+]
+```
+**Thermostats**
+
+For thermostats the state is converted into numbers. "1: Off, 2: heat, 3: Cool, 4: Auto",
+```json
+[
+    {
+        "Entity ID": "climate.my_thermostat",
+        "Volttron Point Name": "state",
+        "Units": "Enumeration",
+        "Units Details": "1: Off, 2: heat, 3: Cool, 4: Auto",
+        "Writable": true,
+        "Starting Value": 1,
+        "Type": "int",
+        "Notes": "Mode of the thermostat"
+    },
+    {
+        "Entity ID": "climate.my_thermostat",
+        "Volttron Point Name": "current_temperature",
+        "Units": "F",
+        "Units Details": "Current Ambient Temperature",
+        "Writable": true,
+        "Starting Value": 72,
+        "Type": "float",
+        "Notes": "Current temperature reading"
+    },
+    {
+        "Entity ID": "climate.my_thermostat",
+        "Volttron Point Name": "temperature",
+        "Units": "F",
+        "Units Details": "Desired Temperature",
+        "Writable": true,
+        "Starting Value": 75,
+        "Type": "float",
+        "Notes": "Target Temp"
     }
 ]
 ```
