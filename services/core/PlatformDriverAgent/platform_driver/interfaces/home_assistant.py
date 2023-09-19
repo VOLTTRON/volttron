@@ -151,37 +151,40 @@ class Interface(BasicRevert, BaseInterface):
 
         for register in read_registers + write_registers:
             entity_id = register.entity_id 
-            entity_data = self.get_entity_data(entity_id) # Using Entity ID to get data
-            if "climate." in entity_id: # handling thermostats. 
-                if register.point_name == "state":
-                    state = entity_data.get("state", None)
+            try:
+                entity_data = self.get_entity_data(entity_id) # Using Entity ID to get data
+                if "climate." in entity_id: # handling thermostats. 
+                    if register.point_name == "state":
+                        state = entity_data.get("state", None)
 
-                    # Giving thermostat states an equivilent number. 
-                    if state == "off":
-                        register.value = 1
-                        result[register.point_name] = 1
-                    elif state == "heat":
-                        register.value = 2
-                        result[register.point_name] = 2
-                    elif state == "cool":
-                        register.value = 3
-                        result[register.point_name] = 3
-                # Assigning attributes
-                else:
-                    attribute = entity_data.get("attributes", {}).get(f"{register.point_name}", 0)
-                    register.value = attribute
-                    result[register.point_name] = attribute
-            else: # handling everything else
-                if register.point_name == "state":
-                    
-                    state = entity_data.get("state", None)
-                    register.value = state
-                    result[register.point_name] = state
-                # Assigning attributes
-                else:
-                    attribute = entity_data.get("attributes", {}).get(f"{register.point_name}", 0)
-                    register.value = attribute
-                    result[register.point_name] = attribute
+                        # Giving thermostat states an equivilent number. 
+                        if state == "off":
+                            register.value = 1
+                            result[register.point_name] = 1
+                        elif state == "heat":
+                            register.value = 2
+                            result[register.point_name] = 2
+                        elif state == "cool":
+                            register.value = 3
+                            result[register.point_name] = 3
+                    # Assigning attributes
+                    else:
+                        attribute = entity_data.get("attributes", {}).get(f"{register.point_name}", 0)
+                        register.value = attribute
+                        result[register.point_name] = attribute
+                else: # handling all devices that are not thermostats. 
+                    if register.point_name == "state":
+                        
+                        state = entity_data.get("state", None)
+                        register.value = state
+                        result[register.point_name] = state
+                    # Assigning attributes
+                    else:
+                        attribute = entity_data.get("attributes", {}).get(f"{register.point_name}", 0)
+                        register.value = attribute
+                        result[register.point_name] = attribute
+            except Exception as e:
+                print(f"An unexpected error occurred for entity_id: {entity_id}: {e}")
 
         return result
 
