@@ -86,6 +86,7 @@ class Interface(BasicRevert, BaseInterface):
         """
         _log.debug(f"{config_dict=}")
         self.device_address = config_dict['device_address']
+        self.collect_sensors = config_dict.get("collect_sensors", False)
         self.timeout = config_dict.get('timeout', 5)
         self.init_time = time.time()
 
@@ -105,7 +106,7 @@ class Interface(BasicRevert, BaseInterface):
         system, = grequests.map(req)
         if system.status_code != 200:
             raise Exception(
-                "Invalid response from meter, check config, received status code: {}".format(system.status_code))
+                "Invalid response from thermostat, check config, received status code: {}".format(system.status_code))
         config = {}
         return config
     
@@ -172,15 +173,24 @@ class Interface(BasicRevert, BaseInterface):
     def get_point(self, point_name):
         points = self._scrape_all()
         return points.get(point_name)
-
+    
+    def process_sensor_data(self, sensor_data: dict) -> dict:
+        output = {}
+        for sensor in sensor_data["sensors"]:
+            if "type" in sensor and "battery" in sensor and "temp" in sensor:
+                sensor_name = sensor["name"].lower().replace(' ', '_')
+                sensor_type = sensor["type"].lower().replace(' ', '_')
+                output[f'sensors_{sensor_type}_{sensor_name}_temp'] = sensor["temp"]
+                output[f'sensors_{sensor_type}_{sensor_name}_battery'] = sensor["battery"]
+        return output
 
     def get_data(self):
-        requests = [grequests.get(url, timeout=self.timeout) for url in (
-            "http://{tstat_host}/query/info".format(
-                tstat_host=self.device_address),
-        )
-        ]
-        system, = grequests.map(requests)
+        urls = [f"http://{self.device_address}/query/info"]
+        if self.collect_sensors:
+            urls.append(f"http://{self.device_address}/query/sensors")
+        requests = [grequests.get(url, timeout=self.timeout) for url in urls]
+        
+        system, *sensors = grequests.map(requests)
         if not system:
             _log.error(f"No data received. Is thermostat API functionality enabled?")
             return
@@ -188,7 +198,10 @@ class Interface(BasicRevert, BaseInterface):
             if response.status_code != 200:
                 raise Exception(
                     "Invalid response from meter, check config, received status code: {}".format(response.status_code))
-        return (system.json(),)
+        if self.collect_sensors and len(sensors) > 0:
+            return (dict(**system.json(), **self.process_sensor_data(sensors[0].json())), )
+        else:
+            return (system.json(),)
 
     def _scrape_all(self):
         output = {}
