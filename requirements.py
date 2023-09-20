@@ -66,10 +66,10 @@ install_requires = ['gevent==21.12.0',
 
 extras_require = {'crate': ['crate==0.27.1'],
                   'databases': ['mysql-connector-python==8.0.30',
-                                'pymongo==4.2.0',
+                                'pymongo==4.5.0',
                                 'crate==0.27.1',
                                 'influxdb==5.3.1',
-                                'psycopg2-binary==2.8.6'],
+                                'psycopg2-binary==2.9.7'],
                   'documentation': ['mock==4.0.3',
                                     'docutils<0.18',
                                     'sphinx-rtd-theme==1.0.0',
@@ -81,10 +81,10 @@ extras_require = {'crate': ['crate==0.27.1'],
                               'pyserial==3.5'],
                   'influxdb': ['influxdb==5.3.1'],
                   'market': ['numpy==1.23.1', 'transitions==0.8.11'],
-                  'mongo': ['pymongo==4.2.0'],
+                  'mongo': ['pymongo==4.5.0'],
                   'mysql': ['mysql-connector-python==8.0.30'],
                   'pandas': ['numpy==1.23.1', 'pandas==1.4.3'],
-                  'postgres': ['psycopg2-binary==2.8.6'],
+                  'postgres': ['psycopg2-binary==2.9.7'],
                   # This is installed in bootstrap.py itself so we don't
                   # include here, though we include the version number here
                   #
@@ -106,4 +106,5 @@ extras_require = {'crate': ['crate==0.27.1'],
                           'passlib==1.7.4',
                           'argon2-cffi==21.3.0',
                           'Werkzeug==2.2.1',
-                          'treelib==1.6.1']}
+                          'treelib==1.6.1'],
+                  'dnp3': ['dnp3-python==0.2.3b3']}

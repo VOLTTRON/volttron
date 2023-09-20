@@ -229,8 +229,8 @@ def test_test_web_agent(volttron_instance_web):
 
 
 @pytest.mark.web
-def test_register_path_route(web_instance):
-    vi = web_instance
+def test_register_path_route(volttron_instance_web):
+    vi = volttron_instance_web
 
     with with_os_environ(vi.env):
         assert vi.is_running()

@@ -491,7 +491,7 @@ class PlatformWebService(Agent):
                         retvalue = v(env, start_response, data)
                     except TypeError:
                         response = v(env, data)
-                        _log.debug(f'VUI:  Response at app_routing is: {response.response}')
+                        #_log.debug(f'VUI:  Response at app_routing is: {response.response}')
                         return response(env, start_response)
                         # retvalue = self.process_response(start_response, v(env, data))
 
@@ -806,7 +806,7 @@ class PlatformWebService(Agent):
 
         # Register VUI endpoints:
         self._vui_endpoints = VUIEndpoints(self)
-        _log.debug(f'VUI: adding routes - {self._vui_endpoints.get_routes()}')
+        #_log.debug(f'VUI: adding routes - {self._vui_endpoints.get_routes()}')
         self.registeredroutes.extend(self._vui_endpoints.get_routes())
 
         # Allow authentication endpoint from any https connection

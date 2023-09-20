@@ -375,15 +375,6 @@ def set_dependencies(requirement):
     subprocess.check_call(cmds)
     return
 
-
-def set_dependencies_rmq():
-    install_rabbit(default_rmq_dir)
-    prompt = 'What OS are you running?'
-    user_os = prompt_response(prompt, default='debian')
-    prompt = 'Which distribution are you running?'
-    user_dist = prompt_response(prompt, default='bionic')
-    _cmd(["./scripts/rabbit_dependencies.sh", user_os, user_dist])
-
 def _create_web_certs():
     global config_opts
     """
@@ -453,12 +444,6 @@ def do_message_bus():
             print("Message type is not valid. Valid entries are zmq or rmq.")
 
     if bus_type == 'rmq':
-        if not is_rabbitmq_available():
-            print("RabbitMQ has not been set up!")
-            print("Setting up now...")
-            set_dependencies_rmq()
-            print("Done!")
-
         try:
             check_rmq_setup()
         except AssertionError:

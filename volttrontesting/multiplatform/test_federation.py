@@ -51,6 +51,8 @@ from volttron.platform import is_rabbitmq_available
 if not is_rabbitmq_available():
     pytest.skip("Pika is not installed", allow_module_level=True)
 
+
+@pytest.mark.timeout(600)
 @pytest.mark.federation
 def test_federation_pubsub(federated_rmq_instances):
     upstream, downstream = federated_rmq_instances

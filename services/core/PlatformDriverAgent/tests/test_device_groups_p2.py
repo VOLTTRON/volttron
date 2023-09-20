@@ -37,7 +37,7 @@
 # }}}
 
 """
-a single py.test case for global platform driver settings.
+a single pytest case for global platform driver settings.
 """
 
 import pytest
