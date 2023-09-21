@@ -188,7 +188,7 @@ class DriverAgent(BasicAgent):
 
         for point in self.interface.get_register_names():
             register = self.interface.get_register_by_name(point)
-            if register.register_type == 'bit':
+            if register.register_type == 'bit' or register.python_type is bool:
                 ts_type = 'boolean'
             else:
                 if register.python_type is int:
@@ -197,6 +197,8 @@ class DriverAgent(BasicAgent):
                     ts_type = 'float'
                 elif register.python_type is str:
                     ts_type = 'string'
+                else:
+                    ts_type = register.python_type.__name__
 
             self.meta_data[point] = {'units': register.get_units(),
                                      'type': ts_type,
