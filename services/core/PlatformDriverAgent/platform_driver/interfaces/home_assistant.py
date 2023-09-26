@@ -103,15 +103,15 @@ class Interface(BasicRevert, BaseInterface):
         # Changing lights values in home assistant based off of register value. 
         if "light." in register.entity_id:
             if point_name == "state":
-                if register.value == True:
+                if register.value == 1:
                     self.turn_on_lights(register.entity_id)
 
-                elif register.value == False:
+                elif register.value == 0:
                     self.turn_off_lights(register.entity_id)
 
             elif point_name == "brightness":
                 self.change_brightness(register.entity_id, register.value)
-
+                
         # Changing thermostat values. 
         elif "climate." in register.entity_id:
             if point_name == "state":
@@ -172,7 +172,24 @@ class Interface(BasicRevert, BaseInterface):
                         attribute = entity_data.get("attributes", {}).get(f"{register.point_name}", 0)
                         register.value = attribute
                         result[register.point_name] = attribute
-                else: # handling all devices that are not thermostats. 
+                # handling light states
+                elif "light." in entity_id:
+                    print(register.point_name)
+                    state = entity_data.get("state", None)
+                    print(state)
+                    if register.point_name == "state":
+                        state = entity_data.get("state", None)
+                        if state == "on":
+                            register.value = 1
+                            result[register.point_name] = 1
+                        elif state == "off":
+                            register.value = 0
+                            result[register.point_name] = 0
+                    else:
+                        attribute = entity_data.get("attributes", {}).get(f"{register.point_name}", 0)
+                        register.value = attribute
+                        result[register.point_name] = attribute
+                else: # handling all devices that are not thermostats or light states
                     if register.point_name == "state":
                         
                         state = entity_data.get("state", None)
