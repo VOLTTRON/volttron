@@ -963,8 +963,8 @@ def test_web_with_agents_volttron_running(monkeypatch, volttron_instance_web):
     assert os.path.exists(config_path)
     config = ConfigParser()
     config.read(config_path)
-    assert config.get('volttron', 'message-bus') == "zmq"
-    if volttron_instance_web.ssl_auth is True:
+    assert config.get('volttron', 'message-bus') == volttron_instance_web.messagebus
+    if volttron_instance_web.ssl_auth is True and volttron_instance_web.messagebus == 'zmq':
         assert config.get('volttron', 'web-ssl-cert') == os.path.join(vhome, "certificates", "certs", "server0.crt")
         assert config.get('volttron', 'web-ssl-key') == os.path.join(vhome, "certificates", "private", "server0.pem")
     # if instance is running
