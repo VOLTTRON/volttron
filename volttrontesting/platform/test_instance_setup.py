@@ -10,6 +10,7 @@ from volttron.utils import get_hostname
 from volttron.platform.agent.utils import is_volttron_running
 from volttrontesting.fixtures.rmq_test_setup import create_rmq_volttron_setup
 from volttrontesting.utils.platformwrapper import create_volttron_home
+from volttrontesting.utils.utils import get_rand_port
 
 HAS_RMQ = is_rabbitmq_available()
 RMQ_TIMEOUT = 600
@@ -40,7 +41,7 @@ vc_admin_password = "test"
 is_vcp = "N"
 instance_name = ""
 vc_hostname = ""
-vc_port = "8443"
+vc_port = ""
 install_historian = "N"
 install_driver = "N"
 install_fake_device = "N"
@@ -80,8 +81,9 @@ def test_zmq_case_no_agents(monkeypatch):
         config_path = os.path.join(vhome, "config")
         
         message_bus = "zmq"
-        vip_address = "tcp://127.0.0.15"
-        vip_port = "22916"
+        ip = "127.0.0.15"
+        vip_address = "tcp://" + ip
+        vip_port = str(get_rand_port(ip))
         instance_name = "test_zmq"
         is_web_enabled = "N"
         is_vcp = "N"
@@ -116,7 +118,7 @@ def test_zmq_case_no_agents(monkeypatch):
         config = ConfigParser()
         config.read(config_path)
         assert config.get('volttron', 'message-bus') == "zmq"
-        assert config.get('volttron', 'vip-address') == "tcp://127.0.0.15:22916"
+        assert config.get('volttron', 'vip-address') == vip_address + ":" + vip_port
         assert config.get('volttron', 'instance-name').strip('"') == "test_zmq"
         assert not _is_agent_installed("listener")
         assert not _is_agent_installed("platform_driver")
@@ -133,13 +135,14 @@ def test_zmq_case_with_agents(monkeypatch):
         config_path = os.path.join(vhome, "config")
 
         message_bus = "zmq"
-        vip_address = "tcp://127.0.0.15"
-        vip_port = "22916"
+        ip = '127.0.0.15'
+        vip_address = "tcp://" + ip
+        vip_port = str(get_rand_port(ip))
         is_web_enabled = "N"
         is_vcp = "Y"
         instance_name = "test_zmq"
         vc_hostname = "{}{}".format("https://", get_hostname())
-        vc_port = "8443"
+        vc_port = str(get_rand_port(ip))
         install_historian = "Y"
         install_driver = "Y"
         install_fake_device = "Y"
@@ -178,7 +181,7 @@ def test_zmq_case_with_agents(monkeypatch):
         config = ConfigParser()
         config.read(config_path)
         assert config.get('volttron', 'message-bus') == "zmq"
-        assert config.get('volttron', 'vip-address') == "tcp://127.0.0.15:22916"
+        assert config.get('volttron', 'vip-address') == vip_address + ":" + vip_port
         assert config.get('volttron', 'instance-name').strip('"') == "test_zmq"
         assert _is_agent_installed("listener")
         assert _is_agent_installed("platform_driver")
@@ -195,12 +198,13 @@ def test_zmq_case_web_no_agents(monkeypatch):
         config_path = os.path.join(vhome, "config")
 
         message_bus = "zmq"
-        vip_address = "tcp://127.0.0.15"
-        vip_port = "22916"
+        ip = '127.0.0.15'
+        vip_address = "tcp://" + ip
+        vip_port = str(get_rand_port(ip))
         instance_name = "test_zmq"
         is_web_enabled = "Y"
         web_protocol = "https"
-        web_port = "8443"
+        web_port = str(get_rand_port(ip, 8000, 9000))
         gen_web_cert = "Y"
         new_root_ca = "Y"
         ca_country = "US"
@@ -249,11 +253,14 @@ def test_zmq_case_web_no_agents(monkeypatch):
         config = ConfigParser()
         config.read(config_path)
         assert config.get('volttron', 'message-bus') == "zmq"
-        assert config.get('volttron', 'vip-address') == "tcp://127.0.0.15:22916"
+        assert config.get('volttron', 'vip-address') == vip_address + ":" + vip_port
         assert config.get('volttron', 'instance-name').strip('"') == "test_zmq"
-        assert config.get('volttron', 'bind-web-address') == "{}{}{}".format("https://", get_hostname().lower(), ":8443")
-        assert config.get('volttron', 'web-ssl-cert') == os.path.join(vhome, "certificates", "certs", "platform_web-server.crt")
-        assert config.get('volttron', 'web-ssl-key') == os.path.join(vhome, "certificates", "private", "platform_web-server.pem")
+        assert config.get('volttron', 'bind-web-address') ==\
+               "{}{}:{}".format("https://", get_hostname().lower(), web_port)
+        assert config.get('volttron', 'web-ssl-cert') == \
+               os.path.join(vhome, "certificates", "certs", "platform_web-server.crt")
+        assert config.get('volttron', 'web-ssl-key') == \
+               os.path.join(vhome, "certificates", "private", "platform_web-server.pem")
         assert not _is_agent_installed("listener")
         assert not _is_agent_installed("platform_driver")
         assert not _is_agent_installed("platform_historian")
@@ -269,12 +276,13 @@ def test_zmq_case_web_with_agents(monkeypatch):
         config_path = os.path.join(vhome, "config")
 
         message_bus = "zmq"
-        vip_address = "tcp://127.0.0.15"
-        vip_port = "22916"
+        ip = '127.0.0.15'
+        vip_address = "tcp://" + ip
+        vip_port = str(get_rand_port(ip))
         instance_name = "test_zmq"
         is_web_enabled = "Y"
         web_protocol = "https"
-        web_port = "8443"
+        web_port = str(get_rand_port(ip, 8000, 9000))
         gen_web_cert = "Y"
         new_root_ca = "Y"
         ca_country = "US"
@@ -285,7 +293,7 @@ def test_zmq_case_web_with_agents(monkeypatch):
         is_vc = "N"
         is_vcp = "Y"
         vc_hostname = "{}{}".format("https://", get_hostname())
-        vc_port = "8443"
+        vc_port = str(get_rand_port(ip))
         install_historian = "Y"
         install_driver = "Y"
         install_fake_device = "Y"
@@ -333,11 +341,14 @@ def test_zmq_case_web_with_agents(monkeypatch):
         config = ConfigParser()
         config.read(config_path)
         assert config.get('volttron', 'message-bus') == "zmq"
-        assert config.get('volttron', 'vip-address') == "tcp://127.0.0.15:22916"
+        assert config.get('volttron', 'vip-address') == vip_address + ":" + vip_port
         assert config.get('volttron', 'instance-name').strip('"') == "test_zmq"
-        assert config.get('volttron', 'bind-web-address') == "{}{}{}".format("https://", get_hostname().lower(), ":8443")
-        assert config.get('volttron', 'web-ssl-cert') == os.path.join(vhome, "certificates", "certs", "platform_web-server.crt")
-        assert config.get('volttron', 'web-ssl-key') == os.path.join(vhome, "certificates", "private", "platform_web-server.pem")
+        assert config.get('volttron', 'bind-web-address') == \
+               "{}{}:{}".format("https://", get_hostname().lower(), web_port)
+        assert config.get('volttron', 'web-ssl-cert') == \
+               os.path.join(vhome, "certificates", "certs", "platform_web-server.crt")
+        assert config.get('volttron', 'web-ssl-key') == \
+               os.path.join(vhome, "certificates", "private", "platform_web-server.pem")
         assert _is_agent_installed("listener")
         assert _is_agent_installed("platform_driver")
         assert _is_agent_installed("platform_historian")
@@ -352,12 +363,13 @@ def test_zmq_case_web_vc(monkeypatch):
         config_path = os.path.join(vhome, "config")
 
         message_bus = "zmq"
-        vip_address = "tcp://127.0.0.15"
-        vip_port = "22916"
+        ip = '127.0.0.15'
+        vip_address = "tcp://" + ip
+        vip_port = str(get_rand_port(ip))
         instance_name = "test_zmq"
         is_web_enabled = "Y"
         web_protocol = "https"
-        web_port = "8443"
+        web_port = str(get_rand_port(ip, 8000, 9000))
         gen_web_cert = "Y"
         new_root_ca = "Y"
         ca_country = "US"
@@ -408,12 +420,16 @@ def test_zmq_case_web_vc(monkeypatch):
         config = ConfigParser()
         config.read(config_path)
         assert config.get('volttron', 'message-bus') == "zmq"
-        assert config.get('volttron', 'vip-address') == "tcp://127.0.0.15:22916"
+        assert config.get('volttron', 'vip-address') == vip_address + ":" + vip_port
         assert config.get('volttron', 'instance-name').strip('"') == "test_zmq"
-        assert config.get('volttron', 'volttron-central-address') == "{}{}{}".format("https://", get_hostname().lower(), ":8443")
-        assert config.get('volttron', 'bind-web-address') == "{}{}{}".format("https://", get_hostname().lower(), ":8443")
-        assert config.get('volttron', 'web-ssl-cert') == os.path.join(vhome, "certificates", "certs", "platform_web-server.crt")
-        assert config.get('volttron', 'web-ssl-key') == os.path.join(vhome, "certificates", "private", "platform_web-server.pem")
+        assert config.get('volttron', 'volttron-central-address') == \
+               "{}{}:{}".format("https://", get_hostname().lower(), web_port)
+        assert config.get('volttron', 'bind-web-address') == \
+               "{}{}:{}".format("https://", get_hostname().lower(), web_port)
+        assert config.get('volttron', 'web-ssl-cert') == \
+               os.path.join(vhome, "certificates", "certs", "platform_web-server.crt")
+        assert config.get('volttron', 'web-ssl-key') == \
+               os.path.join(vhome, "certificates", "private", "platform_web-server.pem")
         assert not _is_agent_installed("listener")
         assert not _is_agent_installed("platform_driver")
         assert not _is_agent_installed("platform_historian")
@@ -428,12 +444,13 @@ def test_zmq_case_web_vc_with_agents(monkeypatch):
         config_path = os.path.join(vhome, "config")
 
         message_bus = "zmq"
-        vip_address = "tcp://127.0.0.15"
-        vip_port = "22916"
+        ip = '127.0.0.15'
+        vip_address = "tcp://" + ip
+        vip_port = str(get_rand_port(ip))
         instance_name = "test_zmq"
         is_web_enabled = "Y"
         web_protocol = "https"
-        web_port = "8443"
+        web_port = str(get_rand_port(ip, 8000, 9000))
         gen_web_cert = "Y"
         new_root_ca = "Y"
         ca_country = "US"
@@ -489,12 +506,16 @@ def test_zmq_case_web_vc_with_agents(monkeypatch):
         config = ConfigParser()
         config.read(config_path)
         assert config.get('volttron', 'message-bus') == "zmq"
-        assert config.get('volttron', 'vip-address') == "tcp://127.0.0.15:22916"
+        assert config.get('volttron', 'vip-address') == vip_address + ":" + vip_port
         assert config.get('volttron', 'instance-name').strip('"') == "test_zmq"
-        assert config.get('volttron', 'volttron-central-address') == "{}{}{}".format("https://", get_hostname().lower(), ":8443")
-        assert config.get('volttron', 'bind-web-address') == "{}{}{}".format("https://", get_hostname().lower(), ":8443")
-        assert config.get('volttron', 'web-ssl-cert') == os.path.join(vhome, "certificates", "certs", "platform_web-server.crt")
-        assert config.get('volttron', 'web-ssl-key') == os.path.join(vhome, "certificates", "private", "platform_web-server.pem")
+        assert config.get('volttron', 'volttron-central-address') == \
+               "{}{}:{}".format("https://", get_hostname().lower(), web_port)
+        assert config.get('volttron', 'bind-web-address') == \
+               "{}{}:{}".format("https://", get_hostname().lower(), web_port)
+        assert config.get('volttron', 'web-ssl-cert') == \
+               os.path.join(vhome, "certificates", "certs", "platform_web-server.crt")
+        assert config.get('volttron', 'web-ssl-key') == \
+               os.path.join(vhome, "certificates", "private", "platform_web-server.pem")
         assert _is_agent_installed("listener")
         assert _is_agent_installed("platform_driver")
         assert _is_agent_installed("platform_historian")
@@ -513,8 +534,9 @@ def test_rmq_case_no_agents(monkeypatch):
 
         message_bus = "rmq"
         instance_name = "test_rmq"
-        vip_address = "tcp://127.0.0.15"
-        vip_port = "22916"
+        ip = '127.0.0.15'
+        vip_address = "tcp://" + ip
+        vip_port = str(get_rand_port(ip))
         is_web_enabled = "N"
         is_vcp = "N"
         install_historian = "N"
@@ -548,7 +570,7 @@ def test_rmq_case_no_agents(monkeypatch):
         config = ConfigParser()
         config.read(config_path)
         assert config.get('volttron', 'message-bus') == "rmq"
-        assert config.get('volttron', 'vip-address') == "tcp://127.0.0.15:22916"
+        assert config.get('volttron', 'vip-address') == vip_address + ":" + vip_port
         assert config.get('volttron', 'instance-name').strip('"') == "test_rmq"
         assert not _is_agent_installed("listener")
         assert not _is_agent_installed("platform_driver")
@@ -568,12 +590,13 @@ def test_rmq_case_with_agents(monkeypatch):
 
         message_bus = "rmq"
         instance_name = "test_rmq"
-        vip_address = "tcp://127.0.0.15"
-        vip_port = "22916"
+        ip = '127.0.0.15'
+        vip_address = "tcp://" + ip
+        vip_port = str(get_rand_port(ip))
         is_web_enabled = "N"
         is_vcp = "Y"
         vc_hostname = "{}{}".format("https://", get_hostname())
-        vc_port = "8443"
+        vc_port = str(get_rand_port(ip))
         install_historian = "Y"
         install_driver = "Y"
         install_fake_device = "Y"
@@ -614,7 +637,7 @@ def test_rmq_case_with_agents(monkeypatch):
         config = ConfigParser()
         config.read(config_path)
         assert config.get('volttron', 'message-bus') == "rmq"
-        assert config.get('volttron', 'vip-address') == "tcp://127.0.0.15:22916"
+        assert config.get('volttron', 'vip-address') == vip_address + ":" + vip_port
         assert config.get('volttron', 'instance-name').strip('"') == "test_rmq"
         assert _is_agent_installed("listener")
         assert _is_agent_installed("platform_driver")
@@ -636,11 +659,12 @@ def test_rmq_case_web_no_agents(monkeypatch):
         message_bus = "rmq"
         instance_name = "test_rmq"
         is_web_enabled = "Y"
-        web_port = "8443"
         is_vc = "N"
         is_vcp = "N"
-        vip_address = "tcp://127.0.0.15"
-        vip_port = "22916"
+        ip = '127.0.0.15'
+        web_port = str(get_rand_port(ip, 8000, 9000))
+        vip_address = "tcp://" + ip
+        vip_port = str(get_rand_port(ip))
         install_historian = "N"
         install_driver = "N"
         install_listener = "N"
@@ -674,9 +698,9 @@ def test_rmq_case_web_no_agents(monkeypatch):
         config = ConfigParser()
         config.read(config_path)
         assert config.get('volttron', 'message-bus') == "rmq"
-        assert config.get('volttron', 'vip-address') == "tcp://127.0.0.15:22916"
+        assert config.get('volttron', 'vip-address') == vip_address + ":" + vip_port
         assert config.get('volttron', 'instance-name').strip('"') == "test_rmq"
-        assert config.get('volttron', 'bind-web-address') == "{}{}{}".format("https://", get_hostname(), ":8443")
+        assert config.get('volttron', 'bind-web-address') == "{}{}:{}".format("https://", get_hostname(), web_port)
         assert not _is_agent_installed("listener")
         assert not _is_agent_installed("platform_driver")
         assert not _is_agent_installed("platform_historian")
@@ -696,13 +720,14 @@ def test_rmq_case_web_with_agents(monkeypatch):
         message_bus = "rmq"
         instance_name = "test_rmq"
         is_web_enabled = "Y"
-        web_port = "8443"
         is_vc = "N"
         is_vcp = "Y"
         vc_hostname = "{}{}".format("https://", get_hostname())
-        vc_port = "8443"
-        vip_address = "tcp://127.0.0.15"
-        vip_port = "22916"
+        ip = '127.0.0.15'
+        web_port = str(get_rand_port(ip, 8000, 9000))
+        vc_port = str(get_rand_port(ip))
+        vip_address = "tcp://" + ip
+        vip_port = str(get_rand_port(ip))
         install_historian = "Y"
         install_driver = "Y"
         install_fake_device = "Y"
@@ -744,9 +769,9 @@ def test_rmq_case_web_with_agents(monkeypatch):
         config = ConfigParser()
         config.read(config_path)
         assert config.get('volttron', 'message-bus') == "rmq"
-        assert config.get('volttron', 'vip-address') == "tcp://127.0.0.15:22916"
+        assert config.get('volttron', 'vip-address') == vip_address + ":" + vip_port
         assert config.get('volttron', 'instance-name').strip('"') == "test_rmq"
-        assert config.get('volttron', 'bind-web-address') == "{}{}{}".format("https://", get_hostname(), ":8443")
+        assert config.get('volttron', 'bind-web-address') == "{}{}:{}".format("https://", get_hostname(), web_port)
         assert _is_agent_installed("listener")
         assert _is_agent_installed("platform_driver")
         assert _is_agent_installed("platform_historian")
@@ -766,10 +791,11 @@ def test_rmq_case_web_vc(monkeypatch):
 
         message_bus = "rmq"
         instance_name = "test_rmq"
-        vip_address = "tcp://127.0.0.15"
-        vip_port = "22916"
+        ip = '127.0.0.15'
+        vip_address = "tcp://" + ip
+        vip_port = str(get_rand_port(ip))
         is_web_enabled = "Y"
-        web_port = "8443"
+        web_port = str(get_rand_port(ip, 8000, 9000))
         is_vc = "Y"
         is_vcp = "Y"
         install_historian = "N"
@@ -808,10 +834,12 @@ def test_rmq_case_web_vc(monkeypatch):
         config = ConfigParser()
         config.read(config_path)
         assert config.get('volttron', 'message-bus') == "rmq"
-        assert config.get('volttron', 'vip-address') == "tcp://127.0.0.15:22916"
+        assert config.get('volttron', 'vip-address') == vip_address
         assert config.get('volttron', 'instance-name').strip('"') == "test_rmq"
-        assert config.get('volttron', 'volttron-central-address') == "{}{}{}".format("https://", get_hostname(), ":8443")
-        assert config.get('volttron', 'bind-web-address') == "{}{}{}".format("https://", get_hostname(), ":8443")
+        assert config.get('volttron', 'volttron-central-address') == "{}{}:{}".format(
+            "https://", get_hostname(), web_port)
+        assert config.get('volttron', 'bind-web-address') == "{}{}:{}".format(
+            "https://", get_hostname(), web_port)
         assert not _is_agent_installed("listener")
         assert not _is_agent_installed("platform_driver")
         assert not _is_agent_installed("platform_historian")
@@ -831,10 +859,11 @@ def test_rmq_case_web_vc_with_agents(monkeypatch):
 
         message_bus = "rmq"
         instance_name = "test_rmq"
-        vip_address = "tcp://127.0.0.15"
-        vip_port = "22916"
+        ip = '127.0.0.15'
+        vip_address = "tcp://" + ip
+        vip_port = str(get_rand_port(ip))
         is_web_enabled = "Y"
-        web_port = "8443"
+        web_port = str(get_rand_port(ip, 8000, 9000))
         is_vc = "Y"
         is_vcp = "Y"
         install_historian = "Y"
@@ -878,10 +907,12 @@ def test_rmq_case_web_vc_with_agents(monkeypatch):
         config = ConfigParser()
         config.read(config_path)
         assert config.get('volttron', 'message-bus') == "rmq"
-        assert config.get('volttron', 'vip-address') == "tcp://127.0.0.15:22916"
+        assert config.get('volttron', 'vip-address') == vip_address + ":" + vip_port
         assert config.get('volttron', 'instance-name').strip('"') == "test_rmq"
-        assert config.get('volttron', 'volttron-central-address') == "{}{}{}".format("https://", get_hostname(), ":8443")
-        assert config.get('volttron', 'bind-web-address') == "{}{}{}".format("https://", get_hostname(), ":8443")
+        assert config.get('volttron', 'volttron-central-address') == "{}{}:{}".format(
+            "https://", get_hostname(), web_port)
+        assert config.get('volttron', 'bind-web-address') == "{}{}:{}".format(
+            "https://", get_hostname(), web_port)
         assert _is_agent_installed("listener")
         assert _is_agent_installed("platform_driver")
         assert _is_agent_installed("platform_historian")
