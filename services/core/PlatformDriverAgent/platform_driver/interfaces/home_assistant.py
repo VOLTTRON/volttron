@@ -57,12 +57,13 @@ type_mapping = {"string": str,
                 "boolean": bool}
 
 class HomeAssistantRegister(BaseRegister):
-    def __init__(self, read_only, pointName, units, reg_type, attributes,
+    def __init__(self, read_only, pointName, units, reg_type, attributes, entity_id,
                  default_value=None, description=''):
         super(HomeAssistantRegister, self).__init__("byte", read_only, pointName, units,
                                            description='')
         self.reg_type = reg_type
         self.attributes = attributes
+        self.entity_id = entity_id
         self.value = None
 
 class Interface(BasicRevert, BaseInterface):
@@ -74,8 +75,7 @@ class Interface(BasicRevert, BaseInterface):
         self.ip_address = config_dict.get("ip_address", None)
         self.access_token = config_dict.get("access_token", None)
         self.port = config_dict.get("port", None)
-        self.entity_id = config_dict.get("entity_id", None)
-
+        
         # Check for None values
         if self.ip_address is None:
             _log.error("IP address is not set.")
@@ -84,9 +84,6 @@ class Interface(BasicRevert, BaseInterface):
             _log.error("Access token is not set.")
             raise ValueError("Access token is required.")
         if self.port is None:
-            _log.error("Port is not set.")
-            raise ValueError("Port is required.")
-        if self.entity_id is None:
             _log.error("Port is not set.")
             raise ValueError("Port is required.")
         
@@ -102,49 +99,49 @@ class Interface(BasicRevert, BaseInterface):
             raise RuntimeError(
                 "Trying to write to a point configured read only: " + point_name)
         register.value = register.reg_type(value) # setting the value
-        entity_id = self.entity_id
+
         # Changing lights values in home assistant based off of register value. 
-        if "light." in entity_id:
+        if "light." in register.entity_id:
             if point_name == "state":
                 if register.value == 1:
-                    self.turn_on_lights(entity_id)
+                    self.turn_on_lights(register.entity_id)
 
                 elif register.value == 0:
-                    self.turn_off_lights(entity_id)
+                    self.turn_off_lights(register.entity_id)
 
             elif point_name == "brightness":
-                self.change_brightness(entity_id, register.value)
+                self.change_brightness(register.entity_id, register.value)
                 
         # Changing thermostat values. 
         elif "climate." in register.entity_id:
             if point_name == "state":
                 if register.value == 0:
-                    self.change_thermostat_mode(entity_id=entity_id, mode="off")
+                    self.change_thermostat_mode(entity_id=register.entity_id, mode="off")
                 elif register.value == 2:
-                    self.change_thermostat_mode(entity_id=entity_id, mode="heat")
+                    self.change_thermostat_mode(entity_id=register.entity_id, mode="heat")
                 elif register.value == 3:
-                    self.change_thermostat_mode(entity_id=entity_id, mode="cool")
+                    self.change_thermostat_mode(entity_id=register.entity_id, mode="cool")
                 elif register.value == 4:
-                    self.change_thermostat_mode(entity_id=entity_id, mode="auto")
+                    self.change_thermostat_mode(entity_id=register.entity_id, mode="auto")
                 else:
                     _log.error(f"{register.value} is not a supported thermostat mode. (1: Off, 2: heat, 3: Cool, 4: Auto)")
             elif point_name == "temperature":
-                self.set_thermostat_temperature(entity_id=entity_id, temperature=register.value)
+                self.set_thermostat_temperature(entity_id=register.entity_id, temperature=register.value)
         else:
             pass
         return register.value
     
-    def get_entity_data(self, entity_id):
+    def get_entity_data(self, point_name):
         headers = {
             "Authorization": f"Bearer {self.access_token}",
             "Content-Type": "application/json",
         }
-        url = f"http://{self.ip_address}:{self.port}/api/states/{entity_id}" # the /states grabs current state AND attributes of a specific entity
+        url = f"http://{self.ip_address}:{self.port}/api/states/{point_name}" # the /states grabs current state AND attributes of a specific entity
         response = requests.get(url, headers=headers)
         if response.status_code == 200:
             return response.json() # return the json attributes from entity
         else:
-            _log.error(f"Request failed with status code {response.status_code}: {entity_id} {response.text}")
+            _log.error(f"Request failed with status code {response.status_code}: {point_name} {response.text}")
             return None
         
     def _scrape_all(self):
@@ -153,7 +150,7 @@ class Interface(BasicRevert, BaseInterface):
         write_registers = self.get_registers_by_type("byte", False)
 
         for register in read_registers + write_registers:
-            entity_id = self.entity_id 
+            entity_id = register.entity_id 
             try:
                 entity_data = self.get_entity_data(entity_id) # Using Entity ID to get data
                 if "climate." in entity_id: # handling thermostats. 
@@ -180,8 +177,9 @@ class Interface(BasicRevert, BaseInterface):
                         result[register.point_name] = attribute
                 # handling light states
                 elif "light." in entity_id:
+                    print(register.point_name)
                     state = entity_data.get("state", None)
-
+                    print(state)
                     if register.point_name == "state":
                         state = entity_data.get("state", None)
                         # Converting light states to numbers. 
@@ -207,7 +205,7 @@ class Interface(BasicRevert, BaseInterface):
                         register.value = attribute
                         result[register.point_name] = attribute
             except Exception as e:
-                _log.exception(f"An unexpected error occurred for entity_id: {entity_id}: {e}")
+                print(f"An unexpected error occurred for entity_id: {entity_id}: {e}")
 
         return result
 
@@ -216,7 +214,12 @@ class Interface(BasicRevert, BaseInterface):
         if configDict is None:
             return
         for regDef in configDict:
+
+            if not regDef['Entity ID']:
+                continue
+
             read_only = str(regDef.get('Writable', '')).lower() != 'true'
+            entity_id = regDef['Entity ID']
             self.point_name = regDef['Volttron Point Name']
             self.units = regDef['Units']
             description = regDef.get('Notes', '')
@@ -235,6 +238,7 @@ class Interface(BasicRevert, BaseInterface):
                 self.units,
                 reg_type,
                 attributes,
+                entity_id,
                 default_value=default_value,
                 description=description)
 
