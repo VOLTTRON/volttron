@@ -75,7 +75,7 @@ class Interface(BasicRevert, BaseInterface):
         self.ip_address = config_dict.get("ip_address", None)
         self.access_token = config_dict.get("access_token", None)
         self.port = config_dict.get("port", None)
-
+        
         # Check for None values
         if self.ip_address is None:
             _log.error("IP address is not set.")
@@ -115,7 +115,7 @@ class Interface(BasicRevert, BaseInterface):
         # Changing thermostat values. 
         elif "climate." in register.entity_id:
             if point_name == "state":
-                if register.value == 1:
+                if register.value == 0:
                     self.change_thermostat_mode(entity_id=register.entity_id, mode="off")
                 elif register.value == 2:
                     self.change_thermostat_mode(entity_id=register.entity_id, mode="heat")
@@ -159,14 +159,17 @@ class Interface(BasicRevert, BaseInterface):
 
                         # Giving thermostat states an equivilent number. 
                         if state == "off":
-                            register.value = 1
-                            result[register.point_name] = 1
+                            register.value = 0
+                            result[register.point_name] = 0
                         elif state == "heat":
                             register.value = 2
                             result[register.point_name] = 2
                         elif state == "cool":
                             register.value = 3
                             result[register.point_name] = 3
+                        elif state == "auto":
+                            register.value = 4
+                            result[register.point_name] = 4
                     # Assigning attributes
                     else:
                         attribute = entity_data.get("attributes", {}).get(f"{register.point_name}", 0)
@@ -179,6 +182,7 @@ class Interface(BasicRevert, BaseInterface):
                     print(state)
                     if register.point_name == "state":
                         state = entity_data.get("state", None)
+                        # Converting light states to numbers. 
                         if state == "on":
                             register.value = 1
                             result[register.point_name] = 1
