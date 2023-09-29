@@ -13,22 +13,11 @@ import gevent
 import pandas as pd
 import pvlib
 import yaml
+from volttron.platform.agent.utils import format_timestamp, get_aware_utc_now
 
 from volttron.platform.vip.agent.utils import build_agent
 
-# from typing import List, Optional, Dict
-# from threading import Thread
-# from threading import Timer
-
-# from ieee_2030_5.utils import serialize_dataclass
-
-# @dataclass
-# class ZmqCredentials:
-#     address: str
-#     publickey: str
-#     secretkey: str
-#     serverkey: str = None
-
+_log = logging.getLogger(__name__)
 
 class MyInverterAgent(Agent):
 
@@ -96,8 +85,8 @@ def run_inverter(timesteps=50, pf=0.99, latitude=32, longitude=-111.0) -> Genera
         #     f"p_ac = {p_ac}, s_ac = {s_ac}, q_ac= {q_ac}, PF = {PF}, v_ac = {v_ac}, i_ac = {i_ac}"
         # )
         results = dict(PF=PF,
-                       p_ac=p_ac,
-                       q_ac=q_ac,
+                       INV_REAL_PWR=p_ac,
+                       INV_REAC_PWR=q_ac,
                        v_mp=dc['v_mp'],
                        p_mp=dc['p_mp'],
                        i_x=dc['i_x'],
@@ -105,9 +94,12 @@ def run_inverter(timesteps=50, pf=0.99, latitude=32, longitude=-111.0) -> Genera
                        v_oc=dc['v_oc'],
                        i_sc=dc['i_sc'],
                        s_ac=p_ac,
-                       v_ac=v_ac,
-                       i_ac=i_ac)
-        print(json.dumps(results))
+                       #v_ac=v_ac,
+                       BAT_SOC=v_ac/p_ac,
+                       i_ac=i_ac,
+                       target_p=p_ac,
+                       INV_OP_STATUS_MODE=3)
+        _log.info(json.dumps(results))
         yield results
         # single phase circuit calculation
 
@@ -193,7 +185,19 @@ def run_inverter(timesteps=50) -> Generator:
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.DEBUG)
+    import argparse
+    parser = argparse.ArgumentParser()
+    
+    parser.add_argument("output_file", help="File to write to when data arrives on the bus")
+    opts = parser.parse_args()
+    
+    logging.basicConfig(filename="/tmp/inverter_runner.log", 
+                        filemode="wt",
+                        level=logging.DEBUG, 
+                        force=True
+    )
+    
+    logging.getLogger('volttron.platform.vip.agent.core').setLevel(logging.WARNING)
     logging.getLogger('volttron.platform.vip.agent.core').setLevel(logging.WARNING)
 
     from pathlib import Path
@@ -204,6 +208,8 @@ if __name__ == '__main__':
 
     control_path = Path('inverter.ctl')
 
+    from volttron.platform.messaging import headers as t_header
+    
     while True:
 
         gen = run_inverter()
@@ -214,21 +220,30 @@ if __name__ == '__main__':
         for inv in gen:
             points = AllPoints()
 
+            # Loop over points adding them to the allpoints dataclass if
+            # they are specified.  If they have been set on the agent itself
+            # then use that value instead of the one from the generator.
             for k, v in inv.items():
-                points.add(k, v)
+                pt_set = agent.get_point(k)
+                if pt_set is not None:
+                    points.add(k, pt_set)
+                else:
+                    points.add(k, v)
+            
+            ts = format_timestamp(get_aware_utc_now())
+            headers = {
+                t_header.SYNC_TIMESTAMP: ts,
+                t_header.TIMESTAMP: ts
+            }
+            
+            
             # publish
             agent.vip.pubsub.publish(peer="pubsub",
                                      topic=f"{topic_to_publish}",
+                                     headers=headers,
                                      message=points.forbus())
+            with open(Path(opts.output_file), '+a') as fp:
+                fp.write(json.dumps(dict(headers=headers, message=points.forbus()))+"\n")
             gevent.sleep(10)
-
-            if control_path.exists():
-                data = control_path.open().read()
-                try:
-                    obj = json.loads(data)
-                except json.decoder.JSONDecodeError:
-                    obj = dict(pf=0.99)
-
-                pf = obj.get('pf', 0.99)
 
     agent.core.stop()

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import atexit
+import http
 import logging
 import ssl
 import subprocess
@@ -9,7 +10,7 @@ import time
 import xml.dom.minidom
 from dataclasses import dataclass, field
 from datetime import datetime
-from http.client import HTTPMessage, HTTPSConnection
+from http.client import HTTPMessage, HTTPSConnection, CannotSendRequest
 from os import PathLike
 from pathlib import Path
 from threading import Semaphore, Timer
@@ -239,21 +240,27 @@ class IEEE_2030_5_Client:
 
     def get_der(self, href: str) -> Optional[m.DER]:
         return self._der.get(href)
+    
+    def get_der_list(self, href: Optional[str] = None) -> m.DERList:
+        if href is None:
+            href = self.enddevice.DERListLink.href
+        resp = self.__get_request__(href)
+        return self._der_map.get(href)
 
     def put_der_availability(self, der_href: str, new_availability: m.DERAvailability) -> int:
         resp = self.__put__(der_href, dataclass_to_xml(new_availability))
         return resp.status
 
-    def put_der_capability(self, der_href: str, new_capability: m.DERCapability) -> int:
-        resp = self.__put__(der_href, dataclass_to_xml(new_capability))
+    def put_der_capability(self, new_capability: m.DERCapability) -> int:
+        resp = self.__put__(list(self._der.values())[0].DERCapabilityLink, dataclass_to_xml(new_capability))
         return resp.status
 
-    def put_der_settings(self, der_href: str, new_settings: m.DERSettings) -> int:
-        resp = self.__put__(der_href, dataclass_to_xml(new_settings))
+    def put_der_settings(self, new_settings: m.DERSettings) -> int:
+        resp = self.__put__(list(self._der.values())[0].DERSettingsLink.href, dataclass_to_xml(new_settings))
         return resp.status
 
-    def put_der_status(self, der_href: str, new_status: m.DERStatus) -> int:
-        resp = self.__put__(der_href, dataclass_to_xml(new_status))
+    def put_der_status(self, new_status: m.DERStatus) -> int:
+        resp = self.__put__(list(self._der.values())[0].DERStatusLink.href, dataclass_to_xml(new_status))
         return resp.status
 
     def _update_dcap_tree(self, endpoint: Optional[str] = None):
@@ -293,7 +300,7 @@ class IEEE_2030_5_Client:
 
             self._update_list(dcap.EndDeviceListLink.href, "EndDevice", self._end_device_map,
                               self._end_devices)
-
+            
             for ed in self._end_devices.values():
 
                 if not self.is_end_device_registered(ed, self._pin):
@@ -441,10 +448,6 @@ class IEEE_2030_5_Client:
     def get_enddevices(self) -> m.EndDeviceList:
         return self.__get_request__(self._device_cap.EndDeviceListLink.href)
 
-    # def end_devices(self) -> m.EndDeviceList:
-    #     self._end_devices = self.__get_request__(self._device_cap.EndDeviceListLink.href)
-    #     return self._end_devices
-
     def end_device(self, index: Optional[int] = 0) -> m.EndDevice:
         if not self._end_devices:
             self.end_devices()
@@ -557,8 +560,9 @@ class IEEE_2030_5_Client:
 
         if self._debug:
             _log_req_resp.debug(f"----> PUT REQUEST\nurl: {url}\nbody: {data}")
-
+              
         self.http_conn.request(method="PUT", headers=headers, url=url, body=data)
+            
         response = self._http_conn.getresponse()
         return response
 
@@ -568,7 +572,7 @@ class IEEE_2030_5_Client:
 
         if self._debug:
             _log_req_resp.debug(f"----> POST REQUEST\nurl: {url}\nbody: {data}")
-
+        
         self.http_conn.request(method="POST", headers=headers, url=url, body=data)
         response = self._http_conn.getresponse()
         response_data = response.read().decode("utf-8")

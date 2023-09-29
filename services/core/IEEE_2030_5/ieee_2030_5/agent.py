@@ -12,13 +12,14 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 from __future__ import annotations
+from dataclasses import dataclass, field
 
 import logging
 import sys
 from datetime import datetime
 from pathlib import Path
 from pprint import pformat
-from typing import Dict
+from typing import Any, Dict, List
 
 import ieee_2030_5.models as m
 from ieee_2030_5 import AllPoints
@@ -45,6 +46,70 @@ utils.setup_logging()
 # The logger for this agent is _log and can be used throughout this file.
 _log = logging.getLogger(__name__)
 
+# These items are global for the agent and will periodically be
+# sent to the 2030.5 server based upon the post interval.
+DER_SETTINGS = m.DERSettings()
+DER_CAPABILITIES = m.DERCapability()
+# This is used for default control and control events.
+DER_CONTROL_BASE = m.DERControlBase()
+# Used for sending status message to the 2030.5 server.
+DER_STATUS = m.DERStatus()
+
+
+@dataclass
+class MappedPoint:
+
+    point_on_bus: str
+    description: str
+    multiplier: int
+    mrid: str
+    writable: bool
+    parameter_type: str
+    notes: str
+    parent_object: object = None
+    parameter: str = None
+    value_2030_5: Any = None
+    changed: bool = False
+
+    def reset_changed(self):
+        self.changed = False
+
+    def set_value(self, value: Any):
+        current_value = getattr(self.parent_object, self.parameter)
+        if value != current_value:
+            setattr(self.parent_object, self.parameter, value)
+            self.changed = True
+
+    def __post_init__(self):
+        params = self.parameter_type.split("::")
+
+        # Only if we have a proper object specifier that we know about
+        if len(params) == 2:
+            if params[0] == 'DERSettings':
+                self.parent_object = DER_SETTINGS
+            elif params[0] == 'DERCapability':
+                self.parent_object = DER_CAPABILITIES
+            elif params[0] == 'DERControlBase':
+                self.parent_object = DER_CONTROL_BASE
+            elif params[0] == 'DERStatus':
+                self.parent_object = DER_STATUS
+
+            assert self.parent_object is not None, f"The parent object type {params[0]} is not known, please check spelling in configuration file."
+            assert hasattr(
+                self.parent_object, params[1]
+            ), f"{params[0]} does not have property {params[1]}, please check spelling in configuration file."
+            self.parameter = params[1]
+
+    @staticmethod
+    def build_from_csv(data: Dict[str, str]) -> MappedPoint:
+        return MappedPoint(point_on_bus=data['Point Name'],
+                           description=data['Description'],
+                           multiplier=data['Multiplier'],
+                           mrid=data['MRID'],
+                           writable=data['Writeable'],
+                           parameter_type=data['Parameter Type'],
+                           notes=data['Notes'])
+
 
 class IEEE_2030_5_Agent(Agent):
     """
@@ -70,9 +135,12 @@ class IEEE_2030_5_Agent(Agent):
         self._der_capabilities_info = config.get("DERCapability")
         self._der_settings_info = config.get("DERSettings")
         self._der_status_info = config.get("DERStatus")
+        #self._point_map = config.get("point_map")
+        self._mapped_points: Dict[str, MappedPoint] = {}
         self._default_config = {
             "subscriptions": self._subscriptions,
-            "MirrorUsagePointList": self._mirror_usage_point_list
+            "MirrorUsagePointList": self._mirror_usage_point_list,
+            "point_map": config.get("point_map")
         }
         self._server_usage_points: m.UsagePointList
 
@@ -95,6 +163,8 @@ class IEEE_2030_5_Agent(Agent):
             sys.exit(1)
         _log.info(self._client.enddevice)
         assert self._client.enddevice
+        ed = self._client.enddevice
+        self._client.get_der_list()
         self._point_to_reading_set: Dict[str, str] = {}
         self._mirror_usage_points: Dict[str, m.MirrorUsagePoint] = {}
         self._mup_readings: Dict[str, m.MirrorMeterReading] = {}
@@ -140,12 +210,29 @@ class IEEE_2030_5_Agent(Agent):
         Called after the Agent has connected to the message bus. If a configuration exists at startup
         this will be called before onstart.
 
-        Is called every time the configuration in the store changes.
+        It is called every time the configuration in the store changes for this agent.
         """
         config = self._default_config.copy()
         config.update(contents)
 
-        _log.debug("Configuring Agent")
+        if not config.get('point_map'):
+            raise ValueError(
+                "Must have point_map specified in config store or referenced to a config store entry!"
+            )
+        # Only deal with points that have both on bus point and
+        # a 2030.5 parameter type
+        for item in config['point_map']:
+            if item.get('Point Name').strip() and item.get('Parameter Type').strip():
+                if 'DERSettings' in item['Parameter Type'] or \
+                    'DERCapability' in item['Parameter Type'] or \
+                        'DERStatus' in item['Parameter Type']:
+                    point = MappedPoint.build_from_csv(item)
+                    self._mapped_points[point.point_on_bus] = point
+                    self._mapped_points[point.parameter_type] = point
+                else:
+                    _log.debug(
+                        f"Skipping {item['Point Name']} because it does not have a valid Parameter Type"
+                    )
 
         try:
             subscriptions = config['subscriptions']
@@ -210,6 +297,29 @@ class IEEE_2030_5_Agent(Agent):
         """
         _log.debug(f"DATA Received from {sender}")
         points = AllPoints.frombus(message)
+
+        publish_object_update = []
+        for pt in points.points:
+            mapped_point = self._mapped_points.get(pt)
+            if mapped_point:
+                mapped_point.set_value(points.points[pt])
+                # Only if the new value was different than the old value.
+                if mapped_point.changed:
+                    if mapped_point.parent_object.__class__ not in [
+                            o.__class__ for o in publish_object_update
+                    ]:
+                        publish_object_update.append(mapped_point.parent_object)
+
+        for obj in publish_object_update:
+            if isinstance(obj, m.DERSettings):
+                self._client.put_der_settings(obj)
+            elif isinstance(obj, m.DERCapability):
+                self._client.put_der_capability(obj)
+            elif isinstance(obj, m.DERStatus):
+                self._client.put_der_status(obj)
+
+        for mp in self._mapped_points.values():
+            mp.reset_changed()
 
         for index, pt in enumerate(self._mirror_usage_point_list):
             if pt["subscription_point"] in points.points:
