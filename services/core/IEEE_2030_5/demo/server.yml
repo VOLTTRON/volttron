@@ -1,8 +1,7 @@
 ---
 server: 127.0.0.1
-# Only include if we need to have dcap be available
-# http_port: 8080
-https_port: 8443
+port: 8443
+
 
 tls_repository: "~/tls"
 openssl_cnf: "openssl.cnf"
@@ -28,7 +27,13 @@ generate_admin_cert: True
 log_event_list_poll_rate: 60
 device_capability_poll_rate: 60
 usage_point_post_rate: 60
-# derp_poll_rate: 10
+
+# Reset storage so no memory when server restarts.
+cleanse_storage: true
+
+# Directory containing data files for the platform.
+# This directory will be created if it does not exist.
+storage_path: data_store
 
 # End Device
 devices:
@@ -37,50 +42,65 @@ devices:
     # DeviceCategoryType from ieee_2030_5.models.device_category
     deviceCategory: FUEL_CELL
     pin: 111115
-
-    programs:
-      - description: Program 1
-
-    # nameplate:
-    #   rtgMaxW: 6000
+    fsas:
+      - fsa1
+      - fsa2
     ders:
-      - capabilities:
-        modesSupported: "1110000000000000"
-        type: 83
+      - der1
+    programs:
+      - Program 1
+
+  - id: dev2
+    deviceCategory: FUEL_CELL
+    pin: 111111
+    fsas:
+      - fsa2
+    ders:
+      - der2
+
+
+fsa:
+  - description: fsa1
+  - description: fsa2
+    programs:
+    - Program 1
+  
+
 
 programs:
   - description: Program 1
-    default_control: Control 1
-    curves:
-      - Curve 1
-    primacy: 89
+    DefaultDERControl:
+      setESDelay: 30
+      setGradW: 1000
+      
+      DERControlBase:
+        opModConnect: true
+        opModMaxLimW: 9500  
+    
+    DERControls:
+      - description: Control 1
+        DERControlBase:
+          opModConnect: true
+          opModMaxLimW: 9500
+      - description: Control 2
+        DERControlBase:
+          opModConnect: true
+          opModFixedW: 80
 
-  # - description: Program 2
-  #   default_control: Control 2
-  # - description: Program 3
-  #   default_control: Control 2
+    
 
-controls:
-  - description: Control 1
-    setESDelay: 30
-    base:
-      opModConnect: True
-      opModMaxLimW: 9500
-
-events:
-  - control: 0
+ders:
+  - description: der1
+    capabilities:
+    modesSupported: "1110000000000000"
+    type: 83
+    program: Program 1
 
 curves:
   - description: Curve 1
     curveType: opModVoltVar
     CurveData:
       - xvalue: 5
-        yvalue: 5
+        yvalue: 10
 
-  - description: Curve 2
-    curveType: opModFreqWatt
-    CurveData:
-      # exitation is only available if yvalue is power factor
-      - exitation: 10
-        xvalue: 5
-        yvalue: 5
+
