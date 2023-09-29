@@ -177,9 +177,7 @@ class Interface(BasicRevert, BaseInterface):
                         result[register.point_name] = attribute
                 # handling light states
                 elif "light." in entity_id:
-                    print(register.point_name)
                     state = entity_data.get("state", None)
-                    print(state)
                     if register.point_name == "state":
                         state = entity_data.get("state", None)
                         # Converting light states to numbers. 
@@ -205,7 +203,7 @@ class Interface(BasicRevert, BaseInterface):
                         register.value = attribute
                         result[register.point_name] = attribute
             except Exception as e:
-                print(f"An unexpected error occurred for entity_id: {entity_id}: {e}")
+                _log.error(f"An unexpected error occurred for entity_id: {entity_id}: {e}")
 
         return result
 
