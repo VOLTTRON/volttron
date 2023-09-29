@@ -3,3 +3,4 @@ nicegui
 requests
 xsdata
 blinker
+plotly
