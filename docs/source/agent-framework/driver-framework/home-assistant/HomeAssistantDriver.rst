@@ -26,7 +26,8 @@ Clone the repository, install the listener agent, and the platform driver agent.
 - `Listener agent <https://volttron.readthedocs.io/en/main/introduction/platform-install.html#installing-and-running-agents>`_
 - `Platform driver agent <https://volttron.readthedocs.io/en/main/agent-framework/core-service-agents/platform-driver/platform-driver-agent.html?highlight=platform%20driver%20isntall#configuring-the-platform-driver>`_
 
-After cloning, populate your configuration file, and registry file. Each device requires one configuration file and one registry file. Ensure your registry_config links to your device's registry file from the config store. Examples for lights and thermostats are provided below.
+After cloning, populate your configuration file, and registry file. Each device requires one configuration file and one registry file. Ensure your registry_config links to your device's registry file from the config store. Examples for lights and thermostats are provided below. Be sure to include the full entity id, including but not limited to "light." and "climate.".
+The driver uses these prefixes to convert states into integers. Like mentioned before, the driver can only control lights and thermostats.
 
 Lights
 ------
