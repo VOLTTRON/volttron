@@ -1,8 +1,8 @@
 # required parameters
-cacertfile: ~/tls/certs/ca.pem
+cacertfile: ~/tls/certs/ca.crt
 keyfile: ~/tls/private/dev1.pem
-certfile: ~/tls/certs/dev1.pem
-server_hostname: localhost
+certfile: ~/tls/certs/dev1.crt
+server_hostname: 127.0.0.1
 # the pin number is used to verify the server is the correct server
 pin: 12345
 
@@ -54,3 +54,29 @@ MirrorUsagePointList:
 # 2030.5 server.
 subscriptions:
   - devices/inverter1/all
+
+# Nameplate ratings for this der client will be put to the
+# server during startup of the system.
+DERCapability:
+  # modesSupported is a HexBinary31 representation of DERControlType
+  # See Figure B.34 DER info types for information
+  # conversion in python is as follows
+  #   "{0:08b}".format(int("500040", 16))
+  #   '10100000000000001000000'  # This is a bitmask
+  # to generate HexBinary
+  #   hex(int('10100000000000001000000', 2))
+  #   0x500040
+  modesSupported: 500040
+  rtgMaxW:
+    multiplier: 0
+    value: 0
+  type: 0
+
+DERSettings:
+  modesEnabled: 100000
+  setGradW: 0
+  setMaxW:
+    multiplier: 0
+    value: 0
+
+point_map: config:///inverter_sample.csv
