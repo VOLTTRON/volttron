@@ -13,7 +13,12 @@ from volttron.platform.vip.agent.results import AsyncResult
 from volttron.platform.vip.agent.subsystems.query import Query
 from volttrontesting.utils.utils import AgentMock
 from time import sleep
-from volttrontesting.platform.test_instance_setup import create_vcfg_vhome
+
+from volttron.platform import is_rabbitmq_available
+if is_rabbitmq_available():
+    from volttrontesting.platform.test_instance_setup import create_vcfg_vhome
+else:
+    pytest.skip("Pika is not installed", allow_module_level=True)
 
 
 class QueryHelper:
