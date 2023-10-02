@@ -55,9 +55,15 @@ utils.setup_logging()
 logger = logging.getLogger(__name__)
 
 HOMEASSISTANT_DEVICE_TOPIC = "devices/home_assistant"
-HOMEASSISTANT_TEST_IP = "your IP"
-ACCESS_TOKEN = "Your Access token"
-PORT = "PORT"
+HOMEASSISTANT_TEST_IP = "YOUR IP"
+ACCESS_TOKEN = "YOU ACCESS TOKEN"
+PORT = "YOUR IP"
+
+def test_get_point(volttron_instance, config_store):
+    expected_values = "off"
+    agent = volttron_instance.dynamic_agent
+    result = agent.vip.rpc.call(PLATFORM_DRIVER, 'get_point', 'home_assistant', 'state').get(timeout=20)
+    assert result == expected_values, "The result does not match the expected result."
 
 # The default value for this fake light is 3. If the test cannot reach out to home assistant,
 # the value will default to 3 meking the test fail. 
