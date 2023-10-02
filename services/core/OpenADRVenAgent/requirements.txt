@@ -1,2 +1,2 @@
-openleadr==0.5.27
+openleadr==0.5.30
 cryptography==37.0.4

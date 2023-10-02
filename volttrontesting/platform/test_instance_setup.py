@@ -8,12 +8,14 @@ from volttron.platform import is_rabbitmq_available
 from volttron.platform.instance_setup import _is_agent_installed
 from volttron.utils import get_hostname
 from volttron.platform.agent.utils import is_volttron_running
-from volttrontesting.fixtures.rmq_test_setup import create_rmq_volttron_setup
 from volttrontesting.utils.platformwrapper import create_volttron_home
 from volttrontesting.utils.utils import get_rand_port
 
 HAS_RMQ = is_rabbitmq_available()
 RMQ_TIMEOUT = 600
+
+if HAS_RMQ:
+    from volttrontesting.fixtures.rmq_test_setup import create_rmq_volttron_setup
 
 '''
 Example variables to be used during each of the tests, depending on the prompts that will be asked
