@@ -112,7 +112,7 @@ config_working = Configuration()
 session = requests.Session()
 # A file to watch for updates to output from the agent connected to volttron
 # the "watch_devices_to_file.py" output.
-watch_file = WatchFileState(sys.argv[1], interval=3)
+#watch_file = WatchFileState(sys.argv[1], interval=3)
 program_list = []
 
 admin_session = requests.Session()
@@ -200,6 +200,16 @@ ders: m.DERList = get_from_server(edev.DERListLink.href, deserialize=True)
 der = ders.DER[0]
 program: m.DERProgram = get_from_server(der.CurrentDERProgramLink.href, deserialize=True)
 
+# def update_from_server():
+#     dcap: m.DeviceCapability = get_from_server("dcap", deserialize=True)
+#     edl: m.EndDeviceList = get_from_server(dcap.EndDeviceListLink.href, deserialize=True)
+#     edev = edl.EndDevice[0]
+#     ders: m.DERList = get_from_server(edev.DERListLink.href, deserialize=True)
+#     der = ders.DER[0]
+#     program: m.DERProgram = get_from_server(der.CurrentDERProgramLink.href, deserialize=True)
+    
+
+
 def noneable_int_change(obj: object, prop: str, value):
     if value.sender.value == "" or value.sender.value is None:
         setattr(obj, prop, None)
@@ -260,6 +270,77 @@ def render_der_default_control_tab():
     with ui.row().classes("pt-10"):
         with ui.column():
             ui.button("Save", on_click=lambda: store_default_der_control())
+    
+@ui.refreshable
+def render_der_status_tab():
+    
+    def do_refresh():
+        render_der_status_tab.refresh()
+        ui.notify("Refreshed")        
+    
+    settings: m.DERSettings = get_from_server(der.DERSettingsLink.href, deserialize=True)
+    status: m.DERStatus = get_from_server(der.DERStatusLink.href, deserialize=True)
+    capabilities: m.DERCapability = get_from_server(der.DERCapabilityLink.href, deserialize=True)
+    with ui.row():
+        with ui.label("DER Status").style("font-size: 200%;"):
+            ui.button(icon="refresh", color="white", 
+                      on_click=lambda: do_refresh()).style("margin:5px; padding: 5px;")
+            # ui.icon("refresh", size="sm").style("cursor: pointer; vertical-align: center; padding-left: 5px;") \
+            #     .on_click(lambda: render_der_status_tab.refresh()) 
+    with ui.row():
+        with ui.column():            
+            ui.label("Section 10.10.4.4 DER info resources from 20305-2018 IEEE standard.")
+    
+    columns = [
+        {'name': 'key', 'label': 'Key', 'field': 'key', 'required': True},
+        {'name': 'value', 'label': 'Value', 'field': 'value', 'required': True}
+    ]
+    
+    rows = []
+    
+    for fld in fields(status):
+        if getattr(status, fld.name):
+            rows.append(dict(key=fld.name, value=str(getattr(status, fld.name))))
+    
+    with ui.row():
+        with ui.column():
+            ui.label("DER Status").style("font-size: 150%;")
+    
+    with ui.row():
+        with ui.column():
+            ui.table(columns=columns, rows=rows)
+               
+    
+    rows = []   
+    
+    for fld in fields(settings):
+        if getattr(settings, fld.name):
+            rows.append(dict(key=fld.name, value=getattr(settings, fld.name)))
+    
+    with ui.row():
+        with ui.column():
+            ui.label("DER Settings").style("font-size: 150%;")
+    
+    with ui.row():
+        with ui.column():
+            ui.table(columns=columns, rows=rows)
+    
+        
+    rows = []   
+    
+    for fld in fields(capabilities):
+        if getattr(capabilities, fld.name):
+            rows.append(dict(key=fld.name, value=getattr(capabilities, fld.name)))
+    
+    with ui.row():
+        with ui.column():
+            ui.label("DER Capabilities").style("font-size: 150%;")
+    
+    with ui.row():
+        with ui.column():
+            ui.table(columns=columns, rows=rows)
+        
+    
     
     
 @ui.refreshable
@@ -416,6 +497,7 @@ with ui.tabs().classes('w-full') as tabs:
     der_default_control_tab = ui.tab("derdefaultcontrol", "DER Default Control")
     new_der_control_tab = ui.tab("newdercontrol", "New DER Control")
     der_control_list_tab = ui.tab("dercontrollist", "DER Control List")
+    der_status_tab = ui.tab("derstatus", "DER Status")
     results_tab = ui.tab("results", "Results")
 line_plot = None
 with ui.tab_panels(tabs, value=configuration_tab).classes("w-full"):
@@ -441,27 +523,15 @@ with ui.tab_panels(tabs, value=configuration_tab).classes("w-full"):
     with ui.tab_panel(der_control_list_tab):
         render_der_control_list_tab()
         
-
-def watch_for_file():
-    if not watch_file.in_routing:
-        watch_file.in_routing = True
-        if watch_file.check_file():
-            with open(watch_file.path) as rd:
-                for line in rd.read().split("\n"):
-                    if line.strip():
-                        data = json.loads(line.strip())
-                        from volttron.platform.messaging.headers import TIMESTAMP
-                        ts = data["headers"][TIMESTAMP]
-                        #data_plot.add_publish(parse_timestamp_string(ts), data['message'])
-                        
-        watch_file.remove()
-        watch_file.in_routing = False
-    
-
+    with ui.tab_panel(der_status_tab):
+        render_der_status_tab()
+        
 
 logging.basicConfig(level=logging.DEBUG)
+
+# ui.timer(10, update_from_server)
 #ui.timer(watch_file.interval, watch_for_file)
-ui.run(reload=True, show=False)
+ui.run(reload=True, show=False,  uvicorn_reload_dirs='services/core/IEEE_2030_5/demo')
 #ui.run(reload=True, uvicorn_reload_dirs='services/core/IEEE_2030_5/demo')
 
 # session = requests.Session()

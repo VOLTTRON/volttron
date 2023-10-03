@@ -91,9 +91,9 @@ programs:
 
 ders:
   - description: der1
-    capabilities:
-    modesSupported: "1110000000000000"
-    type: 83
+    program: Program 1
+
+  - description: der2
     program: Program 1
 
 curves:

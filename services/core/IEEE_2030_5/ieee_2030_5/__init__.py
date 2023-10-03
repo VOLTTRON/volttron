@@ -51,6 +51,9 @@ class AllPoints:
     def add(self, name: str, value: Any, meta: Dict = {}):
         self.points[name] = value
         self.meta[name] = meta
+        
+    def get(self, name: str) -> Any:
+        return self.points[name]
 
     def forbus(self) -> List:
         return [self.points, self.meta]

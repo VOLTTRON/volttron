@@ -176,11 +176,17 @@ class IEEE_2030_5_Client:
 
         self._der_control_event_started_signal = Signal('der-control-event-started')
         self._der_control_event_ended_signal = Signal('der-control-event-ended')
+        
+        self._default_control_changed = Signal("default-control-changed")
+        self._active_controls_changed_signal = Signal("active-controls-changed")
 
         self._before_event_start_signal = Signal('before-event-start')
         self._after_event_end_signal = Signal('after-event-end')
 
         self._dcap_endpoint = device_capabilities_endpoint
+        
+        self._der_default_control: m.DefaultDERControl = m.DefaultDERControl()
+        self._der_active_controls: m.DERControlList = m.DERControlList()
 
         self._lock = Semaphore()
 
@@ -205,6 +211,12 @@ class IEEE_2030_5_Client:
                 ts.trigger(timestamp)
             self._lock.release()
 
+    def der_active_controls_changed(self, fun: Callable):
+        self._active_controls_changed_signal.connect(fun)
+    
+    def der_default_control_changed(self, fun: Callable):
+        self._default_control_changed.connect(fun)
+    
     def der_control_event_started(self, fun: Callable):
         self._der_control_event_started_signal.connect(fun)
 
@@ -260,6 +272,10 @@ class IEEE_2030_5_Client:
         return resp.status
 
     def put_der_status(self, new_status: m.DERStatus) -> int:
+        if not isinstance(new_status.operationalModeStatus, m.OperationalModeStatusType):
+            new_status.operationalModeStatus = m.OperationalModeStatusType(self.server_time,
+                                                                           value=new_status.operationalModeStatus)
+            
         resp = self.__put__(list(self._der.values())[0].DERStatusLink.href, dataclass_to_xml(new_status))
         return resp.status
 
@@ -313,27 +329,38 @@ class IEEE_2030_5_Client:
                     self._der_map[derlist.href] = derlist
                     for index, der in enumerate(derlist.DER):
                         self._der[der.href] = der
+                    if derlist.DER[0].CurrentDERProgramLink:
+                        program: m.DERProgram = self.__get_request__(derlist.DER[0].CurrentDERProgramLink.href)
+                    active: m.DERControlList = self.__get_request__(program.ActiveDERControlListLink.href)
+                    default = self.__get_request__(program.DefaultDERControlLink.href)
+                    active_is_different = False
+                    if len(active.DERControl) == len(self._der_active_controls.DERControl):
+                        for index, der in enumerate(active.DERControl):
+                            if der != self._der_active_controls.DERControl[index]:
+                                active_is_different = True
+                                break
+                    else:
+                        active_is_different = True
+                    if active_is_different:
+                        self._der_active_controls = active
+                        self._active_controls_changed_signal.send(self._der_active_controls)
+                        
+                    if default != self._der_default_control:
+                        self._der_default_control = default
+                        self._default_control_changed.send(default)
+                        
+                        
+                    
 
             for fsa in self._fsa.values():
                 if fsa.DERProgramListLink:
                     self._der_program_map[fsa.DERProgramListLink.href] = self.__get_request__(
                         fsa.DERProgramListLink.href)
-
+                    program = self._der_program_map[fsa.DERProgramListLink.href]
+                    
         if dcap.MirrorUsagePointListLink is not None and dcap.MirrorUsagePointListLink.href:
-            print(self._mirror_usage_point)
-            print(self._mirror_usage_point_map)
-            print(id(self._mirror_usage_point))
-            print(id(self._mirror_usage_point_map))
             self._update_list(dcap.MirrorUsagePointListLink.href, "MirrorUsagePoint",
                               self._mirror_usage_point_map, self._mirror_usage_point)
-            print(id(self._mirror_usage_point))
-            print(id(self._mirror_usage_point_map))
-            # for mup in self._mirror_usage_point.values():
-            #     if mup.postRate is not None:
-            #         self._update_timer_spec(mup.href, mup.postRate, self.m._mi)
-
-        # if dcap.UsagePointListLink is not None and dcap.UsagePointListLink.href:
-        #     self._update_list(dcap.UsagePointListLink.href, "UsagePoint", self._usage_point_map, self._usage_point)
 
         self._dcap = dcap
 
@@ -389,9 +416,6 @@ class IEEE_2030_5_Client:
         else:
             self._dcap_poll_rate = 600
 
-        _log.debug(f"devcap id {id(self._device_cap)}")
-        _log.debug(threading.currentThread().name)
-        _log.debug(f"DCAP: Poll rate: {self._dcap_poll_rate}")
         self._dcap_timer = Timer(self._dcap_poll_rate, self.poll_timer,
                                  (self.device_capability, url))
         self._dcap_timer.start()
@@ -624,17 +648,7 @@ def __release_clients__():
 
 atexit.register(__release_clients__)
 
-#
-# ssl_context = ssl.create_default_context(cafile=str(SERVER_CA_CERT))
-#
-#
-# con = HTTPSConnection("me.com", 8000,
-#                       key_file=str(KEY_FILE),
-#                       cert_file=str(CERT_FILE),
-#                       context=ssl_context)
-# con.request("GET", "/dcap")
-# print(con.getresponse().read())
-# con.close()
+
 
 if __name__ == '__main__':
     SERVER_CA_CERT = Path("~/tls/certs/ca.crt").expanduser().resolve()
