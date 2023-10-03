@@ -6,7 +6,7 @@ import time
 from struct import pack, unpack
 
 from volttron.platform import get_services_core, jsonapi
-from volttrontesting.utils.utils import get_rand_ip_and_port
+from volttrontesting.utils.utils import get_rand_ip_and_port, is_running_in_container
 from platform_driver.interfaces.modbus_tk.server import Server
 from platform_driver.interfaces.modbus_tk.maps import Map, Catalog
 from volttron.platform.agent.known_identities import PLATFORM_DRIVER
@@ -387,7 +387,7 @@ class TestModbusTKDriver:
         return agent.vip.rpc.call(PLATFORM_DRIVER, 'scrape_all', device_name)\
             .get(timeout=10)
 
-    @pytest.mark.xfail('Fails to set points, only on this test device. Further investigation required.')
+    @pytest.mark.xfail(is_running_in_container(), reason='Fails to set points on this test setup, only in Docker.')
     def test_scrape_all(self, agent):
         for key in registers_dict.keys():
             self.set_point(agent, 'modbus_tk', key, registers_dict[key])
