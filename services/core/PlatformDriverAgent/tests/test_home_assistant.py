@@ -59,7 +59,7 @@ HOMEASSISTANT_TEST_IP = "YOUR IP"
 ACCESS_TOKEN = "YOUR ACCESS TOKEN"
 PORT = "YOUR PORT"
 
-# Get the point which will should be off.
+# Get the point which will should be off
 def test_get_point(volttron_instance, config_store):
     expected_values = "off"
     agent = volttron_instance.dynamic_agent
