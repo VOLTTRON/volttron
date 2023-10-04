@@ -118,8 +118,10 @@ You can deactivate the environment at any time by running `deactivate`.
 ###### Install Erlang pre-requisites
 ```shell
 sudo apt-get update
-sudo apt-get install -y gnupg apt-transport-https libsctp1 
+sudo apt-get install -y gnupg apt-transport-https libsctp1 libncurses5
 ```
+Please note there could be other pre-requisites that erlang requires based on the version of Erlang and OS. If there are other pre-requisites required, 
+install of erlang should fail with appropriate error message. 
 
 ###### Purge previous versions of Erlang
 ```shell
