@@ -198,7 +198,9 @@ Install Erlang pre-requisites
 +++++++++++++++++++++++++++++
 .. code-block:: bash
     sudo apt-get update
-    sudo apt-get install -y gnupg apt-transport-https libsctp1
+    sudo apt-get install -y gnupg apt-transport-https libsctp1 libncurses5
+
+Please note there could be other pre-requisites that erlang requires based on the version of Erlang and OS. If there are other pre-requisites required, install of erlang should fail with appropriate error message.
 
 Purge previous versions of Erlang
 +++++++++++++++++++++++++++++++++
