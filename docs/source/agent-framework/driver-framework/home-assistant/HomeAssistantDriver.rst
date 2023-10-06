@@ -84,7 +84,7 @@ For thermostats, the state is converted into numbers as follows: "1: Off, 2: hea
            "Entity ID": "climate.my_thermostat",
            "Volttron Point Name": "state",
            "Units": "Enumeration",
-           "Units Details": "1: Off, 2: heat, 3: Cool, 4: Auto",
+           "Units Details": "0: Off, 2: heat, 3: Cool, 4: Auto",
            "Writable": true,
            "Starting Value": 1,
            "Type": "int",
