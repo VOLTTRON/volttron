@@ -116,9 +116,14 @@ class Interface(BasicRevert, BaseInterface):
 
                 elif register.value == 0:
                     self.turn_off_lights(register.entity_id)
+                else:
+                    _log.error(f"Unexpected state value {register.value} for {register.entity_id}")
 
             elif point_name == "brightness":
-                self.change_brightness(register.entity_id, register.value)
+                if 0 <= register.value <= 255:
+                    self.change_brightness(register.entity_id, register.value)
+            else:
+                _log.error(f"Unexpected point_name {point_name} for register {register.entity_id}")
                 
         # Changing thermostat values. 
         elif "climate." in register.entity_id:
