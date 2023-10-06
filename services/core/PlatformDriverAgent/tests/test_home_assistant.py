@@ -54,11 +54,19 @@ from volttrontesting.utils.platformwrapper import PlatformWrapper
 utils.setup_logging()
 logger = logging.getLogger(__name__)
 
-HOMEASSISTANT_DEVICE_TOPIC = "devices/home_assistant"
-HOMEASSISTANT_TEST_IP = "YOUR IP"
-ACCESS_TOKEN = "YOUR ACCESS TOKEN"
-PORT = "YOUR PORT"
+HOMEASSISTANT_TEST_IP = ""
+ACCESS_TOKEN = ""
+PORT = ""
 
+skip_msg = "Some configuration variables are not set. Check HOMEASSISTANT_TEST_IP, ACCESS_TOKEN, and PORT"
+
+# Skip tests if variables are not set
+pytestmark = pytest.mark.skipif(
+    not (HOMEASSISTANT_TEST_IP and ACCESS_TOKEN and PORT),
+    reason=skip_msg
+)
+
+HOMEASSISTANT_DEVICE_TOPIC = "devices/home_assistant"
 # Get the point which will should be off
 def test_get_point(volttron_instance, config_store):
     expected_values = "off"
