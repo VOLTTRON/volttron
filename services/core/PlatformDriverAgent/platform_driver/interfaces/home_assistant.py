@@ -116,12 +116,10 @@ class Interface(BasicRevert, BaseInterface):
                         self.turn_on_lights(register.entity_id)
                     elif register.value == 0:
                         self.turn_off_lights(register.entity_id)
-                    else:
-                        error_msg = f"Unexpected state value {register.value} for {register.entity_id}"
-                        _log.error(error_msg)
-                        raise ValueError(error_msg)
                 else:
                     error_msg = f"State value for {register.entity_id} should be an integer value of 1 or 0"
+                    _log.info(error_msg)
+                    raise ValueError(error_msg)
             
             elif point_name == "brightness":
                 if isinstance(register.value, int) and 0 <= register.value <= 255: # Make sure its int and within range
@@ -147,19 +145,21 @@ class Interface(BasicRevert, BaseInterface):
                         self.change_thermostat_mode(entity_id=register.entity_id, mode="cool")
                     elif register.value == 4:
                         self.change_thermostat_mode(entity_id=register.entity_id, mode="auto")
-                    else:
-                        error_msg = f"{register.value} is not a supported thermostat mode. (0: Off, 2: heat, 3: Cool, 4: Auto)"
-                        _log.error(error_msg)
-                        raise ValueError(error_msg)
                 else:
                     error_msg = f"Climate state should be an integer value of 0, 2, 3, or 4"
+                    _log.error(error_msg)
+                    raise ValueError(error_msg)
             elif point_name == "temperature":
-                if 20 <= register.value <= 100:
+                if isinstance(register.value, int) and 20 <= register.value <= 100:
                     self.set_thermostat_temperature(entity_id=register.entity_id, temperature=register.value)
                 else:
-                    error_msg = f""
+                    error_msg = f"Temperature must be an integer between 20 and 100 for {register.entity_id}"
+                    _log.info(error_msg)
+                    ValueError(error_msg)
         else:
-            pass
+            error_msg = f"Unsupported entity_id: {register.entity_id}"
+            _log.error(error_msg)
+            raise ValueError(error_msg)
         return register.value
     
     def get_entity_data(self, point_name):
