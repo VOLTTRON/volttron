@@ -111,16 +111,18 @@ class Interface(BasicRevert, BaseInterface):
         # Changing lights values in home assistant based off of register value. 
         if "light." in register.entity_id:
             if point_name == "state":
-                if register.value == 1:
-                    self.turn_on_lights(register.entity_id)
-
-                elif register.value == 0:
-                    self.turn_off_lights(register.entity_id)
+                if isinstance(register.value, int) and register.value in [0, 1]:
+                    if register.value == 1:
+                        self.turn_on_lights(register.entity_id)
+                    elif register.value == 0:
+                        self.turn_off_lights(register.entity_id)
+                    else:
+                        error_msg = f"Unexpected state value {register.value} for {register.entity_id}"
+                        _log.error(error_msg)
+                        raise ValueError(error_msg)
                 else:
-                    error_msg = f"Unexpected state value {register.value} for {register.entity_id}"
-                    _log.error(error_msg)
-                    raise ValueError(error_msg)
-
+                    error_msg = f"State value for {register.entity_id} should be an integer value of 1 or 0"
+            
             elif point_name == "brightness":
                 if isinstance(register.value, int) and 0 <= register.value <= 255: # Make sure its int and within range
                     self.change_brightness(register.entity_id, register.value)
@@ -136,18 +138,21 @@ class Interface(BasicRevert, BaseInterface):
         # Changing thermostat values. 
         elif "climate." in register.entity_id:
             if point_name == "state":
-                if register.value == 0:
-                    self.change_thermostat_mode(entity_id=register.entity_id, mode="off")
-                elif register.value == 2:
-                    self.change_thermostat_mode(entity_id=register.entity_id, mode="heat")
-                elif register.value == 3:
-                    self.change_thermostat_mode(entity_id=register.entity_id, mode="cool")
-                elif register.value == 4:
-                    self.change_thermostat_mode(entity_id=register.entity_id, mode="auto")
+                if isinstance(register.value, int) and register.value in [0, 2, 3, 4]:
+                    if register.value == 0:
+                        self.change_thermostat_mode(entity_id=register.entity_id, mode="off")
+                    elif register.value == 2:
+                        self.change_thermostat_mode(entity_id=register.entity_id, mode="heat")
+                    elif register.value == 3:
+                        self.change_thermostat_mode(entity_id=register.entity_id, mode="cool")
+                    elif register.value == 4:
+                        self.change_thermostat_mode(entity_id=register.entity_id, mode="auto")
+                    else:
+                        error_msg = f"{register.value} is not a supported thermostat mode. (0: Off, 2: heat, 3: Cool, 4: Auto)"
+                        _log.error(error_msg)
+                        raise ValueError(error_msg)
                 else:
-                    error_msg = f"{register.value} is not a supported thermostat mode. (1: Off, 2: heat, 3: Cool, 4: Auto)"
-                    _log.error(error_msg)
-                    raise ValueError(error_msg)
+                    error_msg = f"Climate state should be an integer value of 0, 2, 3, or 4"
             elif point_name == "temperature":
                 if 20 <= register.value <= 100:
                     self.set_thermostat_temperature(entity_id=register.entity_id, temperature=register.value)
