@@ -172,8 +172,9 @@ class Interface(BasicRevert, BaseInterface):
         if response.status_code == 200:
             return response.json() # return the json attributes from entity
         else:
-            _log.error(f"Request failed with status code {response.status_code}: {point_name} {response.text}")
-            return None
+            error_msg = f"Request failed with status code {response.status_code}, Point name: {point_name}, response: {response.text}"
+            _log.error(error_msg)
+            raise Exception(error_msg)
         
     def _scrape_all(self):
         result = {}
@@ -201,6 +202,10 @@ class Interface(BasicRevert, BaseInterface):
                         elif state == "auto":
                             register.value = 4
                             result[register.point_name] = 4
+                        else:
+                            error_msg = f"State {state} from {entity_id} is not yet supported"
+                            _log.error(error_msg)
+                            ValueError(error_msg)
                     # Assigning attributes
                     else:
                         attribute = entity_data.get("attributes", {}).get(f"{register.point_name}", 0)
@@ -282,32 +287,41 @@ class Interface(BasicRevert, BaseInterface):
             "Authorization": f"Bearer {self.access_token}",
             "Content-Type": "application/json",
         }
+        payload = {
+            "entity_id": entity_id,
+        }
 
         try:
-            payload = {
-                "entity_id": entity_id,
-            }
             response = requests.post(url, headers=headers, data=json.dumps(payload))
+
             if response.status_code == 200:
                 _log.info(f"Turned off {entity_id}")
-        except:
-            pass
+            else:
+                _log.error(f"Failed to turn off {entity_id}. Status code: {response.status_code}. Response: {response.text}")
+
+        except requests.RequestException as e:
+            _log.error(f"Error when trying to change brightness of {entity_id}: {e}")
 
     def turn_on_lights(self, entity_id):
-        url2 = f"http://{self.ip_address}:{self.port}/api/services/light/turn_on"
+        url = f"http://{self.ip_address}:{self.port}/api/services/light/turn_on"
         headers = {
                 "Authorization": f"Bearer {self.access_token}",
                 "Content-Type": "application/json",
         }
+
+        payload = {
+            "entity_id": f"{entity_id}"
+        }
+
         try:
-            payload = {
-                "entity_id": f"{entity_id}"
-            }
-            response = requests.post(url2, headers=headers, data=json.dumps(payload))
+            response = requests.post(url, headers=headers, data=json.dumps(payload))
             if response.status_code == 200:
-                    _log.info(f"Turned on {entity_id}")
-        except:
-            pass
+                _log.info(f"Turned on {entity_id}")
+            else:
+                _log.error(f"Failed to turn on {entity_id}. Status code: {response.status_code}. Response: {response.text}")
+
+        except requests.RequestException as e:
+            _log.error(f"Error when trying to change brightness of {entity_id}: {e}")
 
     def change_thermostat_mode(self, entity_id, mode):
         # Check if enttiy_id startswith climate.
@@ -356,13 +370,15 @@ class Interface(BasicRevert, BaseInterface):
                 "entity_id": entity_id,
                 "temperature": temperature,
             }
-        
-        response = requests.post(url, headers=headers, json=data)
-        
-        if response.status_code == 200:
-            _log.info(f"Successfully changed the temperature of {entity_id} to {temperature}")
-        else:
-            _log.error(f"Failed to change the temperature of {entity_id}. Response: {response.text}")
+        try:
+            response = requests.post(url, headers=headers, json=data)
+            
+            if response.status_code == 200:
+                _log.info(f"Successfully changed the temperature of {entity_id} to {temperature}")
+            else:
+                _log.error(f"Failed to change the temperature of {entity_id}. Response: {response.text}")
+        except requests.RequestException as e:
+            _log.error(f"Error when trying to change brightness of {entity_id}: {e}")
 
     def change_brightness(self, entity_id, value):
         url2 = f"http://{self.ip_address}:{self.port}/api/services/light/turn_on"
@@ -370,14 +386,18 @@ class Interface(BasicRevert, BaseInterface):
                 "Authorization": f"Bearer {self.access_token}",
                 "Content-Type": "application/json",
         }
+            # ranges from 0 - 255
+        payload = {
+            "entity_id": f"{entity_id}",
+            "brightness": value,
+        }
+
         try:
-            # ranges from 0 - 255 for most lights
-            payload = {
-                "entity_id": f"{entity_id}",
-                "brightness": value,
-            }
             response = requests.post(url2, headers=headers, data=json.dumps(payload))
             if response.status_code == 200:
-                    _log.info(f"Turned on {entity_id}")
-        except:
-            pass
+                _log.info(f"Changed brightness of {entity_id} to {value}")
+            else:
+                _log.error(f"Failed to change brightness of {entity_id}. Status code: {response.status_code}. Response: {response.text}")
+        
+        except requests.RequestException as e:
+            _log.error(f"Error when trying to change brightness of {entity_id}: {e}")
