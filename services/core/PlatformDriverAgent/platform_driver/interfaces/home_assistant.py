@@ -117,13 +117,21 @@ class Interface(BasicRevert, BaseInterface):
                 elif register.value == 0:
                     self.turn_off_lights(register.entity_id)
                 else:
-                    _log.error(f"Unexpected state value {register.value} for {register.entity_id}")
+                    error_msg = f"Unexpected state value {register.value} for {register.entity_id}"
+                    _log.error(error_msg)
+                    raise ValueError(error_msg)
 
             elif point_name == "brightness":
-                if 0 <= register.value <= 255:
+                if isinstance(register.value, int) and 0 <= register.value <= 255: # Make sure its int and within range
                     self.change_brightness(register.entity_id, register.value)
+                else:
+                    error_msg = "Brightness value should be an integer between 0 and 255"
+                    _log.error(error_msg)
+                    raise ValueError(error_msg)
             else:
-                _log.error(f"Unexpected point_name {point_name} for register {register.entity_id}")
+                error_msg = f"Unexpected point_name {point_name} for register {register.entity_id}"
+                _log.error(error_msg)
+                raise ValueError(error_msg)
                 
         # Changing thermostat values. 
         elif "climate." in register.entity_id:
@@ -137,9 +145,14 @@ class Interface(BasicRevert, BaseInterface):
                 elif register.value == 4:
                     self.change_thermostat_mode(entity_id=register.entity_id, mode="auto")
                 else:
-                    _log.error(f"{register.value} is not a supported thermostat mode. (1: Off, 2: heat, 3: Cool, 4: Auto)")
+                    error_msg = f"{register.value} is not a supported thermostat mode. (1: Off, 2: heat, 3: Cool, 4: Auto)"
+                    _log.error(error_msg)
+                    raise ValueError(error_msg)
             elif point_name == "temperature":
-                self.set_thermostat_temperature(entity_id=register.entity_id, temperature=register.value)
+                if 20 <= register.value <= 100:
+                    self.set_thermostat_temperature(entity_id=register.entity_id, temperature=register.value)
+                else:
+                    error_msg = f""
         else:
             pass
         return register.value
