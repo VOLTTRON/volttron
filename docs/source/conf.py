@@ -71,7 +71,8 @@ extensions = [
     # http://www.sphinx-doc.org/en/master/usage/extensions/todo.html
     'sphinx.ext.todo',
     'sphinx.ext.intersphinx',
-    'm2r2'
+    'm2r2',
+    'sphinxcontrib-mermaid'
 ]
 
 # prefix sections with the document so that we can cross link
