@@ -6,7 +6,7 @@ Home Assistant Driver
 The Home Assistant driver enables VOLTTRON to read any data point from any Home Assistant controlled device.
 Currently control(write access) is supported only for lights and thermostats.
 
-The following diagram shows interaction between platform driver agent and home assistant driver. 
+The following diagram shows interaction between platform driver agent and home assistant driver.
 
 .. mermaid::
 
@@ -20,7 +20,7 @@ The following diagram shows interaction between platform driver agent and home a
        HomeAssistant Driver->>HomeAssistant: Send Turn Off Light Command (REST API)
        HomeAssistant-->>HomeAssistant Driver: Command Acknowledgement (Status Code: 200)
 
-Pre-requisites 
+Pre-requisites
 --------------
 Before proceeding, find your Home Assistant IP address and long-lived access token from `here <https://developers.home-assistant.io/docs/auth_api/#long-lived-access-token>`_.
 
@@ -104,7 +104,7 @@ id 'light.example':
 
 .. note::
 
-When using a single registry file to represent a logical group of multiple physical entities, make sure the 
+When using a single registry file to represent a logical group of multiple physical entities, make sure the
 "Volttron Point Name" is unique within a single registry file. For example, if a registry file contains entities with
 id  'light.instance1' and 'light.instance2' the entry for the attribute brightness for these two light instances could
 have "Volttron Point Name" as 'light1/brightness' and 'light2/brightness' respectively. This would ensure that data

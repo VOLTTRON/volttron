@@ -37,10 +37,8 @@
 # }}}
 import json
 import logging
-import os
 import pytest
 import gevent
-import socket
 
 from volttron.platform.agent.known_identities import (
     PLATFORM_DRIVER,
@@ -54,9 +52,10 @@ from volttrontesting.utils.platformwrapper import PlatformWrapper
 utils.setup_logging()
 logger = logging.getLogger(__name__)
 
-HOMEASSISTANT_TEST_IP = ""
-ACCESS_TOKEN = ""
-PORT = ""
+HOMEASSISTANT_DEVICE_TOPIC = "devices/home_assistant"
+HOMEASSISTANT_TEST_IP = "you ip"
+ACCESS_TOKEN = "your access token"
+PORT = "8123"
 
 skip_msg = "Some configuration variables are not set. Check HOMEASSISTANT_TEST_IP, ACCESS_TOKEN, and PORT"
 
@@ -77,7 +76,7 @@ def test_get_point(volttron_instance, config_store):
 
 
 # The default value for this fake light is 3. If the test cannot reach out to home assistant,
-# the value will default to 3 meking the test fail. 
+# the value will default to 3 meking the test fail.
 def test_data_poll(volttron_instance: PlatformWrapper, config_store):
     expected_values = [{'state': 0}, {'state': 1}]
     agent = volttron_instance.dynamic_agent
@@ -86,7 +85,7 @@ def test_data_poll(volttron_instance: PlatformWrapper, config_store):
 
 
 # Turn on the light. Light is automatically turned off every 30 seconds to allow test to turn
-# it on and receive the correct value. 
+# it on and receive the correct value.
 def test_set_point(volttron_instance, config_store):
     expected_values = {'state': 1}
     agent = volttron_instance.dynamic_agent
