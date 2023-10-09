@@ -114,7 +114,7 @@ For thermostats, the state is converted into numbers as follows: "1: Off, 2: hea
 
 Attributes can be located in the developer tools in the Home Assistant GUI.
 
-.. image:: https://github.com/riley206/Rileys_volttron/assets/89715390/a367e61e-8b73-4f35-a179-dfda235ddcbe
+.. image:: home_assistant_gui.png
 
 Transfer the registers files and the config files into the VOLTTRON config store using the commands below:
 
