@@ -67,6 +67,23 @@ class HomeAssistantRegister(BaseRegister):
         self.value = None
 
 
+def _post_method(url, headers, data, operation_description):
+    err = None
+    try:
+        response = requests.post(url, headers=headers, json=data)
+        if response.status_code == 200:
+            _log.info(f"Success: {operation_description}")
+        else:
+            err = f"Failed to {operation_description}. Status code: {response.status_code}. " \
+                  f"Response: {response.text}"
+
+    except requests.RequestException as e:
+        err = f"Error when attempting - {operation_description} : {e}"
+    if err:
+        _log.error(err)
+        raise Exception(err)
+
+
 class Interface(BasicRevert, BaseInterface):
     def __init__(self, **kwargs):
         super(Interface, self).__init__(**kwargs)
@@ -288,7 +305,6 @@ class Interface(BasicRevert, BaseInterface):
             self.insert_register(register)
 
     def turn_off_lights(self, entity_id):
-        err = None
         url = f"http://{self.ip_address}:{self.port}/api/services/light/turn_off"
         headers = {
             "Authorization": f"Bearer {self.access_token}",
@@ -297,23 +313,9 @@ class Interface(BasicRevert, BaseInterface):
         payload = {
             "entity_id": entity_id,
         }
-
-        try:
-            response = requests.post(url, headers=headers, data=json.dumps(payload))
-
-            if response.status_code == 200:
-                _log.info(f"Turned off {entity_id}")
-            else:
-                err = f"Failed to turn off {entity_id}. Status code: {response.status_code} Response: {response.text}"
-
-        except requests.RequestException as e:
-            err = f"Error when trying to change brightness of {entity_id}: {e}"
-        if err:
-            _log.error(err)
-            raise Exception(err)
+        _post_method(url, headers, payload, f"turn off {entity_id}")
 
     def turn_on_lights(self, entity_id):
-        err = None
         url = f"http://{self.ip_address}:{self.port}/api/services/light/turn_on"
         headers = {
                 "Authorization": f"Bearer {self.access_token}",
@@ -323,22 +325,9 @@ class Interface(BasicRevert, BaseInterface):
         payload = {
             "entity_id": f"{entity_id}"
         }
-
-        try:
-            response = requests.post(url, headers=headers, data=json.dumps(payload))
-            if response.status_code == 200:
-                _log.info(f"Turned on {entity_id}")
-            else:
-                err = f"Failed to turn on {entity_id}. Status code: {response.status_code}. Response: {response.text}"
-
-        except requests.RequestException as e:
-            err = f"Error when trying to change brightness of {entity_id}: {e}"
-        if err:
-            _log.error(err)
-            raise Exception(err)
+        _post_method(url, headers, payload, f"turn on {entity_id}")
 
     def change_thermostat_mode(self, entity_id, mode):
-        err = None
         # Check if enttiy_id startswith climate.
         if not entity_id.startswith("climate."):
             _log.error(f"{entity_id} is not a valid thermostat entity ID.")
@@ -355,21 +344,10 @@ class Interface(BasicRevert, BaseInterface):
             "hvac_mode": mode,
         }
         # Post data
-        try:
-            response = requests.post(url, headers=headers, json=data)
-            if response.status_code == 200:
-                _log.info(f"Successfully changed the mode of {entity_id} to {mode}")
-            else:
-                _log.info(f"Failed to change the mode of {entity_id}. Response: {response.text}")
-        except requests.RequestException as e:
-            err = f"Error when trying to change mode of {entity_id}: {e}"
-        if err:
-            _log.error(err)
-            raise Exception(err)
+        _post_method(url, headers, data, f"change mode of {entity_id} to {mode}")
 
     def set_thermostat_temperature(self, entity_id, temperature):
         # Check if the provided entity_id starts with "climate."
-        err = None
         if not entity_id.startswith("climate."):
             _log.error(f"{entity_id} is not a valid thermostat entity ID.")
             return
@@ -392,22 +370,10 @@ class Interface(BasicRevert, BaseInterface):
                 "entity_id": entity_id,
                 "temperature": temperature,
             }
-        try:
-            response = requests.post(url, headers=headers, json=data)
-
-            if response.status_code == 200:
-                _log.info(f"Successfully changed the temperature of {entity_id} to {temperature}")
-            else:
-                err = f"Failed to change the temperature of {entity_id}. Response: {response.text}"
-        except requests.RequestException as e:
-            err = f"Error when trying to change brightness of {entity_id}: {e}"
-        if err:
-            _log.error(err)
-            raise Exception(err)
+        _post_method(url, headers, data, f"set temperature of {entity_id} to {temperature}")
 
     def change_brightness(self, entity_id, value):
-        err = None
-        url2 = f"http://{self.ip_address}:{self.port}/api/services/light/turn_on"
+        url = f"http://{self.ip_address}:{self.port}/api/services/light/turn_on"
         headers = {
                 "Authorization": f"Bearer {self.access_token}",
                 "Content-Type": "application/json",
@@ -418,16 +384,4 @@ class Interface(BasicRevert, BaseInterface):
             "brightness": value,
         }
 
-        try:
-            response = requests.post(url2, headers=headers, data=json.dumps(payload))
-            if response.status_code == 200:
-                _log.info(f"Changed brightness of {entity_id} to {value}")
-            else:
-                err = f"Failed to change brightness of {entity_id}. Status code: {response.status_code}. " \
-                      f"Response: {response.text}"
-        
-        except requests.RequestException as e:
-            err = f"Error when trying to change brightness of {entity_id}: {e}"
-        if err:
-            _log.error(err)
-            raise Exception(err)
+        _post_method(url, headers, payload, f"set brightness of {entity_id} to {value}")
