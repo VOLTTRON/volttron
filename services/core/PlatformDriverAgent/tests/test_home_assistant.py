@@ -65,14 +65,16 @@ pytestmark = pytest.mark.skipif(
     not (HOMEASSISTANT_TEST_IP and ACCESS_TOKEN and PORT),
     reason=skip_msg
 )
-
 HOMEASSISTANT_DEVICE_TOPIC = "devices/home_assistant"
+
+
 # Get the point which will should be off
 def test_get_point(volttron_instance, config_store):
     expected_values = "off"
     agent = volttron_instance.dynamic_agent
     result = agent.vip.rpc.call(PLATFORM_DRIVER, 'get_point', 'home_assistant', 'state').get(timeout=20)
     assert result == expected_values, "The result does not match the expected result."
+
 
 # The default value for this fake light is 3. If the test cannot reach out to home assistant,
 # the value will default to 3 meking the test fail. 
@@ -81,6 +83,7 @@ def test_data_poll(volttron_instance: PlatformWrapper, config_store):
     agent = volttron_instance.dynamic_agent
     result = agent.vip.rpc.call(PLATFORM_DRIVER, 'scrape_all', 'home_assistant').get(timeout=20)
     assert result in expected_values, "The result does not match the expected result."
+
 
 # Turn on the light. Light is automatically turned off every 30 seconds to allow test to turn
 # it on and receive the correct value. 
@@ -91,6 +94,7 @@ def test_set_point(volttron_instance, config_store):
     gevent.sleep(10)
     result = agent.vip.rpc.call(PLATFORM_DRIVER, 'scrape_all', 'home_assistant').get(timeout=20)
     assert result == expected_values, "The result does not match the expected result."
+
 
 @pytest.fixture(scope="module")
 def config_store(volttron_instance, platform_driver):
@@ -159,4 +163,5 @@ def platform_driver(volttron_instance):
     yield platform_uuid
 
     volttron_instance.stop_agent(platform_uuid)
-    #volttron_instance.remove_agent(platform_uuid)
+    if not volttron_instance.debug_mode:
+        volttron_instance.remove_agent(platform_uuid)
