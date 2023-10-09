@@ -72,7 +72,7 @@ extensions = [
     'sphinx.ext.todo',
     'sphinx.ext.intersphinx',
     'm2r2',
-    'sphinxcontrib-mermaid'
+    'sphinxcontrib.mermaid'
 ]
 
 # prefix sections with the document so that we can cross link
