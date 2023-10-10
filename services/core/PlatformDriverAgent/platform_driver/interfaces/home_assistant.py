@@ -142,7 +142,7 @@ class Interface(BasicRevert, BaseInterface):
                     _log.info(error_msg)
                     raise ValueError(error_msg)
             
-            elif point_name == "brightness":
+            elif "brightness" in point_name:
                 if isinstance(register.value, int) and 0 <= register.value <= 255:  # Make sure its int and within range
                     self.change_brightness(register.entity_id, register.value)
                 else:
@@ -170,7 +170,7 @@ class Interface(BasicRevert, BaseInterface):
                     error_msg = f"Climate state should be an integer value of 0, 2, 3, or 4"
                     _log.error(error_msg)
                     raise ValueError(error_msg)
-            elif point_name == "temperature":
+            elif "temperature" in point_name:
                 if isinstance(register.value, int) and 20 <= register.value <= 100:
                     self.set_thermostat_temperature(entity_id=register.entity_id, temperature=register.value)
                 else:
