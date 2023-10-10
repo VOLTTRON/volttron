@@ -67,7 +67,7 @@ Like mentioned before, the driver can only control lights and thermostats but ca
 controlled by home assistant
 
 Each entry in a registry file should also have a unique value for 'Volttron Point Name'. The Entity ID extracts data
-from Home Assistant, and Volttron Point Name retrieves the state or attributes defined.
+from Home Assistant, the Entity Point extracts that attribute or state, and Volttron Point Name determines the name of that point as it appears in VOLTTRON.
 
 Attributes can be located in the developer tools in the Home Assistant GUI.
 
@@ -82,7 +82,8 @@ id 'light.example':
    [
        {
            "Entity ID": "light.example",
-           "Volttron Point Name": "state",
+           "Entity Point": "state",
+           "Volttron Point Name": "light_state",
            "Units": "On / Off",
            "Units Details": "on/off",
            "Writable": true,
@@ -92,7 +93,8 @@ id 'light.example':
        },
        {
            "Entity ID": "light.example",
-           "Volttron Point Name": "brightness",
+           "Entity Point": "brightness",
+           "Volttron Point Name": "light_brightness",
            "Units": "int",
            "Units Details": "light level",
            "Writable": true,
@@ -120,7 +122,8 @@ For thermostats, the state is converted into numbers as follows: "0: Off, 2: hea
    [
        {
            "Entity ID": "climate.my_thermostat",
-           "Volttron Point Name": "state",
+           "Entity Point": "state",
+           "Volttron Point Name": "thermostat_state",
            "Units": "Enumeration",
            "Units Details": "0: Off, 2: heat, 3: Cool, 4: Auto",
            "Writable": true,
@@ -130,7 +133,8 @@ For thermostats, the state is converted into numbers as follows: "0: Off, 2: hea
        },
        {
            "Entity ID": "climate.my_thermostat",
-           "Volttron Point Name": "current_temperature",
+           "Entity Point": "current_temperature",
+           "Volttron Point Name": "volttron_current_temperature",
            "Units": "F",
            "Units Details": "Current Ambient Temperature",
            "Writable": true,
@@ -140,7 +144,8 @@ For thermostats, the state is converted into numbers as follows: "0: Off, 2: hea
        },
        {
            "Entity ID": "climate.my_thermostat",
-           "Volttron Point Name": "temperature",
+           "Entity Point": "temperature",
+           "Volttron Point Name": "set_temperature",
            "Units": "F",
            "Units Details": "Desired Temperature",
            "Writable": true,
@@ -164,6 +169,6 @@ Upon completion, initiate the platform driver. Utilize the listener agent to ver
 .. code-block:: bash
 
    2023-09-12 11:37:00,226 (listeneragent-3.3 211531) __main__ INFO: Peer: pubsub, Sender: platform.driver:, Bus: , Topic: devices/BUILDING/ROOM/light.example/all, Headers: {'Date': '2023-09-12T18:37:00.224648+00:00', 'TimeStamp': '2023-09-12T18:37:00.224648+00:00', 'SynchronizedTimeStamp': '2023-09-12T18:37:00.000000+00:00', 'min_compatible_version': '3.0', 'max_compatible_version': ''}, Message:
-   [{'brightness': 254, 'state': 'on'},
-    {'brightness': {'type': 'integer', 'tz': 'UTC', 'units': 'int'},
+   [{'light_brightness': 254, 'state': 'on'},
+    {'light_brightness': {'type': 'integer', 'tz': 'UTC', 'units': 'int'},
      'state': {'type': 'integer', 'tz': 'UTC', 'units': 'On / Off'}}]
