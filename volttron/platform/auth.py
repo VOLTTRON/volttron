@@ -127,6 +127,7 @@ class AuthService(Agent):
         self._protected_topics_file_path = os.path.abspath(
             protected_topics_file
         )
+        self._protected_topics_file_hash = None
         self._protected_topics_for_rmq = ProtectedPubSubTopics()
         self._setup_mode = setup_mode
         self._auth_pending = []
@@ -565,7 +566,7 @@ class AuthService(Agent):
                 # Use gevent FileObject to avoid blocking the thread
                 data = FileObject(fil, close=False).read()
                 current_hash = hashlib.sha256(data.encode()).hexdigest()
-                if self._protected_topics_file_hash:
+                if self._protected_topics_file_hash and hasattr(self, "_protected_topics"):
                     if current_hash == self._protected_topics_file_hash:
                         return
                 self._protected_topics_file_hash = current_hash
