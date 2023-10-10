@@ -42,7 +42,7 @@ from math import pi
 import json
 import sys
 from platform_driver.interfaces import BaseInterface, BaseRegister, BasicRevert
-from volttron.platform.agent import utils #added this to pull from config store 
+from volttron.platform.agent import utils  # added this to pull from config store
 from volttron.platform.vip.agent import Agent
 import logging
 import requests
@@ -56,22 +56,44 @@ type_mapping = {"string": str,
                 "bool": bool,
                 "boolean": bool}
 
+
 class HomeAssistantRegister(BaseRegister):
-    def __init__(self, read_only, pointName, units, reg_type, attributes, entity_id,
-                 default_value=None, description=''):
-        super(HomeAssistantRegister, self).__init__("byte", read_only, pointName, units,
-                                           description='')
+    def __init__(self, read_only, pointName, units, reg_type, attributes, entity_id, default_value=None,
+                 description=''):
+        super(HomeAssistantRegister, self).__init__("byte", read_only, pointName, units, description='')
         self.reg_type = reg_type
         self.attributes = attributes
         self.entity_id = entity_id
         self.value = None
 
+
+def _post_method(url, headers, data, operation_description):
+    err = None
+    try:
+        response = requests.post(url, headers=headers, json=data)
+        if response.status_code == 200:
+            _log.info(f"Success: {operation_description}")
+        else:
+            err = f"Failed to {operation_description}. Status code: {response.status_code}. " \
+                  f"Response: {response.text}"
+
+    except requests.RequestException as e:
+        err = f"Error when attempting - {operation_description} : {e}"
+    if err:
+        _log.error(err)
+        raise Exception(err)
+
+
 class Interface(BasicRevert, BaseInterface):
     def __init__(self, **kwargs):
         super(Interface, self).__init__(**kwargs)
         self.point_name = None
+        self.ip_address = None
+        self.access_token = None
+        self.port = None
+        self.units = None
   
-    def configure(self, config_dict, registry_config_str): # grabbing from config
+    def configure(self, config_dict, registry_config_str):  # grabbing from config
         self.ip_address = config_dict.get("ip_address", None)
         self.access_token = config_dict.get("access_token", None)
         self.port = config_dict.get("port", None)
@@ -98,15 +120,14 @@ class Interface(BasicRevert, BaseInterface):
             return result
         else:
             value = entity_data.get("attributes", {}).get(f"{register.point_name}", 0)
-            print(value)
             return value
 
     def _set_point(self, point_name, value):
         register = self.get_register_by_name(point_name)
         if register.read_only:
-            raise RuntimeError(
+            raise IOError(
                 "Trying to write to a point configured read only: " + point_name)
-        register.value = register.reg_type(value) # setting the value
+        register.value = register.reg_type(value)  # setting the value
 
         # Changing lights values in home assistant based off of register value. 
         if "light." in register.entity_id:
@@ -122,7 +143,7 @@ class Interface(BasicRevert, BaseInterface):
                     raise ValueError(error_msg)
             
             elif point_name == "brightness":
-                if isinstance(register.value, int) and 0 <= register.value <= 255: # Make sure its int and within range
+                if isinstance(register.value, int) and 0 <= register.value <= 255:  # Make sure its int and within range
                     self.change_brightness(register.entity_id, register.value)
                 else:
                     error_msg = "Brightness value should be an integer between 0 and 255"
@@ -154,10 +175,11 @@ class Interface(BasicRevert, BaseInterface):
                     self.set_thermostat_temperature(entity_id=register.entity_id, temperature=register.value)
                 else:
                     error_msg = f"Temperature must be an integer between 20 and 100 for {register.entity_id}"
-                    _log.info(error_msg)
-                    ValueError(error_msg)
+                    _log.error(error_msg)
+                    raise ValueError(error_msg)
         else:
-            error_msg = f"Unsupported entity_id: {register.entity_id}"
+            error_msg = f"Unsupported entity_id: {register.entity_id}. " \
+                        f"Currently set_point is supported only for thermostats and lights"
             _log.error(error_msg)
             raise ValueError(error_msg)
         return register.value
@@ -167,12 +189,14 @@ class Interface(BasicRevert, BaseInterface):
             "Authorization": f"Bearer {self.access_token}",
             "Content-Type": "application/json",
         }
-        url = f"http://{self.ip_address}:{self.port}/api/states/{point_name}" # the /states grabs current state AND attributes of a specific entity
+        # the /states grabs current state AND attributes of a specific entity
+        url = f"http://{self.ip_address}:{self.port}/api/states/{point_name}"
         response = requests.get(url, headers=headers)
         if response.status_code == 200:
-            return response.json() # return the json attributes from entity
+            return response.json()  # return the json attributes from entity
         else:
-            error_msg = f"Request failed with status code {response.status_code}, Point name: {point_name}, response: {response.text}"
+            error_msg = f"Request failed with status code {response.status_code}, Point name: {point_name}, " \
+                        f"response: {response.text}"
             _log.error(error_msg)
             raise Exception(error_msg)
         
@@ -184,12 +208,12 @@ class Interface(BasicRevert, BaseInterface):
         for register in read_registers + write_registers:
             entity_id = register.entity_id 
             try:
-                entity_data = self.get_entity_data(entity_id) # Using Entity ID to get data
-                if "climate." in entity_id: # handling thermostats. 
+                entity_data = self.get_entity_data(entity_id)  # Using Entity ID to get data
+                if "climate." in entity_id:  # handling thermostats.
                     if register.point_name == "state":
                         state = entity_data.get("state", None)
 
-                        # Giving thermostat states an equivilent number. 
+                        # Giving thermostat states an equivalent number.
                         if state == "off":
                             register.value = 0
                             result[register.point_name] = 0
@@ -213,7 +237,6 @@ class Interface(BasicRevert, BaseInterface):
                         result[register.point_name] = attribute
                 # handling light states
                 elif "light." in entity_id:
-                    state = entity_data.get("state", None)
                     if register.point_name == "state":
                         state = entity_data.get("state", None)
                         # Converting light states to numbers. 
@@ -227,7 +250,7 @@ class Interface(BasicRevert, BaseInterface):
                         attribute = entity_data.get("attributes", {}).get(f"{register.point_name}", 0)
                         register.value = attribute
                         result[register.point_name] = attribute
-                else: # handling all devices that are not thermostats or light states
+                else:  # handling all devices that are not thermostats or light states
                     if register.point_name == "state":
                         
                         state = entity_data.get("state", None)
@@ -243,11 +266,11 @@ class Interface(BasicRevert, BaseInterface):
 
         return result
 
-    def parse_config(self, configDict):
+    def parse_config(self, config_dict):
 
-        if configDict is None:
+        if config_dict is None:
             return
-        for regDef in configDict:
+        for regDef in config_dict:
 
             if not regDef['Entity ID']:
                 continue
@@ -290,17 +313,7 @@ class Interface(BasicRevert, BaseInterface):
         payload = {
             "entity_id": entity_id,
         }
-
-        try:
-            response = requests.post(url, headers=headers, data=json.dumps(payload))
-
-            if response.status_code == 200:
-                _log.info(f"Turned off {entity_id}")
-            else:
-                _log.error(f"Failed to turn off {entity_id}. Status code: {response.status_code}. Response: {response.text}")
-
-        except requests.RequestException as e:
-            _log.error(f"Error when trying to change brightness of {entity_id}: {e}")
+        _post_method(url, headers, payload, f"turn off {entity_id}")
 
     def turn_on_lights(self, entity_id):
         url = f"http://{self.ip_address}:{self.port}/api/services/light/turn_on"
@@ -312,16 +325,7 @@ class Interface(BasicRevert, BaseInterface):
         payload = {
             "entity_id": f"{entity_id}"
         }
-
-        try:
-            response = requests.post(url, headers=headers, data=json.dumps(payload))
-            if response.status_code == 200:
-                _log.info(f"Turned on {entity_id}")
-            else:
-                _log.error(f"Failed to turn on {entity_id}. Status code: {response.status_code}. Response: {response.text}")
-
-        except requests.RequestException as e:
-            _log.error(f"Error when trying to change brightness of {entity_id}: {e}")
+        _post_method(url, headers, payload, f"turn on {entity_id}")
 
     def change_thermostat_mode(self, entity_id, mode):
         # Check if enttiy_id startswith climate.
@@ -340,11 +344,7 @@ class Interface(BasicRevert, BaseInterface):
             "hvac_mode": mode,
         }
         # Post data
-        response = requests.post(url, headers=headers, json=data)
-        if response.status_code == 200:
-            _log.info(f"Successfully changed the mode of {entity_id} to {mode}")
-        else:
-            _log.info(f"Failed to change the mode of {entity_id}. Response: {response.text}")
+        _post_method(url, headers, data, f"change mode of {entity_id} to {mode}")
 
     def set_thermostat_temperature(self, entity_id, temperature):
         # Check if the provided entity_id starts with "climate."
@@ -370,34 +370,18 @@ class Interface(BasicRevert, BaseInterface):
                 "entity_id": entity_id,
                 "temperature": temperature,
             }
-        try:
-            response = requests.post(url, headers=headers, json=data)
-            
-            if response.status_code == 200:
-                _log.info(f"Successfully changed the temperature of {entity_id} to {temperature}")
-            else:
-                _log.error(f"Failed to change the temperature of {entity_id}. Response: {response.text}")
-        except requests.RequestException as e:
-            _log.error(f"Error when trying to change brightness of {entity_id}: {e}")
+        _post_method(url, headers, data, f"set temperature of {entity_id} to {temperature}")
 
     def change_brightness(self, entity_id, value):
-        url2 = f"http://{self.ip_address}:{self.port}/api/services/light/turn_on"
+        url = f"http://{self.ip_address}:{self.port}/api/services/light/turn_on"
         headers = {
                 "Authorization": f"Bearer {self.access_token}",
                 "Content-Type": "application/json",
         }
-            # ranges from 0 - 255
+        # ranges from 0 - 255
         payload = {
             "entity_id": f"{entity_id}",
             "brightness": value,
         }
 
-        try:
-            response = requests.post(url2, headers=headers, data=json.dumps(payload))
-            if response.status_code == 200:
-                _log.info(f"Changed brightness of {entity_id} to {value}")
-            else:
-                _log.error(f"Failed to change brightness of {entity_id}. Status code: {response.status_code}. Response: {response.text}")
-        
-        except requests.RequestException as e:
-            _log.error(f"Error when trying to change brightness of {entity_id}: {e}")
+        _post_method(url, headers, payload, f"set brightness of {entity_id} to {value}")
