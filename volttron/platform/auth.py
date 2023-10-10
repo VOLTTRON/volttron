@@ -564,6 +564,11 @@ class AuthService(Agent):
             with open(self._protected_topics_file) as fil:
                 # Use gevent FileObject to avoid blocking the thread
                 data = FileObject(fil, close=False).read()
+                current_hash = hashlib.sha256(data.encode()).hexdigest()
+                if self._protected_topics_file_hash:
+                    if current_hash == self._protected_topics_file_hash:
+                        return
+                self._protected_topics_file_hash = current_hash
                 self._protected_topics = jsonapi.loads(data) if data else {}
                 if self.core.messagebus == "rmq":
                     self._load_protected_topics_for_rmq()
