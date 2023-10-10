@@ -53,9 +53,9 @@ utils.setup_logging()
 logger = logging.getLogger(__name__)
 
 HOMEASSISTANT_DEVICE_TOPIC = "devices/home_assistant"
-HOMEASSISTANT_TEST_IP = "you ip"
-ACCESS_TOKEN = "your access token"
-PORT = "8123"
+HOMEASSISTANT_TEST_IP = ""
+ACCESS_TOKEN = ""
+PORT = ""
 
 skip_msg = "Some configuration variables are not set. Check HOMEASSISTANT_TEST_IP, ACCESS_TOKEN, and PORT"
 
@@ -69,16 +69,16 @@ HOMEASSISTANT_DEVICE_TOPIC = "devices/home_assistant"
 
 # Get the point which will should be off
 def test_get_point(volttron_instance, config_store):
-    expected_values = "off"
+    expected_values = 0
     agent = volttron_instance.dynamic_agent
-    result = agent.vip.rpc.call(PLATFORM_DRIVER, 'get_point', 'home_assistant', 'state').get(timeout=20)
+    result = agent.vip.rpc.call(PLATFORM_DRIVER, 'get_point', 'home_assistant', 'light_state').get(timeout=20)
     assert result == expected_values, "The result does not match the expected result."
 
 
 # The default value for this fake light is 3. If the test cannot reach out to home assistant,
 # the value will default to 3 meking the test fail.
 def test_data_poll(volttron_instance: PlatformWrapper, config_store):
-    expected_values = [{'state': 0}, {'state': 1}]
+    expected_values = [{'light_state': 0}, {'light_state': 1}]
     agent = volttron_instance.dynamic_agent
     result = agent.vip.rpc.call(PLATFORM_DRIVER, 'scrape_all', 'home_assistant').get(timeout=20)
     assert result in expected_values, "The result does not match the expected result."
@@ -87,9 +87,9 @@ def test_data_poll(volttron_instance: PlatformWrapper, config_store):
 # Turn on the light. Light is automatically turned off every 30 seconds to allow test to turn
 # it on and receive the correct value.
 def test_set_point(volttron_instance, config_store):
-    expected_values = {'state': 1}
+    expected_values = {'light_state': 1}
     agent = volttron_instance.dynamic_agent
-    agent.vip.rpc.call(PLATFORM_DRIVER, 'set_point', 'home_assistant', 'state', 1)
+    agent.vip.rpc.call(PLATFORM_DRIVER, 'set_point', 'home_assistant', 'light_state', 1)
     gevent.sleep(10)
     result = agent.vip.rpc.call(PLATFORM_DRIVER, 'scrape_all', 'home_assistant').get(timeout=20)
     assert result == expected_values, "The result does not match the expected result."
@@ -104,7 +104,8 @@ def config_store(volttron_instance, platform_driver):
     registry_config = "homeassistant_test.json"
     registry_obj = [{
         "Entity ID": "light.fake_light",
-        "Volttron Point Name": "state",
+        "Entity Point": "state",
+        "Volttron Point Name": "light_state",
         "Units": "On / Off",
         "Units Details": "off: 0, on: 1",
         "Writable": True,
