@@ -172,11 +172,10 @@ class Interface(BasicRevert, BaseInterface):
                     _log.error(error_msg)
                     raise ValueError(error_msg)
             elif entity_point == "temperature":
-                #if isinstance(register.value, int) and 20 <= register.value <= 100:
                 self.set_thermostat_temperature(entity_id=register.entity_id, temperature=register.value)
 
             else:
-                error_msg = f"Temperature must be an integer between 20 and 100 for {register.entity_id}"
+                error_msg = f"Currently set_point is supported only for thermostats state and temperature {register.entity_id}"
                 _log.error(error_msg)
                 raise ValueError(error_msg)
         else:
