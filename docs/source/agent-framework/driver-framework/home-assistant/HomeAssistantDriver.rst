@@ -4,7 +4,7 @@ Home Assistant Driver
 =====================
 
 The Home Assistant driver enables VOLTTRON to read any data point from any Home Assistant controlled device.
-Currently control(write access) is supported only for lights and thermostats.
+Currently control(write access) is supported only for lights(state and brightness) and thermostats(state and temperature).
 
 The following diagram shows interaction between platform driver agent and home assistant driver.
 
@@ -60,14 +60,13 @@ Device configuration file contains the connection details to you home assistant 
 Registry Configuration
 +++++++++++++++++++++++
 
-Registry file can contain one single device and its attributes or collection logical group of devices and its
-attributes. Each entry should include the full entity id of the device, including but not limited to "light."
-and "climate.", in the registry configuration. The driver uses these prefixes to convert states into integers.
+Registry file can contain one single device and its attributes or a logical group of devices and its
+attributes. Each entry should include the full entity id of the device, including but not limited to home assistant provided prefix 
+such as "light.",  "climate." etc. The driver uses these prefixes to convert states into integers.
 Like mentioned before, the driver can only control lights and thermostats but can get data from all devices
 controlled by home assistant
-
-Each entry in a registry file should also have a unique value for 'Volttron Point Name'. The Entity ID extracts data
-from Home Assistant, the Entity Point extracts that attribute or state, and Volttron Point Name determines the name of that point as it appears in VOLTTRON.
+ 
+Each entry in a registry file should also have a 'Entity Point' and a unique value for 'Volttron Point Name'. The 'Entity ID' maps to the device instance, the 'Entity Point' extracts the attribute or state, and 'Volttron Point Name' determines the name of that point as it appears in VOLTTRON.
 
 Attributes can be located in the developer tools in the Home Assistant GUI.
 
@@ -76,6 +75,7 @@ Attributes can be located in the developer tools in the Home Assistant GUI.
 
 Below is an example file named light.example.json which has attributes of a single light instance with entity
 id 'light.example':
+
 
 .. code-block:: json
 
@@ -104,10 +104,13 @@ id 'light.example':
        }
    ]
 
+
 .. note::
 
 When using a single registry file to represent a logical group of multiple physical entities, make sure the
-"Volttron Point Name" is unique within a single registry file. For example, if a registry file contains entities with
+"Volttron Point Name" is unique within a single registry file. 
+
+For example, if a registry file contains entities with
 id  'light.instance1' and 'light.instance2' the entry for the attribute brightness for these two light instances could
 have "Volttron Point Name" as 'light1/brightness' and 'light2/brightness' respectively. This would ensure that data
 is posted to unique topic names and brightness data from light1 is not overwritten by light2 or vice-versa.
