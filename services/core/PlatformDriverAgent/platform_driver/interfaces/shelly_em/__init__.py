@@ -100,7 +100,7 @@ class Interface(BasicRevert, BaseInterface):
         output = {}
         for field in meter:
             if field != "is_valid":
-                output[f"{channel_name}/{SHELLY_EM_REGISTER_MAP[field]}"] = meter[field] * multiplier
+                output[f"{channel_name}/{SHELLY_EM_REGISTER_MAP[field]['register_name']}"] = meter[field] * multiplier
         return output
     
     def process_status(self, status: dict) -> dict:
