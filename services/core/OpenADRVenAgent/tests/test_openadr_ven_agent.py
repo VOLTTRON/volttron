@@ -37,7 +37,7 @@ async def test_handle_event_should_return_optIn(mock_openadr_ven):
 
 @pytest.fixture
 def mock_openadr_ven():
-    config_path = str(Path("config_test.json",).absolute())
+    config_path = f"{Path(__file__).parent.absolute()}/config_test.json"
     OpenADRVenAgent.__bases__ = (
         AgentMock.imitate(Agent, OpenADRVenAgent(config_path)),
     )

@@ -111,13 +111,14 @@ def test_prioritize_agent_valid_input(volttron_instance):
     assert cn.vip.rpc.call('control', 'prioritize_agent', auuid, '99').get(timeout=2) is None
 
 
-@pytest.mark.xfail(reason="bytes() calls (control.py:390|398) raise: TypeError('string argument without an encoding').")
 @pytest.mark.parametrize('uuid, priority, expected', [
-    (34, '50', "expected a string for 'uuid'"),
+    pytest.param(34, '50', "expected a string for 'uuid'",
+                 marks=pytest.mark.xfail(reason="bytes() calls raise: TypeError(string argument without an encoding)")),
     ('34/7', '50', 'invalid agent'),
     ('.', '50', 'invalid agent'),
     ('..', '50', 'invalid agent'),
-    ('foo', 2, "expected a string or null for 'priority'"),
+    pytest.param('foo', 2, "expected a string or null for 'priority'",
+                 marks=pytest.mark.xfail(reason="bytes() calls raise: TypeError(string argument without an encoding)")),
     ('foo', '-1', 'Priority must be an integer from 0 - 99.'),
     ('foo', '4.5', 'Priority must be an integer from 0 - 99.'),
     ('foo', '100', 'Priority must be an integer from 0 - 99.'),
