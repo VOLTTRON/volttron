@@ -91,12 +91,13 @@ resp = post_as_device("mup", data=dataclass_to_xml(mup))
 new_mup = get_as_device(resp.headers["Location"])
 
 print_it("New Mirror Usage Point", new_mup)
-
 print("\n\n")
-
+input("Press Enter to continue...")
+#while True:
 current_time = int(time.mktime(datetime.utcnow().timetuple()))
+print(f"Time is: {current_time}")
 new_ctrl = m.DERControl(mRID="b234245afff", DERControlBase=dderc.DERControlBase, description="A new control is going here")
-new_ctrl.interval = m.DateTimeInterval(start=current_time + 10, duration=20)
+new_ctrl.interval = m.DateTimeInterval(start=current_time + 5, duration=10)
 response = post_as_admin(dercl.href, data=dataclass_to_xml(new_ctrl))
 
 ctrl_evnt = get_as_device(response.headers['Location'])
@@ -108,17 +109,42 @@ print_it("DERControl List", ctrll)
 activel = get_as_device(derp.ActiveDERControlListLink.href)
 print_it("ActiveDERControl", activel)
 
-print(print(f"{'='*20} Sleeping 10 s {'='*20}"))
-time.sleep(10)
+print("Waiting for activation of control on server...")
+print(print(f"{'='*20} Sleeping 6 s {'='*20}"))
+time.sleep(6)
 
 activel = get_as_device(derp.ActiveDERControlListLink.href)
 print_it("ActiveDERControl", activel)
 
-print(print(f"{'='*20} Sleeping 30 s {'='*20}"))
-time.sleep(30)
+print("Waiting for deactivation of control on server...")
+print(print(f"{'='*20} Sleeping 20 s {'='*20}"))
+time.sleep(20)
 
 activel = get_as_device(derp.ActiveDERControlListLink.href)
 print_it("ActiveDERControl", activel)
+
+# ctrl_str = """<DERControlList xmlns="urn:ieee:std:2030.5:ns" href="/derp_0_derc" subscribable="0" all="3">
+#   <DERControl href="/derp_0_derc_0" responseRequired="00" subscribable="0">
+#     <description>Control 1</description>
+#     <DERControlBase>{'opModConnect': True, 'opModMaxLimW': 9500}</DERControlBase>
+#   </DERControl>
+#   <DERControl href="/derp_0_derc_1" responseRequired="00" subscribable="0">
+#     <description>Control 2</description>
+#     <DERControlBase>{'opModConnect': True, 'opModFixedW': 80}</DERControlBase>
+#   </DERControl>
+#   <DERControl href="/derp_0_derc_2" responseRequired="00" subscribable="0">
+#     <mRID>94E46E50F4964762B94E6C24AA350CA2</mRID>
+#     <interval>
+#       <duration>60</duration>
+#       <start>1696592892</start>
+#     </interval>
+#     <DERControlBase>
+#       <opModConnect>true</opModConnect>
+#       <opModMaxLimW>9500</opModMaxLimW>
+#     </DERControlBase>
+#   </DERControl>
+# </DERControlList>"""
+
 
 
 

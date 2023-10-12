@@ -16,6 +16,7 @@ from pathlib import Path
 from threading import Semaphore, Timer
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 from uuid import uuid4
+import gevent
 
 import ieee_2030_5.models as m
 import xsdata
@@ -66,7 +67,7 @@ class TimerSpec:
             self.last_trigger_time = current_time
 
 
-class _TimerThread(threading.Thread):
+class _TimerThread(gevent.Greenlet):
     tick = Signal("tick")
 
     def __init__(self):
@@ -278,7 +279,59 @@ class IEEE_2030_5_Client:
             
         resp = self.__put__(list(self._der.values())[0].DERStatusLink.href, dataclass_to_xml(new_status))
         return resp.status
-
+    
+    def _send_control_events(self, der_program_href: str):
+        # Need to check this every 10 seconds for updates to conttrols
+        program: m.DERProgram = self.__get_request__(der_program_href)
+        
+        active: m.DERControlList = self.__get_request__(program.ActiveDERControlListLink.href)
+        default = self.__get_request__(program.DefaultDERControlLink.href)
+        active_is_different = False
+        
+        to_add = []
+        for newderctl in active.DERControl:
+            found = False
+            for existingctl in self._der_active_controls.DERControl:
+                if existingctl.mRID == newderctl.mRID:
+                    found = True
+                    if existingctl == newderctl:
+                        _log.debug(f"Currently in event {newderctl.mRID}")
+                    else:
+                        _log.debug("TODO ->>>>>>>>>>>>>>>>>>>>>>>>>>> Existing mRID should superscede????")
+                    break
+            if not found:
+                to_add.append(newderctl)
+        
+        for ctrl in to_add:
+            self._der_control_event_started_signal.send(ctrl)
+        
+        to_remove = []
+        for existingctl in self._der_active_controls.DERControl:
+            found = False
+            for newctrl in active.DERControl:
+                if newctrl.mRID == existingctl.mRID:
+                    found = True
+                    break
+            if not found:
+                to_remove.append(existingctl)
+        
+        i = len(self._der_active_controls.DERControl)
+        while i > 0:
+            i -= 1
+            if self._der_active_controls.DERControl[i] in to_remove:
+                self._der_control_event_ended_signal.send(self._der_active_controls.DERControl[i])
+                self._der_active_controls.DERControl.pop(i)
+        
+        self._der_active_controls = active
+        
+        if default != self._der_default_control:
+            self._der_default_control = default
+            _log.debug("Default control changed....")
+            self._default_control_changed.send(default)
+        
+        # TODO un hard code 30 second server update.
+        self._update_timer_spec("der_control_event", 5, fn=lambda: self._send_control_events(der_program_href))
+        
     def _update_dcap_tree(self, endpoint: Optional[str] = None):
         """Retrieve device capability 
 
@@ -329,29 +382,10 @@ class IEEE_2030_5_Client:
                     self._der_map[derlist.href] = derlist
                     for index, der in enumerate(derlist.DER):
                         self._der[der.href] = der
+                        
                     if derlist.DER[0].CurrentDERProgramLink:
-                        program: m.DERProgram = self.__get_request__(derlist.DER[0].CurrentDERProgramLink.href)
-                    active: m.DERControlList = self.__get_request__(program.ActiveDERControlListLink.href)
-                    default = self.__get_request__(program.DefaultDERControlLink.href)
-                    active_is_different = False
-                    if len(active.DERControl) == len(self._der_active_controls.DERControl):
-                        for index, der in enumerate(active.DERControl):
-                            if der != self._der_active_controls.DERControl[index]:
-                                active_is_different = True
-                                break
-                    else:
-                        active_is_different = True
-                    if active_is_different:
-                        self._der_active_controls = active
-                        self._active_controls_changed_signal.send(self._der_active_controls)
+                        self._send_control_events(derlist.DER[0].CurrentDERProgramLink.href)
                         
-                    if default != self._der_default_control:
-                        self._der_default_control = default
-                        self._default_control_changed.send(default)
-                        
-                        
-                    
-
             for fsa in self._fsa.values():
                 if fsa.DERProgramListLink:
                     self._der_program_map[fsa.DERProgramListLink.href] = self.__get_request__(
@@ -584,8 +618,13 @@ class IEEE_2030_5_Client:
 
         if self._debug:
             _log_req_resp.debug(f"----> PUT REQUEST\nurl: {url}\nbody: {data}")
-              
-        self.http_conn.request(method="PUT", headers=headers, url=url, body=data)
+        
+        try:
+            self.http_conn.request(method="PUT", headers=headers, url=url, body=data)
+        except http.client.CannotSendRequest as ex:
+            self.http_conn.close()
+            _log.debug("Reconnecting to server")
+            self.http_conn.request(method="PUT", headers=headers, url=url, body=data)
             
         response = self._http_conn.getresponse()
         return response
@@ -612,7 +651,12 @@ class IEEE_2030_5_Client:
 
         if self._debug:
             _log_req_resp.debug(f"----> GET REQUEST\nurl: {url}\nbody: {body}")
-        self.http_conn.request(method="GET", url=url, body=body, headers=headers)
+        try:
+            self.http_conn.request(method="GET", url=url, body=body, headers=headers)
+        except http.client.CannotSendRequest as ex:
+            self.http_conn.close()
+            _log.debug("Reconnecting to server")
+            self.http_conn.request(method="GET", url=url, body=body, headers=headers)
 
         response = self._http_conn.getresponse()
         response_data = response.read().decode("utf-8")

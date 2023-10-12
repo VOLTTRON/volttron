@@ -12,8 +12,9 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 from __future__ import annotations
-from dataclasses import dataclass, field
-
+from copy import deepcopy
+from dataclasses import dataclass, field, fields
+import math
 import logging
 import sys
 from datetime import datetime
@@ -43,6 +44,7 @@ __version__ = "0.1.0"
 # Setup logging so that it runs within the platform
 utils.setup_logging()
 
+logging.getLogger("ieee_2030_5.client.req_resp").setLevel(logging.INFO)
 # The logger for this agent is _log and can be used throughout this file.
 _log = logging.getLogger(__name__)
 
@@ -54,6 +56,9 @@ DER_CAPABILITIES = m.DERCapability()
 DER_CONTROL_BASE = m.DERControlBase()
 # Used for sending status message to the 2030.5 server.
 DER_STATUS = m.DERStatus()
+# Used for sending default control to the 2030.5 server.
+DEFAULT_DER_CONTROL = m.DefaultDERControl()
+DEFAULT_DER_CONTROL.DERControlBase = DER_CONTROL_BASE
 
 
 @dataclass
@@ -74,7 +79,7 @@ class MappedPoint:
     description: str
     multiplier: int
     mrid: str
-    writable: bool
+    offset: int
     parameter_type: str
     notes: str
     parent_object: object = None
@@ -104,6 +109,8 @@ class MappedPoint:
                 self.parent_object = DER_CONTROL_BASE
             elif params[0] == 'DERStatus':
                 self.parent_object = DER_STATUS
+            elif params[0] == 'DefaultDERControl':
+                self.parent_object = DEFAULT_DER_CONTROL
 
             assert self.parent_object is not None, f"The parent object type {params[0]} is not known, please check spelling in configuration file."
             assert hasattr(
@@ -117,7 +124,7 @@ class MappedPoint:
                            description=data['Description'].strip(),
                            multiplier=data['Multiplier'].strip(),
                            mrid=data['MRID'].strip(),
-                           writable=data['Writeable'].strip(),
+                           offset=data['Offset'].strip(),
                            parameter_type=data['Parameter Type'].strip(),
                            notes=data['Notes'].strip())
 
@@ -173,6 +180,11 @@ class IEEE_2030_5_Agent(Agent):
         self._last_capabilities = m.DERCapability()
         self._last_status = m.DERStatus()
 
+        # These variables represent the current state of the der and
+        self._active_controls: List[m.DERControl] = []
+        self._default_der_control: m.DefaultDERControl = None
+        self._current_control: m.DERControl = None
+
         try:
             self._client.start()
         except ConnectionRefusedError:
@@ -222,17 +234,111 @@ class IEEE_2030_5_Agent(Agent):
     def _default_control_changed(self, default_control: m.DefaultDERControl):
         if not isinstance(default_control, m.DefaultDERControl):
             _log.error("Invalid instance of default control")
+            raise ValueError(f"Invalid instance of default control was {type(default_control)}")
+
+        if self._current_control is not None:
+            _log.info("Default config has been overwritten by event.")
             return
-        _log.debug(default_control)
+        _log.info("Sending controls to platform.driver")
 
-    def _control_event_started(self, sender, **kwargs):
-        _log.debug(f"Control event started {kwargs}")
+        self._default_der_control = default_control
 
-    def _control_event_ended(self, sender, **kwargs):
-        _log.debug(f"Control event ended {kwargs}")
+        default_control_points = list(
+            filter(lambda x: 'DefaultDERControl' in x.parameter_type,
+                   self._mapped_points.values()))
+        der_base_points = list(
+            filter(lambda x: 'DERControlBase' in x.parameter_type, self._mapped_points.values()))
 
-    def dcap_updated(self, sender):
-        _log.debug(f"Dcap was updated by {sender}")
+        for point in default_control_points:
+            point_value = getattr(default_control, point.parameter)
+
+            try:
+                if point_value:
+                    if not isinstance(point_value, (float, int, bool)):
+                        point_value = getattr(point_value, "value")
+
+                    if point_value:
+                        self.vip.rpc.call("platform.driver", "set_point", point.point_on_bus,
+                                          point_value)
+            except TypeError:
+                _log.error(f"Error setting point {point.point_on_bus} to {point_value}")
+
+        for point in der_base_points:
+
+            point_value = getattr(default_control.DERControlBase, point.parameter)
+
+            try:
+                if point_value:
+                    if not isinstance(point_value, (float, int, bool)):
+                        point_value = getattr(point_value, "value")
+
+                    if point_value:
+                        self.vip.rpc.call("platform.driver", "set_point", point.point_on_bus,
+                                          point_value)
+            except TypeError:
+                _log.error(f"Error setting point {point.point_on_bus} to {point_value}")
+
+    def _control_event_started(self, sender):
+        _log.debug(f"{'='*50}Control event started\n{sender}")
+        if not isinstance(sender, m.DERControl):
+            _log.error("Invalid control event passed to event_started")
+            raise ValueError(
+                f"Invalid type passed to event_started {type(sender)} instead of {type(m.DERControl)}"
+            )
+
+        self._current_control = sender
+        der_control: m.DERControl = sender
+        # We override some of the base controls with the event controls
+        der_control_base: m.DERControlBase = None
+        if self._default_der_control is not None and self._default_der_control.DERControlBase is not None:
+            der_control_base = deepcopy(self._default_der_control.DERControlBase)
+
+        if der_control_base:
+            # Overwrite all of the base controls with the controls from the event.
+            for fld in fields(m.DERControlBase):
+                setattr(der_control_base, fld.name, getattr(der_control.DERControlBase, fld.name))
+        else:
+            der_control_base = der_control.DERControlBase
+
+        # Retrieve mapped points that we can report on to the platform driver.
+        # Note this is a DERControlBase prefix in the parameter_type field.
+        der_base_points = list(
+            filter(lambda x: 'DERControlBase' in x.parameter_type, self._mapped_points.values()))
+
+        for point in der_base_points:
+
+            point_value = getattr(der_control_base, point.parameter)
+
+            try:
+                if point_value:
+                    # if not isinstance(point_value, (float, int, bool)):
+                    #     point_value = getattr(point_value, "value")
+
+                    # These are the point types that have a multiplyer assigned to them.
+                    if isinstance(point_value,
+                                  (m.VoltageRMS, m.ApparentPower, m.PowerFactor, m.CurrentRMS,
+                                   m.ActivePower, m.WattHour, m.ReactivePower, m.FixedPointType)):
+                        if isinstance(point_value, m.PowerFactor):
+                            point_value = point_value.displacement * math.pow(
+                                10, -point_value.multiplier)
+                        else:
+                            point_value = point_value.value * math.pow(10, -point_value.multiplier)
+                    elif isinstance(point_value, m.FixedVar):
+                        ...
+
+                    elif isinstance(point_value, m.DERCurveLink):
+                        ...
+
+                    if point_value:
+                        _log.debug(f"Setting point: {point.point_on_bus} to {point_value}")
+                        self.vip.rpc.call("platform.driver", "set_point", point.point_on_bus,
+                                          point_value)
+            except TypeError:
+                _log.error(f"Error setting point {point.point_on_bus} to {point_value}")
+
+    def _control_event_ended(self, sender):
+        _log.debug(f"{'='*50}Control event ended\n{sender}")
+        self._current_control = None
 
     def configure(self, config_name, action, contents):
         """
@@ -254,7 +360,10 @@ class IEEE_2030_5_Agent(Agent):
             if item.get('Point Name').strip() and item.get('Parameter Type').strip():
                 if 'DERSettings' in item['Parameter Type'] or \
                     'DERCapability' in item['Parameter Type'] or \
-                        'DERStatus' in item['Parameter Type']:
+                        'DERStatus' in item['Parameter Type'] or \
+                            'DERControlBase' in item['Parameter Type'] or \
+                                'DefaultDERControl' in item['Parameter Type']:
+
                     point = MappedPoint.build_from_csv(item)
                     self._mapped_points[point.point_on_bus] = point
                     # self._mapped_points[point.parameter_type] = point
@@ -326,12 +435,6 @@ class IEEE_2030_5_Agent(Agent):
         except ValueError:
             _log.warning(f"Casting multiplier to int failed: {value}")
             return 1
-
-    def _set_correct_value(self, value: Any) -> Any:
-        value_of_instance = value.value
-        if isinstance(value_of_instance, type(value)):
-            value_of_instance.value = value_of_instance.value.value
-        return value_of_instance
 
     def _transform_settings(self, points: List[MappedPoint]) -> m.DERSettings:
         """Update a DERSettings object so that it is correctly formatted to send to the server.
