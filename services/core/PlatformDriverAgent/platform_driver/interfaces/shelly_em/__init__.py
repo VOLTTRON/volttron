@@ -91,7 +91,6 @@ class Interface(BasicRevert, BaseInterface):
         """
         self.device_address = config_dict["device_address"]
         self.channel_config = config_dict["channel_config"]
-        self.zone_no = config_dict["zone"]
         self.timeout = config_dict.get("timeout", 5)
         self.init_time = time.time()
         self._create_registers()
