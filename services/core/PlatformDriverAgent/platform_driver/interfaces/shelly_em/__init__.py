@@ -26,7 +26,7 @@
 # either expressed or implied, of the FreeBSD Project.
 
 """
-The Candidus Driver allows control and monitoring of Candidus devices via Candidus API
+The Shelly EM driver allows data collection from Shelly EM Devices, future work could support other models of Shelly Meters
 """
 
 import logging
@@ -40,12 +40,28 @@ from platform_driver.interfaces import BaseRegister, BaseInterface, BasicRevert
 _log = logging.getLogger("shelly_em")
 
 SHELLY_EM_REGISTER_MAP = {
-    "power": {"register_name": "active_power", "metadata": {"units": "W", "description": "Active Power"}},
-    "voltage": {"register_name": "voltage", "metadata": {"units": "V", "description": "Voltage"}},
-    "reactive": {"register_name": "reactive_power", "metadata": {"units": "VAR", "description": "Reactive Power"}},
-    "total": {"register_name": "total_energy", "metadata": {"units": "Wh", "description": "Total Energy"}},
-    "total_returned": {"register_name": "total_export", "metadata": {"units": "Wh", "description": "Total Export"}},
+    "power": {
+        "register_name": "active_power",
+        "metadata": {"units": "W", "description": "Active Power"},
+    },
+    "voltage": {
+        "register_name": "voltage",
+        "metadata": {"units": "V", "description": "Voltage"},
+    },
+    "reactive": {
+        "register_name": "reactive_power",
+        "metadata": {"units": "VAR", "description": "Reactive Power"},
+    },
+    "total": {
+        "register_name": "total_energy",
+        "metadata": {"units": "Wh", "description": "Total Energy"},
+    },
+    "total_returned": {
+        "register_name": "total_export",
+        "metadata": {"units": "Wh", "description": "Total Export"},
+    },
 }
+
 
 class Register(BaseRegister):
     """
@@ -53,11 +69,9 @@ class Register(BaseRegister):
     """
 
     def __init__(self, volttron_point_name, units, description):
-        super(Register, self).__init__("byte",
-                                       True,
-                                       volttron_point_name,
-                                       units,
-                                       description=description)
+        super(Register, self).__init__(
+            "byte", True, volttron_point_name, units, description=description
+        )
 
 
 class Interface(BasicRevert, BaseInterface):
@@ -71,40 +85,66 @@ class Interface(BasicRevert, BaseInterface):
         self.logger = _log
 
     def configure(self, config_dict, registry_config_str):
-        """Configure method called by the platform driver with configuration 
-        stanza and registry config file, we ignore the registry config, using 
+        """Configure method called by the platform driver with configuration
+        stanza and registry config file, we ignore the registry config, using
         standard layout for the thermostat properties
         """
-        self.device_address = config_dict['device_address']
-        self.zone_no = config_dict['zone']
-        self.timeout = config_dict.get('timeout', 5)
+        self.device_address = config_dict["device_address"]
+        self.channel_config = config_dict["channel_config"]
+        self.zone_no = config_dict["zone"]
+        self.timeout = config_dict.get("timeout", 5)
         self.init_time = time.time()
         self._create_registers()
+    
+
+    def transform_meter(self, meter: dict, channel_name: str, multiplier: float) -> dict:
+        output = {}
+        for field in meter:
+            if field != "is_valid":
+                output[f"{channel_name}/{SHELLY_EM_REGISTER_MAP[field]}"] = meter[field] * multiplier
+        return output
+    
+    def process_status(self, status: dict) -> dict:
+        output = {}
+        for i, meter in enumerate(status["emeters"]):
+            config_channel = f"channel_{i+1}"
+            if config_channel in self.channel_config:
+                output.update(
+                    self.transform_meter(
+                        meter,
+                        self.channel_config[config_channel]["name"],
+                        self.channel_config[config_channel]["multiplier"],
+                    )
+                )
+        output["wifi_signal"] = status["wifi_sta"]["rssi"]
+        return output
 
     def _get_shelly_data(self):
         """
         Query API for all available data points
         """
+
         def exception_handler(request, exception):
             _log.debug(f"Request failed: {exception} while loading {request}")
+
         output = {}
         req = [grequests.get(f"http://{self.device_address}/status")]
-        res, = grequests.map(req, exception_handler=exception_handler)
+        (res,) = grequests.map(req, exception_handler=exception_handler)
         res.raise_for_status()
-        for regName, value in res.json().items():
-            if regName in SHELLY_EM_REGISTER_MAP:
-                output[SHELLY_EM_REGISTER_MAP[regName]["register_name"]] = value
-
-        return output
+        return self.process_status(res.json())
 
     def _create_registers(self):
         """
         Processes the config scraped from the TED Pro device and generates
         register for each available parameter
         """
-        
+
         for reg, regDef in SHELLY_EM_REGISTER_MAP.items():
-            self.insert_register(Register(regDef["register_name"], regDef["units"], regDef["description"]))
+            self.insert_register(
+                Register(
+                    regDef["register_name"], regDef["units"], regDef["description"]
+                )
+            )
 
     def _set_points(self, points):
         """
@@ -127,6 +167,6 @@ class Interface(BasicRevert, BaseInterface):
 
     def _scrape_all(self):
         """
-        Get all candidus data points
+        Get all Shelly EM data points
         """
         return self._get_shelly_data()
