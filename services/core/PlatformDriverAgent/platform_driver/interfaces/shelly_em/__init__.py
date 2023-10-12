@@ -134,14 +134,14 @@ class Interface(BasicRevert, BaseInterface):
 
     def _create_registers(self):
         """
-        Processes the config scraped from the TED Pro device and generates
+        Processes the config scraped from the Shelly device and generates
         register for each available parameter
         """
 
         for reg, regDef in SHELLY_EM_REGISTER_MAP.items():
             self.insert_register(
                 Register(
-                    regDef["register_name"], regDef["units"], regDef["description"]
+                    regDef["register_name"], regDef["metadata"]["units"], regDef["metadata"]["description"]
                 )
             )
 
