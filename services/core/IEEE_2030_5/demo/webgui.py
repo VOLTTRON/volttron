@@ -1,23 +1,22 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-import asyncio
-import atexit
-from collections import deque
-import json
+import calendar
+from copy import deepcopy
+
 import os
-import platform
+from parser import ParserError
+
 import re
-import shlex
+
 import sys
 import time
 import uuid
 import urllib3
-from asyncio.subprocess import Process
 from dataclasses import dataclass, field, fields
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List
+from typing import Any, Callable, Dict, List, TypeVar
 import logging
 import xsdata
 import yaml
@@ -25,13 +24,14 @@ import plotly.graph_objects as go
 import plotly.express as px
 import pandas as pd
 from numbers import Number
+import re
 
 from volttron.platform import get_volttron_root
 from volttron.platform.agent.utils import parse_timestamp_string, process_timestamp
 
 urllib3.disable_warnings()
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).absolute().parent.parent.as_posix()))
 
 import subprocess
 
@@ -43,6 +43,14 @@ from ieee_2030_5 import dataclass_to_xml, xml_to_dataclass
 
 logging.getLogger("urllib3.connectionpool").setLevel(logging.INFO)
 _log = logging.getLogger(__name__)
+
+def uuid_2030_5() -> str:
+    return str(uuid.uuid4()).replace('-', '').upper()
+
+def datetime_from_utc_to_local(utc_datetime):
+    now_timestamp = time.time()
+    offset = datetime.fromtimestamp(now_timestamp) - datetime.utcfromtimestamp(now_timestamp)
+    return utc_datetime + offset
 
 @dataclass
 class Configuration:
@@ -80,29 +88,7 @@ class PlottedData:
         my_df = pd.DataFrame(data)
         my_df.set_index(['ts'])
         return my_df
-        
     
-    # def add_publish(self, ts, published):
-        
-    #     self.series_ts.append(ts)
-        
-    #     if len(self.series_ts) > 10:
-    #         self.series_ts.pop()
-        
-    #     for k in published[0]:
-    #         if k not in self.series_labels:
-    #             self.series_labels.append(k)
-    #             self.series_values[k] = []
-            
-    #         self.series_values[k].append(published[0][k])
-    #         if len(self.series_values[k]) > 10:
-    #             self.series_values[k].pop()
-
-    #     if self.series_ts:
-    #         plot_figure.refresh()
-
-# Data from the platform driver is plotted here.
-#data_plot = PlottedData()
 # Configuration parameters from the config page
 config = Configuration()
 # Temp storage for changes on the config page
@@ -118,7 +104,78 @@ program_list = []
 admin_session = requests.Session()
 client_session = requests.Session()
 
+S = TypeVar('S')
+T = TypeVar('T')
+
+class PropertyWrapper:
+    """The PropertyWrapper class handles binding on behalf of the parent object.
+    
+    The class handles the binding from/to and formatting/applying when sending the
+    object to the parent.
+    """
+    
+    def __init__(self, backing_obj: T, parent_obj: S, parent_property: str, 
+                 formatters: Dict[str, Callable] = None, applyers: Dict[str, Callable] = None):
+        # The sub object that we need to provide for
+        self.backing_obj = backing_obj
+        # The parent object this property is wrapping
+        self.parent_obj = parent_obj
+        # The property this object is wrapping on the parent_obj
+        self.parent_property = parent_property
+        
+        if formatters is None:
+            formatters = {}
+            
+        if applyers is None:
+            applyers = {}
+            
+        self.formatters = formatters
+        self.appliers = applyers
+        # Transfer the values from the parent to the backing object
+        if self.parent_obj.__dict__[self.parent_property] is not None:            
+            if isinstance(self.backing_obj, (m.VoltageRMS, m.ApparentPower, m.CurrentRMS,
+                                                 m.ActivePower, m.FixedVar, m.FixedPointType,
+                                                 m.ReactivePower, m.AmpereHour, m.WattHour)):
+                self.backing_obj.__dict__["value"] = self.parent_obj.__dict__[self.parent_property]
+                
+        _log.debug(f"Creating Property Wrapper for parent {type(parent_obj)} with backing object {type(backing_obj)} on property {parent_property}")
+    
+    def __setattr__(self, key: str, value: Any):
+        if key in ("backing_obj", "parent_obj", "parent_property", "formatters", "appliers"):
+            self.__dict__[key] = value
+        else:
+            if key in self.formatters:
+                self.backing_obj.__dict__[key] = self.formatters[key](value)
+            else:
+                _log.debug(f"Setting on {type(self.backing_obj)} {key} -> {value}")
+                self.backing_obj.__dict__[key] = value
+            
+    def __getattr__(self, key: str) -> Any:
+        if key in ("data_obj", "parent_obj", "parent_property", "formatters", "appliers"):
+            return self.__dict__[key]
+        else:
+            return self.backing_obj.__dict__[key]
+                
+    def apply_to_parent(self):
+        other_obj = deepcopy(self.backing_obj)
+        for field in fields(other_obj):
+            if field.name in self.appliers:
+                _log.debug(f"Converting from {other_obj.__dict__[field.name]} to {self.appliers[field.name](other_obj.__dict__[field.name])}")
+                other_obj.__dict__[field.name] = self.appliers[field.name](other_obj.__dict__[field.name])
+        
+        if self.should_be_none():
+            setattr(self.parent_obj, self.parent_property, None)
+        else:            
+            setattr(self.parent_obj, self.parent_property, other_obj)
+    
+    def should_be_none(self) -> bool:
+        for fld in fields(self.backing_obj):
+            if getattr(self.backing_obj, fld.name):
+                return False
+        return True
+
 def update_sessions():
+    """Update the admin and client sessions with the current configuration."""
     tlsdir = Path(config.ieee_client_cert).parent.parent
     admin_session.cert = (str(tlsdir.joinpath("certs/admin.crt")), str(tlsdir.joinpath("private/admin.pem")))
     client_session.cert = (config.ieee_client_cert, config.ieee_client_pk)
@@ -191,6 +248,14 @@ def reset_config():
     
 cards = []
 
+
+def convert_datetime_to_int(dt: datetime) -> int:
+    """Converts datetime to epoch time in gmt
+    
+    :param dt: Datetime object
+    :return: Integer epoch time
+    """
+    return int(calendar.timegm(dt.timetuple()))
   
 update_sessions()
 dcap: m.DeviceCapability = get_from_server("dcap", deserialize=True)
@@ -211,59 +276,139 @@ program: m.DERProgram = get_from_server(der.CurrentDERProgramLink.href, deserial
 
 
 def noneable_int_change(obj: object, prop: str, value):
-    if value.sender.value == "" or value.sender.value is None:
-        setattr(obj, prop, None)
-    else:
-        try:
-            num = int(value.sender.value)
-            setattr(obj, prop, num)
-        except ValueError:
-            ...
+    try:
+        num = int(value.sender.value)
+        setattr(obj, prop, num)
+    except (ValueError, TypeError):
+        ...
 
 @ui.refreshable
 def render_der_default_control_tab():
+    def do_refresh():
+        render_der_default_control_tab.refresh()
+        ui.notify("Refreshed") 
     default: m.DefaultDERControl = get_from_server(program.DefaultDERControlLink.href, deserialize=True)
+    der_base: m.DERControlBase = default.DERControlBase
+    if der_base is None:
+        der_base = m.DERControlBase()
+        default.DERControlBase = der_base
+        
+    wrappers: List[PropertyWrapper] = []
+        
     with ui.row():
         with ui.column():
-            ui.label("DER Default Control").style("font-size: 200%;")
+            with ui.label("DER Default Control").style("font-size: 200%;"):
+                ui.button(icon="refresh", color="white", 
+                      on_click=lambda: do_refresh()).style("margin:5px; padding: 5px;")
             ui.label("Section 10.10 Distributed Energy Resources function set from 20305-2018 IEEE standard.")
             
     with ui.row().classes("pt-10"):
         with ui.column().classes("pr-20"):            
-            esdelay_input = ui.input("setESDelay (hundredth of a second)",
+            ui.input("setESDelay (hundredth of a second)",
                                       on_change=lambda e: noneable_int_change(default, "setESDelay", e)) \
                                           .bind_value_from(default, "setESDelay").classes("w-96")
                 #.bind_value_from(default, "setESDelay").classes("w-96")
-            setESHighFreq = ui.input("setESHighFreq (hundredth of a hertz)",
+            ui.input("setESHighFreq (hundredth of a hertz)",
                                       on_change=lambda e: noneable_int_change(default, "setESHighFreq", e)) \
                 .bind_value_from(default, "setESHighFreq").classes("w-96")
-            setESHighVolt = ui.input("setESHighVolt (hundredth of a volt)",
+            ui.input("setESHighVolt (hundredth of a volt)",
                                       on_change=lambda e: noneable_int_change(default, "setESHighVolt", e)) \
                 .bind_value_from(default, "setESHighVolt").classes("w-96")
-            setESLowFreq = ui.input("setESLowFreq (hundredth of a hertz)",
+            ui.input("setESLowFreq (hundredth of a hertz)",
                                       on_change=lambda e: noneable_int_change(default, "setESHighVolt", e)) \
                 .bind_value_from(default, "setESLowFreq").classes("w-96")
-            setESLowVolt = ui.input("setESLowVolt (hundredth of a volt)",
+            ui.input("setESLowVolt (hundredth of a volt)",
                                       on_change=lambda e: noneable_int_change(default, "setESLowFreq", e)) \
                 .bind_value_from(default, "setESLowVolt").classes("w-96")
         with ui.column():
-            setESRampTms = ui.input("setESRampTms (hundredth of a second)",
+            ui.input("setESRampTms (hundredth of a second)",
                                       on_change=lambda e: noneable_int_change(default, "setESRampTms", e)) \
                 .bind_value_from(default, "setESRampTms").classes("w-96")
-            setESRandomDelay = ui.input("setESRandomDelay (hundredth of a second)",
+            ui.input("setESRandomDelay (hundredth of a second)",
                                       on_change=lambda e: noneable_int_change(default, "setESRandomDelay", e)) \
                 .bind_value_from(default, "setESRandomDelay").classes("w-96")
-            setGradW = ui.input("setGradW (hundredth of a watt)",
+            ui.input("setGradW (hundredth of a watt)",
                                       on_change=lambda e: noneable_int_change(default, "setGradW", e)) \
                 .bind_value_from(default, "setGradW").classes("w-96")
-            setSoftGradW = ui.input("setSoftGradW (hundredth of a watt)",
+            ui.input("setSoftGradW (hundredth of a watt)",
                                       on_change=lambda e: noneable_int_change(default, "setSoftGradW", e)) \
                 .bind_value_from(default, "setSoftGradW").classes("w-96")
     
+    with ui.row().style("margin-top:15px"):
+        ui.label("DER Control Base").style("font-size: 150%;")
+    
+    with ui.row():
+        with ui.column():
+            ui.checkbox("opModConnect", value=True).bind_value(der_base, "opModConnect")
+            ui.checkbox("opModEnergize", value=True).bind_value(der_base, "opModEnergize")
+            
+            ui.label("Power Factor Absorb Watts").style("font-size: 125%;")
+            opModFixedPFAbsorbW_wrapper = PropertyWrapper(m.PowerFactorWithExcitation(), der_base, "opModFixedPFAbsorbW")
+            wrappers.append(opModFixedPFAbsorbW_wrapper)
+            ui.input("displacement", on_change=lambda e: noneable_int_change(opModFixedPFAbsorbW_wrapper, "displacement", e)) \
+                .bind_value_from(opModFixedPFAbsorbW_wrapper, "displacement")
+            ui.checkbox("excitation", value=False).bind_value(opModFixedPFAbsorbW_wrapper, "excitation")
+            
+            ui.label("Power Factor Inject Watts").style("font-size: 125%;")
+            opModFixedPFInjectW_wrapper = PropertyWrapper(m.PowerFactorWithExcitation(), der_base, "opModFixedPFInjectW")
+            wrappers.append(opModFixedPFInjectW_wrapper)
+            ui.input("displacement", on_change=lambda e: noneable_int_change(opModFixedPFInjectW_wrapper, "displacement", e)) \
+                .bind_value_from(opModFixedPFInjectW_wrapper, "displacement")
+            ui.checkbox("excitation", value=False).bind_value(opModFixedPFInjectW_wrapper, "excitation")
+            
+                        
+        with ui.column().classes("pr-10"):            
+            fixedVar_wrapper = PropertyWrapper(m.FixedVar(), der_base, "opModFixedVar")
+            wrappers.append(fixedVar_wrapper)
+            ui.input("opModFixedVar", on_change=lambda e: noneable_int_change(fixedVar_wrapper, "value", e)) \
+                .bind_value_from(fixedVar_wrapper, "value")
+                
+            fixedWatt_wrapper = PropertyWrapper(m.FixedVar(), der_base, "opModFixedVar")
+            wrappers.append(fixedWatt_wrapper)            
+            ui.input("opModFixedW", on_change=lambda e: noneable_int_change(fixedWatt_wrapper, "value", e)) \
+                .bind_value_from(fixedWatt_wrapper, "value")
+                
+            # freqDroop_wrapper = Wrapper(m.FreqDroopType(), der_base, "openLoopTms")
+            # wrappers.append(freqDroop_wrapper)
+            # opModFreqDroop = ui.input("opModFreqDroop",
+            #                                on_change=lambda e: noneable_int_change(freqDroop_wrapper, "openLoopTms", e)) \
+            #     .bind_value_from(freqDroop_wrapper, "openLoopTms")
+            
+            ui.input("opModMaxLimW", on_change=lambda e: noneable_int_change(der_base, "opModMaxLimW", e)) \
+                .bind_value_from(der_base, "opModMaxLimW")
+                
+        with ui.column().classes("pr-10"):
+            opModTargetVar_wrapper = PropertyWrapper(m.ReactivePower(), der_base, "opModTargetVar")
+            wrappers.append(opModTargetVar_wrapper)
+            ui.input("opModTargetVar", on_change=lambda e: noneable_int_change(opModTargetVar_wrapper, "value", e)) \
+                .bind_value_from(opModTargetVar_wrapper, "value")
+                
+            opModTargetW_wrapper = PropertyWrapper(m.ActivePower(), der_base, "opModTargetW")
+            wrappers.append(opModTargetW_wrapper)
+            ui.input("opModTargetW", on_change=lambda e: noneable_int_change(opModTargetW_wrapper, "value", e)) \
+                .bind_value_from(opModTargetW_wrapper, "value")
+                
+            # opModVoltVar = ui.input("opModVoltVar",
+            #                                on_change=lambda e: noneable_int_change(der_base, "opModVoltVar", e)) \
+            #     .bind_value_from(der_base, "opModVoltVar")
+            # opModWattPF = ui.input("opModWattPF",
+            #                                on_change=lambda e: noneable_int_change(der_base, "opModWattPF", e)) \
+            #     .bind_value_from(der_base, "opModWattPF")
+            ui.input("rampTms", on_change=lambda e: noneable_int_change(der_base, "rampTms", e)) \
+                .bind_value_from(der_base, "rampTms")
+    # render_default_control(der_base)
+    
     def store_default_der_control():
         try:
-            put_as_admin(program.DefaultDERControlLink.href, dataclass_to_xml(default))
+            _log.debug(der_base)
+            _log.debug(default)
+            for wrapper in wrappers:
+                wrapper.apply_to_parent()
+            base_payload = dataclass_to_xml(der_base)
+            payload = dataclass_to_xml(default)
+            put_as_admin(program.DefaultDERControlLink.href, payload)
             ui.notify("Default DER Control Updated")
+            render_der_default_control_tab.refresh()
         except xsdata.exceptions.ParserError as ex:
             ui.notify(ex.message, type='negative')
         
@@ -345,16 +490,20 @@ def render_der_status_tab():
     
 @ui.refreshable
 def render_der_control_list_tab():
-    control_list: m.DERControlList = get_from_server(program.DERControlListLink.href, deserialize=True)
-    active_listl: m.DERControlList = get_from_server(program.ActiveDERControlListLink.href, deserialize=True)
-    curve_list: m.DERCurveList = get_from_server(program.DERCurveListLink.href, deserialize=True)
-    default: m.DefaultDERControl = get_from_server(program.DefaultDERControlLink.href, deserialize=True)  
+    def do_refresh():
+        render_der_control_list_tab.refresh()
+        ui.notify("Refreshed") 
     
+    
+    control_list: m.DERControlList = get_from_server(program.DERControlListLink.href, deserialize=True)
+    active_list: m.DERControlList = get_from_server(program.ActiveDERControlListLink.href, deserialize=True)
     with ui.row():
         with ui.column():
-            ui.label("DER Control List").style("font-size: 200%;")
+            with ui.label("DER Control List").style("font-size: 200%;"):
+                ui.button(icon="refresh", color="white", 
+                      on_click=lambda: do_refresh()).style("margin:5px; padding: 5px;")
             ui.label("Section 10.10 Distributed Energy Resources function set from 20305-2018 IEEE standard.")
-    
+                
     columns = [
         {'name': 'time', 'label': 'Event Time', 'field': 'time', 'required': True},
         {'name': 'duration', 'label': 'Event Duration', 'field': 'duration', 'required': True},
@@ -373,15 +522,24 @@ def render_der_control_list_tab():
             return "Supersceded"
         else:
             return "Unknown"
-    control_list_rows = []    
-    for ctrl in control_list.DERControl:
-        if ctrl.interval:
-            row = {
-                'time': ctrl.interval.start,
-                'duration': ctrl.interval.duration,
-                'status': status_to_string(ctrl.EventStatus.currentStatus)
-            }
-            control_list_rows.append(row)
+        
+    def build_list_rows(ctrl_list: m.DERControlList, filter_status: int = None):
+        control_list_rows = []    
+        for ctrl in control_list.DERControl:
+            if ctrl.interval:
+                if ctrl.EventStatus is None and ctrl.interval.start and ctrl.interval.duration:
+                    ctrl.EventStatus = m.EventStatus(currentStatus=0) # Scheduled.
+                local_dt = datetime_from_utc_to_local(datetime.utcfromtimestamp(ctrl.interval.start))
+                
+                row = {
+                    'time': ctrl.interval.start,
+                    'duration': ctrl.interval.duration,
+                    'status': status_to_string(ctrl.EventStatus.currentStatus)
+                }
+                
+                if filter_status is None or ctrl.EventStatus.currentStatus == filter_status:
+                    control_list_rows.append(row)
+        return control_list_rows
     
     with ui.row():
         with ui.column():
@@ -389,7 +547,7 @@ def render_der_control_list_tab():
 
     with ui.row():
         with ui.column():
-            ui.table(columns=columns, rows=control_list_rows)
+            ui.table(columns=columns, rows=build_list_rows(active_list, 1))
     
     with ui.row():
         with ui.column():
@@ -397,90 +555,139 @@ def render_der_control_list_tab():
 
     with ui.row():
         with ui.column():
-            ui.label("Insert table here!")
-            
+            ui.table(columns=columns, rows=build_list_rows(control_list, 0))
+    
     with ui.row():
         with ui.column():
             ui.label("Completed Controls").style("font-size: 150%")
 
     with ui.row():
         with ui.column():
-            ui.label("Insert table here!")
+            ui.table(columns=columns, rows=build_list_rows(control_list, 5))
+
     
 @ui.refreshable
 def render_new_der_control_tab():
-        
+    # Need to start with the default control base before overwriting values from the new
+    # base control.
+    default: m.DefaultDERControl = get_from_server(program.DefaultDERControlLink.href, deserialize=True)
+    der_base: m.DERControlBase = default.DERControlBase
+    wrappers: List[PropertyWrapper] = []
+    if der_base is None:
+        der_base = m.DERControlBase()
+        default.DERControlBase = der_base
+    
+    def do_refresh():
+        render_new_der_control_tab.refresh()
+        ui.notify("Refreshed")        
+    
     with ui.row():
         with ui.column():
-            ui.label("DER Control Entry").style("font-size: 200%;")
+            with ui.label("DER Control Entry").style("font-size: 200%;"):
+                ui.button(icon="refresh", color="white", 
+                      on_click=lambda: do_refresh()).style("margin:5px; padding: 5px;")
             ui.label("Section 10.10 Distributed Energy Resources function set from 20305-2018 IEEE standard.")
     
     with ui.row().classes("pt-5"):
         with ui.column():
             ui.label(f"DERProgram {der.CurrentDERProgramLink.href}").style("font-size: 150%")  
     
-    new_control = m.DERControl(EventStatus=m.EventStatus())
-    der_base = m.DERControlBase()
-    def submit_new_control():
-        new_control.DERControlBase = der_base
-        ui.notify("Doing good stuff but not much here!")
-        render_der_control_list_tab.refresh()
     
-    def combine_datetime():
-        print(from_date.value)
+    new_control = m.DERControl(mRID=uuid_2030_5())
+    def submit_new_control():
+        for wrapper in wrappers:
+            if not wrapper.should_be_none():
+                wrapper.apply_to_parent()
+                
+        new_control.DERControlBase = der_base
+        #new_ctrl = m.DERControl(mRID="b234245afff", DERControlBase=dderc.DERControlBase, description="A new control is going here")
+        #new_control.interval = m.DateTimeInterval(start=current_time + 10, duration=20)
+        _log.debug(dataclass_to_xml(new_control))
+        response = post_as_admin(program.DERControlListLink.href, data=dataclass_to_xml(new_control))
+        
+        render_der_control_list_tab.refresh()
+        ui.notify("New Control Complete")
+        render_new_der_control_tab.refresh()
+    
+    def set_date(obj, prop, e):
+        try:
+            dt = parse_timestamp_string(e.value)
+            setattr(obj, prop, e.value)
+        except ParserError:
+            _log.debug(f"Invalid datetime specified: {e.value}")
+
     with ui.row():
         with ui.column():
-            from_date = ui.input("Event Start", value=datetime.now(), 
-                                 on_change=lambda: combine_datetime()).classes("w-96")
-            duration = ui.number("Duration", min=0) \
-                .bind_value_from(new_control.EventStatus, "duration")
-
-    disable_curves = True         
-    
+            interval_wrapper = PropertyWrapper(m.DateTimeInterval(duration=60, start=datetime.now() + timedelta(seconds=120)),
+                                       new_control, "interval", formatters=dict(start=parse_timestamp_string),
+                                       applyers=dict(start=convert_datetime_to_int))
+            wrappers.append(interval_wrapper)
+            from_date = ui.input("Event Start", value=getattr(interval_wrapper, "start"), 
+                                 on_change=lambda e: set_date(interval_wrapper, "start", e)) \
+                .classes("w-96")
+            duration = ui.number("Duration", min=0, value=getattr(interval_wrapper, "duration")) \
+                .bind_value_from(interval_wrapper, "duration")
+        
     with ui.row():
         with ui.column().classes("pr-10"):
-            ui.label("DERControlBase")
             
-            opModConnect = ui.checkbox("opModConnect") \
-                .bind_value(der_base, "opModConnect")
-            opModEnergize = ui.checkbox("opModEnergize") \
-                .bind_value(der_base, "opModEnergize")
-            opModFixedPFAbsorbW = ui.input("opModFixedPFAbsorbW",
-                                           on_change=lambda e: noneable_int_change(der_base, "opModFixedPFAbsorbW", e)) \
-                .bind_value_from(der_base, "opModFixedPFAbsorbW")
-            opModFixedPFInjectW = ui.input("opModFixedPFInjectW",
-                                           on_change=lambda e: noneable_int_change(der_base, "opModFixedPFInjectW", e)) \
-                .bind_value_from(der_base, "opModFixedPFInjectW")
+            ui.input("MRID").bind_value(new_control, "mRID").classes("w-96")
+            
+            ui.checkbox("opModConnect", value=True).bind_value(der_base, "opModConnect")
+            ui.checkbox("opModEnergize", value=True).bind_value(der_base, "opModEnergize")
+            
+            ui.label("Power Factor Absorb Watts").style("font-size: 125%;")
+            opModFixedPFAbsorbW_wrapper = PropertyWrapper(m.PowerFactorWithExcitation(), der_base, "opModFixedPFAbsorbW")
+            wrappers.append(opModFixedPFAbsorbW_wrapper)
+            ui.input("displacement", on_change=lambda e: noneable_int_change(opModFixedPFAbsorbW_wrapper, "displacement", e)) \
+                .bind_value_from(opModFixedPFAbsorbW_wrapper, "displacement")
+            ui.checkbox("excitation", value=False).bind_value(opModFixedPFAbsorbW_wrapper, "excitation")
+            
+            ui.label("Power Factor Inject Watts").style("font-size: 125%;")
+            opModFixedPFInjectW_wrapper = PropertyWrapper(m.PowerFactorWithExcitation(), der_base, "opModFixedPFInjectW")
+            wrappers.append(opModFixedPFInjectW_wrapper)
+            ui.input("displacement", on_change=lambda e: noneable_int_change(opModFixedPFInjectW_wrapper, "displacement", e)) \
+                .bind_value_from(opModFixedPFInjectW_wrapper, "displacement")
+            ui.checkbox("excitation", value=False).bind_value(opModFixedPFInjectW_wrapper, "excitation")
+            
                         
         with ui.column().classes("pr-10"):            
-            opModFixedVar = ui.input("opModFixedVar",
-                                           on_change=lambda e: noneable_int_change(der_base, "opModFixedVar", e)) \
-                .bind_value_from(der_base, "opModFixedVar")
-            opModFixedW = ui.input("opModFixedW",
-                                           on_change=lambda e: noneable_int_change(der_base, "opModFixedW", e)) \
+            fixedVar_wrapper = PropertyWrapper(m.FixedVar(), der_base, "opModFixedVar")
+            wrappers.append(fixedVar_wrapper)
+            ui.input("opModFixedVar", on_change=lambda e: noneable_int_change(fixedVar_wrapper, "value", e)) \
+                .bind_value_from(fixedVar_wrapper, "value")
+                
+            # Note this is not using PropertyWrapper because it is defined as an int in the xsd.
+            ui.input("opModFixedW", on_change=lambda e: noneable_int_change(der_base, "opModFixedW", e)) \
                 .bind_value_from(der_base, "opModFixedW")
-            opModFreqDroop = ui.input("opModFreqDroop",
-                                           on_change=lambda e: noneable_int_change(der_base, "opModFreqDroop", e)) \
-                .bind_value_from(der_base, "opModFreqDroop")
-            opModMaxLimW = ui.input("opModMaxLimW",
-                                           on_change=lambda e: noneable_int_change(der_base, "opModMaxLimW", e)) \
+                
+            # freqDroop_wrapper = Wrapper(m.FreqDroopType(), der_base, "openLoopTms")
+            # wrappers.append(freqDroop_wrapper)
+            # opModFreqDroop = ui.input("opModFreqDroop",
+            #                                on_change=lambda e: noneable_int_change(freqDroop_wrapper, "openLoopTms", e)) \
+            #     .bind_value_from(freqDroop_wrapper, "openLoopTms")
+            
+            ui.input("opModMaxLimW", on_change=lambda e: noneable_int_change(der_base, "opModMaxLimW", e)) \
                 .bind_value_from(der_base, "opModMaxLimW")
                 
         with ui.column().classes("pr-10"):
-            opModTargetVar = ui.input("opModTargetVar",
-                                           on_change=lambda e: noneable_int_change(der_base, "opModTargetVar", e)) \
-                .bind_value_from(der_base, "opModTargetVar")
-            opModTargetW = ui.input("opModTargetW",
-                                           on_change=lambda e: noneable_int_change(der_base, "opModTargetW", e)) \
-                .bind_value_from(der_base, "opModTargetW")
-            opModVoltVar = ui.input("opModVoltVar",
-                                           on_change=lambda e: noneable_int_change(der_base, "opModVoltVar", e)) \
-                .bind_value_from(der_base, "opModVoltVar")
-            opModWattPF = ui.input("opModWattPF",
-                                           on_change=lambda e: noneable_int_change(der_base, "opModWattPF", e)) \
-                .bind_value_from(der_base, "opModWattPF")
-            rampTms: ui.input("rampTms",
-                                           on_change=lambda e: noneable_int_change(der_base, "rampTms", e)) \
+            opModTargetVar_wrapper = PropertyWrapper(m.ReactivePower(), der_base, "opModTargetVar")
+            wrappers.append(opModTargetVar_wrapper)
+            ui.input("opModTargetVar", on_change=lambda e: noneable_int_change(opModTargetVar_wrapper, "value", e)) \
+                .bind_value_from(opModTargetVar_wrapper, "value")
+                
+            opModTargetW_wrapper = PropertyWrapper(m.ActivePower(), der_base, "opModTargetW")
+            wrappers.append(opModTargetW_wrapper)
+            ui.input("opModTargetW", on_change=lambda e: noneable_int_change(opModTargetW_wrapper, "value", e)) \
+                .bind_value_from(opModTargetW_wrapper, "value")
+                
+            # opModVoltVar = ui.input("opModVoltVar",
+            #                                on_change=lambda e: noneable_int_change(der_base, "opModVoltVar", e)) \
+            #     .bind_value_from(der_base, "opModVoltVar")
+            # opModWattPF = ui.input("opModWattPF",
+            #                                on_change=lambda e: noneable_int_change(der_base, "opModWattPF", e)) \
+            #     .bind_value_from(der_base, "opModWattPF")
+            ui.input("rampTms", on_change=lambda e: noneable_int_change(der_base, "rampTms", e)) \
                 .bind_value_from(der_base, "rampTms")
                 
     with ui.row().classes("pt-10"):
@@ -491,7 +698,10 @@ def render_new_der_control_tab():
     with ui.row().classes("pt-20"):
         with ui.column():   
             ui.button("Sumbit Control", on_click=lambda: submit_new_control())
-
+with ui.header():
+    current_time_label = ui.label("Current Time")
+    ui.timer(1.0, lambda: current_time_label.set_text(
+        f"Local Time: {datetime.now().isoformat()} Epoche: {convert_datetime_to_int(datetime.utcnow())}"))
 with ui.tabs().classes('w-full') as tabs:
     configuration_tab = ui.tab("configuration", "Configuration")
     der_default_control_tab = ui.tab("derdefaultcontrol", "DER Default Control")
@@ -522,6 +732,8 @@ with ui.tab_panels(tabs, value=configuration_tab).classes("w-full"):
         
     with ui.tab_panel(der_control_list_tab):
         render_der_control_list_tab()
+        ui.timer(30, lambda: render_der_control_list_tab.refresh())
+        # ui.timer(10, lambda: render_der_default_control_tab.refresh())
         
     with ui.tab_panel(der_status_tab):
         render_der_status_tab()
@@ -529,268 +741,5 @@ with ui.tab_panels(tabs, value=configuration_tab).classes("w-full"):
 
 logging.basicConfig(level=logging.DEBUG)
 
-# ui.timer(10, update_from_server)
-#ui.timer(watch_file.interval, watch_for_file)
-ui.run(reload=True, show=False,  uvicorn_reload_dirs='services/core/IEEE_2030_5/demo')
-#ui.run(reload=True, uvicorn_reload_dirs='services/core/IEEE_2030_5/demo')
-
-# session = requests.Session()
-# tlsdir = Path("~/tls").expanduser()
-# session.cert = (str(tlsdir.joinpath("certs/admin.pem")), str(tlsdir.joinpath("private/admin.pem")))
-# session.verify = str(tlsdir.joinpath("certs/ca.pem"))
-
-
-# def get_url(endpoint, not_admin: bool = False) -> str:
-#     if endpoint.startswith('/'):
-#         endpoint = endpoint[1:]
-#     if not_admin:
-#         return f"https://127.0.0.1:8443/{endpoint}"
-#     return f"https://127.0.0.1:8443/admin/{endpoint}"
-
-
-# filedirectory = Path(__file__).parent
-# pkfile = filedirectory.joinpath("keypair.json")
-# if not pkfile.exists():
-#     print(f"Key file not found in demo directory {pkfile}.")
-#     sys.exit(0)
-
-# pk_data = yaml.safe_load(pkfile.open().read())
-
-# os.environ['AGENT_PUBLICKEY'] = pk_data['public']
-# os.environ['AGENT_SECRETEKY'] = pk_data['secret']
-# os.environ['AGENT_VIP_IDENTITY'] = "inverter1"
-# os.environ['AGENT_CONFIG'] = str(filedirectory.parent.joinpath('example.config.yml'))
-# agent_py = str(filedirectory.parent.joinpath("ieee_2030_5/agent.py"))
-# py_launch = str(Path(get_volttron_root()).joinpath("scripts/pycharm-launch.py"))
-
-# tasks = []
-
-
-# def add_my_task(task):
-#     tasks.append(task)
-
-
-# control_status = "None"
-# derp = "Not Set"
-# inverter_pf = "Not Set"
-# inverter_p = "Not Set"
-# inverter_q = "Not Set"
-# in_real = False
-# in_reactive = False
-# in_control = False
-
-
-# def new_agent_output(line: str):
-#     global inverter_q, inverter_p, in_real, in_reactive, in_control, control_status
-
-#     if '<EventStatus>' in line:
-#         in_control = True
-
-#     if in_control:
-#         if "<currentStatus>" in line:
-#             status_value = int(re.search(r'<currentStatus>(.*?)</currentStatus>', line).group(1))
-#             if status_value == -1:
-#                 control_status = "Control Complete"
-#             elif status_value == 0:
-#                 control_status = "Control Scheduled"
-#             elif status_value == 1:
-#                 control_status = "Active"
-#             else:
-#                 control_status = "Not Set"
-#             in_control = False
-
-#             status.content = updated_markdown()
-
-#     if "url: /mup_1" in line:
-#         in_reactive = True
-
-#     if in_reactive:
-#         if line.startswith("<value>"):
-#             inverter_q = re.search(r'<value>(.*?)</value>', line).group(1)
-#             in_reactive = False
-#             status.content = updated_markdown()
-
-#     if "url: /mup_1" in line:
-#         in_real = True
-
-#     if in_real:
-#         if line.startswith("<value>"):
-#             inverter_p = re.search(r'<value>(.*?)</value>', line).group(1)
-#             in_real = False
-#             status.content = updated_markdown()
-
-
-# def _change_power_factor(new_pf):
-#     global inverter_pf
-
-#     current_time = int(time.mktime(datetime.utcnow().timetuple()))
-
-#     ctrl_base = m.DERControlBase(opModConnect=True, opModMaxLimW=9500)
-#     ctrl = m.DERControl(mRID="ctrl1mrdi", description="A control for the control list")
-#     ctrl.DERControlBase = ctrl_base
-#     ctrl.interval = m.DateTimeInterval(start=current_time + 10, duration=20)
-#     ctrl.randomizeDuration = 180
-#     ctrl.randomizeStart = 180
-#     ctrl.DERControlBase.opModFixedW = 500
-#     ctrl.DERControlBase.opModFixedPFInjectW = m.PowerFactorWithExcitation(
-#         displacement=int(pf.value))
-
-#     posted = dataclass_to_xml(ctrl)
-#     utility_log.push(f"Event Posted to Change opModFixedPFInjectW to {pf.value}")
-#     utility_log.push(posted)
-#     resp = session.post(get_url("derp/0/derc"), data=posted)
-#     resp = session.get(get_url(resp.headers.get('Location'), not_admin=True))
-#     pfingect: m.DERControl = xml_to_dataclass(resp.text)
-#     inverter_pf = pfingect.DERControlBase.opModFixedPFInjectW.displacement
-#     status.content = updated_markdown()
-
-
-# def get_control_event_default():
-#     derbase = m.DERControlBase(opModConnect=True, opModEnergize=False, opModFixedPFInjectW=80)
-
-#     time_plus_10 = int(time.mktime((datetime.utcnow() + timedelta(seconds=60)).timetuple()))
-
-#     derc = m.DERControl(mRID=str(uuid.uuid4()),
-#                         description="New DER Control Event",
-#                         DERControlBase=derbase,
-#                         interval=m.DateTimeInterval(duration=10, start=time_plus_10))
-
-#     return dataclass_to_xml(derc)
-
-
-# def _setup_event(element):
-#     derbase = m.DERControlBase(opModConnect=True, opModEnergize=False, opModFixedPFInjectW=80)
-
-#     time_plus_60 = int(time.mktime((datetime.utcnow() + timedelta(seconds=60)).timetuple()))
-
-#     derc = m.DERControl(mRID=str(uuid.uuid4()),
-#                         description="New DER Control Event",
-#                         DERControlBase=derbase,
-#                         interval=m.DateTimeInterval(duration=10, start=time_plus_60))
-#     element.value = dataclass_to_xml(derc)
-
-#     #background_tasks.running_tasks.clear()
-
-
-# async def _exit_background_tasks():
-#     for item in tasks:
-#         if isinstance(item, Process):
-#             try:
-#                 item.kill()    # .cancel()
-#             except ProcessLookupError:
-#                 pass
-#         else:
-#             item.cancel()
-#     # async for proc, command in tasks:
-#     #     print(f"Stoping {command.label}")
-#     #     proc.cancel()
-
-#     tasks.clear()
-#     agent_log.clear()
-#     inverter_log.clear()
-#     utility_log.clear()
-
-
-# async def run_command(command: LabeledCommand) -> None:
-#     '''Run a command in the background and display the output in the pre-created dialog.'''
-
-#     process = await asyncio.create_subprocess_exec(*shlex.split(command.command),
-#                                                    stdout=asyncio.subprocess.PIPE,
-#                                                    stderr=asyncio.subprocess.STDOUT,
-#                                                    cwd=command.working_dir,
-#                                                    env=dict(os.environ))
-
-#     add_my_task(process)
-
-#     # NOTE we need to read the output in chunks, otherwise the process will block
-#     output = ''
-#     while True:
-#         new = await process.stdout.readline()
-#         if not new:
-#             break
-#         output = new.decode()
-#         if command.agent_output:
-#             new_agent_output(output.strip())
-
-#         try:
-#             jsonparsed = json.loads(output)
-#             if command.output_element is not None:
-#                 command.output_element().push(output.strip())
-#         except json.decoder.JSONDecodeError:
-#             if not command.output_only_json:
-#                 command.output_element().push(output.strip())
-
-#         # NOTE the content of the markdown element is replaced every time we have new output
-#         #result.content = f'```\n{output}\n```'
-
-
-# @dataclass
-# class LabeledCommand:
-#     label: str
-#     command: str
-#     output_element: Any
-#     working_dir: str = str(Path(__file__).parent)
-#     output_only_json: bool = True
-#     agent_output: bool = False
-
-
-# commands = [
-#     LabeledCommand("Start Inverter", f'{sys.executable} inverter_runner.py', lambda: inverter_log),
-#     LabeledCommand("Start Agent",
-#                    f"{sys.executable} {py_launch} {agent_py}",
-#                    lambda: agent_log,
-#                    filedirectory.parent,
-#                    output_only_json=False,
-#                    agent_output=True)
-# ]
-
-
-# def updated_markdown() -> str:
-#     return f"""#### Status
-#                     Control: {control_status}
-#                     Real Power (p): {inverter_p}
-#                     Reactive Power (q): {inverter_q}
-#                     Power Factor (pf): {inverter_pf}
-#                     """
-
-
-# with ui.column():
-#     # commands = [f'{sys.executable} inverter_runner.py']
-#     with ui.row():
-
-#         for command in commands:
-#             ui.button(command.label,
-#                       on_click=lambda _, c=command: add_my_task(
-#                           background_tasks.create(run_command(c)))).props('no-caps')
-
-#         pf = ui.select(options=[70, 80, 90], value=70, label="Power Factor").classes('w-32')
-#         ui.button("Change Power Factor",
-#                   on_click=lambda: _change_power_factor(pf.value)).props('no-caps')
-#         ui.button("Reset", on_click=_exit_background_tasks).props('no-caps')
-
-#     with ui.row():
-#         status = ui.markdown(updated_markdown())
-#         #ui.button("Update Control Time", on_click=lambda: _setup_event(xml_text)).props('no-caps')
-#         #ui.button("Send Control", on_click=lambda: _send_control_event()).props('no-caps')
-#     # with ui.row():
-#     #     xml_text = ui.textarea(label="xml", value=get_control_event_default()).props('rows=20').props('cols=120').classes('w-full, h-80')
-#     with ui.row():
-#         ui.label("Inverter Log")
-#         inverter_log = ui.log(max_lines=2000).props('cols=120').classes('w-full h-20')
-#     # with ui.row():
-#     #     ui.label("Proxy Log")
-#     #     proxy_log = ui.log().props('cols=120').classes('w-full h-80')
-#     with ui.row():
-#         ui.label("Agent Log")
-#         agent_log = ui.log(max_lines=2000).props('cols=120').classes('w-full h-80')
-
-#     with ui.row():
-#         ui.label("Utility Log")
-#         utility_log = ui.log(max_lines=2000).props('cols=120').classes('w-full h-20')
-
-# #atexit.register(_exit_background_tasks)
-# app.on_shutdown(_exit_background_tasks)
-
-# # NOTE on windows reload must be disabled to make asyncio.create_subprocess_exec work
-# # (see https://github.com/zauberzeug/nicegui/issues/486)
-# ui.run(reload=platform.system() != "Windows", )
+excludes = '.*, .py[cod], .sw.*, ~*,*.git,'
+ui.run(reload=True, show=False, uvicorn_reload_excludes=excludes)
