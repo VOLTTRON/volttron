@@ -1,6 +1,6 @@
 pvlib
 nicegui
 requests
-xsdata
+xsdata>=23.8
 blinker
 plotly

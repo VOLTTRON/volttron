@@ -13,6 +13,8 @@ log_req_resp: true
 server_ssl_port: 7443
 # http port defaults to none
 #server_http_port: 8080
+# Number of seconds to poll for new default der settings.
+default_der_control_poll: 60
 
 MirrorUsagePointList:
   # MirrorMeterReading based on Table E.2 IEEE Std 2030.5-18
