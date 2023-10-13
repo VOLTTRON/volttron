@@ -158,7 +158,8 @@ class IEEE_2030_5_Agent(Agent):
         self._default_config = {
             "subscriptions": self._subscriptions,
             "MirrorUsagePointList": self._mirror_usage_point_list,
-            "point_map": config.get("point_map")
+            "point_map": config.get("point_map"),
+            "default_der_control_poll": int(config.get('default_der_control_poll', 60))
         }
         self._server_usage_points: m.UsagePointList
 
@@ -170,12 +171,13 @@ class IEEE_2030_5_Agent(Agent):
                                           pin=self._pin,
                                           log_req_resp=self._log_req_resp)
 
-        # Hook up events so we can respond to them appropriately
+        # Hook events up to the client so that we can send the correct information on to
+        # the platform driver.
         self._client.der_control_event_started(self._control_event_started)
         self._client.der_control_event_ended(self._control_event_ended)
-        self._client.der_active_controls_changed(self._active_controls_changed)
         self._client.der_default_control_changed(self._default_control_changed)
 
+        # These objects are constructed from the platform driver's publishes
         self._last_settings = m.DERSettings()
         self._last_capabilities = m.DERCapability()
         self._last_status = m.DERStatus()
@@ -186,7 +188,7 @@ class IEEE_2030_5_Agent(Agent):
         self._current_control: m.DERControl = None
 
         try:
-            self._client.start()
+            self._client.start(config=self._default_config)
         except ConnectionRefusedError:
             _log.error(f"Could not connect to server {self._server_hostname} agent exiting.")
             sys.exit(1)
@@ -278,7 +280,7 @@ class IEEE_2030_5_Agent(Agent):
             except TypeError:
                 _log.error(f"Error setting point {point.point_on_bus} to {point_value}")
 
-    def _control_event_started(self, sender):
+    def _control_event_started(self, sender: m.DERControl):
         _log.debug(f"{'='*50}Control event started\n{sender}")
         if not isinstance(sender, m.DERControl):
             _log.error("Invalid control event passed to event_started")
@@ -311,9 +313,6 @@ class IEEE_2030_5_Agent(Agent):
 
             try:
                 if point_value:
-                    # if not isinstance(point_value, (float, int, bool)):
-                    #     point_value = getattr(point_value, "value")
-
                     # These are the point types that have a multiplyer assigned to them.
                     if isinstance(point_value,
                                   (m.VoltageRMS, m.ApparentPower, m.PowerFactor, m.CurrentRMS,
@@ -328,6 +327,8 @@ class IEEE_2030_5_Agent(Agent):
 
                     elif isinstance(point_value, m.DERCurveLink):
                         ...
+                    elif isinstance(point_value, bool):
+                        point_value = 1 if point_value else 0
 
                     if point_value:
                         _log.debug(f"Setting point: {point.point_on_bus} to {point_value}")
@@ -336,7 +337,7 @@ class IEEE_2030_5_Agent(Agent):
             except TypeError:
                 _log.error(f"Error setting point {point.point_on_bus} to {point_value}")
 
-    def _control_event_ended(self, sender):
+    def _control_event_ended(self, sender: m.DERControl):
         _log.debug(f"{'='*50}Control event ended\n{sender}")
         self._current_control = None
 

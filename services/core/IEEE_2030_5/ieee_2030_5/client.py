@@ -179,23 +179,21 @@ class IEEE_2030_5_Client:
         self._der_control_event_ended_signal = Signal('der-control-event-ended')
         
         self._default_control_changed = Signal("default-control-changed")
-        self._active_controls_changed_signal = Signal("active-controls-changed")
-
-        self._before_event_start_signal = Signal('before-event-start')
-        self._after_event_end_signal = Signal('after-event-end')
-
+        
         self._dcap_endpoint = device_capabilities_endpoint
         
         self._der_default_control: m.DefaultDERControl = m.DefaultDERControl()
         self._der_active_controls: m.DERControlList = m.DERControlList()
 
+        self._config: Dict[str, Any] = {}
         self._lock = Semaphore()
 
         IEEE_2030_5_Client.clients.add(self)
 
-    def start(self):
+    def start(self, config: Dict[str, Any]):
         """Starts the client connection to the 2030.5 server configured during construction.
         """
+        self._config = config
         self._before_client_start_signal.send(self)
         self._update_dcap_tree()
         self._after_client_start_signal.send(self)
@@ -212,9 +210,6 @@ class IEEE_2030_5_Client:
                 ts.trigger(timestamp)
             self._lock.release()
 
-    def der_active_controls_changed(self, fun: Callable):
-        self._active_controls_changed_signal.connect(fun)
-    
     def der_default_control_changed(self, fun: Callable):
         self._default_control_changed.connect(fun)
     
@@ -329,8 +324,9 @@ class IEEE_2030_5_Client:
             _log.debug("Default control changed....")
             self._default_control_changed.send(default)
         
-        # TODO un hard code 30 second server update.
-        self._update_timer_spec("der_control_event", 5, fn=lambda: self._send_control_events(der_program_href))
+        # Poll every 60 if default otherwise use setting in config file.
+        refresh_time = self._config.get("default_der_control_poll", 60)
+        self._update_timer_spec("der_control_event", refresh_time, fn=lambda: self._send_control_events(der_program_href))
         
     def _update_dcap_tree(self, endpoint: Optional[str] = None):
         """Retrieve device capability 
