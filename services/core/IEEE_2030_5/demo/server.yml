@@ -75,19 +75,8 @@ programs:
       
       DERControlBase:
         opModConnect: true
-        opModMaxLimW: 9500  
-    
-    DERControls:
-      - description: Control 1
-        DERControlBase:
-          opModConnect: true
-          opModMaxLimW: 9500
-      - description: Control 2
-        DERControlBase:
-          opModConnect: true
-          opModFixedW: 80
-
-    
+        opModEnergize: true
+        
 
 ders:
   - description: der1
