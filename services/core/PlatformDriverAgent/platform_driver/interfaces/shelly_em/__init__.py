@@ -141,7 +141,7 @@ class Interface(BasicRevert, BaseInterface):
         Processes the config scraped from the Shelly device and generates
         register for each available parameter
         """
-        for channel in self.channel_config:
+        for channel in self.channel_config.values():
             for reg, regDef in SHELLY_EM_REGISTER_MAP.items():
                 self.insert_register(
                     Register(
