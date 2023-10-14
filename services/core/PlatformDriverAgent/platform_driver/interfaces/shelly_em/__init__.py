@@ -60,6 +60,10 @@ SHELLY_EM_REGISTER_MAP = {
         "register_name": "total_export",
         "metadata": {"units": "Wh", "description": "Total Export"},
     },
+    "pf": {
+        "register_name": "power_factor",
+        "metadata": {"units": "", "description": "Power Factor"},
+    },
 }
 
 
@@ -137,13 +141,13 @@ class Interface(BasicRevert, BaseInterface):
         Processes the config scraped from the Shelly device and generates
         register for each available parameter
         """
-
-        for reg, regDef in SHELLY_EM_REGISTER_MAP.items():
-            self.insert_register(
-                Register(
-                    regDef["register_name"], regDef["metadata"]["units"], regDef["metadata"]["description"]
+        for channel in self.channel_config:
+            for reg, regDef in SHELLY_EM_REGISTER_MAP.items():
+                self.insert_register(
+                    Register(
+                        f"{channel['name']}/{regDef['register_name']}", regDef["metadata"]["units"], regDef["metadata"]["description"]
+                    )
                 )
-            )
 
     def _set_points(self, points):
         """
