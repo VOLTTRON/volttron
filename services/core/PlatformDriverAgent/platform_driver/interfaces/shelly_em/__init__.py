@@ -148,6 +148,7 @@ class Interface(BasicRevert, BaseInterface):
                         f"{channel['name']}/{regDef['register_name']}", regDef["metadata"]["units"], regDef["metadata"]["description"]
                     )
                 )
+        self.insert_register(Register("wifi_signal", "dBm", "Wifi Signal Strength"))
 
     def _set_points(self, points):
         """
