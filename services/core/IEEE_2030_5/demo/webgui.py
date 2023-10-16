@@ -248,14 +248,24 @@ def reset_config():
     
 cards = []
 
+def convert_local_dt_to_utc_timestamp(dt: datetime) -> int:
+    """Converts a local datetime to a UTC timestamp.
 
-def convert_datetime_to_int(dt: datetime) -> int:
-    """Converts datetime to epoch time in gmt
-    
-    :param dt: Datetime object
-    :return: Integer epoch time
+    :param dt: A datetime object in local time.
+    :type dt: datetime
+    :return: A UTC timestamp for passing to 2030.5 server.
+    :rtype: int
     """
-    return int(calendar.timegm(dt.timetuple()))
+    # Leaving these commented out as a guide to how we got the answer to the issue.
+    # _log.debug(f"Start with dt: {dt} at {int(dt.timestamp())}")
+    # _log.debug(f"get date from ts: {datetime.fromtimestamp(int(dt.timestamp()))}")
+    gmt_date = datetime.utcfromtimestamp(int(dt.timestamp()))
+    # _log.debug(f"gmtdate {gmt_date} at {int(gmt_date.timestamp())}")
+    # _log.debug(f"get gmtdate back: {datetime.fromtimestamp(int(gmt_date.timestamp()))}")
+    
+    # _log.debug(f"Converting {dt} to epoch time gmtime")
+    return int(gmt_date.timestamp())
+
   
 update_sessions()
 dcap: m.DeviceCapability = get_from_server("dcap", deserialize=True)
@@ -600,6 +610,10 @@ def render_new_der_control_tab():
                 wrapper.apply_to_parent()
                 
         new_control.DERControlBase = der_base
+        _log.debug(f"Date Time Sending: {datetime.fromtimestamp(new_control.interval.start)}")
+        # Need to modify the time to be gmt time rather than in local time.
+        #new_control.interval.start = convert_datetime_to_int(new_control.interval.start)
+        
         #new_ctrl = m.DERControl(mRID="b234245afff", DERControlBase=dderc.DERControlBase, description="A new control is going here")
         #new_control.interval = m.DateTimeInterval(start=current_time + 10, duration=20)
         _log.debug(dataclass_to_xml(new_control))
@@ -618,9 +632,9 @@ def render_new_der_control_tab():
 
     with ui.row():
         with ui.column():
-            interval_wrapper = PropertyWrapper(m.DateTimeInterval(duration=60, start=datetime.now() + timedelta(seconds=120)),
+            interval_wrapper = PropertyWrapper(m.DateTimeInterval(duration=30, start=datetime.now() + timedelta(seconds=30)),
                                        new_control, "interval", formatters=dict(start=parse_timestamp_string),
-                                       applyers=dict(start=convert_datetime_to_int))
+                                       applyers=dict(start=convert_local_dt_to_utc_timestamp))
             wrappers.append(interval_wrapper)
             from_date = ui.input("Event Start", value=getattr(interval_wrapper, "start"), 
                                  on_change=lambda e: set_date(interval_wrapper, "start", e)) \
@@ -701,7 +715,7 @@ def render_new_der_control_tab():
 with ui.header():
     current_time_label = ui.label("Current Time")
     ui.timer(1.0, lambda: current_time_label.set_text(
-        f"Local Time: {datetime.now().isoformat()} Epoche: {convert_datetime_to_int(datetime.utcnow())}"))
+        f"Local Time: {datetime.now().isoformat()} GMT TS: {convert_local_dt_to_utc_timestamp(datetime.now())}"))
 with ui.tabs().classes('w-full') as tabs:
     configuration_tab = ui.tab("configuration", "Configuration")
     der_default_control_tab = ui.tab("derdefaultcontrol", "DER Default Control")
