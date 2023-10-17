@@ -734,7 +734,7 @@ with ui.tabs().classes('w-full') as tabs:
     new_der_control_tab = ui.tab("newdercontrol", "New DER Control")
     der_control_list_tab = ui.tab("dercontrollist", "DER Control List")
     der_status_tab = ui.tab("derstatus", "DER Status")
-    results_tab = ui.tab("results", "Results")
+    #results_tab = ui.tab("results", "Results")
 line_plot = None
 with ui.tab_panels(tabs, value=configuration_tab).classes("w-full"):
     with ui.tab_panel(configuration_tab):
