@@ -39,8 +39,10 @@ storage_path: data_store
 devices:
   # SolarEdge SE6000H HD-Wave SetApp Enabled Inverter
   - id: dev1
-    # DeviceCategoryType from ieee_2030_5.models.device_category
-    deviceCategory: FUEL_CELL
+    # DeviceCategoryType from ieee_2030_5.models.DeviceCategoryType
+    device_categories:
+      - OTHER_STORAGE_SYSTEMS
+      - OTHER_GENERATION_SYSTEMS
     pin: 111115
     fsas:
       - fsa1
@@ -51,7 +53,9 @@ devices:
       - Program 1
 
   - id: dev2
-    deviceCategory: FUEL_CELL
+    device_categories:
+      - OTHER_STORAGE_SYSTEMS
+      - OTHER_GENERATION_SYSTEMS
     pin: 111111
     fsas:
       - fsa2

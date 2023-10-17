@@ -23,19 +23,19 @@ class MyInverterAgent(Agent):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-
         self._points = {}
-        self._points['pf'] = 0.99
-        self._generator = None
 
     @RPC.export
     def set_point(self, point, value):
-        self._generator = None
+        _log.debug(f"Setting {point} to {value}")
         self._points[point] = value
 
     @RPC.export
     def get_point(self, point):
         return self._points.get(point)
+    
+    def get_all_points(self):
+        return self._points.keys()
 
     @property
     def reset(self):
@@ -87,19 +87,18 @@ def run_inverter(timesteps=50, pf=0.99, latitude=32, longitude=-111.0) -> Genera
         results = dict(PF=PF,
                        INV_REAL_PWR=p_ac,
                        INV_REAC_PWR=q_ac,
-                       v_mp=dc['v_mp'],
-                       p_mp=dc['p_mp'],
-                       i_x=dc['i_x'],
-                       i_xx=dc['i_xx'],
-                       v_oc=dc['v_oc'],
-                       i_sc=dc['i_sc'],
+                       #v_mp=dc['v_mp'],
+                       #p_mp=dc['p_mp'],
+                       #i_x=dc['i_x'],
+                       #i_xx=dc['i_xx'],
+                       #v_oc=dc['v_oc'],
+                       #i_sc=dc['i_sc'],
                        s_ac=p_ac,
                        #v_ac=v_ac,
                        BAT_SOC=v_ac/p_ac,
-                       i_ac=i_ac,
+                       #i_ac=i_ac,
                        target_p=p_ac,
                        INV_OP_STATUS_MODE=3)
-        _log.info(json.dumps(results))
         yield results
         # single phase circuit calculation
 
@@ -191,9 +190,7 @@ if __name__ == '__main__':
     parser.add_argument("output_file", help="File to write to when data arrives on the bus")
     opts = parser.parse_args()
     
-    logging.basicConfig(filename="/tmp/inverter_runner.log", 
-                        filemode="wt",
-                        level=logging.DEBUG, 
+    logging.basicConfig(level=logging.DEBUG, 
                         force=True
     )
     
@@ -220,6 +217,14 @@ if __name__ == '__main__':
         for inv in gen:
             points = AllPoints()
 
+            agent_points = agent.get_all_points()
+            
+            for k in agent_points:
+                if k in inv:
+                    points.add(k, inv[k])
+                else:
+                    points.add(k, agent.get_point(k))
+                                         
             # Loop over points adding them to the allpoints dataclass if
             # they are specified.  If they have been set on the agent itself
             # then use that value instead of the one from the generator.
@@ -237,6 +242,7 @@ if __name__ == '__main__':
             }
             
             
+            _log.info(f"Publishing {points.points}")
             # publish
             agent.vip.pubsub.publish(peer="pubsub",
                                      topic=f"{topic_to_publish}",
