@@ -95,7 +95,7 @@ def run_inverter(timesteps=50, pf=0.99, latitude=32, longitude=-111.0) -> Genera
                        #i_sc=dc['i_sc'],
                        s_ac=p_ac,
                        #v_ac=v_ac,
-                       BAT_SOC=v_ac/p_ac,
+                       BAT_SOC=int(v_ac/p_ac),
                        #i_ac=i_ac,
                        target_p=p_ac,
                        INV_OP_STATUS_MODE=3)

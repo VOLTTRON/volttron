@@ -492,9 +492,6 @@ def render_der_status_tab():
     with ui.row():
         with ui.column():
             ui.table(columns=columns, rows=rows)
-        
-    
-    
     
 @ui.refreshable
 def render_der_control_list_tab():
@@ -762,7 +759,6 @@ with ui.tab_panels(tabs, value=configuration_tab).classes("w-full"):
     with ui.tab_panel(der_control_list_tab):
         render_der_control_list_tab()
         ui.timer(10, lambda: render_der_control_list_tab.refresh())
-        # ui.timer(10, lambda: render_der_default_control_tab.refresh())
         
     with ui.tab_panel(der_status_tab):
         render_der_status_tab()
