@@ -311,7 +311,7 @@ def render_der_default_control_tab():
             ui.label("Section 10.10 Distributed Energy Resources function set from 20305-2018 IEEE standard.")
             
     with ui.row().classes("pt-10"):
-        with ui.column().classes("pr-20"):            
+        with ui.column().classes("pr-15"):            
             ui.input("setESDelay (hundredth of a second)",
                                       on_change=lambda e: noneable_int_change(default, "setESDelay", e)) \
                                           .bind_value_from(default, "setESDelay").classes("w-96")
@@ -322,16 +322,19 @@ def render_der_default_control_tab():
             ui.input("setESHighVolt (hundredth of a volt)",
                                       on_change=lambda e: noneable_int_change(default, "setESHighVolt", e)) \
                 .bind_value_from(default, "setESHighVolt").classes("w-96")
+            
+        with ui.column().classes("pr-15"):
             ui.input("setESLowFreq (hundredth of a hertz)",
                                       on_change=lambda e: noneable_int_change(default, "setESHighVolt", e)) \
                 .bind_value_from(default, "setESLowFreq").classes("w-96")
             ui.input("setESLowVolt (hundredth of a volt)",
                                       on_change=lambda e: noneable_int_change(default, "setESLowFreq", e)) \
                 .bind_value_from(default, "setESLowVolt").classes("w-96")
-        with ui.column():
             ui.input("setESRampTms (hundredth of a second)",
                                       on_change=lambda e: noneable_int_change(default, "setESRampTms", e)) \
                 .bind_value_from(default, "setESRampTms").classes("w-96")
+        with ui.column():
+            
             ui.input("setESRandomDelay (hundredth of a second)",
                                       on_change=lambda e: noneable_int_change(default, "setESRandomDelay", e)) \
                 .bind_value_from(default, "setESRandomDelay").classes("w-96")
@@ -342,14 +345,15 @@ def render_der_default_control_tab():
                                       on_change=lambda e: noneable_int_change(default, "setSoftGradW", e)) \
                 .bind_value_from(default, "setSoftGradW").classes("w-96")
     
-    with ui.row().style("margin-top:15px"):
+    with ui.row().style("margin-top:15px;margin-bottom:15px;"):
         ui.label("DER Control Base").style("font-size: 150%;")
     
     with ui.row():
-        with ui.column():
+        with ui.column().classes("pr-20"):
             ui.checkbox("opModConnect", value=True).bind_value(der_base, "opModConnect")
             ui.checkbox("opModEnergize", value=True).bind_value(der_base, "opModEnergize")
-            
+        
+        with ui.column().classes("pr-20"):
             ui.label("Power Factor Absorb Watts").style("font-size: 125%;")
             opModFixedPFAbsorbW_wrapper = PropertyWrapper(m.PowerFactorWithExcitation(), der_base, "opModFixedPFAbsorbW")
             wrappers.append(opModFixedPFAbsorbW_wrapper)
@@ -365,7 +369,7 @@ def render_der_default_control_tab():
             ui.checkbox("excitation", value=False).bind_value(opModFixedPFInjectW_wrapper, "excitation")
             
                         
-        with ui.column().classes("pr-10"):            
+        with ui.column().classes("pr-20"):            
             fixedVar_wrapper = PropertyWrapper(m.FixedVar(), der_base, "opModFixedVar")
             wrappers.append(fixedVar_wrapper)
             ui.input("opModFixedVar", on_change=lambda e: noneable_int_change(fixedVar_wrapper, "value", e)) \
@@ -653,15 +657,17 @@ def render_new_der_control_tab():
                 .classes("w-96")
             duration = ui.number("Duration", min=0, value=getattr(interval_wrapper, "duration")) \
                 .bind_value_from(interval_wrapper, "duration")
-        
-    with ui.row():
-        with ui.column().classes("pr-10"):
-            
+                
             ui.input("MRID").bind_value(new_control, "mRID").classes("w-96")
+    
+        with ui.column().classes("pr-20"):
+            
+            
             
             ui.checkbox("opModConnect", value=True).bind_value(der_base, "opModConnect")
             ui.checkbox("opModEnergize", value=True).bind_value(der_base, "opModEnergize")
-            
+       
+        with ui.column().classes("pr-20"):
             ui.label("Power Factor Absorb Watts").style("font-size: 125%;")
             opModFixedPFAbsorbW_wrapper = PropertyWrapper(m.PowerFactorWithExcitation(), der_base, "opModFixedPFAbsorbW")
             wrappers.append(opModFixedPFAbsorbW_wrapper)
@@ -677,7 +683,7 @@ def render_new_der_control_tab():
             ui.checkbox("excitation", value=False).bind_value(opModFixedPFInjectW_wrapper, "excitation")
             
                         
-        with ui.column().classes("pr-10"):            
+        with ui.column().classes("pr-20"):            
             fixedVar_wrapper = PropertyWrapper(m.FixedVar(), der_base, "opModFixedVar")
             wrappers.append(fixedVar_wrapper)
             ui.input("opModFixedVar", on_change=lambda e: noneable_int_change(fixedVar_wrapper, "value", e)) \
@@ -696,7 +702,7 @@ def render_new_der_control_tab():
             ui.input("opModMaxLimW", on_change=lambda e: noneable_int_change(der_base, "opModMaxLimW", e)) \
                 .bind_value_from(der_base, "opModMaxLimW")
                 
-        with ui.column().classes("pr-10"):
+        with ui.column().classes("pr-20"):
             opModTargetVar_wrapper = PropertyWrapper(m.ReactivePower(), der_base, "opModTargetVar")
             wrappers.append(opModTargetVar_wrapper)
             ui.input("opModTargetVar", on_change=lambda e: noneable_int_change(opModTargetVar_wrapper, "value", e)) \
@@ -716,10 +722,10 @@ def render_new_der_control_tab():
             ui.input("rampTms", on_change=lambda e: noneable_int_change(der_base, "rampTms", e)) \
                 .bind_value_from(der_base, "rampTms")
                 
-    with ui.row().classes("pt-10"):
-        with ui.column().classes("pr-20"):
-            ui.label("Curve Selection")
-            ui.label("TODO")
+    # with ui.row().classes("pt-10"):
+    #     with ui.column().classes("pr-20"):
+    #         ui.label("Curve Selection")
+    #         ui.label("TODO")
     
     with ui.row().classes("pt-20"):
         with ui.column():   
