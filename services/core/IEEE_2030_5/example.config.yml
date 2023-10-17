@@ -80,5 +80,6 @@ DERSettings:
   setMaxW:
     multiplier: 0
     value: 0
-
+    
+# Note this file MUST be in the config store or this agent will not run properly.
 point_map: config:///inverter_sample.csv
