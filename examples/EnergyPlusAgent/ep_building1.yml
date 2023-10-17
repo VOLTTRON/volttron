@@ -3,7 +3,7 @@ properties:
     identity: platform.actuator
     model: ~/eplus/building1/BUILDING1.idf
     weather: ~/eplus/building1/USA_WA_Pasco-Tri.Cities.AP.727845_TMY3.epw
-    bcvtb_home: ~/bcvtb/
+    bcvtb_home: ~/eplus/bcvtb/
     size: 40960
     startmonth: 8
     startday: 1
