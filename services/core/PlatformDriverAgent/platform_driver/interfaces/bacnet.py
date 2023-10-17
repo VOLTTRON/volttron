@@ -60,6 +60,7 @@ BACNET_TYPE_MAPPING = {
     "analogValue": float,
     "analogInput": float,
     "analogOutput": float,
+    "loop": float,
     "binaryValue": bool,
     "binaryInput": bool,
     "binaryOutput": bool,
@@ -228,6 +229,9 @@ class Interface(BaseInterface):
                 _log.error(f"Timed out reading target {self.target_address}")
                 raise exc
             except RemoteError as exc:
+                if "unknownProperty" in exc.message:
+                    _log.debug(f"unknownProperty error: {exc.message}")
+                    # self.vip.config.set("unknown_properties", exc.message)
                 if "segmentationNotSupported" in exc.message:
                     if self.max_per_request <= 1:
                         _log.error(
