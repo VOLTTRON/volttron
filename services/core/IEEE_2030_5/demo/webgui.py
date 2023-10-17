@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import calendar
 from copy import deepcopy
-
+from pprint import pformat
 import os
 from parser import ParserError
 
@@ -137,8 +137,6 @@ class PropertyWrapper:
                                                  m.ActivePower, m.FixedVar, m.FixedPointType,
                                                  m.ReactivePower, m.AmpereHour, m.WattHour)):
                 self.backing_obj.__dict__["value"] = self.parent_obj.__dict__[self.parent_property]
-                
-        _log.debug(f"Creating Property Wrapper for parent {type(parent_obj)} with backing object {type(backing_obj)} on property {parent_property}")
     
     def __setattr__(self, key: str, value: Any):
         if key in ("backing_obj", "parent_obj", "parent_property", "formatters", "appliers"):
@@ -506,7 +504,9 @@ def render_der_control_list_tab():
     
     
     control_list: m.DERControlList = get_from_server(program.DERControlListLink.href, deserialize=True)
-    active_list: m.DERControlList = get_from_server(program.ActiveDERControlListLink.href, deserialize=True)
+    
+    #active_list: m.DERControlList = get_from_server(program.ActiveDERControlListLink.href, deserialize=True)
+    
     with ui.row():
         with ui.column():
             with ui.label("DER Control List").style("font-size: 200%;"):
@@ -517,7 +517,8 @@ def render_der_control_list_tab():
     columns = [
         {'name': 'time', 'label': 'Event Time', 'field': 'time', 'required': True},
         {'name': 'duration', 'label': 'Event Duration', 'field': 'duration', 'required': True},
-        {'name': 'status', 'label': 'Event Status', 'field': 'status', 'required': True}
+        {'name': 'status', 'label': 'Event Status', 'field': 'status', 'required': True},
+        {'name': 'control', 'label': 'Control', 'field': 'control', 'required': True}
         
     ]
     
@@ -530,50 +531,64 @@ def render_der_control_list_tab():
             return "Cancelled"
         elif status == 3:
             return "Supersceded"
+        elif status == 5:
+            return "Completed"
         else:
             return "Unknown"
         
-    def build_list_rows(ctrl_list: m.DERControlList, filter_status: int = None):
-        control_list_rows = []    
-        for ctrl in control_list.DERControl:
+    def build_list_rows(ctrl_list: m.DERControlList):
+        control_list_rows = [] 
+        def nonnone(control: m.DERControl):
+            dct = {}
+            
+            for obj, val in control.DERControlBase.__dict__.items():
+                if val is not None:
+                    if hasattr(val, "value"):
+                        val = val.value
+                    elif hasattr(val, "displacement"):
+                        val = val.displacement
+                    dct[obj] = val
+            return pformat(dct)
+        
+        for ctrl in ctrl_list.DERControl:
             if ctrl.interval:
                 if ctrl.EventStatus is None and ctrl.interval.start and ctrl.interval.duration:
                     ctrl.EventStatus = m.EventStatus(currentStatus=0) # Scheduled.
                 local_dt = datetime_from_utc_to_local(datetime.utcfromtimestamp(ctrl.interval.start))
                 
                 row = {
-                    'time': ctrl.interval.start,
+                    'time': local_dt,
                     'duration': ctrl.interval.duration,
-                    'status': status_to_string(ctrl.EventStatus.currentStatus)
+                    'status': status_to_string(ctrl.EventStatus.currentStatus),
+                    'control': nonnone(ctrl)
                 }
                 
-                if filter_status is None or ctrl.EventStatus.currentStatus == filter_status:
-                    control_list_rows.append(row)
+                control_list_rows.append(row)
         return control_list_rows
     
     with ui.row():
         with ui.column():
-            ui.label("Active Controls").style("font-size: 150%")
+            ui.label("Control Events").style("font-size: 150%")
 
-    with ui.row():
-        with ui.column():
-            ui.table(columns=columns, rows=build_list_rows(active_list, 1))
+    # with ui.row():
+    #     with ui.column():
+    #         ui.table(columns=columns, rows=build_list_rows(active_list, 1))
     
-    with ui.row():
-        with ui.column():
-            ui.label("Scheduled Controls").style("font-size: 150%")
+    # with ui.row():
+    #     with ui.column():
+    #         ui.label("Scheduled Controls").style("font-size: 150%")
 
     with ui.row():
         with ui.column():
-            ui.table(columns=columns, rows=build_list_rows(control_list, 0))
+            ui.table(columns=columns, rows=build_list_rows(control_list))
     
-    with ui.row():
-        with ui.column():
-            ui.label("Completed Controls").style("font-size: 150%")
+    # with ui.row():
+    #     with ui.column():
+    #         ui.label("Completed Controls").style("font-size: 150%")
 
-    with ui.row():
-        with ui.column():
-            ui.table(columns=columns, rows=build_list_rows(control_list, 5))
+    # with ui.row():
+    #     with ui.column():
+    #         ui.table(columns=columns, rows=build_list_rows(control_list, 5))
 
     
 @ui.refreshable

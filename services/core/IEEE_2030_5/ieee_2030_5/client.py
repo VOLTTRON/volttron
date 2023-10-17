@@ -493,7 +493,7 @@ class IEEE_2030_5_Client:
 
     def is_end_device_registered(self, end_device: m.EndDevice, pin: int) -> bool:
         reg = self.registration(end_device)
-        return reg.pIN == pin
+        return reg.pIN == self._pin
 
     def new_uuid(self, url: str = "/uuid") -> str:
         res = self.__get_request__(url)
