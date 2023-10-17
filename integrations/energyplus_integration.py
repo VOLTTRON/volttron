@@ -118,8 +118,21 @@ class EnergyPlusSimIntegration(BaseSimIntegration):
         Save the user agent callback
         :return:
         """
-        self.inputs = self.config.get('inputs', [])
-        self.outputs = self.config.get('outputs', [])
+        def parse_input_output(input_output):
+            if isinstance(input_output, list):
+                parsed = input_output
+            elif isinstance(input_output, dict):
+                parsed = []
+                for k, v in input_output.items():
+                    v['sim_topic'] = k
+                    parsed.append(v)
+            else:
+                raise ValueError(
+                    'Inputs from configuration must be a list of dictionaries or a dictionary of dictionaries')
+            return parsed
+
+        self.inputs = parse_input_output(self.config.get('inputs', []))
+        self.outputs = parse_input_output(self.config.get('outputs', []))
         if 'properties' in self.config and isinstance(self.config['properties'], dict):
             self.__dict__.update(self.config['properties'])
         self.callback = callback
