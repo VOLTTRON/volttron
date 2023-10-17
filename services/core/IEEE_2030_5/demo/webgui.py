@@ -550,7 +550,7 @@ def render_der_control_list_tab():
                     dct[obj] = val
             return pformat(dct)
         
-        for ctrl in ctrl_list.DERControl:
+        for ctrl in sorted(ctrl_list.DERControl, key=lambda x: x.interval.start, reverse=True):
             if ctrl.interval:
                 if ctrl.EventStatus is None and ctrl.interval.start and ctrl.interval.duration:
                     ctrl.EventStatus = m.EventStatus(currentStatus=0) # Scheduled.
@@ -761,14 +761,14 @@ with ui.tab_panels(tabs, value=configuration_tab).classes("w-full"):
         
     with ui.tab_panel(der_control_list_tab):
         render_der_control_list_tab()
-        ui.timer(30, lambda: render_der_control_list_tab.refresh())
+        ui.timer(10, lambda: render_der_control_list_tab.refresh())
         # ui.timer(10, lambda: render_der_default_control_tab.refresh())
         
     with ui.tab_panel(der_status_tab):
         render_der_status_tab()
         
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 
 excludes = '.*, .py[cod], .sw.*, ~*,*.git,'
 ui.run(reload=True, show=False, uvicorn_reload_excludes=excludes)
