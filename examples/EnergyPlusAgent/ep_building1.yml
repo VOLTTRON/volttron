@@ -1,9 +1,9 @@
 # Config parameters for setting up EnergyPlus agent
 properties:
     identity: platform.actuator
-    model: ~/git/sim_volttron/volttron/eplus/BUILDING1.idf
-    weather: ~/git/sim_volttron/volttron/eplus/USA_WA_Pasco-Tri.Cities.AP.727845_TMY3.epw
-    bcvtb_home: ~/git/sim_volttron/volttron/bcvtb
+    model: ~/eplus/building1/BUILDING1.idf
+    weather: ~/eplus/building1/USA_WA_Pasco-Tri.Cities.AP.727845_TMY3.epw
+    bcvtb_home: ~/eplus/bcvtb/
     size: 40960
     startmonth: 8
     startday: 1
