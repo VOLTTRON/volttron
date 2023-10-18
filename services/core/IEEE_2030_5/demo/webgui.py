@@ -300,7 +300,8 @@ def noneable_int_change(obj: object, prop: str, value):
         num = int(value.sender.value)
         setattr(obj, prop, num)
     except (ValueError, TypeError):
-        ...
+        if value.sender.value == "":
+            setattr(obj, prop, None)
 
 @ui.refreshable
 def render_der_default_control_tab():
