@@ -40,7 +40,6 @@ import logging
 import sys
 import datetime
 import json
-from traceback import format_exc
 
 from volttron.platform.vip.agent import Agent, RPC
 from volttron.platform.async_ import AsyncCall
@@ -52,7 +51,7 @@ _log = logging.getLogger(__name__)
 
 bacnet_logger = logging.getLogger("bacpypes")
 bacnet_logger.setLevel(logging.WARNING)
-__version__ = '0.5.6'
+__version__ = '0.5.7'
 
 from collections import defaultdict
 
@@ -347,6 +346,9 @@ class BACnetForeignApplication(BIPForeignApplication, RecurringTask):
                         error_obj = read_result.propertyAccessError
 
                         msg = 'ERROR DURING SCRAPE of {2} (Class: {0} Code: {1})'
+                        message = f"unknownProperty: {object_identifier}"
+                        _log.debug(f"publishing to message bus: {message}")
+                        self.vip.pubsub.publish(peer='pubsub', topic="bacnet/error", message=message)
                         _log.error(msg.format(error_obj.errorClass, error_obj.errorCode, object_identifier))
 
                     else:
@@ -1101,17 +1103,32 @@ class BACnetProxyAgent(Agent):
         bacnet_results = {}
         for entry in read_access_list:
             for prop in entry.listOfPropertyReferences:
+                _log.debug(f"making request: {target_address=} {entry.objectIdentifier=} {prop.propertyIdentifier=} {prop.propertyArrayIndex=}")
                 request = ReadPropertyRequest(objectIdentifier=entry.objectIdentifier,
                                               propertyIdentifier=prop.propertyIdentifier,
                                               propertyArrayIndex=prop.propertyArrayIndex
                                               )
+                target_address = target_address if target_address else GlobalBroadcast()
                 request.pduDestination = Address(target_address)
                 iocb = self.iocb_class(request)
                 self.bacnet_application.submit_request(iocb)
                 try:
+                    iocb_ioresult = iocb.ioResult.get(10)
+                    _log.debug(f"{iocb_ioresult=}")
                     bacnet_results.update(iocb.ioResult.get(10))
+                except TypeError:
+                    bacnet_results.update(
+                        {
+                            (
+                                entry.objectIdentifier[0],
+                                entry.objectIdentifier[1],
+                                prop.propertyIdentifier,
+                                prop.propertyArrayIndex,
+                            ): iocb_ioresult
+                        }
+                    )
                 except Exception as exc:
-                    _log.error(f"{exc} {target_address=} {request=} {format_exc()}")
+                    _log.error(f"{exc} {target_address=} {request=}")
                     if "Segmentation not supported" in str(exc) or "segmentationNotSupported" in str(exc):
                         exc.message = f"failed to scrape: {target_address}/{entry.objectIdentifier[0]}/{entry.objectIdentifier[1]} - segmentationNotSupported"
                     else:
