@@ -40,6 +40,7 @@ import logging
 import sys
 import datetime
 import json
+from traceback import format_exc
 
 from volttron.platform.vip.agent import Agent, RPC
 from volttron.platform.async_ import AsyncCall
@@ -1110,7 +1111,7 @@ class BACnetProxyAgent(Agent):
                 try:
                     bacnet_results.update(iocb.ioResult.get(10))
                 except Exception as exc:
-                    _log.error(f"{exc} {target_address=} {request=}")
+                    _log.error(f"{exc} {target_address=} {request=} {format_exc()}")
                     if "Segmentation not supported" in str(exc) or "segmentationNotSupported" in str(exc):
                         exc.message = f"failed to scrape: {target_address}/{entry.objectIdentifier[0]}/{entry.objectIdentifier[1]} - segmentationNotSupported"
                     else:

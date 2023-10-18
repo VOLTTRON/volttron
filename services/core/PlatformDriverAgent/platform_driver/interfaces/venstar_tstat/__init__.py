@@ -163,11 +163,13 @@ class Interface(BasicRevert, BaseInterface):
         if response.status_code != 200:
             raise Exception(
                     "Invalid response from thermostat, check config, received status code: {}, response: {}".format(response.status_code, response.text))
+        else:
+            return {"data": points, "result": "SUCCESS"}
 
 
 
     def _set_point(self, point_name, value):
-        self._set_points({point_name: value})
+        return self._set_points({"data": {point_name: value}})
 
 
     def get_point(self, point_name):
