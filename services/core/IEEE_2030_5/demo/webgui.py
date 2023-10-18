@@ -136,7 +136,7 @@ class PropertyWrapper:
             if isinstance(self.backing_obj, (m.VoltageRMS, m.ApparentPower, m.CurrentRMS,
                                                  m.ActivePower, m.FixedVar, m.FixedPointType,
                                                  m.ReactivePower, m.AmpereHour, m.WattHour)):
-                self.backing_obj.__dict__["value"] = self.parent_obj.__dict__[self.parent_property]
+                self.backing_obj.__dict__["value"] = self.parent_obj.__dict__[self.parent_property].value
     
     def __setattr__(self, key: str, value: Any):
         if key in ("backing_obj", "parent_obj", "parent_property", "formatters", "appliers"):
@@ -156,17 +156,29 @@ class PropertyWrapper:
                 
     def apply_to_parent(self):
         other_obj = deepcopy(self.backing_obj)
-        for field in fields(other_obj):
-            if field.name in self.appliers:
-                _log.debug(f"Converting from {other_obj.__dict__[field.name]} to {self.appliers[field.name](other_obj.__dict__[field.name])}")
-                other_obj.__dict__[field.name] = self.appliers[field.name](other_obj.__dict__[field.name])
+        
+        # if self.appliers:
+        #     other_object.__dict__[]
+        # for field in fields(other_obj):
+        #     if field.name in self.appliers:
+        #         _log.debug(f"Converting from {other_obj.__dict__[field.name]} to {self.appliers[field.name](other_obj.__dict__[field.name])}")
+        #         other_obj.__dict__[field.name] = self.appliers[field.name](other_obj.__dict__[field.name])
         
         if self.should_be_none():
             setattr(self.parent_obj, self.parent_property, None)
         else:            
+            _log.debug(f"Setting {self.parent_property} to {other_obj}")
             setattr(self.parent_obj, self.parent_property, other_obj)
+            _log.debug(f"Parent obj is {self.parent_obj}")
     
     def should_be_none(self) -> bool:
+        """Answers the question whether the parent property should be None.
+        
+        Loop over the backing object and if any of the fields are not None then
+        the answer is False.  Otherwise the answer is True.
+        
+        :return: True if all fields are None, False otherwise.
+        """
         for fld in fields(self.backing_obj):
             if getattr(self.backing_obj, fld.name):
                 return False
@@ -292,7 +304,7 @@ def noneable_int_change(obj: object, prop: str, value):
 
 @ui.refreshable
 def render_der_default_control_tab():
-    def do_refresh():
+    def refresh_default_control_tab():
         render_der_default_control_tab.refresh()
         ui.notify("Refreshed") 
     default: m.DefaultDERControl = get_from_server(program.DefaultDERControlLink.href, deserialize=True)
@@ -307,7 +319,7 @@ def render_der_default_control_tab():
         with ui.column():
             with ui.label("DER Default Control").style("font-size: 200%;"):
                 ui.button(icon="refresh", color="white", 
-                      on_click=lambda: do_refresh()).style("margin:5px; padding: 5px;")
+                      on_click=lambda: refresh_default_control_tab()).style("margin:5px; padding: 5px;")
             ui.label("Section 10.10 Distributed Energy Resources function set from 20305-2018 IEEE standard.")
             
     with ui.row().classes("pt-10"):
@@ -325,10 +337,10 @@ def render_der_default_control_tab():
             
         with ui.column().classes("pr-15"):
             ui.input("setESLowFreq (hundredth of a hertz)",
-                                      on_change=lambda e: noneable_int_change(default, "setESHighVolt", e)) \
+                                      on_change=lambda e: noneable_int_change(default, "setESLowFreq", e)) \
                 .bind_value_from(default, "setESLowFreq").classes("w-96")
             ui.input("setESLowVolt (hundredth of a volt)",
-                                      on_change=lambda e: noneable_int_change(default, "setESLowFreq", e)) \
+                                      on_change=lambda e: noneable_int_change(default, "setESLowVolt", e)) \
                 .bind_value_from(default, "setESLowVolt").classes("w-96")
             ui.input("setESRampTms (hundredth of a second)",
                                       on_change=lambda e: noneable_int_change(default, "setESRampTms", e)) \
@@ -355,14 +367,18 @@ def render_der_default_control_tab():
         
         with ui.column().classes("pr-20"):
             ui.label("Power Factor Absorb Watts").style("font-size: 125%;")
-            opModFixedPFAbsorbW_wrapper = PropertyWrapper(m.PowerFactorWithExcitation(), der_base, "opModFixedPFAbsorbW")
+            if der_base.opModFixedPFAbsorbW is None:
+                der_base.opModFixedPFAbsorbW = m.PowerFactorWithExcitation()
+            opModFixedPFAbsorbW_wrapper = PropertyWrapper(der_base.opModFixedPFAbsorbW, der_base, "opModFixedPFAbsorbW")
             wrappers.append(opModFixedPFAbsorbW_wrapper)
             ui.input("displacement", on_change=lambda e: noneable_int_change(opModFixedPFAbsorbW_wrapper, "displacement", e)) \
                 .bind_value_from(opModFixedPFAbsorbW_wrapper, "displacement")
             ui.checkbox("excitation", value=False).bind_value(opModFixedPFAbsorbW_wrapper, "excitation")
             
             ui.label("Power Factor Inject Watts").style("font-size: 125%;")
-            opModFixedPFInjectW_wrapper = PropertyWrapper(m.PowerFactorWithExcitation(), der_base, "opModFixedPFInjectW")
+            if der_base.opModFixedPFInjectW is None:
+                der_base.opModFixedPFInjectW = m.PowerFactorWithExcitation()
+            opModFixedPFInjectW_wrapper = PropertyWrapper(der_base.opModFixedPFInjectW, der_base, "opModFixedPFInjectW")
             wrappers.append(opModFixedPFInjectW_wrapper)
             ui.input("displacement", on_change=lambda e: noneable_int_change(opModFixedPFInjectW_wrapper, "displacement", e)) \
                 .bind_value_from(opModFixedPFInjectW_wrapper, "displacement")
@@ -375,10 +391,12 @@ def render_der_default_control_tab():
             ui.input("opModFixedVar", on_change=lambda e: noneable_int_change(fixedVar_wrapper, "value", e)) \
                 .bind_value_from(fixedVar_wrapper, "value")
                 
-            fixedWatt_wrapper = PropertyWrapper(m.FixedVar(), der_base, "opModFixedVar")
-            wrappers.append(fixedWatt_wrapper)            
-            ui.input("opModFixedW", on_change=lambda e: noneable_int_change(fixedWatt_wrapper, "value", e)) \
-                .bind_value_from(fixedWatt_wrapper, "value")
+            # fixedWatt_wrapper = PropertyWrapper(m.WattHour(), der_base, "opModFixedW")
+            # wrappers.append(fixedWatt_wrapper)            
+            # ui.input("opModFixedW", on_change=lambda e: noneable_int_change(fixedWatt_wrapper, "value", e)) \
+            #     .bind_value_from(fixedWatt_wrapper, "value")
+            ui.input("opModFixedW", on_change=lambda e: noneable_int_change(der_base, "opModFixedW", e)) \
+                .bind_value_from(der_base, "opModFixedW")
                 
             # freqDroop_wrapper = Wrapper(m.FreqDroopType(), der_base, "openLoopTms")
             # wrappers.append(freqDroop_wrapper)
@@ -412,11 +430,16 @@ def render_der_default_control_tab():
     
     def store_default_der_control():
         try:
-            _log.debug(der_base)
+            _log.debug(f"Before Apply {der_base}")
             _log.debug(default)
             for wrapper in wrappers:
+                _log.debug(f"Wrapper parent object {id(wrapper.parent_obj)} {wrapper.parent_obj}")
                 wrapper.apply_to_parent()
+                _log.debug(f"Wrapper parent object after apply {id(wrapper.parent_obj)} {wrapper.parent_obj}")
+                
+            _log.debug(f"After Apply {der_base}")
             base_payload = dataclass_to_xml(der_base)
+            _log.warning(base_payload)
             payload = dataclass_to_xml(default)
             put_as_admin(program.DefaultDERControlLink.href, payload)
             ui.notify("Default DER Control Updated")
