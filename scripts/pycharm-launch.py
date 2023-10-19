@@ -38,17 +38,15 @@ parser.add_argument("-s",
                     dest="silence",
                     nargs="?",
                     help="Silence the help message.")
-parser.add_argument(
-    "-n",
-    "--no-config",
-    action="store_true",
-    help="Don't include the default config in the agent directory.")
+parser.add_argument("-n",
+                    "--no-config",
+                    action="store_true",
+                    help="Don't include the default config in the agent directory.")
 parsed = parser.parse_args()
 
 mod_name = [os.path.basename(parsed.agent)]
 if not os.path.isfile(parsed.agent):
-    sys.stdout.write("Passed argument must be a python file! {}".format(
-        parsed.agent))
+    sys.stdout.write("Passed argument must be a python file! {}".format(parsed.agent))
     sys.exit()
 
 abspath = os.path.abspath(os.path.join(parsed.agent, os.pardir))
@@ -86,9 +84,8 @@ if not parsed.no_config:
                 path_found = os.path.join(abspath, cfg)
                 break
         if not path_found:
-            sys.stderr.write(
-                'AGENT_CONFIG variable not set.  Either set it or '
-                'put a config file in the root of the agent dir.')
+            sys.stderr.write('AGENT_CONFIG variable not set.  Either set it or '
+                             'put a config file in the root of the agent dir.')
             sys.exit()
         os.environ['AGENT_CONFIG'] = path_found
 
@@ -125,8 +122,7 @@ if agent_identity:
                                              universal_newlines=True,
                                              stderr=subprocess.STDOUT)
         except subprocess.CalledProcessError as e:
-            sys.stderr.write("Couldn't get key pair for identity: {}\n".format(
-                agent_identity))
+            sys.stderr.write("Couldn't get key pair for identity: {}\n".format(agent_identity))
             sys.stderr.write("Call was:\n\tvctl auth keypair\n")
             sys.stderr.write("Output of command: {}".format(e.output))
             sys.stderr.write("Your environment might not be setup correctly!")
@@ -142,21 +138,19 @@ if agent_identity:
         pubkey = json_obj['public']
         try:
             params = [
-                'vctl', 'auth', 'add', '--credentials', "{}".format(pubkey),
-                '--user_id', agent_identity, '--capabilities',
-                "edit_config_store", '--comments',
+                'vctl', 'auth', 'add', '--credentials', "{}".format(pubkey), '--user_id',
+                agent_identity, '--capabilities', "edit_config_store", '--comments',
                 "Added from pycharm-launch.py script."
             ]
+            print(" ".join(params))
             output = subprocess.check_output(params,
                                              env=os.environ.copy(),
                                              universal_newlines=True)
         except subprocess.CalledProcessError as e:
             sys.stderr.write(str(e))
-            sys.stderr.write("Command returned following output: {}".format(
-                e.output))
+            sys.stderr.write("Command returned following output: {}".format(e.output))
             shutil.rmtree(new_dir)
-            sys.stderr.write(
-                "Couldn't authenticate agent id: {}\n".format(agent_identity))
+            sys.stderr.write("Couldn't authenticate agent id: {}\n".format(agent_identity))
             sys.stderr.write("Call was: {}\n".format(params))
             sys.stderr.write("Your environment might not be setup correctly!")
             write_required_statement()

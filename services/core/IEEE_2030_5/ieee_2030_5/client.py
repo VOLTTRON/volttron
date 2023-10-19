@@ -92,8 +92,8 @@ TimerThread.daemon = True
 TimerThread.start()
 
 
-class IEEE_2030_5_Client:
-    clients: set[IEEE_2030_5_Client] = set()
+class IEEE2030_5_Client:
+    clients: set[IEEE2030_5_Client] = set()
 
     # noinspection PyUnresolvedReferences
     def __init__(self,
@@ -177,18 +177,18 @@ class IEEE_2030_5_Client:
 
         self._der_control_event_started_signal = Signal('der-control-event-started')
         self._der_control_event_ended_signal = Signal('der-control-event-ended')
-        
+
         self._default_control_changed = Signal("default-control-changed")
-        
+
         self._dcap_endpoint = device_capabilities_endpoint
-        
+
         self._der_default_control: m.DefaultDERControl = m.DefaultDERControl()
         self._der_active_controls: m.DERControlList = m.DERControlList()
 
         self._config: Dict[str, Any] = {}
         self._lock = Semaphore()
 
-        IEEE_2030_5_Client.clients.add(self)
+        IEEE2030_5_Client.clients.add(self)
 
     def start(self, config: Dict[str, Any]):
         """Starts the client connection to the 2030.5 server configured during construction.
@@ -212,7 +212,7 @@ class IEEE_2030_5_Client:
 
     def der_default_control_changed(self, fun: Callable):
         self._default_control_changed.connect(fun)
-    
+
     def der_control_event_started(self, fun: Callable):
         self._der_control_event_started_signal.connect(fun)
 
@@ -248,7 +248,7 @@ class IEEE_2030_5_Client:
 
     def get_der(self, href: str) -> Optional[m.DER]:
         return self._der.get(href)
-    
+
     def get_der_list(self, href: Optional[str] = None) -> m.DERList:
         if href is None:
             href = self.enddevice.DERListLink.href
@@ -260,29 +260,32 @@ class IEEE_2030_5_Client:
         return resp.status
 
     def put_der_capability(self, new_capability: m.DERCapability) -> int:
-        resp = self.__put__(list(self._der.values())[0].DERCapabilityLink, dataclass_to_xml(new_capability))
+        resp = self.__put__(
+            list(self._der.values())[0].DERCapabilityLink, dataclass_to_xml(new_capability))
         return resp.status
 
     def put_der_settings(self, new_settings: m.DERSettings) -> int:
-        resp = self.__put__(list(self._der.values())[0].DERSettingsLink.href, dataclass_to_xml(new_settings))
+        resp = self.__put__(
+            list(self._der.values())[0].DERSettingsLink.href, dataclass_to_xml(new_settings))
         return resp.status
 
     def put_der_status(self, new_status: m.DERStatus) -> int:
         if not isinstance(new_status.operationalModeStatus, m.OperationalModeStatusType):
-            new_status.operationalModeStatus = m.OperationalModeStatusType(self.server_time,
-                                                                           value=new_status.operationalModeStatus)
-            
-        resp = self.__put__(list(self._der.values())[0].DERStatusLink.href, dataclass_to_xml(new_status))
+            new_status.operationalModeStatus = m.OperationalModeStatusType(
+                self.server_time, value=new_status.operationalModeStatus)
+
+        resp = self.__put__(
+            list(self._der.values())[0].DERStatusLink.href, dataclass_to_xml(new_status))
         return resp.status
-    
+
     def _send_control_events(self, der_program_href: str):
         # Need to check this every 10 seconds for updates to conttrols
         program: m.DERProgram = self.__get_request__(der_program_href)
-        
+
         active: m.DERControlList = self.__get_request__(program.ActiveDERControlListLink.href)
         default = self.__get_request__(program.DefaultDERControlLink.href)
         active_is_different = False
-        
+
         to_add = []
         for newderctl in active.DERControl:
             found = False
@@ -292,14 +295,16 @@ class IEEE_2030_5_Client:
                     if existingctl == newderctl:
                         _log.debug(f"Currently in event {newderctl.mRID}")
                     else:
-                        _log.debug("TODO ->>>>>>>>>>>>>>>>>>>>>>>>>>> Existing mRID should superscede????")
+                        _log.debug(
+                            "TODO ->>>>>>>>>>>>>>>>>>>>>>>>>>> Existing mRID should superscede????"
+                        )
                     break
             if not found:
                 to_add.append(newderctl)
-        
+
         for ctrl in to_add:
             self._der_control_event_started_signal.send(ctrl)
-        
+
         to_remove = []
         for existingctl in self._der_active_controls.DERControl:
             found = False
@@ -309,25 +314,27 @@ class IEEE_2030_5_Client:
                     break
             if not found:
                 to_remove.append(existingctl)
-        
+
         i = len(self._der_active_controls.DERControl)
         while i > 0:
             i -= 1
             if self._der_active_controls.DERControl[i] in to_remove:
                 self._der_control_event_ended_signal.send(self._der_active_controls.DERControl[i])
                 self._der_active_controls.DERControl.pop(i)
-        
+
         self._der_active_controls = active
-        
+
         if default != self._der_default_control:
             self._der_default_control = default
             _log.debug("Default control changed....")
             self._default_control_changed.send(default)
-        
+
         # Poll every 60 if default otherwise use setting in config file.
         refresh_time = self._config.get("default_der_control_poll", 60)
-        self._update_timer_spec("der_control_event", refresh_time, fn=lambda: self._send_control_events(der_program_href))
-        
+        self._update_timer_spec("der_control_event",
+                                refresh_time,
+                                fn=lambda: self._send_control_events(der_program_href))
+
     def _update_dcap_tree(self, endpoint: Optional[str] = None):
         """Retrieve device capability 
 
@@ -365,7 +372,7 @@ class IEEE_2030_5_Client:
 
             self._update_list(dcap.EndDeviceListLink.href, "EndDevice", self._end_device_map,
                               self._end_devices)
-            
+
             for ed in self._end_devices.values():
 
                 if not self.is_end_device_registered(ed, self._pin):
@@ -378,16 +385,16 @@ class IEEE_2030_5_Client:
                     self._der_map[derlist.href] = derlist
                     for index, der in enumerate(derlist.DER):
                         self._der[der.href] = der
-                        
+
                     if derlist.DER[0].CurrentDERProgramLink:
                         self._send_control_events(derlist.DER[0].CurrentDERProgramLink.href)
-                        
+
             for fsa in self._fsa.values():
                 if fsa.DERProgramListLink:
                     self._der_program_map[fsa.DERProgramListLink.href] = self.__get_request__(
                         fsa.DERProgramListLink.href)
                     program = self._der_program_map[fsa.DERProgramListLink.href]
-                    
+
         if dcap.MirrorUsagePointListLink is not None and dcap.MirrorUsagePointListLink.href:
             self._update_list(dcap.MirrorUsagePointListLink.href, "MirrorUsagePoint",
                               self._mirror_usage_point_map, self._mirror_usage_point)
@@ -583,7 +590,7 @@ class IEEE_2030_5_Client:
     def disconnect(self):
         self._disconnect = True
         self._dcap_timer.cancel()
-        IEEE_2030_5_Client.clients.remove(self)
+        IEEE2030_5_Client.clients.remove(self)
 
     def request(self, endpoint: str, body: dict = {}, method: str = "GET", headers: dict = {}):
 
@@ -614,14 +621,14 @@ class IEEE_2030_5_Client:
 
         if self._debug:
             _log_req_resp.debug(f"----> PUT REQUEST\nurl: {url}\nbody: {data}")
-        
+
         try:
             self.http_conn.request(method="PUT", headers=headers, url=url, body=data)
         except http.client.CannotSendRequest as ex:
             self.http_conn.close()
             _log.debug("Reconnecting to server")
             self.http_conn.request(method="PUT", headers=headers, url=url, body=data)
-            
+
         response = self._http_conn.getresponse()
         return response
 
@@ -631,7 +638,7 @@ class IEEE_2030_5_Client:
 
         if self._debug:
             _log_req_resp.debug(f"----> POST REQUEST\nurl: {url}\nbody: {data}")
-        
+
         self.http_conn.request(method="POST", headers=headers, url=url, body=data)
         response = self._http_conn.getresponse()
         response_data = response.read().decode("utf-8")
@@ -681,53 +688,51 @@ class IEEE_2030_5_Client:
 
 # noinspection PyTypeChecker
 def __release_clients__():
-    for x in IEEE_2030_5_Client.clients:
+    for x in IEEE2030_5_Client.clients:
         x.__close__()
-    IEEE_2030_5_Client.clients = None
+    IEEE2030_5_Client.clients = None
 
 
 atexit.register(__release_clients__)
 
+# if __name__ == '__main__':
+#     SERVER_CA_CERT = Path("~/tls/certs/ca.crt").expanduser().resolve()
+#     KEY_FILE = Path("~/tls/private/dev1.pem").expanduser().resolve()
+#     CERT_FILE = Path("~/tls/certs/dev1.crt").expanduser().resolve()
 
+    #     headers = {'Connection': 'Keep-Alive', 'Keep-Alive': "max=1000,timeout=30"}
 
-if __name__ == '__main__':
-    SERVER_CA_CERT = Path("~/tls/certs/ca.crt").expanduser().resolve()
-    KEY_FILE = Path("~/tls/private/dev1.pem").expanduser().resolve()
-    CERT_FILE = Path("~/tls/certs/dev1.crt").expanduser().resolve()
+    #     h = IEEE_2030_5_Client(cafile=SERVER_CA_CERT,
+    #                            server_hostname="127.0.0.1",
+    #                            server_ssl_port=8070,
+    #                            keyfile=KEY_FILE,
+    #                            certfile=CERT_FILE,
+    #                            debug=True)
+    #     # h2 = IEEE2030_5_Client(cafile=SERVER_CA_CERT, server_hostname="me.com", ssl_port=8000,
+    #     #                        keyfile=KEY_FILE, certfile=KEY_FILE)
+    #     dcap = h.device_capability()
+    #     end_devices = h.end_devices()
 
-    headers = {'Connection': 'Keep-Alive', 'Keep-Alive': "max=1000,timeout=30"}
+    #     if not end_devices.all > 0:
+    #         print("registering end device.")
+    #         ed_href = h.register_end_device()
+    #     my_ed = h.end_devices()
 
-    h = IEEE_2030_5_Client(cafile=SERVER_CA_CERT,
-                           server_hostname="127.0.0.1",
-                           server_ssl_port=8070,
-                           keyfile=KEY_FILE,
-                           certfile=CERT_FILE,
-                           debug=True)
-    # h2 = IEEE2030_5_Client(cafile=SERVER_CA_CERT, server_hostname="me.com", ssl_port=8000,
-    #                        keyfile=KEY_FILE, certfile=KEY_FILE)
-    dcap = h.device_capability()
-    end_devices = h.end_devices()
+    #     # ed = h.end_devices()[0]
+    #     # resp = h.request("/dcap", headers=headers)
+    #     # print(resp)
+    #     # resp = h.request("/dcap", headers=headers)
+    #     # print(resp)
+    #     #dcap = h.device_capability()
+    #     # get device list
+    #     #dev_list = h.request(dcap.EndDeviceListLink.href).EndDevice
 
-    if not end_devices.all > 0:
-        print("registering end device.")
-        ed_href = h.register_end_device()
-    my_ed = h.end_devices()
+    #     #ed = h.request(dev_list[0].href)
+    #     #print(ed)
+    #     #
+    #     # print(dcap.mirror_usage_point_list_link)
+    #     # # print(h.request(dcap.mirror_usage_point_list_link.href))
+    #     # print(h.request("/dcap", method="post"))
 
-    # ed = h.end_devices()[0]
-    # resp = h.request("/dcap", headers=headers)
-    # print(resp)
-    # resp = h.request("/dcap", headers=headers)
-    # print(resp)
-    #dcap = h.device_capability()
-    # get device list
-    #dev_list = h.request(dcap.EndDeviceListLink.href).EndDevice
-
-    #ed = h.request(dev_list[0].href)
-    #print(ed)
-    #
-    # print(dcap.mirror_usage_point_list_link)
-    # # print(h.request(dcap.mirror_usage_point_list_link.href))
-    # print(h.request("/dcap", method="post"))
-
-    # tl = h.timelink()
-    #print(IEEE2030_5_Client.clients)
+    #     # tl = h.timelink()
+    #     #print(IEEE2030_5_Client.clients)

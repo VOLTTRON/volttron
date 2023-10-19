@@ -14,10 +14,12 @@ import pandas as pd
 import pvlib
 import yaml
 from volttron.platform.agent.utils import format_timestamp, get_aware_utc_now
-
+from volttron.platform.vip.agent import Agent
+from volttron.platform.vip.agent.subsystems.rpc import RPC
 from volttron.platform.vip.agent.utils import build_agent
 
 _log = logging.getLogger(__name__)
+
 
 class MyInverterAgent(Agent):
 
@@ -33,7 +35,7 @@ class MyInverterAgent(Agent):
     @RPC.export
     def get_point(self, point):
         return self._points.get(point)
-    
+
     def get_all_points(self):
         return self._points.keys()
 
@@ -84,21 +86,22 @@ def run_inverter(timesteps=50, pf=0.99, latitude=32, longitude=-111.0) -> Genera
         # print(
         #     f"p_ac = {p_ac}, s_ac = {s_ac}, q_ac= {q_ac}, PF = {PF}, v_ac = {v_ac}, i_ac = {i_ac}"
         # )
-        results = dict(PF=PF,
-                       INV_REAL_PWR=p_ac,
-                       INV_REAC_PWR=q_ac,
-                       #v_mp=dc['v_mp'],
-                       #p_mp=dc['p_mp'],
-                       #i_x=dc['i_x'],
-                       #i_xx=dc['i_xx'],
-                       #v_oc=dc['v_oc'],
-                       #i_sc=dc['i_sc'],
-                       s_ac=p_ac,
-                       #v_ac=v_ac,
-                       BAT_SOC=int(v_ac/p_ac),
-                       #i_ac=i_ac,
-                       target_p=p_ac,
-                       INV_OP_STATUS_MODE=3)
+        results = dict(
+            PF=PF,
+            INV_REAL_PWR=p_ac,
+            INV_REAC_PWR=q_ac,
+        #v_mp=dc['v_mp'],
+        #p_mp=dc['p_mp'],
+        #i_x=dc['i_x'],
+        #i_xx=dc['i_xx'],
+        #v_oc=dc['v_oc'],
+        #i_sc=dc['i_sc'],
+            s_ac=p_ac,
+        #v_ac=v_ac,
+            BAT_SOC=int(v_ac / p_ac),
+        #i_ac=i_ac,
+            target_p=p_ac,
+            INV_OP_STATUS_MODE=3)
         yield results
         # single phase circuit calculation
 
@@ -186,14 +189,12 @@ def run_inverter(timesteps=50) -> Generator:
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
-    
-    parser.add_argument("output_file", help="File to write to when data arrives on the bus")
-    opts = parser.parse_args()
-    
-    logging.basicConfig(level=logging.DEBUG, 
-                        force=True
-    )
-    
+
+    # parser.add_argument("output_file", help="File to write to when data arrives on the bus")
+    # opts = parser.parse_args()
+
+    logging.basicConfig(level=logging.DEBUG, force=True)
+
     logging.getLogger('volttron.platform.vip.agent.core').setLevel(logging.WARNING)
     logging.getLogger('volttron.platform.vip.agent.core').setLevel(logging.WARNING)
 
@@ -206,7 +207,7 @@ if __name__ == '__main__':
     control_path = Path('inverter.ctl')
 
     from volttron.platform.messaging import headers as t_header
-    
+
     while True:
 
         gen = run_inverter()
@@ -218,13 +219,13 @@ if __name__ == '__main__':
             points = AllPoints()
 
             agent_points = agent.get_all_points()
-            
+
             for k in agent_points:
                 if k in inv:
                     points.add(k, inv[k])
                 else:
                     points.add(k, agent.get_point(k))
-                                         
+
             # Loop over points adding them to the allpoints dataclass if
             # they are specified.  If they have been set on the agent itself
             # then use that value instead of the one from the generator.
@@ -234,22 +235,18 @@ if __name__ == '__main__':
                     points.add(k, pt_set)
                 else:
                     points.add(k, v)
-            
+
             ts = format_timestamp(get_aware_utc_now())
-            headers = {
-                t_header.SYNC_TIMESTAMP: ts,
-                t_header.TIMESTAMP: ts
-            }
-            
-            
+            headers = {t_header.SYNC_TIMESTAMP: ts, t_header.TIMESTAMP: ts}
+
             _log.info(f"Publishing {points.points}")
             # publish
             agent.vip.pubsub.publish(peer="pubsub",
                                      topic=f"{topic_to_publish}",
                                      headers=headers,
                                      message=points.forbus())
-            with open(Path(opts.output_file), '+a') as fp:
-                fp.write(json.dumps(dict(headers=headers, message=points.forbus()))+"\n")
+            # with open(Path(opts.output_file), '+a') as fp:
+            #     fp.write(json.dumps(dict(headers=headers, message=points.forbus())) + "\n")
             gevent.sleep(10)
 
     agent.core.stop()

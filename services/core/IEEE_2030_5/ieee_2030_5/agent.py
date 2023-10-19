@@ -23,8 +23,8 @@ from pprint import pformat
 from typing import Any, Dict, List
 
 import ieee_2030_5.models as m
-from ieee_2030_5 import AllPoints
-from ieee_2030_5.client import IEEE2030_5_Client
+from . import AllPoints
+from .client import IEEE2030_5_Client
 
 try:    # for modular
     from volttron import utils
@@ -163,13 +163,13 @@ class IEEE_2030_5_Agent(Agent):
         }
         self._server_usage_points: m.UsagePointList
 
-        self._client = IEEE_2030_5_Client(cafile=self._cacertfile,
-                                          server_hostname=self._server_hostname,
-                                          keyfile=self._keyfile,
-                                          certfile=self._certfile,
-                                          server_ssl_port=self._server_ssl_port,
-                                          pin=self._pin,
-                                          log_req_resp=self._log_req_resp)
+        self._client = IEEE2030_5_Client(cafile=self._cacertfile,
+                                         server_hostname=self._server_hostname,
+                                         keyfile=self._keyfile,
+                                         certfile=self._certfile,
+                                         server_ssl_port=self._server_ssl_port,
+                                         pin=self._pin,
+                                         log_req_resp=self._log_req_resp)
 
         # Hook events up to the client so that we can send the correct information on to
         # the platform driver.
