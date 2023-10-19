@@ -169,7 +169,7 @@ class Interface(BasicRevert, BaseInterface):
 
 
     def _set_point(self, point_name, value):
-        return self._set_points({"data": {point_name: value}})
+        return self._set_points({point_name: value})
 
 
     def get_point(self, point_name):
