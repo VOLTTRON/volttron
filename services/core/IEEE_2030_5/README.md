@@ -19,19 +19,24 @@ The following diagram illistrates the data flow for the 2030.5 agent from the Pl
     Agent->>PlatformDriverAgent: Publishes Event Controls
 ```
 
-To see this process in action, please try out the [Agent Demo](AGENT_DEMO.md).
+To see this process in action, please try out the [Agent Demo](AGENTDEMO.md).
 
 ## Agent Config File
 
-<details>
-<summary>An example configuration file is at the root of the agent directory (example.config.yml)</summary>
+An example configuration file is at the root of the agent directory (example.config.yml)
 
 ```yaml
 # required parameters
-cacertfile: ~/tls/certs/ca.crt
-keyfile: ~/tls/private/dev1.pem
-certfile: ~/tls/certs/dev1.crt
+# A host ip address or a resolvable dns entry is required for connecting to.
+# The agent will connect to this during the startup of the agent.
 server_hostname: 127.0.0.1
+
+# The client and ca paramenters are required for bi-directional
+# verification of certificates/keys.
+cacertfile: ~/tls/certs/ca.pem
+keyfile: ~/tls/private/dev1.pem
+certfile: ~/tls/certs/dev1.pem
+
 # the pin number is used to verify the server is the correct server
 pin: 111115
 
@@ -40,15 +45,18 @@ log_req_resp: true
 
 # SSL defaults to 443
 server_ssl_port: 8443
-# http port defaults to none
-#server_http_port: 8080
-# Number of seconds to poll for new default der settings.
-default_der_control_poll: 60
 
+# The following is the definition of the MirrorUsagePoints
 MirrorUsagePointList:
   # MirrorMeterReading based on Table E.2 IEEE Std 2030.5-18
   # note the mRID in the MirrorMeterReading is the same that is in the
   #      MirrorUsagePoint.
+  # 
+  # NOTE: The subscription point will be a member of an "all" message from
+  #       the PlatformDriverAgent.
+  #
+  # NOTE: MRID must be hex digits meaning A-F and numeric values only and the
+  #       mRID for the MirrorUsagePoint and MirrorMeterReading are the same.
   - subscription_point: p_ac
     mRID: 5509D69F8B3535950000000000009182
     description: DER Inverter Real Power
@@ -65,6 +73,8 @@ MirrorUsagePointList:
         intervalLength: 300
         powerOfTenMultiplier: 0
         uom: 38
+  # NOTE: The subscription point will be a member of an "all" message from
+  #       the PlatformDriverAgent.
   - subscription_point: q_ac
     mRID: 5509D69F8B3535950000000000009184
     description: DER Inverter Reactive Power
@@ -87,35 +97,7 @@ MirrorUsagePointList:
 # 2030.5 server.
 subscriptions:
   - devices/inverter1/all
-
-# Nameplate ratings for this der client will be put to the
-# server during startup of the system.
-DERCapability:
-  # modesSupported is a HexBinary31 representation of DERControlType
-  # See Figure B.34 DER info types for information
-  # conversion in python is as follows
-  #   "{0:08b}".format(int("500040", 16))
-  #   '10100000000000001000000'  # This is a bitmask
-  # to generate HexBinary
-  #   hex(int('10100000000000001000000', 2))
-  #   0x500040
-  modesSupported: 500040
-  rtgMaxW:
-    multiplier: 0
-    value: 0
-  type: 0
-
-DERSettings:
-  modesEnabled: 100000
-  setGradW: 0
-  setMaxW:
-    multiplier: 0
-    value: 0
-
-# Note this file MUST be in the config store or this agent will not run properly.
-point_map: config:///inverter_sample.csv
 ```
-</details>
 
 ## Agent Installation
 
