@@ -47,15 +47,9 @@ _stderr = sys.stderr
 
 
 def _calc_min_uuid_length(agents):
-    n = 0
-    for agent1 in agents:
-        for agent2 in agents:
-            if agent1 is agent2:
-                continue
-            common_len = len(os.path.commonprefix([agent1.uuid, agent2.uuid]))
-            if common_len > n:
-                n = common_len
-    return n + 1
+    agent_ids = [agent.uuid for agent in agents]
+    common_len = len(os.path.commonprefix(agent_ids))
+    return common_len + 1
 
 
 def _list_agents(aip):
