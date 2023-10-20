@@ -36,11 +36,11 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 import collections
-import itertools
 import sys
 import re
 from volttron.platform import jsonapi
 from volttron.platform.agent.utils import is_secure_mode
+import os
 
 _stdout = sys.stdout
 _stderr = sys.stderr
@@ -48,10 +48,13 @@ _stderr = sys.stderr
 
 def _calc_min_uuid_length(agents):
     n = 0
-    for agent1, agent2 in itertools.combinations(agents, 2):
-        common_len = sum(1 for a, b in zip(agent1.uuid, agent2.uuid) if a == b)
-        if common_len > n:
-            n = common_len
+    for agent1 in agents:
+        for agent2 in agents:
+            if agent1 is agent2:
+                continue
+            common_len = len(os.path.commonprefix([agent1.uuid, agent2.uuid]))
+            if common_len > n:
+                n = common_len
     return n + 1
 
 
