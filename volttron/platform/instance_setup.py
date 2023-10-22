@@ -1011,80 +1011,104 @@ def read_agent_configs_from_store(store_source, path=True):
 def update_configs_in_store(args_dict):
 
     vhome = get_home()
-    try:
-        metadata_dict = load_yml_or_json(args_dict['metadata_file'])
-    except Exception as e:
-        print(f"Invalid metadata file: {args_dict['metadata_file']}: {e}")
-        exit(1)
-    for vip_id in metadata_dict:
-        configs = metadata_dict[vip_id]
-        if isinstance(configs, dict):
-            # only single config for this vip id
-            configs = [configs]
-        if not isinstance(configs, list):
-            print(
-                f"Metadata for vip-identity {vip_id} should be a dictionary or list of dictionary. "
-                f"Got type {type(configs)}")
+    metadata_files = list()
+
+    args_list = args_dict['metadata_file']
+    # validate args
+    for item in args_list:
+        if os.path.isdir(item):
+            for f in os.listdir(item):
+                file_path = os.path.join(item, f)
+                if os.path.isfile(file_path):
+                    metadata_files.append(file_path)
+        elif os.path.isfile(item):
+            metadata_files.append(item)
+        else:
+            print(f"Value is neither a file nor a directory: {args_dict['metadata_file']}: ")
+            print(f"The --metadata-file accepts one or more metadata files or directory containing metadata file")
             _exit_with_metadata_error()
 
-        configs_updated = False
-        agent_store_path = os.path.join(vhome, "configuration_store", vip_id+".store")
-        if os.path.isfile(agent_store_path):
-            # load current store configs as python object for comparison
-            store_configs = read_agent_configs_from_store(agent_store_path)
-        else:
-            store_configs = dict()
+    # Validate each file content and load config
+    for metadata_file in metadata_files:
+        metadata_dict = dict()
+        try:
+            metadata_dict = load_yml_or_json(metadata_file)
+        except Exception as e:
+            print(f"Invalid metadata file: {metadata_file}: {e}")
+            exit(1)
 
-        for config_dict in configs:
-            if not isinstance(config_dict, dict):
-                print(f"Metadata for vip-identity {vip_id} should be a dictionary or list of dictionary. "
-                      f"Got type {type(config_dict)}")
+        for vip_id in metadata_dict:
+            configs = metadata_dict[vip_id]
+            if isinstance(configs, dict):
+                # only single config for this vip id
+                configs = [configs]
+            if not isinstance(configs, list):
+                print(
+                    f"Metadata for vip-identity {vip_id} in file {metadata_file} "
+                    f"should be a dictionary or list of dictionary. "
+                    f"Got type {type(configs)}")
                 _exit_with_metadata_error()
 
-            config_name = config_dict.get("config-name", "config")
-            config_type = config_dict.get("config-type", "json")
-            config = config_dict.get("config")
-            if config is None:
-                print(f"No config entry found for vip-id {vip_id} and config-name {config_name}")
-                _exit_with_metadata_error()
-
-            # If there is config validate it
-            # Check if config is file path
-            if isinstance(config, str) and os.path.isfile(config):
-                raw_data = open(config).read()
-                # try loading it into appropriate python object to validate if file content and config-type match
-                processed_data = process_raw_config(raw_data, config_type)
-            elif isinstance(config, str) and config_type == 'raw':
-                raw_data = config
-                processed_data = config
+            configs_updated = False
+            agent_store_path = os.path.join(vhome, "configuration_store", vip_id+".store")
+            if os.path.isfile(agent_store_path):
+                # load current store configs as python object for comparison
+                store_configs = read_agent_configs_from_store(agent_store_path)
             else:
-                if not isinstance(config, (list, dict)):
-                    processed_data = raw_data = None
-                    print('Value for key "config" should be one of the following: \n'
-                          '1. filepath \n'
-                          '2. string with "config-type" set to "raw" \n'
-                          '3. a dictionary \n'
-                          '4. list ')
+                store_configs = dict()
+
+            for config_dict in configs:
+                if not isinstance(config_dict, dict):
+                    print(f"Metadata for vip-identity {vip_id} in file {metadata_file} "
+                          f"should be a dictionary or list of dictionary. "
+                          f"Got type {type(config_dict)}")
                     _exit_with_metadata_error()
-                else:
+
+                config_name = config_dict.get("config-name", "config")
+                config_type = config_dict.get("config-type", "json")
+                config = config_dict.get("config")
+                if config is None:
+                    print(f"No config entry found in file {metadata_file} for vip-id {vip_id} and "
+                          f"config-name {config_name}")
+                    _exit_with_metadata_error()
+
+                # If there is config validate it
+                # Check if config is file path
+                if isinstance(config, str) and os.path.isfile(config):
+                    raw_data = open(config).read()
+                    # try loading it into appropriate python object to validate if file content and config-type match
+                    processed_data = process_raw_config(raw_data, config_type)
+                elif isinstance(config, str) and config_type == 'raw':
+                    raw_data = config
                     processed_data = config
-                    raw_data = jsonapi.dumps(processed_data)
+                else:
+                    if not isinstance(config, (list, dict)):
+                        processed_data = raw_data = None
+                        print('Value for key "config" should be one of the following: \n'
+                              '1. filepath \n'
+                              '2. string with "config-type" set to "raw" \n'
+                              '3. a dictionary \n'
+                              '4. list ')
+                        _exit_with_metadata_error()
+                    else:
+                        processed_data = config
+                        raw_data = jsonapi.dumps(processed_data)
 
-            current = store_configs.get(config_name)
+                current = store_configs.get(config_name)
 
-            if not current or process_raw_config(current.get('data'), current.get('type')) != processed_data:
-                store_configs[config_name] = dict()
-                store_configs[config_name]['data'] = raw_data
-                store_configs[config_name]['type'] = config_type
-                store_configs[config_name]['modified'] = format_timestamp(get_aware_utc_now())
-                configs_updated = True
+                if not current or process_raw_config(current.get('data'), current.get('type')) != processed_data:
+                    store_configs[config_name] = dict()
+                    store_configs[config_name]['data'] = raw_data
+                    store_configs[config_name]['type'] = config_type
+                    store_configs[config_name]['modified'] = format_timestamp(get_aware_utc_now())
+                    configs_updated = True
 
-        # All configs processed for current vip-id
-        # if there were updates write the new configs to file
-        if configs_updated:
-            os.makedirs(os.path.dirname(agent_store_path), exist_ok=True)
-            with open(agent_store_path, 'w+') as f:
-                json.dump(store_configs, f)
+            # All configs processed for current vip-id
+            # if there were updates write the new configs to file
+            if configs_updated:
+                os.makedirs(os.path.dirname(agent_store_path), exist_ok=True)
+                with open(agent_store_path, 'w+') as f:
+                    json.dump(store_configs, f)
 
 
 def _exit_with_metadata_error():
@@ -1196,8 +1220,9 @@ def main():
     #  vip-id, file with multiple configs etc.
     #config_arg_group = config_store_parser.add_mutually_exclusive_group()
     #meta_group = config_arg_group.add_mutually_exclusive_group()
-    config_store_parser.add_argument('--metadata-file', required=True,
-                                     help='metadata file containing details of vip id, '
+    config_store_parser.add_argument('--metadata-file', required=True, nargs='+',
+                                     help='one or more metadata file or directory containing metadata files, '
+                                          'where each metadata file contain details of vip id, '
                                           'optional config name(defaults to "config"),'
                                           'config content, '
                                           'and optional config type(defaults to json). Format:'
