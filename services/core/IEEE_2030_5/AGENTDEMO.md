@@ -101,6 +101,7 @@ start VOLTTRON in the background writing to a volttron.log file.
     ```bash
     > cd $VOLTTRON_ROOT
     > source env/bin/activate
+    (volttron)> pip install -r requirements_demo.txt
     (volttron)> python services/core/IEEE_2030_5/demo/inverter_runner.py
     ```
 
@@ -112,7 +113,6 @@ start VOLTTRON in the background writing to a volttron.log file.
     > cd $VOLTTRON_ROOT
     > source env/bin/activate
     (volttron)> cd services/core/IEEE_2030_5
-    (volttron)> pip install -r requirements_demo.txt
     ...
     ```
 
@@ -123,7 +123,7 @@ start VOLTTRON in the background writing to a volttron.log file.
     (volttron)> python demo/webgui.py
     ```
 
-## The Demo
+## The Demo ##
 
 The demo starts with local time in the top followed by 2030.5's GMT time as a intenger.  The integer
 is how 2030.5 communicates datetimes within the protocol.  Five tabs are displayable and are
