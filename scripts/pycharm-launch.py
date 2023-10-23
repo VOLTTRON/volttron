@@ -67,7 +67,7 @@ mod_name = mod_name[:-3]
 
 def write_required_statement(out=sys.stderr):
     out.write("""Required Environment Variables
-    AGENT_VIP_IDENTITY - Required 
+    AGENT_VIP_IDENTITY - Required
 Optional Environmental Variables
     AGENT_CONFIG            - Set to <agent directory>/config by default
     VOLTTRON_HOME           - Set to ~/.volttron by default
@@ -113,9 +113,14 @@ for c in agent_identity:
         sys.exit(10)
 
 if agent_identity:
-    new_dir = os.path.join(volttron_home, 'keystores', agent_identity)
-    if not os.path.exists(new_dir):
-        os.makedirs(new_dir)
+    agent_keystore_dir = os.path.join(volttron_home, 'keystores', agent_identity)
+    if os.path.exists(agent_keystore_dir):
+        with open(agent_keystore_dir + '/keystore.json', 'r') as fin:
+            json_obj = jsonapi.loads(fin.read())
+            pubkey = json_obj['public']
+            secret = json_obj['secret']
+    else:
+        os.makedirs(agent_keystore_dir)
         try:
             output = subprocess.check_output(['vctl', 'auth', 'keypair'],
                                              env=os.environ.copy(),
@@ -126,16 +131,17 @@ if agent_identity:
             sys.stderr.write("Call was:\n\tvctl auth keypair\n")
             sys.stderr.write("Output of command: {}".format(e.output))
             sys.stderr.write("Your environment might not be setup correctly!")
-            os.rmdir(new_dir)
+            os.rmdir(agent_keystore_dir)
             write_required_statement()
             sys.exit(20)
         else:
-            keystore_file = os.path.join(new_dir, "keystore.json")
+            keystore_file = os.path.join(agent_keystore_dir, "keystore.json")
             json_obj = jsonapi.loads(output)
             with open(keystore_file, 'w') as fout:
                 fout.write(output)
 
         pubkey = json_obj['public']
+        secret = json_obj['secret']
         try:
             params = [
                 'vctl', 'auth', 'add', '--credentials', "{}".format(pubkey), '--user_id',
@@ -149,13 +155,23 @@ if agent_identity:
         except subprocess.CalledProcessError as e:
             sys.stderr.write(str(e))
             sys.stderr.write("Command returned following output: {}".format(e.output))
-            shutil.rmtree(new_dir)
+            shutil.rmtree(agent_keystore_dir)
             sys.stderr.write("Couldn't authenticate agent id: {}\n".format(agent_identity))
             sys.stderr.write("Call was: {}\n".format(params))
             sys.stderr.write("Your environment might not be setup correctly!")
             write_required_statement()
             sys.exit(20)
 
+if not pubkey or not secret:
+    raise ValueError(f"Missing publickey or secretkey for {agent_identity}")
+
+# Populate the serverkey
+with open(os.path.join(volttron_home, "keystore"), 'r') as fin:
+    json_obj = jsonapi.loads(fin.read())
+    os.environ['VOLTTRON_SERVERKEY'] = json_obj['public']
+
+os.environ['AGENT_PUBLICKEY'] = pubkey
+os.environ['AGENT_SECRETKEY'] = secret
 if not parsed.silence:
     sys.stdout.write("For your information (-s) to not print this message.")
     write_required_statement(sys.stdout)

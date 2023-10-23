@@ -4,7 +4,7 @@ keyfile: ~/tls/private/dev1.pem
 certfile: ~/tls/certs/dev1.crt
 server_hostname: 127.0.0.1
 # the pin number is used to verify the server is the correct server
-pin: 12345
+pin: 111115
 
 # Log the request and responses from the server.
 log_req_resp: true
@@ -18,7 +18,7 @@ default_der_control_poll: 60
 
 MirrorUsagePointList:
   # MirrorMeterReading based on Table E.2 IEEE Std 2030.5-18
-  - subscription_point: p_ac
+  - subscription_point: INV_REAL_PWR
     mRID: 5509D69F8B3535950000000000009182
     description: DER Inverter Real Power
     roleFlags: 49
@@ -34,7 +34,7 @@ MirrorUsagePointList:
         intervalLength: 300
         powerOfTenMultiplier: 0
         uom: 38
-  - subscription_point: q_ac
+  - subscription_point: INV_REAC_PWR
     mRID: 5509D69F8B3535950000000000009184
     description: DER Inverter Reactive Power
     roleFlags: 49
@@ -80,6 +80,6 @@ DERSettings:
   setMaxW:
     multiplier: 0
     value: 0
-    
+
 # Note this file MUST be in the config store or this agent will not run properly.
 point_map: config:///inverter_sample.csv

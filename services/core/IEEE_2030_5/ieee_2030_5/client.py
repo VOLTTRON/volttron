@@ -234,9 +234,9 @@ class IEEE2030_5_Client:
     @property
     def server_time(self) -> TimeType:
         """Returns the time on the server
-        
+
         Uses an offset value from the 2030.5 Time function set to determine the
-        current time on the server.  
+        current time on the server.
 
         :return: A calculated server_time including offset from time endpoint
         :rtype: TimeType
@@ -336,7 +336,7 @@ class IEEE2030_5_Client:
                                 fn=lambda: self._send_control_events(der_program_href))
 
     def _update_dcap_tree(self, endpoint: Optional[str] = None):
-        """Retrieve device capability 
+        """Retrieve device capability
 
         :param endpoint: _description_, defaults to None
         :type endpoint: Optional[str], optional
@@ -361,7 +361,9 @@ class IEEE2030_5_Client:
         if dcap.pollRate is None:
             dcap.pollRate = 900
 
-        self._update_timer_spec("dcap", dcap.pollRate, self._update_dcap_tree)
+        if dcap.EndDeviceListLink is None or dcap.EndDeviceListLink.all == 0:
+            raise ValueError("Couldn't receive end device model from server. "
+                             "Check certificates or server configuration.")
 
         # if time is available then grab and create an offset
         if dcap.TimeLink is not None and dcap.TimeLink.href:
@@ -400,6 +402,7 @@ class IEEE2030_5_Client:
                               self._mirror_usage_point_map, self._mirror_usage_point)
 
         self._dcap = dcap
+        self._update_timer_spec("dcap", dcap.pollRate, self._update_dcap_tree)
 
     def _update_timer_spec(self, spec_name: str, rate: int, fn: Callable, *args, **kwargs):
         ts = self._timer_specs.get(spec_name)
@@ -415,19 +418,19 @@ class IEEE2030_5_Client:
 
     def _update_list(self, path: str, list_prop: str, outer_map: Dict, inner_map: Dict):
         """Update mappings using 2030.5 list nomoclature.
-        
+
         Example structure for EndDeviceListLink
-        
+
             EndDeviceListLink.href points to EndDeviceList.
             EndDeviceList.EndDevice points to a list of EndDevice objects.
-            
+
         Args:
-        
+
             path: Original path of the list (in example EndDeviceListLink.href)
             list_prop: The property on the object that holds a list of elements (in example EndDevice)
             outer_mapping: Mapping where the original list object is stored by href
             inner_mapping: Mapping where the inner objects are stored by href
-        
+
         """
         my_response = self.__get_request__(path)
 
@@ -483,9 +486,9 @@ class IEEE2030_5_Client:
     @property
     def enddevice(self, href: str = "") -> m.EndDevice:
         """Retrieve a client's end device based upon the href of the end device.
-        
+
         Args:
-        
+
             href: If "" then in single client mode and return the only end device available.
         """
         if not href:
@@ -602,13 +605,13 @@ class IEEE2030_5_Client:
 
     def create_mirror_usage_point(self, mirror_usage_point: m.MirrorUsagePoint) -> str:
         """Create a new mirror usage point on the server.
-        
+
         Args:
-        
+
             mirror_usage_point: Minimal type for MirrorUsagePoint
-            
+
         Return:
-        
+
             The location of the new usage point href for posting to.
         """
         data = dataclass_to_xml(mirror_usage_point)

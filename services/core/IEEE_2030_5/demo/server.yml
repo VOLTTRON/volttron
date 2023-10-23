@@ -48,9 +48,7 @@ devices:
       - fsa1
       - fsa2
     ders:
-      - der1
-    programs:
-      - Program 1
+      - description: DER 1
 
   - id: dev2
     device_categories:
@@ -60,40 +58,45 @@ devices:
     fsas:
       - fsa2
     ders:
-      - der2
+      - description: DER 2
 
 
-fsa:
+fsas:
   - description: fsa1
+    programs:
+    - Program 1
   - description: fsa2
     programs:
     - Program 1
-  
+
 
 
 programs:
   - description: Program 1
+    primacy: 0
     DefaultDERControl:
       setESDelay: 30
       setGradW: 1000
-      
+
       DERControlBase:
         opModConnect: true
         opModEnergize: true
-        
-
-ders:
-  - description: der1
-    program: Program 1
-
-  - description: der2
-    program: Program 1
 
 curves:
   - description: Curve 1
-    curveType: opModVoltVar
+    curveType: 11
     CurveData:
-      - xvalue: 5
-        yvalue: 10
-
-
+      - xvalue: 99
+        yvalue: 50
+      - xvalue: 103
+        yvalue: -50
+      - xvalue: 101
+        yvalue: -50
+      - xvalue: 97
+        yvalue: 50
+    rampDecTms: 600
+    rampIncTms: 600
+    rampPT1Tms: 10
+    xMultiplier: 0
+    yMultiplier: 0
+    yRefType: 3

@@ -171,18 +171,22 @@ def run_inverter(timesteps=50) -> Generator:
         i_ac = (s_ac / v_ac) * 1000
         print(
             f"p_ac = {p_ac}, s_ac = {s_ac}, q_ac= {q_ac}, PF = {PF}, v_ac = {v_ac}, i_ac = {i_ac}")
-        yield dict(v_mp=dc['v_mp'],
-                   p_mp=dc['p_mp'],
-                   i_x=dc['i_x'],
-                   i_xx=dc['i_xx'],
-                   v_oc=dc['v_oc'],
-                   i_sc=dc['i_sc'],
-                   p_ac=p_ac,
-                   s_ac=p_ac,
-                   q_ac=q_ac,
-                   v_ac=v_ac,
-                   i_ac=i_ac,
-                   PF=PF)
+        yield dict(INV_REAL_PWR=p_ac,
+                   INV_REAC_PWR=q_ac,
+                   BAT_SOC=int(v_ac / p_ac),
+                   INV_OP_STATUS_MODE=3)
+        # v_mp=dc['v_mp'],
+        #        p_mp=dc['p_mp'],
+        #        i_x=dc['i_x'],
+        #        i_xx=dc['i_xx'],
+        #        v_oc=dc['v_oc'],
+        #        i_sc=dc['i_sc'],
+        #        p_ac=p_ac,
+        #        s_ac=p_ac,
+        #        q_ac=q_ac,
+        #        v_ac=v_ac,
+        #        i_ac=i_ac,
+        #        PF=PF)
         # single phase circuit calculation
 
 

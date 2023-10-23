@@ -74,19 +74,17 @@ from volttron.utils import AbsolutePathFileReloader, VolttronHomeFileReloader
 from volttron.utils.prompt import prompt_response
 
 __all__ = [
-    'load_config', 'run_agent', 'start_agent_thread', 'is_valid_identity',
-    'load_platform_config', 'get_messagebus', 'get_fq_identity',
-    'execute_command', 'get_aware_utc_now', 'is_secure_mode', 'is_web_enabled',
-    'is_auth_enabled', 'wait_for_volttron_shutdown', 'is_volttron_running'
+    'load_config', 'run_agent', 'start_agent_thread', 'is_valid_identity', 'load_platform_config',
+    'get_messagebus', 'get_fq_identity', 'execute_command', 'get_aware_utc_now', 'is_secure_mode',
+    'is_web_enabled', 'is_auth_enabled', 'wait_for_volttron_shutdown', 'is_volttron_running'
 ]
 
 __author__ = 'Brandon Carpenter <brandon.carpenter@pnnl.gov>'
 __copyright__ = 'Copyright (c) 2016, Battelle Memorial Institute'
 __license__ = 'Apache 2.0'
 
-_comment_re = re.compile(
-    r'((["\'])(?:\\?.)*?\2)|(/\*.*?\*/)|((?:#|//).*?(?=\n|$))',
-    re.MULTILINE | re.DOTALL)
+_comment_re = re.compile(r'((["\'])(?:\\?.)*?\2)|(/\*.*?\*/)|((?:#|//).*?(?=\n|$))',
+                         re.MULTILINE | re.DOTALL)
 
 _log = logging.getLogger(__name__)
 
@@ -153,8 +151,7 @@ def load_config(config_path):
 
     if not os.path.exists(config_path):
         raise ValueError(
-            f"Config file specified by AGENT_CONFIG path {config_path} does not exist."
-        )
+            f"Config file specified by AGENT_CONFIG path {config_path} does not exist.")
 
     # First attempt parsing the file with a yaml parser (allows comments natively)
     # Then if that fails we fallback to our modified json parser.
@@ -321,13 +318,13 @@ def store_message_bus_config(message_bus, instance_name):
 def update_kwargs_with_config(kwargs, config):
     """
     Loads the user defined configurations into kwargs.
-     
+
       1. Converts any dash/hyphen in config variables into underscores
-      2. Checks for configured "identity" value. Prints a deprecation 
-      warning and uses it. 
-      3. Checks for configured "agentid" value. Prints a deprecation warning 
+      2. Checks for configured "identity" value. Prints a deprecation
+      warning and uses it.
+      3. Checks for configured "agentid" value. Prints a deprecation warning
       and ignores it
-      
+
     :param kwargs: kwargs to be updated
     :param config: dictionary of user/agent configuration
     """
@@ -336,10 +333,9 @@ def update_kwargs_with_config(kwargs, config):
         _log.warning("DEPRECATION WARNING: Setting a historian's VIP IDENTITY"
                      " from its configuration file will no longer be supported"
                      " after VOLTTRON 4.0")
-        _log.warning(
-            "DEPRECATION WARNING: Using the identity configuration setting "
-            "will override the value provided by the platform. This new value "
-            "will not be reported correctly by 'volttron-ctl status'")
+        _log.warning("DEPRECATION WARNING: Using the identity configuration setting "
+                     "will override the value provided by the platform. This new value "
+                     "will not be reported correctly by 'volttron-ctl status'")
         _log.warning("DEPRECATION WARNING: Please remove 'identity' from your "
                      "configuration file and use the new method provided by "
                      "the platform to set an agent's identity. See "
@@ -361,11 +357,7 @@ def parse_json_config(config_str):
     return jsonapi.loads(strip_comments(config_str))
 
 
-def run_agent(cls,
-              subscribe_address=None,
-              publish_address=None,
-              config_path=None,
-              **kwargs):
+def run_agent(cls, subscribe_address=None, publish_address=None, config_path=None, **kwargs):
     """Instantiate an agent and run it in the current thread.
 
     Attempts to get keyword parameters from the environment if they
@@ -426,8 +418,7 @@ def default_main(agent_class,
             sub_addr = os.environ['AGENT_SUB_ADDR']
             pub_addr = os.environ['AGENT_PUB_ADDR']
         except KeyError as exc:
-            sys.stderr.write('missing environment variable: {}\n'.format(
-                exc.args[0]))
+            sys.stderr.write('missing environment variable: {}\n'.format(exc.args[0]))
             sys.exit(1)
         if sub_addr.startswith('ipc://') and sub_addr[6:7] != '@':
             if not os.path.exists(sub_addr[6:]):
@@ -467,8 +458,29 @@ def vip_main(agent_class, identity=None, version='0.1', **kwargs):
         if identity is not None:
             if not is_valid_identity(identity):
                 _log.warning('Deprecation warining')
-                _log.warning(
-                    f'All characters in {identity} are not in the valid set.')
+                _log.warning(f'All characters in {identity} are not in the valid set.')
+
+        publickey = kwargs.pop("publickey", None)
+        if not publickey:
+            publickey = os.environ.get("AGENT_PUBLICKEY")
+        secretkey = kwargs.pop("secretkey", None)
+        if not secretkey:
+            secretkey = os.environ.get("AGENT_SECRETKEY")
+        serverkey = kwargs.pop("serverkey", None)
+        if not serverkey:
+            serverkey = os.environ.get("VOLTTRON_SERVERKEY")
+
+        # AGENT_PUBLICKEY and AGENT_SECRETKEY must be specified
+        # for the agent to execute successfully.  aip should set these
+        # if the agent is run from the platform.  If run from the
+        # run command it should be set automatically from vctl and
+        # added to the server.
+        #
+        # TODO: Make required for all agents.  Handle it through vctl and aip.
+        if not os.environ.get("_LAUNCHED_BY_PLATFORM"):
+            if not publickey or not secretkey:
+                raise ValueError("AGENT_PUBLIC and AGENT_SECRET environmental variables must "
+                                 "be set to run without the platform.")
 
         address = get_address()
         agent_uuid = os.environ.get('AGENT_UUID')
@@ -483,6 +495,9 @@ def vip_main(agent_class, identity=None, version='0.1', **kwargs):
                             volttron_home=volttron_home,
                             version=version,
                             message_bus=message_bus,
+                            publickey=publickey,
+                            secretkey=secretkey,
+                            serverkey=serverkey,
                             **kwargs)
 
         try:
@@ -513,8 +528,7 @@ if HAS_SYSLOG:
 
         def format(self, record):
             level = self._level_map.get(record.levelno, syslog.LOG_INFO)
-            return '<{}>'.format(level) + super(SyslogFormatter,
-                                                self).format(record)
+            return '<{}>'.format(level) + super(SyslogFormatter, self).format(record)
 
 
 class JsonFormatter(logging.Formatter):
@@ -565,8 +579,7 @@ def setup_logging(level=logging.DEBUG, console=False):
             handler.setFormatter(JsonFormatter())
         elif console:
             # Below format is more readable for console
-            handler.setFormatter(
-                logging.Formatter('%(levelname)s: %(message)s'))
+            handler.setFormatter(logging.Formatter('%(levelname)s: %(message)s'))
         else:
             fmt = '%(asctime)s %(name)s %(lineno)d %(levelname)s: %(message)s'
             handler.setFormatter(logging.Formatter(fmt))
@@ -583,10 +596,10 @@ def setup_logging(level=logging.DEBUG, console=False):
 def format_timestamp(time_stamp):
     """Create a consistent datetime string representation based on
     ISO 8601 format.
-    
+
     YYYY-MM-DDTHH:MM:SS.mmmmmm for unaware datetime objects.
     YYYY-MM-DDTHH:MM:SS.mmmmmm+HH:MM for aware datetime objects
-    
+
     :param time_stamp: value to convert
     :type time_stamp: datetime
     :returns: datetime in string format
@@ -605,9 +618,7 @@ def format_timestamp(time_stamp):
         seconds = td.seconds
         minutes, seconds = divmod(seconds, 60)
         hours, minutes = divmod(minutes, 60)
-        time_str += "{sign}{HH:02}:{MM:02}".format(sign=sign,
-                                                   HH=hours,
-                                                   MM=minutes)
+        time_str += "{sign}{HH:02}:{MM:02}".format(sign=sign, HH=hours, MM=minutes)
 
     return time_str
 
@@ -637,8 +648,7 @@ def parse_timestamp_string(time_stamp_str):
         try:
             base_time_stamp_str = time_stamp_str[:26]
             time_zone_str = time_stamp_str[26:]
-            time_stamp = datetime.strptime(base_time_stamp_str,
-                                           "%Y-%m-%dT%H:%M:%S.%f")
+            time_stamp = datetime.strptime(base_time_stamp_str, "%Y-%m-%dT%H:%M:%S.%f")
             # Handle most common case.
             if time_zone_str == "+00:00":
                 return time_stamp.replace(tzinfo=pytz.UTC)
@@ -660,7 +670,7 @@ def parse_timestamp_string(time_stamp_str):
 
 def get_aware_utc_now():
     """Create a timezone aware UTC datetime object from the system time.
-    
+
     :returns: an aware UTC datetime object
     :rtype: datetime
     """
@@ -708,9 +718,8 @@ def process_timestamp(timestamp_string, topic=''):
     try:
         timestamp = parse_timestamp_string(timestamp_string)
     except (ValueError, TypeError):
-        _log.error(
-            "message for {topic} bad timetamp string: {ts_string}".format(
-                topic=topic, ts_string=timestamp_string))
+        _log.error("message for {topic} bad timetamp string: {ts_string}".format(
+            topic=topic, ts_string=timestamp_string))
         return
 
     if timestamp.tzinfo is None:
@@ -724,13 +733,13 @@ def process_timestamp(timestamp_string, topic=''):
 
 def watch_file(path: str, callback: Callable):
     """Run callback method whenever `path` changes.
-    
+
     If `path` is not rooted the function assumes relative to the $VOLTTRON_HOME
     environmental variable
-    
+
     The watch_file will create a watchdog event handler and will trigger when
     the close event happens for writing to the file.
-    
+
     Not available on OS X/MacOS.
     """
     file_path = Path(path)
@@ -785,8 +794,7 @@ def create_file_if_missing(path, permission=0o660, contents=None):
         success = False
         try:
             if contents:
-                contents = contents if isinstance(
-                    contents, bytes) else contents.encode("utf-8")
+                contents = contents if isinstance(contents, bytes) else contents.encode("utf-8")
                 os.write(fd, contents)
                 success = True
         except Exception as e:
@@ -799,12 +807,12 @@ def create_file_if_missing(path, permission=0o660, contents=None):
 def fix_sqlite3_datetime(sql=None):
     """Primarily for fixing the base historian cache on certain versions
     of python.
-    
+
     Registers a new datetime converter to that uses dateutil parse. This
     should
     better resolve #216, #174, and #91 without the goofy workarounds that
     change data.
-    
+
     Optional sql argument is for testing only.
     """
     if sql is None:
@@ -922,9 +930,7 @@ def wait_for_volttron_startup(vhome, timeout):
         gevent.sleep(3)
         sleep_time += 3
     if sleep_time >= timeout:
-        raise Exception(
-            "Platform startup failed. Please check volttron.log in {}".format(
-                vhome))
+        raise Exception("Platform startup failed. Please check volttron.log in {}".format(vhome))
 
 
 def wait_for_volttron_shutdown(vhome, timeout):
@@ -935,5 +941,4 @@ def wait_for_volttron_shutdown(vhome, timeout):
         sleep_time += 1
     if sleep_time >= timeout:
         raise Exception(
-            "Platform shutdown failed. Please check volttron.cfg.log in {}".
-            format(vhome))
+            "Platform shutdown failed. Please check volttron.cfg.log in {}".format(vhome))

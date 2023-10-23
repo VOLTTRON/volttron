@@ -64,12 +64,12 @@ DEFAULT_DER_CONTROL.DERControlBase = DER_CONTROL_BASE
 @dataclass
 class MappedPoint:
     """The MappedPoint class models the mapping points.
-    
+
     The MappedPoint class allows mapping of points from/to the platform.driver and
     2030.5 objects.
-    
+
     Only points that have point_on_bus and parameter_type will be mapped.
-    
+
     The format of the parameter_type is <object>::<property> where object is one of
     DERSettings, DERCapability, DERControlBase, or DERStatus.  The property must be
     a valid property of the object.
@@ -192,6 +192,9 @@ class IEEE_2030_5_Agent(Agent):
         except ConnectionRefusedError:
             _log.error(f"Could not connect to server {self._server_hostname} agent exiting.")
             sys.exit(1)
+        except ValueError as e:
+            _log.error(e)
+            sys.exit(1)
         _log.info(self._client.enddevice)
         assert self._client.enddevice
         ed = self._client.enddevice
@@ -263,6 +266,8 @@ class IEEE_2030_5_Agent(Agent):
                         self.vip.rpc.call("platform.driver", "set_point", point.point_on_bus,
                                           point_value)
             except TypeError:
+                _log.error(f"Error setting point {point.point_on_bus} to {point_value}")
+            except KeyError:
                 _log.error(f"Error setting point {point.point_on_bus} to {point_value}")
 
         for point in der_base_points:
@@ -439,14 +444,14 @@ class IEEE_2030_5_Agent(Agent):
 
     def _transform_settings(self, points: List[MappedPoint]) -> m.DERSettings:
         """Update a DERSettings object so that it is correctly formatted to send to the server.
-        
+
         The point has a parent_object property that must be a DERSettings object.  Each setting
         that requires a transition from a single element to a complex element is handled here.
-        
+
         :param point: The point that is being updated.
         :return: The updated DERSettings object.
         :rtype: m.DERSettings
-        :raises AssertionError: If the parent_object is not a DERSettings object.        
+        :raises AssertionError: If the parent_object is not a DERSettings object.
         """
         # all of the settings are in the same envelope so we use the same
         # server time for all of them.
@@ -561,14 +566,14 @@ class IEEE_2030_5_Agent(Agent):
 
     def _transform_status(self, points: List[MappedPoint]) -> m.DERStatus:
         """Update a derstatus object so that it is correctly formatted to send to the server.
-        
+
         The point has a parent_object property that must be a DERStatus object.  Each setting
         that requires a transition from a single element to a complex element is handled here.
-        
+
         :param point: The point that is being updated.
         :return: The updated DERStatus object.
         :rtype: m.DERStatus
-        :raises AssertionError: If the parent_object is not a DERStatus object.        
+        :raises AssertionError: If the parent_object is not a DERStatus object.
         """
 
         server_time = self._client.server_time
@@ -618,14 +623,14 @@ class IEEE_2030_5_Agent(Agent):
 
     def _transform_capabilities(self, points: List[MappedPoint]) -> m.DERCapability:
         """Update a DERCapability object so that it is correctly formatted to send to the server.
-        
+
         The point has a parent_object property that must be a DERCapability object.  Each setting
         that requires a transition from a single element to a complex element is handled here.
-        
+
         :param point: The point that is being updated.
         :return: The updated DERCapability object.
         :rtype: m.DERCapability
-        :raises AssertionError: If the parent_object is not a DERCapability object.        
+        :raises AssertionError: If the parent_object is not a DERCapability object.
         """
 
         server_time = self._client.server_time
