@@ -103,7 +103,7 @@ T = TypeVar('T')
 
 class PropertyWrapper:
     """The PropertyWrapper class handles binding on behalf of the parent object.
-    
+
     The class handles the binding from/to and formatting/applying when sending the
     object to the parent.
     """
@@ -169,10 +169,10 @@ class PropertyWrapper:
 
     def should_be_none(self) -> bool:
         """Answers the question whether the parent property should be None.
-        
+
         Loop over the backing object and if any of the fields are not None then
         the answer is False.  Otherwise the answer is True.
-        
+
         :return: True if all fields are None, False otherwise.
         """
         for fld in fields(self.backing_obj):
@@ -191,16 +191,29 @@ def update_sessions():
     client_session.verify = config.ieee_ca
 
 
-def get_from_server(context: str, admin_request=False, deserialize=False):
+def get_from_server(context: str,
+                    admin_request=False,
+                    deserialize=False,
+                    start=None,
+                    after=None,
+                    limit=None):
     if admin_request:
         session = admin_session
     else:
         session = client_session
 
+    params = {}
+    if start is not None:
+        params["s"] = int(start)
+    if after is not None:
+        params["a"] = int(after)
+    if limit is not None:
+        params["l"] = int(limit)
+
     if admin_request:
-        response = session.get(config.ieee_server + f"/admin/{context}")
+        response = session.get(config.ieee_server + f"/admin/{context}", params=params)
     else:
-        response = session.get(config.ieee_server + f"/{context}")
+        response = session.get(config.ieee_server + f"/{context}", params=params)
 
     if deserialize:
         return xml_to_dataclass(response.text)
@@ -547,7 +560,8 @@ def render_der_control_list_tab():
         ui.notify("Refreshed")
 
     control_list: m.DERControlList = get_from_server(program.DERControlListLink.href,
-                                                     deserialize=True)
+                                                     deserialize=True,
+                                                     limit=1000)
 
     #active_list: m.DERControlList = get_from_server(program.ActiveDERControlListLink.href, deserialize=True)
 
