@@ -84,6 +84,7 @@ available_agents = {}
 # Determines if VOLTTRON instance can remain running with vcfg
 use_active = "N"
 
+
 def _load_config():
     """Loads the config file if the path exists."""
     path = os.path.join(get_home(), 'config')
@@ -266,6 +267,7 @@ def _is_agent_installed(tag):
 def installs(agent_dir, tag, identity=None, post_install_func=None):
     def wrap(config_func):
         global available_agents
+
         def func(*args, **kwargs):
             global use_active
             print('Configuring {}.'.format(agent_dir))
@@ -409,7 +411,7 @@ def _create_web_certs():
             prompt = '\tOrganization:'
             cert_data['organization'] = prompt_response(prompt, mandatory=True)
             prompt = '\tOrganization Unit:'
-            cert_data['organization-unit'] = prompt_response(prompt,mandatory=True)
+            cert_data['organization-unit'] = prompt_response(prompt, mandatory=True)
             cert_data['common-name'] = get_platform_instance_name() + '-root-ca'
             data = {'C': cert_data.get('country'),
                     'ST': cert_data.get('state'),
@@ -418,12 +420,13 @@ def _create_web_certs():
                     'OU': cert_data.get('organization-unit'),
                     'CN': cert_data.get('common-name')}
             crts.create_root_ca(overwrite=False, **data)
-            copy(crts.cert_file(crts.root_ca_name),crts.cert_file(crts.trusted_ca_name))
+            copy(crts.cert_file(crts.root_ca_name), crts.cert_file(crts.trusted_ca_name))
         else:
             return 1
     
     print("Creating new web server certificate.")
-    crts.create_signed_cert_files(name=PLATFORM_WEB + "-server", cert_type='server', ca_name=crts.root_ca_name, fqdn=get_hostname())
+    crts.create_signed_cert_files(name=PLATFORM_WEB + "-server", cert_type='server', ca_name=crts.root_ca_name,
+                                  fqdn=get_hostname())
     return 0
 
 
@@ -585,8 +588,7 @@ def do_web_enabled_zmq(vhome):
 
     # Full implies that it will have a port on it as well.  Though if it's
     # not in the address that means that we haven't set it up before.
-    full_bind_web_address = config_opts.get('bind-web-address',
-            'https://' + get_hostname())
+    full_bind_web_address = config_opts.get('bind-web-address', 'https://' + get_hostname())
 
     parsed = urlparse(full_bind_web_address)
 
@@ -705,7 +707,7 @@ def get_cert_and_key(vhome):
         try:
             if certs.Certs.validate_key_pair(platform_web_cert, platform_web_key):
                 print('\nThe following certificate and keyfile exists for web access over https: \n{}\n{}'.format(
-                    platform_web_cert,platform_web_key))
+                    platform_web_cert, platform_web_key))
                 prompt = '\nDo you want to use these certificates for the web server?'
                 if prompt_response(prompt, valid_answers=y_or_n, default='Y') in y:
                     config_opts['web-ssl-cert'] = platform_web_cert
@@ -719,8 +721,6 @@ def get_cert_and_key(vhome):
         except RuntimeError as e:
             print(e)
             pass
-
-
 
     # Either are there no valid existing certs or user decided to overwrite the existing file.
     # Prompt for new files
@@ -760,10 +760,8 @@ def get_cert_and_key(vhome):
         else:
             cert_error = _create_web_certs()
             if not cert_error:
-                platform_web_cert = os.path.join(vhome, 'certificates/certs/',
-                        PLATFORM_WEB+"-server.crt")
-                platform_web_key = os.path.join(vhome, 'certificates/private/',
-                        PLATFORM_WEB + "-server.pem")
+                platform_web_cert = os.path.join(vhome, 'certificates/certs/', PLATFORM_WEB+"-server.crt")
+                platform_web_key = os.path.join(vhome, 'certificates/private/', PLATFORM_WEB + "-server.pem")
                 config_opts['web-ssl-cert'] = platform_web_cert
                 config_opts['web-ssl-key'] = platform_web_key
 
@@ -800,8 +798,7 @@ def do_vcp():
         
     except KeyError:
         vc_address = config_opts.get('volttron-central-address',
-                                     config_opts.get('bind-web-address',
-                                     'https://' + get_hostname()))
+                                     config_opts.get('bind-web-address', 'https://' + get_hostname()))
     if not is_vc:
         parsed = urlparse(vc_address)
         address_only = vc_address
@@ -971,8 +968,7 @@ def wizard():
         prompt = 'Will this instance be controlled by volttron central?'
         response = prompt_response(prompt, valid_answers=y_or_n, default='Y')
         if response in y:
-            if not _check_dependencies_met(
-                "drivers") or not _check_dependencies_met("web"):
+            if not _check_dependencies_met("drivers") or not _check_dependencies_met("web"):
                 print("VCP dependencies not installed. Installing now...")
                 if not _check_dependencies_met("drivers"):
                     set_dependencies("drivers")
@@ -1127,7 +1123,6 @@ Metadata file format:
 
 
 def process_rmq_inputs(args_dict, instance_name=None):
-    #print(f"args_dict:{args_dict}, args")
     if not is_rabbitmq_available():
         raise RuntimeError("Rabbitmq Dependencies not installed please run python bootstrap.py --rabbitmq")
 
@@ -1175,9 +1170,11 @@ def process_rmq_inputs(args_dict, instance_name=None):
         else:
             print("Invalid installation type. Acceptable values single|federation|shovel")
             sys.exit(1)
-        setup_rabbitmq_volttron(args_dict['installation-type'], verbose, instance_name=instance_name, max_retries=args_dict['max_retries'])
+        setup_rabbitmq_volttron(args_dict['installation-type'], verbose, instance_name=instance_name,
+                                max_retries=args_dict['max_retries'])
     else:
-        setup_rabbitmq_volttron(args_dict['installation-type'], verbose, prompt=True, instance_name=instance_name, max_retries=args_dict['max_retries'])
+        setup_rabbitmq_volttron(args_dict['installation-type'], verbose, prompt=True, instance_name=instance_name,
+                                max_retries=args_dict['max_retries'])
 
 
 def main():
@@ -1220,8 +1217,8 @@ def main():
     # start with just a metadata file support.
     # todo - add support vip-id, directory
     #  vip-id, file with multiple configs etc.
-    #config_arg_group = config_store_parser.add_mutually_exclusive_group()
-    #meta_group = config_arg_group.add_mutually_exclusive_group()
+    # config_arg_group = config_store_parser.add_mutually_exclusive_group()
+    # meta_group = config_arg_group.add_mutually_exclusive_group()
     config_store_parser.add_argument('--metadata-file', required=True, nargs='+',
                                      help="""One or more metadata file or directory containing metadata file, 
 where each metadata file contain details of configs for one or more agent instance   
