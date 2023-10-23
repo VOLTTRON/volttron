@@ -47,6 +47,7 @@ from configparser import ConfigParser
 from shutil import copy
 from urllib.parse import urlparse
 import logging
+from argparse import RawTextHelpFormatter
 
 from gevent import subprocess
 from gevent.subprocess import Popen
@@ -1112,15 +1113,16 @@ def update_configs_in_store(args_dict):
 
 
 def _exit_with_metadata_error():
-    print('''Metadata file should be of the format: 
-              { "vip-id": [
-                { 
-                  "config-name": "optional. name. defaults to config",
-                  "config": "json config or config file name", 
-                  "config-type": "optional. type of config. defaults to json"
-                  }, ...
-                  ],...
-              }''')
+    print("""
+Metadata file format:
+{ "vip-id": [
+ { 
+     "config-name": "optional. name. defaults to config
+     "config": "json config or config file name", 
+     "config-type": "optional. type of config. defaults to json"
+ }, ...
+ ],...
+}""")
     exit(1)
 
 
@@ -1212,7 +1214,7 @@ def main():
     group.add_argument('--agent-isolation-mode', action='store_true', dest='agent_isolation_mode',
                        help='Require that agents run with their own users (this requires running '
                             'scripts/secure_user_permissions.sh as sudo)')
-    config_store_parser = subparsers.add_parser("update-config-store",
+    config_store_parser = subparsers.add_parser("update-config-store", formatter_class=RawTextHelpFormatter,
                                                 help="Update one or more config entries for one more agents")
     config_store_parser.set_defaults(config_update=True)
     # start with just a metadata file support.
@@ -1221,20 +1223,17 @@ def main():
     #config_arg_group = config_store_parser.add_mutually_exclusive_group()
     #meta_group = config_arg_group.add_mutually_exclusive_group()
     config_store_parser.add_argument('--metadata-file', required=True, nargs='+',
-                                     help='one or more metadata file or directory containing metadata files, '
-                                          'where each metadata file contain details of vip id, '
-                                          'optional config name(defaults to "config"),'
-                                          'config content, '
-                                          'and optional config type(defaults to json). Format:'
-                                          '\n'
-                                          '{ "vip-id": ['
-                                          '    { '
-                                          '    "config-name": "optional. name. defaults to config'
-                                          '    "config": "json config or config file name", '
-                                          '    "config-type": "optional. type of config. defaults to json"'
-                                          '    }, ...'
-                                          '    ],...'
-                                          '}')
+                                     help="""One or more metadata file or directory containing metadata file, 
+where each metadata file contain details of configs for one or more agent instance   
+Metadata file format:
+{ "vip-id": [
+ { 
+     "config-name": "optional. name. defaults to config
+     "config": "json config or config file name", 
+     "config-type": "optional. type of config. defaults to json"
+ }, ...
+ ],...
+}""")
 
     # single_agent_group = config_arg_group.add_mutually_exclusive_group()
     # single_agent_group.add_argument("--vip-id",
