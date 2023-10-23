@@ -714,8 +714,9 @@ def render_new_der_control_tab():
         response = post_as_admin(program.DERControlListLink.href,
                                  data=dataclass_to_xml(new_control))
 
-        render_der_control_list_tab.refresh()
         ui.notify("New Control Complete")
+        render_der_control_list_tab.refresh()
+        panels.set_value("dercontrollist")
         render_new_der_control_tab.refresh()
 
     def set_date(obj, prop, e):
@@ -839,7 +840,7 @@ with ui.tabs().classes('w-full') as tabs:
     der_status_tab = ui.tab("derstatus", "DER Status")
     #results_tab = ui.tab("results", "Results")
 line_plot = None
-with ui.tab_panels(tabs, value=configuration_tab).classes("w-full"):
+with ui.tab_panels(tabs, value=configuration_tab).classes("w-full") as panels:
     with ui.tab_panel(configuration_tab):
         with ui.row():
             with ui.column():

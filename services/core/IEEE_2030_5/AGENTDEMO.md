@@ -46,7 +46,7 @@ a private repo, but will be released at some time in the future.
 
     ```bash
     (serverenv)> ls -l
-        serverenv
+        serverenv/
         openssl.cnf
         server.yml
     ```
@@ -82,6 +82,13 @@ start VOLTTRON in the background writing to a volttron.log file.
     (volttron)> ./start-volttron
     # Watch the volttron log
     (volttron)> tail -f volttron.log
+    ```
+
+    In another terminal to watch the messages from just the 2030.5 agent.
+
+    ```bash
+    > cd $VOLTTRON_ROOT
+    > tail -f volttron.log | grep ieee_2030_5
     ```
 
 1. Open another terminal to install the 2030.5 agent and add it's property map to the configuration store.
@@ -131,6 +138,9 @@ pictured below:
 
 ![Configuration Tab](./demo/images/configuration.png)
 
+On the default control tab one can specify the default mode for the inverter to run in.  Clicking
+on the save button sends the default control to the server where the agent will then poll and retrieve
+the default value.
 ![DER Default Control](./demo/images/default_control.png)
 
 ![New DER Control](./demo/images/control_entry.png)
