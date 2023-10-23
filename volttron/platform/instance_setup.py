@@ -1118,8 +1118,8 @@ Metadata file format:
 { "vip-id": [
  { 
      "config-name": "optional. name. defaults to config
-     "config": "json config or config file name", 
-     "config-type": "optional. type of config. defaults to json"
+     "config": "json config or string config or config file name", 
+     "config-type": "optional. type of config - csv or json or raw. defaults to json"
  }, ...
  ],...
 }""")
@@ -1229,8 +1229,8 @@ Metadata file format:
 { "vip-id": [
  { 
      "config-name": "optional. name. defaults to config
-     "config": "json config or config file name", 
-     "config-type": "optional. type of config. defaults to json"
+     "config": "json config or string config or config file name", 
+     "config-type": "optional. type of config - csv or json or raw. defaults to json"
  }, ...
  ],...
 }""")
