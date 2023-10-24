@@ -1,8 +1,9 @@
-# required parameters
+# These are required in order for the agent to connect to the server.
 cacertfile: ~/tls/certs/ca.crt
 keyfile: ~/tls/private/dev1.pem
 certfile: ~/tls/certs/dev1.crt
 server_hostname: 127.0.0.1
+
 # the pin number is used to verify the server is the correct server
 pin: 111115
 
@@ -18,7 +19,7 @@ default_der_control_poll: 60
 
 MirrorUsagePointList:
   # MirrorMeterReading based on Table E.2 IEEE Std 2030.5-18
-  - subscription_point: INV_REAL_PWR
+  - device_point: INV_REAL_PWR
     mRID: 5509D69F8B3535950000000000009182
     description: DER Inverter Real Power
     roleFlags: 49
@@ -34,7 +35,7 @@ MirrorUsagePointList:
         intervalLength: 300
         powerOfTenMultiplier: 0
         uom: 38
-  - subscription_point: INV_REAC_PWR
+  - device_point: INV_REAC_PWR
     mRID: 5509D69F8B3535950000000000009184
     description: DER Inverter Reactive Power
     roleFlags: 49
@@ -54,8 +55,7 @@ MirrorUsagePointList:
 # publishes on the following subscriptions will
 # be available to create and POST readings to the
 # 2030.5 server.
-subscriptions:
-  - devices/inverter1/all
+device_topic: devices/inverter1
 
 # Nameplate ratings for this der client will be put to the
 # server during startup of the system.

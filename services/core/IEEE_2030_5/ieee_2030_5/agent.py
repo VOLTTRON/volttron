@@ -145,7 +145,7 @@ class IEEE_2030_5_Agent(Agent):
         self._certfile = Path(config['certfile']).expanduser()
         self._pin = config['pin']
         self._log_req_resp = bool(config.get('log_req_resp', False))
-        self._subscriptions = config["subscriptions"]
+        self._device_topic = config["device_topic"]
         self._server_hostname = config["server_hostname"]
         self._server_ssl_port = config.get("server_ssl_port", 443)
         self._server_http_port = config.get("server_http_port", None)
@@ -156,7 +156,7 @@ class IEEE_2030_5_Agent(Agent):
         #self._point_map = config.get("point_map")
         self._mapped_points: Dict[str, MappedPoint] = {}
         self._default_config = {
-            "subscriptions": self._subscriptions,
+            "device_topic": self._device_topic,
             "MirrorUsagePointList": self._mirror_usage_point_list,
             "point_map": config.get("point_map"),
             "default_der_control_poll": int(config.get('default_der_control_poll', 60))
@@ -263,8 +263,8 @@ class IEEE_2030_5_Agent(Agent):
                         point_value = getattr(point_value, "value")
 
                     if point_value:
-                        self.vip.rpc.call("platform.driver", "set_point", point.point_on_bus,
-                                          point_value)
+                        self.vip.rpc.call("platform.driver", "set_point", self._device_topic,
+                                          point.point_on_bus, point_value)
             except TypeError:
                 _log.error(f"Error setting point {point.point_on_bus} to {point_value}")
             except KeyError:
@@ -379,26 +379,28 @@ class IEEE_2030_5_Agent(Agent):
                     )
 
         try:
-            subscriptions = config['subscriptions']
+            device_topic = config['device_topic']
             new_usage_points: Dict[str, m.MirrorUsagePoint] = {}
 
             for mup in config.get("MirrorUsagePointList", []):
-                subscription_point = mup.pop('subscription_point')
+                device_topic_point = mup.pop('device_point')
                 new_usage_points[mup['mRID']] = m.MirrorUsagePoint(**mup)
                 new_usage_points[mup['mRID']].deviceLFDI = self._client.lfdi
                 new_usage_points[mup['mRID']].MirrorMeterReading = []
                 new_usage_points[mup['mRID']].MirrorMeterReading.append(
                     m.MirrorMeterReading(**mup['MirrorMeterReading']))
-                mup['subscription_point'] = subscription_point
+                mup['device_point'] = device_topic_point
 
         except ValueError as e:
             _log.error("ERROR PROCESSING CONFIGURATION: {}".format(e))
             return
 
-        for sub in self._subscriptions:
-            self.vip.pubsub.unsubscribe(peer="pubsub", prefix=sub, callback=self._data_published)
+        all_message = "/".join([self._device_topic, 'all'])
+        self.vip.pubsub.unsubscribe(peer="pubsub",
+                                    prefix=all_message,
+                                    callback=self._data_published)
 
-        self._subscriptions = subscriptions
+        self._device_topic = device_topic
 
         self._mup_readings.clear()
         self._mirror_usage_points.clear()
@@ -432,8 +434,8 @@ class IEEE_2030_5_Agent(Agent):
 
         self._server_usage_points = self._client.mirror_usage_point_list()
 
-        for sub in self._subscriptions:
-            self.vip.pubsub.subscribe(peer="pubsub", prefix=sub, callback=self._data_published)
+        all_message = "/".join([self._device_topic, 'all'])
+        self.vip.pubsub.subscribe(peer="pubsub", prefix=all_message, callback=self._data_published)
 
     def _cast_multipler(self, value: str) -> int:
         try:
@@ -727,7 +729,7 @@ class IEEE_2030_5_Agent(Agent):
 
     def _data_published(self, peer, sender, bus, topic, headers, message):
         """
-        Callback triggered by the subscription setup using the topic from the agent's config file
+        Callback triggered by the device_topic setup using the topic from the agent's config file
         """
         _log.debug(f"DATA Received from {sender}")
         points = AllPoints.frombus(message)
@@ -761,12 +763,12 @@ class IEEE_2030_5_Agent(Agent):
             mp.reset_changed()
 
         for index, pt in enumerate(self._mirror_usage_point_list):
-            if pt["subscription_point"] in points.points:
+            if pt["device_point"] in points.points:
                 reading_mRID = pt["MirrorMeterReading"]['mRID']
                 reading = self._mup_readings[reading_mRID]
                 for rs_index, rs in enumerate(reading.MirrorReadingSet):
                     rs = reading.MirrorReadingSet[rs_index]
-                    rs.Reading.append(m.Reading(value=points.points[pt["subscription_point"]]))
+                    rs.Reading.append(m.Reading(value=points.points[pt["device_point"]]))
                     start = rs.timePeriod.start
                     if start + self._mup_pollRate < self._client.server_time:
                         self._times_published[reading_mRID] = self._times_published.get(

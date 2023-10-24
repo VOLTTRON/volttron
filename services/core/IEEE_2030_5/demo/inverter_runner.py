@@ -28,16 +28,18 @@ class MyInverterAgent(Agent):
         self._points = {}
 
     @RPC.export
-    def set_point(self, point, value):
-        _log.debug(f"Setting {point} to {value}")
-        self._points[point] = value
+    def set_point(self, path, point_name, value):
+        _log.debug(f"Setting {point_name} to {value}")
+        if path not in self._points:
+            self._points[path] = {}
+        self._points[path].update({point_name: value})
 
     @RPC.export
-    def get_point(self, point):
-        return self._points.get(point)
+    def get_point(self, path, point):
+        return self._points[path].get(point)
 
-    def get_all_points(self):
-        return self._points.keys()
+    def get_all_points(self, path):
+        return self._points[path].keys()
 
     @property
     def reset(self):
@@ -133,9 +135,11 @@ class AllPoints:
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
+    parser.add_argument("--device_topic",
+                        default="devices/inverter1",
+                        help="The inverter will publish to this topic on the bus.")
 
-    # parser.add_argument("output_file", help="File to write to when data arrives on the bus")
-    # opts = parser.parse_args()
+    opts = parser.parse_args()
 
     logging.basicConfig(level=logging.DEBUG, force=True)
 
@@ -146,39 +150,51 @@ if __name__ == '__main__':
 
     # Impersonate the platform driver which is going to publish all messages
     # to the bus.
-    agent = build_agent(identity='platform.driver', agent_class=MyInverterAgent)
+    agent: MyInverterAgent = build_agent(identity='platform.driver', agent_class=MyInverterAgent)
 
     control_path = Path('inverter.ctl')
 
     from volttron.platform.messaging import headers as t_header
 
+    all_topic = opts.device_topic + "/all"
+    device_topic = opts.device_topic
+
     while True:
 
         gen = run_inverter()
 
-        topic_to_publish = "devices/inverter1/all"
+        topic_to_publish = all_topic
         pf = 0.99
 
         for inv in gen:
             points = AllPoints()
 
-            agent_points = agent.get_all_points()
-
-            for k in agent_points:
-                if k in inv:
-                    points.add(k, inv[k])
-                else:
-                    points.add(k, agent.get_point(k))
-
-            # Loop over points adding them to the allpoints dataclass if
-            # they are specified.  If they have been set on the agent itself
-            # then use that value instead of the one from the generator.
             for k, v in inv.items():
-                pt_set = agent.get_point(k)
-                if pt_set is not None:
-                    points.add(k, pt_set)
-                else:
-                    points.add(k, v)
+                agent.set_point(device_topic, k, v)
+                points.add(k, v)
+
+            for k in agent.get_all_points(device_topic):
+                points.add(k, agent.get_point(device_topic, k))
+
+            # for k in agent_points:
+            #     if k in inv:
+            #         points.add(k, inv[k])
+            #     else:
+            #         points.add(k, agent.get_point(device_topic, k))
+            # else:
+            #     for k, v in inv.items():
+            #         agent.set_point(device_topic, k, v)
+            #         points.add(k, v)
+
+            # # Loop over points adding them to the allpoints dataclass if
+            # # they are specified.  If they have been set on the agent itself
+            # # then use that value instead of the one from the generator.
+            # for k, v in inv.items():
+            #     pt_set = agent.get_point(device_topic, k)
+            #     if pt_set is not None:
+            #         points.add(k, pt_set)
+            #     else:
+            #         points.add(k, v)
 
             ts = format_timestamp(get_aware_utc_now())
             headers = {t_header.SYNC_TIMESTAMP: ts, t_header.TIMESTAMP: ts}
@@ -189,8 +205,6 @@ if __name__ == '__main__':
                                      topic=f"{topic_to_publish}",
                                      headers=headers,
                                      message=points.forbus())
-            # with open(Path(opts.output_file), '+a') as fp:
-            #     fp.write(json.dumps(dict(headers=headers, message=points.forbus())) + "\n")
             gevent.sleep(10)
 
     agent.core.stop()
