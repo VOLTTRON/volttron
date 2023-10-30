@@ -351,7 +351,7 @@ def main():
     arg_parser.add_argument("--device_map", dest="device_map",
                             help="load device from the specified file")
 
-    arg_parser.add_argument("--bbmd-map", dest="bbmd_map",
+    arg_parser.add_argument("--bbmd_map", dest="bbmd_map",
                             help="save bbmd map to the specified file")
         
     args = arg_parser.parse_args()
