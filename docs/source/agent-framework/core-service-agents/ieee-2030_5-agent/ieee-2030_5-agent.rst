@@ -11,6 +11,8 @@ FunctionSetAssignments function set to determine the proper DERProgram to run.  
 in default controls and whether one or more DERControl is active and act accordingly.  The agent will listen to
 one or more subscriptions to the VOLTTRON message bus for informatoion (points) to POST/PUT to the 2030.5 server.
 
+The agent code, README and demo are available from `IEEE_2030_5 Agent <https://github.com/craig8/volttron/tree/2030_5_anew/services/core/IEEE_2030_5/>`_.
+
 Configuration
 -------------
 
