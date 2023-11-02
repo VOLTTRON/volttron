@@ -37,6 +37,10 @@ def uuid_2030_5() -> str:
     return str(uuid.uuid4()).replace('-', '').upper()
 
 
+def timestamp_to_string(timestamp: int) -> str:
+    return datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S")
+
+
 def datetime_from_utc_to_local(utc_datetime):
     now_timestamp = time.time()
     offset = datetime.fromtimestamp(now_timestamp) - datetime.utcfromtimestamp(now_timestamp)
@@ -826,6 +830,78 @@ def render_new_der_control_tab():
             ui.button("Sumbit Control", on_click=lambda: submit_new_control())
 
 
+@ui.refreshable
+def render_usage_points_tab():
+
+    def do_refresh():
+        render_usage_points_tab.refresh()
+        ui.notify("Refreshed")
+
+    usage_points: m.UsagePointList = get_from_server(dcap.UsagePointListLink.href,
+                                                     deserialize=True,
+                                                     limit=1000)
+
+    nodes = []
+
+    for upt in usage_points.UsagePoint:
+        upt_node = {'id': upt.href, 'label': upt.href, 'children': []}
+        nodes.append(upt_node)
+        meter_reading: m.MeterReadingList = get_from_server(upt.MeterReadingListLink.href,
+                                                            deserialize=True,
+                                                            limit=1000)
+        for mr in meter_reading.MeterReading:
+            mr_node = {'id': mr.href, 'label': mr.description, 'children': []}
+            upt_node["children"].append(mr_node)
+
+            if mr.ReadingLink is not None and mr.ReadingLink.href is not None:
+                readings_list: m.ReadingList = get_from_server(mr.ReadingLink.href,
+                                                               deserialize=True,
+                                                               limit=20)
+                if len(readings_list.Reading) > 0:
+                    reading_node = {'id': reading.href, 'label': "Readings", 'children': []}
+                    mr_node['children'].append(reading_node)
+                    for reading in readings_list.Reading:
+                        read_node = {'id': reading.href, 'label': reading.href, 'children': []}
+                        reading_node["children"].append(read_node)
+
+            if mr.ReadingSetListLink is not None and mr.ReadingSetListLink.href is not None:
+                readingset_list: m.ReadingSetList = get_from_server(mr.ReadingSetListLink.href,
+                                                                    deserialize=True,
+                                                                    limit=20)
+                reading_node = {'id': readingset_list.href, 'label': 'Readings', 'children': []}
+                mr_node['children'].append(reading_node)
+                for rs in readingset_list.ReadingSet:
+                    if rs.ReadingListLink is not None and rs.ReadingListLink.href is not None:
+                        reading_list: m.ReadingList = get_from_server(rs.ReadingListLink.href,
+                                                                      deserialize=True,
+                                                                      limit=20)
+                        for rdng in reading_list.Reading:
+                            if rdng.timePeriod is not None:
+                                period = rdng.timePeriod
+                            else:
+                                period = rs.timePeriod
+
+                            if period is not None:
+                                period = timestamp_to_string(period.start)
+                            read_node = {
+                                'id': rdng.href,
+                                'label': f"{period} Value: {rdng.value}",
+                                'children': []
+                            }
+                            reading_node["children"].append(read_node)
+
+    with ui.row():
+        with ui.column():
+            with ui.label("Usage Points").style("font-size: 200%;"):
+                ui.button(icon="refresh", color="white",
+                          on_click=lambda: do_refresh()).style("margin:5px; padding: 5px;")
+            ui.label(
+                "Section 10.10 Distributed Energy Resources function set from 20305-2018 IEEE standard."
+            )
+    with ui.row():
+        ui.tree(nodes=nodes)
+
+
 with ui.header():
     current_time_label = ui.label("Current Time")
     ui.timer(
@@ -838,6 +914,7 @@ with ui.tabs().classes('w-full') as tabs:
     new_der_control_tab = ui.tab("newdercontrol", "New DER Control")
     der_control_list_tab = ui.tab("dercontrollist", "DER Control List")
     der_status_tab = ui.tab("derstatus", "DER Status")
+    usage_point_tab = ui.tab("usage_point", "Usage Points")
     #results_tab = ui.tab("results", "Results")
 line_plot = None
 with ui.tab_panels(tabs, value=configuration_tab).classes("w-full") as panels:
@@ -870,6 +947,9 @@ with ui.tab_panels(tabs, value=configuration_tab).classes("w-full") as panels:
 
     with ui.tab_panel(der_status_tab):
         render_der_status_tab()
+
+    with ui.tab_panel(usage_point_tab):
+        render_usage_points_tab()
 
 logging.basicConfig(level=logging.DEBUG)
 
