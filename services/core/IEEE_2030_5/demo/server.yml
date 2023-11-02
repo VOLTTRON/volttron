@@ -26,7 +26,7 @@ generate_admin_cert: True
 
 log_event_list_poll_rate: 60
 device_capability_poll_rate: 60
-usage_point_post_rate: 60
+mirror_usage_point_post_rate: 15
 
 # Reset storage so no memory when server restarts.
 cleanse_storage: true
