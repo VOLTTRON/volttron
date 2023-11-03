@@ -21,11 +21,16 @@ keyword AND and OR, and use the keyword NOT to negate a conditions.
 
 ## Requirements
 
-This historian requires a mongodb connector installed in your activated
-volttron environment to talk to mongodb. Please execute the following
-from an activated shell in order to install it.
+This historian requires:
 
-    pip install pymongo
+1. Mongodb server: Version tested - 7.0.1
+   This agent requires mongodb server installed and running on the system. In addition create a database user and 
+   database that can be used by this agent.
+2. mongodb connector: Tested version - 4.5.0
+   This agent requires a python mongo connected to be installed in your activated volttron environment to talk to 
+   mongodb. Please execute the following from an activated shell in order to install it.
+
+    pip install pymongo==4.5.0
 
 ## Dependencies and Limitations
 

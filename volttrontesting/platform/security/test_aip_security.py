@@ -1,7 +1,7 @@
 import pwd
 import gevent
 import pytest
-
+import os
 from mock import MagicMock
 
 from volttron.platform import is_rabbitmq_available
@@ -18,9 +18,14 @@ pytestmark = pytest.mark.skipif(os.environ.get("CI") is not None,
                                 reason="Can't run on travis as this test needs root to run "
                                        "setup script before running test case")
 
-# Run as root or sudo scripts/secure_user_permissions.sh for both the below instance names before running these tests
-INSTANCE_NAME1 = "volttron1"
-INSTANCE_NAME2 = "volttron2"
+# IMPORTANT steps for running this test
+# 1. Make sure your test environment has acl installed (sudo apt-get install acl)
+# 2. Make sure the python executable is accessible by any user. This would mean read and execute access to all
+# directories in the path. For example if python is in /user/home/env/bin/python, then do chmod r+x to /user,
+# and /user/home, and  /user/home/env/, and /user/home/env/bin  and /user/home/env/bin/python.
+# 3. Run as root or sudo scripts/secure_user_permissions.sh for both the below instance names before running these
+INSTANCE_NAME1 = "svolttron1"
+INSTANCE_NAME2 = "svolttron2"
 
 
 def get_agent_user_from_dir(agent_uuid, home):

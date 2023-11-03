@@ -44,7 +44,7 @@ from collections import OrderedDict
 
 import pymongo
 import re
-from pkg_resources import resource_string, resource_exists
+from pymongo import InsertOne, UpdateOne
 from pymongo.errors import BulkWriteError
 from volttron.platform.agent import utils
 from volttron.platform.agent.base_tagging import BaseTaggingService
@@ -133,9 +133,9 @@ class MongodbTaggingService(BaseTaggingService):
         collections = []
         db = None
         try:
-            db = self._client.get_default_database()
-            collections = db.collection_names(include_system_collections=False)
-            _log.debug(collections)
+            db = self._client.get_database()
+            collections = db.list_collection_names()
+            _log.debug(f"GOT collections as {collections}")
         except Exception as e:
             err_message = "Unable to query list of existing tables from the " \
                           "database. Exception in init of tagging service: {}. " \
@@ -181,6 +181,8 @@ class MongodbTaggingService(BaseTaggingService):
             # _log.debug("status:{}".format(status))
             self.vip.health.send_alert(TAGGING_SERVICE_SETUP_FAILED, status)
             self.core.stop()
+        else:
+            _log.info("Initialization complete")
 
     @doc_inherit
     def load_valid_tags(self):
@@ -210,12 +212,11 @@ class MongodbTaggingService(BaseTaggingService):
             # csv.DictReader uses first line in file for column headings
             # by default
             dr = csv.DictReader(csv_str.splitlines())
-            bulk_tags = db[self.tags_collection].initialize_ordered_bulk_op()
+            inserts = []
             for i in dr:
-                bulk_tags.insert({"_id":i['name'],
-                                  "kind":i['kind'],
-                                  "description":i['description']})
-            bulk_tags.execute()
+                inserts.append(InsertOne(
+                    {"_id": i['name'], "kind": i['kind'], "description": i['description']}))
+            db[self.tags_collection].bulk_write(inserts)
         else:
             raise ValueError(
                 "Unable to load list of reference tags and its parent. No "
@@ -231,17 +232,14 @@ class MongodbTaggingService(BaseTaggingService):
             # csv.DictReader uses first line in file for column headings
             # by default
             dr = csv.DictReader(csv_str.splitlines())
-            bulk_tags = db[
-                self.tag_refs_collection].initialize_ordered_bulk_op()
+            inserts = []
             for i in dr:
-                bulk_tags.insert({"_id":i['tag'],
-                                  "parent":i['parent_tag']})
-            bulk_tags.execute()
+                inserts.append(InsertOne({"_id": i['tag'], "parent": i['parent_tag']}))
+            db[self.tag_refs_collection].bulk_write(inserts)
         else:
             raise ValueError(
                 "Unable to load list of reference tags and its parent. No "
                 "such file: {}".format(file_path))
-
 
     def _init_categories(self, db):
         file_path = self.resource_sub_dir + '/categories.csv'
@@ -250,12 +248,10 @@ class MongodbTaggingService(BaseTaggingService):
             csv_str = content_file.read()
         if csv_str:
             dr = csv.DictReader(csv_str.splitlines())
-            bulk = db[
-                self.categories_collection].initialize_ordered_bulk_op()
+            inserts = []
             for i in dr:
-                bulk.insert({"_id": i['name'],
-                             "description": i['description']})
-            bulk.execute()
+                inserts.append(InsertOne({"_id": i['name'], "description": i['description']}))
+            db[self.categories_collection].bulk_write(inserts)
         else:
             _log.warning("No categories to initialize. No such file " + file_path)
 
@@ -265,7 +261,7 @@ class MongodbTaggingService(BaseTaggingService):
         with open(file_path, 'r') as content_file:
             txt_str = content_file.read()
 
-        bulk_tags = db[self.tags_collection].initialize_ordered_bulk_op()
+        updates = []
         if txt_str:
             current_category = ""
             tags = set()
@@ -283,15 +279,14 @@ class MongodbTaggingService(BaseTaggingService):
                 else:
                     temp= line.split(":")  # ignore description
                     tags.update(re.split(" +", temp[0]))
-            if len(tags)>0:
+            if len(tags) > 0:
                 for tag in tags:
                     mapping[tag].add(current_category)
 
             for tag in mapping.keys():
-                bulk_tags.find({"_id": tag}).update(
-                    {'$set': {"categories": list(mapping[tag])}})
+                updates.append(UpdateOne({"_id": tag}, {'$set': {"categories": list(mapping[tag])}}))
 
-            bulk_tags.execute()
+            db[self.tags_collection].bulk_write(updates)
             db[self.tags_collection].create_index(
                 [('categories', pymongo.ASCENDING)], background=True)
 
@@ -370,7 +365,7 @@ class MongodbTaggingService(BaseTaggingService):
     @doc_inherit
     def insert_topic_tags(self, tags, update_version=False):
         db = self._client.get_default_database()
-        bulk = db[self.topic_tags_collection].initialize_unordered_bulk_op()
+        updates = []
         result = dict()
         result['info'] = dict()
         result['error'] = dict()
@@ -400,9 +395,9 @@ class MongodbTaggingService(BaseTaggingService):
                 temp['_id'] = prefix
                 temp['id'] = prefix
                 execute = True
-                bulk.find({'_id': prefix}).upsert().update_one(
-                    {'$set': temp})
+                updates.append(UpdateOne({'_id': prefix}, {'$set': temp}, upsert=True))
                 result['info'][topic_pattern].append(prefix)
+
             if len(result['info'][topic_pattern]) == 1 and \
                 topic_pattern == result['info'][topic_pattern][0]:
                 # means value sent was actually some pattern so add
@@ -413,7 +408,7 @@ class MongodbTaggingService(BaseTaggingService):
                 result['info'].pop(topic_pattern)
         if execute:
             try:
-                bulk.execute()
+                db[self.topic_tags_collection].bulk_write(updates)
             except BulkWriteError as bwe:
                 errors = bwe.details['writeErrors']
                 _log.error("bwe error count {}".format(len(errors)))

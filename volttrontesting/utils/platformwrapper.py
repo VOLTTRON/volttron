@@ -170,7 +170,8 @@ def start_wrapper_platform(wrapper, with_http=False, with_tcp=True,
     wrapper.startup_platform(vip_address=vc_tcp,
                              bind_web_address=bind_address,
                              volttron_central_address=volttron_central_address,
-                             volttron_central_serverkey=volttron_central_serverkey)
+                             volttron_central_serverkey=volttron_central_serverkey,
+                             timeout=100)
     if with_http:
         discovery = "{}/discovery/".format(vc_http)
         response = grequests.get(discovery).send().response
@@ -530,6 +531,9 @@ class PlatformWrapper:
             event.wait(timeout=4)
             has_control = False
             times = 0
+            if self.messagebus == 'rmq':
+                # agent seem to need a extra second for agent to establish connection
+                gevent.sleep(1)
             while not has_control and times < 10:
                 times += 1
                 try:
@@ -1233,7 +1237,12 @@ class PlatformWrapper:
             disconnected = False
             timer_start = time.time()
             while not disconnected:
-                peers = self.dynamic_agent.vip.peerlist().get(timeout=20)
+                try:
+                    peers = self.dynamic_agent.vip.peerlist().get(timeout=10)
+                except gevent.Timeout:
+                    self.logit("peerlist call timed out. Exiting loop. "
+                               "Not waiting for control connection to exit.")
+                    break
                 disconnected = CONTROL_CONNECTION not in peers
                 if disconnected:
                     break

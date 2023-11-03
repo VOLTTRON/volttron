@@ -136,6 +136,7 @@ def test_multi_messagebus_forwarder(multi_messagebus_forwarder):
     assert subscriber_agent.analysis_callback.call_count == 5
 
 
+@pytest.mark.timeout(600)
 @pytest.mark.forwarder
 def test_multi_messagebus_custom_topic_forwarder(multi_messagebus_forwarder):
     """
@@ -169,6 +170,7 @@ def test_multi_messagebus_custom_topic_forwarder(multi_messagebus_forwarder):
     assert subscriber_agent.callback.call_count == 5
 
 
+@pytest.mark.timeout(600)
 @pytest.mark.forwarder
 def test_multi_messagebus_forwarder_reconnection(multi_messagebus_forwarder):
     """

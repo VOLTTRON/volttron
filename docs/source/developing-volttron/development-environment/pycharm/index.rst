@@ -6,7 +6,7 @@ Pycharm Development Environment
 
 Pycharm is an IDE dedicated to developing python projects. It provides coding
 assistance and easy access to debugging tools as well as integration with
-py.test. It is a popular tool for working with VOLTTRON.
+pytest. It is a popular tool for working with VOLTTRON.
 Jetbrains provides a free community version that can be downloaded from
 https://www.jetbrains.com/pycharm/
 
@@ -98,8 +98,8 @@ top level source directory; git will ignore changes to these files.
 Testing an Agent
 ----------------
 
-Agent tests written in py.test can be run simply by right-clicking the tests
-directory and selecting `Run 'py.test in tests`, so long as the root directory
+Agent tests written in pytest can be run simply by right-clicking the tests
+directory and selecting `Run 'pytest in tests`, so long as the root directory
 is set as the VOLTTRON source root.
 
 |Run Tests|

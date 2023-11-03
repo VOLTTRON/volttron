@@ -88,7 +88,7 @@ class RMQConfig:
             with open(os.path.expanduser("~/.volttron_rmq_home")) as f:
                 self.rabbitmq_server = f.read().strip()
         else:
-            self.rabbitmq_server = os.path.expanduser("~/rabbitmq_server/rabbitmq_server-3.9.7/")
+            self.rabbitmq_server = os.path.expanduser("~/rabbitmq_server/rabbitmq_server-3.9.29/")
 
         assert os.path.isdir(self.rabbitmq_server), "Missing rabbitmq server directory{}".format(self.rabbitmq_server)
         from volttron.platform.auth import certs
@@ -118,7 +118,7 @@ class RMQConfig:
         self.config_opts.setdefault('reconnect-delay', 30)
         self.config_opts.setdefault('user', self.instance_name + '-admin')
         rmq_home = os.path.join(os.path.expanduser("~"),
-                                "rabbitmq_server/rabbitmq_server-3.9.7")
+                                "rabbitmq_server/rabbitmq_server-3.9.29")
         self.config_opts.setdefault('rabbitmq-service', False)
         self.config_opts.setdefault("rmq-home", rmq_home)
 

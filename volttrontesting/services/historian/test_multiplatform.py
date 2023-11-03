@@ -49,16 +49,19 @@ from datetime import datetime
 import gevent
 import pytest
 
-from volttron.platform import get_services_core, jsonapi
+from volttron.platform import get_services_core, jsonapi, is_rabbitmq_available
 from volttron.platform.agent import utils
 from volttron.platform.messaging import headers as headers_mod
 from volttrontesting.fixtures.volttron_platform_fixtures import build_wrapper
+from volttrontesting.skip_if_handlers import rmq_skipif
 from volttrontesting.utils.utils import get_rand_vip, get_hostname_and_random_port
 from volttrontesting.utils.platformwrapper import PlatformWrapper
 from volttrontesting.fixtures.volttron_platform_fixtures import get_rand_vip, \
     get_rand_ip_and_port
-from volttron.utils.rmq_setup import start_rabbit, stop_rabbit
 from volttron.platform.agent.utils import execute_command
+HAS_RMQ = is_rabbitmq_available()
+if HAS_RMQ:
+    from volttron.utils.rmq_setup import start_rabbit, stop_rabbit
 
 
 @pytest.fixture(scope="module")
@@ -239,6 +242,7 @@ def test_all_platform_subscription_zmq(request, get_zmq_volttron_instances):
 
 @pytest.mark.historian
 @pytest.mark.multiplatform
+@pytest.mark.skipif(rmq_skipif, reason="RMQ not installed.")
 def test_all_platform_subscription_rmq(request, federated_rmq_instances):
     try:
         upstream, downstream = federated_rmq_instances

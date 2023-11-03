@@ -83,7 +83,7 @@ Platform agent, SQL historian agent and a Listener agent. The following shows an
     Is this the volttron you are attempting to setup? [Y]:
     What type of message bus (rmq/zmq)? [zmq]: rmq
     Name of this volttron instance: [volttron1]: central
-    RabbitMQ server home: [/home/user/rabbitmq_server/rabbitmq_server-3.9.7]:
+    RabbitMQ server home: [/home/user/rabbitmq_server/rabbitmq_server-3.9.29]:
     Fully qualified domain name of the system: [central]:
     Would you like to create a new self signed root CAcertificate for this instance: [Y]:
 
@@ -95,7 +95,7 @@ Platform agent, SQL historian agent and a Listener agent. The following shows an
         Organization Unit: volttron
     Do you want to use default values for RabbitMQ home, ports, and virtual host: [Y]:
     2020-04-13 13:29:36,347 rmq_setup.py INFO: Starting RabbitMQ server
-    2020-04-13 13:29:46,528 rmq_setup.py INFO: Rmq server at /home/user/rabbitmq_server/rabbitmq_server-3.9.7 is running at
+    2020-04-13 13:29:46,528 rmq_setup.py INFO: Rmq server at /home/user/rabbitmq_server/rabbitmq_server-3.9.29 is running at
     2020-04-13 13:29:46,554 volttron.utils.rmq_mgmt DEBUG: Creating new VIRTUAL HOST: volttron
     2020-04-13 13:29:46,582 volttron.utils.rmq_mgmt DEBUG: Create READ, WRITE and CONFIGURE permissions for the user: central-admin
     Create new exchange: volttron, {'durable': True, 'type': 'topic', 'arguments': {'alternate-exchange': 'undeliverable'}}
@@ -108,7 +108,7 @@ Platform agent, SQL historian agent and a Listener agent. The following shows an
     2020-04-13 13:29:46,601 rmq_setup.py INFO: Creating root ca with the following info: {'C': 'US', 'ST': 'WA', 'L': 'Richland', 'O': 'PNNL', 'OU': 'VOLTTRON', 'CN': 'central-root-ca'}
     Created CA cert
     2020-04-13 13:29:49,668 rmq_setup.py INFO: **Stopped rmq server
-    2020-04-13 13:30:00,556 rmq_setup.py INFO: Rmq server at /home/user/rabbitmq_server/rabbitmq_server-3.9.7 is running at
+    2020-04-13 13:30:00,556 rmq_setup.py INFO: Rmq server at /home/user/rabbitmq_server/rabbitmq_server-3.9.29 is running at
     2020-04-13 13:30:00,557 rmq_setup.py INFO:
 
     #######################
@@ -443,7 +443,7 @@ name is set to "collector2".
     Is this the volttron you are attempting to setup? [Y]:
     What type of message bus (rmq/zmq)? [zmq]: rmq
     Name of this volttron instance: [volttron1]: collector2
-    RabbitMQ server home: [/home/user/rabbitmq_server/rabbitmq_server-3.9.7]:
+    RabbitMQ server home: [/home/user/rabbitmq_server/rabbitmq_server-3.9.29]:
     Fully qualified domain name of the system: [node-rmq]:
     Would you like to create a new self signed root CA certificate for this instance: [Y]:
 
@@ -455,7 +455,7 @@ name is set to "collector2".
         Organization Unit: volttron
     Do you want to use default values for RabbitMQ home, ports, and virtual host: [Y]:
     2020-04-13 13:29:36,347 rmq_setup.py INFO: Starting RabbitMQ server
-    2020-04-13 13:29:46,528 rmq_setup.py INFO: Rmq server at /home/user/rabbitmq_server/rabbitmq_server-3.9.7 is running at
+    2020-04-13 13:29:46,528 rmq_setup.py INFO: Rmq server at /home/user/rabbitmq_server/rabbitmq_server-3.9.29 is running at
     2020-04-13 13:29:46,554 volttron.utils.rmq_mgmt DEBUG: Creating new VIRTUAL HOST: volttron
     2020-04-13 13:29:46,582 volttron.utils.rmq_mgmt DEBUG: Create READ, WRITE and CONFIGURE permissions for the user: collector2-admin
     Create new exchange: volttron, {'durable': True, 'type': 'topic', 'arguments': {'alternate-exchange': 'undeliverable'}}
@@ -468,7 +468,7 @@ name is set to "collector2".
     2020-04-13 13:29:46,601 rmq_setup.py INFO: Creating root ca with the following info: {'C': 'US', 'ST': 'WA', 'L': 'Richland', 'O': 'PNNL', 'OU': 'VOLTTRON', 'CN': 'collector2-root-ca'}
     Created CA cert
     2020-04-13 13:29:49,668 rmq_setup.py INFO: **Stopped rmq server
-    2020-04-13 13:30:00,556 rmq_setup.py INFO: Rmq server at /home/user/rabbitmq_server/rabbitmq_server-3.9.7 is running at
+    2020-04-13 13:30:00,556 rmq_setup.py INFO: Rmq server at /home/user/rabbitmq_server/rabbitmq_server-3.9.29 is running at
     2020-04-13 13:30:00,557 rmq_setup.py INFO:
 
     #######################

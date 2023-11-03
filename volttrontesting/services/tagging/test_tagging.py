@@ -161,7 +161,7 @@ def cleanup_mysql(db_connection, truncate_tables):
 
 def cleanup_mongodb(db_connection, truncate_tables):
     for collection in truncate_tables:
-        db_connection[collection].remove()
+        db_connection[collection].drop()
     print("Finished removing {}".format(truncate_tables))
 
 
@@ -245,7 +245,7 @@ def test_init_failure(volttron_instance, tagging_service, query_agent):
                                          callback=query_agent.callback).get()
         new_config = copy.copy(tagging_service)
         new_config['connection'] = {"params":
-                                        {"host": "localhost",
+                                        {"host": "localhost2",
                                          "port": 27017,
                                          "database": "mongo_test",
                                          "user": "invalid_user",
@@ -259,7 +259,7 @@ def test_init_failure(volttron_instance, tagging_service, query_agent):
             volttron_instance.start_agent(agent_id)
         except:
             pass
-        gevent.sleep(1)
+        gevent.sleep(3)
         print("Call back count {}".format(query_agent.callback.call_count))
         assert query_agent.callback.call_count == 1
         print("Call args {}".format(query_agent.callback.call_args))

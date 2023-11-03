@@ -37,7 +37,7 @@
 # }}}
 
 """
-py.test cases for global override settings.
+pytest cases for global override settings.
 """
 
 import pytest

@@ -265,6 +265,19 @@ while true; do
     fi
 done
 
+# Get full path to python executable
+while true; do
+    echo -n "Enter full path to python used for volttron:"
+    read python_path
+    valid=0
+    version=`$python_path -V`
+    if [ $? -eq 0 ]; then
+        break
+    else
+        echo "Invalid python_path"
+    fi
+done
+
 echo "$volttron_user ALL= NOPASSWD: /usr/sbin/groupadd volttron_$name" | sudo EDITOR='tee -a' visudo -f /etc/sudoers.d/volttron_$name
 echo "$volttron_user ALL= NOPASSWD: /usr/sbin/usermod -a -G volttron_$name $USER" | sudo EDITOR='tee -a' visudo -f /etc/sudoers.d/volttron_$name
 echo "$volttron_user ALL= NOPASSWD: /usr/sbin/useradd volttron_[1-9]* -r -G volttron_$name" | sudo EDITOR='tee -a' visudo -f /etc/sudoers.d/volttron_$name
@@ -273,6 +286,6 @@ echo "$volttron_user ALL= NOPASSWD: $source_dir/scripts/stop_agent_running_in_is
 # TODO want delete only users with pattern of particular group
 echo "$volttron_user ALL= NOPASSWD: /usr/sbin/userdel volttron_[1-9]*" | sudo EDITOR='tee -a' visudo -f /etc/sudoers.d/volttron_$name
 # allow user to run all non-sudo commands for all volttron agent users
-echo "$volttron_user ALL=(%volttron_$name) NOPASSWD: ALL" | sudo EDITOR='tee -a' visudo -f /etc/sudoers.d/volttron_$name
+echo "$volttron_user ALL=(%volttron_$name) NOPASSWD:SETENV: $python_path" | sudo EDITOR='tee -a' visudo -f /etc/sudoers.d/volttron_$name
 echo "Permissions set for $volttron_user"
 echo "Volttron agent isolation mode setup is complete"

@@ -41,13 +41,14 @@ import pint
 import csv
 import sqlite3
 import datetime
+import os
 from functools import wraps
 from abc import abstractmethod
 from gevent import get_hub
 from volttron.platform.agent.utils import fix_sqlite3_datetime, \
     get_aware_utc_now, format_timestamp, process_timestamp, \
     parse_timestamp_string
-from volttron.platform.vip.agent import Agent
+from volttron.platform.vip.agent import Agent, RPC, Core
 from volttron.platform.async_ import AsyncCall
 from volttron.platform.messaging import headers
 from volttron.platform.messaging.health import (STATUS_BAD,

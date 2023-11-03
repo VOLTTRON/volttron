@@ -52,10 +52,10 @@ def test_able_to_register_unregister(multi_messagebus_vc_vcp):
     vcp_instance, vc_instance, vcp_uuid = multi_messagebus_vc_vcp
     if vcp_instance.param['sink'] == 'rmq_web' and vcp_instance.param['source'] != 'rmq':
         pytest.mark.xfail("Combination of rmq<-zmq is not valid")
-        pytest.fail("Combination of rmq<-zmq is not valid")
+        pytest.skip("Combination of rmq<-zmq is not valid")
     elif vcp_instance.param['sink'] == 'zmq_web' and vcp_instance.param['source'] != 'zmq':
         pytest.mark.xfail("Combination of zmq<-rmq does not work")
-        pytest.fail("Combination of rmq<-zmq is not valid")
+        pytest.skip("Combination of zmq<-rmq is not valid")
 
     apitester = APITester(vc_instance)
 

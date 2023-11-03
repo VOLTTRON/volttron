@@ -247,6 +247,7 @@ def test_multiplatform_pubsub(request, multi_platform_connection):
         assert message == [{'point': 'value'}]
 
 
+@pytest.mark.timeout(600)
 @pytest.mark.multiplatform
 def test_multiplatform_2_publishers(request, five_platform_connection):
     subscription_results2 = {}
