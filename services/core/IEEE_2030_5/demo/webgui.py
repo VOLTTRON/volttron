@@ -839,7 +839,7 @@ def render_usage_points_tab():
 
     usage_points: m.UsagePointList = get_from_server(dcap.UsagePointListLink.href,
                                                      deserialize=True,
-                                                     limit=1000)
+                                                     limit=10)
 
     nodes = []
 
@@ -848,7 +848,7 @@ def render_usage_points_tab():
         nodes.append(upt_node)
         meter_reading: m.MeterReadingList = get_from_server(upt.MeterReadingListLink.href,
                                                             deserialize=True,
-                                                            limit=1000)
+                                                            limit=10)
         for mr in meter_reading.MeterReading:
             mr_node = {'id': mr.href, 'label': mr.description, 'children': []}
             upt_node["children"].append(mr_node)
@@ -856,7 +856,7 @@ def render_usage_points_tab():
             if mr.ReadingLink is not None and mr.ReadingLink.href is not None:
                 readings_list: m.ReadingList = get_from_server(mr.ReadingLink.href,
                                                                deserialize=True,
-                                                               limit=20)
+                                                               limit=10)
                 if len(readings_list.Reading) > 0:
                     reading_node = {'id': reading.href, 'label': "Readings", 'children': []}
                     mr_node['children'].append(reading_node)
@@ -867,14 +867,14 @@ def render_usage_points_tab():
             if mr.ReadingSetListLink is not None and mr.ReadingSetListLink.href is not None:
                 readingset_list: m.ReadingSetList = get_from_server(mr.ReadingSetListLink.href,
                                                                     deserialize=True,
-                                                                    limit=20)
+                                                                    limit=10)
                 reading_node = {'id': readingset_list.href, 'label': 'Readings', 'children': []}
                 mr_node['children'].append(reading_node)
                 for rs in readingset_list.ReadingSet:
                     if rs.ReadingListLink is not None and rs.ReadingListLink.href is not None:
                         reading_list: m.ReadingList = get_from_server(rs.ReadingListLink.href,
                                                                       deserialize=True,
-                                                                      limit=20)
+                                                                      limit=10)
                         for rdng in reading_list.Reading:
                             if rdng.timePeriod is not None:
                                 period = rdng.timePeriod
