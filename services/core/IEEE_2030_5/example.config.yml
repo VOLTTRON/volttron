@@ -12,10 +12,9 @@ log_req_resp: true
 
 # SSL defaults to 443
 server_ssl_port: 8443
-# http port defaults to none
-#server_http_port: 8080
+
 # Number of seconds to poll for new default der settings.
-default_der_control_poll: 60
+default_der_control_poll: 10
 
 MirrorUsagePointList:
   # MirrorMeterReading based on Table E.2 IEEE Std 2030.5-18
