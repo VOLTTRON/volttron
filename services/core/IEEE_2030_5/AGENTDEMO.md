@@ -97,7 +97,7 @@ run VOLTTRON in the background and write to a `volttron.log` file.
 1. Install a platform.driver agent
 
     ```bash
-    (volttron)> vctl install service/core/PlatformDriverAgent --start
+    (volttron)> vctl install services/core/PlatformDriverAgent --start
     ```
 
 1. Verify the platform.driver agent is running
@@ -111,22 +111,20 @@ run VOLTTRON in the background and write to a `volttron.log` file.
 1. Add config store files to the platform.driver.
 
     ```bash
-    (volttron)> vctl config store 'platform.driver' 'devices/inverter1' 'demo/devices.inverter1.config'
-    (volttron)> vctl config store 'platform.driver' 'inverter.points.csv' 'demo/inverter.points.csv'
+    (volttron)> vctl config store 'platform.driver' 'devices/inverter1' 'services/core/IEEE_2030_5/demo/devices.inverter1.config'
+    (volttron)> vctl config store 'platform.driver' 'inverter1.points.csv' 'services/core/IEEE_2030_5/demo/inverter1.points.csv' --csv
     ```
 
 1. Add config store entries for the 2030.5 agent.  We will use the identity `ed1`` for the agent.
 
     ```bash
-    (volttron)> vctl config store 'ed1' inverter_sample.csv services/core/IEEE_2030_5/inverter_sample.csv
-    --csv
+    (volttron)> vctl config store 'ed1' inverter_sample.csv services/core/IEEE_2030_5/inverter_sample.csv --csv
     ```
 
 1. Install and start the 2030.5 agent.
 
     ```bash
-    (volttron)> vctl install services/core/IEEE_2030_5/ --vip-identity ed1 --start
-    --agent-config services/core/IEEE_2030_5/example.config.yml
+    (volttron)> vctl install services/core/IEEE_2030_5/ --vip-identity ed1 --start --agent-config services/core/IEEE_2030_5/example.config.yml
     ```
 
 1. Finally start the web based demo. This should open a webpage allowing one
@@ -135,6 +133,7 @@ run VOLTTRON in the background and write to a `volttron.log` file.
 
     ```bash
     (volttron)> cd services/core/IEEE_2030_5
+    (volttron)> pip install -r requirements_demo.txt
     (volttron)> python demo/webgui.py
     ...
     ```
