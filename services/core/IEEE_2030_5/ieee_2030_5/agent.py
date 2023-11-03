@@ -734,6 +734,7 @@ class IEEE_2030_5_Agent(Agent):
         _log.debug(f"DATA Received from {sender}")
         points = AllPoints.frombus(message)
 
+        current_timestamp: datetime = utils.parse_timestamp_string(headers.get('TimeStamp'))
         parent_objects: Dict[type, List[MappedPoint]] = {}
         transforms = {
             m.DERSettings: (self._transform_settings, self._client.put_der_settings),
@@ -768,7 +769,10 @@ class IEEE_2030_5_Agent(Agent):
                 reading = self._mup_readings[reading_mRID]
                 for rs_index, rs in enumerate(reading.MirrorReadingSet):
                     rs = reading.MirrorReadingSet[rs_index]
-                    rs.Reading.append(m.Reading(value=points.points[pt["device_point"]]))
+                    rs.Reading.append(
+                        m.Reading(timePeriod=m.DateTimeInterval(
+                            start=int(current_timestamp.timestamp())),
+                                  value=points.points[pt["device_point"]]))
                     start = rs.timePeriod.start
                     if start + self._mup_pollRate < self._client.server_time:
                         self._times_published[reading_mRID] = self._times_published.get(
